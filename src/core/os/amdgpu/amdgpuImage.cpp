@@ -30,8 +30,6 @@
 #include "core/os/amdgpu/amdgpuWindowSystem.h"
 #include "palFormatInfo.h"
 #include "palSysMemory.h"
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 633
-#endif
 
 using namespace Util;
 
@@ -346,12 +344,8 @@ Result Image::CreatePresentableMemoryObject(
     createInfo.flags.peerWritable = presentableImageCreateInfo.flags.peerWritable;
 
     // If client creates presentable image without swapchain, TMZ state should be determined by PresentableImageCreateInfo.
-    const bool tmzEnable = (presentableImageCreateInfo.pSwapChain == nullptr) ?
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 620
-        presentableImageCreateInfo.flags.tmzProtected
-#else
-        false
-#endif
+    const bool tmzEnable = (presentableImageCreateInfo.pSwapChain == nullptr)
+        ? presentableImageCreateInfo.flags.tmzProtected
         : static_cast<SwapChain*>(presentableImageCreateInfo.pSwapChain)->CreateInfo().flags.tmzProtected;
 
     createInfo.size               = memReqs.size;
@@ -425,7 +419,6 @@ Result Image::GetExternalSharedImageCreateInfo(
         pCreateInfo->swizzledFormat = openInfo.swizzledFormat;
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 645
     // If the width and height passed by pMetadata is not the same as expected, the buffer may still be valid:
     // E.g. Planar YUV images are allocated as a single block of memory and passed in by one handle. We can not
     //      figure out the width and height settled in Metadata points to which plane or maybe it just means the
@@ -448,7 +441,6 @@ Result Image::GetExternalSharedImageCreateInfo(
         }
     }
     else
-#endif
     {
         pCreateInfo->extent.width  = pMetadata->width_in_pixels;
         pCreateInfo->extent.height = pMetadata->height;
@@ -737,9 +729,6 @@ void Image::SetIdle(
         pAmdgpuDevice->DirtyGlobalReferences();
     }
 }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 633
-#endif
 
 } // Linux
 } // Pal

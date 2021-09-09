@@ -85,8 +85,8 @@ static constexpr NBitFloatInfo Float11Info =
     (1 << (5 - 1)) - 1,                                       // expBias
     (1 << (5 - 1)) - 1,                                       // eMax
     -((1 << (5 - 1)) - 1)+1,                                  // eMin
-    ((((1 << (5 - 1)) - 1) + 127) << 23) | 0x7E000,           // maxNormal
-    ((-((1 << (5 - 1)) - 1) + 1) + 127) << 23,                // minNormal
+    ((((1 << (5 - 1)) - 1) + 127) << 23) | 0x7E0000,        // maxNormal
+    ((-((1 << (5 - 1)) - 1) + 1) + 127) << 23,              // minNormal
     (((1U << (5 - 1)) - 1) - 127) << 23,                      // biasDiff
     23 - 6,                                                   // fracBitsDiff
 };
@@ -103,8 +103,8 @@ static constexpr NBitFloatInfo Float10Info =
     (1 << (5 - 1)) - 1,                                       // expBias
     (1 << (5 - 1)) - 1,                                       // eMax
     -((1 << (5 - 1)) - 1)+1,                                  // eMin
-    ((((1 << (5 - 1)) - 1) + 127) << 23) | 0x7C000,           // maxNormal
-    ((-((1 << (5 - 1)) - 1) + 1) + 127) << 23,                // minNormal
+    ((((1 << (5 - 1)) - 1) + 127) << 23) | 0x7C0000,        // maxNormal
+    ((-((1 << (5 - 1)) - 1) + 1) + 127) << 23,              // minNormal
     (((1U << (5 - 1)) - 1) - 127) << 23,                      // biasDiff
     23 - 5,                                                   // fracBitsDiff
 };

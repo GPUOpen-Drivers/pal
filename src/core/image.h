@@ -45,7 +45,7 @@ enum class ImageAspect : uint32;
 // address.
 //
 // The maximum number of address bits which GFXIP 6+ supports is 48. Some parts are limited to 40 bits.
-PAL_INLINE uint32 Get256BAddrLo(
+inline uint32 Get256BAddrLo(
     gpusize virtAddr)
 {
     PAL_ASSERT((virtAddr & 0xff) == 0);
@@ -56,7 +56,7 @@ PAL_INLINE uint32 Get256BAddrLo(
 // address.
 //
 // The maximum number of address bits which GFXIP 6+ supports is 48. Some parts are limited to 40 bits.
-PAL_INLINE uint32 Get256BAddrHi(
+inline uint32 Get256BAddrHi(
     gpusize virtAddr)
 {
     PAL_ASSERT((virtAddr & 0xFF) == 0);
@@ -65,7 +65,7 @@ PAL_INLINE uint32 Get256BAddrHi(
 
 // Shifts and combines the low and high DWORD's of a 256 byte-aligned address to get the original GPU virtual
 // address.
-PAL_INLINE gpusize GetOriginalAddress(
+constexpr gpusize GetOriginalAddress(
     uint32 virtAddr256BLo,
     uint32 virtAddr256BHi)
 {
@@ -76,7 +76,7 @@ PAL_INLINE gpusize GetOriginalAddress(
 // a 32-bit base address.
 //
 // The maximum number of address bits which GFXIP 6+ supports is 48. Some parts are limited to 40 bits.
-PAL_INLINE uint32 Get256BAddrSwizzled(
+inline uint32 Get256BAddrSwizzled(
     gpusize virtAddr,
     uint32  swizzle)
 {
@@ -319,24 +319,13 @@ public:
 
     gpusize GetSubresourceBaseAddrSwizzled(const SubresId& subresource) const;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     // Determine which subresource plane is tied to the specified image aspect.
     uint32 GetPlaneFromAspect(ImageAspect aspect) const;
-#endif
 
     bool IsHwRotated() const { return m_imageInfo.internalCreateInfo.flags.hwRotationEnabled; }
 
     void ValidateSubresRange(const SubresRange& range) const;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    void GetFullSubresourceRange(ImageAspect  aspect, SubresRange* pRange) const;
-#else
     virtual Result GetFullSubresourceRange(SubresRange* pRange) const override;
-#endif
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    // Returns true if the image aspect is valid for this image.
-    bool IsAspectValid(ImageAspect aspect) const;
-#endif
 
     // Returns true if the range covers all of the mips and slices of the image (regardless of planes).
     bool IsRangeFullPlane(const SubresRange&  range) const
@@ -349,11 +338,7 @@ public:
 
     bool IsSubresourceValid(const SubresId& subresource) const
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        return ((IsAspectValid(subresource.aspect)) &&
-#else
         return ((subresource.plane      < m_imageInfo.numPlanes)  &&
-#endif
                 (subresource.mipLevel   < m_createInfo.mipLevels) &&
                 (subresource.arraySlice < m_createInfo.arraySize));
     }
@@ -381,11 +366,9 @@ public:
     bool IsDepthPlane(uint32 plane) const
         { return (HasDepthPlane() && (plane == 0)); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     // Returns whether or not this Image has a depth plane in the specified range.
     bool HasDepthPlane(const SubresRange& range) const
         { return IsDepthPlane(range.startSubres.plane); }
-#endif
 
     // Returns whether or not this Image has stencil data in the specified plane.
     bool IsStencilPlane(uint32 plane) const
@@ -403,11 +386,9 @@ public:
                 (m_createInfo.swizzledFormat.format == ChNumFormat::X8_Uint)));
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     // Returns whether or not this Image has a stencil plane in the specified range.
     bool HasStencilPlane(const SubresRange& range) const
         { return (IsStencilPlane(range.startSubres.plane) || (IsDepthStencilTarget() && (range.numPlanes == 2))); }
-#endif
 
     // Returns whether or not this Image has color data that is not YUV in the specified plane.
     bool IsColorPlane(uint32 plane) const
@@ -462,11 +443,7 @@ public:
     // Return whether or not this Image is tmz protected.
     bool IsTmz() const
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 616
         return (m_createInfo.flags.tmzProtected);
-#else
-        return false;
-#endif
     }
 
     // Returns whether or not this Image had metadata disabled by the client. This does NOT
@@ -516,10 +493,6 @@ public:
     // Calculates the subresource ID based on provided subresource.
     uint32 CalcSubresourceId(const SubresId& subresource) const;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    SubresId GetBaseSubResource() const;
-#endif
-
     // Gets base address of the image
     gpusize GetGpuVirtualAddr() const { return m_vidMem.GpuVirtAddr(); }
 
@@ -548,16 +521,9 @@ public:
 
     void InvalidatePrivateScreen() { m_pPrivateScreen = nullptr; }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    void DetermineFormatAndAspectForPlane(
-        SwizzledFormat* pFormat,
-        ImageAspect*    pAspect,
-        uint32          plane) const;
-#else
     void DetermineFormatForPlane(
         SwizzledFormat* pFormat,
         uint32          plane) const;
-#endif
 
     // Returns whether or not this image prefers CB fixed function resolve
     bool PreferCbResolve() const

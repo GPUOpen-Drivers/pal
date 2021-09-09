@@ -39,7 +39,7 @@ namespace Gfx6
 // =====================================================================================================================
 // On GFXIP 8.x hardware, buffer SRD's which set the ADD_TID_ENABLE bit in word3 changes the meaning of the DATA_FORMAT
 // field to stride bits [17:14] used for scratch offset boundary checks instead of the format.
-static PAL_INLINE void AdjustRingDataFormat(
+static void AdjustRingDataFormat(
     const GpuChipProperties& chipProps,
     BufferSrd*               pSrd)
 {
@@ -51,7 +51,7 @@ static PAL_INLINE void AdjustRingDataFormat(
 
 // =====================================================================================================================
 // Helper function to make sure the scratch wave size (in dwords) doesn't exceed the register's maximum value
-static PAL_INLINE size_t AdjustScratchWaveSize(
+static size_t AdjustScratchWaveSize(
     size_t scratchWaveSize)
 {
     // Clamp scratch wave size to be <= 2M - 256 per register spec requirement. This will ensure that the calculation
@@ -294,8 +294,9 @@ gpusize ScratchRing::ComputeAllocationSize() const
     const gpusize totalLocalMemSize = memProps.localHeapSize + memProps.invisibleHeapSize;
     const gpusize maxScaledSize     = (settings.maxScratchRingScalePct * totalLocalMemSize) / 100;
     const gpusize maxSize           = Max(settings.maxScratchRingSizeBaseline, maxScaledSize);
+    const gpusize allocationSize    = static_cast<gpusize>(m_numMaxWaves) * waveSize * sizeof(uint32);
 
-    return Min(static_cast<gpusize>(m_numMaxWaves * waveSize * sizeof(uint32)), maxSize);
+    return Min(allocationSize, maxSize);
 }
 
 // =====================================================================================================================

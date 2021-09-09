@@ -33,9 +33,7 @@
 #include "palCmdBuffer.h"
 #include "palLinearAllocator.h"
 #include "palPipeline.h"
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 #include "palVector.h"
-#endif
 
 namespace Pal
 {
@@ -146,14 +144,12 @@ public:
         // The optimization works in PAL core level. If any replay layer is enabled, this function should immediately
         // return the original pipe and cache info, and drop the call from propagating to next layer.
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     virtual uint32 CmdRelease(
         const AcquireReleaseInfo& releaseInfo) override;
     virtual void CmdAcquire(
         const AcquireReleaseInfo& acquireInfo,
         uint32                    syncTokenCount,
         const uint32*             pSyncTokens) override;
-#endif
 
     virtual void CmdReleaseEvent(
         const AcquireReleaseInfo& releaseInfo,
@@ -709,10 +705,8 @@ private:
     void ReplayCmdSetColorWriteMask(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetRasterizerDiscardEnable(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdBarrier(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     void ReplayCmdRelease(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdAcquire(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-#endif
     void ReplayCmdReleaseEvent(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdAcquireEvent(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdReleaseThenAcquire(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
@@ -873,11 +867,9 @@ private:
     CmdBufferBuildInfo m_buildInfo;
     TargetCmdBuffer*   m_pLastTgtCmdBuffer;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     // List of release tokens that are used to handle acquire/release interface through this layer's replay mechanism.
     uint32                             m_numReleaseTokens;
     Util::Vector<uint32, 16, Platform> m_releaseTokenList;
-#endif
 
     PAL_DISALLOW_DEFAULT_CTOR(CmdBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(CmdBuffer);

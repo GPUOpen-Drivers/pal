@@ -113,15 +113,15 @@ Result PipelineAbiProcessor<Allocator>::Init()
 
     if (result == Result::Success)
     {
-        m_elfProcessor.SetOsAbi(ElfOsAbiVersion);
+        m_elfProcessor.SetOsAbi(ElfOsAbiAmdgpuPal);
 
-        m_elfProcessor.SetAbiVersion(ElfAbiVersion);
+        m_elfProcessor.SetAbiVersion(ElfAbiVersionAmdgpuPal);
 
         m_elfProcessor.SetObjectFileType(Elf::ObjectFileType::Rel);
         m_elfProcessor.SetTargetMachine(Elf::MachineType::AmdGpu);
 
-        m_metadataMajorVer = PipelineMetadataMajorVersion;
-        m_metadataMinorVer = PipelineMetadataMinorVersion;
+        m_metadataMajorVer = PalAbi::PipelineMetadataMajorVersion;
+        m_metadataMinorVer = PalAbi::PipelineMetadataMinorVersion;
     }
 
     return result;
@@ -450,8 +450,8 @@ Result PipelineAbiProcessor<Allocator>::SetGenericSection(
 // =====================================================================================================================
 template <typename Allocator>
 Result PipelineAbiProcessor<Allocator>::GetMetadata(
-    MsgPackReader*         pReader,
-    PalCodeObjectMetadata* pMetadata
+    MsgPackReader*              pReader,
+    PalAbi::CodeObjectMetadata* pMetadata
     ) const
 {
     Result result = Result::ErrorInvalidPipelineElf;
@@ -462,7 +462,7 @@ Result PipelineAbiProcessor<Allocator>::GetMetadata(
 
         if (m_metadataMajorVer != 0)
         {
-            result = DeserializePalCodeObjectMetadata(pReader, pMetadata, m_pMetadata,
+            result = DeserializeCodeObjectMetadata(pReader, pMetadata, m_pMetadata,
                 static_cast<uint32>(m_metadataSize), m_metadataMajorVer, m_metadataMinorVer);
         }
     }
@@ -945,11 +945,11 @@ Result PipelineAbiProcessor<Allocator>::Finalize(
         {
             codeObjectMetadataWriter.DeclareMap(2);
 
-            codeObjectMetadataWriter.Pack(PalCodeObjectMetadataKey::Version);
+            codeObjectMetadataWriter.Pack(PalAbi::CodeObjectMetadataKey::Version);
             codeObjectMetadataWriter.DeclareArray(2);
             codeObjectMetadataWriter.PackPair(m_metadataMajorVer, m_metadataMinorVer);
 
-            codeObjectMetadataWriter.Pack(PalCodeObjectMetadataKey::Pipelines);
+            codeObjectMetadataWriter.Pack(PalAbi::CodeObjectMetadataKey::Pipelines);
             codeObjectMetadataWriter.DeclareArray(1);
             codeObjectMetadataWriter.DeclareMap(pipelineMetadataWriter.NumItems() / 2);
             result = codeObjectMetadataWriter.Append(pipelineMetadataWriter);
@@ -957,9 +957,9 @@ Result PipelineAbiProcessor<Allocator>::Finalize(
 
         if ((result == Result::Success) &&
             (noteProcessor.Add(MetadataNoteType,
-                                AmdGpuArchName,
-                                codeObjectMetadataWriter.GetBuffer(),
-                                codeObjectMetadataWriter.GetSize()) == UINT_MAX))
+                               AmdGpuArchName,
+                               codeObjectMetadataWriter.GetBuffer(),
+                               codeObjectMetadataWriter.GetSize()) == UINT_MAX))
         {
             result = Result::ErrorOutOfMemory;
         }
@@ -998,12 +998,12 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
     {
         m_flags.u32All = m_elfProcessor.GetFileHeader()->e_flags;
 
-        if ((m_elfProcessor.GetFileHeader()->ei_osabi != ElfOsAbiVersion) ||
+        if ((m_elfProcessor.GetFileHeader()->ei_osabi != ElfOsAbiAmdgpuPal) ||
             (m_elfProcessor.GetTargetMachine()        != Elf::MachineType::AmdGpu))
         {
             result = Result::ErrorInvalidPipelineElf;
         }
-        else if (m_elfProcessor.GetFileHeader()->ei_abiversion != ElfAbiVersion)
+        else if (m_elfProcessor.GetFileHeader()->ei_abiversion != ElfAbiVersionAmdgpuPal)
         {
             result = Result::ErrorUnsupportedPipelineElfAbiVersion;
         }
@@ -1066,8 +1066,8 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
                 m_metadataSize = descSize;
 
                 MsgPackReader reader;
-                result = GetPalMetadataVersion(&reader, pDesc, static_cast<uint32>(descSize),
-                    &m_metadataMajorVer, &m_metadataMinorVer);
+                result = PalAbi::GetPalMetadataVersion(&reader, pDesc, static_cast<uint32>(descSize),
+                         &m_metadataMajorVer, &m_metadataMinorVer);
 
                 break;
             }

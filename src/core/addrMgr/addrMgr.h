@@ -92,22 +92,8 @@ protected:
     // Computes the size (in PRT tiles) of the mip tail for a particular Image plane.
     virtual void ComputeTilesInMipTail(
         const Image&       image,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        ImageAspect        aspect,
-#else
         uint32             plane,
-#endif
         ImageMemoryLayout* pGpuMemLayout) const = 0;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    // Determine the 0-based plane index of a given aspect
-    uint32 PlaneIndex(ImageAspect aspect) const
-    {
-        return ((aspect == ImageAspect::Stencil) ||
-                (aspect == ImageAspect::CbCr) ||
-                (aspect == ImageAspect::Cb)) ? 1 : ((aspect == ImageAspect::Cr) ? 2 : 0);
-    }
-#endif
 
     const Device*const  m_pDevice;
     const GfxIpLevel    m_gfxLevel;

@@ -574,7 +574,7 @@ constexpr uint32 NumNonShadowedRangesGfx8 = static_cast<uint32>(Util::ArrayLen(N
 
 // =====================================================================================================================
 // Helper function which determines if a register address falls within any of the specified register ranges.
-PAL_INLINE bool IsRegisterInRangeList(
+inline bool IsRegisterInRangeList(
     uint32               regAddr,
     const RegisterRange* pRanges,
     uint32               count)
@@ -597,7 +597,7 @@ PAL_INLINE bool IsRegisterInRangeList(
 // =====================================================================================================================
 // Helper function which determines if a range of sequential register addresses fall within any of the specified
 // register ranges.
-PAL_INLINE bool AreRegistersInRangeList(
+inline bool AreRegistersInRangeList(
     uint32               startRegAddr,
     uint32               endRegAddr,
     const RegisterRange* pRanges,

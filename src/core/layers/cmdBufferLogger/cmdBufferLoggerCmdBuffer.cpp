@@ -72,30 +72,6 @@ static const char* GetCmdBufCallIdString(
     return CmdBufCallIdStrings[static_cast<size_t>(id)];
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-// =====================================================================================================================
-static const char* ImageAspectToString(
-    ImageAspect aspect)
-{
-    const char* AspectNames[] =
-    {
-        "Color",
-        "Depth",
-        "Stencil",
-        "Fmask",
-        "Y",
-        "CbCr",
-        "Cb",
-        "Cr",
-        "YCbCr",
-    };
-    static_assert((ArrayLen(AspectNames) == static_cast<size_t>(ImageAspect::Count)), "");
-    const uint32 aspect_idx = static_cast<uint32>(aspect);
-
-    return (aspect_idx < ArrayLen(AspectNames)) ? AspectNames[aspect_idx] : "Invalid";
-}
-#endif
-
 // =====================================================================================================================
 static void SubresIdToString(
     const SubresId& subresId,
@@ -103,13 +79,8 @@ static void SubresIdToString(
 {
     const size_t currentLength = strlen(string);
     Snprintf(&string[0] + currentLength, StringLength - currentLength,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        "{ aspect: %s, mipLevel: 0x%x, arraySlice: 0x%x }",
-        ImageAspectToString(subresId.aspect), subresId.mipLevel, subresId.arraySlice);
-#else
-        "{ plane: 0x%x, mipLevel: 0x%x, arraySlice: 0x%x }",
-        subresId.plane, subresId.mipLevel, subresId.arraySlice);
-#endif
+             "{ plane: 0x%x, mipLevel: 0x%x, arraySlice: 0x%x }",
+             subresId.plane, subresId.mipLevel, subresId.arraySlice);
 }
 
 // =====================================================================================================================
@@ -136,13 +107,8 @@ static void SubresRangeToString(
 
     Snprintf(pString, StringLength, "");
     SubresIdToString(subresRange.startSubres, pString);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    Snprintf(&string[0], StringLength, "{ startSubres: %s, numMips: 0x%x, numSlices: 0x%x }",
-        pString, subresRange.numMips, subresRange.numSlices);
-#else
     Snprintf(&string[0], StringLength, "{ startSubres: %s, numMips: 0x%x, numSlices: 0x%x, numPlanes: 0x%x }",
-        pString, subresRange.numMips, subresRange.numSlices, subresRange.numPlanes);
-#endif
+             pString, subresRange.numMips, subresRange.numSlices, subresRange.numPlanes);
 
     PAL_SAFE_DELETE_ARRAY(pString, &allocator);
 }
@@ -1986,6 +1952,7 @@ static const void AppendCacheCoherencyUsageToString(
         "CoherStreamOut",
         "CoherMemory",
         "CoherSampleRate",
+        "CoherPresent",
     };
 
     bool firstOneDumped = false;
@@ -2378,18 +2345,10 @@ void CmdBuffer::DescribeBarrier(
             const auto& imageInfo = pData->transition.imageInfo.pImage->GetImageCreateInfo();
 
             Snprintf(&pString[0], StringLength,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                "ImageInfo: %ux%u %s - %s",
-#else
-                "ImageInfo: %ux%u %s - plane: 0x%x",
-#endif
-                imageInfo.extent.width, imageInfo.extent.height,
-                FormatToString(imageInfo.swizzledFormat.format),
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                ImageAspectToString(pData->transition.imageInfo.subresRange.startSubres.aspect));
-#else
-                pData->transition.imageInfo.subresRange.startSubres.plane);
-#endif
+                     "ImageInfo: %ux%u %s - plane: 0x%x",
+                     imageInfo.extent.width, imageInfo.extent.height,
+                     FormatToString(imageInfo.swizzledFormat.format),
+                     pData->transition.imageInfo.subresRange.startSubres.plane);
 
             GetNextLayer()->CmdCommentString(pString);
         }
@@ -2813,7 +2772,6 @@ static void ImageBarrierTransitionToString(
     PAL_SAFE_DELETE_ARRAY(pString, &allocator);
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // =====================================================================================================================
 static void CmdReleaseToString(
     CmdBuffer*                pCmdBuffer,
@@ -2863,9 +2821,7 @@ static void CmdReleaseToString(
 
     PAL_SAFE_DELETE_ARRAY(pString, &allocator);
 }
-#endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // =====================================================================================================================
 static void CmdAcquireToString(
     CmdBuffer*                pCmdBuffer,
@@ -2927,7 +2883,6 @@ static void CmdAcquireToString(
 
     PAL_SAFE_DELETE_ARRAY(pString, &allocator);
 }
-#endif
 
 // =====================================================================================================================
 static void CmdAcquireReleaseToString(
@@ -2986,7 +2941,6 @@ static void CmdAcquireReleaseToString(
     PAL_SAFE_DELETE_ARRAY(pString, &allocator);
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // =====================================================================================================================
 uint32 CmdBuffer::CmdRelease(
     const AcquireReleaseInfo& releaseInfo)
@@ -3042,9 +2996,7 @@ uint32 CmdBuffer::CmdRelease(
 
     return syncToken;
 }
-#endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // =====================================================================================================================
 void CmdBuffer::CmdAcquire(
     const AcquireReleaseInfo& acquireInfo,
@@ -3096,7 +3048,6 @@ void CmdBuffer::CmdAcquire(
     PAL_SAFE_DELETE_ARRAY(pImageBarriers, &allocator);
     PAL_SAFE_DELETE_ARRAY(ppNextGpuEvents, &allocator);
 }
-#endif
 
 // =====================================================================================================================
 static void CmdReleaseEventToString(
@@ -3998,11 +3949,7 @@ static void DumpImageResolveRegion(
         Snprintf(pString, StringLength, "Region %u = [", i);
         pNextCmdBuffer->CmdCommentString(pString);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        Snprintf(pString, StringLength, "\t srcAspect  = %s", ImageAspectToString(region.srcAspect));
-#else
         Snprintf(pString, StringLength, "\t srcPlane   = 0x%x", region.srcPlane);
-#endif
         pNextCmdBuffer->CmdCommentString(pString);
 
         Snprintf(pString, StringLength, "\t srcSlice   = 0x%x", region.srcSlice);
@@ -4013,11 +3960,7 @@ static void DumpImageResolveRegion(
         pNextCmdBuffer->CmdCommentString(pString);
         pNextCmdBuffer->CmdCommentString(pString);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        Snprintf(pString, StringLength, "\t dstAspect  = %s", ImageAspectToString(region.dstAspect));
-#else
         Snprintf(pString, StringLength, "\t dstPlane   = 0x%x", region.dstPlane);
-#endif
         pNextCmdBuffer->CmdCommentString(pString);
 
         Snprintf(pString, StringLength, "\t dstSlice   = 0x%x", region.dstSlice);

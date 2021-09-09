@@ -334,10 +334,6 @@ enum class ChNumFormat : Util::uint32
                                         ///  only in the horizontal direction, but still by a factor of 2 so the UV plane
                                         ///  ends up having the same number of lines as the Y plane.
     Count,
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 601
-    P8_Uint                  = P8_Unorm,///< Alias name of P8_Unorm.
-#endif
 };
 
 /// Specifies which channel of a resource should be mapped to a particular component of an image view.

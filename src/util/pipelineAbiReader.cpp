@@ -45,9 +45,9 @@ Result PipelineAbiReader::Init()
 {
     Result result = Result::Success;
 
-    if ((m_elfReader.GetHeader().ei_osabi != ElfOsAbiVersion) ||
+    if ((m_elfReader.GetHeader().ei_osabi != ElfOsAbiAmdgpuPal) ||
         (m_elfReader.GetTargetMachine() != Elf::MachineType::AmdGpu) ||
-        (m_elfReader.GetHeader().ei_abiversion != ElfAbiVersion))
+        (m_elfReader.GetHeader().ei_abiversion != ElfAbiVersionAmdgpuPal))
     {
         result = Result::ErrorInvalidPipelineElf;
     }
@@ -104,14 +104,14 @@ Result PipelineAbiReader::Init()
 
 // =====================================================================================================================
 Result PipelineAbiReader::GetMetadata(
-    MsgPackReader*         pReader,
-    PalCodeObjectMetadata* pMetadata
+    MsgPackReader*              pReader,
+    PalAbi::CodeObjectMetadata* pMetadata
     ) const
 {
     Result result = Result::Success;
     bool foundMetadata = false;
 
-    memset(pMetadata, 0, sizeof(PalCodeObjectMetadata));
+    memset(pMetadata, 0, sizeof(PalAbi::CodeObjectMetadata));
 
     for (ElfReader::SectionId sectionIndex = 0; sectionIndex < m_elfReader.GetNumSections(); sectionIndex++)
     {
@@ -142,7 +142,7 @@ Result PipelineAbiReader::GetMetadata(
                 pRawMetadata = pDesc;
                 metadataSize = descSize;
 
-                result = GetPalMetadataVersion(pReader, pDesc, descSize, &metadataMajorVer, &metadataMinorVer);
+                result = PalAbi::GetPalMetadataVersion(pReader, pDesc, descSize, &metadataMajorVer, &metadataMinorVer);
 
                 break;
             }
@@ -156,8 +156,7 @@ Result PipelineAbiReader::GetMetadata(
         {
             break;
         }
-
-        result = DeserializePalCodeObjectMetadata(pReader, pMetadata, pRawMetadata, metadataSize,
+        result = PalAbi::DeserializeCodeObjectMetadata(pReader, pMetadata, pRawMetadata, metadataSize,
             metadataMajorVer, metadataMinorVer);
         foundMetadata = true;
 

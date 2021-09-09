@@ -276,9 +276,7 @@ void MlaaUtil<Allocator>::BuildImageViewInfo(
     pInfo->pImage   = pImage;
     pInfo->viewType = static_cast<Pal::ImageViewType>(imageType);
     pInfo->subresRange.startSubres = subresId;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     pInfo->subresRange.numPlanes   = 1;
-#endif
     pInfo->subresRange.numMips     = 1;
     pInfo->subresRange.numSlices   = 1;
     pInfo->swizzledFormat          = pImage->GetImageCreateInfo().swizzledFormat;

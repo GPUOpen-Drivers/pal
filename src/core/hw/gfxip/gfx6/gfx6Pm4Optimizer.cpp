@@ -68,7 +68,8 @@ Pm4Optimizer::Pm4Optimizer(
     m_cmdUtil(device.CmdUtil()),
     m_chipFamily(device.Parent()->ChipProperties().gfxLevel),
     m_waShaderSpiWriteShaderPgmRsrc2Ls(device.WaShaderSpiWriteShaderPgmRsrc2Ls()),
-    m_waTcCompatZRange(device.WaTcCompatZRange())
+    m_waTcCompatZRange(device.WaTcCompatZRange()),
+    m_splitPackets(device.CoreSettings().cmdBufOptimizePm4Split)
 #if PAL_ENABLE_PRINTS_ASSERTS
     , m_dstContainsSrc(false)
 #endif
@@ -323,12 +324,13 @@ uint32* Pm4Optimizer::OptimizePm4SetReg(
         {
             // A clause of optimized registers starts with a non-skipped register and continues until either 1) there is a
             // big enough gap in the non-skipped registers that we can start a new clause, or 2) the source packet ends.
+            // When splitting is disabled, no gap is considered 'big enough'.
             //
             // The "big enough" gap size is set to the size of a SET_DATA command (two DWORDs). This prevents us from
             // using more command space than an unoptimized command while conceeding that in some cases we may write
             // redundant registers. The difference between clauseEndIdx and curRegIdx will be one greater than the gap size
             // so we need to add one to the constant below.
-            constexpr uint32 MinClauseIdxGap = PM4_CMD_SET_DATA_DWORDS + 1;
+            const uint32 minClauseIdxGap = m_splitPackets ? (PM4_CMD_SET_DATA_DWORDS + 1) : UINT32_MAX;
 
             // Since the keepRegCount is non-zero we must have at least one bit set, find it and use it to start a clause.
             uint32 curRegIdx = 0;
@@ -346,7 +348,7 @@ uint32* Pm4Optimizer::OptimizePm4SetReg(
                 foundNewIdx = BitMaskScanForward(&curRegIdx, keepRegMask);
 
                 // Check our end-of-clause conditions as stated above.
-                if ((foundNewIdx == false) || (curRegIdx - clauseEndIdx >= MinClauseIdxGap))
+                if ((foundNewIdx == false) || (curRegIdx - clauseEndIdx >= minClauseIdxGap))
                 {
                     const uint32 clauseRegCount = clauseEndIdx - clauseStartIdx + 1;
 

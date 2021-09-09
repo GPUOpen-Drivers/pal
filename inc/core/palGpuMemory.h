@@ -153,13 +153,14 @@ union GpuMemoryCreateFlags
         uint32 mallRangeActive   :  1; ///< If set, then this allocation will be partially allocated in the MALL.  If
                                        ///  this is set, then the mallPolicy enumeration must be set to either "always"
                                        ///  or "never".
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 657
         uint32 explicitSync      :  1; ///< If set, shared memory will skip syncs in the kernel and all drivers
                                        ///  that use this memory must handle syncs explicitly.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 677
+        uint32 privPrimary       :  1; ///< This is a private primary surface gpu memory.
 #else
-        uint32 placeholder657    :  1;
+        uint32 placeholder677    :  1;
 #endif
-        uint32 reserved          :  5; ///< Reserved for future use.
+        uint32 reserved          :  4; ///< Reserved for future use.
     };
     uint32     u32All;                 ///< Flags packed as 32-bit uint.
 };
@@ -216,14 +217,12 @@ struct GpuMemoryCreateInfo
     GpuMemMallRange              mallRange;           ///< These parameters are only meaningful if flags.mallRangeActive
                                                       ///  is set.  Any pages outside of this range will use the opposite
                                                       ///  MALL policy from what is specified in "mallPolicy".
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 652
     GpuHeapAccess                heapAccess;          ///< Describes how the allocation will be accessed. If set to
                                                       ///  something other than
                                                       ///  @ref GpuHeapAccess::GpuHeapAccessExplicit, then PAL decides
                                                       ///  the appropriate heap to allocate memory from based on this
                                                       ///  member, and @ref heaps is ignored. Otherwise heap selection
                                                       ///  respects the selection in @ref heaps.
-#endif
     uint32                       heapCount;           ///< Number of entries in heaps[].  Must be 0 for virtual
                                                       ///  allocations.
     GpuHeap                      heaps[GpuHeapCount]; ///< List of allowed memory heaps, in order of preference. It will

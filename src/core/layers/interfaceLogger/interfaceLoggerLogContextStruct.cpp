@@ -642,13 +642,6 @@ void LogContext::Struct(
         Value("usesCeRamCmds");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 621
-    if (value.flags.useCpuPathForTableUpdates)
-    {
-        Value("useCpuPathForTableUpdates");
-    }
-#endif
-
     if (value.flags.disallowNestedLaunchViaIb2)
     {
         Value("disallowNestedLaunchViaIb2");
@@ -664,11 +657,7 @@ void LogContext::Struct(
         Value("enableTmz");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 621
-    static_assert(CheckReservedBits<decltype(value.flags)>(32, 21), "Update interfaceLogger!");
-#else
     static_assert(CheckReservedBits<decltype(value.flags)>(32, 22), "Update interfaceLogger!");
-#endif
 
     EndList();
 
@@ -772,15 +761,36 @@ void LogContext::Struct(
         Value("rayTracingExecuted");
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 677
+    if (value.preflip)
+    {
+        Value("preflip");
+    }
+
+    if (value.postflip)
+    {
+        Value("postflip");
+    }
+
+    if (value.privateFlip)
+    {
+        Value("privateFlip");
+    }
+#endif
     EndList();
     KeyAndObject("primaryMemory", value.pPrimaryMemory);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 640
     if (value.captureBegin || value.captureEnd)
     {
         KeyAndObject("directCaptureMemory", value.pDirectCapMemory);
-    }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 677
+        if (value.privateFlip)
+        {
+            KeyAndObject("pPrivFlipMemory", value.pPrivFlipMemory);
+        }
 #endif
+    }
 
     EndMap();
 }
@@ -983,8 +993,39 @@ void LogContext::Struct(
     const DirectCaptureInfo& value)
 {
     BeginMap(false);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 677
     KeyAndValue("gpuVirtAddr", value.gpuVirtAddr);
+#endif
     KeyAndValue("vidPnSourceId", value.vidPnSourceId);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 677
+    KeyAndBeginList("usageFlags", true);
+    if (value.usageFlags.preflip)
+    {
+        Value("preflip");
+    }
+
+    if (value.usageFlags.postflip)
+    {
+        Value("postflip");
+    }
+
+    if (value.usageFlags.accessDesktop)
+    {
+        Value("accessDesktop");
+    }
+
+    if (value.usageFlags.shared)
+    {
+        Value("shared");
+    }
+
+    static_assert(CheckReservedBits<decltype(value.usageFlags)>(32, 28), "Update interfaceLogger!");
+    EndList();
+
+    KeyAndValue("hPreFlipEvent", value.hPreFlipEvent);
+#endif
+
     EndMap();
 }
 
@@ -1118,7 +1159,6 @@ void LogContext::Struct(
     const ExternalResourceOpenInfo& value)
 {
     BeginMap(false);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 640
     if (value.flags.isDopp)
     {
         KeyAndStruct("doppDesktopInfo", value.doppDesktopInfo);
@@ -1127,9 +1167,6 @@ void LogContext::Struct(
     {
         KeyAndStruct("directCaptureInfo", value.directCaptureInfo);
     }
-#else
-    KeyAndStruct("doppDesktopInfo", value.doppDesktopInfo);
-#endif
     EndMap();
 }
 
@@ -1438,14 +1475,19 @@ void LogContext::Struct(
         Value("mallRangeActive");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 657
     if (value.explicitSync)
     {
         Value("explicitSync");
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 677
+    if (value.privPrimary)
+    {
+        Value("privPrimary");
+    }
 #endif
 
-    static_assert(CheckReservedBits<GpuMemoryCreateFlags>(32, 5), "Need to update interfaceLogger!");
+    static_assert(CheckReservedBits<GpuMemoryCreateFlags>(32, 4), "Need to update interfaceLogger!");
 
     EndList();
 }
@@ -1473,9 +1515,7 @@ void LogContext::Struct(
     KeyAndEnum("priority", value.priority);
     KeyAndEnum("priorityOffset", value.priorityOffset);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 652
     KeyAndEnum("heapAccess", value.heapAccess);
-#endif
 
     KeyAndBeginList("heaps", true);
     for (uint32 idx = 0; idx < value.heapCount; ++idx)
@@ -1617,12 +1657,8 @@ void LogContext::Struct(
 
     KeyAndBeginMap("viewportInfo", false);
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 644
         KeyAndValue("depthClipNearEnable", value.viewportInfo.depthClipNearEnable);
         KeyAndValue("depthClipFarEnable", value.viewportInfo.depthClipFarEnable);
-#else
-        KeyAndValue("depthClipEnable", value.viewportInfo.depthClipEnable);
-#endif
 
         KeyAndEnum("depthRange", value.viewportInfo.depthRange);
     }
@@ -1722,17 +1758,10 @@ void LogContext::Struct(
         Value("perSubresInit");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    if (value.separateDepthAspectInit)
-    {
-        Value("separateDepthAspectInit");
-    }
-#else
     if (value.separateDepthPlaneInit)
     {
         Value("separateDepthPlaneInit");
     }
-#endif
 
     if (value.repetitiveResolve)
     {
@@ -1807,18 +1836,10 @@ void LogContext::Struct(
     const ImageResolveRegion& value)
 {
     BeginMap(false);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    KeyAndEnum("srcAspect", value.srcAspect);
-#else
     KeyAndValue("srcPlane", value.srcPlane);
-#endif
     KeyAndValue("srcSlice", value.srcSlice);
     KeyAndStruct("srcOffset", value.srcOffset);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    KeyAndEnum("dstAspect", value.dstAspect);
-#else
     KeyAndValue("dstPlane", value.dstPlane);
-#endif
     KeyAndValue("dstMipLevel", value.dstMipLevel);
     KeyAndValue("dstSlice", value.dstSlice);
     KeyAndStruct("dstOffset", value.dstOffset);
@@ -1919,12 +1940,10 @@ void LogContext::Struct(
         Value("disableOptimizedDisplay");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 602
     if (value.useLossy)
     {
         Value("useLossy");
     }
-#endif
 
     EndList();
     KeyAndValue("firstShaderWritableMip", value.firstShaderWritableMip);
@@ -2239,9 +2258,6 @@ void LogContext::Struct(
 {
     BeginMap(false);
     KeyAndValue("clientInternal", value.clientInternal);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
-    KeyAndValue("overrideGpuHeap", value.overrideGpuHeap);
-#endif
     EndMap();
 }
 
@@ -2251,9 +2267,7 @@ void LogContext::Struct(
 {
     BeginMap(false);
     KeyAndValue("clientInternal", value.clientInternal);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
-    KeyAndValue("overrideGpuHeap", value.overrideGpuHeap);
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 673
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 673
     KeyAndValue("supportDynamicDispatch", value.supportDynamicDispatch);
 #endif
     EndMap();
@@ -2916,12 +2930,10 @@ void LogContext::Struct(
         KeyAndNullValue("srcColorKey");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 603
     if (value.pScissorRect != nullptr)
     {
         KeyAndStruct("scissorRect", *value.pScissorRect);
     }
-#endif
 
     KeyAndStruct("flags", value.flags);
     EndMap();
@@ -3096,11 +3108,7 @@ void LogContext::Struct(
     SubresId value)
 {
     BeginMap(true);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    KeyAndEnum("aspect", value.aspect);
-#else
     KeyAndValue("plane", value.plane);
-#endif
     KeyAndValue("mipLevel", value.mipLevel);
     KeyAndValue("arraySlice", value.arraySlice);
     EndMap();
@@ -3112,9 +3120,7 @@ void LogContext::Struct(
 {
     BeginMap(false);
     KeyAndStruct("startSubres", value.startSubres);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     KeyAndValue("numPlanes", value.numPlanes);
-#endif
     KeyAndValue("numMips", value.numMips);
     KeyAndValue("numSlices", value.numSlices);
     EndMap();

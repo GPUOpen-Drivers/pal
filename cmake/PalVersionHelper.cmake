@@ -53,34 +53,43 @@ function(message_verbose)
     endif()
 endfunction()
 
-# Cache variables aren't ideal for customizing pal build's
-# They have serious problems. Particularly for dirty builds.
-# It's very important clients are explicitly opting in for support they desire.
-# Otherwise you get silent bugs, that no one understands.
-function(pal_build_parameter VARIABLE MESSAGE DEFAULT_VALUE MODE)
-    # Ex:
-    # VARIABLE = FOOBAR
-    # MESSAGE = "FOORBAR is a cool idea"
-    # DEFAULT_VALUE = OFF
-    # MODE = AUTHOR_WARNING
+function(pal_bp AMD_VAR AMD_DFLT)
+    set(singleValues MODE DEPENDS_ON MSG)
+    cmake_parse_arguments(PARSE_ARGV 0 "AMD" ""  "${singleValues}" "")
 
-    if (NOT DEFINED ${VARIABLE})
-        set(${VARIABLE} ${DEFAULT_VALUE} PARENT_SCOPE)
-
-        set(msg "${VARIABLE} not specified. Defaulting to ${DEFAULT_VALUE}. ${MESSAGE}")
-
-        # Support debug/verbose modes (cmake 3.15+ users)
-        if (${MODE} STREQUAL "DEBUG")
-            message_debug(${msg})
-        elseif (${MODE} STREQUAL "VERBOSE")
-            message_verbose(${msg})
-        else()
-            message(${MODE} ${msg})
-        endif()
+    # STATUS is a good default value
+    if (NOT DEFINED AMD_MODE)
+        set(AMD_MODE "STATUS")
     endif()
 
-    # To assist in potential debugging
-    message_debug("PAL BUILD PARAMETER: ${VARIABLE} set to ${${VARIABLE}}")
+    # Default to nothing
+    if (NOT DEFINED AMD_MSG)
+        set(AMD_MSG "")
+    endif()
+
+    # If the user specified a dependency. And that depedency is false.
+    # Then we shouldn't define the build parameter
+    if (DEFINED AMD_DEPENDS_ON AND (NOT ${AMD_DEPENDS_ON}))
+        return()
+    endif()
+
+    # If clients don't yet have 3.15 still allow them usage of DEBUG and VERBOSE
+    if (${CMAKE_VERSION} VERSION_LESS "3.15" AND ${AMD_MODE} MATCHES "DEBUG|VERBOSE")
+        set(AMD_MODE "STATUS")
+    endif()
+
+    # If this variable hasn't been defined by the client. Then we provide the default value.
+    if (NOT DEFINED ${AMD_VAR})
+        set(${AMD_VAR} ${AMD_DFLT} PARENT_SCOPE)
+
+        message(${AMD_MODE} "amd_bp: ${AMD_VAR} not set. Defaulting to ${AMD_DFLT}. ${AMD_MSG}")
+
+        return()
+    endif()
+
+    # If we got to this point it means the build parameter is getting overriden.
+    # To assist in potential debugging show what the value was set to.
+    message(STATUS "amd_bp: ${AMD_VAR} overridden to ${${AMD_VAR}}")
 endfunction()
 
 # PAL uses specific asics, SC uses generations, Addrlib does both...
@@ -160,22 +169,4 @@ endfunction()
 function(pal_get_system_architecture_bits bits)
     math(EXPR ${bits} "8 * ${CMAKE_SIZEOF_VOID_P}")
     set(${bits} ${${bits}} PARENT_SCOPE)
-endfunction()
-
-# Source Groups Helper #############################################################################
-# This helper creates source groups for generators that support them. This is primarily for MSVC,
-# but there are other generators that support IDE project files.
-#
-# Note: this only adds files that have been added to the target's SOURCES property. To add headers
-# to this list, be sure that you call target_find_headers before you call target_source_groups.
-function(pal_target_source_groups _target)
-    get_target_property(${_target}_SOURCES ${_target} SOURCES)
-    foreach(_source IN ITEMS ${${_target}_SOURCES})
-        set(_source ${_source})
-        get_filename_component(_source_path "${_source}" ABSOLUTE)
-        file(RELATIVE_PATH _source_path_rel "${PROJECT_SOURCE_DIR}" "${_source_path}")
-        get_filename_component(_source_path_rel "${_source_path_rel}" DIRECTORY)
-        string(REPLACE "/" "\\" _group_path "${_source_path_rel}")
-        source_group("${_group_path}" FILES "${_source}")
-    endforeach()
 endfunction()

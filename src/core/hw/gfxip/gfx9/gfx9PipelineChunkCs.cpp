@@ -347,7 +347,6 @@ uint32* PipelineChunkCs::WriteShCommandsDynamic(
     }
 #endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 628
     // CU_GROUP_COUNT: Sets the number of CS threadgroups to attempt to send to a single CU before moving to the next CU.
     // Range is 1 to 8, 0 disables the limit.
     constexpr uint32 Gfx9MaxCuGroupCount = 8;
@@ -355,7 +354,6 @@ uint32* PipelineChunkCs::WriteShCommandsDynamic(
     {
         dynamic.computeResourceLimits.bits.CU_GROUP_COUNT = Min(csInfo.tgScheduleCountPerCu, Gfx9MaxCuGroupCount) - 1;
     }
-#endif
 
     if (csInfo.ldsBytesPerTg > 0)
     {

@@ -87,7 +87,6 @@ public:
         uint32 gfxIpMinorVer,
         uint32 gfxIpStepping);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 634
     /// Set the EF_AMDGPU_FEATURE_XNACK_V4 header flag bits.
     ///
     /// @param [in] xnack feature selection mask value.
@@ -99,7 +98,6 @@ public:
     /// @param [in] sram ecc feature mask value.
     void SetSramEccFeatureV4(AmdGpuFeatureV4Type mask)
         { m_flags.sramEccFeature = static_cast<uint32>(mask); }
-#endif
 
     /// Set the pipeline shader code.
     ///
@@ -246,8 +244,8 @@ public:
     /// @returns Result if successful, ErrorInvalidValue if a parser error occurred, ErrorInvalidPipelineElf if
     ///          there is no metadata.
     Result GetMetadata(
-        MsgPackReader*         pReader,
-        PalCodeObjectMetadata* pMetadata) const;
+        MsgPackReader*              pReader,
+        PalAbi::CodeObjectMetadata* pMetadata) const;
 
     /// Get the Pipeline Metadata as a binary blob.
     ///
@@ -351,7 +349,6 @@ public:
         uint32* pGfxIpMinorVer,
         uint32* pGfxIpStepping) const;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 634
     /// Get the xnackFeature type.
     ///
     /// @returns The xnackFeature selection mask type.
@@ -363,7 +360,6 @@ public:
     /// @returns The sramEccFeature selection mask type.
     AmdGpuFeatureV4Type GetSramEccFeatureV4() const
         { return static_cast<AmdGpuFeatureV4Type>(m_flags.sramEccFeature); }
-#endif
 
     /// Get the Metadata version.
     ///

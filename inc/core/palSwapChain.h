@@ -103,7 +103,6 @@ enum class CompositeAlphaMode : uint32
     PreMultiplied   = 0x2, ///< The alpha channel of the image is respected and the non-alpha
                            ///  channels of the image are expected to already be multiplied
                            ///  by the alpha channel by the application.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 610
     PostMultiplied  = 0x4, ///< The alpha channel of the image is respected and the non-alpha
                            ///  channels of the image are expected to already be multiplied
                            ///  by the alpha channel by the application; instead, the compositor
@@ -113,17 +112,6 @@ enum class CompositeAlphaMode : uint32
                            ///  in the images is unknown. Instead, the application is responsible
                            ///  for setting the composite alpha blending mode using native window
                            ///  system commands.
-#else
-    PostMultiplied  = 0x3, ///< The alpha channel of the image is respected and the non-alpha
-                           ///  channels of the image are expected to already be multiplied
-                           ///  by the alpha channel by the application; instead, the compositor
-                           ///  will multiply the non-alpha channels of the image by the alpha
-                           ///  channel during compositing
-    Inherit         = 0x4, ///< The way in which the presentation engine treats the alpha channel
-                           ///  in the images is unknown. Instead, the application is responsible
-                           ///  for setting the composite alpha blending mode using native window
-                           ///  system commands.
-#endif
 };
 
 /// This structure specifies the information needed by client to create swap chain and to present an image. Surface
@@ -143,9 +131,7 @@ struct SwapChainProperties
     uint32                imageFormatCount;    ///< Supported image format count for the swap chain.
 
     SwizzledFormat        imageFormat[MaxPresentableImageFormat];  ///< Supported image formats for the swap chain.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 610
     uint32                compositeAlphaMode;  ///< Supported composite alpha mode for the swap chain.
-#endif
 };
 
 /// Specifies all the information needed by local window system to present. Input structure to IDevice::CreateSwapChain

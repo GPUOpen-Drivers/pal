@@ -464,9 +464,9 @@ void InitializeContextRegistersGfx9(
         0x0       ,
         0x0       ,
         0x0       ,
-        0x0       ,
-        0x0       ,
-        0x0       ,
+        0x0
+    };
+    constexpr uint32 VgtStrmoutBufferSize0Gfx9[] = {
         0x0       ,
         0x0
     };
@@ -689,7 +689,8 @@ void InitializeContextRegistersGfx9(
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(HasHwVs::mmVGT_GS_MODE, Gfx09::mmVGT_GS_OUT_PRIM_TYPE, VgtGsModeGfx9, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_PRIMITIVEID_EN, mmVGT_PRIMITIVEID_EN, VgtPrimitiveidEnGfx9, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_PRIMITIVEID_RESET, mmVGT_PRIMITIVEID_RESET, VgtPrimitiveidResetGfx9, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP, HasHwVs::mmVGT_STRMOUT_VTX_STRIDE_0, VgtGsMaxPrimsPerSubgroupGfx9, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP, mmDB_SRESULTS_COMPARE_STATE1, VgtGsMaxPrimsPerSubgroupGfx9, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(HasHwVs::mmVGT_STRMOUT_BUFFER_SIZE_0, HasHwVs::mmVGT_STRMOUT_VTX_STRIDE_0, VgtStrmoutBufferSize0Gfx9, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(HasHwVs::mmVGT_STRMOUT_BUFFER_SIZE_1, HasHwVs::mmVGT_STRMOUT_VTX_STRIDE_1, VgtStrmoutBufferSize1Gfx9, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(HasHwVs::mmVGT_STRMOUT_BUFFER_SIZE_2, HasHwVs::mmVGT_STRMOUT_VTX_STRIDE_2, VgtStrmoutBufferSize2Gfx9, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(HasHwVs::mmVGT_STRMOUT_BUFFER_SIZE_3, HasHwVs::mmVGT_STRMOUT_VTX_STRIDE_3, VgtStrmoutBufferSize3Gfx9, pCmdSpace);

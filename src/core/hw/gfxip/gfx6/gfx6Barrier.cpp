@@ -87,9 +87,7 @@ void Device::TransitionDepthStencil(
 {
     const BarrierTransition& transition = barrier.pTransitions[transitionId];
     PAL_ASSERT(transition.imageInfo.pImage != nullptr);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(transition.imageInfo.subresRange.numPlanes == 1);
-#endif
 
     uint32       srcCacheMask = (barrier.globalSrcCacheMask | transition.srcCacheMask);
     const uint32 dstCacheMask = (barrier.globalDstCacheMask | transition.dstCacheMask);
@@ -183,9 +181,7 @@ bool Device::GetDepthStencilBltPerSubres(
     bool                     earlyPhase
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(transition.imageInfo.subresRange.numPlanes == 1);
-#endif
 
     const auto& image     = static_cast<const Pal::Image&>(*transition.imageInfo.pImage);
     const auto& gfx6Image = static_cast<const Image&>(*image.GetGfxImage());
@@ -217,11 +213,7 @@ bool Device::GetDepthStencilBltPerSubres(
         }
         // Resummarize the htile values from the depth-stencil surface contents when transitioning from "HiZ invalid"
         // state to something that uses HiZ.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        else if ((subRes.aspect == ImageAspect::Depth) &&
-#else
         else if (image.IsDepthPlane(subRes.plane) &&
-#endif
                  (oldState == DepthStencilDecomprNoHiZ) &&
                  (newState != DepthStencilDecomprNoHiZ))
         {
@@ -330,9 +322,7 @@ void Device::ExpandColor(
 {
     const BarrierTransition& transition = barrier.pTransitions[transitionId];
     PAL_ASSERT(transition.imageInfo.pImage != nullptr);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(transition.imageInfo.subresRange.numPlanes == 1);
-#endif
 
     const auto&        image                  = static_cast<const Pal::Image&>(*transition.imageInfo.pImage);
     const auto&        gfx6Image              = static_cast<const Image&>(*image.GetGfxImage());
@@ -497,9 +487,7 @@ uint32 Device::GetColorBltPerSubres(
     bool                     earlyPhase
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(transition.imageInfo.subresRange.numPlanes == 1);
-#endif
 
     const auto& image            = static_cast<const Pal::Image&>(*transition.imageInfo.pImage);
     auto&       gfx6Image        = static_cast<Image&>(*image.GetGfxImage());
@@ -964,9 +952,7 @@ void Device::Barrier(
 
             if (imageInfo.pImage != nullptr)
             {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
                 PAL_ASSERT(imageInfo.subresRange.numPlanes == 1);
-#endif
                 // At least one usage must be specified for the old and new layouts.
                 PAL_ASSERT((imageInfo.oldLayout.usages != 0) && (imageInfo.newLayout.usages != 0));
 
@@ -1301,9 +1287,7 @@ void Device::Barrier(
 
             if (imageInfo.pImage != nullptr)
             {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
                 PAL_ASSERT(imageInfo.subresRange.numPlanes == 1);
-#endif
 
                 if (TestAnyFlagSet(imageInfo.oldLayout.usages, LayoutUninitializedTarget))
                 {

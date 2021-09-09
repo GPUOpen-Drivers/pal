@@ -75,13 +75,6 @@ private:
 
     uint32 CalcMaxWavesPerSh(float maxWavesPerCu) const;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 604
-    uint32 CalcMaxWavesPerSh(uint32 maxWavesPerCu) const
-    {
-        return CalcMaxWavesPerSh(static_cast<float>(maxWavesPerCu));
-    }
-#endif
-
     void UpdateRingSizes(uint32 scratchMemorySize);
 
     void SetupSignatureFromElf(

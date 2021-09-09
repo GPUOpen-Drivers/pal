@@ -1055,14 +1055,6 @@ public:
         PerSourceFrameMetadataControl* pFrameMetadataControl) const override
         { return m_pNextLayer->PollFullScreenFrameMetadataControl(vidPnSrcId, pFrameMetadataControl); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 638
-    virtual uint32 GetValidFormatFeatureFlags(
-        const ChNumFormat format,
-        const ImageAspect aspect,
-        const ImageTiling tiling) const override
-        { return m_pNextLayer->GetValidFormatFeatureFlags(format, aspect, tiling); }
-#endif
-
     virtual Result FlglQueryState(
        Pal::FlglState* pState) override
        { return m_pNextLayer->FlglQueryState(pState); }
@@ -1403,14 +1395,12 @@ public:
         uint32*                   pAccessMask) const override
     { m_pNextLayer->OptimizeAcqRelReleaseInfo(pStageMask, pAccessMask); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     virtual uint32 CmdRelease(
         const AcquireReleaseInfo& releaseInfo) override;
     virtual void CmdAcquire(
         const AcquireReleaseInfo& acquireInfo,
         uint32                    syncTokenCount,
         const uint32*             pSyncTokens) override;
-#endif
 
     virtual void CmdReleaseEvent(
         const AcquireReleaseInfo& releaseInfo,
@@ -2501,11 +2491,9 @@ public:
     virtual const ImageMemoryLayout& GetMemoryLayout() const override
         { return m_pNextLayer->GetMemoryLayout(); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     virtual Result GetFullSubresourceRange(
         SubresRange* pRange) const override
         { return m_pNextLayer->GetFullSubresourceRange(pRange); }
-#endif
 
     virtual Result GetSubresourceLayout(
         SubresId      subresId,
@@ -2526,9 +2514,6 @@ public:
 
     virtual MetadataSharingLevel GetOptimalSharingLevel() const override
         { return m_pNextLayer->GetOptimalSharingLevel(); }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 633
-#endif
 
     // Part of the IDestroyable public interface.
     virtual void Destroy() override

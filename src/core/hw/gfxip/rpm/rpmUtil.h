@@ -169,22 +169,14 @@ struct ColorSpaceConversionInfo
     RpmComputePipeline  pipelineYuvToRgb;
     struct
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        ImageAspect     aspect;
-#else
         uint32          plane;
-#endif
         SwizzledFormat  swizzledFormat;
     } viewInfoYuvToRgb[3];
 
     RpmComputePipeline  pipelineRgbToYuv;
     struct
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        ImageAspect     aspect;
-#else
         uint32          plane;
-#endif
         SwizzledFormat  swizzledFormat;
         float           sampleLocX;
         float           sampleLocY;

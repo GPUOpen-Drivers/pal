@@ -160,7 +160,8 @@ union GpuMemoryFlags
         uint32 gpuReadOnly              :  1; // GPU memory is read only.
         uint32 mallRangeActive          :  1;
         uint32 explicitSync             :  1;
-        uint32 reserved                 : 22;
+        uint32 privPrimary              :  1; // GPU memory is a private primary
+        uint32 reserved                 : 21;
     };
     uint64  u64All;
 };
@@ -270,6 +271,7 @@ public:
     bool IsAccessedPhysically()  const { return (m_flags.accessedPhysically       != 0); }
     bool IsMallRangeActive()     const { return (m_flags.mallRangeActive          != 0); }
     bool IsExplicitSync()        const { return (m_flags.explicitSync             != 0); }
+    bool IsPrivPrimary()         const { return (m_flags.privPrimary              != 0); }
     void SetAccessedPhysically() { m_flags.accessedPhysically = 1; }
     void SetSurfaceBusAddr(gpusize surfaceBusAddr) { m_desc.surfaceBusAddr = surfaceBusAddr; }
     void SetMarkerBusAddr(gpusize markerBusAddr)   { m_desc.markerBusAddr  = markerBusAddr;  }

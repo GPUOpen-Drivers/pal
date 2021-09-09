@@ -139,7 +139,7 @@ bool HandleCeRinging(
 
 // =====================================================================================================================
 // Helper function which computes the NUM_RECORDS field of a buffer SRD used for a stream-output target.
-PAL_INLINE static uint32 StreamOutNumRecords(
+static uint32 StreamOutNumRecords(
     const GpuChipProperties& chipProps,
     uint32                   strideInBytes)
 {
@@ -260,14 +260,9 @@ UniversalCmdBuffer::UniversalCmdBuffer(
         memset(&m_primGroupOpt, 0, sizeof(m_primGroupOpt));
     }
 
-    const bool sqttEnabled = (platformSettings.gpuProfilerMode > GpuProfilerCounterAndTimingOnly) &&
-                             (Util::TestAnyFlagSet(platformSettings.gpuProfilerConfig.traceModeMask, GpuProfilerTraceSqtt));
-
-    m_cachedSettings.issueSqttMarkerEvent = (sqttEnabled ||
-                                            m_device.Parent()->GetPlatform()->IsDevDriverProfilingEnabled());
-    m_cachedSettings.describeDrawDispatch =
-        (m_cachedSettings.issueSqttMarkerEvent ||
-         m_device.GetPlatform()->PlatformSettings().cmdBufferLoggerConfig.embedDrawDispatchInfo);
+    m_cachedSettings.issueSqttMarkerEvent = device.Parent()->IssueSqttMarkerEvents();
+    m_cachedSettings.describeDrawDispatch = (m_cachedSettings.issueSqttMarkerEvent ||
+                                             platformSettings.cmdBufferLoggerConfig.embedDrawDispatchInfo);
 
     m_cachedSettings.has32bPred =
         m_device.Parent()->EngineProperties().perEngine[EngineTypeUniversal].flags.memory32bPredicationSupport;
@@ -3659,11 +3654,9 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     if (stateDirty && dirtyFlags.rasterizerDiscardEnable)
     {
         regPA_CL_CLIP_CNTL paClClipCntl = pPipeline->PaClClipCntl();
-	paClClipCntl.bits.DX_RASTERIZATION_KILL = m_graphicsState.rasterizerDiscardEnable;
+        paClClipCntl.bits.DX_RASTERIZATION_KILL = m_graphicsState.rasterizerDiscardEnable;
 
-        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_CL_CLIP_CNTL,
-			                                  paClClipCntl.u32All,
-							  pDeCmdSpace);
+        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_CL_CLIP_CNTL, paClClipCntl.u32All, pDeCmdSpace);
     }
 
     // Validate the per-draw HW state.
@@ -5762,12 +5755,8 @@ void UniversalCmdBuffer::CmdUpdateHiSPretests(
     if (pGfx6Image->HasHiSPretestsMetaData())
     {
         SubresRange range = { };
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        range.startSubres = { ImageAspect::Stencil, firstMip, 0 };
-#else
         range.startSubres = { pGfx6Image->GetStencilPlane(), firstMip, 0 };
         range.numPlanes   = 1;
-#endif
         range.numMips     = numMips;
         range.numSlices   = pImage->GetImageCreateInfo().arraySize;
 

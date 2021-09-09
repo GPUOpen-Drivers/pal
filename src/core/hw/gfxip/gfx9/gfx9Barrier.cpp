@@ -142,9 +142,7 @@ void Device::TransitionDepthStencil(
 {
     const BarrierTransition& transition = barrier.pTransitions[transitionId];
     PAL_ASSERT(transition.imageInfo.pImage != nullptr);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(transition.imageInfo.subresRange.numPlanes == 1);
-#endif
 
     const auto& image       = static_cast<const Pal::Image&>(*transition.imageInfo.pImage);
     const auto& gfx9Image   = static_cast<const Image&>(*image.GetGfxImage());
@@ -364,9 +362,7 @@ void Device::ExpandColor(
 {
     const BarrierTransition& transition = barrier.pTransitions[transitionId];
     PAL_ASSERT(transition.imageInfo.pImage != nullptr);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(transition.imageInfo.subresRange.numPlanes == 1);
-#endif
 
     const EngineType            engineType  = pCmdBuf->GetEngineType();
     const auto&                 image       = static_cast<const Pal::Image&>(*transition.imageInfo.pImage);
@@ -647,7 +643,7 @@ void Device::ExpandColor(
     if (earlyPhase == false)
     {
         // Make sure we handle L2 cache coherency if we're potentially interacting with fixed function hardware.
-        constexpr uint32 MaybeFixedFunction = (CacheCoherencyBlt | CoherColorTarget);
+        constexpr uint32 MaybeFixedFunction = (CacheCoherencyBlt | CoherPresent | CoherColorTarget);
 
         // If applications use Vulkan's global memory barriers feature, PAL can end up with image transitions that
         // have no cache flags because the cache actions for the image were performed in a different transition.

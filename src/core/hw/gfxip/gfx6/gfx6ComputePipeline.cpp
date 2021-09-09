@@ -162,11 +162,7 @@ Result ComputePipeline::HwlInit(
         // Next, handle relocations and upload the pipeline code & data to GPU memory.
         result = PerformRelocationsAndUploadToGpuMemory(
             metadata,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
-            (createInfo.flags.overrideGpuHeap == 1) ? createInfo.preferredHeapType : GpuHeapInvisible,
-#else
             IsInternal() ? GpuHeapLocal : m_pDevice->Parent()->GetPublicSettings()->pipelinePreferredHeap,
-#endif
             &uploader);
     }
 
@@ -336,7 +332,6 @@ uint32* ComputePipeline::WriteCommands(
 
     const auto& chipProperties = m_pDevice->Parent()->ChipProperties();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 628
     if (chipProperties.gfxLevel != GfxIpLevel::GfxIp6)
     {
         // CU_GROUP_COUNT: Sets the number of CS threadgroups to attempt to send to a single CU before moving to
@@ -348,7 +343,6 @@ uint32* ComputePipeline::WriteCommands(
                 Min(csInfo.tgScheduleCountPerCu, Gfx7PlusMaxCuGroupCount) - 1;
         }
     }
-#endif
 
     if (csInfo.ldsBytesPerTg > 0)
     {

@@ -58,17 +58,10 @@ static char* GenerateFullPath(
     PAL_ASSERT(pOpenInfo        != nullptr);
     PAL_ASSERT(stringBufferSize != 0);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 641
-    Strncpy(pStringBuffer, pOpenInfo->filePath, stringBufferSize);
-#else
     Strncpy(pStringBuffer, pOpenInfo->pFilePath, stringBufferSize);
-#endif
     Strncat(pStringBuffer, stringBufferSize, "/");
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 641
-    Strncat(pStringBuffer, stringBufferSize, pOpenInfo->fileName);
-#else
     Strncat(pStringBuffer, stringBufferSize, pOpenInfo->pFileName);
-#endif
+
     return pStringBuffer;
 }
 
@@ -214,11 +207,8 @@ static Result CreateDir(
     const char *pPathName)
 {
     Result result = Result::Success;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 641
-    char dirName[MaxPathLength];
-#else
+
     char dirName[PathBufferLen];
-#endif
 
     Strncpy(dirName, pPathName, sizeof(dirName));
     Strncat(dirName, sizeof(dirName), "/");
@@ -254,11 +244,7 @@ static Result CreateFileInternal(
     PAL_ASSERT(pFileName != nullptr);
     PAL_ASSERT(pOpenInfo != nullptr);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 641
-    Result result = CreateDir(pOpenInfo->filePath);
-#else
     Result result = CreateDir(pOpenInfo->pFilePath);
-#endif
 
     if (result == Result::Success)
     {
@@ -1171,11 +1157,7 @@ Result OpenArchiveFile(
     }
 
     int32  hFile = InvalidFd;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 641
-    char   stringBuffer[MaxPathLength + MaxFilenameLength + 1] = {};
-#else
     char   stringBuffer[PathBufferLen] = {};
-#endif
 
     GenerateFullPath(stringBuffer, sizeof(stringBuffer), pOpenInfo);
     if (result == Result::Success)
@@ -1265,11 +1247,7 @@ Result CreateArchiveFile(
 
     if (pOpenInfo != nullptr)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 641
-        char stringBuffer[MaxPathLength + MaxFilenameLength + 1] = {};
-#else
         char stringBuffer[PathBufferLen] = {};
-#endif
         GenerateFullPath(stringBuffer, sizeof(stringBuffer), pOpenInfo);
         result = CreateFileInternal(stringBuffer, pOpenInfo);
     }
@@ -1289,11 +1267,7 @@ Result DeleteArchiveFile(
     if (pOpenInfo != nullptr)
     {
         result = Result::Success;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 641
-        char stringBuffer[MaxPathLength + MaxFilenameLength + 1] = {};
-#else
         char stringBuffer[PathBufferLen] = {};
-#endif
         GenerateFullPath(stringBuffer, sizeof(stringBuffer), pOpenInfo);
         if (remove(stringBuffer) == InvalidSysCall)
         {

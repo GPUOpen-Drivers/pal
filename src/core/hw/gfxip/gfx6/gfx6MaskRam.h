@@ -126,11 +126,7 @@ public:
     uint32 GetInitialValue() const;
     uint32 GetClearValue(float depthValue) const;
     uint32 GetPlaneMask(uint32 planeFlags) const;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    uint32 GetPlaneMask(ImageAspect aspect) const;
-#else
     uint32 GetPlaneMask(const Image& image, const SubresRange& range) const;
-#endif
 
     Result Init(
         const Pal::Device& device,

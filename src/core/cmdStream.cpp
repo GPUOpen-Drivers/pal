@@ -110,6 +110,9 @@ CmdStream::CmdStream(
         m_flags.buildInSysMem = 1;
     }
 
+    // The autoMemoryReuse bit should be set based on m_pCmdAllocator.
+    m_flags.autoMemoryReuse = (m_pCmdAllocator != nullptr) && (m_pCmdAllocator->AutomaticMemoryReuse());
+
     // Preemption can only be enabled if:
     // - The KMD has enabled preemption support for this engine.
     // - The command stream is a workload stream.
@@ -450,7 +453,7 @@ void CmdStream::Reset(
         }
 
         // Return all remaining chunks to the command allocator.
-        if ((m_chunkList.IsEmpty() == false) && m_pCmdAllocator->AutomaticMemoryReuse())
+        if ((m_chunkList.IsEmpty() == false) && IsAutoMemoryReuse())
         {
             for (auto iter = m_chunkList.Begin(); iter.IsValid(); iter.Next())
             {
@@ -486,6 +489,10 @@ void CmdStream::Reset(
 
         // Switch to the new command allocator.
         m_pCmdAllocator = pNewAllocator;
+
+        // Update the autoMemoryReuse bit from the new cmdAllocator.
+        m_flags.autoMemoryReuse = m_pCmdAllocator->AutomaticMemoryReuse();
+
     }
 
     if (m_pCmdAllocator != nullptr)

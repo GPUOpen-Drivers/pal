@@ -376,10 +376,6 @@ protected:
         gpusize              metaDataOffset
     ) const;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    static bool GetMetaDataTexFetchSupport(const Image*  pImage, ImageAspect aspect, uint32 mipLevel);
-#endif
-
     static gpusize ComputeTypedBufferRange(
         const Extent3d& extent,
         uint32          elementSize,
@@ -676,11 +672,7 @@ private:
 
     const ComputePipeline* GetCsResolvePipeline(
         const Image&  srcImage,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        ImageAspect   aspect,
-#else
         uint32        plane,
-#endif
         ResolveMode   mode,
         ResolveMethod method) const;
 

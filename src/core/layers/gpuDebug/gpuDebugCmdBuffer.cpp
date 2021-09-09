@@ -37,10 +37,8 @@
 #include "palAutoBuffer.h"
 #include "palFile.h"
 #include "palFormatInfo.h"
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
-#include "palVectorImpl.h"
-#endif
 #include "palSysUtil.h"
+#include "palVectorImpl.h"
 #include "util/directDrawSurface.h"
 #include <cinttypes>
 
@@ -83,12 +81,9 @@ CmdBuffer::CmdBuffer(
     m_tokenReadOffset(0),
     m_tokenStreamResult(Result::Success),
     m_buildInfo(),
-    m_pLastTgtCmdBuffer(nullptr)
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
-    ,
+    m_pLastTgtCmdBuffer(nullptr),
     m_numReleaseTokens(0),
     m_releaseTokenList(static_cast<Platform*>(m_pDevice->GetPlatform()))
-#endif
 {
     m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Compute)]  = &CmdBuffer::CmdSetUserDataCs;
     m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Graphics)] = &CmdBuffer::CmdSetUserDataGfx;
@@ -468,23 +463,19 @@ void CmdBuffer::CaptureSurfaces()
             uint32 numPlanes = 1;
             Result result = Result::Success;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
             SubresRange range = { };
             result = pSrcImage->GetFullSubresourceRange(&range);
             if (result == Result::Success)
             {
                 numPlanes = range.numPlanes;
             }
-#endif
 
             for (uint32 plane = 0; plane < numPlanes; plane++)
             {
                 IImage* pDstImage = nullptr;
 
                 SubresId subresId   = { };
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
                 subresId.plane      = plane;
-#endif
                 subresId.mipLevel   = dsvCreateInfo.mipLevel;
                 subresId.arraySlice = dsvCreateInfo.baseArraySlice;
 
@@ -539,12 +530,7 @@ Result CmdBuffer::CaptureImageSurface(
 
     if (pSrcImage->GetImageCreateInfo().usageFlags.depthStencil == 1)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
-        const uint32 plane = baseSubres.plane;
-#else
-        const uint32 plane = 0;
-#endif
-        OverrideDepthFormat(&imageCreateInfo.swizzledFormat, pSrcImage, plane);
+        OverrideDepthFormat(&imageCreateInfo.swizzledFormat, pSrcImage, 0);
     }
 
     Result result = Result::Success;
@@ -653,9 +639,7 @@ Result CmdBuffer::CaptureImageSurface(
         preCopyTransitions[1].dstCacheMask                      = CoherCopy;
         preCopyTransitions[1].imageInfo.pImage                  = pDstImage;
         preCopyTransitions[1].imageInfo.subresRange.startSubres = baseSubres;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
         preCopyTransitions[1].imageInfo.subresRange.startSubres.plane = 0;
-#endif
         preCopyTransitions[1].imageInfo.subresRange.numPlanes   = 1;
         preCopyTransitions[1].imageInfo.subresRange.numMips     = 1;
         preCopyTransitions[1].imageInfo.subresRange.numSlices   = arraySize;
@@ -687,9 +671,7 @@ Result CmdBuffer::CaptureImageSurface(
         memset(&region, 0, sizeof(region));
         region.srcSubres        = baseSubres;
         region.dstSubres        = baseSubres;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
         region.dstSubres.plane  = 0;
-#endif
         region.numSlices        = arraySize;
 
         const uint32 mipDivisor = (1 << baseSubres.mipLevel);
@@ -792,14 +774,10 @@ void CmdBuffer::SyncSurfaceCapture()
 
     transition.srcCacheMask                                 = CoherCopy;
     transition.dstCacheMask                                 = CoherCpu;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     transition.imageInfo.subresRange.startSubres.plane      = 0;
-#endif
     transition.imageInfo.subresRange.startSubres.mipLevel   = 0;
     transition.imageInfo.subresRange.startSubres.arraySlice = 0;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     transition.imageInfo.subresRange.numPlanes              = 1;
-#endif
     transition.imageInfo.oldLayout.usages                   = LayoutCopyDst | LayoutUncompressed;
     transition.imageInfo.oldLayout.engines                  = LayoutUniversalEngine;
     transition.imageInfo.newLayout.usages                   = LayoutUncompressed;
@@ -962,14 +940,6 @@ void CmdBuffer::OutputSurfaceCaptureImage(
         if (imageInfo.mipLevels == 1)
         {
             SubresId subresId = { };
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            subresId.aspect     = ImageAspect::Color;
-#else
-            subresId.plane      = 0;
-#endif
-            subresId.mipLevel   = 0;
-            subresId.arraySlice = 0;
-
             SubresLayout subresLayout = {0};
             pImage->GetSubresourceLayout(subresId, &subresLayout);
 
@@ -1074,10 +1044,8 @@ Result CmdBuffer::Reset(
     m_pBoundBlendState  = nullptr;
     memset(&m_boundTargets, 0, sizeof(m_boundTargets));
     memset(&m_buildInfo, 0, sizeof(m_buildInfo));
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     m_releaseTokenList.Clear();
     m_numReleaseTokens = 0;
-#endif
 
     m_surfaceCapture.actionId = 0;
 
@@ -1226,9 +1194,7 @@ void CmdBuffer::ReplayEnd(
     Queue*            pQueue,
     TargetCmdBuffer*  pTgtCmdBuffer)
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     PAL_ASSERT(m_numReleaseTokens == m_releaseTokenList.NumElements());
-#endif
 
     Result result = pTgtCmdBuffer->End();
     pTgtCmdBuffer->SetLastResult(result);
@@ -1826,7 +1792,6 @@ void CmdBuffer::ReplayCmdBarrier(
     pTgtCmdBuffer->CmdBarrier(barrierInfo);
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // =====================================================================================================================
 uint32 CmdBuffer::CmdRelease(
     const AcquireReleaseInfo& releaseInfo)
@@ -1851,9 +1816,7 @@ uint32 CmdBuffer::CmdRelease(
     // The layer maintains an array of release tokens, and uses release index to retrieve token value from the array.
     return releaseIdx;
 }
-#endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // =====================================================================================================================
 void CmdBuffer::ReplayCmdRelease(
     Queue*           pQueue,
@@ -1875,9 +1838,7 @@ void CmdBuffer::ReplayCmdRelease(
     const uint32 releaseToken = pTgtCmdBuffer->CmdRelease(releaseInfo);
     m_releaseTokenList.PushBack(releaseToken);
 }
-#endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // =====================================================================================================================
 void CmdBuffer::CmdAcquire(
     const AcquireReleaseInfo& acquireInfo,
@@ -1899,9 +1860,7 @@ void CmdBuffer::CmdAcquire(
 
     HandleBarrierBlt(true, false);
 }
-#endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // =====================================================================================================================
 void CmdBuffer::ReplayCmdAcquire(
     Queue*           pQueue,
@@ -1932,7 +1891,6 @@ void CmdBuffer::ReplayCmdAcquire(
 
     pTgtCmdBuffer->CmdAcquire(acquireInfo, syncTokenCount, &releaseTokens[0]);
 }
-#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdReleaseEvent(
@@ -4737,10 +4695,8 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdSetColorWriteMask,
         &CmdBuffer::ReplayCmdSetRasterizerDiscardEnable,
         &CmdBuffer::ReplayCmdBarrier,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
         &CmdBuffer::ReplayCmdRelease,
         &CmdBuffer::ReplayCmdAcquire,
-#endif
         &CmdBuffer::ReplayCmdReleaseEvent,
         &CmdBuffer::ReplayCmdAcquireEvent,
         &CmdBuffer::ReplayCmdReleaseThenAcquire,

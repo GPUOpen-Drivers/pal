@@ -72,7 +72,7 @@ namespace Amdgpu
 
 // =====================================================================================================================
 // Helper method which check result from drm function
-static PAL_INLINE Result CheckResult(
+static Result CheckResult(
     int32       ret,
     Result      defaultValue)
 {
@@ -5050,11 +5050,7 @@ Result Device::OpenExternalResource(
     ExternalSharedInfo*             pSharedInfo
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 655
     const auto handleType = static_cast<amdgpu_bo_handle_type>(openInfo.handleType);
-#else
-    const amdgpu_bo_handle_type handleType = amdgpu_bo_handle_type_dma_buf_fd;
-#endif
     Result result = ImportBuffer(handleType,
                                  openInfo.hExternalResource,
                                  &pSharedInfo->importResult);
@@ -5532,7 +5528,7 @@ constexpr uint32 CeaDataBlockLengthMask = 0x1f;
 
 // =====================================================================================================================
 // Helper functions to get the CEA extension from EDID
-static PAL_INLINE uint8* GetCeaExtensionBlock(
+static uint8* GetCeaExtensionBlock(
     uint8* pEdidData,
     uint32 dataLength)
 {
@@ -5555,7 +5551,7 @@ static PAL_INLINE uint8* GetCeaExtensionBlock(
 
 // =====================================================================================================================
 // Helper function to convert binary to decimal and mulitply 10000
-static PAL_INLINE uint32 BitsToDecimal(
+static uint32 BitsToDecimal(
     uint32 value)
 {
 
@@ -5574,7 +5570,7 @@ static PAL_INLINE uint32 BitsToDecimal(
 
 // =====================================================================================================================
 // Helper functions to get the static metadata from CEA/CTA extension
-static PAL_INLINE void GetColorCharacteristicsFromEdid(
+static void GetColorCharacteristicsFromEdid(
     uint8*             pEdid,
     HdrOutputMetadata* pHdrMetaData)
 {
@@ -5593,7 +5589,7 @@ static PAL_INLINE void GetColorCharacteristicsFromEdid(
 
 // =====================================================================================================================
 // Helper functions to get the static metadata and color space from CEA/CTA extension
-static PAL_INLINE Result GetHdrStaticMetadataFromCea(
+static Result GetHdrStaticMetadataFromCea(
     uint8*             pCeaData,
     HdrOutputMetadata* pHdrMetaData)
 {

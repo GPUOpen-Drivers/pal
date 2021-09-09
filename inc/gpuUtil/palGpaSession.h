@@ -236,10 +236,8 @@ struct GpaSampleConfig
         } flags;                                            ///< Bit flags controlling SQTT samples.
         Pal::uint32 seMask;          ///< Mask that determines which specific SEs to run Thread trace on.
                                      ///  If 0, all SEs are enabled
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 623
         Pal::uint32 seDetailedMask;  ///< Mask that selects which specific SEs to reveal Thread trace detailed info.
                                      ///  If 0, all SEs will reveal detailed thread trace
-#endif
         Pal::gpusize gpuMemoryLimit; ///< Maximum amount of GPU memory in bytes this sample can allocate for the SQTT
                                      ///  buffer.  If 0, allocate maximum size to prevent dropping tokens toward the
                                      ///  end of the sample.

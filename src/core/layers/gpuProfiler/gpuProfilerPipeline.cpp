@@ -272,7 +272,7 @@ Result Pipeline::InitGfx(
         result = abiReader.Init();
 
         MsgPackReader              metadataReader;
-        Abi::PalCodeObjectMetadata metadata;
+        PalAbi::CodeObjectMetadata metadata;
 
         if (result == Result::Success)
         {
@@ -325,7 +325,7 @@ Result Pipeline::InitCompute(
         result = abiReader.Init();
 
         MsgPackReader              metadataReader;
-        Abi::PalCodeObjectMetadata metadata;
+        PalAbi::CodeObjectMetadata metadata;
 
         if (result == Result::Success)
         {

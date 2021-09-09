@@ -381,13 +381,6 @@ public:
     virtual Result SetSamplePatternPalette(const SamplePatternPalette& palette) override;
     void GetSamplePatternPalette(SamplePatternPalette* pSamplePatternPalette);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 638
-    virtual uint32 GetValidFormatFeatureFlags(
-        const ChNumFormat format,
-        const ImageAspect aspect,
-        const ImageTiling tiling) const override;
-#endif
-
     virtual Result InitAddrLibCreateInput(
         ADDR_CREATE_FLAGS*   pCreateFlags,
         ADDR_REGISTER_VALUE* pRegValue) const override;
@@ -487,7 +480,6 @@ public:
 
     void Barrier(GfxCmdBuffer* pCmdBuf, CmdStream* pCmdStream, const BarrierInfo& barrier) const;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     AcqRelSyncToken BarrierRelease(
         GfxCmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
@@ -503,7 +495,6 @@ public:
         const AcqRelSyncToken*        pSyncTokens,
         Developer::BarrierOperations* pBarrierOps,
         bool                          waMetaMisalignNeedRefreshLlc = false) const;
-#endif
 
     void BarrierReleaseEvent(
         GfxCmdBuffer*                 pCmdBuf,
@@ -746,7 +737,6 @@ private:
         CmdStream*         pCmdStream,
         const ImgBarrier&  imgBarrier) const;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     AcqRelSyncToken IssueReleaseSync(
         GfxCmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
@@ -766,7 +756,6 @@ private:
         uint32                        syncTokenCount,
         const AcqRelSyncToken*        pSyncTokens,
         Developer::BarrierOperations* pBarrierOps) const;
-#endif
 
     void IssueReleaseSyncEvent(
         GfxCmdBuffer*                 pCmdBuf,

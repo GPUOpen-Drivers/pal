@@ -82,7 +82,12 @@ union CmdStreamFlags
         uint32 enablePreemption  :  1; // This command stream can be preempted.
         uint32 addressDependent  :  1; // One or more commands are dependent on the command chunk's GPU address. This
                                        // disables optimizations that copy commands and execute them without patching.
-        uint32 reserved          : 26;
+        uint32 autoMemoryReuse   :  1; // If autoMemoryReuse is enabled the client must not destroy a command allocator
+                                       // before resetting or destroying all of its command streams, but it is legal to
+                                       // destroy a non-autoMemoryReuse allocator first. Dereferencing a deleted
+                                       // allocator to see if it has autoMemoryReuse enabled is illegal, so we must
+                                       // cache that state in the command stream.
+        uint32 reserved          : 25;
     };
     uint32     value;
 };
@@ -210,6 +215,8 @@ public:
 
     bool DropIfSameContext() const { return m_flags.dropIfSameContext == 1; }
     bool IsPreemptionEnabled() const { return m_flags.enablePreemption == 1; }
+
+    bool IsAutoMemoryReuse() const { return m_flags.autoMemoryReuse == 1; }
 
     // Whenever someone writes a command that depends on the command chunk's GPU virtual address they must notify
     // the command stream of this dependency to prevent PAL from assuming it's safe to copy commands without patching.

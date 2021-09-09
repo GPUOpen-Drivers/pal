@@ -1093,18 +1093,6 @@ public:
         MergedFormatPropertiesTable* pInfo
         ) const override;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 638
-    // NOTE: Part of the public IDevice interface.
-    virtual uint32 GetValidFormatFeatureFlags(
-        const ChNumFormat format,
-        const ImageAspect aspect,
-        const ImageTiling tiling) const override
-    {
-        PAL_ASSERT(m_pGfxDevice != nullptr);
-        return m_pGfxDevice->GetValidFormatFeatureFlags(format, aspect, tiling);
-    }
-#endif
-
     virtual Result GetPerfExperimentProperties(
         PerfExperimentProperties* pProperties) const override;
 
@@ -1956,6 +1944,8 @@ public:
 
     bool HasLargeLocalHeap() const;
 
+    bool IssueSqttMarkerEvents() const;
+
 protected:
     Device(
         Platform*              pPlatform,
@@ -2338,203 +2328,202 @@ extern void InitializeGpuEngineProperties(
 #endif
 
 // ASIC family and chip identification functions
-PAL_INLINE bool IsGfx6(const Device& device)
+inline bool IsGfx6(const Device& device)
 {
     return (device.ChipProperties().gfxLevel == GfxIpLevel::GfxIp6);
 }
 
-PAL_INLINE bool IsGfx7(const Device& device)
+inline bool IsGfx7(const Device& device)
 {
     return (device.ChipProperties().gfxLevel == GfxIpLevel::GfxIp7);
 }
 
-PAL_INLINE bool IsGfx8(const Device& device)
+inline bool IsGfx8(const Device& device)
 {
     return ((device.ChipProperties().gfxLevel == GfxIpLevel::GfxIp8) ||
         (device.ChipProperties().gfxLevel == GfxIpLevel::GfxIp8_1));
 }
 
-PAL_INLINE bool IsGfx9(GfxIpLevel gfxLevel)
+constexpr bool IsGfx9(GfxIpLevel gfxLevel)
 {
     return (gfxLevel == GfxIpLevel::GfxIp9);
 }
-PAL_INLINE bool IsGfx9(const Device& device)
+inline bool IsGfx9(const Device& device)
 {
     return IsGfx9(device.ChipProperties().gfxLevel);
 }
 
-PAL_INLINE bool IsGfx10(GfxIpLevel gfxLevel)
+constexpr bool IsGfx10(GfxIpLevel gfxLevel)
 {
-    const bool isGfx10 = ((gfxLevel == GfxIpLevel::GfxIp10_1)
-                         || (gfxLevel == GfxIpLevel::GfxIp10_3)
-                         );
-    return isGfx10;
+    return ((gfxLevel == GfxIpLevel::GfxIp10_1)
+            || (gfxLevel == GfxIpLevel::GfxIp10_3)
+           );
 }
-PAL_INLINE bool IsGfx10(const Device& device)
+inline bool IsGfx10(const Device& device)
 {
     return IsGfx10(device.ChipProperties().gfxLevel);
 }
 
-PAL_INLINE bool IsGfx10Plus(GfxIpLevel gfxLevel)
+constexpr bool IsGfx10Plus(GfxIpLevel gfxLevel)
 {
     return IsGfx10(gfxLevel)
            ;
 }
 
-PAL_INLINE bool IsGfx10Plus(const Device& device)
+inline bool IsGfx10Plus(const Device& device)
 {
     return IsGfx10Plus(device.ChipProperties().gfxLevel);
 }
 
-PAL_INLINE bool IsTahiti(const Device& device)
+inline bool IsTahiti(const Device& device)
 {
     return AMDGPU_IS_TAHITI(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
-PAL_INLINE bool IsPitcairn(const Device& device)
+inline bool IsPitcairn(const Device& device)
 {
     return AMDGPU_IS_PITCAIRN(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
-PAL_INLINE bool IsCapeVerde(const Device& device)
+inline bool IsCapeVerde(const Device& device)
 {
     return AMDGPU_IS_CAPEVERDE(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
-PAL_INLINE bool IsOland(const Device& device)
+inline bool IsOland(const Device& device)
 {
     return AMDGPU_IS_OLAND(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
-PAL_INLINE bool IsHainan(const Device& device)
+inline bool IsHainan(const Device& device)
 {
     return AMDGPU_IS_HAINAN(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
-PAL_INLINE bool IsBonaire(const Device& device)
+inline bool IsBonaire(const Device& device)
 {
     return AMDGPU_IS_BONAIRE(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
-PAL_INLINE bool IsHawaii(const Device& device)
+inline bool IsHawaii(const Device& device)
 {
     return AMDGPU_IS_HAWAII(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
-PAL_INLINE bool IsSpectre(const Device& device)
+inline bool IsSpectre(const Device& device)
 {
     return AMDGPU_IS_SPECTRE(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
-PAL_INLINE bool IsSpooky(const Device& device)
+inline bool IsSpooky(const Device& device)
 {
     return AMDGPU_IS_SPOOKY(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
-PAL_INLINE bool IsKalindi(const Device& device)
+inline bool IsKalindi(const Device& device)
 {
     return AMDGPU_IS_KALINDI(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
-PAL_INLINE bool IsGodavari(const Device& device)
+inline bool IsGodavari(const Device& device)
 {
     return AMDGPU_IS_GODAVARI(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
-PAL_INLINE bool IsIceland(const Device& device)
+inline bool IsIceland(const Device& device)
 {
     return AMDGPU_IS_ICELAND(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
-PAL_INLINE bool IsTonga(const Device& device)
+inline bool IsTonga(const Device& device)
 {
     return AMDGPU_IS_TONGA(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
-PAL_INLINE bool IsFiji(const Device& device)
+inline bool IsFiji(const Device& device)
 {
     return AMDGPU_IS_FIJI(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
-PAL_INLINE bool IsPolaris10(const Device& device)
+inline bool IsPolaris10(const Device& device)
 {
     return AMDGPU_IS_POLARIS10(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
-PAL_INLINE bool IsPolaris11(const Device& device)
+inline bool IsPolaris11(const Device& device)
 {
     return AMDGPU_IS_POLARIS11(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
-PAL_INLINE bool IsPolaris12(const Device& device)
+inline bool IsPolaris12(const Device& device)
 {
     return AMDGPU_IS_POLARIS12(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
-PAL_INLINE bool IsCarrizo(const Device& device)
+inline bool IsCarrizo(const Device& device)
 {
     return AMDGPU_IS_CARRIZO(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
-PAL_INLINE bool IsStoney(const Device& device)
+inline bool IsStoney(const Device& device)
 {
     return AMDGPU_IS_STONEY(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
-PAL_INLINE bool IsVega10(const Device& device)
+inline bool IsVega10(const Device& device)
 {
     return AMDGPU_IS_VEGA10(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
-PAL_INLINE bool IsVega12(const Device& device)
+inline bool IsVega12(const Device& device)
 {
     return AMDGPU_IS_VEGA12(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
-PAL_INLINE bool IsVega20(const Device& device)
+inline bool IsVega20(const Device& device)
 {
     return AMDGPU_IS_VEGA20(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
-PAL_INLINE bool IsRavenFamily(const Device& device)
+inline bool IsRavenFamily(const Device& device)
 {
     return FAMILY_IS_RV(device.ChipProperties().familyId);
 }
-PAL_INLINE bool IsRaven(const Device& device)
+inline bool IsRaven(const Device& device)
 {
     return AMDGPU_IS_RAVEN(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
-PAL_INLINE bool IsRaven2(const Device& device)
+inline bool IsRaven2(const Device& device)
 {
     return AMDGPU_IS_RAVEN2(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
-PAL_INLINE bool IsRenoir(const Device& device)
+inline bool IsRenoir(const Device& device)
 {
     return AMDGPU_IS_RENOIR(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
-PAL_INLINE bool IsNavi(const Device& device)
+inline bool IsNavi(const Device& device)
 {
     return AMDGPU_IS_NAVI(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
-PAL_INLINE bool IsNavi10(const Device& device)
+inline bool IsNavi10(const Device& device)
 {
     return AMDGPU_IS_NAVI10(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
-PAL_INLINE bool IsNavi12(const Device& device)
+inline bool IsNavi12(const Device& device)
 {
     return AMDGPU_IS_NAVI12(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 
 // The ASICs for are still referred within the interface and null backend.
 // So we still keep identification suppport for them though they're no longer supported
-PAL_INLINE bool IsNavi14(const Device& device)
+inline bool IsNavi14(const Device& device)
 {
     return AMDGPU_IS_NAVI14(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
-PAL_INLINE bool IsNavi1x(const Device& device)
+inline bool IsNavi1x(const Device& device)
 {
         return (
             IsNavi10(device)
@@ -2542,19 +2531,19 @@ PAL_INLINE bool IsNavi1x(const Device& device)
             || IsNavi14(device)
            );
 }
-PAL_INLINE bool IsNavi21(const Device& device)
+inline bool IsNavi21(const Device& device)
 {
     return AMDGPU_IS_NAVI21(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
-PAL_INLINE bool IsNavi22(const Device& device)
+inline bool IsNavi22(const Device& device)
 {
     return AMDGPU_IS_NAVI22(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
-PAL_INLINE bool IsNavi23(const Device& device)
+inline bool IsNavi23(const Device& device)
 {
     return AMDGPU_IS_NAVI23(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
-PAL_INLINE bool IsNavi2x(const Device& device)
+inline bool IsNavi2x(const Device& device)
 {
     return (false
             || IsNavi21(device)
@@ -2566,37 +2555,37 @@ PAL_INLINE bool IsNavi2x(const Device& device)
 // The ASICs are still referred within the interface and null backend.
 // So we still keep identification suppport for them though they're no longer supported.
 
-PAL_INLINE bool IsGfx103(GfxIpLevel gfxLevel)
+constexpr bool IsGfx103(GfxIpLevel gfxLevel)
 {
     return (gfxLevel == GfxIpLevel::GfxIp10_3);
 }
-PAL_INLINE bool IsGfx103(const Device& device)
+inline bool IsGfx103(const Device& device)
 {
     return (device.ChipProperties().gfxLevel == GfxIpLevel::GfxIp10_3);
 }
-PAL_INLINE bool IsGfx103Plus(GfxIpLevel gfxLevel)
+inline bool IsGfx103Plus(GfxIpLevel gfxLevel)
 {
     return (gfxLevel > GfxIpLevel::GfxIp10_1);
 }
-PAL_INLINE bool IsGfx103Plus(const Device& device)
+inline bool IsGfx103Plus(const Device& device)
 {
     return IsGfx103Plus(device.ChipProperties().gfxLevel);
 }
-PAL_INLINE bool IsGfx101(GfxIpLevel gfxLevel)
+constexpr bool IsGfx101(GfxIpLevel gfxLevel)
 {
     return (gfxLevel == GfxIpLevel::GfxIp10_1);
 }
-PAL_INLINE bool IsGfx101(const Device& device)
+inline bool IsGfx101(const Device& device)
 {
     return IsGfx101(device.ChipProperties().gfxLevel);
 }
-PAL_INLINE bool IsGfx10Bard(const Device& device)
+inline bool IsGfx10Bard(const Device& device)
 {
     return (false
             );
 }
 
-PAL_INLINE bool IsGfx091xPlus(const Device& device)
+inline bool IsGfx091xPlus(const Device& device)
 {
     return (IsVega12(device) || IsVega20(device) || IsRaven2(device) || IsRenoir(device) || IsGfx10(device)
            );

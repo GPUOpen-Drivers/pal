@@ -40,24 +40,26 @@ namespace Util
 namespace Abi
 {
 
-constexpr uint64 PipelineShaderBaseAddrAlignment = 256; ///< Base address alignment for shader stage entry points on
-                                                        ///  AMD GPUs.
-constexpr uint64 DataMinBaseAddrAlignment        = 32;  ///< Minimum base address alignment for Data section.
-constexpr uint64 RoDataMinBaseAddrAlignment      = 32;  ///< Minimum base address alignment for RoData section.
+constexpr uint8  ElfOsAbiAmdgpuHsa = 64;        ///< ELFOSABI_AMDGPU_HSA
+constexpr uint8  ElfOsAbiAmdgpuPal = 65;        ///< ELFOSABI_AMDGPU_PAL
+constexpr uint8  ElfAbiVersionAmdgpuHsaV2 = 0;  ///< ELFABIVERSION_AMDGPU_HSA_V2
+constexpr uint8  ElfAbiVersionAmdgpuHsaV3 = 1;  ///< ELFABIVERSION_AMDGPU_HSA_V3
+constexpr uint8  ElfAbiVersionAmdgpuHsaV4 = 2;  ///< ELFABIVERSION_AMDGPU_HSA_V4
+constexpr uint8  ElfAbiVersionAmdgpuPal   = 0;  ///< ELFABIVERSION_AMDGPU_PAL
 
-constexpr uint8  ElfOsAbiVersion = 65; ///< ELFOSABI_AMDGPU_PAL
-constexpr uint8  ElfAbiVersion   = 0;  ///< ELFABIVERSION_AMDGPU_PAL
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 676
+constexpr uint8 ElfOsAbiVersion = ElfOsAbiAmdgpuPal;
+constexpr uint8 ElfAbiVersion   = ElfAbiVersionAmdgpuPal;
+#endif
 
-constexpr uint32 MetadataNoteType = 32; ///< NT_AMDGPU_METADATA
+constexpr uint32 MetadataNoteType                = 32;   ///< NT_AMDGPU_METADATA
+constexpr uint64 PipelineShaderBaseAddrAlignment = 256;  ///< Base address alignment for shader stage entry points on
+                                                         ///  AMD GPUs.
+constexpr uint64 DataMinBaseAddrAlignment        = 32;   ///< Minimum base address alignment for Data section.
+constexpr uint64 RoDataMinBaseAddrAlignment      = 32;   ///< Minimum base address alignment for RoData section.
 
-constexpr uint32 PipelineMetadataMajorVersion = 2;  ///< Pipeline Metadata Major Version
-constexpr uint32 PipelineMetadataMinorVersion = 6;  ///< Pipeline Metadata Minor Version
-
-constexpr uint32 PipelineMetadataBase = 0x10000000; ///< Deprecated - Pipeline Metadata base value to be OR'd with the
-                                                    ///  PipelineMetadataEntry value when saving to ELF.
-
-static constexpr char AmdGpuVendorName[] = "AMD";           ///< Vendor name string.
-static constexpr char AmdGpuArchName[]   = "AMDGPU";        ///< Architecture name string.
+static constexpr char AmdGpuVendorName[]         = "AMD";     ///< Vendor name string.
+static constexpr char AmdGpuArchName[]           = "AMDGPU";  ///< Architecture name string.
 
 /// AmdGpuMachineType for the EF_AMDGPU_MACH selection mask in e_flags.
 enum class AmdGpuMachineType : uint8
@@ -211,164 +213,6 @@ static const char* PipelineAbiSymbolNameStrings[] =
     "_amdgpu_mesh_amdil",
     "_amdgpu_ps_amdil",
 };
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
-/// Deprecated - String table of the Pipeline Metadata key names.
-static const char* const PipelineMetadataNameStrings[] =
-{
-    "API_CS_HASH_DWORD0",
-    "API_CS_HASH_DWORD1",
-    "API_CS_HASH_DWORD2",
-    "API_CS_HASH_DWORD3",
-
-    "API_TASK_HASH_DWORD0",
-    "API_TASK_HASH_DWORD1",
-    "API_TASK_HASH_DWORD2",
-    "API_TASK_HASH_DWORD3",
-
-    "API_VS_HASH_DWORD0",
-    "API_VS_HASH_DWORD1",
-    "API_VS_HASH_DWORD2",
-    "API_VS_HASH_DWORD3",
-
-    "API_HS_HASH_DWORD0",
-    "API_HS_HASH_DWORD1",
-    "API_HS_HASH_DWORD2",
-    "API_HS_HASH_DWORD3",
-
-    "API_DS_HASH_DWORD0",
-    "API_DS_HASH_DWORD1",
-    "API_DS_HASH_DWORD2",
-    "API_DS_HASH_DWORD3",
-
-    "API_GS_HASH_DWORD0",
-    "API_GS_HASH_DWORD1",
-    "API_GS_HASH_DWORD2",
-    "API_GS_HASH_DWORD3",
-
-    "API_MESH_HASH_DWORD0",
-    "API_MESH_HASH_DWORD1",
-    "API_MESH_HASH_DWORD2",
-    "API_MESH_HASH_DWORD3",
-
-    "API_PS_HASH_DWORD0",
-    "API_PS_HASH_DWORD1",
-    "API_PS_HASH_DWORD2",
-    "API_PS_HASH_DWORD3",
-
-    "INTERNAL_PIPELINE_HASH_DWORD0",
-    "INTERNAL_PIPELINE_HASH_DWORD1",
-
-    "USER_DATA_LIMIT",
-
-    "USES_SAMPLE_INFO_DEPRECATED",
-
-    "HS_MAX_TESS_FACTOR",
-
-    "PS_USES_UAVS",
-    "PS_USES_ROVS",
-
-    "PS_RUNS_AT_SAMPLE_RATE_DEPRECATED",
-
-    "SPILL_THRESHOLD",
-
-    "LS_NUM_USED_VGPRS",
-    "HS_NUM_USED_VGPRS",
-    "ES_NUM_USED_VGPRS",
-    "GS_NUM_USED_VGPRS",
-    "VS_NUM_USED_VGPRS",
-    "PS_NUM_USED_VGPRS",
-    "CS_NUM_USED_VGPRS",
-
-    "LS_NUM_USED_SGPRS",
-    "HS_NUM_USED_SGPRS",
-    "ES_NUM_USED_SGPRS",
-    "GS_NUM_USED_SGPRS",
-    "VS_NUM_USED_SGPRS",
-    "PS_NUM_USED_SGPRS",
-    "CS_NUM_USED_SGPRS",
-
-    "LS_NUM_AVAIL_VGPRS",
-    "HS_NUM_AVAIL_VGPRS",
-    "ES_NUM_AVAIL_VGPRS",
-    "GS_NUM_AVAIL_VGPRS",
-    "VS_NUM_AVAIL_VGPRS",
-    "PS_NUM_AVAIL_VGPRS",
-    "CS_NUM_AVAIL_VGPRS",
-
-    "LS_NUM_AVAIL_SGPRS",
-    "HS_NUM_AVAIL_SGPRS",
-    "ES_NUM_AVAIL_SGPRS",
-    "GS_NUM_AVAIL_SGPRS",
-    "VS_NUM_AVAIL_SGPRS",
-    "PS_NUM_AVAIL_SGPRS",
-    "CS_NUM_AVAIL_SGPRS",
-
-    "LS_LDS_BYTE_SIZE",
-    "HS_LDS_BYTE_SIZE",
-    "ES_LDS_BYTE_SIZE",
-    "GS_LDS_BYTE_SIZE",
-    "VS_LDS_BYTE_SIZE",
-    "PS_LDS_BYTE_SIZE",
-    "CS_LDS_BYTE_SIZE",
-
-    "LS_SCRATCH_BYTE_SIZE",
-    "HS_SCRATCH_BYTE_SIZE",
-    "ES_SCRATCH_BYTE_SIZE",
-    "GS_SCRATCH_BYTE_SIZE",
-    "VS_SCRATCH_BYTE_SIZE",
-    "PS_SCRATCH_BYTE_SIZE",
-    "CS_SCRATCH_BYTE_SIZE",
-
-    "STREAM_OUT_TABLE_ENTRY__DEPRECATED",
-    "INDIRECT_TABLE_0_ENTRY__DEPRECATED",
-    "INDIRECT_TABLE_1_ENTRY__DEPRECATED",
-    "INDIRECT_TABLE_2_ENTRY__DEPRECATED",
-
-    "ESGS_LDS_SIZE",
-    "USES_VIEWPORT_ARRAY_INDEX",
-
-    "PIPELINE_NAME_INDEX",
-
-    "HW_API_SHADER_MAPPING_LO",
-    "HW_API_SHADER_MAPPING_HI",
-
-    "LS_PERFORMANCE_DATA_BUFFER_SIZE",
-    "HS_PERFORMANCE_DATA_BUFFER_SIZE",
-    "ES_PERFORMANCE_DATA_BUFFER_SIZE",
-    "GS_PERFORMANCE_DATA_BUFFER_SIZE",
-    "VS_PERFORMANCE_DATA_BUFFER_SIZE",
-    "PS_PERFORMANCE_DATA_BUFFER_SIZE",
-    "CS_PERFORMANCE_DATA_BUFFER_SIZE",
-
-    "CALC_WAVE_BREAK_SIZE_AT_DRAW_TIME",
-
-    "RESERVED1",
-
-    "PS_WRITES_UAVS",
-    "PS_WRITES_DEPTH",
-    "PS_USES_APPEND_CONSUME",
-
-    "INTERNAL_PIPELINE_HASH_DWORD2",
-    "INTERNAL_PIPELINE_HASH_DWORD3",
-
-    "CS_WAVE_FRONT_SIZE",
-
-    "MESH_SHADER_SCRATCH_BYTE_SIZE"
-};
-
-/// The pipeline ABI note types.
-enum class PipelineAbiNoteType : uint32
-{
-    PalMetadata    = MetadataNoteType, ///< Contains metadata needed by the PAL runtime to execute the pipeline.
-
-    /// The following legacy note types are deprecated.
-
-    HsaIsa          = 3,  ///< Structure defining the ISA type in the code object.  Shared with HSA code objects.
-    AbiMinorVersion = 8,  ///< ABI minor version.
-    LegacyMetadata  = 12, ///< Contains metadata needed by the PAL runtime to execute the pipeline.
-};
-#endif
 
 /// Pipeline category.
 enum PipelineType : uint32
@@ -569,219 +413,6 @@ inline PipelineSymbolType GetSymbolTypeFromName(const char* pName)
     return type;
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
-/// Deprecated - Legacy pipeline metadata types.
-enum class PipelineMetadataType : uint32
-{
-    ApiCsHashDword0 = 0,   ///< Dword 0 of a 128-bit hash identifying the API compute shader.
-    ApiCsHashDword1,       ///< Dword 1 of a 128-bit hash identifying the API compute shader.
-    ApiCsHashDword2,       ///< Dword 2 of a 128-bit hash identifying the API compute shader.
-    ApiCsHashDword3,       ///< Dword 3 of a 128-bit hash identifying the API compute shader.
-
-    ApiTaskHashDword0,     ///< Dword 0 of a 128-bit hash identifying the API task shader.
-    ApiTaskHashDword1,     ///< Dword 1 of a 128-bit hash identifying the API task shader.
-    ApiTaskHashDword2,     ///< Dword 2 of a 128-bit hash identifying the API task shader.
-    ApiTaskHashDword3,     ///< Dword 3 of a 128-bit hash identifying the API task shader.
-
-    ApiVsHashDword0,       ///< Dword 0 of a 128-bit hash identifying the API vertex shader.
-    ApiVsHashDword1,       ///< Dword 1 of a 128-bit hash identifying the API vertex shader.
-    ApiVsHashDword2,       ///< Dword 2 of a 128-bit hash identifying the API vertex shader.
-    ApiVsHashDword3,       ///< Dword 3 of a 128-bit hash identifying the API vertex shader.
-
-    ApiHsHashDword0,       ///< Dword 0 of a 128-bit hash identifying the API hull shader.
-    ApiHsHashDword1,       ///< Dword 1 of a 128-bit hash identifying the API hull shader.
-    ApiHsHashDword2,       ///< Dword 2 of a 128-bit hash identifying the API hull shader.
-    ApiHsHashDword3,       ///< Dword 3 of a 128-bit hash identifying the API hull shader.
-
-    ApiDsHashDword0,       ///< Dword 0 of a 128-bit hash identifying the API domain shader.
-    ApiDsHashDword1,       ///< Dword 1 of a 128-bit hash identifying the API domain shader.
-    ApiDsHashDword2,       ///< Dword 2 of a 128-bit hash identifying the API domain shader.
-    ApiDsHashDword3,       ///< Dword 3 of a 128-bit hash identifying the API domain shader.
-
-    ApiGsHashDword0,       ///< Dword 0 of a 128-bit hash identifying the API geometry shader.
-    ApiGsHashDword1,       ///< Dword 1 of a 128-bit hash identifying the API geometry shader.
-    ApiGsHashDword2,       ///< Dword 2 of a 128-bit hash identifying the API geometry shader.
-    ApiGsHashDword3,       ///< Dword 3 of a 128-bit hash identifying the API geometry shader.
-
-    ApiMeshHashDword0,     ///< Dword 0 of a 128-bit hash identifying the API mesh shader.
-    ApiMeshHashDword1,     ///< Dword 1 of a 128-bit hash identifying the API mesh shader.
-    ApiMeshHashDword2,     ///< Dword 2 of a 128-bit hash identifying the API mesh shader.
-    ApiMeshHashDword3,     ///< Dword 3 of a 128-bit hash identifying the API mesh shader.
-
-    ApiPsHashDword0,       ///< Dword 0 of a 128-bit hash identifying the API pixel shader.
-    ApiPsHashDword1,       ///< Dword 1 of a 128-bit hash identifying the API pixel shader.
-    ApiPsHashDword2,       ///< Dword 2 of a 128-bit hash identifying the API pixel shader.
-    ApiPsHashDword3,       ///< Dword 3 of a 128-bit hash identifying the API pixel shader.
-
-    InternalPipelineHashDword0, ///< Dword 0 of a 128-bit hash identifying the internal pipeline (stable portion).
-    InternalPipelineHashDword1, ///< Dword 1 of a 128-bit hash identifying the internal pipeline (stable portion).
-
-    UserDataLimit,         ///< Number of user data entries accessed by this pipeline.
-
-    Placeholder0,          ///< This can only be removed when clients have bumped past 382 and offline ELFs
-                           ///  are regenerated.  This won't be requred after moving to MessagePack.
-
-    HsMaxTessFactor,       ///< Maximum tessellation factor declared in the pipeline's HS. 32-bit float.
-
-    PsUsesUavs,            ///< 1 if the pipeline's pixel shader reads or writes any UAVs, otherwise 0.
-    PsUsesRovs,            ///< 1 if the pipeline's pixel shader reads or writes any ROVs, otherwise 0.
-
-    Placeholder1,          ///< Placeholder for offline compiled ELFs.
-
-    SpillThreshold,        ///< The spill threshold.
-
-    LsNumUsedVgprs,        ///< Number of VGPRs used by this shader
-    HsNumUsedVgprs,        ///< Number of VGPRs used by this shader
-    EsNumUsedVgprs,        ///< Number of VGPRs used by this shader
-    GsNumUsedVgprs,        ///< Number of VGPRs used by this shader
-    VsNumUsedVgprs,        ///< Number of VGPRs used by this shader
-    PsNumUsedVgprs,        ///< Number of VGPRs used by this shader
-    CsNumUsedVgprs,        ///< Number of VGPRs used by this shader
-
-    LsNumUsedSgprs,        ///< Number of SGPRs used by this shader
-    HsNumUsedSgprs,        ///< Number of SGPRs used by this shader
-    EsNumUsedSgprs,        ///< Number of SGPRs used by this shader
-    GsNumUsedSgprs,        ///< Number of SGPRs used by this shader
-    VsNumUsedSgprs,        ///< Number of SGPRs used by this shader
-    PsNumUsedSgprs,        ///< Number of SGPRs used by this shader
-    CsNumUsedSgprs,        ///< Number of SGPRs used by this shader
-
-    LsNumAvailableVgprs,   ///< Number of VGPR's which were available to this shader during compilation
-    HsNumAvailableVgprs,   ///< Number of VGPR's which were available to this shader during compilation
-    EsNumAvailableVgprs,   ///< Number of VGPR's which were available to this shader during compilation
-    GsNumAvailableVgprs,   ///< Number of VGPR's which were available to this shader during compilation
-    VsNumAvailableVgprs,   ///< Number of VGPR's which were available to this shader during compilation
-    PsNumAvailableVgprs,   ///< Number of VGPR's which were available to this shader during compilation
-    CsNumAvailableVgprs,   ///< Number of VGPR's which were available to this shader during compilation
-
-    LsNumAvailableSgprs,   ///< Number of SGPR's which were available to this shader during compilation
-    HsNumAvailableSgprs,   ///< Number of SGPR's which were available to this shader during compilation
-    EsNumAvailableSgprs,   ///< Number of SGPR's which were available to this shader during compilation
-    GsNumAvailableSgprs,   ///< Number of SGPR's which were available to this shader during compilation
-    VsNumAvailableSgprs,   ///< Number of SGPR's which were available to this shader during compilation
-    PsNumAvailableSgprs,   ///< Number of SGPR's which were available to this shader during compilation
-    CsNumAvailableSgprs,   ///< Number of SGPR's which were available to this shader during compilation
-
-    LsLdsByteSize,         ///< Amount of LDS space in bytes used by this shader.
-    HsLdsByteSize,         ///< Amount of LDS space in bytes used by this shader.
-    EsLdsByteSize,         ///< Amount of LDS space in bytes used by this shader.
-    GsLdsByteSize,         ///< Amount of LDS space in bytes used by this shader.
-    VsLdsByteSize,         ///< Amount of LDS space in bytes used by this shader.
-    PsLdsByteSize,         ///< Amount of LDS space in bytes used by this shader.
-    CsLdsByteSize,         ///< Amount of LDS space in bytes used by this shader.
-
-    LsScratchByteSize,     ///< Amount of scratch memory in bytes used by this shader.
-    HsScratchByteSize,     ///< Amount of scratch memory in bytes used by this shader.
-    EsScratchByteSize,     ///< Amount of scratch memory in bytes used by this shader.
-    GsScratchByteSize,     ///< Amount of scratch memory in bytes used by this shader.
-    VsScratchByteSize,     ///< Amount of scratch memory in bytes used by this shader.
-    PsScratchByteSize,     ///< Amount of scratch memory in bytes used by this shader.
-    CsScratchByteSize,     ///< Amount of scratch memory in bytes used by this shader.
-
-    StreamOutTableEntry,   ///< Index of the virtualized user-data entry which stores the 32-bit GPU virtual address
-                           ///  of the stream-out SRD table.
-    IndirectTableEntryLow, ///< Low range of an index of the virtualized user-data entry which stores the 32-bit GPU
-                           ///  virtual address of an indirect user-data table.  Subtract IndirectTableEntryLow to
-                           ///  find the index of the indirect table being described.
-    /// High range of an index of the virtualized user-data entry which stores the 32bit GPU virtual address of an
-    /// indirect user-data table.  Subtract IndirectTableEntryLow to find the index of the indirect table being
-    /// described.
-    IndirectTableEntryHigh = (IndirectTableEntryLow + 2),
-
-    /// Amount of LDS space used internally for handling data-passing between the ES and GS shader stages.  This can
-    /// be zero if the data is passed using off-chip buffers.  This value should be used to program all user-SGPR's
-    /// which have been marked with @ref UserDataMapping::EsGsLdsSize (typically only the GS and VS hardware stages
-    /// will ever have a user-SGPR so marked).
-    EsGsLdsByteSize,
-
-    /// Indicates whether or not the pipeline uses the viewport array index feature.  Pipelines which use this feature
-    /// can render into all 16 viewports, whereas pipelines which don't use it are restricted to viewport #0.
-    UsesViewportArrayIndex,
-
-    /// Index into the string table contained in the .strtab section of the ELF where a human-readable name for this
-    /// pipeline begins.  If this entry is absent from a pipeline binary, or if the .strtab section is absent, then the
-    /// pipeline was not given a human-readable name.
-    PipelineNameIndex,
-
-    ApiHwShaderMappingLo,  ///< Low 32-bits of the packed bitfield which correlates a ApiShaderType to the applicable
-                           ///  HardwareStages. Use @ref ApiHwShaderMapping.u32Lo to unpack value.
-    ApiHwShaderMappingHi,  ///< High 32-bits of the packed bitfield which correlates a ApiShaderType to the applicable
-                           ///  HardwareStages. Use @ref ApiHwShaderMapping.u32Hi to unpack value.
-
-    LsPerformanceDataBufferSize,  ///< If present, indicates that the performance data buffer is required for this
-                                  ///  shader and the size in bytes required.
-    HsPerformanceDataBufferSize,  ///< If present, indicates that the performance data buffer is required for this
-                                  ///  shader and the size in bytes required.
-    EsPerformanceDataBufferSize,  ///< If present, indicates that the performance data buffer is required for this
-                                  ///  shader and the size in bytes required.
-    GsPerformanceDataBufferSize,  ///< If present, indicates that the performance data buffer is required for this
-                                  ///  shader and the size in bytes required.
-    VsPerformanceDataBufferSize,  ///< If present, indicates that the performance data buffer is required for this
-                                  ///  shader and the size in bytes required.
-    PsPerformanceDataBufferSize,  ///< If present, indicates that the performance data buffer is required for this
-                                  ///  shader and the size in bytes required.
-    CsPerformanceDataBufferSize,  ///< If present, indicates that the performance data buffer is required for this
-                                  ///  shader and the size in bytes required.
-
-    CalcWaveBreakSizeAtDrawTime,  ///< Deprecated.  This will be removed at a future date.
-
-    Reserved9,                    ///< Reserved for future use.
-
-    PsWritesUavs,                 ///< 1 if the pipeline's pixel shader writes any UAVs, otherwise 0.
-    PsWritesDepth,                ///< 1 if the pipeline's pixel shader writes depth values, otherwise 0.
-    PsUsesAppendConsume,          ///< 1 if the pipeline's pixel shader uses UAV append/consume operations, otherwise 0.
-
-    InternalPipelineHashDword2,   ///< Dword 2 of a 128-bit hash identifying the internal pipeline (unique portion).
-    InternalPipelineHashDword3,   ///< Dword 3 of a 128-bit hash identifying the internal pipeline (unique portion).
-
-    CsWaveFrontSize,              ///< Wave front size.
-
-    MeshScratchByteSize,          ///< Amount of mesh-shader scratch space needed (bytes)
-
-    Count,
-
-    ShaderNumUsedVgprs              = LsNumUsedVgprs,              ///< Shorthand for the first shader's used VGPR count
-    ShaderNumUsedSgprs              = LsNumUsedSgprs,              ///< Shorthand for the first shader's used SGPR count
-    ShaderNumAvailVgprs             = LsNumAvailableVgprs,         ///< Shorthand for the first shader's available VGPR
-                                                                   ///  count
-    ShaderNumAvailSgprs             = LsNumAvailableSgprs,         ///< Shorthand for the first shader's available SGPR
-                                                                   ///  count
-    ShaderLdsByteSize               = LsLdsByteSize,               ///< Shorthand for the first shader's used LDS size
-    ShaderScratchByteSize           = LsScratchByteSize,           ///< Shorthand for the first shader's used scratch
-                                                                   ///  size.
-    ShaderPerformanceDataBufferSize = LsPerformanceDataBufferSize, ///< Shorthand for the first shader's performance
-                                                                   ///  data buffer's size.
-};
-
-/// Deprecated - Helper function to get a pipeline metadata type for a specific hardware shader stage.
-///
-/// @param [in] metadataType Type of Pipeline Metadata to retrieve
-/// @param [in] stage        Hardware shader stage of interest
-///
-/// @returns PipelineMetadataType enum associated with the base symbol type and hardware stage.
-constexpr PipelineMetadataType GetMetadataForStage(
-    PipelineMetadataType metadataType,
-    HardwareStage        stage)
-{
-    return static_cast<PipelineMetadataType>(static_cast<uint32>(metadataType) + static_cast<uint32>(stage));
-}
-
-/// Deprecated - Helper function to get a pipeline metadata hash type for a specific API shader stage.
-///
-/// @param [in] shader        API shader stage of interest
-/// @param [in] dwordSelected The selected dword [0-3]
-///
-/// @returns PipelineMetadataType enum for the given API shader and selected dword.
-constexpr PipelineMetadataType GetMetadataHashForApiShader(
-    ApiShaderType shader,
-    uint32        dwordSelected)
-{
-    return static_cast<PipelineMetadataType>(
-        (static_cast<uint32>(PipelineMetadataType::ApiCsHashDword0) + dwordSelected) +
-        (static_cast<uint32>(shader) << 2));
-}
-#endif
-
 /// User data entries can map to physical user data registers.  UserDataMapping describes the
 /// content of the registers.
 enum class UserDataMapping : uint32
@@ -917,13 +548,8 @@ union AmdGpuElfFlags
     struct
     {
         uint32 machineId      :  8;  ///< EF_AMDGPU_MACH
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 634
-        uint32 xnackEnabled   :  1;  ///< EF_AMDGPU_XNACK
-        uint32 reserved633    :  3;
-#else
         uint32 xnackFeature   :  2;  ///< EF_AMDGPU_FEATURE_XNACK_V4
         uint32 sramEccFeature :  2;  ///< EF_AMDGPU_FEATURE_SRAMECC_V4
-#endif
         uint32 reserved       : 20;
     };
 
@@ -933,55 +559,6 @@ union AmdGpuElfFlags
 };
 
 static_assert(sizeof(AmdGpuMachineType) == 1, "AmdGpuMachineType enum underlying type is larger than expected.");
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
-/// Deprecated - The structure of a NT_AMDGPU_HSA_ISA note.
-#pragma pack (push, 1)
-struct AbiAmdGpuVersionNote
-{
-    uint16 vendorNameSize;
-    uint16 archNameSize;
-    uint32 gfxipMajorVer;
-    uint32 gfxipMinorVer;
-    uint32 gfxipStepping;
-    char vendorName[sizeof(AmdGpuVendorName)];
-    char archName[sizeof(AmdGpuArchName)];
-};
-#pragma pack (pop)
-
-/// Deprecated - The structure of a NT_AMDGPU_ABI_MINOR_VERSION note.
-#pragma pack (push, 1)
-struct AbiMinorVersionNote
-{
-    uint32 minorVersion;
-};
-#pragma pack (pop)
-
-/// Deprecated - Holds the details required by PAL runtime to configure and launch the pipeline.
-#pragma pack (push, 1)
-struct PalMetadataNoteEntry
-{
-    uint32 key;
-    uint32 value;
-};
-#pragma pack (pop)
-
-/// Deprecated - Interpret the PalMetadataNoteEntry as pipeline metadata if the key >= 0x10000000.
-/// The pipeline metadata specifies metadata useful to PAL that doesn't correspond directly
-/// to a GFX hardware register.
-#pragma pack (push, 1)
-struct PipelineMetadataEntry
-{
-    PipelineMetadataType key;
-    uint32               value;
-};
-#pragma pack (pop)
-
-/// Deprecated - Interpret the PalMetadataNoteEntry as a register if the key < 0x10000000.
-/// The value specifies how the GFX hardware register at the corresponding byte offset should be
-/// programmed by the PAL runtime when executing the pipeline.
-typedef PalMetadataNoteEntry RegisterEntry;
-#endif
 
 /// Maximum number of viewports.
 constexpr uint32 MaxViewports = 16;
@@ -1099,5 +676,21 @@ struct PrimShaderCbLayout
 static_assert(sizeof(PrimShaderCullingCb) == sizeof(PrimShaderCbLayout),
     "Transition structure (PrimShaderCullingCb) is not the same size as original structure (PrimShaderCbLayout)!");
 
-} //Abi
-} //Pal
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 676
+ } //Abi
+ namespace PalAbi
+ {
+ #endif
+
+ constexpr uint32 PipelineMetadataMajorVersion = 2;  ///< Pipeline Metadata Major Version
+ constexpr uint32 PipelineMetadataMinorVersion = 6;  ///< Pipeline Metadata Minor Version
+
+ constexpr uint32 PipelineMetadataBase = 0x10000000; ///< Deprecated - Pipeline Metadata base value to be OR'd with the
+                                                     ///  PipelineMetadataEntry value when saving to ELF.
+
+ #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 676
+ } //PalAbi
+ #else
+ } //Abi
+ #endif
+ } //Pal

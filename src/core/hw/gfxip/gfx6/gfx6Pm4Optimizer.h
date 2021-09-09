@@ -100,6 +100,7 @@ private:
     const GfxIpLevel m_chipFamily;
     const bool       m_waShaderSpiWriteShaderPgmRsrc2Ls; // Caching this workaround setting is probably a good idea.
     const bool       m_waTcCompatZRange;
+    const bool       m_splitPackets;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     bool     m_dstContainsSrc; // Knowing when the dst and src buffers are the same lets us do additional debug checks.

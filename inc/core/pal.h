@@ -392,12 +392,28 @@ struct DoppDesktopInfo
 /// primary directly. This is only supported on Windows.
 struct DirectCaptureInfo
 {
-    gpusize gpuVirtAddr;    ///< The VA of the Direct Capture resource.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 677
+    gpusize gpuVirtAddr;    ///< The VA of the Direct Capture resource. Used by legacy DXXP DirectCapture.
+#endif
     uint32  vidPnSourceId;  ///< VidPnSource ID of the on-screen primary.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 677
+    union
+    {
+        struct
+        {
+            uint32 preflip           :  1;  ///< Requires pre-flip primary access
+            uint32 postflip          :  1;  ///< Requires post-flip primary access
+            uint32 accessDesktop     :  1;  ///< Requires acces to the desktop
+            uint32 shared            :  1;  ///< This resource will be shared between APIs
+            uint32 reserved          : 28;
+        };
+        uint32 u32All;
+    } usageFlags;
+    OsExternalHandle hPreFlipEvent;         ///< Event handle to notify a new frame available for pre-flip access
+#endif
 };
 
 /// Specifies parameters for opening a shared GPU resource from a non-PAL device or non-local process.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 640
 struct ExternalResourceOpenInfo
 {
     OsExternalHandle hExternalResource;         ///< External GPU resource from another non-PAL device to open.
@@ -426,27 +442,6 @@ struct ExternalResourceOpenInfo
         DirectCaptureInfo directCaptureInfo;    ///< The information of direct capture resource.
     };
 };
-#else
-struct ExternalResourceOpenInfo
-{
-    OsExternalHandle hExternalResource;         ///< External GPU resource from another non-PAL device to open.
-
-    union
-    {
-        struct
-        {
-            uint32 ntHandle           :  1; ///< The provided hExternalResource is an NT handle instead of a default
-                                            ///  KMT handle.
-            uint32 androidHwBufHandle :  1; ///< The provided hExternalResource is android hardware buffer handle
-                                            ///  instead of fd.
-            uint32 reserved           : 30; ///< Reserved for future use.
-        };
-        uint32 u32All;            ///< Flags packed as 32-bit uint.
-    } flags;                      ///< External resource open flags.
-
-    DoppDesktopInfo  doppDesktopInfo;           ///< The information of dopp desktop texture.
-};
-#endif
 
 /// Packed pixel display enumeration.
 ///

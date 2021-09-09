@@ -93,10 +93,8 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::CmdBufferCmdSetColorWriteMask,                 (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetRasterizerDiscardEnable,        (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdBarrier,                           (CmdBuild)            },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     { InterfaceFunc::CmdBufferCmdRelease,                           (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdAcquire,                           (CmdBuild)            },
-#endif
     { InterfaceFunc::CmdBufferCmdReleaseEvent,                      (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdAcquireEvent,                      (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdReleaseThenAcquire,                (CmdBuild)            },

@@ -58,13 +58,6 @@ public:
     ~ConditionVariable() noexcept { pthread_cond_destroy(&m_osCondVariable); };
 #endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 650
-    /// Backward compatability support for ::Init() call
-    ///
-    /// @returns Success
-    Result Init() const noexcept { return Result::Success; }
-#endif
-
     /// Atomically releases the given mutex lock and initiates a sleep waiting for WakeOne() or WakeAll() to be called
     /// on this condition variable from a different thread.
     ///

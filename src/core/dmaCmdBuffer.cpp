@@ -346,7 +346,6 @@ void DmaCmdBuffer::CmdBarrier(
     }
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // =====================================================================================================================
 // Inserts a barrier in the current command stream that can pipeline a stall in GPU execution, flush/invalidate caches,
 // or decompress images before further, dependent work can continue in this command buffer.
@@ -375,7 +374,6 @@ void DmaCmdBuffer::CmdAcquire(
 
     CmdReleaseThenAcquire(acquireInfo);
 }
-#endif
 
 // =====================================================================================================================
 // Inserts a barrier in the current command stream that can pipeline a stall in GPU execution, flush/invalidate caches,
@@ -873,9 +871,7 @@ void DmaCmdBuffer::CmdCopyImage(
     const Rect*            pScissorRect,
     uint32                 flags)
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 603
     PAL_ASSERT(TestAnyFlagSet(flags, CopyEnableScissorTest) == false);
-#endif
 
     uint32* pCmdSpace = nullptr;
     uint32* pPredCmd  = nullptr;
@@ -990,11 +986,7 @@ void DmaCmdBuffer::CmdCopyImage(
             (pSrcSubresInfo->extentElements.width  == pDstSubresInfo->extentElements.width)  &&
             (pSrcSubresInfo->extentElements.height == pDstSubresInfo->extentElements.height) &&
             (pSrcSubresInfo->extentElements.depth  == pDstSubresInfo->extentElements.depth)  &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            (pSrcSubresInfo->subresId.aspect == pDstSubresInfo->subresId.aspect)             &&
-#else
             (pSrcSubresInfo->subresId.plane == pDstSubresInfo->subresId.plane)               &&
-#endif
             (pSrcSubresInfo->subresId.mipLevel == pDstSubresInfo->subresId.mipLevel)         &&
             (pSrcSubresInfo->subresId.arraySlice == pDstSubresInfo->subresId.arraySlice))
         {

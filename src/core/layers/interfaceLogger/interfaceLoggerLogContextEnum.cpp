@@ -719,34 +719,6 @@ void LogContext::Enum(
     Value(StringTable[idx]);
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-// =====================================================================================================================
-void LogContext::Enum(
-    ImageAspect value)
-{
-    const char*const StringTable[] =
-    {
-        "Color",   // 0x0,
-        "Depth",   // 0x1,
-        "Stencil", // 0x2,
-        "Fmask",   // 0x3,
-        "Y",       // 0x4,
-        "CbCr",    // 0x5,
-        "Cb",      // 0x6,
-        "Cr",      // 0x7,
-        "YCbCr",   // 0x8,
-    };
-
-    static_assert(ArrayLen(StringTable) == static_cast<uint32>(ImageAspect::Count),
-                  "The ImageAspect string table needs to be updated.");
-
-    const uint32 idx = static_cast<uint32>(value);
-    PAL_ASSERT(idx < static_cast<uint32>(ImageAspect::Count));
-
-    Value(StringTable[idx]);
-}
-#endif
-
 // =====================================================================================================================
 void LogContext::Enum(
     ImageRotation value)
@@ -1526,17 +1498,9 @@ void LogContext::Enum(
             "ErrorInvalidImageDepth",                 // -(0x00000037),
             "ErrorInvalidMipCount",                   // -(0x00000038),
             "ErrorFormatIncompatibleWithImageUsage",  // -(0x00000039),
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            "ErrorImageAspectUnavailable",            // -(0x0000003A),
-#else
             "ErrorImagePlaneUnavailable",             // -(0x0000003A),
-#endif
             "ErrorFormatIncompatibleWithImageFormat", // -(0x0000003B),
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            "ErrorFormatIncompatibleWithImageAspect", // -(0x0000003C),
-#else
             "ErrorFormatIncompatibleWithImagePlane",  // -(0x0000003C),
-#endif
             "ErrorImageNotShaderAccessible",          // -(0x0000003D),
             "ErrorInvalidFormatSwizzle",              // -(0x0000003E),
             "ErrorInvalidBaseMipLevel",               // -(0x0000003F),

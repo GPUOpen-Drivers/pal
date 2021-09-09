@@ -62,7 +62,7 @@ Queue::Queue(
     m_logItems(static_cast<Platform*>(pDevice->GetPlatform())),
     m_curLogFrame(0),
     m_curLogCmdBufIdx(0),
-    m_curLogSqttIdx(0)
+    m_curLogTraceIdx(0)
 {
     memset(&m_gpaSessionSampleConfig,    0, sizeof(m_gpaSessionSampleConfig));
     memset(&m_nextSubmitInfo,            0, sizeof(m_nextSubmitInfo));
@@ -647,13 +647,19 @@ Result Queue::Submit(
                             pNextCmdBufInfoList->pPrimaryMemory =
                                     NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[i].pPrimaryMemory);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 640
                             if ((pNextCmdBufInfoList->captureBegin) || (pNextCmdBufInfoList->captureEnd))
                             {
                                 pNextCmdBufInfoList->pDirectCapMemory =
                                     NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[i].pDirectCapMemory);
-                            }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 677
+                                if (pNextCmdBufInfoList->privateFlip)
+                                {
+                                    pNextCmdBufInfoList->pPrivFlipMemory =
+                                        NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[i].pPrivFlipMemory);
+                                }
 #endif
+                            }
                         }
                         localCmdBufInfoIdx++;
                         nextPerSubQueueInfosBreakBatch[subQueueIdx].pCmdBufInfoList =

@@ -420,12 +420,8 @@ Result Queue::Init(
                     if ((result == Result::Success) && (m_pQueueInfos[qIndex].pQueueContext != nullptr))
                     {
                         m_pQueueInfos[qIndex].pQueueContext->SetParentQueue(this);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 605
                         m_pQueueInfos[qIndex].pQueueContext->
                             SetWaitForIdleOnRingResize(m_pQueueInfos[qIndex].createInfo.forceWaitIdleOnRingResize);
-#else
-                        m_pQueueInfos[qIndex].pQueueContext->SetWaitForIdleOnRingResize(true);
-#endif
                     }
                 }
                 else

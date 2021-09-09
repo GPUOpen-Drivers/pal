@@ -94,6 +94,12 @@ static uint32* WriteCommonPreamble(
         // Initializing the COMPUTE_PGM_HI register to 0 is required because PAL command-buffer generation expects it.
         pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_HI, 0, pCmdSpace);
 
+        if (IsGfx10Plus(*device.Parent()))
+        {
+            // For now we always program this to zero. It may become a per-dispatch value in the future.
+            pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(Gfx10Plus::mmCOMPUTE_DISPATCH_TUNNEL, 0, pCmdSpace);
+        }
+
         // Set every user accumulator contribution to a default "disabled" value (zero).
         if (chipProps.gfx9.supportSpiPrefPriority != 0)
         {
@@ -715,9 +721,6 @@ Result UniversalQueueContext::Init()
 Result UniversalQueueContext::AllocateShadowMemory()
 {
     Pal::Device*const        pDevice   = m_pDevice->Parent();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 652
-    const GpuChipProperties& chipProps = pDevice->ChipProperties();
-#endif
 
     // Shadow memory only needs to include space for the region of CE RAM which the client requested PAL makes
     // persistent between submissions.
@@ -739,29 +742,13 @@ Result UniversalQueueContext::AllocateShadowMemory()
     constexpr gpusize ShadowMemoryAlignment = 256;
 
     GpuMemoryCreateInfo createInfo = { };
-    createInfo.alignment = ShadowMemoryAlignment;
-    createInfo.size      = (ceRamBytes + (sizeof(uint32) * m_shadowedRegCount));
-    createInfo.priority  = GpuMemPriority::Normal;
-    createInfo.vaRange   = VaRange::Default;
+    createInfo.alignment  = ShadowMemoryAlignment;
+    createInfo.size       = (ceRamBytes + (sizeof(uint32) * m_shadowedRegCount));
+    createInfo.priority   = GpuMemPriority::Normal;
+    createInfo.vaRange    = VaRange::Default;
+    createInfo.heapAccess = GpuHeapAccess::GpuHeapAccessCpuNoAccess;
 
     m_shadowGpuMemSizeInBytes = createInfo.size;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 652
-    if (chipProps.gpuType == GpuType::Integrated)
-    {
-        createInfo.heapCount = 2;
-        createInfo.heaps[0]  = GpuHeap::GpuHeapGartUswc;
-        createInfo.heaps[1]  = GpuHeap::GpuHeapGartCacheable;
-    }
-    else
-    {
-        createInfo.heapCount = 2;
-        createInfo.heaps[0]  = GpuHeap::GpuHeapInvisible;
-        createInfo.heaps[1]  = GpuHeap::GpuHeapLocal;
-    }
-#else
-    createInfo.heapAccess = GpuHeapAccess::GpuHeapAccessCpuNoAccess;
-#endif
 
     GpuMemoryInternalCreateInfo internalInfo = { };
     internalInfo.flags.alwaysResident = 1;
@@ -1582,6 +1569,19 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                      &paScGenericScissor,
                                                      pCmdSpace);
     pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SC_NGG_MODE_CNTL, paScNggModeCntl.u32All, pCmdSpace);
+
+    const uint32  mmPaStateStereoX = cmdUtil.GetRegInfo().mmPaStateStereoX;
+    if (mmPaStateStereoX != 0)
+    {
+        if (IsGfx10Plus(device))
+        {
+            pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPaStateStereoX, 0, pCmdSpace);
+        }
+        else
+        {
+            pCmdSpace = m_deCmdStream.WriteSetOneConfigReg(mmPaStateStereoX, 0, pCmdSpace);
+        }
+    }
 
     pCmdStream->CommitCommands(pCmdSpace);
     pCmdSpace = pCmdStream->ReserveCommands();

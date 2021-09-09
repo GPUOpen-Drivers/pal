@@ -104,7 +104,6 @@ public:
 
     virtual void CmdBarrier(const BarrierInfo& barrier) override;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     virtual uint32 CmdRelease(
         const AcquireReleaseInfo& releaseInfo) override;
 
@@ -112,7 +111,6 @@ public:
         const AcquireReleaseInfo& acquireInfo,
         uint32                    syncTokenCount,
         const uint32*             pSyncTokens) override;
-#endif
 
     virtual void CmdReleaseEvent(
         const AcquireReleaseInfo& releaseInfo,

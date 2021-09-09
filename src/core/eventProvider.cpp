@@ -702,11 +702,7 @@ void EventProvider::LogResourceCreateEvent(
 
         RMT_PIPELINE_CREATE_FLAGS flags;
         flags.CLIENT_INTERNAL   = pPipelineData->pCreateFlags->clientInternal;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
-        flags.OVERRIDE_GPU_HEAP = pPipelineData->pCreateFlags->overrideGpuHeap;
-#else
         flags.OVERRIDE_GPU_HEAP = 0; // pipeline heap override has been removed in PAL version 631.0
-#endif
 
         RMT_PIPELINE_HASH hash;
         hash.hashUpper = pPipelineData->pPipelineInfo->internalPipelineHash.unique;

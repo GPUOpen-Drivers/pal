@@ -765,9 +765,6 @@ Result UniversalQueueContext::UpdateRingSet(
 Result UniversalQueueContext::AllocateShadowMemory()
 {
     Pal::Device*const        pDevice   = m_pDevice->Parent();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 652
-    const GpuChipProperties& chipProps = pDevice->ChipProperties();
-#endif
 
     // Shadow memory only needs to include space for the region of CE RAM which the client requested PAL makes
     // persistent between submissions.
@@ -789,29 +786,13 @@ Result UniversalQueueContext::AllocateShadowMemory()
     constexpr gpusize ShadowMemoryAlignment = 256;
 
     GpuMemoryCreateInfo createInfo = { };
-    createInfo.alignment = ShadowMemoryAlignment;
-    createInfo.size      = (ceRamBytes + (sizeof(uint32) * m_shadowedRegCount));
-    createInfo.priority  = GpuMemPriority::Normal;
-    createInfo.vaRange   = VaRange::Default;
+    createInfo.alignment  = ShadowMemoryAlignment;
+    createInfo.size       = (ceRamBytes + (sizeof(uint32) * m_shadowedRegCount));
+    createInfo.priority   = GpuMemPriority::Normal;
+    createInfo.vaRange    = VaRange::Default;
+    createInfo.heapAccess = GpuHeapAccess::GpuHeapAccessCpuNoAccess;
 
     m_shadowGpuMemSizeInBytes = createInfo.size;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 652
-    if (chipProps.gpuType == GpuType::Integrated)
-    {
-        createInfo.heapCount = 2;
-        createInfo.heaps[0]  = GpuHeap::GpuHeapGartUswc;
-        createInfo.heaps[1]  = GpuHeap::GpuHeapGartCacheable;
-    }
-    else
-    {
-        createInfo.heapCount = 2;
-        createInfo.heaps[0]  = GpuHeap::GpuHeapInvisible;
-        createInfo.heaps[1]  = GpuHeap::GpuHeapLocal;
-    }
-#else
-    createInfo.heapAccess = GpuHeapAccess::GpuHeapAccessCpuNoAccess;
-#endif
 
     GpuMemoryInternalCreateInfo internalInfo = { };
     internalInfo.flags.alwaysResident = 1;

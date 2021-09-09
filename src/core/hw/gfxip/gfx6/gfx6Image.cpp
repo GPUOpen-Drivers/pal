@@ -93,19 +93,10 @@ Result Image::Addr1InitSurfaceInfo(
 
         tcCompatibleEnabledForResolveDst =
             (m_pParent->IsResolveDst()                  &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-             m_pParent->IsAspectValid(ImageAspect::Depth)                    &&
-             m_pParent->IsAspectValid(ImageAspect::Stencil)                  &&
-#else
              (m_pParent->GetImageInfo().numPlanes == 2) &&
-#endif
              TestAnyFlagSet(TcCompatibleResolveDst, Gfx8TcCompatibleResolveDstDepthAndStencil));
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        if ((subResInfo.subresId.aspect == ImageAspect::Depth)                                               &&
-#else
         if (m_pParent->IsDepthPlane(subResInfo.subresId.plane)                                               &&
-#endif
             (subResInfo.subresId.mipLevel == 0)                                                              &&
             (pSurfInfo->flags.noStencil == 0)                                                                &&
             (m_pParent->IsShaderReadable() || m_pParent->IsResolveSrc() || tcCompatibleEnabledForResolveDst) &&
@@ -124,11 +115,7 @@ Result Image::Addr1InitSurfaceInfo(
     Result result = Result::Success;
 
     if ((subResInfo.subresId.mipLevel == 0) &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        ((subResInfo.subresId.aspect != ImageAspect::Stencil) || (m_pImageInfo->numPlanes == 1)))
-#else
         ((m_pParent->IsStencilPlane(subResInfo.subresId.plane) == false) || (m_pImageInfo->numPlanes == 1)))
-#endif
     {
         // If this is the most detailed mip of the 0th plane, we need to determine the tile mode and tile
         // type we want AddrLib to use for this subresource.
@@ -196,11 +183,7 @@ void Image::Addr1FinalizeSubresource(
 {
     SubResourceInfo*const    pSubResInfo = (pSubResInfoList + subResIdx);
     AddrMgr1::TileInfo*const pTileInfo   = AddrMgr1::NonConstTileInfo(pTileInfoList, subResIdx);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const ImageAspect        rsrcAspect  = pSubResInfo->subresId.aspect;
-#else
     const uint32             rsrcPlane   = pSubResInfo->subresId.plane;
-#endif
     const ImageCreateInfo&   createInfo  = m_pParent->GetImageCreateInfo();
 
     pTileInfo->tileMode = HwArrayModeFromAddrTileMode(surfInfo.tileMode);
@@ -215,17 +198,9 @@ void Image::Addr1FinalizeSubresource(
     {
         pSubResInfo->flags.supportMetaDataTexFetch = 1;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        if (rsrcAspect == ImageAspect::Stencil)
-#else
         if (m_pParent->IsStencilPlane(rsrcPlane))
-#endif
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            if (m_pParent->IsAspectValid(ImageAspect::Depth))
-#else
             if (m_pParent->HasDepthPlane())
-#endif
             {
                 // The tile info of the depth and stencil planes have to match. They will match on Tonga for 1x/2x
                 // MSAA images, but not for 4x/8x or on Iceland. There are several ways around this:
@@ -239,31 +214,19 @@ void Image::Addr1FinalizeSubresource(
                 //      texture reads (i.e., pre-Gfx8 behavior). This is the current implementation.
 
                 SubresId zPlaneSubResId = pSubResInfo->subresId;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                zPlaneSubResId.aspect   = ImageAspect::Depth;
-#else
                 zPlaneSubResId.plane    = 0;
-#endif
 
                 // Only enable TC compatibility for this (stencil) plane if it is enabled for depth and the tile info
                 // for both planes match. Separate depth init requires disabling stencil compression if separate plane
                 // metadata init is not enabled, so TC compatibility does not apply in this situation.
                 pSubResInfo->flags.supportMetaDataTexFetch =
                                     (DoesTileInfoMatch(pSubResInfo->subresId) &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                                     ((createInfo.flags.separateDepthAspectInit == 0) ||
-#else
                                      ((createInfo.flags.separateDepthPlaneInit == 0) ||
-#endif
                                       (GetGfx6Settings(m_device).enableSeparatePlaneMetadataInit)) &&
                                      (m_pParent->SubresourceInfo(zPlaneSubResId)->flags.supportMetaDataTexFetch != 0));
             }
         }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        else if (rsrcAspect == ImageAspect::Color)
-#else
         else if (m_pParent->IsColorPlane(rsrcPlane))
-#endif
         {
             if (ColorImageSupportsMetaDataTextureFetch(surfInfo.tileMode, surfInfo.tileType) == false)
             {
@@ -301,11 +264,7 @@ void Image::Addr1FinalizeSubresource(
             }
             else
             {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                const SubresId   baseSubres    = { rsrcAspect, 0, 0 };
-#else
                 const SubresId   baseSubres    = { rsrcPlane, 0, 0 };
-#endif
                 const auto*const pBaseTileInfo = AddrMgr1::GetTileInfo(Parent(), baseSubres);
 
                 baseSwizzle = pBaseTileInfo->tileSwizzle;
@@ -442,11 +401,7 @@ Result Image::Finalize(
                     // DCC memory would have been disabled as well. i..e., we wouldn't be here.
                     m_pDcc[mip].UseFastClear())
                 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                    UpdateClearMethod(pSubResInfoList, ImageAspect::Color, mip, ClearMethod::Fast);
-#else
                     UpdateClearMethod(pSubResInfoList, 0, mip, ClearMethod::Fast);
-#endif
                 }
 
                 // Offset and size calculation is done. All mips left have zero size DCC memory.
@@ -461,11 +416,7 @@ Result Image::Finalize(
 
                 // For the compute-based DCC decompress option to work then all levels which are compressible must
                 // also be TC compatible.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                const SubresId localSubResId = { ImageAspect::Color, mip, 0 };
-#else
                 const SubresId localSubResId = { 0, mip, 0 };
-#endif
                 if (m_pDcc[mip].IsCompressionEnabled() &&
                     (Parent()->SubresourceInfo(localSubResId)->flags.supportMetaDataTexFetch == 0))
                 {
@@ -575,21 +526,13 @@ Result Image::Finalize(
                         subResId.arraySlice = slice;
                         if (supportsDepth)
                         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                            subResId.aspect = ImageAspect::Depth;
-#else
                             subResId.plane = 0;
-#endif
                             pSubResInfoList[Parent()->CalcSubresourceId(subResId)].flags.supportMetaDataTexFetch = 0;
                         }
 
                         if (supportsStencil)
                         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                            subResId.aspect = ImageAspect::Stencil;
-#else
                             subResId.plane = GetStencilPlane();
-#endif
                             pSubResInfoList[Parent()->CalcSubresourceId(subResId)].flags.supportMetaDataTexFetch = 0;
                         }
                     }
@@ -614,12 +557,7 @@ Result Image::Finalize(
                     // use the compute path for images with a single plane.
                     if (supportsDepth ^ supportsStencil)
                     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                        const auto      aspect   = (supportsDepth ? ImageAspect::Depth : ImageAspect::Stencil);
-                        const SubresId  subResId = { aspect, mip, 0 };
-#else
                         const SubresId  subResId = { 0, mip, 0 };
-#endif
                         if (Parent()->SubresourceInfo(subResId)->flags.supportMetaDataTexFetch == false)
                         {
                             allowComputeDecompress = false;
@@ -696,23 +634,15 @@ Result Image::Finalize(
 
                         if (supportsDepth)
                         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                            UpdateClearMethod(pSubResInfoList, ImageAspect::Depth, mip, curMipFastClearMethod);
-#else
                             UpdateClearMethod(pSubResInfoList, 0, mip, curMipFastClearMethod);
-#endif
                         }
 
                         if (supportsStencil)
                         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                            UpdateClearMethod(pSubResInfoList, ImageAspect::Stencil, mip, curMipFastClearMethod);
-#else
                             UpdateClearMethod(pSubResInfoList,
                                               GetStencilPlane(),
                                               mip,
                                               curMipFastClearMethod);
-#endif
                         }
                     }
 
@@ -757,11 +687,7 @@ Result Image::Finalize(
                 {
                     // NOTE: Fast clear is not completely controlled by the presence of CMask, because MSAA Images
                     // require CMask but might not have fast-clears enabled.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                    UpdateClearMethod(pSubResInfoList, ImageAspect::Color, mip, ClearMethod::Fast);
-#else
                     UpdateClearMethod(pSubResInfoList, 0, mip, ClearMethod::Fast);
-#endif
                 }
             }
 
@@ -1213,13 +1139,8 @@ void Image::InitLayoutStateMasksOneMip(
         }
 
         // Supported depth layouts per compression state
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const uint32 depth   = GetDepthStencilStateIndex(ImageAspect::Depth);
-        const uint32 stencil = GetDepthStencilStateIndex(ImageAspect::Stencil);
-#else
         const uint32 depth   = 0;
         const uint32 stencil = GetStencilPlane();
-#endif
 
         if (m_pHtile->DepthCompressed())
         {
@@ -1400,11 +1321,7 @@ void Image::GetHtileBufferInfo(
 // Returns true if this image requires separate depth plane initialization
 bool Image::RequiresSeparateDepthPlaneInit() const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    return (m_createInfo.flags.perSubresInit && m_createInfo.flags.separateDepthAspectInit);
-#else
     return (m_createInfo.flags.perSubresInit && m_createInfo.flags.separateDepthPlaneInit);
-#endif
 }
 
 // =====================================================================================================================
@@ -1773,9 +1690,7 @@ uint32* Image::UpdateColorClearMetaData(
     uint32*             pCmdSpace
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(clearRange.numPlanes == 1);
-#endif
     // Verify that we have some sort of meta-data here that's capable of handling fast clears.
     PAL_ASSERT(HasCmaskData() || HasDccData());
 
@@ -1810,9 +1725,7 @@ uint32* Image::UpdateDccStateMetaData(
     uint32*            pCmdSpace
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(range.numPlanes == 1);
-#endif
     PAL_ASSERT(HasDccData());
 
     const CmdUtil& cmdUtil = static_cast<const Device*>(m_device.GetGfxDevice())->CmdUtil();
@@ -1851,9 +1764,7 @@ uint32* Image::UpdateFastClearEliminateMetaData(
     uint32*            pCmdSpace
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(range.numPlanes == 1);
-#endif
 
     const CmdUtil& cmdUtil = static_cast<const Device*>(m_device.GetGfxDevice())->CmdUtil();
 
@@ -1927,13 +1838,8 @@ bool Image::SupportsMetaDataTextureFetch(
     // TcCompatible could be enabled for resolveDst depth-stencil in order to enhance opportunity to trigger fixed-func
     // depth-stencil resolve.
     const bool isDepthStencilResolveDst = (m_pParent->IsResolveDst() && m_pParent->IsDepthStencilTarget());
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const bool isDepth                  = m_pParent->IsAspectValid(ImageAspect::Depth);
-    const bool isStencil                = m_pParent->IsAspectValid(ImageAspect::Stencil);
-#else
     const bool isDepth                  = m_pParent->HasDepthPlane();
     const bool isStencil                = m_pParent->HasStencilPlane();
-#endif
 
     enableTcCompatResolveDst =
         (isDepthStencilResolveDst &&
@@ -1974,11 +1880,7 @@ bool Image::SupportsMetaDataTextureFetch(
             // subRes with mip-0, while addrLib will return tcCompatible to 1 for subRes with mipLevel > 0. Checking
             // whether last mip is tcCompatible could resolve the side effect.
             SubresId lastMipSubResId = {};
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            lastMipSubResId.aspect     = subResource.aspect;
-#else
             lastMipSubResId.plane      = subResource.plane;
-#endif
             lastMipSubResId.mipLevel   = (subResource.mipLevel - 1);
             lastMipSubResId.arraySlice = subResource.arraySlice;
             const SubResourceInfo& lastMipSubResInfo = *Parent()->SubresourceInfo(lastMipSubResId);
@@ -2058,24 +1960,13 @@ bool Image::DoesTileInfoMatch(
     const SubresId& subresId
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    PAL_ASSERT(m_pParent->IsAspectValid(ImageAspect::Stencil));
-    PAL_ASSERT(m_pParent->IsAspectValid(ImageAspect::Depth));
-
-    const SubresId                 stencilSubRes = { ImageAspect::Stencil, subresId.mipLevel, subresId.arraySlice };
-#else
     PAL_ASSERT(m_pParent->HasStencilPlane());
     PAL_ASSERT(m_pParent->HasDepthPlane());
 
     const SubresId                 stencilSubRes = { 1, subresId.mipLevel, subresId.arraySlice };
-#endif
     const AddrMgr1::TileInfo*const pStencilInfo  = AddrMgr1::GetTileInfo(Parent(), stencilSubRes);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const SubresId                 depthSubRes = { ImageAspect::Depth, subresId.mipLevel, subresId.arraySlice };
-#else
     const SubresId                 depthSubRes = { 0, subresId.mipLevel, subresId.arraySlice };
-#endif
     const AddrMgr1::TileInfo*const pDepthInfo  = AddrMgr1::GetTileInfo(Parent(), depthSubRes);
 
     bool tileInfoMatches = true;
@@ -2102,11 +1993,7 @@ bool Image::DepthImageSupportsMetaDataTextureFetch(
 {
     bool isFmtLegal = true;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    if (m_pParent->IsAspectValid(ImageAspect::Stencil) &&
-#else
     if (m_pParent->HasStencilPlane() &&
-#endif
         (TestAnyFlagSet(m_device.GetPublicSettings()->tcCompatibleMetaData, TexFetchMetaDataCapsAllowStencil) == false))
     {
         // The settings disallows tex fetches of any compressed depth image that contains stencil
@@ -2115,32 +2002,16 @@ bool Image::DepthImageSupportsMetaDataTextureFetch(
 
     if (isFmtLegal)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        if (subResource.aspect == ImageAspect::Depth)
-#else
         if (m_pParent->IsDepthPlane(subResource.plane))
-#endif
         {
             isFmtLegal = DepthMetaDataTexFetchIsZValid(format);
         }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        else if (subResource.aspect == ImageAspect::Stencil)
-#else
         else if (m_pParent->IsStencilPlane(subResource.plane))
-#endif
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            if (m_pParent->IsAspectValid(ImageAspect::Depth))
-#else
             if (m_pParent->HasDepthPlane())
-#endif
             {
                 // Verify that the z-plane of this image is compatible with the texture pipe and compression.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                const SubresId zSubres = { ImageAspect::Depth, subResource.mipLevel, subResource.arraySlice };
-#else
                 const SubresId zSubres = { 0, subResource.mipLevel, subResource.arraySlice };
-#endif
 
                 isFmtLegal = DepthMetaDataTexFetchIsZValid(m_pParent->SubresourceInfo(zSubres)->format.format);
             }
@@ -2187,9 +2058,7 @@ bool Image::IsFastColorClearSupported(
     const uint32*      pColor,      // 4-component color to use for the clear
     const SubresRange& range)       // The sub-resource range that will be cleared
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(range.numPlanes == 1);
-#endif
     // This logic for fast-clearable tex-fetch images is only valid for color images; depth images have their own
     // restrictions which are implemented in IsFastDepthStencilClearSupported().
     PAL_ASSERT(m_pParent->IsDepthStencilTarget() == false);
@@ -2284,35 +2153,23 @@ bool Image::IsFastDepthStencilClearSupported(
     const SubresRange& range
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(range.numPlanes == 1);
-#endif
 
     const SubresId& subResource    = range.startSubres;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     const bool      isDepthPlane   = m_pParent->IsDepthPlane(subResource.plane);
     const bool      isStencilPlane = m_pParent->IsStencilPlane(subResource.plane);
-#endif
 
     // We can only fast clear all arrays at once.
     bool isFastClearSupported = (subResource.arraySlice == 0) && (range.numSlices == m_createInfo.arraySize);
 
     // We cannot fast clear if it's doing masked stencil clear.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    if ((subResource.aspect == ImageAspect::Stencil) && (stencilWriteMask != 0xFF))
-#else
     if (isStencilPlane && (stencilWriteMask != 0xFF))
-#endif
     {
         isFastClearSupported = false;
     }
 
     // Choose which layout to use based on range plane
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const ImageLayout layout = (subResource.aspect == ImageAspect::Depth) ? depthLayout : stencilLayout;
-#else
     const ImageLayout layout = isDepthPlane ? depthLayout : stencilLayout;
-#endif
 
     // Map from layout to supported compression state
     const DepthStencilCompressionState state =
@@ -2335,19 +2192,11 @@ bool Image::IsFastDepthStencilClearSupported(
 
     if (pSubResInfo->flags.supportMetaDataTexFetch != 0)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        if (subResource.aspect == ImageAspect::Depth)
-#else
         if (isDepthPlane)
-#endif
         {
             isFastClearSupported &= IsFastClearDepthMetaFetchable(depth);
         }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        else if (subResource.aspect == ImageAspect::Stencil)
-#else
         else if (isStencilPlane)
-#endif
         {
             isFastClearSupported &= IsFastClearStencilMetaFetchable(stencil);
         }
@@ -2362,22 +2211,12 @@ bool Image::IsFastDepthStencilClearSupported(
     // The client is clearing stencil plane while the htile is of depth only format.
     // In this case, we should not do fast clear.
     // The range here covers all slices of one mip.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    if ((subResource.aspect == ImageAspect::Stencil)
-        && HasHtileData()
-        && GetHtile(range.startSubres)->TileStencilDisabled())
-#else
     if (isStencilPlane && HasHtileData() && GetHtile(subResource)->TileStencilDisabled())
-#endif
     {
         isFastClearSupported = false;
     }
     // Only depth in the [0.0, 1.0] range can be compressed.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    else if ((subResource.aspect == ImageAspect::Depth) && ((depth < 0.0f) || (depth > 1.0f)))
-#else
     else if (isDepthPlane && ((depth < 0.0f) || (depth > 1.0f)))
-#endif
     {
         isFastClearSupported = false;
     }
@@ -2834,11 +2673,7 @@ void Image::SetupBankAndPipeSwizzle(
                     //
                     // It's possible for us to hang the HW if we use a value computed for a different plane so we
                     // must return a safe value like the default of zero if the client breaks these rules.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                    if ((pSubResInfo->subresId.aspect == ImageAspect::Color) && (m_createInfo.fragments == 1))
-#else
                     if (m_pParent->IsColorPlane(pSubResInfo->subresId.plane) && (m_createInfo.fragments == 1))
-#endif
                     {
                         tileSwizzle = m_createInfo.tileSwizzle;
                     }
@@ -2861,11 +2696,7 @@ void Image::SetupBankAndPipeSwizzle(
             }
             else
             {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                const SubresId                 baseSubres    = { pSubResInfo->subresId.aspect, 0, 0 };
-#else
                 const SubresId                 baseSubres    = { pSubResInfo->subresId.plane, 0, 0 };
-#endif
                 const AddrMgr1::TileInfo*const pBaseTileInfo = AddrMgr1::GetTileInfo(Parent(), baseSubres);
 
                 PAL_ASSERT(surfInfo.pTileInfo != nullptr);
@@ -2896,11 +2727,7 @@ void Image::SetupBankAndPipeSwizzle(
         else // mipLevel > 0
         {
             // Bank and pipe swizzling for the lower mips is the same as the most detailed mip level.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            const SubresId baseSubres = { pSubResInfo->subresId.aspect, 0, pSubResInfo->subresId.arraySlice };
-#else
             const SubresId baseSubres = { pSubResInfo->subresId.plane, 0, pSubResInfo->subresId.arraySlice };
-#endif
 
             tileSwizzle = AddrMgr1::GetTileInfo(Parent(), baseSubres)->tileSwizzle;
         }
@@ -2948,11 +2775,7 @@ uint32 Image::ComputeBaseTileSwizzle(
             if (Parent()->IsDepthStencilTarget())
             {
                 // The depth-stencil index is fixed to the plane index so it's safe to use it in all cases.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                surfaceIndex = Parent()->GetPlaneFromAspect(subResInfo.subresId.aspect);
-#else
                 surfaceIndex = subResInfo.subresId.plane;
-#endif
             }
             else if (Parent()->IsDataInvariant() || Parent()->IsCloneable())
             {
@@ -3118,11 +2941,7 @@ const DepthStencilLayoutToState& Image::LayoutToDepthCompressionState(
     const SubresId& subresId
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    return m_layoutToState[subresId.mipLevel].depthStencil[GetDepthStencilStateIndex(subresId.aspect)];
-#else
     return m_layoutToState[subresId.mipLevel].depthStencil[subresId.plane];
-#endif
 }
 
 // =====================================================================================================================
@@ -3269,14 +3088,10 @@ void Image::InitMetadataFill(
 
             // If this is the stencil plane initialization pass and this hTile buffer doesn't support stencil
             // then there's nothing to do.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            if ((range.startSubres.aspect != ImageAspect::Stencil) || (htile.TileStencilDisabled() == false))
-#else
             // This should work for a multi-plane range as well because the starting sub-resource will always be
             // depth.
             if ((m_pParent->IsStencilPlane(range.startSubres.plane) == false) ||
                 (htile.TileStencilDisabled() == false))
-#endif
             {
                 GpuMemory*  pGpuMemory = nullptr;
                 gpusize     dstOffset  = 0;
@@ -3303,11 +3118,7 @@ void Image::InitMetadataFill(
             const uint32 lastMip = range.startSubres.mipLevel + range.numMips - 1;
             for (uint32 mip = range.startSubres.mipLevel; mip <= lastMip; ++mip)
             {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                const SubresId         mipSubres  = { ImageAspect::Color, mip, 0 };
-#else
                 const SubresId         mipSubres  = { 0, mip, 0 };
-#endif
                 const SubResourceInfo& subResInfo = *Parent()->SubresourceInfo(mipSubres);
 
                 // For 3D Images, always init all depth slices of this mip level, otherwise use the range's slice info.
@@ -3371,19 +3182,11 @@ void Image::InitMetadataFill(
         // although it might be unnecessary.
         pCmdBuffer->CmdFillMemory(*boundMem.Memory(),
                                   FastClearMetaDataOffset(range.startSubres),
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                                  FastClearMetaDataSize(range.startSubres.aspect, range.numMips),
-#else
                                   FastClearMetaDataSize(range.startSubres.plane, range.numMips),
-#endif
                                   0);
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    if (HasHiSPretestsMetaData() && (range.startSubres.aspect == ImageAspect::Stencil))
-#else
     if (HasHiSPretestsMetaData() && m_pParent->HasStencilPlane(range))
-#endif
     {
         pCmdBuffer->CmdFillMemory(*boundMem.Memory(),
                                   HiSPretestsMetaDataOffset(range.startSubres.mipLevel),
@@ -3391,11 +3194,7 @@ void Image::InitMetadataFill(
                                   0);
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    if (HasWaTcCompatZRangeMetaData() && (range.startSubres.aspect == ImageAspect::Depth))
-#else
     if (HasWaTcCompatZRangeMetaData() && m_pParent->HasDepthPlane(range))
-#endif
     {
         pCmdBuffer->CmdFillMemory(*boundMem.Memory(),
                                   WaTcCompatZRangeMetaDataOffset(range.startSubres.mipLevel),
@@ -3437,18 +3236,11 @@ bool Image::SupportsComputeDecompress(
 
     bool supportsCompression = true;
 
-    SubresId subresId = range.startSubres;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
-    for (; subresId.plane < (range.startSubres.plane + range.numPlanes); subresId.plane++)
-#endif
+    for (uint32 plane = range.startSubres.plane; plane < (range.startSubres.plane + range.numPlanes); plane++)
     {
         const uint32 engines = (m_pParent->IsDepthStencilTarget()
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                           ? layoutToState.depthStencil[GetDepthStencilStateIndex(subresId.aspect)].compressed.engines
-#else
-                               ? layoutToState.depthStencil[subresId.plane].compressed.engines
-#endif
-                               : layoutToState.color.compressed.engines);
+                                ? layoutToState.depthStencil[plane].compressed.engines
+                                : layoutToState.color.compressed.engines);
 
         supportsCompression &= TestAnyFlagSet(engines, LayoutComputeEngine);
     }

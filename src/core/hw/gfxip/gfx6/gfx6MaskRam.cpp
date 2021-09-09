@@ -129,26 +129,7 @@ Result Gfx6Htile::Init(
     const Gfx6PalSettings& settings = GetGfx6Settings(device);
 
     // Determine the subResource ID of the base slice for this mipmap level:
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    Pal::SubresId subresource;
-    if (image.Parent()->IsAspectValid(Pal::ImageAspect::Depth))
-    {
-        // For depth-only & depth/stencil Images, look at the depth aspect.
-        subresource.aspect     = Pal::ImageAspect::Depth;
-        subresource.mipLevel   = mipLevel;
-        subresource.arraySlice = 0;
-    }
-    else
-    {
-        // For stencil-only Images, look at the stencil aspect.
-        PAL_ASSERT(image.Parent()->IsAspectValid(Pal::ImageAspect::Stencil));
-        subresource.aspect     = Pal::ImageAspect::Stencil;
-        subresource.mipLevel   = mipLevel;
-        subresource.arraySlice = 0;
-    }
-#else
     Pal::SubresId subresource = { 0, mipLevel, 0 };
-#endif
 
     m_htileContents = ExpectedHtileContents(device, image);
 
@@ -457,31 +438,18 @@ uint32 Gfx6Htile::GetPlaneMask(
 
 // =====================================================================================================================
 // A helper function for when the caller just wants the plane mask for a single image plane.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-uint32 Gfx6Htile::GetPlaneMask(
-    ImageAspect aspect
-    ) const
-{
-    PAL_ASSERT((aspect == ImageAspect::Depth) || (aspect == ImageAspect::Stencil));
-
-    return GetPlaneMask((aspect == ImageAspect::Depth) ? HtilePlaneDepth : HtilePlaneStencil);
-}
-#else
 uint32 Gfx6Htile::GetPlaneMask(
     const Image&       image,
     const SubresRange& range
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(range.numPlanes == 1);
-#endif
     PAL_ASSERT(image.Parent()->IsDepthStencilTarget());
 
     uint32 htileMask = image.Parent()->IsDepthPlane(range.startSubres.plane) ? HtilePlaneDepth : HtilePlaneStencil;
 
     return GetPlaneMask(htileMask);
 }
-#endif
 
 // =====================================================================================================================
 // Calls into AddrLib to compute HTILE info for a subresource
@@ -673,11 +641,7 @@ bool Gfx6Cmask::UseCmaskForImage(
             const ImageCreateInfo& createInfo = pParent->GetImageCreateInfo();
 
             // We just care about the tile mode of the base subresource
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            Pal::SubresId subResource   = pParent->GetBaseSubResource();
-#else
             const Pal::SubresId subResource = {};
-#endif
             const AddrTileMode tileMode     = image.GetSubResourceTileMode(subResource);
             const AddrTileType tileType     = image.GetSubResourceTileType(subResource);
 
@@ -746,11 +710,7 @@ Result Gfx6Cmask::Init(
     uint32             mipLevel,
     gpusize*           pGpuOffset)    // [in,out] Current GPU memory offset & size
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const Pal::SubresId         subresource = { Pal::ImageAspect::Color, mipLevel, 0 };
-#else
     const Pal::SubresId         subresource = { 0, mipLevel, 0 };
-#endif
     const SubResourceInfo*const pSubResInfo = image.Parent()->SubresourceInfo(subresource);
     const AddrTileMode          tileMode    = image.GetSubResourceTileMode(subresource);
     const AddrTileType          tileType    = image.GetSubResourceTileType(subresource);
@@ -826,11 +786,7 @@ uint32 Gfx6Cmask::GetFastClearCode(
     if (image.HasDccData())
     {
         // Only need the info from the base sub-resource
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const Pal::SubresId  subResource = { Pal::ImageAspect::Color, 0, 0 };
-#else
         const Pal::SubresId  subResource = {};
-#endif
         const Gfx6Dcc*       pDcc        = image.GetDcc(subResource);
 
         if (pDcc->GetFastClearSize() != 0)
@@ -999,11 +955,7 @@ Result Gfx6Fmask::Init(
 {
     PAL_ASSERT(mipLevel == 0); // MSAA Images only support a single mipmap level.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    Pal::SubresId               subresource = { Pal::ImageAspect::Color, mipLevel, 0 };
-#else
     Pal::SubresId               subresource = { 0, mipLevel, 0 };
-#endif
     const SubResourceInfo*const pSubResInfo = image.Parent()->SubresourceInfo(subresource);
 
     const uint32 numSamples   = image.Parent()->GetImageCreateInfo().samples;
@@ -1334,11 +1286,7 @@ Result Gfx6Dcc::Init(
     const Gfx6PalSettings& settings        = GetGfx6Settings(device);
     const ImageCreateInfo& imageCreateInfo = image.Parent()->GetImageCreateInfo();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const Pal::SubresId         subresource = { Pal::ImageAspect::Color, mipLevel, 0 /* slice */ };
-#else
     const Pal::SubresId         subresource = { 0, mipLevel, 0 /* slice */ };
-#endif
     const SubResourceInfo*const pSubResInfo = image.Parent()->SubresourceInfo(subresource);
 
     // Record the usefullness of this DCC memory
@@ -1450,11 +1398,7 @@ Result Gfx6Dcc::InitTotal(
     gpusize*           pGpuOffset,    // [in,out] Current GPU memory offset & size
     gpusize*           pTotalSize)    // [out] Total GPU memory size
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const SubresId subresource = { ImageAspect::Color, 0, 0 /* slice */ };
-#else
     const SubresId subresource = { 0, 0, 0 /* slice */ };
-#endif
 
     // We disable DCC memory for mipmapped arrays due to bad performance, see UseDccForImage().
     PAL_ASSERT((image.Parent()->GetImageCreateInfo().arraySize == 1) ||
@@ -1559,18 +1503,12 @@ uint32 Gfx6Dcc::GetFastClearCode(
     bool*                   pNeedFastClearElim) // [out] true if this surface will require a fast-clear-eliminate pass
                                                 //       before it can be used as a texture
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(clearRange.numPlanes == 1);
-#endif
 
     // Fast-clear code that is valid for images that won't be texture fetched.
     Gfx8DccClearColor clearCode = Gfx8DccClearColor::ClearColorReg;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const Pal::SubresId baseSubResource = { clearRange.startSubres.aspect,
-#else
     const Pal::SubresId baseSubResource = { clearRange.startSubres.plane,
-#endif
                                             clearRange.startSubres.mipLevel,
                                             clearRange.startSubres.arraySlice };
     const SubResourceInfo*const pSubResInfo = image.Parent()->SubresourceInfo(baseSubResource);

@@ -93,9 +93,11 @@ static_assert(PAL_CPLUSPLUS_AT_LEAST(PAL_CPLUSPLUS_11), "C++11 is required to bu
 #define PAL_WEAK_LINK __attribute__((weak))
 #endif
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 675
 /// Used for defining a function inline with a header. This gives it weak linkage.
 /// The compiler may also use this as a hint to merge the function into calling functions.
 #define PAL_INLINE inline
+#endif
 
 /// Platform cache line size in bytes.
 #define PAL_CACHE_LINE_BYTES 64
@@ -378,24 +380,14 @@ enum class Result : int32
     /// Invalid image create info: Image format is incompatible with the image usage specified.
     ErrorFormatIncompatibleWithImageUsage   = -(0x00000039),
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    /// Operation requested an image aspect that is not available on the image.
-    ErrorImageAspectUnavailable             = -(0x0000003A),
-#else
     /// Operation requested an image plane that is not available on the image.
     ErrorImagePlaneUnavailable              = -(0x0000003A),
-#endif
 
     /// Another format is incompatible with an image's format.
     ErrorFormatIncompatibleWithImageFormat  = -(0x0000003B),
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    /// Another format is incompatible with an image aspect's format.
-    ErrorFormatIncompatibleWithImageAspect  = -(0x0000003C),
-#else
     /// Another format is incompatible with an image plane's format.
     ErrorFormatIncompatibleWithImagePlane   = -(0x0000003C),
-#endif
 
     /// Operation requires a shader readable or writable image usage but the image does not support it.
     ErrorImageNotShaderAccessible           = -(0x0000003D),

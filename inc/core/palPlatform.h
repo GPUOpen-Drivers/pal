@@ -159,6 +159,9 @@ enum class ApplicationProfileClient : uint32
     DeLag,
     Ris,
     TurboSync,
+    DutyCycleScaling,
+    ProBoost,
+    RisWindowed,
 };
 
 /// Describes a primary surface view

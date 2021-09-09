@@ -38,6 +38,7 @@
 
 namespace Util
 {
+
 namespace Abi
 {
 
@@ -78,7 +79,7 @@ public:
     ///
     /// @returns Success if successful, ErrorInvalidValue, ErrorUnknown or ErrorUnsupportedPipelineElfAbiVersion
     ///          if a parser error occurred, ErrorInvalidPipelineElf if there is no metadata.
-    Result GetMetadata(MsgPackReader* pReader, PalCodeObjectMetadata* pMetadata) const;
+    Result GetMetadata(MsgPackReader* pReader, PalAbi::CodeObjectMetadata* pMetadata) const;
 
     /// Get the GFXIP version.
     ///

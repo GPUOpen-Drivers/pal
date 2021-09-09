@@ -101,7 +101,7 @@ struct TileInfo
 
 // =====================================================================================================================
 // Returns a pointer to the tiling info for the subresource with the given index.
-PAL_INLINE const TileInfo* GetTileInfo(
+inline const TileInfo* GetTileInfo(
     const Image* pImage,
     uint32       subResIdx)
 {
@@ -111,7 +111,7 @@ PAL_INLINE const TileInfo* GetTileInfo(
 
 // =====================================================================================================================
 // Returns a pointer to the tiling info for the given subresource.
-PAL_INLINE const TileInfo* GetTileInfo(
+inline const TileInfo* GetTileInfo(
     const Image*    pImage,
     const SubresId& subRes)
 {
@@ -121,7 +121,7 @@ PAL_INLINE const TileInfo* GetTileInfo(
 // =====================================================================================================================
 // Returns a non-const pointer to the tiling info for the subresource with the given index, given the non-const pointer
 // to the entire tiling info list for the Image.
-PAL_INLINE TileInfo* NonConstTileInfo(
+inline TileInfo* NonConstTileInfo(
     void*  pTileInfoList,
     uint32 subResIdx)
 {
@@ -132,7 +132,7 @@ PAL_INLINE TileInfo* NonConstTileInfo(
 // =====================================================================================================================
 // Returns a pointer to the tiling capabilities for the subresource with the given index. For each subresource, the
 // tiling caps immediately follows the tile info.
-PAL_INLINE const TilingCaps* GetTilingCaps(
+inline const TilingCaps* GetTilingCaps(
     const Image* pImage,
     uint32       subResIdx)
 {
@@ -142,7 +142,7 @@ PAL_INLINE const TilingCaps* GetTilingCaps(
 // =====================================================================================================================
 // Returns a non-const pointer to the tiling capabilities for the subresource with the given index, given the non-const
 // pointer to the entire tiling info list for the Image.
-PAL_INLINE TilingCaps* NonConstTilingCaps(
+inline TilingCaps* NonConstTilingCaps(
     void*  pTileInfoList,
     uint32 subResIdx)
 {
@@ -151,7 +151,7 @@ PAL_INLINE TilingCaps* NonConstTilingCaps(
 
 // =====================================================================================================================
 // Determines if the specified tile mode is linear
-PAL_INLINE bool IsLinearTiled(
+constexpr bool IsLinearTiled(
     AddrTileMode tileMode)
 {
     return ((tileMode == ADDR_TM_LINEAR_GENERAL) ||
@@ -160,7 +160,7 @@ PAL_INLINE bool IsLinearTiled(
 
 // =====================================================================================================================
 // Determines if the specified tile mode is a PRT tile mode
-PAL_INLINE bool IsPrtTiled(
+constexpr bool IsPrtTiled(
     AddrTileMode tileMode)
 {
     return ((tileMode == ADDR_TM_PRT_TILED_THIN1)    ||
@@ -173,7 +173,7 @@ PAL_INLINE bool IsPrtTiled(
 
 // =====================================================================================================================
 // Converts a h/w ARRAY_MODE value to an AddrTileMode enum
-PAL_INLINE AddrTileMode AddrTileModeFromHwArrayMode(
+inline AddrTileMode AddrTileModeFromHwArrayMode(
     uint32 hwArrayMode)            // H/W value as programmed in GB_TILE_MODE#.ARRAY_MODE
 {
     constexpr AddrTileMode AddrTileFromHwTile[] =
@@ -203,7 +203,7 @@ PAL_INLINE AddrTileMode AddrTileModeFromHwArrayMode(
 
 // =====================================================================================================================
 // Converts a h/w MICRO_TILE_MODE value to an AddrTileType enum
-PAL_INLINE AddrTileType AddrTileTypeFromHwMicroTileMode(
+inline AddrTileType AddrTileTypeFromHwMicroTileMode(
     uint32 hwTileMode)            // H/W value as programmed in GB_TILE_MODE#.MICRO_TILE_MODE
 {
     // Note that this table is missing ADDR_SURF_THICK_MICRO_TILING__SI but it shouldn't actually be used.
@@ -223,7 +223,7 @@ PAL_INLINE AddrTileType AddrTileTypeFromHwMicroTileMode(
 
 // =====================================================================================================================
 // Determines if the specified tile mode is a macro tile mode
-PAL_INLINE bool IsMacroTiled(
+inline bool IsMacroTiled(
     AddrTileMode  tileMode)
 {
     bool ret = true;
@@ -268,11 +268,7 @@ public:
 protected:
     virtual void ComputeTilesInMipTail(
         const Image&       image,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        ImageAspect        aspect,
-#else
         uint32             plane,
-#endif
         ImageMemoryLayout* pGpuMemLayout) const override;
 
 private:

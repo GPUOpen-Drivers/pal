@@ -119,26 +119,12 @@ target_include_directories(pal PRIVATE ${GLOBAL_ROOT_SRC_DIR}/drivers/inc/shared
 ### PAL Sources ########################################################################################################
 
 # TODO: This globs imported directories like addrlib/vam. This doesn't cause any issues. But is some what annoying.
-file(GLOB_RECURSE PAL_HEADER_SOURCES CONFIGURE_DEPENDS *.h *.hpp)
-target_sources(pal PRIVATE ${PAL_HEADER_SOURCES})
-
-### PAL core ###################################################################
-if(PAL_BUILD_CORE)
-    # CMAKE-TODO: check if this is still valid with the cmake targets.  I don't think it matters.
-    # Also- should the generated files actually be added to be out of source (in the build directory)?
-    # Pal settings must come before libInit or any of the other core files since there will be dependencies on the
-    # generated files.
-    target_sources(pal PRIVATE
-        core/g_palSettings.cpp
-        core/settings_core.json
-        core/g_palPlatformSettings.cpp
-        core/settings_platform.json
-    )
+if (MSVC_IDE)
+    file(GLOB_RECURSE PAL_HEADER_SOURCES CONFIGURE_DEPENDS *.h *.hpp)
+    target_sources(pal PRIVATE ${PAL_HEADER_SOURCES})
 endif()
 
-# CMAKE-TODO: Check if this is supposed to be added outside of core support....?
-target_sources(pal PRIVATE core/libInit.cpp)
-
+### PAL core ###################################################################
 if(PAL_BUILD_CORE)
     # Add rest of core files here, only if the client wants core support.  Util files are always required.
     target_sources(pal PRIVATE
@@ -157,8 +143,11 @@ if(PAL_BUILD_CORE)
         core/gpuEvent.cpp
         core/gpuMemPatchList.cpp
         core/gpuMemory.cpp
+        core/g_palSettings.cpp
+        core/g_palPlatformSettings.cpp
         core/image.cpp
         core/internalMemMgr.cpp
+        core/libInit.cpp
         core/masterQueueSemaphore.cpp
         core/openedQueueSemaphore.cpp
         core/palSettingsLoader.cpp
@@ -171,6 +160,8 @@ if(PAL_BUILD_CORE)
         core/queueContext.cpp
         core/queueSemaphore.cpp
         core/settingsLoader.cpp
+        core/settings_core.json
+        core/settings_platform.json
         core/svmMgr.cpp
         core/swapChain.cpp
         core/vamMgr.cpp

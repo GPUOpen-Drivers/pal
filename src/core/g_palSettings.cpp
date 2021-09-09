@@ -133,6 +133,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.cmdBufDisallowNestedLaunchViaIb2 = false;
     m_settings.cmdAllocatorFreeOnReset = false;
     m_settings.cmdBufOptimizePm4 = Pm4OptDefaultEnable;
+    m_settings.cmdBufOptimizePm4Split = false;
     m_settings.cmdBufForceOneTimeSubmit = CmdBufForceOneTimeSubmitDefault;
     m_settings.cmdBufPreemptionMode = CmdBufPreemptModeEnable;
     m_settings.commandBufferForceCeRamDumpInPostamble = false;
@@ -469,6 +470,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pCmdBufOptimizePm4Str,
                            Util::ValueType::Uint,
                            &m_settings.cmdBufOptimizePm4,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pCmdBufOptimizePm4SplitStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.cmdBufOptimizePm4Split,
                            InternalSettingScope::PrivatePalKey);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pCmdBufForceOneTimeSubmitStr,
@@ -966,6 +972,11 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.cmdBufOptimizePm4);
     m_settingsInfoMap.Insert(1018895288, info);
 
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.cmdBufOptimizePm4Split;
+    info.valueSize = sizeof(m_settings.cmdBufOptimizePm4Split);
+    m_settingsInfoMap.Insert(1787111592, info);
+
     info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.cmdBufForceOneTimeSubmit;
     info.valueSize = sizeof(m_settings.cmdBufForceOneTimeSubmit);
@@ -1149,7 +1160,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 480379498;
+            component.settingsDataHash = 785992106;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

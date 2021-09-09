@@ -22,12 +22,11 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
-cmake_minimum_required(VERSION 3.9...3.15)
+cmake_minimum_required(VERSION 3.13...3.15)
 
-project(VAM VERSION 1.2.0 LANGUAGES CXX)
+project(VAM LANGUAGES CXX)
 
 add_library(vam STATIC)
-option(VAM_ENABLE_WERROR "Build with -Werror enabled" OFF)
 
 if (NOT DEFINED VAM_CLIENT_DX12_LINUX)
     set(VAM_CLIENT_DX12_LINUX OFF)
@@ -81,6 +80,11 @@ set_target_properties(vam PROPERTIES
 )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    if (NOT DEFINED VAM_ENABLE_WERROR)
+        set(VAM_ENABLE_WERROR OFF)
+        message(STATUS "VAM_ENABLE_WERROR defaulting to ${VAM_ENABLE_WERROR}")
+    endif()
+
     if(VAM_ENABLE_WERROR)
         target_compile_options(vam PRIVATE -Werror)
     endif()

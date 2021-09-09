@@ -488,16 +488,9 @@ Result Device::SetupPublicSettingDefaults()
         m_memoryProperties.largePageSupport.minSurfaceSizeForAlignmentInBytes;
     m_publicSettings.miscellaneousDebugString[0] = '\0';
     m_publicSettings.renderedByString[0] = '\0';
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
-    m_publicSettings.enableGpuEventMultiSlot = false;
-#endif
     m_publicSettings.useAcqRelInterface = false;
     m_publicSettings.zeroUnboundDescDebugSrd = false;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
-    m_publicSettings.disablePipelineUploadToLocalInvis = false;
-#else
     m_publicSettings.pipelinePreferredHeap = GpuHeap::GpuHeapInvisible;
-#endif
     m_publicSettings.depthClampBasedOnZExport = true;
     m_publicSettings.forceWaitPointPreColorToPostIndexFetch = false;
 
@@ -1624,10 +1617,6 @@ Result Device::SplitSubresRanges(
     Result result = Result::Success;
 
     *pMemAllocated = false;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    *pSplitRangeCount = rangeCount;
-    *ppSplitRanges    = pRanges;
-#else
     uint32 splitCount = 0;
 
     for (uint32 i = 0; i < rangeCount; i++)
@@ -1678,7 +1667,6 @@ Result Device::SplitSubresRanges(
             *pSplitRangeCount = newSplitCount;
         }
     }
-#endif
 
     PAL_ASSERT(*ppSplitRanges != nullptr);
 
@@ -1706,7 +1694,6 @@ Result Device::SplitBarrierTransitions(
     Result result = Result::Success;
 
     *pMemAllocated = false;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
 
     uint32 splitCount = 0;
     for (uint32 i = 0; i < pBarrier->transitionCount; i++)
@@ -1762,7 +1749,6 @@ Result Device::SplitBarrierTransitions(
             pBarrier->pTransitions    = pNewSplitTransitions;
         }
     }
-#endif
 
     return result;
 }
@@ -1788,7 +1774,6 @@ Result Device::SplitImgBarriers(
     Result result = Result::Success;
 
     *pMemAllocated = false;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
 
     uint32 splitCount = 0;
     for (uint32 i = 0; i < pBarrier->imageBarrierCount; i++)
@@ -1836,7 +1821,6 @@ Result Device::SplitImgBarriers(
             pBarrier->pImageBarriers    = pNewSplitTransitions;
         }
     }
-#endif
 
     return result;
 }
@@ -3893,10 +3877,6 @@ Result Device::CreateDepthStencilView(
 {
     constexpr DepthStencilViewInternalCreateInfo NullInternalInfo = {};
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 606
-    const_cast<DepthStencilViewCreateInfo&>(createInfo).flags.resummarizeHiZ = 0;
-#endif
-
     Result result = Result::Success;
 
     if (m_pGfxDevice == nullptr)
@@ -3904,7 +3884,6 @@ Result Device::CreateDepthStencilView(
         result = Result::ErrorUnavailable;
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 636
     if (result == Result::Success)
     {
         if (createInfo.flags.stencilOnlyView &&
@@ -3913,7 +3892,6 @@ Result Device::CreateDepthStencilView(
             result = Result::ErrorInvalidFlags;
         }
     }
-#endif
 
     if (result == Result::Success)
     {
@@ -3967,11 +3945,7 @@ bool Device::DetermineHwStereoRenderingSupported(
 // with the image.
 static Result ValidateCompatibleImageViewFormats(
     const Image& image,     // Image object
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    ImageAspect  aspect,    // Image aspect
-#else
     uint32       plane,     // Image plane
-#endif
     ChNumFormat  viewFmt)   // View format
 {
     Result result = Result::ErrorFormatIncompatibleWithImageFormat;
@@ -3982,22 +3956,14 @@ static Result ValidateCompatibleImageViewFormats(
     if (Formats::IsYuvPlanar(imageFmt))
     {
         // YUV planar images only allow image view formats which match that of the base subresource of the view plane.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const SubresId baseSubRes = { aspect, 0, 0, };
-#else
         const SubresId baseSubRes = { plane, 0, 0, };
-#endif
         imageFmt = image.SubresourceInfo(baseSubRes)->format.format;
     }
 
     const uint32 imageBpp = Formats::BitsPerPixel(imageFmt);
     const uint32 viewBpp  = Formats::BitsPerPixel(viewFmt);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    if ((aspect == ImageAspect::Color) || Formats::IsYuv(imageInfo.swizzledFormat.format))
-#else
     if (image.IsColorPlane(plane) || Formats::IsYuv(imageInfo.swizzledFormat.format))
-#endif
     {
         // Normally, YUV and color images allow any image view format which matches the bits-per-pixel of the base
         // image.
@@ -4020,11 +3986,7 @@ static Result ValidateCompatibleImageViewFormats(
     }
     // Depth/stencil images introduce some exceptions to the above, because they can have multiple planes (depth and
     // stencil), but a single image view can only access one of these planes:
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    else if (aspect == ImageAspect::Depth)
-#else
     else if (image.IsDepthPlane(plane))
-#endif
     {
         if ((viewBpp == 32) &&
             ((imageFmt == ChNumFormat::X32_Float) || (imageFmt == ChNumFormat::D32_Float_S8_Uint)))
@@ -4042,18 +4004,10 @@ static Result ValidateCompatibleImageViewFormats(
         }
         else
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            result = Result::ErrorFormatIncompatibleWithImageAspect;
-#else
             result = Result::ErrorFormatIncompatibleWithImagePlane;
-#endif
         }
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    else if (aspect == ImageAspect::Stencil)
-#else
     else if (image.IsStencilPlane(plane))
-#endif
     {
         if ((viewFmt == ChNumFormat::X8_Uint) &&
             ((imageFmt == ChNumFormat::D32_Float_S8_Uint) ||
@@ -4066,11 +4020,7 @@ static Result ValidateCompatibleImageViewFormats(
         }
         else
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            result = Result::ErrorFormatIncompatibleWithImageAspect;
-#else
             result = Result::ErrorFormatIncompatibleWithImagePlane;
-#endif
         }
     }
 
@@ -4087,27 +4037,14 @@ Result Device::ValidateImageViewInfo(
 
     const auto*const       pImage     = static_cast<const Image*>(info.pImage);
     const ImageCreateInfo& imgInfo    = pImage->GetImageCreateInfo();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const ImageAspect      viewAspect = info.subresRange.startSubres.aspect;
-#else
     const uint32           viewPlane  = info.subresRange.startSubres.plane;
-#endif
     const SwizzledFormat   viewFmt    = info.swizzledFormat;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    // Verify a color image aspect is specified for non-depth/stencil image.
-    // Verify a depth/stencil image aspect is specified for depth/stencil image only.
-    if (!pImage->IsAspectValid(viewAspect))
-    {
-        result = Result::ErrorImageAspectUnavailable;
-    }
-#else
     // Verify the view plane specified is valid for the image.
     if (viewPlane >= pImage->GetImageInfo().numPlanes)
     {
         result = Result::ErrorImagePlaneUnavailable;
     }
-#endif
     // Verify the image object has read or write access flags or both set.
     else if (!pImage->IsShaderReadable() && !pImage->IsShaderWritable())
     {
@@ -4132,11 +4069,7 @@ Result Device::ValidateImageViewInfo(
     // Verify the view format is compatible with the image format
     if (result == Result::Success)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        result = ValidateCompatibleImageViewFormats(*pImage, viewAspect, viewFmt.format);
-#else
         result = ValidateCompatibleImageViewFormats(*pImage, viewPlane, viewFmt.format);
-#endif
     }
 
     // Check slice array and image view type
@@ -5192,13 +5125,9 @@ bool Device::ValidatePipelineUploadHeap(
     {
         // Disable pipeline upload to local invisible memory if clients have chosen to disable internal residency
         // optimizations or there is no DMA engine support. Other heap types don't have any restrictions.
-        if (m_pPlatform->InternalResidencyOptsDisabled()
-            || (EngineProperties().perEngine[EngineTypeDma].numAvailable == 0)
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
-            || m_publicSettings.disablePipelineUploadToLocalInvis
-#else
-            || (m_publicSettings.pipelinePreferredHeap != GpuHeap::GpuHeapInvisible)
-#endif
+        if (m_pPlatform->InternalResidencyOptsDisabled()                    ||
+            (EngineProperties().perEngine[EngineTypeDma].numAvailable == 0) ||
+            (m_publicSettings.pipelinePreferredHeap != GpuHeap::GpuHeapInvisible)
            )
         {
             valid = false;
@@ -5206,6 +5135,19 @@ bool Device::ValidatePipelineUploadHeap(
     }
 
     return valid;
+}
+
+// =====================================================================================================================
+bool Device::IssueSqttMarkerEvents() const
+{
+    const PalPlatformSettings& platformSettings = m_pPlatform->PlatformSettings();
+
+    // PAL only expects SQTT to be enabled by the GPU profiler or by dev driver. If it is enabled we should tell our
+    // command buffers to emit SQTT marker events.
+    const bool sqttEnabled = (platformSettings.gpuProfilerMode > GpuProfilerCounterAndTimingOnly) &&
+                             TestAnyFlagSet(platformSettings.gpuProfilerConfig.traceModeMask, GpuProfilerTraceSqtt);
+
+    return sqttEnabled || m_pPlatform->IsDevDriverProfilingEnabled();
 }
 
 } // Pal

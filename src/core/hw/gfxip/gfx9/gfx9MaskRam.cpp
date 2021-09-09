@@ -131,11 +131,7 @@ void Gfx9MaskRam::BuildSurfBufferView(
 // =====================================================================================================================
 // Retrieves the pipe-bank xor setting for the image associated with this mask ram.
 uint32 Gfx9MaskRam::GetPipeBankXor(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    ImageAspect aspect
-#else
     uint32 plane
-#endif
     ) const
 {
     // Check for cMask; cMask can't be here as the pipe-bank xor setting for cMask is the pipe-bank xor setting
@@ -144,11 +140,7 @@ uint32 Gfx9MaskRam::GetPipeBankXor(
 
     // The pipeBankXor setting for an image is expected to be a constant across all mips / slices of one plane.
     const auto*    pParent      = m_image.Parent();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const SubresId baseSubResId = { aspect, 0, 0 };
-#else
     const SubresId baseSubResId = { plane, 0, 0 };
-#endif
 
     const uint32   pipeBankXor  = AddrMgr2::GetTileInfo(pParent, baseSubResId)->pipeBankXor;
 
@@ -608,20 +600,12 @@ void Gfx9MetaEqGenerator::CalcPipeEquation(
 // =====================================================================================================================
 // Calculate the pipe-bank XOR value as used by the meta-data equation.
 uint32 Gfx9MetaEqGenerator::CalcPipeXorMask(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    ImageAspect   aspect
-#else
     uint32 plane
-#endif
     ) const
 {
     const uint32  pipeInterleaveLog2 = m_pParent->GetGfxDevice()->GetPipeInterleaveLog2();
     const uint32  numPipesLog2       = CapPipe();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const uint32  pipeBankXor        = m_pParent->GetPipeBankXor(aspect);
-#else
     const uint32  pipeBankXor        = m_pParent->GetPipeBankXor(plane);
-#endif
 
     const uint32 pipeXorMaskNibble = (pipeBankXor & ((1 << numPipesLog2) - 1)) << (pipeInterleaveLog2 + 1);
 
@@ -3251,7 +3235,6 @@ Gfx9Htile::Gfx9Htile(
     memset(&m_addrMipOutput,   0, sizeof(m_addrMipOutput));
     memset(&m_addrOutput,      0, sizeof(m_addrOutput));
     memset(m_dbHtileSurface,   0, sizeof(m_dbHtileSurface));
-    memset(m_dbPreloadControl, 0, sizeof(m_dbPreloadControl));
 
     m_addrOutput.pMipInfo = &m_addrMipOutput[0];
     m_addrOutput.size     = sizeof(m_addrOutput);
@@ -3261,120 +3244,20 @@ Gfx9Htile::Gfx9Htile(
 // =====================================================================================================================
 // Returns the pipe-bank xor setting for this hTile sruface.
 uint32 Gfx9Htile::GetPipeBankXor(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    ImageAspect aspect
-#else
     uint32 plane
-#endif
     ) const
 {
     const Pal::Device*     pDevice  = m_pGfxDevice->Parent();
     const Gfx9PalSettings& settings = GetGfx9Settings(*pDevice);
 
     // Due to a HW bug, some GPU's don't support the use of a pipe-bank xor value for hTile surfaces.
-    return (settings.waHtilePipeBankXorMustBeZero
-            ? 0
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            : Gfx9MaskRam::GetPipeBankXor(aspect));
-#else
-            : Gfx9MaskRam::GetPipeBankXor(plane));
-#endif
+    return (settings.waHtilePipeBankXorMustBeZero ? 0 : Gfx9MaskRam::GetPipeBankXor(plane));
 }
 
 // =====================================================================================================================
 uint32 Gfx9Htile::GetNumSamplesLog2() const
 {
     return Log2(m_image.Parent()->GetImageCreateInfo().samples);
-}
-
-// =====================================================================================================================
-// Builds the PM4 packet headers for an image of PM4 commands used to write this View object to hardware.
-void Gfx9Htile::SetupHtilePreload(
-    uint32       mipLevel)
-{
-    const  Pal::Image*       pParent         = m_image.Parent();
-    const  Pal::Device*      pDevice         = m_pGfxDevice->Parent();
-    const  Gfx9PalSettings&  settings        = GetGfx9Settings(*pDevice);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const  SubresId          baseSubResource = pParent->GetBaseSubResource();
-#endif
-
-    m_dbHtileSurface[mipLevel].gfx09.PREFETCH_WIDTH  = 0;
-    m_dbHtileSurface[mipLevel].gfx09.PREFETCH_HEIGHT = 0;
-
-    if (settings.dbPreloadEnable && (settings.waDisableHtilePrefetch == 0))
-    {
-        const uint32            activeRbCount     = pDevice->ChipProperties().gfx9.numActiveRbs;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const SubresId          subResId          = { baseSubResource.aspect, mipLevel, 0 };
-#else
-        const SubresId          subResId          = { 0, mipLevel, 0 };
-#endif
-        const SubResourceInfo*  pSubResInfo       = pParent->SubresourceInfo(subResId);
-        const uint32            imageSizeInPixels = (pSubResInfo->actualExtentTexels.width *
-                                                     pSubResInfo->actualExtentTexels.height);
-
-        // Note: For preloading to be enabled efficiently, the DB_PRELOAD_CONTROL register needs to be set-up. The
-        // ideal setting is the largest rectangle of the Image's aspect ratio which can completely fit within the
-        // DB cache (centered in the Image). The preload rectangle doesn't need to be exact.
-        const uint32 cacheSizeInPixels = (DbHtileCacheSizeInPixels * activeRbCount);
-        const uint32 width             = pSubResInfo->extentTexels.width;
-        const uint32 height            = pSubResInfo->extentTexels.height;
-
-        // DB Preload window is in 64 pixel increments both horizontally & vertically.
-        constexpr uint32 BlockWidth  = 64;
-        constexpr uint32 BlockHeight = 64;
-
-        regDB_PRELOAD_CONTROL*  pPreloadControl = &m_dbPreloadControl[mipLevel];
-
-        m_dbHtileSurface[mipLevel].gfx09.HTILE_USES_PRELOAD_WIN = settings.dbPreloadWinEnable;
-        m_dbHtileSurface[mipLevel].gfx09.PRELOAD                = 1;
-
-        if (imageSizeInPixels <= cacheSizeInPixels)
-        {
-            // The entire Image fits into the DB cache!
-            pPreloadControl->bits.START_X = 0;
-            pPreloadControl->bits.START_Y = 0;
-            pPreloadControl->bits.MAX_X   = ((width  - 1) / BlockWidth);
-            pPreloadControl->bits.MAX_Y   = ((height - 1) / BlockHeight);
-        }
-        else
-        {
-            // Image doesn't fit into the DB cache; compute the largest centered rectangle, while preserving the
-            // Image's aspect ratio.
-            //
-            // From DXX:
-            //      w*h = cacheSize, where w = aspectRatio*h
-            // Thus,
-            //      aspectRatio*(h^2) = cacheSize
-            // so,
-            //      h = sqrt(cacheSize/aspectRatio)
-            const float ratio = static_cast<float>(width) / static_cast<float>(height);
-
-            // Compute the height in blocks first; assume there will be more width than height, giving the width
-            // decision a lower granularity, and by doing it second typically more cache will be utilized.
-            const uint32 preloadWinHeight = static_cast<uint32>(Math::Sqrt(cacheSizeInPixels / ratio));
-            // Round up, but not beyond the window size.
-            const uint32 preloadWinHeightInBlocks = Min((preloadWinHeight + BlockHeight - 1) / BlockHeight,
-                                                         height / BlockHeight);
-
-            // Accurate width can now be derived from the height.
-            const uint32 preloadWinWidth = Min(cacheSizeInPixels / (preloadWinHeightInBlocks * BlockHeight), width);
-            // Round down, to ensure that the size is smaller than the DB cache.
-            const uint32 preloadWinWidthInBlocks = (preloadWinWidth / BlockWidth);
-
-            PAL_ASSERT(cacheSizeInPixels >=
-                (preloadWinWidthInBlocks * BlockWidth * preloadWinHeightInBlocks * BlockHeight));
-
-            // Program the preload window, offsetting the preloaded area towards the middle of the Image. Round down
-            // to ensure the area is positioned partially outside the Image. (Rounding to nearest would position the
-            // rectangle more evenly, but would not guarantee the whole rectangle is inside the Image.)
-            pPreloadControl->bits.START_X = ((width - preloadWinWidthInBlocks * BlockWidth) / 2) / BlockWidth;
-            pPreloadControl->bits.START_Y = ((height - preloadWinHeightInBlocks * BlockHeight) / 2) / BlockHeight;
-            pPreloadControl->bits.MAX_X   = (pPreloadControl->bits.START_X + preloadWinWidthInBlocks);
-            pPreloadControl->bits.MAX_Y   = (pPreloadControl->bits.START_Y + preloadWinHeightInBlocks);
-        }
-    }
 }
 
 // =====================================================================================================================
@@ -3393,19 +3276,13 @@ Result Gfx9Htile::Init(
     m_flags.compressZ = settings.depthCompressEnable   && (m_hTileUsage.dsMetadata != 0);
     m_flags.compressS = settings.stencilCompressEnable && (m_hTileUsage.dsMetadata != 0);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 636
     // Some HW has a problem with S compression on ZS images that use stencil only targets
     if (settings.waDisableSCompressSOnly &&
         imageCreateInfo.usageFlags.stencilOnlyTarget &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        pParent->IsAspectValid(ImageAspect::Depth))
-#else
         pParent->HasDepthPlane())
-#endif
     {
         m_flags.compressS = false;
     }
-#endif
 
     // NOTE: Default ZRANGE_PRECISION to 1, since this is typically the optimal value for DX applications, since they
     // usually clear Z to 1.0f and use a < depth comparison for their depth testing. But we change ZRANGE_PRECISION
@@ -3420,19 +3297,10 @@ Result Gfx9Htile::Init(
                                   && (m_hTileUsage.vrs == 0)
                                   ) ? 1 : 0);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    // Determine the subResource ID of the base slice and mip-map for this aspect
-    const SubresId  baseSubResource = pParent->GetBaseSubResource();
-#endif
-
     // Htile control registers vary per mip-level.  Compute those here.
     for (uint32  mipLevel = 0; mipLevel < imageCreateInfo.mipLevels; mipLevel++)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const SubresId              subResId          = { baseSubResource.aspect, mipLevel, 0 };
-#else
         const SubresId              subResId          = { 0, mipLevel, 0 };
-#endif
         const SubResourceInfo*const pSubResInfo       = pParent->SubresourceInfo(subResId);
         const uint32                imageSizeInPixels = (pSubResInfo->actualExtentTexels.width *
                                                          pSubResInfo->actualExtentTexels.height);
@@ -3449,20 +3317,10 @@ Result Gfx9Htile::Init(
 
         m_dbHtileSurface[mipLevel].bits.DST_OUTSIDE_ZERO_TO_ONE = 0;
 
-        // Setup HTile preload if it's supported.
-        if ((chipProps.gfxLevel == GfxIpLevel::GfxIp9)
-            )
-        {
-            SetupHtilePreload(mipLevel);
-        }
     }
 
     // Call the address library to compute the HTile properties.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const SubResourceInfo*  pBaseSubResInfo = pParent->SubresourceInfo(baseSubResource);
-#else
     const SubResourceInfo*  pBaseSubResInfo = pParent->SubresourceInfo(0);
-#endif
     Result                  result          = ComputeHtileInfo(pBaseSubResInfo);
     if (result == Result::Success)
     {
@@ -3507,11 +3365,7 @@ Result Gfx9Htile::ComputeHtileInfo(
     addrHtileIn.unalignedHeight   = imageCreateInfo.extent.height;
     addrHtileIn.numSlices         = imageCreateInfo.arraySize;
     addrHtileIn.numMipLevels      = imageCreateInfo.mipLevels;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    addrHtileIn.depthFlags        = pAddrMgr->DetermineSurfaceFlags(*pParent, pSubResInfo->subresId.aspect);
-#else
     addrHtileIn.depthFlags        = pAddrMgr->DetermineSurfaceFlags(*pParent, pSubResInfo->subresId.plane, false);
-#endif
     addrHtileIn.hTileFlags        = GetMetaFlags();
     addrHtileIn.firstMipIdInTail  = pParentSurfAddrOut->firstMipIdInTail;
 
@@ -3673,16 +3527,6 @@ uint32 Gfx9Htile::GetPlaneMask(
 
 // =====================================================================================================================
 // A helper function for when the caller just wants the plane mask for an entire subresource range.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-uint32 Gfx9Htile::GetPlaneMask(
-    ImageAspect aspect
-    ) const
-{
-    PAL_ASSERT((aspect == ImageAspect::Depth) || (aspect == ImageAspect::Stencil));
-
-    return GetPlaneMask((aspect == ImageAspect::Depth) ? HtilePlaneDepth : HtilePlaneStencil);
-}
-#else
 uint32 Gfx9Htile::GetPlaneMask(
     const SubresRange& range
     ) const
@@ -3700,7 +3544,6 @@ uint32 Gfx9Htile::GetPlaneMask(
 
     return GetPlaneMask(htileMask);
 }
-#endif
 
 // =====================================================================================================================
 // Computes the initial value of the htile which depends on whether or not tile stencil is disabled. We want this
@@ -4062,11 +3905,7 @@ Result Gfx9Dcc::ComputeDccInfo(
 
     dccInfoInput.size             = sizeof(dccInfoInput);
     dccInfoInput.dccKeyFlags      = GetMetaFlags();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    dccInfoInput.colorFlags       = pAddrMgr->DetermineSurfaceFlags(*pParent, subResId.aspect);
-#else
     dccInfoInput.colorFlags       = pAddrMgr->DetermineSurfaceFlags(*pParent, subResId.plane, false);
-#endif
     dccInfoInput.resourceType     = m_image.GetAddrSettings(pSubResInfo).resourceType;
     dccInfoInput.swizzleMode      = surfSettings.swizzleMode;
     dccInfoInput.bpp              = BitsPerPixel(pSubResInfo->format.format);
@@ -4273,11 +4112,7 @@ bool Gfx9Dcc::UseDccForImage(
     const bool isGfx9             = (pDevice->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9);
 
     // GFX9+ resources have the same swizzle mode for all mip-levels and slices, so just look at the base level.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const SubResourceInfo*const pSubResInfo = pParent->SubresourceInfo(pParent->GetBaseSubResource());
-#else
     const SubResourceInfo*const pSubResInfo = pParent->SubresourceInfo(0);
-#endif
     const AddrSwizzleMode       swizzleMode = image.GetAddrSettings(pSubResInfo).swizzleMode;
 
     if (pParent->IsMetadataDisabledByClient())
@@ -4300,14 +4135,12 @@ bool Gfx9Dcc::UseDccForImage(
         useDcc = false;
         mustDisableDcc = true;
     }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 646
     else if (createInfo.usageFlags.vrsRateImage != 0)
     {
         // The HW has no ability to handle compression on VRS source rate images.
         useDcc = false;
         mustDisableDcc = true;
     }
-#endif
     else if (Is256BSwizzle(swizzleMode))
     {
         // If using 256B swizzle, don't use DCC as perf hit is too great.
@@ -4565,9 +4398,7 @@ uint8 Gfx9Dcc::GetFastClearCode(
     bool*              pBlackOrWhite)      // [out] true if this clear color is either black or white and corresponds
                                            //        to one of the "special" clear codes.
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(clearRange.numPlanes == 1);
-#endif
 
     // Fast-clear code that is valid for images that won't be texture fetched.
     const Pal::Image*  const     pParent         = image.Parent();
@@ -4907,12 +4738,7 @@ Result Gfx9Cmask::ComputeCmaskInfo()
     const auto*const        pAddrMgr   = static_cast<const AddrMgr2::AddrMgr2*>(pDevice->GetAddrMgr());
 
     // Only need the sub-res info for the plane...
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const SubresId              subResId    = { ImageAspect::Color, 0, 0 };
-    const SubResourceInfo*const pSubResInfo = pParent->SubresourceInfo(subResId);
-#else
     const SubResourceInfo*const pSubResInfo = pParent->SubresourceInfo(0);
-#endif
 
     const auto*                     pFmask     = m_image.GetFmask();
     ADDR2_COMPUTE_CMASK_INFO_INPUT  cMaskInput = {};
@@ -4923,11 +4749,7 @@ Result Gfx9Cmask::ComputeCmaskInfo()
     cMaskInput.unalignedHeight = createInfo.extent.height;
     cMaskInput.numSlices       = createInfo.arraySize;
     cMaskInput.resourceType    = m_image.GetAddrSettings(pSubResInfo).resourceType;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    cMaskInput.colorFlags      = pAddrMgr->DetermineSurfaceFlags(*pParent, subResId.aspect);
-#else
     cMaskInput.colorFlags      = pAddrMgr->DetermineSurfaceFlags(*pParent, pSubResInfo->subresId.plane, false);
-#endif
     cMaskInput.swizzleMode     = pFmask->GetSwizzleMode();
     cMaskInput.cMaskFlags      = GetMetaFlags();
 
@@ -4957,18 +4779,10 @@ uint32 Gfx9Cmask::GetBytesPerPixelLog2() const
 // Gets the pipe-bank xor value for the data surface associated with this meta surface.  For a cMask meta surface, the
 // associated data surface is fMask.
 uint32 Gfx9Cmask::GetPipeBankXor(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    ImageAspect   aspect
-#else
     uint32 plane
-#endif
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    PAL_ASSERT(aspect == ImageAspect::Fmask);
-#else
     PAL_ASSERT(plane == 0);
-#endif
 
     const uint32 pipeBankXor = m_image.GetFmask()->GetPipeBankXor();
 
@@ -5249,13 +5063,7 @@ Result Gfx9Fmask::Init(
     if (result == Result::Success)
     {
         // fMask surfaces have a pipe/bank xor value which is independent of the image's pipe-bank xor value.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        result = image.ComputePipeBankXor(ImageAspect::Fmask,
-                                          &m_surfSettings,
-                                          &m_pipeBankXor);
-#else
         result = image.ComputePipeBankXor(0, true, &m_surfSettings, &m_pipeBankXor);
-#endif
     }
 
     if (result == Result::Success)

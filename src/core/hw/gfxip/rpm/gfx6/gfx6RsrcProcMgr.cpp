@@ -839,9 +839,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
     const SubresRange&           range
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(range.numPlanes == 1);
-#endif
 
     const auto&  device              = *m_pDevice->Parent();
     const auto&  settings            = m_pDevice->Settings();
@@ -873,11 +871,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
         bool earlyExit = false;
         for (uint32  mipIdx = 0; ((earlyExit == false) && (mipIdx < range.numMips)); mipIdx++)
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            const SubresId  mipBaseSubResId =  { range.startSubres.aspect, range.startSubres.mipLevel + mipIdx, 0 };
-#else
             const SubresId  mipBaseSubResId =  { range.startSubres.plane, range.startSubres.mipLevel + mipIdx, 0 };
-#endif
             const auto*     pBaseSubResInfo = image.SubresourceInfo(mipBaseSubResId);
 
             PAL_ASSERT(pBaseSubResInfo->flags.supportMetaDataTexFetch);
@@ -898,18 +892,10 @@ bool RsrcProcMgr::ExpandDepthStencil(
 
             for (uint32  sliceIdx = 0; sliceIdx < range.numSlices; sliceIdx++)
             {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                const SubresId     subResId =  { mipBaseSubResId.aspect,
-#else
                 const SubresId     subResId =  { mipBaseSubResId.plane,
-#endif
                                                  mipBaseSubResId.mipLevel,
                                                  range.startSubres.arraySlice + sliceIdx };
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                const SubresRange  viewRange = { subResId, 1, 1 };
-#else
                 const SubresRange  viewRange = { subResId, 1, 1, 1 };
-#endif
 
                 // Create an embedded user-data table and bind it to user data 0. We will need two views.
                 uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(
@@ -966,11 +952,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
 #if PAL_AMDGPU_BUILD
         // After expand, Htile SMEM bit is wrong for partially covered Htile, a DB cache flush and invalidation here can
         // make sure Htile result is correct.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        if (range.startSubres.aspect == ImageAspect::Stencil)
-#else
         if (image.IsStencilPlane(range.startSubres.plane))
-#endif
         {
             auto*const pCmdStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics);
             PAL_ASSERT(pCmdStream != nullptr);
@@ -995,9 +977,7 @@ void RsrcProcMgr::HwlFastColorClear(
     const SubresRange& clearRange
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(clearRange.numPlanes == 1);
-#endif
 
     const Image& gfx6Image = static_cast<const Image&>(dstImage);
 
@@ -1108,16 +1088,10 @@ void RsrcProcMgr::HwlFixupCopyDstImageMetaData(
 
             SubresRange range = {};
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            range.startSubres.aspect     = clearRegion.subres.aspect;
-#else
             range.startSubres.plane      = clearRegion.subres.plane;
-#endif
             range.startSubres.mipLevel   = clearRegion.subres.mipLevel;
             range.startSubres.arraySlice = clearRegion.subres.arraySlice;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
             range.numPlanes              = 1;
-#endif
             range.numMips                = 1;
             range.numSlices              = clearRegion.numSlices;
 
@@ -1135,16 +1109,10 @@ void RsrcProcMgr::HwlFixupCopyDstImageMetaData(
 
             SubresRange range = {};
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            range.startSubres.aspect     = clearRegion.subres.aspect;
-#else
             range.startSubres.plane      = clearRegion.subres.plane;
-#endif
             range.startSubres.mipLevel   = clearRegion.subres.mipLevel;
             range.startSubres.arraySlice = clearRegion.subres.arraySlice;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
             range.numPlanes              = 1;
-#endif
             range.numMips                = 1;
             range.numSlices              = clearRegion.numSlices;
 
@@ -1179,11 +1147,7 @@ void RsrcProcMgr::HwlFixupResolveDstImage(
 
     for (uint32 i = 0; i < regionCount; i++)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        startSubres.aspect     = pRegions[i].dstAspect;
-#else
         startSubres.plane      = pRegions[i].dstPlane;
-#endif
         startSubres.arraySlice = pRegions[i].dstSlice;
         startSubres.mipLevel   = pRegions[i].dstMipLevel;
 
@@ -1191,9 +1155,7 @@ void RsrcProcMgr::HwlFixupResolveDstImage(
                                   Pal::LayoutResolveDst))
         {
             range.startSubres = startSubres;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
             range.numPlanes   = 1;
-#endif
             range.numMips     = 1;
             range.numSlices   = pRegions[i].numSlices;
 
@@ -1256,25 +1218,6 @@ void RsrcProcMgr::HwlHtileCopyAndFixUp(
         const ImageResolveRegion* pResolveRegion;
         uint32 planeFlags;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        void FillAspect(ImageAspect aspect)
-        {
-            if (aspect == ImageAspect::Depth)
-            {
-                PAL_ASSERT(TestAnyFlagSet(planeFlags, HtilePlaneDepth) == false);
-                planeFlags |= HtilePlaneDepth;
-            }
-            else if (aspect == ImageAspect::Stencil)
-            {
-                PAL_ASSERT(TestAnyFlagSet(planeFlags, HtilePlaneStencil) == false);
-                planeFlags |= HtilePlaneStencil;
-            }
-            else
-            {
-                PAL_ASSERT_ALWAYS();
-            }
-        }
-#else
         void FillPlane(const Pal::Image& image, uint32 plane)
         {
             if (image.IsDepthPlane(plane))
@@ -1292,7 +1235,6 @@ void RsrcProcMgr::HwlHtileCopyAndFixUp(
                 PAL_ASSERT_ALWAYS();
             }
         }
-#endif
     };
 
     AutoBuffer<FixUpRegion, 2 * MaxImageMipLevels, Platform> fixUpRegionList(regionCount, m_pDevice->GetPlatform());
@@ -1318,17 +1260,9 @@ void RsrcProcMgr::HwlHtileCopyAndFixUp(
                 {
                     PAL_ASSERT(curResolveRegion.srcSlice == listRegion.pResolveRegion->srcSlice);
                     PAL_ASSERT(curResolveRegion.numSlices == listRegion.pResolveRegion->numSlices);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                    PAL_ASSERT(curResolveRegion.dstAspect != listRegion.pResolveRegion->dstAspect);
-#else
                     PAL_ASSERT(curResolveRegion.dstPlane != listRegion.pResolveRegion->dstPlane);
-#endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                    listRegion.FillAspect(curResolveRegion.dstAspect);
-#else
                     listRegion.FillPlane(dstImage, curResolveRegion.dstPlane);
-#endif
                     inserted = true;
                     break;
                 }
@@ -1338,11 +1272,7 @@ void RsrcProcMgr::HwlHtileCopyAndFixUp(
             {
                 FixUpRegion fixUpRegion = {};
                 fixUpRegion.pResolveRegion = &curResolveRegion;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                fixUpRegion.FillAspect(curResolveRegion.dstAspect);
-#else
                 fixUpRegion.FillPlane(dstImage, curResolveRegion.dstPlane);
-#endif
 
                 fixUpRegionList[mergedCount++] = fixUpRegion;
             } // End of if
@@ -1367,11 +1297,7 @@ void RsrcProcMgr::HwlHtileCopyAndFixUp(
             const ImageResolveRegion* pCurRegion = fixUpRegionList[i].pResolveRegion;
 
             uint32 dstMipLevel = pCurRegion->dstMipLevel;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            dstSubresId.aspect = pCurRegion->dstAspect;
-#else
             dstSubresId.plane = pCurRegion->dstPlane;
-#endif
             dstSubresId.mipLevel = dstMipLevel;
             dstSubresId.arraySlice = pCurRegion->dstSlice;
             const SubResourceInfo* pDstSubresInfo = dstImage.SubresourceInfo(dstSubresId);
@@ -1531,9 +1457,7 @@ void RsrcProcMgr::UpdateBoundFastClearDepthStencil(
     uint8              stencil
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(range.numPlanes == 1);
-#endif
 
     // Only gfx command buffers can have bound render targets / DS attachments.  Fast clears through compute command
     // buffers do not have to worry about updating fast clear value register state.
@@ -1646,9 +1570,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
             {
                 for (uint32 idx = 0; idx < rangeCount; idx++)
                 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
                     PAL_ASSERT(pRanges[idx].numPlanes == 1);
-#endif
                     // Fast depth clear method is the same for all subresources, so we can just check the first.
                     const SubResourceInfo& subResInfo = *gfx6Image.Parent()->SubresourceInfo(pRanges[idx].startSubres);
                     fastClearMethod[idx] = subResInfo.clearMethod;
@@ -1659,16 +1581,9 @@ void RsrcProcMgr::HwlDepthStencilClear(
 
                 for (uint32 idx = 0; idx < rangeCount; idx++)
                 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
                     PAL_ASSERT(pRanges[idx].numPlanes == 1);
-#endif
-                    const uint32 currentClearFlag =
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                        (pRanges[idx].startSubres.aspect == ImageAspect::Depth) ? HtilePlaneDepth : HtilePlaneStencil;
-#else
-                        gfx6Image.Parent()->IsDepthPlane(pRanges[idx].startSubres.plane)
-                            ? HtilePlaneDepth : HtilePlaneStencil;
-#endif
+                    const uint32 currentClearFlag = gfx6Image.Parent()->IsDepthPlane(pRanges[idx].startSubres.plane) ?
+                                                    HtilePlaneDepth : HtilePlaneStencil;
                     metaDataClearFlags |= currentClearFlag;
 
                     const PM4Predicate packetPredicate = static_cast<PM4Predicate>(
@@ -1685,13 +1600,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
                     // Update the metadata for the waTcCompatZRange workaround
                     if (m_pDevice->WaTcCompatZRange() &&
                         ((currentClearFlag & HtilePlaneDepth) != 0) &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                        GetMetaDataTexFetchSupport(gfx6Image.Parent(),
-                            gfx6Image.Parent()->GetBaseSubResource().aspect,
-                            gfx6Image.Parent()->GetBaseSubResource().mipLevel))
-#else
                         (gfx6Image.Parent()->SubresourceInfo(0)->flags.supportMetaDataTexFetch != 0))
-#endif
                     {
                         pCmdSpace = gfx6Image.UpdateWaTcCompatZRangeMetaData(pRanges[idx],
                                                                              depth,
@@ -1718,43 +1627,28 @@ void RsrcProcMgr::HwlDepthStencilClear(
             {
                 for (uint32 idx = 0; idx < rangeCount; idx++)
                 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
                     PAL_ASSERT(pRanges[idx].numPlanes == 1);
-#endif
                     isRangeProcessed[idx] = false;
                 }
 
                 // Now issue fast or slow clears to all ranges, grouping identical depth/stencil pairs if possible.
                 for (uint32 idx = 0; idx < rangeCount; idx++)
                 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
                     PAL_ASSERT(pRanges[idx].numPlanes == 1);
-#endif
                     // No need to clear a range twice.
                     if (isRangeProcessed[idx])
                     {
                         continue;
                     }
 
-                    uint32 clearFlags =
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                        (pRanges[idx].startSubres.aspect == ImageAspect::Depth) ? HtilePlaneDepth : HtilePlaneStencil;
-#else
-                        gfx6Image.Parent()->IsDepthPlane(pRanges[idx].startSubres.plane)
-                            ? HtilePlaneDepth : HtilePlaneStencil;
-#endif
+                    uint32 clearFlags = gfx6Image.Parent()->IsDepthPlane(pRanges[idx].startSubres.plane) ?
+                                        HtilePlaneDepth : HtilePlaneStencil;
 
                     // Search the range list to see if there is a matching range which span the other plane.
                     for (uint32 forwardIdx = idx + 1; (forwardIdx < rangeCount); ++forwardIdx)
                     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
                         PAL_ASSERT(pRanges[forwardIdx].numPlanes == 1);
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                        if ((pRanges[forwardIdx].startSubres.aspect != pRanges[idx].startSubres.aspect) &&
-#else
                         if ((pRanges[forwardIdx].startSubres.plane != pRanges[idx].startSubres.plane) &&
-#endif
                             (pRanges[forwardIdx].startSubres.mipLevel == pRanges[idx].startSubres.mipLevel) &&
                             (pRanges[forwardIdx].numMips == pRanges[idx].numMips) &&
                             (pRanges[forwardIdx].startSubres.arraySlice == pRanges[idx].startSubres.arraySlice) &&
@@ -1806,12 +1700,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
                     {
                         if (needPreComputeSync)
                         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                            const ImageAspect aspect  = pRanges[idx].startSubres.aspect;
-                            const bool        isDepth = (aspect == ImageAspect::Depth);
-#else
                             const bool isDepth = gfx6Image.Parent()->IsDepthPlane(pRanges[idx].startSubres.plane);
-#endif
                             PreComputeDepthStencilClearSync(pCmdBuffer,
                                                             gfx6Image,
                                                             pRanges[idx],
@@ -1840,12 +1729,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
 
                     if (needPostComputeSync)
                     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                        const ImageAspect aspect  = pRanges[idx].startSubres.aspect;
-                        const bool        isDepth = (aspect == ImageAspect::Depth);
-#else
                         const bool isDepth = gfx6Image.Parent()->IsDepthPlane(pRanges[idx].startSubres.plane);
-#endif
                         PostComputeDepthStencilClearSync(pCmdBuffer,
                                                          gfx6Image,
                                                          pRanges[idx],
@@ -1865,18 +1749,11 @@ void RsrcProcMgr::HwlDepthStencilClear(
 
         for (uint32 idx = 0; idx < rangeCount; ++idx)
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
             PAL_ASSERT(pRanges[idx].numPlanes == 1);
-#endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            const ImageAspect    aspect  = pRanges[idx].startSubres.aspect;
-            const bool           isDepth = (aspect == ImageAspect::Depth);
-#else
             const auto& createInfo = pParent->GetImageCreateInfo();
             const bool  isDepth    = m_pDevice->Parent()->SupportsDepth(createInfo.swizzledFormat.format,
                                                                         ImageTiling::Optimal);
-#endif
             const SwizzledFormat format = gfx6Image.Parent()->SubresourceInfo(pRanges[idx].startSubres)->format;
 
             // If it's PRT tiled mode, tile info for depth and stencil end up being different,
@@ -1904,12 +1781,8 @@ void RsrcProcMgr::HwlDepthStencilClear(
             }
             else
             {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                PAL_ASSERT(aspect == ImageAspect::Stencil);
-#else
                 PAL_ASSERT(m_pDevice->Parent()->SupportsStencil(createInfo.swizzledFormat.format,
                                                                 ImageTiling::Optimal));
-#endif
 
                 // Expand first if stencil plane is not fully expanded.
                 if (ImageLayoutToDepthCompressionState(layoutToState, stencilLayout) != DepthStencilDecomprNoHiZ)
@@ -1968,18 +1841,10 @@ bool RsrcProcMgr::HwlCanDoFixedFuncResolve(
     for (uint32 region = 0; region < regionCount; ++region)
     {
         const ImageResolveRegion& imageRegion = pRegions[region];
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const SubresId srcSubResId = { imageRegion.srcAspect,
-#else
         const SubresId srcSubResId = { imageRegion.srcPlane,
-#endif
                                        imageRegion.dstMipLevel,
                                        imageRegion.srcSlice };
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const SubresId dstSubResId = { imageRegion.dstAspect,
-#else
         const SubresId dstSubResId = { imageRegion.dstPlane,
-#endif
                                        imageRegion.dstMipLevel,
                                        imageRegion.dstSlice };
 
@@ -2039,26 +1904,14 @@ bool RsrcProcMgr::HwlCanDoDepthStencilCopyResolve(
     for (uint32 region = 0; canDoDepthStencilCopyResolve && (region < regionCount); ++region)
     {
         const ImageResolveRegion& imageRegion = pRegions[region];
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const SubresId srcSubResId = { imageRegion.srcAspect,
-#else
         const SubresId srcSubResId = { imageRegion.srcPlane,
-#endif
                                        0,
                                        imageRegion.srcSlice };
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const SubresId dstSubResId = { imageRegion.dstAspect,
-#else
         const SubresId dstSubResId = { imageRegion.dstPlane,
-#endif
                                        imageRegion.dstMipLevel,
                                        imageRegion.dstSlice };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        PAL_ASSERT(imageRegion.srcAspect == imageRegion.dstAspect);
-#else
         PAL_ASSERT(imageRegion.srcPlane == imageRegion.dstPlane);
-#endif
 
         const SubResourceInfo*const    pSrcSubRsrcInfo = srcImage.SubresourceInfo(srcSubResId);
         const SubResourceInfo*const    pDstSubRsrcInfo = dstImage.SubresourceInfo(dstSubResId);
@@ -2076,11 +1929,7 @@ bool RsrcProcMgr::HwlCanDoDepthStencilCopyResolve(
             // depth and stencil macro tile mode compatible(using tile mode 0) on Gfx7/Gfx8. Db uses split in bytes
             // while cb uses split in samples. So pre-condition of depth-copy resolve is depth surface not splitting.
             // Stencil-copy resolve always has chance to go on as stencil part will never split with sample 1.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            if ((imageRegion.dstAspect != ImageAspect::Stencil) &&
-#else
             if ((pGfxDstImage->Parent()->IsStencilPlane(imageRegion.dstPlane) == false) &&
-#endif
                 (pSrcTileInfo->tileMode == ADDR_TM_2D_TILED_THIN1))
             {
                 // 2D tiled depth surface should not be splitted for depth resolve dst on Gfx7/Gfx8.
@@ -2159,11 +2008,7 @@ bool RsrcProcMgr::HwlCanDoDepthStencilCopyResolve(
                     if (curRegion.dstSlice == otherRegion.dstSlice)
                     {
                         // Depth/stencil on the same array slice is allowed to perform fixed-func depth/stencil resolve
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                        PAL_ASSERT(curRegion.dstAspect != otherRegion.dstAspect);
-#else
                         PAL_ASSERT(curRegion.dstPlane != otherRegion.dstPlane);
-#endif
                         canDoDepthStencilCopyResolve &= ((curRegion.srcSlice == otherRegion.srcSlice) &&
                                                          (curRegion.numSlices == otherRegion.numSlices));
                     }
@@ -2190,9 +2035,7 @@ void RsrcProcMgr::HwlResummarizeHtileCompute(
     const SubresRange& range
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(range.numPlanes == 1);
-#endif
 
     const Gfx6::Image& gfx6Image = static_cast<const Gfx6::Image&>(image);
 
@@ -2201,11 +2044,7 @@ void RsrcProcMgr::HwlResummarizeHtileCompute(
     PAL_ASSERT(pBaseHtile != nullptr);
 
     const uint32 htileValue = pBaseHtile->GetInitialValue();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const uint32 htileMask  = pBaseHtile->GetPlaneMask(range.startSubres.aspect);
-#else
     const uint32 htileMask  = pBaseHtile->GetPlaneMask(gfx6Image, range);
-#endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // This function assumes that all mip levels must use the same Htile value and mask.
@@ -2214,13 +2053,8 @@ void RsrcProcMgr::HwlResummarizeHtileCompute(
     {
         const Gfx6Htile*const pNextHtile = gfx6Image.GetHtile(nextMipSubres);
         PAL_ASSERT(pNextHtile != nullptr);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         PAL_ASSERT((htileValue == pNextHtile->GetInitialValue()) &&
-            (htileMask  == pNextHtile->GetPlaneMask(range.startSubres.aspect)));
-#else
-        PAL_ASSERT((htileValue == pNextHtile->GetInitialValue()) &&
-            (htileMask  == pNextHtile->GetPlaneMask(gfx6Image, range)));
-#endif
+                   (htileMask  == pNextHtile->GetPlaneMask(gfx6Image, range)));
     }
 #endif
 
@@ -2577,9 +2411,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     const Box*         pBox
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(range.numPlanes == 1);
-#endif
     PAL_ASSERT(dstImage.Parent()->IsDepthStencilTarget());
     PAL_ASSERT((fastClear == false) || dstImage.IsFastDepthStencilClearSupported(depthLayout,
                                                                                  stencilLayout,
@@ -2712,11 +2544,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
          depthViewInfo.mipLevel <= lastMip;
          ++depthViewInfo.mipLevel)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const SubresId         subres     = { range.startSubres.aspect, depthViewInfo.mipLevel, 0 };
-#else
         const SubresId         subres     = { range.startSubres.plane, depthViewInfo.mipLevel, 0 };
-#endif
         const SubResourceInfo& subResInfo = *dstImage.Parent()->SubresourceInfo(subres);
 
         // All slices of the same mipmap level can re-use the same viewport and scissor state.
@@ -2843,12 +2671,8 @@ void RsrcProcMgr::InitMaskRam(
         }
         // If this is the stencil plane initialization pass and this hTile buffer doesn't support stencil then
         // there's nothing to do.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        else if ((range.startSubres.aspect != ImageAspect::Stencil) || (hTile.TileStencilDisabled() == false))
-#else
         else if ((dstImage.Parent()->IsStencilPlane(range.startSubres.plane) == false) ||
                  (hTile.TileStencilDisabled() == false))
-#endif
         {
             const uint32 value = hTile.GetInitialValue();
 
@@ -2892,22 +2716,14 @@ void RsrcProcMgr::InitMaskRam(
         }
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    if (dstImage.HasHiSPretestsMetaData() && (range.startSubres.aspect == ImageAspect::Stencil))
-#else
     if (dstImage.HasHiSPretestsMetaData() && dstImage.Parent()->HasStencilPlane(range))
-#endif
     {
         ClearHiSPretestsMetaData(pCmdBuffer, pCmdStream, dstImage, range);
     }
 
     // The metadata is used as a COND_EXEC condition, init ZRange meta data with 0(e.g, depth value is 1.0 by default)
     // to indicate DB_Z_INFO.ZRANGE_PRECISION register filed should not be overwrote via this workaround metadata.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    if (dstImage.HasWaTcCompatZRangeMetaData() && (range.startSubres.aspect == ImageAspect::Depth))
-#else
     if (dstImage.HasWaTcCompatZRangeMetaData() && dstImage.Parent()->HasDepthPlane(range))
-#endif
     {
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
         const PM4Predicate packetPredicate = static_cast<PM4Predicate>(
@@ -2949,9 +2765,7 @@ void RsrcProcMgr::ClearCmask(
     uint32             clearValue
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(clearRange.numPlanes == 1);
-#endif
 
     const ImageCreateInfo& createInfo = dstImage.Parent()->GetImageCreateInfo();
 
@@ -2962,11 +2776,7 @@ void RsrcProcMgr::ClearCmask(
     const uint32 lastMip = clearRange.startSubres.mipLevel + clearRange.numMips - 1;
     for (uint32 mip = clearRange.startSubres.mipLevel; mip <= lastMip; ++mip)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const SubresId         mipSubres  = { ImageAspect::Color, mip, 0 };
-#else
         const SubresId         mipSubres  = { 0, mip, 0 };
-#endif
         const SubResourceInfo& subResInfo = *dstImage.Parent()->SubresourceInfo(mipSubres);
 
         // For 3D Images, always clear all depth slices of this mip level, otherwise use the range's slice info.
@@ -2992,9 +2802,7 @@ void RsrcProcMgr::ClearFmask(
     uint32             clearValue
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(clearRange.numPlanes == 1);
-#endif
     // Note: MSAA Images do not support multiple mipmpap levels, so we can make some assumptions here.
     PAL_ASSERT(dstImage.Parent()->GetImageCreateInfo().mipLevels == 1);
     PAL_ASSERT((clearRange.startSubres.mipLevel == 0) && (clearRange.numMips == 1));
@@ -3024,9 +2832,7 @@ void RsrcProcMgr::ClearDcc(
     DccClearPurpose    clearPurpose
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(clearRange.numPlanes == 1);
-#endif
 
     // Get some useful information about the image.
     const bool is3dImage = (dstImage.Parent()->GetImageCreateInfo().imageType == ImageType::Tex3d);
@@ -3124,16 +2930,10 @@ void RsrcProcMgr::ClearHiSPretestsMetaData(
     PAL_ALERT((range.startSubres.arraySlice + range.numSlices) > createInfo.arraySize);
 
     SubresRange metaDataRange = {};
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    metaDataRange.startSubres.aspect     = range.startSubres.aspect;
-#else
     metaDataRange.startSubres.plane      = range.startSubres.plane;
-#endif
     metaDataRange.startSubres.mipLevel   = range.startSubres.mipLevel;
     metaDataRange.startSubres.arraySlice = 0;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     metaDataRange.numPlanes              = range.numPlanes;
-#endif
     metaDataRange.numMips                = range.numMips;
     metaDataRange.numSlices              = createInfo.arraySize;
 
@@ -3162,9 +2962,7 @@ void RsrcProcMgr::InitDepthClearMetaData(
     const SubresRange& range
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(range.numPlanes == 1);
-#endif
     PAL_ASSERT(pCmdStream != nullptr);
 
     const ImageCreateInfo& createInfo = dstImage.Parent()->GetImageCreateInfo();
@@ -3177,26 +2975,15 @@ void RsrcProcMgr::InitDepthClearMetaData(
     PAL_ALERT((range.startSubres.arraySlice + range.numSlices) > createInfo.arraySize);
 
     SubresRange metaDataRange;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    metaDataRange.startSubres.aspect     = range.startSubres.aspect;
-#else
     metaDataRange.startSubres.plane      = range.startSubres.plane;
-#endif
     metaDataRange.startSubres.mipLevel   = range.startSubres.mipLevel;
     metaDataRange.startSubres.arraySlice = 0;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     metaDataRange.numPlanes              = range.numPlanes;
-#endif
     metaDataRange.numMips                = range.numMips;
     metaDataRange.numSlices              = createInfo.arraySize;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const uint32 metaDataInitFlags = (range.startSubres.aspect == ImageAspect::Depth) ?
-                                     HtilePlaneDepth : HtilePlaneStencil;
-#else
     const uint32 metaDataInitFlags = dstImage.Parent()->IsDepthPlane(range.startSubres.plane) ?
                                      HtilePlaneDepth : HtilePlaneStencil;
-#endif
 
     const PM4Predicate packetPredicate =
         static_cast<PM4Predicate>(pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
@@ -3220,9 +3007,7 @@ void RsrcProcMgr::InitColorClearMetaData(
     const SubresRange& range
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(range.numPlanes == 1);
-#endif
     PAL_ASSERT(pCmdStream != nullptr);
 
     // This function may be called with a range that spans any number of array slices under the perSubresInit feature.
@@ -3254,9 +3039,7 @@ void RsrcProcMgr::ClearHtilePlane(
     const SubresRange& range
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(range.numPlanes == 1);
-#endif
 
     auto*const pCmdStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
     PAL_ASSERT(pCmdStream != nullptr);
@@ -3267,13 +3050,9 @@ void RsrcProcMgr::ClearHtilePlane(
 
     // Evaluate the mask and value for updating the HTile buffer.
     const uint32 htileValue   = pHtile->GetInitialValue();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const uint32 htileMask  = pHtile->GetPlaneMask(range.startSubres.aspect);
-#else
-    const uint32 htilePlaneMask = dstImage.Parent()->IsDepthPlane(range.startSubres.plane)
-                                  ? HtilePlaneDepth : HtilePlaneStencil;
+    const uint32 htilePlaneMask = dstImage.Parent()->IsDepthPlane(range.startSubres.plane) ?
+                                  HtilePlaneDepth : HtilePlaneStencil;
     const uint32 htileMask      = pHtile->GetPlaneMask(htilePlaneMask);
-#endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // This function assumes that all mip levels must use the same Htile value and mask.
@@ -3283,13 +3062,8 @@ void RsrcProcMgr::ClearHtilePlane(
         const Gfx6Htile*const pNextHtile = dstImage.GetHtile(nextMipSubres);
         PAL_ASSERT(pNextHtile != nullptr);
         PAL_ASSERT(pNextHtile->TileStencilDisabled() == false);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
         PAL_ASSERT((htileValue == pNextHtile->GetInitialValue()) &&
-            (htileMask  == pNextHtile->GetPlaneMask(range.startSubres.aspect)));
-#else
-        PAL_ASSERT((htileValue == pNextHtile->GetInitialValue()) &&
-            (htileMask  == pNextHtile->GetPlaneMask(htilePlaneMask)));
-#endif
+                   (htileMask  == pNextHtile->GetPlaneMask(htilePlaneMask)));
     }
 #endif
 
@@ -3374,9 +3148,7 @@ void RsrcProcMgr::FastClearEliminate(
     const SubresRange&           range
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(range.numPlanes == 1);
-#endif
 
     const bool    alwaysFce    = TestAnyFlagSet(m_pDevice->Settings().gfx8AlwaysDecompress, DecompressFastClear);
 
@@ -3414,9 +3186,7 @@ void RsrcProcMgr::FmaskDecompress(
     const SubresRange&           range
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(range.numPlanes == 1);
-#endif
     // Only MSAA Images should ever need an FMask Decompress and they only support a single mipmap level.
     PAL_ASSERT((range.startSubres.mipLevel == 0) && (range.numMips == 1));
 
@@ -3446,9 +3216,7 @@ void RsrcProcMgr::DccDecompressOnCompute(
     const SubresRange& range
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(range.numPlanes == 1);
-#endif
 
     const MipDccStateMetaData  zero = {};
 
@@ -3474,11 +3242,7 @@ void RsrcProcMgr::DccDecompressOnCompute(
 
     for (uint32  mipLevel = range.startSubres.mipLevel; ((earlyExit == false) && (mipLevel <= lastMip)); mipLevel++)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const SubresId              mipBaseSubResId = { range.startSubres.aspect, mipLevel, 0 };
-#else
         const SubresId              mipBaseSubResId = { range.startSubres.plane, mipLevel, 0 };
-#endif
         const SubResourceInfo*const pBaseSubResInfo = image.Parent()->SubresourceInfo(mipBaseSubResId);
 
         // Blame the caller if this trips...
@@ -3499,18 +3263,10 @@ void RsrcProcMgr::DccDecompressOnCompute(
 
         for (uint32  sliceIdx = 0; sliceIdx < range.numSlices; sliceIdx++)
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            const SubresId     subResId =  { mipBaseSubResId.aspect,
-#else
             const SubresId     subResId =  { mipBaseSubResId.plane,
-#endif
                                              mipBaseSubResId.mipLevel,
                                              range.startSubres.arraySlice + sliceIdx };
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            const SubresRange  viewRange = { subResId, 1, 1 };
-#else
             const SubresRange  viewRange = { subResId, 1, 1, 1 };
-#endif
 
             // Create an embedded user-data table and bind it to user data 0. We will need two views.
             uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
@@ -3582,20 +3338,14 @@ void RsrcProcMgr::DccDecompress(
     const SubresRange&           range
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(range.numPlanes == 1);
-#endif
 
     const auto*  pParentImg = image.Parent();
 
     // Just because a subresource has DCC memory doesn't mean that it's actually being used. We only need to decompress
     // the DCC surfaces that have actually been used. Compute the range subset that actually needs to be decompressed.
     SubresRange decompressRange = range;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    SubresId    subResource     = { ImageAspect::Color, 0, 0 };
-#else
     SubresId    subResource     = {};
-#endif
 
     const uint32 lastMip = range.startSubres.mipLevel + range.numMips - 1;
     for (subResource.mipLevel = range.startSubres.mipLevel; subResource.mipLevel <= lastMip; ++subResource.mipLevel)
@@ -3665,9 +3415,7 @@ void RsrcProcMgr::FmaskColorExpand(
     const SubresRange& range
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(range.numPlanes == 1);
-#endif
     // MSAA images can only have 1 mip level.
     PAL_ASSERT((range.startSubres.mipLevel == 0) && (range.numMips == 1));
     PAL_ASSERT(image.HasFmaskData());
@@ -3736,11 +3484,7 @@ void RsrcProcMgr::FmaskColorExpand(
         pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, 3, expandedValueData);
 
         // Because we are setting up the MSAA surface as a 3D UAV, we need to have a separate dispatch for each slice.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        SubresRange  viewRange = { range.startSubres, 1, 1 };
-#else
         SubresRange  viewRange = { range.startSubres, 1, 1, 1 };
-#endif
         const uint32 lastSlice = range.startSubres.arraySlice + range.numSlices - 1;
 
         SwizzledFormat format   = createInfo.swizzledFormat;
@@ -4031,12 +3775,8 @@ void RsrcProcMgr::HwlDecodeImageViewSrd(
     // that it's looking at the color plane and that it's not block compressed.
     PAL_ASSERT(Formats::IsBlockCompressed(pSwizzledFormat->format) == false);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    pSubresRange->startSubres.aspect = ImageAspect::Color;
-#else
     pSubresRange->startSubres.plane = 0;
     pSubresRange->numPlanes         = 1;
-#endif
 
     const auto& imageCreateInfo = dstImage.GetImageCreateInfo();
     if (Formats::IsYuv(imageCreateInfo.swizzledFormat.format))
@@ -4055,29 +3795,17 @@ void RsrcProcMgr::HwlDecodeImageViewSrd(
 
                 if (srdBaseAddr == subResAddr)
                 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                    pSubresRange->startSubres.aspect = dstImage.SubresourceInfo(i)->subresId.aspect;
-#else
                     pSubresRange->startSubres.plane = dstImage.SubresourceInfo(i)->subresId.plane;
-#endif
                     break;
                 }
             }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            PAL_ASSERT(pSubresRange->startSubres.aspect != ImageAspect::Color);
-#else
             PAL_ASSERT(dstImage.IsColorPlane(pSubresRange->startSubres.plane) == false);
-#endif
         }
         else
         {
             // For Packed YUV, it is always subresource 0
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            pSubresRange->startSubres.aspect = dstImage.SubresourceInfo(0)->subresId.aspect;
-#else
             pSubresRange->startSubres.plane = dstImage.SubresourceInfo(0)->subresId.plane;
-#endif
         }
     }
 

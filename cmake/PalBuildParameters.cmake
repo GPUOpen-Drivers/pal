@@ -31,29 +31,38 @@ include(PalVersionHelper)
 
 # It's very convenient to have the PAL_CLIENT_INTERFACE_MAJOR_VERSION be defined before anything else
 # And it needs to be defined hence the FATAL_ERROR.
-pal_build_parameter(PAL_CLIENT_INTERFACE_MAJOR_VERSION "Pal library interface value" "-1" FATAL_ERROR)
+pal_bp(PAL_CLIENT_INTERFACE_MAJOR_VERSION "-1" MODE "FATAL_ERROR")
 
 if (DEFINED PAL_CLIENT_INTERFACE_MINOR_VERSION)
     message(AUTHOR_WARNING "Unneccessary to specify PAL_CLIENT_INTERFACE_MINOR_VERSION")
 endif()
 
-pal_build_parameter(PAL_CLIENT "Client pal should build for" "mandatory" FATAL_ERROR)
+# See README.md for explanation of CORE/GPUUTIL functionality.
+# NOTE: There is no PAL_BUILD_UTIL, that functionality isn't optional.
+pal_bp(PAL_BUILD_CORE ON)
+pal_bp(PAL_BUILD_GPUUTIL ON)
+
+pal_bp(PAL_BUILD_LAYERS ${PAL_BUILD_GPUUTIL} DEPENDS_ON ${PAL_BUILD_GPUUTIL})
 
 #if PAL_DEVELOPER_BUILD
-pal_build_parameter(PAL_DEVELOPER_BUILD "Enable developer build" OFF AUTHOR_WARNING)
+pal_bp(PAL_DEVELOPER_BUILD OFF)
 
 # Enable these developer layers based on the PAL_DEVELOPER_BUILD value. This is a nice quality of life for developer builds.
-pal_build_parameter(PAL_BUILD_CMD_BUFFER_LOGGER "Enable cmd buffer layer"       ${PAL_DEVELOPER_BUILD} VERBOSE)
-pal_build_parameter(PAL_BUILD_GPU_DEBUG         "Enable GPU debug layer"        ${PAL_DEVELOPER_BUILD} VERBOSE)
-pal_build_parameter(PAL_BUILD_INTERFACE_LOGGER  "Enable interface logger layer" ${PAL_DEVELOPER_BUILD} VERBOSE)
-pal_build_parameter(PAL_BUILD_PM4_INSTRUMENTOR  "Enable PM4 instrumentor layer" ${PAL_DEVELOPER_BUILD} VERBOSE)
+pal_bp(PAL_BUILD_CMD_BUFFER_LOGGER ON DEPENDS_ON ${PAL_DEVELOPER_BUILD})
+pal_bp(PAL_BUILD_GPU_DEBUG         ON DEPENDS_ON ${PAL_DEVELOPER_BUILD})
+pal_bp(PAL_BUILD_INTERFACE_LOGGER  ON DEPENDS_ON ${PAL_DEVELOPER_BUILD})
+pal_bp(PAL_BUILD_PM4_INSTRUMENTOR  ON DEPENDS_ON ${PAL_DEVELOPER_BUILD})
 #endif
 
-pal_build_parameter(PAL_BUILD_OSS  "Build PAL with Operating System support?" ON AUTHOR_WARNING)
-pal_build_parameter(PAL_BUILD_OSS1   "Build PAL with OSS1?"   ${PAL_BUILD_OSS} DEBUG)
-pal_build_parameter(PAL_BUILD_OSS2   "Build PAL with OSS2?"   ${PAL_BUILD_OSS} DEBUG)
-pal_build_parameter(PAL_BUILD_OSS2_4 "Build PAL with OSS2_4?" ${PAL_BUILD_OSS} DEBUG)
-pal_build_parameter(PAL_BUILD_OSS4   "Build PAL with OSS4?"   ${PAL_BUILD_OSS} DEBUG)
+# Build PAL with Operating System support
+pal_bp(PAL_BUILD_OSS    ON)
+pal_bp(PAL_BUILD_OSS1   ON DEPENDS_ON ${PAL_BUILD_OSS})
+pal_bp(PAL_BUILD_OSS2   ON DEPENDS_ON ${PAL_BUILD_OSS})
+pal_bp(PAL_BUILD_OSS2_4 ON DEPENDS_ON ${PAL_BUILD_OSS})
+pal_bp(PAL_BUILD_OSS4   ON DEPENDS_ON ${PAL_BUILD_OSS})
+
+# Clients must define this variable so pal know what API it's facilitating
+pal_bp(PAL_CLIENT "-1" MODE "FATAL_ERROR")
 
 # Create a more convenient variable to avoid string comparisons.
 set(PAL_CLIENT_${PAL_CLIENT} ON)
@@ -61,37 +70,37 @@ set(PAL_CLIENT_${PAL_CLIENT} ON)
 # This variable controls wether PAL is built with an amdgpu back-end
 set(PAL_AMDGPU_BUILD ${UNIX})
 
-pal_build_parameter(PAL_BUILD_NULL_DEVICE "Build null device backend for offline compilation" ON AUTHOR_WARNING)
+pal_bp(PAL_BUILD_DRI3 ON DEPENDS_ON ${PAL_AMDGPU_BUILD})
+pal_bp(PAL_BUILD_WAYLAND OFF DEPENDS_ON ${PAL_AMDGPU_BUILD})
 
-pal_build_parameter(PAL_BUILD_GFX "Build PAL with Graphics support?" ON AUTHOR_WARNING)
+pal_bp(PAL_DISPLAY_DCC ON DEPENDS_ON ${PAL_AMDGPU_BUILD})
 
-# If PAL is being built standalone, no need to display as warnings. Since the warnings are intended
-# for PAL clients.
-if (PAL_IS_STANDALONE)
-    set(pal_gpu_mode "STATUS")
-else()
-    set(pal_gpu_mode "AUTHOR_WARNING")
-endif()
+# Build null device backend for offline compilation
+pal_bp(PAL_BUILD_NULL_DEVICE ON)
+
+# Build PAL with Graphics support?
+pal_bp(PAL_BUILD_GFX ON)
 
 ### Specify GPU build options ##########################################################################################
+
 if (PAL_BUILD_GFX)
-    pal_build_parameter(PAL_BUILD_GFX6 "Build PAL with GFX6 support?" ${PAL_BUILD_GFX} ${pal_gpu_mode})
-    pal_build_parameter(PAL_BUILD_GFX9 "Build PAL with GFX9 support?" ${PAL_BUILD_GFX} ${pal_gpu_mode})
+    pal_bp(PAL_BUILD_GFX6 ${PAL_BUILD_GFX} MODE "AUTHOR_WARNING")
+    pal_bp(PAL_BUILD_GFX9 ${PAL_BUILD_GFX} MODE "AUTHOR_WARNING")
 endif() # PAL_BUILD_GFX
 
 # If the client wants Gfx9 support, them give them all the neccessary build parameters they need to fill out.
 if (PAL_BUILD_GFX9)
-    pal_build_parameter(PAL_BUILD_NAVI12 "Build PAL with Navi12 support?" ON ${pal_gpu_mode})
+    pal_bp(PAL_BUILD_NAVI12 ON MODE "AUTHOR_WARNING")
 
-    pal_build_parameter(PAL_BUILD_NAVI14 "Build PAL with Navi14 support?" ON ${pal_gpu_mode})
+    pal_bp(PAL_BUILD_NAVI14 ON MODE "AUTHOR_WARNING")
 
-    pal_build_parameter(PAL_BUILD_NAVI21 "Build PAL with Navi21 support?" ON ${pal_gpu_mode})
+    pal_bp(PAL_BUILD_NAVI21 ON MODE "AUTHOR_WARNING")
     pal_set_or(PAL_BUILD_GFX10_3 ${PAL_BUILD_NAVI21})
 
-    pal_build_parameter(PAL_BUILD_NAVI22 "Build PAL with Navi22 support?" ON ${pal_gpu_mode})
+    pal_bp(PAL_BUILD_NAVI22 ON MODE "AUTHOR_WARNING")
     pal_set_or(PAL_BUILD_GFX10_3 ${PAL_BUILD_NAVI22})
 
-    pal_build_parameter(PAL_BUILD_NAVI23 "Build PAL with Navi23 support?" ON ${pal_gpu_mode})
+    pal_bp(PAL_BUILD_NAVI23 ON MODE "AUTHOR_WARNING")
     pal_set_or(PAL_BUILD_GFX10_3 ${PAL_BUILD_NAVI23})
 
 endif() # PAL_BUILD_GFX9

@@ -155,10 +155,7 @@ union PipelineCreateFlags
     struct
     {
         uint32 clientInternal         : 1;  ///< Internal pipeline not created by the application.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
-        uint32 overrideGpuHeap        : 1;  ///< Override the default GPU heap (local invisible) the pipeline
-                                            ///  resides in.
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 673
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 673
         uint32 supportDynamicDispatch : 1;  ///< Pipeline will be used with @ref ICmdBuffer::CmdDynamicDispatch.
                                             ///  This flag must only be set if the device reports support
                                             ///  via DeviceProperties.
@@ -225,31 +222,20 @@ struct ComputePipelineCreateInfo
                                                ///  interface. The Pipeline ELF contains pre-compiled shaders,
                                                ///  register values, and additional metadata.
     size_t              pipelineBinarySize;    ///< Size of Pipeline ELF binary in bytes.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
-    GpuHeap             preferredHeapType;     ///< Upload this pipeline to this heap. This setting is ignored if
-                                               ///  overrideGpuHeap flag is not set. The device will fallback to using
-                                               ///  the local visible heap if the requested heap type is unsupported.
-#endif
     uint32              maxFunctionCallDepth;  ///< Maximum depth for indirect function calls
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 622
     bool disablePartialDispatchPreemption; ///< Prevents scenarios where a subset of the dispatched thread groups are
                                            ///  preempted and the remaining thread groups run to completion. This
                                            ///  can occur when thread group granularity preemption is available and
                                            ///  instruction level (CWSR) is not. This setting is useful for allowing
                                            ///  dispatches with interdependent thread groups.
-#endif
 };
 
 /// Specifies information about the viewport behavior of an assembled graphics pipeline.  Part of the input
 /// structure @ref GraphicsPipelineCreateInfo.
 struct ViewportInfo
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 644
     bool       depthClipNearEnable; ///< Enable clipping based on Near Z coordinate.
     bool       depthClipFarEnable;  ///< Enable clipping based on Far Z coordinate.
-#else
-    bool       depthClipEnable;     ///< Enable clipping based on Z coordinate.
-#endif
     DepthRange depthRange;      ///< Specifies Z dimensions of screen space (i.e., post viewport transform:
                                 ///  0 to 1 or -1 to 1).
 };
@@ -264,11 +250,6 @@ struct GraphicsPipelineCreateInfo
                                                ///  interface. The Pipeline ELF contains pre-compiled shaders,
                                                ///  register values, and additional metadata.
     size_t              pipelineBinarySize;    ///< Size of Pipeline ELF binary in bytes.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
-    GpuHeap             preferredHeapType;     ///< Upload this pipeline to this heap. This setting is ignored if
-                                               ///  overrideGpuHeap flag is not set. The device will fallback to using
-                                               ///  the local visible heap if the requested heap type is unsupported.
-#endif
     bool                useLateAllocVsLimit;   ///< If set, use the specified lateAllocVsLimit instead of PAL internally
                                                ///  determining the limit.
     uint32              lateAllocVsLimit;      ///< The number of VS waves that can be in flight without having param
@@ -281,9 +262,6 @@ struct GraphicsPipelineCreateInfo
             PrimitiveType primitiveType;       ///< Basic primitive category: points, line, triangles, patches.
             uint32        patchControlPoints;  ///< Number of control points per patch.  Only required if primitiveType
                                                ///  is PrimitiveType::Patch.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 608
-            bool          adjacency;           ///< Primitive includes adjacency info.
-#endif
         } topologyInfo;                        ///< Various information about the primitive topology that will be used
                                                ///  with this pipeline.  All of this info must be consistent with the
                                                ///  full topology specified by ICmdBuffer::SetPrimitiveTopology() when

@@ -80,7 +80,7 @@ constexpr uint32 CmdCountAlignment = 8u;
 
 // =====================================================================================================================
 // Helper function to compute the padded parameter count for a command generator (this is needed by RPM's shaders).
-static uint32 PAL_INLINE PaddedParamCount(
+constexpr uint32 PaddedParamCount(
     uint32 paramCount)
 {
     return RoundUpToMultiple(paramCount, CmdCountAlignment);
@@ -245,17 +245,13 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
 
             size += ((CmdUtil::GetSetDataHeaderSize() + 1) * spillTableShaderStageCount);
         }
+
         if (m_properties.vertexBufTableSize != 0)
         {
             size += (CmdUtil::GetSetDataHeaderSize() + 1);
         }
-        const PalPlatformSettings& settings = m_device.Parent()->GetPlatform()->PlatformSettings();
-        const bool sqttEnabled = (settings.gpuProfilerMode > GpuProfilerCounterAndTimingOnly) &&
-                                 (Util::TestAnyFlagSet(settings.gpuProfilerConfig.traceModeMask, GpuProfilerTraceSqtt));
-        const bool issueSqttMarkerEvent = (sqttEnabled ||
-                                           m_device.Parent()->GetPlatform()->IsDevDriverProfilingEnabled());
 
-        if (issueSqttMarkerEvent)
+        if (m_device.Parent()->IssueSqttMarkerEvents())
         {
             size += CmdUtil::GetWriteEventWriteSize();
         }

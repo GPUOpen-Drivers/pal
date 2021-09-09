@@ -529,11 +529,7 @@ static void SerializeResourceDescriptionImage(
         pJsonWriter->KeyAndValue("PartiallyResidentTexture",       static_cast<bool>(data.pCreateInfo->flags.prt));
         pJsonWriter->KeyAndValue("NeedsSwizzleEquations",          static_cast<bool>(data.pCreateInfo->flags.needSwizzleEqs));
         pJsonWriter->KeyAndValue("PerSubresourceInit",             static_cast<bool>(data.pCreateInfo->flags.perSubresInit));
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        pJsonWriter->KeyAndValue("SeparateDepthStencilAspectInit", static_cast<bool>(data.pCreateInfo->flags.separateDepthAspectInit));
-#else
         pJsonWriter->KeyAndValue("SeparateDepthStencilPlaneInit",  static_cast<bool>(data.pCreateInfo->flags.separateDepthPlaneInit));
-#endif
         pJsonWriter->KeyAndValue("RepetitiveResolve",              static_cast<bool>(data.pCreateInfo->flags.repetitiveResolve));
         pJsonWriter->KeyAndValue("PreferSwizzleEquations",         static_cast<bool>(data.pCreateInfo->flags.preferSwizzleEqs));
         pJsonWriter->KeyAndValue("FixedTileSwizzle",               static_cast<bool>(data.pCreateInfo->flags.fixedTileSwizzle));
@@ -671,9 +667,7 @@ static void SerializeResourceDescriptionPipeline(
     {
         pJsonWriter->KeyAndBeginMap("CreateFlags", false);
         pJsonWriter->KeyAndValue("ClientInternal", static_cast<bool>(data.pCreateFlags->clientInternal));
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
-        pJsonWriter->KeyAndValue("OverrideGpuHeap", static_cast<bool>(data.pCreateFlags->overrideGpuHeap));
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 673
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 673
         pJsonWriter->KeyAndValue("SupportDynamicDispatch",
             static_cast<bool>(data.pCreateFlags->supportDynamicDispatch));
 #endif

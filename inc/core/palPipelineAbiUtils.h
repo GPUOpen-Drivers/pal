@@ -200,6 +200,13 @@ inline void MachineTypeToGfxIpVersion(
     }
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 676
+} //Abi
+
+namespace PalAbi
+{
+#endif
+
 /// Helper function to parse the PalMetadata section of a pipeline ELF.
 ///
 /// @param [in] pReader            The message pack reader.
@@ -233,7 +240,7 @@ inline Result GetPalMetadataVersion(
         {
             const auto&  str     = pReader->Get().as.str;
             const uint32 keyHash = HashString(static_cast<const char*>(str.start), str.length);
-            if (keyHash == HashLiteralString(PalCodeObjectMetadataKey::Version))
+            if (keyHash == HashLiteralString(CodeObjectMetadataKey::Version))
             {
                 result = pReader->Next(CWP_ITEM_ARRAY);
                 if ((result == Result::Success) && (pReader->Get().as.array.size >= 2))
@@ -266,23 +273,23 @@ inline Result GetPalMetadataVersion(
 ///
 /// @returns Success if successful, ErrorInvalidValue, ErrorUnknown or ErrorUnsupportedPipelineElfAbiVersion if
 ///          the metadata could not be parsed.
-inline Result DeserializePalCodeObjectMetadata(
+inline Result DeserializeCodeObjectMetadata(
     MsgPackReader*         pReader,
-    PalCodeObjectMetadata* pMetadata,
+    CodeObjectMetadata*    pMetadata,
     const void*            pRawMetadata,
     uint32                 metadataSize,
     uint32                 metadataMajorVer,
     uint32                 metadataMinorVer)
 {
     Result result = Result::ErrorUnsupportedPipelineElfAbiVersion;
-    if (metadataMajorVer == PipelineMetadataMajorVersion)
+    if (metadataMajorVer == PalAbi::PipelineMetadataMajorVersion)
     {
         result = pReader->InitFromBuffer(pRawMetadata, metadataSize);
         uint32 registersOffset = UINT_MAX;
 
         if (result == Result::Success)
         {
-            result = Metadata::DeserializePalCodeObjectMetadata(pReader, pMetadata);
+            result = Metadata::DeserializeCodeObjectMetadata(pReader, pMetadata);
         }
     }
 

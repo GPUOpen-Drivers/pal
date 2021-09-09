@@ -31,9 +31,20 @@
 
 namespace Util
 {
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 676
+namespace PalAbi = Abi;
 namespace Abi
 {
+struct CodeObjectMetadata;
+using PalCodeObjectMetadata = CodeObjectMetadata;
+namespace CodeObjectMetadataKey { }
+namespace PalCodeObjectMetadataKey = CodeObjectMetadataKey;
 
+#else
+namespace PalAbi
+{
+#endif
 using MsgPackOffset = uint32;
 
 struct BinaryData
@@ -65,31 +76,27 @@ struct ShaderMetadata
 /// Per-hardware stage metadata.
 struct HardwareStageMetadata
 {
-    /// The ELF symbol pointing to this pipeline's stage entry point.
-    PipelineSymbolType entryPoint;
+    /// The symbol pointing to this pipeline's stage entrypoint.
+    Abi::PipelineSymbolType entryPoint;
     /// Scratch memory size in bytes.
-    uint32             scratchMemorySize;
+    uint32                  scratchMemorySize;
     /// Local Data Share size in bytes.
-    uint32             ldsSize;
+    uint32                  ldsSize;
     /// Performance data buffer size in bytes.
-    uint32             perfDataBufferSize;
+    uint32                  perfDataBufferSize;
     /// Number of VGPRs used.
-    uint32             vgprCount;
+    uint32                  vgprCount;
     /// Number of SGPRs used.
-    uint32             sgprCount;
+    uint32                  sgprCount;
     /// If non-zero, indicates the shader was compiled with a directive to instruct the compiler to limit the VGPR usage
     /// to be less than or equal to the specified value (only set if different from HW default).
-    uint32             vgprLimit;
+    uint32                  vgprLimit;
     /// SGPR count upper limit (only set if different from HW default).
-    uint32             sgprLimit;
+    uint32                  sgprLimit;
     /// Thread-group X/Y/Z dimensions (Compute only).
-    uint32             threadgroupDimensions[3];
+    uint32                  threadgroupDimensions[3];
     /// Wavefront size (only set if different from HW default).
-    uint32             wavefrontSize;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
-    /// Deprecated, unused.
-    uint32             maxPrimsPerWave;
-#endif
+    uint32                  wavefrontSize;
 
     union
     {
@@ -116,30 +123,24 @@ struct HardwareStageMetadata
     {
         struct
         {
-            uint32 entryPoint            : 1;
-            uint32 scratchMemorySize     : 1;
-            uint32 ldsSize               : 1;
-            uint32 perfDataBufferSize    : 1;
-            uint32 vgprCount             : 1;
-            uint32 sgprCount             : 1;
-            uint32 vgprLimit             : 1;
-            uint32 sgprLimit             : 1;
-            uint32 threadgroupDimensions : 1;
-            uint32 wavefrontSize         : 1;
-            uint32 usesUavs              : 1;
-            uint32 usesRovs              : 1;
-            uint32 writesUavs            : 1;
-            uint32 writesDepth           : 1;
-            uint32 usesAppendConsume     : 1;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
-            uint32 maxPrimsPerWave       : 1;
-#else
-            uint32 placeholder0          : 1;
-#endif
-            uint32 usesPrimId            : 1;
-            uint32 reserved              : 15;
+            uint16 entryPoint            : 1;
+            uint16 scratchMemorySize     : 1;
+            uint16 ldsSize               : 1;
+            uint16 perfDataBufferSize    : 1;
+            uint16 vgprCount             : 1;
+            uint16 sgprCount             : 1;
+            uint16 vgprLimit             : 1;
+            uint16 sgprLimit             : 1;
+            uint16 threadgroupDimensions : 1;
+            uint16 wavefrontSize         : 1;
+            uint16 usesUavs              : 1;
+            uint16 usesRovs              : 1;
+            uint16 writesUavs            : 1;
+            uint16 writesDepth           : 1;
+            uint16 usesAppendConsume     : 1;
+            uint16 usesPrimId            : 1;
         };
-        uint32 uAll;
+        uint16 uAll;
     } hasEntry;
 };
 
@@ -149,15 +150,15 @@ struct PipelineMetadata
     /// Source name of the pipeline.
     char                  name[256];
     /// Pipeline type, e.g. VsPs.
-    PipelineType          type;
+    Abi::PipelineType     type;
     /// Internal compiler hash for this pipeline. Lower 64 bits is the "stable" portion of the hash, used for e.g.
     /// shader replacement lookup. Upper 64 bits is the "unique" portion of the hash, used for e.g. pipeline cache
     /// lookup.
     uint64                internalPipelineHash[2];
     /// Per-API shader metadata.
-    ShaderMetadata        shader[static_cast<uint32>(ApiShaderType::Count)];
+    ShaderMetadata        shader[static_cast<uint32>(Abi::ApiShaderType::Count)];
     /// Per-hardware stage metadata.
-    HardwareStageMetadata hardwareStage[static_cast<uint32>(HardwareStage::Count)];
+    HardwareStageMetadata hardwareStage[static_cast<uint32>(Abi::HardwareStage::Count)];
     /// Per-shader function metadata (offset in bytes into the msgpack blob to map of map).
     MsgPackOffset         shaderFunctions;
     /// Hardware register configuration (offset in bytes into the msgpack blob to map).
@@ -171,12 +172,6 @@ struct PipelineMetadata
     /// which have been marked with "UserDataMapping::EsGsLdsSize" (typically only the GS and VS HW stages will ever
     /// have a user-SGPR so marked).
     uint32                esGsLdsSize;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
-    /// Address of stream out table entry.
-    uint32                streamOutTableAddress;
-    /// Address(es) of indirect user data tables. 3 for VK, else 1.
-    uint32                indirectUserDataTableAddresses[3];
-#endif
     /// Explicit maximum subgroup size for NGG shaders (maximum number of threads in a subgroup).
     uint32                nggSubgroupSize;
     /// Graphics only. Number of PS interpolants.
@@ -196,14 +191,8 @@ struct PipelineMetadata
             /// Indicates whether or not the pipeline uses the viewport array index feature. Pipelines which use this
             /// feature can render into all 16 viewports, whereas pipelines which do not use it are restricted to
             /// viewport #0.
-            uint8 usesViewportArrayIndex      : 1;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
-            /// GFX10 only. Determines if wave break size should be calculated at draw time.
-            uint8 calcWaveBreakSizeAtDrawTime : 1;
-#else
-            uint8 placeholder0                : 1;
-#endif
-            uint8 reserved                    : 6;
+            uint8 usesViewportArrayIndex : 1;
+            uint8 reserved               : 7;
         };
         uint8 uAll;
     } flags;
@@ -212,42 +201,29 @@ struct PipelineMetadata
     {
         struct
         {
-            uint32 name                           : 1;
-            uint32 type                           : 1;
-            uint32 internalPipelineHash           : 1;
-            uint32 shaderFunctions                : 1;
-            uint32 registers                      : 1;
-            uint32 userDataLimit                  : 1;
-            uint32 spillThreshold                 : 1;
-            uint32 usesViewportArrayIndex         : 1;
-            uint32 esGsLdsSize                    : 1;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
-            uint32 streamOutTableAddress          : 1;
-            uint32 indirectUserDataTableAddresses : 1;
-#else
-            uint32 placeholder0                   : 1;
-            uint32 placeholder1                   : 1;
-#endif
-            uint32 nggSubgroupSize                : 1;
-            uint32 numInterpolants                : 1;
-            uint32 meshScratchMemorySize          : 1;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
-            uint32 calcWaveBreakSizeAtDrawTime    : 1;
-#else
-            uint32 placeholder2                   : 1;
-#endif
-            uint32 placeholder3                   : 1;
-            uint32 placeholder4                   : 1;
-            uint32 api                            : 1;
-            uint32 apiCreateInfo                  : 1;
-            uint32 reserved                       : 13;
+            uint16 name                   : 1;
+            uint16 type                   : 1;
+            uint16 internalPipelineHash   : 1;
+            uint16 shaderFunctions        : 1;
+            uint16 registers              : 1;
+            uint16 userDataLimit          : 1;
+            uint16 spillThreshold         : 1;
+            uint16 usesViewportArrayIndex : 1;
+            uint16 esGsLdsSize            : 1;
+            uint16 nggSubgroupSize        : 1;
+            uint16 numInterpolants        : 1;
+            uint16 meshScratchMemorySize  : 1;
+            uint16 placeholder0           : 1;
+            uint16 placeholder1           : 1;
+            uint16 api                    : 1;
+            uint16 apiCreateInfo          : 1;
         };
-        uint32 uAll;
+        uint16 uAll;
     } hasEntry;
 };
 
 /// PAL code object metadata.
-struct PalCodeObjectMetadata
+struct CodeObjectMetadata
 {
     /// PAL code object metadata (major, minor) version.
     uint32           version[2];
@@ -265,7 +241,7 @@ struct PalCodeObjectMetadata
     } hasEntry;
 };
 
-namespace PalCodeObjectMetadataKey
+namespace CodeObjectMetadataKey
 {
     static constexpr char Version[]   = "amdpal.version";
     static constexpr char Pipelines[] = "amdpal.pipelines";
@@ -273,29 +249,22 @@ namespace PalCodeObjectMetadataKey
 
 namespace PipelineMetadataKey
 {
-    static constexpr char Name[]                           = ".name";
-    static constexpr char Type[]                           = ".type";
-    static constexpr char InternalPipelineHash[]           = ".internal_pipeline_hash";
-    static constexpr char Shaders[]                        = ".shaders";
-    static constexpr char HardwareStages[]                 = ".hardware_stages";
-    static constexpr char ShaderFunctions[]                = ".shader_functions";
-    static constexpr char Registers[]                      = ".registers";
-    static constexpr char UserDataLimit[]                  = ".user_data_limit";
-    static constexpr char SpillThreshold[]                 = ".spill_threshold";
-    static constexpr char UsesViewportArrayIndex[]         = ".uses_viewport_array_index";
-    static constexpr char EsGsLdsSize[]                    = ".es_gs_lds_size";
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
-    static constexpr char StreamOutTableAddress[]          = ".stream_out_table_address";
-    static constexpr char IndirectUserDataTableAddresses[] = ".indirect_user_data_table_addresses";
-#endif
-    static constexpr char NggSubgroupSize[]                = ".nggSubgroupSize";
-    static constexpr char NumInterpolants[]                = ".num_interpolants";
-    static constexpr char MeshScratchMemorySize[]          = ".mesh_scratch_memory_size";
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
-    static constexpr char CalcWaveBreakSizeAtDrawTime[]    = ".calc_wave_break_size_at_draw_time";
-#endif
-    static constexpr char Api[]                            = ".api";
-    static constexpr char ApiCreateInfo[]                  = ".api_create_info";
+    static constexpr char Name[]                   = ".name";
+    static constexpr char Type[]                   = ".type";
+    static constexpr char InternalPipelineHash[]   = ".internal_pipeline_hash";
+    static constexpr char Shaders[]                = ".shaders";
+    static constexpr char HardwareStages[]         = ".hardware_stages";
+    static constexpr char ShaderFunctions[]        = ".shader_functions";
+    static constexpr char Registers[]              = ".registers";
+    static constexpr char UserDataLimit[]          = ".user_data_limit";
+    static constexpr char SpillThreshold[]         = ".spill_threshold";
+    static constexpr char UsesViewportArrayIndex[] = ".uses_viewport_array_index";
+    static constexpr char EsGsLdsSize[]            = ".es_gs_lds_size";
+    static constexpr char NggSubgroupSize[]        = ".nggSubgroupSize";
+    static constexpr char NumInterpolants[]        = ".num_interpolants";
+    static constexpr char MeshScratchMemorySize[]  = ".mesh_scratch_memory_size";
+    static constexpr char Api[]                    = ".api";
+    static constexpr char ApiCreateInfo[]          = ".api_create_info";
 };
 
 namespace HardwareStageMetadataKey
@@ -315,9 +284,6 @@ namespace HardwareStageMetadataKey
     static constexpr char WritesUavs[]            = ".writes_uavs";
     static constexpr char WritesDepth[]           = ".writes_depth";
     static constexpr char UsesAppendConsume[]     = ".uses_append_consume";
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
-    static constexpr char MaxPrimsPerWave[]       = ".max_prims_per_wave";
-#endif
     static constexpr char UsesPrimId[]            = ".uses_prim_id";
 };
 
@@ -330,20 +296,24 @@ namespace ShaderMetadataKey
 namespace Metadata
 {
 
-Result DeserializePalCodeObjectMetadata(
+Result DeserializeCodeObjectMetadata(
     MsgPackReader*  pReader,
-    PalCodeObjectMetadata*  pMetadata);
+    CodeObjectMetadata*  pMetadata);
 
-Result SerializeEnum(MsgPackWriter* pWriter, PipelineType value);
-Result SerializeEnum(MsgPackWriter* pWriter, ApiShaderType value);
-Result SerializeEnum(MsgPackWriter* pWriter, ApiShaderSubType value);
-Result SerializeEnum(MsgPackWriter* pWriter, HardwareStage value);
-Result SerializeEnum(MsgPackWriter* pWriter, PipelineSymbolType value);
+Result SerializeEnum(MsgPackWriter* pWriter, Abi::PipelineType value);
+Result SerializeEnum(MsgPackWriter* pWriter, Abi::ApiShaderType value);
+Result SerializeEnum(MsgPackWriter* pWriter, Abi::ApiShaderSubType value);
+Result SerializeEnum(MsgPackWriter* pWriter, Abi::HardwareStage value);
+Result SerializeEnum(MsgPackWriter* pWriter, Abi::PipelineSymbolType value);
 
 template <typename EnumType>
 Result SerializeEnumBitflags(MsgPackWriter* pWriter, uint32 bitflags);
 
 } // Metadata
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 676
 } // Abi
+#else
+} // PalAbi
+#endif
 } // Util

@@ -182,7 +182,7 @@ Result ShaderLibrary::ExtractShaderFunctions(
                     case HashLiteralString(".shader_subtype"):
                     {
                         Util::Abi::ApiShaderSubType shaderSubType;
-                        Util::Abi::Metadata::DeserializeEnum(pReader, &shaderSubType);
+                        Util::PalAbi::Metadata::DeserializeEnum(pReader, &shaderSubType);
                         stats.shaderSubType = static_cast<Pal::ShaderSubType>(shaderSubType);
                         break;
                     }

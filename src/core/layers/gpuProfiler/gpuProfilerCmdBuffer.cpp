@@ -29,9 +29,7 @@
 #include "core/g_palPlatformSettings.h"
 #include "palAutoBuffer.h"
 #include "palGpaSession.h"
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 #include "palVectorImpl.h"
-#endif
 
 // This is required because we need the definition of the D3D12DDI_PRESENT_0003 struct in order to make a copy of the
 // data in it for the tokenization.
@@ -62,12 +60,9 @@ CmdBuffer::CmdBuffer(
     m_tokenStreamResult(Result::Success),
     m_disableDataGathering(false),
     m_forceDrawGranularityLogging(false),
-    m_curLogFrame(0)
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
-    ,
+    m_curLogFrame(0),
     m_numReleaseTokens(0),
     m_releaseTokenList(static_cast<Platform*>(m_pDevice->GetPlatform()))
-#endif
 {
     PAL_ASSERT(NextLayer() == pNextCmdBuffer);
 
@@ -319,9 +314,7 @@ void CmdBuffer::ReplayEnd(
         pQueue->AddLogItem(logItem);
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     PAL_ASSERT(m_numReleaseTokens == m_releaseTokenList.NumElements());
-#endif
 
     pTgtCmdBuffer->End();
 }
@@ -331,10 +324,8 @@ Result CmdBuffer::Reset(
     ICmdAllocator* pCmdAllocator,
     bool           returnGpuMemory)
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     m_releaseTokenList.Clear();
     m_numReleaseTokens = 0;
-#endif
 
     return NextLayer()->Reset(NextCmdAllocator(pCmdAllocator), returnGpuMemory);
 }
@@ -955,7 +946,6 @@ void CmdBuffer::ReplayCmdBarrier(
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // =====================================================================================================================
 uint32 CmdBuffer::CmdRelease(
     const AcquireReleaseInfo& releaseInfo)
@@ -976,9 +966,7 @@ uint32 CmdBuffer::CmdRelease(
     // The layer maintains an array of release tokens, and uses release index to retrieve token value from the array.
     return releaseIdx;
 }
-#endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // =====================================================================================================================
 void CmdBuffer::ReplayCmdRelease(
     Queue*           pQueue,
@@ -1052,9 +1040,7 @@ void CmdBuffer::ReplayCmdRelease(
     logItem.cmdBufCall.barrier.pComment = pTgtCmdBuffer->GetBarrierString();
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
-#endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // =====================================================================================================================
 void CmdBuffer::CmdAcquire(
     const AcquireReleaseInfo& acquireInfo,
@@ -1072,9 +1058,7 @@ void CmdBuffer::CmdAcquire(
 
     InsertTokenArray(pSyncTokens, syncTokenCount);
 }
-#endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // =====================================================================================================================
 void CmdBuffer::ReplayCmdAcquire(
     Queue*           pQueue,
@@ -1161,7 +1145,6 @@ void CmdBuffer::ReplayCmdAcquire(
     logItem.cmdBufCall.barrier.pComment = pTgtCmdBuffer->GetBarrierString();
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
-#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdReleaseEvent(
@@ -3937,10 +3920,8 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdSetColorWriteMask,
         &CmdBuffer::ReplayCmdSetRasterizerDiscardEnable,
         &CmdBuffer::ReplayCmdBarrier,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
         &CmdBuffer::ReplayCmdRelease,
         &CmdBuffer::ReplayCmdAcquire,
-#endif
         &CmdBuffer::ReplayCmdReleaseEvent,
         &CmdBuffer::ReplayCmdAcquireEvent,
         &CmdBuffer::ReplayCmdReleaseThenAcquire,
@@ -4531,31 +4512,6 @@ static const char* FormatToString(
     return FormatStrings[static_cast<size_t>(format)];
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-// =====================================================================================================================
-static const char* ImageAspectToString(
-    ImageAspect aspect)
-{
-    const char* ImageAspectStrings[] =
-    {
-        " - COLOR",
-        " - DEPTH",
-        " - STENCIL",
-        " - Y",
-        " - CbCr",
-        " - Cb",
-        " - Cr",
-        " - YCbCr",
-        "",
-    };
-
-    static_assert((ArrayLen(ImageAspectStrings) == static_cast<size_t>(ImageAspect::Count)),
-                  "The number of image aspects has changed!");
-
-    return ImageAspectStrings[static_cast<size_t>(aspect)];
-}
-#endif
-
 // =====================================================================================================================
 // Updates the current comment string for the executing barrier. This function is called from the layer callback and
 // expects to only be called while a CmdBarrier call is executing in the lower layers.
@@ -4568,18 +4524,10 @@ void TargetCmdBuffer::UpdateCommentString(
         const ImageCreateInfo& imageInfo = pData->transition.imageInfo.pImage->GetImageCreateInfo();
 
         Snprintf(&newBarrierComment[0], MaxCommentLength,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            "Barrier: %ux%u %s - %s:",
-#else
-            "Barrier: %ux%u %s - plane: 0x%x:",
-#endif
-            imageInfo.extent.width, imageInfo.extent.height,
-            FormatToString(imageInfo.swizzledFormat.format),
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            ImageAspectToString(pData->transition.imageInfo.subresRange.startSubres.aspect));
-#else
-            pData->transition.imageInfo.subresRange.startSubres.plane);
-#endif
+                 "Barrier: %ux%u %s - plane: 0x%x:",
+                 imageInfo.extent.width, imageInfo.extent.height,
+                 FormatToString(imageInfo.swizzledFormat.format),
+                 pData->transition.imageInfo.subresRange.startSubres.plane);
 
         AddBarrierString(&newBarrierComment[0]);
     }

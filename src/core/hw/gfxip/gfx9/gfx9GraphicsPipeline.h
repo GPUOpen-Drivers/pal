@@ -200,16 +200,6 @@ private:
         float maxWavesPerCu1,
         float maxWavesPerCu2) const;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 604
-    uint32 CalcMaxWavesPerSh(
-        uint32 maxWavesPerCu1,
-        uint32 maxWavesPerCu2) const
-    {
-        return CalcMaxWavesPerSh(static_cast<float>(maxWavesPerCu1),
-                                 static_cast<float>(maxWavesPerCu2));
-    }
-#endif
-
     void CalcDynamicStageInfo(
         const DynamicGraphicsShaderInfo& shaderInfo,
         DynamicStageInfo*                pStageInfo) const;

@@ -1053,55 +1053,6 @@ void Device::GetSamplePatternPalette(
            sizeof(m_samplePatternPalette));
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 638
-// =====================================================================================================================
-// Get the valid FormatFeatureFlags for the provided ChNumFormat, ImageAspect, and ImageTiling
-uint32 Device::GetValidFormatFeatureFlags(
-    const ChNumFormat format,
-    const ImageAspect aspect,
-    const ImageTiling tiling) const
-{
-    uint32 validFormatFeatureFlags = m_pParent->FeatureSupportFlags(format, tiling);
-    constexpr uint32 InvalidDSFormatFeatureFlags       = FormatFeatureColorTargetWrite |
-                                                         FormatFeatureColorTargetBlend |
-                                                         FormatFeatureWindowedPresent;
-
-    constexpr uint32 InvalidDepthFormatFeatureFlags    = InvalidDSFormatFeatureFlags   |
-                                                         FormatFeatureStencilTarget;
-
-    constexpr uint32 InvalidStencilFormatFeatureFlags  = InvalidDSFormatFeatureFlags   |
-                                                         FormatFeatureDepthTarget;
-
-    constexpr uint32 InvalidColorYUVFormatFeatureFlags = FormatFeatureStencilTarget    |
-                                                         FormatFeatureDepthTarget;
-
-    switch (aspect)
-    {
-    case ImageAspect::Depth:
-        validFormatFeatureFlags = (tiling == ImageTiling::Optimal) ?
-                                  (validFormatFeatureFlags & ~InvalidDepthFormatFeatureFlags) : 0;
-        break;
-    case ImageAspect::Stencil:
-        validFormatFeatureFlags = (tiling == ImageTiling::Optimal) ?
-                                  (validFormatFeatureFlags & ~InvalidStencilFormatFeatureFlags) : 0;
-        break;
-    case ImageAspect::Color:
-    case ImageAspect::Y:
-    case ImageAspect::CbCr:
-    case ImageAspect::Cb:
-    case ImageAspect::Cr:
-    case ImageAspect::YCbCr:
-        validFormatFeatureFlags = validFormatFeatureFlags & ~InvalidColorYUVFormatFeatureFlags;
-        break;
-    case ImageAspect::Fmask:
-    default:
-        PAL_NEVER_CALLED();
-        break;
-    }
-    return validFormatFeatureFlags;
-}
-#endif
-
 // =====================================================================================================================
 // Called during pipeline creation to notify that item-size requirements for each shader ring have changed. These
 // 'largest ring sizes' will be validated at Queue submission time.
@@ -1698,7 +1649,7 @@ DccFormatEncoding Device::ComputeDccFormatEncoding(
 
 // =====================================================================================================================
 // Computes the image view SRD DEPTH field based on image view parameters
-static PAL_INLINE uint32 ComputeImageViewDepth(
+static uint32 ComputeImageViewDepth(
     const ImageViewInfo&   viewInfo,
     const ImageInfo&       imageInfo,
     const SubResourceInfo& subresInfo)
@@ -1791,7 +1742,7 @@ static_assert(static_cast<uint32>(MipFilterCount) <= 4,
 
 // =====================================================================================================================
 // Determine the appropriate SQ clamp mode based on the given TexAddressMode enum value.
-static PAL_INLINE SQ_TEX_CLAMP GetAddressClamp(
+static SQ_TEX_CLAMP GetAddressClamp(
     TexAddressMode texAddress)
 {
     static const SQ_TEX_CLAMP PalTexAddrToHwTbl[] =
@@ -1814,7 +1765,7 @@ static PAL_INLINE SQ_TEX_CLAMP GetAddressClamp(
 
 // =====================================================================================================================
 // Determine if anisotropic filtering is enabled
-static PAL_INLINE bool IsAnisoEnabled(
+constexpr bool IsAnisoEnabled(
     TexFilter texfilter)
 {
     return ((texfilter.magnification == XyFilterAnisotropicPoint)  ||
@@ -1827,7 +1778,7 @@ static PAL_INLINE bool IsAnisoEnabled(
 // Determine the appropriate Anisotropic filtering mode.
 // NOTE: For values of anisotropy not natively supported by HW, we clamp to the closest value less than what was
 //       requested.
-static PAL_INLINE SQ_TEX_ANISO_RATIO GetAnisoRatio(
+static SQ_TEX_ANISO_RATIO GetAnisoRatio(
     const SamplerInfo* pInfo)
 {
     SQ_TEX_ANISO_RATIO anisoRatio = SQ_TEX_ANISO_RATIO_1;
@@ -2010,9 +1961,7 @@ void PAL_STDCALL Device::CreateImageViewSrds(
     for (uint32 i = 0; i < count; ++i)
     {
         const ImageViewInfo&   viewInfo        = pImgViewInfo[i];
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
         PAL_ASSERT(viewInfo.subresRange.numPlanes == 1);
-#endif
 
         const Image&           image           = *GetGfx6Image(viewInfo.pImage);
         const auto*const       pParent         = image.Parent();
@@ -2025,11 +1974,7 @@ void PAL_STDCALL Device::CreateImageViewSrds(
 
         // Calculate the subresource ID of the first subresource in this image view.
         SubresId subresource = {};
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        subresource.aspect = viewInfo.subresRange.startSubres.aspect;
-#else
         subresource.plane = viewInfo.subresRange.startSubres.plane;
-#endif
 
         uint32 baseArraySlice = viewInfo.subresRange.startSubres.arraySlice;
         uint32 baseMipLevel   = viewInfo.subresRange.startSubres.mipLevel;
@@ -2059,11 +2004,7 @@ void PAL_STDCALL Device::CreateImageViewSrds(
         bool padToEvenWidth = false;
 
         if (Formats::IsDepthStencilOnly(imageCreateInfo.swizzledFormat.format) &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            (viewInfo.subresRange.startSubres.aspect == ImageAspect::Depth)    &&
-#else
             (viewInfo.subresRange.startSubres.plane == 0)                      &&
-#endif
             (viewInfo.subresRange.numMips > 1))
         {
             PAL_ASSERT_ALWAYS_MSG("See above comment#2");
@@ -2071,11 +2012,7 @@ void PAL_STDCALL Device::CreateImageViewSrds(
 
         if (viewInfo.subresRange.numMips == 1)
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            if (imgIsBc || (viewInfo.subresRange.startSubres.aspect == ImageAspect::Depth))
-#else
             if (imgIsBc || pParent->IsDepthPlane(viewInfo.subresRange.startSubres.plane))
-#endif
             {
                 forceBaseMip = true;
             }
@@ -2418,12 +2355,7 @@ void Device::CreateFmaskViewSrds(
 
         ImageSrd srd = {};
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        SubresId slice0Id = {};
-        slice0Id.aspect = ImageAspect::Fmask;
-#else
         constexpr SubresId slice0Id = {};
-#endif
 
         const SubResourceInfo*         pSubresInfo = image.Parent()->SubresourceInfo(slice0Id);
         const AddrMgr1::TileInfo*const pTileInfo   = AddrMgr1::GetTileInfo(image.Parent(), slice0Id);

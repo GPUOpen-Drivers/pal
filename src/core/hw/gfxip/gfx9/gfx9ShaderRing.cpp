@@ -42,7 +42,7 @@ constexpr size_t ScratchWaveSizeGranularity          = (1ull << ScratchWaveSizeG
 // =====================================================================================================================
 // On GFXIP 9 hardware, buffer SRD's which set the ADD_TID_ENABLE bit in word3 changes the meaning of the DATA_FORMAT
 // field to stride bits [17:14] used for scratch offset boundary checks instead of the format.
-static PAL_INLINE void AdjustRingDataFormat(
+static void AdjustRingDataFormat(
     const GpuChipProperties& chipProps,
     BufferSrd*               pGenericSrd)
 {
@@ -338,8 +338,9 @@ gpusize ScratchRing::ComputeAllocationSize() const
     const gpusize totalLocalMemSize = memProps.localHeapSize + memProps.invisibleHeapSize;
     const gpusize maxScaledSize     = (settings.maxScratchRingScalePct * totalLocalMemSize) / 100;
     const gpusize maxSize           = Max(settings.maxScratchRingSizeBaseline, maxScaledSize);
+    const gpusize allocationSize    = static_cast<gpusize>(m_numMaxWaves) * waveSize * sizeof(uint32);
 
-    return Min(static_cast<gpusize>(m_numMaxWaves * waveSize * sizeof(uint32)), maxSize);
+    return Min(allocationSize, maxSize);
 }
 
 // =====================================================================================================================

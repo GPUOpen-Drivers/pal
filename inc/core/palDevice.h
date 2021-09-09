@@ -329,6 +329,7 @@ enum class VideoEncodeCodec : uint32
 {
     H264               = 0x0,       ///< H.264
     H265               = 0x1,       ///< H.265
+    Av1                = 0x2,       ///< AV1
     Count
 };
 
@@ -617,31 +618,13 @@ struct PalPublicSettings
     gpusize largePageMinSizeForSizeAlignmentInBytes;
     /// The acquire/release-based barrier interface is enabled.
     bool useAcqRelInterface;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
-    /// Enable multiple slots instead of single DWORD slot for GPU event. This will enable anywhere that can utilize
-    /// multiple event slots for optimization or function purpose, such as AcqRelBarrier interface.
-    bool enableGpuEventMultiSlot;
-#endif
     /// Makes the unbound descriptor debug srd 0 so the hardware drops the load and ignores it instead of pagefaulting.
     /// Used to workaround incorrect app behavior.
     bool zeroUnboundDescDebugSrd;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
-    /// Prevents PAL from uploading any of its internal and client pipelines to the local invisible heap. Default is set
-    /// to false.
-    /// Note: Currently pipeline residency can be controlled by three interfaces:
-    /// 1. Platform create info flag disableInternalResidencyOpts disables all (internal and external) pipelines from
-    ///    being uploaded to local invisible memory. This is the highest level setting. Other settings are ignored.
-    /// 2. The setting below which is used to disable pipeline uploads on a per-device basis.
-    /// 3. Per-pipeline setting : pipeline create info field overrideGpuHeap and the enumeration preferredHeapType
-    ///    allows client to choose destination heap on a per-pipeline basis. This is the lowest level setting. If any
-    ///    of the above mentioned flags are set then a heap preferrence of type local invisible memory is considered
-    ///    invalid and we fall back to local visible heap.
-    bool disablePipelineUploadToLocalInvis;
-#else
     /// Preferred heap for uploading client pipelines. Default is set to @ref GpuHeap::GpuHeapInvisible. Setting is
     /// ignored for internal pipelines and are uploaded to @ref GpuHeap::GpuHeapLocal.
     GpuHeap pipelinePreferredHeap;
-#endif
+    ///
     bool depthClampBasedOnZExport;
     /// Force the PreColorTarget to an earlier PreRasterization point if used as a wait point. This is to prevent a
     /// write-after-read hazard for a corner case: shader exports from distinct packers are not ordered. Advancing
@@ -4591,22 +4574,6 @@ public:
     virtual Result QueryDisplayConnectors(
         uint32*                     pConnectorCount,
         DisplayConnectorProperties* pConnectors) = 0;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 638
-    /// Get the valid FormatFeatureFlags for the provided ChNumFormat, ImageAspect, and ImageTiling.
-    /// Formats report all supported operations.  For certain aspects some of those operations might be unsupported.
-    /// GetValidFormatFeatureFlags is a helper to return only the valid FormatFeatureFlags for a particular aspect.
-    ///
-    /// @param [in]  format ChNumFormat to get the FormatFeatureFlags from.
-    /// @param [in]  aspect ImageAspect to query with.
-    /// @param [in]  tiling ImageTiling to query with.
-    ///
-    /// @returns The valid FormatFeatureFlags.
-    virtual uint32 GetValidFormatFeatureFlags(
-        const ChNumFormat format,
-        const ImageAspect aspect,
-        const ImageTiling tiling) const = 0;
-#endif
 
     /// @}
 

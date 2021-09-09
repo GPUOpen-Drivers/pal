@@ -64,7 +64,7 @@ struct TileInfo
 
 // =====================================================================================================================
 // Returns a pointer to the tiling info for the subresource with the given index.
-PAL_INLINE const TileInfo* GetTileInfo(
+inline const TileInfo* GetTileInfo(
     const Image* pImage,
     uint32       subResIdx)
 {
@@ -74,7 +74,7 @@ PAL_INLINE const TileInfo* GetTileInfo(
 
 // =====================================================================================================================
 // Returns a pointer to the tiling info for the given subresource.
-PAL_INLINE const TileInfo* GetTileInfo(
+inline const TileInfo* GetTileInfo(
     const Image*    pImage,
     const SubresId& subRes)
 {
@@ -84,7 +84,7 @@ PAL_INLINE const TileInfo* GetTileInfo(
 // =====================================================================================================================
 // Returns a non-const pointer to the tiling info for the subresource with the given index, given the non-const pointer
 // to the entire tiling info list for the Image.
-PAL_INLINE TileInfo* NonConstTileInfo(
+constexpr TileInfo* NonConstTileInfo(
     void*  pTileInfoList,
     uint32 subResIdx)
 {
@@ -92,7 +92,7 @@ PAL_INLINE TileInfo* NonConstTileInfo(
 }
 
 // =====================================================================================================================
-static bool IsLinearSwizzleMode(
+constexpr bool IsLinearSwizzleMode(
     AddrSwizzleMode  swizzleMode)
 {
     return ((swizzleMode == ADDR_SW_LINEAR) ||
@@ -100,7 +100,7 @@ static bool IsLinearSwizzleMode(
 }
 
 // =====================================================================================================================
-static bool IsSwizzleModeComputeOnly(
+constexpr bool IsSwizzleModeComputeOnly(
     AddrSwizzleMode  swizzleMode)
 {
     return false;
@@ -108,7 +108,7 @@ static bool IsSwizzleModeComputeOnly(
 
 // =====================================================================================================================
 // Returns true if the associated swizzle mode is PRT capable
-static bool IsPrtSwizzle(
+constexpr bool IsPrtSwizzle(
     AddrSwizzleMode  swizzleMode)
 {
     return ((swizzleMode == ADDR_SW_64KB_Z_T) ||
@@ -119,7 +119,7 @@ static bool IsPrtSwizzle(
 
 // =====================================================================================================================
 // Returns true for standard (as opposed to depth, displayable, rotated, etc.) swizzle modes
-static bool IsStandardSwzzle(
+constexpr bool IsStandardSwzzle(
     AddrSwizzleMode  swizzleMode)
 {
     return ((swizzleMode == ADDR_SW_256B_S)    ||
@@ -132,7 +132,7 @@ static bool IsStandardSwzzle(
 
 // =====================================================================================================================
 // Returns true if the associated swizzle mode is a 256 mode;
-static bool Is256BSwizzle(
+constexpr bool Is256BSwizzle(
     AddrSwizzleMode  swizzleMode)
 {
     return ((swizzleMode == ADDR_SW_256B_S)
@@ -143,7 +143,7 @@ static bool Is256BSwizzle(
 
 // =====================================================================================================================
 // Returns true if the associated swzzle mode works with Z-buffers
-static bool IsZSwizzle(
+constexpr bool IsZSwizzle(
     AddrSwizzleMode  swizzleMode)
 {
     return ((swizzleMode == ADDR_SW_4KB_Z)    ||
@@ -156,7 +156,7 @@ static bool IsZSwizzle(
 
 // =====================================================================================================================
 // Returns true for displayable (as opposed to depth, rotated, standard, etc.) swizzle modes
-static bool IsDisplayableSwizzle(
+constexpr bool IsDisplayableSwizzle(
     AddrSwizzleMode  swizzleMode)
 {
     return ((swizzleMode == ADDR_SW_256B_D)   ||
@@ -168,7 +168,7 @@ static bool IsDisplayableSwizzle(
 }
 
 // =====================================================================================================================
-static bool IsRotatedSwizzle(
+constexpr bool IsRotatedSwizzle(
     AddrSwizzleMode  swizzleMode)
 {
     return ((swizzleMode == ADDR_SW_256B_R)   ||
@@ -182,7 +182,7 @@ static bool IsRotatedSwizzle(
 
 // =====================================================================================================================
 // Returns true if the associated swizzle mode works with pipe-bank-xor values
-static bool IsXorSwizzle(
+constexpr bool IsXorSwizzle(
     AddrSwizzleMode  swizzleMode)
 {
     return ((swizzleMode == ADDR_SW_4KB_Z_X)  ||
@@ -199,7 +199,7 @@ static bool IsXorSwizzle(
 
 // =====================================================================================================================
 // Returns the swizzle type for a given swizzle modes.
-static AddrSwType GetSwizzleType(
+inline AddrSwType GetSwizzleType(
     AddrSwizzleMode swizzleMode)
 {
     // SW AddrLib will provide public enum ADDR_SW_MAX_SWTYPE/ADDR_SW_L for following private definition soon.
@@ -221,7 +221,7 @@ static AddrSwType GetSwizzleType(
 
 // =====================================================================================================================
 // Returns the micro swizzle type of one of the non-linear swizzle modes.
-static AddrSwType GetMicroSwizzle(
+inline AddrSwType GetMicroSwizzle(
     AddrSwizzleMode swizzleMode)
 {
     // It's illegal to call this on linear modes.
@@ -232,7 +232,7 @@ static AddrSwType GetMicroSwizzle(
 
 // =====================================================================================================================
 // Returns the HW value of "EPITCH" for the supplied addr-output.
-static uint32 CalcEpitch(
+inline uint32 CalcEpitch(
     const ADDR2_COMPUTE_SURFACE_INFO_OUTPUT* pAddrOutput)
 {
     uint32 ePitch = 0;
@@ -278,12 +278,8 @@ public:
 
     ADDR2_SURFACE_FLAGS DetermineSurfaceFlags(
         const Image& image,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        ImageAspect  aspect) const;
-#else
         uint32       plane,
         bool         forFmask) const;
-#endif
 
     static bool IsValidToOverride(AddrSwizzleMode primarySwMode, ADDR2_SWMODE_SET validSwModeSet);
 
@@ -292,11 +288,7 @@ public:
 protected:
     virtual void ComputeTilesInMipTail(
         const Image&       image,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        ImageAspect        aspect,
-#else
         uint32             plane,
-#endif
         ImageMemoryLayout* pGpuMemLayout) const override;
 
 private:

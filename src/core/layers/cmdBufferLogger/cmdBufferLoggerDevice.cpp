@@ -233,8 +233,6 @@ Result Device::CreatePresentableImage(
     nextCreateInfo.pScreen                    = NextScreen(createInfo.pScreen);
     nextCreateInfo.pSwapChain                 = NextSwapChain(createInfo.pSwapChain);
 
-    nextCreateInfo.usage.shaderWrite = 1;
-
     Result result =
         m_pNextLayer->CreatePresentableImage(nextCreateInfo,
                                              NextObjectAddr<Image>(pImagePlacementAddr),

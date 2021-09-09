@@ -186,14 +186,12 @@ public:
 
     virtual void OptimizeAcqRelReleaseInfo(uint32* pStageMask, uint32* pAccessMask) const override { }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     virtual uint32 CmdRelease(const AcquireReleaseInfo& releaseInfo) override;
 
     virtual void CmdAcquire(
         const AcquireReleaseInfo& acquireInfo,
         uint32                    syncTokenCount,
         const uint32*             pSyncTokens) override;
-#endif
 
     virtual void CmdReleaseEvent(
         const AcquireReleaseInfo& releaseInfo,
@@ -814,7 +812,7 @@ public:
 
     bool HasAddressDependentCmdStream() const;
 
-    PAL_INLINE gpusize AllocateGpuScratchMem(
+    gpusize AllocateGpuScratchMem(
         uint32 sizeInDwords,
         uint32 alignmentInDwords)
     {
@@ -1002,7 +1000,8 @@ protected:
             uint32 internalMemAllocator     : 1;  // True if m_pMemAllocator is owned internally by PAL.
             uint32 hasHybridPipeline        : 1;  // True if this command buffer has a hybrid pipeline bound.
             uint32 usesImplicitAceCmdStream : 1;  // True if command buffer used ImplicitACE + GFX CmdStreams
-            uint32 reserved                 : 29;
+            uint32 autoMemoryReuse          : 1;  // True if the command buffer uses autoMemoryReuse.
+            uint32 reserved                 : 28;
         };
 
         uint32     u32All;

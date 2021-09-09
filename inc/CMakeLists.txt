@@ -23,8 +23,10 @@
  #
  #######################################################################################################################
 
-file(GLOB_RECURSE PAL_HEADER_SOURCES CONFIGURE_DEPENDS *.h *.hpp)
-target_sources(pal PRIVATE ${PAL_HEADER_SOURCES} CMakeLists.txt)
+if (MSVC_IDE)
+    file(GLOB_RECURSE PAL_HEADER_SOURCES CONFIGURE_DEPENDS *.h *.hpp)
+    target_sources(pal PRIVATE ${PAL_HEADER_SOURCES} CMakeLists.txt)
+endif()
 
 target_include_directories(pal PUBLIC
     .

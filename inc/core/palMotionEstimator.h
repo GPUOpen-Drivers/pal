@@ -57,14 +57,12 @@ struct MotionEstimatorCreateInfo
     MePrecisionType         precision;              ///< Precision mode set by the application.
     MeSizeRange             sizeRange;              ///< Size range set by application.
     MeOutputFormat          outputFormat;           ///< Output format specified by application
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 654)
     VideoEncodeCodec        codecType;              ///< Codec type H264 or HEVC specified by the application
     uint32                  outputAswBufferType;    ///< Asw Output BufferType
 
     /// Below paramerers are exclusively for HEVC.
     uint32                  log2MinLumaCodingBlockSizeMinus3; ///< Parameter for Coding Block Size
     uint32                  constrainedIntraPredFlag;         ///< Parameter for Constrained Intra Prediction
-#endif
 
     union
     {

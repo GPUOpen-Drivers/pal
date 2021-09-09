@@ -134,10 +134,8 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferCmdSetColorWriteMask,                             InterfaceObject::CmdBuffer,            "CmdSetColorWriteMask"                    },
     { InterfaceFunc::CmdBufferCmdSetRasterizerDiscardEnable,                    InterfaceObject::CmdBuffer,            "CmdSetRasterizerDiscardEnable"                    },
     { InterfaceFunc::CmdBufferCmdBarrier,                                       InterfaceObject::CmdBuffer,            "CmdBarrier"                              },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     { InterfaceFunc::CmdBufferCmdRelease,                                       InterfaceObject::CmdBuffer,            "CmdRelease"                              },
     { InterfaceFunc::CmdBufferCmdAcquire,                                       InterfaceObject::CmdBuffer,            "CmdAcquire"                              },
-#endif
     { InterfaceFunc::CmdBufferCmdReleaseEvent,                                  InterfaceObject::CmdBuffer,            "CmdReleaseEvent"                         },
     { InterfaceFunc::CmdBufferCmdAcquireEvent,                                  InterfaceObject::CmdBuffer,            "CmdAcquireEvent"                         },
     { InterfaceFunc::CmdBufferCmdReleaseThenAcquire,                            InterfaceObject::CmdBuffer,            "CmdReleaseThenAcquire"                   },
@@ -852,6 +850,7 @@ void LogContext::CacheCoherencyUsageFlags(
         "CoherStreamOut",          // 0x00002000,
         "CoherMemory",             // 0x00004000,
         "CoherSampleRate",         // 0x00008000,
+        "CoherPresent",            // 0x00010000,
     };
 
     BeginList(false);
@@ -948,9 +947,7 @@ void LogContext::CopyControlFlags(
     {
         "CopyFormatConversion",  // 0x1,
         "CopyRawSwizzle",        // 0x2,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 603
         "CopyEnableScissorTest", // 0x4,
-#endif
     };
 
     BeginList(false);

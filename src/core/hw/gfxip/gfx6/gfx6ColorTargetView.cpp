@@ -87,11 +87,7 @@ ColorTargetView::ColorTargetView(
                    ((createInfo.imageInfo.baseSubRes.arraySlice == 0) && (createInfo.imageInfo.arraySize == 1)));
 
         // Sets the base subresource for this mip.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        m_subresource.aspect     = createInfo.imageInfo.baseSubRes.aspect;
-#else
         m_subresource.plane      = createInfo.imageInfo.baseSubRes.plane;
-#endif
         m_subresource.mipLevel   = createInfo.imageInfo.baseSubRes.mipLevel;
         m_subresource.arraySlice = 0;
 
@@ -100,11 +96,7 @@ ColorTargetView::ColorTargetView(
         m_flags.hasFmask              = m_pImage->HasFmaskData();
         m_flags.hasDcc                = m_pImage->HasDccData();
         m_flags.hasDccStateMetaData   = m_pImage->HasDccStateMetaData();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        m_flags.fastClearSupported    = (m_pImage->HasFastClearMetaData(m_subresource.aspect) &&
-#else
         m_flags.fastClearSupported    = (m_pImage->HasFastClearMetaData(m_subresource.plane) &&
-#endif
                                          (internalInfo.flags.depthStencilCopy == false));
         m_flags.dccCompressionEnabled = (m_flags.hasDcc && m_pImage->GetDcc(m_subresource)->IsCompressionEnabled());
         m_flags.isDccDecompress       = internalInfo.flags.dccDecompress;
@@ -114,11 +106,7 @@ ColorTargetView::ColorTargetView(
         // Determine whether Overwrite Combiner (OC) should be to be disabled or not
         if (device.Settings().waRotatedSwizzleDisablesOverwriteCombiner)
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            const SubresId  subResId = { ImageAspect::Color, MipLevel(), 0 };
-#else
             const SubresId  subResId = { 0, MipLevel(), 0 };
-#endif
 
             // Disable overwrite-combiner for rotated swizzle modes
             const auto*         pTileInfo = AddrMgr1::GetTileInfo(m_pImage->Parent(), subResId);

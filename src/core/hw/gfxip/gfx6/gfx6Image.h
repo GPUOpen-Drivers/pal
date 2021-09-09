@@ -89,7 +89,7 @@ struct ColorLayoutToState
 // Returns the best color hardware compression state based on a set of allowed usages and queues. Images with metadata
 // are always compressed if they are only used on the universal queue and only support the color target usage.
 // Otherwise, depending on the GFXIP support, additional usages may be available that avoid a full decompress.
-PAL_INLINE ColorCompressionState ImageLayoutToColorCompressionState(
+inline ColorCompressionState ImageLayoutToColorCompressionState(
     const ColorLayoutToState& layoutToState,
     ImageLayout               imageLayout)
 {
@@ -123,7 +123,7 @@ struct DepthStencilLayoutToState
 // usages and queues. Images with htile are always compressed if they are only used on the universal queue and only
 // support the depth/stencil target usage.  Otherwise, depending on the GFXIP support, additional usages may be
 // available whithout decompressing.
-PAL_INLINE DepthStencilCompressionState ImageLayoutToDepthCompressionState(
+inline DepthStencilCompressionState ImageLayoutToDepthCompressionState(
     const DepthStencilLayoutToState& layoutToState,
     ImageLayout                      imageLayout)
 {
@@ -384,9 +384,9 @@ public:
     }
 
 private:
-    PAL_INLINE bool IsFastClearColorMetaFetchable(const uint32* pColor) const;
-    PAL_INLINE bool IsFastClearDepthMetaFetchable(float depth) const;
-    PAL_INLINE bool IsFastClearStencilMetaFetchable(uint8 stencil) const;
+    bool IsFastClearColorMetaFetchable(const uint32* pColor) const;
+    bool IsFastClearDepthMetaFetchable(float depth) const;
+    bool IsFastClearStencilMetaFetchable(uint8 stencil) const;
 
     void InitLayoutStateMasks(bool allowComputeDecompress);
     void InitLayoutStateMasksOneMip(bool allowComputeDecompress, const SubresId& subresId);

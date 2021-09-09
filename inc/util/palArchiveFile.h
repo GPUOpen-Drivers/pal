@@ -44,10 +44,6 @@ class IArchiveFile;
 class IPlatformKey;
 struct ArchiveEntryHeader;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 641
-constexpr size_t     MaxPathLength     = 260; ///< Maximum absolute path location for an archive file
-constexpr size_t     MaxFilenameLength = 128; ///< Maximum archive filename length excluding folder path
-#else
 // On Linux, NAME_MAX is the maximum filename length, while PATH_MAX defines the maximum path length.
 // On Windows, maximum file and path lengths are defined by _MAX_FNAME and MAX_PATH, respectively.
 // We add 1 to accommodate a null terminator.
@@ -61,8 +57,6 @@ static constexpr size_t     FilenameBufferLen = _MAX_FNAME + 1;
 static constexpr size_t     PathBufferLen     = _MAX_PATH + 1;
 #endif
 
-#endif
-
 /**
 ***********************************************************************************************************************
 * @brief Description of an archive file to be opened
@@ -72,13 +66,8 @@ struct ArchiveFileOpenInfo
 {
     AllocCallbacks*     pMemoryCallbacks;         ///< Allocation callbacks suitable for long-term use. Must live
                                                   ///  for the lifetime of the ArchiveFile object
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 641
-    char                filePath[MaxPathLength];     ///< Path to where the archive file can be found
-    char                fileName[MaxFilenameLength]; ///< Name of the archive file to be opened
-#else
     const char*         pFilePath;                ///< Path to where the archive file can be found
     const char*         pFileName;                ///< Name of the archive file to be opened
-#endif
     const IPlatformKey* pPlatformKey;             ///< Optional ID containing information about driver/platform. If
                                                   ///  nullptr is passed the platform verification will be skipped
     uint32              archiveType;              ///< Optional type ID signifying the intended consumer type of

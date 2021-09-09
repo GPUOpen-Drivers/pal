@@ -167,22 +167,13 @@ public:
     // would return true if we promised that CopyDst would be compressed but tried to use a compute copy path.
     virtual bool ShaderWriteIncompatibleWithLayout(const SubresId& subresId, ImageLayout layout) const = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    bool HasFastClearMetaData(ImageAspect  aspect) const
-        { return m_fastClearMetaDataOffset[GetFastClearIndex(aspect)] != 0; }
-#else
     bool HasFastClearMetaData(uint32 plane) const
         { return m_fastClearMetaDataOffset[GetFastClearIndex(plane)] != 0; }
-#endif
     bool HasFastClearMetaData(const SubresRange& range) const;
 
     gpusize FastClearMetaDataAddr(const SubresId&  subResId) const;
     gpusize FastClearMetaDataOffset(const SubresId&  subResId) const;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    gpusize FastClearMetaDataSize(ImageAspect  aspect, uint32 numMips) const;
-#else
     gpusize FastClearMetaDataSize(uint32 plane, uint32 numMips) const;
-#endif
 
     bool HasHiSPretestsMetaData() const { return m_hiSPretestsMetaDataOffset != 0; }
     gpusize HiSPretestsMetaDataAddr(uint32 mipLevel) const;
@@ -197,11 +188,7 @@ public:
     virtual void SetMallCursorCacheSize(uint32 cursorSize) { }
     virtual gpusize GetMallCursorCacheOffset() { return 0; }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    virtual gpusize GetAspectBaseAddr(ImageAspect aspect, uint32 arraySlice = 0) const { PAL_NEVER_CALLED(); return 0; }
-#else
     virtual gpusize GetPlaneBaseAddr(uint32 plane, uint32 arraySlice = 0) const { PAL_NEVER_CALLED(); return 0; }
-#endif
 
     uint32 TranslateClearCodeOneToNativeFmt(uint32 cmpIdx) const;
 
@@ -210,9 +197,7 @@ public:
 
     virtual uint32 GetTileSwizzle(const SubresId& subResId) const = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     uint32 GetStencilPlane() const;
-#endif
 
     // Initializes the metadata in the given subresource range using CmdFillMemory calls. It may not be possible
     // for some gfxip layers to implement this function.
@@ -283,9 +268,7 @@ protected:
         ImageInfo*    pImageInfo,
         const Device& device);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
     uint32 GetDepthStencilStateIndex(ImageAspect dsAspect) const;
-#endif
 
     static void UpdateMetaDataLayout(
         ImageMemoryLayout* pGpuMemLayout,
@@ -310,19 +293,11 @@ protected:
 
     void UpdateClearMethod(
         SubResourceInfo* pSubResInfoList,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        ImageAspect      aspect,
-#else
         uint32           plane,
-#endif
         uint32           mipLevel,
         ClearMethod      method);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    uint32 GetFastClearIndex(ImageAspect  aspect) const;
-#else
     uint32 GetFastClearIndex(uint32 plane) const;
-#endif
 
     void Destroy();
 

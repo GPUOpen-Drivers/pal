@@ -140,8 +140,12 @@ const RegisterRange Gfx9ContextShadowRange[] =
          1,
     },
     {
-        (Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP - CONTEXT_SPACE_START),         // 0xA2A5 - 0xA2B5
-        (HasHwVs::mmVGT_STRMOUT_VTX_STRIDE_0 - Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP + 1),
+        (Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP - CONTEXT_SPACE_START),         // 0xA2A5 - 0xA2B1
+        (mmDB_SRESULTS_COMPARE_STATE1 - Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP + 1),
+    },
+    {
+        (HasHwVs::mmVGT_STRMOUT_BUFFER_SIZE_0 - CONTEXT_SPACE_START),           // 0xA2B4 - 0xA2B5
+        (HasHwVs::mmVGT_STRMOUT_VTX_STRIDE_0 - HasHwVs::mmVGT_STRMOUT_BUFFER_SIZE_0 + 1),
     },
     {
         (HasHwVs::mmVGT_STRMOUT_BUFFER_SIZE_1 - CONTEXT_SPACE_START),          // 0xA2B8 - 0xA2B9

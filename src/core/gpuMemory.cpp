@@ -36,7 +36,6 @@ using namespace Util;
 namespace Pal
 {
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 652
 // =====================================================================================================================
 // Copies only the valid heaps from pHeaps to pOutHeaps. The filtering happens based on if the heap exists on the
 // device.
@@ -57,7 +56,6 @@ static uint32 CopyViableHeaps(
     }
     return outHeapsCount;
 }
-#endif
 
 // =====================================================================================================================
 Result GpuMemory::ValidateCreateInfo(
@@ -393,8 +391,9 @@ Result GpuMemory::Init(
     m_flags.tmzProtected         = createInfo.flags.tmzProtected;
     m_flags.tmzUserQueue         = internalInfo.flags.tmzUserQueue;
     m_flags.mallRangeActive      = createInfo.flags.mallRangeActive;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 657
     m_flags.explicitSync         = createInfo.flags.explicitSync;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 677
+    m_flags.privPrimary          = createInfo.flags.privPrimary;
 #endif
 
     m_flags.isClient             = internalInfo.flags.isClient;
@@ -464,9 +463,6 @@ Result GpuMemory::Init(
     m_mallPolicy     = createInfo.mallPolicy;
     m_mallRange      = createInfo.mallRange;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 652
-    m_heapCount      = createInfo.heapCount;
-#endif
     m_schedulerId    = internalInfo.schedulerId;
     m_mtype          = internalInfo.mtype;
 
@@ -482,7 +478,6 @@ Result GpuMemory::Init(
 
     if (IsVirtual() == false)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 652
         switch (createInfo.heapAccess)
         {
         case GpuHeapAccess::GpuHeapAccessExplicit:
@@ -557,7 +552,6 @@ Result GpuMemory::Init(
             PAL_ALERT_ALWAYS_MSG("Unexpected GPU heap access type");
             break;
         }
-#endif
 
         // NOTE: Assume that the heap selection is both local-only and nonlocal-only temporarily. When we scan the
         // heap selections below, this paradoxical assumption will be corrected.
@@ -573,10 +567,6 @@ Result GpuMemory::Init(
         m_desc.heapCount = static_cast<uint32>(m_heapCount);
         for (uint32 heap = 0; heap < m_heapCount; ++heap)
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 652
-            m_heaps[heap] = createInfo.heaps[heap];
-#endif
-
             m_desc.heaps[heap] = m_heaps[heap];
 
             const GpuMemoryHeapProperties& heapProps = m_pDevice->HeapProperties(m_heaps[heap]);
@@ -720,11 +710,7 @@ Result GpuMemory::Init(
                 {
                     // If the device supports iterate256 the Image should satisy some conditions so that we can
                     // justify aligning memory to make the optimization work.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                    const SubResourceInfo* pBaseSubResInfo = m_pImage->SubresourceInfo(m_pImage->GetBaseSubResource());
-#else
                     const SubResourceInfo* pBaseSubResInfo = m_pImage->SubresourceInfo(0);
-#endif
                     if (m_pDevice->Settings().enableIterate256PreAlignment &&
                         m_pImage->GetGfxImage()->IsIterate256Meaningful(pBaseSubResInfo) &&
                         (createInfo.size >= memoryProperties.iterate256MinAlignment))
@@ -1240,6 +1226,7 @@ gpusize GpuMemory::GetPhysicalAddressAlignment() const
         (IsInterprocess() == false)     &&
         (IsBusAddressable() == false)   &&
         (IsTurboSyncSurface() == false) &&
+        (IsPrivPrimary() == false)      &&
         (m_pDevice->PhysicalEnginesAvailable() == false))
     {
         const GpuMemoryProperties& memProps = m_pDevice->MemoryProperties();
@@ -1282,11 +1269,7 @@ gpusize GpuMemory::GetPhysicalAddressAlignment() const
                     if ((m_pImage != nullptr) &&
                         m_pDevice->GetGfxDevice()->SupportsIterate256() &&
                         (m_pImage->GetGfxImage()->IsIterate256Meaningful(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                            (m_pImage->SubresourceInfo(m_pImage->GetBaseSubResource())))) &&
-#else
                             (m_pImage->SubresourceInfo(0)))) &&
-#endif
                         (m_desc.size >= memProps.iterate256MinAlignment))
                     {
                         clamp = Max(clamp, memProps.iterate256MinAlignment);

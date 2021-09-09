@@ -653,12 +653,7 @@ Result WaylandWindowSystem::CreatePresentableImage(
     int32      sharedBufferFd)
 {
     Result                      result      = Result::Success;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const SubresId              subres      = { ImageAspect::Color, 0, 0 };
-    const SubResourceInfo*const pSubResInfo = pImage->SubresourceInfo(subres);
-#else
     const SubResourceInfo*const pSubResInfo = pImage->SubresourceInfo(0);
-#endif
     wl_buffer*                  pBuffer     = nullptr;
 
     const uint32 width  = pSubResInfo->extentTexels.width;
@@ -838,10 +833,8 @@ Result WaylandWindowSystem::GetWindowProperties(
     Result result = Result::Success;
 
     pSwapChainProperties->currentExtent = { UINT32_MAX, UINT32_MAX };
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 610
     pSwapChainProperties->compositeAlphaMode = static_cast<uint32>(CompositeAlphaMode::PostMultiplied) |
                                                static_cast<uint32>(CompositeAlphaMode::Opaque);
-#endif
 
     WindowSystemCreateInfo createInfo = {};
     createInfo.platform = Wayland;

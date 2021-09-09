@@ -211,7 +211,7 @@ bool HandleCeRinging(
 
 // =====================================================================================================================
 // Helper function which computes the NUM_RECORDS field of a buffer SRD used for a stream-output target.
-PAL_INLINE static uint32 StreamOutNumRecords(
+static uint32 StreamOutNumRecords(
     const GpuChipProperties& chipProps,
     uint32                   sizeInBytes,
     uint32                   strideInBytes)
@@ -422,12 +422,9 @@ UniversalCmdBuffer::UniversalCmdBuffer(
         PAL_ASSERT(IsPowerOfTwo(m_customBinSizeX) && IsPowerOfTwo(m_customBinSizeY));
     }
 
-    const bool sqttEnabled = (platformSettings.gpuProfilerMode > GpuProfilerCounterAndTimingOnly) &&
-                             (TestAnyFlagSet(platformSettings.gpuProfilerConfig.traceModeMask, GpuProfilerTraceSqtt));
-    m_cachedSettings.issueSqttMarkerEvent = (sqttEnabled || device.GetPlatform()->IsDevDriverProfilingEnabled());
-    m_cachedSettings.describeDrawDispatch =
-        (m_cachedSettings.issueSqttMarkerEvent ||
-         device.GetPlatform()->PlatformSettings().cmdBufferLoggerConfig.embedDrawDispatchInfo);
+    m_cachedSettings.issueSqttMarkerEvent = device.Parent()->IssueSqttMarkerEvents();
+    m_cachedSettings.describeDrawDispatch = (m_cachedSettings.issueSqttMarkerEvent ||
+                                             platformSettings.cmdBufferLoggerConfig.embedDrawDispatchInfo);
 
 #if PAL_BUILD_PM4_INSTRUMENTOR
     m_cachedSettings.enablePm4Instrumentation = platformSettings.pm4InstrumentorEnabled;
@@ -1586,7 +1583,6 @@ void UniversalCmdBuffer::OptimizePipeAndCacheMaskForRelease(
     GfxCmdBuffer::OptimizePipeAndCacheMaskForRelease(pStageMask, pAccessMask);
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // =====================================================================================================================
 uint32 UniversalCmdBuffer::CmdRelease(
     const AcquireReleaseInfo& releaseInfo)
@@ -1694,7 +1690,6 @@ void UniversalCmdBuffer::CmdAcquire(
 
     IssueGangedBarrierAceWaitDeIncr();
 }
-#endif
 
 // =====================================================================================================================
 void UniversalCmdBuffer::CmdReleaseEvent(
@@ -4267,19 +4262,6 @@ Result UniversalCmdBuffer::AddPreamble()
         }
     }
 
-    const uint32  mmPaStateStereoX = m_cmdUtil.GetRegInfo().mmPaStateStereoX;
-    if (mmPaStateStereoX != 0)
-    {
-        if (IsGfx10Plus(m_gfxIpLevel))
-        {
-            pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPaStateStereoX, 0, pDeCmdSpace);
-        }
-        else
-        {
-            pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(mmPaStateStereoX, 0, pDeCmdSpace);
-        }
-    }
-
     // PA_SC_CONSERVATIVE_RASTERIZATION_CNTL is the same value for most Pipeline objects. Prime it in the Preamble
     // to the disabled state. At draw-time, we check if a new value is needed based on (Pipeline || MSAA) being dirty.
     // It is expected that Pipeline and MSAA is always known even on nested command buffers.
@@ -4344,7 +4326,6 @@ Result UniversalCmdBuffer::AddPreamble()
                                                                pDeCmdSpace);
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     // Initialize m_acqRelFenceValGpuVa.
     if (AcqRelFenceValBaseGpuVa() != 0)
     {
@@ -4365,7 +4346,6 @@ Result UniversalCmdBuffer::AddPreamble()
                                                reinterpret_cast<uint32*>(&data),
                                                pDeCmdSpace);
     }
-#endif
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 
@@ -5636,15 +5616,9 @@ void UniversalCmdBuffer::ValidateVrsState()
                 AddVrsCopyMapping(pClientDsView, m_graphicsState.pVrsImage);
 
                 const Image*    pDepthImg        = pClientDsView->GetImage();
-                const SubresId  viewBaseSubResId = {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                                                     pDepthImg->Parent()->GetBaseSubResource().aspect,
-#else
-                                                     0,
-#endif
+                const SubresId  viewBaseSubResId = { 0,
                                                      pClientDsView->MipLevel(),
-                                                     pClientDsView->BaseArraySlice()
-                                                   };
+                                                     pClientDsView->BaseArraySlice() };
                 const auto*     pSubResInfo      = pDepthImg->Parent()->SubresourceInfo(viewBaseSubResId);
 
                 rpm.CopyVrsIntoHtile(this, pClientDsView, pSubResInfo->extentTexels, m_graphicsState.pVrsImage);
@@ -7488,14 +7462,6 @@ void UniversalCmdBuffer::ValidateDispatch(
                                                   pCmdSpace);
     }
 
-    if (IsGfx10Plus(m_gfxIpLevel))
-    {
-        const regCOMPUTE_DISPATCH_TUNNEL dispatchTunnel = { };
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(Gfx10Plus::mmCOMPUTE_DISPATCH_TUNNEL,
-                                                                dispatchTunnel.u32All,
-                                                                pCmdSpace);
-    }
-
 #if PAL_BUILD_PM4_INSTRUMENTOR
     if (m_cachedSettings.enablePm4Instrumentation != 0)
     {
@@ -8407,12 +8373,8 @@ void UniversalCmdBuffer::CmdUpdateHiSPretests(
     if (pGfx9Image->HasHiSPretestsMetaData())
     {
         SubresRange range = { };
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        range.startSubres = { ImageAspect::Stencil, firstMip, 0 };
-#else
         range.startSubres = { pGfx9Image->GetStencilPlane(), firstMip, 0 };
         range.numPlanes   = 1;
-#endif
         range.numMips     = numMips;
         range.numSlices   = pImage->GetImageCreateInfo().arraySize;
 
@@ -9676,9 +9638,7 @@ void UniversalCmdBuffer::PopGraphicsState()
     // RB + registers won't cause extra rolls.
     m_rbplusRegHash        = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     UpdateGfxCmdBufGfxBltExecEopFence();
-#endif
 }
 
 // =====================================================================================================================

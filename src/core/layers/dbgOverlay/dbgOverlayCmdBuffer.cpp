@@ -129,7 +129,8 @@ void CmdBuffer::DrawOverlay(
     const IImage* pSrcImage,
     PresentMode   presentMode)
 {
-    const auto& settings = m_pDevice->GetPlatform()->PlatformSettings();
+    const auto&  settings = m_pDevice->GetPlatform()->PlatformSettings();
+    const uint32 engines  = (m_queueType == QueueTypeUniversal) ? LayoutUniversalEngine : LayoutComputeEngine;
 
     // Issue a barrier to ensure the text written via CS is complete and flushed out of L2.
     BarrierInfo barrier = {};
@@ -141,7 +142,13 @@ void CmdBuffer::DrawOverlay(
 
     BarrierTransition transition = {};
     transition.srcCacheMask      = CoherShader;
-    transition.dstCacheMask      = CoherShader;
+
+    transition.imageInfo.pImage            = pSrcImage;
+    transition.imageInfo.oldLayout.engines = engines;
+    transition.imageInfo.oldLayout.usages  = LayoutShaderRead | LayoutShaderWrite;
+    transition.imageInfo.newLayout.engines = engines;
+
+    pSrcImage->GetFullSubresourceRange(&transition.imageInfo.subresRange);
 
     barrier.transitionCount = 1;
     barrier.pTransitions    = &transition;
@@ -158,6 +165,17 @@ void CmdBuffer::DrawOverlay(
                                                     this,
                                                     expectedMode);
 
+        if (settings.debugOverlayConfig.timeGraphEnabled == true)
+        {
+            transition.dstCacheMask               = CoherShader;
+            transition.imageInfo.newLayout.usages = LayoutShaderRead | LayoutShaderWrite;
+        }
+        else
+        {
+            transition.dstCacheMask               = CoherPresent;
+            transition.imageInfo.newLayout.usages = LayoutPresentWindowed | LayoutPresentFullscreen;
+        }
+
         barrier.reason = Developer::BarrierReasonDebugOverlayText;
 
         CmdBarrier(barrier);
@@ -167,6 +185,9 @@ void CmdBuffer::DrawOverlay(
     {
         // Draw the time graph using this command buffer.
         m_device.GetTimeGraph().DrawVisualConfirm(static_cast<const Image&>(*pSrcImage), this);
+
+        transition.dstCacheMask               = CoherPresent;
+        transition.imageInfo.newLayout.usages = LayoutPresentWindowed | LayoutPresentFullscreen;
 
         barrier.reason = Developer::BarrierReasonDebugOverlayGraph;
 

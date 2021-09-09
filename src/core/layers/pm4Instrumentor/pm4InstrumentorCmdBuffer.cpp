@@ -643,7 +643,6 @@ void CmdBuffer::CmdBarrier(
     PostCall(CmdBufCallId::CmdBarrier);
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // =====================================================================================================================
 uint32 CmdBuffer::CmdRelease(
     const AcquireReleaseInfo& releaseInfo)
@@ -664,7 +663,6 @@ void CmdBuffer::CmdAcquire(
     CmdBufferFwdDecorator::CmdAcquire(acquireInfo, syncTokenCount, pSyncTokens);
     PostCall(CmdBufCallId::CmdAcquire);
 }
-#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdReleaseEvent(

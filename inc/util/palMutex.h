@@ -52,13 +52,6 @@ public:
     Mutex() noexcept : m_osMutex {} { pthread_mutex_init(&m_osMutex, nullptr); }
     ~Mutex() { pthread_mutex_destroy(&m_osMutex); };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 647
-    /// Backward compatability support for ::Init() call
-    ///
-    /// @returns Success
-    Result Init() const noexcept { return Result::Success; }
-#endif
-
     /// Enters the critical section if it is not contended.  If it is contended, wait for the critical section to become
     /// available, then enter it.
     void Lock();
@@ -144,13 +137,6 @@ public:
         ReadOnly = 0,  ///< Lock in readonly mode, in other words shared mode.
         ReadWrite      ///< Lock in readwrite mode, in other words exclusive mode.
     };
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 649
-    /// Backward compatability support for ::Init() call
-    ///
-    /// @returns Success
-    Result Init() const noexcept { return Result::Success; }
-#endif
 
     /// Acquires a rw lock in shared mode if it is not contended in exclusive mode.
     /// If it is contended, wait for rw lock to become available, then enter it.

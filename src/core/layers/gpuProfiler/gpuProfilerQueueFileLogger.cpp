@@ -87,7 +87,7 @@ void Queue::OutputLogItemsToFile(
                 PAL_ASSERT(activeCmdBufs <= 1);
                 activeCmdBufs++;
 
-                m_curLogSqttIdx = 0;
+                m_curLogTraceIdx = 0;
             }
 
             // Add a "- " before command buffer calls made in a nested command buffer to differentiate them from calls
@@ -193,9 +193,9 @@ void Queue::OpenLogFile(
         }
     }
 
-    if (m_pDevice->IsThreadTraceEnabled())
+    if (m_pDevice->IsThreadTraceEnabled() || m_pDevice->IsSpmTraceEnabled())
     {
-        m_logFile.Printf("ThreadTraceId,");
+        m_logFile.Printf("TraceId,");
     }
 
     m_logFile.Printf("\n");
@@ -270,7 +270,7 @@ void Queue::OpenSqttFile(
         }
     }
 
-    // frameAAAAAADevBEngCD-EE.SqttCmdBufFTraceGSeHCuUI.ttv, where:
+    // frameAAAAAADevBEngCD-EE.CmdBufFTraceGSqttSeHCuUI.ttv, where:
     //     - AAAAAA: Frame number.
     //     - B:      Device index (mostly relevant when profiling MGPU systems).
     //     - C:      Engine type (U = universal, C = compute, D = DMA, and T = timer).
@@ -284,7 +284,7 @@ void Queue::OpenSqttFile(
     char logFilePath[512];
     Snprintf(&logFilePath[0],
              sizeof(logFilePath),
-             "%s/frame%06uDev%uEng%s%u-%02u.SqttCmdBuf%uTrace%uSe%uCu%u%s.ttv",
+             "%s/frame%06uDev%uEng%s%u-%02u.CmdBuf%uTrace%uSqttSe%uCu%u%s.ttv",
              m_pDevice->GetPlatform()->LogDirPath(),
              m_curLogFrame,
              m_pDevice->Id(),
@@ -305,6 +305,7 @@ void Queue::OpenSqttFile(
 // Opens a .csv file for writing spm trace data
 void Queue::OpenSpmFile(
     Util::File*    pFile,
+    uint32         traceId,
     const LogItem& logItem)
 {
     const auto& settings = m_pDevice->GetPlatform()->PlatformSettings();
@@ -350,18 +351,19 @@ void Queue::OpenSpmFile(
         }
     }
 
-    // frameAAAAAADevBEngCD-EE.SpmCmdBufFI.csv, where:
+    // frameAAAAAADevBEngCD-EE.CmdBufFTraceGSpmI.csv, where:
     //     - AAAAAA: Frame number.
     //     - B:      Device index (mostly relevant when profiling MGPU systems).
     //     - C:      Engine type (U = universal, C = compute, D = DMA, and T = timer).
     //     - D:      Engine index (for cases like compute/DMA where there are multiple instances of the same engine).
     //     - EE:     Queue ID (there can be multiple IQueue objects created for the same engine instance).
     //     - F:      Command buffer ID.
+    //     - G:      Trace ID for correlation between per-Draw output and SPM logs.
     //     - I:      Concatenation of shader IDs bound (for draw/dispatch calls only).
     char logFilePath[512];
     Snprintf(&logFilePath[0],
              sizeof(logFilePath),
-             "%s/frame%06uDev%uEng%s%u-%02u.SpmCmdBuf%u%s.csv",
+             "%s/frame%06uDev%uEng%s%u-%02u.CmdBuf%uTrace%uSpm%s.csv",
              m_pDevice->GetPlatform()->LogDirPath(),
              m_curLogFrame,
              m_pDevice->Id(),
@@ -369,6 +371,7 @@ void Queue::OpenSpmFile(
              m_pQueueInfos[0].engineIndex,
              m_queueId,
              m_curLogCmdBufIdx,
+             traceId,
              crcInfo);
 
     Result result = pFile->Open(&logFilePath[0], FileAccessWrite);
@@ -649,12 +652,7 @@ void Queue::OutputPipelineStatsToFile(
                                                               pipelineStats);
 
         PAL_ASSERT(result == Result::Success);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 631
         PAL_ASSERT(pipelineStatsSize == sizeof(pipelineStats));
-#else
-        // Mesh/task pipeline stats are not available until interface exposes them.
-        PAL_ASSERT(pipelineStatsSize <= sizeof(pipelineStats));
-#endif
 
         // PAL hardcodes the layout of the return pipeline stats values based on the client, leading to different
         // versions of this code to a uniform log layout.
@@ -828,15 +826,13 @@ void Queue::OutputTraceDataToFile(
                         const uint32 shaderEngine = pDesc->shaderEngineIndex;
                         const uint32 computeUnit = pDesc->v1.computeUnitIndex;
 
-                        OpenSqttFile(shaderEngine, computeUnit, m_curLogSqttIdx, &logFile, logItem);
+                        OpenSqttFile(shaderEngine, computeUnit, m_curLogTraceIdx, &logFile, logItem);
                         logFile.Write(VoidPtrInc(pResult, pData->offset), pData->size);
                         logFile.Close();
 
                         offset += pData->header.sizeInBytes;
                         pDesc = static_cast<const SqttFileChunkSqttDesc*>(VoidPtrInc(pResult, offset));
                     }
-
-                    m_logFile.Printf("%u,", m_curLogSqttIdx++);
                 }
 
                 // Spm trace chunk: Begin output of Spm trace data as a separate .csv file
@@ -869,7 +865,7 @@ void Queue::OutputTraceDataToFile(
                         offset += pSpmDbChunk->numSpmCounterInfo * sizeof(*pCounterInfo);
 
                         File spmFile;
-                        OpenSpmFile(&spmFile, logItem);
+                        OpenSpmFile(&spmFile, m_curLogTraceIdx, logItem);
 
                         if (pSpmDbChunk->numTimestamps > 0)
                         {
@@ -917,6 +913,9 @@ void Queue::OutputTraceDataToFile(
                         }
                     }
                 }
+
+                // The main spreadsheet records the trace IDs to help correlate traces to the execution timeline.
+                m_logFile.Printf("%u,", m_curLogTraceIdx++);
             }
 
             PAL_SAFE_FREE(pResult, m_pDevice->GetPlatform());

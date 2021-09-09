@@ -605,12 +605,7 @@ Result Dri3WindowSystem::CreatePresentableImage(
     Result       result     = Result::Success;
     xcb_pixmap_t pixmap     = InvalidPixmapId;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const SubresId              subres      = { ImageAspect::Color, 0, 0 };
-    const SubResourceInfo*const pSubResInfo = pImage->SubresourceInfo(subres);
-#else
     const SubResourceInfo*const pSubResInfo = pImage->SubresourceInfo(0);
-#endif
 
     const uint32 width  = pSubResInfo->extentTexels.width;
     const uint32 height = pSubResInfo->extentTexels.height;
@@ -734,12 +729,7 @@ Result Dri3WindowSystem::Present(
 
     if (m_device.Settings().forcePresentViaCpuBlt)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        SubresId subres = pSrcImage->GetBaseSubResource();
-        const SubResourceInfo* pSubresInfo = pSrcImage->SubresourceInfo(subres);
-#else
         const SubResourceInfo* pSubresInfo = pSrcImage->SubresourceInfo(0);
-#endif
 
         // The gpu memory size may be padded out; get the size without padding.
         PAL_ASSERT((pSubresInfo->bitsPerTexel % 8) == 0); // Does this even happen?
@@ -980,7 +970,6 @@ Result Dri3WindowSystem::GetWindowProperties(
     xcb_get_geometry_reply_t*const  pReply      = dri3Procs.pfnXcbGetGeometryReply(pConnection, cookie, nullptr);
 
     // Set the alpha composite mode. Tell if opaque supported by alpha channel of X visual.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 610
     if (IsAlphaSupported(pDevice, hDisplay, hWindow))
     {
         pSwapChainProperties->compositeAlphaMode = static_cast<uint32>(CompositeAlphaMode::Inherit) |
@@ -991,7 +980,6 @@ Result Dri3WindowSystem::GetWindowProperties(
         pSwapChainProperties->compositeAlphaMode = static_cast<uint32>(CompositeAlphaMode::Inherit) |
                                                    static_cast<uint32>(CompositeAlphaMode::Opaque);
     }
-#endif
 
     pSwapChainProperties->minImageCount = 2;
 

@@ -598,11 +598,6 @@ void Platform::LateInitDevDriver()
             m_pDevDriverServer->GetDriverControlServer();
 
         PAL_ASSERT(pDriverControlServer != nullptr);
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 613
-        // Step the driver control server into the Late Device Init stage.
-        pDriverControlServer->StartLateDeviceInit();
-#endif
     }
 #endif
 }

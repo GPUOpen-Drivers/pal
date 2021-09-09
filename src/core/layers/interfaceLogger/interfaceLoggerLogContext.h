@@ -108,10 +108,8 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdSetColorWriteMask,
     CmdBufferCmdSetRasterizerDiscardEnable,
     CmdBufferCmdBarrier,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     CmdBufferCmdRelease,
     CmdBufferCmdAcquire,
-#endif
     CmdBufferCmdReleaseEvent,
     CmdBufferCmdAcquireEvent,
     CmdBufferCmdReleaseThenAcquire,
@@ -622,9 +620,6 @@ public:
     void Enum(PrtPlusResolveType value);
     void Enum(BoxSortHeuristic value);
     void Enum(HwPipePoint value);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    void Enum(ImageAspect value);
-#endif
     void Enum(ImageRotation value);
     void Enum(ImageTexOptLevel value);
     void Enum(ImageTiling value);

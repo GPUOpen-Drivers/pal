@@ -87,29 +87,6 @@ enum class TilingOptMode : uint32
     Count
 };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-/// Specifies an aspect of an image.  Aspect is mostly used to distinguish between depth and stencil subresources, since
-/// they are logically separate in GCN hardware.  It is also used to distinguish between the luma and chroma planes of
-/// multimedia formats.
-enum class ImageAspect : uint32
-{
-    Color   = 0,    ///< Color plane.
-    Depth   = 1,    ///< Depth plane.
-    Stencil = 2,    ///< Stencil plane.
-    Fmask   = 3,    ///< Fmask plane.
-    Y       = 4,    ///< Luminance plane.  This is only valid for planar multimedia formats.
-    CbCr    = 5,    ///< Chrominance plane, containing Cb (U) and Cr (V) samples interleaved together.  This is only
-                    ///  valid for planar multimedia formats.  (Such as @ref ChNumFormat::NV12.)
-    Cb      = 6,    ///< Blue-difference chrominance plane.  This is only valid for planar multimedia formats which have
-                    ///  separate Cb and Cr chrominance planes.  (Such as @ref ChNumFormat::YV12.)
-    Cr      = 7,    ///< Red-difference chrominance plane.  This is only valid for planar multimedia formats which have
-                    ///  separate Cb and Cr chrominance planes.  (Such as @ref ChNumFormat::YV12.)
-    YCbCr   = 8,    ///< Combined luminance and chrominance planes.  This is only valid for packed multimedia formats.
-                    ///  (Such as @ref ChNumFormat::UYVY.)
-    Count
-};
-#endif
-
 /// Image metadata modes.
 enum class MetadataMode : uint16
 {
@@ -191,24 +168,15 @@ union ImageCreateFlags
         uint32 presentable             :  1; ///< Indicates this image can be used in presents.
         uint32 flippable               :  1; ///< Image can be used for flip presents.
         uint32 stereo                  :  1; ///< Indicates AMD quad buffer stereo extension (AQBS extension) image
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 612
         uint32 dxgiStereo              :  1; ///< Indicates DXGI stereo (Win8 stereo) image
-#else
-        uint32 reserved612             :  1;
-#endif
         uint32 cubemap                 :  1; ///< Image will be used as a cubemap.
         uint32 prt                     :  1; ///< Image is a partially resident texture (aka, sparse image or tiled
                                              ///  resource)
         uint32 needSwizzleEqs          :  1; ///< Image requires valid swizzle equations.
         uint32 perSubresInit           :  1; ///< The image may have its subresources initialized independently using
                                              ///  CmdBarrier calls out of the uninitialized layout.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        uint32 separateDepthAspectInit :  1; ///< If set, the caller may transition the stencil and depth aspects from
-                                             ///  "Uninitialized" state at any time.  Otherwise, both aspects must be
-#else
         uint32 separateDepthPlaneInit  :  1; ///< If set, the caller may transition the stencil and depth planes from
                                              ///  "Uninitialized" state at any time.  Otherwise, both planes must be
-#endif
                                              ///  transitioned in the same barrier call.  Only meaningful if
                                              /// "perSubresInit" is set.
         uint32 repetitiveResolve       :  1; ///< Optimization: Is this image resolved multiple times to an image which
@@ -235,11 +203,7 @@ union ImageCreateFlags
                                              ///  Note that not all 3D images supports it. The image creation will
                                              ///  return error if we fail to create a compatible image.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 616
         uint32 tmzProtected            :  1; ///< Indicate this image is protected or not.
-#else
-        uint32 reserved616             :  1;
-#endif
         uint32 reserved                :  9; ///< Reserved for future use.
     };
     uint32 u32All;                           ///< Flags packed as 32-bit uint.
@@ -279,23 +243,10 @@ union ImageUsageFlags
 
         uint32 vrsDepth               :  1; ///< Set if this depth image will be bound when VRS rendering is enabled.
         uint32 disableOptimizedDisplay:  1; ///< Do not create Display Dcc
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 602
         uint32 useLossy               :  1; ///< Set if this image may use lossy compression.
-#else
-        uint32 reservedForFutureHw1   :  1;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 636
         uint32 stencilOnlyTarget      :  1; ///< This must be set if a stencil-only IDepthStencilView will be created
                                             ///< for this image.
-#else
-        uint32 reserved636            :  1;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 646
         uint32 vrsRateImage           :  1; ///< This image is potentially used with CmdBindSampleRateImage
-#else
-        uint32 reserved646            :  1;
-#endif
         uint32 reserved               : 13; ///< Reserved for future use.
     };
     uint32 u32All;                          ///< Flags packed as 32-bit uint.
@@ -385,11 +336,7 @@ struct PresentableImageCreateInfo
                                         ///  Implies an array size of 2. Fullscreen must be set.
             uint32 turbosync    :  1;   ///< Image supports turbosync flip
             uint32 peerWritable :  1;   ///< Indicates if the memory allocated will be writable by other devices
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 620
             uint32 tmzProtected :  1;   ///< Indicates this presenatble image's memory is tmz Protected.
-#else
-            uint32 placeHolder  :  1;
-#endif
             uint32 reserved     : 27;   ///< Reserved for future use.
         };
         uint32 u32All;                  ///< Flags packed as 32-bit uint.
@@ -463,11 +410,9 @@ struct PeerImageOpenInfo
 struct ExternalImageOpenInfo
 {
     ExternalResourceOpenInfo resourceInfo;   ///< Information describing the external image.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 645
     Extent3d                 extent;         ///< Expected extent for the external image. This reference value would be
                                              ///  ignored and use extents from shared metadata if any dimension of the
                                              ///  reference extent is zero.
-#endif
     SwizzledFormat           swizzledFormat; ///< Pixel format and channel swizzle. Or UndefinedFormat to infer the
                                              ///  format internally.
     ImageCreateFlags         flags;          ///< Image Creation flags.
@@ -546,23 +491,6 @@ struct SubresLayout
     ImageLayout defaultGfxLayout;
 };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-/// Selects a specific subresource of an image resource.
-struct SubresId
-{
-    ImageAspect aspect;      ///< Selects color, depth, stencil or ycbcr plane.
-    uint32      mipLevel;    ///< Selects mip level.
-    uint32      arraySlice;  ///< Selects array slice.
-};
-
-/// Defines a range of subresources within an image aspect.
-struct SubresRange
-{
-    SubresId startSubres;  ///< First subresource in the range.
-    uint32   numMips;      ///< Number of mip levels in the range.
-    uint32   numSlices;    ///< Number of slices in the range.
-};
-#else
 /// Selects a specific subresource of an image resource.
 ///
 /// Most images only have a single data plane but in some cases conceptually related data will be stored in physically
@@ -588,7 +516,6 @@ struct SubresRange
     uint32   numMips;      ///< Number of mip levels in the range.
     uint32   numSlices;    ///< Number of slices in the range.
 };
-#endif
 
 /**
  ***********************************************************************************************************************
@@ -607,7 +534,6 @@ public:
     /// @returns the reference to ImageCreateInfo
     virtual const ImageMemoryLayout& GetMemoryLayout() const = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     /// Reports information on the full range of the image's subresources.
     ///
     /// @param [out] pRange  Reports info on the full range of the image's subresources such as number of mips and
@@ -617,7 +543,6 @@ public:
     ///          returned:
     ///          + ErrorInvalidPointer if pRange is null.
     virtual Result GetFullSubresourceRange(SubresRange* pRange) const = 0;
-#endif
 
     /// Reports information on the layout of the specified subresource in memory.
     ///
@@ -667,9 +592,6 @@ public:
     ///
     /// @returns A summarized supporting level.
     virtual MetadataSharingLevel GetOptimalSharingLevel() const = 0;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 633
-#endif
 
 protected:
     /// @internal Constructor.

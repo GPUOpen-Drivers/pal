@@ -63,10 +63,8 @@ enum class CmdBufCallId : uint32
     CmdSetColorWriteMask,
     CmdSetRasterizerDiscardEnable,
     CmdBarrier,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     CmdRelease,
     CmdAcquire,
-#endif
     CmdReleaseEvent,
     CmdAcquireEvent,
     CmdReleaseThenAcquire,
@@ -193,10 +191,8 @@ static const char* CmdBufCallIdStrings[] =
     "CmdSetColorWriteMask()",
     "CmdSetRasterizerDiscardEnable()",
     "CmdBarrier()",
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     "CmdRelease()",
     "CmdAcquire()",
-#endif
     "CmdReleaseEvent()",
     "CmdAcquireEvent()",
     "CmdReleaseThenAcquire()",

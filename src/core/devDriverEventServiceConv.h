@@ -49,11 +49,7 @@ static uint32 PalToRmtImgCreateFlags(
     rmtFlags.RESERVED_0 = 0;
     rmtFlags.READ_SWIZZLE_EQUATIONS = palFlags.needSwizzleEqs;
     rmtFlags.PER_SUBRESOURCE_INIT = palFlags.perSubresInit;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    rmtFlags.SEPARATE_DEPTH_ASPECT_RATIO = palFlags.separateDepthAspectInit;
-#else
     rmtFlags.SEPARATE_DEPTH_ASPECT_RATIO = palFlags.separateDepthPlaneInit;
-#endif
     rmtFlags.COPY_FORMATS_MATCH = 0;
     rmtFlags.REPETITIVE_RESOLVE = palFlags.repetitiveResolve;
     rmtFlags.PREFR_SWIZZLE_EQUATIONS = palFlags.preferSwizzleEqs;

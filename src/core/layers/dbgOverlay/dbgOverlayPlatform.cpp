@@ -175,7 +175,7 @@ Device* Platform::GetDevice(
 
 // =====================================================================================================================
 // Determines the allocation type for a GpuMemory-related event.
-static AllocType PAL_INLINE DetermineAllocType(
+constexpr AllocType DetermineAllocType(
     const Developer::GpuMemoryData& eventData)
 {
     return eventData.flags.isVirtual                                  ? AllocTypeCount    :

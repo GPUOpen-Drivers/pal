@@ -64,9 +64,7 @@ GfxCmdBuffer::GfxCmdBuffer(
     m_gfxIpLevel(device.Parent()->ChipProperties().gfxLevel),
     m_maxUploadFenceToken(0),
     m_device(device),
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     m_acqRelFenceValGpuVa(0),
-#endif
     m_pInternalEvent(nullptr),
     m_timestampGpuVa(0),
     m_computeStateFlags(0),
@@ -84,12 +82,10 @@ GfxCmdBuffer::GfxCmdBuffer(
         m_numActiveQueries[i] = 0;
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     for (uint32 i = 0; i < static_cast<uint32>(AcqRelEventType::Count); i++)
     {
         m_acqRelFenceVals[i] = AcqRelFenceResetVal;
     }
-#endif
 }
 
 // =====================================================================================================================
@@ -160,13 +156,11 @@ Result GfxCmdBuffer::Begin(
             InheritStateFromCmdBuf(static_cast<const GfxCmdBuffer*>(info.pStateInheritCmdBuffer));
         }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION > 584
         if (info.pInheritedState != nullptr)
         {
             m_gfxCmdBufState.flags.clientPredicate = info.pInheritedState->stateFlags.predication;
             m_gfxCmdBufState.flags.packetPredicate = info.pInheritedState->stateFlags.predication;
         }
-#endif
 
         // If this is a nested command buffer execution, this value should be set to 1
         // pipePoint on nested command buffer cannot be optimized using the state from primary
@@ -265,12 +259,10 @@ void GfxCmdBuffer::ResetState()
         m_gfxCmdBufState.flags.cpMemoryWriteL2CacheStale = IsCpDmaSupported();
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     for (uint32 i = 0; i < static_cast<uint32>(AcqRelEventType::Count); i++)
     {
         m_acqRelFenceVals[i] = AcqRelFenceResetVal;
     }
-#endif
 
 }
 
@@ -298,7 +290,6 @@ Result GfxCmdBuffer::BeginCommandStreams(
         result = m_status;
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     if (result == Result::Success)
     {
         // Allocate acquire/release synchronization fence value GPU memory from the command allocator.
@@ -308,7 +299,7 @@ Result GfxCmdBuffer::BeginCommandStreams(
         m_acqRelFenceValGpuVa = AllocateGpuScratchMem(static_cast<uint32>(AcqRelEventType::Count), sizeof(uint32));
         result = m_status;
     }
-#endif
+
     if (result == Result::Success)
     {
         // Allocate GPU memory for the internal event from the command allocator.
@@ -339,7 +330,7 @@ void GfxCmdBuffer::ReturnGeneratedCommandChunks(
         }
 
         // Return all chunks containing GPU-generated commands to the allocator.
-        if ((m_generatedChunkList.IsEmpty() == false) && m_pCmdAllocator->AutomaticMemoryReuse())
+        if ((m_generatedChunkList.IsEmpty() == false) && (m_flags.autoMemoryReuse == true))
         {
             for (auto iter = m_generatedChunkList.Begin(); iter.IsValid(); iter.Next())
             {
@@ -741,7 +732,6 @@ void GfxCmdBuffer::CmdPostProcessFrame(
 
         if (image.GetGfxImage()->HasDisplayDccData())
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 625
             // The surface must be fully expanded if another component may access it via PFPA,
             // or KMD nofify UMD to expand DCC.
             // Presentable surface has dcc and displayDcc, but turbo sync surface hasn't dcc,
@@ -762,9 +752,7 @@ void GfxCmdBuffer::CmdPostProcessFrame(
                                                              LayoutUniversalEngine : LayoutComputeEngine;
                 transition.imageInfo.newLayout.usages      = LayoutShaderRead | LayoutUncompressed;
                 transition.imageInfo.newLayout.engines     = transition.imageInfo.oldLayout.engines;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
                 transition.imageInfo.subresRange.numPlanes = 1;
-#endif
                 transition.imageInfo.subresRange.numMips   = 1;
                 transition.imageInfo.subresRange.numSlices = 1;
 
@@ -784,7 +772,6 @@ void GfxCmdBuffer::CmdPostProcessFrame(
                 m_device.RsrcProcMgr().CmdDisplayDccFixUp(this, image);
             }
             else
-#endif
             {
                 m_device.RsrcProcMgr().CmdGfxDccToDisplayDcc(this, image);
             }
@@ -807,9 +794,6 @@ void GfxCmdBuffer::CmdPresentBlt(
     const IImage&   dstImage,
     const Offset3d& dstOffset)
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    constexpr SubresId subres = { ImageAspect::Color, 0, 0, };
-#endif
     const auto& srcImageInfo  = srcImage.GetImageCreateInfo();
 
     ImageScaledCopyRegion region = {};
@@ -818,10 +802,6 @@ void GfxCmdBuffer::CmdPresentBlt(
     region.srcExtent.depth  = 1;
     region.dstExtent        = region.srcExtent;
     region.dstOffset        = dstOffset;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    region.srcSubres        = subres;
-    region.dstSubres        = subres;
-#endif
     region.numSlices        = 1;
 
     const ImageLayout srcLayout =
@@ -849,11 +829,7 @@ void GfxCmdBuffer::CmdPresentBlt(
     copyInfo.rotation               = ImageRotation::Ccw0;
     copyInfo.pColorKey              = nullptr;
     copyInfo.flags.srcColorKey      = false;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 626
     copyInfo.flags.dstAsSrgb        = false;
-#else
-    copyInfo.flags.srcSrgbAsUnorm   = Formats::IsSrgb(srcImageInfo.swizzledFormat.format) ? 1 : 0;
-#endif
 
     m_device.RsrcProcMgr().CmdScaledCopyImage(this, copyInfo);
 }

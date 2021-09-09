@@ -212,13 +212,6 @@ constexpr size_t TcCacheOpConversionTableSize = ArrayLen(Gfx9TcCacheOpConversion
 static_assert(ArrayLen(Gfx9TcCacheOpConversionTable) == static_cast<size_t>(TcCacheOp::Count),
               "TcCacheOp conversion table has too many/few entries");
 
-static PM4_ME_TYPE_3_HEADER Type3Header(
-    IT_OpCodeType  opCode,
-    uint32         count,
-    bool           resetFilterCam = false,
-    Pm4ShaderType  shaderType     = ShaderGraphics,
-    Pm4Predicate   predicate      = PredDisable);
-
 // =====================================================================================================================
 // Returns a 32-bit quantity that corresponds to a type-3 packet header.  "count" is the actual size of the packet in
 // terms of DWORDs, including the header.
@@ -229,12 +222,12 @@ static PM4_ME_TYPE_3_HEADER Type3Header(
 // - set_sh_reg
 // - set_sh_reg_offset
 // - write_gds
-static PAL_INLINE PM4_ME_TYPE_3_HEADER Type3Header(
+static PM4_ME_TYPE_3_HEADER Type3Header(
     IT_OpCodeType  opCode,
     uint32         count,
-    bool           resetFilterCam,
-    Pm4ShaderType  shaderType,
-    Pm4Predicate   predicate)
+    bool           resetFilterCam = false,
+    Pm4ShaderType  shaderType     = ShaderGraphics,
+    Pm4Predicate   predicate      = PredDisable)
 {
     // PFP and ME headers are the same structure...  doesn't really matter which one we use.
     PM4_ME_TYPE_3_HEADER  header = {};
@@ -274,7 +267,7 @@ static PAL_INLINE PM4_ME_TYPE_3_HEADER Type3Header(
 //
 // } PM4_PFP_SET_CONTEXT_REG, *PPM4_PFP_SET_CONTEXT_REG;
 // This is done with shifts to avoid a read-modify-write of the destination memory.
-static PAL_INLINE uint32 Type3Ordinal2(
+static uint32 Type3Ordinal2(
     uint32 regOffset,
     uint32 index)
 {
@@ -4375,7 +4368,7 @@ ME_WAIT_REG_MEM_function_enum CmdUtil::WaitRegMemFunc(
 // =====================================================================================================================
 // Helper function which determines if a range of sequential register addresses fall within any of the specified
 // register ranges.
-PAL_INLINE bool AreRegistersInRangeList(
+inline bool AreRegistersInRangeList(
     uint32               startRegAddr,
     uint32               endRegAddr,
     const RegisterRange* pRanges,

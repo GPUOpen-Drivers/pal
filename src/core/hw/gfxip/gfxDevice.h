@@ -192,6 +192,14 @@ struct RegisterRange
     uint32 regCount;    // Number of registers to load.
 };
 
+// Defines a register and its associated value
+struct RegisterValuePair
+{
+    uint32 offset;   // Offset to the register to load.  Relative to the base address of the register type.
+                     // E.g., PERSISTENT_SPACE_START for SH registers, etc.
+    uint32 value;    // Register data to write
+};
+
 // Structure describing a single FLGL register command
 struct FlglRegCmd
 {
@@ -542,13 +550,6 @@ public:
     const RsrcProcMgr& RsrcProcMgr() const { return *m_pRsrcProcMgr; }
 
     virtual Result SetSamplePatternPalette(const SamplePatternPalette& palette) = 0;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 638
-    virtual uint32 GetValidFormatFeatureFlags(
-        const ChNumFormat format,
-        const ImageAspect aspect,
-        const ImageTiling tiling) const = 0;
-#endif
 
     // Helper function that disables a specific CU mask within the UMD managed range.
     uint16 GetCuEnableMask(uint16 disabledCuMmask, uint32 enabledCuMaskSetting) const;

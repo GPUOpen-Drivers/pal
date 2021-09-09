@@ -27,9 +27,7 @@
 
 #include "core/layers/functionIds.h"
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 #include "core/layers/gpuProfiler/gpuProfilerPlatform.h"
-#endif
 #include "core/layers/gpuProfiler/gpuProfilerQueue.h"
 #include "palLinearAllocator.h"
 
@@ -156,14 +154,12 @@ public:
         uint32      data,
         uint32      mask,
         CompareFunc compareFunc) override;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     virtual uint32 CmdRelease(
         const AcquireReleaseInfo& releaseInfo) override;
     virtual void CmdAcquire(
         const AcquireReleaseInfo& acquireInfo,
         uint32                    syncTokenCount,
         const uint32*             pSyncTokens) override;
-#endif
 
     virtual void CmdReleaseEvent(
         const AcquireReleaseInfo& releaseInfo,
@@ -701,10 +697,8 @@ private:
     void ReplayCmdSetColorWriteMask(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetRasterizerDiscardEnable(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdBarrier(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     void ReplayCmdRelease(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdAcquire(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-#endif
     void ReplayCmdReleaseEvent(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdAcquireEvent(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdReleaseThenAcquire(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
@@ -852,11 +846,10 @@ private:
 
     uint32 m_curLogFrame;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     // List of release tokens that are used to handle acquire/release interface through this layer's replay mechanism.
     uint32                             m_numReleaseTokens;
     Util::Vector<uint32, 16, Platform> m_releaseTokenList;
-#endif
+
     PAL_DISALLOW_DEFAULT_CTOR(CmdBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(CmdBuffer);
 };

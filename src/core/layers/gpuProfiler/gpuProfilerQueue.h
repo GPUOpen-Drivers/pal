@@ -242,12 +242,12 @@ private:
     void OutputLogItemsToFile(size_t count, bool hasDrawsDispatches);
     void OpenLogFile(uint32 frameId);
     void OpenSqttFile(
-        uint32 shaderEngineId,
-        uint32 computeUnitId,
-        uint32 drawId,
-        Util::File* pFile,
+        uint32         shaderEngineId,
+        uint32         computeUnitId,
+        uint32         traceId,
+        Util::File*    pFile,
         const LogItem& logItem);
-    void OpenSpmFile(Util::File* pFile, const LogItem& logItem);
+    void OpenSpmFile(Util::File* pFile, uint32 traceId, const LogItem& logItem);
     void OutputRgpFile(const GpuUtil::GpaSession& gpaSession, uint32 gpaSampleId);
     void OutputQueueCallToFile(const LogItem& logItem);
     void OutputCmdBufCallToFile(const LogItem& logItem, const char* pNestedCmdBufPrefix);
@@ -317,7 +317,7 @@ private:
     uint32                            m_curLogFrame;      // Used to determine when a new frame is started and a new log
                                                           // file should be opened.
     uint32                            m_curLogCmdBufIdx;  // Current command buffer index for the frame being logged.
-    uint32                            m_curLogSqttIdx;    // Current SQ thread trace index for the cmdbuf being logged.
+    uint32                            m_curLogTraceIdx;   // Current SQTT/SPM index for the cmdbuf being logged.
 
     LogItem                           m_perFrameLogItem;  // Log item used when the profiling granularity is per frame.
 

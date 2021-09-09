@@ -122,24 +122,6 @@ public:
         uint32          flags,
         QueryResult*    pQuery) = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 611
-    /// Overloaded version is for backwards compatibility.
-    /// Query for data by hash key
-    ///
-    /// @param [in]  pHashId    128-bit precomputed hash used as a reference id for the cache entry
-    /// @param [out] pQuery     Query result containing the entry id and buffer size needed to call ICacheLayer::Load()
-    ///
-    /// @return Success if the hash id was found. Otherwise, one of the following may be returned:
-    ///         + NotFound if no values was found for the given hash
-    ///         + ErrorInvalidPointer if pQuery or pHashId are nullptr
-    ///         + ErrorUnknown if there is an internal error.
-    ///
-    virtual Result Query(
-        const Hash128*  pHashId,
-        QueryResult*    pQuery)
-    { return Query(pHashId, 0, 0, pQuery); }
-#endif
-
     /// Store data with corresponding hash key
     ///
     /// @param [in] pHashId     128-bit precomputed hash used as a reference id for the cache entry

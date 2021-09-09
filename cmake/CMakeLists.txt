@@ -23,5 +23,7 @@
  #
  #######################################################################################################################
 
-file(GLOB_RECURSE PAL_CMAKE_SOURCES CONFIGURE_DEPENDS *.cmake)
-target_sources(pal PRIVATE ${PAL_CMAKE_SOURCES} CMakeLists.txt)
+if (MSVC_IDE)
+    file(GLOB_RECURSE PAL_CMAKE_SOURCES CONFIGURE_DEPENDS *.cmake)
+    target_sources(pal PRIVATE ${PAL_CMAKE_SOURCES} CMakeLists.txt)
+endif()

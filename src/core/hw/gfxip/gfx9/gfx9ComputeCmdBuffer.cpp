@@ -66,13 +66,7 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     // Compute command buffers suppors compute ops and CP DMA.
     m_engineSupport = CmdBufferEngineSupport::Compute | CmdBufferEngineSupport::CpDma;
 
-    const PalPlatformSettings& settings = m_device.Parent()->GetPlatform()->PlatformSettings();
-    const bool sqttEnabled = (settings.gpuProfilerMode > GpuProfilerCounterAndTimingOnly) &&
-                             (TestAnyFlagSet(settings.gpuProfilerConfig.traceModeMask, GpuProfilerTraceSqtt));
-    const bool issueSqttMarkerEvent = (sqttEnabled ||
-                                      m_device.Parent()->GetPlatform()->IsDevDriverProfilingEnabled());
-
-    if (issueSqttMarkerEvent)
+    if (device.Parent()->IssueSqttMarkerEvents())
     {
         m_funcTable.pfnCmdDispatch          = CmdDispatch<true>;
         m_funcTable.pfnCmdDispatchIndirect  = CmdDispatchIndirect<true>;
@@ -193,7 +187,6 @@ void ComputeCmdBuffer::OptimizePipeAndCacheMaskForRelease(
     }
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // =====================================================================================================================
 uint32 ComputeCmdBuffer::CmdRelease(
     const AcquireReleaseInfo& releaseInfo)
@@ -288,7 +281,6 @@ void ComputeCmdBuffer::CmdAcquire(
 
     m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 }
-#endif
 
 // =====================================================================================================================
 void ComputeCmdBuffer::CmdReleaseEvent(
@@ -987,14 +979,6 @@ uint32* ComputeCmdBuffer::ValidateDispatch(
                                                   pCmdSpace);
     }
 
-    if (IsGfx10Plus(m_gfxIpLevel))
-    {
-        const regCOMPUTE_DISPATCH_TUNNEL dispatchTunnel = { };
-        pCmdSpace = m_cmdStream.WriteSetOneShReg<ShaderCompute>(Gfx10Plus::mmCOMPUTE_DISPATCH_TUNNEL,
-                                                                dispatchTunnel.u32All,
-                                                                pCmdSpace);
-    }
-
 #if PAL_BUILD_PM4_INSTRUMENTOR
     if (enablePm4Instrumentation)
     {
@@ -1284,7 +1268,6 @@ Result ComputeCmdBuffer::AddPreamble()
 {
     Result result = ComputeCmdBuffer::WritePreambleCommands(m_cmdUtil, &m_cmdStream);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     // Initialize acquire/release fence value GPU chunk.
     if (AcqRelFenceValBaseGpuVa() != 0)
     {
@@ -1307,7 +1290,6 @@ Result ComputeCmdBuffer::AddPreamble()
                                              pCmdSpace);
         m_cmdStream.CommitCommands(pCmdSpace);
     }
-#endif
 
     return result;
 }
@@ -1927,9 +1909,7 @@ void ComputeCmdBuffer::CmdRestoreComputeState(
     uint32 stateFlags)
 {
     Pal::GfxCmdBuffer::CmdRestoreComputeState(stateFlags);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     UpdateGfxCmdBufCsBltExecEopFence();
-#endif
 }
 
 } // Gfx9

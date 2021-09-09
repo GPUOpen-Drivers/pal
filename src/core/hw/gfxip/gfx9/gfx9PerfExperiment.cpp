@@ -2015,7 +2015,12 @@ void PerfExperiment::IssueBegin(
         if (m_perfExperimentFlags.perfCtrsEnabled || m_perfExperimentFlags.spmTraceEnabled)
         {
             // CP_PERFMON_CNTL only enables non-windowed counters.
-            if (m_perfExperimentFlags.perfCtrsEnabled)
+
+            // gfx9 SPI has a special requirement that PERFMON_STATE must be enabled for SPM trace.
+            if (m_perfExperimentFlags.perfCtrsEnabled         ||
+                (m_perfExperimentFlags.spmTraceEnabled        &&
+                 (m_chipProps.gfxLevel == GfxIpLevel::GfxIp9) &&
+                 HasGenericCounters(GpuBlock::Spi)))
             {
                 cpPerfmonCntl.bits.PERFMON_STATE = CP_PERFMON_STATE_START_COUNTING;
             }

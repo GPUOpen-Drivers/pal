@@ -25,11 +25,10 @@
 include_guard()
 
 include(PalVersionHelper)
-include(CMakeDependentOption)
 
 # All options/cache variables should have the prefix "PAL_" this serves two main purposes
-#   Name collision issues
-#   Cmake-gui allows grouping of variables based on prefixes, which then makes it clear what options PAL defined
+# - Name collision issues
+# - cmake-gui allows grouping of variables based on prefixes, which then makes it clear what options PAL defined
 
 option(PAL_DBG_COMMAND_COMMENTS "Command with comments" OFF)
 
@@ -38,20 +37,9 @@ option(PAL_ENABLE_PRINTS_ASSERTS_DEBUG "Enable print assertions on debug builds?
 
 option(PAL_MEMTRACK "Enable PAL memory tracker?" OFF)
 
-option(PAL_BUILD_CORE "Build PAL Core?" ON)
-
-option(PAL_BUILD_GPUUTIL "Build PAL GPU Util?" ON)
-
-cmake_dependent_option(PAL_BUILD_LAYERS "Build PAL Layers?" ON "PAL_BUILD_GPUUTIL" OFF)
-
 option(PAL_BUILD_DBG_OVERLAY "Build PAL Debug Overlay?" ON)
 
 option(PAL_BUILD_GPU_PROFILER "Build PAL GPU Profiler?" ON)
-
-option(PAL_DISPLAY_DCC "Enable DISPLAY DCC?" ON)
-
-option(PAL_BUILD_DRI3 "Build PAL with DRI3 support?" ON)
-option(PAL_BUILD_WAYLAND "Build PAL with WAYLAND support?" OFF)
 
 # Paths to PAL's dependencies
 set(PAL_METROHASH_PATH ${PROJECT_SOURCE_DIR}/src/util/imported/metrohash      CACHE PATH "Specify the path to the MetroHash project.")

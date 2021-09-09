@@ -45,12 +45,7 @@ union LibraryCreateFlags
     struct
     {
         uint32 clientInternal  : 1;  ///< Internal library not created by the application.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
-        uint32 overrideGpuHeap : 1;  ///< Override the default GPU heap (local invisible) the library resides in.
-        uint32 reserved        : 30; ///< Reserved for future use.
-#else
         uint32 reserved        : 31; ///< Reserved for future use.
-#endif
     };
     uint32 u32All;                  ///< Flags packed as 32-bit uint.
 };
@@ -88,11 +83,6 @@ struct ShaderLibraryCreateInfo
                                     ///  The code-object ELF contains pre-compiled shaders, register values, and
                                     ///  additional metadata.
     size_t       codeObjectSize;    ///< Size of code object in bytes.
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
-    GpuHeap      preferredHeap;     ///< Upload this pipeline to this heap.  This is ignored if
-                                    ///  @ref LibraryCreateFlags::overrideGpuHeap is not set.
-#endif
 
     /// List of functions for PAL to compute virtual addresses for during library creation.  These GPU addresses can
     /// then be passed as shader arguments to a later dispatch operation to allow a compute pipeline's shaders to jump

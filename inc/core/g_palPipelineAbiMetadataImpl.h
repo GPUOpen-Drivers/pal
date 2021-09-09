@@ -31,15 +31,21 @@
 
 namespace Util
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 676
+namespace PalAbi = Abi;
 namespace Abi
+#else
+namespace PalAbi
+#endif
 {
+
 namespace Metadata
 {
 
 // =====================================================================================================================
 inline Result DeserializeEnum(
     MsgPackReader*  pReader,
-    PipelineType*  pValue)
+    Abi::PipelineType*  pValue)
 {
     Result result = pReader->Next(CWP_ITEM_STR);
 
@@ -51,31 +57,31 @@ inline Result DeserializeEnum(
         switch (strHash)
         {
         case HashLiteralString("VsPs"):
-            *pValue = PipelineType::VsPs;
+            *pValue = Abi::PipelineType::VsPs;
             break;
         case HashLiteralString("Gs"):
-            *pValue = PipelineType::Gs;
+            *pValue = Abi::PipelineType::Gs;
             break;
         case HashLiteralString("Cs"):
-            *pValue = PipelineType::Cs;
+            *pValue = Abi::PipelineType::Cs;
             break;
         case HashLiteralString("Ngg"):
-            *pValue = PipelineType::Ngg;
+            *pValue = Abi::PipelineType::Ngg;
             break;
         case HashLiteralString("Tess"):
-            *pValue = PipelineType::Tess;
+            *pValue = Abi::PipelineType::Tess;
             break;
         case HashLiteralString("GsTess"):
-            *pValue = PipelineType::GsTess;
+            *pValue = Abi::PipelineType::GsTess;
             break;
         case HashLiteralString("NggTess"):
-            *pValue = PipelineType::NggTess;
+            *pValue = Abi::PipelineType::NggTess;
             break;
         case HashLiteralString("Mesh"):
-            *pValue = PipelineType::Mesh;
+            *pValue = Abi::PipelineType::Mesh;
             break;
         case HashLiteralString("TaskMesh"):
-            *pValue = PipelineType::TaskMesh;
+            *pValue = Abi::PipelineType::TaskMesh;
             break;
         default:
             result = Result::NotFound;
@@ -89,37 +95,37 @@ inline Result DeserializeEnum(
 // =====================================================================================================================
 inline Result SerializeEnum(
     MsgPackWriter*  pWriter,
-    PipelineType  value)
+    Abi::PipelineType  value)
 {
     Result result = Result::ErrorInvalidValue;
 
     switch (value)
     {
-    case PipelineType::VsPs:
+    case Abi::PipelineType::VsPs:
         result = pWriter->Pack("VsPs");
         break;
-    case PipelineType::Gs:
+    case Abi::PipelineType::Gs:
         result = pWriter->Pack("Gs");
         break;
-    case PipelineType::Cs:
+    case Abi::PipelineType::Cs:
         result = pWriter->Pack("Cs");
         break;
-    case PipelineType::Ngg:
+    case Abi::PipelineType::Ngg:
         result = pWriter->Pack("Ngg");
         break;
-    case PipelineType::Tess:
+    case Abi::PipelineType::Tess:
         result = pWriter->Pack("Tess");
         break;
-    case PipelineType::GsTess:
+    case Abi::PipelineType::GsTess:
         result = pWriter->Pack("GsTess");
         break;
-    case PipelineType::NggTess:
+    case Abi::PipelineType::NggTess:
         result = pWriter->Pack("NggTess");
         break;
-    case PipelineType::Mesh:
+    case Abi::PipelineType::Mesh:
         result = pWriter->Pack("Mesh");
         break;
-    case PipelineType::TaskMesh:
+    case Abi::PipelineType::TaskMesh:
         result = pWriter->Pack("TaskMesh");
         break;
     default:
@@ -132,7 +138,7 @@ inline Result SerializeEnum(
 // =====================================================================================================================
 inline Result DeserializeEnum(
     MsgPackReader*  pReader,
-    ApiShaderType*  pValue)
+    Abi::ApiShaderType*  pValue)
 {
     Result result = pReader->Next(CWP_ITEM_STR);
 
@@ -144,28 +150,28 @@ inline Result DeserializeEnum(
         switch (strHash)
         {
         case HashLiteralString(".compute"):
-            *pValue = ApiShaderType::Cs;
+            *pValue = Abi::ApiShaderType::Cs;
             break;
         case HashLiteralString(".task"):
-            *pValue = ApiShaderType::Task;
+            *pValue = Abi::ApiShaderType::Task;
             break;
         case HashLiteralString(".vertex"):
-            *pValue = ApiShaderType::Vs;
+            *pValue = Abi::ApiShaderType::Vs;
             break;
         case HashLiteralString(".hull"):
-            *pValue = ApiShaderType::Hs;
+            *pValue = Abi::ApiShaderType::Hs;
             break;
         case HashLiteralString(".domain"):
-            *pValue = ApiShaderType::Ds;
+            *pValue = Abi::ApiShaderType::Ds;
             break;
         case HashLiteralString(".geometry"):
-            *pValue = ApiShaderType::Gs;
+            *pValue = Abi::ApiShaderType::Gs;
             break;
         case HashLiteralString(".mesh"):
-            *pValue = ApiShaderType::Mesh;
+            *pValue = Abi::ApiShaderType::Mesh;
             break;
         case HashLiteralString(".pixel"):
-            *pValue = ApiShaderType::Ps;
+            *pValue = Abi::ApiShaderType::Ps;
             break;
         default:
             result = Result::NotFound;
@@ -179,34 +185,34 @@ inline Result DeserializeEnum(
 // =====================================================================================================================
 inline Result SerializeEnum(
     MsgPackWriter*  pWriter,
-    ApiShaderType  value)
+    Abi::ApiShaderType  value)
 {
     Result result = Result::ErrorInvalidValue;
 
     switch (value)
     {
-    case ApiShaderType::Cs:
+    case Abi::ApiShaderType::Cs:
         result = pWriter->Pack(".compute");
         break;
-    case ApiShaderType::Task:
+    case Abi::ApiShaderType::Task:
         result = pWriter->Pack(".task");
         break;
-    case ApiShaderType::Vs:
+    case Abi::ApiShaderType::Vs:
         result = pWriter->Pack(".vertex");
         break;
-    case ApiShaderType::Hs:
+    case Abi::ApiShaderType::Hs:
         result = pWriter->Pack(".hull");
         break;
-    case ApiShaderType::Ds:
+    case Abi::ApiShaderType::Ds:
         result = pWriter->Pack(".domain");
         break;
-    case ApiShaderType::Gs:
+    case Abi::ApiShaderType::Gs:
         result = pWriter->Pack(".geometry");
         break;
-    case ApiShaderType::Mesh:
+    case Abi::ApiShaderType::Mesh:
         result = pWriter->Pack(".mesh");
         break;
-    case ApiShaderType::Ps:
+    case Abi::ApiShaderType::Ps:
         result = pWriter->Pack(".pixel");
         break;
     default:
@@ -219,7 +225,7 @@ inline Result SerializeEnum(
 // =====================================================================================================================
 inline Result DeserializeEnum(
     MsgPackReader*  pReader,
-    ApiShaderSubType*  pValue)
+    Abi::ApiShaderSubType*  pValue)
 {
     Result result = pReader->Next(CWP_ITEM_STR);
 
@@ -231,28 +237,28 @@ inline Result DeserializeEnum(
         switch (strHash)
         {
         case HashLiteralString("Unknown"):
-            *pValue = ApiShaderSubType::Unknown;
+            *pValue = Abi::ApiShaderSubType::Unknown;
             break;
         case HashLiteralString("Traversal"):
-            *pValue = ApiShaderSubType::Traversal;
+            *pValue = Abi::ApiShaderSubType::Traversal;
             break;
         case HashLiteralString("RayGeneration"):
-            *pValue = ApiShaderSubType::RayGeneration;
+            *pValue = Abi::ApiShaderSubType::RayGeneration;
             break;
         case HashLiteralString("Intersection"):
-            *pValue = ApiShaderSubType::Intersection;
+            *pValue = Abi::ApiShaderSubType::Intersection;
             break;
         case HashLiteralString("AnyHit"):
-            *pValue = ApiShaderSubType::AnyHit;
+            *pValue = Abi::ApiShaderSubType::AnyHit;
             break;
         case HashLiteralString("ClosestHit"):
-            *pValue = ApiShaderSubType::ClosestHit;
+            *pValue = Abi::ApiShaderSubType::ClosestHit;
             break;
         case HashLiteralString("Miss"):
-            *pValue = ApiShaderSubType::Miss;
+            *pValue = Abi::ApiShaderSubType::Miss;
             break;
         case HashLiteralString("Callable"):
-            *pValue = ApiShaderSubType::Callable;
+            *pValue = Abi::ApiShaderSubType::Callable;
             break;
         default:
             result = Result::NotFound;
@@ -266,34 +272,34 @@ inline Result DeserializeEnum(
 // =====================================================================================================================
 inline Result SerializeEnum(
     MsgPackWriter*  pWriter,
-    ApiShaderSubType  value)
+    Abi::ApiShaderSubType  value)
 {
     Result result = Result::ErrorInvalidValue;
 
     switch (value)
     {
-    case ApiShaderSubType::Unknown:
+    case Abi::ApiShaderSubType::Unknown:
         result = pWriter->Pack("Unknown");
         break;
-    case ApiShaderSubType::Traversal:
+    case Abi::ApiShaderSubType::Traversal:
         result = pWriter->Pack("Traversal");
         break;
-    case ApiShaderSubType::RayGeneration:
+    case Abi::ApiShaderSubType::RayGeneration:
         result = pWriter->Pack("RayGeneration");
         break;
-    case ApiShaderSubType::Intersection:
+    case Abi::ApiShaderSubType::Intersection:
         result = pWriter->Pack("Intersection");
         break;
-    case ApiShaderSubType::AnyHit:
+    case Abi::ApiShaderSubType::AnyHit:
         result = pWriter->Pack("AnyHit");
         break;
-    case ApiShaderSubType::ClosestHit:
+    case Abi::ApiShaderSubType::ClosestHit:
         result = pWriter->Pack("ClosestHit");
         break;
-    case ApiShaderSubType::Miss:
+    case Abi::ApiShaderSubType::Miss:
         result = pWriter->Pack("Miss");
         break;
-    case ApiShaderSubType::Callable:
+    case Abi::ApiShaderSubType::Callable:
         result = pWriter->Pack("Callable");
         break;
     default:
@@ -306,7 +312,7 @@ inline Result SerializeEnum(
 // =====================================================================================================================
 inline Result DeserializeEnum(
     MsgPackReader*  pReader,
-    HardwareStage*  pValue)
+    Abi::HardwareStage*  pValue)
 {
     Result result = pReader->Next(CWP_ITEM_STR);
 
@@ -318,25 +324,25 @@ inline Result DeserializeEnum(
         switch (strHash)
         {
         case HashLiteralString(".ls"):
-            *pValue = HardwareStage::Ls;
+            *pValue = Abi::HardwareStage::Ls;
             break;
         case HashLiteralString(".hs"):
-            *pValue = HardwareStage::Hs;
+            *pValue = Abi::HardwareStage::Hs;
             break;
         case HashLiteralString(".es"):
-            *pValue = HardwareStage::Es;
+            *pValue = Abi::HardwareStage::Es;
             break;
         case HashLiteralString(".gs"):
-            *pValue = HardwareStage::Gs;
+            *pValue = Abi::HardwareStage::Gs;
             break;
         case HashLiteralString(".vs"):
-            *pValue = HardwareStage::Vs;
+            *pValue = Abi::HardwareStage::Vs;
             break;
         case HashLiteralString(".ps"):
-            *pValue = HardwareStage::Ps;
+            *pValue = Abi::HardwareStage::Ps;
             break;
         case HashLiteralString(".cs"):
-            *pValue = HardwareStage::Cs;
+            *pValue = Abi::HardwareStage::Cs;
             break;
         default:
             result = Result::NotFound;
@@ -350,31 +356,31 @@ inline Result DeserializeEnum(
 // =====================================================================================================================
 inline Result SerializeEnum(
     MsgPackWriter*  pWriter,
-    HardwareStage  value)
+    Abi::HardwareStage  value)
 {
     Result result = Result::ErrorInvalidValue;
 
     switch (value)
     {
-    case HardwareStage::Ls:
+    case Abi::HardwareStage::Ls:
         result = pWriter->Pack(".ls");
         break;
-    case HardwareStage::Hs:
+    case Abi::HardwareStage::Hs:
         result = pWriter->Pack(".hs");
         break;
-    case HardwareStage::Es:
+    case Abi::HardwareStage::Es:
         result = pWriter->Pack(".es");
         break;
-    case HardwareStage::Gs:
+    case Abi::HardwareStage::Gs:
         result = pWriter->Pack(".gs");
         break;
-    case HardwareStage::Vs:
+    case Abi::HardwareStage::Vs:
         result = pWriter->Pack(".vs");
         break;
-    case HardwareStage::Ps:
+    case Abi::HardwareStage::Ps:
         result = pWriter->Pack(".ps");
         break;
-    case HardwareStage::Cs:
+    case Abi::HardwareStage::Cs:
         result = pWriter->Pack(".cs");
         break;
     default:
@@ -387,7 +393,7 @@ inline Result SerializeEnum(
 // =====================================================================================================================
 inline Result DeserializeEnum(
     MsgPackReader*  pReader,
-    PipelineSymbolType*  pValue)
+    Abi::PipelineSymbolType*  pValue)
 {
     Result result = pReader->Next(CWP_ITEM_STR);
 
@@ -399,97 +405,97 @@ inline Result DeserializeEnum(
         switch (strHash)
         {
         case HashLiteralString("unknown"):
-            *pValue = PipelineSymbolType::Unknown;
+            *pValue = Abi::PipelineSymbolType::Unknown;
             break;
         case HashLiteralString("_amdgpu_ls_main"):
-            *pValue = PipelineSymbolType::LsMainEntry;
+            *pValue = Abi::PipelineSymbolType::LsMainEntry;
             break;
         case HashLiteralString("_amdgpu_hs_main"):
-            *pValue = PipelineSymbolType::HsMainEntry;
+            *pValue = Abi::PipelineSymbolType::HsMainEntry;
             break;
         case HashLiteralString("_amdgpu_es_main"):
-            *pValue = PipelineSymbolType::EsMainEntry;
+            *pValue = Abi::PipelineSymbolType::EsMainEntry;
             break;
         case HashLiteralString("_amdgpu_gs_main"):
-            *pValue = PipelineSymbolType::GsMainEntry;
+            *pValue = Abi::PipelineSymbolType::GsMainEntry;
             break;
         case HashLiteralString("_amdgpu_vs_main"):
-            *pValue = PipelineSymbolType::VsMainEntry;
+            *pValue = Abi::PipelineSymbolType::VsMainEntry;
             break;
         case HashLiteralString("_amdgpu_ps_main"):
-            *pValue = PipelineSymbolType::PsMainEntry;
+            *pValue = Abi::PipelineSymbolType::PsMainEntry;
             break;
         case HashLiteralString("_amdgpu_cs_main"):
-            *pValue = PipelineSymbolType::CsMainEntry;
+            *pValue = Abi::PipelineSymbolType::CsMainEntry;
             break;
         case HashLiteralString("_amdgpu_fs_main"):
-            *pValue = PipelineSymbolType::FsMainEntry;
+            *pValue = Abi::PipelineSymbolType::FsMainEntry;
             break;
         case HashLiteralString("_amdgpu_ls_shdr_intrl_tbl"):
-            *pValue = PipelineSymbolType::LsShdrIntrlTblPtr;
+            *pValue = Abi::PipelineSymbolType::LsShdrIntrlTblPtr;
             break;
         case HashLiteralString("_amdgpu_hs_shdr_intrl_tbl"):
-            *pValue = PipelineSymbolType::HsShdrIntrlTblPtr;
+            *pValue = Abi::PipelineSymbolType::HsShdrIntrlTblPtr;
             break;
         case HashLiteralString("_amdgpu_es_shdr_intrl_tbl"):
-            *pValue = PipelineSymbolType::EsShdrIntrlTblPtr;
+            *pValue = Abi::PipelineSymbolType::EsShdrIntrlTblPtr;
             break;
         case HashLiteralString("_amdgpu_gs_shdr_intrl_tbl"):
-            *pValue = PipelineSymbolType::GsShdrIntrlTblPtr;
+            *pValue = Abi::PipelineSymbolType::GsShdrIntrlTblPtr;
             break;
         case HashLiteralString("_amdgpu_vs_shdr_intrl_tbl"):
-            *pValue = PipelineSymbolType::VsShdrIntrlTblPtr;
+            *pValue = Abi::PipelineSymbolType::VsShdrIntrlTblPtr;
             break;
         case HashLiteralString("_amdgpu_ps_shdr_intrl_tbl"):
-            *pValue = PipelineSymbolType::PsShdrIntrlTblPtr;
+            *pValue = Abi::PipelineSymbolType::PsShdrIntrlTblPtr;
             break;
         case HashLiteralString("_amdgpu_cs_shdr_intrl_tbl"):
-            *pValue = PipelineSymbolType::CsShdrIntrlTblPtr;
+            *pValue = Abi::PipelineSymbolType::CsShdrIntrlTblPtr;
             break;
         case HashLiteralString("_amdgpu_ls_disasm"):
-            *pValue = PipelineSymbolType::LsDisassembly;
+            *pValue = Abi::PipelineSymbolType::LsDisassembly;
             break;
         case HashLiteralString("_amdgpu_hs_disasm"):
-            *pValue = PipelineSymbolType::HsDisassembly;
+            *pValue = Abi::PipelineSymbolType::HsDisassembly;
             break;
         case HashLiteralString("_amdgpu_es_disasm"):
-            *pValue = PipelineSymbolType::EsDisassembly;
+            *pValue = Abi::PipelineSymbolType::EsDisassembly;
             break;
         case HashLiteralString("_amdgpu_gs_disasm"):
-            *pValue = PipelineSymbolType::GsDisassembly;
+            *pValue = Abi::PipelineSymbolType::GsDisassembly;
             break;
         case HashLiteralString("_amdgpu_vs_disasm"):
-            *pValue = PipelineSymbolType::VsDisassembly;
+            *pValue = Abi::PipelineSymbolType::VsDisassembly;
             break;
         case HashLiteralString("_amdgpu_ps_disasm"):
-            *pValue = PipelineSymbolType::PsDisassembly;
+            *pValue = Abi::PipelineSymbolType::PsDisassembly;
             break;
         case HashLiteralString("_amdgpu_cs_disasm"):
-            *pValue = PipelineSymbolType::CsDisassembly;
+            *pValue = Abi::PipelineSymbolType::CsDisassembly;
             break;
         case HashLiteralString("_amdgpu_ls_shdr_intrl_data"):
-            *pValue = PipelineSymbolType::LsShdrIntrlData;
+            *pValue = Abi::PipelineSymbolType::LsShdrIntrlData;
             break;
         case HashLiteralString("_amdgpu_hs_shdr_intrl_data"):
-            *pValue = PipelineSymbolType::HsShdrIntrlData;
+            *pValue = Abi::PipelineSymbolType::HsShdrIntrlData;
             break;
         case HashLiteralString("_amdgpu_es_shdr_intrl_data"):
-            *pValue = PipelineSymbolType::EsShdrIntrlData;
+            *pValue = Abi::PipelineSymbolType::EsShdrIntrlData;
             break;
         case HashLiteralString("_amdgpu_gs_shdr_intrl_data"):
-            *pValue = PipelineSymbolType::GsShdrIntrlData;
+            *pValue = Abi::PipelineSymbolType::GsShdrIntrlData;
             break;
         case HashLiteralString("_amdgpu_vs_shdr_intrl_data"):
-            *pValue = PipelineSymbolType::VsShdrIntrlData;
+            *pValue = Abi::PipelineSymbolType::VsShdrIntrlData;
             break;
         case HashLiteralString("_amdgpu_ps_shdr_intrl_data"):
-            *pValue = PipelineSymbolType::PsShdrIntrlData;
+            *pValue = Abi::PipelineSymbolType::PsShdrIntrlData;
             break;
         case HashLiteralString("_amdgpu_cs_shdr_intrl_data"):
-            *pValue = PipelineSymbolType::CsShdrIntrlData;
+            *pValue = Abi::PipelineSymbolType::CsShdrIntrlData;
             break;
         case HashLiteralString("_amdgpu_pipeline_intrl_data"):
-            *pValue = PipelineSymbolType::PipelineIntrlData;
+            *pValue = Abi::PipelineSymbolType::PipelineIntrlData;
             break;
         default:
             result = Result::NotFound;
@@ -503,103 +509,103 @@ inline Result DeserializeEnum(
 // =====================================================================================================================
 inline Result SerializeEnum(
     MsgPackWriter*  pWriter,
-    PipelineSymbolType  value)
+    Abi::PipelineSymbolType  value)
 {
     Result result = Result::ErrorInvalidValue;
 
     switch (value)
     {
-    case PipelineSymbolType::Unknown:
+    case Abi::PipelineSymbolType::Unknown:
         result = pWriter->Pack("unknown");
         break;
-    case PipelineSymbolType::LsMainEntry:
+    case Abi::PipelineSymbolType::LsMainEntry:
         result = pWriter->Pack("_amdgpu_ls_main");
         break;
-    case PipelineSymbolType::HsMainEntry:
+    case Abi::PipelineSymbolType::HsMainEntry:
         result = pWriter->Pack("_amdgpu_hs_main");
         break;
-    case PipelineSymbolType::EsMainEntry:
+    case Abi::PipelineSymbolType::EsMainEntry:
         result = pWriter->Pack("_amdgpu_es_main");
         break;
-    case PipelineSymbolType::GsMainEntry:
+    case Abi::PipelineSymbolType::GsMainEntry:
         result = pWriter->Pack("_amdgpu_gs_main");
         break;
-    case PipelineSymbolType::VsMainEntry:
+    case Abi::PipelineSymbolType::VsMainEntry:
         result = pWriter->Pack("_amdgpu_vs_main");
         break;
-    case PipelineSymbolType::PsMainEntry:
+    case Abi::PipelineSymbolType::PsMainEntry:
         result = pWriter->Pack("_amdgpu_ps_main");
         break;
-    case PipelineSymbolType::CsMainEntry:
+    case Abi::PipelineSymbolType::CsMainEntry:
         result = pWriter->Pack("_amdgpu_cs_main");
         break;
-    case PipelineSymbolType::FsMainEntry:
+    case Abi::PipelineSymbolType::FsMainEntry:
         result = pWriter->Pack("_amdgpu_fs_main");
         break;
-    case PipelineSymbolType::LsShdrIntrlTblPtr:
+    case Abi::PipelineSymbolType::LsShdrIntrlTblPtr:
         result = pWriter->Pack("_amdgpu_ls_shdr_intrl_tbl");
         break;
-    case PipelineSymbolType::HsShdrIntrlTblPtr:
+    case Abi::PipelineSymbolType::HsShdrIntrlTblPtr:
         result = pWriter->Pack("_amdgpu_hs_shdr_intrl_tbl");
         break;
-    case PipelineSymbolType::EsShdrIntrlTblPtr:
+    case Abi::PipelineSymbolType::EsShdrIntrlTblPtr:
         result = pWriter->Pack("_amdgpu_es_shdr_intrl_tbl");
         break;
-    case PipelineSymbolType::GsShdrIntrlTblPtr:
+    case Abi::PipelineSymbolType::GsShdrIntrlTblPtr:
         result = pWriter->Pack("_amdgpu_gs_shdr_intrl_tbl");
         break;
-    case PipelineSymbolType::VsShdrIntrlTblPtr:
+    case Abi::PipelineSymbolType::VsShdrIntrlTblPtr:
         result = pWriter->Pack("_amdgpu_vs_shdr_intrl_tbl");
         break;
-    case PipelineSymbolType::PsShdrIntrlTblPtr:
+    case Abi::PipelineSymbolType::PsShdrIntrlTblPtr:
         result = pWriter->Pack("_amdgpu_ps_shdr_intrl_tbl");
         break;
-    case PipelineSymbolType::CsShdrIntrlTblPtr:
+    case Abi::PipelineSymbolType::CsShdrIntrlTblPtr:
         result = pWriter->Pack("_amdgpu_cs_shdr_intrl_tbl");
         break;
-    case PipelineSymbolType::LsDisassembly:
+    case Abi::PipelineSymbolType::LsDisassembly:
         result = pWriter->Pack("_amdgpu_ls_disasm");
         break;
-    case PipelineSymbolType::HsDisassembly:
+    case Abi::PipelineSymbolType::HsDisassembly:
         result = pWriter->Pack("_amdgpu_hs_disasm");
         break;
-    case PipelineSymbolType::EsDisassembly:
+    case Abi::PipelineSymbolType::EsDisassembly:
         result = pWriter->Pack("_amdgpu_es_disasm");
         break;
-    case PipelineSymbolType::GsDisassembly:
+    case Abi::PipelineSymbolType::GsDisassembly:
         result = pWriter->Pack("_amdgpu_gs_disasm");
         break;
-    case PipelineSymbolType::VsDisassembly:
+    case Abi::PipelineSymbolType::VsDisassembly:
         result = pWriter->Pack("_amdgpu_vs_disasm");
         break;
-    case PipelineSymbolType::PsDisassembly:
+    case Abi::PipelineSymbolType::PsDisassembly:
         result = pWriter->Pack("_amdgpu_ps_disasm");
         break;
-    case PipelineSymbolType::CsDisassembly:
+    case Abi::PipelineSymbolType::CsDisassembly:
         result = pWriter->Pack("_amdgpu_cs_disasm");
         break;
-    case PipelineSymbolType::LsShdrIntrlData:
+    case Abi::PipelineSymbolType::LsShdrIntrlData:
         result = pWriter->Pack("_amdgpu_ls_shdr_intrl_data");
         break;
-    case PipelineSymbolType::HsShdrIntrlData:
+    case Abi::PipelineSymbolType::HsShdrIntrlData:
         result = pWriter->Pack("_amdgpu_hs_shdr_intrl_data");
         break;
-    case PipelineSymbolType::EsShdrIntrlData:
+    case Abi::PipelineSymbolType::EsShdrIntrlData:
         result = pWriter->Pack("_amdgpu_es_shdr_intrl_data");
         break;
-    case PipelineSymbolType::GsShdrIntrlData:
+    case Abi::PipelineSymbolType::GsShdrIntrlData:
         result = pWriter->Pack("_amdgpu_gs_shdr_intrl_data");
         break;
-    case PipelineSymbolType::VsShdrIntrlData:
+    case Abi::PipelineSymbolType::VsShdrIntrlData:
         result = pWriter->Pack("_amdgpu_vs_shdr_intrl_data");
         break;
-    case PipelineSymbolType::PsShdrIntrlData:
+    case Abi::PipelineSymbolType::PsShdrIntrlData:
         result = pWriter->Pack("_amdgpu_ps_shdr_intrl_data");
         break;
-    case PipelineSymbolType::CsShdrIntrlData:
+    case Abi::PipelineSymbolType::CsShdrIntrlData:
         result = pWriter->Pack("_amdgpu_cs_shdr_intrl_data");
         break;
-    case PipelineSymbolType::PipelineIntrlData:
+    case Abi::PipelineSymbolType::PipelineIntrlData:
         result = pWriter->Pack("_amdgpu_pipeline_intrl_data");
         break;
     default:
@@ -679,7 +685,7 @@ inline Result DeserializeShaderMetadata(
 
             case HashLiteralString(ShaderMetadataKey::HardwareMapping):
                 PAL_ASSERT(pMetadata->hasEntry.hardwareMapping == 0);
-                result = DeserializeEnumBitflags<HardwareStage>(pReader, &pMetadata->hardwareMapping);
+                result = DeserializeEnumBitflags<Abi::HardwareStage>(pReader, &pMetadata->hardwareMapping);
                 pMetadata->hasEntry.hardwareMapping = (result == Result::Success);
                 break;
 
@@ -696,14 +702,14 @@ inline Result DeserializeShaderMetadata(
 // =====================================================================================================================
 inline Result DeserializeShaderMetadata(
     MsgPackReader*  pReader,
-    ShaderMetadata (*pMetadata)[static_cast<uint32>(ApiShaderType::Count)])
+    ShaderMetadata (*pMetadata)[static_cast<uint32>(Abi::ApiShaderType::Count)])
 {
     Result result = ((pReader->Type() == CWP_ITEM_MAP) && (pReader->Get().as.map.size <= ArrayLen(*pMetadata))) ?
                     Result::Success : Result::ErrorInvalidValue;
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        ApiShaderType key = ApiShaderType::Count;
+        Abi::ApiShaderType key = Abi::ApiShaderType::Count;
         result = DeserializeEnum(pReader, &key);
 
         if (result == Result::Success)
@@ -869,14 +875,6 @@ inline Result DeserializeHardwareStageMetadata(
                 break;
             }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
-            case HashLiteralString(HardwareStageMetadataKey::MaxPrimsPerWave):
-                PAL_ASSERT(pMetadata->hasEntry.maxPrimsPerWave == 0);
-                result = pReader->UnpackNext(&pMetadata->maxPrimsPerWave);
-                pMetadata->hasEntry.maxPrimsPerWave = (result == Result::Success);
-                break;
-
-#endif
             case HashLiteralString(HardwareStageMetadataKey::UsesPrimId):
             {
                 PAL_ASSERT(pMetadata->hasEntry.usesPrimId == 0);
@@ -904,14 +902,14 @@ inline Result DeserializeHardwareStageMetadata(
 // =====================================================================================================================
 inline Result DeserializeHardwareStageMetadata(
     MsgPackReader*  pReader,
-    HardwareStageMetadata (*pMetadata)[static_cast<uint32>(HardwareStage::Count)])
+    HardwareStageMetadata (*pMetadata)[static_cast<uint32>(Abi::HardwareStage::Count)])
 {
     Result result = ((pReader->Type() == CWP_ITEM_MAP) && (pReader->Get().as.map.size <= ArrayLen(*pMetadata))) ?
                     Result::Success : Result::ErrorInvalidValue;
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        HardwareStage key = HardwareStage::Count;
+        Abi::HardwareStage key = Abi::HardwareStage::Count;
         result = DeserializeEnum(pReader, &key);
 
         if (result == Result::Success)
@@ -1039,20 +1037,6 @@ inline Result DeserializePipelineMetadata(
                 pMetadata->hasEntry.esGsLdsSize = (result == Result::Success);
                 break;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
-            case HashLiteralString(PipelineMetadataKey::StreamOutTableAddress):
-                PAL_ASSERT(pMetadata->hasEntry.streamOutTableAddress == 0);
-                result = pReader->UnpackNext(&pMetadata->streamOutTableAddress);
-                pMetadata->hasEntry.streamOutTableAddress = (result == Result::Success);
-                break;
-
-            case HashLiteralString(PipelineMetadataKey::IndirectUserDataTableAddresses):
-                PAL_ASSERT(pMetadata->hasEntry.indirectUserDataTableAddresses == 0);
-                result = pReader->UnpackNext(&pMetadata->indirectUserDataTableAddresses);
-                pMetadata->hasEntry.indirectUserDataTableAddresses = (result == Result::Success);
-                break;
-
-#endif
             case HashLiteralString(PipelineMetadataKey::NggSubgroupSize):
                 PAL_ASSERT(pMetadata->hasEntry.nggSubgroupSize == 0);
                 result = pReader->UnpackNext(&pMetadata->nggSubgroupSize);
@@ -1071,22 +1055,6 @@ inline Result DeserializePipelineMetadata(
                 pMetadata->hasEntry.meshScratchMemorySize = (result == Result::Success);
                 break;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 619
-            case HashLiteralString(PipelineMetadataKey::CalcWaveBreakSizeAtDrawTime):
-            {
-                PAL_ASSERT(pMetadata->hasEntry.calcWaveBreakSizeAtDrawTime == 0);
-                bool value = false;
-                result = pReader->UnpackNext(&value);
-
-                if (result == Result::Success)
-                {
-                    pMetadata->flags.calcWaveBreakSizeAtDrawTime = value;
-                }
-                pMetadata->hasEntry.calcWaveBreakSizeAtDrawTime = (result == Result::Success);
-                break;
-            }
-
-#endif
             case HashLiteralString(PipelineMetadataKey::Api):
                 PAL_ASSERT(pMetadata->hasEntry.api == 0);
                 result = pReader->UnpackNext(&pMetadata->api);
@@ -1116,9 +1084,9 @@ inline Result DeserializePipelineMetadata(
 }
 
 // =====================================================================================================================
-inline Result DeserializePalCodeObjectMetadata(
+inline Result DeserializeCodeObjectMetadata(
     MsgPackReader*  pReader,
-    PalCodeObjectMetadata*  pMetadata)
+    CodeObjectMetadata*  pMetadata)
 {
     Result result = (pReader->Type() == CWP_ITEM_MAP) ? Result::Success : Result::ErrorInvalidValue;
 
@@ -1133,13 +1101,13 @@ inline Result DeserializePalCodeObjectMetadata(
 
             switch (keyHash)
             {
-            case HashLiteralString(PalCodeObjectMetadataKey::Version):
+            case HashLiteralString(CodeObjectMetadataKey::Version):
                 PAL_ASSERT(pMetadata->hasEntry.version == 0);
                 result = pReader->UnpackNext(&pMetadata->version);
                 pMetadata->hasEntry.version = (result == Result::Success);
                 break;
 
-            case HashLiteralString(PalCodeObjectMetadataKey::Pipelines):
+            case HashLiteralString(CodeObjectMetadataKey::Pipelines):
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
@@ -1160,5 +1128,9 @@ inline Result DeserializePalCodeObjectMetadata(
 
 } // Metadata
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 676
 } // Abi
+#else
+} // PalAbi
+#endif
 } // Util

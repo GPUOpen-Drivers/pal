@@ -313,9 +313,10 @@ enum CacheCoherencyUsageFlags : uint32
     CoherStreamOut          = 0x00002000,     ///< Data written as stream output.
     CoherMemory             = 0x00004000,     ///< Data read or written directly from/to memory
     CoherSampleRate         = 0x00008000,     ///< CmdBindSampleRateImage() source.
+    CoherPresent            = 0x00010000,     ///< Source of present.
     CoherCp                 = CoherTimestamp, ///< HW Command Processor (CP) encompassing the front - end command
                                               ///  processing of any queue, including SDMA.
-    CoherAllUsages          = 0x0000FFFF
+    CoherAllUsages          = 0x0001FFFF
 };
 
 /// Bitmask values for the flags parameter of ICmdBuffer::CmdClearColorImage().
@@ -463,17 +464,6 @@ union CmdBufferBuildFlags
         /// or CmdWriteCeRam()
         uint32 usesCeRamCmds                :  1;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 621
-        /// Indicates that the client prefers that this command buffer use a CPU update path for updating the contents
-        /// of the vertex buffer, stream-out and user-data-spill tables instead of using CE RAM.  Ignored for command
-        /// buffers on queues or engines which don't support CE RAM.
-        ///
-        /// It is expected that the CPU update path will be slightly more efficient for scenarios where these tables'
-        /// contents are fully updated often, while the CE RAM path is expected to be more efficient at handling sparse
-        /// updates.
-        uint32 useCpuPathForTableUpdates    :  1;
-#endif
-
         /// Indicates that the client would prefer that this nested command buffer not be launched using an IB2 packet.
         /// The calling command buffer will either inline this command buffer into itself or use IB chaining based on if
         /// the optimizeExclusiveSubmit flag is also set. This flag is ignored for root command buffers.
@@ -489,13 +479,8 @@ union CmdBufferBuildFlags
         /// non-TMZ memory, the results are undefined. Only valid for graphics and compute.
         uint32  enableTmz                    :  1;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 621
-        /// Reserved for future use.
-        uint32 reserved                      :  21;
-#else
         /// Reserved for future use.
         uint32 reserved                      :  22;
-#endif
 
     };
 
@@ -539,7 +524,6 @@ struct CmdBufferBuildInfo
 /// Specifies info on how a compute shader should use resources.
 struct DynamicComputeShaderInfo
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 604
     float maxWavesPerCu; ///< Limits the number of waves in flight per compute unit.  This can be used to selectively
                          ///  throttle certain workloads that bottleneck multiqueue applications.  For ease of use, a
                          ///  value of zero means no limit is set.  The remaining valid values are in the range (0, 40]
@@ -548,13 +532,6 @@ struct DynamicComputeShaderInfo
                          ///  This option is converted internally to set set HW WavesPerSh setting and the non-integer
                          ///  maxWavesPerCu value provides more flexibility to allow arbitrary WavesPerSh value; for
                          ///  example specify less number of waves than number of CUs per shader array.
-#else
-    uint32 maxWavesPerCu; ///< Limits the number of waves in flight per compute unit.  This can be used to selectively
-                          ///  throttle certain workloads that bottleneck multiqueue applications.  For ease of use, a
-                          ///  value of zero means no limit is set.  The remaining valid values are in the range [1, 40]
-                          ///  and specify the maximum number of waves per compute unit.  If the hardware has one wave
-                          ///  limit control for multiple shader stages PAL will select the most strict limit.
-#endif
 
     uint32 maxThreadGroupsPerCu; ///< Override the maximum number of threadgroups that a particular CS can run on,
                                  ///  throttling it, to enable more graphics work to complete.  0 disables the limit.
@@ -569,7 +546,6 @@ struct DynamicComputeShaderInfo
 /// Specifies info on how a graphics shader should use resources.
 struct DynamicGraphicsShaderInfo
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 604
     float maxWavesPerCu; ///< Limits the number of waves in flight per compute unit.  This can be used to selectively
                          ///  throttle certain workloads that bottleneck multiqueue applications.  For ease of use, a
                          ///  value of zero means no limit is set.  The remaining valid values are in the range (0, 40]
@@ -578,13 +554,6 @@ struct DynamicGraphicsShaderInfo
                          ///  This option is converted internally to set set HW WavesPerSh setting and the non-integer
                          ///  maxWavesPerCu value provides more flexibility to allow arbitrary WavesPerSh value; for
                          ///  example specify less number of waves than number of CUs per shader array.
-#else
-    uint32 maxWavesPerCu; ///< Limits the number of waves in flight per compute unit.  This can be used to selectively
-                          ///  throttle certain workloads that bottleneck multiqueue applications.  For ease of use, a
-                          ///  value of zero means no limit is set.  The remaining valid values are in the range [1, 40]
-                          ///  and specify the maximum number of waves per compute unit.  If the hardware has one wave
-                          ///  limit control for multiple shader stages PAL will select the most strict limit.
-#endif
 
     uint32 cuEnableMask;  ///< This mask is AND-ed with a PAL decided CU enable mask mask to further allow limiting of
                           ///  enabled CUs.  If the hardware has one CU enable mask for multiple shader stages PAL will
@@ -1005,7 +974,6 @@ struct TypedBufferCopyRegion
 struct ImageScaledCopyRegion
 {
     SubresId           srcSubres;      ///< Selects the source subresource.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 607
     union
     {
         Offset3d       srcOffset;      ///< Offset to the start of the chosen region in the source subresource.
@@ -1017,14 +985,8 @@ struct ImageScaledCopyRegion
                                        ///  a copy in the reverse direction.
         Extent3dFloat  srcExtentFloat; ///< Alternative representation in floating point.
     };
-#else
-    Offset3d           srcOffset;      ///< Offset to the start of the chosen region in the source subresource.
-    SignedExtent3d     srcExtent;      ///< Signed size of the source region in pixels.  A negative size indicates
-                                       ///  a copy in the reverse direction.
-#endif
 
     SubresId           dstSubres;      ///< Selects the destination subresource.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 607
     union
     {
         Offset3d       dstOffset;      ///< Offset to the start of the chosen region in the destination subresource.
@@ -1036,11 +998,6 @@ struct ImageScaledCopyRegion
                                        ///  indicates a copy in the reverse direction.
         Extent3dFloat  dstExtentFloat; ///< Alternative representation in floating point.
     };
-#else
-    Offset3d           dstOffset;      ///< Offset to the start of the chosen region in the destination subresource.
-    SignedExtent3d     dstExtent;      ///< Signed size of the destination region in pixels.  A negative size
-                                       ///  indicates a copy in the reverse direction.
-#endif
 
     uint32             numSlices;      ///< Number of slices the copy will span.
     SwizzledFormat     swizzledFormat; ///< If not Undefined, reinterpret both subresources using this format and swizzle.
@@ -1101,27 +1058,17 @@ enum CopyControlFlags : uint32
                                  ///  unless both formats support @ref FormatFeatureFormatConversion.
     CopyRawSwizzle        = 0x2, ///< If possible, raw copies will swizzle from the source channel format into the
                                  ///  destination channel format (e.g., RGBA to BGRA).
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 603
     CopyEnableScissorTest = 0x4, ///< If set, do scissor test using the specified scissor rectangle.
-#endif
 };
 
 /// Specifies parameters for a resolve of one region in an MSAA source image to a region of the same size in a single
 /// sample destination image.  Used as an input to ICmdBuffer::CmdResolveImage().
 struct ImageResolveRegion
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    ImageAspect    srcAspect;       ///< Selects the source color, depth, or stencil plane.
-#else
     uint32         srcPlane;        ///< The source color, depth, or stencil plane.
-#endif
     uint32         srcSlice;        ///< Selects the source starting slice
     Offset3d       srcOffset;       ///< Offset to the start of the chosen region in the source subresource.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    ImageAspect    dstAspect;       ///< Selects the destination color, depth, or stencil plane.
-#else
     uint32         dstPlane;        ///< The destination color, depth, or stencil plane.
-#endif
     uint32         dstMipLevel;     ///< Selects destination mip level.
     uint32         dstSlice;        ///< Selects the destination starting slice
     Offset3d       dstOffset;       ///< Offset to the start of the chosen region in the destination subresource.
@@ -1805,7 +1752,14 @@ struct CmdBufInfo
             uint32 captureBegin       : 1;  ///< This command buffer begins a Direct Capture frame capture.
             uint32 captureEnd         : 1;  ///< This command buffer ends a Direct Capture frame capture.
             uint32 rayTracingExecuted : 1;  ///< This command buffer contains ray tracing work.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 677
+            uint32 preflip            : 1;  ///< This command buffer has pre-flip access to DirectCapture resource
+            uint32 postflip           : 1;  ///< This command buffer has post-flip access to DirectCapture resource
+            uint32 privateFlip        : 1;  ///< Need to flip to a private primary surface for DirectCapture feature
+            uint32 reserved           : 22; ///< Reserved for future usage.
+#else
             uint32 reserved           : 25; ///< Reserved for future usage.
+#endif
         };
         uint32 u32All;                  ///< Flags packed as uint32.
     };
@@ -1818,6 +1772,10 @@ struct CmdBufInfo
 
     const IGpuMemory* pDirectCapMemory; ///< The Direct Capture gpu memory object. It should be set if flag
                                         ///  captureBegin or captureEnd is set. Otherwise set this to nullptr.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 677
+    const IGpuMemory* pPrivFlipMemory;  ///< The gpu memory object of the private flip primary surface for the
+                                        ///  DirectCapture feature.
+#endif
 };
 
 /// Specifies rotation angle between two images.  Used as input to ICmdBuffer::CmdScaledCopyImage.
@@ -1858,9 +1816,7 @@ struct CmdPostProcessFrameInfo
 
     PresentMode presentMode;               /// The Presentation Mode of the application.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 625
     FullScreenFrameMetadataControlFlags fullScreenFrameMetadataControlFlags;
-#endif
 };
 
 /// External flags for ScaledCopyImage.
@@ -1879,22 +1835,9 @@ union ScaledCopyFlags
                                     ///  Mutually exclusive with srcColorKey.
         uint32 srcAlpha       : 1;  ///< If set, use alpha channel in source surface as blend factor.
                                     ///  color = src alpha * src color + (1.0 - src alpha) * dst color.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 626
         uint32 dstAsSrgb      : 1;  ///< If set, a non-srgb destination image will be treated as srgb format.
-#else
-        uint32 srcSrgbAsUnorm : 1;  ///< If set, an sRGB source image will be treated as linear UNORM. Has no effect if the
-                                    ///  source is not sRGB.
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 603
         uint32 scissorTest    : 1;  ///< If set, do scissor test using the specified scissor rectangle.
-#else
-        uint32 placeholder0   : 1;  ///< Placeholder, do not use
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 607
         uint32 coordsInFloat  : 1;  ///< If set, copy regions are represented in floating point type.
-#else
-        uint32 placeholder1   : 1;  ///< Placeholder, do not use
-#endif
         uint32 reserved       : 26; ///< reserved for future useage.
     };
     uint32 u32All;                  ///< Flags packed as uint32.
@@ -1912,9 +1855,7 @@ struct ScaledCopyInfo
     TexFilter                       filter;         ///< Controlling how a given texture is sampled.
     ImageRotation                   rotation;       ///< Rotation option between two images.
     const ColorKey*                 pColorKey;      ///< Color key value.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 603
     const Rect*                     pScissorRect;   ///< Scissor test rectangle.
-#endif
     ScaledCopyFlags                 flags;          ///< Copy flags, identifies the type of blt to peform.
 };
 
@@ -2362,7 +2303,6 @@ public:
     ///     write-back caches to the last-level-cache.
     ///   - Perform any requested layout transitions.
     ///
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     /// Once all of these operations are complete, the release issues a timestamp event that signals the operation
     /// completion.  The event type and timestamp value is returned to caller in a packed uint32 token.  A corresponding
     /// CmdAcquire() call is expected to wait on one or a list of such synchronization tokens and perform any necessary
@@ -2376,23 +2316,6 @@ public:
     /// @returns Synchronization token for the release operation.  Pass this token to CmdAcquire to confirm completion.
     virtual uint32 CmdRelease(
         const AcquireReleaseInfo& releaseInfo) = 0;
-#else
-    /// Once all of these operations are complete, the specified IGpuEvent object will be signaled.  A corresponding
-    /// CmdAcquire() call is expected to wait on this event and perform any necessary visibility operations and/or
-    /// layout transitions that could not be predicted at release-time.
-    ///
-    /// @note Not all hardware can support the acquire/release mechanism with good performance.  This call is only
-    ///       valid if supportAcquireReleaseInterface is set in the GFXIP properties section of @ref DeviceProperties.
-    ///
-    /// @param [in] releaseInfo Describes the synchronization scope, availability operations, and required layout
-    ///                         transitions.
-    /// @param [in] pGpuEvent   Event to be signaled once the release has completed.  Can be null, in which case
-    ///                         no event will be signaled.
-    virtual void CmdRelease(
-        const AcquireReleaseInfo& releaseInfo,
-        const IGpuEvent*          pGpuEvent)
-        { CmdReleaseEvent(releaseInfo, pGpuEvent); }
-#endif
 
     /// Performs the acquire portion of an acquire/release-based barrier.  This acquire a set of resources for a new
     /// set of usages, assuming CmdRelease() was called to release access for the resource's past usage.
@@ -2404,7 +2327,6 @@ public:
     ///   - Ensure all specified resources are visible in memory.  The visibility operation will invalidate all
     ///     relevant caches above the last-level-cache.
     ///   - Perform any requested layout transitions.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     ///   - Ensure the release(s) have completed by waiting on the synchronization token of the release operation.
     ///
     /// @param [in] acquireInfo    Describes the synchronization scope, visibility operations, and the required layout
@@ -2417,23 +2339,6 @@ public:
         const AcquireReleaseInfo& acquireInfo,
         uint32                    syncTokenCount,
         const uint32*             pSyncTokens) = 0;
-#else
-    ///   - Ensure the release(s) have completed by waiting for the specified IGpuEvent early enough in the pipeline to
-    ///     support the specified destination synchronization scope.
-    ///
-    /// @param [in] acquireInfo    Describes the synchronization scope, visibility operations, and the required layout
-    ///                            layout transitions.
-    /// @param [in] gpuEventCount  Number of entries in pGpuEvents.
-    /// @param [in] ppGpuEvents    One or more events to wait on.  Typically these will be set via CmdRelease(), but
-    ///                            it is valid to wait on an event set through a different means, like CmdSetEvent().
-    ///                            If null, the implementation will automatically wait for all prior GPU work on this
-    ///                            queue to complete before allowing future work specified in dstStageMask.
-    virtual void CmdAcquire(
-        const AcquireReleaseInfo& acquireInfo,
-        uint32                    gpuEventCount,
-        const IGpuEvent* const*   ppGpuEvents)
-        { CmdAcquireEvent(acquireInfo, gpuEventCount, ppGpuEvents);}
-#endif
 
     /// Performs the release portion of an acquire/release-based barrier.  This releases a set of resources from their
     /// current usage, while CmdAcquire() is expected to be called to acquire access to the resources for future,
@@ -2502,23 +2407,6 @@ public:
     /// in instanceCount * vertexCount vertices being processed.
     ///
     /// It is an error if the currently bound pipeline contains a mesh and/or task shader.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 632
-    ///
-    /// @param [in] firstVertex   Starting index value for the draw.  Indices passed to the vertex shader will range
-    ///                           from firstVertex to firstVertex + vertexCount - 1.
-    /// @param [in] vertexCount   Number of vertices to draw.  If zero, the draw will be discarded.
-    /// @param [in] firstInstance Starting instance for the draw.  Instance IDs passed to the vertex shader will range
-    ///                           from firstInstance to firstInstance + instanceCount - 1.
-    /// @param [in] instanceCount Number of instances to draw.  If zero, the draw will be discarded.
-    void CmdDraw(
-        uint32 firstVertex,
-        uint32 vertexCount,
-        uint32 firstInstance,
-        uint32 instanceCount)
-    {
-        m_funcTable.pfnCmdDraw(this, firstVertex, vertexCount, firstInstance, instanceCount, 0);
-    }
-#endif
     ///
     /// @param [in] firstVertex   Starting index value for the draw.  Indices passed to the vertex shader will range
     ///                           from firstVertex to firstVertex + vertexCount - 1.
@@ -2575,25 +2463,6 @@ public:
     /// + IndexBuffer[firstIndex + 1] + vertexOffset,
     /// + ...
     /// + IndexBuffer[firstIndex + indexCount - 1] + vertexOffset
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 632
-    ///
-    /// @param [in] firstIndex    Starting index buffer slot for the draw.
-    /// @param [in] indexCount    Number of vertices to draw.  If zero, the draw will be discarded.
-    /// @param [in] vertexOffset  Offset added to the index fetched from the index buffer before it is passed to the
-    ///                           vertex shader.
-    /// @param [in] firstInstance Starting instance for the draw.  Instance IDs passed to the vertex shader will range
-    ///                           from firstInstance to firstInstance + instanceCount - 1.
-    /// @param [in] instanceCount Number of instances to draw.  If zero, the draw will be discarded.
-    void CmdDrawIndexed(
-        uint32 firstIndex,
-        uint32 indexCount,
-        int32  vertexOffset,
-        uint32 firstInstance,
-        uint32 instanceCount)
-    {
-        m_funcTable.pfnCmdDrawIndexed(this, firstIndex, indexCount, vertexOffset, firstInstance, instanceCount, 0);
-    }
-#endif
     ///
     /// @param [in] firstIndex    Starting index buffer slot for the draw.
     /// @param [in] indexCount    Number of vertices to draw.  If zero, the draw will be discarded.
@@ -2867,20 +2736,6 @@ public:
         const ImageCopyRegion* pRegions,
         const Rect*            pScissorRect,
         uint32                 flags) = 0;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 603
-    void CmdCopyImage(
-        const IImage&          srcImage,
-        ImageLayout            srcImageLayout,
-        const IImage&          dstImage,
-        ImageLayout            dstImageLayout,
-        uint32                 regionCount,
-        const ImageCopyRegion* pRegions,
-        uint32                 flags)
-    {
-        CmdCopyImage(srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions, nullptr, flags);
-    }
-#endif
 
     /// Copies data directly (without format conversion) from a GPU memory object to an image.
     ///

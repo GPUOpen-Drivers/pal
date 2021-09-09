@@ -45,10 +45,6 @@ Result CreateRpmComputePipeline(
     const uint32 index = static_cast<uint32>(pipelineType);
 
     ComputePipelineCreateInfo pipeInfo = { };
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
-    pipeInfo.flags.overrideGpuHeap     = 1;
-    pipeInfo.preferredHeapType         = GpuHeap::GpuHeapLocal;
-#endif
     pipeInfo.pPipelineBinary           = pTable[index].pBuffer;
     pipeInfo.pipelineBinarySize        = pTable[index].size;
 

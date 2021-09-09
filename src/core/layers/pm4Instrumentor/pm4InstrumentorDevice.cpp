@@ -41,7 +41,7 @@ namespace Pm4Instrumentor
 // =====================================================================================================================
 // Helper function for determining if a Queue type supports instrumentation through this layer.  Currently, only the
 // Compute and Universal Queues are supported.
-PAL_INLINE bool SupportsInstrumentation(
+constexpr bool SupportsInstrumentation(
     QueueType queueType)
 {
     return ((queueType == QueueTypeUniversal) || (queueType == QueueTypeCompute));

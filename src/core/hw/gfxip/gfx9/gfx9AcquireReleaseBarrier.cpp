@@ -61,7 +61,7 @@ static uint32 Gfx9ConvertToAcquireSyncFlags(
 
     // The acquire-release barrier treats L2 as the central cache, so we never flush/inv TCC unless it's
     // direct-to-memory access.
-    if (TestAnyFlagSet(accessMask, CoherCpu | CoherMemory))
+    if (TestAnyFlagSet(accessMask, CoherCpu | CoherMemory | CoherPresent))
     {
         cacheSyncFlagsMask |= CacheSyncFlushTcc;
         pBarrierOps->caches.flushTcc = 1;
@@ -121,7 +121,7 @@ static uint32 Gfx9ConvertToReleaseSyncFlags(
 
     uint32 cacheSyncFlagsMask = 0;
 
-    if (TestAnyFlagSet(accessMask, CoherCpu | CoherMemory))
+    if (TestAnyFlagSet(accessMask, CoherCpu | CoherMemory | CoherPresent))
     {
         // At release we want to invalidate L2 so any future read to L2 would go down to memory, at acquire we want to
         // flush L2 so that main memory gets the latest data.
@@ -145,9 +145,7 @@ static BarrierTransition AcqRelBuildTransition(
     LayoutTransitionInfo          transitionInfo,
     Developer::BarrierOperations* pBarrierOps)
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(pBarrier->subresRange.numPlanes == 1);
-#endif
 
     switch (transitionInfo.blt[0])
     {
@@ -299,9 +297,7 @@ bool Device::AcqRelInitMaskRam(
     const ImgBarrier&  imgBarrier
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(imgBarrier.subresRange.numPlanes == 1);
-#endif
     // If the LayoutUninitializedTarget usage is set, no other usages should be set.
     PAL_ASSERT(TestAnyFlagSet(imgBarrier.oldLayout.usages, ~LayoutUninitializedTarget) == false);
 
@@ -344,9 +340,7 @@ void Device::AcqRelDepthStencilTransition(
     LayoutTransitionInfo layoutTransInfo
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(imgBarrier.subresRange.numPlanes == 1);
-#endif
     PAL_ASSERT(imgBarrier.pImage != nullptr);
 
     const auto& image = static_cast<const Pal::Image&>(*imgBarrier.pImage);
@@ -381,7 +375,6 @@ void Device::AcqRelDepthStencilTransition(
     }
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // =====================================================================================================================
 // Issue the specified BLT operation(s) (i.e., decompresses) necessary to convert a color image from one ImageLayout to
 // another.
@@ -393,9 +386,7 @@ void Device::AcqRelColorTransition(
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(imgBarrier.subresRange.numPlanes == 1);
-#endif
     PAL_ASSERT(imgBarrier.pImage != nullptr);
 
     const EngineType engineType = pCmdBuf->GetEngineType();
@@ -503,9 +494,7 @@ void Device::AcqRelColorTransition(
         }
     }
 }
-#endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // =====================================================================================================================
 // Issue appropriate cache sync hardware commands to satisfy the cache release requirements.
 AcqRelSyncToken Device::IssueReleaseSync(
@@ -691,9 +680,7 @@ AcqRelSyncToken Device::IssueReleaseSync(
 
     return syncToken;
 }
-#endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // =====================================================================================================================
 // Issue appropriate cache sync hardware commands to satisfy the cache acquire requirements.
 // Note: The list of sync tokens cannot be cleared by this function and make it const.If multiple IssueAcquireSync are
@@ -897,7 +884,6 @@ void Device::IssueAcquireSync(
 
     pCmdStream->CommitCommands(pCmdSpace);
 }
-#endif
 
 // =====================================================================================================================
 // Figure out the specific BLT operation(s) necessary to convert a color image from one ImageLayout to another.
@@ -909,9 +895,7 @@ LayoutTransitionInfo Device::PrepareColorBlt(
     ImageLayout         newLayout
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(subresRange.numPlanes == 1);
-#endif
 
     auto&                       gfx9Image      = static_cast<Gfx9::Image&>(*image.GetGfxImage());
     const Gfx9::Image&          gfx9ImageConst = gfx9Image;
@@ -1057,9 +1041,7 @@ LayoutTransitionInfo Device::PrepareDepthStencilBlt(
     ImageLayout         newLayout
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(subresRange.numPlanes == 1);
-#endif
 
     const auto& gfx9Image = static_cast<const Image&>(*image.GetGfxImage());
 
@@ -1121,9 +1103,7 @@ LayoutTransitionInfo Device::PrepareBltInfo(
     const ImgBarrier& imgBarrier
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(imgBarrier.subresRange.numPlanes == 1);
-#endif
     // At least one usage must be specified for the old and new layouts.
     PAL_ASSERT((imgBarrier.oldLayout.usages != 0) && (imgBarrier.newLayout.usages != 0));
 
@@ -1212,8 +1192,9 @@ static bool WaRefreshTccToAlignMetadata(
     {
         // Because we are not able to convert CoherCopy, CoherClear, CoherResolve to specific frontend or backend
         // coherency flags, we cannot make accurate decision here. This code works hard to not over-sync too much.
-        constexpr uint32 MaybeTextureCache  = CacheCoherencyBlt | CoherShader | CoherSampleRate;
-        constexpr uint32 MaybeFixedFunction = CacheCoherencyBlt | CoherColorTarget | CoherDepthStencilTarget;
+        constexpr uint32 MaybeTextureCache  = CacheCoherencyBlt | CoherPresent | CoherShader | CoherSampleRate;
+        constexpr uint32 MaybeFixedFunction = CacheCoherencyBlt | CoherPresent | CoherColorTarget |
+                                              CoherDepthStencilTarget;
 
         if ((TestAnyFlagSet(srcAccessMask, MaybeFixedFunction) && TestAnyFlagSet(dstAccessMask, MaybeTextureCache)) ||
             (TestAnyFlagSet(srcAccessMask, MaybeTextureCache) && TestAnyFlagSet(dstAccessMask, MaybeFixedFunction)))
@@ -1225,7 +1206,6 @@ static bool WaRefreshTccToAlignMetadata(
     return needRefreshL2;
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // =====================================================================================================================
 // BarrierRelease perform any necessary layout transition, availability operation, and enqueue command(s) to set a given
 // IGpuEvent object once the prior operations' intersection with the given synchronization scope is confirmed complete.
@@ -1414,9 +1394,7 @@ AcqRelSyncToken Device::BarrierRelease(
 
     return syncToken;
 }
-#endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // =====================================================================================================================
 // BarrierAcquire will wait on the specified IGpuEvent object to be signaled, perform any necessary layout transition,
 // and issue the required visibility operations. The visibility operation will invalidate the required ranges in local
@@ -1629,17 +1607,12 @@ void Device::BarrierAcquire(
         }
     }
 }
-#endif
 
 // =====================================================================================================================
 // BarrierReleaseThenAcquire is effectively the same as calling BarrierRelease immediately by calling BarrierAcquire.
 // This is a convenience method for clients implementing single point barriers, and is functionally equivalent to the
 // current CmdBarrier() interface.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // The BarrierReleaseand BarrierAcquire calls are associated by a sync token.
-#else
-// The BarrierReleaseand BarrierAcquire calls are associated by an internal GPU event.
-#endif
 void Device::BarrierReleaseThenAcquire(
     GfxCmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
@@ -1647,12 +1620,6 @@ void Device::BarrierReleaseThenAcquire(
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 648
-    // Internal event per command buffer is used for ReleaseThenAcquire case. All release/acquire-based barriers in the
-    // same command buffer use the same event.
-    const IGpuEvent* pEvent = pCmdBuf->GetInternalEvent();
-#endif
-
     Result result = Result::Success;
 
     AutoBuffer<MemBarrier, 8, Platform> memBarriers(barrierInfo.memoryBarrierCount, GetPlatform());
@@ -1686,9 +1653,7 @@ void Device::BarrierReleaseThenAcquire(
         {
             for (uint32 i = 0; i < barrierInfo.imageBarrierCount; i++)
             {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
                 PAL_ASSERT(barrierInfo.pImageBarriers[i].subresRange.numPlanes == 1);
-#endif
                 imgBarriers[i].pImage             = barrierInfo.pImageBarriers[i].pImage;
                 imgBarriers[i].subresRange        = barrierInfo.pImageBarriers[i].subresRange;
                 imgBarriers[i].box                = barrierInfo.pImageBarriers[i].box;
@@ -1721,15 +1686,11 @@ void Device::BarrierReleaseThenAcquire(
     releaseInfo.imageBarrierCount   = barrierInfo.imageBarrierCount;
     releaseInfo.pImageBarriers      = &imgBarriers[0];
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     const AcqRelSyncToken syncToken = BarrierRelease(pCmdBuf,
                                                      pCmdStream,
                                                      releaseInfo,
                                                      pBarrierOps,
                                                      waMetaMisalignNeedRefreshLlc);
-#else
-    BarrierReleaseEvent(pCmdBuf, pCmdStream, releaseInfo, pEvent, pBarrierOps, waMetaMisalignNeedRefreshLlc);
-#endif
 
     // Build BarrierAcquire function.
     AcquireReleaseInfo acquireInfo;
@@ -1756,11 +1717,7 @@ void Device::BarrierReleaseThenAcquire(
     }
     acquireInfo.pImageBarriers = &imgBarriers[0];
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     BarrierAcquire(pCmdBuf, pCmdStream, acquireInfo, 1, &syncToken, pBarrierOps, waMetaMisalignNeedRefreshLlc);
-#else
-    BarrierAcquireEvent(pCmdBuf, pCmdStream, acquireInfo, 1, &pEvent, pBarrierOps, waMetaMisalignNeedRefreshLlc);
-#endif
 }
 
 // =====================================================================================================================
@@ -1773,9 +1730,7 @@ void Device::IssueBlt(
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(pImgBarrier->subresRange.numPlanes == 1);
-#endif
     PAL_ASSERT(pImgBarrier != nullptr);
     PAL_ASSERT(layoutTransInfo.blt[0] != HwLayoutTransition::None);
     PAL_ASSERT(pBarrierOps != nullptr);
@@ -1804,11 +1759,7 @@ void Device::IssueBlt(
         else
         {
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
             AcqRelColorTransition(pCmdBuf, pCmdStream, *pImgBarrier, layoutTransInfo, pBarrierOps);
-#else
-            AcqRelColorTransitionEvent(pCmdBuf, pCmdStream, *pImgBarrier, layoutTransInfo, pBarrierOps);
-#endif
         }
     }
 }
@@ -1824,7 +1775,7 @@ uint32 Device::Gfx10BuildReleaseGcrCntl(
     PAL_ASSERT(pBarrierOps != nullptr);
     Gfx10ReleaseMemGcrCntl gcrCntl = {};
 
-    if (TestAnyFlagSet(accessMask, CoherCpu | CoherMemory))
+    if (TestAnyFlagSet(accessMask, CoherCpu | CoherMemory | CoherPresent))
     {
         // At release we want to invalidate L2 so any future read to L2 would go down to memory, at acquire we want to
         // flush L2 so that main memory gets the latest data.
@@ -1945,7 +1896,7 @@ uint32 Device::Gfx10BuildAcquireGcrCntl(
         gcrCntl.bits.gl2Inv          = 1;
         pBarrierOps->caches.invalTcc = 1;
     }
-    if (TestAnyFlagSet(accessMask, CoherCpu | CoherMemory))
+    if (TestAnyFlagSet(accessMask, CoherCpu | CoherMemory | CoherPresent))
     {
         gcrCntl.bits.gl2Wb           = 1;
         pBarrierOps->caches.flushTcc = 1;
@@ -1976,10 +1927,7 @@ void Device::AcqRelColorTransitionEvent(
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(imgBarrier.subresRange.numPlanes == 1);
-#endif
-
     PAL_ASSERT(imgBarrier.pImage != nullptr);
 
     const EngineType engineType = pCmdBuf->GetEngineType();
@@ -2470,9 +2418,7 @@ void Device::BarrierReleaseEvent(
         for (uint32 i = 0; i < barrierReleaseInfo.imageBarrierCount; i++)
         {
             const ImgBarrier& imageBarrier = barrierReleaseInfo.pImageBarriers[i];
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
             PAL_ASSERT(imageBarrier.subresRange.numPlanes == 1);
-#endif
 
             // Update client requested access mask.
             preBltAccessMask |= imageBarrier.srcAccessMask;
@@ -2645,9 +2591,7 @@ void Device::BarrierAcquireEvent(
         for (uint32 i = 0; i < barrierAcquireInfo.imageBarrierCount; i++)
         {
             const auto& imgBarrier = barrierAcquireInfo.pImageBarriers[i];
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
             PAL_ASSERT(imgBarrier.subresRange.numPlanes == 1);
-#endif
 
             // Prepare a layout transition BLT info and do pre-BLT preparation work.
             const LayoutTransitionInfo layoutTransInfo     = PrepareBltInfo(pCmdBuf, imgBarrier);
@@ -2808,9 +2752,7 @@ void Device::BarrierAcquireEvent(
         {
             const ImgBarrier& imgBarrier = barrierAcquireInfo.pImageBarriers[i];
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
             PAL_ASSERT(imgBarrier.subresRange.numPlanes == 1);
-#endif
             const Pal::Image& image = static_cast<const Pal::Image&>(*imgBarrier.pImage);
 
             IssueAcquireSyncEvent(pCmdBuf,

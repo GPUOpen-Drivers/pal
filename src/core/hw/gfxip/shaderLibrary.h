@@ -37,7 +37,7 @@ class ShaderLibraryUploader;
 using AbiReader = Util::Abi::PipelineAbiReader;
 
 // Shorthand for the PAL code object metadata structure.
-using CodeObjectMetadata = Util::Abi::PalCodeObjectMetadata;
+using CodeObjectMetadata = Util::PalAbi::CodeObjectMetadata;
 
 // Structure describing the shader function statistics.
 struct ShaderFuncStats

@@ -338,9 +338,6 @@ Result PresentScheduler::DoCpuPresentBlit(
         const ChNumFormat imgFormat = pImage->GetImageCreateInfo().swizzledFormat.format;
 
         MemoryImageCopyRegion copyRegion = {};
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        copyRegion.imageSubres = {ImageAspect::Color, 0, 0};
-#endif
         copyRegion.imageExtent = pImage->GetImageCreateInfo().extent;
 
         copyRegion.numSlices = 1;

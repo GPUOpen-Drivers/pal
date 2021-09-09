@@ -269,11 +269,7 @@ Result GraphicsPipeline::HwlInit(
         PipelineUploader uploader(m_pDevice->Parent(), abiReader);
         result = PerformRelocationsAndUploadToGpuMemory(
             metadata,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
-            (createInfo.flags.overrideGpuHeap == 1) ? createInfo.preferredHeapType : GpuHeapInvisible,
-#else
             IsInternal() ? GpuHeapLocal : m_pDevice->Parent()->GetPublicSettings()->pipelinePreferredHeap,
-#endif
             &uploader);
 
         if (result == Result::Success)
@@ -440,12 +436,8 @@ uint32 GraphicsPipeline::CalcMaxWavesPerSe(
     // Limits given by the ELF will only apply if the caller doesn't set their own limit.
     uint32 wavesPerSe = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 630
     const auto& gfx9ChipProps = m_pDevice->Parent()->ChipProperties().gfx9;
     wavesPerSe = CalcMaxWavesPerSh(maxWavesPerCu1, maxWavesPerCu2) * gfx9ChipProps.numShaderArrays;
-#else
-    wavesPerSe = CalcMaxWavesPerSh(maxWavesPerCu1, maxWavesPerCu2);
-#endif
 
     return wavesPerSe;
 }
@@ -823,24 +815,15 @@ void GraphicsPipeline::SetupCommonRegisters(
     m_regs.context.spiShaderPosFormat.u32All = registers.At(mmSPI_SHADER_POS_FORMAT);
     m_regs.context.spiShaderZFormat.u32All   = registers.At(mmSPI_SHADER_Z_FORMAT);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 644
-        m_regs.context.paClClipCntl.bits.DX_CLIP_SPACE_DEF = (createInfo.viewportInfo.depthRange == DepthRange::ZeroToOne);
-        if (createInfo.viewportInfo.depthClipNearEnable == false)
-        {
-            m_regs.context.paClClipCntl.bits.ZCLIP_NEAR_DISABLE = 1;
-        }
-        if (createInfo.viewportInfo.depthClipFarEnable == false)
-        {
-            m_regs.context.paClClipCntl.bits.ZCLIP_FAR_DISABLE = 1;
-        }
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 629
-        m_regs.context.paClClipCntl.bits.DX_CLIP_SPACE_DEF = (createInfo.viewportInfo.depthRange == DepthRange::ZeroToOne);
-        if (createInfo.viewportInfo.depthClipEnable == false)
-        {
-            m_regs.context.paClClipCntl.bits.ZCLIP_NEAR_DISABLE = 1;
-            m_regs.context.paClClipCntl.bits.ZCLIP_FAR_DISABLE = 1;
-        }
-#endif
+    m_regs.context.paClClipCntl.bits.DX_CLIP_SPACE_DEF = (createInfo.viewportInfo.depthRange == DepthRange::ZeroToOne);
+    if (createInfo.viewportInfo.depthClipNearEnable == false)
+    {
+        m_regs.context.paClClipCntl.bits.ZCLIP_NEAR_DISABLE = 1;
+    }
+    if (createInfo.viewportInfo.depthClipFarEnable == false)
+    {
+        m_regs.context.paClClipCntl.bits.ZCLIP_FAR_DISABLE = 1;
+    }
 
     registers.HasEntry(Gfx09_10::mmVGT_GS_ONCHIP_CNTL, &m_regs.context.vgtGsOnchipCntl.u32All);
 

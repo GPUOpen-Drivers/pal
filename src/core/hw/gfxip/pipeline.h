@@ -107,10 +107,10 @@ struct PerfDataInfo
 };
 
 // Shorthand for a pipeline ABI reader.
-typedef Util::Abi::PipelineAbiReader AbiReader;
+using AbiReader = Util::Abi::PipelineAbiReader;
 
 // Shorthand for the PAL code object metadata structure.
-typedef Util::Abi::PalCodeObjectMetadata  CodeObjectMetadata;
+using CodeObjectMetadata = Util::PalAbi::CodeObjectMetadata;
 
 // =====================================================================================================================
 // Monolithic object containing all shaders and a large amount of "shader adjacent" state.  Separate concrete

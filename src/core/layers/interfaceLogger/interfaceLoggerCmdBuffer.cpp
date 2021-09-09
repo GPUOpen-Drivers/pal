@@ -932,7 +932,6 @@ void CmdBuffer::CmdBarrier(
     }
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // =====================================================================================================================
 uint32 CmdBuffer::CmdRelease(
     const AcquireReleaseInfo& releaseInfo)
@@ -1047,7 +1046,6 @@ void CmdBuffer::CmdAcquire(
         }
     }
 }
-#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdReleaseEvent(

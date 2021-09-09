@@ -146,10 +146,8 @@ function(pal_compile_definitions TARGET)
         >
     )
 
-    if(UNIX)
-        if (PAL_DISPLAY_DCC)
-            target_compile_definitions(${TARGET} PRIVATE PAL_DISPLAY_DCC=1)
-        endif()
+    if(PAL_AMDGPU_BUILD AND PAL_DISPLAY_DCC)
+        target_compile_definitions(${TARGET} PRIVATE PAL_DISPLAY_DCC=1)
     endif()
 
 #if PAL_DEVELOPER_BUILD
@@ -165,22 +163,20 @@ function(pal_compile_definitions TARGET)
     # Describe the client
     target_compile_definitions(${TARGET} PUBLIC PAL_CLIENT_${PAL_CLIENT}=1)
 
-    target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_CORE=1)
+    if (PAL_BUILD_CORE)
+        target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_CORE=1)
+    endif()
 
     if(PAL_AMDGPU_BUILD)
-        message_verbose("PAL build with amdgpu back-end enabled")
+        message(STATUS "PAL build with amdgpu back-end enabled")
 
         target_compile_definitions(${TARGET} PUBLIC PAL_AMDGPU_BUILD=1)
 
         if(PAL_BUILD_DRI3)
-            message_verbose("PAL build with DRI3 enabled")
-
             target_compile_definitions(${TARGET} PRIVATE PAL_HAVE_DRI3_PLATFORM=1)
         endif()
 
         if (PAL_BUILD_WAYLAND)
-            message_verbose("PAL build with Wayland enabled")
-
             target_compile_definitions(${TARGET} PRIVATE PAL_HAVE_WAYLAND_PLATFORM=1)
         endif()
     endif()

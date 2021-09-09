@@ -3418,7 +3418,6 @@ Result GpaSession::AcquirePerfExperiment(
 
                     if (Util::TestAnyFlagSet(traceSeMask, 1 << i))
                     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 623
                         // Build another mask of detailed info such as instruction tracing of SEs in order for gpu
                         // profiler tools, And the shader type mask controls which shader stages emit detailed tokens
                         // Note: An SE detailed mask of 0 means that detailed tokens should be enabled for all SEs.
@@ -3447,7 +3446,7 @@ Result GpaSession::AcquirePerfExperiment(
                         {
                             sqttInfo.optionValues.threadTraceTokenConfig = SqttTokenConfigAllTokens;
                         }
-#endif
+
                         sqttInfo.instance = i;
                         result = pExperiment->AddThreadTrace(sqttInfo);
                     }

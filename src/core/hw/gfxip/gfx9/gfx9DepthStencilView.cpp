@@ -83,29 +83,17 @@ DepthStencilView::DepthStencilView(
     if (m_flags.depth && m_flags.stencil)
     {
         // Depth & Stencil view.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        m_depthSubresource.aspect       = ImageAspect::Depth;
-#else
         m_depthSubresource.plane        = 0;
-#endif
         m_depthSubresource.mipLevel     = createInfo.mipLevel;
         m_depthSubresource.arraySlice   = 0;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        m_stencilSubresource.aspect     = ImageAspect::Stencil;
-#else
         m_stencilSubresource.plane      = 1;
-#endif
         m_stencilSubresource.mipLevel   = createInfo.mipLevel;
         m_stencilSubresource.arraySlice = 0;
     }
     else if (m_flags.depth)
     {
         // Depth-only view.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        m_depthSubresource.aspect     = ImageAspect::Depth;
-#else
         m_depthSubresource.plane      = 0;
-#endif
         m_depthSubresource.mipLevel   = createInfo.mipLevel;
         m_depthSubresource.arraySlice = 0;
         m_stencilSubresource          = m_depthSubresource;
@@ -113,12 +101,8 @@ DepthStencilView::DepthStencilView(
     else
     {
         // Stencil-only view.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        m_stencilSubresource.aspect     = ImageAspect::Stencil;
-#else
-        m_stencilSubresource.plane      =
+        m_stencilSubresource.plane =
             parent.SupportsDepth(imageInfo.swizzledFormat.format, imageInfo.tiling) ? 1 : 0;
-#endif
         m_stencilSubresource.mipLevel   = createInfo.mipLevel;
         m_stencilSubresource.arraySlice = 0;
         m_depthSubresource              = m_stencilSubresource;
@@ -195,7 +179,6 @@ void DepthStencilView::InitRegistersCommon(
                 (imageCreateInfo.usageFlags.shaderRead == 1) ? settings.dbPerTileExpClearEnable : 0;
 
         pRegs->dbHtileSurface.u32All   = pHtile->DbHtileSurface(m_depthSubresource.mipLevel).u32All;
-        pRegs->dbPreloadControl.u32All = pHtile->DbPreloadControl(m_depthSubresource.mipLevel).u32All;
 
         if (m_flags.depthMetadataTexFetch)
         {
@@ -605,11 +588,7 @@ void Gfx9DepthStencilView::InitRegisters(
     const auto*                 pAddrMgr             = static_cast<const AddrMgr2::AddrMgr2*>(pPalDevice->GetAddrMgr());
     const SubResourceInfo*const pDepthSubResInfo     = pParent->SubresourceInfo(m_depthSubresource);
     const SubResourceInfo*const pStencilSubResInfo   = pParent->SubresourceInfo(m_stencilSubresource);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const SubresId              baseDepthSubResId    = { m_depthSubresource.aspect, 0 , 0 };
-#else
     const SubresId              baseDepthSubResId    = { m_depthSubresource.plane, 0 , 0 };
-#endif
     const SubResourceInfo*const pBaseDepthSubResInfo = pParent->SubresourceInfo(baseDepthSubResId);
 
     const ADDR2_COMPUTE_SURFACE_INFO_OUTPUT*const pDepthAddrInfo = m_pImage->GetAddrOutput(pDepthSubResInfo);
@@ -663,7 +642,6 @@ uint32* Gfx9DepthStencilView::WriteCommands(
                                                    &regs.dbRenderOverride2,
                                                    pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_HTILE_SURFACE, regs.dbHtileSurface.u32All, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_PRELOAD_CONTROL, regs.dbPreloadControl.u32All, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_RENDER_CONTROL, regs.dbRenderControl.u32All, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_SU_POLY_OFFSET_DB_FMT_CNTL,
                                                   regs.paSuPolyOffsetDbFmtCntl.u32All,
@@ -767,11 +745,7 @@ void Gfx10DepthStencilView::InitRegisters(
 
     const SubResourceInfo*const pDepthSubResInfo     = pParentImg->SubresourceInfo(m_depthSubresource);
     const SubResourceInfo*const pStencilSubResInfo   = pParentImg->SubresourceInfo(m_stencilSubresource);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const SubresId              baseDepthSubResId    = { m_depthSubresource.aspect, 0 , 0 };
-#else
     const SubresId              baseDepthSubResId    = { m_depthSubresource.plane, 0 , 0 };
-#endif
     const SubResourceInfo*const pBaseDepthSubResInfo = pParentImg->SubresourceInfo(baseDepthSubResId);
 
     InitRegistersCommon(device, createInfo, internalInfo, pFmtInfo, &m_regs);

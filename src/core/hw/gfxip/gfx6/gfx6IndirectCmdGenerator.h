@@ -157,7 +157,7 @@ private:
 // Helper function for updating a command buffer's tracking of which user-data entries have known values after running
 // an indirect-command generator and executing the generated commands.
 template <typename Signature>
-static void PAL_INLINE CommandGeneratorTouchedUserData(
+void CommandGeneratorTouchedUserData(
     UserDataFlags&              mask,
     const IndirectCmdGenerator& generator,
     const Signature&            signature)

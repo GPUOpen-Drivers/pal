@@ -420,11 +420,9 @@ ImageCopyEngine RsrcProcMgr::GetImageToImageCopyEngine(
         engineType = ImageCopyEngine::Graphics;
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 603
     // Scissor-enabled blit for OGLP is only supported on graphics path.
     PAL_ASSERT((engineType == ImageCopyEngine::Graphics) ||
                (TestAnyFlagSet(copyFlags, CopyEnableScissorTest) == false));
-#endif
 
     return engineType;
 }
@@ -608,11 +606,7 @@ void RsrcProcMgr::CopyColorImageGraphics(
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
 
     SubresRange viewRange = { };
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    viewRange.startSubres = srcImage.GetBaseSubResource();
-#else
     viewRange.numPlanes   = 1;
-#endif
     viewRange.numMips     = srcCreateInfo.mipLevels;
     // Use the depth of base subresource as the number of array slices since 3D image is viewed as 2D array
     // later. Src image view is set up as a whole rather than per mip-level, using base subresource's depth
@@ -714,7 +708,6 @@ void RsrcProcMgr::CopyColorImageGraphics(
         viewportInfo.viewports[0].width   = static_cast<float>(copyRegion.extent.width);
         viewportInfo.viewports[0].height  = static_cast<float>(copyRegion.extent.height);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 603
         if (TestAnyFlagSet(flags, CopyEnableScissorTest))
         {
             scissorInfo.scissors[0].offset.x      = pScissorRect->offset.x;
@@ -723,7 +716,6 @@ void RsrcProcMgr::CopyColorImageGraphics(
             scissorInfo.scissors[0].extent.height = pScissorRect->extent.height;
         }
         else
-#endif
         {
             scissorInfo.scissors[0].offset.x      = copyRegion.dstOffset.x;
             scissorInfo.scissors[0].offset.y      = copyRegion.dstOffset.y;
@@ -762,9 +754,7 @@ void RsrcProcMgr::CopyColorImageGraphics(
                 const bool singlezRangeAccess = (srcCreateInfo.imageType == ImageType::Tex3d) &&
                                                 HwlNeedSinglezRangeAccess();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
                 viewRange.numPlanes   = 1;
-#endif
                 viewRange.numMips     = 1;
                 viewRange.numSlices   = 1;
                 viewRange.startSubres = copyRegion.srcSubres;
@@ -932,7 +922,6 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
     viewportInfo.viewports[0].width   = static_cast<float>(pRegions[0].extent.width);
     viewportInfo.viewports[0].height  = static_cast<float>(pRegions[0].extent.height);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 603
     if (TestAnyFlagSet(flags, CopyEnableScissorTest))
     {
         scissorInfo.scissors[0].offset.x      = pScissorRect->offset.x;
@@ -941,7 +930,6 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
         scissorInfo.scissors[0].extent.height = pScissorRect->extent.height;
     }
     else
-#endif
     {
         scissorInfo.scissors[0].offset.x      = pRegions[0].dstOffset.x;
         scissorInfo.scissors[0].offset.y      = pRegions[0].dstOffset.y;
@@ -991,11 +979,7 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
         for (uint32 idx = 0; idx < regionCount; idx++)
         {
             // Same sanity checks of the region planes.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            const bool isDepth = (pRegions[idx].dstSubres.aspect == ImageAspect::Depth);
-#else
             const bool isDepth = dstImage.IsDepthPlane(pRegions[idx].dstSubres.plane);
-#endif
             bool isDepthStencil = false;
 
             BindTargetParams bindTargetsInfo = {};
@@ -1020,13 +1004,8 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
                 // TODO: there is unknown corruption issue if grouping depth and stencil copy together for mipmap
                 //       image, disallow merging copy for mipmap image as a temp fix.
                 if ((dstCreateInfo.mipLevels                   == 1)                                  &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                    (pRegions[forwardIdx].srcSubres.aspect     != pRegions[idx].srcSubres.aspect)     &&
-                    (pRegions[forwardIdx].dstSubres.aspect     != pRegions[idx].dstSubres.aspect)     &&
-#else
                     (pRegions[forwardIdx].srcSubres.plane      != pRegions[idx].srcSubres.plane)      &&
                     (pRegions[forwardIdx].dstSubres.plane      != pRegions[idx].dstSubres.plane)      &&
-#endif
                     (pRegions[forwardIdx].srcSubres.mipLevel   == pRegions[idx].srcSubres.mipLevel)   &&
                     (pRegions[forwardIdx].dstSubres.mipLevel   == pRegions[idx].dstSubres.mipLevel)   &&
                     (pRegions[forwardIdx].srcSubres.arraySlice == pRegions[idx].srcSubres.arraySlice) &&
@@ -1106,11 +1085,7 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
                 {
                     // Populate the table with an image view of the source image.
                     ImageViewInfo imageView[2] = {};
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                    SubresRange viewRange      = { pRegions[idx].srcSubres, 1, 1 };
-#else
                     SubresRange viewRange      = { pRegions[idx].srcSubres, 1, 1, 1 };
-#endif
 
                     viewRange.startSubres.arraySlice += slice;
 
@@ -1127,11 +1102,7 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
                         { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
                     };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                    viewRange        = { pRegions[secondSurface].srcSubres, 1, 1 };
-#else
                     viewRange        = { pRegions[secondSurface].srcSubres, 1, 1, 1 };
-#endif
 
                     viewRange.startSubres.arraySlice += slice;
 
@@ -1147,11 +1118,7 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
                 {
                     // Populate the table with an image view of the source image.
                     ImageViewInfo imageView = {};
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                    SubresRange   viewRange = { pRegions[idx].srcSubres, 1, 1 };
-#else
                     SubresRange   viewRange = { pRegions[idx].srcSubres, 1, 1, 1 };
-#endif
 
                     viewRange.startSubres.arraySlice += slice;
 
@@ -1217,9 +1184,7 @@ void RsrcProcMgr::CopyImageCompute(
     uint32                 flags
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 603
     PAL_ASSERT(TestAnyFlagSet(flags, CopyEnableScissorTest) == false);
-#endif
 
     const auto&     device        = *m_pDevice->Parent();
     const auto&     dstCreateInfo = dstImage.GetImageCreateInfo();
@@ -1432,11 +1397,7 @@ void RsrcProcMgr::CopyImageCompute(
         const uint32 numSlices = (imageType == ImageType::Tex3d) ? copyRegion.extent.depth : copyRegion.numSlices;
 
         ImageViewInfo imageView[2] = {};
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        SubresRange   viewRange    = { copyRegion.dstSubres, 1, numSlices };
-#else
         SubresRange   viewRange    = { copyRegion.dstSubres, 1, 1, numSlices };
-#endif
 
         PAL_ASSERT(TestAnyFlagSet(dstImageLayout.usages, LayoutShaderWrite | LayoutCopyDst) == true);
         RpmUtil::BuildImageViewInfo(&imageView[0],
@@ -2119,11 +2080,7 @@ void RsrcProcMgr::CopyBetweenMemoryAndImage(
             device.CreateTypedBufferViewSrds(1, &bufferView, pUserData);
             pUserData += SrdDwordAlignment();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            const SubresRange viewRange = { copyRegion.imageSubres, 1, copyRegion.numSlices };
-#else
             const SubresRange viewRange = { copyRegion.imageSubres, 1, 1, copyRegion.numSlices };
-#endif
             ImageViewInfo     imageView = {};
 
             RpmUtil::BuildImageViewInfo(&imageView,
@@ -2337,10 +2294,8 @@ bool RsrcProcMgr::ScaledCopyImageUseGraphics(
                                    (isYuv == false)                   &&
                                    (p2pBltWa == false)));
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 603
     // Scissor-enabled blit for OGLP is only supported on graphics path.
     PAL_ASSERT(useGraphicsCopy || (copyInfo.flags.scissorTest == 0));
-#endif
 
     return useGraphicsCopy;
 }
@@ -2464,9 +2419,7 @@ void RsrcProcMgr::GenerateMipmapsFast(
 
     // We will specify the base subresource later on.
     transition.imageInfo.pImage                = genInfo.pImage;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     transition.imageInfo.subresRange.numPlanes = 1;
-#endif
     transition.imageInfo.subresRange.numMips   = 1;
     transition.imageInfo.subresRange.numSlices = genInfo.range.numSlices;
     transition.imageInfo.oldLayout             = genInfo.genMipLayout;
@@ -2495,10 +2448,9 @@ void RsrcProcMgr::GenerateMipmapsFast(
         PAL_NOT_IMPLEMENTED();
     }
 
-    SubresId srcSubres = genInfo.range.startSubres;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
-    for (; srcSubres.plane < (genInfo.range.startSubres.plane + genInfo.range.numPlanes); srcSubres.plane++)
-#endif
+    for (SubresId srcSubres = genInfo.range.startSubres;
+         srcSubres.plane < (genInfo.range.startSubres.plane + genInfo.range.numPlanes);
+         srcSubres.plane++)
     {
         srcSubres.mipLevel   = genInfo.range.startSubres.mipLevel - 1;
         srcSubres.arraySlice = genInfo.range.startSubres.arraySlice;
@@ -2564,11 +2516,7 @@ void RsrcProcMgr::GenerateMipmapsFast(
                         "Gamma correction for sRGB image writes is not yet implemented in the mipgen shader.");
                 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                SubresRange viewRange = { srcSubres, 1, 1 };
-#else
                 SubresRange viewRange = { srcSubres, 1, 1, 1 };
-#endif
 
                 ImageViewInfo srcImageView = { };
                 RpmUtil::BuildImageViewInfo(&srcImageView,
@@ -2659,13 +2607,7 @@ void RsrcProcMgr::GenerateMipmapsSlow(
     // We will use scaled image copies to generate each mip. Most of the copy state is identical but we must adjust the
     // copy region for each generated subresource.
     ImageScaledCopyRegion region = {};
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    region.srcSubres.aspect     = genInfo.range.startSubres.aspect;
-#endif
     region.srcSubres.arraySlice = genInfo.range.startSubres.arraySlice;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    region.dstSubres.aspect     = genInfo.range.startSubres.aspect;
-#endif
     region.dstSubres.arraySlice = genInfo.range.startSubres.arraySlice;
     region.numSlices            = genInfo.range.numSlices;
     region.swizzledFormat       = genInfo.swizzledFormat;
@@ -2692,9 +2634,7 @@ void RsrcProcMgr::GenerateMipmapsSlow(
 
     // We will specify the base subresource later on.
     transition.imageInfo.pImage                = pImage;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     transition.imageInfo.subresRange.numPlanes = 1;
-#endif
     transition.imageInfo.subresRange.numMips   = 1;
     transition.imageInfo.subresRange.numSlices = genInfo.range.numSlices;
     transition.imageInfo.oldLayout             = genInfo.genMipLayout;
@@ -2722,16 +2662,12 @@ void RsrcProcMgr::GenerateMipmapsSlow(
     // Issue one CmdScaledCopyImage for each mip, and plane in the generation range.
     const uint32 lastMip   = genInfo.range.startSubres.mipLevel + genInfo.range.numMips - 1;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     for (uint32 plane = genInfo.range.startSubres.plane;
          plane < (genInfo.range.startSubres.plane + genInfo.range.numPlanes);
          plane++)
-#endif
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
         region.srcSubres.plane = plane;
         region.dstSubres.plane = plane;
-#endif
 
         uint32 destMip = genInfo.range.startSubres.mipLevel;
 
@@ -2922,7 +2858,7 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
     }
 
     // Keep track of the previous graphics pipeline to reduce the pipeline switching overhead.
-    uint32 rangeMask                          = 0;
+    uint64 rangeMask = 0;
     const GraphicsPipeline* pPreviousPipeline = nullptr;
 
     // Accumulate the restore mask for each region copied.
@@ -2935,21 +2871,12 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
         ImageScaledCopyRegion copyRegion = pRegions[region];
 
         // Calculate the absolute value of dstExtent, which will get fed to the shader.
-        const int32 dstExtentW =
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 607
-            (copyInfo.flags.coordsInFloat != 0) ? static_cast<int32>(copyRegion.dstExtentFloat.width + 0.5f) :
-#endif
-            copyRegion.dstExtent.width;
-        const int32 dstExtentH =
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 607
-            (copyInfo.flags.coordsInFloat != 0) ? static_cast<int32>(copyRegion.dstExtentFloat.height + 0.5f) :
-#endif
-            copyRegion.dstExtent.height;
-        const int32 dstExtentD =
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 607
-            (copyInfo.flags.coordsInFloat != 0) ? static_cast<int32>(copyRegion.dstExtentFloat.depth + 0.5f) :
-#endif
-            copyRegion.dstExtent.depth;
+        const int32 dstExtentW = (copyInfo.flags.coordsInFloat != 0) ?
+            static_cast<int32>(copyRegion.dstExtentFloat.width + 0.5f) : copyRegion.dstExtent.width;
+        const int32 dstExtentH = (copyInfo.flags.coordsInFloat != 0) ?
+            static_cast<int32>(copyRegion.dstExtentFloat.height + 0.5f) : copyRegion.dstExtent.height;
+        const int32 dstExtentD = (copyInfo.flags.coordsInFloat != 0) ?
+            static_cast<int32>(copyRegion.dstExtentFloat.depth + 0.5f) : copyRegion.dstExtent.depth;
 
         const uint32 absDstExtentW = Math::Absu(dstExtentW);
         const uint32 absDstExtentH = Math::Absu(dstExtentH);
@@ -2964,7 +2891,6 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
             // We want to always use the absolute value of dstExtent.
             // If dstExtent is negative in one dimension, then we negate srcExtent in that dimension,
             // and we adjust the offsets as well.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 607
             if (copyInfo.flags.coordsInFloat != 0)
             {
                 if (copyRegion.dstExtentFloat.width < 0)
@@ -2992,7 +2918,6 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
                 }
             }
             else
-#endif
             {
                 if (copyRegion.dstExtent.width < 0)
                 {
@@ -3032,7 +2957,6 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
             float dstRight  = 0;
             float dstBottom = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 607
             if (copyInfo.flags.coordsInFloat != 0)
             {
                 srcLeft   = copyRegion.srcOffsetFloat.x / srcExtent.width;
@@ -3046,7 +2970,6 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
                 dstBottom = copyRegion.dstOffsetFloat.y + copyRegion.dstExtentFloat.height;
             }
             else
-#endif
             {
                 srcLeft   = (1.f * copyRegion.srcOffset.x) / srcExtent.width;
                 srcTop    = (1.f * copyRegion.srcOffset.y) / srcExtent.height;
@@ -3147,23 +3070,18 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
             dstFormat = copyRegion.swizzledFormat;
         }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 626
         // Non-SRGB can be treated as SRGB when copying to non-srgb image
         if (copyInfo.flags.dstAsSrgb)
         {
             dstFormat.format = Formats::ConvertToSrgb(dstFormat.format);
             PAL_ASSERT(Formats::IsUndefined(dstFormat.format) == false);
         }
-#endif
+
         uint32 sizeInDwords                 = 0;
         constexpr uint32 ColorKeyDataDwords = 7;
         const GraphicsPipeline* pPipeline   = nullptr;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const bool isDepth = (copyRegion.dstSubres.aspect == ImageAspect::Depth);
-#else
         const bool isDepth = pDstImage->IsDepthPlane(copyRegion.dstSubres.plane);
-#endif
         bool isDepthStencil  = false;
         uint32 secondSurface = 0;
 
@@ -3209,7 +3127,7 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
         {
             bindTargetsInfo.depthTarget.depthLayout = dstImageLayout;
 
-            // No need to clear a range twice.
+            // No need to copy a range twice.
             if (BitfieldIsSet(rangeMask, region))
             {
                 continue;
@@ -3221,13 +3139,8 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
                 // TODO: there is unknown corruption issue if grouping depth and stencil copy together for mipmap
                 //       image, disallow merging copy for mipmap image as a temp fix.
                 if ((dstCreateInfo.mipLevels                  == 1)                                &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                    (pRegions[forwardIdx].srcSubres.aspect    != copyRegion.srcSubres.aspect)      &&
-                    (pRegions[forwardIdx].dstSubres.aspect    != copyRegion.dstSubres.aspect)      &&
-#else
                     (pRegions[forwardIdx].srcSubres.plane     != copyRegion.srcSubres.plane)       &&
                     (pRegions[forwardIdx].dstSubres.plane     != copyRegion.dstSubres.plane)       &&
-#endif
                     (pRegions[forwardIdx].srcSubres.mipLevel   == copyRegion.srcSubres.mipLevel)   &&
                     (pRegions[forwardIdx].dstSubres.mipLevel   == copyRegion.dstSubres.mipLevel)   &&
                     (pRegions[forwardIdx].srcSubres.arraySlice == copyRegion.srcSubres.arraySlice) &&
@@ -3237,10 +3150,10 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
                     (pRegions[forwardIdx].dstExtent.width      == copyRegion.dstExtent.width)      &&
                     (pRegions[forwardIdx].numSlices            == copyRegion.numSlices))
                 {
-                    // We found a matching range for the other plane, clear them both at once.
+                    // We found a matching range for the other plane, copy them both at once.
                     isDepthStencil = true;
                     secondSurface  = forwardIdx;
-                    BitfieldUpdateSubfield(&rangeMask, 1u, static_cast<uint32>(1 << forwardIdx));
+                    BitfieldUpdateSubfield<uint64>(&rangeMask, UINT64_MAX, 1ULL);
                     break;
                 }
             }
@@ -3297,7 +3210,6 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
                     (copyRegion.numSlices == static_cast<uint32>(copyRegion.dstExtent.depth))));
 
         // Setup the viewport and scissor to restrict rendering to the destination region being copied.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 607
         if (copyInfo.flags.coordsInFloat != 0)
         {
             viewportInfo.viewports[0].originX = copyRegion.dstOffsetFloat.x;
@@ -3306,7 +3218,6 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
             viewportInfo.viewports[0].height  = copyRegion.dstExtentFloat.height;
         }
         else
-#endif
         {
             viewportInfo.viewports[0].originX = static_cast<float>(copyRegion.dstOffset.x);
             viewportInfo.viewports[0].originY = static_cast<float>(copyRegion.dstOffset.y);
@@ -3314,7 +3225,6 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
             viewportInfo.viewports[0].height  = static_cast<float>(copyRegion.dstExtent.height);
         }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 603
         if (copyInfo.flags.scissorTest != 0)
         {
             scissorInfo.scissors[0].offset.x      = copyInfo.pScissorRect->offset.x;
@@ -3323,9 +3233,7 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
             scissorInfo.scissors[0].extent.height = copyInfo.pScissorRect->extent.height;
         }
         else
-#endif
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 607
             if (copyInfo.flags.coordsInFloat != 0)
             {
                 scissorInfo.scissors[0].offset.x      = static_cast<int32>(copyRegion.dstOffsetFloat.x + 0.5f);
@@ -3334,7 +3242,6 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
                 scissorInfo.scissors[0].extent.height = static_cast<int32>(copyRegion.dstExtentFloat.height + 0.5f);
             }
             else
-#endif
             {
                 scissorInfo.scissors[0].offset.x      = copyRegion.dstOffset.x;
                 scissorInfo.scissors[0].offset.y      = copyRegion.dstOffset.y;
@@ -3351,21 +3258,9 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
                                                                    SrdDwordAlignment(),
                                                                    PipelineBindPoint::Graphics,
                                                                    !depthStencilCopy ? 0 : 1);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 626
-        // Follow up the compute path of scaled copy that SRGB can be treated as UNORM
-        // when copying from SRGB -> XX.
-        if (copyInfo.flags.srcSrgbAsUnorm)
-        {
-            srcFormat.format = Formats::ConvertToUnorm(srcFormat.format);
-        }
-#endif
 
         ImageViewInfo imageView[2] = {};
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        SubresRange   viewRange = { copyRegion.srcSubres, 1, copyRegion.numSlices };
-#else
         SubresRange   viewRange = { copyRegion.srcSubres, 1, 1, copyRegion.numSlices };
-#endif
 
         RpmUtil::BuildImageViewInfo(&imageView[0],
                                     *pSrcImage,
@@ -3432,11 +3327,7 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
                     { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
                 };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                viewRange = { pRegions[secondSurface].srcSubres, 1, copyRegion.numSlices };
-#else
                 viewRange = { pRegions[secondSurface].srcSubres, 1, 1, copyRegion.numSlices };
-#endif
 
                 RpmUtil::BuildImageViewInfo(&imageView[1],
                                             *pSrcImage,
@@ -3597,13 +3488,8 @@ void RsrcProcMgr::ScaledCopyImageCompute(
     GfxCmdBuffer*           pCmdBuffer,
     const ScaledCopyInfo&   copyInfo) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 603
     PAL_ASSERT(copyInfo.flags.scissorTest == 0);
-#endif
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 607
     PAL_ASSERT(copyInfo.flags.coordsInFloat == 0);
-#endif
 
     const auto& device       = *m_pDevice->Parent();
     const auto* pSrcImage    = static_cast<const Image*>(copyInfo.pSrcImage);
@@ -3798,17 +3684,9 @@ void RsrcProcMgr::ScaledCopyImageCompute(
 
             const uint32 rotationIndex = static_cast<const uint32>(copyInfo.rotation);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 626
             // Enable gamma conversion when dstFormat is Srgb or copyInfo.flags.dstAsSrgb
             const uint32 enableGammaConversion =
                 (Formats::IsSrgb(dstFormat.format) || copyInfo.flags.dstAsSrgb) ? 1 : 0;
-#else
-            // Enable gamma conversion when dstFormat is Srgb, but only if srcFormat is not Srgb-as-Unorm.
-            // Because the Srgb-as-Unorm sample is still gamma compressed and therefore no additional
-            // conversion before shader export is needed.
-            const uint32 enableGammaConversion =
-                (Formats::IsSrgb(dstFormat.format) && (copyInfo.flags.srcSrgbAsUnorm == 0)) ? 1 : 0;
-#endif
 
             const uint32 copyData[] =
             {
@@ -3863,19 +3741,8 @@ void RsrcProcMgr::ScaledCopyImageCompute(
                 PAL_ASSERT(Formats::IsUndefined(dstFormat.format) == false);
             }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 626
-            if (copyInfo.flags.srcSrgbAsUnorm)
-            {
-                srcFormat.format = Formats::ConvertToUnorm(srcFormat.format);
-            }
-#endif
-
             ImageViewInfo imageView[2] = {};
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            SubresRange   viewRange    = { copyRegion.dstSubres, 1, copyRegion.numSlices };
-#else
             SubresRange   viewRange    = { copyRegion.dstSubres, 1, 1, copyRegion.numSlices };
-#endif
 
             PAL_ASSERT(TestAnyFlagSet(copyInfo.dstImageLayout.usages, LayoutShaderWrite | LayoutCopyDst) == true);
             RpmUtil::BuildImageViewInfo(&imageView[0],
@@ -3938,11 +3805,7 @@ void RsrcProcMgr::ScaledCopyImageCompute(
     {
         for (uint32 regionIdx = 0; regionIdx < copyInfo.regionCount; regionIdx++)
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            if (copyInfo.pRegions[regionIdx].dstSubres.aspect == ImageAspect::Stencil)
-#else
             if (pDstImage->IsStencilPlane(copyInfo.pRegions[regionIdx].dstSubres.plane))
-#endif
             {
                 // Mark the VRS dest image as dirty to force an update of Htile on the next draw.
                 pCmdBuffer->DirtyVrsDepthImage(pDstImage);
@@ -4060,11 +3923,7 @@ void RsrcProcMgr::ConvertYuvToRgb(
             continue;   // Skip empty regions.
         }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const SubresRange dstRange = { region.rgbSubres, 1, region.sliceCount };
-#else
         const SubresRange dstRange = { region.rgbSubres, 1, 1, region.sliceCount };
-#endif
         RpmUtil::BuildImageViewInfo(&viewInfo[0],
                                     dstImage,
                                     dstRange,
@@ -4077,11 +3936,7 @@ void RsrcProcMgr::ConvertYuvToRgb(
             const auto&       cscViewInfo         = cscInfo.viewInfoYuvToRgb[view - 1];
             SwizzledFormat    imageViewInfoFormat = cscViewInfo.swizzledFormat;
             const SubresRange srcRange            =
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                { { cscViewInfo.aspect, 0, region.yuvStartSlice }, 1, region.sliceCount };
-#else
                 { { cscViewInfo.plane, 0, region.yuvStartSlice }, 1, 1, region.sliceCount };
-#endif
             // Try to use MM formats for YUV planes
             RpmUtil::SwapForMMFormat(srcImage.GetDevice(), &imageViewInfoFormat);
             RpmUtil::BuildImageViewInfo(&viewInfo[view],
@@ -4216,11 +4071,7 @@ void RsrcProcMgr::ConvertRgbToYuv(
             srcFormat.format = Formats::ConvertToUnorm(srcFormat.format);
         }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const SubresRange srcRange = { region.rgbSubres, 1, region.sliceCount };
-#else
         const SubresRange srcRange = { region.rgbSubres, 1, 1, region.sliceCount };
-#endif
         RpmUtil::BuildImageViewInfo(&viewInfo[0],
                                     srcImage,
                                     srcRange,
@@ -4282,11 +4133,7 @@ void RsrcProcMgr::ConvertRgbToYuv(
             const auto&       cscViewInfo         = cscInfo.viewInfoRgbToYuv[pass];
             SwizzledFormat    imageViewInfoFormat = cscViewInfo.swizzledFormat;
             const SubresRange dstRange            =
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                { { cscViewInfo.aspect, 0, region.yuvStartSlice }, 1, region.sliceCount };
-#else
                 { { cscViewInfo.plane, 0, region.yuvStartSlice }, 1, 1, region.sliceCount };
-#endif
             // Try to use MM formats for YUV planes
             RpmUtil::SwapForMMFormat(dstImage.GetDevice(), &imageViewInfoFormat);
             RpmUtil::BuildImageViewInfo(&viewInfo[1],
@@ -4301,11 +4148,7 @@ void RsrcProcMgr::ConvertRgbToYuv(
 
             // The destination offset and extent need to be adjusted to account for differences in the dimensions of
             // the YUV image's planes.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            Extent3d log2Ratio = Formats::Log2SubsamplingRatio(dstImageInfo.swizzledFormat.format, cscViewInfo.aspect);
-#else
             Extent3d log2Ratio = Formats::Log2SubsamplingRatio(dstImageInfo.swizzledFormat.format, cscViewInfo.plane);
-#endif
             if (cscInfo.pipelineRgbToYuv == RpmComputePipeline::RgbToYuvPacked)
             {
                 // For YUV formats which are macro-pixel packed, we run a special shader which outputs two pixels
@@ -4782,9 +4625,7 @@ void RsrcProcMgr::CmdClearColorImage(
 
     for (uint32 rangeIdx = 0; rangeIdx < rangeCount; ++rangeIdx)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
         PAL_ASSERT(pRanges[rangeIdx].numPlanes == 1);
-#endif
 
         SubresRange  minSlowClearRange = {};
         const auto*  pSlowClearRange   = &minSlowClearRange;
@@ -4818,22 +4659,15 @@ void RsrcProcMgr::CmdClearColorImage(
 
             // Assume that no portion of the original range needs to be slow cleared.
             minSlowClearRange.startSubres = clearRange.startSubres;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
             minSlowClearRange.numPlanes   = clearRange.numPlanes;
-#endif
             minSlowClearRange.numSlices   = clearRange.numSlices;
             minSlowClearRange.numMips     = 0;
 
             for (uint32 mipIdx = 0; mipIdx < clearRange.numMips; ++mipIdx)
             {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                const SubresId    subres      = { clearRange.startSubres.aspect,
-#else
                 const SubresId    subres      = { clearRange.startSubres.plane,
-#endif
                                                   clearRange.startSubres.mipLevel + mipIdx,
-                                                  0
-                                                };
+                                                  0 };
                 const ClearMethod clearMethod = dstImage.SubresourceInfo(subres)->clearMethod;
 
                 if (clearMethod != ClearMethod::Fast)
@@ -4937,19 +4771,13 @@ void RsrcProcMgr::SlowClearGraphics(
     ) const
 {
     // Graphics slow clears only work on color planes.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    PAL_ASSERT((clearRange.startSubres.aspect != ImageAspect::Depth) &&
-               (clearRange.startSubres.aspect != ImageAspect::Stencil));
-#else
     PAL_ASSERT(dstImage.IsDepthStencilTarget() == false);
-#endif
 
     const auto& createInfo = dstImage.GetImageCreateInfo();
 
-    SubresId subresId = clearRange.startSubres;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
-    for (; subresId.plane < (clearRange.startSubres.plane + clearRange.numPlanes); subresId.plane++)
-#endif
+    for (SubresId subresId = clearRange.startSubres;
+         subresId.plane < (clearRange.startSubres.plane + clearRange.numPlanes);
+         subresId.plane++)
     {
         // Get some useful information about the image.
         bool rawFmtOk = dstImage.GetGfxImage()->IsFormatReplaceable(subresId,
@@ -4996,11 +4824,7 @@ void RsrcProcMgr::SlowClearGraphics(
         colorViewInfo.swizzledFormat                    = viewFormat;
         colorViewInfo.imageInfo.pImage                  = &dstImage;
         colorViewInfo.imageInfo.arraySize               = (is3dImage ? 1 : clearRange.numSlices);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        colorViewInfo.imageInfo.baseSubRes.aspect       = subresId.aspect;
-#else
         colorViewInfo.imageInfo.baseSubRes.plane        = subresId.plane;
-#endif
         colorViewInfo.imageInfo.baseSubRes.arraySlice   = subresId.arraySlice;
 
         BindTargetParams bindTargetsInfo = { };
@@ -5042,11 +4866,7 @@ void RsrcProcMgr::SlowClearGraphics(
             //       2. passing correct clear color for this plane for planar YUV formats (e.g. two uint32s for U and V if
             //          current plane is CbCr).
             const SwizzledFormat imgFormat = createInfo.swizzledFormat;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            Formats::ConvertYuvColor(imgFormat, subresId.aspect, &pColor->u32Color[0], &packedColor[0]);
-#else
             Formats::ConvertYuvColor(imgFormat, subresId.plane, &pColor->u32Color[0], &packedColor[0]);
-#endif
         }
         else
         {
@@ -5087,11 +4907,7 @@ void RsrcProcMgr::SlowClearGraphics(
 
         for (uint32 mip = subresId.mipLevel; mip <= lastMip; ++mip)
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            const SubresId mipSubres  = { subresId.aspect, mip, 0 };
-#else
             const SubresId mipSubres  = { subresId.plane, mip, 0 };
-#endif
             const auto&    subResInfo = *dstImage.SubresourceInfo(mipSubres);
 
             // All slices of the same mipmap level can re-use the same viewport state.
@@ -5282,9 +5098,7 @@ void RsrcProcMgr::SlowClearCompute(
     const Box*         pBoxes
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(clearRange.numPlanes == 1);
-#endif
     // If the image isn't in a layout that allows format replacement this clear path won't work.
     PAL_ASSERT(dstImage.GetGfxImage()->IsFormatReplaceable(clearRange.startSubres, dstImageLayout, true));
 
@@ -5361,11 +5175,7 @@ void RsrcProcMgr::SlowClearCompute(
         //       2. passing correct clear color for this plane for planar YUV formats (e.g. two uint32s for U and V if
         //          current plane is CbCr).
         const SwizzledFormat imgFormat = createInfo.swizzledFormat;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        Formats::ConvertYuvColor(imgFormat, clearRange.startSubres.aspect, &pColor->u32Color[0], &packedColor[0]);
-#else
         Formats::ConvertYuvColor(imgFormat, clearRange.startSubres.plane, &pColor->u32Color[0], &packedColor[0]);
-#endif
     }
     else
     {
@@ -5384,11 +5194,7 @@ void RsrcProcMgr::SlowClearCompute(
     }
 
     // Split the clear range into sections with constant mip/array levels and loop over them.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    SubresRange  singleMipRange = { clearRange.startSubres, 1, clearRange.numSlices };
-#else
     SubresRange  singleMipRange = { clearRange.startSubres, 1, 1, clearRange.numSlices };
-#endif
     const uint32 firstMipLevel  = clearRange.startSubres.mipLevel;
     const uint32 lastMipLevel   = clearRange.startSubres.mipLevel + clearRange.numMips - 1;
     const uint32 lastArraySlice = clearRange.startSubres.arraySlice + clearRange.numSlices - 1;
@@ -5808,16 +5614,10 @@ void RsrcProcMgr::LateExpandResolveSrcHelper(
     {
         for (uint32 i = 0; i < regionCount; i++)
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            transitions[i].imageInfo.subresRange.startSubres.aspect     = pRegions[i].srcAspect;
-#else
             transitions[i].imageInfo.subresRange.startSubres.plane      = pRegions[i].srcPlane;
-#endif
             transitions[i].imageInfo.subresRange.startSubres.arraySlice = pRegions[i].srcSlice;
             transitions[i].imageInfo.subresRange.startSubres.mipLevel   = 0;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
             transitions[i].imageInfo.subresRange.numPlanes              = 1;
-#endif
             transitions[i].imageInfo.subresRange.numMips                = 1;
             transitions[i].imageInfo.subresRange.numSlices              = pRegions[i].numSlices;
 
@@ -5893,9 +5693,7 @@ void RsrcProcMgr::FixupMetadataForComputeDst(
                 {
                     transitions[i].imageInfo.pImage                  = &dstImage;
                     transitions[i].imageInfo.subresRange.startSubres = pRegions[i].subres;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
                     transitions[i].imageInfo.subresRange.numPlanes   = 1;
-#endif
                     transitions[i].imageInfo.subresRange.numMips     = 1;
                     transitions[i].imageInfo.subresRange.numSlices   = pRegions[i].numSlices;
                     transitions[i].imageInfo.oldLayout               = dstImageLayout;
@@ -6186,16 +5984,8 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
     memcpy(pTableMem, &countGpuAddr, sizeof(countGpuAddr));
     pTableMem += 2;
 
-    const auto& platformSettings = m_pDevice->Parent()->GetPlatform()->PlatformSettings();
-
-    const bool sqttEnabled = ((platformSettings.gpuProfilerMode > GpuProfilerCounterAndTimingOnly) &&
-                              Util::TestAnyFlagSet(platformSettings.gpuProfilerConfig.traceModeMask,
-                                                   GpuProfilerTraceSqtt));
-    const bool issueSqttMarkerEvent = (sqttEnabled |
-                                       m_pDevice->Parent()->GetPlatform()->IsDevDriverProfilingEnabled());
-
     // Flag to decide whether to issue THREAD_TRACE_MARKER following generated draw/dispatch commands.
-    pTableMem[0] = issueSqttMarkerEvent;
+    pTableMem[0] = m_pDevice->Parent()->IssueSqttMarkerEvents();
     pTableMem[1] = taskShaderEnabled;
 
     // These will be used for tracking the postamble size of the main and task chunks respectively.
@@ -6459,26 +6249,15 @@ void RsrcProcMgr::ResolveImageGraphics(
     for (uint32 idx = 0; idx < regionCount; ++idx)
     {
         // Same sanity checks of the region planes.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const bool isDepth = (pRegions[idx].dstAspect == ImageAspect::Depth);
-        PAL_ASSERT(((pRegions[idx].srcAspect == ImageAspect::Depth) ||
-                    (pRegions[idx].srcAspect == ImageAspect::Stencil)) &&
-                    (pRegions[idx].srcAspect == pRegions[idx].dstAspect));
-#else
         const bool isDepth = dstImage.IsDepthPlane(pRegions[idx].dstPlane);
         PAL_ASSERT((srcImage.IsDepthPlane(pRegions[idx].srcPlane) ||
                     srcImage.IsStencilPlane(pRegions[idx].srcPlane)) &&
                    (pRegions[idx].srcPlane == pRegions[idx].dstPlane));
-#endif
 
         // This path can't reinterpret the resolve format.
         const SubresId dstStartSubres =
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            pRegions[idx].dstAspect,
-#else
             pRegions[idx].dstPlane,
-#endif
             pRegions[idx].dstMipLevel,
             pRegions[idx].dstSlice
         };
@@ -6544,15 +6323,6 @@ void RsrcProcMgr::ResolveImageGraphics(
         {
             LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            const SubresId srcSubres = { pRegions[idx].srcAspect, 0, pRegions[idx].srcSlice + slice };
-            const SubresId dstSubres =
-            {
-                pRegions[idx].dstAspect,
-                pRegions[idx].dstMipLevel,
-                pRegions[idx].dstSlice + slice
-            };
-#else
             const SubresId srcSubres = { pRegions[idx].srcPlane, 0, pRegions[idx].srcSlice + slice };
             const SubresId dstSubres =
             {
@@ -6560,7 +6330,6 @@ void RsrcProcMgr::ResolveImageGraphics(
                 pRegions[idx].dstMipLevel,
                 pRegions[idx].dstSlice + slice
             };
-#endif
 
             // Create an embedded user-data table and bind it to user data 1. We only need one image view.
             uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
@@ -6571,11 +6340,7 @@ void RsrcProcMgr::ResolveImageGraphics(
 
             // Populate the table with an image view of the source image.
             ImageViewInfo     imageView = { };
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            const SubresRange viewRange = { srcSubres, 1, 1 };
-#else
             const SubresRange viewRange = { srcSubres, 1, 1, 1 };
-#endif
             RpmUtil::BuildImageViewInfo(&imageView,
                                         srcImage,
                                         viewRange,
@@ -6656,11 +6421,7 @@ void RsrcProcMgr::ResolveImageCompute(
     {
         // Select a Resolve shader based on the source Image's sample-count and resolve method.
         const ComputePipeline*const pPipeline = GetCsResolvePipeline(srcImage,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                                                                     pRegions[idx].srcAspect,
-#else
                                                                      pRegions[idx].srcPlane,
-#endif
                                                                      resolveMode,
                                                                      method);
 
@@ -6671,13 +6432,8 @@ void RsrcProcMgr::ResolveImageCompute(
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
 
         // Set both subresources to the first slice of the required mip level
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const SubresId srcSubres = { pRegions[idx].srcAspect, 0, pRegions[idx].srcSlice };
-        const SubresId dstSubres = { pRegions[idx].dstAspect, pRegions[idx].dstMipLevel, pRegions[idx].dstSlice };
-#else
         const SubresId srcSubres = { pRegions[idx].srcPlane, 0, pRegions[idx].srcSlice };
         const SubresId dstSubres = { pRegions[idx].dstPlane, pRegions[idx].dstMipLevel, pRegions[idx].dstSlice };
-#endif
 
         SwizzledFormat srcFormat = srcImage.SubresourceInfo(srcSubres)->format;
         SwizzledFormat dstFormat = dstImage.SubresourceInfo(dstSubres)->format;
@@ -6711,15 +6467,9 @@ void RsrcProcMgr::ResolveImageCompute(
         {
             srcImage.GetImageCreateInfo().samples,
             Formats::IsSrgb(dstFormat.format),
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            ((pRegions[idx].srcAspect == ImageAspect::Stencil) ? (resolveMode == ResolveMode::Average)
-                                                               : (Formats::IsSint(srcFormat.format) ||
-                                                                  Formats::IsUint(srcFormat.format))),
-#else
             (srcImage.IsStencilPlane(pRegions[idx].srcPlane) ? (resolveMode == ResolveMode::Average)
                                                                       : (Formats::IsSint(srcFormat.format) ||
                                                                          Formats::IsUint(srcFormat.format))),
-#endif
             TestAnyFlagSet(flags, ImageResolveInvertY),
         };
 
@@ -6757,11 +6507,7 @@ void RsrcProcMgr::ResolveImageCompute(
                                                                          0);
 
         ImageViewInfo imageView[2] = {};
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        SubresRange   viewRange = { dstSubres, 1, pRegions[idx].numSlices };
-#else
         SubresRange   viewRange = { dstSubres, 1, 1, pRegions[idx].numSlices };
-#endif
 
         PAL_ASSERT(TestAnyFlagSet(dstImageLayout.usages, LayoutResolveDst) == true);
 
@@ -6819,18 +6565,12 @@ void RsrcProcMgr::ResolveImageCompute(
         {
             const ImageResolveRegion& curRegion = pRegions[i];
             SubresRange subresRange = {};
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            subresRange.startSubres.aspect = curRegion.dstAspect;
-#else
-            subresRange.startSubres.plane = curRegion.dstPlane;
-#endif
-            subresRange.startSubres.mipLevel = curRegion.dstMipLevel;
+            subresRange.startSubres.plane      = curRegion.dstPlane;
+            subresRange.startSubres.mipLevel   = curRegion.dstMipLevel;
             subresRange.startSubres.arraySlice = curRegion.dstSlice;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
-            subresRange.numPlanes = 1;
-#endif
-            subresRange.numMips = 1;
-            subresRange.numSlices = curRegion.numSlices;
+            subresRange.numPlanes              = 1;
+            subresRange.numMips                = 1;
+            subresRange.numSlices              = curRegion.numSlices;
             HwlResummarizeHtileCompute(pCmdBuffer, *dstImage.GetGfxImage(), subresRange);
 
             performedResummarizeHtileCompute = true;
@@ -6872,22 +6612,14 @@ void RsrcProcMgr::ResolveImageCompute(
 // Selects a compute Resolve pipeline based on the properties of the given Image and resolve method.
 const ComputePipeline* RsrcProcMgr::GetCsResolvePipeline(
     const Image&  srcImage,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    ImageAspect   aspect,
-#else
     uint32        plane,
-#endif
     ResolveMode   mode,
     ResolveMethod method
     ) const
 {
     const ComputePipeline* pPipeline = nullptr;
     const auto& createInfo = srcImage.GetImageCreateInfo();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const bool  isStencil  = (aspect == ImageAspect::Stencil);
-#else
     const bool  isStencil  = srcImage.IsStencilPlane(plane);
-#endif
 
     // If the sample and fragment counts are different then this must be an EQAA resolve.
     if (createInfo.samples != createInfo.fragments)
@@ -7106,9 +6838,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
     const SubresRange&   range
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(range.numPlanes == 1);
-#endif
     PAL_ASSERT(image.IsDepthStencilTarget());
     PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
     // Don't expect GFX Blts on Nested unless targets not inherited.
@@ -7142,11 +6872,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
     depthViewInfo.pImage    = &image;
     depthViewInfo.arraySize = 1;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    if (range.startSubres.aspect == ImageAspect::Depth)
-#else
     if (image.IsDepthPlane(range.startSubres.plane))
-#endif
     {
         depthViewInfo.flags.readOnlyStencil = 1;
     }
@@ -7190,11 +6916,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
         {
             LinearAllocatorAuto<VirtualLinearAllocator> mipAlloc(pCmdBuffer->Allocator(), false);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            const SubresId mipSubres  = { range.startSubres.aspect, depthViewInfo.mipLevel, 0 };
-#else
             const SubresId mipSubres  = { range.startSubres.plane, depthViewInfo.mipLevel, 0 };
-#endif
             const auto&    subResInfo = *image.SubresourceInfo(mipSubres);
 
             // All slices of the same mipmap level can re-use the same viewport/scissor state.
@@ -7264,9 +6986,7 @@ void RsrcProcMgr::ResummarizeDepthStencil(
     const SubresRange&   range
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(range.numPlanes == 1);
-#endif
     PAL_ASSERT(image.IsDepthStencilTarget());
     PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
     // Don't expect GFX Blts on Nested unless targets not inherited.
@@ -7300,11 +7020,7 @@ void RsrcProcMgr::ResummarizeDepthStencil(
     depthViewInfo.arraySize = 1;
     depthViewInfo.flags.resummarizeHiZ = 1;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    if (range.startSubres.aspect == ImageAspect::Depth)
-#else
     if (image.IsDepthPlane(range.startSubres.plane))
-#endif
     {
         depthViewInfo.flags.readOnlyStencil = 1;
     }
@@ -7346,11 +7062,7 @@ void RsrcProcMgr::ResummarizeDepthStencil(
         {
             LinearAllocatorAuto<VirtualLinearAllocator> mipAlloc(pCmdBuffer->Allocator(), false);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            const SubresId mipSubres  = { range.startSubres.aspect, depthViewInfo.mipLevel, 0 };
-#else
             const SubresId mipSubres  = { range.startSubres.plane, depthViewInfo.mipLevel, 0 };
-#endif
             const auto&    subResInfo = *image.SubresourceInfo(mipSubres);
 
             // All slices of the same mipmap level can re-use the same viewport/scissor state.
@@ -7420,9 +7132,7 @@ void RsrcProcMgr::GenericColorBlit(
     gpusize              metaDataOffset
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(range.numPlanes == 1);
-#endif
     PAL_ASSERT(dstImage.IsRenderTarget());
     PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
     // Don't expect GFX Blts on Nested unless targets not inherited.
@@ -7462,11 +7172,7 @@ void RsrcProcMgr::GenericColorBlit(
     colorViewInfo.swizzledFormat      = imageCreateInfo.swizzledFormat;
     colorViewInfo.imageInfo.pImage    = &dstImage;
     colorViewInfo.imageInfo.arraySize = 1;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    colorViewInfo.imageInfo.baseSubRes.aspect = range.startSubres.aspect;
-#else
     colorViewInfo.imageInfo.baseSubRes.plane = range.startSubres.plane;
-#endif
 
     if (is3dImage)
     {
@@ -7542,11 +7248,7 @@ void RsrcProcMgr::GenericColorBlit(
                 needDisablePredication = true;
             }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            const SubresId mipSubres  = { range.startSubres.aspect, mip, 0 };
-#else
             const SubresId mipSubres  = { range.startSubres.plane, mip, 0 };
-#endif
             const auto&    subResInfo = *dstImage.SubresourceInfo(mipSubres);
 
             // All slices of the same mipmap level can re-use the same viewport & scissor states.
@@ -7669,16 +7371,10 @@ void RsrcProcMgr::ResolveImageFixedFunc(
 
     ColorTargetViewCreateInfo srcColorViewInfo = { };
     srcColorViewInfo.imageInfo.pImage            = &srcImage;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    srcColorViewInfo.imageInfo.baseSubRes.aspect = ImageAspect::Color;
-#endif
     srcColorViewInfo.imageInfo.arraySize         = 1;
 
     ColorTargetViewCreateInfo dstColorViewInfo = { };
     dstColorViewInfo.imageInfo.pImage            = &dstImage;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    dstColorViewInfo.imageInfo.baseSubRes.aspect = ImageAspect::Color;
-#endif
     dstColorViewInfo.imageInfo.arraySize         = 1;
 
     BindTargetParams bindTargetsInfo = {};
@@ -7722,13 +7418,8 @@ void RsrcProcMgr::ResolveImageFixedFunc(
             PAL_ASSERT(Formats::ShareChFmt(dstColorViewInfo.swizzledFormat.format,
                                            pRegions[idx].swizzledFormat.format));
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            const SubresId srcSubres = { pRegions[idx].srcAspect, 0, pRegions[idx].srcSlice };
-            const SubresId dstSubres = { pRegions[idx].dstAspect, pRegions[idx].dstMipLevel, pRegions[idx].dstSlice };
-#else
             const SubresId srcSubres = { pRegions[idx].srcPlane, 0, pRegions[idx].srcSlice };
             const SubresId dstSubres = { pRegions[idx].dstPlane, pRegions[idx].dstMipLevel, pRegions[idx].dstSlice };
-#endif
 
             // If the specified format exactly matches the image formats the resolve will always work. Otherwise, the
             // images must support format replacement.
@@ -7954,30 +7645,17 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
             }
             else
             {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                PAL_ASSERT(pRegions[idx].srcAspect == pRegions[idx].dstAspect);
-                dstColorViewInfo.imageInfo.baseSubRes.aspect = pRegions[idx].srcAspect;
-#else
                 PAL_ASSERT(pRegions[idx].srcPlane == pRegions[idx].dstPlane);
                 dstColorViewInfo.imageInfo.baseSubRes.plane = pRegions[idx].srcPlane;
-#endif
 
                 SubresId dstSubresId = {};
                 dstSubresId.mipLevel = pRegions[idx].dstMipLevel;
                 dstSubresId.arraySlice = (pRegions[idx].dstSlice + slice);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                dstSubresId.aspect = pRegions[idx].dstAspect;
-#else
                 dstSubresId.plane = pRegions[idx].dstPlane;
-#endif
 
                 dstColorViewInfo.swizzledFormat.format = dstImage.SubresourceInfo(dstSubresId)->format.format;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                if (pRegions[idx].dstAspect == ImageAspect::Depth)
-#else
                 if (dstImage.IsDepthPlane(pRegions[idx].dstPlane))
-#endif
                 {
                     depthViewInfoInternal.flags.isDepthCopy = 1;
 
@@ -7986,11 +7664,7 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
                     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(ResolveDepthCopy),
                                                   InternalApiPsoHash, });
                 }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                else if (pRegions[idx].dstAspect == ImageAspect::Stencil)
-#else
                 else if (dstImage.IsStencilPlane(pRegions[idx].dstPlane))
-#endif
                 {
                     // Fixed-func stencil copies stencil value from db to g chanenl of cb.
                     // Swizzle the stencil plance to 0X00.
@@ -8291,23 +7965,6 @@ Result RsrcProcMgr::CreateCommonStateObjects()
     return result;
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-// =====================================================================================================================
-// Returns true if the supplied aspect / mip-level supports meta-data texture fetches.  If the supplied aspect is
-// invalid for the image, then fetches are not supported.
-bool RsrcProcMgr::GetMetaDataTexFetchSupport(
-    const Image*  pImage,
-    ImageAspect   aspect,
-    uint32        mipLevel)
-{
-    const SubresId subres = { aspect, mipLevel, 0 };
-
-    // The SubresourceInfo() function will assert and possibly do bad things (at least return a pointer to a different
-    // subresource than intended) if the aspect isn't valid, so check that first.
-    return (pImage->IsAspectValid(aspect) && pImage->SubresourceInfo(subres)->flags.supportMetaDataTexFetch);
-}
-#endif
-
 // =====================================================================================================================
 // Returns the size of a typed buffer that contains a 3D block of elements with the given size and pitches.
 // This is useful for mapping a sub-cube of a linear image into a linear buffer.
@@ -8395,9 +8052,7 @@ void PreComputeDepthStencilClearSync(
     const SubresRange& subres,
     ImageLayout        layout)
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(subres.numPlanes == 1);
-#endif
 
     BarrierInfo preBarrier                 = { };
     preBarrier.waitPoint                   = HwPipePreCs;
@@ -8969,11 +8624,7 @@ void RsrcProcMgr::CopyImageToPackedPixelImage(
                                                                    PipelineBindPoint::Compute,
                                                                    0);
         ImageViewInfo imageView[2] = {};
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        SubresRange   viewRange    = { region.dstSubres, 1, 1};
-#else
         SubresRange   viewRange    = { region.dstSubres, 1, 1, 1 };
-#endif
         RpmUtil::BuildImageViewInfo(&imageView[0],
                                     dstImage,
                                     viewRange,

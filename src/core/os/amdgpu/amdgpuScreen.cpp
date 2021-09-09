@@ -219,7 +219,7 @@ Result Screen::GetColorCapabilities(
 Result Screen::SetColorConfiguration(
     const ScreenColorConfig* pColorConfig)
 {
-    Result result = Result::Unsupported;
+    Result result = Result::Success;
 
     m_userColorGamut.metadata.chromaticityRedX         = pColorConfig->userDefinedColorGamut.chromaticityRedX;
     m_userColorGamut.metadata.chromaticityRedY         = pColorConfig->userDefinedColorGamut.chromaticityRedY;
@@ -236,12 +236,26 @@ Result Screen::SetColorConfiguration(
     m_userColorGamut.metadata.maxFrameAverageLightLevel =
         pColorConfig->userDefinedColorGamut.maxFrameAverageLightLevel;
 
-    // Only static metadata is supported so far
+    // Only static metadata (HDR10) is supported so far
     m_userColorGamut.metadataType          = HDMI_STATIC_METADATA_TYPE1;
-    m_userColorGamut.metadata.eotf         = HDMI_EOTF_SMPTE_ST2084;
     m_userColorGamut.metadata.metadataType = HDMI_STATIC_METADATA_TYPE1;
+    if ((pColorConfig->colorSpace & Pal::ScreenColorSpace::TfSrgb) != 0)
+    {
+        m_userColorGamut.metadata.eotf     = HDMI_EOTF_TRADITIONAL_GAMMA_SDR;
+    }
+    else if ((pColorConfig->colorSpace & Pal::ScreenColorSpace::TfPq2084) != 0)
+    {
+        m_userColorGamut.metadata.eotf     = HDMI_EOTF_SMPTE_ST2084;
+    }
+    else
+    {
+        result = Result::Unsupported;
+    }
 
-    result = static_cast<Device*>(m_pDevice)->SetHdrMetaData(m_drmMasterFd, m_connectorId, &m_userColorGamut);
+    if (result == Result::Success)
+    {
+        result = static_cast<Device*>(m_pDevice)->SetHdrMetaData(m_drmMasterFd, m_connectorId, &m_userColorGamut);
+    }
 
     return result;
 }

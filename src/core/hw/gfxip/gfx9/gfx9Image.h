@@ -109,14 +109,14 @@ struct ColorLayoutToState
 // Returns the best color hardware compression state based on a set of allowed usages and queues. Images with metadata
 // are always compressed if they are only used on the universal queue and only support the color target usage.
 // Otherwise, depending on the GFXIP support, additional usages may be available that avoid a full decompress.
-PAL_INLINE ColorCompressionState ImageLayoutToColorCompressionState(
+inline ColorCompressionState ImageLayoutToColorCompressionState(
     const ColorLayoutToState& layoutToState,
     ImageLayout               imageLayout)
 {
     // If shader-write usage is set, the fmask srd cannot be "written".
     // So remove LayoutShaderFmaskBasedRead to force an MSAA color expand.
-    uint32_t layoutToStateComprUsages        = layoutToState.compressed.usages;
-    uint32_t layoutToStateFmaskDecomprUsages = layoutToState.fmaskDecompressed.usages;
+    uint32 layoutToStateComprUsages        = layoutToState.compressed.usages;
+    uint32 layoutToStateFmaskDecomprUsages = layoutToState.fmaskDecompressed.usages;
 
     if (Util::TestAnyFlagSet(imageLayout.usages, LayoutShaderWrite | LayoutCopyDst))
     {
@@ -145,11 +145,20 @@ PAL_INLINE ColorCompressionState ImageLayoutToColorCompressionState(
 // =====================================================================================================================
 // Determines if a particular set of allowed usages and queues is one which is not only compatible with the
 // ColorCompressed state, but also can write compressed data from the GPU back to the image.
-PAL_INLINE bool ImageLayoutCanCompressColorData(
+inline bool ImageLayoutCanCompressColorData(
     const ColorLayoutToState& layoutToState,
     ImageLayout               imageLayout)
 {
-    return ((Util::TestAnyFlagSet(imageLayout.usages, ~layoutToState.compressed.usages)   == false) &&
+    // Refer to ImageLayoutToColorCompressionState function, if shader-write or copydst usage is set,
+    // LayoutShaderFmaskBasedRead will not be considered as compressed layout usage,
+    // so remove it from layoutToState.compressed.usages to update correctly the Image's DCC state metadata.
+    uint32 layoutToStateComprUsages = layoutToState.compressed.usages;
+
+    if (Util::TestAnyFlagSet(imageLayout.usages, LayoutShaderWrite | LayoutCopyDst))
+    {
+        layoutToStateComprUsages &= ~LayoutShaderFmaskBasedRead;
+    }
+    return ((Util::TestAnyFlagSet(imageLayout.usages, ~layoutToStateComprUsages)   == false) &&
             (Util::TestAnyFlagSet(imageLayout.engines, ~layoutToState.compressed.engines) == false) &&
             Util::TestAnyFlagSet(imageLayout.usages, layoutToState.compressedWrite.usages)          &&
             Util::TestAnyFlagSet(imageLayout.engines, layoutToState.compressedWrite.engines));
@@ -167,7 +176,7 @@ struct DepthStencilLayoutToState
 // usages and queues. Images with htile are always compressed if they are only used on the universal queue and only
 // support the depth/stencil target usage.  Otherwise, depending on the GFXIP support, additional usages may be
 // available whithout decompressing.
-PAL_INLINE DepthStencilCompressionState ImageLayoutToDepthCompressionState(
+inline DepthStencilCompressionState ImageLayoutToDepthCompressionState(
     const DepthStencilLayoutToState& layoutToState,
     ImageLayout                      imageLayout)
 {
@@ -206,22 +215,14 @@ public:
     virtual ~Image();
 
     Result ComputePipeBankXor(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        ImageAspect                                     aspect,
-#else
         uint32                                          plane,
         bool                                            forFmask,
-#endif
         const ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT*  pSurfSetting,
         uint32*                                         pPipeBankXor) const;
 
     const ADDR2_COMPUTE_SURFACE_INFO_OUTPUT* GetAddrOutput(const SubResourceInfo* pSubResInfo) const;
     const ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT& GetAddrSettings(const SubResourceInfo* pSubResInfo) const
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        { return m_addrSurfSetting[GetAspectIndex(pSubResInfo->subresId.aspect)]; }
-#else
         { return m_addrSurfSetting[pSubResInfo->subresId.plane]; }
-#endif
 
     uint32 GetSubresource256BAddrSwizzledLow(SubresId subresource) const;
     uint32 GetSubresource256BAddrSwizzledHi(SubresId subresource) const;
@@ -313,33 +314,18 @@ public:
     gpusize WaTcCompatZRangeMetaDataOffset(uint32 mipLevel) const;
     gpusize WaTcCompatZRangeMetaDataSize(uint32 numMips) const;
 
-    uint32 GetDcc256BAddr(
-        const SubresId&  subResId) const
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        { return GetMaskRam256BAddr(GetDcc(subResId.aspect), subResId); }
-#else
+    uint32 GetDcc256BAddr(const SubresId&  subResId) const
         { return GetMaskRam256BAddr(GetDcc(subResId.plane), subResId); }
-#endif
 
     uint32 GetCmask256BAddr() const;
     uint32 GetFmask256BAddr() const;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    bool HasDccStateMetaData(ImageAspect  aspect) const
-        { return (m_dccStateMetaDataOffset[GetAspectIndex(aspect)] != 0); }
-#else
     bool HasDccStateMetaData(uint32 plane) const
         { return (m_dccStateMetaDataOffset[plane] != 0); }
-#endif
     bool HasDccStateMetaData(const SubresRange& range) const;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    bool HasFastClearEliminateMetaData(ImageAspect  aspect) const
-        { return m_fastClearEliminateMetaDataOffset[GetAspectIndex(aspect)] != 0; }
-#else
     bool HasFastClearEliminateMetaData(uint32 plane) const
         { return m_fastClearEliminateMetaDataOffset[plane] != 0; }
-#endif
     bool HasFastClearEliminateMetaData(const SubresRange& range) const;
 
     gpusize GetDccStateMetaDataAddr(const SubresId&  subResId) const;
@@ -362,29 +348,10 @@ public:
     bool SupportsCompToReg(ImageLayout layout, const SubresId& subResId) const;
 
     // Returns a pointer to the Gfx9Dcc object associated with a particular sub-Resource.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const  Gfx9Dcc*     GetDcc(ImageAspect  aspect) const { return m_pDcc[GetAspectIndex(aspect)]; }
-    const  Gfx9Dcc*     GetDisplayDcc(ImageAspect aspect) const { return m_pDispDcc[GetAspectIndex(aspect)]; }
-#else
     const  Gfx9Dcc*     GetDcc(uint32 plane) const { return m_pDcc[plane]; }
     const  Gfx9Dcc*     GetDisplayDcc(uint32 plane) const { return m_pDispDcc[plane]; }
-#endif
     const  Gfx9Cmask*   GetCmask() const { return m_pCmask; }
     const  Gfx9Fmask*   GetFmask() const { return m_pFmask; }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const Gfx9MaskRam*  GetColorMaskRam(ImageAspect  aspect) const
-    {
-        return ((HasDccData())
-            ? static_cast<const Gfx9MaskRam*>(GetDcc(aspect))
-            : static_cast<const Gfx9MaskRam*>(GetCmask()));
-    }
-    const Gfx9MaskRam*  GetPrimaryMaskRam(ImageAspect  aspect) const
-    {
-        return (HasDccData()
-                ? static_cast<const Gfx9MaskRam*>(GetDcc(aspect))
-                : static_cast<const Gfx9MaskRam*>(GetHtile()));
-    }
-#else
     const Gfx9MaskRam*  GetColorMaskRam(uint32 plane) const
     {
         return ((HasDccData())
@@ -397,13 +364,8 @@ public:
                 ? static_cast<const Gfx9MaskRam*>(GetDcc(plane))
                 : static_cast<const Gfx9MaskRam*>(GetHtile()));
     }
-#endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    gpusize GetMaskRamBaseAddr(const MaskRam*   pMaskRam, const SubresId&  subResId) const;
-#else
     gpusize GetMaskRamBaseAddr(const MaskRam* pMaskRam, uint32 arraySlice) const;
-#endif
 
     const ColorLayoutToState& LayoutToColorCompressionState() const { return m_layoutToState.color; }
     const DepthStencilLayoutToState& LayoutToDepthCompressionState(const SubresId& subresId) const;
@@ -450,11 +412,7 @@ public:
 
     virtual ImageType GetOverrideImageType() const override;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    virtual gpusize GetAspectBaseAddr(ImageAspect aspect, uint32 arraySlice = 0) const override;
-#else
     virtual gpusize GetPlaneBaseAddr(uint32 plane, uint32 arraySlice = 0) const override;
-#endif
 
     virtual void GetSharedMetadataInfo(SharedMetadataInfo* pMetadataInfo) const override;
     virtual void GetDisplayDccState(DccState* pState) const override;
@@ -556,10 +514,6 @@ private:
     // workaround, a value of zero means all mips require it.  See InitPipeMisalignedMetadataFirstMip() for details.
     uint32  m_firstMipMetadataPipeMisaligned[MaxNumPlanes];
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    uint32 GetAspectIndex(ImageAspect  aspect) const;
-#endif
-
     gpusize GetFullSubresourceAddr(SubresId  subResId) const;
 
     void InitDccStateMetaData(
@@ -567,11 +521,7 @@ private:
         ImageMemoryLayout* pGpuMemLayout,
         gpusize*           pGpuMemSize);
     void InitFastClearEliminateMetaData(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        ImageAspect        aspect,
-#else
         uint32             plane,
-#endif
         ImageMemoryLayout* pGpuMemLayout,
         gpusize*           pGpuMemSize);
     void InitWaTcCompatZRangeMetaData(
@@ -589,8 +539,8 @@ private:
         gpusize*           pGpuMemAlignment);
 
     bool IsFastClearColorMetaFetchable(const uint32* pColor) const;
-    PAL_INLINE bool IsFastClearDepthMetaFetchable(float depth) const;
-    PAL_INLINE bool IsFastClearStencilMetaFetchable(uint8 stencil) const;
+    bool IsFastClearDepthMetaFetchable(float depth) const;
+    bool IsFastClearStencilMetaFetchable(uint8 stencil) const;
     void SetupPlaneOffsets();
 
     void Addr2InitSubResInfoGfx9(
@@ -600,10 +550,6 @@ private:
         gpusize*               pGpuMemSize);
 
     void CheckCompToSingle();
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    ImageAspect GetAspectFromPlane(uint32  planeIdx) const;
-#endif
 
     Result CreateDccObject(
         SubResourceInfo*   pSubResInfoList,

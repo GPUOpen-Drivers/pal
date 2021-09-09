@@ -385,7 +385,7 @@ enum class TexPerfModulation : uint32
 //
 // The maximum number of address bits which GFXIP 6+ supports is 48. Some parts are limited to 40 bits.
 // For CI and above, the maximum number of address bits is 64bits.
-PAL_INLINE uint32 Get256BAddrLo(
+inline uint32 Get256BAddrLo(
     gpusize virtAddr)
 {
     PAL_ASSERT((virtAddr & 0xff) == 0);
@@ -397,7 +397,7 @@ PAL_INLINE uint32 Get256BAddrLo(
 //
 // The maximum number of address bits which GFXIP 6+ supports is 48. Some parts are limited to 40 bits.
 // For CI and above, the maximum number of address bits is 64bits.
-PAL_INLINE uint32 Get256BAddrHi(
+inline uint32 Get256BAddrHi(
     gpusize virtAddr)
 {
     PAL_ASSERT((virtAddr & 0xFF) == 0);

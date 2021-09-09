@@ -226,18 +226,19 @@ def defineEnum(valueList):
             valueEndDefTmp = ""
             if "BuildTypes" in value:
                 for type in value["BuildTypes"]:
-                    valueIfDefTmp += "#if " + type + newline
-                    valueEndDefTmp += "#endif"
-            else:
-                if "OrBuildTypes" in value:
-                    valueIfDefTmp   = "#if "
-                    valueEndDefTmp  = "#endif"
-                    numOrBuildTypes = len(value["OrBuildTypes"])
-                    for i in range(numOrBuildTypes):
-                        type = value["OrBuildTypes"][i]
-                        valueIfDefTmp += type
-                        if i < (numOrBuildTypes - 1):
-                            valueIfDefTmp += " || "
+                    valueIfDefTmp  += "#if " + type + newline
+                    valueEndDefTmp += "#endif" + newline
+
+            if "OrBuildTypes" in value:
+                valueIfDefTmp   += "#if "
+                valueEndDefTmp  += "#endif"
+                numOrBuildTypes = len(value["OrBuildTypes"])
+                for i in range(numOrBuildTypes):
+                    type = value["OrBuildTypes"][i]
+                    valueIfDefTmp += type
+                    if i < (numOrBuildTypes - 1):
+                        valueIfDefTmp += " || "
+                valueIfDefTmp += newline
 
             # Add this value to the full list, and if it's not the last value (or if there's an #endif) add a newline
             if i < (len(valueList["Values"]) - 1) or valueEndDefTmp != "":
@@ -456,30 +457,29 @@ for setting in settingsData["Settings"]:
     ###################################################################################################################
     if "BuildTypes" in setting:
         endifCount = 0
-
         for expression in setting["BuildTypes"]:
-            ifDefTmp += "#if " + expression + newline
+            ifDefTmp   += "#if " + expression + newline
             endifCount += 1
 
         while endifCount > 0:
-            endDefTmp += codeTemplates.EndIf
+            endDefTmp  += codeTemplates.EndIf
             endifCount -= 1
 
         endDefTmp += newline
-    else:
-        if "OrBuildTypes" in setting:
-            numOrBuildTypes = len(setting["OrBuildTypes"])
-            if numOrBuildTypes > 0:
-                ifDefTmp   = "#if "
-                endDefTmp += codeTemplates.EndIf + newline
 
-            for i in range(numOrBuildTypes):
-                expression = setting["OrBuildTypes"][i]
-                ifDefTmp += expression
-                if i < (numOrBuildTypes - 1):
-                    ifDefTmp += " || "
+    if "OrBuildTypes" in setting:
+        numOrBuildTypes = len(setting["OrBuildTypes"])
+        if numOrBuildTypes > 0:
+            ifDefTmp   += "#if "
+            endDefTmp  += codeTemplates.EndIf + newline
 
-            ifDefTmp += newline
+        for i in range(numOrBuildTypes):
+            expression = setting["OrBuildTypes"][i]
+            ifDefTmp  += expression
+            if i < (numOrBuildTypes - 1):
+                ifDefTmp += " || "
+
+        ifDefTmp += newline
 
     ###################################################################################################################
     # Create enum definition from the valid value list (if required)

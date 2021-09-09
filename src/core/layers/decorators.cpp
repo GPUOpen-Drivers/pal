@@ -1966,10 +1966,8 @@ const CmdPostProcessFrameInfo* CmdBufferDecorator::NextCmdPostProcessFrameInfo(
         pNextPostProcessInfo->pSrcImage = NextImage(postProcessInfo.pSrcImage);
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 625
     pNextPostProcessInfo->fullScreenFrameMetadataControlFlags.u32All =
         postProcessInfo.fullScreenFrameMetadataControlFlags.u32All;
-#endif
 
     return pNextPostProcessInfo;
 }
@@ -2102,7 +2100,6 @@ void CmdBufferFwdDecorator::CmdBarrier(
     }
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // =====================================================================================================================
 uint32 CmdBufferFwdDecorator::CmdRelease(
     const AcquireReleaseInfo& releaseInfo)
@@ -2181,7 +2178,6 @@ void CmdBufferFwdDecorator::CmdAcquire(
         m_pNextLayer->CmdAcquire(nextAcquireInfo, syncTokenCount, pSyncTokens);
     }
 }
-#endif
 
 // =====================================================================================================================
 void CmdBufferFwdDecorator::CmdReleaseEvent(
@@ -2710,13 +2706,19 @@ Result QueueDecorator::Submit(
                         pNextCmdBufInfoList->pPrimaryMemory =
                             NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].pPrimaryMemory);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 640
                         if ((pNextCmdBufInfoList->captureBegin) || (pNextCmdBufInfoList->captureEnd))
                         {
                             pNextCmdBufInfoList->pDirectCapMemory =
                                 NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].pDirectCapMemory);
-                        }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 677
+                            if (pNextCmdBufInfoList->privateFlip)
+                            {
+                                pNextCmdBufInfoList->pPrivFlipMemory =
+                                    NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].pPrivFlipMemory);
+                            }
 #endif
+                        }
                     }
                 }
 

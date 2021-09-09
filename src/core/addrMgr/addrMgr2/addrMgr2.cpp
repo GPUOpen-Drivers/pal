@@ -264,18 +264,10 @@ Result AddrMgr2::InitSubresourcesForImage(
                         pGpuMemLayout->swizzleEqIndices[1]    = eqIdx;
 
                         // The transition cound happen either between two mip levels, or between two planes.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                        const uint32 planeIndex = PlaneIndex(subRes.aspect);
-                        if ((pImage->GetImageInfo().numPlanes > 1) && (planeIndex != 0))
-                        {
-                            pGpuMemLayout->swizzleEqTransitionPlane = static_cast<uint8>(planeIndex);
-                        }
-#else
                         if ((pImage->GetImageInfo().numPlanes > 1) && (subRes.plane != 0))
                         {
                             pGpuMemLayout->swizzleEqTransitionPlane = static_cast<uint8>(subRes.plane);
                         }
-#endif
                         else
                         {
                             pGpuMemLayout->swizzleEqTransitionMip = static_cast<uint8>(subRes.mipLevel);
@@ -353,18 +345,11 @@ Result AddrMgr2::InitSubresourcesForImage(
 // Computes the size (in PRT tiles) of the mip tail for a particular Image plane.
 void AddrMgr2::ComputeTilesInMipTail(
     const Image&       image,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    ImageAspect        aspect,
-#else
     uint32             plane,
-#endif
     ImageMemoryLayout* pGpuMemLayout
     ) const
 {
     const ImageCreateInfo& createInfo = image.GetImageCreateInfo();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const SubresId baseSubresId       = image.GetBaseSubResource();
-#endif
     // This function is only supposed to be called for PRT Images which have a mip tail.
     PAL_ASSERT((createInfo.flags.prt != 0) && (pGpuMemLayout->prtMinPackedLod < createInfo.mipLevels));
 
@@ -375,11 +360,7 @@ void AddrMgr2::ComputeTilesInMipTail(
     // 3D image may need one more tiles for mip tail considering depth.
     if (createInfo.imageType == ImageType::Tex3d)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const SubresId              subResId    = { baseSubresId.aspect, pGpuMemLayout->prtMinPackedLod, 0 };
-#else
         const SubresId              subResId    = { 0, pGpuMemLayout->prtMinPackedLod, 0 };
-#endif
         const SubResourceInfo*const pSubResInfo = image.SubresourceInfo(subResId);
         pGpuMemLayout->prtMipTailTileCount      =
             static_cast<uint32>(RoundUpQuotient(pSubResInfo->extentElements.depth, pGpuMemLayout->prtTileDepth));
@@ -527,53 +508,14 @@ void AddrMgr2::InitTilingCaps(
 // Helper function for determining the ADDR2 surface flags for a specific plane of an Image.
 ADDR2_SURFACE_FLAGS AddrMgr2::DetermineSurfaceFlags(
     const Image& image,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    ImageAspect  aspect
-#else
     uint32       plane,
     bool         forFmask
-#endif
     ) const
 {
     ADDR2_SURFACE_FLAGS flags = { };
 
     const ImageCreateInfo& createInfo = image.GetImageCreateInfo();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    switch (aspect)
-    {
-    case ImageAspect::Fmask:
-        flags.fmask = 1;
-        break;
-    case ImageAspect::Stencil:
-        flags.stencil = 1;
-        break;
-    case ImageAspect::Depth:
-        flags.depth = 1;
-        break;
-    case ImageAspect::Color:
-        // We should always set the color flag for non-Depth/Stencil resources. Color block has more strict surface
-        // alignments and a texture may be the destination of an image copy.
-        flags.color = 1;
-        break;
-
-    case ImageAspect::YCbCr:
-    case ImageAspect::Y:
-    case ImageAspect::CbCr:
-    case ImageAspect::Cb:
-    case ImageAspect::Cr:
-        if ((image.GetImageCreateInfo().usageFlags.colorTarget != 0)
-            )
-        {
-            // We should always set the color flag for YUV resources.
-            flags.color = 1;
-        }
-        break;
-    default:
-        PAL_NEVER_CALLED();
-        break;
-    }
-#else
     if (forFmask)
     {
         PAL_ASSERT(plane == 0);
@@ -606,7 +548,6 @@ ADDR2_SURFACE_FLAGS AddrMgr2::DetermineSurfaceFlags(
     {
         PAL_ASSERT_ALWAYS();
     }
-#endif
 
     // Note: We should always set the texture flag since even Color or Depth/Stencil resources could be bound as a
     // shader resource for RPM blts.
@@ -689,9 +630,6 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
     const ImageCreateInfo& createInfo = pImage->GetImageCreateInfo();
     const ImageInfo&       imageInfo  = pImage->GetImageInfo();
     const PalSettings&     settings   = m_pDevice->Settings();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const ImageAspect      aspect     = (forFmask ? ImageAspect::Fmask : pBaseSubRes->subresId.aspect);
-#endif
 
     ADDR2_GET_PREFERRED_SURF_SETTING_INPUT surfSettingInput = { };
     surfSettingInput.size            = sizeof(surfSettingInput);
@@ -705,11 +643,7 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
     surfSettingInput.numMipLevels    = createInfo.mipLevels;
     surfSettingInput.numSamples      = createInfo.samples;
     surfSettingInput.numFrags        = createInfo.fragments;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    surfSettingInput.flags           = DetermineSurfaceFlags(*pImage, aspect);
-#else
     surfSettingInput.flags           = DetermineSurfaceFlags(*pImage, pBaseSubRes->subresId.plane, forFmask);
-#endif
     surfSettingInput.resourceType    = GetAddrResourceType(pImage);
     surfSettingInput.resourceLoction = ADDR_RSRC_LOC_UNDEF;
 
@@ -848,25 +782,13 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
         else if (pImage->IsFlippable())
         {
         }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        else if ((pBaseSubRes->subresId.aspect == ImageAspect::Stencil) &&
-                 pImage->IsAspectValid(ImageAspect::Depth))
-#else
         else if (pImage->IsStencilPlane(pBaseSubRes->subresId.plane) &&
                  pImage->HasDepthPlane())
-#endif
         {
             // If this is a stencil surface that also has a Z component, then the swizzle modes need to match if
             // this surface has hTile data.  There's no good way to know at this level if this surface is destined
             // to have hTile data or not, so just make the swizzle modes match.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            const SubresId  depthSubResId    = { ImageAspect::Depth,
-                                                 pBaseSubRes->subresId.mipLevel,
-                                                 pBaseSubRes->subresId.arraySlice };
-#else
             const SubresId  depthSubResId    = { 0, pBaseSubRes->subresId.mipLevel, pBaseSubRes->subresId.arraySlice };
-#endif
             const auto*     pDepthSubResInfo = pImage->SubresourceInfo(depthSubResId);
 
             pOut->swizzleMode = static_cast<AddrSwizzleMode>(pImage->GetGfxImage()->GetSwTileMode(pDepthSubResInfo));
@@ -931,11 +853,7 @@ Result AddrMgr2::ComputeAlignedPlaneDimensions(
     surfInfoIn.numSamples   = createInfo.samples;
     surfInfoIn.numFrags     = createInfo.fragments;
     surfInfoIn.swizzleMode  = swizzleMode;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    surfInfoIn.flags        = DetermineSurfaceFlags(*pImage, pBaseSubRes->subresId.aspect);
-#else
     surfInfoIn.flags        = DetermineSurfaceFlags(*pImage, pBaseSubRes->subresId.plane, false);
-#endif
 
     if ((createInfo.rowPitch > 0) && (createInfo.depthPitch > 0))
     {
@@ -951,11 +869,7 @@ Result AddrMgr2::ComputeAlignedPlaneDimensions(
     }
     else if ((IsGfx9(*m_pDevice) == true) &&
              (createInfo.swizzledFormat.format == ChNumFormat::YV12) &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-             (pBaseSubRes->subresId.aspect == ImageAspect::Y))
-#else
              (pBaseSubRes->subresId.plane == 0))
-#endif
     {
         // For YV12, all UBM clients (UDX/DXX/KMD, etc) and UBM assume pitch of Y plane is exactly twice pitch of U/V
         // plane. This assumption is also there between MMD and MMD client (UDX/DXX, etc).
@@ -1142,15 +1056,10 @@ Result AddrMgr2::InitSubresourceInfo(
         pSubResInfo->blockSize.height = surfaceInfo.blockHeight;
         pSubResInfo->blockSize.depth  = surfaceInfo.blockSlices;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 612
         // Initialize the pipe-bank xor of right eye surface for DXGI stereo.
         if ((pImage->GetImageCreateInfo().flags.dxgiStereo == 1) && (pSubResInfo->subresId.arraySlice == 1))
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            const SubresId baseSubRes    = { ImageAspect::Color, 0, 0 };
-#else
             const SubresId baseSubRes    = {};
-#endif
             const uint32 basePipeBankXor = GetTileSwizzle(pImage, baseSubRes);
 
             pTileInfo->pipeBankXor = GetStereoRightEyePipeBankXor(*pImage,
@@ -1158,7 +1067,6 @@ Result AddrMgr2::InitSubresourceInfo(
                                                                   surfaceSetting,
                                                                   basePipeBankXor);
         }
-#endif
 
         // In order to support Parameterized Swizzle for mipmapped arrays and for mipmapped tex2d resources,
         // we must call into AddrLib to calculate a special offset for this subresource. This offset should

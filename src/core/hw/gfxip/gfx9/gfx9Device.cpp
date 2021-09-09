@@ -82,7 +82,7 @@ constexpr uint32 UcodeVersionWithDumpOffsetSupport = 30;
 constexpr uint32 Gfx9UcodeVersionSetShRegOffset256B  = 42;
 constexpr uint32 Gfx10UcodeVersionSetShRegOffset256B = 27;
 
-static PAL_INLINE uint32 ComputeImageViewDepth(
+static uint32 ComputeImageViewDepth(
     const ImageViewInfo&   viewInfo,
     const ImageInfo&       imageInfo,
     const SubResourceInfo& subresInfo);
@@ -1126,55 +1126,6 @@ void Device::GetSamplePatternPalette(
            sizeof(m_samplePatternPalette));
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 638
-// =====================================================================================================================
-// Get the valid FormatFeatureFlags for the provided ChNumFormat, ImageAspect, and ImageTiling
-uint32 Device::GetValidFormatFeatureFlags(
-    const ChNumFormat format,
-    const ImageAspect aspect,
-    const ImageTiling tiling) const
-{
-    uint32 validFormatFeatureFlags = m_pParent->FeatureSupportFlags(format, tiling);
-    constexpr uint32 InvalidDSFormatFeatureFlags       = FormatFeatureColorTargetWrite |
-                                                         FormatFeatureColorTargetBlend |
-                                                         FormatFeatureWindowedPresent;
-
-    constexpr uint32 InvalidDepthFormatFeatureFlags    = InvalidDSFormatFeatureFlags   |
-                                                         FormatFeatureStencilTarget;
-
-    constexpr uint32 InvalidStencilFormatFeatureFlags  = InvalidDSFormatFeatureFlags   |
-                                                         FormatFeatureDepthTarget;
-
-    constexpr uint32 InvalidColorYUVFormatFeatureFlags = FormatFeatureStencilTarget    |
-                                                         FormatFeatureDepthTarget;
-
-    switch (aspect)
-    {
-    case ImageAspect::Depth:
-        validFormatFeatureFlags = (tiling == ImageTiling::Optimal) ?
-                                  (validFormatFeatureFlags & ~InvalidDepthFormatFeatureFlags) : 0;
-        break;
-    case ImageAspect::Stencil:
-        validFormatFeatureFlags = (tiling == ImageTiling::Optimal) ?
-                                  (validFormatFeatureFlags & ~InvalidStencilFormatFeatureFlags) : 0;
-        break;
-    case ImageAspect::Color:
-    case ImageAspect::Y:
-    case ImageAspect::CbCr:
-    case ImageAspect::Cb:
-    case ImageAspect::Cr:
-    case ImageAspect::YCbCr:
-        validFormatFeatureFlags = validFormatFeatureFlags & ~InvalidColorYUVFormatFeatureFlags;
-        break;
-    case ImageAspect::Fmask:
-    default:
-        PAL_NEVER_CALLED();
-        break;
-    }
-    return validFormatFeatureFlags;
-}
-#endif
-
 // =====================================================================================================================
 // Called during pipeline creation to notify that item-size requirements for each shader ring have changed. These
 // 'largest ring sizes' will be validated at Queue submission time.
@@ -1765,7 +1716,7 @@ DccFormatEncoding Device::ComputeDccFormatEncoding(
 
 // =====================================================================================================================
 // Computes the image view SRD DEPTH field based on image view parameters
-static PAL_INLINE uint32 ComputeImageViewDepth(
+static uint32 ComputeImageViewDepth(
     const ImageViewInfo&   viewInfo,
     const ImageInfo&       imageInfo,
     const SubResourceInfo& subresInfo)
@@ -1864,7 +1815,7 @@ static_assert(static_cast<uint32>(MipFilterCount) <= 4,
 
 // =====================================================================================================================
 // Determine the appropriate SQ clamp mode based on the given TexAddressMode enum value.
-static PAL_INLINE SQ_TEX_CLAMP GetAddressClamp(
+static SQ_TEX_CLAMP GetAddressClamp(
     TexAddressMode texAddress)
 {
     constexpr SQ_TEX_CLAMP PalTexAddrToHwTbl[] =
@@ -1887,7 +1838,7 @@ static PAL_INLINE SQ_TEX_CLAMP GetAddressClamp(
 
 // =====================================================================================================================
 // Determine if anisotropic filtering is enabled
-static PAL_INLINE bool IsAnisoEnabled(
+constexpr bool IsAnisoEnabled(
     Pal::TexFilter texfilter)
 {
     return ((texfilter.magnification == XyFilterAnisotropicPoint)  ||
@@ -1900,7 +1851,7 @@ static PAL_INLINE bool IsAnisoEnabled(
 // Determine the appropriate Anisotropic filtering mode.
 // NOTE: For values of anisotropy not natively supported by HW, we clamp to the closest value less than what was
 //       requested.
-static PAL_INLINE SQ_TEX_ANISO_RATIO GetAnisoRatio(
+static SQ_TEX_ANISO_RATIO GetAnisoRatio(
     const SamplerInfo& info)
 {
     SQ_TEX_ANISO_RATIO anisoRatio = SQ_TEX_ANISO_RATIO_1;
@@ -2518,16 +2469,10 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
     for (uint32 i = 0; i < count; ++i)
     {
         const ImageViewInfo&   viewInfo        = pImgViewInfo[i];
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
         PAL_ASSERT(viewInfo.subresRange.numPlanes == 1);
-#endif
 
         const Image&           image           = *GetGfx9Image(viewInfo.pImage);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const Gfx9MaskRam*     pMaskRam        = image.GetPrimaryMaskRam(viewInfo.subresRange.startSubres.aspect);
-#else
         const Gfx9MaskRam*     pMaskRam        = image.GetPrimaryMaskRam(viewInfo.subresRange.startSubres.plane);
-#endif
         const auto*const       pParent         = static_cast<const Pal::Image*>(viewInfo.pImage);
         const ImageInfo&       imageInfo       = pParent->GetImageInfo();
         const ImageCreateInfo& imageCreateInfo = pParent->GetImageCreateInfo();
@@ -2539,11 +2484,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
         Gfx9ImageSrd srd    = {};
         ChNumFormat  format = viewInfo.swizzledFormat.format;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        SubresId     baseSubResId   = { viewInfo.subresRange.startSubres.aspect, 0, 0 };
-#else
         SubresId     baseSubResId   = { viewInfo.subresRange.startSubres.plane, 0, 0 };
-#endif
         uint32       baseArraySlice = viewInfo.subresRange.startSubres.arraySlice;
         uint32       firstMipLevel  = viewInfo.subresRange.startSubres.mipLevel;
         uint32       mipLevels      = imageCreateInfo.mipLevels;
@@ -2654,11 +2595,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
                 // there is no suitable width or height, the actualExtentElements is chosen.  The application is in
                 // charge of making sure the math works out properly if they do this (allowed by Vulkan), otherwise we
                 // assume it's an internal view and the copy shaders will prevent accessing out-of-bounds pixels.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                SubresId               mipSubResId    = { viewInfo.subresRange.startSubres.aspect, firstMipLevel, 0 };
-#else
                 SubresId               mipSubResId    = { viewInfo.subresRange.startSubres.plane, firstMipLevel, 0 };
-#endif
                 const SubResourceInfo* pMipSubResInfo = pParent->SubresourceInfo(mipSubResId);
 
                 extent.width  = Util::Clamp((pMipSubResInfo->extentElements.width  << firstMipLevel),
@@ -2809,11 +2746,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
             srd.word1.bits.NUM_FORMAT  = IMG_NUM_FORMAT_FLOAT;
         }
         else if ((Formats::BytesPerPixel(format) == 1) &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                 pParent->IsAspectValid(ImageAspect::Depth) &&
-#else
                  pParent->HasDepthPlane()              &&
-#endif
                  image.HasDsMetadata())
         {
             // If they're requesting the stencil plane (i.e., an 8bpp view)       -and-
@@ -3362,9 +3295,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
     for (uint32 i = 0; i < count; ++i)
     {
         const ImageViewInfo&   viewInfo        = pImgViewInfo[i];
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
         PAL_ASSERT(viewInfo.subresRange.numPlanes == 1);
-#endif
 
         // If the "image" is really a PRT+ mapping image, then we want to set up the majority of this
         // SRD off of the parent image, unless the client is indicating they want raw access to the
@@ -3373,11 +3304,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
                                                   ? static_cast<const Pal::Image*>(viewInfo.pImage)
                                                   : static_cast<const Pal::Image*>(viewInfo.pPrtParentImg));
         const Image&           image           = static_cast<const Image&>(*(pParent->GetGfxImage()));
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const Gfx9MaskRam*     pMaskRam        = image.GetPrimaryMaskRam(viewInfo.subresRange.startSubres.aspect);
-#else
         const Gfx9MaskRam*     pMaskRam        = image.GetPrimaryMaskRam(viewInfo.subresRange.startSubres.plane);
-#endif
         const ImageInfo&       imageInfo       = pParent->GetImageInfo();
         const ImageCreateInfo& imageCreateInfo = pParent->GetImageCreateInfo();
         const ImageUsageFlags& imageUsageFlags = imageCreateInfo.usageFlags;
@@ -3388,14 +3315,10 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
         const auto&            boundMem        = pParent->GetBoundGpuMemory();
         ChNumFormat            format          = viewInfo.swizzledFormat.format;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        SubresId     baseSubResId   = { viewInfo.subresRange.startSubres.aspect, 0, 0 };
-#else
-        SubresId     baseSubResId   = { viewInfo.subresRange.startSubres.plane, 0, 0 };
-#endif
-        uint32       baseArraySlice = viewInfo.subresRange.startSubres.arraySlice;
-        uint32       firstMipLevel  = viewInfo.subresRange.startSubres.mipLevel;
-        uint32       mipLevels      = imageCreateInfo.mipLevels;
+        SubresId baseSubResId   = { viewInfo.subresRange.startSubres.plane, 0, 0 };
+        uint32   baseArraySlice = viewInfo.subresRange.startSubres.arraySlice;
+        uint32   firstMipLevel  = viewInfo.subresRange.startSubres.mipLevel;
+        uint32   mipLevels      = imageCreateInfo.mipLevels;
 
         PAL_ASSERT((viewInfo.possibleLayouts.engines != 0) && (viewInfo.possibleLayouts.usages != 0));
 
@@ -3461,15 +3384,9 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             // there is no suitable width or height, the actualExtentElements is chosen.  The application is in
             // charge of making sure the math works out properly if they do this (allowed by Vulkan), otherwise we
             // assume it's an internal view and the copy shaders will prevent accessing out-of-bounds pixels.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            SubresId               mipSubResId    = { viewInfo.subresRange.startSubres.aspect,
-                                                      firstMipLevel,
-                                                      baseArraySlice };
-#else
             SubresId               mipSubResId    = { viewInfo.subresRange.startSubres.plane,
                                                       firstMipLevel,
                                                       baseArraySlice };
-#endif
             const SubResourceInfo* pMipSubResInfo = pParent->SubresourceInfo(mipSubResId);
 
             extent.width  = Clamp((pMipSubResInfo->extentElements.width  << firstMipLevel),
@@ -3734,6 +3651,17 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             break;
         case ImageViewType::Tex3d:
             srd.type = SQ_RSRC_IMG_3D;
+
+            // For 3D, bit 0 indicates SRV or UAV:
+            //   0: SRV (base_array ignored, depth w.r.t. base map)
+            //   1: UAV (base_array and depth are first and last layer in view, and w.r.t. mip level specified)
+            //
+            // "base_array" and "depth" specify the range of 3D slices that can be read from.  Both of these fields
+            // are setup (below) to what the client expects based on the "viewInfo" paramters, so we always want the
+            // HW to obey them, so we always set the LSB of "array_pitch".
+            //
+            // For non-3D images, the "array_pitch" field is only meaningful for quilts, which we do not support.
+            srd.gfx10CorePlus.array_pitch = 0;
             break;
         case ImageViewType::TexCube:
             srd.type = SQ_RSRC_IMG_CUBE;
@@ -3867,11 +3795,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
                 }
                 else
                 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                    const auto& dccControl = image.GetDcc(viewInfo.subresRange.startSubres.aspect)->GetControlReg();
-#else
                     const auto& dccControl = image.GetDcc(viewInfo.subresRange.startSubres.plane)->GetControlReg();
-#endif
 
                     // The color image's meta-data always points at the DCC surface.  Any existing cMask or fMask
                     // meta-data is only required for compressed texture fetches of MSAA surfaces, and that feature
@@ -3970,11 +3894,7 @@ void Device::Gfx9CreateFmaskViewSrdsInternal(
     ) const
 {
     const bool             hasInternalInfo = (pFmaskViewInternalInfo != nullptr);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const SubresId         slice0Id        = { ImageAspect::Fmask, 0, 0 };
-#else
     const SubresId         slice0Id        = {};
-#endif
     const Image&           image           = *GetGfx9Image(viewInfo.pImage);
     const Gfx9Fmask*const  pFmask          = image.GetFmask();
     const auto*const       pParent         = static_cast<const Pal::Image*>(viewInfo.pImage);
@@ -4055,11 +3975,7 @@ void Device::Gfx10CreateFmaskViewSrdsInternal(
     ) const
 {
     const bool             hasInternalInfo = (pFmaskViewInternalInfo != nullptr);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const SubresId         slice0Id        = { ImageAspect::Fmask, 0, 0 };
-#else
     const SubresId         slice0Id        = {};
-#endif
     const Image&           image           = *GetGfx9Image(viewInfo.pImage);
     const Gfx9Fmask*const  pFmask          = image.GetFmask();
     const Gfx9Cmask*       pCmask          = image.GetCmask();

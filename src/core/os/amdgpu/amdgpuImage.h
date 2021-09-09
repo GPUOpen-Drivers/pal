@@ -28,9 +28,6 @@
 #include "core/image.h"
 #include "core/os/amdgpu/amdgpuWindowSystem.h"
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 633
-#endif
-
 namespace Pal
 {
 namespace Amdgpu
@@ -122,9 +119,6 @@ public:
     bool GetIdle(void) const { return m_idle; }
 
     void SetWindowSystem(WindowSystem* pWindowSystem) { m_pWindowSystem = pWindowSystem; }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 633
-#endif
 
     Result     CreatePresentableBuffer();
     GpuMemory* GetPresentableBuffer() const { return m_pPresentableBuffer; }

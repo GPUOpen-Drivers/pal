@@ -524,7 +524,7 @@ private:
     }
 
     template <IT_OpCodeType opCode>
-    PAL_INLINE size_t BuildLoadRegsOne(
+    size_t BuildLoadRegsOne(
         gpusize       gpuVirtAddr,
         uint32        startRegOffset,
         uint32        count,
@@ -532,7 +532,7 @@ private:
         void*         pBuffer) const;
 
     template <IT_OpCodeType opCode>
-    PAL_INLINE size_t BuildLoadRegsMulti(
+    size_t BuildLoadRegsMulti(
         gpusize              gpuVirtAddr,
         const RegisterRange* pRanges,
         uint32               rangeCount,
@@ -540,7 +540,7 @@ private:
         void*                pBuffer) const;
 
     template <IT_OpCodeType opCode, bool directAddress, uint32 dataFormat>
-    PAL_INLINE size_t BuildLoadRegsIndex(
+    size_t BuildLoadRegsIndex(
         gpusize       gpuVirtAddrOrAddrOffset,
         uint32        startRegOffset,
         uint32        count,
@@ -562,7 +562,7 @@ private:
     // - set_sh_reg
     // - set_sh_reg_offset
     // - write_gds
-    static PAL_INLINE uint32 Type3Header(
+    static constexpr uint32 Type3Header(
         IT_OpCodeType opCode,
         size_t        packetSize,
         PM4ShaderType shaderType = ShaderGraphics,
@@ -581,7 +581,7 @@ private:
     //     };
     //     unsigned int        ordinal2;
     // };
-    PAL_INLINE uint32 SetDataOrdinal2(
+    uint32 SetDataOrdinal2(
         uint32 regOffset,
         uint32 index = 0) const
     {

@@ -178,6 +178,9 @@ Result CmdBuffer::Init(
         m_gpuScratchMemAllocLimit = (m_pCmdAllocator->ChunkSize(GpuScratchMemAlloc) / sizeof(uint32));
     }
 
+    // Set the bit based on m_pCmdAllocator autoMemoryReuse bit value.
+    m_flags.autoMemoryReuse = (m_pCmdAllocator != nullptr) && (m_pCmdAllocator->AutomaticMemoryReuse());
+
     Result result = Reset(nullptr, true);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -430,6 +433,9 @@ Result CmdBuffer::Reset(
         {
             m_pCmdAllocator           = static_cast<CmdAllocator*>(pCmdAllocator);
             m_gpuScratchMemAllocLimit = (m_pCmdAllocator->ChunkSize(GpuScratchMemAlloc) / sizeof(uint32));
+
+            // Update the autoMemoryReuse bit by the new cmdAllocator
+            m_flags.autoMemoryReuse   = m_pCmdAllocator->AutomaticMemoryReuse();
 
         }
     }
@@ -716,30 +722,14 @@ void CmdBuffer::CmdBarrier(
                 //
                 // then we need to do a little more validation.
                 if (pImage->IsDepthStencilTarget()                                             &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                    pImage->IsAspectValid(ImageAspect::Depth)                                  &&
-                    pImage->IsAspectValid(ImageAspect::Stencil)                                &&
-#else
                     (pImage->GetImageInfo().numPlanes == 2)                                    &&
-#endif
                     TestAnyFlagSet(transitionInfo.oldLayout.usages, LayoutUninitializedTarget) &&
                     (processed[idx] == false)                                                  &&
                     imageCreateFlags.perSubresInit                                             &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                    (imageCreateFlags.separateDepthAspectInit == false))
-#else
                     (imageCreateFlags.separateDepthPlaneInit == false))
-#endif
                 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                    const ImageAspect  firstAspect = transitionInfo.subresRange.startSubres.aspect;
-                    const ImageAspect  otherAspect = (firstAspect == ImageAspect::Depth)
-                                                     ? ImageAspect::Stencil
-                                                     : ImageAspect::Depth;
-#else
                     const uint32 firstPlane = transitionInfo.subresRange.startSubres.plane;
                     const uint32 otherPlane = (firstPlane == 0) ? 1 : 0;
-#endif
 
                     bool  otherPlaneFound = false;
                     for (uint32  innerIdx = idx + 1;
@@ -754,11 +744,7 @@ void CmdBuffer::CmdBarrier(
                         //   3) Refers to the "other" plane
                         if ((innerTransitionInfo.pImage == pImage)    &&
                             TestAnyFlagSet(innerTransitionInfo.oldLayout.usages, LayoutUninitializedTarget) &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                            (innerTransitionInfo.subresRange.startSubres.aspect == otherAspect))
-#else
                             (innerTransitionInfo.subresRange.startSubres.plane == otherPlane))
-#endif
                         {
                             processed[innerIdx] = true;
                             otherPlaneFound    = true;
@@ -775,7 +761,6 @@ void CmdBuffer::CmdBarrier(
 #endif
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 // =====================================================================================================================
 uint32 CmdBuffer::CmdRelease(
     const AcquireReleaseInfo& releaseInfo)
@@ -797,7 +782,6 @@ void CmdBuffer::CmdAcquire(
     VerifyBarrierTransitions(acquireInfo);
 #endif
 }
-#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdReleaseEvent(
@@ -892,7 +876,7 @@ void CmdBuffer::ReturnDataChunks(
             }
 
             // Return all chunks to the command allocator.
-            if ((pData->chunkList.IsEmpty() == false) && m_pCmdAllocator->AutomaticMemoryReuse())
+            if ((pData->chunkList.IsEmpty() == false) && (m_flags.autoMemoryReuse == true))
             {
                 for (auto iter = pData->chunkList.Begin(); iter.IsValid(); iter.Next())
                 {
@@ -1275,30 +1259,14 @@ void CmdBuffer::VerifyBarrierTransitions(
             //
             // then we need to do a little more validation.
             if (pImage->IsDepthStencilTarget()                                             &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                pImage->IsAspectValid(ImageAspect::Depth)                                  &&
-                pImage->IsAspectValid(ImageAspect::Stencil)                                &&
-#else
                 (pImage->GetImageInfo().numPlanes == 2)                                    &&
-#endif
                 TestAnyFlagSet(transition.oldLayout.usages, LayoutUninitializedTarget)     &&
                 (processed[idx] == false)                                                  &&
                 imageCreateFlags.perSubresInit                                             &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                (imageCreateFlags.separateDepthAspectInit == false))
-#else
                 (imageCreateFlags.separateDepthPlaneInit == false))
-#endif
             {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                const ImageAspect  firstAspect = transition.subresRange.startSubres.aspect;
-                const ImageAspect  otherAspect = (firstAspect == ImageAspect::Depth)
-                                                    ? ImageAspect::Stencil
-                                                    : ImageAspect::Depth;
-#else
                 const uint32 firstPlane = transition.subresRange.startSubres.plane;
                 const uint32 otherPlane = (firstPlane == 0) ? 1 : 0;
-#endif
 
                 bool  otherPlaneFound = false;
                 for (uint32  innerIdx = idx + 1;
@@ -1313,11 +1281,7 @@ void CmdBuffer::VerifyBarrierTransitions(
                     //   3) Refers to the "other" plane
                     if ((innerTransition.pImage == pImage)                                          &&
                         TestAnyFlagSet(innerTransition.oldLayout.usages, LayoutUninitializedTarget) &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                        (innerTransition.subresRange.startSubres.aspect == otherAspect))
-#else
                         (innerTransition.subresRange.startSubres.plane == otherPlane))
-#endif
                     {
                         processed[innerIdx] = true;
                         otherPlaneFound    = true;

@@ -159,11 +159,7 @@ public:
     virtual AddrSwizzleMode GetSwizzleMode() const;
     ADDR2_META_FLAGS GetMetaFlags() const;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    virtual uint32 GetPipeBankXor(ImageAspect aspect) const;
-#else
     virtual uint32 GetPipeBankXor(uint32 plane) const;
-#endif
     virtual uint32 GetBytesPerPixelLog2() const;
     virtual uint32 GetMetaBlockSize(Gfx9MaskRamBlockSize* pExtent) const;
     virtual uint32 GetNumSamplesLog2() const = 0;
@@ -219,11 +215,7 @@ public:
     void BuildEqBufferView(
         BufferViewInfo*  pBufferView) const;
     uint32 CalcPipeXorMask(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        ImageAspect   aspect) const;
-#else
         uint32 plane) const;
-#endif
     const MetaDataAddrEquation&  GetMetaEquation() const { return m_meta; }
     const MetaEquationParam& GetMetaEquationParam() const { return m_metaEqParam; }
     void CpuUploadEq(void*  pCpuMem) const;
@@ -308,11 +300,7 @@ public:
     uint32 GetInitialValue() const;
     uint32 GetClearValue(float depthValue) const;
     uint32 GetPlaneMask(uint32 planeFlags) const;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    uint32 GetPlaneMask(ImageAspect aspect) const;
-#else
     uint32 GetPlaneMask(const SubresRange& range) const;
-#endif
 
     Result Init(
         gpusize*  pGpuOffset,
@@ -323,7 +311,6 @@ public:
     bool TileStencilDisabled() const { return m_flags.tileStencilDisable; }
     bool ZRangePrecision() const { return m_flags.zrangePrecision; }
     const regDB_HTILE_SURFACE& DbHtileSurface(uint32  mipLevel) const { return m_dbHtileSurface[mipLevel]; }
-    const regDB_PRELOAD_CONTROL& DbPreloadControl(uint32  mipLevel) const { return m_dbPreloadControl[mipLevel]; }
     const ADDR2_COMPUTE_HTILE_INFO_OUTPUT&  GetAddrOutput() const { return m_addrOutput; }
     HtileUsageFlags  GetHtileUsage() const { return m_hTileUsage; }
 
@@ -331,11 +318,7 @@ public:
 
     static constexpr uint32 Sr1Mask = (3u << 6);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    uint32 GetPipeBankXor(ImageAspect aspect) const override;
-#else
     uint32 GetPipeBankXor(uint32 plane) const override;
-#endif
     uint32 GetMetaBlockSize(Gfx9MaskRamBlockSize* pExtent) const override;
     uint32 GetNumSamplesLog2() const override;
     uint32 GetMetaCachelineSize() const override { return 8; }
@@ -344,8 +327,6 @@ public:
 
 private:
     Result ComputeHtileInfo(const SubResourceInfo* pSubResInfo);
-
-    void SetupHtilePreload(uint32 mipLevel);
 
     virtual bool   IsDepth() const override { return true; }
 
@@ -367,7 +348,6 @@ private:
     Gfx9HtileFlags                   m_flags;                                // HTile properties flags
     HtileUsageFlags                  m_hTileUsage;
     regDB_HTILE_SURFACE              m_dbHtileSurface[MaxImageMipLevels];    // DB_HTILE_SURFACE register value
-    regDB_PRELOAD_CONTROL            m_dbPreloadControl[MaxImageMipLevels];  // DB_PRELOAD_CONTROL register value
 
     // Each DB's HTile cache can fit 8K DWORDs. Each DWORD of HTILE data covers 64 pixels.
     static constexpr uint32 DbHtileCacheSizeInPixels = (8 * 1024 * 64);
@@ -536,11 +516,7 @@ public:
     // 'not fast cleared' and bits 1:0 being 2'b00 to mean all FMask pointers are zero for the entire tile.
     static constexpr uint8 FastClearValueDcc = 0xCC;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    uint32 GetPipeBankXor(ImageAspect aspect) const override;
-#else
     uint32 GetPipeBankXor(uint32 plane) const override;
-#endif
     uint32 GetBytesPerPixelLog2() const override;
     // FMASK always treated as 1xAA for Cmask addressing
     uint32 GetNumSamplesLog2() const override { return 0; }

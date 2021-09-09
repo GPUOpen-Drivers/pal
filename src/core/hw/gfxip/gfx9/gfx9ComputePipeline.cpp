@@ -84,9 +84,7 @@ Result ComputePipeline::HwlInit(
     const auto&              regInfo   = cmdUtil.GetRegInfo();
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 622
     m_disablePartialPreempt = createInfo.disablePartialDispatchPreemption;
-#endif
 
     RegisterVector registers(m_pDevice->GetPlatform());
     Result result = pMetadataReader->Seek(metadata.pipeline.registers);
@@ -103,11 +101,7 @@ Result ComputePipeline::HwlInit(
         // Next, handle relocations and upload the pipeline code & data to GPU memory.
         result = PerformRelocationsAndUploadToGpuMemory(
             metadata,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
-            (createInfo.flags.overrideGpuHeap == 1) ? createInfo.preferredHeapType : GpuHeapInvisible,
-#else
             IsInternal() ? GpuHeapLocal : m_pDevice->Parent()->GetPublicSettings()->pipelinePreferredHeap,
-#endif
             &uploader);
     }
 
@@ -151,11 +145,7 @@ uint32 ComputePipeline::CalcMaxWavesPerSe(
 
     if (maxWavesPerCu > 0)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 630
         wavesPerSe = CalcMaxWavesPerSh(chipProps, maxWavesPerCu) * chipProps.gfx9.numShaderArrays;
-#else
-        wavesPerSe = CalcMaxWavesPerSh(chipProps, maxWavesPerCu);
-#endif
     }
 
     return wavesPerSe;

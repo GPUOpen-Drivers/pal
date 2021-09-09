@@ -141,7 +141,6 @@ struct GfxCmdBufferState
         uint32 u32All;
     } flags;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     struct
     {
         uint32 gfxBltExecEopFenceVal; // Earliest EOP fence value that can confirm all GFX BLTs are complete.
@@ -149,7 +148,6 @@ struct GfxCmdBufferState
                                       // written back to L2.
         uint32 csBltExecEopFenceVal;  // Earliest EOP fence value that can confirm all CS BLTs are complete.
     } fences;
-#endif
 };
 
 // Tracks the state of a user-data table stored in GPU memory.  The table's contents are managed using embedded data
@@ -178,7 +176,6 @@ struct ChunkOutput
     uint32          chainSizeInDwords;
 };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
 constexpr uint32 AcqRelFenceResetVal = 0;
 
 // Acquire/release synchronization event types for supported pipeline event.
@@ -204,7 +201,6 @@ struct AcqRelSyncToken
         uint32 u32All;
     };
 };
-#endif
 
 // =====================================================================================================================
 // Abstract class for executing basic hardware-specific functionality common to GFXIP universal and compute command
@@ -401,7 +397,6 @@ public:
 
     gpusize TimestampGpuVirtAddr() const { return m_timestampGpuVa; }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     gpusize AcqRelFenceValBaseGpuVa() const { return m_acqRelFenceValGpuVa; }
     gpusize AcqRelFenceValGpuVa(AcqRelEventType type) const
         { return (m_acqRelFenceValGpuVa + sizeof(uint32) * static_cast<uint32>(type)); }
@@ -411,7 +406,6 @@ public:
         m_acqRelFenceVals[static_cast<uint32>(type)]++;
         return m_acqRelFenceVals[static_cast<uint32>(type)];
     }
-#endif
 
     GpuEvent* GetInternalEvent() { return m_pInternalEvent; }
 
@@ -441,7 +435,6 @@ public:
     void SetGfxCmdBufCpMemoryWriteL2CacheStaleState(bool cpMemoryWriteDirty)
         { m_gfxCmdBufState.flags.cpMemoryWriteL2CacheStale = cpMemoryWriteDirty; }
     void SetPrevCmdBufInactive() { m_gfxCmdBufState.flags.prevCmdBufActive = 0; }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     uint32 GetCurAcqRelFenceVal(AcqRelEventType type) const { return m_acqRelFenceVals[static_cast<uint32>(type)]; }
 
     // Execution fence value is updated at every BLT. Set it to the next event because its completion indicates all
@@ -460,7 +453,6 @@ public:
     {
         m_gfxCmdBufState.fences.gfxBltWbEopFenceVal = fenceVal;
     }
-#endif
 
     // Obtains a fresh command stream chunk from the current command allocator, for use as the target of GPU-generated
     // commands. The chunk is inserted onto the generated-chunks list so it can be recycled by the allocator after the
@@ -664,10 +656,8 @@ private:
     // Number of active queries in this command buffer.
     uint32  m_numActiveQueries[static_cast<size_t>(QueryPoolType::Count)];
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 648
     gpusize m_acqRelFenceValGpuVa; // GPU virtual address of 3-dwords memory used for acquire/release pipe event sync.
     uint32 m_acqRelFenceVals[static_cast<uint32>(AcqRelEventType::Count)];
-#endif
 
     GpuEvent*  m_pInternalEvent;   // Internal Event for Release/Acquire based barrier.  CPU invisible.
 
@@ -687,7 +677,7 @@ private:
 // =====================================================================================================================
 // Helper function for resetting a user-data table which is managed using embdedded data or CE RAM at the beginning of
 // a command buffer.
-void PAL_INLINE ResetUserDataTable(
+inline void ResetUserDataTable(
     UserDataTableState* pTable)
 {
     pTable->pCpuVirtAddr = nullptr;

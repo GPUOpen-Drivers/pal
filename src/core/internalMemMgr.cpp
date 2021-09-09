@@ -43,7 +43,7 @@ static constexpr gpusize PoolMinSuballocationSize = 1ull << 4;  // 16 bytes
 
 // =====================================================================================================================
 // Determines whether a base allocation matches the requested parameters
-static PAL_INLINE bool IsMatchingPool(
+static bool IsMatchingPool(
     const GpuMemoryPool&    pool,
     bool                    readOnly,
     GpuMemoryFlags          memFlags,
@@ -81,13 +81,12 @@ static PAL_INLINE bool IsMatchingPool(
 // Initializes a set of GPU memory flags based on the values contained in the GPU memory create info and internal
 // create info structures. This is an incomplete conversion for the flags, only sufficient for the Buddy Allocator's
 // comparison to see if memory objects are compatible.
-static PAL_INLINE GpuMemoryFlags ConvertGpuMemoryFlags(
+static GpuMemoryFlags ConvertGpuMemoryFlags(
     const GpuMemoryCreateInfo&         createInfo,
     const GpuMemoryInternalCreateInfo& internalInfo)
 {
-    GpuMemoryFlags flags;
+    GpuMemoryFlags flags{};
 
-    flags.u64All = 0;
     flags.isShareable    = createInfo.flags.shareable;
     flags.isFlippable    = createInfo.flags.flippable;
     flags.interprocess   = createInfo.flags.interprocess;
@@ -107,7 +106,7 @@ static PAL_INLINE GpuMemoryFlags ConvertGpuMemoryFlags(
 // =====================================================================================================================
 // Filter invisible heap. For some objects as pipeline, invisible heap will be appended in memory requirement.
 // Internal use as RPM pipeline/overlay pipeline ought to filter the invisible heap before use.
-static PAL_INLINE void FilterInvisibleHeap(
+static void FilterInvisibleHeap(
     GpuMemoryRequirements* pMemReq)
 {
     uint32 origHeapCount = pMemReq->heapCount;

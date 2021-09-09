@@ -119,11 +119,7 @@ extern void ConvertColor(
 /// each channel based on the specified format.
 extern void ConvertYuvColor(
     SwizzledFormat format,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    ImageAspect    aspect,
-#else
     uint32         plane,
-#endif
     const uint32*  pColorIn,
     uint32*        pColorOut);
 
@@ -777,25 +773,15 @@ inline bool IsMacroPixelPackedRgbOnly(
 /// @returns Corresponding scaling factors between the luma plane and chroma plane(s).
 inline Extent3d Log2SubsamplingRatio(
     ChNumFormat format,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    ImageAspect aspect)
-#else
     uint32      plane)
-#endif
 {
     // All planes for formats which are not YUV planar, and the 0th plane of a YUV planar format (the luma plane) are
     // sampled at full rate, so the ratio is { log2(1), log2(1), log2(1) }, which equates to { 0,0,0 }.
     Extent3d ratio = { };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    if (IsYuvPlanar(format) && (aspect != ImageAspect::Y))
-    {
-        PAL_ASSERT((aspect == ImageAspect::CbCr) || (aspect == ImageAspect::Cb) || (aspect == ImageAspect::Cr));
-#else
     if (IsYuvPlanar(format) && (plane != 0))
     {
         PAL_ASSERT((plane == 1) || (plane == 2));
-#endif
         switch (format)
         {
         // 4:2:0 formats have 1/2 as many samples in both the horizontal and vertical directions.

@@ -189,7 +189,6 @@ struct Gfx9DepthStencilViewRegs
     regDB_HTILE_DATA_BASE_HI         dbHtileDataBaseHi;
     regDB_DEPTH_SIZE                 dbDepthSize;
     regDB_HTILE_SURFACE              dbHtileSurface;
-    regDB_PRELOAD_CONTROL            dbPreloadControl;
     regDB_RENDER_CONTROL             dbRenderControl;
     regPA_SU_POLY_OFFSET_DB_FMT_CNTL paSuPolyOffsetDbFmtCntl;
     regCOHER_DEST_BASE_0             coherDestBase0;
@@ -257,7 +256,6 @@ struct Gfx10DepthStencilViewRegs
     regDB_Z_WRITE_BASE               dbZWriteBase;
     regDB_STENCIL_WRITE_BASE         dbStencilWriteBase;
     regDB_HTILE_SURFACE              dbHtileSurface;
-    regDB_PRELOAD_CONTROL            dbPreloadControl;
     regPA_SU_POLY_OFFSET_DB_FMT_CNTL paSuPolyOffsetDbFmtCntl;
     regCOHER_DEST_BASE_0             coherDestBase0;
     regDB_RENDER_OVERRIDE            dbRenderOverride;

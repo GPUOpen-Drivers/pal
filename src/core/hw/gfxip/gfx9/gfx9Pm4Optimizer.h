@@ -156,6 +156,7 @@ private:
     const CmdUtil&  m_cmdUtil;
 
     const bool m_waTcCompatZRange; // If the waTcCompatZRange workaround is enabled or not
+    const bool m_splitPackets;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     bool  m_dstContainsSrc; // Knowing when the dst and src buffers are the same lets us do additional debug checks.

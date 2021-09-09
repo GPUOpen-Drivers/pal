@@ -194,15 +194,9 @@ protected:
         DccClearPurpose    clearPurpose,
         const uint32*      pPackedClearColor = nullptr) const = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    ImageAspect DecodeImageViewSrdAspect(
-        const Pal::Image&  image,
-        gpusize            srdBaseAddr) const;
-#else
     uint32 DecodeImageViewSrdPlane(
         const Pal::Image&  image,
         gpusize            srdBaseAddr) const;
-#endif
 
     static uint32 ExpandClearCodeToDword(uint8  clearCode);
 
@@ -221,12 +215,8 @@ protected:
 
     uint32 GetClearDepth(
         const Image& dstImage,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const SubresRange& clearRange,
-#else
         uint32       plane,
         uint32       numSlices,
-#endif
         uint32       mipLevel) const;
 
     virtual bool HwlUseOptimizedImageCopy(
@@ -691,11 +681,7 @@ private:
     void ClearDccComputeSetFirstPixelOfBlock(
         GfxCmdBuffer*      pCmdBuffer,
         const Image&       dstImage,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        Pal::ImageAspect   aspect,
-#else
         uint32             plane,
-#endif
         uint32             absMipLevel,
         uint32             startSlice,
         uint32             numSlices,

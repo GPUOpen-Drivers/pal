@@ -165,18 +165,10 @@ Result AddrMgr1::InitSubresourcesForImage(
                 pGpuMemLayout->swizzleEqIndices[1] = eqIdx;
 
                 // The transition cound happen either between two mip levels, or between two planes.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                const uint32 planeIndex = PlaneIndex(pSubResInfo->subresId.aspect);
-                if ((pImage->GetImageInfo().numPlanes > 1) && (planeIndex != 0))
-                {
-                    pGpuMemLayout->swizzleEqTransitionPlane = static_cast<uint8>(planeIndex);
-                }
-#else
                 if ((pImage->GetImageInfo().numPlanes > 1) && (pSubResInfo->subresId.plane != 0))
                 {
                     pGpuMemLayout->swizzleEqTransitionPlane = static_cast<uint8>(pSubResInfo->subresId.plane);
                 }
-#endif
                 else
                 {
                     pGpuMemLayout->swizzleEqTransitionMip = static_cast<uint8>(pSubResInfo->subresId.mipLevel);
@@ -197,11 +189,7 @@ Result AddrMgr1::InitSubresourcesForImage(
 // Computes the size (in PRT tiles) of the mip tail for a particular Image plane.
 void AddrMgr1::ComputeTilesInMipTail(
     const Image&       image,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    ImageAspect        aspect,
-#else
     uint32             plane,
-#endif
     ImageMemoryLayout* pGpuMemLayout
     ) const
 {
@@ -215,13 +203,8 @@ void AddrMgr1::ComputeTilesInMipTail(
     const auto& imageProperties = GetDevice()->ChipProperties().imageProperties;
     PAL_ASSERT((imageProperties.prtFeatures & PrtFeaturePerSliceMipTail) == 0);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const SubresId startSubresId = { aspect, pGpuMemLayout->prtMinPackedLod, 0 };
-    const SubresId endSubresId   = { aspect, (createInfo.mipLevels - 1), (createInfo.arraySize - 1) };
-#else
     const SubresId startSubresId = { plane, pGpuMemLayout->prtMinPackedLod, 0 };
     const SubresId endSubresId   = { plane, (createInfo.mipLevels - 1), (createInfo.arraySize - 1) };
-#endif
 
     const gpusize  startOffset = image.SubresourceInfo(startSubresId)->offset;
     const gpusize  endOffset   = (image.SubresourceInfo(endSubresId)->offset +
@@ -319,19 +302,11 @@ static ADDR_SURFACE_FLAGS InitSurfaceInfoFlags(
 
     if (image.IsDepthStencilTarget())
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        if (subResInfo.subresId.aspect == ImageAspect::Stencil)
-#else
         if (image.IsStencilPlane(subResInfo.subresId.plane))
-#endif
         {
             flags.stencil = 1;
         }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        else if (subResInfo.subresId.aspect == ImageAspect::Depth)
-#else
         else if (image.IsDepthPlane(subResInfo.subresId.plane))
-#endif
         {
             flags.depth     = 1;
             flags.noStencil = (imageInfo.numPlanes == 1) ? 1 : 0;
@@ -393,11 +368,7 @@ static ADDR_SURFACE_FLAGS InitSurfaceInfoFlags(
 
     flags.preferEquation = createInfo.flags.preferSwizzleEqs;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const SubresId       mipZeroId        = { subResInfo.subresId.aspect, 0, subResInfo.subresId.arraySlice };
-#else
     const SubresId       mipZeroId        = { subResInfo.subresId.plane, 0, subResInfo.subresId.arraySlice };
-#endif
     const TileInfo*const pMipZeroTileInfo = GetTileInfo(&image, mipZeroId);
 
     flags.prt = ((createInfo.flags.prt != 0) || pMipZeroTileInfo->childMipsNeedPrtTileIndex);
@@ -425,23 +396,13 @@ Result AddrMgr1::AdjustChromaPlane(
     const SubresId         chromaSubresId    = pChromaSubResInfo->subresId;
     Result                 result            = Result::Success;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    PAL_ASSERT((chromaSubresId.aspect == ImageAspect::CbCr) ||
-               (chromaSubresId.aspect == ImageAspect::Cb)   ||
-               (chromaSubresId.aspect == ImageAspect::Cr));
-#else
     PAL_ASSERT((chromaSubresId.plane == 1) || (chromaSubresId.plane == 2));
-#endif
 
     // Verify that we are not currently processing the last array slice associated with this image...  That one
     // doesn't require any further padding.
     if ((chromaSubresId.arraySlice != (imageCreateInfo.arraySize - 1)))
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const SubresId         ySubresId    = { ImageAspect::Y, chromaSubresId.mipLevel, chromaSubresId.arraySlice };
-#else
         const SubresId         ySubresId    = { 0, chromaSubresId.mipLevel, chromaSubresId.arraySlice };
-#endif
         const SubResourceInfo* pYsubResInfo = pImage->SubresourceInfo(ySubresId);
         const TileInfo*        pYtileInfo   = GetTileInfo(pImage, ySubresId);
         const AddrTileMode     yTileMode    = AddrTileModeFromHwArrayMode(pYtileInfo->tileMode);
@@ -517,13 +478,8 @@ ADDR_E_RETURNCODE AddrMgr1::CalcSurfInfoOut(
     SubResourceInfo*const  pSubResInfo          = (pSubResInfoList + subResIdx);
     const auto*const       pBaseSubResInfo      = pImage->SubresourceInfo(0);
     const TileInfo*const   pBaseTileInfo        = GetTileInfo(pImage, 0);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const bool             isSecondPlaneStencil =
-        ((pSubResInfo->subresId.aspect == ImageAspect::Stencil) && (imageInfo.numPlanes > 1));
-#else
     const bool             isSecondPlaneStencil =
         (pImage->IsStencilPlane(pSubResInfo->subresId.plane) && (imageInfo.numPlanes > 1));
-#endif
 
     pSurfInfoInput->size         = sizeof(*pSurfInfoInput);
     pSurfInfoInput->format       = Image::GetAddrFormat(pSubResInfo->format.format);
@@ -568,19 +524,11 @@ ADDR_E_RETURNCODE AddrMgr1::CalcSurfInfoOut(
     // To avoid this problem, we need to precompute the subresource info for one of the chroma planes and use its padded
     // dimensions to "lie" to AddrLib about the dimensions of the luma plane.
     const bool isYuvPlanar    = Formats::IsYuvPlanar(imageCreateInfo.swizzledFormat.format);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const bool isLumaPlane    = (pSubResInfo->subresId.aspect == ImageAspect::Y);
-#else
     const bool isLumaPlane    = (isYuvPlanar && (pSubResInfo->subresId.plane == 0));
-#endif
     if (isYuvPlanar && isLumaPlane && alignYuvPlanes && (pSubResInfo->actualExtentTexels.width == 0))
     {
         SubresId chromaSubRes = pSubResInfo->subresId;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        chromaSubRes.aspect   = (imageInfo.numPlanes == 2) ? ImageAspect::CbCr : ImageAspect::Cb;
-#else
         chromaSubRes.plane    = 1;
-#endif
         const uint32 chromaSubResId = pImage->CalcSubresourceId(chromaSubRes);
 
         Result result = ComputeSubResourceInfo(pImage,
@@ -591,11 +539,7 @@ ADDR_E_RETURNCODE AddrMgr1::CalcSurfInfoOut(
                                                pDccUnsupported,
                                                pStencilTileIdx);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        Extent3d log2Ratio = Formats::Log2SubsamplingRatio(imageCreateInfo.swizzledFormat.format, chromaSubRes.aspect);
-#else
         Extent3d log2Ratio = Formats::Log2SubsamplingRatio(imageCreateInfo.swizzledFormat.format, chromaSubRes.plane);
-#endif
 
         pSurfInfoInput->width  = (pSubResInfoList[chromaSubResId].actualExtentTexels.width  << log2Ratio.width);
         pSurfInfoInput->height = (pSubResInfoList[chromaSubResId].actualExtentTexels.height << log2Ratio.height);
@@ -631,11 +575,7 @@ ADDR_E_RETURNCODE AddrMgr1::CalcSurfInfoOut(
             // For this stencil surface to actually work with the texture engine, we need to use the same tile-index
             // between it and the Z-surface.
             const SubresId depthSubResource =
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                { ImageAspect::Depth, pSubResInfo->subresId.mipLevel, pSubResInfo->subresId.arraySlice };
-#else
                 { 0, pSubResInfo->subresId.mipLevel, pSubResInfo->subresId.arraySlice };
-#endif
 
             pSurfInfoInput->tileIndex = GetTileInfo(pImage, depthSubResource)->tileIndex;
         }
@@ -823,11 +763,7 @@ Result AddrMgr1::ComputeSubResourceInfo(
             *pDccUnsupported = true;
         }
         else if ((surfInfoIn.flags.matchStencilTileCfg != 0) &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                 (pSubResInfo->subresId.aspect == ImageAspect::Depth))
-#else
                  pImage->IsDepthPlane(pSubResInfo->subresId.plane))
-#endif
         {
             // If the Image requested a matching tile configuration between the depth and stencil planes, save the
             // tile index for stencil reported by AddrLib.
@@ -874,11 +810,7 @@ Result AddrMgr1::ComputeSubResourceInfo(
             pGpuMemLayout->prtTileDepth  = surfInfoOut.depthAlign;
         }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        if ((result == Result::Success) && isYuvPlanar && (pSubResInfo->subresId.aspect != ImageAspect::Y))
-#else
         if ((result == Result::Success) && isYuvPlanar && (pSubResInfo->subresId.plane != 0))
-#endif
         {
             result = AdjustChromaPlane(pImage, pSubResInfoList, pSubResTileInfoList, subResIdx, pGpuMemLayout);
         }

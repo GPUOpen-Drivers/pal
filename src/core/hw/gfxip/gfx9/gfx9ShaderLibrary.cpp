@@ -109,11 +109,7 @@ Result ShaderLibrary::HwlInit(
         // Next, handle relocations and upload the library code & data to GPU memory.
         result = PerformRelocationsAndUploadToGpuMemory(
             metadata,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
-            (createInfo.flags.overrideGpuHeap == 1) ? createInfo.preferredHeap : GpuHeapInvisible,
-#else
             m_pDevice->Parent()->GetPublicSettings()->pipelinePreferredHeap, // ShaderLibrary is never internal
-#endif
             &uploader);
         SetIsWave32(metadata);
     }
@@ -343,22 +339,22 @@ Result ShaderLibrary::UnpackShaderFunctionStats(
                         break;
                         case HashLiteralString(".shader_subtype"):
                         {
-                            Util::Abi::ApiShaderSubType shaderSubType;
-                            Util::Abi::Metadata::DeserializeEnum(pMetadataReader, &shaderSubType);
+                            Abi::ApiShaderSubType shaderSubType;
+                            PalAbi::Metadata::DeserializeEnum(pMetadataReader, &shaderSubType);
                             stats.shaderSubType = Pal::ShaderSubType(shaderSubType);
                         }
                         break;
-                        case HashLiteralString(Util::Abi::HardwareStageMetadataKey::VgprCount):
+                        case HashLiteralString(PalAbi::HardwareStageMetadataKey::VgprCount):
                         {
                             result = pMetadataReader->UnpackNext(&pShaderStats->common.numUsedVgprs);
                         }
                         break;
-                        case HashLiteralString(Util::Abi::HardwareStageMetadataKey::SgprCount):
+                        case HashLiteralString(PalAbi::HardwareStageMetadataKey::SgprCount):
                         {
                             result = pMetadataReader->UnpackNext(&pShaderStats->common.numUsedSgprs);
                         }
                         break;
-                        case HashLiteralString(Util::Abi::HardwareStageMetadataKey::LdsSize):
+                        case HashLiteralString(PalAbi::HardwareStageMetadataKey::LdsSize):
                         {
                             result = pMetadataReader->UnpackNext(&pShaderStats->common.ldsUsageSizeInBytes);
                         }

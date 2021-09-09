@@ -122,11 +122,7 @@ ColorTargetView::ColorTargetView(
         // Determine whether Overwrite Combiner (OC) should be to be disabled or not
         if (settings.waRotatedSwizzleDisablesOverwriteCombiner)
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            const SubresId  subResId = { m_subresource.aspect, MipLevel(), 0 };
-#else
             const SubresId  subResId = { m_subresource.plane, MipLevel(), 0 };
-#endif
             const SubResourceInfo*const pSubResInfo  = m_pImage->Parent()->SubresourceInfo(subResId);
             const auto&                 surfSettings = m_pImage->GetAddrSettings(pSubResInfo);
 
@@ -300,11 +296,7 @@ void ColorTargetView::InitCommonImageView(
 
     if (m_flags.hasDcc != 0)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        regCB_COLOR0_DCC_CONTROL dccControl = m_pImage->GetDcc(m_subresource.aspect)->GetControlReg();
-#else
         regCB_COLOR0_DCC_CONTROL dccControl = m_pImage->GetDcc(m_subresource.plane)->GetControlReg();
-#endif
         const SubResourceInfo*const pSubResInfo = m_pImage->Parent()->SubresourceInfo(m_subresource);
         if (IsGfx091xPlus(palDevice)      &&
             (internalInfo.flags.fastClearElim || pSubResInfo->flags.supportMetaDataTexFetch))
@@ -381,11 +373,7 @@ void ColorTargetView::UpdateImageVa(
             {
                 PAL_ASSERT(IsGfx10Plus(palDevice));
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                if (m_pImage->HasFastClearMetaData(m_subresource.aspect))
-#else
                 if (m_pImage->HasFastClearMetaData(m_subresource.plane))
-#endif
                 {
 
                     // Invariant: On Gfx10 (and gfx9), if we have DCC we also have fast clear metadata.
@@ -407,11 +395,7 @@ void ColorTargetView::UpdateImageVa(
             // indicate what the clear color is.  (See Gfx9FastColorClearMetaData in gfx9MaskRam.h).
             if (m_flags.hasDcc)
             {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                if (m_pImage->HasFastClearMetaData(m_subresource.aspect))
-#else
                 if (m_pImage->HasFastClearMetaData(m_subresource.plane))
-#endif
                 {
 
                     // Invariant: On Gfx10 (and gfx9), if we have DCC we also have fast clear metadata.
@@ -422,11 +406,7 @@ void ColorTargetView::UpdateImageVa(
                 // The m_subresource variable includes the mip level and slice that we're viewing.  However, because
                 // the CB registers are programmed with that info already, we want the address of mip 0 / slice 0 so
                 // the HW can find the proper subresource on its own.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                const SubresId  baseSubResId = { m_subresource.aspect, 0, 0 };
-#else
                 const SubresId  baseSubResId = { m_subresource.plane, 0, 0 };
-#endif
 
                 pRegs->cbColorDccBase.bits.BASE_256B = m_pImage->GetDcc256BAddr(baseSubResId);
             }
@@ -654,13 +634,8 @@ void Gfx9ColorTargetView::InitRegisters(
         const auto*const            pImage          = m_pImage->Parent();
         const auto*                 pPalDevice      = pImage->GetDevice();
         const auto*                 pAddrMgr        = static_cast<const AddrMgr2::AddrMgr2*>(pPalDevice->GetAddrMgr());
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const SubresId              baseSubRes      = { m_subresource.aspect, 0, 0 };
-        const Gfx9MaskRam*          pMaskRam        = m_pImage->GetColorMaskRam(m_subresource.aspect);
-#else
         const SubresId              baseSubRes      = { m_subresource.plane, 0, 0 };
         const Gfx9MaskRam*          pMaskRam        = m_pImage->GetColorMaskRam(m_subresource.plane);
-#endif
         const SubResourceInfo*const pBaseSubResInfo = pImage->SubresourceInfo(baseSubRes);
         const SubResourceInfo*const pSubResInfo     = pImage->SubresourceInfo(m_subresource);
         const auto&                 surfSetting     = m_pImage->GetAddrSettings(pSubResInfo);
@@ -861,13 +836,8 @@ void Gfx10ColorTargetView::InitRegisters(
     {
         const auto*const            pImage          = m_pImage->Parent();
         const auto*                 pAddrMgr        = static_cast<const AddrMgr2::AddrMgr2*>(palDevice.GetAddrMgr());
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const SubresId              baseSubRes      = { m_subresource.aspect, 0, 0 };
-        const Gfx9Dcc*              pDcc            = m_pImage->GetDcc(m_subresource.aspect);
-#else
         const SubresId              baseSubRes      = { m_subresource.plane, 0, 0 };
         const Gfx9Dcc*              pDcc            = m_pImage->GetDcc(m_subresource.plane);
-#endif
         const Gfx9Cmask*            pCmask          = m_pImage->GetCmask();
         const SubResourceInfo*const pBaseSubResInfo = pImage->SubresourceInfo(baseSubRes);
         const SubResourceInfo*const pSubResInfo     = pImage->SubresourceInfo(m_subresource);
@@ -1040,11 +1010,7 @@ void Gfx10ColorTargetView::UpdateImageSrd(
         Pal::LayoutUniversalEngine
     };
     viewInfo.swizzledFormat       = m_swizzledFormat;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    viewInfo.subresRange          = { m_subresource, 1, m_arraySize };
-#else
     viewInfo.subresRange          = { m_subresource, 1, 1, m_arraySize };
-#endif
 
     device.Parent()->CreateImageViewSrds(1, &viewInfo, pOut);
 }

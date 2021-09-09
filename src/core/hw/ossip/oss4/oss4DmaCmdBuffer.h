@@ -176,7 +176,7 @@ private:
         { return GetImageZ(dmaImageInfo, dmaImageInfo.offset.z); }
 
     uint32 GetLinearRowPitchForLinearCopy(gpusize rowPitch, uint32 bytesPerPixel) const;
-    PAL_INLINE uint32 GetLinearRowPitchForTiledCopy(gpusize rowPitch, uint32 bytesPerPixel) const;
+    uint32 GetLinearRowPitchForTiledCopy(gpusize rowPitch, uint32 bytesPerPixel) const;
 
     static uint32 GetLinearDepthPitch(gpusize depthPitch, uint32 bytesPerPixel)
     {
@@ -186,8 +186,8 @@ private:
         return static_cast<uint32>(depthPitch / bytesPerPixel) - 1;
     }
 
-    PAL_INLINE uint32 GetLinearRowPitchForLinearCopy(const DmaImageInfo& imageInfo) const;
-    PAL_INLINE uint32 GetLinearRowPitchForTiledCopy(const DmaImageInfo& imageInfo) const;
+    uint32 GetLinearRowPitchForLinearCopy(const DmaImageInfo& imageInfo) const;
+    uint32 GetLinearRowPitchForTiledCopy(const DmaImageInfo& imageInfo) const;
 
     static uint32 GetLinearDepthPitch(const DmaImageInfo& imageInfo)
         { return GetLinearDepthPitch(imageInfo.pSubresInfo->depthPitch, imageInfo.bytesPerPixel); }

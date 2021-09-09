@@ -54,20 +54,12 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
     {
         RpmComputePipeline::YuvIntToRgb,
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::YCbCr,         // Y pseudo-plane
-#else
             {   0,                          // Y pseudo-plane
-#endif
                 { ChNumFormat::X8Y8Z8W8_Unorm,
                   { ChannelSwizzle::Z, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::W },
                 }
             },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::YCbCr,         // CbCr pseudo-plane
-#else
             {   0,                          // CbCr pseudo-plane
-#endif
                 { ChNumFormat::X8Y8Z8W8_Unorm,
                   { ChannelSwizzle::Zero, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::One },
                 }
@@ -78,11 +70,7 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
         // packed formats.
         RpmComputePipeline::RgbToYuvPlanar,
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::YCbCr,
-#else
             {   0,
-#endif
                 { ChNumFormat::X8Y8Z8W8_Unorm,
                   { ChannelSwizzle::Z, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::W }, },
                 0.5f, 0.5f,
@@ -94,20 +82,12 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
     {
         RpmComputePipeline::YuvIntToRgb,
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::YCbCr,         // Y pseudo-plane
-#else
             {   0,                          // Y pseudo-plane
-#endif
                 { ChNumFormat::X8Y8_Z8Y8_Unorm,
                   { ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
                 },
             },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::YCbCr,         // CbCr pseudo-plane
-#else
             {   0,                          // CbCr pseudo-plane
-#endif
                 { ChNumFormat::X8Y8_Z8Y8_Unorm,
                   { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Z, ChannelSwizzle::One },
                 },
@@ -115,11 +95,7 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
         },
         RpmComputePipeline::RgbToYuvPacked,
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::YCbCr,
-#else
             {   0,
-#endif
                 { ChNumFormat::X16_Uint,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.5f, 0.5f,
@@ -131,20 +107,12 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
     {
         RpmComputePipeline::YuvIntToRgb,
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::YCbCr,         // Y pseudo-plane
-#else
             {   0,                          // Y pseudo-plane
-#endif
                 { ChNumFormat::X8Y8_Z8Y8_Unorm,
                   { ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
                 },
             },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::YCbCr,         // CbCr pseudo-plane
-#else
             {   0,                          // CbCr pseudo-plane
-#endif
                 { ChNumFormat::X8Y8_Z8Y8_Unorm,
                   { ChannelSwizzle::Zero, ChannelSwizzle::Z, ChannelSwizzle::X, ChannelSwizzle::One },
                 },
@@ -152,11 +120,7 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
         },
         RpmComputePipeline::RgbToYuvPacked,
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::YCbCr,
-#else
             {   0,
-#endif
                 { ChNumFormat::X16_Uint,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.5f, 0.5f,
@@ -168,20 +132,12 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
     {
         RpmComputePipeline::YuvIntToRgb,
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::YCbCr,         // Y pseudo-plane
-#else
             {   0,                          // Y pseudo-plane
-#endif
                 { ChNumFormat::Y8X8_Y8Z8_Unorm,
                   { ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
                 },
             },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::YCbCr,         // CbCr pseudo-plane
-#else
             {   0,                          // CbCr pseudo-plane
-#endif
                 { ChNumFormat::Y8X8_Y8Z8_Unorm,
                   { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Z, ChannelSwizzle::One },
                 },
@@ -189,11 +145,7 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
         },
         RpmComputePipeline::RgbToYuvPacked,
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::YCbCr,
-#else
             {   0,
-#endif
                 { ChNumFormat::X16_Uint,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.5f, 0.5f,
@@ -205,20 +157,12 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
     {
         RpmComputePipeline::YuvIntToRgb,
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::YCbCr,         // Y pseudo-plane
-#else
             {   0,                          // Y pseudo-plane
-#endif
                 { ChNumFormat::Y8X8_Y8Z8_Unorm,
                   { ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
                 },
             },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::YCbCr,         // CbCr pseudo-plane
-#else
             {   0,                          // CbCr pseudo-plane
-#endif
                 { ChNumFormat::Y8X8_Y8Z8_Unorm,
                   { ChannelSwizzle::Zero, ChannelSwizzle::Z, ChannelSwizzle::X, ChannelSwizzle::One },
                 }
@@ -226,11 +170,7 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
         },
         RpmComputePipeline::RgbToYuvPacked,
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::YCbCr,
-#else
             {   0,
-#endif
                 { ChNumFormat::X16_Uint,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.5f, 0.5f,
@@ -249,29 +189,17 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
         //   dot( [plane#0 Y plane#2 V plane#1 U], [row#2] ) = [plane#0 B]
         RpmComputePipeline::YuvToRgb,
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::Y,             // Y plane
-#else
             {   0,                          // Y plane
-#endif
                 { ChNumFormat::X8_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
                 },
             },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::Cr,            // Cr plane
-#else
             {   2,                          // Cb plane
-#endif
                 { ChNumFormat::X8_Unorm,
                   { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::One },
                 },
             },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::Cb,            // Cb plane
-#else
             {   1,                          // Cr plane
-#endif
                 { ChNumFormat::X8_Unorm,
                   { ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::One },
                 },
@@ -286,31 +214,19 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
         //   dot( [plane#0 R plane#0 G plane#0 B], [row#2] ) = [plane#1 V]
         RpmComputePipeline::RgbToYuvPlanar,
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::Y,             // Y plane
-#else
             {   0,                          // Y plane
-#endif
                 { ChNumFormat::X8_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.5f, 0.5f,
                 { 0, USHRT_MAX, USHRT_MAX, },
             },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::Cr,            // Cr plane
-#else
             {   2,                          // Cb plane
-#endif
                 { ChNumFormat::X8_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.25f, 0.5f,               // Mpeg-2 chroma subsampling location
                 { 1, USHRT_MAX, USHRT_MAX, },
             },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::Cb,            // Cb plane
-#else
             {   1,                          // Cr plane
-#endif
                 { ChNumFormat::X8_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.25f, 0.5f,               // Mpeg-2 chroma subsampling location
@@ -322,20 +238,12 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
     {
         RpmComputePipeline::YuvIntToRgb,
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::Y,             // Y plane
-#else
             {   0,                          // Y plane
-#endif
                 { ChNumFormat::X8_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
                 },
             },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::CbCr,          // CbCr plane
-#else
             {   1,                          // CbCr plane
-#endif
                 { ChNumFormat::X8Y8_Unorm,
                   { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::One },
                 }
@@ -343,21 +251,13 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
         },
         RpmComputePipeline::RgbToYuvPlanar,
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::Y,             // Y plane
-#else
             {   0,                          // Y plane
-#endif
                 { ChNumFormat::X8_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.5f, 0.5f,
                 { 0, USHRT_MAX, USHRT_MAX, },
             },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::CbCr,          // CbCr plane
-#else
             {   1,                          // CbCr plane
-#endif
                 { ChNumFormat::X8Y8_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.5f, 0.5f,
@@ -369,20 +269,12 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
     {
         RpmComputePipeline::YuvIntToRgb,
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::Y,             // Y plane
-#else
             {   0,                          // Y plane
-#endif
                 { ChNumFormat::X8_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
                 },
             },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::CbCr,          // CbCr plane
-#else
             {   1,                          // CbCr plane
-#endif
                 { ChNumFormat::X8Y8_Unorm,
                   { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero },
                 },
@@ -390,21 +282,13 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
         },
         RpmComputePipeline::RgbToYuvPlanar,
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::Y,             // Y plane
-#else
             {   0,                          // Y plane
-#endif
                 { ChNumFormat::X8_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.5f, 0.5f,
                 { 0, USHRT_MAX, USHRT_MAX, },
             },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::CbCr,          // CbCr plane
-#else
             {   1,                          // CbCr plane
-#endif
                 { ChNumFormat::X8Y8_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.25f, 0.5f,                // Mpeg-2 chroma subsampling location
@@ -416,20 +300,12 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
     {
         RpmComputePipeline::YuvIntToRgb,
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::Y,             // Y plane
-#else
             {   0,                          // Y plane
-#endif
                 { ChNumFormat::X8_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
                 },
             },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::CbCr,          // CbCr plane
-#else
             {   1,                          // CbCr plane
-#endif
                 { ChNumFormat::X8Y8_Unorm,
                   { ChannelSwizzle::Zero, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::One },
                 }
@@ -437,21 +313,13 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
         },
         RpmComputePipeline::RgbToYuvPlanar,
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::Y,             // Y plane
-#else
             {   0,                          // Y plane
-#endif
                 { ChNumFormat::X8_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.5f, 0.5f,
                 { 0, USHRT_MAX, USHRT_MAX, },
             },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::CbCr,          // CbCr plane
-#else
             {   1,                          // CbCr plane
-#endif
                 { ChNumFormat::X8Y8_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.25f, 0.5f,                // Mpeg-2 chroma subsampling location
@@ -463,20 +331,12 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
     {
         RpmComputePipeline::YuvIntToRgb,
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::Y,             // Y plane
-#else
             {   0,                          // Y plane
-#endif
                 { ChNumFormat::X16_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
                 },
             },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::CbCr,          // CbCr plane
-#else
             {   1,                          // CbCr plane
-#endif
                 { ChNumFormat::X16Y16_Unorm,
                   { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::One },
                 },
@@ -484,21 +344,13 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
         },
         RpmComputePipeline::RgbToYuvPlanar,
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::Y,             // Y plane
-#else
             {   0,                          // Y plane
-#endif
                 { ChNumFormat::X16_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.5f, 0.5f,
                 { 0, USHRT_MAX, USHRT_MAX, },
             },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::CbCr,          // CbCr plane
-#else
             {   1,                          // CbCr plane
-#endif
                 { ChNumFormat::X16Y16_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.25f, 0.5f,                // Mpeg-2 chroma subsampling location
@@ -510,20 +362,12 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
     {
         RpmComputePipeline::YuvIntToRgb,
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::Y,             // Y plane
-#else
             {   0,                          // Y plane
-#endif
                 { ChNumFormat::X16_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
                 },
             },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::CbCr,          // CbCr plane
-#else
             {   1,                          // CbCr plane
-#endif
                 { ChNumFormat::X16Y16_Unorm,
                   { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::One },
                 },
@@ -531,21 +375,13 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
         },
         RpmComputePipeline::RgbToYuvPlanar,
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::Y,             // Y plane
-#else
             {   0,                          // Y plane
-#endif
                 { ChNumFormat::X16_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.5f, 0.5f,
                 { 0, USHRT_MAX, USHRT_MAX, },
             },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::CbCr,          // CbCr plane
-#else
             {   1,                          // CbCr plane
-#endif
                 { ChNumFormat::X16Y16_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.25f, 0.5f,                // Mpeg-2 chroma subsampling location
@@ -557,20 +393,12 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
     {
         RpmComputePipeline::YuvIntToRgb,
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::Y,             // Y plane
-#else
             {   0,                          // Y plane
-#endif
                 { ChNumFormat::X16_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
                 },
             },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::CbCr,          // CbCr plane
-#else
             {   1,                          // CbCr plane
-#endif
                 { ChNumFormat::X16Y16_Unorm,
                   { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::One },
                 },
@@ -578,21 +406,13 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
         },
         RpmComputePipeline::RgbToYuvPlanar,
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::Y,             // Y plane
-#else
             {   0,                          // Y plane
-#endif
                 { ChNumFormat::X16_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.5f, 0.5f,
                 { 0, USHRT_MAX, USHRT_MAX, },
             },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::CbCr,          // CbCr plane
-#else
             {   1,                          // CbCr plane
-#endif
                 { ChNumFormat::X16Y16_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.5f, 0.5f,                 // Mpeg-2 chroma subsampling location
@@ -604,20 +424,12 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
     {
         RpmComputePipeline::YuvIntToRgb,
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::Y,             // Y plane
-#else
             {   0,                          // Y plane
-#endif
                 { ChNumFormat::X8_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
                 },
             },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::CbCr,          // CbCr plane
-#else
             {   1,                          // CbCr plane
-#endif
                 { ChNumFormat::X8Y8_Unorm,
                   { ChannelSwizzle::Zero, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::One },
                 }
@@ -625,21 +437,13 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
         },
         RpmComputePipeline::RgbToYuvPlanar,
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::Y,             // Y plane
-#else
             {   0,                          // Y plane
-#endif
                 { ChNumFormat::X8_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.5f, 0.5f,
                 { 0, USHRT_MAX, USHRT_MAX, },
             },
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            {   ImageAspect::CbCr,          // CbCr plane
-#else
             {   1,                          // CbCr plane
-#endif
                 { ChNumFormat::X8Y8_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.25f, 0.5f,                // Mpeg-2 chroma subsampling location

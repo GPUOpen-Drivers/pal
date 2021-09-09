@@ -154,23 +154,6 @@ Result Image::Addr2FinalizePlane(
     const ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT& surfaceSetting,
     const ADDR2_COMPUTE_SURFACE_INFO_OUTPUT&       surfaceInfo)
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const uint32 aspectIdx = GetAspectIndex(pBaseSubRes->subresId.aspect);
-
-    memcpy(&m_addrSurfSetting[aspectIdx], &surfaceSetting, sizeof(m_addrSurfSetting[0]));
-    memcpy(&m_addrSurfOutput[aspectIdx],  &surfaceInfo,    sizeof(m_addrSurfOutput[0]));
-    m_addrSurfOutput[aspectIdx].pMipInfo = &m_addrMipOutput[aspectIdx][0];
-
-    for (uint32 mip = 0; mip < m_createInfo.mipLevels; ++mip)
-    {
-        memcpy(&m_addrMipOutput[aspectIdx][mip], (surfaceInfo.pMipInfo + mip), sizeof(m_addrMipOutput[0][0]));
-    }
-
-    auto*const pTileInfo = static_cast<AddrMgr2::TileInfo*>(pBaseTileInfo);
-
-    // Compute the pipe/bank XOR value for the subresource.
-    return ComputePipeBankXor(pBaseSubRes->subresId.aspect, &surfaceSetting, &pTileInfo->pipeBankXor);
-#else
     const uint32 plane = pBaseSubRes->subresId.plane;
 
     memcpy(&m_addrSurfSetting[plane], &surfaceSetting, sizeof(m_addrSurfSetting[0]));
@@ -186,7 +169,6 @@ Result Image::Addr2FinalizePlane(
 
     // Compute the pipe/bank XOR value for the subresource.
     return ComputePipeBankXor(plane, false, &surfaceSetting, &pTileInfo->pipeBankXor);
-#endif
 }
 
 // =====================================================================================================================
@@ -242,11 +224,7 @@ void Image::GetMetaEquationConstParam(
             }
             else
             {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                const Gfx9Dcc*const pDcc = GetDcc(ImageAspect::Color);
-#else
                 const Gfx9Dcc*const pDcc = GetDcc(0);
-#endif
                 // we must have a valid MaskRam surface
                 PAL_ASSERT((pDcc != nullptr) && pDcc->HasMetaEqGenerator());
                 clearPara = pDcc->GetMetaEqGenerator()->GetMetaEquationParam();
@@ -373,19 +351,10 @@ void Image::SetupPlaneOffsets()
         // Don't check the YUV status based on the return value of "planeFormat" as that will indicated the X8/X16
         // format reflective of how the data is accessed (i.e., the HW doesn't natively understand YUV operations).
         SwizzledFormat planeFormat = createFormat; // this is a don't care for this function
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        ImageAspect    planeAspect = ImageAspect::Color;
-        pParent->DetermineFormatAndAspectForPlane(&planeFormat, &planeAspect, planeIdx);
-#else
         pParent->DetermineFormatForPlane(&planeFormat, planeIdx);
-#endif
 
         // Address library output is on a per-plane basis, so the mip / slice info in the sub-res is a don't care.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const SubresId  baseSubResId    = { planeAspect, 0, 0 };
-#else
         const SubresId  baseSubResId    = { planeIdx, 0, 0 };
-#endif
         const auto*     pBaseSubResInfo = pParent->SubresourceInfo(baseSubResId);
         const auto*     pAddrOutput     = GetAddrOutput(pBaseSubResInfo);
 
@@ -592,23 +561,15 @@ Result Image::Finalize(
                     {
                         if (supportsDepth)
                         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                            UpdateClearMethod(pSubResInfoList, ImageAspect::Depth, mip, fastClearMethod);
-#else
                             UpdateClearMethod(pSubResInfoList, 0, mip, fastClearMethod);
-#endif
                         }
 
                         if (supportsStencil)
                         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                            UpdateClearMethod(pSubResInfoList, ImageAspect::Stencil, mip, fastClearMethod);
-#else
                             UpdateClearMethod(pSubResInfoList,
                                               GetStencilPlane(),
                                               mip,
                                               fastClearMethod);
-#endif
                         }
                     }
                 }
@@ -891,11 +852,7 @@ Result Image::Finalize(
                     gpusize forcedOffset = sharedMetadata.fastClearEliminateMetaDataOffset[dccIdx];
                     if (forcedOffset != 0)
                     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                        InitFastClearEliminateMetaData(GetAspectFromPlane(dccIdx), pGpuMemLayout, &forcedOffset);
-#else
                         InitFastClearEliminateMetaData(dccIdx, pGpuMemLayout, &forcedOffset);
-#endif
                         *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
                     }
                 }
@@ -904,11 +861,7 @@ Result Image::Finalize(
             {
                 for (uint32  dccIdx = 0; dccIdx < m_numDccPlanes; dccIdx++)
                 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                    InitFastClearEliminateMetaData(GetAspectFromPlane(dccIdx), pGpuMemLayout, pGpuMemSize);
-#else
                     InitFastClearEliminateMetaData(dccIdx, pGpuMemLayout, pGpuMemSize);
-#endif
                 }
             }
         }
@@ -1013,21 +966,6 @@ Result Image::Finalize(
     return result;
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-// =====================================================================================================================
-ImageAspect Image::GetAspectFromPlane(
-    uint32  planeIdx
-    ) const
-{
-    SwizzledFormat  planeFormat = Parent()->GetImageCreateInfo().swizzledFormat;
-    ImageAspect     planeAspect = ImageAspect::Color;
-
-    Parent()->DetermineFormatAndAspectForPlane(&planeFormat, &planeAspect, planeIdx);
-
-    return planeAspect;
-}
-#endif
-
 // =====================================================================================================================
 // "Finalizes" this Image object: this includes determining what metadata surfaces need to be used for this Image, and
 // initializing the data structures for them.
@@ -1044,12 +982,7 @@ Result Image::CreateDccObject(
 
     for (uint32  planeIdx = 0; ((result == Result::Success) && (planeIdx < m_pImageInfo->numPlanes)); planeIdx++)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const ImageAspect       planeAspect           = GetAspectFromPlane(planeIdx);
-        const SubresId          planeBaseSubResId    = { planeAspect, 0, 0 };
-#else
         const SubresId          planeBaseSubResId    = { planeIdx, 0, 0 };
-#endif
         const SubResourceInfo*  pPlaneBaseSubResInfo = Parent()->SubresourceInfo(planeBaseSubResId);
 
         // There is nothing mip-level specific about DCC on Gfx9+, so we just have one DCC objct that represents the
@@ -1096,11 +1029,7 @@ Result Image::CreateDccObject(
                             {
                                 if (CanMipSupportMetaData(mip))
                                 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                                    UpdateClearMethod(pSubResInfoList, planeAspect, mip, ClearMethod::Fast);
-#else
                                     UpdateClearMethod(pSubResInfoList, planeIdx, mip, ClearMethod::Fast);
-#endif
                                 }
                             }
                         } // end loop through all the mip levels
@@ -1176,11 +1105,7 @@ bool Image::DoesImageSupportCopyCompression() const
 void Image::InitLayoutStateMasks()
 {
     const SubResourceInfo*const pBaseSubResInfo = Parent()->SubresourceInfo(0);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const bool isComprFmaskShaderReadable       = IsComprFmaskShaderReadable(Parent()->GetBaseSubResource());
-#else
     const bool isComprFmaskShaderReadable       = IsComprFmaskShaderReadable({});
-#endif
     const bool                  isMsaa          = (m_createInfo.samples > 1);
 
     if (HasColorMetaData())
@@ -1470,13 +1395,8 @@ void Image::InitLayoutStateMasks()
                    (TestAnyFlagSet(compressedLayouts.engines, LayoutDmaEngine) == false));
 
         // Supported depth layouts per compression state
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const uint32 depth   = GetDepthStencilStateIndex(ImageAspect::Depth);
-        const uint32 stencil = GetDepthStencilStateIndex(ImageAspect::Stencil);
-#else
         const uint32 depth   = 0;
         const uint32 stencil = GetStencilPlane();
-#endif
 
         if (m_pHtile->DepthCompressed())
         {
@@ -1527,13 +1447,8 @@ void Image::InitLayoutStateMasks()
         m_defaultGfxLayout.color.usages  = LayoutAllUsages;
         m_defaultGfxLayout.color.engines = LayoutAllEngines;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const uint32 depth   = GetDepthStencilStateIndex(ImageAspect::Depth);
-        const uint32 stencil = GetDepthStencilStateIndex(ImageAspect::Stencil);
-#else
         const uint32 depth   = 0;
         const uint32 stencil = GetStencilPlane();
-#endif
         m_defaultGfxLayout.depthStencil[depth].usages    = LayoutAllUsages & (~LayoutUninitializedTarget);
         m_defaultGfxLayout.depthStencil[depth].engines   = LayoutAllEngines;
         m_defaultGfxLayout.depthStencil[stencil].usages  = LayoutAllUsages & (~LayoutUninitializedTarget);
@@ -1545,32 +1460,16 @@ void Image::InitLayoutStateMasks()
 // Gets the raw base address for the specified mask-ram.
 gpusize Image::GetMaskRamBaseAddr(
     const MaskRam*   pMaskRam,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const SubresId&  subResId
-#else
     uint32           arraySlice
-#endif
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    PAL_ASSERT(subResId.mipLevel == 0);
-#endif
-
     gpusize  maskRamMemOffset = pMaskRam->MemoryOffset();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    if (subResId.arraySlice != 0)
-#else
     if (arraySlice != 0)
-#endif
     {
         const  auto*  pGfx9MaskRam  = static_cast<const Gfx9MaskRam*>(pMaskRam);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        maskRamMemOffset += pGfx9MaskRam->SliceOffset(subResId.arraySlice);
-#else
         maskRamMemOffset += pGfx9MaskRam->SliceOffset(arraySlice);
-#endif
     }
 
     // Verify that the mask ram isn't thought to be in the same place as the image itself.  That would be "bad".
@@ -1598,12 +1497,8 @@ uint32 Image::GetMaskRam256BAddr(
     const SubresId&     subResId
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    return Get256BAddrSwizzled(GetMaskRamBaseAddr(pMaskRam, subResId), pMaskRam->GetPipeBankXor(subResId.aspect));
-#else
     return Get256BAddrSwizzled(GetMaskRamBaseAddr(pMaskRam, subResId.arraySlice),
                                pMaskRam->GetPipeBankXor(subResId.plane));
-#endif
 }
 
 // =====================================================================================================================
@@ -1611,11 +1506,7 @@ uint32 Image::GetHtile256BAddr() const
 {
     // Need to obtain the address off of the base mip-level / slice.  The HW is responsible for determining the
     // address of the requeusted mip-level / slice based on the information provided to the SRD.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const SubresId  baseSubres = Parent()->GetBaseSubResource();
-#else
     const SubresId  baseSubres = {};
-#endif
 
     return GetMaskRam256BAddr(GetHtile(), baseSubres);
 }
@@ -1623,15 +1514,7 @@ uint32 Image::GetHtile256BAddr() const
 // =====================================================================================================================
 uint32 Image::GetCmask256BAddr() const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    // cMask is associated with the fMask aspect, not the color image itself.
-    const SubresId  subResId = { ImageAspect::Fmask, 0, 0 };
-
-    return GetMaskRam256BAddr(GetCmask(), subResId);
-#else
     return GetMaskRam256BAddr(GetCmask(), SubresId{});
-#endif
-
 }
 
 // =====================================================================================================================
@@ -1639,27 +1522,16 @@ uint32 Image::GetCmask256BAddr() const
 uint32 Image::GetFmask256BAddr() const
 {
     const Gfx9Fmask*const pFmask   = GetFmask();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const SubresId        subResId = { ImageAspect::Color, 0, 0 };
-
-    // fMask surfaces have a pipe/bank xor value which is independent of the main image's pipe/bank xor value
-    return Get256BAddrSwizzled(GetMaskRamBaseAddr(pFmask, subResId), pFmask->GetPipeBankXor());
-#else
 
     // fMask surfaces have a pipe/bank xor value which is independent of the main image's pipe/bank xor value
     return Get256BAddrSwizzled(GetMaskRamBaseAddr(pFmask, 0), pFmask->GetPipeBankXor());
-#endif
 }
 
 // =====================================================================================================================
 // Calculate the tile swizzle (pipe/bank XOR value).
 Result Image::ComputePipeBankXor(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    ImageAspect                                     aspect,
-#else
     uint32                                          plane,
     bool                                            forFmask,
-#endif
     const ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT*  pSurfSetting,
     uint32*                                         pPipeBankXor
     ) const
@@ -1668,12 +1540,10 @@ Result Image::ComputePipeBankXor(
 
     const PalSettings& coreSettings = m_device.Settings();
     const bool isDepthStencil       = Parent()->IsDepthStencilTarget();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     const bool isColorPlane         = Parent()->IsColorPlane(plane);
 
     PAL_ASSERT((forFmask && (plane == 0)) || (forFmask == false));
     PAL_ASSERT((isDepthStencil && (plane < 2)) || (isDepthStencil == false));
-#endif
 
     // Also need to make sure that mip0 is not in miptail. In this case, tile swizzle cannot be supported. With current
     // design, when mip0 is in the miptail, swizzleOffset would be negative. This is a problem because the offset in MS
@@ -1681,13 +1551,7 @@ Result Image::ComputePipeBankXor(
     //
     // However, fMask is an independent surface from the parent image; it has its own swizzle mode and everything.
     // fMask only applies to MSAA surfaces and MSAA surfaces don't support mip levels.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const BOOL_32  mipChainInTail = ((aspect != ImageAspect::Fmask)
-                                     ? m_addrSurfOutput[GetAspectIndex(aspect)].mipChainInTail
-                                     : FALSE);
-#else
     const BOOL_32  mipChainInTail = (forFmask ? FALSE : m_addrSurfOutput[plane].mipChainInTail);
-#endif
 
     // A pipe/bank xor setting of zero is always valid.
     *pPipeBankXor = 0;
@@ -1699,21 +1563,12 @@ Result Image::ComputePipeBankXor(
     {
         if (m_pImageInfo->internalCreateInfo.flags.useSharedTilingOverrides)
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            if (aspect == ImageAspect::Fmask)
-#else
             if (forFmask)
-#endif
             {
                 // If this is a shared image, then the pipe/bank xor value has been given to us. Just take that.
                 *pPipeBankXor = m_pImageInfo->internalCreateInfo.gfx9.sharedPipeBankXorFmask;
             }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            else if ((aspect == ImageAspect::Color) ||
-#else
-            else if (isColorPlane ||
-#endif
-                    isDepthStencil)
+            else if (isColorPlane || isDepthStencil)
             {
                 // If this is a shared image, then the pipe/bank xor value has been given to us. Just take that.
                 *pPipeBankXor = m_pImageInfo->internalCreateInfo.gfx9.sharedPipeBankXor[plane];
@@ -1733,11 +1588,7 @@ Result Image::ComputePipeBankXor(
         {
             // Peer images must have the same pipe/bank xor value as the original image.  The pipe/bank xor
             // value is constant across all mips / slices associated with a given plane.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            const SubresId  subResId = { aspect, 0, 0 };
-#else
             const SubresId  subResId = { plane, 0, 0 };
-#endif
 
             *pPipeBankXor = AddrMgr2::GetTileInfo(Parent()->OriginalImage(), subResId)->pipeBankXor;
         }
@@ -1748,11 +1599,7 @@ Result Image::ComputePipeBankXor(
             //
             // It's possible for us to hang the HW if we use an XOR value computed for a different planes so we must
             // return a safe value like the default of zero if the client breaks these rules.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            if ((aspect == ImageAspect::Color) && (m_createInfo.fragments == 1))
-#else
             if (isColorPlane && (m_createInfo.fragments == 1))
-#endif
             {
                 *pPipeBankXor = m_createInfo.tileSwizzle;
             }
@@ -1775,11 +1622,7 @@ Result Image::ComputePipeBankXor(
             // this surface type as well.
             if (supportSwizzle &&
                 // Check to see if non-zero fMask pipe-bank-xor values are allowed.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                ((aspect != ImageAspect::Fmask) || settings.fmaskAllowPipeBankXor) &&
-#else
                 ((forFmask == false) || settings.fmaskAllowPipeBankXor) &&
-#endif
                 ((TestAnyFlagSet(coreSettings.tileSwizzleMode, TileSwizzleColor) && Parent()->IsRenderTarget())       ||
                  (TestAnyFlagSet(coreSettings.tileSwizzleMode, TileSwizzleDepth) && isDepthStencil) ||
                  (TestAnyFlagSet(coreSettings.tileSwizzleMode, TileSwizzleShaderRes))))
@@ -1789,11 +1632,7 @@ Result Image::ComputePipeBankXor(
                 if (isDepthStencil)
                 {
                     // The depth-stencil index is fixed to the plane index so it's safe to use it in all cases.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                    surfaceIndex = m_pParent->GetPlaneFromAspect(aspect);
-#else
                     surfaceIndex = plane;
-#endif
                 }
                 else if (Parent()->IsDataInvariant() || Parent()->IsCloneable())
                 {
@@ -1814,11 +1653,7 @@ Result Image::ComputePipeBankXor(
 
                     surfaceIndex = MetroHash::Compact32(hash);
                 }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                else if (aspect == ImageAspect::Fmask)
-#else
                 else if (forFmask)
-#endif
                 {
                     // Fmask check has to be first because everything else is checking the properties of the image
                     // which owns the Fmask buffer...  those properties will still be true.
@@ -1839,11 +1674,7 @@ Result Image::ComputePipeBankXor(
                 ADDR2_COMPUTE_PIPEBANKXOR_INPUT pipeBankXorInput = { };
                 pipeBankXorInput.size         = sizeof(pipeBankXorInput);
                 pipeBankXorInput.surfIndex    = surfaceIndex;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                pipeBankXorInput.flags        = pAddrMgr->DetermineSurfaceFlags(*Parent(), aspect);
-#else
                 pipeBankXorInput.flags        = pAddrMgr->DetermineSurfaceFlags(*Parent(), plane, forFmask);
-#endif
                 pipeBankXorInput.swizzleMode  = pSurfSetting->swizzleMode;
                 pipeBankXorInput.resourceType = pSurfSetting->resourceType;
                 pipeBankXorInput.format       = Pal::Image::GetAddrFormat(pBaseSubResInfo->format.format);
@@ -1878,11 +1709,7 @@ const DepthStencilLayoutToState& Image::LayoutToDepthCompressionState(
     const SubresId& subresId
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    return m_layoutToState.depthStencil[GetDepthStencilStateIndex(subresId.aspect)];
-#else
     return m_layoutToState.depthStencil[subresId.plane];
-#endif
 }
 
 // =====================================================================================================================
@@ -1937,9 +1764,7 @@ bool Image::IsFastColorClearSupported(
     const uint32*      pColor,
     const SubresRange& range)
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(range.numPlanes == 1);
-#endif
 
     const SubresId&  subResource = range.startSubres;
 
@@ -2145,25 +1970,17 @@ bool Image::IsFastDepthStencilClearSupported(
     const SubresRange& range
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(range.numPlanes == 1);
-#endif
 
     const SubresId& subResource = range.startSubres;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     const bool      isDepthPlane   = Parent()->IsDepthPlane(subResource.plane);
     const bool      isStencilPlane = Parent()->IsStencilPlane(subResource.plane);
-#endif
 
     // We can only fast clear all arrays at once.
     bool isFastClearSupported = (subResource.arraySlice == 0) && (range.numSlices == m_createInfo.arraySize);
 
     // We cannot fast clear if it's doing masked stencil clear.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    if ((subResource.aspect == ImageAspect::Stencil) && (stencilWriteMask != 0xFF))
-#else
     if (isStencilPlane && (stencilWriteMask != 0xFF))
-#endif
     {
         isFastClearSupported = false;
     }
@@ -2176,11 +1993,7 @@ bool Image::IsFastDepthStencilClearSupported(
         const ClearMethod clearMethod = pSubResInfo->clearMethod;
 
         // Choose which layout to use based on the range plane
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const ImageLayout layout = (subResource.aspect == ImageAspect::Depth) ? depthLayout : stencilLayout;
-#else
         const ImageLayout layout = isDepthPlane ? depthLayout : stencilLayout;
-#endif
 
         // Check if we're even allowing fast (compute) or depth-fast-graphics (gfx) based fast clears on this surface.
         // If not, there's nothing to do.
@@ -2203,19 +2016,11 @@ bool Image::IsFastDepthStencilClearSupported(
 
         if (pSubResInfo->flags.supportMetaDataTexFetch != 0)
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            if (subResource.aspect == ImageAspect::Depth)
-#else
             if (isDepthPlane)
-#endif
             {
                 isFastClearSupported &= IsFastClearDepthMetaFetchable(depth);
             }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            else if (subResource.aspect == ImageAspect::Stencil)
-#else
             else if (isStencilPlane)
-#endif
             {
                 isFastClearSupported &= IsFastClearStencilMetaFetchable(stencil);
             }
@@ -2229,22 +2034,12 @@ bool Image::IsFastDepthStencilClearSupported(
 
         // The client is clearing stencil plane while the htile is of depth only format.
         // In this case, we should not do fast clear.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        if ((subResource.aspect == ImageAspect::Stencil)
-            && HasHtileData()
-            && GetHtile()->TileStencilDisabled())
-#else
         if (isStencilPlane && HasHtileData() && GetHtile()->TileStencilDisabled())
-#endif
         {
             isFastClearSupported = false;
         }
         // Only depth in the [0.0, 1.0] range can be compressed.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        else if ((subResource.aspect == ImageAspect::Depth) && ((depth < 0.0f) || (depth > 1.0f)))
-#else
         else if (isDepthPlane && ((depth < 0.0f) || (depth > 1.0f)))
-#endif
         {
             isFastClearSupported = false;
         }
@@ -2270,11 +2065,7 @@ bool Image::IsFormatReplaceable(
     {
         if (Parent()->IsDepthStencilTarget())
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            const auto layoutToState = m_layoutToState.depthStencil[GetDepthStencilStateIndex(subresId.aspect)];
-#else
             const auto layoutToState = m_layoutToState.depthStencil[subresId.plane];
-#endif
 
             // Htile must either be disabled or we must be sure that the texture pipe doesn't need to read it.
             // Depth surfaces are either Z-16 unorm or Z-32 float; they would get replaced to x16-uint or x32-uint.
@@ -2335,30 +2126,9 @@ bool Image::IsSubResourceLinear(
     const SubresId& subresource
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    bool  isLinear = false;
-
-    // The "GetAspectIndex" function will assert on an fMask aspect; at any rate, there is no valid index into the
-    // m_addrSurfsetting array for fMask (the fMask version of that structure is stored in the Gfx9Fmask class, not
-    // here).
-    if (subresource.aspect != ImageAspect::Fmask)
-    {
-        const uint32           aspectIndex = GetAspectIndex(subresource.aspect);
-        const AddrSwizzleMode  swizzleMode = m_addrSurfSetting[aspectIndex].swizzleMode;
-
-        isLinear = (swizzleMode == ADDR_SW_LINEAR);
-    }
-    else
-    {
-        isLinear = ((m_pFmask != nullptr) && m_pFmask->GetSwizzleMode() == ADDR_SW_LINEAR);
-    }
-
-    return isLinear;
-#else
     const AddrSwizzleMode swizzleMode = m_addrSurfSetting[subresource.plane].swizzleMode;
 
     return (swizzleMode == ADDR_SW_LINEAR);
-#endif
 }
 
 // =====================================================================================================================
@@ -2376,12 +2146,9 @@ bool Image::IsIterate256Meaningful(
             subResInfo->flags.supportMetaDataTexFetch &&
             ((IsNavi21(device) && (imageCreateInfo.samples >= 4)) == false) &&
             ((IsNavi23(device) && (imageCreateInfo.samples >= 4)) == false) &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            Parent()->IsAspectValid(subResInfo->subresId.aspect));
-#else
             (subResInfo->subresId.plane < m_pImageInfo->numPlanes));
-#endif
 }
+
 // =====================================================================================================================
 HtileUsageFlags Image::GetHtileUsage() const
 {
@@ -2395,42 +2162,6 @@ HtileUsageFlags Image::GetHtileUsage() const
     return hTileUsage;
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-// =====================================================================================================================
-// Returns an index into the m_addrSurfOutput array.
-uint32 Image::GetAspectIndex(
-    ImageAspect  aspect
-    ) const
-{
-    uint32 aspectIdx = 0;
-    switch (aspect)
-    {
-    case ImageAspect::Depth:
-    case ImageAspect::Stencil:
-        aspectIdx = GetDepthStencilStateIndex(aspect);
-        break;
-    case ImageAspect::CbCr:
-    case ImageAspect::Cb:
-        aspectIdx = 1;
-        break;
-    case ImageAspect::Cr:
-        aspectIdx = 2;
-        break;
-    case ImageAspect::YCbCr:
-    case ImageAspect::Y:
-    case ImageAspect::Color:
-        aspectIdx = 0;
-        break;
-    default:
-        PAL_NEVER_CALLED();
-        break;
-    }
-
-    PAL_ASSERT (aspectIdx < MaxNumPlanes);
-    return aspectIdx;
-}
-#endif
-
 // =====================================================================================================================
 // Returns a pointer to all of the address library's surface-output calculations that pertain to the specified
 // subresource.
@@ -2438,11 +2169,7 @@ const ADDR2_COMPUTE_SURFACE_INFO_OUTPUT* Image::GetAddrOutput(
     const SubResourceInfo*  pSubResInfo
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    return &m_addrSurfOutput[GetAspectIndex(pSubResInfo->subresId.aspect)];
-#else
     return &m_addrSurfOutput[pSubResInfo->subresId.plane];
-#endif
 }
 
 // =====================================================================================================================
@@ -2458,13 +2185,7 @@ gpusize Image::GetFullSubresourceAddr(
     SubresId  subResId
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const gpusize  imageBaseAddr = GetAspectBaseAddr(subResId.aspect);
-#else
-    const gpusize  imageBaseAddr = GetPlaneBaseAddr(subResId.plane);
-#endif
-
-    return imageBaseAddr;
+    return GetPlaneBaseAddr(subResId.plane);
 }
 
 // =====================================================================================================================
@@ -2498,16 +2219,12 @@ bool Image::HasDccStateMetaData(
     const SubresRange& range
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    return HasDccStateMetaData(range.startSubres.aspect);
-#else
     bool result = false;
     for (uint32 plane = range.startSubres.plane; (plane < (range.startSubres.plane + range.numPlanes)); plane++)
     {
         result |= HasDccStateMetaData(plane);
     }
     return result;
-#endif
 }
 
 // =====================================================================================================================
@@ -2515,16 +2232,12 @@ bool Image::HasFastClearEliminateMetaData(
     const SubresRange& range
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    return HasFastClearEliminateMetaData(range.startSubres.aspect);
-#else
     bool result = false;
     for (uint32 plane = range.startSubres.plane; (plane < (range.startSubres.plane + range.numPlanes)); plane++)
     {
         result |= HasFastClearEliminateMetaData(plane);
     }
     return result;
-#endif
 }
 
 // =====================================================================================================================
@@ -2539,12 +2252,7 @@ gpusize Image::GetDccStateMetaDataAddr(
     // All the metadata for slices of a single mipmap level are contiguous region in memory.
     // So we can use one WRITE_DATA packet to update multiple array slices' metadata.
     const uint32   metaDataIndex  = m_createInfo.arraySize * subResId.mipLevel + subResId.arraySlice;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const uint32   planeIndex     = GetAspectIndex(subResId.aspect);
-    const gpusize  metaDataOffset = m_dccStateMetaDataOffset[planeIndex];
-#else
     const gpusize  metaDataOffset = m_dccStateMetaDataOffset[subResId.plane];
-#endif
 
     return (metaDataOffset == 0)
             ? 0
@@ -2564,12 +2272,7 @@ gpusize Image::GetDccStateMetaDataOffset(
     // All the metadata for slices of a single mipmap level are contiguous region in memory.
     // So we can use one WRITE_DATA packet to update multiple array slices' metadata.
     const uint32   metaDataIndex  = m_createInfo.arraySize * subResId.mipLevel + subResId.arraySlice;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const uint32   planeIndex     = GetAspectIndex(subResId.aspect);
-    const gpusize  metaDataOffset = m_dccStateMetaDataOffset[planeIndex];
-#else
     const gpusize  metaDataOffset = m_dccStateMetaDataOffset[subResId.plane];
-#endif
 
     return (metaDataOffset == 0)
             ? 0
@@ -2583,11 +2286,7 @@ gpusize Image::GetDccStateMetaDataSize(
     uint32           numMips
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    PAL_ASSERT(HasDccStateMetaData(subResId.aspect));
-#else
     PAL_ASSERT(HasDccStateMetaData(subResId.plane));
-#endif
 
     return (sizeof(MipDccStateMetaData) * numMips);
 }
@@ -2628,18 +2327,10 @@ void Image::InitWaTcCompatZRangeMetaData(
 // level of the image; if the corresponding DWORD for a miplevel is zero, then a fast-clear-eliminate operation will not
 // be required.
 void Image::InitFastClearEliminateMetaData(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    ImageAspect        aspect,
-#else
     uint32             plane,
-#endif
     ImageMemoryLayout* pGpuMemLayout,
     gpusize*           pGpuMemSize)
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const uint32  plane = GetAspectIndex(aspect);
-#endif
-
     m_fastClearEliminateMetaDataOffset[plane] = Pow2Align(*pGpuMemSize, PredicationAlign);
     m_fastClearEliminateMetaDataSize[plane]   = (m_createInfo.mipLevels * sizeof(MipFceStateMetaData));
     *pGpuMemSize                                 = m_fastClearEliminateMetaDataOffset[plane] +
@@ -2671,19 +2362,7 @@ void Image::InitHtileLookupTable(
 
     uint32 mipLevels      = m_createInfo.mipLevels;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    // Depth/stencil share same htile lookup table. We just require a valid asepct to get mipLevelExtent
-    // of sub resource
-    const auto&  imageCreateInfo = Parent()->GetImageCreateInfo();
-    SubresId     subresId        = {};
-
-    subresId.aspect = ((m_gfxDevice.GetHwZFmt(imageCreateInfo.swizzledFormat.format) != Z_INVALID)
-                       ? ImageAspect::Depth
-                       : ImageAspect::Stencil);
-    subresId.arraySlice = 0u;
-#else
     SubresId subresId = {};
-#endif
 
     while (mipLevels > 0)
     {
@@ -2713,11 +2392,7 @@ void Image::InitDccLookupTable(
     gpusize*           pGpuOffset,
     gpusize*           pGpuMemAlignment)
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const auto*  pBaseDcc = GetDcc(ImageAspect::Color);
-#else
     const auto*  pBaseDcc = GetDcc(0);
-#endif
 
     if (pBaseDcc->GetNumEffectiveSamples(DccClearPurpose::FastClear) <= 2)
     {
@@ -2780,21 +2455,20 @@ uint32* Image::UpdateColorClearMetaData(
         writeData.predicate  = predicate;
 
     uint32* pSpace = pCmdSpace;
-    SubresId subresId = clearRange.startSubres;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
-    for (; subresId.plane < (clearRange.startSubres.plane + clearRange.numPlanes); subresId.plane++)
-#endif
+    for (SubresId subresId = clearRange.startSubres;
+         subresId.plane < (clearRange.startSubres.plane + clearRange.numPlanes);
+         subresId.plane++)
     {
         writeData.dstAddr = FastClearMetaDataAddr(subresId);
 
         if (writeData.dstAddr != 0)
         {
             pSpace += CmdUtil::BuildWriteDataPeriodic(writeData,
-                                                     MetaDataDwords,
-                                                     clearRange.numMips,
-                                                     packedColor,
+                                                      MetaDataDwords,
+                                                      clearRange.numMips,
+                                                      packedColor,
                                                       pSpace);
-    }
+        }
     }
 
     return pSpace;
@@ -2811,11 +2485,7 @@ void Image::UpdateDccStateMetaData(
     Pm4Predicate         predicate
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    if (HasDccStateMetaData(range.startSubres.aspect))
-#else
     if (HasDccStateMetaData(range))
-#endif
     {
         PAL_ASSERT(HasDccData());
 
@@ -2839,32 +2509,31 @@ void Image::UpdateDccStateMetaData(
         writeData.dstSel     = dst_sel__pfp_write_data__memory;
         writeData.predicate  = predicate;
 
-        SubresId subresId = range.startSubres;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
-        for (; subresId.plane < (range.startSubres.plane + range.numPlanes); subresId.plane++)
-#endif
+        for (SubresId subresId = range.startSubres;
+             subresId.plane < (range.startSubres.plane + range.numPlanes);
+             subresId.plane++)
         {
-        for (uint32 mipLevelIdx = mipBegin; mipLevelIdx < mipEnd; mipLevelIdx++)
-        {
-            for (uint32 sliceIdx = sliceBegin; sliceIdx < sliceEnd; sliceIdx += maxSlicesPerPacket)
+            for (uint32 mipLevelIdx = mipBegin; mipLevelIdx < mipEnd; mipLevelIdx++)
             {
-                uint32 periodsToWrite = (sliceIdx + maxSlicesPerPacket <= sliceEnd) ? maxSlicesPerPacket :
-                                                                                      sliceEnd - sliceIdx;
+                for (uint32 sliceIdx = sliceBegin; sliceIdx < sliceEnd; sliceIdx += maxSlicesPerPacket)
+                {
+                    uint32 periodsToWrite = (sliceIdx + maxSlicesPerPacket <= sliceEnd) ? maxSlicesPerPacket :
+                                                                                          sliceEnd - sliceIdx;
 
                     writeData.dstAddr = GetDccStateMetaDataAddr(subresId);
-                PAL_ASSERT(writeData.dstAddr != 0);
+                    PAL_ASSERT(writeData.dstAddr != 0);
 
-                uint32* pCmdSpace = pCmdStream->ReserveCommands();
-                pCmdSpace += CmdUtil::BuildWriteDataPeriodic(writeData,
-                                                             DwordsPerSlice,
-                                                             periodsToWrite,
-                                                             reinterpret_cast<uint32*>(&metaData),
-                                                             pCmdSpace);
-                pCmdStream->CommitCommands(pCmdSpace);
+                    uint32* pCmdSpace = pCmdStream->ReserveCommands();
+                    pCmdSpace += CmdUtil::BuildWriteDataPeriodic(writeData,
+                                                                 DwordsPerSlice,
+                                                                 periodsToWrite,
+                                                                 reinterpret_cast<uint32*>(&metaData),
+                                                                 pCmdSpace);
+                    pCmdStream->CommitCommands(pCmdSpace);
+                }
             }
         }
     }
-}
 }
 
 // =====================================================================================================================
@@ -2878,9 +2547,7 @@ uint32* Image::UpdateFastClearEliminateMetaData(
     uint32*              pCmdSpace
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(range.numPlanes == 1);
-#endif
     // We need to write one DWORD per mip in the range. We can do this most efficiently with a single WRITE_DATA.
     PAL_ASSERT(range.numMips <= MaxImageMipLevels);
 
@@ -2940,11 +2607,7 @@ gpusize Image::GetFastClearEliminateMetaDataAddr(
     const SubresId&  subResId
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const uint32  planeIdx = GetAspectIndex(subResId.aspect);
-#else
     const uint32  planeIdx = subResId.plane;
-#endif
 
     PAL_ASSERT(subResId.mipLevel < m_createInfo.mipLevels);
 
@@ -2962,11 +2625,7 @@ gpusize Image::GetFastClearEliminateMetaDataOffset(
     const SubresId&  subResId
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const uint32  planeIdx = GetAspectIndex(subResId.aspect);
-#else
     const uint32  planeIdx = subResId.plane;
-#endif
 
     PAL_ASSERT(subResId.mipLevel < m_createInfo.mipLevels);
 
@@ -3350,16 +3009,10 @@ bool Image::DepthImageSupportsMetaDataTextureFetch(
     const SubresId& subResource
     ) const
 {
-    bool         isFmtLegal = true;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     const bool   isStencilPlane = m_pParent->IsStencilPlane(subResource.plane);
-#endif
+    bool         isFmtLegal     = true;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    if (m_pParent->IsAspectValid(ImageAspect::Stencil) &&
-#else
     if (m_pParent->HasStencilPlane() &&
-#endif
         (TestAnyFlagSet(m_device.GetPublicSettings()->tcCompatibleMetaData, TexFetchMetaDataCapsAllowStencil) == false))
     {
         // The settings disallows tex fetches of any compressed depth image that contains stencil
@@ -3368,32 +3021,16 @@ bool Image::DepthImageSupportsMetaDataTextureFetch(
 
     if (isFmtLegal)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        if (subResource.aspect == ImageAspect::Depth)
-#else
         if (m_pParent->IsDepthPlane(subResource.plane))
-#endif
         {
             isFmtLegal = DepthMetaDataTexFetchIsZValid(format);
         }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        else if (subResource.aspect == ImageAspect::Stencil)
-#else
         else if (isStencilPlane)
-#endif
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            if (m_pParent->IsAspectValid(ImageAspect::Depth))
-#else
             if (m_pParent->HasDepthPlane())
-#endif
             {
                 // Verify that the z-plane of this image is compatible with the texture pipe and compression.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                const SubresId zSubres = { ImageAspect::Depth, subResource.mipLevel, subResource.arraySlice };
-#else
                 const SubresId zSubres = { 0, subResource.mipLevel, subResource.arraySlice };
-#endif
 
                 isFmtLegal = DepthMetaDataTexFetchIsZValid(Parent()->SubresourceInfo(zSubres)->format.format);
             }
@@ -3423,11 +3060,7 @@ bool Image::DepthImageSupportsMetaDataTextureFetch(
             }
         }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        if ((subResource.aspect == ImageAspect::Stencil) && IsHtileDepthOnly())
-#else
         if (isStencilPlane && IsHtileDepthOnly())
-#endif
         {
             // If this is the stencil plane and the hTile data will only contain Z data, then we can't meta-fetch
             // this data.
@@ -3474,37 +3107,28 @@ void Image::InitMetadataFill(
                                                static_cast<uint32>(Gfx9Dcc::InitialValue <<  8) |
                                                static_cast<uint32>(Gfx9Dcc::InitialValue <<  0));
 
-            SubresId subresId = range.startSubres;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
-            for (; (subresId.plane < (range.startSubres.plane + range.numPlanes)); subresId.plane++)
-#endif
+            for (SubresId subresId = range.startSubres;
+                 subresId.plane < (range.startSubres.plane + range.numPlanes);
+                 subresId.plane++)
             {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                const Gfx9Dcc* pDcc = GetDcc(subresId.aspect);
-#else
                 const Gfx9Dcc* pDcc = GetDcc(subresId.plane);
-#endif
 
-            pCmdBuffer->CmdFillMemory(gpuMemObj,
-                                      pDcc->MemoryOffset() + boundGpuMemOffset,
-                                      pDcc->TotalSize(),
-                                      DccInitValue);
+                pCmdBuffer->CmdFillMemory(gpuMemObj,
+                                          pDcc->MemoryOffset() + boundGpuMemOffset,
+                                          pDcc->TotalSize(),
+                                          DccInitValue);
 
-            PAL_ASSERT(pDcc->HasMetaEqGenerator());
-            pDcc->GetMetaEqGenerator()->UploadEq(pCmdBuffer);
+                PAL_ASSERT(pDcc->HasMetaEqGenerator());
+                pDcc->GetMetaEqGenerator()->UploadEq(pCmdBuffer);
 
-            if (HasDisplayDccData())
-            {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                    const Gfx9Dcc* pDispDcc = GetDisplayDcc(subresId.aspect);
-#else
+                if (HasDisplayDccData())
+                {
                     const Gfx9Dcc* pDispDcc = GetDisplayDcc(subresId.plane);
-#endif
 
-                PAL_ASSERT(pDispDcc->HasMetaEqGenerator());
-                pDispDcc->GetMetaEqGenerator()->UploadEq(pCmdBuffer);
+                    PAL_ASSERT(pDispDcc->HasMetaEqGenerator());
+                    pDispDcc->GetMetaEqGenerator()->UploadEq(pCmdBuffer);
+                }
             }
-        }
         }
 
         // If we have fMask then we also have cMask.
@@ -3537,27 +3161,18 @@ void Image::InitMetadataFill(
         // because TC isn't aware of DB_STENCIL_CLEAR register.
         // Please note the clear value of color or depth is also initialized together,
         // although it might be unnecessary.
-        SubresId subresId = range.startSubres;
-    #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
-        for (; subresId.plane < (range.startSubres.plane + range.numPlanes); subresId.plane++)
-    #endif
+        for (SubresId subresId = range.startSubres;
+             subresId.plane < (range.startSubres.plane + range.numPlanes);
+             subresId.plane++)
         {
-        pCmdBuffer->CmdFillMemory(gpuMemObj,
+            pCmdBuffer->CmdFillMemory(gpuMemObj,
                                       FastClearMetaDataOffset(subresId),
-    #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                                      FastClearMetaDataSize(subresId.aspect, range.numMips),
-    #else
                                       FastClearMetaDataSize(subresId.plane, range.numMips),
-    #endif
-                                  0);
-    }
+                                      0);
+        }
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    if (HasHiSPretestsMetaData() && (range.startSubres.aspect == ImageAspect::Stencil))
-#else
     if (HasHiSPretestsMetaData() && Parent()->HasStencilPlane(range))
-#endif
     {
         pCmdBuffer->CmdFillMemory(gpuMemObj,
                                   HiSPretestsMetaDataOffset(range.startSubres.mipLevel),
@@ -3565,11 +3180,7 @@ void Image::InitMetadataFill(
                                   0);
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    if (HasWaTcCompatZRangeMetaData() && (range.startSubres.aspect == ImageAspect::Depth))
-#else
     if (HasWaTcCompatZRangeMetaData() && Parent()->HasDepthPlane(range))
-#endif
     {
         pCmdBuffer->CmdFillMemory(gpuMemObj,
                                   WaTcCompatZRangeMetaDataOffset(range.startSubres.mipLevel),
@@ -3584,15 +3195,14 @@ void Image::InitMetadataFill(
         const bool canCompress = ImageLayoutCanCompressColorData(LayoutToColorCompressionState(), layout);
         const uint32 dccStateInitValue = canCompress ? 1 : 0;
 
-        SubresId subresId = range.startSubres;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
-        for (; subresId.plane < (range.startSubres.plane + range.numPlanes); subresId.plane++)
-#endif
+        for (SubresId subresId = range.startSubres;
+             subresId.plane < (range.startSubres.plane + range.numPlanes);
+             subresId.plane++)
         {
-        pCmdBuffer->CmdFillMemory(gpuMemObj,
+            pCmdBuffer->CmdFillMemory(gpuMemObj,
                                       GetDccStateMetaDataOffset(subresId),
                                       GetDccStateMetaDataSize(subresId, range.numMips),
-                                  dccStateInitValue);
+                                      dccStateInitValue);
         }
     }
 
@@ -3639,18 +3249,11 @@ bool Image::SupportsComputeDecompress(
 
     bool supportsCompression = true;
 
-    SubresId subresId = range.startSubres;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
-    for (; subresId.plane < (range.startSubres.plane + range.numPlanes); subresId.plane++)
-#endif
+    for (uint32 plane = range.startSubres.plane; plane < (range.startSubres.plane + range.numPlanes); plane++)
     {
-    const uint32 engines = (m_pParent->IsDepthStencilTarget()
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                           ? layoutToState.depthStencil[GetDepthStencilStateIndex(subresId.aspect)].compressed.engines
-#else
-                               ? layoutToState.depthStencil[subresId.plane].compressed.engines
-#endif
-                           : layoutToState.color.compressed.engines);
+        const uint32 engines = (m_pParent->IsDepthStencilTarget()
+                                ? layoutToState.depthStencil[plane].compressed.engines
+                                : layoutToState.color.compressed.engines);
 
         supportsCompression &= TestAnyFlagSet(engines, LayoutComputeEngine);
     }
@@ -3661,18 +3264,6 @@ bool Image::SupportsComputeDecompress(
 // =====================================================================================================================
 // Returns the virtual address used for HW programming of the given mip.  Returned value includes any pipe-bank-xor
 // value associated with this plane and does not include the mip tail offset.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-gpusize Image::GetAspectBaseAddr(
-    ImageAspect aspect,
-    uint32      arraySlice
-    ) const
-{
-    // On GFX9, the registers are programmed to select the proper mip level and slice, the base address *always*
-    // points to mip 0 / slice 0.  We still have to take into account the aspect though.
-    const SubresId subresId = { aspect, 0, arraySlice };
-    return GetMipAddr(subresId);
-}
-#else
 gpusize Image::GetPlaneBaseAddr(
     uint32 plane,
     uint32 arraySlice
@@ -3683,7 +3274,6 @@ gpusize Image::GetPlaneBaseAddr(
     const SubresId subresId = { plane, 0, arraySlice };
     return GetMipAddr(subresId);
 }
-#endif
 
 // =====================================================================================================================
 // Returns the virtual address used for HW programming of the given mip.  Returned value includes any pipe-bank-xor
@@ -3712,12 +3302,7 @@ gpusize Image::GetMipAddr(
         // On GFX10, programming is based on the logical starting address of the plane.  Mips are stored in
         // reverse order (i.e., mip 0 is *last* and the last mip level isn't necessarily at offset zero either), so
         // we need to figure out where this plane begins.  Fun!
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const uint32  planeIdx    = pParent->GetPlaneFromAspect(subresId.aspect);
-        const gpusize planeOffset = isYuvPlanarArray ? pBaseSubResInfo->offset : m_planeOffset[planeIdx];
-#else
         const gpusize planeOffset = isYuvPlanarArray ? pBaseSubResInfo->offset : m_planeOffset[subresId.plane];
-#endif
 
         imageBaseAddr = pParent->GetBoundGpuMemory().GpuVirtAddr() + planeOffset;
     }
@@ -3760,12 +3345,7 @@ bool Image::IsInMetadataMipTail(
     bool inMipTail = false;
     if (m_createInfo.mipLevels > 1)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const Gfx9Dcc*  pDcc = GetDcc(subResId.aspect);
-#else
         const Gfx9Dcc*  pDcc = GetDcc(subResId.plane);
-#endif
-
         if (pDcc != nullptr)
         {
             inMipTail = (pDcc->GetAddrMipInfo(subResId.mipLevel).inMiptail != 0);
@@ -3940,11 +3520,7 @@ void Image::Addr2InitSubResInfoGfx10(
     const bool            isYuvPlanar = Formats::IsYuvPlanar(createInfo.swizzledFormat.format);
     SubResourceInfo*const pSubRes     = (pSubResInfoList + subResIt.Index());
     const auto*           pAddrOutput = GetAddrOutput(pSubRes);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const uint32          plane       = pParent->GetPlaneFromAspect(pSubRes->subresId.aspect);
-#else
     const uint32          plane       = pSubRes->subresId.plane;
-#endif
     TileInfo*const        pTileInfo   = NonConstTileInfo(pSubResTileInfoList, subResIt.Index());
 
     if (isYuvPlanar == false)
@@ -3995,11 +3571,7 @@ void Image::GetSharedMetadataInfo(
 {
     memset(pMetadataInfo, 0, sizeof(SharedMetadataInfo));
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const SubresId baseSubResId = Parent()->GetBaseSubResource();
-#else
     const SubresId baseSubResId = {};
-#endif
 
     pMetadataInfo->numPlanes = 0;
     for (uint32  dccPlane = 0; dccPlane < m_numDccPlanes; dccPlane++)
@@ -4083,23 +3655,12 @@ Result Image::GetDefaultGfxLayout(
 
     if (pLayout != nullptr)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        if ((subresId.aspect == ImageAspect::Depth) || (subresId.aspect == ImageAspect::Stencil))
-#else
         if (Parent()->IsDepthStencilTarget())
-#endif
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            *pLayout = m_defaultGfxLayout.depthStencil[GetDepthStencilStateIndex(subresId.aspect)];
-#else
             *pLayout = m_defaultGfxLayout.depthStencil[subresId.plane];
-#endif
         }
         else
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            PAL_ASSERT(subresId.aspect != ImageAspect::Fmask);
-#endif
             *pLayout = m_defaultGfxLayout.color;
         }
 
@@ -4142,10 +3703,6 @@ bool Image::NeedFlushForMetadataPipeMisalignment(
     const SubresRange& range
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const uint32 planeId = GetAspectIndex(range.startSubres.aspect);
-    return ((range.startSubres.mipLevel + range.numMips - 1) >= m_firstMipMetadataPipeMisaligned[planeId]);
-#else
     bool result = false;
 
     for (uint32 plane = range.startSubres.plane;
@@ -4153,10 +3710,9 @@ bool Image::NeedFlushForMetadataPipeMisalignment(
          plane++)
     {
         result |= ((range.startSubres.mipLevel + range.numMips - 1) >= m_firstMipMetadataPipeMisaligned[plane]);
-}
+    }
 
     return result;
-#endif
 }
 
 // =====================================================================================================================
@@ -4263,11 +3819,7 @@ uint32 Image::GetPipeMisalignedMetadataFirstMip(
         uint32 firstMipInMetadataMipTail = UINT_MAX;
         for (uint32 mip = 0; mip < m_pParent->GetImageCreateInfo().mipLevels; ++mip)
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            const SubresId  mipBaseSubResId = { baseSubRes.subresId.aspect, mip, 0 };
-#else
             const SubresId  mipBaseSubResId = { baseSubRes.subresId.plane, mip, 0 };
-#endif
 
             if (IsInMetadataMipTail(mipBaseSubResId))
             {
@@ -4280,11 +3832,7 @@ uint32 Image::GetPipeMisalignedMetadataFirstMip(
         {
             if (HasHtileData() && (baseSubRes.flags.supportMetaDataTexFetch != 0))
             {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                const bool stencil = (baseSubRes.subresId.aspect == ImageAspect::Stencil);
-#else
                 const bool stencil = m_pParent->IsStencilPlane(baseSubRes.subresId.plane);
-#endif
                 firstMip = ((stencil || (createInfo.samples > 1)) ? 0 : firstMipInMetadataMipTail);
             }
         }

@@ -150,12 +150,8 @@ struct QueueCreateInfo
 #endif
         uint32 dispatchTunneling               :  1; ///< This queue uses compute dispatch tunneling.
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 605)
         uint32 forceWaitIdleOnRingResize       :  1; ///< This queue need to wait for idle before resize RingSet.
                                                      ///  This is intended as a workaround for misbehaving applications.
-#else
-        uint32 placeholder3                    :  1; ///< Reserved field. Set to 0.
-#endif
         uint32 reserved                        : 26; ///< Reserved for future use.
     };
 

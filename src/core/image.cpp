@@ -40,7 +40,7 @@ namespace Pal
 
 // =====================================================================================================================
 // Helper function which computes the total number of planes for an Image.
-static PAL_INLINE size_t PlaneCount(
+static size_t PlaneCount(
     const Device&          device,
     const ImageCreateInfo& createInfo)
 {
@@ -61,7 +61,7 @@ static PAL_INLINE size_t PlaneCount(
 
 // =====================================================================================================================
 // Helper function which computes the total number of subresources for an Image.
-static PAL_INLINE size_t TotalSubresourceCount(
+static size_t TotalSubresourceCount(
     const Device&          device,
     const ImageCreateInfo& createInfo)
 {
@@ -466,14 +466,8 @@ size_t Image::GetTotalSubresourceSize(
 
 // =====================================================================================================================
 // Helper method which determines the format for the specified Image plane.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-void Image::DetermineFormatAndAspectForPlane(
-    SwizzledFormat* pFormat,
-    ImageAspect*    pAspect,
-#else
 void Image::DetermineFormatForPlane(
     SwizzledFormat* pFormat,
-#endif
     uint32          plane
     ) const
 {
@@ -481,9 +475,6 @@ void Image::DetermineFormatForPlane(
     if (Formats::IsDepthStencilOnly(format.format) || (m_createInfo.usageFlags.depthStencil != 0))
     {
         // Subresource format gets overridden for depth/stencil Images:
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        *pAspect         = IsUint(format.format) ? ImageAspect::Stencil : ImageAspect::Depth;
-#endif
         pFormat->format  = format.format;
         pFormat->swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
@@ -494,33 +485,21 @@ void Image::DetermineFormatForPlane(
             if (plane > 0)
             {
                 pFormat->format = ChNumFormat::X8_Uint;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                *pAspect        = ImageAspect::Stencil;
-#endif
             }
             // Depth plane of formats D16S8, D32S8.
             else if (format.format == ChNumFormat::D16_Unorm_S8_Uint)
             {
                 pFormat->format = ChNumFormat::X16_Unorm;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                *pAspect        = ImageAspect::Depth;
-#endif
             }
             else
             {
                 PAL_ASSERT(format.format == ChNumFormat::D32_Float_S8_Uint);
                 pFormat->format = ChNumFormat::X32_Float;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                *pAspect        = ImageAspect::Depth;
-#endif
             }
         }
     }
     else if (IsYuvPacked(format.format))
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        *pAspect = ImageAspect::YCbCr;
-#endif
         *pFormat = m_createInfo.swizzledFormat;
     }
     else if (IsYuvPlanar(format.format))
@@ -533,9 +512,6 @@ void Image::DetermineFormatForPlane(
 
         if (plane == 0)
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-            *pAspect         = ImageAspect::Y;
-#endif
             pFormat->swizzle =
                 { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
             switch (format.format)
@@ -561,9 +537,6 @@ void Image::DetermineFormatForPlane(
                 pFormat->format  = supportsX8Y8Mm ? ChNumFormat::X8Y8_MM_Uint : ChNumFormat::X8Y8_Uint;
                 pFormat->swizzle =
                     { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                *pAspect = ImageAspect::CbCr;
-#endif
                 break;
             case ChNumFormat::P016:
             case ChNumFormat::P010:
@@ -571,18 +544,12 @@ void Image::DetermineFormatForPlane(
                 pFormat->format  = supportsX16Y16Mm ? ChNumFormat::X16Y16_MM_Uint : ChNumFormat::X16Y16_Uint;
                 pFormat->swizzle =
                     { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                *pAspect = ImageAspect::CbCr;
-#endif
                 break;
             case ChNumFormat::YV12:
                 // The U and V planes in YV12 are separate so use a format that only has one channel for this.
                 pFormat->format  = supportsX8Mm ? ChNumFormat::X8_MM_Uint : ChNumFormat::X8_Uint;
                 pFormat->swizzle =
                     { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                *pAspect = (plane == 1) ? ImageAspect::Cb : ImageAspect::Cr;
-#endif
                 break;
             default:
                 PAL_ASSERT_ALWAYS();
@@ -592,9 +559,6 @@ void Image::DetermineFormatForPlane(
     }
     else
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        *pAspect = ImageAspect::Color;
-#endif
         *pFormat = m_createInfo.swizzledFormat;
     }
 }
@@ -626,20 +590,11 @@ Result Image::Init()
     for (uint32 plane = 0; plane < m_imageInfo.numPlanes; ++plane)
     {
         SwizzledFormat planeFormat = m_createInfo.swizzledFormat;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        ImageAspect    planeAspect = ImageAspect::Color;
-        DetermineFormatAndAspectForPlane(&planeFormat, &planeAspect, plane);
-#else
         DetermineFormatForPlane(&planeFormat, plane);
-#endif
 
         // For YUV planar formats, the base subresource dimensions vary by plane. We need to determine the ratio of the
         // planes' dimentions.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-        const Extent3d log2Ratio = Log2SubsamplingRatio(m_createInfo.swizzledFormat.format, planeAspect);
-#else
         const Extent3d log2Ratio = Log2SubsamplingRatio(m_createInfo.swizzledFormat.format, plane);
-#endif
 
         uint32 mipWidth  = (m_createInfo.extent.width  >> log2Ratio.width);
         uint32 mipHeight = (m_createInfo.extent.height >> log2Ratio.height);
@@ -649,11 +604,7 @@ Result Image::Init()
         {
             for (uint32 slice = 0; slice < m_createInfo.arraySize; ++slice, ++pSubRes)
             {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-                pSubRes->subresId.aspect     = planeAspect;
-#else
                 pSubRes->subresId.plane      = plane;
-#endif
                 pSubRes->subresId.arraySlice = slice;
                 pSubRes->subresId.mipLevel   = mipLevel;
                 pSubRes->format              = planeFormat;
@@ -841,103 +792,20 @@ void Image::DestroyInternal()
     PAL_FREE(this, pPlatform);
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-// =====================================================================================================================
-// Determines if the specified image aspect is valid.
-bool Image::IsAspectValid(
-    ImageAspect  aspect
-    ) const
-{
-    ChNumFormat format = m_createInfo.swizzledFormat.format;
-    bool        valid  = false;
-
-    // Determine depth/stencil support
-    if (IsDepthStencilOnly(format) ||
-        ((aspect == ImageAspect::Depth)   && m_pDevice->SupportsDepth(format, m_createInfo.tiling)) ||
-        ((aspect == ImageAspect::Stencil) && m_pDevice->SupportsStencil(format, m_createInfo.tiling)))
-    {
-        valid = true;
-    }
-    else if (IsYuv(format))
-    {
-        switch (aspect)
-        {
-        case ImageAspect::Y:
-            valid = IsYuvPlanar(format);
-            break;
-        case ImageAspect::CbCr:
-            valid = (IsYuvPlanar(format) && (format != ChNumFormat::YV12));
-            break;
-        case ImageAspect::Cb:
-        case ImageAspect::Cr:
-            valid = (format == ChNumFormat::YV12);
-            break;
-        case ImageAspect::YCbCr:
-            valid = IsYuvPacked(format);
-            break;
-        default:
-            break;
-        }
-    }
-    // For non YUV, non depth/stencil Images, the only valid aspect we support is Color.
-    else if (aspect == ImageAspect::Color)
-    {
-        valid = true;
-    }
-    // TODO: Revisit when implementing advanced AA
-    else if ((aspect == ImageAspect::Fmask) && (m_createInfo.samples > 1))
-    {
-        valid = true;
-    }
-    else if (m_createInfo.tiling == ImageTiling::Linear)
-    {
-        // Depth and Stencil aspects are valid for linear images that share the same format as images
-        // that support DepthTarget.  A better solution would be to introduce an ImageAspect::Default.
-        if ((aspect == ImageAspect::Depth) &&
-            ((format == ChNumFormat::X16_Unorm) || (format == ChNumFormat::X32_Float)) &&
-            m_pDevice->SupportsDepth(format, ImageTiling::Optimal))
-        {
-            valid = true;
-        }
-        else if ((aspect == ImageAspect::Stencil) &&
-                 (format == ChNumFormat::X8_Uint) &&
-                 m_pDevice->SupportsStencil(format, ImageTiling::Optimal))
-        {
-            valid = true;
-        }
-
-    }
-
-    return valid;
-}
-#endif
-
 // =====================================================================================================================
 // Calculates the subresource id according to array slice, mip level and plane.
 uint32 Image::CalcSubresourceId(
     const SubresId& subresource
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    const uint32 plane = GetPlaneFromAspect(subresource.aspect);
-
-    PAL_ASSERT((subresource.arraySlice < m_createInfo.arraySize) &&
-               (subresource.mipLevel   < m_createInfo.mipLevels) &&
-               (plane                  < m_imageInfo.numPlanes));
-#else
     PAL_ASSERT(IsSubresourceValid(subresource));
-#endif
 
     const uint32 subresInPlane  = ((subresource.mipLevel * m_createInfo.arraySize) + subresource.arraySlice);
     const uint32 subresPerPlane = (m_createInfo.mipLevels * m_createInfo.arraySize);
 
     // Subresources are placed in subresource-major order, i.e. all subresources of plane N preceed all subresources of
     // plane N+1 in memory.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-    return ((plane * subresPerPlane) + subresInPlane);
-#else
     return ((subresource.plane * subresPerPlane) + subresInPlane);
-#endif
 }
 
 // =====================================================================================================================
@@ -946,41 +814,19 @@ void Image::ValidateSubresRange(
     const SubresRange& range
     ) const
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(range.startSubres.plane      < m_imageInfo.numPlanes);
-#endif
     PAL_ASSERT(range.startSubres.mipLevel   < m_createInfo.mipLevels);
     PAL_ASSERT(range.startSubres.arraySlice < m_createInfo.arraySize);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(range.numPlanes > 0);
-#endif
     PAL_ASSERT(range.numMips   > 0);
     PAL_ASSERT(range.numSlices > 0);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 642
     PAL_ASSERT(range.numPlanes <= m_imageInfo.numPlanes);
-#endif
     PAL_ASSERT(range.numMips   <= m_createInfo.mipLevels);
     PAL_ASSERT(range.numSlices <= m_createInfo.arraySize);
 }
 
 // =====================================================================================================================
 // Fills in a subresource range to cover all subresources of the image
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-void Image::GetFullSubresourceRange(
-    ImageAspect  aspect,
-    SubresRange* pRange          // [out] Subresource range being returned
-    ) const
-{
-    if ((pRange != nullptr) && (IsAspectValid(aspect)))
-    {
-        pRange->startSubres.aspect     = aspect;
-        pRange->startSubres.mipLevel   = 0;
-        pRange->startSubres.arraySlice = 0;
-        pRange->numMips                = m_createInfo.mipLevels;
-        pRange->numSlices              = m_createInfo.arraySize;
-    }
-}
-#else
 Result Image::GetFullSubresourceRange(
     SubresRange* pRange          // [out] Subresource range being returned
     ) const
@@ -1001,49 +847,6 @@ Result Image::GetFullSubresourceRange(
 
     return result;
 }
-#endif
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-// =====================================================================================================================
-// Sets up a sub-resource struct for the base mip/array with an appropriate aspect for the image type.  Biased towards
-// depth aspect for depth/stencil compatabile images.
-SubresId Image::GetBaseSubResource() const
-{
-    SubresId subRes = { };
-
-    if (IsDepthStencilTarget() ||
-        IsDepthStencilOnly(m_createInfo.swizzledFormat.format))
-    {
-        if (IsAspectValid(ImageAspect::Depth) == true)
-        {
-            subRes.aspect = ImageAspect::Depth;
-        }
-        else if (IsAspectValid(ImageAspect::Stencil) == true)
-        {
-            subRes.aspect = ImageAspect::Stencil;
-        }
-        else
-        {
-            // How do we have a depth image that doesn't have either a depth or stencil aspect?
-            PAL_ASSERT_ALWAYS();
-        }
-    }
-    else if (IsAspectValid(ImageAspect::YCbCr))
-    {
-        subRes.aspect = ImageAspect::YCbCr;
-    }
-    else if (IsAspectValid(ImageAspect::Y))
-    {
-        subRes.aspect = ImageAspect::Y;
-    }
-    else
-    {
-        subRes.aspect = ImageAspect::Color;
-    }
-
-    return subRes;
-}
-#endif
 
 // =====================================================================================================================
 // Determines the memory requirements for this image.
@@ -1082,43 +885,6 @@ gpusize Image::GetSubresourceBaseAddrSwizzled(
     const uint32  swizzle  = GetGfxImage()->GetTileSwizzle(subresource);
     return baseAddr | (static_cast<gpusize>(swizzle) << 8);
 }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 642
-// =====================================================================================================================
-// Determines which plane in the Image is associated with the specified image aspect.
-uint32 Image::GetPlaneFromAspect(
-    ImageAspect  aspect
-    ) const
-{
-    PAL_ASSERT(IsAspectValid(aspect));
-
-    // Most of the time, the aspect is tied to plane #0...
-    uint32 plane = 0;
-    // ...but if we have two planes and are a depth/stencil Image, then the stencil aspect is tied to plane #1. Or,
-    // if we are a YUV planar Image, the chroma aspect(s) are tied to plane #1 and #2.
-    switch (m_imageInfo.numPlanes)
-    {
-    case 2:
-        if ((aspect == ImageAspect::Stencil) || (aspect == ImageAspect::CbCr))
-        {
-            plane = 1;
-        }
-        break;
-    case 3:
-        if (aspect == ImageAspect::Cb)
-        {
-            plane = 1;
-        }
-        else if (aspect == ImageAspect::Cr)
-        {
-            plane = 2;
-        }
-        break;
-    }
-
-    return plane;
-}
-#endif
 
 // =====================================================================================================================
 // Fills in the SubresLayout struct with info for the subresource specified
