@@ -23,6 +23,7 @@
  *
  **********************************************************************************************************************/
 
+#include "core/g_palPlatformSettings.h"
 #include "core/hw/gfxip/gfx9/gfx9BorderColorPalette.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9ColorBlendState.h"
@@ -39,9 +40,11 @@
 #include "core/hw/gfxip/gfx9/gfx9PerfExperiment.h"
 #include "core/hw/gfxip/gfx9/gfx9UniversalCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/gfx9PipelineStatsQueryPool.h"
-#include "core/g_palPlatformSettings.h"
+#include "core/imported/hsa/AMDHSAKernelDescriptor.h"
+#include "core/imported/hsa/amd_hsa_kernel_code.h"
 #include "core/settingsLoader.h"
 #include "marker_payload.h"
+#include "palHsaAbiMetadata.h"
 #include "palMath.h"
 #include "palIntervalTreeImpl.h"
 #include "palVectorImpl.h"
@@ -296,7 +299,8 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_gangedCmdStreamSemAddr(0),
     m_semCountAceWaitDe(0),
     m_semCountDeWaitAce(0),
-    m_meshPipeStatsGpuAddr(0)
+    m_meshPipeStatsGpuAddr(0),
+    m_globalInternalTableAddr(0)
 {
     const auto&                palDevice        = *(m_device.Parent());
     const PalPlatformSettings& platformSettings = m_device.Parent()->GetPlatform()->PlatformSettings();
@@ -359,7 +363,9 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.waLegacyGsCutModeFlush                    = settings.waLegacyGsCutModeFlush;
     m_cachedSettings.supportsVrs                               = chipProps.gfxip.supportsVrs;
     m_cachedSettings.vrsForceRateFine                          = settings.vrsForceRateFine;
-    m_cachedSettings.supportsAceOffload = chipProps.gfx9.supportAceOffload;
+
+    m_cachedSettings.supportsAceOffload       = chipProps.gfx9.supportAceOffload;
+    m_cachedSettings.useExecuteIndirectPacket = coreSettings.useExecuteIndirectPacket;
 
     m_cachedSettings.optimizeDepthOnlyFmt = settings.rbPlusOptimizeDepthOnlyExportRate;
     PAL_ASSERT(m_cachedSettings.optimizeDepthOnlyFmt ? m_cachedSettings.rbPlusSupported : true);
@@ -481,6 +487,9 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 
     m_vgtMultiPrimIbResetEn.u32All = 0;
 
+    // Assume PAL ABI compute pipelines by default.
+    SetDispatchFunctions(false);
+
     SwitchDrawFunctions(false, false, false);
 }
 
@@ -528,14 +537,81 @@ Result UniversalCmdBuffer::Init(
 }
 
 // =====================================================================================================================
-// Sets-up function pointers for the Dispatch entrypoint and all variants.
-template <bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
+// Sets-up function pointers for the Dispatch entrypoint and all variants using template parameters.
+template <bool HsaAbi, bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
 void UniversalCmdBuffer::SetDispatchFunctions()
 {
-    m_funcTable.pfnCmdDispatch         = CmdDispatch<IssueSqttMarkerEvent, DescribeDrawDispatch>;
-    m_funcTable.pfnCmdDispatchIndirect = CmdDispatchIndirect<IssueSqttMarkerEvent, DescribeDrawDispatch>;
-    m_funcTable.pfnCmdDispatchOffset   = CmdDispatchOffset<IssueSqttMarkerEvent, DescribeDrawDispatch>;
-    m_funcTable.pfnCmdDispatchDynamic  = CmdDispatchDynamic<IssueSqttMarkerEvent, DescribeDrawDispatch>;
+    m_funcTable.pfnCmdDispatch       = CmdDispatch<HsaAbi, IssueSqttMarkerEvent, DescribeDrawDispatch>;
+    m_funcTable.pfnCmdDispatchOffset = CmdDispatchOffset<HsaAbi, IssueSqttMarkerEvent, DescribeDrawDispatch>;
+
+    if (HsaAbi)
+    {
+        // Note that CmdDispatchIndirect and CmdDispatchDynamic do not support the HSA ABI.
+        m_funcTable.pfnCmdDispatchIndirect = nullptr;
+        m_funcTable.pfnCmdDispatchDynamic  = nullptr;
+    }
+    else
+    {
+        m_funcTable.pfnCmdDispatchIndirect = CmdDispatchIndirect<IssueSqttMarkerEvent, DescribeDrawDispatch>;
+        m_funcTable.pfnCmdDispatchDynamic  = CmdDispatchDynamic<IssueSqttMarkerEvent, DescribeDrawDispatch>;
+    }
+}
+
+// =====================================================================================================================
+// Sets-up function pointers for the Dispatch entrypoint and all variants.
+void UniversalCmdBuffer::SetDispatchFunctions(
+    bool hsaAbi)
+{
+    if (hsaAbi)
+    {
+        if (m_cachedSettings.issueSqttMarkerEvent)
+        {
+            if (m_cachedSettings.describeDrawDispatch)
+            {
+                SetDispatchFunctions<true, true, true>();
+            }
+            else
+            {
+                SetDispatchFunctions<true, true, false>();
+            }
+        }
+        else
+        {
+            if (m_cachedSettings.describeDrawDispatch)
+            {
+                SetDispatchFunctions<true, false, true>();
+            }
+            else
+            {
+                SetDispatchFunctions<true, false, false>();
+            }
+        }
+    }
+    else
+    {
+        if (m_cachedSettings.issueSqttMarkerEvent)
+        {
+            if (m_cachedSettings.describeDrawDispatch)
+            {
+                SetDispatchFunctions<false, true, true>();
+            }
+            else
+            {
+                SetDispatchFunctions<false, true, false>();
+            }
+        }
+        else
+        {
+            if (m_cachedSettings.describeDrawDispatch)
+            {
+                SetDispatchFunctions<false, false, true>();
+            }
+            else
+            {
+                SetDispatchFunctions<false, false, false>();
+            }
+        }
+    }
 }
 
 // =====================================================================================================================
@@ -597,18 +673,8 @@ void UniversalCmdBuffer::ResetState()
 {
     Pal::UniversalCmdBuffer::ResetState();
 
-    if (m_cachedSettings.issueSqttMarkerEvent)
-    {
-        SetDispatchFunctions<true, true>();
-    }
-    else if (m_cachedSettings.describeDrawDispatch)
-    {
-        SetDispatchFunctions<false, true>();
-    }
-    else
-    {
-        SetDispatchFunctions<false, false>();
-    }
+    // Assume PAL ABI compute pipelines by default.
+    SetDispatchFunctions(false);
 
     SetUserDataValidationFunctions(false, false, false);
     SwitchDrawFunctions(false, false, false);
@@ -744,17 +810,6 @@ void UniversalCmdBuffer::ResetState()
     // uses it.
     m_drawTimeHwState.valid.drawIndex = 1;
 
-    // DB_COUNT_CONTROL register is always valid on a nested command buffer because only some bits are inherited
-    // and will be updated if necessary in UpdateDbCountControl.
-    if (IsNested())
-    {
-        m_drawTimeHwState.valid.dbCountControl = 1;
-    }
-
-    m_drawTimeHwState.dbCountControl.bits.ZPASS_ENABLE      = 1;
-    m_drawTimeHwState.dbCountControl.bits.SLICE_EVEN_ENABLE = 1;
-    m_drawTimeHwState.dbCountControl.bits.SLICE_ODD_ENABLE  = 1;
-
     m_vertexOffsetReg     = UserDataNotMapped;
     m_drawIndexReg        = UserDataNotMapped;
     m_nggState.numSamples = 1;
@@ -790,6 +845,7 @@ void UniversalCmdBuffer::ResetState()
     m_semCountDeWaitAce  = 0;
 
     m_meshPipeStatsGpuAddr = 0;
+    m_globalInternalTableAddr = 0;
 
 }
 
@@ -976,6 +1032,41 @@ void UniversalCmdBuffer::CmdBindPipeline(
             }
         }
     }
+    else
+    {
+        auto* const pNewPipeline = static_cast<const ComputePipeline*>(params.pPipeline);
+        auto* const pOldPipeline = static_cast<const ComputePipeline*>(m_computeState.pipelineState.pPipeline);
+
+        const bool newUsesHsaAbi = (pNewPipeline != nullptr) && (pNewPipeline->GetInfo().flags.hsaAbi == 1u);
+        const bool oldUsesHsaAbi = (pOldPipeline != nullptr) && (pOldPipeline->GetInfo().flags.hsaAbi == 1u);
+
+        if (oldUsesHsaAbi != newUsesHsaAbi)
+        {
+            // The HSA abi can clobber USER_DATA_0, which holds the global internal table address for PAL ABI,
+            // so we must save the address to memory before switching to an HSA ABI
+            // or restore it when switching back to PAL ABI
+            if (newUsesHsaAbi && (m_globalInternalTableAddr == 0))
+            {
+                m_globalInternalTableAddr = AllocateGpuScratchMem(1, 1);
+                m_device.RsrcProcMgr().EchoGlobalInternalTableAddr(this, m_globalInternalTableAddr);
+            }
+            else if (newUsesHsaAbi == false)
+            {
+                uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+                pDeCmdSpace += m_cmdUtil.BuildLoadShRegsIndex(index__pfp_load_sh_reg_index__direct_addr,
+                                                              data_format__pfp_load_sh_reg_index__offset_and_size,
+                                                              m_globalInternalTableAddr,
+                                                              mmCOMPUTE_USER_DATA_0,
+                                                              1,
+                                                              Pm4ShaderType::ShaderCompute,
+                                                              pDeCmdSpace);
+                m_deCmdStream.CommitCommands(pDeCmdSpace);
+            }
+
+            SetDispatchFunctions(newUsesHsaAbi);
+        }
+
+    }
 
      Pal::UniversalCmdBuffer::CmdBindPipeline(params);
 }
@@ -989,14 +1080,15 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
 {
     PAL_ASSERT(pCurrPipeline != nullptr);
 
-    const bool isFirstDrawInCmdBuf = (m_state.flags.firstDrawExecuted == 0);
-    const bool wasPrevPipelineNull = (pPrevSignature == &NullGfxSignature);
-    const bool wasPrevPipelineNgg  = m_pipelineState.flags.isNgg;
-    const bool isNgg               = pCurrPipeline->IsNgg();
-    const bool tessEnabled         = pCurrPipeline->IsTessEnabled();
-    const bool gsEnabled           = pCurrPipeline->IsGsEnabled();
-    const bool isRasterKilled      = pCurrPipeline->IsRasterizationKilled();
-    bool       disableFiltering    = wasPrevPipelineNull;
+    const auto& cmdUtil             = m_device.CmdUtil();
+    const bool  isFirstDrawInCmdBuf = (m_state.flags.firstDrawExecuted == 0);
+    const bool  wasPrevPipelineNull = (pPrevSignature == &NullGfxSignature);
+    const bool  wasPrevPipelineNgg  = m_pipelineState.flags.isNgg;
+    const bool  isNgg               = pCurrPipeline->IsNgg();
+    const bool  tessEnabled         = pCurrPipeline->IsTessEnabled();
+    const bool  gsEnabled           = pCurrPipeline->IsGsEnabled();
+    const bool  isRasterKilled      = pCurrPipeline->IsRasterizationKilled();
+    bool        disableFiltering    = wasPrevPipelineNull;
 
     const uint32 ctxRegHash = pCurrPipeline->GetContextRegHash();
     if (disableFiltering || (m_pipelineCtxRegHash != ctxRegHash))
@@ -1045,7 +1137,7 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
 
     if (breakBatch)
     {
-        pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(BREAK_BATCH, EngineTypeUniversal, pDeCmdSpace);
+        pDeCmdSpace += cmdUtil.BuildNonSampleEventWrite(BREAK_BATCH, EngineTypeUniversal, pDeCmdSpace);
 
     }
 
@@ -1959,8 +2051,7 @@ void UniversalCmdBuffer::CmdBindTargets(
     // find an incompatible target.
     bool   colorBigPage  = true;
     bool   fmaskBigPage  = true;
-
-    bool   bypassMall = true;
+    bool   bypassMall    = true;
 
     bool validCbViewFound   = false;
     bool validAaCbViewFound = false;
@@ -1968,8 +2059,8 @@ void UniversalCmdBuffer::CmdBindTargets(
     TargetExtent2d surfaceExtent = { MaxScissorExtent, MaxScissorExtent }; // Default to fully open
 
     // Bind all color targets.
-    const uint32 colorTargetLimit   = Max(params.colorTargetCount, m_graphicsState.bindTargets.colorTargetCount);
-    uint32       newColorTargetMask = 0;
+    const uint32  colorTargetLimit   = Max(params.colorTargetCount, m_graphicsState.bindTargets.colorTargetCount);
+    uint32        newColorTargetMask = 0;
     for (uint32 slot = 0; slot < colorTargetLimit; slot++)
     {
         const auto*const pCurrentView =
@@ -2051,7 +2142,7 @@ void UniversalCmdBuffer::CmdBindTargets(
     if (colorTargetsChanged)
     {
         // Handle the case where at least one color target view is changing.
-        pDeCmdSpace = ColorTargetView::HandleBoundTargetsChanged(pDeCmdSpace);
+        pDeCmdSpace = ColorTargetView::HandleBoundTargetsChanged(m_cmdUtil, pDeCmdSpace);
     }
 
     // Check for DepthStencilView changes
@@ -2088,7 +2179,7 @@ void UniversalCmdBuffer::CmdBindTargets(
     if (depthTargetChanged)
     {
         // Handle the case where the depth view is changing.
-        pDeCmdSpace = DepthStencilView::HandleBoundTargetChanged(pDeCmdSpace);
+        pDeCmdSpace = pCurrentDepthView->HandleBoundTargetChanged(this, pDeCmdSpace);
 
         // Record if this depth view we are switching from should trigger a Release_Mem due to being in the MetaData
         // tail region.
@@ -2555,8 +2646,9 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
     uint32      instanceCount,
     uint32      drawId)
 {
-    auto*  pThis    = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
-    uint32 numDraws = 0;
+    auto*        pThis    = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
+    const auto&  cmdUtil  = pThis->m_device.CmdUtil();
+    uint32       numDraws = 0;
 
     ValidateDrawInfo drawInfo;
     drawInfo.vtxIdxCount       = vertexCount;
@@ -2614,11 +2706,11 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
 
     if (IssueSqttMarkerEvent)
     {
-        pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
+        pDeCmdSpace += cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
     }
     if (HasUavExport)
     {
-        pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
+        pDeCmdSpace += cmdUtil.BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
     }
 
     pDeCmdSpace = pThis->IncrementDeCounter(pDeCmdSpace);
@@ -2726,11 +2818,11 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
 
     if (IssueSqttMarkerEvent)
     {
-        pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
+        pDeCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
     }
     if (HasUavExport)
     {
-        pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
+        pDeCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
     }
 
     pDeCmdSpace = pThis->IncrementDeCounter(pDeCmdSpace);
@@ -2882,11 +2974,11 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
 
     if (IssueSqttMarkerEvent)
     {
-        pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
+        pDeCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
     }
     if (HasUavExport)
     {
-        pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
+        pDeCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
     }
 
     pDeCmdSpace  = pThis->IncrementDeCounter(pDeCmdSpace);
@@ -3000,7 +3092,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
 
     if (IssueSqttMarkerEvent)
     {
-        pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
+        pDeCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
     }
 
     pDeCmdSpace = pThis->IncrementDeCounter(pDeCmdSpace);
@@ -3127,7 +3219,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
 
     if (IssueSqttMarkerEvent)
     {
-        pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
+        pDeCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
     }
 
     pDeCmdSpace = pThis->IncrementDeCounter(pDeCmdSpace);
@@ -3140,21 +3232,29 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
 // =====================================================================================================================
 // Issues a direct dispatch command. We must discard the dispatch if x, y, or z are zero. To avoid branching, we will
 // rely on the HW to discard the dispatch for us.
-template <bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
+template <bool HsaAbi, bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDispatch(
     ICmdBuffer* pCmdBuffer,
     uint32      x,
     uint32      y,
     uint32      z)
 {
-    auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
+    auto*        pThis   = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
+    const auto&  cmdUtil = pThis->m_device.CmdUtil();
 
     if (DescribeDrawDispatch)
     {
         pThis->m_device.DescribeDispatch(pThis, Developer::DrawDispatchType::CmdDispatch, 0, 0, 0, x, y, z);
     }
 
-    pThis->ValidateDispatch(&pThis->m_computeState, &pThis->m_deCmdStream, 0uLL, 0uLL, x, y, z);
+    if (HsaAbi)
+    {
+        pThis->ValidateDispatchHsaAbi(&pThis->m_computeState, &pThis->m_deCmdStream, 0, 0, 0, x, y, z);
+    }
+    else
+    {
+        pThis->ValidateDispatchPalAbi(&pThis->m_computeState, &pThis->m_deCmdStream, 0uLL, 0uLL, x, y, z);
+    }
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
     pDeCmdSpace  = pThis->WaitOnCeCounter(pDeCmdSpace);
@@ -3168,7 +3268,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatch(
 
     if (IssueSqttMarkerEvent)
     {
-        pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
+        pDeCmdSpace += cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
     }
 
     pDeCmdSpace = pThis->IncrementDeCounter(pDeCmdSpace);
@@ -3185,7 +3285,8 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchIndirect(
     const IGpuMemory& gpuMemory,
     gpusize           offset)
 {
-    auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
+    auto*        pThis   = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
+    const auto&  cmdUtil = pThis->m_device.CmdUtil();
 
     if (DescribeDrawDispatch)
     {
@@ -3197,7 +3298,8 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchIndirect(
 
     const gpusize gpuMemBaseAddr = gpuMemory.Desc().gpuVirtAddr;
 
-    pThis->ValidateDispatch(&pThis->m_computeState, &pThis->m_deCmdStream, (gpuMemBaseAddr + offset), 0uLL, 0, 0, 0);
+    pThis->ValidateDispatchPalAbi(
+        &pThis->m_computeState, &pThis->m_deCmdStream, gpuMemBaseAddr + offset, 0uLL, 0, 0, 0);
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
     pDeCmdSpace = pThis->WaitOnCeCounter(pDeCmdSpace);
@@ -3212,7 +3314,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchIndirect(
 
     if (IssueSqttMarkerEvent)
     {
-        pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
+        pDeCmdSpace += cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
     }
 
     pDeCmdSpace = pThis->IncrementDeCounter(pDeCmdSpace);
@@ -3225,7 +3327,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchIndirect(
 // =====================================================================================================================
 // Issues a direct dispatch command with immediate threadgroup offsets. We must discard the dispatch if x, y, or z are
 // zero. To avoid branching, we will rely on the HW to discard the dispatch for us.
-template <bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
+template <bool HsaAbi, bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDispatchOffset(
     ICmdBuffer* pCmdBuffer,
     uint32      xOffset,
@@ -3243,7 +3345,15 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchOffset(
             xOffset, yOffset, zOffset, xDim, yDim, zDim);
     }
 
-    pThis->ValidateDispatch(&pThis->m_computeState, &pThis->m_deCmdStream, 0uLL, 0uLL, xDim, yDim, zDim);
+    if (HsaAbi)
+    {
+        pThis->ValidateDispatchHsaAbi(
+            &pThis->m_computeState, &pThis->m_deCmdStream, xOffset, yOffset, zOffset, xDim, yDim, zDim);
+    }
+    else
+    {
+        pThis->ValidateDispatchPalAbi(&pThis->m_computeState, &pThis->m_deCmdStream, 0uLL, 0uLL, xDim, yDim, zDim);
+    }
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
@@ -3270,7 +3380,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchOffset(
 
     if (IssueSqttMarkerEvent)
     {
-        pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
+        pDeCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
     }
 
     pDeCmdSpace = pThis->IncrementDeCounter(pDeCmdSpace);
@@ -3289,16 +3399,14 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchDynamic(
 {
     auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
-    const auto& parent = *pThis->m_device.Parent();
-    PAL_ASSERT(IsGfx103Plus(parent) &&
-        (parent.EngineProperties().cpUcodeVersion >= Gfx10UcodeVersionLoadShRegIndexIndirectAddr));
+    PAL_ASSERT(pThis->m_cmdUtil.HasEnhancedLoadShRegIndex());
 
     if (DescribeDrawDispatch)
     {
         pThis->m_device.DescribeDispatch(pThis, Developer::DrawDispatchType::CmdDispatchDynamic, 0, 0, 0, x, y, z);
     }
 
-    pThis->ValidateDispatch(&pThis->m_computeState, &pThis->m_deCmdStream, 0uLL, gpuVa, x, y, z);
+    pThis->ValidateDispatchPalAbi(&pThis->m_computeState, &pThis->m_deCmdStream, 0uLL, gpuVa, x, y, z);
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
     pDeCmdSpace  = pThis->WaitOnCeCounter(pDeCmdSpace);
@@ -3312,7 +3420,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchDynamic(
 
     if (IssueSqttMarkerEvent)
     {
-        pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
+        pDeCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
     }
 
     pDeCmdSpace = pThis->IncrementDeCounter(pDeCmdSpace);
@@ -3398,11 +3506,11 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMesh(
 
     if (IssueSqttMarkerEvent)
     {
-        pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
+        pDeCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
     }
     if (HasUavExport)
     {
-        pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
+        pDeCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
     }
 
     pDeCmdSpace = pThis->IncrementDeCounter(pDeCmdSpace);
@@ -3498,7 +3606,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshIndirectMulti(
 
     if (IssueSqttMarkerEvent)
     {
-        pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
+        pDeCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
     }
 
     pDeCmdSpace = pThis->IncrementDeCounter(pDeCmdSpace);
@@ -3657,7 +3765,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshTask(
 
     if (IssueSqttMarkerEvent)
     {
-        pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
+        pDeCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
     }
 
     pThis->m_deCmdStream.CommitCommands(pDeCmdSpace);
@@ -3832,7 +3940,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshIndirectMultiTask(
 
     if (IssueSqttMarkerEvent)
     {
-        pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
+        pDeCmdSpace += pThis->m_cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeUniversal, pDeCmdSpace);
     }
 
     pThis->m_deCmdStream.CommitCommands(pDeCmdSpace);
@@ -4189,6 +4297,7 @@ void UniversalCmdBuffer::WriteNullColorTargets(
 // Adds a preamble to the start of a new command buffer.
 Result UniversalCmdBuffer::AddPreamble()
 {
+    const auto& cmdUtil  = m_device.CmdUtil();
     const auto& device   = *(m_device.Parent());
     const bool  isNested = IsNested();
 
@@ -4199,7 +4308,7 @@ Result UniversalCmdBuffer::AddPreamble()
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-    pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(PIPELINESTAT_START, EngineTypeUniversal, pDeCmdSpace);
+    pDeCmdSpace += cmdUtil.BuildNonSampleEventWrite(PIPELINESTAT_START, EngineTypeUniversal, pDeCmdSpace);
 
     // DB_RENDER_OVERRIDE bits are updated via depth-stencil view and at draw time validation based on dirty
     // depth-stencil state.
@@ -5790,14 +5899,13 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         }
     }
 
-    regDB_COUNT_CONTROL dbCountControl = m_drawTimeHwState.dbCountControl;
     if (StateDirty && (dirtyFlags.msaaState || dirtyFlags.occlusionQueryActive))
     {
         // MSAA sample rates are associated with the MSAA state object, but the sample rate affects how queries are
         // processed (via DB_COUNT_CONTROL). We need to update the value of this register at draw-time since it is
         // affected by multiple elements of command-buffer state.
         const uint32 log2OcclusionQuerySamples = (pMsaaState != nullptr) ? pMsaaState->Log2OcclusionQuerySamples() : 0;
-        pDeCmdSpace = UpdateDbCountControl<Pm4OptImmediate>(log2OcclusionQuerySamples, &dbCountControl, pDeCmdSpace);
+        pDeCmdSpace = UpdateDbCountControl<Pm4OptImmediate>(log2OcclusionQuerySamples, pDeCmdSpace);
     }
 
     if (PipelineDirty || (StateDirty && (dirtyFlags.msaaState || dirtyFlags.inputAssemblyState)))
@@ -5990,7 +6098,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
                                                           pDeCmdSpace);
         if (m_cachedSettings.pbbMoreThanOneCtxState)
         {
-            pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(BREAK_BATCH, EngineTypeUniversal, pDeCmdSpace);
+            pDeCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(BREAK_BATCH, EngineTypeUniversal, pDeCmdSpace);
         }
     }
 
@@ -6011,7 +6119,6 @@ uint32* UniversalCmdBuffer::ValidateDraw(
 
     // Validate the per-draw HW state.
     pDeCmdSpace = ValidateDrawTimeHwState<Indexed, Indirect, Pm4OptImmediate>(paScModeCntl1,
-                                                                              dbCountControl,
                                                                               drawInfo,
                                                                               pDeCmdSpace);
 
@@ -7134,7 +7241,6 @@ uint32 UniversalCmdBuffer::CalcGeCntl(
 template <bool Indexed, bool Indirect, bool Pm4OptImmediate>
 uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
     regPA_SC_MODE_CNTL_1          paScModeCntl1,         // PA_SC_MODE_CNTL_1 register value.
-    regDB_COUNT_CONTROL           dbCountControl,        // DB_COUNT_CONTROL register value.
     const ValidateDrawInfo&       drawInfo,              // Draw info
     uint32*                       pDeCmdSpace)           // Write new draw-engine commands here.
 {
@@ -7162,17 +7268,6 @@ uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
 
         pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<Pm4OptImmediate>(mmPA_SC_MODE_CNTL_1,
                                                                            paScModeCntl1.u32All,
-                                                                           pDeCmdSpace);
-    }
-
-    if ((m_drawTimeHwState.dbCountControl.u32All != dbCountControl.u32All) ||
-        (m_drawTimeHwState.valid.dbCountControl == 0))
-    {
-        m_drawTimeHwState.dbCountControl.u32All = dbCountControl.u32All;
-        m_drawTimeHwState.valid.dbCountControl = 1;
-
-        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<Pm4OptImmediate>(mmDB_COUNT_CONTROL,
-                                                                           dbCountControl.u32All,
                                                                            pDeCmdSpace);
     }
 
@@ -7316,18 +7411,18 @@ void UniversalCmdBuffer::ValidateTaskMeshDispatch(
     // Mark compute user data entries as dirty so that we are guaranteed to write them.
     memset(&tempComputeState.csUserDataEntries.dirty, -1, sizeof(tempComputeState.csUserDataEntries.dirty));
 
-    ValidateDispatch(&tempComputeState,
-                     static_cast<CmdStream*>(m_pAceCmdStream),
-                     indirectGpuVirtAddr,
-                     0uLL,
-                     xDim,
-                     yDim,
-                     zDim);
+    ValidateDispatchPalAbi(&tempComputeState,
+                           static_cast<CmdStream*>(m_pAceCmdStream),
+                           indirectGpuVirtAddr,
+                           0uLL,
+                           xDim,
+                           yDim,
+                           zDim);
 }
 
 // =====================================================================================================================
-// Performs dispatch-time dirty state validation.
-void UniversalCmdBuffer::ValidateDispatch(
+// Performs PAL ABI dispatch-time dirty state validation.
+void UniversalCmdBuffer::ValidateDispatchPalAbi(
     ComputeState* pComputeState,
     CmdStream*    pCmdStream,
     gpusize       indirectGpuVirtAddr,
@@ -7417,6 +7512,17 @@ void UniversalCmdBuffer::ValidateDispatch(
                                                          pCmdSpace,
                                                          pComputeState->dynamicCsInfo,
                                                          launchDescGpuVirtAddr);
+
+#if PAL_BUILD_PM4_INSTRUMENTOR
+            if (m_cachedSettings.enablePm4Instrumentation != 0)
+            {
+                // GetUsedSize() is not accurate if called inside a Reserve/Commit block.
+                pCmdStream->CommitCommands(pCmdSpace);
+                pipelineCmdLen  = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
+                startingCmdLen += pipelineCmdLen;
+                pCmdSpace       = pCmdStream->ReserveCommands();
+            }
+#endif
         } // if Launch Descriptor is changing
 
         pCmdSpace = ValidateComputeUserData<false>(this,
@@ -7461,6 +7567,192 @@ void UniversalCmdBuffer::ValidateDispatch(
                                                   &indirectGpuVirtAddr,
                                                   pCmdSpace);
     }
+
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    if (m_cachedSettings.enablePm4Instrumentation != 0)
+    {
+        // GetUsedSize() is not accurate if called inside a Reserve/Commit block.
+        pCmdStream->CommitCommands(pCmdSpace);
+        const uint32 miscCmdLen = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
+        pCmdSpace               = pCmdStream->ReserveCommands();
+
+        m_device.DescribeDrawDispatchValidation(this, userDataCmdLen, pipelineCmdLen, miscCmdLen);
+    }
+#endif
+
+    pCmdStream->CommitCommands(pCmdSpace);
+}
+
+// =====================================================================================================================
+// Performs HSA ABI dispatch-time dirty state validation.
+void UniversalCmdBuffer::ValidateDispatchHsaAbi(
+    ComputeState* pComputeState,
+    CmdStream*    pCmdStream,
+    uint32        xOffset,
+    uint32        yOffset,
+    uint32        zOffset,
+    uint32        xDim,
+    uint32        yDim,
+    uint32        zDim)
+{
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    uint32 startingCmdLen = 0;
+    uint32 pipelineCmdLen = 0;
+    uint32 userDataCmdLen = 0;
+    if (m_cachedSettings.enablePm4Instrumentation != 0)
+    {
+        // GetUsedSize() is not accurate if called inside a Reserve/Commit block.
+        startingCmdLen = GetUsedSize(CommandDataAlloc);
+    }
+#endif
+
+    uint32*          pCmdSpace = pCmdStream->ReserveCommands();
+    const auto*const pPipeline = static_cast<const ComputePipeline*>(pComputeState->pipelineState.pPipeline);
+
+    // We didn't implement support for dynamic dispatch.
+    PAL_ASSERT(pPipeline->SupportDynamicDispatch() == false);
+
+    if (pComputeState->pipelineState.dirtyFlags.pipelineDirty)
+    {
+        // We don't expect any HSA ABI pipelines to support task shaders.
+        PAL_ASSERT(pPipeline->IsTaskShaderEnabled() == false);
+
+        pCmdSpace = pPipeline->WriteCommands(pCmdStream,
+                                             pCmdSpace,
+                                             pComputeState->dynamicCsInfo,
+                                             0,
+                                             m_buildFlags.prefetchShaders);
+
+        m_pSignatureCs = &pPipeline->Signature();
+    }
+
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    if (m_cachedSettings.enablePm4Instrumentation != 0)
+    {
+        // GetUsedSize() is not accurate if called inside a Reserve/Commit block.
+        pCmdStream->CommitCommands(pCmdSpace);
+        pipelineCmdLen  = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
+        startingCmdLen += pipelineCmdLen;
+        pCmdSpace       = pCmdStream->ReserveCommands();
+    }
+#endif
+
+    // PAL thinks in terms of threadgroups but the HSA ABI thinks in terms of global threads, we need to convert.
+    uint32 xThreads, yThreads, zThreads;
+    pPipeline->ThreadsPerGroupXyz(&xThreads, &yThreads, &zThreads);
+
+    xOffset *= xThreads;
+    yOffset *= yThreads;
+    zOffset *= zThreads;
+    xDim    *= xThreads;
+    yDim    *= yThreads;
+    zDim    *= zThreads;
+
+    // Now we write the required SGPRs. These depend on per-dispatch state so we don't have dirty bit tracking.
+    const HsaAbi::CodeObjectMetadata&        metadata = pPipeline->HsaMetadata();
+    const llvm::amdhsa::kernel_descriptor_t& desc     = pPipeline->KernelDescriptor();
+
+    uint32 startReg = mmCOMPUTE_USER_DATA_0;
+
+    // Many HSA ELFs request private segment buffer registers, but never actually use them. Space is reserved to
+    // adhere to initialization order but will be unset as we do not support scratch space in this execution path.
+    if (TestAnyFlagSet(desc.kernel_code_properties, AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_PRIVATE_SEGMENT_BUFFER))
+    {
+        startReg += 4;
+    }
+
+    if (TestAnyFlagSet(desc.kernel_code_properties, AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_DISPATCH_PTR))
+    {
+        // Fake an AQL dispatch packet for the shader to read.
+        gpusize aqlPacketGpu  = 0;
+        auto*const pAqlPacket = reinterpret_cast<hsa_kernel_dispatch_packet_t*>(
+                                CmdAllocateEmbeddedData(sizeof(hsa_kernel_dispatch_packet_t) / sizeof(uint32),
+                                                        1,
+                                                        &aqlPacketGpu));
+
+        // Zero everything out then fill in certain fields the shader is likely to read.
+        memset(pAqlPacket, 0, sizeof(sizeof(hsa_kernel_dispatch_packet_t)));
+
+        pAqlPacket->workgroup_size_x     = zThreads;
+        pAqlPacket->workgroup_size_y     = yThreads;
+        pAqlPacket->workgroup_size_z     = zThreads;
+        pAqlPacket->grid_size_x          = xDim;
+        pAqlPacket->grid_size_y          = yDim;
+        pAqlPacket->grid_size_z          = zDim;
+        pAqlPacket->private_segment_size = metadata.PrivateSegmentFixedSize();
+        pAqlPacket->group_segment_size   = ((m_computeState.dynamicCsInfo.ldsBytesPerTg > 0)
+                                                ? m_computeState.dynamicCsInfo.ldsBytesPerTg
+                                                : metadata.GroupSegmentFixedSize());
+
+        pCmdSpace = pCmdStream->WriteSetSeqShRegs(startReg,
+                                                  startReg + 1,
+                                                  ShaderCompute,
+                                                  &aqlPacketGpu,
+                                                  pCmdSpace);
+        startReg += 2;
+    }
+
+    if (TestAnyFlagSet(desc.kernel_code_properties, AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_KERNARG_SEGMENT_PTR))
+    {
+        // Copy the kernel argument buffer into GPU memory.
+        gpusize      gpuVa      = 0;
+        const uint32 allocSize  = NumBytesToNumDwords(metadata.KernargSegmentSize());
+        const uint32 allocAlign = NumBytesToNumDwords(metadata.KernargSegmentAlign());
+        uint8*const  pParams    = reinterpret_cast<uint8*>(CmdAllocateEmbeddedData(allocSize, allocAlign, &gpuVa));
+
+        memcpy(pParams, m_computeState.pKernelArguments, metadata.KernargSegmentSize());
+
+        // The global offsets are always zero, except in CmdDispatchOffset where they are dispatch-time values.
+        // This could be moved out into CmdDispatchOffset if the overhead is too much but we'd have to return
+        // out some extra state to make that work.
+        for (uint32 idx = 0; idx < metadata.NumArguments(); ++idx)
+        {
+            const HsaAbi::KernelArgument& arg = metadata.Arguments()[idx];
+
+            if (arg.valueKind == HsaAbi::ValueKind::HiddenGlobalOffsetX)
+            {
+                memcpy(pParams + arg.offset, &xOffset, Min<size_t>(sizeof(xOffset), arg.size));
+            }
+            else if (arg.valueKind == HsaAbi::ValueKind::HiddenGlobalOffsetY)
+            {
+                memcpy(pParams + arg.offset, &yOffset, Min<size_t>(sizeof(yOffset), arg.size));
+            }
+            else if (arg.valueKind == HsaAbi::ValueKind::HiddenGlobalOffsetZ)
+            {
+                memcpy(pParams + arg.offset, &zOffset, Min<size_t>(sizeof(zOffset), arg.size));
+            }
+        }
+
+        pCmdSpace = pCmdStream->WriteSetSeqShRegs(startReg,
+                                                  startReg + 1,
+                                                  ShaderCompute,
+                                                  &gpuVa,
+                                                  pCmdSpace);
+        startReg += 2;
+    }
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    regCOMPUTE_PGM_RSRC2 computePgmRsrc2 = {};
+    computePgmRsrc2.u32All = desc.compute_pgm_rsrc2;
+
+    PAL_ASSERT((startReg - mmCOMPUTE_USER_DATA_0) == computePgmRsrc2.bitfields.USER_SGPR);
+#endif
+
+#if PAL_BUILD_PM4_INSTRUMENTOR
+    if (m_cachedSettings.enablePm4Instrumentation != 0)
+    {
+        // GetUsedSize() is not accurate if called inside a Reserve/Commit block.
+        pCmdStream->CommitCommands(pCmdSpace);
+        userDataCmdLen  = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
+        startingCmdLen += userDataCmdLen;
+        pCmdSpace       = pCmdStream->ReserveCommands();
+    }
+#endif
+
+    pComputeState->pipelineState.dirtyFlags.u32All = 0;
+    pComputeState->dynamicLaunchGpuVa = 0;
+
+    PAL_ASSERT(m_pSignatureCs->numWorkGroupsRegAddr == UserDataNotMapped);
 
 #if PAL_BUILD_PM4_INSTRUMENTOR
     if (m_cachedSettings.enablePm4Instrumentation != 0)
@@ -7672,7 +7964,7 @@ void UniversalCmdBuffer::DeactivateQueryType(
     case QueryPoolType::PipelineStats:
         {
             uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-            pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(PIPELINESTAT_STOP, EngineTypeUniversal, pDeCmdSpace);
+            pDeCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(PIPELINESTAT_STOP, EngineTypeUniversal, pDeCmdSpace);
             m_deCmdStream.CommitCommands(pDeCmdSpace);
         }
         break;
@@ -7680,15 +7972,15 @@ void UniversalCmdBuffer::DeactivateQueryType(
     case QueryPoolType::StreamoutStats:
         {
             uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-            pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(PIPELINESTAT_STOP, EngineTypeUniversal, pDeCmdSpace);
+            pDeCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(PIPELINESTAT_STOP, EngineTypeUniversal, pDeCmdSpace);
             m_deCmdStream.CommitCommands(pDeCmdSpace);
         }
         break;
 
     case QueryPoolType::Occlusion:
-        // The value of DB_COUNT_CONTROL depends on both the active occlusion queries and the bound MSAA state
-        // object, so we validate it at draw-time.
-        m_graphicsState.dirtyFlags.validationBits.occlusionQueryActive = 1;
+        // Due to apps tendencies to do sequences of {BeginQuery, Draw, EndQuery}, query validation
+        // is delayed until draw time when we know the the required query state.
+        m_graphicsState.dirtyFlags.validationBits.occlusionQueryActive = m_state.flags.occlusionQueriesActive;
         break;
 
     default:
@@ -7710,7 +8002,7 @@ void UniversalCmdBuffer::ActivateQueryType(
     case QueryPoolType::PipelineStats:
         {
             uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-            pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(PIPELINESTAT_START, EngineTypeUniversal, pDeCmdSpace);
+            pDeCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(PIPELINESTAT_START, EngineTypeUniversal, pDeCmdSpace);
             m_deCmdStream.CommitCommands(pDeCmdSpace);
         }
         break;
@@ -7718,15 +8010,15 @@ void UniversalCmdBuffer::ActivateQueryType(
     case QueryPoolType::StreamoutStats:
         {
             uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-            pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(PIPELINESTAT_START, EngineTypeUniversal, pDeCmdSpace);
+            pDeCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(PIPELINESTAT_START, EngineTypeUniversal, pDeCmdSpace);
             m_deCmdStream.CommitCommands(pDeCmdSpace);
         }
         break;
 
     case QueryPoolType::Occlusion:
-        // The value of DB_COUNT_CONTROL depends on both the active occlusion queries and the bound MSAA state
-        // object, so we validate it at draw-time.
-        m_graphicsState.dirtyFlags.validationBits.occlusionQueryActive = 1;
+        // Due to apps tendencies to do sequences of {BeginQuery, Draw, EndQuery}, query validation
+        // is delayed until draw time when we know the the required query state.
+        m_graphicsState.dirtyFlags.validationBits.occlusionQueryActive = (m_state.flags.occlusionQueriesActive == 0);
         break;
 
     default:
@@ -7743,73 +8035,59 @@ void UniversalCmdBuffer::ActivateQueryType(
 template <bool pm4OptImmediate>
 uint32* UniversalCmdBuffer::UpdateDbCountControl(
     uint32               log2SampleRate,  // MSAA sample rate associated with a bound MSAA state object
-    regDB_COUNT_CONTROL* pDbCountControl,
     uint32*              pDeCmdSpace)
 {
     const bool HasActiveQuery = IsQueryActive(QueryPoolType::Occlusion) &&
                                 (NumActiveQueries(QueryPoolType::Occlusion) != 0);
 
-    if (HasActiveQuery)
+    regDB_COUNT_CONTROL dbCountControl      = {0};
+    dbCountControl.bits.SAMPLE_RATE         = log2SampleRate;
+    dbCountControl.bits.SLICE_EVEN_ENABLE   = 1;
+    dbCountControl.bits.SLICE_ODD_ENABLE    = 1;
+
+    if (IsNested() &&
+        m_graphicsState.inheritedState.stateFlags.occlusionQuery &&
+        (HasActiveQuery == false))
     {
-        // Only update the value of DB_COUNT_CONTROL if there are active queries. If no queries are active,
-        // the new SAMPLE_RATE value is ignored by the HW and the register will be written the next time a query
-        // is activated.
-        pDbCountControl->bits.SAMPLE_RATE = log2SampleRate;
-    }
-    else if (IsNested())
-    {
-        // Only update DB_COUNT_CONTROL if necessary
-        if (pDbCountControl->bits.SAMPLE_RATE != log2SampleRate)
-        {
-            // MSAA sample rates are associated with the MSAA state object, but the sample rate affects how queries are
-            // processed (via DB_COUNT_CONTROL). We need to update the value of this register.
-            pDbCountControl->bits.SAMPLE_RATE = log2SampleRate;
-
-            // In a nested command buffer, the number of active queries is unknown because the caller may have some
-            // number of active queries when executing the nested command buffer. In this case, the only safe thing
-            // to do is to issue a register RMW operation to update the SAMPLE_RATE field of DB_COUNT_CONTROL.
-            pDeCmdSpace = m_deCmdStream.WriteContextRegRmw<pm4OptImmediate>(mmDB_COUNT_CONTROL,
-                                                                            DB_COUNT_CONTROL__SAMPLE_RATE_MASK,
-                                                                            pDbCountControl->u32All,
-                                                                            pDeCmdSpace);
-        }
-    }
-
-    if (HasActiveQuery ||
-        (IsNested() && m_graphicsState.inheritedState.stateFlags.occlusionQuery))
-    {
-        //   Since 8xx, the ZPass count controls have moved to a separate register call DB_COUNT_CONTROL.
-        //   PERFECT_ZPASS_COUNTS forces all partially covered tiles to be detail walked, and not setting it will count
-        //   all HiZ passed tiles as 8x#samples worth of zpasses.  Therefore in order for vis queries to get the right
-        //   zpass counts, PERFECT_ZPASS_COUNTS should be set to 1, but this will hurt performance when z passing
-        //   geometry does not actually write anything (ZFail Shadow volumes for example).
-
-        // Hardware does not enable depth testing when issuing a depth only render pass with depth writes disabled.
-        // Unfortunately this corner case prevents depth tiles from being generated and when setting
-        // PERFECT_ZPASS_COUNTS = 0, the hardware relies on counting at the tile granularity for binary occlusion
-        // queries.  With the depth test disabled and PERFECT_ZPASS_COUNTS = 0, there will be 0 tiles generated which
-        // will cause the binary occlusion test to always generate depth pass counts of 0.
-        // Setting PERFECT_ZPASS_COUNTS = 1 forces tile generation and reliable binary occlusion query results.
-        pDbCountControl->bits.PERFECT_ZPASS_COUNTS    = 1;
-        pDbCountControl->bits.ZPASS_ENABLE            = 1;
-        {
-            pDbCountControl->gfx09_10.ZPASS_INCREMENT_DISABLE = 0;
-        }
-
-        if (IsGfx10Plus(m_gfxIpLevel))
-        {
-            pDbCountControl->gfx10Plus.DISABLE_CONSERVATIVE_ZPASS_COUNTS = 1;
-        }
+        // In a nested command buffer, the number of active queries is unknown because the caller may have some
+        // number of active queries when executing the nested command buffer. In this case, we must make sure that
+        // update the sample count without disabling occlusion queries.
+        pDeCmdSpace = m_deCmdStream.WriteContextRegRmw<pm4OptImmediate>(mmDB_COUNT_CONTROL,
+                                                                        DB_COUNT_CONTROL__SAMPLE_RATE_MASK,
+                                                                        dbCountControl.u32All,
+                                                                        pDeCmdSpace);
     }
     else
     {
-        // Disable Z-pass queries
-        pDbCountControl->bits.PERFECT_ZPASS_COUNTS    = 0;
-        pDbCountControl->bits.ZPASS_ENABLE            = 0;
+        if (HasActiveQuery)
         {
-            pDbCountControl->gfx09_10.ZPASS_INCREMENT_DISABLE = 1;
+            //   Since 8xx, the ZPass count controls have moved to a separate register call DB_COUNT_CONTROL.
+            //   PERFECT_ZPASS_COUNTS forces all partially covered tiles to be detail walked, and not setting it will count
+            //   all HiZ passed tiles as 8x#samples worth of zpasses.  Therefore in order for vis queries to get the right
+            //   zpass counts, PERFECT_ZPASS_COUNTS should be set to 1, but this will hurt performance when z passing
+            //   geometry does not actually write anything (ZFail Shadow volumes for example).
+
+            // Hardware does not enable depth testing when issuing a depth only render pass with depth writes disabled.
+            // Unfortunately this corner case prevents depth tiles from being generated and when setting
+            // PERFECT_ZPASS_COUNTS = 0, the hardware relies on counting at the tile granularity for binary occlusion
+            // queries.  With the depth test disabled and PERFECT_ZPASS_COUNTS = 0, there will be 0 tiles generated which
+            // will cause the binary occlusion test to always generate depth pass counts of 0.
+            // Setting PERFECT_ZPASS_COUNTS = 1 forces tile generation and reliable binary occlusion query results.
+            dbCountControl.bits.PERFECT_ZPASS_COUNTS    = 1;
+            dbCountControl.bits.ZPASS_ENABLE            = 1;
+
+            if (IsGfx10Plus(m_gfxIpLevel))
+            {
+                dbCountControl.gfx10Plus.DISABLE_CONSERVATIVE_ZPASS_COUNTS = 1;
+            }
         }
+
+        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<pm4OptImmediate>(mmDB_COUNT_CONTROL,
+                                                                           dbCountControl.u32All,
+                                                                           pDeCmdSpace);
     }
+
+    m_state.flags.occlusionQueriesActive = HasActiveQuery;
 
     return pDeCmdSpace;
 }
@@ -7873,7 +8151,7 @@ uint32* UniversalCmdBuffer::FlushStreamOut(
         writeData.dontWriteConfirm = true;
 
         pDeCmdSpace += CmdUtil::BuildWriteData(writeData, CpStrmoutCntlData, pDeCmdSpace);
-        pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(SO_VGTSTREAMOUT_FLUSH, EngineTypeUniversal, pDeCmdSpace);
+        pDeCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(SO_VGTSTREAMOUT_FLUSH, EngineTypeUniversal, pDeCmdSpace);
         pDeCmdSpace += CmdUtil::BuildWaitRegMem(EngineTypeUniversal,
                                                 mem_space__pfp_wait_reg_mem__register_space,
                                                 function__pfp_wait_reg_mem__equal_to_the_reference_value,
@@ -8520,7 +8798,234 @@ void UniversalCmdBuffer::CmdCopyRegisterToMemory(
 }
 
 // =====================================================================================================================
-void UniversalCmdBuffer::CmdExecuteIndirectCmds(
+gpusize UniversalCmdBuffer::ConstructExecuteIndirectIb2(
+    const IndirectCmdGenerator& gfx9Generator,
+    PipelineBindPoint           bindPoint,
+    const GraphicsPipeline*     pGfxPipeline,
+    gpusize*                    pIb2GpuSize)
+{
+    uint32 cmdCount = gfx9Generator.ParameterCount();
+    IndirectParamData* const pParamData = gfx9Generator.GetIndirectParamData();
+
+    gpusize ib2GpuVa = 0;
+
+    // The memory size we allocate here is the worst case. In most cases it won't all be used.
+    uint32* pDeCmdIb2Space =
+        CmdAllocateEmbeddedData(static_cast<uint32>(gfx9Generator.MemorySize()/sizeof(uint32)), 1, &ib2GpuVa);
+
+    uint32* const pIb2SpaceBegin = pDeCmdIb2Space;
+
+    for (uint32 cmdIndex = 0; cmdIndex < cmdCount; cmdIndex++)
+    {
+        switch (pParamData[cmdIndex].type)
+        {
+        case IndirectOpType::DrawIndexAuto:
+        case IndirectOpType::DrawIndexOffset2:
+        case IndirectOpType::DrawIndex2:
+        {
+            const uint16 vtxOffsetReg = GetVertexOffsetRegAddr();
+            const uint16 instOffsetReg = GetInstanceOffsetRegAddr();
+
+            if (pParamData[cmdIndex].type == IndirectOpType::DrawIndexAuto)
+            {
+                pDeCmdIb2Space += static_cast<uint32>(m_cmdUtil.BuildDrawIndirect(
+                    pParamData[cmdIndex].argBufOffset,
+                    vtxOffsetReg,
+                    instOffsetReg,
+                    PredDisable,
+                    pDeCmdIb2Space));
+            }
+            else if (pParamData[cmdIndex].type == IndirectOpType::DrawIndex2)
+            {
+                // 1. INDEX_ATTRIBUTES_INDIRECT  set the index buffer base, size, Type
+                pDeCmdIb2Space += static_cast<uint32>(m_cmdUtil.BuildIndexAttributesIndirect(
+                    pParamData[cmdIndex].data[0],
+                    0,
+                    true,
+                    pDeCmdIb2Space));
+
+                // 2. Draw Indirect
+                pDeCmdIb2Space += static_cast<uint32>(m_cmdUtil.BuildDrawIndexIndirect(
+                    pParamData[cmdIndex].argBufOffset,
+                    vtxOffsetReg,
+                    instOffsetReg,
+                    PredDisable,
+                    pDeCmdIb2Space));
+            }
+            else
+            {
+                pDeCmdIb2Space += static_cast<uint32>(m_cmdUtil.BuildDrawIndexIndirect(
+                    pParamData[cmdIndex].argBufOffset,
+                    vtxOffsetReg,
+                    instOffsetReg,
+                    PredDisable,
+                    pDeCmdIb2Space));
+            }
+            break;
+        }
+        case IndirectOpType::SetUserData:
+        {
+            const auto& signature          = pGfxPipeline->Signature();
+            const UserDataEntryMap* pStage = &signature.stage[0];
+            uint32 stageCount              = NumHwShaderStagesGfx;
+            uint32_t count                 = 0;
+            for (size_t stgId = 0; stgId < stageCount; stgId++)
+            {
+                uint32 regAddrStart = pStage->firstUserSgprRegAddr;
+                if (pStage->userSgprCount > 0)
+                {
+                    for (uint32 sgprIndx = 0; sgprIndx < pStage->userSgprCount; sgprIndx++)
+                    {
+                        if (pStage->mappedEntry[sgprIndx] == pParamData[cmdIndex].data[0])
+                        {
+                            regAddrStart += sgprIndx;
+                            pDeCmdIb2Space += static_cast<uint32>(m_cmdUtil.BuildLoadShRegsIndex<false>(
+                                pParamData[cmdIndex].argBufOffset,
+                                regAddrStart,
+                                pParamData[cmdIndex].data[1],
+                                ShaderGraphics,
+                                pDeCmdIb2Space));
+                            break;
+                        }
+                    }
+                }
+                pStage++;
+            }
+            break;
+        }
+        default:
+            break;
+        }
+    }
+
+    if (m_cachedSettings.issueSqttMarkerEvent)
+    {
+        pDeCmdIb2Space += static_cast<uint32>(m_cmdUtil.BuildNonSampleEventWrite(
+            THREAD_TRACE_MARKER,
+            EngineTypeUniversal,
+            pDeCmdIb2Space));
+    }
+
+    // This will add some padding because the Engines may require IBs to be size aligned.
+    gpusize cmdByteSize     = VoidPtrDiff(pDeCmdIb2Space, pIb2SpaceBegin);
+    gpusize cmdDwords       = cmdByteSize / sizeof(uint32);
+    gpusize sizeAlignDwords = m_device.Parent()->EngineProperties().perEngine[EngineTypeUniversal].sizeAlignInDwords;
+    gpusize paddingDwords   = Pow2Align(cmdDwords, sizeAlignDwords) - cmdDwords;
+
+    pDeCmdIb2Space += static_cast<uint32>(CmdUtil::BuildNop(static_cast<size_t>(paddingDwords), pDeCmdIb2Space));
+
+    *pIb2GpuSize = (cmdDwords + paddingDwords) * sizeof(uint32);
+
+    return ib2GpuVa;
+}
+
+// =====================================================================================================================
+// This method creates and uses a CP packet to perform the ExecuteIndirect operation.
+void UniversalCmdBuffer::ExecuteIndirectPacket(
+    const IIndirectCmdGenerator& generator,
+    const IGpuMemory&            gpuMemory,
+    gpusize                      offset,
+    uint32                       maximumCount,
+    gpusize                      countGpuAddr)
+{
+    const auto& gfx9Generator = static_cast<const IndirectCmdGenerator&>(generator);
+
+    // The generation of indirect commands is determined by the currently-bound pipeline.
+    const PipelineBindPoint bindPoint    = ((gfx9Generator.Type() == GeneratorType::Dispatch) ?
+                                           PipelineBindPoint::Compute                         :
+                                           PipelineBindPoint::Graphics);
+    const auto*             pGfxPipeline =
+        static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
+    const bool              isGfx        = (bindPoint == PipelineBindPoint::Graphics);
+
+    if (isGfx)
+    {
+        const auto& viewInstancingDesc = pGfxPipeline->GetViewInstancingDesc();
+        uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+        pDeCmdSpace = BuildWriteViewId(viewInstancingDesc.viewId[0], pDeCmdSpace);
+        m_deCmdStream.CommitCommands(pDeCmdSpace);
+
+        ValidateDrawInfo drawInfo;
+        drawInfo.vtxIdxCount   = 0;
+        drawInfo.instanceCount = 0;
+        drawInfo.firstVertex   = 0;
+        drawInfo.firstInstance = 0;
+        drawInfo.firstIndex    = 0;
+        drawInfo.useOpaque     = false;
+        if (gfx9Generator.ContainsIndexBufferBind() || (gfx9Generator.Type() == GeneratorType::Draw))
+        {
+            ValidateDraw<false, true>(drawInfo);
+        }
+        else
+        {
+            ValidateDraw<true, true>(drawInfo);
+        }
+
+        CommandGeneratorTouchedUserData(m_graphicsState.gfxUserDataEntries.touched, gfx9Generator, *m_pSignatureGfx);
+    }
+    else
+    {
+        ValidateDispatchPalAbi(&m_computeState, &m_deCmdStream, 0uLL, 0uLL, 0, 0, 0);
+        CommandGeneratorTouchedUserData(m_computeState.csUserDataEntries.touched, gfx9Generator, *m_pSignatureCs);
+    }
+
+    const uint16 vtxOffsetReg = GetVertexOffsetRegAddr();
+    const uint16 instOffsetReg = GetInstanceOffsetRegAddr();
+
+    m_deCmdStream.NotifyIndirectShRegWrite(vtxOffsetReg);
+    m_deCmdStream.NotifyIndirectShRegWrite(instOffsetReg);
+
+    gpusize ib2GpuSize = 0;
+    gpusize ib2GpuVa   = ConstructExecuteIndirectIb2(gfx9Generator, bindPoint, pGfxPipeline, &ib2GpuSize);
+
+    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+
+    pDeCmdSpace = WaitOnCeCounter(pDeCmdSpace);
+
+    ExecuteIndirectPacketInfo packetInfo { };
+
+    packetInfo.commandBufferAddr         = ib2GpuVa;
+    packetInfo.argumentBufferAddr        = gpuMemory.Desc().gpuVirtAddr + offset;
+    packetInfo.countBufferAddr           = countGpuAddr;
+    packetInfo.maxCount                  = maximumCount;
+    packetInfo.commandBufferSizeDwords   = static_cast<uint32>(ib2GpuSize) / sizeof(uint32);
+    packetInfo.argumentBufferStrideBytes = gfx9Generator.Properties().argBufStride;
+    if (isGfx)
+    {
+        packetInfo.pipelineSignature.pSignatureGfx = m_pSignatureGfx;
+    }
+    else
+    {
+        packetInfo.pipelineSignature.pSignatureCs = m_pSignatureCs;
+    }
+
+    pDeCmdSpace += CmdUtil::BuildExecuteIndirect(PacketPredicate(), isGfx, packetInfo, pDeCmdSpace);
+
+    // We need to issue any post-draw or post-dispatch workarounds after the ExecuteIndirect packet has finished
+    // executing.
+    if (isGfx)
+    {
+        if ((gfx9Generator.Type() == GeneratorType::Draw) ||
+            (gfx9Generator.Type() == GeneratorType::DrawIndexed) ||
+            (gfx9Generator.Type() == GeneratorType::DispatchMesh))
+        {
+            // Command generators which issue non-indexed draws generate DRAW_INDEX_AUTO packets, which will
+            // invalidate some of our draw-time HW state. SEE: CmdDraw() for more details.
+            // ExecuteIndirect Command Generator may modify the index buffer element size but PAL's state
+            // tracking would fail to recognize this. So the index type may be set to 32 bit when its actually
+            // 16 bit or vice versa. Which is why also include 'DrawIndexed' here.
+            m_drawTimeHwState.dirty.indexedIndexType = 1;
+        }
+    }
+
+    pDeCmdSpace = IncrementDeCounter(pDeCmdSpace);
+    m_deCmdStream.CommitCommands(pDeCmdSpace);
+}
+
+// =====================================================================================================================
+// This method uses the CmdGeneration compute shaders to first create the IB2 with indirect commands (PM4 packets) and
+// then execute them.
+void UniversalCmdBuffer::ExecuteIndirectShader(
     const IIndirectCmdGenerator& generator,
     const IGpuMemory&            gpuMemory,
     gpusize                      offset,
@@ -8542,12 +9047,12 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
     }
 
     // The generation of indirect commands is determined by the currently-bound pipeline.
-    const PipelineBindPoint bindPoint = ((gfx9Generator.Type() == GeneratorType::Dispatch)
-                                        ? PipelineBindPoint::Compute : PipelineBindPoint::Graphics);
-    const bool              setViewId    = (bindPoint == PipelineBindPoint::Graphics);
-    const auto*const        pGfxPipeline =
+    const PipelineBindPoint bindPoint     = ((gfx9Generator.Type() == GeneratorType::Dispatch) ?
+                                             PipelineBindPoint::Compute : PipelineBindPoint::Graphics);
+    const bool              setViewId     = (bindPoint == PipelineBindPoint::Graphics);
+    const auto* const        pGfxPipeline =
         static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
-    uint32                  mask         = 1;
+    uint32                  mask          = 1;
 
     if ((bindPoint == PipelineBindPoint::Graphics) &&
         (pGfxPipeline->HwStereoRenderingEnabled() == false))
@@ -8562,6 +9067,7 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
         }
     }
 
+    // We are assuming that we will need to generate and execute maximumCount number of indirect commands.
     AutoBuffer<CmdStreamChunk*, 16, Platform> deChunks(maximumCount, m_device.GetPlatform());
     AutoBuffer<CmdStreamChunk*, 16, Platform> aceChunks(maximumCount, m_device.GetPlatform());
 
@@ -8635,7 +9141,10 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
                 PAL_ASSERT(m_meshPipeStatsGpuAddr != 0);
             }
 
-            m_device.RsrcProcMgr().CmdGenerateIndirectCmds(genInfo, &ppChunkList[0], numChunkLists, &numGenChunks);
+            m_device.RsrcProcMgr().CmdGenerateIndirectCmds(genInfo,
+                                                           &ppChunkList[0],
+                                                           numChunkLists,
+                                                           &numGenChunks);
 
             m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
 
@@ -8655,13 +9164,13 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
                 // attempt to execute them. Then, a PFP_SYNC_ME is also required so that the PFP doesn't prefetch the
                 // generated commands before they are finished executing.
                 AcquireMemInfo acquireInfo = {};
-                acquireInfo.flags.invSqK$ = 1;
-                acquireInfo.tcCacheOp     = TcCacheOp::Nop;
-                acquireInfo.engineType    = EngineTypeUniversal;
-                acquireInfo.baseAddress   = FullSyncBaseAddr;
-                acquireInfo.sizeBytes     = FullSyncSize;
+                acquireInfo.flags.invSqK$  = 1;
+                acquireInfo.tcCacheOp      = TcCacheOp::Nop;
+                acquireInfo.engineType     = EngineTypeUniversal;
+                acquireInfo.baseAddress    = FullSyncBaseAddr;
+                acquireInfo.sizeBytes      = FullSyncSize;
 
-                pDeCmdSpace += CmdUtil::BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
+                pDeCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
                 pDeCmdSpace += m_cmdUtil.BuildAcquireMem(acquireInfo, pDeCmdSpace);
                 pDeCmdSpace += CmdUtil::BuildPfpSyncMe(pDeCmdSpace);
                 m_deCmdStream.SetContextRollDetected<false>();
@@ -8711,7 +9220,7 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
             }
             else
             {
-                ValidateDispatch(&m_computeState, &m_deCmdStream, 0uLL, 0uLL, 0, 0, 0);
+                ValidateDispatchPalAbi(&m_computeState, &m_deCmdStream, 0uLL, 0uLL, 0, 0, 0);
                 CommandGeneratorTouchedUserData(m_computeState.csUserDataEntries.touched,
                                                 gfx9Generator,
                                                 *m_pSignatureCs);
@@ -8725,11 +9234,15 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
                 pDeCmdSpace = BuildWriteViewId(viewInstancingDesc.viewId[i], pDeCmdSpace);
                 m_deCmdStream.CommitCommands(pDeCmdSpace);
             }
-            m_deCmdStream.ExecuteGeneratedCommands(ppChunkList[0], numChunksExecuted, numGenChunks);
+            m_deCmdStream.ExecuteGeneratedCommands(ppChunkList[0],
+                                                   numChunksExecuted,
+                                                   numGenChunks);
 
             if (isTaskEnabled)
             {
-                m_pAceCmdStream->ExecuteGeneratedCommands(ppChunkList[1], numChunksExecuted, numGenChunks);
+                m_pAceCmdStream->ExecuteGeneratedCommands(ppChunkList[1],
+                                                          numChunksExecuted,
+                                                          numGenChunks);
             }
 
             uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
@@ -8744,6 +9257,9 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
                 {
                     // Command generators which issue non-indexed draws generate DRAW_INDEX_AUTO packets, which will
                     // invalidate some of our draw-time HW state. SEE: CmdDraw() for more details.
+                    // ExecuteIndirect Command Generator may modify the index buffer element size but PAL's state
+                    // tracking would fail to recognize this. So the index type may be set to 32 bit when its actually
+                    // 16 bit or vice versa. Which is why also include 'DrawIndexed' here.
                     m_drawTimeHwState.dirty.indexedIndexType = 1;
                 }
             }
@@ -8752,7 +9268,27 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
             m_deCmdStream.CommitCommands(pDeCmdSpace);
         }
     }
+}
 
+// =====================================================================================================================
+void UniversalCmdBuffer::CmdExecuteIndirectCmds(
+    const IIndirectCmdGenerator& generator,
+    const IGpuMemory&            gpuMemory,
+    gpusize                      offset,
+    uint32                       maximumCount,
+    gpusize                      countGpuAddr)
+{
+    const auto& gfx9Generator = static_cast<const IndirectCmdGenerator&>(generator);
+
+    if ((m_cachedSettings.useExecuteIndirectPacket == UseExecuteIndirectPacketForDraw) &&
+        gfx9Generator.UsingExecuteIndirectPacket())
+    {
+       ExecuteIndirectPacket(generator, gpuMemory, offset, maximumCount, countGpuAddr);
+    }
+    else
+    {
+        ExecuteIndirectShader(generator, gpuMemory, offset, maximumCount, countGpuAddr);
+    }
 }
 
 // =====================================================================================================================
@@ -8791,7 +9327,7 @@ void UniversalCmdBuffer::CmdDispatchAce(
 
     memset(&tempComputeState.csUserDataEntries.dirty, -1, sizeof(tempComputeState.csUserDataEntries.dirty));
 
-    ValidateDispatch(&tempComputeState, pAceCmdStream, 0uLL, 0uLL, x, y, z);
+    ValidateDispatchPalAbi(&tempComputeState, pAceCmdStream, 0uLL, 0uLL, x, y, z);
 
     uint32* pAceCmdSpace = pAceCmdStream->ReserveCommands();
 
@@ -8804,7 +9340,7 @@ void UniversalCmdBuffer::CmdDispatchAce(
 
     if (m_cachedSettings.issueSqttMarkerEvent)
     {
-        pAceCmdSpace += CmdUtil::BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeCompute, pAceCmdSpace);
+        pAceCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_MARKER, EngineTypeCompute, pAceCmdSpace);
     }
 
     pAceCmdStream->CommitCommands(pAceCmdSpace);
@@ -9302,6 +9838,13 @@ void UniversalCmdBuffer::CmdExecuteNestedCmdBuffers(
         {
             pDeCmdSpace = ValidateDbRenderOverride<false, false, true>(pDeCmdSpace);
         }
+    }
+
+    if (dirtyFlags.occlusionQueryActive)
+    {
+        const auto*const pMsaaState  = static_cast<const MsaaState*>(m_graphicsState.pMsaaState);
+        const uint32 log2OcclusionQuerySamples = (pMsaaState != nullptr) ? pMsaaState->Log2OcclusionQuerySamples() : 0;
+        pDeCmdSpace = UpdateDbCountControl<false>(log2OcclusionQuerySamples, pDeCmdSpace);
     }
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);

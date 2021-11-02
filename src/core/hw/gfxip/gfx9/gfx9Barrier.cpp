@@ -340,6 +340,22 @@ void Device::TransitionDepthStencil(
 }
 
 // =====================================================================================================================
+uint32* Device::AddCacheFlushAndInvEvent(
+    const GfxCmdBuffer*  pCmdBuffer,
+    uint32*              pCmdSpace
+    ) const
+{
+    const EngineType  engineType = pCmdBuffer->GetEngineType();
+    size_t            packetSize = 0;
+
+    {
+        packetSize = m_cmdUtil.BuildNonSampleEventWrite(CACHE_FLUSH_AND_INV_EVENT, engineType, pCmdSpace);
+    }
+
+    return (pCmdSpace + packetSize);
+}
+
+// =====================================================================================================================
 // Issue any BLT operations (i.e., decompresses) necessary to convert a color image from one ImageLayout to another.
 //
 // This method is expected to be called twice per transition in a CmdBarrier() call.  The first call (earlyPhase ==
@@ -496,9 +512,10 @@ void Device::ExpandColor(
         {
             if (earlyPhase && WaEnableDccCacheFlushAndInvalidate())
             {
-                uint32* pCmdSpace = pCmdStream->ReserveCommands();
-                pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CACHE_FLUSH_AND_INV_EVENT, engineType, pCmdSpace);
+                uint32*  pCmdSpace = pCmdStream->ReserveCommands();
+                pCmdSpace = AddCacheFlushAndInvEvent(pCmdBuf, pCmdSpace);
                 pCmdStream->CommitCommands(pCmdSpace);
+
             }
 
             pOperations->layoutTransitions.dccDecompress = 1;
@@ -520,7 +537,7 @@ void Device::ExpandColor(
                 // NOTE: CB.doc says we need to do a full CacheFlushInv event before the FMask decompress.  We're
                 // using the lightweight event for now, but if we see issues this should be changed to the timestamp
                 // version which waits for completion.
-                pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CACHE_FLUSH_AND_INV_EVENT, engineType, pCmdSpace);
+                pCmdSpace = AddCacheFlushAndInvEvent(pCmdBuf, pCmdSpace);
             }
             else
             {
@@ -548,7 +565,7 @@ void Device::ExpandColor(
             if (earlyPhase && WaEnableDccCacheFlushAndInvalidate() && gfx9Image.HasDccData())
             {
                 uint32* pCmdSpace = pCmdStream->ReserveCommands();
-                pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CACHE_FLUSH_AND_INV_EVENT, engineType, pCmdSpace);
+                pCmdSpace = AddCacheFlushAndInvEvent(pCmdBuf, pCmdSpace);
                 pCmdStream->CommitCommands(pCmdSpace);
             }
 
@@ -1227,9 +1244,7 @@ void Device::Barrier(
             if (TestAnyFlagSet(globalSyncReqs.cacheFlags, CacheSyncFlushAndInvRb))
             {
                 uint32* pCmdSpace = pCmdStream->ReserveCommands();
-                pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CACHE_FLUSH_AND_INV_EVENT,
-                                                                engineType,
-                                                                pCmdSpace);
+                AddCacheFlushAndInvEvent(pCmdBuf, pCmdSpace);
                 pCmdStream->CommitCommands(pCmdSpace);
             }
 

@@ -452,6 +452,7 @@ enum RsFeatureType : uint32
     RsFeatureTypeChill     = (1u << 1),
     RsFeatureTypeDelag     = (1u << 2),
     RsFeatureTypeBoost     = (1u << 4),
+    RsFeatureTypeProVsr    = (1u << 5),
 };
 
 /// Output structure containing information about the requested RsFeatureType (singular).
@@ -487,6 +488,13 @@ union RsFeatureInfo
         uint32 hotkey;   ///< If nonzero, specifies the virtual key code assigned to Boost.
         uint32 minRes;   ///< Specifies the global Boost minimum resolution.
     } boost;
+
+    /// Global ProVsr settings.
+    struct
+    {
+        bool enabled;    ///< Specifies whether ProVsr is enabled globally.
+        uint32 hotkey;   ///< If nonzero, specifies the virtual key code assigned to ProVsr.
+    } proVsr;
 
 };
 
@@ -636,6 +644,9 @@ struct PalPublicSettings
     /// panel setting DebugOverlayEnabled is globally set but a certain application might need to turn off visual
     /// confirm to make the screen not too noisy.
     bool disableDebugOverlayVisualConfirm;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 680
+    bool enableExecuteIndirectPacket;
 #endif
 };
 
@@ -1178,6 +1189,7 @@ struct DeviceProperties
                 uint64 supportIntersectRayBarycentrics    :  1; ///< HW supports the ray intersection mode which
                                                                 ///  returns triangle barycentrics.
 
+                uint64 supportFloatAtomics                :  1; ///< Hardware supports float atomics
                 uint64 support64BitInstructions           :  1; ///< Hardware supports 64b instructions
                 uint64 supportShaderSubgroupClock         :  1; ///< HW supports clock functions across subgroup.
                 uint64 supportShaderDeviceClock           :  1; ///< HW supports clock functions across device.
@@ -1191,7 +1203,8 @@ struct DeviceProperties
                 uint64 supportInt8Dot                     :  1; ///< Hardware supports a dot product 8bit.
                 uint64 supportInt4Dot                     :  1; ///< Hardware supports a dot product 4bit.
                 uint64 support2DRectList                  :  1; ///< HW supports PrimitiveTopology::TwoDRectList.
-                uint64 reserved                           : 20; ///< Reserved for future use.
+                uint64 supportHsaAbi                      :  1; ///< PAL supports HSA ABI compute pipelines.
+                uint64 reserved                           : 18; ///< Reserved for future use.
             };
             uint64 u64All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.
@@ -1308,7 +1321,8 @@ struct DeviceProperties
                                                            ///  submission in each frame with a @ref CmdBufInfo with
                                                            ///  the frameEnd flag set.
                 uint32 supportDirectCapture       :  1;    ///< Whether Direct Capture is supported by KMD
-                uint32 reserved                   : 24;    ///< Reserved for future use.
+                uint32 supportNativeHdrWindowing  :  1;    ///< Support HDR presentation that does not require FSE.
+                uint32 reserved                   : 23;    ///< Reserved for future use.
             };
             uint32 u32All;                        ///< Flags packed as 32-bit uint.
         } flags;                                  ///< OS-specific property flags.

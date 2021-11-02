@@ -72,7 +72,6 @@ void PipelineChunkHs::LateInit(
         PAL_ASSERT(IsPow2Aligned(symbol.gpuVirtAddr, 256));
 
         m_regs.sh.spiShaderPgmLoLs.bits.MEM_BASE = Get256BAddrLo(symbol.gpuVirtAddr);
-        PAL_ASSERT(Get256BAddrHi(symbol.gpuVirtAddr) == 0);
     }
 
     regSPI_SHADER_USER_DATA_LS_0 spiShaderUserDataLoHs = { };

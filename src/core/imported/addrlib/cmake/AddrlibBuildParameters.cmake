@@ -22,6 +22,7 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
+
 include_guard()
 
 # NOTE: Just like function parameters it's best for a library to reduce the amount of
@@ -67,15 +68,7 @@ addrlib_bp(ADDR_AM_BUILD ${ADDRLIB_IS_TOP_LEVEL} MSG "Build support for fmask ad
 set(ADDR_R800_BUILD OFF)
 
 # GFX9 CARDS ######################################
-
 addrlib_bp(ADDR_GFX9_BUILD ON)
-
-# TODO: All these gfx9 cards are public. We don't need to sanitize them anymore.
-# pal updated this a while ago.
-addrlib_bp(ADDR_VEGA20_BUILD ON DEPENDS_ON ${ADDR_GFX9_BUILD})
-addrlib_bp(ADDR_RAVEN1_BUILD ON DEPENDS_ON ${ADDR_GFX9_BUILD})
-addrlib_bp(ADDR_VEGA12_BUILD ON DEPENDS_ON ${ADDR_GFX9_BUILD})
-addrlib_bp(ADDR_RAVEN2_BUILD ON DEPENDS_ON ${ADDR_GFX9_BUILD})
 
 # GFX10 CARDS ######################################
 

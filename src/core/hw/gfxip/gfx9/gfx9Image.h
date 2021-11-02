@@ -224,10 +224,6 @@ public:
     const ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT& GetAddrSettings(const SubResourceInfo* pSubResInfo) const
         { return m_addrSurfSetting[pSubResInfo->subresId.plane]; }
 
-    uint32 GetSubresource256BAddrSwizzledLow(SubresId subresource) const;
-    uint32 GetSubresource256BAddrSwizzledHi(SubresId subresource) const;
-    gpusize GetFullSubresource256BAddr(SubresId  subResId) const;
-
     virtual bool IsFastColorClearSupported(GfxCmdBuffer*      pCmdBuffer,
                                            ImageLayout        colorLayout,
                                            const uint32*      pColor,
@@ -267,8 +263,6 @@ public:
     // Returns metaData constants needed for optimized clear
     const MetaDataClearConst& GetMetaDataClearConst(MetaDataType metaDataType) const
         { return m_metaDataClearConst[metaDataType]; }
-
-    uint32 GetHtile256BAddr() const;
 
     uint32* UpdateHiSPretestsMetaData(
         const SubresRange& range,
@@ -314,11 +308,30 @@ public:
     gpusize WaTcCompatZRangeMetaDataOffset(uint32 mipLevel) const;
     gpusize WaTcCompatZRangeMetaDataSize(uint32 numMips) const;
 
-    uint32 GetDcc256BAddr(const SubresId&  subResId) const
-        { return GetMaskRam256BAddr(GetDcc(subResId.plane), subResId); }
+    gpusize GetDcc256BAddr(const SubresId& subResId) const
+        { return GetMaskRamBaseAddr(GetDcc(subResId.plane), subResId.plane) >> 8; }
+    gpusize GetDcc256BAddrSwizzled(const SubresId& subResId) const
+        { return GetDcc256BAddr(subResId) | GetDcc(subResId.plane)->GetPipeBankXor(subResId.plane); }
 
-    uint32 GetCmask256BAddr() const;
-    uint32 GetFmask256BAddr() const;
+    gpusize GetCmask256BAddr() const
+        { return GetMaskRamBaseAddr(GetCmask(), 0) >> 8; }
+    gpusize GetCmask256BAddrSwizzled() const
+        { return GetCmask256BAddr() | GetCmask()->GetPipeBankXor(0); }
+
+    gpusize GetFmask256BAddr() const
+        { return GetMaskRamBaseAddr(GetFmask(), 0) >> 8; }
+    gpusize GetFmask256BAddrSwizzled() const
+        { return GetFmask256BAddr() | GetFmask()->GetPipeBankXor(); }
+
+    gpusize GetSubresourceAddr(SubresId  subResId) const;
+
+    gpusize GetHtile256BAddr() const
+        { return GetMaskRamBaseAddr(GetHtile(), 0) >> 8; }
+    gpusize GetHtile256BAddrSwizzled() const
+        { return GetHtile256BAddr() | GetHtile()->GetPipeBankXor(0); }
+
+    gpusize GetSubresource256BAddr(SubresId  subResId) const
+        { return GetSubresourceAddr(subResId) >> 8; }
 
     bool HasDccStateMetaData(uint32 plane) const
         { return (m_dccStateMetaDataOffset[plane] != 0); }
@@ -514,8 +527,6 @@ private:
     // workaround, a value of zero means all mips require it.  See InitPipeMisalignedMetadataFirstMip() for details.
     uint32  m_firstMipMetadataPipeMisaligned[MaxNumPlanes];
 
-    gpusize GetFullSubresourceAddr(SubresId  subResId) const;
-
     void InitDccStateMetaData(
         uint32             planeIdx,
         ImageMemoryLayout* pGpuMemLayout,
@@ -577,10 +588,6 @@ private:
     uint32 GetPipeMisalignedMetadataFirstMip(
         const ImageCreateInfo& createInfo,
         const SubResourceInfo& baseSubRes) const;
-
-    uint32  GetMaskRam256BAddr(
-        const Gfx9MaskRam*  pMaskRam,
-        const SubresId&     subResId) const;
 
     bool SupportsMetaDataTextureFetch(AddrSwizzleMode tileMode, ChNumFormat format, const SubresId& subResource) const;
     bool ColorImageSupportsMetaDataTextureFetch() const;

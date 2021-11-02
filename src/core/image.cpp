@@ -132,7 +132,7 @@ static_assert(ADDR_TM_LINEAR_GENERAL == 0,
 Image::~Image()
 {
     ResourceDestroyEventData data = {};
-    data.pObj = this;
+    data.pObj = GetResourceId();
     m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(data);
 
     if (m_pGfxImage != nullptr)
@@ -762,7 +762,7 @@ Result Image::Init()
         data.type              = ResourceType::Image;
         data.pResourceDescData = static_cast<void*>(&desc);
         data.resourceDescSize  = sizeof(ResourceDescriptionImage);
-        data.pObj              = this;
+        data.pObj              = GetResourceId();
         m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
     }
 
@@ -855,22 +855,36 @@ void Image::GetGpuMemoryRequirements(
     ) const
 {
     const auto& settings = m_pDevice->Settings();
-    pMemReqs->size      = m_gpuMemSize + settings.debugForceResourceAdditionalPadding;
-    pMemReqs->alignment = Max(m_gpuMemAlignment, settings.debugForceSurfaceAlignment);
+    pMemReqs->size         = m_gpuMemSize + settings.debugForceResourceAdditionalPadding;
+    pMemReqs->alignment    = Max(m_gpuMemAlignment, settings.debugForceSurfaceAlignment);
+    pMemReqs->flags.u32All = 0;
+
+    const bool noInvisibleMem = (m_pDevice->MemoryProperties().invisibleHeapSize == 0);
 
     if (m_createInfo.flags.shareable)
     {
+        pMemReqs->flags.cpuAccess = 1;
         pMemReqs->heapCount = 2;
         pMemReqs->heaps[0]  = GpuHeapGartUswc;
         pMemReqs->heaps[1]  = GpuHeapGartCacheable;
     }
     else
     {
-        pMemReqs->heapCount = 4;
-        pMemReqs->heaps[0]  = GpuHeapInvisible;
-        pMemReqs->heaps[1]  = GpuHeapLocal;
-        pMemReqs->heaps[2]  = GpuHeapGartUswc;
-        pMemReqs->heaps[3]  = GpuHeapGartCacheable;
+        if (noInvisibleMem)
+        {
+            pMemReqs->heapCount = 3;
+            pMemReqs->heaps[0] = GpuHeapLocal;
+            pMemReqs->heaps[1] = GpuHeapGartUswc;
+            pMemReqs->heaps[2] = GpuHeapGartCacheable;
+        }
+        else
+        {
+            pMemReqs->heapCount = 4;
+            pMemReqs->heaps[0] = GpuHeapInvisible;
+            pMemReqs->heaps[1] = GpuHeapLocal;
+            pMemReqs->heaps[2] = GpuHeapGartUswc;
+            pMemReqs->heaps[3] = GpuHeapGartCacheable;
+        }
     }
 
     GetGfxImage()->OverrideGpuMemHeaps(pMemReqs);
@@ -950,7 +964,7 @@ Result Image::BindGpuMemory(
         m_vidMem.Update(pGpuMemory, offset);
 
         GpuMemoryResourceBindEventData data = {};
-        data.pObj = this;
+        data.pObj = GetResourceId();
         data.pGpuMemory = pGpuMemory;
         data.requiredGpuMemSize = m_gpuMemSize;
         data.offset = offset;

@@ -150,8 +150,8 @@ Result GraphicsPipeline::InitFromPipelineBinary(
     m_viewInstancingDesc                   = createInfo.viewInstancingDesc;
     m_viewInstancingDesc.viewInstanceCount = Max(m_viewInstancingDesc.viewInstanceCount, 1u);
 
-    MsgPackReader      metadataReader;
-    CodeObjectMetadata metadata;
+    MsgPackReader              metadataReader;
+    PalAbi::CodeObjectMetadata metadata;
     Result result = abiReader.GetMetadata(&metadataReader, &metadata);
 
     if (result == Result::Success)

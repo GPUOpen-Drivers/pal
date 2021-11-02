@@ -166,6 +166,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.samplerAnisoThreshold = 0;
     m_settings.samplerAnisoBias = 0;
     m_settings.samplerSecAnisoBias = 0;
+
     m_settings.waRestrictMetaDataUseInMipTail = false;
     m_settings.waVrsStencilUav = NoFix;
 
@@ -173,7 +174,6 @@ void SettingsLoader::SetupDefaults()
     m_settings.waRotatedSwizzleDisablesOverwriteCombiner = false;
     m_settings.waDisableFmaskNofetchOpOnFmaskCompressionDisable = false;
     m_settings.waDisableVrsWithDsExports = false;
-
     m_settings.waFixPostZConservativeRasterization = false;
     m_settings.waClampQuadDistributionFactor = false;
     m_settings.waWrite1xAASampleLocationsToZero = false;
@@ -201,18 +201,12 @@ void SettingsLoader::SetupDefaults()
     m_settings.waCeDisableIb2 = false;
     m_settings.waDisableSCompressSOnly = false;
     m_settings.waDisableInstancePacking = false;
-
     m_settings.waNoSqttRegStall = false;
     m_settings.vrsHtileEncoding = Gfx10VrsHtileEncodingTwoBit;
-
     m_settings.vrsForceRateFine = false;
-
     m_settings.privateDepthIsHtileOnly = true;
-
     m_settings.optimizeNullSourceImage = true;
-
     m_settings.vrsImageSize = 0x40004000;
-
     m_settings.waUtcL0InconsistentBigPage = false;
     m_settings.waTwoPlanesIterate256 = false;
     m_settings.waTessIncorrectRelativeIndex = false;
@@ -220,19 +214,17 @@ void SettingsLoader::SetupDefaults()
     m_settings.waClampGeCntlVertGrpSize = false;
     m_settings.waLegacyGsCutModeFlush = false;
     m_settings.sdmaBypassMall = 0x3;
-
     m_settings.enableMallCursorCache = true;
-
     m_settings.depthStencilFastClearComputeThresholdSingleSampled = 2097152;
     m_settings.depthStencilFastClearComputeThresholdMultiSampled = 4194304;
     m_settings.gfx10MaxFpovsInWave = 0;
     m_settings.disableAceCsPartialFlush = false;
     m_settings.addrLibGbAddrConfigOverride = 0x0;
     m_settings.nonLocalDestPreferCompute = true;
-
     m_settings.rbPlusOptimizeDepthOnlyExportRate = false;
     m_settings.gfx103DisableAsymmetricWgpForPs = false;
 
+    m_settings.waNeverStopSqCounters = false;
     m_settings.numSettings = g_gfx9PalNumSettings;
 }
 
@@ -1022,6 +1014,11 @@ void SettingsLoader::ReadSettings()
                            &m_settings.gfx103DisableAsymmetricWgpForPs,
                            InternalSettingScope::PrivatePalGfx9Key);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaNeverStopSqCountersStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waNeverStopSqCounters,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
 }
 
 // =====================================================================================================================
@@ -1314,6 +1311,11 @@ void SettingsLoader::RereadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pRbPlusOptimizeDepthOnlyExportRateStr,
                            Util::ValueType::Boolean,
                            &m_settings.rbPlusOptimizeDepthOnlyExportRate,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaNeverStopSqCountersStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waNeverStopSqCounters,
                            InternalSettingScope::PrivatePalGfx9Key);
 
 }
@@ -2104,6 +2106,11 @@ void SettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.gfx103DisableAsymmetricWgpForPs);
     m_settingsInfoMap.Insert(2671208712, info);
 
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.waNeverStopSqCounters;
+    info.valueSize = sizeof(m_settings.waNeverStopSqCounters);
+    m_settingsInfoMap.Insert(698595608, info);
+
 }
 
 // =====================================================================================================================
@@ -2125,7 +2132,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 3969935845;
+            component.settingsDataHash = 2383038994;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

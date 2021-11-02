@@ -37,9 +37,8 @@
 
 namespace Util
 {
-
-/// Enumerates access modes that may be required on an opened file.  Can be bitwise ORed together to specify multiple
-/// simultaneous modes.
+/// Enumerates access modes that may be required on an opened file.
+/// Can be bitwise ORed together to specify multiple simultaneous modes.
 enum FileAccessMode : uint32
 {
     FileAccessRead      = 0x1,  ///< Read access.
@@ -58,7 +57,34 @@ enum FileAccessMode : uint32
 class File
 {
 public:
-    File() : m_pFileHandle(nullptr) { }
+    // Platform-agnostic 64-bit stat structure.
+    struct Stat
+    {
+        uint64  size;   // Size of the file in bytes.
+        uint64  ctime;  // Time of creation of the file (not valid on FAT).
+        uint64  atime;  // Time of last access to the file (not valid on FAT).
+        uint64  mtime;  // Time of last modification to the file.
+        uint32  nlink;  // Number of hard links (always 1 on FAT on Windows).
+        uint32  mode;   // Bitmask for the file-mode information.
+        uint32  dev;    // Drive number of the disk containing the file.
+
+        // Common stat members omitted from this structure:
+        // uid, gid, and ino because it's not used on Windows
+        // rdev because it's a duplicate of dev
+    };
+
+    // Where in the file to start seeking from.
+    enum class SeekPosition : int32
+    {
+        // start of the file
+        Start   = SEEK_SET,
+        // current file pointer position
+        Current = SEEK_CUR,
+        // end of the file
+        End     = SEEK_END
+    };
+
+    File() : m_pFileHandle(nullptr) {}
 
     /// Closes the file if it is still open.
     ~File() { Close(); }
@@ -126,17 +152,32 @@ public:
     /// Sets the position indicator to a new position.
     ///
     /// @param  offset      Number of bytes to offset
-    /// @param  fromOrigin  If true the seek will be relative to the file origin, if false it will
-    ///                     be from the current position
-    void Seek(int32 offset, bool fromOrigin);
+    /// @param  pos         File position to seek from
+    void Seek(int64 offset, SeekPosition pos);
 
-    /// Sets the file position to the end of the file.
-    void FastForward() { Rseek(0); }
+    /// Sets the position indicator to a new position relative to the beginning of the file.
+    ///
+    /// @param  offset      Number of bytes to offset
+    void Seek(size_t offset) { Seek(offset, SeekPosition::Start); }
 
     /// Sets the position indicator to a new position relative to the end of the file
     ///
-    /// @param  offset Number of bytes to offset
-    void Rseek(int32 offset);
+    /// @param  offset      Number of bytes to offset
+    void Rseek(size_t offset) { Seek(-static_cast<int64>(offset), SeekPosition::End); }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 685
+    /// Sets the position indicator to a new position.
+    ///
+    /// @param  offset      Number of bytes to offset
+    /// @param  fromOrigin  Whether we're seeking from the start of the file or the current file pointer
+    void Seek(int64 offset, bool fromOrigin)
+    {
+        return Seek(offset, (fromOrigin ? SeekPosition::Start : SeekPosition::Current));
+    }
+#endif
+
+    /// Sets the file position to the end of the file.
+    void FastForward() { Rseek(0); }
 
     /// Returns true if the file is presently open.
     bool IsOpen() const { return (m_pFileHandle != nullptr); }
@@ -145,7 +186,7 @@ public:
     ///
     /// @param [in] pFilename Name of the file to check.
     ///
-    /// @returns Size of the file in bytes, or -1 on failure.
+    /// @returns Size of the file in bytes, or std::numeric_limits<size_t>::max() on failure.
     static size_t GetFileSize(const char* pFilename);
 
     /// Checks if a file with the specified name exists.
@@ -154,6 +195,14 @@ public:
     ///
     /// @returns True if the specified file exists.
     static bool Exists(const char* pFilename);
+
+    /// Platform-agnostic 64-bit stat() function.
+    ///
+    /// @param [in]     pFilename   Name of the file to check.
+    /// @param [out]    pStatus     The status of that file, if it exists.
+    ///
+    /// @returns Success if the structure was retrieved, error otherwise.
+    static Result GetStat(const char* pFilename, Stat* pStatus);
 
     /// Gets the handle associated with this file.
     ///

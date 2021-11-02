@@ -91,9 +91,14 @@ public:
     ~PipelineChunkCs() { }
 
     void SetupSignatureFromElf(
-        ComputeShaderSignature*   pSignature,
-        const CodeObjectMetadata& metadata,
-        const RegisterVector&     registers);
+        ComputeShaderSignature*                 pSignature,
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        const RegisterVector&                   registers);
+
+    void SetupSignatureFromElf(
+        ComputeShaderSignature*                 pSignature,
+        const Util::HsaAbi::CodeObjectMetadata& metadata,
+        const RegisterVector&                   registers);
 
     void LateInit(
         const AbiReader&       abiReader,
@@ -130,6 +135,11 @@ public:
     Result CreateLaunchDescriptor(void* pOut, bool resolve);
 
 private:
+
+    void SetupSignatureFromRegisters(
+        ComputeShaderSignature* pSignature,
+        const RegisterVector&   registers);
+
     uint32* WriteShCommandsSetPath(CmdStream* pCmdStream, uint32* pCmdSpace, bool usingLauncDesc) const;
 
     const Device&  m_device;

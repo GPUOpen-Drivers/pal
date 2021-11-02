@@ -99,6 +99,10 @@ public:
     virtual void CmdBindBorderColorPalette(
         PipelineBindPoint          pipelineBindPoint,
         const IBorderColorPalette* pPalette) override;
+    virtual void CmdSetKernelArguments(
+        uint32            firstArg,
+        uint32            argCount,
+        const void*const* ppValues) override;
     virtual void CmdSetVertexBuffers(
         uint32 firstBuffer,
         uint32 bufferCount,
@@ -677,6 +681,7 @@ private:
     void ReplayCmdBindBorderColorPalette(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdPrimeGpuCaches(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetUserData(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdSetKernelArguments(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetVertexBuffers(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetPerDrawVrsRate(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetVrsCenterState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
@@ -825,6 +830,9 @@ private:
         };
         uint8 u8All;
     } m_sampleFlags;
+
+    // Track the currently bound pipelines during recording.
+    const IPipeline* m_pBoundPipelines[static_cast<uint32>(PipelineBindPoint::Count)];
 
     // Track current bound compute pipeline/shader state during replay.
     PipelineState m_cpState;

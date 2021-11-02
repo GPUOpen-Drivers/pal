@@ -350,7 +350,15 @@ Result Pipeline::InitCompute(
         }
     }
 
-    return result;
+    // This function only exists to parse some PAL ABI metadata from the ELF. It's not it's job to validate the ELF.
+    // If this code thinks the ELF is invalid that's OK, we can just force off the performance data feature. The core
+    // PAL code will return an error instead if the ELF is really invalid.
+    if (result != Result::Success)
+    {
+        m_hasPerformanceData = false;
+    }
+
+    return Result::Success;
 }
 
 } // GpuProfiler

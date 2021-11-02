@@ -596,7 +596,7 @@ enum class TexPerfModulation : uint32
 // This flag in COMPUTE_DISPATCH_INITIATOR tells the CP to not preempt mid-dispatch when CWSR is disabled.
 constexpr uint32 ComputeDispatchInitiatorDisablePartialPreemptMask = (1 << 17);
 
-constexpr uint32 Gfx10UcodeVersionLoadShRegIndexIndirectAddr = 38;
+constexpr uint32 Gfx103UcodeVersionLoadShRegIndexIndirectAddr = 39;
 
 // =====================================================================================================================
 // Layout of a compute launch descriptor in GPU memory.  A launch descriptor is just a LOAD_SH_REG_INDEX packet pointing

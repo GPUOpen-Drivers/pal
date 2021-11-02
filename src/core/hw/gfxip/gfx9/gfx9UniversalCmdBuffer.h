@@ -70,7 +70,9 @@ struct UniversalCmdBufferState
             uint32 taskShaderEnabled     :  1;
             uint32 cbTargetMaskChanged   :  1; // Flag setup at Pipeline bind-time informing the draw-time set
                                                // that the CB_TARGET_MASK has been changed.
-            uint32 reserved0             :  6;
+            uint32 occlusionQueriesActive : 1; // Indicates if the current validated cmd buf state has occulsion
+                                               // queries enabled.
+            uint32 reserved0             :  5;
             uint32 cbColorInfoDirtyRtv   :  8; // Per-MRT dirty mask for CB_COLORx_INFO as a result of RTV
             uint32 reserved1             :  8;
         };
@@ -108,9 +110,8 @@ struct DrawTimeHwState
             uint32 drawIndex              :  1; // Set when drawIndex matches the HW value.
             uint32 numInstances           :  1; // Set when numInstances matches the HW value.
             uint32 paScModeCntl1          :  1; // Set when paScModeCntl1 matches the HW value.
-            uint32 dbCountControl         :  1; // Set when dbCountControl matches the HW value.
             uint32 vgtMultiPrimIbResetEn  :  1; // Set when vgtMultiPrimIbResetEn matches the HW value.
-            uint32 reserved               : 25; // Reserved bits
+            uint32 reserved               : 26; // Reserved bits
         };
         uint32     u32All;                // The flags as a single integer.
     } valid;                              // Draw state valid flags.
@@ -135,7 +136,6 @@ struct DrawTimeHwState
     uint32                        numInstances;              // Current value of the NUM_INSTANCES state.
     uint32                        drawIndex;                 // Current value of the draw index user data.
     regPA_SC_MODE_CNTL_1          paScModeCntl1;             // Current value of the PA_SC_MODE_CNTL1 register.
-    regDB_COUNT_CONTROL           dbCountControl;            // Current value of the DB_COUNT_CONTROL register.
     regVGT_MULTI_PRIM_IB_RESET_EN vgtMultiPrimIbResetEn;     // Current value of the VGT_MULTI_PRIM_IB_RESET_EN
                                                              // register.
     gpusize                       nggIndexBufferPfStartAddr; // Start address of last IndexBuffer prefetch for NGG.
@@ -244,7 +244,8 @@ union CachedSettings
         uint64 pbbMoreThanOneCtxState     :  1;
         uint64 waUtcL0InconsistentBigPage :  1;
         uint64 waClampGeCntlVertGrpSize   :  1;
-        uint64 reserved4                  :  2;
+        uint64 reserved4                  :  1;
+        uint64 reserved11                 :  2;
         uint64 ignoreDepthForBinSize      :  1; // Ignore depth when calculating Bin Size (unless no color bound)
         uint64 pbbDisableBinMode          :  2; // BINNING_MODE value to use when PBB is disabled
 
@@ -262,12 +263,13 @@ union CachedSettings
         uint64 vrsForceRateFine                          :  1;
         uint64 reserved7                                 :  1;
         uint64 supportsAceOffload                        :  1;
+        uint64 useExecuteIndirectPacket                  :  2;
         uint64 reserved8                  :  9;
         uint64 reserved9                  :  1;
+        uint64 reserved10                 :  1;
         uint64 optimizeDepthOnlyFmt       :  1;
         uint64 has32bPred                 :  1;
-        uint64 reserved                   :  9;
-
+        uint64 reserved                   :  6;
     };
     uint64 u64All;
 };
@@ -534,6 +536,26 @@ public:
 
     virtual uint32 CmdInsertExecutionMarker() override;
 
+    gpusize ConstructExecuteIndirectIb2(
+        const IndirectCmdGenerator& gfx9Generator,
+        PipelineBindPoint           bindPoint,
+        const GraphicsPipeline*     pGfxPipeline,
+        gpusize*                    pIb2GpuSize);
+
+    void ExecuteIndirectPacket(
+        const IIndirectCmdGenerator& generator,
+        const IGpuMemory&            gpuMemory,
+        gpusize                      offset,
+        uint32                       maximumCount,
+        gpusize                      countGpuAddr);
+
+    void ExecuteIndirectShader(
+        const IIndirectCmdGenerator& generator,
+        const IGpuMemory&            gpuMemory,
+        gpusize                      offset,
+        uint32                       maximumCount,
+        gpusize                      countGpuAddr);
+
     virtual void CmdExecuteIndirectCmds(
         const IIndirectCmdGenerator& generator,
         const IGpuMemory&            gpuMemory,
@@ -647,7 +669,6 @@ protected:
     template <bool Indexed, bool Indirect, bool Pm4OptImmediate>
     uint32* ValidateDrawTimeHwState(
         regPA_SC_MODE_CNTL_1    paScModeCntl1,
-        regDB_COUNT_CONTROL     dbCountControl,
         const ValidateDrawInfo& drawInfo,
         uint32*                 pDeCmdSpace);
 
@@ -723,7 +744,7 @@ private:
         uint32            maximumCount,
         gpusize           countGpuAddr);
 
-    template <bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
+    template <bool HsaAbi, bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDispatch(
         ICmdBuffer* pCmdBuffer,
         uint32      x,
@@ -734,7 +755,7 @@ private:
         ICmdBuffer*       pCmdBuffer,
         const IGpuMemory& gpuMemory,
         gpusize           offset);
-    template <bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
+    template <bool HsaAbi, bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDispatchOffset(
         ICmdBuffer* pCmdBuffer,
         uint32      xOffset,
@@ -827,9 +848,7 @@ private:
     virtual void ActivateQueryType(QueryPoolType queryPoolType) override;
 
     template <bool pm4OptImmediate>
-    uint32* UpdateDbCountControl(uint32               log2SampleRate,
-                                 regDB_COUNT_CONTROL* pDbCountControl,
-                                 uint32*              pDeCmdSpace);
+    uint32* UpdateDbCountControl(uint32 log2SampleRate, uint32* pDeCmdSpace);
 
     bool ForceWdSwitchOnEop(const GraphicsPipeline& pipeline, const ValidateDrawInfo& drawInfo) const;
 
@@ -851,18 +870,29 @@ private:
 
     Pm4Predicate PacketPredicate() const { return static_cast<Pm4Predicate>(m_gfxCmdBufState.flags.packetPredicate); }
 
-    template <bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
+    template <bool HsaAbi, bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
     void SetDispatchFunctions();
+    void SetDispatchFunctions(bool hsaAbi);
 
     template <bool TessEnabled, bool GsEnabled, bool VsEnabled>
     void SetUserDataValidationFunctions();
     void SetUserDataValidationFunctions(bool tessEnabled, bool gsEnabled, bool isNgg);
 
-    void ValidateDispatch(
+    void ValidateDispatchPalAbi(
         ComputeState* pComputeState,
         CmdStream*    pCmdStream,
         gpusize       indirectGpuVirtAddr,
         gpusize       launchDescGpuVirtAddr,
+        uint32        xDim,
+        uint32        yDim,
+        uint32        zDim);
+
+    void ValidateDispatchHsaAbi(
+        ComputeState* pComputeState,
+        CmdStream*    pCmdStream,
+        uint32        xOffset,
+        uint32        yOffset,
+        uint32        zOffset,
         uint32        xDim,
         uint32        yDim,
         uint32        zDim);
@@ -1110,6 +1140,7 @@ private:
     } m_cachedPbbSettings;
 
     PaScBinnerCntlRegs      m_pbbCntlRegs;
+
     regDB_DFSM_CONTROL      m_dbDfsmControl;
     regDB_RENDER_OVERRIDE   m_dbRenderOverride;     // Current value of DB_RENDER_OVERRIDE.
     regDB_RENDER_OVERRIDE   m_prevDbRenderOverride; // Prev value of DB_RENDER_OVERRIDE - only used on primary CmdBuf.
@@ -1153,6 +1184,8 @@ private:
     // MS/TS pipeline stats query is emulated by shader. A 6-DWORD scratch memory chunk is needed to store for shader
     // to store the three counter values.
     gpusize m_meshPipeStatsGpuAddr;
+
+    gpusize m_globalInternalTableAddr; // If non-zero, the low 32-bits of the global internal table were written here.
 
     PAL_DISALLOW_DEFAULT_CTOR(UniversalCmdBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(UniversalCmdBuffer);

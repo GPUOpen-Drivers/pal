@@ -204,7 +204,12 @@ union ImageCreateFlags
                                              ///  return error if we fail to create a compatible image.
 
         uint32 tmzProtected            :  1; ///< Indicate this image is protected or not.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 681
+        uint32 sharedWithMesa          :  1; ///< Indicate this Image was opened from a Mesa shared Image
+        uint32 reserved                :  8; ///< Reserved for future use.
+#else
         uint32 reserved                :  9; ///< Reserved for future use.
+#endif
     };
     uint32 u32All;                           ///< Flags packed as 32-bit uint.
 };
@@ -418,6 +423,9 @@ struct ExternalImageOpenInfo
     ImageCreateFlags         flags;          ///< Image Creation flags.
     ImageUsageFlags          usage;          ///< Image usage flags.
     IPrivateScreen*          pScreen;        ///< Private screen this image is created on, or null.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 681
+    gpusize                  gpuMemOffset;   ///< GpuMemory offset
+#endif
 };
 
 /// Reports the overall GPU memory layout of the entire image.  Output structure for IImage::GetMemoryLayout(). Unused
@@ -592,6 +600,12 @@ public:
     ///
     /// @returns A summarized supporting level.
     virtual MetadataSharingLevel GetOptimalSharingLevel() const = 0;
+
+    /// Gives the client access to the resource ID used for internal Pal events.
+    /// EX: Resource Create, Resource Bind, Resource Destroy.
+    ///
+    /// @returns The Resource ID.
+    virtual const void* GetResourceId() const = 0;
 
 protected:
     /// @internal Constructor.

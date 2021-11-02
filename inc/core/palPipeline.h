@@ -44,6 +44,11 @@ namespace Abi
 union ApiHwShaderMapping;
 enum class HardwareStage : uint32;
 }
+
+namespace HsaAbi
+{
+struct KernelArgument;
+}
 }
 
 namespace Pal
@@ -358,6 +363,16 @@ struct PipelineInfo
                               ///  the corresponding shader stage.
     } shader[NumShaderTypes]; ///< Array of per-shader pipeline properties.
 
+    union
+    {
+        struct
+        {
+            uint32 hsaAbi   : 1;  ///< This pipeline uses the HSA ABI (i.e. bind arguments not user-data).
+            uint32 reserved : 31; ///< Reserved for future use.
+        };
+        uint32 u32All;            ///< All flags combined as a single uint32.
+    } flags;                      ///< Pipeline properties.
+
     struct
     {
         union
@@ -593,6 +608,15 @@ public:
     ///
     /// @returns The appropriate mapping for this pipeline.
     virtual Util::Abi::ApiHwShaderMapping ApiHwShaderMapping() const = 0;
+
+    /// Given the zero-based position of a kernel argument, return a pointer to that argument's metadata.
+    ///
+    /// @note Only compute pipelines using the HSA ABI have kernel arguments.
+    ///
+    /// @param [in] index  The zero-based position of the kernel argument to query.
+    ///
+    /// @returns A pointer to the kernel argument's metadata, or null if this pipeline doesn't have this argument.
+    virtual const Util::HsaAbi::KernelArgument* GetKernelArgument(uint32 index) const = 0;
 
     /// Returns the value of the associated arbitrary client data pointer.
     /// Can be used to associate arbitrary data with a particular PAL object.

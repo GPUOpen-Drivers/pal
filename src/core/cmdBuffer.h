@@ -229,6 +229,12 @@ public:
     virtual void CmdSetStencilRefMasks(const StencilRefMaskParams& params) override
         { PAL_NEVER_CALLED(); }
 
+    virtual void CmdSetKernelArguments(
+        uint32            firstArg,
+        uint32            argCount,
+        const void*const* ppValues) override
+        { PAL_NEVER_CALLED(); }
+
     virtual void CmdSetVertexBuffers(
         uint32                firstBuffer,
         uint32                bufferCount,

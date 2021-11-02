@@ -22,6 +22,7 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
+
 cmake_minimum_required(VERSION 3.13...3.15)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
@@ -101,23 +102,11 @@ if(ADDR_GFX9_BUILD)
     target_include_directories(addrlib PRIVATE src/chip/gfx9)
 
     target_compile_definitions(addrlib PRIVATE ADDR_GFX9_BUILD)
-
-    if(ADDR_VEGA12_BUILD)
-        target_compile_definitions(addrlib PRIVATE ADDR_VEGA12_BUILD)
-    endif()
-    if(ADDR_RAVEN1_BUILD)
-        target_compile_definitions(addrlib PRIVATE ADDR_RAVEN1_BUILD)
-    endif()
-
-    if(ADDR_VEGA20_BUILD)
-        target_compile_definitions(addrlib PRIVATE ADDR_VEGA20_BUILD)
-    endif()
-    if(ADDR_RAVEN2_BUILD)
-        target_compile_definitions(addrlib PRIVATE ADDR_RAVEN2_BUILD)
-    endif()
-    if(ADDR_RENOIR_BUILD)
-        target_compile_definitions(addrlib PRIVATE ADDR_RENOIR_BUILD)
-    endif()
+    target_compile_definitions(addrlib PRIVATE ADDR_VEGA12_BUILD)
+    target_compile_definitions(addrlib PRIVATE ADDR_RAVEN1_BUILD)
+    target_compile_definitions(addrlib PRIVATE ADDR_VEGA20_BUILD)
+    target_compile_definitions(addrlib PRIVATE ADDR_RAVEN2_BUILD)
+    target_compile_definitions(addrlib PRIVATE ADDR_RENOIR_BUILD)
 endif()
 
 if(ADDR_GFX10_BUILD)

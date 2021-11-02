@@ -100,8 +100,17 @@ public:
     /// @returns The found section or 0 if it was not found.
     SectionId FindSection(const char* pName) const;
 
+    /// Looks up the data for the given symbol and fills out a pointer to it.
+    ///
+    /// @param [in]  symbol  The symbol to find.
+    /// @param [out] ppData  Is filled out with a pointer to the indicated symbol's value.
+    ///
+    /// @returns Fails if the symbol has no associated section or the ELF is malformed.
+    Result GetSymbol(const Elf::SymbolTableEntry& symbol, const void** ppData) const;
+
     /// Copy the data of the given symbol into a buffer.
     ///
+    /// @param [in]  symbol  The symbol to copy.
     /// @param [out] pSize   The size of the symbol. Is only written if pBuffer is null.
     /// @param [out] pBuffer A buffer for storing the symbol data. If null, pSize will be written.
     ///

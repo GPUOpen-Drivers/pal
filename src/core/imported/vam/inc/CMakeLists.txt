@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2017-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2021 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -22,12 +22,12 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
-if(NOT DEFINED GLOBAL_ROOT_SRC_DIR)
-    execute_process(
-        COMMAND find_depth
-        OUTPUT_VARIABLE GLOBAL_ROOT_SRC_DIR
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    )
-    set(GLOBAL_ROOT_SRC_DIR ${CMAKE_SOURCE_DIR}/${GLOBAL_ROOT_SRC_DIR} CACHE PATH "Global root source directory..")
-endif()
+
+target_include_directories(vam PUBLIC .)
+
+target_sources(vam PRIVATE
+    CMakeLists.txt
+    vambasictypes.h
+    vamtypes.h
+    vaminterface.h
+)

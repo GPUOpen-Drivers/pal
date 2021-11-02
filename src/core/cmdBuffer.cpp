@@ -1371,5 +1371,4 @@ void CmdBuffer::CmdBindSampleRateImage(
 {
     PAL_NOT_IMPLEMENTED();
 }
-
 } // Pal

@@ -32,6 +32,7 @@
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9GraphicsPipeline.h"
 #include "core/hw/gfxip/gfx9/gfx9PipelineChunkCs.h"
+#include "palHsaAbiMetadata.h"
 
 using namespace Util;
 
@@ -81,7 +82,6 @@ void PipelineChunkCs::LateInit(
         PAL_ASSERT(IsPow2Aligned(symbol.gpuVirtAddr, 256u));
 
         m_regs.computePgmLo.bits.DATA = Get256BAddrLo(symbol.gpuVirtAddr);
-        PAL_ASSERT(Get256BAddrHi(symbol.gpuVirtAddr) == 0);
     }
 
     if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::CsShdrIntrlTblPtr, &symbol) == Result::Success)
@@ -173,8 +173,68 @@ void PipelineChunkCs::LateInit(
 // Initializes the signature of a compute shader using a pipeline ELF.
 // NOTE: Must be called before LateInit!
 void PipelineChunkCs::SetupSignatureFromElf(
+    ComputeShaderSignature*           pSignature,
+    const HsaAbi::CodeObjectMetadata& metadata,
+    const RegisterVector&             registers)
+{
+    SetupSignatureFromRegisters(pSignature, registers);
+
+    // The HSA ABI doesn't use PAL's user-data system at all.
+    pSignature->spillThreshold = 0xFFFF;
+    pSignature->userDataLimit  = 0;
+
+    // Compute a hash of the regAddr array and spillTableRegAddr for the CS stage.
+    MetroHash64::Hash(
+        reinterpret_cast<const uint8*>(&pSignature->stage),
+        sizeof(UserDataEntryMap),
+        reinterpret_cast<uint8* const>(&pSignature->userDataHash));
+
+    // Only gfx10+ can run in wave32 mode.
+    pSignature->flags.isWave32 = IsGfx10Plus(*m_device.Parent()) && (metadata.WavefrontSize() == 32);
+}
+
+// =====================================================================================================================
+// Initializes the signature of a compute shader using a pipeline ELF.
+// NOTE: Must be called before LateInit!
+void PipelineChunkCs::SetupSignatureFromElf(
+    ComputeShaderSignature*           pSignature,
+    const PalAbi::CodeObjectMetadata& metadata,
+    const RegisterVector&             registers)
+{
+    SetupSignatureFromRegisters(pSignature, registers);
+
+    if (metadata.pipeline.hasEntry.spillThreshold != 0)
+    {
+        pSignature->spillThreshold = static_cast<uint16>(metadata.pipeline.spillThreshold);
+    }
+
+    if (metadata.pipeline.hasEntry.userDataLimit != 0)
+    {
+        pSignature->userDataLimit = static_cast<uint16>(metadata.pipeline.userDataLimit);
+    }
+
+    // Compute a hash of the regAddr array and spillTableRegAddr for the CS stage.
+    MetroHash64::Hash(
+        reinterpret_cast<const uint8*>(&pSignature->stage),
+        sizeof(UserDataEntryMap),
+        reinterpret_cast<uint8* const>(&pSignature->userDataHash));
+
+    // We don't bother checking the wavefront size for pre-Gfx10 GPU's since it is implicitly 64 before Gfx10. Any ELF
+    // which doesn't specify a wavefront size is assumed to use 64, even on Gfx10 and newer.
+    if (IsGfx9(*(m_device.Parent())) == false)
+    {
+        const auto& csMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
+        if (csMetadata.hasEntry.wavefrontSize != 0)
+        {
+            PAL_ASSERT((csMetadata.wavefrontSize == 64) || (csMetadata.wavefrontSize == 32));
+            pSignature->flags.isWave32 = (csMetadata.wavefrontSize == 32);
+        }
+    }
+}
+
+// =====================================================================================================================
+void PipelineChunkCs::SetupSignatureFromRegisters(
     ComputeShaderSignature*   pSignature,
-    const CodeObjectMetadata& metadata,
     const RegisterVector&     registers)
 {
     const auto& chipProps = m_device.Parent()->ChipProperties();
@@ -247,34 +307,6 @@ void PipelineChunkCs::SetupSignatureFromElf(
             }
         } // If HasEntry()
     } // For each user-SGPR
-
-    if (metadata.pipeline.hasEntry.spillThreshold != 0)
-    {
-        pSignature->spillThreshold = static_cast<uint16>(metadata.pipeline.spillThreshold);
-    }
-
-    if (metadata.pipeline.hasEntry.userDataLimit != 0)
-    {
-        pSignature->userDataLimit = static_cast<uint16>(metadata.pipeline.userDataLimit);
-    }
-
-    // Compute a hash of the regAddr array and spillTableRegAddr for the CS stage.
-     MetroHash64::Hash(
-        reinterpret_cast<const uint8*>(&pSignature->stage),
-        sizeof(UserDataEntryMap),
-        reinterpret_cast<uint8* const>(&pSignature->userDataHash));
-
-    // We don't bother checking the wavefront size for pre-Gfx10 GPU's since it is implicitly 64 before Gfx10. Any ELF
-    // which doesn't specify a wavefront size is assumed to use 64, even on Gfx10 and newer.
-    if (IsGfx9(*(m_device.Parent())) == false)
-    {
-        const auto& csMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
-        if (csMetadata.hasEntry.wavefrontSize != 0)
-        {
-            PAL_ASSERT((csMetadata.wavefrontSize == 64) || (csMetadata.wavefrontSize == 32));
-            pSignature->flags.isWave32 = (csMetadata.wavefrontSize == 32);
-        }
-    }
 }
 
 // =====================================================================================================================

@@ -34,11 +34,8 @@ add_subdirectory(${PAL_ADDR_PATH} ${PROJECT_BINARY_DIR}/addrlib)
 target_link_libraries(pal PRIVATE addrlib)
 
 ### VAM ########################################################################
-add_subdirectory(${PAL_VAM_PATH} ${PROJECT_BINARY_DIR}/vam)
+add_subdirectory(${PROJECT_SOURCE_DIR}/src/core/imported/vam ${PROJECT_BINARY_DIR}/vam)
 target_link_libraries(pal PRIVATE vam)
-
-### SWD ########################################################################
-# Add the SWD library if necessary. This if() can go away when all builds use SWD
 
 ### METROHASH ##################################################################
 if(NOT TARGET metrohash)
@@ -112,6 +109,8 @@ if(PAL_AMDGPU_BUILD)
     target_include_directories(pal PRIVATE ${PAL_SOURCE_DIR}/src/core/os/amdgpu/include/2d)
     target_include_directories(pal PRIVATE ${PAL_SOURCE_DIR}/src/core/os/amdgpu/include/drm)
 endif()
+
+target_include_directories(pal PRIVATE ${PAL_SOURCE_DIR}/src/core/imported/hsa)
 
 # Other Includes
 target_include_directories(pal PRIVATE ${GLOBAL_ROOT_SRC_DIR}/drivers/inc/shared)
@@ -401,91 +400,88 @@ if(PAL_BUILD_CORE)
         endif()
     endif()
 
-### PAL core/layers ############################################################
-    if(PAL_BUILD_LAYERS)
-        target_sources(pal PRIVATE core/layers/decorators.cpp)
+    ### PAL core/layers ############################################################
+    target_sources(pal PRIVATE core/layers/decorators.cpp)
 
-        if(PAL_BUILD_DBG_OVERLAY)
-            # Add the debug overlay files here, only if the client wants debug overlay support.
-            target_sources(pal PRIVATE
-                core/layers/dbgOverlay/dbgOverlayCmdBuffer.cpp
-                core/layers/dbgOverlay/dbgOverlayDevice.cpp
-                core/layers/dbgOverlay/dbgOverlayFpsMgr.cpp
-                core/layers/dbgOverlay/dbgOverlayImage.cpp
-                core/layers/dbgOverlay/dbgOverlayPlatform.cpp
-                core/layers/dbgOverlay/dbgOverlayQueue.cpp
-                core/layers/dbgOverlay/dbgOverlayTextWriter.cpp
-                core/layers/dbgOverlay/dbgOverlayTimeGraph.cpp
-            )
-        endif()
+    # Debug Overlay:
+    # Add the debug overlay files here, only if the client wants debug overlay support.
+    # The debug overlay can be enabled via a setting, and will output useful performance and
+    # debug related information on the screen while the application runs.
+    target_sources(pal PRIVATE
+        core/layers/dbgOverlay/dbgOverlayCmdBuffer.cpp
+        core/layers/dbgOverlay/dbgOverlayDevice.cpp
+        core/layers/dbgOverlay/dbgOverlayFpsMgr.cpp
+        core/layers/dbgOverlay/dbgOverlayImage.cpp
+        core/layers/dbgOverlay/dbgOverlayPlatform.cpp
+        core/layers/dbgOverlay/dbgOverlayQueue.cpp
+        core/layers/dbgOverlay/dbgOverlayTextWriter.cpp
+        core/layers/dbgOverlay/dbgOverlayTimeGraph.cpp
+    )
 
-        if(PAL_BUILD_GPU_PROFILER)
-            # Add the GPU profiler files here, only if the client wants GPU profiler support.
-            target_sources(pal PRIVATE
-                core/layers/gpuProfiler/gpuProfilerCmdBuffer.cpp
-                core/layers/gpuProfiler/gpuProfilerDevice.cpp
-                core/layers/gpuProfiler/gpuProfilerPlatform.cpp
-                core/layers/gpuProfiler/gpuProfilerQueue.cpp
-                core/layers/gpuProfiler/gpuProfilerQueueFileLogger.cpp
-                core/layers/gpuProfiler/gpuProfilerPipeline.cpp
-            )
-        endif()
+    # Gpu Profiler:
+    # The GpuProfiler can be enabled via a setting, and will output useful performance and
+    # debug related information to a CSV file for offline analysis.
+    target_sources(pal PRIVATE
+        core/layers/gpuProfiler/gpuProfilerCmdBuffer.cpp
+        core/layers/gpuProfiler/gpuProfilerDevice.cpp
+        core/layers/gpuProfiler/gpuProfilerPlatform.cpp
+        core/layers/gpuProfiler/gpuProfilerQueue.cpp
+        core/layers/gpuProfiler/gpuProfilerQueueFileLogger.cpp
+        core/layers/gpuProfiler/gpuProfilerPipeline.cpp
+    )
 
-        target_sources(pal PRIVATE
-            core/layers/cmdBufferLogger/cmdBufferLoggerCmdBuffer.cpp
-            core/layers/cmdBufferLogger/cmdBufferLoggerDevice.cpp
-            core/layers/cmdBufferLogger/cmdBufferLoggerImage.cpp
-            core/layers/cmdBufferLogger/cmdBufferLoggerPlatform.cpp
-        )
+    target_sources(pal PRIVATE
+        core/layers/cmdBufferLogger/cmdBufferLoggerCmdBuffer.cpp
+        core/layers/cmdBufferLogger/cmdBufferLoggerDevice.cpp
+        core/layers/cmdBufferLogger/cmdBufferLoggerImage.cpp
+        core/layers/cmdBufferLogger/cmdBufferLoggerPlatform.cpp
+    )
 
-        target_sources(pal PRIVATE
-            core/layers/gpuDebug/gpuDebugCmdBuffer.cpp
-            core/layers/gpuDebug/gpuDebugColorBlendState.cpp
-            core/layers/gpuDebug/gpuDebugColorTargetView.cpp
-            core/layers/gpuDebug/gpuDebugDepthStencilView.cpp
-            core/layers/gpuDebug/gpuDebugDevice.cpp
-            core/layers/gpuDebug/gpuDebugImage.cpp
-            core/layers/gpuDebug/gpuDebugPipeline.cpp
-            core/layers/gpuDebug/gpuDebugPlatform.cpp
-            core/layers/gpuDebug/gpuDebugQueue.cpp
-        )
+    target_sources(pal PRIVATE
+        core/layers/gpuDebug/gpuDebugCmdBuffer.cpp
+        core/layers/gpuDebug/gpuDebugColorBlendState.cpp
+        core/layers/gpuDebug/gpuDebugColorTargetView.cpp
+        core/layers/gpuDebug/gpuDebugDepthStencilView.cpp
+        core/layers/gpuDebug/gpuDebugDevice.cpp
+        core/layers/gpuDebug/gpuDebugImage.cpp
+        core/layers/gpuDebug/gpuDebugPipeline.cpp
+        core/layers/gpuDebug/gpuDebugPlatform.cpp
+        core/layers/gpuDebug/gpuDebugQueue.cpp
+    )
 
-        target_sources(pal PRIVATE
-            core/layers/interfaceLogger/interfaceLoggerBorderColorPalette.cpp
-            core/layers/interfaceLogger/interfaceLoggerCmdAllocator.cpp
-            core/layers/interfaceLogger/interfaceLoggerCmdBuffer.cpp
-            core/layers/interfaceLogger/interfaceLoggerColorBlendState.cpp
-            core/layers/interfaceLogger/interfaceLoggerDepthStencilState.cpp
-            core/layers/interfaceLogger/interfaceLoggerDevice.cpp
-            core/layers/interfaceLogger/interfaceLoggerFence.cpp
-            core/layers/interfaceLogger/interfaceLoggerGpuEvent.cpp
-            core/layers/interfaceLogger/interfaceLoggerGpuMemory.cpp
-            core/layers/interfaceLogger/interfaceLoggerImage.cpp
-            core/layers/interfaceLogger/interfaceLoggerIndirectCmdGenerator.cpp
-            core/layers/interfaceLogger/interfaceLoggerLogContext.cpp
-            core/layers/interfaceLogger/interfaceLoggerLogContextEnum.cpp
-            core/layers/interfaceLogger/interfaceLoggerLogContextStruct.cpp
-            core/layers/interfaceLogger/interfaceLoggerMsaaState.cpp
-            core/layers/interfaceLogger/interfaceLoggerPipeline.cpp
-            core/layers/interfaceLogger/interfaceLoggerPlatform.cpp
-            core/layers/interfaceLogger/interfaceLoggerPrivateScreen.cpp
-            core/layers/interfaceLogger/interfaceLoggerQueryPool.cpp
-            core/layers/interfaceLogger/interfaceLoggerQueue.cpp
-            core/layers/interfaceLogger/interfaceLoggerQueueSemaphore.cpp
-            core/layers/interfaceLogger/interfaceLoggerScreen.cpp
-            core/layers/interfaceLogger/interfaceLoggerShaderLibrary.cpp
-            core/layers/interfaceLogger/interfaceLoggerSwapChain.cpp
+    target_sources(pal PRIVATE
+        core/layers/interfaceLogger/interfaceLoggerBorderColorPalette.cpp
+        core/layers/interfaceLogger/interfaceLoggerCmdAllocator.cpp
+        core/layers/interfaceLogger/interfaceLoggerCmdBuffer.cpp
+        core/layers/interfaceLogger/interfaceLoggerColorBlendState.cpp
+        core/layers/interfaceLogger/interfaceLoggerDepthStencilState.cpp
+        core/layers/interfaceLogger/interfaceLoggerDevice.cpp
+        core/layers/interfaceLogger/interfaceLoggerFence.cpp
+        core/layers/interfaceLogger/interfaceLoggerGpuEvent.cpp
+        core/layers/interfaceLogger/interfaceLoggerGpuMemory.cpp
+        core/layers/interfaceLogger/interfaceLoggerImage.cpp
+        core/layers/interfaceLogger/interfaceLoggerIndirectCmdGenerator.cpp
+        core/layers/interfaceLogger/interfaceLoggerLogContext.cpp
+        core/layers/interfaceLogger/interfaceLoggerLogContextEnum.cpp
+        core/layers/interfaceLogger/interfaceLoggerLogContextStruct.cpp
+        core/layers/interfaceLogger/interfaceLoggerMsaaState.cpp
+        core/layers/interfaceLogger/interfaceLoggerPipeline.cpp
+        core/layers/interfaceLogger/interfaceLoggerPlatform.cpp
+        core/layers/interfaceLogger/interfaceLoggerPrivateScreen.cpp
+        core/layers/interfaceLogger/interfaceLoggerQueryPool.cpp
+        core/layers/interfaceLogger/interfaceLoggerQueue.cpp
+        core/layers/interfaceLogger/interfaceLoggerQueueSemaphore.cpp
+        core/layers/interfaceLogger/interfaceLoggerScreen.cpp
+        core/layers/interfaceLogger/interfaceLoggerShaderLibrary.cpp
+        core/layers/interfaceLogger/interfaceLoggerSwapChain.cpp
+    )
 
-        )
-
-        target_sources(pal PRIVATE
-            core/layers/pm4Instrumentor/pm4InstrumentorCmdBuffer.cpp
-            core/layers/pm4Instrumentor/pm4InstrumentorDevice.cpp
-            core/layers/pm4Instrumentor/pm4InstrumentorPlatform.cpp
-            core/layers/pm4Instrumentor/pm4InstrumentorQueue.cpp
-        )
-
-    endif() # PAL_BUILD_LAYERS
+    target_sources(pal PRIVATE
+        core/layers/pm4Instrumentor/pm4InstrumentorCmdBuffer.cpp
+        core/layers/pm4Instrumentor/pm4InstrumentorDevice.cpp
+        core/layers/pm4Instrumentor/pm4InstrumentorPlatform.cpp
+        core/layers/pm4Instrumentor/pm4InstrumentorQueue.cpp
+    )
 
 endif() # PAL_BUILD_CORE
 
@@ -512,6 +508,7 @@ target_sources(pal PRIVATE
     util/math.cpp
     util/memMapFile.cpp
     util/memoryCacheLayer.cpp
+    util/hsaAbiMetadata.cpp
     util/pipelineAbiReader.cpp
     util/stringUtil.cpp
     util/sysMemory.cpp

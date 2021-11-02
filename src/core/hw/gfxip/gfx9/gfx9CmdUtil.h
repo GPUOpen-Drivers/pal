@@ -284,6 +284,24 @@ struct PipelinePrefetchPm4
     uint32 spaceNeeded;
 };
 
+// Parameters for building an EXECUTE_INDIRECT PM4 packet.
+struct ExecuteIndirectPacketInfo
+{
+    gpusize      commandBufferAddr;
+    gpusize      argumentBufferAddr;
+    gpusize      countBufferAddr;
+    gpusize      spillTableAddr;
+    uint32       maxCount;
+    uint32       commandBufferSizeDwords;
+    uint32       argumentBufferStrideBytes;
+    union
+    {
+        const GraphicsPipelineSignature*  pSignatureGfx;
+        const ComputePipelineSignature*   pSignatureCs;
+    } pipelineSignature;
+    uint32       untypedSrdDword3;
+};
+
 // =====================================================================================================================
 // Utility class which provides routines to help build PM4 packets.
 class CmdUtil
@@ -297,6 +315,10 @@ public:
     static constexpr uint32 CondIndirectBufferSize        = PM4_PFP_COND_INDIRECT_BUFFER_SIZEDW__CORE;
     static constexpr uint32 DispatchDirectSize            = PM4_PFP_DISPATCH_DIRECT_SIZEDW__CORE;
     static constexpr uint32 DispatchIndirectMecSize       = PM4_MEC_DISPATCH_INDIRECT_SIZEDW__CORE;
+    static constexpr uint32 DrawIndirectSize              = PM4_PFP_DRAW_INDEX_INDIRECT_SIZEDW__CORE;
+    static constexpr uint32 DrawIndirectMultiSize         = PM4_PFP_DRAW_INDEX_INDIRECT_MULTI_SIZEDW__CORE;
+    static constexpr uint32 SetIndexAttributesSize        = PM4_PFP_INDEX_ATTRIBUTES_INDIRECT_SIZEDW__CORE;
+    static constexpr uint32 SetUserDataIndirectSize       = PM4_PFP_LOAD_SH_REG_INDEX_SIZEDW__CORE;
     static constexpr uint32 DrawIndexAutoSize             = PM4_PFP_DRAW_INDEX_AUTO_SIZEDW__CORE;
     static constexpr uint32 DrawIndex2Size                = PM4_PFP_DRAW_INDEX_2_SIZEDW__CORE;
     static constexpr uint32 DrawIndexOffset2Size          = PM4_PFP_DRAW_INDEX_OFFSET_2_SIZEDW__CORE;
@@ -347,6 +369,9 @@ public:
     static bool CanUseCopyDataRegOffset(uint32 regOffset) { return (((~MaxCopyDataRegOffset) & regOffset) == 0); }
 
     bool CanUseCsPartialFlush(EngineType engineType) const;
+
+    // If we have support for the indirect_addr index and compute engines.
+    bool HasEnhancedLoadShRegIndex() const;
 
     size_t BuildAcquireMem(
         const AcquireMemInfo& acquireMemInfo,
@@ -442,6 +467,11 @@ public:
         bool            useTunneling,
         bool            disablePartialPreempt,
         void*           pBuffer) const;
+    static size_t BuildExecuteIndirect(
+        Pm4Predicate                     predicate,
+        const bool                       isGfx,
+        const ExecuteIndirectPacketInfo& packetInfo,
+        void*                            pBuffer);
     static size_t BuildDrawIndex2(
         uint32       indexCount,
         uint32       indexBufSize,
@@ -454,6 +484,12 @@ public:
         uint32       indexOffset,
         Pm4Predicate predicate,
         void*        pBuffer);
+    size_t BuildDrawIndirect(
+        gpusize      offset,
+        uint32       baseVtxLoc,
+        uint32       startInstLoc,
+        Pm4Predicate predicate,
+        void*        pBuffer) const;
     size_t BuildDrawIndexIndirect(
         gpusize      offset,
         uint32       baseVtxLoc,
@@ -537,10 +573,10 @@ public:
         uint32  ramByteOffset,
         uint32  dwordSize,
         void*   pBuffer);
-    static size_t BuildNonSampleEventWrite(
+    size_t BuildNonSampleEventWrite(
         VGT_EVENT_TYPE  vgtEvent,
         EngineType      engineType,
-        void*           pBuffer);
+        void*           pBuffer) const;
     size_t BuildSampleEventWrite(
         VGT_EVENT_TYPE                           vgtEvent,
         ME_EVENT_WRITE_event_index_enum          eventIndex,
@@ -555,7 +591,7 @@ public:
         void*   pBuffer) const;
     static size_t BuildIncrementCeCounter(void* pBuffer);
     static size_t BuildIncrementDeCounter(void* pBuffer);
-    static size_t BuildIndexAttributesIndirect(gpusize baseAddr, uint16 index, void* pBuffer);
+    static size_t BuildIndexAttributesIndirect(gpusize baseAddr, uint16 index, bool hasIndirectAddress, void* pBuffer);
     static size_t BuildIndexBase(gpusize baseAddr, void* pBuffer);
     static size_t BuildIndexBufferSize(uint32 indexCount, void* pBuffer);
     size_t BuildIndexType(uint32 vgtDmaIndexType, void* pBuffer) const;
@@ -613,12 +649,21 @@ public:
         uint32        count,
         Pm4ShaderType shaderType,
         void*         pBuffer);
+    template <bool directAddress>
     size_t BuildLoadShRegsIndex(
-        PFP_LOAD_SH_REG_INDEX_index_enum index,
-        gpusize                          gpuVirtAddr,
-        uint32                           count,
-        Pm4ShaderType                    shaderType,
-        void*                            pBuffer) const;
+        gpusize       gpuVirtAddrOrAddrOffset,
+        uint32        startRegAddr,
+        uint32        count,
+        Pm4ShaderType shaderType,
+        void*         pBuffer) const;
+    size_t BuildLoadShRegsIndex(
+        PFP_LOAD_SH_REG_INDEX_index_enum       index,
+        PFP_LOAD_SH_REG_INDEX_data_format_enum dataFormat,
+        gpusize                                gpuVirtAddr,
+        uint32                                 startRegAddr,
+        uint32                                 count,
+        Pm4ShaderType                          shaderType,
+        void*                                  pBuffer) const;
 
     static size_t BuildLoadUserConfigRegs(
         gpusize              gpuVirtAddr,

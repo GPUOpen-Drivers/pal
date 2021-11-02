@@ -99,11 +99,6 @@ public:
         void*    pStorage[MaxScreens],
         IScreen* pScreens[MaxScreens]) override;
 
-    virtual Result QueryApplicationProfile(
-        const char*         pFilename,
-        const char*         pPathname,
-        ApplicationProfile* pOut) override;
-
     virtual Result QueryRawApplicationProfile(
         const char*              pFilename,
         const char*              pPathname,

@@ -3291,11 +3291,9 @@ Result Gfx9Htile::Init(
     m_flags.zrangePrecision = 1;
 
     // If the associated image is a Z-only format, then setup hTile to not include stencil data.
-    m_flags.tileStencilDisable = ((m_image.IsHtileDepthOnly()
-                                  // However, if this hTile data will contain VRS information, then the stencil
-                                  // data must be included again, even if it won't be used.
-                                  && (m_hTileUsage.vrs == 0)
-                                  ) ? 1 : 0);
+    // However, if this hTile data will contain VRS information, then the stencil
+    // data must be included again, even if it won't be used.
+    m_flags.tileStencilDisable = (m_image.IsHtileDepthOnly() && (m_hTileUsage.vrs == 0));
 
     // Htile control registers vary per mip-level.  Compute those here.
     for (uint32  mipLevel = 0; mipLevel < imageCreateInfo.mipLevels; mipLevel++)
@@ -4018,6 +4016,7 @@ void Gfx9Dcc::SetControlReg(
             if (dispDcc.dcc_256_64_64 == 0)
             {
                 m_dccControl.bits.INDEPENDENT_64B_BLOCKS    = 0;
+
                 {
                     m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE =
                         static_cast<uint32>(Gfx9DccMaxBlockSize::BlockSize128B);

@@ -24,7 +24,9 @@
  **********************************************************************************************************************/
 
 #include "core/hw/gfxip/computePipeline.h"
+#include "palHsaAbiMetadata.h"
 #include "palMetroHash.h"
+#include "palPipelineAbi.h"
 
 using namespace Util;
 
@@ -37,6 +39,8 @@ ComputePipeline::ComputePipeline(
     bool    isInternal)  // True if this is a PAL-owned pipeline (i.e., an RPM pipeline).
     :
     Pipeline(pDevice, isInternal),
+    m_pHsaMeta(nullptr),
+    m_pKernelDescriptor(nullptr),
     m_threadsPerTgX(0),
     m_threadsPerTgY(0),
     m_threadsPerTgZ(0),
@@ -48,11 +52,19 @@ ComputePipeline::ComputePipeline(
 }
 
 // =====================================================================================================================
+ComputePipeline::~ComputePipeline()
+{
+    PAL_SAFE_DELETE(m_pHsaMeta, m_pDevice->GetPlatform());
+}
+
+// =====================================================================================================================
 // Initialize this compute pipeline based on the provided creation info.
 Result ComputePipeline::Init(
     const ComputePipelineCreateInfo& createInfo)
 {
     Result result = Result::Success;
+
+    m_maxFunctionCallDepth = createInfo.maxFunctionCallDepth;
 
     if ((createInfo.pPipelineBinary != nullptr) && (createInfo.pipelineBinarySize != 0))
     {
@@ -92,8 +104,31 @@ Result ComputePipeline::Init(
 
     if (result == Result::Success)
     {
-        PAL_ASSERT(m_pPipelineBinary != nullptr);
-        result = InitFromPipelineBinary(createInfo);
+        PAL_ASSERT((m_pPipelineBinary != nullptr) && (m_pipelineBinaryLen != 0));
+
+        MsgPackReader metadataReader;
+        AbiReader     abiReader(m_pDevice->GetPlatform(), m_pPipelineBinary);
+
+        result = abiReader.Init();
+
+        if (result == Result::Success)
+        {
+            const uint8 abi = abiReader.GetOsAbi();
+
+            if (abi == Abi::ElfOsAbiAmdgpuPal)
+            {
+                result = InitFromPalAbiBinary(createInfo, abiReader, &metadataReader);
+            }
+            else if ((abi == Abi::ElfOsAbiAmdgpuHsa) && (m_pDevice->ChipProperties().gfxip.supportHsaAbi == 1))
+            {
+                result = InitFromHsaAbiBinary(createInfo, abiReader, &metadataReader);
+            }
+            else
+            {
+                // You can end up here if this is an unknown ABI or if we don't support a known ABI on this device.
+                result = Result::ErrorUnsupportedPipelineElfAbiVersion;
+            }
+        }
     }
 
     if (result == Result::Success)
@@ -123,50 +158,131 @@ Result ComputePipeline::Init(
 }
 
 // =====================================================================================================================
-// Initializes this pipeline from the pipeline binary data stored in this object.
-Result ComputePipeline::InitFromPipelineBinary(
-    const ComputePipelineCreateInfo& createInfo)
+// Extracts PAL ABI metadata from the pipeline binary and initializes the pipeline from it.
+Result ComputePipeline::InitFromPalAbiBinary(
+    const ComputePipelineCreateInfo& createInfo,
+    const AbiReader&                 abiReader,
+    MsgPackReader*                   pMetadataReader)
 {
-    PAL_ASSERT((m_pPipelineBinary != nullptr) && (m_pipelineBinaryLen != 0));
-
-    AbiReader abiReader(m_pDevice->GetPlatform(), m_pPipelineBinary);
-    Result result = abiReader.Init();
-
-    MsgPackReader      metadataReader;
-    CodeObjectMetadata metadata;
-
-    if (result == Result::Success)
-    {
-        result = abiReader.GetMetadata(&metadataReader, &metadata);
-    }
+    PalAbi::CodeObjectMetadata metadata;
+    Result result = abiReader.GetMetadata(pMetadataReader, &metadata);
 
     if (result == Result::Success)
     {
         ExtractPipelineInfo(metadata, ShaderType::Compute, ShaderType::Compute);
 
         DumpPipelineElf("PipelineCs",
-                        ((metadata.pipeline.hasEntry.name != 0) ? &metadata.pipeline.name[0] : nullptr));
+                        ((metadata.pipeline.hasEntry.name != 0) ? metadata.pipeline.name : nullptr));
 
-        const Elf::SymbolTableEntry* pSymbol = abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::CsDisassembly);
+        const Elf::SymbolTableEntry* pSymbol =
+            abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::CsDisassembly);
+
         if (pSymbol != nullptr)
         {
             m_stageInfo.disassemblyLength = static_cast<size_t>(pSymbol->st_size);
         }
 
-        m_maxFunctionCallDepth = createInfo.maxFunctionCallDepth;
-        const auto& csStageMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
+        const PalAbi::HardwareStageMetadata& csStageMetadata =
+            metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
+
         if (csStageMetadata.hasEntry.scratchMemorySize != 0)
         {
             m_stackSizeInBytes = csStageMetadata.scratchMemorySize;
         }
 
-        result = HwlInit(createInfo,
-                         abiReader,
-                         metadata,
-                         &metadataReader);
+        result = HwlInit(createInfo, abiReader, metadata, pMetadataReader);
     }
 
     return result;
+}
+
+// =====================================================================================================================
+// Extracts HSA ABI metadata from the pipeline binary and initializes the pipeline from it.
+Result ComputePipeline::InitFromHsaAbiBinary(
+    const ComputePipelineCreateInfo& createInfo,
+    const AbiReader&                 abiReader,
+    MsgPackReader*                   pMetadataReader)
+{
+    Result result = Result::ErrorOutOfMemory;
+
+    PAL_ASSERT(m_pHsaMeta == nullptr);
+    m_pHsaMeta = PAL_NEW(HsaAbi::CodeObjectMetadata, m_pDevice->GetPlatform(), AllocInternal)(m_pDevice->GetPlatform());
+
+    if (m_pHsaMeta != nullptr)
+    {
+        result = abiReader.GetMetadata(pMetadataReader, m_pHsaMeta);
+    }
+
+    if (result == Result::Success)
+    {
+        // The metadata gives the name of our kernel's launch descriptor object. Look it up in the ELF binary and
+        // cache a pointer to it for future reference. Note that we don't make a new copy, it's just a pointer.
+        // It's a required symbol so it should never be nullptr.
+        const Elf::SymbolTableEntry* pSymbol = abiReader.GetGenericSymbol(m_pHsaMeta->KernelDescriptorSymbol());
+        PAL_ASSERT(pSymbol != nullptr);
+
+        const void* pData = nullptr;
+        result = abiReader.GetElfReader().GetSymbol(*pSymbol, &pData);
+
+        if (result == Result::Success)
+        {
+            m_pKernelDescriptor = static_cast<const llvm::amdhsa::kernel_descriptor_t*>(pData);
+        }
+    }
+
+    if (result == Result::Success)
+    {
+        // Hash the entire ELF to get a "good enough" pipeline and shader hash. There's no difference between
+        // the stable hash and the unique hash so they get set to the same compacted 64-bit value.
+        MetroHash128 hasher;
+        hasher.Update(static_cast<const uint8*>(m_pPipelineBinary), m_pipelineBinaryLen);
+
+        MetroHash::Hash hashedBin = {};
+        hasher.Finalize(hashedBin.bytes);
+
+        const uint64     hash64 = MetroHash::Compact64(&hashedBin);
+        constexpr uint32 CsIdx  = static_cast<uint32>(Abi::ApiShaderType::Cs);
+
+        m_info.flags.hsaAbi              = 1;
+        m_info.internalPipelineHash      = { hash64, hash64 };
+        m_info.shader[CsIdx].hash        = { hashedBin.qwords[0], hashedBin.qwords[1] };
+        m_apiHwMapping.apiShaders[CsIdx] = CsIdx;
+
+        // It's not clear if this is correct or if it should be zero (no expected stack support).
+        m_stackSizeInBytes = m_pHsaMeta->PrivateSegmentFixedSize();
+
+        DumpPipelineElf("PipelineCs", m_pHsaMeta->KernelName());
+
+        result = HwlInit(createInfo, abiReader, *m_pHsaMeta, pMetadataReader);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+const HsaAbi::CodeObjectMetadata& ComputePipeline::HsaMetadata() const
+{
+    PAL_ASSERT((m_info.flags.hsaAbi == 1) && (m_pHsaMeta != nullptr));
+
+    return *m_pHsaMeta;
+}
+
+// =====================================================================================================================
+const llvm::amdhsa::kernel_descriptor_t& ComputePipeline::KernelDescriptor() const
+{
+    PAL_ASSERT((m_info.flags.hsaAbi == 1) && (m_pKernelDescriptor != nullptr));
+
+    return *m_pKernelDescriptor;
+}
+
+// =====================================================================================================================
+const HsaAbi::KernelArgument* ComputePipeline::GetKernelArgument(
+    uint32 index
+    ) const
+{
+    return ((m_pHsaMeta != nullptr) && (index < m_pHsaMeta->NumArguments()))
+                ? (m_pHsaMeta->Arguments() + index)
+                : nullptr;
 }
 
 } // Pal

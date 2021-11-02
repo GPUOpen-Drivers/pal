@@ -983,6 +983,15 @@ Result Dri3WindowSystem::GetWindowProperties(
 
     pSwapChainProperties->minImageCount = 2;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 684
+    // XWayland is a transition from Xorg to Wayland, which has poor performance in fullscreen present
+    // mode, so windowed mode is preferred on XWayland.
+    pSwapChainProperties->preferredPresentModes =
+        IsXWayland(hDisplay, pDevice) ?
+        static_cast<uint32>(PreferredPresentModeFlags::PreferWindowedPresentMode) :
+        static_cast<uint32>(PreferredPresentModeFlags::NoPreference);
+#endif
+
     if (pReply != nullptr)
     {
         pSwapChainProperties->currentExtent.width  = pReply->width;
@@ -990,6 +999,66 @@ Result Dri3WindowSystem::GetWindowProperties(
         result                                     = Result::Success;
 
         free(pReply);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Check if this is XWayland
+bool Dri3WindowSystem::IsXWayland(
+    OsDisplayHandle hDisplay,
+    Device*         pDevice)
+{
+    bool result = false;
+    const Dri3LoaderFuncs& dri3Procs   = pDevice->GetPlatform()->GetDri3Loader().GetProcsTable();
+    xcb_connection_t*const pConnection = static_cast<xcb_connection_t*>(hDisplay);
+    xcb_randr_query_version_cookie_t  versionCookie = dri3Procs.pfnXcbRandrQueryVersion(pConnection, 1, 3);
+    xcb_randr_query_version_reply_t*  pVersionReply =
+        dri3Procs.pfnXcbRandrQueryVersionReply(pConnection, versionCookie, nullptr);
+
+    if ((pVersionReply == nullptr) ||
+        ((pVersionReply->major_version == 1) && (pVersionReply->minor_version < 3)))
+    {
+        if (pVersionReply != nullptr)
+        {
+            free(pVersionReply);
+        }
+        result = false;
+    }
+
+    const xcb_setup_t*    pSetup = dri3Procs.pfnXcbGetSetup(pConnection);
+    xcb_screen_iterator_t iter = dri3Procs.pfnXcbSetupRootsIterator(pSetup);
+    xcb_randr_get_screen_resources_cookie_t scrResCookie =
+        dri3Procs.pfnXcbRandrGetScreenResources(pConnection, iter.data->root);
+    xcb_randr_get_screen_resources_reply_t* pScrResReply =
+        dri3Procs.pfnXcbRandrGetScreenResourcesReply(pConnection, scrResCookie, nullptr);
+
+    if ((pScrResReply != nullptr) && (pScrResReply->num_outputs > 0))
+    {
+        xcb_randr_output_t* pRandrOutput = dri3Procs.pfnXcbRandrGetScreenResourcesOutputs(pScrResReply);
+
+        for (int32 i = 0; i < pScrResReply->num_outputs; i++)
+        {
+            xcb_randr_get_output_info_cookie_t outCookie =
+                dri3Procs.pfnXcbRandrGetOutputInfo(pConnection, pRandrOutput[i], pScrResReply->config_timestamp);
+            xcb_randr_get_output_info_reply_t* pOutReply =
+                dri3Procs.pfnXcbRandrGetOutputInfoReply(pConnection, outCookie, nullptr);
+
+            if (pOutReply != nullptr)
+            {
+                const char*const pName =
+                    reinterpret_cast<const char*>(dri3Procs.pfnXcbRandrGetOutputInfoName(pOutReply));
+                free(pOutReply);
+
+                if ((pName != nullptr) && (strncmp(pName, "XWAYLAND", 8) == 0))
+                {
+                    result = true;
+                }
+            }
+        }
+        free(pScrResReply);
+
     }
 
     return result;

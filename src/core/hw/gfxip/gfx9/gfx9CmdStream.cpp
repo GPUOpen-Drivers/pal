@@ -1183,13 +1183,12 @@ uint32* CmdStream::WriteDynamicLaunchDesc(
     gpusize     launchDescGpuVa,
     uint32*     pCmdSpace)
 {
-    if (m_device.Parent()->EngineProperties().cpUcodeVersion >= Gfx10UcodeVersionLoadShRegIndexIndirectAddr)
+    if (m_cmdUtil.HasEnhancedLoadShRegIndex())
     {
-        // Dynamic pipeline launch is only supported on GFX10.3+
-        PAL_ASSERT(IsGfx103Plus(m_device.Parent()->ChipProperties().gfxLevel));
-
         pCmdSpace += m_cmdUtil.BuildLoadShRegsIndex(index__pfp_load_sh_reg_index__indirect_addr__GFX103COREPLUS,
+                                                    data_format__pfp_load_sh_reg_index__offset_and_data,
                                                     launchDescGpuVa,
+                                                    0,
                                                     DynamicCsLaunchDescRegCount,
                                                     Pm4ShaderType::ShaderCompute,
                                                     pCmdSpace);

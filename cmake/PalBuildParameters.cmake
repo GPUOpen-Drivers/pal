@@ -22,6 +22,7 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
+
 include_guard()
 include(PalVersionHelper)
 
@@ -41,8 +42,6 @@ endif()
 # NOTE: There is no PAL_BUILD_UTIL, that functionality isn't optional.
 pal_bp(PAL_BUILD_CORE ON)
 pal_bp(PAL_BUILD_GPUUTIL ON)
-
-pal_bp(PAL_BUILD_LAYERS ${PAL_BUILD_GPUUTIL} DEPENDS_ON ${PAL_BUILD_GPUUTIL})
 
 #if PAL_DEVELOPER_BUILD
 pal_bp(PAL_DEVELOPER_BUILD OFF)
@@ -67,8 +66,12 @@ pal_bp(PAL_CLIENT "-1" MODE "FATAL_ERROR")
 # Create a more convenient variable to avoid string comparisons.
 set(PAL_CLIENT_${PAL_CLIENT} ON)
 
-# This variable controls wether PAL is built with an amdgpu back-end
-set(PAL_AMDGPU_BUILD ${UNIX})
+# This variable controls whether PAL is built with an amdgpu back-end
+if (UNIX)
+    set(PAL_AMDGPU_BUILD ON)
+else()
+    set(PAL_AMDGPU_BUILD OFF)
+endif()
 
 pal_bp(PAL_BUILD_DRI3 ON DEPENDS_ON ${PAL_AMDGPU_BUILD})
 pal_bp(PAL_BUILD_WAYLAND OFF DEPENDS_ON ${PAL_AMDGPU_BUILD})

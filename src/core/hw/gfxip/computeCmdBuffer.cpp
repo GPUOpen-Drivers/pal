@@ -198,33 +198,7 @@ void ComputeCmdBuffer::ResetState()
 {
     GfxCmdBuffer::ResetState();
 
-    memset(&m_computeState,        0, sizeof(m_computeState));
-    memset(&m_computeRestoreState, 0, sizeof(m_computeRestoreState));
-
     ResetUserDataTable(&m_spillTableCs);
-}
-
-// =====================================================================================================================
-void ComputeCmdBuffer::CmdBindPipeline(
-    const PipelineBindParams& params)
-{
-    PAL_ASSERT(params.pipelineBindPoint == PipelineBindPoint::Compute);
-
-    const Pipeline*const pPipeline = static_cast<const Pipeline*>(params.pPipeline);
-
-    m_computeState.pipelineState.pPipeline  = pPipeline;
-    m_computeState.pipelineState.apiPsoHash = params.apiPsoHash;
-    m_computeState.pipelineState.dirtyFlags.pipelineDirty = 1;
-
-    m_computeState.dynamicCsInfo = params.cs;
-
-    m_device.DescribeBindPipeline(this, pPipeline, params.apiPsoHash, params.pipelineBindPoint);
-
-    if (pPipeline != nullptr)
-    {
-        m_maxUploadFenceToken = Max(m_maxUploadFenceToken, pPipeline->GetUploadFenceToken());
-        m_lastPagingFence     = Max(m_lastPagingFence,     pPipeline->GetPagingFenceVal());
-    }
 }
 
 #if PAL_ENABLE_PRINTS_ASSERTS

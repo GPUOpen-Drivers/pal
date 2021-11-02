@@ -397,9 +397,7 @@ bool CmdUtil::CanUseCsPartialFlush(
     bool useCspf = true;
 
     // We will only try to disable cspf if this is an async compute engine on an ASIC that at some point had the bug.
-    if ((Pal::Device::EngineSupportsGraphics(engineType) == false)
-        && (m_gfxIpLevel <= GfxIpLevel::GfxIp10_3)
-        )
+    if ((Pal::Device::EngineSupportsGraphics(engineType) == false) && (m_gfxIpLevel <= GfxIpLevel::GfxIp10_3))
     {
         if (m_device.Settings().disableAceCsPartialFlush)
         {
@@ -435,6 +433,14 @@ bool CmdUtil::CanUseCsPartialFlush(
     }
 
     return useCspf;
+}
+
+// =====================================================================================================================
+// If we have support for the indirect_addr index and compute engines.
+bool CmdUtil::HasEnhancedLoadShRegIndex() const
+{
+    // This was only implemented on gfx10.3+.
+    return ((m_cpUcodeVersion >= Gfx103UcodeVersionLoadShRegIndexIndirectAddr) && IsGfx103Plus(m_gfxIpLevel));
 }
 
 // =====================================================================================================================
@@ -1213,7 +1219,7 @@ size_t CmdUtil::BuildPerfmonControl(
     constexpr uint32       PacketSize = PM4_ME_PERFMON_CONTROL_SIZEDW__GFX103COREPLUS;
     PM4_ME_PERFMON_CONTROL packetGfx;
 
-    packetGfx.ordinal1.header        = Type3Header(IT_PERFMON_CONTROL__GFX103, PacketSize);
+    packetGfx.ordinal1.header        = Type3Header(IT_PERFMON_CONTROL__GFX103COREPLUS, PacketSize);
 
     packetGfx.ordinal2.u32All                                 = 0;
     packetGfx.ordinal2.bitfields.gfx103CorePlus.pmc_id        = perfMonCtlId;
@@ -1337,6 +1343,49 @@ size_t CmdUtil::BuildDispatchIndirectGfx(
 }
 
 // =====================================================================================================================
+// Builds execute indirect packet for the GFX engine. Returns the size of the PM4 command assembled, in DWORDs.
+size_t CmdUtil::BuildExecuteIndirect(
+    Pm4Predicate                     predicate,
+    const bool                       isGfx,
+    const ExecuteIndirectPacketInfo& packetInfo,
+    void*                            pBuffer)       // [out] Build the PM4 packet in this buffer.
+{
+    constexpr uint32 PacketSize                  = PM4_PFP_EXECUTE_INDIRECT_SIZEDW__HASCE;
+    const GraphicsPipelineSignature* pSignature  = packetInfo.pipelineSignature.pSignatureGfx;
+    PM4_PFP_EXECUTE_INDIRECT  packet             = {};
+    packet.ordinal1.header.u32All =
+        (Type3Header(IT_EXECUTE_INDIRECT__GFX101, PacketSize, false, ShaderGraphics, predicate)).u32All;
+    packet.ordinal2.bitfields.hasCe.cmd_base_lo           = LowPart(packetInfo.commandBufferAddr) >> 2;
+    packet.ordinal3.cmd_base_hi                           = HighPart(packetInfo.commandBufferAddr);
+    packet.ordinal4.bitfields.hasCe.count_indirect_enable = (packetInfo.countBufferAddr != 0);
+    packet.ordinal4.bitfields.hasCe.ib_size               = packetInfo.commandBufferSizeDwords;
+    packet.ordinal5.count                                 = packetInfo.maxCount;
+    packet.ordinal6.bitfields.hasCe.count_addr_lo         = LowPart(packetInfo.countBufferAddr) >> 2;
+    packet.ordinal7.count_addr_hi                         = HighPart(packetInfo.countBufferAddr);
+    packet.ordinal8.stride                                = packetInfo.argumentBufferStrideBytes;
+    packet.ordinal9.data_addr_lo                          = LowPart(packetInfo.argumentBufferAddr);
+    packet.ordinal10.bitfields.hasCe.data_addr_hi         = HighPart(packetInfo.argumentBufferAddr);
+    packet.ordinal10.bitfields.hasCe.spill_table_stride   = pSignature->userDataLimit - pSignature->spillThreshold;
+    packet.ordinal11.spill_table_addr_lo                  = LowPart(packetInfo.spillTableAddr);
+    packet.ordinal12.bitfields.hasCe.spill_table_addr_hi  = HighPart(packetInfo.spillTableAddr);
+    if (packetInfo.spillTableAddr != 0)
+    {
+        packet.ordinal12.bitfields.hasCe.spill_table_reg_offset0 =
+            (pSignature->stage[0].spillTableRegAddr - PERSISTENT_SPACE_START);
+        packet.ordinal13.bitfields.hasCe.spill_table_reg_offset1 =
+            (pSignature->stage[1].spillTableRegAddr - PERSISTENT_SPACE_START);
+        packet.ordinal13.bitfields.hasCe.spill_table_reg_offset2 =
+            (pSignature->stage[2].spillTableRegAddr - PERSISTENT_SPACE_START);
+        packet.ordinal14.bitfields.hasCe.spill_table_reg_offset3 =
+            (pSignature->stage[3].spillTableRegAddr - PERSISTENT_SPACE_START);
+    }
+    packet.ordinal15.untyped_srd_dword3                = packetInfo.untypedSrdDword3;
+
+    memcpy(pBuffer, &packet, PacketSize * sizeof(uint32));
+    return PacketSize;
+}
+
+// =====================================================================================================================
 // Builds a DISPATCH_INDIRECT packet for the MEC. Returns the size of the PM4 command assembled, in DWORDs.
 // This packet has different sizes between ME compute and ME gfx.
 size_t CmdUtil::BuildDispatchIndirectMec(
@@ -1456,6 +1505,41 @@ size_t CmdUtil::BuildDrawIndexAuto(
     drawInitiator.bits.USE_OPAQUE       = useOpaque ? 1 : 0;
 
     pPacket->ordinal3.draw_initiator = drawInitiator.u32All;
+    return PacketSize;
+}
+
+// =====================================================================================================================
+// Builds a PM4 packet which issues a indirect draw command into the given DE command stream. Returns the
+// size of the PM4 command assembled, in DWORDs.
+size_t CmdUtil::BuildDrawIndirect(
+    gpusize      offset,        // Byte offset to the indirect args data.
+    uint32       baseVtxLoc,    // Register VS expects to read baseVtxLoc from.
+    uint32       startInstLoc,  // Register VS expects to read startInstLoc from.
+    Pm4Predicate predicate,
+    void*        pBuffer        // [out] Build the PM4 packet in this buffer.
+) const
+{
+    // Draw argument offset in the buffer has to be 4-byte aligned.
+    PAL_ASSERT(IsPow2Aligned(offset, 4));
+
+    constexpr size_t PacketSize = PM4_PFP_DRAW_INDIRECT_SIZEDW__CORE;
+
+    auto* const pPacket = static_cast<PM4_PFP_DRAW_INDIRECT*>(pBuffer);
+    pPacket->ordinal1.header.u32All =
+        (Type3Header(IT_DRAW_INDIRECT, PacketSize, false, ShaderGraphics, predicate)).u32All;
+    pPacket->ordinal2.data_offset = LowPart(offset);
+    pPacket->ordinal3.u32All = 0;
+    pPacket->ordinal3.bitfields.start_vtx_loc = baseVtxLoc - PERSISTENT_SPACE_START;
+
+    pPacket->ordinal4.u32All = 0;
+    pPacket->ordinal4.bitfields.start_inst_loc = startInstLoc - PERSISTENT_SPACE_START;
+
+    regVGT_DRAW_INITIATOR drawInitiator;
+    drawInitiator.u32All = 0;
+    drawInitiator.bits.SOURCE_SELECT = DI_SRC_SEL_AUTO_INDEX;
+    drawInitiator.bits.MAJOR_MODE = DI_MAJOR_MODE_0;
+
+    pPacket->ordinal5.draw_initiator = drawInitiator.u32All;
     return PacketSize;
 }
 
@@ -2016,8 +2100,10 @@ size_t CmdUtil::BuildDumpConstRamOffset(
 size_t CmdUtil::BuildNonSampleEventWrite(
     VGT_EVENT_TYPE  vgtEvent,
     EngineType      engineType,
-    void*           pBuffer)    // [out] Build the PM4 packet in this buffer.
+    void*           pBuffer    // [out] Build the PM4 packet in this buffer.
+    ) const
 {
+
     // Verify the event index enumerations match between the ME and MEC engines.  Note that ME (gfx) has more
     // events than MEC does.  We assert below if this packet is meant for compute and a gfx-only index is selected.
     static_assert(
@@ -2239,17 +2325,29 @@ size_t CmdUtil::BuildIncrementDeCounter(
 // the PM4 command assembled, in DWORDs.
 size_t CmdUtil::BuildIndexAttributesIndirect(
     gpusize baseAddr,   // Base address of an array of index attributes
-    uint16  index,      // Index into the array of index attributes to load
-    void*   pBuffer)    // [out] Build the PM4 packet in this buffer.
+    uint16  index,       // Index into the array of index attributes to load
+    bool    hasIndirectAddress,
+    void*   pBuffer)   // [out] Build the PM4 packet in this buffer.
 {
     constexpr size_t PacketSize = PM4_PFP_INDEX_ATTRIBUTES_INDIRECT_SIZEDW__CORE;
-    auto*const       pPacket    = static_cast<PM4_PFP_INDEX_ATTRIBUTES_INDIRECT*>(pBuffer);
+    auto* const       pPacket = static_cast<PM4_PFP_INDEX_ATTRIBUTES_INDIRECT*>(pBuffer);
 
-    pPacket->ordinal1.header.u32All             = (Type3Header(IT_INDEX_ATTRIBUTES_INDIRECT, PacketSize)).u32All;
-    pPacket->ordinal2.u32All                    = LowPart(baseAddr);
-    PAL_ASSERT(pPacket->ordinal2.bitfields.reserved1 == 0); // Address must be 4-DWORD aligned
-    pPacket->ordinal3.attribute_base_hi         = HighPart(baseAddr);
-    pPacket->ordinal4.u32All                    = 0;
+    pPacket->ordinal1.header.u32All = (Type3Header(IT_INDEX_ATTRIBUTES_INDIRECT, PacketSize)).u32All;
+    pPacket->ordinal2.u32All = 0;
+    if (hasIndirectAddress)
+    {
+        pPacket->ordinal2.bitfields.hasCe.indirect_mode =
+            mode__pfp_index_attributes_indirect_indirect_offset__GFX09_GFX10CORE;
+        pPacket->ordinal3.addr_offset                       = LowPart(baseAddr);
+    }
+    else
+    {
+        pPacket->ordinal2.u32All            = LowPart(baseAddr);
+        PAL_ASSERT(pPacket->ordinal2.bitfields.reserved1 == 0); // Address must be 4-DWORD aligned
+        pPacket->ordinal3.attribute_base_hi = HighPart(baseAddr);
+    }
+
+    pPacket->ordinal4.u32All = 0;
     pPacket->ordinal4.bitfields.attribute_index = index;
 
     return PacketSize;
@@ -2833,14 +2931,81 @@ size_t CmdUtil::BuildLoadShRegs(
 }
 
 // =====================================================================================================================
+// Builds a PM4 packet which issues a load_sh_reg_index command to load a single group of consecutive persistent-state
+// registers from indirect video memory offset.  Returns the size of the PM4 command assembled, in DWORDs.
+template <bool directAddress>
+size_t CmdUtil::BuildLoadShRegsIndex(
+    gpusize       gpuVirtAddrOrAddrOffset,
+    uint32        startRegAddr,
+    uint32        count,
+    Pm4ShaderType shaderType,
+    void* pBuffer       // [out] Build the PM4 packet in this buffer.
+    ) const
+{
+#if PAL_ENABLE_PRINTS_ASSERTS
+    CheckShadowedShReg(shaderType, startRegAddr);
+#endif
+
+    constexpr uint32 PacketSize = PM4_PFP_LOAD_SH_REG_INDEX_SIZEDW__CORE;
+    auto* const       pPacket   = static_cast<PM4_PFP_LOAD_SH_REG_INDEX*>(pBuffer);
+
+    pPacket->ordinal1.header.u32All = (Type3Header(IT_LOAD_SH_REG_INDEX, PacketSize, false, shaderType)).u32All;
+    pPacket->ordinal2.u32All        = 0;
+    if (directAddress)
+    {
+        pPacket->ordinal2.bitfields.gfx103CorePlus.index = index__pfp_load_sh_reg_index__direct_addr;
+        pPacket->ordinal2.bitfields.mem_addr_lo          = LowPart(gpuVirtAddrOrAddrOffset);
+        pPacket->ordinal3.mem_addr_hi                    = HighPart(gpuVirtAddrOrAddrOffset);
+        // Only the low 16 bits of addrOffset are honored for the high portion of the GPU virtual address!
+        PAL_ASSERT((HighPart(gpuVirtAddrOrAddrOffset) & 0xFFFF0000) == 0);
+    }
+    else
+    {
+        pPacket->ordinal2.bitfields.gfx103CorePlus.index = index__pfp_load_sh_reg_index__offset;
+        pPacket->ordinal3.addr_offset                    = LowPart(gpuVirtAddrOrAddrOffset);
+    }
+    pPacket->ordinal4.u32All                = 0;
+    pPacket->ordinal4.bitfields.reg_offset  = (startRegAddr - PERSISTENT_SPACE_START);
+    pPacket->ordinal4.bitfields.data_format = data_format__pfp_load_sh_reg_index__offset_and_size;
+    pPacket->ordinal5.u32All                = 0;
+    pPacket->ordinal5.bitfields.num_dwords  = count;
+
+    return PacketSize;
+}
+
+template
+size_t CmdUtil::BuildLoadShRegsIndex<true>(
+    gpusize       addrOffset,
+    uint32        startRegAddr,
+    uint32        count,
+    Pm4ShaderType shaderType,
+    void* pBuffer
+    ) const;
+
+template
+size_t CmdUtil::BuildLoadShRegsIndex<false>(
+    gpusize       addrOffset,
+    uint32        startRegAddr,
+    uint32        count,
+    Pm4ShaderType shaderType,
+    void* pBuffer
+    ) const;
+
+// =====================================================================================================================
 // Builds a PM4 packet which issues a load_sh_reg_index command to load a series of individual persistent-state
 // registers stored in GPU memory.  Returns the size of the PM4 command assembled, in DWORDs.
+//
+// The index controls how the CP finds the memory to read from. The data_format controls the layout of that memory.
+// - offset_and_size: read count DWORDs and write them to the sequential registers starting at startRegAddr.
+// - offset_and_data: read count pairs of relative offset and value pairs, write at each indicated offset.
 size_t CmdUtil::BuildLoadShRegsIndex(
-    PFP_LOAD_SH_REG_INDEX_index_enum index,
-    gpusize                          gpuVirtAddr,
-    uint32                           count,
-    Pm4ShaderType                    shaderType,
-    void*                            pBuffer      // [out] Build the PM4 packet in this buffer.
+    PFP_LOAD_SH_REG_INDEX_index_enum       index,
+    PFP_LOAD_SH_REG_INDEX_data_format_enum dataFormat,
+    gpusize                                gpuVirtAddr,
+    uint32                                 startRegAddr, // Only used if dataFormat is offset_and_data.
+    uint32                                 count,        // This changes meaning depending on dataFormat.
+    Pm4ShaderType                          shaderType,
+    void*                                  pBuffer       // [out] Build the PM4 packet in this buffer.
     ) const
 {
     static_assert(((static_cast<uint32>(index__pfp_load_sh_reg_index__direct_addr)   ==
@@ -2855,16 +3020,19 @@ size_t CmdUtil::BuildLoadShRegsIndex(
                     static_cast<uint32>(data_format__mec_load_sh_reg_index__offset_and_data__GFX103COREPLUS))),
                   "LOAD_SH_REG_INDEX data format enumerations don't match between PFP and MEC!");
 
+    // Index '1' is not implemented.
+    PAL_ASSERT(index != index__pfp_load_sh_reg_index__offset);
+
     constexpr uint32 PacketSize = PM4_PFP_LOAD_SH_REG_INDEX_SIZEDW__CORE;
     auto*const       pPacket    = static_cast<PM4_PFP_LOAD_SH_REG_INDEX*>(pBuffer);
     PM4_PFP_LOAD_SH_REG_INDEX packet = { 0 };
 
     PM4_PFP_TYPE_3_HEADER header;
-    header.u32All         = (Type3Header(IT_LOAD_SH_REG_INDEX, PacketSize, false, shaderType)).u32All;
-    packet.ordinal1.header                = header;
-    packet.ordinal2.u32All                = 0;
+    header.u32All          = (Type3Header(IT_LOAD_SH_REG_INDEX, PacketSize, false, shaderType)).u32All;
+    packet.ordinal1.header = header;
+    packet.ordinal2.u32All = 0;
 
-    if ((m_cpUcodeVersion >= Gfx10UcodeVersionLoadShRegIndexIndirectAddr) && IsGfx103Plus(m_gfxIpLevel))
+    if (HasEnhancedLoadShRegIndex())
     {
         packet.ordinal2.bitfields.gfx103CorePlus.index = index;
     }
@@ -2879,7 +3047,13 @@ size_t CmdUtil::BuildLoadShRegsIndex(
     PAL_ASSERT((HighPart(gpuVirtAddr) & 0xFFFF0000) == 0);
 
     packet.ordinal4.u32All                = 0;
-    packet.ordinal4.bitfields.data_format = data_format__pfp_load_sh_reg_index__offset_and_data;
+    packet.ordinal4.bitfields.data_format = dataFormat;
+
+    if (dataFormat == data_format__pfp_load_sh_reg_index__offset_and_size)
+    {
+        PAL_ASSERT(IsShReg(startRegAddr));
+        packet.ordinal4.bitfields.reg_offset = startRegAddr - PERSISTENT_SPACE_START;
+    }
 
     packet.ordinal5.u32All                = 0;
     packet.ordinal5.bitfields.num_dwords  = count;
@@ -3160,6 +3334,9 @@ size_t CmdUtil::ExplicitBuildReleaseMem(
                   "RELEASE_MEM is different sizes between ME and MEC!");
 
     constexpr uint32 PacketSize = PM4_ME_RELEASE_MEM_SIZEDW__CORE;
+
+    PAL_ASSERT(((releaseMemInfo.vgtEvent != PS_DONE) && (releaseMemInfo.vgtEvent != CS_DONE)) ||
+               (releaseMemInfo.gcrCntl == 0));
 
     PM4_ME_RELEASE_MEM packet     = {};
     packet.ordinal1.header        = Type3Header(IT_RELEASE_MEM, PacketSize);
@@ -4419,7 +4596,8 @@ void CmdUtil::CheckShadowedContextRegs(
         uint32               numEntries = 0;
         const RegisterRange* pRange     = m_device.GetRegisterRange(RegRangeNonShadowed, &numEntries);
 
-        if (false == AreRegistersInRangeList(startRegAddr, endRegAddr, pRange, numEntries))
+        if ((false == AreRegistersInRangeList(startRegAddr, endRegAddr, pRange, numEntries))
+            )
         {
             pRange = m_device.GetRegisterRange(RegRangeContext, &numEntries);
 

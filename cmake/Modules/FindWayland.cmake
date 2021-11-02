@@ -22,6 +22,8 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
+
+# Use pkg-config to get the directories
 FIND_PACKAGE(PkgConfig)
 
 PKG_CHECK_MODULES(PKG_WAYLAND QUIET wayland-client)

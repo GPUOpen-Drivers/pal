@@ -94,6 +94,10 @@ public:
     virtual void CmdBindBorderColorPalette(
         PipelineBindPoint          pipelineBindPoint,
         const IBorderColorPalette* pPalette) override;
+    virtual void CmdSetKernelArguments(
+        uint32            firstArg,
+        uint32            argCount,
+        const void*const* ppValues) override;
     virtual void CmdSetVertexBuffers(
         uint32                firstBuffer,
         uint32                bufferCount,
@@ -685,6 +689,7 @@ private:
     void ReplayCmdBindBorderColorPalette(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdPrimeGpuCaches(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetUserData(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdSetKernelArguments(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetVertexBuffers(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetPerDrawVrsRate(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetVrsCenterState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
@@ -828,7 +833,7 @@ private:
     uint32                       m_counter;
     const EngineType             m_engineType;
     uint32                       m_verificationOptions;
-    const IPipeline*             m_pBoundPipeline;
+    const IPipeline*             m_pBoundPipelines[static_cast<uint32>(PipelineBindPoint::Count)];
     BindTargetParams             m_boundTargets;
     const IColorBlendState*      m_pBoundBlendState;
 

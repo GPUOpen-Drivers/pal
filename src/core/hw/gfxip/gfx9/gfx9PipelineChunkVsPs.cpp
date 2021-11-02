@@ -101,7 +101,7 @@ void PipelineChunkVsPs::EarlyInit(
 // determining the values of other registers.
 void PipelineChunkVsPs::LateInit(
     const AbiReader&                    abiReader,
-    const CodeObjectMetadata&           metadata,
+    const PalAbi::CodeObjectMetadata&   metadata,
     const RegisterVector&               registers,
     const GraphicsPipelineLoadInfo&     loadInfo,
     const GraphicsPipelineCreateInfo&   createInfo,

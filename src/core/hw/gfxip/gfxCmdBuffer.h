@@ -104,10 +104,15 @@ struct PipelineState
 // State active necessary for compute operations. Used by compute and universal command buffers.
 struct ComputeState
 {
+    // If the command buffer is in HSA ABI mode or not. In HSA mode it's not legal to call CmdSetUserData and when not
+    // in HSA mode it's not legal to call CmdSetKernelArguments. This state also controls compute state save/restore
+    // of user-data and kernel arguments and is itself saved and restored.
+    bool                     hsaAbiMode;
     PipelineState            pipelineState;     // Common pipeline state
     DynamicComputeShaderInfo dynamicCsInfo;     // Info used during pipeline bind.
     UserDataEntries          csUserDataEntries;
     gpusize                  dynamicLaunchGpuVa;
+    uint8*                   pKernelArguments;
 };
 
 struct GfxCmdBufferState
@@ -220,6 +225,9 @@ public:
     virtual Result Begin(const CmdBufferBuildInfo& info) override;
     virtual Result End() override;
     virtual Result Reset(ICmdAllocator* pCmdAllocator, bool returnGpuMemory) override;
+
+    virtual void CmdBindPipeline(
+        const PipelineBindParams& params) override;
 
     virtual void CmdCopyImage(
         const IImage&          srcImage,
@@ -536,6 +544,11 @@ public:
         PAL_ASSERT_ALWAYS();
         return 0;
     }
+
+    virtual void CmdSetKernelArguments(
+        uint32            firstArg,
+        uint32            argCount,
+        const void*const* ppValues) override;
 
 protected:
     GfxCmdBuffer(

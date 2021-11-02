@@ -22,6 +22,15 @@
  *  SOFTWARE.
  *
  **********************************************************************************************************************/
+/*****************************************************************************\
+*
+*  Module Name    vambasictypes.h
+*  Project        Radeon
+*
+*  Description    Standard definitions and datatypes to be available for
+*                 different OSes / compilers.
+*
+\*****************************************************************************/
 #ifndef _vam_basic_types_h_
 #define _vam_basic_types_h_
 
@@ -47,7 +56,7 @@
 #if defined(__unix__)
 #include <stdint.h>
 #include <stddef.h>
-#ifndef VAM_CLIENT_DX12_LINUX
+#ifndef VAM_CLIENT_DX12_WINDOWS_SUBSYSTEM
 #define DEFINE_MSWIN_DATATYPES        1 // For Linux we need to define datatypes
 #endif
 #elif (defined (BUILDING_CMMQSLIB) || defined(BUILDING_CMM))

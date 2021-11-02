@@ -2425,19 +2425,6 @@ void LogContext::Struct(
         KeyAndObject("dstImage", value.pDstImage);
     }
 
-    KeyAndBeginMap("mgpuSlsInfo", false);
-    {
-        KeyAndValue("vidPnSourceId", value.mgpuSlsInfo.vidPnSourceId);
-
-        KeyAndBeginList("images", false);
-        for (uint32 idx = 0; idx < value.mgpuSlsInfo.imageCount; ++idx)
-        {
-            Object(value.mgpuSlsInfo.pImage[idx]);
-        }
-        EndList();
-    }
-    EndMap();
-
     EndMap();
 }
 

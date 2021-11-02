@@ -29,7 +29,10 @@
 #include "core/hw/gfxip/gfx9/gfx9ComputePipeline.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9ShaderLibrary.h"
+#include "core/imported/hsa/AMDHSAKernelDescriptor.h"
+#include "core/imported/hsa/amd_hsa_kernel_code.h"
 #include "palFile.h"
+#include "palHsaAbiMetadata.h"
 
 using namespace Util;
 
@@ -65,7 +68,7 @@ ComputePipeline::ComputePipeline(
     m_signature{NullCsSignature},
     m_chunkCs(*pDevice,
               &m_stageInfo,
-              &m_perfDataInfo[static_cast<uint32>(Util::Abi::HardwareStage::Cs)]),
+              &m_perfDataInfo[static_cast<uint32>(Abi::HardwareStage::Cs)]),
     m_disablePartialPreempt(false)
 {
 }
@@ -74,16 +77,157 @@ ComputePipeline::ComputePipeline(
 // Initializes HW-specific state related to this compute pipeline (register values, user-data mapping, etc.) using the
 // specified Pipeline ABI processor.
 Result ComputePipeline::HwlInit(
-    const ComputePipelineCreateInfo& createInfo,
-    const AbiReader&                 abiReader,
-    const CodeObjectMetadata&        metadata,
-    MsgPackReader*                   pMetadataReader)
+    const ComputePipelineCreateInfo&  createInfo,
+    const AbiReader&                  abiReader,
+    const HsaAbi::CodeObjectMetadata& metadata,
+    MsgPackReader*                    pMetadataReader)
 {
-    const Gfx9PalSettings&   settings  = m_pDevice->Settings();
-    const CmdUtil&           cmdUtil   = m_pDevice->CmdUtil();
-    const auto&              regInfo   = cmdUtil.GetRegInfo();
-    const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
+    Result result = Result::Success;
 
+    m_disablePartialPreempt = createInfo.disablePartialDispatchPreemption;
+
+    const llvm::amdhsa::kernel_descriptor_t& desc = KernelDescriptor();
+
+    regCOMPUTE_PGM_RSRC2 computePgmRsrc2 = {};
+    computePgmRsrc2.u32All = desc.compute_pgm_rsrc2;
+    computePgmRsrc2.bitfields.LDS_SIZE =
+        RoundUpQuotient(NumBytesToNumDwords(desc.group_segment_fixed_size), Gfx9LdsDwGranularity);
+
+    regCOMPUTE_NUM_THREAD_X computeNumThreadX = {};
+    regCOMPUTE_NUM_THREAD_Y computeNumThreadY = {};
+    regCOMPUTE_NUM_THREAD_Z computeNumThreadZ = {};
+
+    // The HSA ABI doesn't require a fixed threadgroup X/Y/Z size. Instead it only requires a flat size that puts an
+    // upper limit on the number of threads in the whole dispatch. In general, the exact size and shape of the actual
+    // threadgroup is expected to be a dynamic dispatch-time property. PAL doesn't support this, so the best we can do
+    // is force the threadgroup shape to 1D and assume we need up to the maximum.
+    if ((metadata.RequiredWorkgroupSizeX() != 0) &&
+        (metadata.RequiredWorkgroupSizeY() != 0) &&
+        (metadata.RequiredWorkgroupSizeZ() != 0))
+    {
+        computeNumThreadX.bits.NUM_THREAD_FULL = metadata.RequiredWorkgroupSizeX();
+        computeNumThreadY.bits.NUM_THREAD_FULL = metadata.RequiredWorkgroupSizeY();
+        computeNumThreadZ.bits.NUM_THREAD_FULL = metadata.RequiredWorkgroupSizeZ();
+    }
+    else
+    {
+        computeNumThreadX.bits.NUM_THREAD_FULL = metadata.MaxFlatWorkgroupSize();
+        computeNumThreadY.bits.NUM_THREAD_FULL = 1;
+        computeNumThreadZ.bits.NUM_THREAD_FULL = 1;
+    }
+
+    // These features aren't yet implemented in PAL's HSA ABI path.
+    // - The queue pointer, dispatch ID, flat scratch, or private segment SGPRs.
+    // - Any kind of scratch memory or register spilling.
+    // - Dynamic threadgroup sizes.
+    // - Init or Fini kernels.
+    if (TestAnyFlagSet(desc.kernel_code_properties,
+                       AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_QUEUE_PTR         |
+                       AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_DISPATCH_ID       |
+                       AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_FLAT_SCRATCH_INIT |
+                       AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_PRIVATE_SEGMENT_SIZE) ||
+        (computePgmRsrc2.bits.SCRATCH_EN    != 0) ||
+        (metadata.PrivateSegmentFixedSize() != 0) ||
+        (metadata.KernelKind() != HsaAbi::Kind::Normal))
+    {
+        result = Result::Unsupported;
+    }
+    else
+    {
+        // We only have partial support for the Hidden arguments. We support:
+        // - HiddenNone: Which we just need to allocate and ignore.
+        // - HiddenGlobalOffsetX/Y/Z: Which are the global thread starting offsets (i.e. CmdDispatchOffset).
+        // We permit HiddenMultigridSyncArg but don't actually support it. Normal kernels declare it but never use it.
+        // We don't have any required metadata that lets us distinguish between cases that don't use it and cases that
+        // do use it. We just have to tell users to not use it or they'll get a GPU page fault. The remaining hidden
+        // arguments are not supported and rejected right here.
+        for (uint32 idx = 0; idx < metadata.NumArguments(); ++idx)
+        {
+            const HsaAbi::KernelArgument& arg = metadata.Arguments()[idx];
+
+            if ((arg.valueKind == HsaAbi::ValueKind::HiddenPrintfBuffer)   ||
+                (arg.valueKind == HsaAbi::ValueKind::HiddenHostcallBuffer) ||
+                (arg.valueKind == HsaAbi::ValueKind::HiddenDefaultQueue)   ||
+                (arg.valueKind == HsaAbi::ValueKind::HiddenCompletionAction))
+            {
+                result = Result::Unsupported;
+                break;
+            }
+        }
+    }
+
+    PipelineUploader uploader(m_pDevice->Parent(), abiReader);
+    RegisterVector   registers(m_pDevice->GetPlatform());
+
+    if (result == Result::Success)
+    {
+        result = registers.Insert(mmCOMPUTE_PGM_RSRC1, desc.compute_pgm_rsrc1);
+    }
+
+    if (result == Result::Success)
+    {
+        result = registers.Insert(mmCOMPUTE_PGM_RSRC2, computePgmRsrc2.u32All);
+    }
+
+    if ((result == Result::Success) && IsGfx10Plus(*m_pDevice->Parent()))
+    {
+        result = registers.Insert(Gfx10Plus::mmCOMPUTE_PGM_RSRC3, desc.compute_pgm_rsrc3);
+    }
+
+    if (result == Result::Success)
+    {
+        result = registers.Insert(mmCOMPUTE_NUM_THREAD_X, computeNumThreadX.u32All);
+    }
+
+    if (result == Result::Success)
+    {
+        result = registers.Insert(mmCOMPUTE_NUM_THREAD_Y, computeNumThreadY.u32All);
+    }
+
+    if (result == Result::Success)
+    {
+        result = registers.Insert(mmCOMPUTE_NUM_THREAD_Z, computeNumThreadZ.u32All);
+    }
+
+    if (result == Result::Success)
+    {
+        // Next, handle relocations and upload the pipeline code & data to GPU memory.
+        const PalPublicSettings& settings = *m_pDevice->Parent()->GetPublicSettings();
+        const GpuHeap            heap     = IsInternal() ? GpuHeapLocal : settings.pipelinePreferredHeap;
+
+        result = PerformRelocationsAndUploadToGpuMemory(0u, heap, &uploader);
+    }
+
+    if (result == Result::Success)
+    {
+        // Update the pipeline signature with user-mapping data contained in the ELF:
+        m_chunkCs.SetupSignatureFromElf(&m_signature, metadata, registers);
+
+        const uint32 wavefrontSize = IsWave32() ? 32 : 64;
+
+        m_chunkCs.LateInit(abiReader,
+                           registers,
+                           wavefrontSize,
+                           &m_threadsPerTgX,
+                           &m_threadsPerTgY,
+                           &m_threadsPerTgZ,
+                           &uploader);
+        PAL_ASSERT(m_uploadFenceToken == 0);
+        result = uploader.End(&m_uploadFenceToken);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Initializes HW-specific state related to this compute pipeline (register values, user-data mapping, etc.) using the
+// specified Pipeline ABI processor.
+Result ComputePipeline::HwlInit(
+    const ComputePipelineCreateInfo&  createInfo,
+    const AbiReader&                  abiReader,
+    const PalAbi::CodeObjectMetadata& metadata,
+    MsgPackReader*                    pMetadataReader)
+{
     m_disablePartialPreempt = createInfo.disablePartialDispatchPreemption;
 
     RegisterVector registers(m_pDevice->GetPlatform());
@@ -99,10 +243,10 @@ Result ComputePipeline::HwlInit(
     if (result == Result::Success)
     {
         // Next, handle relocations and upload the pipeline code & data to GPU memory.
-        result = PerformRelocationsAndUploadToGpuMemory(
-            metadata,
-            IsInternal() ? GpuHeapLocal : m_pDevice->Parent()->GetPublicSettings()->pipelinePreferredHeap,
-            &uploader);
+        const PalPublicSettings& settings = *m_pDevice->Parent()->GetPublicSettings();
+        const GpuHeap            heap     = IsInternal() ? GpuHeapLocal : settings.pipelinePreferredHeap;
+
+        result = PerformRelocationsAndUploadToGpuMemory(0u, heap, &uploader);
     }
 
     if (result ==  Result::Success)
@@ -110,7 +254,8 @@ Result ComputePipeline::HwlInit(
         // Update the pipeline signature with user-mapping data contained in the ELF:
         m_chunkCs.SetupSignatureFromElf(&m_signature, metadata, registers);
 
-        const uint32 scratchMemorySize = CalcScratchMemSize(chipProps.gfxLevel, metadata);
+        const uint32 scratchMemorySize = CalcScratchMemSize(m_pDevice->Parent()->ChipProperties().gfxLevel, metadata);
+
         if (scratchMemorySize != 0)
         {
             UpdateRingSizes(scratchMemorySize);
@@ -319,17 +464,6 @@ Result ComputePipeline::GetShaderStats(
             pShaderStats->cs.numThreadsPerGroupZ       = m_threadsPerTgZ;
             pShaderStats->common.gpuVirtAddress        = m_chunkCs.CsProgramGpuVa();
             pShaderStats->common.ldsSizePerThreadGroup = chipProps.gfxip.ldsSizePerThreadGroup;
-
-            AbiReader abiReader(m_pDevice->GetPlatform(), m_pPipelineBinary);
-            result = abiReader.Init();
-
-            MsgPackReader      metadataReader;
-            CodeObjectMetadata metadata;
-
-            if (result == Result::Success)
-            {
-                result = abiReader.GetMetadata(&metadataReader, &metadata);
-            }
         }
     }
 
@@ -347,8 +481,8 @@ void ComputePipeline::SetStackSizeInBytes(
 
 // =====================================================================================================================
 uint32 ComputePipeline::CalcScratchMemSize(
-    GfxIpLevel                gfxIpLevel,
-    const CodeObjectMetadata& metadata)
+    GfxIpLevel                        gfxIpLevel,
+    const PalAbi::CodeObjectMetadata& metadata)
 {
     uint32 scratchMemorySize = 0;
 

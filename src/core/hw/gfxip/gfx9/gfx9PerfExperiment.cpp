@@ -341,7 +341,8 @@ PerfExperiment::PerfExperiment(
     m_pSpmCounters(nullptr),
     m_numSpmCounters(0),
     m_spmRingSize(0),
-    m_spmSampleInterval(0)
+    m_spmSampleInterval(0),
+    m_neverStopCounters(false)
 {
     memset(m_sqtt,           0, sizeof(m_sqtt));
     memset(m_pMuxselRams,    0, sizeof(m_pMuxselRams));
@@ -1705,6 +1706,9 @@ Result PerfExperiment::Finalize()
             m_totalMemSize  = m_spmRingOffset + m_spmRingSize;
         }
 
+        // If someone enabled any SQ counters and the "never stop" workaround is on we must take special action.
+        m_neverStopCounters = m_settings.waNeverStopSqCounters && m_select.sqg->hasCounters;
+
         m_isFinalized = true;
     }
 
@@ -2089,7 +2093,8 @@ void PerfExperiment::IssueEnd(
             // We stop the SPM counters anyway for parity with the global counter path and because it looks good.
             regCP_PERFMON_CNTL cpPerfmonCntl = {};
             cpPerfmonCntl.bits.PERFMON_STATE     = CP_PERFMON_STATE_DISABLE_AND_RESET;
-            cpPerfmonCntl.bits.SPM_PERFMON_STATE = STRM_PERFMON_STATE_STOP_COUNTING;
+            cpPerfmonCntl.bits.SPM_PERFMON_STATE = m_neverStopCounters ? STRM_PERFMON_STATE_DISABLE_AND_RESET
+                                                                       : STRM_PERFMON_STATE_STOP_COUNTING;
 
             pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmCP_PERFMON_CNTL, cpPerfmonCntl.u32All, pCmdSpace);
         }
@@ -2165,12 +2170,36 @@ void PerfExperiment::BeginInternalOps(
 
         // Write CP_PERFMON_CNTL such that SPM and global counters stop counting.
         regCP_PERFMON_CNTL cpPerfmonCntl = {};
-        cpPerfmonCntl.bits.PERFMON_STATE     =
-            m_perfExperimentFlags.perfCtrsEnabled ? CP_PERFMON_STATE_STOP_COUNTING
-                                                  : CP_PERFMON_STATE_DISABLE_AND_RESET;
-        cpPerfmonCntl.bits.SPM_PERFMON_STATE =
-            m_perfExperimentFlags.spmTraceEnabled ? STRM_PERFMON_STATE_STOP_COUNTING
-                                                  : STRM_PERFMON_STATE_DISABLE_AND_RESET;
+
+        if (m_perfExperimentFlags.perfCtrsEnabled == 0)
+        {
+            cpPerfmonCntl.bits.PERFMON_STATE = CP_PERFMON_STATE_DISABLE_AND_RESET;
+        }
+        else if (m_neverStopCounters)
+        {
+            // It's not possible to pause global counters in this mode, we have to keep them running.
+            // This basically breaks this pause functionality but there's nothing we can do about it.
+            cpPerfmonCntl.bits.PERFMON_STATE = CP_PERFMON_STATE_START_COUNTING;
+        }
+        else
+        {
+            cpPerfmonCntl.bits.PERFMON_STATE = CP_PERFMON_STATE_STOP_COUNTING;
+        }
+
+        if (m_perfExperimentFlags.spmTraceEnabled == 0)
+        {
+            cpPerfmonCntl.bits.SPM_PERFMON_STATE = STRM_PERFMON_STATE_DISABLE_AND_RESET;
+        }
+        else if (m_neverStopCounters)
+        {
+            // It's not possible to pause SPM counters in this mode, we have to keep them running.
+            // This basically breaks this pause functionality but there's nothing we can do about it.
+            cpPerfmonCntl.bits.SPM_PERFMON_STATE = STRM_PERFMON_STATE_START_COUNTING;
+        }
+        else
+        {
+            cpPerfmonCntl.bits.SPM_PERFMON_STATE = STRM_PERFMON_STATE_STOP_COUNTING;
+        }
 
         pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmCP_PERFMON_CNTL, cpPerfmonCntl.u32All, pCmdSpace);
 
@@ -2533,9 +2562,7 @@ MuxselEncoding PerfExperiment::BuildMuxselEncoding(
     {
         uint32 counterId = counter;
 
-        if (HasRmiSubInstances(block)
-            && (m_chipProps.gfxLevel < GfxIpLevel::GfxIp10_3)
-            )
+        if (HasRmiSubInstances(block) && (m_chipProps.gfxLevel < GfxIpLevel::GfxIp10_3))
         {
             // Use a non-default mapping of counter select IDs for the RMI block. This changes the counter
             // mapping from {0,..7} to {4,5,6,7,0,1,2,3}
@@ -2995,7 +3022,7 @@ uint32* PerfExperiment::WriteStopThreadTraces(
                 // Use COPY_DATA to read back the info struct one DWORD at a time.
                 const gpusize infoAddr = m_gpuMemory.GpuVirtAddr() + m_sqtt[idx].infoOffset;
 
-                // If each member doesn't start at a DWORD offset this won't wor.
+                // If each member doesn't start at a DWORD offset this won't work.
                 static_assert(offsetof(ThreadTraceInfoData, curOffset)    == 0,                  "");
                 static_assert(offsetof(ThreadTraceInfoData, traceStatus)  == sizeof(uint32),     "");
                 static_assert(offsetof(ThreadTraceInfoData, writeCounter) == sizeof(uint32) * 2, "");
@@ -3167,7 +3194,7 @@ uint32* PerfExperiment::WriteSelectRegisters(
                     regDF_PIE_AON_PerfMonCtlLo0 perfmonCtlLo = {};
                     regDF_PIE_AON_PerfMonCtlHi0 perfmonCtlHi = {};
                     perfmonCtlLo.most.En                = 1;  // 1=enable
-                    perfmonCtlLo.most.UnitMask          = m_select.df.perfmonConfig[idx].eventUnitMask;
+                    perfmonCtlLo.most.UnitMaskLo        = m_select.df.perfmonConfig[idx].eventUnitMask;
                     const uint32 eventSelect            = m_select.df.perfmonConfig[idx].eventSelect;
                     perfmonCtlLo.most.EventSelect_7_0   = BitExtract(eventSelect, 0,  7);
                     perfmonCtlHi.most.EventSelect_11_8  = BitExtract(eventSelect, 8,  11);
@@ -3396,22 +3423,75 @@ uint32* PerfExperiment::WriteStopAndSampleGlobalCounters(
     uint32*       pCmdSpace
     ) const
 {
-    const EngineType engineType = pCmdStream->GetEngineType();
-
     // The recommended sampling procedure: stop windowed, sample, wait-idle, stop global, read values.
-    //
-    // By experimentation, setting the PERFMON_STATE to CP_PERFMON_STATE_STOP_COUNTING interferes with the SQ counter
-    // sampling leading to incorrect and inconsistent counts, so we issue only the event first before reading SQ perf
-    // counter values. Global blocks don't listen to perfcounter events so we must always set PERFMON_SAMPLE_ENABLE
-    // while also issuing the event.
-    pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(PERFCOUNTER_SAMPLE, engineType, pCmdSpace);
-
+    // Global blocks don't listen to perfcounter events so we set PERFMON_SAMPLE_ENABLE while also issuing the event.
+    // We could probably take a long time to study how each specific block responds to events or the sample bit to
+    // come up with the optimal programming.
+    pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(PERFCOUNTER_SAMPLE, pCmdStream->GetEngineType(), pCmdSpace);
     pCmdSpace = WriteWaitIdle(false, pCmdBuffer, pCmdStream, pCmdSpace);
+    pCmdSpace = WriteGrbmGfxIndexBroadcastGlobal(pCmdStream, pCmdSpace);
+    pCmdSpace = WriteUpdateWindowedCounters(false, pCmdStream, pCmdSpace);
+
+    // Trigger a counter sample using CP_PERFMON_CNTL. Ideally we'd also set global counters and SPM counters to
+    // STOP_COUNTING but if it's not safe to do so we need to pick something that works well enough.
+    regCP_PERFMON_CNTL cpPerfmonCntl = {};
+    cpPerfmonCntl.bits.PERFMON_SAMPLE_ENABLE = 1;
+
+    if (m_neverStopCounters == false)
+    {
+        cpPerfmonCntl.bits.PERFMON_STATE = CP_PERFMON_STATE_STOP_COUNTING;
+    }
+    else if (isBeginSample)
+    {
+        // We gather the begin samples before we start the counters. We'd prefer to set them to STOP_COUNTING because
+        // we're not really meant to sample them in reset mode. But, if we can't use STOP_COUNTING it seems that
+        // sampling them while reset is OK. If it's proven that this isn't actually OK then we need to start all
+        // counters before we take the beginning sample, which will run without being paused. This will seriously
+        // distort any clock counting perf counters so it's a last resort.
+        cpPerfmonCntl.bits.PERFMON_STATE = CP_PERFMON_STATE_DISABLE_AND_RESET;
+    }
+    else
+    {
+        // It's not possible to stop global counters in this mode, we have to keep them running.
+        cpPerfmonCntl.bits.PERFMON_STATE = CP_PERFMON_STATE_START_COUNTING;
+    }
+
+    if (m_perfExperimentFlags.spmTraceEnabled == 0)
+    {
+        cpPerfmonCntl.bits.SPM_PERFMON_STATE = STRM_PERFMON_STATE_DISABLE_AND_RESET;
+    }
+    else if (m_neverStopCounters)
+    {
+        // Note that we also can't stop SPM if the workaround is enabled, we'll have to handle that later.
+        cpPerfmonCntl.bits.SPM_PERFMON_STATE = STRM_PERFMON_STATE_START_COUNTING;
+    }
+    else
+    {
+        // This prevents SPM counters from sampling the global counter sampling packets.
+        cpPerfmonCntl.bits.SPM_PERFMON_STATE = STRM_PERFMON_STATE_STOP_COUNTING;
+    }
+
+    pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmCP_PERFMON_CNTL, cpPerfmonCntl.u32All, pCmdSpace);
+
+    // Stop the cfg-style counters too. It's not clear if these are included in the above guidelines so just stop them
+    // at the end to be safe. If we're getting the begin samples we should also initialize these counters by clearing
+    // them.
+    pCmdSpace = WriteEnableCfgRegisters(false, isBeginSample, pCmdStream, pCmdSpace);
+
+    // The old perf experiment code also sets the RLC's PERFMON_SAMPLE_ENABLE bit each time it samples. I can't find
+    // any documentation that has anything to say at all about this field so let's just do the same thing.
+    if (HasGenericCounters(GpuBlock::Rlc))
+    {
+        regRLC_PERFMON_CNTL rlcPerfmonCntl = {};
+        rlcPerfmonCntl.bits.PERFMON_STATE         = CP_PERFMON_STATE_STOP_COUNTING;
+        rlcPerfmonCntl.bits.PERFMON_SAMPLE_ENABLE = 1;
+
+        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(mmRLC_PERFMON_CNTL, rlcPerfmonCntl.u32All, pCmdSpace);
+    }
 
     // Copy each counter's value from registers to memory, one at a time.
     const gpusize destBaseAddr = m_gpuMemory.GpuVirtAddr() + (isBeginSample ? m_globalBeginOffset : m_globalEndOffset);
 
-    // A first pass to gather counter values only from the SQ block.
     for (uint32 idx = 0; idx < m_globalCounters.NumElements(); ++idx)
     {
         const GlobalCounterMapping& mapping  = m_globalCounters.At(idx);
@@ -3434,45 +3514,7 @@ uint32* PerfExperiment::WriteStopAndSampleGlobalCounters(
             pCmdStream->CommitCommands(pCmdSpace);
             pCmdSpace = pCmdStream->ReserveCommands();
         }
-    }
-
-    pCmdSpace = WriteGrbmGfxIndexBroadcastGlobal(pCmdStream, pCmdSpace);
-    pCmdSpace = WriteUpdateWindowedCounters(false, pCmdStream, pCmdSpace);
-
-    // Stop the global counters. If SPM is enabled we also stop its counters so that they don't sample our sampling.
-    regCP_PERFMON_CNTL cpPerfmonCntl = {};
-    cpPerfmonCntl.bits.PERFMON_SAMPLE_ENABLE = 1;
-    cpPerfmonCntl.bits.PERFMON_STATE         = CP_PERFMON_STATE_STOP_COUNTING;
-    cpPerfmonCntl.bits.SPM_PERFMON_STATE     =
-        m_perfExperimentFlags.spmTraceEnabled ? STRM_PERFMON_STATE_STOP_COUNTING
-                                              : STRM_PERFMON_STATE_DISABLE_AND_RESET;
-
-    pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmCP_PERFMON_CNTL, cpPerfmonCntl.u32All, pCmdSpace);
-
-    // Stop the cfg-style counters too. It's not clear if these are included in the above guidelines so just stop them
-    // at the end to be safe. If we're getting the begin samples we should also initialize these counters by clearing
-    // them.
-    pCmdSpace = WriteEnableCfgRegisters(false, isBeginSample, pCmdStream, pCmdSpace);
-
-    // The old perf experiment code also sets the RLC's PERFMON_SAMPLE_ENABLE bit each time it samples. I can't find
-    // any documentation that has anything to say at all about this field so let's just do the same thing.
-    if (HasGenericCounters(GpuBlock::Rlc))
-    {
-        regRLC_PERFMON_CNTL rlcPerfmonCntl = {};
-        rlcPerfmonCntl.bits.PERFMON_STATE         = CP_PERFMON_STATE_STOP_COUNTING;
-        rlcPerfmonCntl.bits.PERFMON_SAMPLE_ENABLE = 1;
-
-        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(mmRLC_PERFMON_CNTL, rlcPerfmonCntl.u32All, pCmdSpace);
-    }
-
-    // Perform a second pass for reading counter values from registers for all blocks other than SQ.
-    for (uint32 idx = 0; idx < m_globalCounters.NumElements(); ++idx)
-    {
-        const GlobalCounterMapping& mapping  = m_globalCounters.At(idx);
-        const uint32                instance = mapping.general.globalInstance;
-        const uint32                block    = static_cast<uint32>(mapping.general.block);
-
-        if (mapping.general.block == GpuBlock::GrbmSe)
+        else if (mapping.general.block == GpuBlock::GrbmSe)
         {
             // The per-SE counters are different from the generic case in two ways:
             // 1. The GRBM is a global block so we need to use global broadcasting.
@@ -3574,9 +3616,9 @@ uint32* PerfExperiment::WriteStopAndSampleGlobalCounters(
                                               pCmdStream,
                                               pCmdSpace);
         }
-        else if (mapping.general.block != GpuBlock::Sq)
+        else
         {
-            // We handle the SQ counters separately. What block did we forget to implement?
+            // What block did we forget to implement?
             PAL_ASSERT_ALWAYS();
         }
 

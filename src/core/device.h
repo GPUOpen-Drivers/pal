@@ -66,7 +66,6 @@ class  OssDevice;
 class  Platform;
 class  SettingsLoader;
 class  Queue;
-struct ApplicationProfile;
 struct DeviceFinalizeInfo;
 struct CmdBufferInternalCreateInfo;
 struct GpuMemoryInternalCreateInfo;
@@ -660,6 +659,8 @@ struct GpuChipProperties
     uint32   vcnEncodeFwInterfaceVersionMinor;  // VCN Video encode firmware interface minor version
     uint32   vcnFwVersionSubMinor;              // VCN Video firmware sub-minor version (revision)
 
+    uint32   pfpUcodeVersion;                   // PFP ucode version for some features
+
     struct
     {
         union
@@ -740,7 +741,8 @@ struct GpuChipProperties
             uint32 supportsHwVs                :  1; // Indicates hardware support for Vertex Shaders
             uint32 reserved3                   :  1;
             uint32 supportCaptureReplay        :  1; // Indicates support for Capture Replay
-            uint32 reserved                    : 27;
+            uint32 supportHsaAbi               :  1;
+            uint32 reserved                    : 26;
         };
     } gfxip;
 #endif
@@ -813,6 +815,7 @@ struct GpuChipProperties
                 uint32 support8bitIndices                       :  1;
                 uint32 support16BitInstructions                 :  1;
                 uint32 support64BitInstructions                 :  1;
+                uint32 supportFloatAtomics                      :  1;
                 uint32 supportIndexAttribIndirectPkt            :  1;  // Indicates support for INDEX_ATTRIB_INDIRECT
                 uint32 supportSetShIndexPkt                     :  1;  // Indicates support for packet SET_SH_REG_INDEX
                 uint32 supportLoadRegIndexPkt                   :  1;  // Indicates support for LOAD_*_REG_INDEX packets
@@ -831,7 +834,7 @@ struct GpuChipProperties
                 uint32 supportOutOfOrderPrimitives              :  1; // HW supports higher throughput for out of order
                 uint32 supportShaderSubgroupClock               :  1; // HW supports clock functions across subgroup.
                 uint32 supportShaderDeviceClock                 :  1; // HW supports clock functions across device.
-                uint32 reserved                                 : 10;
+                uint32 reserved                                 :  9;
             };
 
             Gfx6PerfCounterInfo perfCounterInfo; // Contains information for perf counters for a specific hardware block
@@ -907,6 +910,7 @@ struct GpuChipProperties
                 uint64 supportFp16Dot2                    :  1;
                 uint64 support16BitInstructions           :  1;
                 uint64 support64BitInstructions           :  1;
+                uint64 supportFloatAtomics                :  1;
                 uint64 supportDoubleRate16BitInstructions :  1;
                 uint64 rbPlus                             :  1;
                 uint64 supportConservativeRasterization   :  1;
@@ -960,7 +964,7 @@ struct GpuChipProperties
                 uint64 supportInt8Dot                     :  1; // HW supports a dot product 8bit.
                 uint64 supportInt4Dot                     :  1; // HW supports a dot product 4bit.
                 uint64 support2DRectList                  :  1; // HW supports PrimitiveTopology::TwoDRectList.
-                uint64 reserved                           : 17;
+                uint64 reserved                           : 16;
             };
 
             RayTracingIpLevel rayTracingIp;      //< HW RayTracing IP version
@@ -1145,12 +1149,6 @@ public:
     Result SplitImgBarriers(
         AcquireReleaseInfo* pBarrier,
         bool*               pMemAllocated) const;
-
-    // Queries a PX application profile for the specified application filename and pathname.
-    virtual Result QueryApplicationProfile(
-        const char*         pFilename,
-        const char*         pPathname,
-        ApplicationProfile* pOut) const = 0;
 
     virtual Result QueryRawApplicationProfile(
         const char*              pFilename,
@@ -2545,10 +2543,9 @@ inline bool IsNavi23(const Device& device)
 }
 inline bool IsNavi2x(const Device& device)
 {
-    return (false
-            || IsNavi21(device)
-            || IsNavi22(device)
-            || IsNavi23(device)
+    return (IsNavi21(device) ||
+            IsNavi22(device) ||
+            IsNavi23(device)
            );
 }
 

@@ -132,15 +132,9 @@ Pal::Result CreateMlaaComputePipelines(
         break;
 
     case Pal::AsicRevision::Navi21:
-        pTable = mlaaComputeBinaryTableNavi21;
-        break;
-
     case Pal::AsicRevision::Navi22:
-        pTable = mlaaComputeBinaryTableNavi22;
-        break;
-
     case Pal::AsicRevision::Navi23:
-        pTable = mlaaComputeBinaryTableNavi23;
+        pTable = mlaaComputeBinaryTableNavi21;
         break;
 
     default:

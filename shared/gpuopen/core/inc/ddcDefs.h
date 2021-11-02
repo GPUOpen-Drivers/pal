@@ -14,7 +14,6 @@
     #define DD_CPLUSPLUS __cplusplus
 #endif
 // Denotes versions of the C++ standard from __cplusplus.
-// See here for details on what values you can expect:
 #define CPP98 (199711L)
 #define CPP11 (201103L)
 #define CPP14 (201402L)
@@ -68,8 +67,6 @@ static_assert(DD_CPLUSPLUS_SUPPORTS(CPP11), "C++11 is required to build devdrive
     #include <type_traits>
 
     // Conditionally expose a `value` member using SFINAE and `std::enable_if`.
-    // For a more complete overview, see:
-    // [C++]
     // tl:dr; If left != right, prints an error message that includes the template type.
     //          We only do this because static_assert can't take format arguments.
     template <size_t left, size_t right>

@@ -296,6 +296,17 @@ struct RegisterLibraryInfo
     Pal::uint64 apiHash; ///< Client-provided api hash.
 };
 
+/// Struct for supplying Elf binary.
+struct ElfBinaryInfo
+{
+    const void* pBinary;          ///< FAT Elf binary.
+    Pal::uint32 binarySize;       ///< FAT Elf binary size.
+    Pal::IGpuMemory* pGpuMemory;  ///< GPU Memory where the compiled ISA resides.
+    Pal::gpusize offset;          ///< Offset inside GPU memory object
+    Pal::uint64 originalHash;     ///< Original source/binary hash.
+    Pal::uint64 compiledHash;     ///< Compiled binary hash.
+};
+
 /// Enumeration of RGP trace profiling modes
 enum class TraceProfilingMode : Pal::uint32
 {
@@ -668,6 +679,21 @@ public:
     /// @returns Success if the library has been unregistered with GpaSession successfully.
     Pal::Result UnregisterLibrary(const Pal::IShaderLibrary* pLibrary);
 
+    /// Register ELF binary with GpaSession for obtaining kernel dumps and load events in the RGP file.
+    ///
+    /// @param [in] elfBinaryInfo Contains information about the Elf binary to be recorded.
+    ///
+    /// @returns Success if the Elf binary has been registered with GpaSession successfully.
+    Pal::Result RegisterElfBinary(const ElfBinaryInfo& elfBinaryInfo);
+
+    /// Unregister Elf binary with GpaSession for obtaining unload events in the RGP file.
+    /// This should be called immediately before destroying the Elf binary.
+    ///
+    /// @param [in] elfBinaryInfo  Contains the elf binary info to be removed from tracking.
+    ///
+    /// @returns Success if the library has been unregistered with GpaSession successfully.
+    Pal::Result UnregisterElfBinary(const ElfBinaryInfo& elfBinaryInfo);
+
     /// Given a Pal device, validate a list of perfcounters.
     ///
     /// @param [in] pDevice      a given device
@@ -933,6 +959,7 @@ private:
 
     Pal::Result AddCodeObjectLoadEvent(const Pal::IPipeline* pPipeline, CodeObjectLoadEventType eventType);
     Pal::Result AddCodeObjectLoadEvent(const Pal::IShaderLibrary* pLibrary, CodeObjectLoadEventType eventType);
+    Pal::Result AddCodeObjectLoadEvent(const ElfBinaryInfo& elfBinaryInfo, CodeObjectLoadEventType eventType);
 
     // recycle used Gart rafts and put back to available pool
     void RecycleGartGpuMem();

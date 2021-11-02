@@ -247,6 +247,7 @@ typedef MultiSubmitInfo SubmitInfo;
 /// The value of blockIfFlippingCount in @ref SubmitInfo cannot be greater than this value.
 constexpr uint32 MaxBlockIfFlippingCount = 16;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 686
 /// The value of imageCount in @ref MgpuSlsInfo cannot be greater than this value.
 constexpr uint32 MaxMgpuSlsImageCount = 3;
 
@@ -263,6 +264,7 @@ struct MgpuSlsInfo
                                                 /// property/dimensions. MgpuSlsInfo is provided to the Master's flip
                                                 /// engine, so pImage[i] is a peer image.
 };
+#endif
 
 /// Specifies properties for the presentation of an image to the screen.  Input structure to IQueue::PresentDirect().
 struct PresentDirectInfo
@@ -301,7 +303,9 @@ struct PresentDirectInfo
                                         ///  but PAL may still call into the OS on certain platforms that expect it.
     };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 686
     MgpuSlsInfo     mgpuSlsInfo;    ///< Optional, MGpu Sls Present Info. imageCount = 0 if not a Mgpu Sls present.
+#endif
 };
 
 /// Media stream counter information.

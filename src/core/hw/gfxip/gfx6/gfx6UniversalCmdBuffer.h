@@ -65,7 +65,9 @@ struct UniversalCmdBufferState
             uint32 deCounterDirty       :  1;
             uint32 containsDrawIndirect :  1;
             uint32 optimizeLinearGfxCpy :  1;
-            uint32 reserved             : 25;
+            uint32 occlusionQueriesActive : 1; // Indicates if the current validated cmd buf state has occulsion
+                                               // queries enabled.
+            uint32 reserved             : 24;
         };
         uint32 u32All;
     } flags;
@@ -94,8 +96,7 @@ struct DrawTimeHwState
             uint32 vgtLsHsConfig    :  1; // Set when vgtLsHsConfig matches the HW value.
             uint32 iaMultiVgtParam  :  1; // Set when iaMultiVgtParam matches the HW value.
             uint32 paScModeCntl1    :  1; // Set when paScModeCntl1 matches the HW value.
-            uint32 dbCountControl   :  1; // Set when dbCountControl matches the HW value.
-            uint32 reserved         : 24; // Reserved bits
+            uint32 reserved         : 25; // Reserved bits
         };
         uint32     u32All;                // The flags as a single integer.
     } valid;                              // Draw state valid flags.
@@ -117,7 +118,6 @@ struct DrawTimeHwState
     uint32                vertexOffset;     // The current value of the vertex offset user data.
     uint32                numInstances;     // The current value of the NUM_INSTANCES state.
     uint32                drawIndex;        // The current value of the draw index user data
-    regDB_COUNT_CONTROL   dbCountControl;   // The current value of the DB_COUNT_CONTROL register.
     regVGT_LS_HS_CONFIG   vgtLsHsConfig;    // The current value of the VGT_LS_HS_CONFIG register.
     regIA_MULTI_VGT_PARAM iaMultiVgtParam;  // The current value of the IA_MULTI_VGT_PARAM register.
     regPA_SC_MODE_CNTL_1  paScModeCntl1;    // The current value of the PA_SC_MODE_CNTL1 register.
@@ -469,7 +469,6 @@ protected:
         regIA_MULTI_VGT_PARAM   iaMultiVgtParam,
         regVGT_LS_HS_CONFIG     vgtLsHsConfig,
         regPA_SC_MODE_CNTL_1    paScModeCntl1,
-        regDB_COUNT_CONTROL     dbCountControl,
         const ValidateDrawInfo& drawInfo,
         uint32*                 pDeCmdSpace);
 
@@ -550,9 +549,7 @@ private:
     virtual void ActivateQueryType(QueryPoolType queryPoolType) override;
 
     template <bool pm4OptImmediate>
-    uint32* UpdateDbCountControl(uint32               log2SampleRate,
-                                 regDB_COUNT_CONTROL* pDbCountControl,
-                                 uint32*              pDeCmdSpace);
+    uint32* UpdateDbCountControl(uint32 log2SampleRate, uint32* pDeCmdSpace);
 
     void UpdatePrimGroupOpt(uint32 vxtIdxCount);
     void DisablePrimGroupOpt();
@@ -698,6 +695,7 @@ private:
                                                         // DB_RENDER_OVERRIDE register.
     regPA_SU_LINE_STIPPLE_CNTL  m_paSuLineStippleCntl;  // Last written value of PA_SU_LINE_STIPPLE_CNTL
     regPA_SC_LINE_STIPPLE       m_paScLineStipple;      // Last written value of PA_SC_LINE_STIPPLE
+
     WorkaroundState  m_workaroundState;  // Manages several hardware workarounds whose states change between draws.
     DrawTimeHwState  m_drawTimeHwState;  // Tracks certain bits of HW-state that might need to be updated per draw.
 

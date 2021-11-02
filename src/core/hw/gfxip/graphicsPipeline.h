@@ -73,10 +73,10 @@ protected:
     GraphicsPipeline(Device* pDevice, bool isInternal);
 
     virtual Result HwlInit(
-        const GraphicsPipelineCreateInfo& createInfo,
-        const AbiReader&                  abiReader,
-        const CodeObjectMetadata&         metadata,
-        Util::MsgPackReader*              pMetadataReader) = 0;
+        const GraphicsPipelineCreateInfo&       createInfo,
+        const AbiReader&                        abiReader,
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        Util::MsgPackReader*                    pMetadataReader) = 0;
 
     bool IsDccDecompress()      const { return m_flags.dccDecompress; }
     bool IsResolveFixedFunc()   const { return m_flags.resolveFixedFunc; }

@@ -85,6 +85,7 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdBindDepthStencilState,
     CmdBufferCmdSetDepthBounds,
     CmdBufferCmdSetUserData,
+    CmdBufferCmdSetKernelArguments,
     CmdBufferCmdSetVertexBuffers,
     CmdBufferCmdBindIndexData,
     CmdBufferCmdBindTargets,

@@ -195,8 +195,7 @@ static void UpdateUmcchBlockInfo(
             SET_UMCCH_INSTANCE_REGS(Nv21, 14);
             SET_UMCCH_INSTANCE_REGS(Nv21, 15);
         }
-        else
-        if (IsNavi22(device))
+        else if (IsNavi22(device))
         {
             SET_UMCCH_INSTANCE_REGS(Nv22, 1);
             SET_UMCCH_INSTANCE_REGS(Nv22, 3);
@@ -209,8 +208,7 @@ static void UpdateUmcchBlockInfo(
             SET_UMCCH_INSTANCE_REGS(Nv22, 10);
             SET_UMCCH_INSTANCE_REGS(Nv22, 11);
         }
-        else
-        if (IsNavi23(device))
+        else if (IsNavi23(device))
         {
             SET_UMCCH_INSTANCE_REGS(Nv23, 1);
             SET_UMCCH_INSTANCE_REGS(Nv23, 3);
@@ -464,8 +462,7 @@ static void Gfx10UpdateSdmaBlockInfo(
         pInfo->sdmaRegAddr[1][1] = { Nv21::mmSDMA1_PERFCOUNTER1_SELECT,   Nv21::mmSDMA1_PERFCOUNTER1_SELECT1,
                                      Nv21::mmSDMA1_PERFCOUNTER1_LO,       Nv21::mmSDMA1_PERFCOUNTER1_HI };
     }
-    else
-    if (IsGfx103(device))
+    else if (IsGfx103(device))
     {
         pInfo->sdmaRegAddr[0][0] = { Gfx103CorePlus::mmSDMA0_PERFCOUNTER0_SELECT, Gfx103CorePlus::mmSDMA0_PERFCOUNTER0_SELECT1,
                                      Gfx103CorePlus::mmSDMA0_PERFCOUNTER0_LO,     Gfx103CorePlus::mmSDMA0_PERFCOUNTER0_HI };
@@ -1430,8 +1427,7 @@ static void Gfx10InitBasicBlockInfo(
     // Sets the register addresses.
     Gfx10UpdateAtcBlockInfo(device, pAtc);
 
-    if (true
-        && (IsNavi2x(device) == false)
+    if ((IsNavi2x(device) == false)
         )
     {
         PerfCounterBlockInfo*const pAtcL2 = &pInfo->block[static_cast<uint32>(GpuBlock::AtcL2)];
@@ -1579,7 +1575,6 @@ static void Gfx10InitBasicBlockInfo(
     }
 
     // The following blocks are new or renamed in gfx10.
-
     if (IsGfx103Plus(device))
     {
         using namespace Gfx103Plus;
@@ -1816,10 +1811,7 @@ static void Gfx10InitBasicBlockInfo(
     }};
 
     // The GUS and the blocks that exist to service it should exist as a unit. They are present on all gfx10.1 ASICs.
-    if (IsGfx101(device)
-        // Since gfx10.2, only dGPUs have a GUS.
-        || (IsGfx103Plus(device) && (pProps->gpuType == GpuType::Discrete))
-        )
+    if (IsGfx101(device) || (IsGfx103Plus(device) && (pProps->gpuType == GpuType::Discrete)))
     {
         // The CHCG connects the CH to the GUS, similar to how the CHC connects the CH to the GL2.
         PerfCounterBlockInfo*const pChcg = &pInfo->block[static_cast<uint32>(GpuBlock::Chcg)];
@@ -1857,7 +1849,7 @@ static void Gfx10InitBasicBlockInfo(
 
     // The DF counters should be accessible in earlier hardware but gfx10.3 is when the UMD was given permission
     // to program the DF perfcounter registers.
-    if (IsNavi2x(device))
+    if (IsGfx103Plus(device))
     {
         // The data fabric (DF) perf counters are shared by all DF subblocks (e.g., the MALL). At the hardware level,
         // the DF's event selects combine the typical event ID with the instance ID of the target subblock. There is

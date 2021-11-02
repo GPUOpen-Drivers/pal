@@ -95,6 +95,53 @@ struct DeviceConstructorParams
     const drmPciBusInfo&        pciBusInfo;
 };
 
+// the struct is used for sharing metadata with mesa3d, the definition have to follow Mesa's way.
+// dword 0 indicate metadata format identifier,dword 1 indicate vendor info and asic info,
+// dword 2~9 indicate image srd, whoes definition of some dwords is different from pal's srd,
+// define only the used bits by mesa now.
+struct MesaUmdMetaData
+{
+    union
+    {
+        struct
+        {
+            uint64 version                            : 32;
+            uint64 asicId                             : 16;
+            uint64 vendorId                           : 16;
+        };
+        uint64 u64All[1];
+        uint32 u32All[2];
+    } header;
+    union
+    {
+        struct
+        {
+            uint64                                    : 64;
+            uint64                                    : 64;
+            uint64                                    : 64;
+            uint64                                    : 19;
+            uint64 metaPipeAligned                    :  1;
+            uint64                                    :  1;
+            uint64 compressionEnable                  :  1;
+            uint64                                    :  2;
+            uint64 metaDataOffset                     : 40;
+        } gfx10;
+        uint64 u64All[4];
+        uint32 u32All[8];
+    } imageSrd;
+};
+
+// =====================================================================================================================
+static inline bool IsMesaMetadata(
+    const amdgpu_bo_metadata& metadata)
+{
+    // mesa set metadata[0] = 1 for version
+    // size_metadata should < PRO_UMD_METADATA_SIZE, else treat it as valid amdgpu-pro metadata
+    auto*const pRawMetaData = reinterpret_cast<const uint32*>(&metadata.umd_metadata);
+
+    return ((pRawMetaData[0] == 1) && (metadata.size_metadata < PRO_UMD_METADATA_SIZE));
+}
+
 // =====================================================================================================================
 // Linux flavor of the Device class. Objects of this class are responsible for managing virtual address space via VAM
 // and implementing the factory methods exposed by the public IDevice interface.
@@ -138,11 +185,6 @@ public:
     virtual Result GetMultiGpuCompatibility(
             const IDevice&        otherDevice,
             GpuCompatibilityInfo* pInfo) const override;
-
-    virtual Result QueryApplicationProfile(
-            const char*         pFilename,
-            const char*         pPathname,
-            ApplicationProfile* pOut) const override { return Result::Unsupported; }
 
     virtual Result QueryRawApplicationProfile(
             const char*              pFilename,

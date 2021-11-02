@@ -497,6 +497,9 @@ enum class Result : int32
 
     /// The permission of operation is denied.
     ErrorPermissionDenied                   = -(0x00000066),
+
+    /// The operation failed because the disk is full.
+    ErrorDiskFull                           = -(0x00000067),
 };
 
 /// Length of date field used in BuildUniqueId

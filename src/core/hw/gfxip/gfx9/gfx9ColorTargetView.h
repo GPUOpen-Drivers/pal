@@ -79,7 +79,7 @@ public:
         CmdStream*   pCmdStream,
         uint32*      pCmdSpace) const;
 
-    static uint32* HandleBoundTargetsChanged(uint32* pCmdSpace);
+    static uint32* HandleBoundTargetsChanged(const CmdUtil& cmdUtil, uint32* pCmdSpace);
 
     TargetExtent2d GetExtent() const { return m_extent; }
 
@@ -254,6 +254,12 @@ struct Gfx10ColorTargetViewRegs
     regCB_COLOR0_DCC_BASE     cbColorDccBase;
     regCB_COLOR0_ATTRIB2      cbColorAttrib2;
     regCB_COLOR0_ATTRIB3      cbColorAttrib3;
+
+    // This four registers are added to support PAL's high-address bits on gfx10 CB
+    regCB_COLOR0_BASE_EXT       cbColorBaseExt;
+    regCB_COLOR0_DCC_BASE_EXT   cbColorDccBaseExt;
+    regCB_COLOR0_FMASK_BASE_EXT cbColorFmaskBaseExt;
+    regCB_COLOR0_CMASK_BASE_EXT cbColorCmaskBaseExt;
 
     gpusize  fastClearMetadataGpuVa;
 };

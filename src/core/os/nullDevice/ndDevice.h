@@ -362,11 +362,6 @@ private:
 
     virtual Result OsLateInit() override;
 
-    virtual Result QueryApplicationProfile(
-        const char*         pFilename,
-        const char*         pPathname,
-        ApplicationProfile* pOut) const override;
-
     virtual Result QueryRawApplicationProfile(
         const char*              pFilename,
         const char*              pPathname,

@@ -70,12 +70,12 @@ void PipelineChunkEsGs::EarlyInit(
 // Late initialization for this pipeline chunk.  Responsible for fetching register values from the pipeline binary and
 // determining the values of other registers.  Also uploads register state into GPU memory.
 void PipelineChunkEsGs::LateInit(
-    const AbiReader&                abiReader,
-    const CodeObjectMetadata&       metadata,
-    const RegisterVector&           registers,
-    const GraphicsPipelineLoadInfo& loadInfo,
-    PipelineUploader*               pUploader,
-    MetroHash64*                    pHasher)
+    const AbiReader&                  abiReader,
+    const PalAbi::CodeObjectMetadata& metadata,
+    const RegisterVector&             registers,
+    const GraphicsPipelineLoadInfo&   loadInfo,
+    PipelineUploader*                 pUploader,
+    MetroHash64*                      pHasher)
 {
     const Gfx6PalSettings&   settings  = m_device.Settings();
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();

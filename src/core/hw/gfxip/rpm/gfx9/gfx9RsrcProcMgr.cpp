@@ -41,6 +41,7 @@
 #include "core/hw/gfxip/gfx9/gfx9IndirectCmdGenerator.h"
 #include "core/hw/gfxip/gfx9/gfx9Image.h"
 #include "core/hw/gfxip/gfx9/gfx9UniversalCmdBuffer.h"
+#include "core/hw/gfxip/rpm/gfx9/gfx9EchoGlobalTableBinaries.h"
 #include "core/hw/gfxip/rpm/gfx9/gfx9RsrcProcMgr.h"
 #include "core/hw/gfxip/rpm/rpmUtil.h"
 #include "palAutoBuffer.h"
@@ -143,8 +144,63 @@ RsrcProcMgr::RsrcProcMgr(
     :
     Pal::RsrcProcMgr(pDevice),
     m_pDevice(pDevice),
-    m_cmdUtil(pDevice->CmdUtil())
+    m_cmdUtil(pDevice->CmdUtil()),
+    m_pEchoGlobalTablePipeline(nullptr)
 {
+}
+
+// =====================================================================================================================
+RsrcProcMgr::~RsrcProcMgr()
+{
+    // This must be destroyed in Cleanup().
+    PAL_ASSERT(m_pEchoGlobalTablePipeline == nullptr);
+}
+
+// =====================================================================================================================
+Result RsrcProcMgr::LateInit()
+{
+    Result result = Pal::RsrcProcMgr::LateInit();
+
+    if (result == Result::Success)
+    {
+        ComputePipelineCreateInfo pipeInfo = {};
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
+        pipeInfo.flags.overrideGpuHeap = 1;
+        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
+#endif
+        const bool supportsHsaAbi = (m_pDevice->Parent()->ChipProperties().gfxip.supportHsaAbi == 1);
+
+        // For now we only expect to support this on a subset of gfx10 ASICs due to missing CP support.
+        if (supportsHsaAbi && IsGfx10(*m_pDevice->Parent()))
+        {
+            pipeInfo.pPipelineBinary    = Gfx10EchoGlobalTableElfBinary;
+            pipeInfo.pipelineBinarySize = sizeof(Gfx10EchoGlobalTableElfBinary);
+        }
+
+        if (pipeInfo.pPipelineBinary != nullptr)
+        {
+            result = m_pDevice->CreateComputePipelineInternal(pipeInfo, &m_pEchoGlobalTablePipeline, AllocInternal);
+        }
+        else if (supportsHsaAbi)
+        {
+            // We shouldn't advertise HSA ABI support if we didn't create this pipeline.
+            result = Result::ErrorUnavailable;
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+void RsrcProcMgr::Cleanup()
+{
+    if (m_pEchoGlobalTablePipeline != nullptr)
+    {
+        m_pEchoGlobalTablePipeline->DestroyInternal();
+        m_pEchoGlobalTablePipeline = nullptr;
+    }
+
+    Pal::RsrcProcMgr::Cleanup();
 }
 
 // CompSetting is a "helper" enum used in the CB's algorithm for deriving an ideal SPI_SHADER_EX_FORMAT
@@ -1174,6 +1230,21 @@ const Pal::GraphicsPipeline* RsrcProcMgr::GetGfxPipelineByTargetIndexAndFormat(
     PAL_ASSERT(pipelineOffset >= 0);
 
     return GetGfxPipeline(static_cast<RpmGfxPipeline>(basePipeline + pipelineOffset + targetIndex * NumExportFormats));
+}
+
+// =====================================================================================================================
+// Returns true if there is graphics pipeline that can copy specified format.
+const bool RsrcProcMgr::IsGfxPipelineForFormatSupported(
+    SwizzledFormat format
+    ) const
+{
+    const SPI_SHADER_EX_FORMAT exportFormat = DeterminePsExportFmt(format,
+                                                                   false,  // Blend disabled
+                                                                   true,   // Alpha is exported
+                                                                   false,  // Blend Source Alpha disabled
+                                                                   false); // Alpha-to-Coverage disabled
+
+    return ExportStateMapping[exportFormat] >= 0;
 }
 
 // =====================================================================================================================
@@ -3879,6 +3950,45 @@ void RsrcProcMgr::CmdCopyImageToMemory(
             }
         } // end loop through copy regions
     } // end check for trivial case
+}
+
+// =====================================================================================================================
+// The queue preamble streams set COMPUTE_USER_DATA_0 to the address of the global internal table, as required by the
+// PAL compute pipeline ABI. If we overwrite that register in a command buffer we need some way to restore it the next
+// time we bind a compute pipeline. We don't know the address of the internal table at the time we build command
+// buffers so we must query it dynamically on the GPU. Unfortunately the CP can't read USER_DATA registers so we must
+// use a special pipeline to simply read the table address from user data and write it to a known GPU address.
+//
+// This function binds and executes that special compute pipeline. It will write the low 32-bits of the global internal
+// table address to dstAddr. Later on, we can tell the CP to read those bits and write them to COMPUTE_USER_DATA_0.
+void RsrcProcMgr::EchoGlobalInternalTableAddr(
+    GfxCmdBuffer* pCmdBuffer,
+    gpusize       dstAddr
+    ) const
+{
+    pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, m_pEchoGlobalTablePipeline, InternalApiPsoHash});
+
+    const uint32 userData[2] = { LowPart(dstAddr), HighPart(dstAddr) };
+    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, 2, userData );
+    pCmdBuffer->CmdDispatch(1, 1, 1);
+    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+
+    // We need a CS wait-for-idle before we try to restore the global internal table user data. There are a few ways
+    // we could acomplish that, but the most simple way is to just do a wait for idle right here. We only need to
+    // call this function once per command buffer (and only if we use a non-PAL ABI pipeline) so it should be fine.
+    Pal::CmdStream* pCmdStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
+    uint32*         pCmdSpace  = pCmdStream->ReserveCommands();
+
+    pCmdSpace += m_cmdUtil.BuildWaitCsIdle(pCmdBuffer->GetEngineType(), pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
+
+    if (pCmdBuffer->IsGraphicsSupported())
+    {
+        // Note that we also need a PFP_SYNC_ME on any graphics queues because the PFP loads from this memory.
+        pCmdSpace += m_cmdUtil.BuildPfpSyncMe(pCmdSpace);
+    }
+
+    pCmdStream->CommitCommands(pCmdSpace);
 }
 
 // ====================================================================================================================
@@ -6988,7 +7098,7 @@ void Gfx10RsrcProcMgr::CopyVrsIntoHtile(
     // image are idle, HTile writes have been flushed down from the DB, and all stale HTile data has been invalidated
     // in the shader caches.
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
-    pCmdSpace += CmdUtil::BuildNonSampleEventWrite(FLUSH_AND_INV_DB_META, pCmdBuffer->GetEngineType(), pCmdSpace);
+    pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(FLUSH_AND_INV_DB_META, pCmdBuffer->GetEngineType(), pCmdSpace);
     pCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEventTs(pCmdBuffer->GetEngineType(),
                                                         BOTTOM_OF_PIPE_TS,
                                                         TcCacheOp::InvL1,

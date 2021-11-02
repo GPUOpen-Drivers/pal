@@ -71,6 +71,28 @@ SectionId Reader::FindSection(const char* pName) const
 }
 
 // =====================================================================================================================
+Result Reader::GetSymbol(
+    const Elf::SymbolTableEntry& symbol,
+    const void**                 ppData
+    ) const
+{
+    Result result = Result::ErrorInvalidPipelineElf;
+
+    if (symbol.st_shndx != 0)
+    {
+        const void* pSection = GetSectionData(symbol.st_shndx);
+
+        if ((symbol.st_size + symbol.st_value) <= GetSection(symbol.st_shndx).sh_size)
+        {
+            *ppData = VoidPtrInc(pSection, static_cast<size_t>(symbol.st_value));
+            result  = Result::Success;
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 Result Reader::CopySymbol(
     const Elf::SymbolTableEntry& symbol,
     size_t*                      pSize,

@@ -64,7 +64,7 @@ ShaderLibrary::~ShaderLibrary()
 // =====================================================================================================================
 // Check wavefront size and set the m_hwInfo.flags.isWave32 flag
 void ShaderLibrary::SetIsWave32(
-    const CodeObjectMetadata& metadata)
+    const PalAbi::CodeObjectMetadata& metadata)
 {
     // We don't bother checking the wavefront size for pre-Gfx10 GPU's since it is implicitly 64 before Gfx10. Any ELF
     // which doesn't specify a wavefront size is assumed to use 64, even on Gfx10 and newer.
@@ -84,10 +84,10 @@ void ShaderLibrary::SetIsWave32(
 // Initializes HW-specific state related to this shader library object (register values, user-data mapping, etc.)
 // using the specified library ABI processor.
 Result ShaderLibrary::HwlInit(
-    const ShaderLibraryCreateInfo& createInfo,
-    const AbiReader&               abiReader,
-    const CodeObjectMetadata&      metadata,
-    Util::MsgPackReader*           pMetadataReader)
+    const ShaderLibraryCreateInfo&    createInfo,
+    const AbiReader&                  abiReader,
+    const PalAbi::CodeObjectMetadata& metadata,
+    Util::MsgPackReader*              pMetadataReader)
 {
     const Gfx9PalSettings&   settings  = m_pDevice->Settings();
     const CmdUtil&           cmdUtil   = m_pDevice->CmdUtil();
@@ -253,8 +253,8 @@ Result ShaderLibrary::GetShaderFunctionStats(
         }
     }
 
-    MsgPackReader      metadataReader;
-    CodeObjectMetadata metadata;
+    MsgPackReader              metadataReader;
+    PalAbi::CodeObjectMetadata metadata;
 
     if (result == Result::Success)
     {
@@ -291,10 +291,10 @@ Result ShaderLibrary::GetShaderFunctionStats(
 // =====================================================================================================================
 // Obtains the shader function stack frame size
 Result ShaderLibrary::UnpackShaderFunctionStats(
-    const char*               pShaderExportName,
-    const CodeObjectMetadata& metadata,
-    Util::MsgPackReader*      pMetadataReader,
-    ShaderLibStats*           pShaderStats
+    const char*                       pShaderExportName,
+    const PalAbi::CodeObjectMetadata& metadata,
+    Util::MsgPackReader*              pMetadataReader,
+    ShaderLibStats*                   pShaderStats
     ) const
 {
     Result result = pMetadataReader->Seek(metadata.pipeline.shaderFunctions);

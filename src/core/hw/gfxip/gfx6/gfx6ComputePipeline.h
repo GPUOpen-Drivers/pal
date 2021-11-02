@@ -65,10 +65,10 @@ public:
 
 protected:
     virtual Result HwlInit(
-        const ComputePipelineCreateInfo& createInfo,
-        const AbiReader&                 abiReader,
-        const CodeObjectMetadata&        metadata,
-        Util::MsgPackReader*             pMetadataReader) override;
+        const ComputePipelineCreateInfo&        createInfo,
+        const AbiReader&                        abiReader,
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        Util::MsgPackReader*                    pMetadataReader) override;
 
 private:
     uint32* WriteShCommandsSetPath(CmdStream* pCmdStream, uint32* pCmdSpace) const;
@@ -78,8 +78,8 @@ private:
     void UpdateRingSizes(uint32 scratchMemorySize);
 
     void SetupSignatureFromElf(
-        const CodeObjectMetadata& metadata,
-        const RegisterVector&     registers);
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        const RegisterVector&                   registers);
 
     Device*const  m_pDevice;
 

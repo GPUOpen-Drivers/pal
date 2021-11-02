@@ -69,7 +69,7 @@ public:
 
     virtual ~ShaderLibrary();
 
-    void SetIsWave32(const CodeObjectMetadata& metadata);
+    void SetIsWave32(const Util::PalAbi::CodeObjectMetadata& metadata);
     bool IsWave32() const { return m_hwInfo.flags.isWave32; }
 
     const LibraryHwInfo& HwInfo() const {  return m_hwInfo; }
@@ -89,16 +89,16 @@ public:
 protected:
 
     virtual Result HwlInit(
-        const ShaderLibraryCreateInfo& createInfo,
-        const AbiReader&               abiReader,
-        const CodeObjectMetadata&      metadata,
-        Util::MsgPackReader*           pMetadataReader) override;
+        const ShaderLibraryCreateInfo&          createInfo,
+        const AbiReader&                        abiReader,
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        Util::MsgPackReader*                    pMetadataReader) override;
 
     Result UnpackShaderFunctionStats(
-        const char*               pShaderExportName,
-        const CodeObjectMetadata& metadata,
-        Util::MsgPackReader*      pMetadataReader,
-        ShaderLibStats*           pShaderStats) const;
+        const char*                             pShaderExportName,
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        Util::MsgPackReader*                    pMetadataReader,
+        ShaderLibStats*                         pShaderStats) const;
 
     // Update m_hwInfo afer HwlInit
     void UpdateHwInfo();

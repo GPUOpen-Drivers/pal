@@ -932,6 +932,7 @@ Result Device::ExtractPerfCounterInfo(
                                                    : perfExpProps.blocks[blockIdx].maxGlobalSharedCounters;
             // All DF instances share same limited set of global block counters, so we need to adjust the counting
             const bool   countAsGlobalOnly = (pPerfCounters[i].block == GpuBlock::DfMall) ? true : false;
+
             const uint64 instanceMask = pPerfCounters[i].instanceMask;
             for (uint32 j = 0; j < pPerfCounters[i].instanceCount; j++)
             {

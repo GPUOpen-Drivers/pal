@@ -340,6 +340,9 @@ typedef xcb_randr_get_output_info_reply_t* (*XcbRandrGetOutputInfoReply)(
             xcb_randr_get_output_info_cookie_t    cookie,
             xcb_generic_error_t**                 ppError);
 
+typedef uint8_t* (*XcbRandrGetOutputInfoName)(
+            xcb_randr_get_output_info_reply_t* pOutReply);
+
 typedef xcb_randr_output_t* (*XcbRandrGetCrtcInfoOutputs)(
             xcb_randr_get_crtc_info_reply_t*  pCrtcInfoReply);
 
@@ -837,6 +840,12 @@ struct Dri3LoaderFuncs
     bool pfnXcbRandrGetOutputInfoReplyisValid() const
     {
         return (pfnXcbRandrGetOutputInfoReply != nullptr);
+    }
+
+    XcbRandrGetOutputInfoName             pfnXcbRandrGetOutputInfoName;
+    bool pfnXcbRandrGetOutputInfoNameisValid() const
+    {
+        return (pfnXcbRandrGetOutputInfoName != nullptr);
     }
 
     XcbRandrGetCrtcInfoOutputs            pfnXcbRandrGetCrtcInfoOutputs;
@@ -1560,6 +1569,15 @@ public:
     bool pfnXcbRandrGetOutputInfoReplyisValid() const
     {
         return (m_pFuncs->pfnXcbRandrGetOutputInfoReply != nullptr);
+    }
+
+    xcb_randr_get_output_info_reply_t* pfnXcbRandrGetOutputInfoName(
+        const xcb_randr_get_output_info_reply_t*  pOutReply
+        ) const;
+
+    bool pfnXcbRandrGetOutputInfoNameisValid() const
+    {
+        return (m_pFuncs->pfnXcbRandrGetOutputInfoName != nullptr);
     }
 
     xcb_randr_output_t* pfnXcbRandrGetCrtcInfoOutputs(

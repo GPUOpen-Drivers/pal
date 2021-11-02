@@ -54,6 +54,9 @@ public:
 
     static constexpr bool ForceGraphicsFillMemoryPath = false;
 
+    virtual Result LateInit() override;
+    virtual void Cleanup() override;
+
     void CmdCopyMemory(
         GfxCmdBuffer*           pCmdBuffer,
         const GpuMemory&        srcGpuMemory,
@@ -156,9 +159,13 @@ public:
         const Image&        gfxImage,
         const SubresRange&  range) const;
 
+    void EchoGlobalInternalTableAddr(
+        GfxCmdBuffer* pCmdBuffer,
+        gpusize       dstAddr) const;
+
 protected:
     explicit RsrcProcMgr(Device* pDevice);
-    virtual ~RsrcProcMgr() {}
+    virtual ~RsrcProcMgr();
 
     uint32  GetInitHtileClearMask(
         const Image&       dstImage,
@@ -171,6 +178,9 @@ protected:
     virtual const Pal::GraphicsPipeline* GetGfxPipelineByTargetIndexAndFormat(
         RpmGfxPipeline basePipeline,
         uint32         targetIndex,
+        SwizzledFormat format) const override;
+
+    virtual const bool IsGfxPipelineForFormatSupported(
         SwizzledFormat format) const override;
 
     virtual bool CopyImageUseMipLevelInSrd(bool isCompressed) const override
@@ -423,6 +433,8 @@ private:
         bool           shaderExportsAlpha,
         bool           blendSrcAlphaToColor,
         bool           enableAlphaToCoverage) const;
+
+    Pal::ComputePipeline* m_pEchoGlobalTablePipeline;
 
     PAL_DISALLOW_DEFAULT_CTOR(RsrcProcMgr);
     PAL_DISALLOW_COPY_AND_ASSIGN(RsrcProcMgr);

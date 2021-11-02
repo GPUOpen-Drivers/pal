@@ -35,9 +35,8 @@ class Platform;
 
 // =====================================================================================================================
 // SvmMgr provides a clean interface between PAL and the BestFitAllocator, which is used to allocate and free GPU
-// virtual address space for SVM allocations on Windows WDDM2 and Linux platforms.
+// virtual address space for SVM allocations on Windows and Linux platforms.
 // This GPU virtual address is shared with CPU.
-// On WDDM1 platforms, VamMgr provides VA managements for SVM.
 //
 // Some commonly used abbreviations throughout the implementation of this class:
 //     - VA:  Virtual address

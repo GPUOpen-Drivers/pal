@@ -485,20 +485,6 @@ void UniversalCmdBuffer::ResetState()
     // uses it.
     m_drawTimeHwState.valid.drawIndex = 1;
 
-    // DB_COUNT_CONTROL register is always valid on a nested command buffer because only some bits are inherited
-    // and will be updated if necessary in UpdateDbCountControl.
-    if (IsNested())
-    {
-        m_drawTimeHwState.valid.dbCountControl = 1;
-    }
-
-    if (chipProps.gfxLevel != GfxIpLevel::GfxIp6)
-    {
-        m_drawTimeHwState.dbCountControl.bits.ZPASS_ENABLE__CI__VI      = 1;
-        m_drawTimeHwState.dbCountControl.bits.SLICE_EVEN_ENABLE__CI__VI = 1;
-        m_drawTimeHwState.dbCountControl.bits.SLICE_ODD_ENABLE__CI__VI  = 1;
-    }
-
     m_vertexOffsetReg = UserDataNotMapped;
     m_drawIndexReg    = UserDataNotMapped;
 
@@ -3552,14 +3538,13 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         }
     }
 
-    regDB_COUNT_CONTROL dbCountControl = m_drawTimeHwState.dbCountControl;
     if (stateDirty && (dirtyFlags.msaaState || dirtyFlags.occlusionQueryActive))
     {
         // MSAA sample rates are associated with the MSAA state object, but the sample rate affects how queries are
         // processed (via DB_COUNT_CONTROL). We need to update the value of this register at draw-time since it is
         // affected by multiple elements of command-buffer state.
         const uint32 log2OcclusionQuerySamples = (pMsaaState != nullptr) ? pMsaaState->Log2OcclusionQuerySamples() : 0;
-        pDeCmdSpace = UpdateDbCountControl<pm4OptImmediate>(log2OcclusionQuerySamples, &dbCountControl, pDeCmdSpace);
+        pDeCmdSpace = UpdateDbCountControl<pm4OptImmediate>(log2OcclusionQuerySamples, pDeCmdSpace);
     }
 
     // Before we do per-draw HW state validation we need to get a copy of the current IA_MULTI_VGT_PARAM register. This
@@ -3663,7 +3648,6 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     pDeCmdSpace = ValidateDrawTimeHwState<indexed, indirect, pm4OptImmediate>(iaMultiVgtParam,
                                                                               vgtLsHsConfig,
                                                                               paScModeCntl1,
-                                                                              dbCountControl,
                                                                               drawInfo,
                                                                               pDeCmdSpace);
 
@@ -3922,7 +3906,6 @@ uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
     regIA_MULTI_VGT_PARAM   iaMultiVgtParam, // The value of the draw preamble's IA_MULTI_VGT_PARAM register.
     regVGT_LS_HS_CONFIG     vgtLsHsConfig,   // The value of the draw preamble's VGT_LS_HS_CONFIG register.
     regPA_SC_MODE_CNTL_1    paScModeCntl1,   // The value of PA_SC_MODE_CNTL_1 register.
-    regDB_COUNT_CONTROL     dbCountControl,  // The value of DB_COUNT_CONTROL register
     const ValidateDrawInfo& drawInfo,        // Draw info
     uint32*                 pDeCmdSpace)     // Write new draw-engine commands here.
 {
@@ -3953,17 +3936,6 @@ uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
 
         pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<pm4OptImmediate>(mmPA_SC_MODE_CNTL_1,
                                                                            paScModeCntl1.u32All,
-                                                                           pDeCmdSpace);
-    }
-
-    if ((m_drawTimeHwState.dbCountControl.u32All != dbCountControl.u32All) ||
-        (m_drawTimeHwState.valid.dbCountControl == 0))
-    {
-        m_drawTimeHwState.dbCountControl.u32All = dbCountControl.u32All;
-        m_drawTimeHwState.valid.dbCountControl = 1;
-
-        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<pm4OptImmediate>(mmDB_COUNT_CONTROL,
-                                                                           dbCountControl.u32All,
                                                                            pDeCmdSpace);
     }
 
@@ -4362,7 +4334,7 @@ void UniversalCmdBuffer::DeactivateQueryType(
     case QueryPoolType::Occlusion:
         // The value of DB_COUNT_CONTROL depends on both the active occlusion queries and the bound MSAA state
         // object, so we validate it at draw-time.
-        m_graphicsState.dirtyFlags.validationBits.occlusionQueryActive = 1;
+        m_graphicsState.dirtyFlags.validationBits.occlusionQueryActive = m_state.flags.occlusionQueriesActive;
         break;
 
     default:
@@ -4394,7 +4366,7 @@ void UniversalCmdBuffer::ActivateQueryType(
     case QueryPoolType::Occlusion:
         // The value of DB_COUNT_CONTROL depends on both the active occlusion queries and the bound MSAA state
         // object, so we validate it at draw-time.
-        m_graphicsState.dirtyFlags.validationBits.occlusionQueryActive = 1;
+        m_graphicsState.dirtyFlags.validationBits.occlusionQueryActive = (m_state.flags.occlusionQueriesActive == 0);
         break;
 
     default:
@@ -4411,66 +4383,56 @@ void UniversalCmdBuffer::ActivateQueryType(
 template <bool pm4OptImmediate>
 uint32* UniversalCmdBuffer::UpdateDbCountControl(
     uint32               log2SampleRate,  // MSAA sample rate associated with a bound MSAA state object
-    regDB_COUNT_CONTROL* pDbCountControl,
     uint32*              pDeCmdSpace)
 {
     const bool HasActiveQuery = IsQueryActive(QueryPoolType::Occlusion) &&
                                 (NumActiveQueries(QueryPoolType::Occlusion) != 0);
 
-    if (HasActiveQuery)
+    regDB_COUNT_CONTROL dbCountControl              = {0};
+    dbCountControl.bits.SAMPLE_RATE                 = log2SampleRate;
+    dbCountControl.bits.SLICE_EVEN_ENABLE__CI__VI   = 1;
+    dbCountControl.bits.SLICE_ODD_ENABLE__CI__VI    = 1;
+
+    if (IsNested() &&
+        m_graphicsState.inheritedState.stateFlags.occlusionQuery &&
+        (HasActiveQuery == false))
     {
-        // Only update the value of DB_COUNT_CONTROL if there are active queries. If no queries are active,
-        // the new SAMPLE_RATE value is ignored by the HW and the register will be written the next time a query
-        // is activated.
-        pDbCountControl->bits.SAMPLE_RATE = log2SampleRate;
-    }
-    else if (IsNested())
-    {
-        // Only update DB_COUNT_CONTROL if necessary
-        if (pDbCountControl->bits.SAMPLE_RATE != log2SampleRate)
-        {
-            // MSAA sample rates are associated with the MSAA state object, but the sample rate affects how queries are
-            // processed (via DB_COUNT_CONTROL). We need to update the value of this register.
-            pDbCountControl->bits.SAMPLE_RATE = log2SampleRate;
-
-            // In a nested command buffer, the number of active queries is unknown because the caller may have some
-            // number of active queries when executing the nested command buffer. In this case, the only safe thing
-            // to do is to issue a register RMW operation to update the SAMPLE_RATE field of DB_COUNT_CONTROL.
-            pDeCmdSpace = m_deCmdStream.WriteContextRegRmw<pm4OptImmediate>(mmDB_COUNT_CONTROL,
-                                                                            DB_COUNT_CONTROL__SAMPLE_RATE_MASK,
-                                                                            pDbCountControl->u32All,
-                                                                            pDeCmdSpace);
-        }
-    }
-
-    if (HasActiveQuery ||
-        (IsNested() && m_graphicsState.inheritedState.stateFlags.occlusionQuery))
-    {
-        //   Since 8xx, the ZPass count controls have moved to a separate register call DB_COUNT_CONTROL.
-        //   PERFECT_ZPASS_COUNTS forces all partially covered tiles to be detail walked, and not setting it will count
-        //   all HiZ passed tiles as 8x#samples worth of zpasses.  Therefore in order for vis queries to get the right
-        //   zpass counts, PERFECT_ZPASS_COUNTS should be set to 1, but this will hurt performance when z passing
-        //   geometry does not actually write anything (ZFail Shadow volumes for example).
-
-        // Hardware does not enable depth testing when issuing a depth only render pass with depth writes disabled.
-        // Unfortunately this corner case prevents depth tiles from being generated and when setting
-        // PERFECT_ZPASS_COUNTS = 0, the hardware relies on counting at the tile granularity for binary occlusion
-        // queries.  With the depth test disabled and PERFECT_ZPASS_COUNTS = 0, there will be 0 tiles generated which
-        // will cause the binary occlusion test to always generate depth pass counts of 0.
-        // Setting PERFECT_ZPASS_COUNTS = 1 forces tile generation and reliable binary occlusion query results.
-        pDbCountControl->bits.PERFECT_ZPASS_COUNTS    = 1;
-
-        // Gfx6 and Gfx7/8 ASICs have different master enable flags
-        pDbCountControl->bits.ZPASS_ENABLE__CI__VI    = 1;
-        pDbCountControl->bits.ZPASS_INCREMENT_DISABLE = 0;
+        // In a nested command buffer, the number of active queries is unknown because the caller may have some
+        // number of active queries when executing the nested command buffer. In this case, we must make sure that
+        // update the sample count without disabling occlusion queries.
+        pDeCmdSpace = m_deCmdStream.WriteContextRegRmw<pm4OptImmediate>(mmDB_COUNT_CONTROL,
+                                                                        DB_COUNT_CONTROL__SAMPLE_RATE_MASK,
+                                                                        dbCountControl.u32All,
+                                                                        pDeCmdSpace);
     }
     else
     {
-        // Disable Z-pass queries
-        pDbCountControl->bits.PERFECT_ZPASS_COUNTS    = 0;
-        pDbCountControl->bits.ZPASS_ENABLE__CI__VI    = 0;
-        pDbCountControl->bits.ZPASS_INCREMENT_DISABLE = 1;
+        if (HasActiveQuery)
+        {
+            //   Since 8xx, the ZPass count controls have moved to a separate register call DB_COUNT_CONTROL.
+            //   PERFECT_ZPASS_COUNTS forces all partially covered tiles to be detail walked, and not setting it will count
+            //   all HiZ passed tiles as 8x#samples worth of zpasses.  Therefore in order for vis queries to get the right
+            //   zpass counts, PERFECT_ZPASS_COUNTS should be set to 1, but this will hurt performance when z passing
+            //   geometry does not actually write anything (ZFail Shadow volumes for example).
+
+            // Hardware does not enable depth testing when issuing a depth only render pass with depth writes disabled.
+            // Unfortunately this corner case prevents depth tiles from being generated and when setting
+            // PERFECT_ZPASS_COUNTS = 0, the hardware relies on counting at the tile granularity for binary occlusion
+            // queries.  With the depth test disabled and PERFECT_ZPASS_COUNTS = 0, there will be 0 tiles generated which
+            // will cause the binary occlusion test to always generate depth pass counts of 0.
+            // Setting PERFECT_ZPASS_COUNTS = 1 forces tile generation and reliable binary occlusion query results.
+            dbCountControl.bits.PERFECT_ZPASS_COUNTS    = 1;
+
+            dbCountControl.bits.ZPASS_ENABLE__CI__VI    = 1;
+            dbCountControl.bits.ZPASS_INCREMENT_DISABLE = 0;
+        }
+
+        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<pm4OptImmediate>(mmDB_COUNT_CONTROL,
+                                                                           dbCountControl.u32All,
+                                                                           pDeCmdSpace);
     }
+
+    m_state.flags.occlusionQueriesActive = HasActiveQuery;
 
     return pDeCmdSpace;
 }
@@ -5165,6 +5127,18 @@ void UniversalCmdBuffer::CmdExecuteNestedCmdBuffers(
     uint32            cmdBufferCount,
     ICmdBuffer*const* ppCmdBuffers)
 {
+    // Need to validate some state as it is valid for root CmdBuf to set state, not issue a draw and expect
+    // that state to inherit into the nested CmdBuf.
+    const auto dirtyFlags  = m_graphicsState.dirtyFlags.validationBits;
+    if (dirtyFlags.occlusionQueryActive)
+    {
+        uint32*    pDeCmdSpace                 = m_deCmdStream.ReserveCommands();
+        const auto*const pMsaaState            = static_cast<const MsaaState*>(m_graphicsState.pMsaaState);
+        const uint32 log2OcclusionQuerySamples = (pMsaaState != nullptr) ? pMsaaState->Log2OcclusionQuerySamples() : 0;
+        pDeCmdSpace                            = UpdateDbCountControl<false>(log2OcclusionQuerySamples, pDeCmdSpace);
+        m_deCmdStream.CommitCommands(pDeCmdSpace);
+    }
+
     for (uint32 buf = 0; buf < cmdBufferCount; ++buf)
     {
         auto*const pCallee = static_cast<Gfx6::UniversalCmdBuffer*>(ppCmdBuffers[buf]);

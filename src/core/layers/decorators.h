@@ -260,12 +260,6 @@ public:
         void*    pStorage[MaxScreens],
         IScreen* pScreens[MaxScreens]) override;
 
-    virtual Result QueryApplicationProfile(
-        const char*         pFilename,
-        const char*         pPathname,
-        ApplicationProfile* pOut) override
-        { return m_pNextLayer->QueryApplicationProfile(pFilename, pPathname, pOut); }
-
     virtual Result QueryRawApplicationProfile(
         const char*              pFilename,
         const char*              pPathname,
@@ -1301,11 +1295,17 @@ public:
         const IDepthStencilState* pDepthStencilState) override
         { m_pNextLayer->CmdBindDepthStencilState(NextDepthStencilState(pDepthStencilState)); }
 
+    virtual void CmdSetKernelArguments(
+        uint32            firstArg,
+        uint32            argCount,
+        const void*const* ppValues) override
+        { m_pNextLayer->CmdSetKernelArguments(firstArg, argCount, ppValues); }
+
     virtual void CmdSetVertexBuffers(
         uint32                firstBuffer,
         uint32                bufferCount,
         const BufferViewInfo* pBuffers) override
-    { m_pNextLayer->CmdSetVertexBuffers(firstBuffer, bufferCount, pBuffers); }
+        { m_pNextLayer->CmdSetVertexBuffers(firstBuffer, bufferCount, pBuffers); }
 
     virtual void CmdBindIndexData(
         gpusize   gpuAddr,
@@ -2491,6 +2491,8 @@ public:
     virtual const ImageMemoryLayout& GetMemoryLayout() const override
         { return m_pNextLayer->GetMemoryLayout(); }
 
+    virtual const void* GetResourceId() const override { return m_pNextLayer->GetResourceId(); }
+
     virtual Result GetFullSubresourceRange(
         SubresRange* pRange) const override
         { return m_pNextLayer->GetFullSubresourceRange(pRange); }
@@ -2716,6 +2718,9 @@ public:
 
     virtual Util::Abi::ApiHwShaderMapping ApiHwShaderMapping() const override
         { return m_pNextLayer->ApiHwShaderMapping(); }
+
+    virtual const Util::HsaAbi::KernelArgument* GetKernelArgument(uint32 index) const override
+        { return m_pNextLayer->GetKernelArgument(index); }
 
     // Part of the IDestroyable public interface.
     virtual void Destroy() override
@@ -3128,6 +3133,9 @@ public:
         { return m_pNextLayer->WaitIdle(); }
 
     virtual bool NeedWindowSizeChangedCheck() const override { return m_pNextLayer->NeedWindowSizeChangedCheck(); }
+
+    virtual Result SetHdrMetaData(const ScreenColorConfig& colorConfig) override
+        { return m_pNextLayer->SetHdrMetaData(colorConfig); }
 
     const IDevice*  GetDevice() const { return m_pDevice; }
     ISwapChain*     GetNextLayer() const { return m_pNextLayer; }

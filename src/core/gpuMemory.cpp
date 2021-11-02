@@ -363,6 +363,9 @@ Result GpuMemory::Init(
 {
     m_pImage = static_cast<Image*>(createInfo.pImage);
 
+    // store the requested size before any alignment
+    m_desc.clientSize            = createInfo.size;
+
     m_desc.flags.isVirtual       = createInfo.flags.virtualAlloc || createInfo.flags.sdiExternal;
     m_desc.flags.isExternPhys    = createInfo.flags.sdiExternal;
     m_desc.flags.isExternal      = internalInfo.flags.isExternal;
@@ -783,8 +786,9 @@ Result GpuMemory::Init(
 
     m_flags.useReservedGpuVa = createInfo.flags.useReservedGpuVa;
 
-    m_desc.size      = createInfo.size;
-    m_desc.alignment = createInfo.alignment;
+    m_desc.clientSize = createInfo.size; // store the requested size before any alignment
+    m_desc.size       = createInfo.size;
+    m_desc.alignment  = createInfo.alignment;
     if (createInfo.flags.gl2Uncached)
     {
         m_mtype = MType::Uncached;
@@ -862,11 +866,12 @@ Result GpuMemory::Init(
     m_flags.nonLocalOnly = 1; // Pinned allocations always go into a non-local heap.
     m_flags.cpuVisible   = 1; // Pinned allocations are by definition CPU visible.
 
-    m_pPinnedMemory  = createInfo.pSysMem;
-    m_mallPolicy     = createInfo.mallPolicy;
-    m_mallRange      = createInfo.mallRange;
-    m_desc.size      = createInfo.size;
-    m_desc.alignment = (createInfo.alignment != 0) ? createInfo.alignment
+    m_pPinnedMemory   = createInfo.pSysMem;
+    m_mallPolicy      = createInfo.mallPolicy;
+    m_mallRange       = createInfo.mallRange;
+    m_desc.clientSize = createInfo.size; // store the requested size before any alignment
+    m_desc.size       = createInfo.size;
+    m_desc.alignment  = (createInfo.alignment != 0) ? createInfo.alignment
                                                    : m_pDevice->MemoryProperties().realMemAllocGranularity;
 
     m_vaPartition                    = m_pDevice->ChooseVaPartition(createInfo.vaRange, false);
@@ -910,14 +915,15 @@ Result GpuMemory::Init(
 Result GpuMemory::Init(
     const GpuMemoryOpenInfo& openInfo)
 {
-    m_pOriginalMem   = static_cast<GpuMemory*>(openInfo.pSharedMem);
-    m_desc.size      = m_pOriginalMem->m_desc.size;
-    m_desc.alignment = m_pOriginalMem->m_desc.alignment;
-    m_vaPartition    = m_pOriginalMem->m_vaPartition;
-    m_mtype          = m_pOriginalMem->m_mtype;
-    m_heapCount      = m_pOriginalMem->m_heapCount;
-    m_mallPolicy     = m_pOriginalMem->MallPolicy();
-    m_mallRange      = m_pOriginalMem->MallRange();
+    m_pOriginalMem    = static_cast<GpuMemory*>(openInfo.pSharedMem);
+    m_desc.clientSize = m_pOriginalMem->m_desc.clientSize;
+    m_desc.size       = m_pOriginalMem->m_desc.size;
+    m_desc.alignment  = m_pOriginalMem->m_desc.alignment;
+    m_vaPartition     = m_pOriginalMem->m_vaPartition;
+    m_mtype           = m_pOriginalMem->m_mtype;
+    m_heapCount       = m_pOriginalMem->m_heapCount;
+    m_mallPolicy      = m_pOriginalMem->MallPolicy();
+    m_mallRange       = m_pOriginalMem->MallRange();
 
     for (uint32 i = 0; i < m_heapCount; ++i)
     {
@@ -982,14 +988,15 @@ Result GpuMemory::Init(
 Result GpuMemory::Init(
     const PeerGpuMemoryOpenInfo& peerInfo)
 {
-    m_pOriginalMem   = static_cast<GpuMemory*>(peerInfo.pOriginalMem);
-    m_desc.size      = m_pOriginalMem->m_desc.size;
-    m_desc.alignment = m_pOriginalMem->m_desc.alignment;
-    m_vaPartition    = m_pOriginalMem->m_vaPartition;
-    m_mtype          = m_pOriginalMem->m_mtype;
-    m_heapCount      = m_pOriginalMem->m_heapCount;
-    m_mallPolicy     = m_pOriginalMem->MallPolicy();
-    m_mallRange      = m_pOriginalMem->MallRange();
+    m_pOriginalMem    = static_cast<GpuMemory*>(peerInfo.pOriginalMem);
+    m_desc.clientSize = m_pOriginalMem->m_desc.clientSize;
+    m_desc.size       = m_pOriginalMem->m_desc.size;
+    m_desc.alignment  = m_pOriginalMem->m_desc.alignment;
+    m_vaPartition     = m_pOriginalMem->m_vaPartition;
+    m_mtype           = m_pOriginalMem->m_mtype;
+    m_heapCount       = m_pOriginalMem->m_heapCount;
+    m_mallPolicy      = m_pOriginalMem->MallPolicy();
+    m_mallRange       = m_pOriginalMem->MallRange();
 
     for (uint32 i = 0; i < m_heapCount; ++i)
     {

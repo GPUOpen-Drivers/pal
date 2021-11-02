@@ -25,11 +25,46 @@
 
 #include "palAssert.h"
 #include "palFile.h"
+#include "palSysUtil.h"
 #include <cstdio>
 #include <sys/stat.h>
 
 namespace Util
 {
+// =====================================================================================================================
+// 64-bit platform-agnostic stat()
+Result File::GetStat(
+    const char* pFilename,
+    Stat*     pStatus)
+{
+    PAL_ASSERT(pStatus != nullptr);
+
+    // On non-MSVC the function/struct to retrieve file status information is named `stat` (no underscore)
+    // There's also no distinction between `stat` and `stat64` outside of the kernel.
+    struct stat status{};
+    const int32 ret = stat(pFilename, &status);
+
+    // The size is the only critical member which must be 64-bit.
+    static_assert(sizeof(Stat::size) == sizeof(status.st_size), "File::Status::size size mismatch");
+
+    // There were compiler errors with getting 64-bit timestamps on some 32-bit linux builds.
+    // Otherwise we'd be asserting for them just like st_size.
+    // A 32-bit timestamp will last us until 2038, so it's probably okay.
+
+    // The other members we don't particularly care about their sizes.
+    // The sizes can vary widely based on platform, library, and architecture.
+    // We don't anticipate losing any data if the sizes are off.
+
+    pStatus->size   = static_cast<decltype(Stat::size)>(status.st_size);
+    pStatus->ctime  = static_cast<decltype(Stat::ctime)>(status.st_ctime);
+    pStatus->atime  = static_cast<decltype(Stat::atime)>(status.st_atime);
+    pStatus->mtime  = static_cast<decltype(Stat::mtime)>(status.st_mtime);
+    pStatus->mode   = static_cast<decltype(Stat::mode)>(status.st_mode);
+    pStatus->nlink  = static_cast<decltype(Stat::nlink)>(status.st_nlink);
+    pStatus->dev    = static_cast<decltype(Stat::dev)>(status.st_dev);
+
+    return (ret == 0) ? Result::Success : ConvertErrno(errno);
+}
 
 // =====================================================================================================================
 // Opens a file stream for read, write or append access.
@@ -66,7 +101,7 @@ Result File::Open(
     }
     else
     {
-        char fileMode[5] = { };
+        char fileMode[5]{};
 
         switch (accessFlags)
         {
@@ -132,10 +167,10 @@ Result File::Open(
         if (result == Result::Success)
         {
             // Just use the traditional fopen.
-            m_pFileHandle = fopen(pFilename, &fileMode[0]);
+            m_pFileHandle = fopen(pFilename, fileMode);
             if (m_pFileHandle == nullptr)
             {
-                result = Result::ErrorUnknown;
+                result = ConvertErrno(errno);
             }
         }
     }
@@ -181,7 +216,7 @@ Result File::Write(
     {
         if (fwrite(pBuffer, 1, bufferSize, m_pFileHandle) != bufferSize)
         {
-            result = Result::ErrorUnknown;
+            result = ConvertErrno(errno);
         }
     }
 
@@ -215,7 +250,7 @@ Result File::Read(
 
         if (bytesRead != bufferSize)
         {
-            result = Result::ErrorUnknown;
+            result = ConvertErrno(errno);
         }
 
         if (pBytesRead != nullptr)
@@ -259,10 +294,19 @@ Result File::ReadLine(
 
         while (bytesRead < bufferSize)
         {
-            int32 c = getc(m_pFileHandle);
-            if ((c == '\n') || (c == EOF))
+            const int32 c = getc(m_pFileHandle);
+            if (c == '\n')
             {
                 result = Result::Success;
+                break;
+            }
+            if (c == EOF)
+            {
+                result = Result::Success;
+                if (ferror(m_pFileHandle))
+                {
+                    result = ConvertErrno(errno);
+                }
                 break;
             }
             pcharBuffer[bytesRead] = static_cast<char>(c);
@@ -367,26 +411,12 @@ void File::Rewind()
 // =====================================================================================================================
 // Sets the position indicator to a new position.
 void File::Seek(
-    int32 offset,
-    bool  fromOrigin)
+    int64        offset,
+    SeekPosition pos)
 {
     if (m_pFileHandle != nullptr)
     {
-        int32 ret = fseek(m_pFileHandle, offset, fromOrigin ? SEEK_SET : SEEK_CUR);
-
-        PAL_ASSERT(ret == 0);
-    }
-}
-
-// =====================================================================================================================
-// Sets the position indicator to a new position relative to the end of the file.
-void File::Rseek(
-    int32 offset)
-{
-    if (m_pFileHandle != nullptr)
-    {
-        int32 ret = fseek(m_pFileHandle, offset, SEEK_END);
-
+        const int32 ret = fseeko64(m_pFileHandle, offset, static_cast<int>(pos));
         PAL_ASSERT(ret == 0);
     }
 }
@@ -396,12 +426,9 @@ void File::Rseek(
 size_t File::GetFileSize(
     const char* pFilename)
 {
-    // ...however, on other compilers, they are named 'stat' (no underbar).
-    struct stat fileStatus = {};
-    const int32 result = stat(pFilename, &fileStatus);
-    // If the function call to retrieve file status information fails (returns 0), then the file does not exist (or is
-    // inaccessible in some other manner).
-    return (result == 0) ? fileStatus.st_size : 0;
+    Stat fileStatus{};
+    const Result result = GetStat(pFilename, &fileStatus);
+    return static_cast<size_t>((result == Result::Success) ? fileStatus.size : -1);
 }
 
 // =====================================================================================================================
@@ -409,12 +436,9 @@ size_t File::GetFileSize(
 bool File::Exists(
     const char* pFilename)
 {
-    // ...however, on other compilers, they are named 'stat' (no underbar).
-    struct stat fileStatus = {};
-    const int32 result = stat(pFilename, &fileStatus);
-    // If the function call to retrieve file status information fails (returns -1), then the file does not exist (or is
-    // inaccessible in some other manner).
-    return (result != -1);
+    Stat fileStatus{};
+    const Result result = GetStat(pFilename, &fileStatus);
+    return (result == Result::Success);
 }
 
 } // Util

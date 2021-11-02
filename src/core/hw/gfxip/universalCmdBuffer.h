@@ -63,7 +63,7 @@ union GraphicsStateFlags
                 uint32 vrsImage               :  1; // 10.3+ only
                 uint32 depthClampOverride     :  1; // All Gfx
                 uint32 colorWriteMask         :  1; // All Gfx
-		uint32 rasterizerDiscardEnable:  1; // All Gfx
+                uint32 rasterizerDiscardEnable:  1; // All Gfx
                 uint32 reserved               : 14;
             };
 
@@ -85,7 +85,8 @@ union GraphicsStateFlags
                 uint32 stencilRefMaskState       : 1;
                 uint32 globalScissorState        : 1;
                 uint32 clipRectsState            : 1;
-                uint32 reservedNonValidationBits : 23;
+                uint32 pipelineStatsQuery        : 1;
+                uint32 reservedNonValidationBits : 22;
             };
 
             uint32 u32All;

@@ -692,6 +692,8 @@ public:
 private:
     void Gfx10SetImageSrdDims(sq_img_rsrc_t*  pSrd, uint32 width, uint32  height) const;
 
+    uint32* AddCacheFlushAndInvEvent(const GfxCmdBuffer*  pCmdBuffer, uint32* pCmdSpace) const;
+
     void SetSrdBorderColorPtr(
         sq_img_samp_t*  pSrd,
         uint32          borderColorPtr) const;

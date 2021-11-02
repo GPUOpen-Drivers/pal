@@ -32,7 +32,10 @@
 #pragma once
 
 #include "palUtil.h"
+#include "palAssert.h"
 #include <atomic>
+#include <errno.h>
+#include <string.h>
 
 #if   defined(__unix__)
 #define PAL_HAS_CPUID (__i386__ || __x86_64__)
@@ -208,6 +211,58 @@ struct SystemInfo
         } amdRyzen; ///< Properties specific to AMD Ryzen CPU's.
     } cpuArchInfo;  ///< This member should be used only for Ryzen for now.
 };
+
+/// Returns an appropriate result from the given errno
+///
+/// @param errno_in Value from 'errno' (or functions that return errno_t)
+///
+/// @returns Relevent Result value for the given errno-- never Success.
+inline Result ConvertErrno(
+    int32 errnoIn)
+{
+    Result result = Result::ErrorUnknown;
+    switch (errnoIn)
+    {
+        case EAGAIN:
+        case EBUSY:
+        case EINTR:
+            result = Result::NotReady;
+            break;
+        case ETIMEDOUT:
+        case ETIME:
+            result = Result::Timeout;
+            break;
+        case EEXIST:
+            result = Result::AlreadyExists;
+            break;
+        case ENOENT:
+        case ENOTDIR:
+            result = Result::NotFound;
+            break;
+        case EACCES:
+        case EPERM:
+        case EROFS:
+            result = Result::ErrorPermissionDenied;
+            break;
+        case ENOSPC:
+            result = Result::ErrorDiskFull;
+            break;
+        case EINVAL:
+        case EBADF:
+        case ENAMETOOLONG:
+        case ELOOP:
+            result = Result::ErrorInvalidValue;
+            break;
+        case ENOMEM:
+        case EOVERFLOW:
+            result = Result::ErrorOutOfMemory;
+            break;
+        default:
+            PAL_ALERT_ALWAYS_MSG("Unknown result generated from errno %d (%s)", errnoIn, strerror(errnoIn));
+            break;
+    }
+    return result;
+}
 
 /// Queries system information.
 ///

@@ -61,8 +61,7 @@ struct VirtAddrAssignInfo
 
 // =====================================================================================================================
 // VamMgr provides a clean interface between PAL and the VAM library, which is used to allocate and free GPU virtual
-// address space for video memory allocations on Windows WDDM1.  In WDDM2, the Windows OS provides a different mechanism
-// for VA managements.
+// address space for video memory allocations on Linux's amdgpu backend.
 //
 // Some commonly used abbreviations throughout the implementation of this class:
 //     - VA:  Virtual address

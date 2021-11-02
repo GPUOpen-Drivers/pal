@@ -190,6 +190,10 @@ private:
         uint32          rootWindow,
         uint32*         randrCrtc);
 
+    static bool IsXWayland(
+        OsDisplayHandle hDisplay,
+        Device*         pDevice);
+
     const Device&          m_device;
     const Dri3Loader&      m_dri3Loader;
 #if defined(PAL_DEBUG_PRINTS)

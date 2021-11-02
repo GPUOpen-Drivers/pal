@@ -59,10 +59,10 @@ protected:
     virtual ~HybridGraphicsPipeline() { }
 
     virtual Result HwlInit(
-        const GraphicsPipelineCreateInfo& createInfo,
-        const AbiReader&                  abiReader,
-        const CodeObjectMetadata&         metadata,
-        Util::MsgPackReader*              pMetadataReader) override;
+        const GraphicsPipelineCreateInfo&       createInfo,
+        const AbiReader&                        abiReader,
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        Util::MsgPackReader*                    pMetadataReader) override;
 
     virtual const ShaderStageInfo* GetShaderStageInfo(ShaderType shaderType) const override;
 

@@ -3014,6 +3014,22 @@
       "Type": "bool",
       "VariableName": "gfx103DisableAsymmetricWgpForPs",
       "Description": "On WGP harvesting asymmetric configuration, we scan all of the SAs to find the minimal number of WGPs to override the psCuEnLimitMask setting for performance."
+    },
+    {
+      "Description": "Perfcounter workaround which samples all counters in the running state if SQ counters are on.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waNeverStopSqCounters",
+      "Name": "WaNeverStopSqCounters"
     }
   ]
 }

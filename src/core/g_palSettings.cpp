@@ -74,9 +74,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.addr2Disable256BSwizzleMode = false;
     m_settings.addr2Disable4kBSwizzleMode = 0x0;
     m_settings.addr2UseVarSwizzleMode = 0x2;
-
     m_settings.rpmViewsBypassMall = 0x0;
-
     m_settings.enableBigPagePreAlignment = true;
     m_settings.enableIterate256PreAlignment = true;
     m_settings.addr2DisableSModes8BppColor = false;
@@ -85,6 +83,7 @@ void SettingsLoader::SetupDefaults()
 #else
     m_settings.disableOptimizedDisplay = false;
 #endif
+    m_settings.displayDccSkipRetileBlt = false;
     m_settings.overlayReportHDR = true;
     m_settings.preferredPipelineUploadHeap = PipelineHeapDeferToClient;
 #if PAL_DEVELOPER_BUILD
@@ -169,6 +168,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.dbgHelperBits = 0x0;
 #endif
 
+    m_settings.useExecuteIndirectPacket = UseExecuteIndirectShaders;
     m_settings.useDcc = 0x0;
     m_settings.numSettings = g_palNumSettings;
 }
@@ -301,6 +301,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDisableOptimizedDisplayStr,
                            Util::ValueType::Boolean,
                            &m_settings.disableOptimizedDisplay,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDisplayDccSkipRetileBltStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.displayDccSkipRetileBlt,
                            InternalSettingScope::PrivatePalKey);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pOverlayReportHDRStr,
@@ -634,6 +639,11 @@ void SettingsLoader::ReadSettings()
                            InternalSettingScope::PrivatePalKey);
 #endif
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pUseExecuteIndirectPacketStr,
+                           Util::ValueType::Uint,
+                           &m_settings.useExecuteIndirectPacket,
+                           InternalSettingScope::PrivatePalKey);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pUseDccStr,
                            Util::ValueType::Uint,
                            &m_settings.useDcc,
@@ -804,6 +814,11 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.disableOptimizedDisplay;
     info.valueSize = sizeof(m_settings.disableOptimizedDisplay);
     m_settingsInfoMap.Insert(3371140286, info);
+
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.displayDccSkipRetileBlt;
+    info.valueSize = sizeof(m_settings.displayDccSkipRetileBlt);
+    m_settingsInfoMap.Insert(2325903599, info);
 
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.overlayReportHDR;
@@ -1135,6 +1150,11 @@ void SettingsLoader::InitSettingsInfo()
 #endif
 
     info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.useExecuteIndirectPacket;
+    info.valueSize = sizeof(m_settings.useExecuteIndirectPacket);
+    m_settingsInfoMap.Insert(1605308413, info);
+
+    info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.useDcc;
     info.valueSize = sizeof(m_settings.useDcc);
     m_settingsInfoMap.Insert(4029518654, info);
@@ -1160,7 +1180,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 785992106;
+            component.settingsDataHash = 3949331213;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

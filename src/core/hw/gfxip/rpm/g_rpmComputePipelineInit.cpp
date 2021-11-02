@@ -106,15 +106,9 @@ Result CreateRpmComputePipelines(
         break;
 
     case AsicRevision::Navi21:
-        pTable = rpmComputeBinaryTableNavi21;
-        break;
-
     case AsicRevision::Navi22:
-        pTable = rpmComputeBinaryTableNavi22;
-        break;
-
     case AsicRevision::Navi23:
-        pTable = rpmComputeBinaryTableNavi23;
+        pTable = rpmComputeBinaryTableNavi21;
         break;
 
     default:

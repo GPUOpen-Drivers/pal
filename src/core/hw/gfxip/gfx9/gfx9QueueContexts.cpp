@@ -837,8 +837,8 @@ void UniversalQueueContext::WritePerSubmitPreamble(
         // Those registers (which are used to setup UniversalRingSet) are shadowed and will be set by LOAD_*_REG.
         // We have to setup packets which issue VS_PARTIAL_FLUSH and VGT_FLUSH events before those LOAD_*_REGs
         // to make sure it is safe to write the ring config.
-        pCmdSpace += CmdUtil::BuildNonSampleEventWrite(VS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
-        pCmdSpace += CmdUtil::BuildNonSampleEventWrite(VGT_FLUSH,        EngineTypeUniversal, pCmdSpace);
+        pCmdSpace += cmdUtil.BuildNonSampleEventWrite(VS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
+        pCmdSpace += cmdUtil.BuildNonSampleEventWrite(VGT_FLUSH,        EngineTypeUniversal, pCmdSpace);
     }
 
     pCmdSpace += CmdUtil::BuildContextControl(m_pDevice->GetContextControl(), pCmdSpace);
@@ -1217,9 +1217,9 @@ Result UniversalQueueContext::RebuildCommandStreams(
         {
             pCmdSpace = m_ringSet.WriteCommands(&m_deCmdStream, pCmdSpace);
         }
-        pCmdSpace += CmdUtil::BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
-        pCmdSpace += CmdUtil::BuildNonSampleEventWrite(VS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
-        pCmdSpace += CmdUtil::BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
+        pCmdSpace += cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
+        pCmdSpace += cmdUtil.BuildNonSampleEventWrite(VS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
+        pCmdSpace += cmdUtil.BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
 
         m_deCmdStream.CommitCommands(pCmdSpace);
         result = m_deCmdStream.End();
@@ -1263,7 +1263,7 @@ Result UniversalQueueContext::RebuildCommandStreams(
 
         pCmdSpace = m_ringSet.WriteComputeCommands(&m_acePreambleCmdStream, pCmdSpace);
 
-        pCmdSpace += CmdUtil::BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
+        pCmdSpace += cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
         m_acePreambleCmdStream.CommitCommands(pCmdSpace);
 
         result = m_acePreambleCmdStream.End();
@@ -1619,33 +1619,6 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                         Gfx10Plus::mmGE_INDX_OFFSET,
                                                         &Ge,
                                                         pCmdSpace);
-
-        constexpr struct
-        {
-            regCB_COLOR0_BASE_EXT        cbColorBaseExt[MaxColorTargets];
-            regCB_COLOR0_CMASK_BASE_EXT  cbColorCmaskBaseExt[MaxColorTargets];
-            regCB_COLOR0_FMASK_BASE_EXT  cbColorFmaskBaseExt[MaxColorTargets];
-            regCB_COLOR0_DCC_BASE_EXT    cbColorDccBaseExt[MaxColorTargets];
-        } CbBaseHi = { };
-
-        pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(Gfx10Plus::mmCB_COLOR0_BASE_EXT,
-                                                         Gfx10Plus::mmCB_COLOR7_DCC_BASE_EXT,
-                                                         &CbBaseHi,
-                                                         pCmdSpace);
-
-        constexpr struct
-        {
-            regDB_Z_READ_BASE_HI          dbZReadBaseHi;
-            regDB_STENCIL_READ_BASE_HI    dbStencilReadBaseHi;
-            regDB_Z_WRITE_BASE_HI         dbZWriteBaseHi;
-            regDB_STENCIL_WRITE_BASE_HI   dbStencilWriteBaseHi;
-            regDB_HTILE_DATA_BASE_HI      dbHtileDataBaseHi;
-        } DbBaseHi = { };
-
-        pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(Gfx10Plus::mmDB_Z_READ_BASE_HI,
-                                                         Gfx10Plus::mmDB_HTILE_DATA_BASE_HI,
-                                                         &DbBaseHi,
-                                                         pCmdSpace);
 
         if (IsGfx103Plus(device))
         {

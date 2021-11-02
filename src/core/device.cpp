@@ -493,6 +493,9 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.pipelinePreferredHeap = GpuHeap::GpuHeapInvisible;
     m_publicSettings.depthClampBasedOnZExport = true;
     m_publicSettings.forceWaitPointPreColorToPostIndexFetch = false;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 680
+    m_publicSettings.enableExecuteIndirectPacket = false;
+#endif
 
     return ret;
 }
@@ -2100,6 +2103,7 @@ Result Device::GetProperties(
             pQueueInfo->flags.supportsSwapChainPresents = queueInfo.flags.supportsSwapChainPresents;
             pQueueInfo->supportedDirectPresentModes     = queueInfo.supportedDirectPresentModes;
         }
+
         pInfo->gpuMemoryProperties.flags.virtualRemappingSupport = m_memoryProperties.flags.virtualRemappingSupport;
         pInfo->gpuMemoryProperties.flags.pinningSupport          = m_memoryProperties.flags.pinningSupport;
         pInfo->gpuMemoryProperties.flags.supportPerSubmitMemRefs = m_memoryProperties.flags.supportPerSubmitMemRefs;
@@ -2196,6 +2200,7 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.support8bitIndices             = gfx6Props.support8bitIndices;
             pInfo->gfxipProperties.flags.support16BitInstructions       = gfx6Props.support16BitInstructions;
             pInfo->gfxipProperties.flags.support64BitInstructions       = gfx6Props.support64BitInstructions;
+            pInfo->gfxipProperties.flags.supportFloatAtomics            = gfx6Props.supportFloatAtomics;
             pInfo->gfxipProperties.flags.supportShaderSubgroupClock     = gfx6Props.supportShaderSubgroupClock;
             pInfo->gfxipProperties.flags.supportShaderDeviceClock       = gfx6Props.supportShaderDeviceClock;
             pInfo->gfxipProperties.flags.supports2BitSignedValues       = gfx6Props.supports2BitSignedValues;
@@ -2276,6 +2281,7 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportFp16Dot2                    = gfx9Props.supportFp16Dot2;
             pInfo->gfxipProperties.flags.support16BitInstructions           = gfx9Props.support16BitInstructions;
             pInfo->gfxipProperties.flags.support64BitInstructions           = gfx9Props.support64BitInstructions;
+            pInfo->gfxipProperties.flags.supportFloatAtomics                = gfx9Props.supportFloatAtomics;
             pInfo->gfxipProperties.flags.supportShaderSubgroupClock         = gfx9Props.supportShaderSubgroupClock;
             pInfo->gfxipProperties.flags.supportShaderDeviceClock           = gfx9Props.supportShaderDeviceClock;
             pInfo->gfxipProperties.flags.supportAlphaToOne                  = gfx9Props.supportAlphaToOne;
@@ -2339,7 +2345,6 @@ Result Device::GetProperties(
 
             pInfo->gfxipProperties.supportedVrsRates                     = gfx9Props.gfx10.supportedVrsRates;
             pInfo->gfxipProperties.flags.supportVrsWithDsExports         = gfx9Props.gfx10.supportVrsWithDsExports ? 1 : 0;
-
             pInfo->gfxipProperties.rayTracingIp = gfx9Props.rayTracingIp;
 
             pInfo->gfxipProperties.flags.supportSortAgnosticBarycentrics = gfx9Props.supportSortAgnosticBarycentrics;
@@ -2398,10 +2403,8 @@ Result Device::GetProperties(
 
         pInfo->gfxipProperties.gl2UncachedCpuCoherency           = m_chipProperties.gfxip.gl2UncachedCpuCoherency;
         pInfo->gfxipProperties.flags.supportGl2Uncached          = m_chipProperties.gfxip.supportGl2Uncached;
-
-        // Only support capture replay on WDDM2 and Linux. There is an issue in KMD on WDDM1 with querying the number
-        // of entries to unmap.
         pInfo->gfxipProperties.flags.supportCaptureReplay        = m_chipProperties.gfxip.supportCaptureReplay;
+        pInfo->gfxipProperties.flags.supportHsaAbi               = m_chipProperties.gfxip.supportHsaAbi;
 
         pInfo->gfxipProperties.srdSizes.bufferView = m_chipProperties.srdSizes.bufferView;
         pInfo->gfxipProperties.srdSizes.imageView  = m_chipProperties.srdSizes.imageView;

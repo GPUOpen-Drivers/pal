@@ -67,6 +67,10 @@ public:
         const IDepthStencilState* pDepthStencilState) override;
     virtual void CmdSetDepthBounds(
         const DepthBoundsParams& params) override;
+    virtual void CmdSetKernelArguments(
+        uint32            firstArg,
+        uint32            argCount,
+        const void*const* ppValues) override;
     virtual void CmdSetVertexBuffers(
         uint32                firstBuffer,
         uint32                bufferCount,
@@ -573,8 +577,9 @@ private:
         uint32            maximumCount,
         gpusize           countGpuAddr);
 
-    Platform*const m_pPlatform;
-    const uint32   m_objectId;
+    Platform*const   m_pPlatform;
+    const uint32     m_objectId;
+    const IPipeline* m_pBoundPipelines[static_cast<uint32>(PipelineBindPoint::Count)];
 
     PAL_DISALLOW_DEFAULT_CTOR(CmdBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(CmdBuffer);

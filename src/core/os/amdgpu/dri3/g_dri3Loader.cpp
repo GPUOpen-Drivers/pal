@@ -1464,6 +1464,26 @@ xcb_randr_get_output_info_reply_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetOutputInf
 }
 
 // =====================================================================================================================
+uint8_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetOutputInfoName(
+    const xcb_randr_get_output_info_reply_t* pOutReply
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    uint8_t* pRet = m_pFuncs->pfnXcbRandrGetOutputInfoName(pOutReply);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrGetOutputInfoName,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrGetOutputInfoName(%p)\n",
+        pOutReply);
+    m_paramLogger.Flush();
+
+    return pRet;
+}
+
+// =====================================================================================================================
 xcb_randr_output_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetCrtcInfoOutputs(
     xcb_randr_get_crtc_info_reply_t*  pCrtcInfoReply
     ) const
@@ -2322,6 +2342,7 @@ Result Dri3Loader::Init(
             m_library[LibXcbRandr].GetFunction("xcb_randr_get_crtc_info_reply", &m_funcs.pfnXcbRandrGetCrtcInfoReply);
             m_library[LibXcbRandr].GetFunction("xcb_randr_get_output_info", &m_funcs.pfnXcbRandrGetOutputInfo);
             m_library[LibXcbRandr].GetFunction("xcb_randr_get_output_info_reply", &m_funcs.pfnXcbRandrGetOutputInfoReply);
+            m_library[LibXcbRandr].GetFunction("xcb_randr_get_output_info_name", &m_funcs.pfnXcbRandrGetOutputInfoName);
             m_library[LibXcbRandr].GetFunction("xcb_randr_get_crtc_info_outputs", &m_funcs.pfnXcbRandrGetCrtcInfoOutputs);
             m_library[LibXcbRandr].GetFunction("xcb_randr_get_crtc_info_possible", &m_funcs.pfnXcbRandrGetCrtcInfoPossible);
             m_library[LibXcbRandr].GetFunction("xcb_randr_get_output_property", &m_funcs.pfnXcbRandrGetOutputProperty);

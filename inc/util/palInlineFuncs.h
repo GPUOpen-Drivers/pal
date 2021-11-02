@@ -306,20 +306,17 @@ bool BitMaskScanForward(
     // is to forward declare result, and set it in a conditional branch after the bitscan. Be careful if modifying this.
     bool result = false;
 
-#if   defined(__GNUC__)
-    *pIndex = (sizeof(T) > 4) ? __builtin_ctzll(mask) : __builtin_ctz(static_cast<uint32>(mask));
-#else
     if (mask != 0)
     {
+#if   defined(__GNUC__)
+        *pIndex = (sizeof(T) > 4) ? __builtin_ctzll(mask) : __builtin_ctz(static_cast<uint32>(mask));
+#else
         uint32 index = 0;
         for (; ((mask & 0x1) == 0); mask >>= 1, ++index);
         *pIndex = index;
-    }
 #endif
 
-    if (mask != 0)
-    {
-        result = (mask != 0);
+        result = true;
     }
     return result;
 }
@@ -336,20 +333,17 @@ bool BitMaskScanReverse(
     // is to forward declare result, and set it in a conditional branch after the bitscan. Be careful if modifying this.
     bool result = false;
 
-#if   defined(__GNUC__)
-    *pIndex = (sizeof(T) > 4) ? (63u - __builtin_clzll(mask)) : (31u - __builtin_clz(static_cast<uint32>(mask)));
-#else
     if (mask != 0)
     {
+#if   defined(__GNUC__)
+        *pIndex = (sizeof(T) > 4) ? (63u - __builtin_clzll(mask)) : (31u - __builtin_clz(static_cast<uint32>(mask)));
+#else
         uint32 index = 31u;
         for (; (((mask >> index) & 0x1) == 0); --index);
         *pIndex = index;
-    }
 #endif
 
-    if (mask != 0)
-    {
-        result = (mask != 0);
+        result = true;
     }
     return result;
 }
@@ -1148,14 +1142,8 @@ constexpr typename std::common_type<T1, T2>::type Lcm(
                   "LCM requires nonboolean types");
 
     using T = typename std::common_type<T1, T2>::type;
-    T ret = 0u;
 
-    if ((value1 != 0u) && (value2 != 0u))
-    {
-        ret = static_cast<T>((value1 / Gcd(value1, value2)) * value2);
-    }
-
-    return ret;
+    return (value1 != 0u) && (value2 != 0u) ? static_cast<T>((value1 / Gcd(value1, value2)) * value2) : 0u;
 }
 
 /// Computes the Least Common Multiple of N numbers

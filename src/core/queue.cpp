@@ -1318,11 +1318,18 @@ Result Queue::PresentSwapChain(
     {
         result = Result::ErrorInvalidPointer;
     }
-    else if ((pPresentedImage->IsPresentable() == false) ||
-             ((presentInfo.presentMode == PresentMode::Fullscreen) && (pPresentedImage->IsFlippable() == false)) ||
-             (presentInfo.imageIndex >= pSwapChain->CreateInfo().imageCount))
+    else if (presentInfo.imageIndex >= pSwapChain->CreateInfo().imageCount)
     {
         result = Result::ErrorInvalidValue;
+    }
+    // Dxgi images may not be marked flippable or presentable depending on how the presentation is done.
+    else if (pSwapChain->CreateInfo().wsiPlatform != WsiPlatform::Dxgi)
+    {
+        if ((pPresentedImage->IsPresentable() == false) ||
+            ((presentInfo.presentMode == PresentMode::Fullscreen) && (pPresentedImage->IsFlippable() == false)))
+        {
+            result = Result::ErrorInvalidValue;
+        }
     }
 
     if (presentInfo.flags.notifyOnly == 0)

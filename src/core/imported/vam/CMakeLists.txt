@@ -22,55 +22,13 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
-cmake_minimum_required(VERSION 3.13...3.15)
-
-project(VAM LANGUAGES CXX)
 
 add_library(vam STATIC)
 
-if (NOT DEFINED VAM_CLIENT_DX12_LINUX)
-    set(VAM_CLIENT_DX12_LINUX OFF)
-    message(AUTHOR_WARNING "VAM_CLIENT_DX12_LINUX defaulting to ${VAM_CLIENT_DX12_LINUX}")
-endif()
-
-target_include_directories(vam
-    PUBLIC
-        inc
-    PRIVATE
-        src/core
-)
-
-target_sources(vam PRIVATE
-    # inc
-    inc/vambasictypes.h
-    inc/vamtypes.h
-    inc/vaminterface.h
-    # src
-    src/vaminterface.cpp
-    # src/core
-    src/core/vammacros.h
-    src/core/vamlink.h
-    src/core/vamtree.h
-    src/core/vamcommon.h
-    src/core/vamobject.h
-    src/core/vamobject.cpp
-    src/core/vamrange.h
-    src/core/vamrange.cpp
-    src/core/vamsuballoc.h
-    src/core/vamsuballoc.cpp
-    src/core/vamsectionalloc.h
-    src/core/vamsectionalloc.cpp
-    src/core/vamptb.h
-    src/core/vamptb.cpp
-    src/core/vamdevice.h
-    src/core/vamdevice.cpp
-)
+add_subdirectory(inc)
+add_subdirectory(src)
 
 target_compile_definitions(vam PRIVATE $<$<CONFIG:Debug>:VAM_DEBUG>)
-
-if (VAM_CLIENT_DX12_LINUX)
-    target_compile_definitions(vam PUBLIC VAM_CLIENT_DX12_LINUX)
-endif()
 
 set_target_properties(vam PROPERTIES
     CXX_STANDARD              11

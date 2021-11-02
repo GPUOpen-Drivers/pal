@@ -28,17 +28,14 @@
 #include "core/os/nullDevice/ndPlatform.h"
 #include "core/os/nullDevice/ndDevice.h"
 
-#if PAL_BUILD_GPU_PROFILER
+#include "core/layers/dbgOverlay/dbgOverlayPlatform.h"
 #include "core/layers/gpuProfiler/gpuProfilerPlatform.h"
-#endif
+
 #if PAL_BUILD_GPU_DEBUG
 #include "core/layers/gpuDebug/gpuDebugPlatform.h"
 #endif
 #if PAL_BUILD_CMD_BUFFER_LOGGER
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerPlatform.h"
-#endif
-#if PAL_BUILD_DBG_OVERLAY
-#include "core/layers/dbgOverlay/dbgOverlayPlatform.h"
 #endif
 #if PAL_BUILD_INTERFACE_LOGGER
 #include "core/layers/interfaceLogger/interfaceLoggerPlatform.h"
@@ -91,14 +88,12 @@ size_t PAL_STDCALL GetPlatformSize()
 
     // We need to always assume that the all layers can be enabled.  Unfortunately, at this point, we have not yet read
     // the settings for the GPUs present so we do not know which layers will actually be enabled.
+
+    platformSize += sizeof(DbgOverlay::Platform);
+    platformSize += sizeof(GpuProfiler::Platform);
+
 #if PAL_BUILD_INTERFACE_LOGGER
     platformSize += sizeof(InterfaceLogger::Platform);
-#endif
-#if PAL_BUILD_DBG_OVERLAY
-    platformSize += sizeof(DbgOverlay::Platform);
-#endif
-#if PAL_BUILD_GPU_PROFILER
-    platformSize += sizeof(GpuProfiler::Platform);
 #endif
 #if PAL_BUILD_GPU_DEBUG
     platformSize += sizeof(GpuDebug::Platform);
@@ -156,6 +151,9 @@ Result PAL_STDCALL CreatePlatform(
         allocCb = *createInfo.pAllocCb;
     }
 
+    pPlacementAddr = Util::VoidPtrInc(pPlacementAddr, sizeof(DbgOverlay::Platform));
+    pPlacementAddr = Util::VoidPtrInc(pPlacementAddr, sizeof(GpuProfiler::Platform));
+
     // NOTE: If a specific layer is being built we must always create a Platform decorator for that layer.
     //       This avoids a rather difficult issue where we need to place the IPlatform the client uses at the beginning
     //       of the memory they allocate (or we could have an issue when they go to free that memory). It is easier to
@@ -163,12 +161,6 @@ Result PAL_STDCALL CreatePlatform(
     //       understand when it is enabled or disabled.
 #if PAL_BUILD_INTERFACE_LOGGER
     pPlacementAddr = Util::VoidPtrInc(pPlacementAddr, sizeof(InterfaceLogger::Platform));
-#endif
-#if PAL_BUILD_DBG_OVERLAY
-    pPlacementAddr = Util::VoidPtrInc(pPlacementAddr, sizeof(DbgOverlay::Platform));
-#endif
-#if PAL_BUILD_GPU_PROFILER
-    pPlacementAddr = Util::VoidPtrInc(pPlacementAddr, sizeof(GpuProfiler::Platform));
 #endif
 #if PAL_BUILD_GPU_DEBUG
     pPlacementAddr = Util::VoidPtrInc(pPlacementAddr, sizeof(GpuDebug::Platform));
@@ -188,6 +180,33 @@ Result PAL_STDCALL CreatePlatform(
     }
 
     IPlatform* pCurPlatform = pCorePlatform;
+
+    if (result == Result::Success)
+    {
+        pPlacementAddr = Util::VoidPtrDec(pPlacementAddr, sizeof(GpuProfiler::Platform));
+        pCurPlatform->SetClientData(pPlacementAddr);
+
+        result = GpuProfiler::Platform::Create(createInfo,
+                                               allocCb,
+                                               pCurPlatform,
+                                               pCorePlatform->PlatformSettings().gpuProfilerMode,
+                                               pCorePlatform->PlatformSettings().gpuProfilerConfig.targetApplication,
+                                               pPlacementAddr,
+                                               &pCurPlatform);
+    }
+
+    if (result == Result::Success)
+    {
+        pPlacementAddr = Util::VoidPtrDec(pPlacementAddr, sizeof(DbgOverlay::Platform));
+        pCurPlatform->SetClientData(pPlacementAddr);
+
+        result = DbgOverlay::Platform::Create(createInfo,
+                                              allocCb,
+                                              pCurPlatform,
+                                              pCorePlatform->PlatformSettings().debugOverlayEnabled,
+                                              pPlacementAddr,
+                                              &pCurPlatform);
+    }
 
 #if PAL_BUILD_PM4_INSTRUMENTOR
     if (result == Result::Success)
@@ -231,37 +250,6 @@ Result PAL_STDCALL CreatePlatform(
                                             pCorePlatform->PlatformSettings().gpuDebugEnabled,
                                             pPlacementAddr,
                                             &pCurPlatform);
-    }
-#endif
-
-#if PAL_BUILD_GPU_PROFILER
-    if (result == Result::Success)
-    {
-        pPlacementAddr = Util::VoidPtrDec(pPlacementAddr, sizeof(GpuProfiler::Platform));
-        pCurPlatform->SetClientData(pPlacementAddr);
-
-        result = GpuProfiler::Platform::Create(createInfo,
-                                               allocCb,
-                                               pCurPlatform,
-                                               pCorePlatform->PlatformSettings().gpuProfilerMode,
-                                               pCorePlatform->PlatformSettings().gpuProfilerConfig.targetApplication,
-                                               pPlacementAddr,
-                                               &pCurPlatform);
-    }
-#endif
-
-#if PAL_BUILD_DBG_OVERLAY
-    if (result == Result::Success)
-    {
-        pPlacementAddr = Util::VoidPtrDec(pPlacementAddr, sizeof(DbgOverlay::Platform));
-        pCurPlatform->SetClientData(pPlacementAddr);
-
-        result = DbgOverlay::Platform::Create(createInfo,
-                                              allocCb,
-                                              pCurPlatform,
-                                              pCorePlatform->PlatformSettings().debugOverlayEnabled,
-                                              pPlacementAddr,
-                                              &pCurPlatform);
     }
 #endif
 

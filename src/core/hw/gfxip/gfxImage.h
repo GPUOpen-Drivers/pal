@@ -92,6 +92,7 @@ struct SharedMetadataInfo
     SharedMetadataFlags flags;
     uint32              numPlanes; // the number of valid indices into the various "MaxNumPlanes" arrays.
     gpusize             dccOffset[MaxNumPlanes];
+    uint32              pipeAligned[MaxNumPlanes];
     gpusize             cmaskOffset;
     gpusize             fmaskOffset;
     gpusize             fmaskXor;
