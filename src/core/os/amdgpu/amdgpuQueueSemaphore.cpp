@@ -34,7 +34,7 @@ namespace Pal
 // =====================================================================================================================
 QueueSemaphore::~QueueSemaphore()
 {
-    if (m_hSemaphore != 0)
+    if (m_hSemaphore != nullptr)
     {
         Result result = static_cast<Amdgpu::Device*>(m_pDevice)->DestroySemaphore(m_hSemaphore);
         PAL_ASSERT(result == Result::Success);

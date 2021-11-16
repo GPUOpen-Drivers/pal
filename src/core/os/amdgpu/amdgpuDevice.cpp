@@ -308,7 +308,7 @@ static Result OpenAndInitializeDrmDevice(
     uint32*                 pCpVersion)
 {
     Result                 result       = Result::Success;
-    amdgpu_device_handle   deviceHandle = NULL;
+    amdgpu_device_handle   deviceHandle = nullptr;
     uint32                 majorVersion = 0;
     uint32                 minorVersion = 0;
 
