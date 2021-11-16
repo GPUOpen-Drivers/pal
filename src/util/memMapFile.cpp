@@ -132,7 +132,7 @@ Result MemMapFile::OpenMemoryMapping(
 void MemMapFile::CloseMemoryMapping()
 {
     m_mappingSize = 0;
-    m_pActiveContainerHeader = 0;
+    m_pActiveContainerHeader = nullptr;
     // No need to flush the view here because we're about to close the file which will implicitly perform a flush.
     m_rootFileView.UnMap(false);
     m_memoryMapping.Close();
