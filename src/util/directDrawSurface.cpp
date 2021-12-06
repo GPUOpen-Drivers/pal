@@ -23,7 +23,7 @@
  *
  **********************************************************************************************************************/
 
-#if PAL_BUILD_GPU_DEBUG
+#if PAL_DEVELOPER_BUILD
 
 #include "palFormat.h"
 #include "palFormatInfo.h"
@@ -1085,41 +1085,40 @@ Result GetDdsPixelFormat(
                 break;
             }
             case Pal::ChNumFormat::X8_MM_Unorm:
-            {
-                result = Result::Unsupported;
-                break;
-            }
             case Pal::ChNumFormat::X8_MM_Uint:
-            {
-                result = Result::Unsupported;
-                break;
-            }
             case Pal::ChNumFormat::X8Y8_MM_Unorm:
-            {
-                result = Result::Unsupported;
-                break;
-            }
             case Pal::ChNumFormat::X8Y8_MM_Uint:
+            case Pal::ChNumFormat::X16_MM10_Unorm:
+            case Pal::ChNumFormat::X16_MM10_Uint:
+            case Pal::ChNumFormat::X16Y16_MM10_Unorm:
+            case Pal::ChNumFormat::X16Y16_MM10_Uint:
+            case Pal::ChNumFormat::X16_MM12_Unorm:
+            case Pal::ChNumFormat::X16_MM12_Uint:
+            case Pal::ChNumFormat::X16Y16_MM12_Unorm:
+            case Pal::ChNumFormat::X16Y16_MM12_Uint:
             {
                 result = Result::Unsupported;
                 break;
             }
-            case Pal::ChNumFormat::X16_MM_Unorm:
+            case Pal::ChNumFormat::P208:
+            {
+                *pDdspf = DDSPF_DX10;
+#if DXGI_FORMAT_DEFINED
+                *pDxgiFormatInternal = DXGI_FORMAT_P208;
+#endif
+                break;
+            }
+            case Pal::ChNumFormat::P012:
             {
                 result = Result::Unsupported;
                 break;
             }
-            case Pal::ChNumFormat::X16_MM_Uint:
+            case Pal::ChNumFormat::P212:
             {
                 result = Result::Unsupported;
                 break;
             }
-            case Pal::ChNumFormat::X16Y16_MM_Unorm:
-            {
-                result = Result::Unsupported;
-                break;
-            }
-            case Pal::ChNumFormat::X16Y16_MM_Uint:
+            case Pal::ChNumFormat::P412:
             {
                 result = Result::Unsupported;
                 break;
@@ -1135,6 +1134,9 @@ Result GetDdsPixelFormat(
                 break;
             }
         }
+
+        static_assert(static_cast<uint32>(Pal::ChNumFormat::Count) == 0xB9,
+                      "Format table needs updating!");
 
 #if !DXGI_FORMAT_DEFINED
         if (pDdspf->fourCC == MAKEFOURCC('D','X','1','0'))

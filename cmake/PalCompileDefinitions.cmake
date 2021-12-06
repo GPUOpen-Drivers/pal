@@ -25,8 +25,6 @@
 
 include_guard()
 
-include(PalVersionHelper)
-
 function(pal_compile_definitions_gfx6 TARGET)
     # Needs to be public.
     # See the following directories:
@@ -155,6 +153,7 @@ function(pal_compile_definitions TARGET)
 
 #if PAL_DEVELOPER_BUILD
     if(PAL_DEVELOPER_BUILD)
+        # Enable default developer features, needs to be public since it's used in interface files.
         target_compile_definitions(${TARGET} PUBLIC PAL_DEVELOPER_BUILD=1)
     endif()
 #endif
@@ -205,35 +204,6 @@ function(pal_compile_definitions TARGET)
             target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_OSS4=1)
         endif()
     endif()
-
-    # Enable cmd buffer logging on debug configs or when the client asks for it
-    target_compile_definitions(${TARGET} PRIVATE
-        $<$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_BUILD_CMD_BUFFER_LOGGER}>>:
-            PAL_BUILD_CMD_BUFFER_LOGGER=1
-        >
-    )
-
-    # Enable GPU debugging layer on debug configs or when the client asks for it
-    target_compile_definitions(${TARGET} PRIVATE
-        $<$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_BUILD_GPU_DEBUG}>>:
-            PAL_BUILD_GPU_DEBUG=1
-        >
-    )
-
-    # Enable interface logging on debug configs or when the client asks for it
-    target_compile_definitions(${TARGET} PRIVATE
-        $<$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_BUILD_INTERFACE_LOGGER}>>:
-            PAL_BUILD_INTERFACE_LOGGER=1
-        >
-    )
-
-    # Enable pm4 instrumentor on debug configs or when the client asks for it
-    # This needs to be public, see inc/core/palDeveloperHooks.h
-    target_compile_definitions(${TARGET} PUBLIC
-        $<$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_BUILD_PM4_INSTRUMENTOR}>>:
-            PAL_BUILD_PM4_INSTRUMENTOR=1
-        >
-    )
 
     pal_compile_definitions_gpu(${TARGET})
 

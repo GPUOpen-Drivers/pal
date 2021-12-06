@@ -637,7 +637,7 @@ void GfxDevice::DescribeBindPipeline(
     m_pParent->DeveloperCb(Developer::CallbackType::BindPipeline, &data);
 }
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
 // =====================================================================================================================
 // Call back to above layers to describe a draw- or dispatch-time validation.
 void GfxDevice::DescribeDrawDispatchValidation(

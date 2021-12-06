@@ -23,37 +23,11 @@
  #
  #######################################################################################################################
 
-include(PalVersionHelper)
-
 target_sources(pal PRIVATE CMakeLists.txt)
 
 ### PAL Subprojects ####################################################################################################
-
-### ADDRLIB ####################################################################
-add_subdirectory(${PAL_ADDR_PATH} ${PROJECT_BINARY_DIR}/addrlib)
-target_link_libraries(pal PRIVATE addrlib)
-
-### VAM ########################################################################
-add_subdirectory(${PROJECT_SOURCE_DIR}/src/core/imported/vam ${PROJECT_BINARY_DIR}/vam)
-target_link_libraries(pal PRIVATE vam)
-
-### METROHASH ##################################################################
-if(NOT TARGET metrohash)
-    add_subdirectory(${PAL_METROHASH_PATH} ${PROJECT_BINARY_DIR}/metrohash)
-endif()
-
-# Metrohash needs to be a public dependency.
-# See: palMetroHash.h
-target_link_libraries(pal PUBLIC metrohash)
-
-### CWPACK #####################################################################
-if(NOT TARGET cwpack)
-    add_subdirectory(${PAL_CWPACK_PATH} ${PROJECT_BINARY_DIR}/cwpack)
-endif()
-
-# cwpack needs to be a public dependency.
-# See: palMsgPack.h
-target_link_libraries(pal PUBLIC cwpack)
+add_subdirectory(core/imported)
+add_subdirectory(util/imported)
 
 ### Link Libraries #####################################################################################################
 include(FindThreads)
@@ -109,8 +83,6 @@ if(PAL_AMDGPU_BUILD)
     target_include_directories(pal PRIVATE ${PAL_SOURCE_DIR}/src/core/os/amdgpu/include/2d)
     target_include_directories(pal PRIVATE ${PAL_SOURCE_DIR}/src/core/os/amdgpu/include/drm)
 endif()
-
-target_include_directories(pal PRIVATE ${PAL_SOURCE_DIR}/src/core/imported/hsa)
 
 # Other Includes
 target_include_directories(pal PRIVATE ${GLOBAL_ROOT_SRC_DIR}/drivers/inc/shared)
@@ -492,6 +464,7 @@ if(PAL_BUILD_GPUUTIL)
         gpuUtil/gpaSession.cpp
         gpuUtil/gpuUtil.cpp
         gpuUtil/gpaSessionPerfSample.cpp
+        gpuUtil/traceSession.cpp
     )
 endif()
 
@@ -500,11 +473,13 @@ target_sources(pal PRIVATE
     util/assert.cpp
     util/dbgPrint.cpp
     util/cacheLayerBase.cpp
+    util/compressingCacheLayer.cpp
     util/directDrawSurface.cpp
     util/elfReader.cpp
     util/file.cpp
     util/fileArchiveCacheLayer.cpp
     util/jsonWriter.cpp
+    util/lz4Compressor.cpp
     util/math.cpp
     util/memMapFile.cpp
     util/memoryCacheLayer.cpp
@@ -517,9 +492,6 @@ target_sources(pal PRIVATE
     util/platformKey.cpp
     util/uuid.cpp
 )
-
-add_library(libuuid_static STATIC util/imported/libuuid/libuuid.cpp)
-target_link_libraries(pal PRIVATE libuuid_static)
 
 if(UNIX)
 ### PAL util/lnx ###############################################################
@@ -539,7 +511,5 @@ if(UNIX)
         util/lnx/lnxTimeout.cpp
         util/lnx/lnxUuid.cpp
     )
-
-    target_sources(libuuid_static PRIVATE util/imported/libuuid/lnxLibuuid.cpp)
 
 endif()

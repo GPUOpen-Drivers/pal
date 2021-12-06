@@ -102,6 +102,7 @@ private:
         Result Reload(int32 fd, bool useAsyncIo) { return Load(fd, m_beginOffset, useAsyncIo); }
         bool   IsLoaded() { return true; }
         void   Wait() {}
+        void   Cancel() {}
 
         // LRU list node
         Node* ListNode() { return &m_node; }
@@ -117,13 +118,13 @@ private:
 
     Result RefreshFile(bool forceRefresh);
 
-    Result ReadNextEntry(const ArchiveEntryHeader* pCurheader, ArchiveEntryHeader* pNextHeader);
+    Result ReadNextEntry(ArchiveEntryHeader* pCurheader, ArchiveEntryHeader* pNextHeader);
 
-    Result ReadInternal(size_t fileOffset, void* pBuffer, size_t readSize, bool forceCacheReload);
+    Result ReadInternal(size_t fileOffset, void* pBuffer, size_t readSize, bool forceCacheReload, bool wait);
     Result WriteInternal(size_t fileOffset, const void* pData, size_t writeSize);
 
     // "Cached" I/O API
-    Result ReadCached(size_t fileOffset, void* pBuffer, size_t readSize, bool forceReload);
+    Result ReadCached(size_t fileOffset, void* pBuffer, size_t readSize, bool forceReload, bool wait);
     Result WriteCached(size_t fileOffset, const void* pData, size_t writeSize);
 
     // Page management
@@ -153,6 +154,7 @@ private:
 
     // Write components: MAY NOT BE INITIALIZED IF WE DON'T HAVE WRITE ACCESS
     const bool              m_haveWriteAccess;
+    bool                    m_refreshedSinceLastWrite;
 
     // Internal memory buffer: MAY NOT BE INITIALIZED IF WE AREN'T USING A MEMORY BUFFER
     bool                    m_useBufferedMemory;

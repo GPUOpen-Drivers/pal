@@ -25,6 +25,11 @@
 
 include_guard()
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/Modules")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}")
+
+include(PalCompileDefinitions)
+include(PalCompilerOptions)
 include(TestBigEndian)
 
 # Store the file's location for relative paths used in the functions.
@@ -83,14 +88,14 @@ function(pal_bp AMD_VAR AMD_DFLT)
     if (NOT DEFINED ${AMD_VAR})
         set(${AMD_VAR} ${AMD_DFLT} PARENT_SCOPE)
 
-        message(${AMD_MODE} "amd_bp: ${AMD_VAR} not set. Defaulting to ${AMD_DFLT}. ${AMD_MSG}")
+        message(${AMD_MODE} "${AMD_VAR} not set. Defaulting to ${AMD_DFLT}. ${AMD_MSG}")
 
         return()
     endif()
 
     # If we got to this point it means the build parameter is getting overriden.
     # To assist in potential debugging show what the value was set to.
-    message(STATUS "amd_bp: ${AMD_VAR} overridden to ${${AMD_VAR}}")
+    message(STATUS "${AMD_VAR} overridden to ${${AMD_VAR}}")
 endfunction()
 
 # PAL uses specific asics, SC uses generations, Addrlib does both...

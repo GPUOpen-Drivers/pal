@@ -70,6 +70,7 @@ void PipelineChunkGs::LateInit(
     const PalAbi::CodeObjectMetadata& metadata,
     const RegisterVector&             registers,
     const GraphicsPipelineLoadInfo&   loadInfo,
+    const GraphicsPipelineCreateInfo& createInfo,
     PipelineUploader*                 pUploader,
     MetroHash64*                      pHasher)
 {
@@ -242,6 +243,14 @@ void PipelineChunkGs::LateInit(
         m_regs.context.geNggSubgrpCntl.u32All        = registers.At(Gfx10Plus::mmGE_NGG_SUBGRP_CNTL);
     }
 
+    m_regs.context.paClNggCntl.bits.INDEX_BUF_EDGE_FLAG_ENA =
+        (createInfo.iaState.topologyInfo.primitiveType == Pal::PrimitiveType::Quad);
+
+    if (IsGfx103Plus(*m_device.Parent()))
+    {
+        m_regs.context.paClNggCntl.gfx103Plus.VERTEX_REUSE_DEPTH = 30;
+    }
+
     pHasher->Update(m_regs.context);
 }
 
@@ -375,6 +384,10 @@ uint32* PipelineChunkGs::WriteContextCommands(
                                                       m_regs.context.geNggSubgrpCntl.u32All,
                                                       pCmdSpace);
     }
+
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_CL_NGG_CNTL,
+                                                  m_regs.context.paClNggCntl.u32All,
+                                                  pCmdSpace);
 
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_GS_MAX_VERT_OUT,
                                                   m_regs.context.vgtGsMaxVertOut.u32All,

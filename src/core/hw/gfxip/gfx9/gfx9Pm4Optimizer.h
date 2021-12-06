@@ -56,7 +56,7 @@ template <size_t RegisterCount>
 struct RegGroupState
 {
     RegState  state[RegisterCount];     // State of each register in the group.
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     uint32    totalSets[RegisterCount]; // Number of writes to each register using SET packets.
     uint32    keptSets[RegisterCount];  // Number of writes to each register using SET packets which were not ignored
                                         // due to PM4 optimization.
@@ -68,7 +68,7 @@ struct RegGroupState
 struct SetBaseState
 {
     gpusize address;
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     uint32  totalSets;
     uint32  keptSets;
 #endif
@@ -116,7 +116,7 @@ public:
 
     void HandleDynamicLaunchDesc();
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     void IssueHotRegisterReport(GfxCmdBuffer* pCmdBuf) const;
 #endif
 

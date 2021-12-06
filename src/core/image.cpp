@@ -53,7 +53,8 @@ static size_t PlaneCount(
     }
     else if (IsYuvPlanar(createInfo.swizzledFormat.format))
     {
-        planes = (createInfo.swizzledFormat.format == ChNumFormat::YV12) ? 3 : 2;
+        planes = (((createInfo.swizzledFormat.format == ChNumFormat::YV12) ||
+                   (createInfo.swizzledFormat.format == ChNumFormat::P412))) ? 3 : 2;
     }
 
     return planes;
@@ -465,6 +466,29 @@ size_t Image::GetTotalSubresourceSize(
 }
 
 // =====================================================================================================================
+// Helper method which determines if the image uses a multimedia format
+bool Image::UsesMmFormat() const
+{
+    const ChNumFormat format = m_createInfo.swizzledFormat.format;
+    const uint32      firstBitCount = ComponentBitCounts(format)[0];
+
+    const bool uses8BitMmFormats  = (m_pDevice->SupportsFormat(ChNumFormat::X8_MM_Uint)   &&
+                                     m_pDevice->SupportsFormat(ChNumFormat::X8Y8_MM_Uint) &&
+                                     Formats::IsYuvPlanar(format) &&
+                                     (firstBitCount == 8));
+    const bool uses10BitMmFormats = (m_pDevice->SupportsFormat(ChNumFormat::X16_MM10_Uint)    &&
+                                     m_pDevice->SupportsFormat(ChNumFormat::X16Y16_MM10_Uint) &&
+                                     ((format == ChNumFormat::P010) ||
+                                      (format == ChNumFormat::P210)));
+    const bool uses12BitMmFormats = (m_pDevice->SupportsFormat(ChNumFormat::X16_MM12_Uint)    &&
+                                     m_pDevice->SupportsFormat(ChNumFormat::X16Y16_MM12_Uint) &&
+                                     ((format == ChNumFormat::P012) ||
+                                      (format == ChNumFormat::P212) ||
+                                      (format == ChNumFormat::P412)));
+    return (uses8BitMmFormats || uses10BitMmFormats || uses12BitMmFormats);
+}
+
+// =====================================================================================================================
 // Helper method which determines the format for the specified Image plane.
 void Image::DetermineFormatForPlane(
     SwizzledFormat* pFormat,
@@ -505,10 +529,12 @@ void Image::DetermineFormatForPlane(
     else if (IsYuvPlanar(format.format))
     {
         // If the device supports MM formats, then we should use them instead.
-        const bool supportsX8Mm     = m_pDevice->SupportsFormat(ChNumFormat::X8_MM_Uint);
-        const bool supportsX8Y8Mm   = m_pDevice->SupportsFormat(ChNumFormat::X8Y8_MM_Uint);
-        const bool supportsX16Mm    = m_pDevice->SupportsFormat(ChNumFormat::X16_MM_Uint);
-        const bool supportsX16Y16Mm = m_pDevice->SupportsFormat(ChNumFormat::X16Y16_MM_Uint);
+        const bool supportsX8Mm       = m_pDevice->SupportsFormat(ChNumFormat::X8_MM_Uint);
+        const bool supportsX8Y8Mm     = m_pDevice->SupportsFormat(ChNumFormat::X8Y8_MM_Uint);
+        const bool supportsX16Mm      = m_pDevice->SupportsFormat(ChNumFormat::X16_MM10_Uint);
+        const bool supportsX16Y16Mm   = m_pDevice->SupportsFormat(ChNumFormat::X16Y16_MM10_Uint);
+        const bool supportsX16Mm12    = m_pDevice->SupportsFormat(ChNumFormat::X16_MM12_Uint);
+        const bool supportsX16Y16Mm12 = m_pDevice->SupportsFormat(ChNumFormat::X16Y16_MM12_Uint);
 
         if (plane == 0)
         {
@@ -517,9 +543,16 @@ void Image::DetermineFormatForPlane(
             switch (format.format)
             {
             case ChNumFormat::P016:
+                pFormat->format = ChNumFormat::X16_Uint;
+                break;
             case ChNumFormat::P010:
             case ChNumFormat::P210:
-                pFormat->format = supportsX16Mm ? ChNumFormat::X16_MM_Uint : ChNumFormat::X16_Uint;
+                pFormat->format = supportsX16Mm ? ChNumFormat::X16_MM10_Uint : ChNumFormat::X16_Uint;
+                break;
+            case ChNumFormat::P012:
+            case ChNumFormat::P212:
+            case ChNumFormat::P412:
+                pFormat->format = supportsX16Mm12 ? ChNumFormat::X16_MM12_Uint : ChNumFormat::X16_Uint;
                 break;
             default:
                 pFormat->format = supportsX8Mm ? ChNumFormat::X8_MM_Uint  : ChNumFormat::X8_Uint;
@@ -539,11 +572,27 @@ void Image::DetermineFormatForPlane(
                     { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
                 break;
             case ChNumFormat::P016:
-            case ChNumFormat::P010:
-            case ChNumFormat::P210:
-                pFormat->format  = supportsX16Y16Mm ? ChNumFormat::X16Y16_MM_Uint : ChNumFormat::X16Y16_Uint;
+                pFormat->format  = ChNumFormat::X16Y16_Uint;
                 pFormat->swizzle =
                     { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
+                break;
+            case ChNumFormat::P010:
+            case ChNumFormat::P210:
+                pFormat->format  = supportsX16Y16Mm ? ChNumFormat::X16Y16_MM10_Uint : ChNumFormat::X16Y16_Uint;
+                pFormat->swizzle =
+                    { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
+                break;
+            case ChNumFormat::P012:
+            case ChNumFormat::P212:
+                pFormat->format  = supportsX16Y16Mm12 ? ChNumFormat::X16Y16_MM12_Uint : ChNumFormat::X16Y16_Uint;
+                pFormat->swizzle =
+                    { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::One };
+                break;
+            case ChNumFormat::P412:
+                // The U and V planes in any 4:4:4 format are separate so use a format that only has one channel.
+                pFormat->format = supportsX16Mm12 ? ChNumFormat::X16_MM12_Uint : ChNumFormat::X16_Uint;
+                pFormat->swizzle =
+                    { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
                 break;
             case ChNumFormat::YV12:
                 // The U and V planes in YV12 are separate so use a format that only has one channel for this.
@@ -1078,8 +1127,10 @@ AddrFormat Image::GetAddrFormat(
         case ChNumFormat::X16_Uint:
         case ChNumFormat::X16_Sint:
         case ChNumFormat::L16_Unorm:
-        case ChNumFormat::X16_MM_Unorm:
-        case ChNumFormat::X16_MM_Uint:
+        case ChNumFormat::X16_MM10_Unorm:
+        case ChNumFormat::X16_MM10_Uint:
+        case ChNumFormat::X16_MM12_Unorm:
+        case ChNumFormat::X16_MM12_Uint:
             ret = ADDR_FMT_16;
             break;
         case ChNumFormat::X16_Float:
@@ -1091,8 +1142,10 @@ AddrFormat Image::GetAddrFormat(
         case ChNumFormat::X16Y16_Sscaled:
         case ChNumFormat::X16Y16_Uint:
         case ChNumFormat::X16Y16_Sint:
-        case ChNumFormat::X16Y16_MM_Unorm:
-        case ChNumFormat::X16Y16_MM_Uint:
+        case ChNumFormat::X16Y16_MM10_Unorm:
+        case ChNumFormat::X16Y16_MM10_Uint:
+        case ChNumFormat::X16Y16_MM12_Unorm:
+        case ChNumFormat::X16Y16_MM12_Uint:
             ret = ADDR_FMT_16_16;
             break;
         case ChNumFormat::X16Y16_Float:

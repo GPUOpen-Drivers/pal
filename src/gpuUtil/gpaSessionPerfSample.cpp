@@ -402,6 +402,7 @@ Result GpaSession::TraceSample::GetSpmTraceResults(
         pCounterInfo[counter].instance   = m_pSpmTraceLayout->counterData[counter].instance;
         pCounterInfo[counter].dataOffset = static_cast<uint32>(curCounterDataOffset);
         pCounterInfo[counter].eventIndex = m_pSpmTraceLayout->counterData[counter].eventId;
+        pCounterInfo[counter].dataSize   = sizeof(uint16);
 
         curCounterDataOffset += CounterDataSizeInBytes;
     }

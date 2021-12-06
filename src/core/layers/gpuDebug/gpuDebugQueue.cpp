@@ -23,7 +23,7 @@
  *
  **********************************************************************************************************************/
 
-#if PAL_BUILD_GPU_DEBUG
+#if PAL_DEVELOPER_BUILD
 
 #include "core/g_palPlatformSettings.h"
 #include "core/layers/gpuDebug/gpuDebugCmdBuffer.h"

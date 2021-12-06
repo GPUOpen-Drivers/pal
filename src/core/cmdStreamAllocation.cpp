@@ -377,14 +377,15 @@ void CmdStreamChunk::FinalizeCommands()
 void CmdStreamChunk::Reset(
     bool resetRefCount)
 {
-    // DX12 does not permit reference counting in command chunks by the command allocator. Hence reference counting is
-    // disabled for DX12 builds. The chunk must not have any outstanding references if we're resetting it.
-    PAL_ASSERT((resetRefCount == false) || (m_referenceCount == 0));
-
     if (resetRefCount)
     {
+        // The chunk must not have any outstanding references if we're resetting it. The reference count should always
+        // be zero if our command allocator has auto-reuse disabled.
+        PAL_ASSERT(m_referenceCount == 0);
+
         m_referenceCount = 0;
     }
+
     m_usedDataSizeDwords = 0;
     m_cmdDwordsToExecute = 0;
     m_cmdDwordsToExecuteNoPostamble = 0;
@@ -473,7 +474,8 @@ void CmdStreamChunk::UpdateRootInfo(
 }
 
 // =====================================================================================================================
-// Notifies this command chunk that it is being added to a command stream.
+// Notifies this command chunk that it is being added to a command stream. This should only be called if our command
+// allocator has auto-reuse enabled.
 void CmdStreamChunk::AddCommandStreamReference()
 {
     AtomicIncrement(&m_referenceCount);
@@ -481,11 +483,9 @@ void CmdStreamChunk::AddCommandStreamReference()
 
 // =====================================================================================================================
 // Notifies this command chunk that it is being removed from a command stream (because that stream is being reset), and
-// returned to its parent allocator.
+// returned to its parent allocator. This should only be called if our command allocator has auto-reuse enabled.
 void CmdStreamChunk::RemoveCommandStreamReference()
 {
-    // DX12 does not permit reference counting in command chunks by the command allocator. Hence reference counting is
-    // disabled for DX12 builds.
     PAL_ASSERT(m_referenceCount != 0);
 
     AtomicDecrement(&m_referenceCount);

@@ -23,7 +23,7 @@
  *
  **********************************************************************************************************************/
 
-#if PAL_BUILD_CMD_BUFFER_LOGGER
+#if PAL_DEVELOPER_BUILD
 
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerCmdBuffer.h"
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerDevice.h"
@@ -357,11 +357,18 @@ static const char* FormatToString(
         "X8_MM_Uint",
         "X8Y8_MM_Unorm",
         "X8Y8_MM_Uint",
-        "X16_MM_Unorm",
-        "X16_MM_Uint",
-        "X16Y16_MM_Unorm",
-        "X16Y16_MM_Uint",
+        "X16_MM10_Unorm",
+        "X16_MM10_Uint",
+        "X16Y16_MM10_Unorm",
+        "X16Y16_MM10_Uint",
         "P208",
+        "X16_MM12_Unorm",
+        "X16_MM12_Uint",
+        "X16Y16_MM12_Unorm",
+        "X16Y16_MM12_Uint",
+        "P012",
+        "P212",
+        "P412",
     };
 
     static_assert(ArrayLen(FormatStrings) == static_cast<size_t>(ChNumFormat::Count),
@@ -1292,12 +1299,47 @@ void CmdBuffer::CmdBindTargets(
 }
 
 // =====================================================================================================================
+static void DumpBindStreamOutTargetParams(
+    CmdBuffer*                       pCmdBuffer,
+    const BindStreamOutTargetParams& params)
+{
+    ICmdBuffer* pNextCmdBuffer = pCmdBuffer->GetNextLayer();
+    LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
+    char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+
+    Snprintf(pString, StringLength, "params = [");
+    pNextCmdBuffer->CmdCommentString(pString);
+
+    for (uint32 i = 0; i < MaxStreamOutTargets; i++)
+    {
+        const auto&  target = params.target[i];
+
+        Snprintf(pString, StringLength, "\t\tStreamout target #%d = [", i);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t\t\tGpuVirtAddr = 0x%016llX", target.gpuVirtAddr);
+        pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+        Snprintf(pString, StringLength, "\t\t\tSize        = 0x%016llX", target.size);
+        pNextCmdBuffer->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "\t\t] // Streamout target #%d", i);
+        pNextCmdBuffer->CmdCommentString(pString);
+    }
+
+    Snprintf(pString, StringLength, "] // params");
+    pNextCmdBuffer->CmdCommentString(pString);
+
+    PAL_SAFE_DELETE_ARRAY(pString, &allocator);
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdBindStreamOutTargets(
     const BindStreamOutTargetParams& params)
 {
     if (m_annotations.logCmdBinds)
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdBindStreamOutTargets));
+        DumpBindStreamOutTargetParams(this, params);
     }
 
     // TODO: Add comment string.

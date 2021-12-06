@@ -29,10 +29,14 @@ import os,sys
 def main(fileName, outputDir="./"):
     # The dict to maintain the mapping between library name and generated enum name.
     # It is better to keep in caller script.
-    libraryDict = {"libdrm.so.2"    : "LibDrm",
-                   "libdrm_amdgpu.so.1" : "LibDrmAmdgpu"}
+    libraryDict = {
+        "libdrm_amdgpu.so.1" : "LibDrmAmdgpu",
+        "libdrm.so.2"    : "LibDrm",
+    }
 
-    procMgr  = proc.ProcMgr(fileName, libraryDict, 1)
+    libraryDictAlts = None
+
+    procMgr  = proc.ProcMgr(fileName, libraryDict, needSpecializedInit=True, libraryDictAlts=libraryDictAlts)
 
     intro = "Modify the procAnalysis.py and drmLoader.py in the tools/generate directory OR drmLoader.proc instead"
 

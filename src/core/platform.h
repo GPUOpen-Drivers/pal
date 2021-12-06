@@ -33,6 +33,10 @@
 #include "core/g_palPlatformSettings.h"
 #include "ver.h"
 
+#if PAL_BUILD_RDF
+#include "palTraceSession.h"
+#endif
+
 // DevDriver forward declarations.
 namespace DevDriver
 {
@@ -119,6 +123,10 @@ public:
         PAL_ASSERT(index < m_deviceCount);
         return m_pDevice[index];
     }
+
+#if PAL_BUILD_RDF
+    virtual GpuUtil::TraceSession* GetTraceSession() override { return m_pTraceSession; }
+#endif
 
     uint32       GetDeviceCount()  const { return m_deviceCount; }
     const char*  GetSettingsPath() const { return &m_settingsPath[0]; }
@@ -249,7 +257,7 @@ private:
     void LateInitDevDriver();
     void DestroyDevDriver();
 
-    // "Server" object provided by the GpuOpen software component which exposes the main interface for the developer
+    // "Server" object provided by the DevDriver software component which exposes the main interface for the developer
     // driver functionality. The server object handles all developer driver protocol management internally and exposes
     // interfaces to each protocol through explicit objects which can be retrieved through the main interface.
     DevDriver::DevDriverServer* m_pDevDriverServer;
@@ -257,6 +265,15 @@ private:
 
     // Locally cached pointers to protocol servers.
     DevDriver::RGPProtocol::RGPServer* m_pRgpServer;
+
+#if PAL_BUILD_RDF
+    // TraceSession Initialization and Destruction functions
+    Result InitTraceSession();
+    void DestroyTraceSession();
+
+    // TraceSession that is centrally owned and managed by PAL
+    GpuUtil::TraceSession* m_pTraceSession;
+#endif
 
     Developer::Callback    m_pfnDeveloperCb;
     void*                  m_pClientPrivateData;

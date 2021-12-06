@@ -60,6 +60,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.maxNumCmdStreamsPerSubmit = 0;
     m_settings.requestHighPriorityVmid = false;
     m_settings.requestDebugVmid = false;
+    m_settings.disableVmPageFaultReporting = false;
     m_settings.neverChangeClockMode = false;
     m_settings.nonlocalDestGraphicsCopyRbs = 0;
     m_settings.ifh = IfhModeDisabled;
@@ -206,6 +207,11 @@ void SettingsLoader::ReadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pRequestDebugVmidStr,
                            Util::ValueType::Boolean,
                            &m_settings.requestDebugVmid,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDisableVmPageFaultReportingStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.disableVmPageFaultReporting,
                            InternalSettingScope::PrivatePalKey);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNeverChangeClockModeStr,
@@ -721,6 +727,11 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(359792145, info);
 
     info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.disableVmPageFaultReporting;
+    info.valueSize = sizeof(m_settings.disableVmPageFaultReporting);
+    m_settingsInfoMap.Insert(1477288807, info);
+
+    info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.neverChangeClockMode;
     info.valueSize = sizeof(m_settings.neverChangeClockMode);
     m_settingsInfoMap.Insert(2936106678, info);
@@ -1180,7 +1191,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 3949331213;
+            component.settingsDataHash = 597957436;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

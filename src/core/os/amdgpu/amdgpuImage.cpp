@@ -400,6 +400,8 @@ Result Image::GetExternalSharedImageCreateInfo(
     pCreateInfo->flags      = openInfo.flags;
     pCreateInfo->usageFlags = openInfo.usage;
 
+    const bool hasMetadata = sharedInfo.info.metadata.size_metadata > 0;
+
     // Most information will come directly from the base subresource's surface description.
     const auto* pMetadata = reinterpret_cast<const amdgpu_bo_umd_metadata*>(
         &sharedInfo.info.metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
@@ -435,13 +437,15 @@ Result Image::GetExternalSharedImageCreateInfo(
     if ((openInfo.extent.width != 0) && (openInfo.extent.height != 0) && (openInfo.extent.depth != 0) &&
         ((openInfo.extent.width != pMetadata->width_in_pixels) || (openInfo.extent.height != pMetadata->height)))
     {
-        // In VDPAU case(metadata comes from mesa), we need to update width/height/depth accordingly,
-        // which were acquired from vdpau handle and passed by openInfo.extent
         if (Formats::IsYuv(pCreateInfo->swizzledFormat.format)
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 681
+            // In VDPAU case(metadata comes from mesa), we need to update width/height/depth accordingly,
+            // which were acquired from vdpau handle and passed by openInfo.extent
             || pCreateInfo->flags.sharedWithMesa
 #endif
-            )
+            // If the bo is shared from another device, it would not have metadata. Width/height/depth are passed
+            // from application.
+            || (hasMetadata == false))
         {
             pCreateInfo->extent.width = openInfo.extent.width;
             pCreateInfo->extent.height = openInfo.extent.height;
@@ -464,9 +468,9 @@ Result Image::GetExternalSharedImageCreateInfo(
     if (result == Result::Success)
     {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 681
-        if (pCreateInfo->flags.sharedWithMesa == 0)
+        if (hasMetadata && (pCreateInfo->flags.sharedWithMesa == 0))
 #else
-        if (true)
+        if (hasMetadata)
 #endif
         {
             pCreateInfo->imageType = static_cast<ImageType>(pMetadata->flags.resource_type);
@@ -476,62 +480,78 @@ Result Image::GetExternalSharedImageCreateInfo(
             pCreateInfo->imageType = ImageType::Tex2d;
         }
 
-        bool isLinearTiled = false;
-        if (device.ChipProperties().gfxLevel < GfxIpLevel::GfxIp9)
+        if (hasMetadata)
         {
-            uint32 tileMode =
+            bool isLinearTiled = false;
+            if (device.ChipProperties().gfxLevel < GfxIpLevel::GfxIp9)
+            {
+                const uint32 tileMode =
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 681
-                              (pCreateInfo->flags.sharedWithMesa
-                               ? static_cast<uint32>(AddrMgr1::AddrTileModeFromHwArrayMode(
-                                     AMDGPU_TILING_GET(sharedInfo.info.metadata.tiling_info, ARRAY_MODE)))
-                               : pMetadata->tile_mode);
+                    (pCreateInfo->flags.sharedWithMesa
+                        ? static_cast<uint32>(AddrMgr1::AddrTileModeFromHwArrayMode(
+                          AMDGPU_TILING_GET(sharedInfo.info.metadata.tiling_info, ARRAY_MODE)))
+                        : pMetadata->tile_mode);
 #else
-                              pMetadata->tile_mode;
+                    pMetadata->tile_mode;
 #endif
 
-            isLinearTiled = (tileMode == AMDGPU_TILE_MODE__LINEAR_GENERAL) ||
-                            (tileMode == AMDGPU_TILE_MODE__LINEAR_ALIGNED);
+                isLinearTiled = (tileMode == AMDGPU_TILE_MODE__LINEAR_GENERAL) ||
+                                (tileMode == AMDGPU_TILE_MODE__LINEAR_ALIGNED);
+            }
+            else
+            {
+                const AMDGPU_SWIZZLE_MODE swizzleMode =
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 681
+                    (pCreateInfo->flags.sharedWithMesa
+                        ? static_cast<AMDGPU_SWIZZLE_MODE>(
+                          AMDGPU_TILING_GET(sharedInfo.info.metadata.swizzle_info, SWIZZLE_MODE))
+                        : pMetadata->swizzleMode);
+#else
+                    pMetadata->swizzleMode;
+#endif
+
+                isLinearTiled = (swizzleMode == AMDGPU_SWIZZLE_MODE_LINEAR) ||
+                                (swizzleMode == AMDGPU_SWIZZLE_MODE_LINEAR_GENERAL);
+            }
+            pCreateInfo->tiling = isLinearTiled ? ImageTiling::Linear : ImageTiling::Optimal;
         }
         else
         {
-            AMDGPU_SWIZZLE_MODE swizzleMode =
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 681
-                                              (pCreateInfo->flags.sharedWithMesa
-                                              ? static_cast<AMDGPU_SWIZZLE_MODE>(
-                                                AMDGPU_TILING_GET(sharedInfo.info.metadata.swizzle_info, SWIZZLE_MODE))
-                                              : pMetadata->swizzleMode);
-#else
-                                              pMetadata->swizzleMode;
-#endif
-
-            isLinearTiled = (swizzleMode == AMDGPU_SWIZZLE_MODE_LINEAR) ||
-                            (swizzleMode == AMDGPU_SWIZZLE_MODE_LINEAR_GENERAL);
+            pCreateInfo->tiling = ImageTiling::Linear;
         }
 
-        pCreateInfo->tiling = isLinearTiled ? ImageTiling::Linear : ImageTiling::Optimal;
+        if (hasMetadata)
+        {
+            //for the bo created by other driver(display), the miplevels and
+            //arraySize might not be initialized as 1, which will cause seqfault,
+            //set the default value as 1 here to provide the robustness when mipLevels and
+            //arraySize are zero
+            pCreateInfo->mipLevels = Util::Max(1u, static_cast<uint32>(pMetadata->flags.mip_levels));
+            pCreateInfo->arraySize = Util::Max(1u, static_cast<uint32>(pMetadata->array_size));
 
-        //for the bo created by other driver(display), the miplevels and
-        //arraySize might not be initialized as 1, which will cause seqfault,
-        //set the default value as 1 here to provide the robustness when mipLevels and
-        //arraySize are zero
-        pCreateInfo->mipLevels = Util::Max(1u, static_cast<uint32>(pMetadata->flags.mip_levels));
-        pCreateInfo->arraySize = Util::Max(1u, static_cast<uint32>(pMetadata->array_size));
+            pCreateInfo->samples   = Util::Max(1u, static_cast<uint32>(pMetadata->flags.samples));
+            pCreateInfo->flags.cubemap = (pMetadata->flags.cubemap != 0);
 
-        pCreateInfo->samples   = Util::Max(1u, static_cast<uint32>(pMetadata->flags.samples));
+            // OR-in some additional usage flags.
+            pCreateInfo->usageFlags.shaderRead   |= pMetadata->flags.texture;
+            pCreateInfo->usageFlags.shaderWrite  |= pMetadata->flags.unodered_access;
+            pCreateInfo->usageFlags.colorTarget  |= pMetadata->flags.render_target;
+            pCreateInfo->usageFlags.depthStencil |= pMetadata->flags.depth_stencil;
+
+            pCreateInfo->flags.optimalShareable = pMetadata->flags.optimal_shareable;
+            pCreateInfo->flags.flippable        = false;
+        }
+        else
+        {
+            pCreateInfo->mipLevels  = 1u;
+            pCreateInfo->arraySize  = 1u;
+            pCreateInfo->samples    = 1u;
+        }
+
         pCreateInfo->fragments = pCreateInfo->samples;
-        pCreateInfo->flags.cubemap = (pMetadata->flags.cubemap != 0);
-
-        // OR-in some additional usage flags.
-        pCreateInfo->usageFlags.shaderRead   |= pMetadata->flags.texture;
-        pCreateInfo->usageFlags.shaderWrite  |= pMetadata->flags.unodered_access;
-        pCreateInfo->usageFlags.colorTarget  |= pMetadata->flags.render_target;
-        pCreateInfo->usageFlags.depthStencil |= pMetadata->flags.depth_stencil;
-
-        pCreateInfo->flags.optimalShareable = pMetadata->flags.optimal_shareable;
         // This image must be shareable (as it has already been shared); request view format change as well to be safe.
-        pCreateInfo->flags.shareable       = 1;
-        pCreateInfo->viewFormatCount       = AllCompatibleFormats;
-        pCreateInfo->flags.flippable       = false;
+        pCreateInfo->flags.shareable = 1;
+        pCreateInfo->viewFormatCount = AllCompatibleFormats;
     }
 
     return result;
@@ -552,13 +572,20 @@ Result Image::CreateExternalSharedImage(
     const GpuChipProperties& chipProps = pDevice->ChipProperties();
 
     auto*const  pPrivateScreen = static_cast<PrivateScreen*>(openInfo.pScreen);
+    const bool  hasMetadata = sharedInfo.info.metadata.size_metadata > 0;
     const auto* pMetadata = reinterpret_cast<const amdgpu_bo_umd_metadata*>(
         &sharedInfo.info.metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
 
     ImageInternalCreateInfo internalCreateInfo = {};
     if (chipProps.gfxLevel < GfxIpLevel::GfxIp9)
     {
-        if (IsMesaMetadata(sharedInfo.info.metadata))
+        if (hasMetadata == false)
+        {
+            internalCreateInfo.gfx6.sharedTileMode  = ADDR_TM_LINEAR_GENERAL;
+            internalCreateInfo.gfx6.sharedTileType  = ADDR_DISPLAYABLE;
+            internalCreateInfo.gfx6.sharedTileIndex = TILEINDEX_LINEAR_ALIGNED;
+        }
+        else if (IsMesaMetadata(sharedInfo.info.metadata))
         {
             auto*const pBoMetaData  = reinterpret_cast<const amdgpu_bo_umd_metadata*>
                                                         (&sharedInfo.info.metadata.umd_metadata);
@@ -587,40 +614,48 @@ Result Image::CreateExternalSharedImage(
     }
     else if (chipProps.gfxLevel >= GfxIpLevel::GfxIp9)
     {
-        const uint64 tilingInfo = sharedInfo.info.metadata.tiling_info;
-
-        if (IsMesaMetadata(sharedInfo.info.metadata))
-        {
-            internalCreateInfo.gfx9.sharedSwizzleMode = static_cast<AddrSwizzleMode>
-                                               (AMDGPU_TILING_GET(sharedInfo.info.metadata.swizzle_info, SWIZZLE_MODE));
-        }
-        else
-        {
-            internalCreateInfo.gfx9.sharedPipeBankXor[0] = pMetadata->pipeBankXor;
-            for (uint32 plane = 1; plane < MaxNumPlanes; plane++)
-            {
-                internalCreateInfo.gfx9.sharedPipeBankXor[plane] = pMetadata->additionalPipeBankXor[plane - 1];
-            }
-
-            internalCreateInfo.gfx9.sharedSwizzleMode = static_cast<AddrSwizzleMode>(pMetadata->swizzleMode);
-            PAL_ASSERT(AMDGPU_TILING_GET(tilingInfo, SWIZZLE_MODE) == pMetadata->swizzleMode);
-        }
-
-        // ADDR_SW_LINEAR_GENERAL is a UBM compatible swizzle mode which treat as buffer in copy.
-        // Here we try ADDR_SW_LINEAR first and fall back to typed buffer path if failure the creation as PAL::image.
-        if (internalCreateInfo.gfx9.sharedSwizzleMode == ADDR_SW_LINEAR_GENERAL)
+        if (hasMetadata == false)
         {
             internalCreateInfo.gfx9.sharedSwizzleMode = ADDR_SW_LINEAR;
         }
+        else
+        {
+            const uint64 tilingInfo = sharedInfo.info.metadata.tiling_info;
 
-        internalCreateInfo.flags.useSharedDccState = 1;
+            if (IsMesaMetadata(sharedInfo.info.metadata))
+            {
+                internalCreateInfo.gfx9.sharedSwizzleMode = static_cast<AddrSwizzleMode>
+                    (AMDGPU_TILING_GET(sharedInfo.info.metadata.swizzle_info, SWIZZLE_MODE));
+            }
+            else
+            {
+                internalCreateInfo.gfx9.sharedPipeBankXor[0] = pMetadata->pipeBankXor;
+                for (uint32 plane = 1; plane < MaxNumPlanes; plane++)
+                {
+                    internalCreateInfo.gfx9.sharedPipeBankXor[plane] = pMetadata->additionalPipeBankXor[plane - 1];
+                }
 
-        DccState*    pDccState  = &internalCreateInfo.gfx9.sharedDccState;
+                internalCreateInfo.gfx9.sharedSwizzleMode = static_cast<AddrSwizzleMode>(pMetadata->swizzleMode);
+                PAL_ASSERT(AMDGPU_TILING_GET(tilingInfo, SWIZZLE_MODE) == pMetadata->swizzleMode);
+            }
 
-        pDccState->maxCompressedBlockSize   = AMDGPU_TILING_GET(tilingInfo, DCC_MAX_COMPRESSED_BLOCK_SIZE);
-        pDccState->maxUncompressedBlockSize = AMDGPU_TILING_GET(tilingInfo, DCC_MAX_UNCOMPRESSED_BLOCK_SIZE);
-        pDccState->independentBlk64B        = AMDGPU_TILING_GET(tilingInfo, DCC_INDEPENDENT_64B);
-        pDccState->independentBlk128B       = AMDGPU_TILING_GET(tilingInfo, DCC_INDEPENDENT_128B);
+            // ADDR_SW_LINEAR_GENERAL is a UBM compatible swizzle mode which treat as buffer in copy.
+            // Here we try ADDR_SW_LINEAR first and fall back to typed buffer path if failure the
+            // creation as PAL::image.
+            if (internalCreateInfo.gfx9.sharedSwizzleMode == ADDR_SW_LINEAR_GENERAL)
+            {
+                internalCreateInfo.gfx9.sharedSwizzleMode = ADDR_SW_LINEAR;
+            }
+
+            internalCreateInfo.flags.useSharedDccState = 1;
+
+            DccState*    pDccState  = &internalCreateInfo.gfx9.sharedDccState;
+
+            pDccState->maxCompressedBlockSize   = AMDGPU_TILING_GET(tilingInfo, DCC_MAX_COMPRESSED_BLOCK_SIZE);
+            pDccState->maxUncompressedBlockSize = AMDGPU_TILING_GET(tilingInfo, DCC_MAX_UNCOMPRESSED_BLOCK_SIZE);
+            pDccState->independentBlk64B        = AMDGPU_TILING_GET(tilingInfo, DCC_INDEPENDENT_64B);
+            pDccState->independentBlk128B       = AMDGPU_TILING_GET(tilingInfo, DCC_INDEPENDENT_128B);
+        }
     }
     else
     {
@@ -637,7 +672,7 @@ Result Image::CreateExternalSharedImage(
     if (result == Result::Success)
     {
 
-        if (pMetadata->flags.optimal_shareable)
+        if (hasMetadata && pMetadata->flags.optimal_shareable)
         {
             auto*const pUmdSharedMetadata =
                 reinterpret_cast<const amdgpu_shared_metadata_info*>

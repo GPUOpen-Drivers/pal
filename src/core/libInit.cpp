@@ -31,16 +31,16 @@
 #include "core/layers/dbgOverlay/dbgOverlayPlatform.h"
 #include "core/layers/gpuProfiler/gpuProfilerPlatform.h"
 
-#if PAL_BUILD_GPU_DEBUG
+#if PAL_DEVELOPER_BUILD
 #include "core/layers/gpuDebug/gpuDebugPlatform.h"
 #endif
-#if PAL_BUILD_CMD_BUFFER_LOGGER
+#if PAL_DEVELOPER_BUILD
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerPlatform.h"
 #endif
-#if PAL_BUILD_INTERFACE_LOGGER
+#if PAL_DEVELOPER_BUILD
 #include "core/layers/interfaceLogger/interfaceLoggerPlatform.h"
 #endif
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
 #include "core/layers/pm4Instrumentor/pm4InstrumentorPlatform.h"
 #endif
 
@@ -92,16 +92,16 @@ size_t PAL_STDCALL GetPlatformSize()
     platformSize += sizeof(DbgOverlay::Platform);
     platformSize += sizeof(GpuProfiler::Platform);
 
-#if PAL_BUILD_INTERFACE_LOGGER
+#if PAL_DEVELOPER_BUILD
     platformSize += sizeof(InterfaceLogger::Platform);
 #endif
-#if PAL_BUILD_GPU_DEBUG
+#if PAL_DEVELOPER_BUILD
     platformSize += sizeof(GpuDebug::Platform);
 #endif
-#if PAL_BUILD_CMD_BUFFER_LOGGER
+#if PAL_DEVELOPER_BUILD
     platformSize += sizeof(CmdBufferLogger::Platform);
 #endif
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     platformSize += sizeof(Pm4Instrumentor::Platform);
 #endif
 
@@ -159,16 +159,16 @@ Result PAL_STDCALL CreatePlatform(
     //       of the memory they allocate (or we could have an issue when they go to free that memory). It is easier to
     //       just create the Platform decorator for every layer and make it the responsibility of the layer to
     //       understand when it is enabled or disabled.
-#if PAL_BUILD_INTERFACE_LOGGER
+#if PAL_DEVELOPER_BUILD
     pPlacementAddr = Util::VoidPtrInc(pPlacementAddr, sizeof(InterfaceLogger::Platform));
 #endif
-#if PAL_BUILD_GPU_DEBUG
+#if PAL_DEVELOPER_BUILD
     pPlacementAddr = Util::VoidPtrInc(pPlacementAddr, sizeof(GpuDebug::Platform));
 #endif
-#if PAL_BUILD_CMD_BUFFER_LOGGER
+#if PAL_DEVELOPER_BUILD
     pPlacementAddr = Util::VoidPtrInc(pPlacementAddr, sizeof(CmdBufferLogger::Platform));
 #endif
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     pPlacementAddr = Util::VoidPtrInc(pPlacementAddr, sizeof(Pm4Instrumentor::Platform));
 #endif
 
@@ -208,7 +208,7 @@ Result PAL_STDCALL CreatePlatform(
                                               &pCurPlatform);
     }
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     if (result == Result::Success)
     {
         pPlacementAddr = Util::VoidPtrDec(pPlacementAddr, sizeof(Pm4Instrumentor::Platform));
@@ -223,7 +223,7 @@ Result PAL_STDCALL CreatePlatform(
     }
 #endif
 
-#if PAL_BUILD_CMD_BUFFER_LOGGER
+#if PAL_DEVELOPER_BUILD
     if (result == Result::Success)
     {
         pPlacementAddr = Util::VoidPtrDec(pPlacementAddr, sizeof(CmdBufferLogger::Platform));
@@ -238,7 +238,7 @@ Result PAL_STDCALL CreatePlatform(
     }
 #endif
 
-#if PAL_BUILD_GPU_DEBUG
+#if PAL_DEVELOPER_BUILD
     if (result == Result::Success)
     {
         pPlacementAddr = Util::VoidPtrDec(pPlacementAddr, sizeof(GpuDebug::Platform));
@@ -253,7 +253,7 @@ Result PAL_STDCALL CreatePlatform(
     }
 #endif
 
-#if PAL_BUILD_INTERFACE_LOGGER
+#if PAL_DEVELOPER_BUILD
     if (result == Result::Success)
     {
         pPlacementAddr = Util::VoidPtrDec(pPlacementAddr, sizeof(InterfaceLogger::Platform));

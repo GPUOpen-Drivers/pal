@@ -601,6 +601,29 @@ ADDR2_SURFACE_FLAGS AddrMgr2::DetermineSurfaceFlags(
 
     flags.qbStereo = createInfo.flags.stereo;
 
+    // The following four flags have the given effects. They are applied to the surface in the order
+    // they are listed. We shouldn't set any of them for shared surfaces because the tiling mode is already defined.
+    // - opt4space:         If 2D padding is bigger than 1.5x 1D padding, convert tile mode to 1D.
+    // - minimizeAlignment: If 2D padding is bigger than 1d padding, convert tile mode to 1D.
+    // - maxAlignment64k:   If 2D macro block size is bigger than 64KB, convert tile mode to PRT.
+    // - needEquation:      If tile mode is 2D, convert it to PRT tile mode.
+    if (image.IsShared() == false)
+    {
+        // NV12 or P010 only support 2D THIN1 or linear tile mode, setting the opt4Space or minimizeAlignment flag for
+        // those surfaces could change the tile mode to 1D THIN1.
+        if (image.GetGfxImage()->IsRestrictedTiledMultiMediaSurface() == false)
+        {
+            if (createInfo.tilingOptMode == TilingOptMode::Balanced)
+            {
+                flags.opt4space = 1;
+            }
+            else if (createInfo.tilingOptMode == TilingOptMode::OptForSpace)
+            {
+                flags.minimizeAlign = 1;
+            }
+        }
+    }
+
     return flags;
 }
 

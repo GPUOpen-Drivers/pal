@@ -58,9 +58,11 @@ class IPlatformKey;
 */
 struct QueryResult
 {
-    ICacheLayer*    pLayer;     ///< Pointer to the layer that responded to the query
-    Hash128         hashId;     ///< HashId referenced during query
-    size_t          dataSize;   ///< Size of value stored in cache
+    ICacheLayer*    pLayer;        ///< Pointer to the layer that responded to the query
+    Hash128         hashId;        ///< HashId referenced during query
+    size_t          dataSize;      ///< Size of original data submitted to cache
+    size_t          storeSize;     ///< Size of data stored in cache, which was possibly compressed down from dataSize.
+    size_t          promotionSize; ///< Size to use when storing in another cache
     union
     {
         uint64      entryId;    ///< Unique entry id corresponding to found result
@@ -127,6 +129,10 @@ public:
     /// @param [in] pHashId     128-bit precomputed hash used as a reference id for the cache entry
     /// @param [in] pData       Data to be stored in the cache
     /// @param [in] dataSize    Size of data to be stored
+    /// @param [in] storeSize   Size of the buffer to be used to store the data.
+    ///                         Usually 0 except in cases of compression.
+    ///                         This allows us to *actually* store less than dataSize,
+    ///                         while tracking that we've stored dataSize worth of information.
     ///
     /// @return Success if the data was stored under the hash id. Otherwise, one of the following may be returned:
     ///         + AlreadyExists if a value already exists for the given hash ID. Previous data will not be overwritten.
@@ -140,7 +146,8 @@ public:
     virtual Result Store(
         const Hash128*  pHashId,
         const void*     pData,
-        size_t          dataSize) = 0;
+        size_t          dataSize,
+        size_t          storeSize = 0) = 0;
 
     /// Accquire a long-lived reference to a cache object
     ///
@@ -493,5 +500,40 @@ Result CreateTrackingCacheLayer(
     void*                           pPlacementAddr,
     ICacheLayer**                   ppCacheLayer,
     GetTrackedHashes*               ppGetTrackedHashes);
+
+/**
+***********************************************************************************************************************
+* @brief Information needed to create a compressing cache layer
+***********************************************************************************************************************
+*/
+struct CompressingCacheLayerCreateInfo
+{
+    AllocCallbacks* pCallbacks; ///< Memory allocation callbacks to be used by the caching layer for all long term
+                                ///  storage. Allocation callbacks must be valid for the life of the cache layer
+    bool useHighCompression;    ///< True if we want to use the high compression codec,
+                                ///  which takes a bit more time to compress but decompresses just as fast.
+    bool decompressOnly;        ///< True if we want to use the layer as a pass-through to support reading of any
+                                ///  existing compressed data.
+};
+
+/// Get the memory size for a compressing cache layer
+///
+/// @return Minimum size of memory buffer needed to pass to CreateTrackingCacheLayer()
+size_t GetCompressingCacheLayerSize();
+
+/// Create a compressing cache layer
+///
+/// @param [in]     pCreateInfo         Information about cache being created
+/// @param [in]     pPlacementAddr      Pointer to the location where the interface should be constructed. There
+///                                     must be as much size available here as reported by calling
+///                                     GetTrackingCacheLayerSize().
+/// @param [out]    ppCacheLayer        Cache layer interface. On failure this value will be set to nullptr.
+///
+/// @returns Success if the cache layer was created. Otherwise, one of the following errors may be returned:
+///         + ErrorUnknown if there is an internal error.
+Result CreateCompressingCacheLayer(
+    const CompressingCacheLayerCreateInfo*  pCreateInfo,
+    void*                                   pPlacementAddr,
+    ICacheLayer**                           ppCacheLayer);
 
 } // namespace Util

@@ -2211,10 +2211,10 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeNonBlockCompressedView(
         // Only 2D resource can have a NonBC view...
         returnCode = ADDR_INVALIDPARAMS;
     }
-    else if ((pIn->format != ADDR_FMT_ASTC_8x8) &&
+    else if (((pIn->format < ADDR_FMT_ASTC_4x4) || (pIn->format > ADDR_FMT_ETC2_128BPP)) &&
              ((pIn->format < ADDR_FMT_BC1) || (pIn->format > ADDR_FMT_BC7)))
     {
-        // Only support BC1~BC7 or ASTC_8x8 for now...
+        // Only support BC1~BC7, ASTC, or ETC2 for now...
         returnCode = ADDR_NOTSUPPORTED;
     }
     else
@@ -2227,8 +2227,8 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeNonBlockCompressedView(
         infoIn.swizzleMode  = pIn->swizzleMode;
         infoIn.resourceType = pIn->resourceType;
         infoIn.bpp          = bpp;
-        infoIn.width        = PowTwoAlign(pIn->width, bcWidth) / bcWidth;
-        infoIn.height       = PowTwoAlign(pIn->height, bcHeight) / bcHeight;
+        infoIn.width        = RoundUpQuotient(pIn->width, bcWidth);
+        infoIn.height       = RoundUpQuotient(pIn->height, bcHeight);
         infoIn.numSlices    = pIn->numSlices;
         infoIn.numMipLevels = pIn->numMipLevels;
         infoIn.numSamples   = 1;
@@ -2280,8 +2280,8 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeNonBlockCompressedView(
             pOut->pipeBankXor = slicePbXorOut.pipeBankXor;
 
             const BOOL_32 inTail           = tiled && (pIn->mipId >= infoOut.firstMipIdInTail) ? TRUE : FALSE;
-            const UINT_32 requestMipWidth  = PowTwoAlign(Max(pIn->width >> pIn->mipId, 1u), bcWidth) / bcWidth;
-            const UINT_32 requestMipHeight = PowTwoAlign(Max(pIn->height >> pIn->mipId, 1u), bcHeight) / bcHeight;
+            const UINT_32 requestMipWidth  = RoundUpQuotient(Max(pIn->width >> pIn->mipId, 1u), bcWidth);
+            const UINT_32 requestMipHeight = RoundUpQuotient(Max(pIn->height >> pIn->mipId, 1u), bcHeight);
 
             if (inTail)
             {
@@ -2331,10 +2331,8 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeNonBlockCompressedView(
                 pOut->mipId        = 1;
                 pOut->numMipLevels = 2;
 
-                const UINT_32 upperMipWidth  =
-                    PowTwoAlign(Max(pIn->width >> (pIn->mipId - 1), 1u), bcWidth) / bcWidth;
-                const UINT_32 upperMipHeight =
-                    PowTwoAlign(Max(pIn->height >> (pIn->mipId - 1), 1u), bcHeight) / bcHeight;
+                const UINT_32 upperMipWidth  = RoundUpQuotient(Max(pIn->width >> (pIn->mipId - 1), 1u), bcWidth);
+                const UINT_32 upperMipHeight = RoundUpQuotient(Max(pIn->height >> (pIn->mipId - 1), 1u), bcHeight);
 
                 const BOOL_32 needToAvoidInTail =
                     tiled && (requestMipWidth <= infoOut.blockWidth / 2) && (requestMipHeight <= infoOut.blockHeight) ?

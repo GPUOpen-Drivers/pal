@@ -269,6 +269,7 @@ void ConvertYuvColor(
     case ChNumFormat::YVY2:
         pColorOut[0] = (pColorIn[0] | (pColorIn[2] << 8) | (pColorIn[0] << 16) | (pColorIn[1] << 24));
         break;
+    case ChNumFormat::P412:
     case ChNumFormat::YV12:
         if (plane == 0)
         {
@@ -320,6 +321,8 @@ void ConvertYuvColor(
     case ChNumFormat::P016:
     case ChNumFormat::P010:
     case ChNumFormat::P210:
+    case ChNumFormat::P012:
+    case ChNumFormat::P212:
         if (plane == 0)
         {
             pColorOut[0] = pColorIn[0];
@@ -590,11 +593,18 @@ ChNumFormat PAL_STDCALL ConvertToUnorm(
         ChNumFormat::X8_MM_Unorm,           // ChNumFormat::X8_MM_Uint
         ChNumFormat::X8Y8_MM_Unorm,         // ChNumFormat::X8Y8_MM_Unorm
         ChNumFormat::X8Y8_MM_Unorm,         // ChNumFormat::X8Y8_MM_Uint
-        ChNumFormat::X16_MM_Unorm,          // ChNumFormat::X16_MM_Unorm
-        ChNumFormat::X16_MM_Unorm,          // ChNumFormat::X16_MM_Uint
-        ChNumFormat::X16Y16_MM_Unorm,       // ChNumFormat::X16Y16_MM_Unorm
-        ChNumFormat::X16Y16_MM_Unorm,       // ChNumFormat::X16Y16_MM_Uint
+        ChNumFormat::X16_MM10_Unorm,        // ChNumFormat::X16_MM10_Unorm
+        ChNumFormat::X16_MM10_Unorm,        // ChNumFormat::X16_MM10_Uint
+        ChNumFormat::X16Y16_MM10_Unorm,     // ChNumFormat::X16Y16_MM10_Unorm
+        ChNumFormat::X16Y16_MM10_Unorm,     // ChNumFormat::X16Y16_MM10_Uint
         ChNumFormat::Undefined,             // ChNumFormat::P208
+        ChNumFormat::X16_MM12_Unorm,        // ChNumFormat::X16_MM12_Unorm
+        ChNumFormat::X16_MM12_Unorm,        // ChNumFormat::X16_MM12_Uint
+        ChNumFormat::X16Y16_MM12_Unorm,     // ChNumFormat::X16Y16_MM12_Unorm
+        ChNumFormat::X16Y16_MM12_Unorm,     // ChNumFormat::X16Y16_MM12_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::P012
+        ChNumFormat::Undefined,             // ChNumFormat::P212
+        ChNumFormat::Undefined,             // ChNumFormat::P412
     };
 
     static_assert(ArrayLen(UnormTable) == static_cast<size_t>(ChNumFormat::Count),
@@ -783,11 +793,18 @@ ChNumFormat PAL_STDCALL ConvertToSnorm(
         ChNumFormat::Undefined,             // ChNumFormat::X8_MM_Uint
         ChNumFormat::Undefined,             // ChNumFormat::X8Y8_MM_Unorm
         ChNumFormat::Undefined,             // ChNumFormat::X8Y8_MM_Uint
-        ChNumFormat::Undefined,             // ChNumFormat::X16_MM_Unorm
-        ChNumFormat::Undefined,             // ChNumFormat::X16_MM_Uint
-        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM_Unorm
-        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::X16_MM10_Unorm
+        ChNumFormat::Undefined,             // ChNumFormat::X16_MM10_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM10_Unorm
+        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM10_Uint
         ChNumFormat::Undefined,             // ChNumFormat::P208
+        ChNumFormat::Undefined,             // ChNumFormat::X16_MM12_Unorm
+        ChNumFormat::Undefined,             // ChNumFormat::X16_MM12_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM12_Unorm
+        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM12_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::P012
+        ChNumFormat::Undefined,             // ChNumFormat::P212
+        ChNumFormat::Undefined,             // ChNumFormat::P412
     };
 
     static_assert(ArrayLen(SnormTable) == static_cast<size_t>(ChNumFormat::Count),
@@ -976,11 +993,18 @@ ChNumFormat PAL_STDCALL ConvertToUscaled(
         ChNumFormat::Undefined,             // ChNumFormat::X8_MM_Uint
         ChNumFormat::Undefined,             // ChNumFormat::X8Y8_MM_Unorm
         ChNumFormat::Undefined,             // ChNumFormat::X8Y8_MM_Uint
-        ChNumFormat::Undefined,             // ChNumFormat::X16_MM_Unorm
-        ChNumFormat::Undefined,             // ChNumFormat::X16_MM_Uint
-        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM_Unorm
-        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::X16_MM10_Unorm
+        ChNumFormat::Undefined,             // ChNumFormat::X16_MM10_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM10_Unorm
+        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM10_Uint
         ChNumFormat::Undefined,             // ChNumFormat::P208
+        ChNumFormat::Undefined,             // ChNumFormat::X16_MM12_Unorm
+        ChNumFormat::Undefined,             // ChNumFormat::X16_MM12_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM12_Unorm
+        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM12_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::P012
+        ChNumFormat::Undefined,             // ChNumFormat::P212
+        ChNumFormat::Undefined,             // ChNumFormat::P412
     };
 
     static_assert(ArrayLen(UscaledTable) == static_cast<size_t>(ChNumFormat::Count),
@@ -1169,11 +1193,18 @@ ChNumFormat PAL_STDCALL ConvertToSscaled(
         ChNumFormat::Undefined,             // ChNumFormat::X8_MM_Uint
         ChNumFormat::Undefined,             // ChNumFormat::X8Y8_MM_Unorm
         ChNumFormat::Undefined,             // ChNumFormat::X8Y8_MM_Uint
-        ChNumFormat::Undefined,             // ChNumFormat::X16_MM_Unorm
-        ChNumFormat::Undefined,             // ChNumFormat::X16_MM_Uint
-        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM_Unorm
-        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::X16_MM10_Unorm
+        ChNumFormat::Undefined,             // ChNumFormat::X16_MM10_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM10_Unorm
+        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM10_Uint
         ChNumFormat::Undefined,             // ChNumFormat::P208
+        ChNumFormat::Undefined,             // ChNumFormat::X16_MM12_Unorm
+        ChNumFormat::Undefined,             // ChNumFormat::X16_MM12_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM12_Unorm
+        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM12_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::P012
+        ChNumFormat::Undefined,             // ChNumFormat::P212
+        ChNumFormat::Undefined,             // ChNumFormat::P412
     };
 
     static_assert(ArrayLen(SscaledTable) == static_cast<size_t>(ChNumFormat::Count),
@@ -1362,11 +1393,18 @@ ChNumFormat PAL_STDCALL ConvertToUint(
         ChNumFormat::X8_MM_Uint,            // ChNumFormat::X8_MM_Uint
         ChNumFormat::X8Y8_MM_Uint,          // ChNumFormat::X8Y8_MM_Unorm
         ChNumFormat::X8Y8_MM_Uint,          // ChNumFormat::X8Y8_MM_Uint
-        ChNumFormat::X16_MM_Uint,           // ChNumFormat::X16_MM_Unorm
-        ChNumFormat::X16_MM_Uint,           // ChNumFormat::X16_MM_Uint
-        ChNumFormat::X16Y16_MM_Uint,        // ChNumFormat::X16Y16_MM_Unorm
-        ChNumFormat::X16Y16_MM_Uint,        // ChNumFormat::X16Y16_MM_Uint
+        ChNumFormat::X16_MM10_Uint,         // ChNumFormat::X16_MM10_Unorm
+        ChNumFormat::X16_MM10_Uint,         // ChNumFormat::X16_MM10_Uint
+        ChNumFormat::X16Y16_MM10_Uint,      // ChNumFormat::X16Y16_MM10_Unorm
+        ChNumFormat::X16Y16_MM10_Uint,      // ChNumFormat::X16Y16_MM10_Uint
         ChNumFormat::Undefined,             // ChNumFormat::P208
+        ChNumFormat::X16_MM12_Uint,         // ChNumFormat::X16_MM12_Unorm
+        ChNumFormat::X16_MM12_Uint,         // ChNumFormat::X16_MM12_Uint
+        ChNumFormat::X16Y16_MM12_Uint,      // ChNumFormat::X16Y16_MM12_Unorm
+        ChNumFormat::X16Y16_MM12_Uint,      // ChNumFormat::X16Y16_MM12_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::P012
+        ChNumFormat::Undefined,             // ChNumFormat::P212
+        ChNumFormat::Undefined,             // ChNumFormat::P412
     };
 
     static_assert(ArrayLen(UintTable) == static_cast<size_t>(ChNumFormat::Count),
@@ -1555,11 +1593,18 @@ ChNumFormat PAL_STDCALL ConvertToSint(
         ChNumFormat::Undefined,             // ChNumFormat::X8_MM_Uint
         ChNumFormat::Undefined,             // ChNumFormat::X8Y8_MM_Unorm
         ChNumFormat::Undefined,             // ChNumFormat::X8Y8_MM_Uint
-        ChNumFormat::Undefined,             // ChNumFormat::X16_MM_Unorm
-        ChNumFormat::Undefined,             // ChNumFormat::X16_MM_Uint
-        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM_Unorm
-        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::X16_MM10_Unorm
+        ChNumFormat::Undefined,             // ChNumFormat::X16_MM10_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM10_Unorm
+        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM10_Uint
         ChNumFormat::Undefined,             // ChNumFormat::P208
+        ChNumFormat::Undefined,             // ChNumFormat::X16_MM12_Unorm
+        ChNumFormat::Undefined,             // ChNumFormat::X16_MM12_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM12_Unorm
+        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM12_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::P012
+        ChNumFormat::Undefined,             // ChNumFormat::P212
+        ChNumFormat::Undefined,             // ChNumFormat::P412
     };
 
     static_assert(ArrayLen(SintTable) == static_cast<size_t>(ChNumFormat::Count),
@@ -1748,11 +1793,18 @@ ChNumFormat PAL_STDCALL ConvertToFloat(
         ChNumFormat::Undefined,             // ChNumFormat::X8_MM_Uint
         ChNumFormat::Undefined,             // ChNumFormat::X8Y8_MM_Unorm
         ChNumFormat::Undefined,             // ChNumFormat::X8Y8_MM_Uint
-        ChNumFormat::Undefined,             // ChNumFormat::X16_MM_Unorm
-        ChNumFormat::Undefined,             // ChNumFormat::X16_MM_Uint
-        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM_Unorm
-        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::X16_MM10_Unorm
+        ChNumFormat::Undefined,             // ChNumFormat::X16_MM10_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM10_Unorm
+        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM10_Uint
         ChNumFormat::Undefined,             // ChNumFormat::P208
+        ChNumFormat::Undefined,             // ChNumFormat::X16_MM12_Unorm
+        ChNumFormat::Undefined,             // ChNumFormat::X16_MM12_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM12_Unorm
+        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM12_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::P012
+        ChNumFormat::Undefined,             // ChNumFormat::P212
+        ChNumFormat::Undefined,             // ChNumFormat::P412
     };
 
     static_assert(ArrayLen(FloatTable) == static_cast<size_t>(ChNumFormat::Count),
@@ -1941,11 +1993,18 @@ ChNumFormat PAL_STDCALL ConvertToSrgb(
         ChNumFormat::Undefined,             // ChNumFormat::X8_MM_Uint
         ChNumFormat::Undefined,             // ChNumFormat::X8Y8_MM_Unorm
         ChNumFormat::Undefined,             // ChNumFormat::X8Y8_MM_Uint
-        ChNumFormat::Undefined,             // ChNumFormat::X16_MM_Unorm
-        ChNumFormat::Undefined,             // ChNumFormat::X16_MM_Uint
-        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM_Unorm
-        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::X16_MM10_Unorm
+        ChNumFormat::Undefined,             // ChNumFormat::X16_MM10_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM10_Unorm
+        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM10_Uint
         ChNumFormat::Undefined,             // ChNumFormat::P208
+        ChNumFormat::Undefined,             // ChNumFormat::X16_MM12_Unorm
+        ChNumFormat::Undefined,             // ChNumFormat::X16_MM12_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM12_Unorm
+        ChNumFormat::Undefined,             // ChNumFormat::X16Y16_MM12_Uint
+        ChNumFormat::Undefined,             // ChNumFormat::P012
+        ChNumFormat::Undefined,             // ChNumFormat::P212
+        ChNumFormat::Undefined,             // ChNumFormat::P412
     };
 
     static_assert(ArrayLen(SrgbTable) == static_cast<size_t>(ChNumFormat::Count),
@@ -2049,6 +2108,9 @@ bool ShareChFmt(
     case ChNumFormat::P010:
     case ChNumFormat::P208:
     case ChNumFormat::P210:
+    case ChNumFormat::P012:
+    case ChNumFormat::P212:
+    case ChNumFormat::P412:
     case ChNumFormat::U8V8_Snorm_L8W8_Unorm:
     case ChNumFormat::U10V10W10_Snorm_A2_Unorm:
         isSame = (srcFormat == dstFormat);
@@ -2140,13 +2202,16 @@ bool ShareChFmt(
     case ChNumFormat::X16_Uint:
     case ChNumFormat::X16_Sint:
     case ChNumFormat::X16_Float:
-    case ChNumFormat::X16_MM_Unorm:
-    case ChNumFormat::X16_MM_Uint:
-        isSame = ((dstFormat == ChNumFormat::X16_Unorm)   || (dstFormat == ChNumFormat::X16_Snorm)    ||
-                  (dstFormat == ChNumFormat::X16_Uscaled) || (dstFormat == ChNumFormat::X16_Sscaled)  ||
-                  (dstFormat == ChNumFormat::X16_Uint)    || (dstFormat == ChNumFormat::X16_Sint)     ||
-                  (dstFormat == ChNumFormat::X16_Float)   || (dstFormat == ChNumFormat::X16_MM_Unorm) ||
-                  (dstFormat == ChNumFormat::X16_MM_Uint));
+    case ChNumFormat::X16_MM10_Unorm:
+    case ChNumFormat::X16_MM10_Uint:
+    case ChNumFormat::X16_MM12_Unorm:
+    case ChNumFormat::X16_MM12_Uint:
+        isSame = ((dstFormat == ChNumFormat::X16_Unorm)     || (dstFormat == ChNumFormat::X16_Snorm)    ||
+                  (dstFormat == ChNumFormat::X16_Uscaled)   || (dstFormat == ChNumFormat::X16_Sscaled)  ||
+                  (dstFormat == ChNumFormat::X16_Uint)      || (dstFormat == ChNumFormat::X16_Sint)     ||
+                  (dstFormat == ChNumFormat::X16_Float)     || (dstFormat == ChNumFormat::X16_MM10_Unorm) ||
+                  (dstFormat == ChNumFormat::X16_MM10_Uint) || (dstFormat == ChNumFormat::X16_MM12_Unorm) ||
+                  (dstFormat == ChNumFormat::X16_MM12_Uint));
         break;
     case ChNumFormat::X16Y16_Unorm:
     case ChNumFormat::X16Y16_Snorm:
@@ -2155,13 +2220,16 @@ bool ShareChFmt(
     case ChNumFormat::X16Y16_Uint:
     case ChNumFormat::X16Y16_Sint:
     case ChNumFormat::X16Y16_Float:
-    case ChNumFormat::X16Y16_MM_Unorm:
-    case ChNumFormat::X16Y16_MM_Uint:
-        isSame = ((dstFormat == ChNumFormat::X16Y16_Unorm)   || (dstFormat == ChNumFormat::X16Y16_Snorm)    ||
-                  (dstFormat == ChNumFormat::X16Y16_Uscaled) || (dstFormat == ChNumFormat::X16Y16_Sscaled)  ||
-                  (dstFormat == ChNumFormat::X16Y16_Uint)    || (dstFormat == ChNumFormat::X16Y16_Sint)     ||
-                  (dstFormat == ChNumFormat::X16Y16_Float)   || (dstFormat == ChNumFormat::X16Y16_MM_Unorm) ||
-                  (dstFormat == ChNumFormat::X16Y16_MM_Uint));
+    case ChNumFormat::X16Y16_MM10_Unorm:
+    case ChNumFormat::X16Y16_MM10_Uint:
+    case ChNumFormat::X16Y16_MM12_Unorm:
+    case ChNumFormat::X16Y16_MM12_Uint:
+        isSame = ((dstFormat == ChNumFormat::X16Y16_Unorm)     || (dstFormat == ChNumFormat::X16Y16_Snorm)    ||
+                  (dstFormat == ChNumFormat::X16Y16_Uscaled)   || (dstFormat == ChNumFormat::X16Y16_Sscaled)  ||
+                  (dstFormat == ChNumFormat::X16Y16_Uint)      || (dstFormat == ChNumFormat::X16Y16_Sint)     ||
+                  (dstFormat == ChNumFormat::X16Y16_Float)     || (dstFormat == ChNumFormat::X16Y16_MM10_Unorm) ||
+                  (dstFormat == ChNumFormat::X16Y16_MM10_Uint) || (dstFormat == ChNumFormat::X16Y16_MM12_Unorm) ||
+                  (dstFormat == ChNumFormat::X16Y16_MM12_Uint));
         break;
     case ChNumFormat::X16Y16Z16W16_Unorm:
     case ChNumFormat::X16Y16Z16W16_Snorm:
@@ -2331,8 +2399,10 @@ bool ShareChFmt(
 bool IsMmFormat(
     ChNumFormat format)
 {
-    return ((format >= ChNumFormat::X8_MM_Unorm) &&
-            (format <= ChNumFormat::X16Y16_MM_Uint));
+    return (((format >= ChNumFormat::X8_MM_Unorm) &&
+             (format <= ChNumFormat::X16Y16_MM10_Uint)) ||
+            ((format >= ChNumFormat::X16_MM12_Unorm) &&
+             (format <= ChNumFormat::X16Y16_MM12_Uint)));
 }
 
 } // Formats

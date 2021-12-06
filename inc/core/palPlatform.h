@@ -43,6 +43,14 @@ namespace DevDriver
 class DevDriverServer;
 }
 
+#if PAL_BUILD_RDF
+// GpuUtil forward declarations.
+namespace GpuUtil
+{
+class TraceSession;
+}
+#endif
+
 namespace Pal
 {
 
@@ -166,6 +174,7 @@ enum class ApplicationProfileClient : uint32
     DutyCycleScaling,
     ProBoost,
     RisWindowed,
+    Count
 };
 
 /// Describes a primary surface view
@@ -423,6 +432,14 @@ public:
     /// @returns A valid DevDriver::DevDriverServer pointer if developer mode is enabled. If developer mode is not
     ///          enabled, nullptr will be returned.
     virtual DevDriver::DevDriverServer* GetDevDriverServer() = 0;
+
+#if PAL_BUILD_RDF
+    /// Returns a pointer to the current trace session if one was created during startup
+    ///
+    /// @returns A valid TraceSession pointer if a session currently exists. If a trace session was not created during
+    ///          startup, nullptr will be returned.
+    virtual GpuUtil::TraceSession* GetTraceSession() = 0;
+#endif
 
     /// Returns a pointer to the Platform settings structure
     ///

@@ -73,7 +73,8 @@ protected:
     virtual Result StoreInternal(
         const Hash128*  pHashId,
         const void*     pData,
-        size_t          dataSize) override;
+        size_t          dataSize,
+        size_t          storeSize) override;
 
     virtual Result LoadInternal(
         const QueryResult* pQuery,
@@ -81,6 +82,7 @@ protected:
 
     virtual Result PromoteData(
         ICacheLayer* pNextLayer,
+        const void*  pBuffer,
         QueryResult* pQuery) override;
 
     virtual Result Reserve(
@@ -90,7 +92,7 @@ private:
     PAL_DISALLOW_DEFAULT_CTOR(MemoryCacheLayer);
     class Entry;
 
-    Result SetDataToEntry(Entry* pEntry, const void* pData, size_t dataSize);
+    Result SetDataToEntry(Entry* pEntry, const void* pData, size_t dataSize, size_t storeSize);
     Result AddEntryToCache(Entry* pEntry);
     Result EvictEntryFromCache(Entry* pEntry);
 
@@ -111,12 +113,14 @@ private:
             ForwardAllocator* pAllocator,
             const Hash128*    pHashId,
             const void*       pInitialData,
-            size_t            dataSize);
+            size_t            dataSize,
+            size_t            storeSize);
 
-        Result SetData(const void* pData, size_t dataSize);
+        Result SetData(const void* pData, size_t dataSize, size_t storeSize);
         const Hash128* HashId() const { return &m_hashId; }
         void* Data() const { return m_pData; }
         size_t DataSize() const { return m_dataSize; }
+        size_t StoreSize() const { return m_storeSize; }
         void IncreaseRef() { AtomicIncrement(&m_zeroCopyCount); }
         void DecreaseRef()
         {
@@ -154,6 +158,7 @@ private:
         Hash128                 m_hashId;
         void*                   m_pData;
         size_t                  m_dataSize;
+        size_t                  m_storeSize;
         volatile uint32         m_zeroCopyCount;
         bool                    m_isBad;
     };

@@ -23,7 +23,7 @@
  *
  **********************************************************************************************************************/
 
-#if PAL_BUILD_INTERFACE_LOGGER
+#if PAL_DEVELOPER_BUILD
 
 #include "palAssert.h"
 #include "core/layers/interfaceLogger/interfaceLoggerLogContext.h"
@@ -2672,6 +2672,21 @@ void LogContext::Struct(
     if (value.flags.timeline)
     {
         Value("timeline");
+    }
+
+    if (value.flags.sharedViaNtHandle)
+    {
+        Value("sharedViaNtHandle");
+    }
+
+    if (value.flags.externalOpened)
+    {
+        Value("externalOpened");
+    }
+
+    if (value.flags.noSignalOnDeviceLost)
+    {
+        Value("noSignalOnDeviceLost");
     }
 
     EndList();

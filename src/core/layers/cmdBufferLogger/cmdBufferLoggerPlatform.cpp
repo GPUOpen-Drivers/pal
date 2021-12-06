@@ -23,7 +23,7 @@
  *
  **********************************************************************************************************************/
 
-#if PAL_BUILD_CMD_BUFFER_LOGGER
+#if PAL_DEVELOPER_BUILD
 
 #include "core/g_palPlatformSettings.h"
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerCmdBuffer.h"
@@ -231,7 +231,7 @@ void PAL_STDCALL Platform::CmdBufferLoggerCb(
         }
         break;
     }
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     case Developer::CallbackType::DrawDispatchValidation:
         PAL_ASSERT(pCbData != nullptr);
         TranslateDrawDispatchValidationData(pCbData);

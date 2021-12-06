@@ -415,6 +415,38 @@ static inline INT_32 Max(
 
 /**
 ****************************************************************************************************
+*   RoundUpQuotient
+*
+*   @brief
+*       Divides two numbers, rounding up any remainder.
+****************************************************************************************************
+*/
+static inline UINT_32 RoundUpQuotient(
+    UINT_32 numerator,
+    UINT_32 denominator)
+{
+    ADDR_ASSERT(denominator > 0);
+    return ((numerator + (denominator - 1)) / denominator);
+}
+
+/**
+****************************************************************************************************
+*   RoundUpQuotient
+*
+*   @brief
+*       Divides two numbers, rounding up any remainder.
+****************************************************************************************************
+*/
+static inline UINT_64 RoundUpQuotient(
+    UINT_64 numerator,
+    UINT_64 denominator)
+{
+    ADDR_ASSERT(denominator > 0);
+    return ((numerator + (denominator - 1)) / denominator);
+}
+
+/**
+****************************************************************************************************
 *   NextPow2
 *
 *   @brief

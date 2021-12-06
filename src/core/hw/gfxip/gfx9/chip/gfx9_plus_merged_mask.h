@@ -2929,6 +2929,7 @@ namespace Core
     constexpr unsigned int GDS_PERFCOUNTER3_HI__PERFCOUNTER_HI_MASK           = 0xffffffff;
     constexpr unsigned int GDS_PERFCOUNTER3_LO__PERFCOUNTER_LO_MASK           = 0xffffffff;
     constexpr unsigned int GDS_PERFCOUNTER3_SELECT__CNTR_MODE_MASK            = 0x00f00000;
+    constexpr unsigned int GRBM_CHIP_REVISION__CHIP_REVISION_MASK             = 0x000000ff;
     constexpr unsigned int GRBM_PERFCOUNTER0_SELECT__EA_BUSY_USER_DEFINED_MASK_MASK = 0x40000000;
     constexpr unsigned int GRBM_PERFCOUNTER1_SELECT__EA_BUSY_USER_DEFINED_MASK_MASK = 0x40000000;
     constexpr unsigned int GRBM_SE1_PERFCOUNTER_HI__PERFCOUNTER_HI_MASK       = 0xffffffff;

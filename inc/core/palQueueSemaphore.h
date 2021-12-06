@@ -47,14 +47,15 @@ struct QueueSemaphoreCreateInfo
     {
         struct
         {
-            uint32 shareable         :  1;  ///< This queue semaphore may be opened for use by a different device.
-            uint32 sharedViaNtHandle :  1;  ///< This queue semaphore can only be shared through Nt handle.
-            uint32 externalOpened    :  1;  ///< Semaphore was created by other APIs
+            uint32 shareable            :  1;  ///< This queue semaphore may be opened for use by a different device.
+            uint32 sharedViaNtHandle    :  1;  ///< This queue semaphore can only be shared through Nt handle.
+            uint32 externalOpened       :  1;  ///< Semaphore was created by other APIs
             /// This queue semaphore is a timeline semaphore. Timeline semaphores have a 64-bit unsigned integer payload
             /// which gets monotonically increased with each Signal operation. A wait on a timeline semaphore blocks the
             /// waiter until the specified payload value has been signaled.
-            uint32 timeline          :  1;
-            uint32 reserved          : 28;  ///< Reserved for future use.
+            uint32 timeline             :  1;
+            uint32 noSignalOnDeviceLost :  1;  ///< Do not signal the queue semaphore to max if the device is lost.
+            uint32 reserved             : 27;  ///< Reserved for future use.
         };
         uint32 u32All;              ///< Flags packed as 32-bit uint.
     } flags;                        ///< Queue semaphore creation flags.

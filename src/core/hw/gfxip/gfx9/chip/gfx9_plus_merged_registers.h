@@ -11645,6 +11645,17 @@ union GL2C_PERFCOUNTER3_SELECT {
     float        f32All;
 };
 
+union GRBM_CHIP_REVISION {
+    struct {
+        unsigned int CHIP_REVISION                                                :  8;
+        unsigned int                                                              : 24;
+    } core;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
 union GRBM_GFX_INDEX {
     struct {
         unsigned int INSTANCE_INDEX                                               :  8;

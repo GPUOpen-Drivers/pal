@@ -58,7 +58,7 @@ public:
 
     virtual bool NeedWindowSizeChangedCheck() const override { return true; }
 
-    virtual Result SetHdrMetaData(const ScreenColorConfig& colorConfig) { return Result::Unsupported; }
+    virtual Result SetHdrMetaData(const ScreenColorConfig& colorConfig) override { return Result::Unsupported; }
 
     // These begin and end a swap chain present. The present scheduler must call PresentComplete once it has scheduled
     // the present and all necessary synchronization.

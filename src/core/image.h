@@ -522,6 +522,7 @@ public:
 
     void InvalidatePrivateScreen() { m_pPrivateScreen = nullptr; }
 
+    bool UsesMmFormat() const;
     void DetermineFormatForPlane(
         SwizzledFormat* pFormat,
         uint32          plane) const;

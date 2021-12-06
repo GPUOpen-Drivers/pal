@@ -3286,9 +3286,6 @@ Result GpaSession::AcquireGpuMem(
 
             if (heapType == GpuHeapInvisible)
             {
-                // Having perf data in caches thrashes more for the real GPU work, and it won't be read back till later.
-                createInfo.flags.gl2Uncached = 1;
-
                 // Ensure a fall back to local is available in case there is no Invisible Memory.
                 createInfo.heaps[createInfo.heapCount++] = GpuHeapLocal;
             }
@@ -3991,7 +3988,8 @@ Result GpaSession::DumpRgpData(
             const void* pData = static_cast<const void*>(
                 Util::VoidPtrInc(pResults, static_cast<size_t>(seLayout.dataOffset)));
 
-            // curOffset reports the amount of SQTT data written by the hardware in units of 32 bytes.
+            // curOffset reports the amount of SQTT data written by the hardware in units of 32 bytes. The alignment
+            // should match with SqttWptrOffsetShift.
             const uint32 sqttBytesWritten = info.curOffset * 32;
 
             SqttFileChunkSqttData data             = {};
@@ -4499,6 +4497,8 @@ Result GpaSession::AppendSpmTraceData(
             spmDbChunk.numTimestamps                    = static_cast<uint32>(numSpmSamples);
             spmDbChunk.numSpmCounterInfo                = pTraceSample->GetNumSpmCounters();
             spmDbChunk.samplingInterval                 = pTraceSample->GetSpmSampleInterval();
+            spmDbChunk.preambleSize                     = sizeof(SqttFileChunkSpmDb);
+            spmDbChunk.spmCounterInfoSize               = sizeof(SpmCounterInfo);
 
             spmDbChunk.header.majorVersion = RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_SPM_DB].majorVersion;
             spmDbChunk.header.minorVersion = RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_SPM_DB].minorVersion;

@@ -49,7 +49,7 @@ MemoryCacheLayer::MemoryCacheLayer(
     m_curSize         { 0 },
     m_curCount        { 0 },
     m_recentEntryList {},
-    m_entryLookup     { 2048, Allocator() }
+    m_entryLookup     { 0x4000, Allocator() }
 {
 }
 
@@ -107,6 +107,8 @@ Result MemoryCacheLayer::QueryInternal(
         pQuery->hashId             = *pHashId;
         pQuery->pLayer             = this;
         pQuery->dataSize           = (*ppFound)->DataSize();
+        pQuery->storeSize          = (*ppFound)->StoreSize();
+        pQuery->promotionSize      = (*ppFound)->StoreSize();
         pQuery->context.pEntryInfo = (*ppFound)->Data();
         if (pQuery->dataSize == 0)
         {
@@ -126,7 +128,8 @@ Result MemoryCacheLayer::QueryInternal(
 Result MemoryCacheLayer::StoreInternal(
     const Hash128*  pHashId,
     const void*     pData,
-    size_t          dataSize)
+    size_t          dataSize,
+    size_t          storeSize)
 {
     Result result = Result::Success;
 
@@ -156,7 +159,7 @@ Result MemoryCacheLayer::StoreInternal(
             {
                 if ((*ppFound)->Data() == nullptr)
                 {
-                    result = SetDataToEntry(*ppFound, pData, dataSize);
+                    result = SetDataToEntry(*ppFound, pData, dataSize, storeSize);
                     if (result == Result::Success)
                     {
                         setData = true;
@@ -166,6 +169,7 @@ Result MemoryCacheLayer::StoreInternal(
                 else if (m_evictDuplicates)
                 {
                     result = EvictEntryFromCache(*ppFound);
+                    m_conditionVariable.WakeAll();
                 }
                 else
                 {
@@ -183,12 +187,12 @@ Result MemoryCacheLayer::StoreInternal(
     {
         RWLockAuto<RWLock::ReadWrite> lock { &m_lock };
 
-        result = EnsureAvailableSpace(dataSize, 1);
+        result = EnsureAvailableSpace(storeSize, 1);
     }
 
     if ((result == Result::Success) && (setData == false))
     {
-        Entry* pEntry = Entry::Create(Allocator(), pHashId, pData, dataSize);
+        Entry* pEntry = Entry::Create(Allocator(), pHashId, pData, dataSize, storeSize);
 
         if (pEntry != nullptr)
         {
@@ -235,7 +239,7 @@ Result MemoryCacheLayer::LoadInternal(
         {
             if ((*ppFound)->Data())
             {
-                memcpy(pBuffer, (*ppFound)->Data(), (*ppFound)->DataSize());
+                memcpy(pBuffer, (*ppFound)->Data(), (*ppFound)->StoreSize());
             }
             else
             {
@@ -519,13 +523,13 @@ Result MemoryCacheLayer::EvictEntryBySize(
 
         if (pEntry != nullptr)
         {
-            const size_t dataSize = pEntry->DataSize();
+            const size_t storeSize = pEntry->StoreSize();
 
             result = EvictEntryFromCache(pEntry);
 
             if (result == Result::Success)
             {
-                evictedSize += dataSize;
+                evictedSize += storeSize;
             }
         }
         else
@@ -558,7 +562,7 @@ Result MemoryCacheLayer::EvictEntryFromCache(
             result = Result::Success;
 
             m_recentEntryList.Erase(pEntry->ListNode());
-            m_curSize -= pEntry->DataSize();
+            m_curSize -= pEntry->StoreSize();
             m_curCount -= 1;
             pEntry->Destroy();
         }
@@ -579,7 +583,7 @@ Result MemoryCacheLayer::AddEntryToCache(
     if (result == Result::Success)
     {
         m_recentEntryList.PushBack(pEntry->ListNode());
-        m_curSize += pEntry->DataSize();
+        m_curSize += pEntry->StoreSize();
         m_curCount++;
     }
 
@@ -591,18 +595,19 @@ Result MemoryCacheLayer::AddEntryToCache(
 Result MemoryCacheLayer::SetDataToEntry(
     Entry*      pEntry,
     const void* pData,
-    size_t      dataSize)
+    size_t      dataSize,
+    size_t      storeSize)
 {
     PAL_ASSERT(pEntry != nullptr);
     Result result = Result::Success;
 
     if ((pData != nullptr) && (dataSize > 0))
     {
-        result = pEntry->SetData(pData, dataSize);
+        result = pEntry->SetData(pData, dataSize, storeSize);
 
         if (result == Result::Success)
         {
-            m_curSize += pEntry->DataSize();
+            m_curSize += storeSize;
         }
     }
 
@@ -652,20 +657,21 @@ Result MemoryCacheLayer::EnsureAvailableSpace(
 // Promote data from another layer to ourselves
 Result MemoryCacheLayer::PromoteData(
     ICacheLayer* pNextLayer,
+    const void*  pBuffer,
     QueryResult* pQuery)
 {
-    PAL_ASSERT(pNextLayer != nullptr);
+    PAL_ASSERT((pNextLayer != nullptr) || (pBuffer != nullptr));
     PAL_ASSERT(pQuery != nullptr);
 
     Result result = Result::Success;
 
-    if ((pNextLayer == nullptr) ||
+    if (((pNextLayer == nullptr) && (pBuffer == nullptr)) ||
         (pQuery == nullptr))
     {
         result = Result::ErrorInvalidPointer;
     }
 
-    if (pQuery->dataSize == 0)
+    if ((pQuery->dataSize == 0) || (pQuery->promotionSize == 0))
     {
         result = Result::ErrorInvalidValue;
     }
@@ -687,16 +693,19 @@ Result MemoryCacheLayer::PromoteData(
     {
         RWLockAuto<RWLock::ReadWrite> lock { &m_lock };
 
-        result = EnsureAvailableSpace(pQuery->dataSize, 1);
+        result = EnsureAvailableSpace(pQuery->promotionSize, 1);
     }
 
     if (result == Result::Success)
     {
-        Entry* pEntry = Entry::Create(Allocator(), &pQuery->hashId, nullptr, pQuery->dataSize);
+        Entry* pEntry = Entry::Create(Allocator(), &pQuery->hashId, pBuffer, pQuery->dataSize, pQuery->promotionSize);
 
         if (pEntry != nullptr)
         {
-            result = pNextLayer->Load(pQuery, pEntry->Data());
+            if (pBuffer == nullptr)
+            {
+                result = pNextLayer->Load(pQuery, pEntry->Data());
+            }
 
             if (result == Result::Success)
             {
@@ -758,24 +767,22 @@ Result MemoryCacheLayer::Reserve(
                 result = Result::ErrorUnknown;
             }
         }
-    }
-
-    if (result == Result::Success)
-    {
-        Entry* pEntry = Entry::Create(Allocator(), pHashId, nullptr, 0);
-        if (pEntry != nullptr)
-        {
-            RWLockAuto<RWLock::ReadWrite> lock { &m_lock };
-            result = AddEntryToCache(pEntry);
-            if (result != Result::Success)
-            {
-                pEntry->Destroy();
-                pEntry = nullptr;
-            }
-        }
         else
         {
-          result = Result::ErrorOutOfMemory;
+            Entry* pEntry = Entry::Create(Allocator(), pHashId, nullptr, 0, 0);
+            if (pEntry != nullptr)
+            {
+                result = AddEntryToCache(pEntry);
+                if (result != Result::Success)
+                {
+                    pEntry->Destroy();
+                    pEntry = nullptr;
+                }
+            }
+            else
+            {
+              result = Result::ErrorOutOfMemory;
+            }
         }
     }
 
@@ -896,7 +903,8 @@ MemoryCacheLayer::Entry* MemoryCacheLayer::Entry::Create(
     ForwardAllocator* pAllocator,
     const Hash128*    pHashId,
     const void*       pInitialData,
-    size_t            dataSize)
+    size_t            dataSize,
+    size_t            storeSize)
 {
     PAL_ASSERT(pAllocator != nullptr);
     PAL_ASSERT(pHashId != nullptr);
@@ -910,14 +918,14 @@ MemoryCacheLayer::Entry* MemoryCacheLayer::Entry::Create(
 
         void* pData = nullptr;
 
-        if (dataSize > 0)
+        if (storeSize > 0)
         {
-            pData = PAL_MALLOC(dataSize, pAllocator, AllocInternal);
+            pData = PAL_MALLOC(storeSize, pAllocator, AllocInternal);
             if (pData != nullptr)
             {
                 if (pInitialData != nullptr)
                 {
-                    memcpy(pData, pInitialData, dataSize);
+                    memcpy(pData, pInitialData, storeSize);
                 }
             }
             else
@@ -928,9 +936,10 @@ MemoryCacheLayer::Entry* MemoryCacheLayer::Entry::Create(
 
         if (pEntry != nullptr)
         {
-            pEntry->m_hashId   = *pHashId;
-            pEntry->m_pData    = pData;
-            pEntry->m_dataSize = dataSize;
+            pEntry->m_hashId    = *pHashId;
+            pEntry->m_pData     = pData;
+            pEntry->m_dataSize  = dataSize;
+            pEntry->m_storeSize = storeSize;
             pEntry->m_zeroCopyCount = 0;
         }
     }
@@ -941,18 +950,20 @@ MemoryCacheLayer::Entry* MemoryCacheLayer::Entry::Create(
 // =====================================================================================================================
 Result MemoryCacheLayer::Entry::SetData(
     const void* pData,
-    size_t      dataSize)
+    size_t      dataSize,
+    size_t      storeSize)
 {
     PAL_ASSERT(m_pData == nullptr);
     Result result = Result::Success;
 
     if (pData)
     {
-        m_pData = PAL_MALLOC(dataSize, m_pAllocator, AllocInternal);
+        m_pData = PAL_MALLOC(storeSize, m_pAllocator, AllocInternal);
         if (m_pData != nullptr)
         {
-            memcpy(m_pData, pData, dataSize);
-            m_dataSize = dataSize;
+            memcpy(m_pData, pData, storeSize);
+            m_storeSize = storeSize;
+            m_dataSize  = dataSize;
         }
         else
         {

@@ -25,22 +25,12 @@
 
 include_guard()
 
-include(PalVersionHelper)
-
 # All options/cache variables should have the prefix "PAL_" this serves two main purposes
 # - Name collision issues
 # - cmake-gui allows grouping of variables based on prefixes, which then makes it clear what options PAL defined
 
-option(PAL_ENABLE_PRINTS_ASSERTS "Enable print assertions?" OFF)
+option(PAL_ENABLE_PRINTS_ASSERTS "Enable print assertions?")
 option(PAL_ENABLE_PRINTS_ASSERTS_DEBUG "Enable print assertions on debug builds?" ON)
 
-option(PAL_MEMTRACK "Enable PAL memory tracker?" OFF)
-
-# Paths to PAL's dependencies
-set(PAL_METROHASH_PATH ${PROJECT_SOURCE_DIR}/src/util/imported/metrohash      CACHE PATH "Specify the path to the MetroHash project.")
-set(   PAL_CWPACK_PATH ${PROJECT_SOURCE_DIR}/src/util/imported/cwpack         CACHE PATH "Specify the path to the CWPack project.")
-set(     PAL_ADDR_PATH ${PROJECT_SOURCE_DIR}/src/core/imported/addrlib        CACHE PATH "Specify the path to the ADDRLIB project.")
-set(      PAL_SWD_PATH ${PROJECT_SOURCE_DIR}/src/core/imported/SwWarDetection CACHE PATH "Specify the path to the SwWarDetection project.")
-
-set(PAL_GPUOPEN_PATH "default" CACHE PATH "Specify the path to the GPUOPEN_PATH project.")
+option(PAL_MEMTRACK "Enable PAL memory tracker?")
 

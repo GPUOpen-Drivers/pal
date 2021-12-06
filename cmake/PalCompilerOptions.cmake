@@ -25,7 +25,6 @@
 
 include_guard()
 
-include(PalVersionHelper)
 include(PalCompilerWarnings)
 include(CheckCXXCompilerFlag)
 
@@ -46,7 +45,18 @@ function(pal_compiler_options TARGET)
         set(isClang TRUE)
     endif()
 
-    if(isGNU OR isClang)
+    # Enable Large File Support for 32-bit Linux.
+    # On 64-bit these flags aren't necessary. The 64-bit versions of these functions are automatically selected.
+    if ((CMAKE_HOST_SYSTEM_NAME MATCHES "Linux") AND (CMAKE_SIZEOF_VOID_P EQUAL 4))
+        target_compile_definitions(${TARGET} PRIVATE
+            # fseeko64() is limited to seeking ~2GB at a time without this.
+            _FILE_OFFSET_BITS=64
+            # stat64 is undefined in glibc unless this is defined.
+            _LARGEFILE64_SOURCE=1
+        )
+    endif()
+
+    if (isGNU OR isClang)
         # Setup warnings
         pal_compiler_warnings_gnu_or_clang(${TARGET})
 
@@ -66,11 +76,6 @@ function(pal_compiler_options TARGET)
             # by the C++ standard.  GCC leverages this undefined behavior, and optimizes away this nullptr check that we require,
             # so we need to enable this switch to have GCC include that if-check.
             -fcheck-new
-
-            # fseeko64() is limited to seeking ~2GB at a time without this.
-            -D_FILE_OFFSET_BITS=64
-            # stat64 is undefined in glibc unless this is defined.
-            -D_LARGEFILE64_SOURCE=1
 
             # Having simple optimization on results in dramatically smaller debug builds (and they actually build faster).
             # This is mostly due to constant-folding and dead-code-elimination of registers.

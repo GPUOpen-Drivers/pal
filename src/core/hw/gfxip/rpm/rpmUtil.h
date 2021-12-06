@@ -204,8 +204,8 @@ extern void SetupRgbToYuvCscTable(
 //Helper function to calculate how many bits are required to to represent each sample of the fmask
 extern uint32 CalculatNumFmaskBits(uint32 fragments, uint32 samples);
 
-// Helper function to swap the formats used in YUV planes with MM formats
-extern void SwapForMMFormat(
+// Helper function to swap the MM formats used in YUV planes with base formats
+extern void SwapIncompatibleMMFormat(
     const Device*   pDevice,
     SwizzledFormat* pFormat);
 

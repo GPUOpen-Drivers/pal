@@ -1173,4 +1173,33 @@ void BeepSound(
     PAL_NOT_IMPLEMENTED();
 }
 
+// =====================================================================================================================
+bool IsDebuggerAttached()
+{
+    File procFile     = {};
+    char lineBuf[128] = {};
+    bool isAttached   = false; // If anything at all goes wrong, return false
+
+    Result result = procFile.Open("/proc/self/status", FileAccessRead);
+    while (result == Result::Success)
+    {
+        result = procFile.ReadLine(lineBuf, sizeof(lineBuf), nullptr);
+        if (result == Result::Success)
+        {
+            if (strstr(lineBuf, "TracePid") != nullptr)
+            {
+                // Eg, "TracePid:     0"
+                // If this is non-zero, a process (debugger) is using ptrace on us
+                const char* pPidStr = strpbrk(lineBuf, "0123456789");
+                if (pPidStr != nullptr)
+                {
+                    isAttached = (atoi(pPidStr) != 0);
+                }
+                break;
+            }
+        }
+    }
+    return isAttached;
+}
+
 } // Util

@@ -613,7 +613,6 @@ void Device::ExpandColor(
 
         pOperations->layoutTransitions.fmaskColorExpand = 1;
         DescribeBarrier(pCmdBuf, &transition, pOperations);
-
         RsrcProcMgr().FmaskColorExpand(pCmdBuf, gfx9Image, subresRange);
     }
 

@@ -83,7 +83,7 @@ Result CacheLayerBase::Query(
                  TestAllFlagsSet(policy, LinkPolicy::LoadOnQuery)))
             {
                 // On successful promotion pQuery may be updated to reflect our layer instead of the original
-                Result promoteResult = PromoteData(m_pNextLayer, pQuery);
+                Result promoteResult = PromoteData(m_pNextLayer, nullptr, pQuery);
                 PAL_ALERT(IsErrorResult(promoteResult));
             }
         }
@@ -92,9 +92,9 @@ Result CacheLayerBase::Query(
             (TestAllFlagsSet(flags, QueryFlags::ReserveEntryOnMiss)))
         {
             result = Reserve(pHashId);
-            if (result == Result::Success)
+            if ((result == Result::Success) || (result == Result::AlreadyExists))
             {
-                reserved = true;
+                reserved = (result == Result::Success);
                 result = QueryInternal(pHashId, pQuery);
             }
         }
@@ -122,9 +122,15 @@ Result CacheLayerBase::Query(
 Result CacheLayerBase::Store(
     const Hash128* pHashId,
     const void*    pData,
-    size_t         dataSize)
+    size_t         dataSize,
+    size_t         storeSize)
 {
     Result result = Result::Success;
+
+    if (storeSize == 0)
+    {
+        storeSize = dataSize;
+    }
 
     if ((pHashId == nullptr) ||
         (pData == nullptr))
@@ -139,7 +145,7 @@ Result CacheLayerBase::Store(
     {
         if (TestAnyFlagSet(m_storePolicy, LinkPolicy::Skip) == false)
         {
-            result = StoreInternal(pHashId, pData, dataSize);
+            result = StoreInternal(pHashId, pData, dataSize, storeSize);
         }
 
         // Pass data to children on success
@@ -152,12 +158,12 @@ Result CacheLayerBase::Store(
 
             if (TestAnyFlagSet(m_storePolicy, LinkPolicy::BatchStore))
             {
-                batchResult = BatchData(m_storePolicy, m_pNextLayer, pHashId, pData, dataSize);
+                batchResult = BatchData(m_storePolicy, m_pNextLayer, pHashId, pData, dataSize, storeSize);
             }
 
             if (batchResult == Result::Unsupported)
             {
-                Result childResult = m_pNextLayer->Store(pHashId, pData, dataSize);
+                Result childResult = m_pNextLayer->Store(pHashId, pData, dataSize, storeSize);
                 PAL_ALERT(IsErrorResult(childResult));
             }
         }
@@ -198,7 +204,12 @@ Result CacheLayerBase::Load(
                 {
                     // Copy the query since the one passed in cannot be altered
                     QueryResult tmpQuery      = *pQuery;
-                    Result      promoteResult = PromoteData(m_pNextLayer, &tmpQuery);
+
+                    // Re-query the levels below us to ensure we have the correct promotionSize.
+                    Result promoteResult = m_pNextLayer->Query(&pQuery->hashId, 0, 0, &tmpQuery);
+                    PAL_ASSERT(promoteResult == Result::Success);
+
+                    promoteResult = PromoteData(m_pNextLayer, pBuffer, &tmpQuery);
                     PAL_ALERT(IsErrorResult(promoteResult));
                 }
             }

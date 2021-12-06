@@ -80,6 +80,7 @@ struct ArchiveFileOpenInfo
     bool                allowAsyncFileIo;         ///< Allow use of OS specific asynchronous file routines
     bool                useBufferedReadMemory;    ///< Allow preloading/read-ahead of file into memory
     size_t              maxReadBufferMem;         ///< Maximum size allowed for read buffer
+    void*               pSecurity;                ///< Pointer to an os-specific security attribute to use for file ops.
 };
 
 /// Get the memory size needed for an archive file object

@@ -81,7 +81,7 @@ DevDriver::Result ISettingsLoader::SetValue(
 
     ISettingsLoader* pSettingsLoader = reinterpret_cast<ISettingsLoader*>(pPrivateData);
     // We currently only allow modifying of settings
-    if (pSettingsLoader->IsSetValueAvailable())
+    if (pSettingsLoader->IsSetValueAvailable(hash))
     {
         auto pInfo = pSettingsLoader->m_settingsInfoMap.FindKey(hash);
         if (pInfo != nullptr)

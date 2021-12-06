@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 19,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "dev",
+      "displayName": "Common developer-focused preset using Ninja Multi-Config",
+      "description": "Common DevDriver Developer focused options",
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/_ninja"
+    },
+    {
+      "name": "dev-vs",
+      "inherits": "dev",
+      "displayName": "Common developer-focused preset using Visual Studio 16 2019",
+      "generator": "Visual Studio 16 2019",
+      "binaryDir": "${sourceDir}/_vs"
+    },
+    {
+      "name": "dev-vs32",
+      "inherits": "dev-vs",
+      "displayName": "Common developer-focused preset using Visual Studio 16 2019 for 32-bit builds",
+      "binaryDir": "${sourceDir}/_vs32",
+      "architecture": "Win32"
+    }
+  ]
+}

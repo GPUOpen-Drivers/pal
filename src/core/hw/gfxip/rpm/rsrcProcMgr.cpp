@@ -3885,6 +3885,8 @@ void RsrcProcMgr::ConvertYuvToRgb(
         RpmUtil::CscInfoTable[static_cast<uint32>(srcImageInfo.swizzledFormat.format) -
         static_cast<uint32>(ChNumFormat::AYUV)];
 
+    PAL_ASSERT(static_cast<uint32>(cscInfo.pipelineYuvToRgb) != 0);
+
     // NOTE: Each of the YUV --> RGB conversion shaders expects the following user-data layout:
     //  o RGB destination Image
     //  o YUV source Image's Y plane (or YCbCr plane for RGB --> YUV-packed conversions)
@@ -3940,8 +3942,8 @@ void RsrcProcMgr::ConvertYuvToRgb(
             SwizzledFormat    imageViewInfoFormat = cscViewInfo.swizzledFormat;
             const SubresRange srcRange            =
                 { { cscViewInfo.plane, 0, region.yuvStartSlice }, 1, 1, region.sliceCount };
-            // Try to use MM formats for YUV planes
-            RpmUtil::SwapForMMFormat(srcImage.GetDevice(), &imageViewInfoFormat);
+            // Fall back if we can't use MM formats for YUV planes
+            RpmUtil::SwapIncompatibleMMFormat(srcImage.GetDevice(), &imageViewInfoFormat);
             RpmUtil::BuildImageViewInfo(&viewInfo[view],
                                         srcImage,
                                         srcRange,
@@ -4033,6 +4035,7 @@ void RsrcProcMgr::ConvertRgbToYuv(
     const RpmUtil::ColorSpaceConversionInfo& cscInfo =
         RpmUtil::CscInfoTable[static_cast<uint32>(dstImageInfo.swizzledFormat.format) -
                               static_cast<uint32>(ChNumFormat::AYUV)];
+    PAL_ASSERT(static_cast<uint32>(cscInfo.pipelineRgbToYuv) != 0);
 
     // NOTE: Each of the RGB --> YUV conversion shaders expects the following user-data layout:
     //  o RGB source Image
@@ -4137,8 +4140,8 @@ void RsrcProcMgr::ConvertRgbToYuv(
             SwizzledFormat    imageViewInfoFormat = cscViewInfo.swizzledFormat;
             const SubresRange dstRange            =
                 { { cscViewInfo.plane, 0, region.yuvStartSlice }, 1, 1, region.sliceCount };
-            // Try to use MM formats for YUV planes
-            RpmUtil::SwapForMMFormat(dstImage.GetDevice(), &imageViewInfoFormat);
+            // Fall back if we can't use MM formats for YUV planes
+            RpmUtil::SwapIncompatibleMMFormat(dstImage.GetDevice(), &imageViewInfoFormat);
             RpmUtil::BuildImageViewInfo(&viewInfo[1],
                                         dstImage,
                                         dstRange,
@@ -5896,15 +5899,16 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
     uint32*             pNumGenChunks
     ) const
 {
-    const auto&                 settings     = m_pDevice->Parent()->Settings();
-    const auto&                 chipProps    = m_pDevice->Parent()->ChipProperties();
-    const gpusize               argsGpuAddr  = genInfo.argsGpuAddr;
-    const gpusize               countGpuAddr = genInfo.countGpuAddr;
-    const Pipeline*             pPipeline    = genInfo.pPipeline;
-    const IndirectCmdGenerator& generator    = genInfo.generator;
-    GfxCmdBuffer*               pCmdBuffer   = genInfo.pCmdBuffer;
-    uint32                      indexBufSize = genInfo.indexBufSize;
-    uint32                      maximumCount = genInfo.maximumCount;
+    const auto&                 settings       = m_pDevice->Parent()->Settings();
+    const auto&                 publicSettings = m_pDevice->Parent()->GetPublicSettings();
+    const auto&                 chipProps      = m_pDevice->Parent()->ChipProperties();
+    const gpusize               argsGpuAddr    = genInfo.argsGpuAddr;
+    const gpusize               countGpuAddr   = genInfo.countGpuAddr;
+    const Pipeline*             pPipeline      = genInfo.pPipeline;
+    const IndirectCmdGenerator& generator      = genInfo.generator;
+    GfxCmdBuffer*               pCmdBuffer     = genInfo.pCmdBuffer;
+    uint32                      indexBufSize   = genInfo.indexBufSize;
+    uint32                      maximumCount   = genInfo.maximumCount;
 
     const ComputePipeline* pGenerationPipeline = GetCmdGenerationPipeline(generator, *pCmdBuffer);
 
@@ -6145,9 +6149,12 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
 
         // We use the ACE for IndirectCmdGeneration only for this very special case. It has to be a UniversalCmdBuffer,
         // ganged ACE is supported, and we are not using the ACE for Task Shader work.
-        const bool cmdGenUseAce = pCmdBuffer->IsGraphicsSupported() &&
-                                  canOffloadCmdGenToGangedAce       &&
-                                  (taskShaderEnabled == false);
+        bool cmdGenUseAce = pCmdBuffer->IsGraphicsSupported() &&
+                            canOffloadCmdGenToGangedAce       &&
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 691
+                            (publicSettings->disableExecuteIndirectAceOffload != true) &&
+#endif
+                            (taskShaderEnabled == false);
 
         if (cmdGenUseAce)
         {

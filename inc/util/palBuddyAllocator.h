@@ -39,7 +39,7 @@ namespace Util
 
 /**
  ***********************************************************************************************************************
- * @brief  Buddy Allocator (see http://en.wikipedia.org/wiki/Buddy_memory_allocation for more info).
+ * @brief  Buddy Allocator
  *
  * Responsible for managing small GPU memory requests by allocating a large base allocation and dividing it into
  * appropriately sized suballocation blocks.

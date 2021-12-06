@@ -23,15 +23,9 @@
  #
  #######################################################################################################################
 
-cmake_minimum_required(VERSION 3.13...3.16)
+cmake_minimum_required(VERSION 3.13...3.21)
+include(cmake/PalVersionHelper.cmake)
 project(PAL LANGUAGES CXX)
-
-### CMake Includes #####################################################################################################
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules)
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/)
-include(PalVersionHelper)
-include(PalCompileDefinitions)
-include(PalCompilerOptions)
 
 ### Build Parameters ###################################################################################################
 include(PalBuildParameters)
@@ -51,8 +45,8 @@ add_library(AMD::PAL ALIAS pal)
 add_subdirectory(cmake)
 add_subdirectory(inc)
 add_subdirectory(res)
-add_subdirectory(src)
 add_subdirectory(shared)
+add_subdirectory(src)
 
 ### Build Definitions ##################################################################################################
 pal_compile_definitions(pal)

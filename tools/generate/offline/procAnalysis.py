@@ -210,9 +210,10 @@ class Variable:
     def GetLibrary(self):
         return self.library
 class ProcMgr:
-    def __init__(self, fileName, libraryDict, needSpecializedInit):
+    def __init__(self, fileName, libraryDict, needSpecializedInit, libraryDictAlts=None):
         self.fileName = fileName
         self.libraryDict = libraryDict
+        self.libraryDictAlts = libraryDictAlts
         self.libraries = {}
         self.needSpecializedInit = needSpecializedInit
         self.var = []
@@ -477,22 +478,19 @@ class ProcMgr:
         fp.write("{\n")
         fp.write("    Result           result      = Result::Success;\n")
         fp.write("    constexpr uint32 LibNameSize = 64;\n")
-        # On Android, there is no libdrm.so.2 and libdrm_amdgpu.so.1. There are only libdrm.so and libamdgpu_drm.so.
-        # Generate the code for Android accordingly.
 
-        androidLibdrm = [];
-        for key in self.libraries.keys():
-            if key.find("libdrm") >= 0:
-                # Get the base name and append ".so" to generate the library name without version.
-                androidLibdrm.append(key.split('.')[0] + '.so');
-                print(key.split('.')[0])
+        if self.libraryDictAlts is not None:
+            ifdef_kind = "if"
+            for ifdef in self.libraryDictAlts:
+                curLibNames = self.libraryDictAlts[ifdef]
+                assert len(curLibNames) == len(self.libraryDict)
 
-        if len(androidLibdrm) > 0:
-            fp.write("#if PAL_BUILD_ANDROID\n")
-            fp.write("    char LibNames[" + name + "LibrariesCount][LibNameSize] = {\n")
-            for key in androidLibdrm:
-                fp.write("        \"" + key + "\",\n")
-            fp.write("    };\n")
+                fp.write("#{} {}\n".format(ifdef_kind, ifdef))
+                fp.write("    char LibNames[{}LibrariesCount][LibNameSize] = {{\n".format(name))
+                for key in curLibNames:
+                    fp.write("        \"{}\",\n".format(key))
+                fp.write("    };\n")
+                ifdef_kind = "elif"
             fp.write("#else\n")
 
         fp.write("    char LibNames[" + name + "LibrariesCount][LibNameSize] = {\n")
@@ -500,7 +498,7 @@ class ProcMgr:
             fp.write("        \"" + key + "\",\n")
         fp.write("    };\n")
 
-        if len(androidLibdrm) > 0:
+        if self.libraryDictAlts is not None:
             fp.write("#endif\n")
 
         if (self.needSpecializedInit):

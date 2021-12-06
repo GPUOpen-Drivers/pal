@@ -72,8 +72,6 @@ void (TraverseCallback)(IntervalTreeNode<T, K>* pNode, void* pData);
  ***********************************************************************************************************************
  * @brief Red-black tree based interval tree.
  *
- * @see http://en.wikipedia.org/wiki/Interval_tree
- *
  * @note The Red-Black tree properties:
  *
  * 1. Every node is either red or black.

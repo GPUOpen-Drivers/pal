@@ -149,15 +149,17 @@ void JsonWriter::Value(
 }
 
 // =====================================================================================================================
-void JsonWriter::Value(
-    uint64 value)
+template <typename T>
+void JsonWriter::FormattedValue(
+    const char* pFormat,
+    T value)
 {
     MaybeNextListEntry();
     TransitionToToken(TokenValue, false);
 
     constexpr size_t BufferSize = 32;
     char             buffer[BufferSize];
-    const int        length = Snprintf(buffer, BufferSize, "%" PRIu64, value);
+    const int        length = Snprintf(buffer, BufferSize, pFormat, value);
 
     PAL_ASSERT((length >= 0) && (length <= static_cast<int>(BufferSize)));
 
@@ -165,132 +167,25 @@ void JsonWriter::Value(
 }
 
 // =====================================================================================================================
-void JsonWriter::Value(
-    uint32 value)
-{
-    MaybeNextListEntry();
-    TransitionToToken(TokenValue, false);
-
-    constexpr size_t BufferSize = 32;
-    char             buffer[BufferSize];
-    const int        length = Snprintf(buffer, BufferSize, "%" PRIu32, value);
-
-    PAL_ASSERT((length >= 0) && (length <= static_cast<int>(BufferSize)));
-
-    m_pStream->WriteString(buffer, static_cast<uint32>(length));
-}
+void JsonWriter::HexValue(uint64 value) { FormattedValue("\"0x%016\"" PRIx64, value); }
+void JsonWriter::HexValue(uint32 value) { FormattedValue("\"0x%08\""  PRIx32, value); }
+void JsonWriter::HexValue(uint16 value) { FormattedValue("\"0x%04\""  PRIx16, value); }
+void JsonWriter::HexValue(uint8  value) { FormattedValue("\"0x%02\""  PRIx8, value); }
 
 // =====================================================================================================================
-void JsonWriter::Value(
-    uint16 value)
-{
-    MaybeNextListEntry();
-    TransitionToToken(TokenValue, false);
-
-    constexpr size_t BufferSize = 32;
-    char             buffer[BufferSize];
-    const int        length = Snprintf(buffer, BufferSize, "%" PRIu16, value);
-
-    PAL_ASSERT((length >= 0) && (length <= static_cast<int>(BufferSize)));
-
-    m_pStream->WriteString(buffer, static_cast<uint32>(length));
-}
+void JsonWriter::Value(uint64 value) { FormattedValue("%" PRIu64, value); }
+void JsonWriter::Value(uint32 value) { FormattedValue("%" PRIu32, value); }
+void JsonWriter::Value(uint16 value) { FormattedValue("%" PRIu16, value); }
+void JsonWriter::Value(uint8  value) { FormattedValue("%" PRIu8, value); }
 
 // =====================================================================================================================
-void JsonWriter::Value(
-    uint8 value)
-{
-    MaybeNextListEntry();
-    TransitionToToken(TokenValue, false);
-
-    constexpr size_t BufferSize = 32;
-    char             buffer[BufferSize];
-    const int        length = Snprintf(buffer, BufferSize, "%" PRIu8, value);
-
-    PAL_ASSERT((length >= 0) && (length <= static_cast<int>(BufferSize)));
-
-    m_pStream->WriteString(buffer, static_cast<uint32>(length));
-}
+void JsonWriter::Value(int64 value) { FormattedValue("%" PRId64, value); }
+void JsonWriter::Value(int32 value) { FormattedValue("%" PRId32, value); }
+void JsonWriter::Value(int16 value) { FormattedValue("%" PRId16, value); }
+void JsonWriter::Value(int8  value) { FormattedValue("%" PRId8, value); }
 
 // =====================================================================================================================
-void JsonWriter::Value(
-    int64 value)
-{
-    MaybeNextListEntry();
-    TransitionToToken(TokenValue, false);
-
-    constexpr size_t BufferSize = 32;
-    char             buffer[BufferSize];
-    const int        length = Snprintf(buffer, BufferSize, "%" PRId64, value);
-
-    PAL_ASSERT((length >= 0) && (length <= static_cast<int>(BufferSize)));
-
-    m_pStream->WriteString(buffer, static_cast<uint32>(length));
-}
-
-// =====================================================================================================================
-void JsonWriter::Value(
-    int32 value)
-{
-    MaybeNextListEntry();
-    TransitionToToken(TokenValue, false);
-
-    constexpr size_t BufferSize = 32;
-    char             buffer[BufferSize];
-    const int        length = Snprintf(buffer, BufferSize, "%" PRId32, value);
-
-    PAL_ASSERT((length >= 0) && (length <= static_cast<int>(BufferSize)));
-
-    m_pStream->WriteString(buffer, static_cast<uint32>(length));
-}
-
-// =====================================================================================================================
-void JsonWriter::Value(
-    int16 value)
-{
-    MaybeNextListEntry();
-    TransitionToToken(TokenValue, false);
-
-    constexpr size_t BufferSize = 32;
-    char             buffer[BufferSize];
-    const int        length = Snprintf(buffer, BufferSize, "%" PRId16, value);
-
-    PAL_ASSERT((length >= 0) && (length <= static_cast<int>(BufferSize)));
-
-    m_pStream->WriteString(buffer, static_cast<uint32>(length));
-}
-
-// =====================================================================================================================
-void JsonWriter::Value(
-    int8 value)
-{
-    MaybeNextListEntry();
-    TransitionToToken(TokenValue, false);
-
-    constexpr size_t BufferSize = 32;
-    char             buffer[BufferSize];
-    const int        length = Snprintf(buffer, BufferSize, "%" PRId8, value);
-
-    PAL_ASSERT((length >= 0) && (length <= static_cast<int>(BufferSize)));
-
-    m_pStream->WriteString(buffer, static_cast<uint32>(length));
-}
-
-// =====================================================================================================================
-void JsonWriter::Value(
-    float value)
-{
-    MaybeNextListEntry();
-    TransitionToToken(TokenValue, false);
-
-    constexpr size_t BufferSize = 32;
-    char             buffer[BufferSize];
-    const int        length = Snprintf(buffer, BufferSize, "%g", value);
-
-    PAL_ASSERT((length >= 0) && (length <= static_cast<int>(BufferSize)));
-
-    m_pStream->WriteString(buffer, static_cast<uint32>(length));
-}
+void JsonWriter::Value(float value) { FormattedValue("%g", value); }
 
 // =====================================================================================================================
 void JsonWriter::Value(

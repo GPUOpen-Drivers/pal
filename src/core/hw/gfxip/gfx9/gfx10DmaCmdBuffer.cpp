@@ -507,8 +507,8 @@ uint32* DmaCmdBuffer::WriteCopyGpuMemoryCmd(
     gpusize*     pBytesCopied // [out] How many bytes out of copySize this call was able to transfer.
     ) const
 {
-    // The count field of the copy packet is 22 bits wide for all products but GFX10.3
-    const uint32  maxCopyBits = (IsGfx103(*m_pDevice) ? 30 : 22);
+    // The count field of the copy packet is 22 bits wide for all products but GFX10.3+
+    const uint32  maxCopyBits = (IsGfx103Plus(*m_pDevice) ? 30 : 22);
     const gpusize maxCopySize = (1ull << maxCopyBits);
 
     *pBytesCopied = Min(copySize, maxCopySize);
@@ -537,7 +537,7 @@ uint32* DmaCmdBuffer::WriteCopyGpuMemoryCmd(
     }
     packet.COUNT_UNION.DW_1_DATA            = 0;
 
-    if (IsGfx103(*m_pDevice))
+    if (IsGfx103Plus(*m_pDevice))
     {
         packet.COUNT_UNION.gfx103Plus.count = *pBytesCopied - 1;
     }
@@ -1287,11 +1287,6 @@ uint32* DmaCmdBuffer::WriteFillMemoryCmd(
 
     SDMA_PKT_CONSTANT_FILL packet;
 
-    // Because we will set fillsize = 2, the low two bits of our "count" are ignored, but we still program this in
-    // terms of bytes.
-    constexpr gpusize MaxFillSize = ((1ul << 22ull) - 1ull) & (~0x3ull);
-    *pBytesCopied = Min(byteSize, MaxFillSize);
-
     packet.HEADER_UNION.DW_0_DATA           = 0;
     packet.HEADER_UNION.op                  = SDMA_OP_CONST_FILL;
     packet.HEADER_UNION.fillsize            = 2;  // 2 size means that "count" is in dwords
@@ -1302,6 +1297,11 @@ uint32* DmaCmdBuffer::WriteFillMemoryCmd(
 
     if (IsGfx10(*m_pDevice))
     {
+        // Because we will set fillsize = 2, the low two bits of our "count" are ignored, but we still program this in
+        // terms of bytes.
+        constexpr gpusize MaxFillSize = ((1ul << 22ull) - 1ull) & (~0x3ull);
+        *pBytesCopied = Min(byteSize, MaxFillSize);
+
         packet.COUNT_UNION.gfx10x.count     = *pBytesCopied - 1;
     }
 

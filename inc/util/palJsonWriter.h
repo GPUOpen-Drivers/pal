@@ -121,6 +121,16 @@ public:
     void Value(bool value);
     ///@}
 
+    ///@{
+    /// Instructs the JsonWriter to write a value in base 16.
+    ///
+    /// @param [in] value The value to write.
+    void HexValue(uint64 value);
+    void HexValue(uint32 value);
+    void HexValue(uint16 value);
+    void HexValue(uint8 value);
+    ///@}
+
     /// Instructs the JsonWriter to write a JSON "null" value.
     void NullValue();
 
@@ -167,6 +177,9 @@ public:
 private:
     void MaybeNextListEntry();
     void TransitionToToken(uint32 nextToken, bool leavingScope);
+
+    template <typename T>
+    void FormattedValue(const char* pFormat, T value);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     bool ValidateTransition(uint32 nextToken);

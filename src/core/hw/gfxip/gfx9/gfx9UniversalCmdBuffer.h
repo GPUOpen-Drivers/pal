@@ -265,11 +265,10 @@ union CachedSettings
         uint64 supportsAceOffload                        :  1;
         uint64 useExecuteIndirectPacket                  :  2;
         uint64 reserved8                  :  9;
-        uint64 reserved9                  :  1;
         uint64 reserved10                 :  1;
         uint64 optimizeDepthOnlyFmt       :  1;
         uint64 has32bPred                 :  1;
-        uint64 reserved                   :  6;
+        uint64 reserved                   :  7;
     };
     uint64 u64All;
 };

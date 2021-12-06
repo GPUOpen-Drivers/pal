@@ -190,17 +190,17 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
         RpmComputePipeline::YuvToRgb,
         {
             {   0,                          // Y plane
-                { ChNumFormat::X8_Unorm,
+                { ChNumFormat::X8_MM_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
                 },
             },
             {   2,                          // Cb plane
-                { ChNumFormat::X8_Unorm,
+                { ChNumFormat::X8_MM_Unorm,
                   { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::One },
                 },
             },
             {   1,                          // Cr plane
-                { ChNumFormat::X8_Unorm,
+                { ChNumFormat::X8_MM_Unorm,
                   { ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::One },
                 },
             },
@@ -215,19 +215,19 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
         RpmComputePipeline::RgbToYuvPlanar,
         {
             {   0,                          // Y plane
-                { ChNumFormat::X8_Unorm,
+                { ChNumFormat::X8_MM_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.5f, 0.5f,
                 { 0, USHRT_MAX, USHRT_MAX, },
             },
             {   2,                          // Cb plane
-                { ChNumFormat::X8_Unorm,
+                { ChNumFormat::X8_MM_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.25f, 0.5f,               // Mpeg-2 chroma subsampling location
                 { 1, USHRT_MAX, USHRT_MAX, },
             },
             {   1,                          // Cr plane
-                { ChNumFormat::X8_Unorm,
+                { ChNumFormat::X8_MM_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.25f, 0.5f,               // Mpeg-2 chroma subsampling location
                 { 2, USHRT_MAX, USHRT_MAX, },
@@ -239,12 +239,12 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
         RpmComputePipeline::YuvIntToRgb,
         {
             {   0,                          // Y plane
-                { ChNumFormat::X8_Unorm,
+                { ChNumFormat::X8_MM_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
                 },
             },
             {   1,                          // CbCr plane
-                { ChNumFormat::X8Y8_Unorm,
+                { ChNumFormat::X8Y8_MM_Unorm,
                   { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::One },
                 }
             },
@@ -252,13 +252,13 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
         RpmComputePipeline::RgbToYuvPlanar,
         {
             {   0,                          // Y plane
-                { ChNumFormat::X8_Unorm,
+                { ChNumFormat::X8_MM_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.5f, 0.5f,
                 { 0, USHRT_MAX, USHRT_MAX, },
             },
             {   1,                          // CbCr plane
-                { ChNumFormat::X8Y8_Unorm,
+                { ChNumFormat::X8Y8_MM_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.5f, 0.5f,
                 { 1, 2, USHRT_MAX, },
@@ -270,12 +270,12 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
         RpmComputePipeline::YuvIntToRgb,
         {
             {   0,                          // Y plane
-                { ChNumFormat::X8_Unorm,
+                { ChNumFormat::X8_MM_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
                 },
             },
             {   1,                          // CbCr plane
-                { ChNumFormat::X8Y8_Unorm,
+                { ChNumFormat::X8Y8_MM_Unorm,
                   { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero },
                 },
             },
@@ -283,13 +283,13 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
         RpmComputePipeline::RgbToYuvPlanar,
         {
             {   0,                          // Y plane
-                { ChNumFormat::X8_Unorm,
+                { ChNumFormat::X8_MM_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.5f, 0.5f,
                 { 0, USHRT_MAX, USHRT_MAX, },
             },
             {   1,                          // CbCr plane
-                { ChNumFormat::X8Y8_Unorm,
+                { ChNumFormat::X8Y8_MM_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.25f, 0.5f,                // Mpeg-2 chroma subsampling location
                 { 1, 2, USHRT_MAX, },
@@ -301,12 +301,12 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
         RpmComputePipeline::YuvIntToRgb,
         {
             {   0,                          // Y plane
-                { ChNumFormat::X8_Unorm,
+                { ChNumFormat::X8_MM_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
                 },
             },
             {   1,                          // CbCr plane
-                { ChNumFormat::X8Y8_Unorm,
+                { ChNumFormat::X8Y8_MM_Unorm,
                   { ChannelSwizzle::Zero, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::One },
                 }
             },
@@ -314,13 +314,13 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
         RpmComputePipeline::RgbToYuvPlanar,
         {
             {   0,                          // Y plane
-                { ChNumFormat::X8_Unorm,
+                { ChNumFormat::X8_MM_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.5f, 0.5f,
                 { 0, USHRT_MAX, USHRT_MAX, },
             },
             {   1,                          // CbCr plane
-                { ChNumFormat::X8Y8_Unorm,
+                { ChNumFormat::X8Y8_MM_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.25f, 0.5f,                // Mpeg-2 chroma subsampling location
                 { 2, 1, USHRT_MAX, },
@@ -332,12 +332,12 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
         RpmComputePipeline::YuvIntToRgb,
         {
             {   0,                          // Y plane
-                { ChNumFormat::X16_Unorm,
+                { ChNumFormat::X16_MM10_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
                 },
             },
             {   1,                          // CbCr plane
-                { ChNumFormat::X16Y16_Unorm,
+                { ChNumFormat::X16Y16_MM10_Unorm,
                   { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::One },
                 },
             },
@@ -345,13 +345,13 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
         RpmComputePipeline::RgbToYuvPlanar,
         {
             {   0,                          // Y plane
-                { ChNumFormat::X16_Unorm,
+                { ChNumFormat::X16_MM10_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.5f, 0.5f,
                 { 0, USHRT_MAX, USHRT_MAX, },
             },
             {   1,                          // CbCr plane
-                { ChNumFormat::X16Y16_Unorm,
+                { ChNumFormat::X16Y16_MM10_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.25f, 0.5f,                // Mpeg-2 chroma subsampling location
                 { 1, 2, USHRT_MAX, },
@@ -363,12 +363,12 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
         RpmComputePipeline::YuvIntToRgb,
         {
             {   0,                          // Y plane
-                { ChNumFormat::X16_Unorm,
+                { ChNumFormat::X16_MM10_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
                 },
             },
             {   1,                          // CbCr plane
-                { ChNumFormat::X16Y16_Unorm,
+                { ChNumFormat::X16Y16_MM10_Unorm,
                   { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::One },
                 },
             },
@@ -376,13 +376,13 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
         RpmComputePipeline::RgbToYuvPlanar,
         {
             {   0,                          // Y plane
-                { ChNumFormat::X16_Unorm,
+                { ChNumFormat::X16_MM10_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.5f, 0.5f,
                 { 0, USHRT_MAX, USHRT_MAX, },
             },
             {   1,                          // CbCr plane
-                { ChNumFormat::X16Y16_Unorm,
+                { ChNumFormat::X16Y16_MM10_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.25f, 0.5f,                // Mpeg-2 chroma subsampling location
                 { 1, 2, USHRT_MAX, },
@@ -394,12 +394,12 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
         RpmComputePipeline::YuvIntToRgb,
         {
             {   0,                          // Y plane
-                { ChNumFormat::X16_Unorm,
+                { ChNumFormat::X16_MM10_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
                 },
             },
             {   1,                          // CbCr plane
-                { ChNumFormat::X16Y16_Unorm,
+                { ChNumFormat::X16Y16_MM10_Unorm,
                   { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::One },
                 },
             },
@@ -407,30 +407,38 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
         RpmComputePipeline::RgbToYuvPlanar,
         {
             {   0,                          // Y plane
-                { ChNumFormat::X16_Unorm,
+                { ChNumFormat::X16_MM10_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.5f, 0.5f,
                 { 0, USHRT_MAX, USHRT_MAX, },
             },
             {   1,                          // CbCr plane
-                { ChNumFormat::X16Y16_Unorm,
+                { ChNumFormat::X16Y16_MM10_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.5f, 0.5f,                 // Mpeg-2 chroma subsampling location
                 { 1, 2, USHRT_MAX, },
             },
         },
     },
+    {}, // X8_MM_Unorm
+    {}, // X8_MM_Uint
+    {}, // X8Y8_MM_Unorm
+    {}, // X8Y8_MM_Uint
+    {}, // X16_MM10_Unorm
+    {}, // X16_MM10_Uint
+    {}, // X16Y16_MM10_Unorm
+    {}, // X16Y16_MM10_Uint
     // P208 (4:2:2 planar)
     {
         RpmComputePipeline::YuvIntToRgb,
         {
             {   0,                          // Y plane
-                { ChNumFormat::X8_Unorm,
+                { ChNumFormat::X8_MM_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
                 },
             },
             {   1,                          // CbCr plane
-                { ChNumFormat::X8Y8_Unorm,
+                { ChNumFormat::X8Y8_MM_Unorm,
                   { ChannelSwizzle::Zero, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::One },
                 }
             },
@@ -438,16 +446,124 @@ const ColorSpaceConversionInfo CscInfoTable[YuvFormatCount] =
         RpmComputePipeline::RgbToYuvPlanar,
         {
             {   0,                          // Y plane
-                { ChNumFormat::X8_Unorm,
+                { ChNumFormat::X8_MM_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.5f, 0.5f,
                 { 0, USHRT_MAX, USHRT_MAX, },
             },
             {   1,                          // CbCr plane
-                { ChNumFormat::X8Y8_Unorm,
+                { ChNumFormat::X8Y8_MM_Unorm,
                   { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
                 0.25f, 0.5f,                // Mpeg-2 chroma subsampling location
                 { 2, 1, USHRT_MAX, },
+            },
+        },
+    },
+    {}, // X16_MM12_Unorm
+    {}, // X16_MM12_Uint
+    {}, // X16Y16_MM12_Unorm
+    {}, // X16Y16_MM12_Uint
+    // P012 (12-bit 4:2:0 planar)
+    {
+        RpmComputePipeline::YuvIntToRgb,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_MM12_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   1,                          // CbCr plane
+                { ChNumFormat::X16Y16_MM12_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::One },
+                },
+            },
+        },
+        RpmComputePipeline::RgbToYuvPlanar,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_MM12_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 0, USHRT_MAX, USHRT_MAX, },
+            },
+            {   1,                          // CbCr plane
+                { ChNumFormat::X16Y16_MM12_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.25f, 0.5f,                // Mpeg-2 chroma subsampling location
+                { 1, 2, USHRT_MAX, },
+            },
+        },
+    },
+    // P212 (12-bit 4:2:2 planar)
+    {
+        RpmComputePipeline::YuvIntToRgb,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_MM12_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   1,                          // CbCr plane
+                { ChNumFormat::X16Y16_MM12_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::Y, ChannelSwizzle::X, ChannelSwizzle::One },
+                }
+            },
+        },
+        RpmComputePipeline::RgbToYuvPlanar,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_MM12_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 0, USHRT_MAX, USHRT_MAX, },
+            },
+            {   1,                          // CbCr plane
+                { ChNumFormat::X16Y16_MM12_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,                // SMPTE 4:2:2 chroma subsampling location
+                { 2, 1, USHRT_MAX, },
+            },
+        },
+    },
+    // P412 (12-bit 4:4:4 planar)
+    {
+        RpmComputePipeline::YuvToRgb,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_MM12_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                },
+            },
+            {   1,                          // Cb plane
+                { ChNumFormat::X16_MM12_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::One },
+                }
+            },
+            {   2,                          // Cr plane
+                { ChNumFormat::X16_MM12_Unorm,
+                  { ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::One },
+                }
+            },
+        },
+        RpmComputePipeline::RgbToYuvPlanar,
+        {
+            {   0,                          // Y plane
+                { ChNumFormat::X16_MM12_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 0, USHRT_MAX, USHRT_MAX, },
+            },
+            {   1,                          // Cb plane
+                { ChNumFormat::X16_MM12_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 0, USHRT_MAX, USHRT_MAX, },
+            },
+            {   2,                          // Cr plane
+                { ChNumFormat::X16_MM12_Unorm,
+                  { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::Zero }, },
+                0.5f, 0.5f,
+                { 0, USHRT_MAX, USHRT_MAX, },
             },
         },
     },
@@ -486,25 +602,46 @@ void SetupRgbToYuvCscTable(
 
 //======================================================================================================================
 // Swaps the default format used for YUV planes with MM formats
-void SwapForMMFormat(
+void SwapIncompatibleMMFormat(
     const Device*   pDevice,
     SwizzledFormat* pFormat)
 {
-    if ((pFormat->format == ChNumFormat::X8_Unorm) && pDevice->SupportsFormat(ChNumFormat::X8_MM_Unorm))
+    if (Formats::IsMmFormat(pFormat->format) && (pDevice->SupportsFormat(pFormat->format) == false))
     {
-        pFormat->format = ChNumFormat::X8_MM_Unorm;
-    }
-    else if ((pFormat->format == ChNumFormat::X8Y8_Unorm) && pDevice->SupportsFormat(ChNumFormat::X8Y8_MM_Unorm))
-    {
-        pFormat->format = ChNumFormat::X8Y8_MM_Unorm;
-    }
-    else if ((pFormat->format == ChNumFormat::X16_Unorm) && pDevice->SupportsFormat(ChNumFormat::X16_MM_Unorm))
-    {
-        pFormat->format = ChNumFormat::X16_MM_Unorm;
-    }
-    else if ((pFormat->format == ChNumFormat::X16Y16_Unorm) && pDevice->SupportsFormat(ChNumFormat::X16Y16_MM_Unorm))
-    {
-        pFormat->format = ChNumFormat::X16Y16_MM_Unorm;
+        switch (pFormat->format)
+        {
+        case ChNumFormat::X8_MM_Unorm:
+            pFormat->format = ChNumFormat::X8_Unorm;
+            break;
+        case ChNumFormat::X8_MM_Uint:
+            pFormat->format = ChNumFormat::X8_Uint;
+            break;
+        case ChNumFormat::X8Y8_MM_Unorm:
+            pFormat->format = ChNumFormat::X8Y8_Unorm;
+            break;
+        case ChNumFormat::X8Y8_MM_Uint:
+            pFormat->format = ChNumFormat::X8Y8_Uint;
+            break;
+        case ChNumFormat::X16_MM10_Unorm:
+        case ChNumFormat::X16_MM12_Unorm:
+            pFormat->format = ChNumFormat::X16_Unorm;
+            break;
+        case ChNumFormat::X16_MM10_Uint:
+        case ChNumFormat::X16_MM12_Uint:
+            pFormat->format = ChNumFormat::X16_Uint;
+            break;
+        case ChNumFormat::X16Y16_MM10_Unorm:
+        case ChNumFormat::X16Y16_MM12_Unorm:
+            pFormat->format = ChNumFormat::X16Y16_Unorm;
+            break;
+        case ChNumFormat::X16Y16_MM10_Uint:
+        case ChNumFormat::X16Y16_MM12_Uint:
+            pFormat->format = ChNumFormat::X16Y16_Uint;
+            break;
+
+        default:
+            PAL_ASSERT_ALWAYS_MSG("Unrecognized MM format!");
+        }
     }
 }
 

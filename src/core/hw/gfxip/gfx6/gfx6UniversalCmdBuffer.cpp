@@ -266,7 +266,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 
     m_cachedSettings.has32bPred =
         m_device.Parent()->EngineProperties().perEngine[EngineTypeUniversal].flags.memory32bPredicationSupport;
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     m_cachedSettings.enablePm4Instrumentation = platformSettings.pm4InstrumentorEnabled;
 #endif
 
@@ -3321,7 +3321,7 @@ template <bool indexed, bool indirect, bool pm4OptImmediate>
 void UniversalCmdBuffer::ValidateDraw(
     const ValidateDrawInfo& drawInfo)
 {
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     uint32 startingCmdLen = GetUsedSize(CommandDataAlloc);
     uint32 pipelineCmdLen = 0;
     uint32 userDataCmdLen = 0;
@@ -3349,7 +3349,7 @@ void UniversalCmdBuffer::ValidateDraw(
         // reserve/commit region before proceeding with validation.
         m_deCmdStream.CommitCommands(pDeCmdSpace);
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
         if (m_cachedSettings.enablePm4Instrumentation != 0)
         {
             pipelineCmdLen  = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
@@ -3360,7 +3360,7 @@ void UniversalCmdBuffer::ValidateDraw(
 
         pDeCmdSpace = (this->*m_pfnValidateUserDataGfxPipelineSwitch)(pPrevSignature, pDeCmdSpace);
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
         if (m_cachedSettings.enablePm4Instrumentation != 0)
         {
             // GetUsedSize() is not accurate if we don't put the user-data validation and miscellaneous validation
@@ -3382,7 +3382,7 @@ void UniversalCmdBuffer::ValidateDraw(
 
         pDeCmdSpace = (this->*m_pfnValidateUserDataGfx)(nullptr, pDeCmdSpace);
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
         if (m_cachedSettings.enablePm4Instrumentation != 0)
         {
             // GetUsedSize() is not accurate if we don't put the user-data validation and miscellaneous validation
@@ -3399,7 +3399,7 @@ void UniversalCmdBuffer::ValidateDraw(
         m_deCmdStream.CommitCommands(pDeCmdSpace);
     }
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     if (m_cachedSettings.enablePm4Instrumentation != 0)
     {
         const uint32 miscCmdLen = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
@@ -4044,7 +4044,7 @@ uint32* UniversalCmdBuffer::ValidateDispatch(
     uint32  zDim,
     uint32* pDeCmdSpace)
 {
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     uint32 startingCmdLen = 0;
     uint32 pipelineCmdLen = 0;
     uint32 userDataCmdLen = 0;
@@ -4066,7 +4066,7 @@ uint32* UniversalCmdBuffer::ValidateDispatch(
                                                   m_computeState.dynamicCsInfo,
                                                   m_buildFlags.prefetchShaders);
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
         if (m_cachedSettings.enablePm4Instrumentation != 0)
         {
             // GetUsedSize() is not accurate if called inside a Reserve/Commit block.
@@ -4087,7 +4087,7 @@ uint32* UniversalCmdBuffer::ValidateDispatch(
         pDeCmdSpace = ValidateComputeUserData<false>(nullptr, pDeCmdSpace);
     }
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     if (m_cachedSettings.enablePm4Instrumentation != 0)
     {
         // GetUsedSize() is not accurate if called inside a Reserve/Commit block.
@@ -4120,7 +4120,7 @@ uint32* UniversalCmdBuffer::ValidateDispatch(
                                                       pDeCmdSpace);
     }
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     if (m_cachedSettings.enablePm4Instrumentation != 0)
     {
         // GetUsedSize() is not accurate if called inside a Reserve/Commit block.

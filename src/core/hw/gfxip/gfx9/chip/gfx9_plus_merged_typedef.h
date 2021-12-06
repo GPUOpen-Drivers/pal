@@ -804,6 +804,7 @@ typedef union GL2C_PERFCOUNTER2_SELECT                           regGL2C_PERFCOU
 typedef union GL2C_PERFCOUNTER3_HI                               regGL2C_PERFCOUNTER3_HI;
 typedef union GL2C_PERFCOUNTER3_LO                               regGL2C_PERFCOUNTER3_LO;
 typedef union GL2C_PERFCOUNTER3_SELECT                           regGL2C_PERFCOUNTER3_SELECT;
+typedef union GRBM_CHIP_REVISION                                 regGRBM_CHIP_REVISION;
 typedef union GRBM_GFX_INDEX                                     regGRBM_GFX_INDEX;
 typedef union GRBM_GFX_INDEX_SR_DATA                             regGRBM_GFX_INDEX_SR_DATA;
 typedef union GRBM_GFX_INDEX_SR_SELECT                           regGRBM_GFX_INDEX_SR_SELECT;

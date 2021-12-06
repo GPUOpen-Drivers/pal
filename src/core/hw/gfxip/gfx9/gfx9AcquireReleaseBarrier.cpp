@@ -1035,7 +1035,7 @@ LayoutTransitionInfo Device::PrepareColorBlt(
         (ImageLayoutCanCompressColorData(layoutToState, newLayout)))
     {
         PAL_ASSERT(bltIndex < 2);
-        transitionInfo.blt[bltIndex] = HwLayoutTransition::DccMetadataStateCompressed;
+        transitionInfo.blt[bltIndex++] = HwLayoutTransition::DccMetadataStateCompressed;
     }
 
     return transitionInfo;

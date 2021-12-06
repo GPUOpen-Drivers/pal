@@ -24,7 +24,6 @@
  #######################################################################################################################
 
 include_guard()
-include(PalVersionHelper)
 
 # This file is meant to encapsulate all the variables that PAL's clients are intended to
 # manipulate when customizing PAL for their purposes. Making it the first place cmake developers
@@ -45,12 +44,6 @@ pal_bp(PAL_BUILD_GPUUTIL ON)
 
 #if PAL_DEVELOPER_BUILD
 pal_bp(PAL_DEVELOPER_BUILD OFF)
-
-# Enable these developer layers based on the PAL_DEVELOPER_BUILD value. This is a nice quality of life for developer builds.
-pal_bp(PAL_BUILD_CMD_BUFFER_LOGGER ON DEPENDS_ON ${PAL_DEVELOPER_BUILD})
-pal_bp(PAL_BUILD_GPU_DEBUG         ON DEPENDS_ON ${PAL_DEVELOPER_BUILD})
-pal_bp(PAL_BUILD_INTERFACE_LOGGER  ON DEPENDS_ON ${PAL_DEVELOPER_BUILD})
-pal_bp(PAL_BUILD_PM4_INSTRUMENTOR  ON DEPENDS_ON ${PAL_DEVELOPER_BUILD})
 #endif
 
 # Build PAL with Operating System support
@@ -107,3 +100,4 @@ if (PAL_BUILD_GFX9)
     pal_set_or(PAL_BUILD_GFX10_3 ${PAL_BUILD_NAVI23})
 
 endif() # PAL_BUILD_GFX9
+

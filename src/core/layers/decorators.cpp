@@ -2372,6 +2372,9 @@ PlatformDecorator::PlatformDecorator(
     m_pClientPrivateData(nullptr),
     m_installDeveloperCb(installDeveloperCb),
     m_layerEnabled(isLayerEnabled),
+#if PAL_BUILD_RDF
+    m_pTraceSession(nullptr),
+#endif
     m_logDirCreated(false)
 {
     memset(&m_pDevices[0], 0, sizeof(m_pDevices));

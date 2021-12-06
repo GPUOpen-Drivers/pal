@@ -301,7 +301,7 @@ void GraphicsPipeline::LateInit(
     }
     if (IsGsEnabled() || IsNgg())
     {
-        m_chunkGs.LateInit(abiReader, metadata, registers, loadInfo, pUploader, &hasher);
+        m_chunkGs.LateInit(abiReader, metadata, registers, loadInfo, createInfo, pUploader, &hasher);
     }
     m_chunkVsPs.LateInit(abiReader, metadata, registers, loadInfo, createInfo, pUploader, &hasher);
 
@@ -820,7 +820,7 @@ void GraphicsPipeline::SetupCommonRegisters(
     m_regs.context.paSuVtxCntl.u32All  = registers.At(mmPA_SU_VTX_CNTL);
     m_regs.other.paScModeCntl1.u32All  = registers.At(mmPA_SC_MODE_CNTL_1);
 
-    if (IsGfx10Plus(m_gfxLevel))
+    if (IsGfx10Plus(m_gfxLevel) && (IsGsEnabled() || IsNgg()))
     {
         m_regs.context.spiShaderIdxFormat.u32All = registers.At(Gfx10Plus::mmSPI_SHADER_IDX_FORMAT);
     }

@@ -107,7 +107,8 @@ typedef enum SqttFileChunkType
     SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_LOADER_EVENTS,    /*!< Code object loader event data. */
     SQTT_FILE_CHUNK_TYPE_PSO_CORRELATION,              /*!< Pipeline State Object -> Code Object correlation mapping. */
     SQTT_FILE_CHUNK_TYPE_INSTRUMENTATION_TABLE,        /*!< Instrumentation table. */
-    SQTT_FILE_CHUNK_TYPE_COUNT
+    SQTT_FILE_CHUNK_TYPE_DF_SPM_DB,                    /*!< DF SPM trace data. */
+    SQTT_FILE_CHUNK_TYPE_COUNT,
 } SqttFileChunkType;
 
 /// Lookup table providing the major version and minor version numbers for the RGP chunks within this header.
@@ -121,11 +122,12 @@ static constexpr RgpChunkVersionNumbers RgpChunkVersionNumberLookup[] =
     {1, 1}, // SQTT_FILE_CHUNK_TYPE_QUEUE_EVENT_TIMINGS,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_CLOCK_CALIBRATION,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_CPU_INFO,
-    {1, 3}, // SQTT_FILE_CHUNK_TYPE_SPM_DB,
+    {2, 0}, // SQTT_FILE_CHUNK_TYPE_SPM_DB,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_DATABASE,
     {1, 0}, // SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_LOADER_EVENTS
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_PSO_CORRELATION
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_INSTRUMENTATION_TABLE
+    {0, 0}, // SQTT_FILE_CHUNK_TYPE_DF_SPM_DB,
 };
 
 static_assert(Util::ArrayLen(RgpChunkVersionNumberLookup) == static_cast<uint32_t>(SQTT_FILE_CHUNK_TYPE_COUNT),
@@ -370,18 +372,19 @@ typedef struct SqttFileChunkApiInfo
  */
 typedef enum SqttVersion
 {
-    SQTT_VERSION_NONE         = 0x0,                                /*!< Not supported. */
-    SQTT_VERSION_1_0          = 0x1,                                /*!< TT 1.0 Evergreen ("8xx"). */
-    SQTT_VERSION_1_1          = 0x2,                                /*!< TT 1.1 Northern Islands ("9xx"). */
-    SQTT_VERSION_2_0          = 0x3,                                /*!< TT 2.0 Southern Islands ("GfxIp6"). */
-    SQTT_VERSION_2_1          = 0x4,                                /*!< TT 2.1 Sea Islands ("GfxIp7"). */
-    SQTT_VERSION_2_2          = 0x5,                                /*!< TT 2.2 Volcanic Islands ("GfxIp8"). */
-    SQTT_VERSION_2_3          = 0x6,                                /*!< TT 2.3 Vega, MI100, MI200 (GfxIp9). */
-    SQTT_VERSION_3_0          = 0x7,                                /*!< TT 3.0 Navi1, Navi2 (GfxIp10-10.3). */
-    SQTT_VERSION_2_4          = SQTT_VERSION_3_0,                   /*!< Left for legacy reasons. */
-    SQTT_VERSION_RESERVED_0x8 = 0x8,                                /*!< Reserved. */
-    SQTT_VERSION_RESERVED_0x9 = 0x9,                                /*!< Reserved. */
-    SQTT_VERSION_RESERVED_0xA = 0xA,                                /*!< Reserved. */
+    SQTT_VERSION_NONE         = 0x0,                        /*!< Not supported. */
+    SQTT_VERSION_1_0          = 0x1,                        /*!< TT 1.0 Evergreen ("8xx"). */
+    SQTT_VERSION_1_1          = 0x2,                        /*!< TT 1.1 Northern Islands ("9xx"). */
+    SQTT_VERSION_2_0          = 0x3,                        /*!< TT 2.0 Southern Islands ("GfxIp6"). */
+    SQTT_VERSION_2_1          = 0x4,                        /*!< TT 2.1 Sea Islands ("GfxIp7"). */
+    SQTT_VERSION_2_2          = 0x5,                        /*!< TT 2.2 Volcanic Islands ("GfxIp8"). */
+    SQTT_VERSION_2_3          = 0x6,                        /*!< TT 2.3 Vega, MI100, MI200 (GfxIp9). */
+    SQTT_VERSION_3_0          = 0x7,                        /*!< TT 3.0 Navi1, Navi2 (GfxIp10-10.3). */
+    SQTT_VERSION_2_4          = SQTT_VERSION_3_0,           /*!< Left for legacy reasons. */
+    SQTT_VERSION_RESERVED_0x8 = 0x8,                        /*!< Reserved. */
+    SQTT_VERSION_RESERVED_0x9 = 0x9,                        /*!< Reserved. */
+    SQTT_VERSION_RESERVED_0xA = 0xA,                        /*!< Reserved. */
+    SQTT_VERSION_RESERVED_0xB = 0xB,                        /*!< Reserved. */
 } SqttVersion;
 
 /** A structure encapsulating the description of the data contained in the matching SQTT_FILE_CHUNK_SQTT_DATA chunk.
@@ -613,68 +616,69 @@ typedef struct SqttFileChunkCpuInfo
 
 typedef enum SpmGpuBlock
 {
-    CPF     = 0x0,
-    IA      = 0x1,
-    VGT     = 0x2,
-    PA      = 0x3,
-    SC      = 0x4,
-    SPI     = 0x5,
-    SQ      = 0x6,
-    SX      = 0x7,
-    TA      = 0x8,
-    TD      = 0x9,
-    TCP     = 0xA,
-    TCC     = 0xB,
-    TCA     = 0xC,
-    DB      = 0xD,
-    CB      = 0xE,
-    GDS     = 0xF,
-    SRBM    = 0x10,
-    GRBM    = 0x11,
-    GRBMSE  = 0x12,
-    RLC     = 0x13,
-    DMA     = 0x14,
-    MC      = 0x15,
-    CPG     = 0x16,
-    CPC     = 0x17,
-    WD      = 0x18,
-    TCS     = 0x19,
-    ATC     = 0x1A,
-    ATCL2   = 0x1B,
-    MCVML2  = 0x1C,
-    EA      = 0x1D,
-    RPB     = 0x1E,
-    RMI     = 0x1F,
-    UMCCH   = 0x20,
-    GE      = 0x21,
-    GE1     = GE,
-    GL1A    = 0x22,
-    GL1C    = 0x23,
-    GL1CG   = 0x24,
-    GL2A    = 0x25,
-    GL2C    = 0x26,
-    CHA     = 0x27,
-    CHC     = 0x28,
-    CHCG    = 0x29,
-    GUS     = 0x2A,
-    GCR     = 0x2B,
-    PH      = 0x2C,
-    UTCL1   = 0x2D,
-    GEDIST  = 0x2E,
-    GESE    = 0x2F,
-    DF      = 0x30,
-    COUNT
+    SPM_GPU_BLOCK_CPF     = 0x0,
+    SPM_GPU_BLOCK_IA      = 0x1,
+    SPM_GPU_BLOCK_VGT     = 0x2,
+    SPM_GPU_BLOCK_PA      = 0x3,
+    SPM_GPU_BLOCK_SC      = 0x4,
+    SPM_GPU_BLOCK_SPI     = 0x5,
+    SPM_GPU_BLOCK_SQ      = 0x6,
+    SPM_GPU_BLOCK_SX      = 0x7,
+    SPM_GPU_BLOCK_TA      = 0x8,
+    SPM_GPU_BLOCK_TD      = 0x9,
+    SPM_GPU_BLOCK_TCP     = 0xA,
+    SPM_GPU_BLOCK_TCC     = 0xB,
+    SPM_GPU_BLOCK_TCA     = 0xC,
+    SPM_GPU_BLOCK_DB      = 0xD,
+    SPM_GPU_BLOCK_CB      = 0xE,
+    SPM_GPU_BLOCK_GDS     = 0xF,
+    SPM_GPU_BLOCK_SRBM    = 0x10,
+    SPM_GPU_BLOCK_GRBM    = 0x11,
+    SPM_GPU_BLOCK_GRBMSE  = 0x12,
+    SPM_GPU_BLOCK_RLC     = 0x13,
+    SPM_GPU_BLOCK_DMA     = 0x14,
+    SPM_GPU_BLOCK_MC      = 0x15,
+    SPM_GPU_BLOCK_CPG     = 0x16,
+    SPM_GPU_BLOCK_CPC     = 0x17,
+    SPM_GPU_BLOCK_WD      = 0x18,
+    SPM_GPU_BLOCK_TCS     = 0x19,
+    SPM_GPU_BLOCK_ATC     = 0x1A,
+    SPM_GPU_BLOCK_ATCL2   = 0x1B,
+    SPM_GPU_BLOCK_MCVML2  = 0x1C,
+    SPM_GPU_BLOCK_EA      = 0x1D,
+    SPM_GPU_BLOCK_RPB     = 0x1E,
+    SPM_GPU_BLOCK_RMI     = 0x1F,
+    SPM_GPU_BLOCK_UMCCH   = 0x20,
+    SPM_GPU_BLOCK_GE      = 0x21,
+    SPM_GPU_BLOCK_GE1     = SPM_GPU_BLOCK_GE,
+    SPM_GPU_BLOCK_GL1A    = 0x22,
+    SPM_GPU_BLOCK_GL1C    = 0x23,
+    SPM_GPU_BLOCK_GL1CG   = 0x24,
+    SPM_GPU_BLOCK_GL2A    = 0x25,
+    SPM_GPU_BLOCK_GL2C    = 0x26,
+    SPM_GPU_BLOCK_CHA     = 0x27,
+    SPM_GPU_BLOCK_CHC     = 0x28,
+    SPM_GPU_BLOCK_CHCG    = 0x29,
+    SPM_GPU_BLOCK_GUS     = 0x2A,
+    SPM_GPU_BLOCK_GCR     = 0x2B,
+    SPM_GPU_BLOCK_PH      = 0x2C,
+    SPM_GPU_BLOCK_UTCL1   = 0x2D,
+    SPM_GPU_BLOCK_GEDIST  = 0x2E,
+    SPM_GPU_BLOCK_GESE    = 0x2F,
+    SPM_GPU_BLOCK_DFMALL  = 0x30,
+    SPM_GPU_BLOCK_COUNT
 } SpmGpuBlock;
 
-static_assert(SpmGpuBlock::COUNT >= static_cast<uint32_t>(Pal::GpuBlock::Count),
+static_assert(SpmGpuBlock::SPM_GPU_BLOCK_COUNT >= static_cast<uint32_t>(Pal::GpuBlock::Count),
               "The SpmGpuBlock enumeration needs to be updated!");
 
 typedef struct SpmCounterInfo
 {
     SpmGpuBlock   block;
     uint32_t      instance;
-    uint32_t      dataOffset;                   /*!<  Offset of counter data from the beginning of the chunk. */
     uint32_t      eventIndex;                   /*!<  Index of the perf counter event within the block.       */
+    uint32_t      dataOffset;                   /*!<  Offset of counter data from the beginning of the chunk. */
+    uint32_t      dataSize;                     /*!<  Size in bytes of a single counter data item.            */
 } SpmCounterInfo;
 
 typedef struct SqttFileSpmInfoFlags
@@ -694,10 +698,49 @@ typedef struct SqttFileChunkSpmDb
 {
     SqttFileChunkHeader  header;
     SqttFileSpmInfoFlags flags;
+    uint32_t             preambleSize;           /*!<  Size in bytes of SqttFileChunkSpmDb. */
     uint32_t             numTimestamps;          /*!<  Number of timestamps in this trace. */
     uint32_t             numSpmCounterInfo;      /*!<  Number of SpmCounterInfo. */
+    uint32_t             spmCounterInfoSize;     /*!<  Size in bytes of a single SpmCounterInfo. */
     uint32_t             samplingInterval;       /*!<  The sampling interval */
 } SqttFileChunkSpmDb;
+
+typedef struct SqttFileDfSpmInfoFlags
+{
+    union
+    {
+        struct
+        {
+            int32_t  overflow     : 1;               /*!< */
+            int32_t  gtscLimitHit : 1;               /*!< */
+            int32_t  reserved     : 30;              /*!< Reserved, set to 0. */
+        };
+
+        uint32_t value;                              /*!< 32bit value containing all the above fields. */
+    };
+} SqttFileDfSpmInfoFlags;
+
+typedef struct DfSpmCounterInfo
+{
+    SpmGpuBlock   block;
+    uint32_t      eventQualifier;               /*!<  Unit mask that tells which operation to monitor e.g. reads and writes  */
+    uint32_t      instance;                     /*!<  The instance of the component that is being monitored.  */
+    uint32_t      eventIndex;                   /*!<  Index of the perf counter event within the block.       */
+    uint32_t      dataValidOffset;              /*!<  Offset to the valid bit for this perf counter data.     */
+    uint32_t      dataOffset;                   /*!<  Offset of counter data from the beginning of the chunk. */
+    uint32_t      dataSize;                     /*!<  Size in bytes of a single counter data item.            */
+} DfSpmCounterInfo;
+
+typedef struct SqttFileChunkDfSpmDb
+{
+    SqttFileChunkHeader  header;
+    SqttFileSpmInfoFlags flags;
+    uint32_t             preambleSize;           /*!<  Size in bytes of SqttFileChunkSpmDb. */
+    uint32_t             numTimestamps;          /*!<  Number of timestamps in this trace. */
+    uint32_t             numDfSpmCounterInfo;    /*!<  Number of DfSpmCounterInfo. */
+    uint32_t             dfSpmCounterInfoSize;   /*!<  Size in bytes of a single DfSpmCounterInfo. */
+    uint32_t             samplingInterval;       /*!<  The sampling interval */
+} SqttFileChunkDfSpmDb;
 
 /** A structure encapsulating the state of the SQTT file parser.
  */
