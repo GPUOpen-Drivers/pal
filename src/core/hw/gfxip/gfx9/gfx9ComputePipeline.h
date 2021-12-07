@@ -100,8 +100,6 @@ public:
         GfxIpLevel                              gfxIpLevel,
         const Util::PalAbi::CodeObjectMetadata& metadata);
 
-    const void* pipeBinary() const {return m_pPipelineBinary;}
-
 protected:
     virtual Result HwlInit(
         const ComputePipelineCreateInfo&        createInfo,

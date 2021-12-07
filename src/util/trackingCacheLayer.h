@@ -55,7 +55,8 @@ public:
     virtual Result Store(
         const Hash128*  pHashId,
         const void*     pData,
-        size_t          dataSize) final;
+        size_t          dataSize,
+        size_t          storeSize = 0) final;
 
     virtual Result Load(
         const QueryResult* pQuery,

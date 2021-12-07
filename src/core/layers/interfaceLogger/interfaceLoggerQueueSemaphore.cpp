@@ -23,7 +23,7 @@
  *
  **********************************************************************************************************************/
 
-#if PAL_BUILD_INTERFACE_LOGGER
+#if PAL_DEVELOPER_BUILD
 
 #include "core/layers/interfaceLogger/interfaceLoggerDevice.h"
 #include "core/layers/interfaceLogger/interfaceLoggerPlatform.h"

@@ -432,7 +432,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.describeDrawDispatch = (m_cachedSettings.issueSqttMarkerEvent ||
                                              platformSettings.cmdBufferLoggerConfig.embedDrawDispatchInfo);
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     m_cachedSettings.enablePm4Instrumentation = platformSettings.pm4InstrumentorEnabled;
 #endif
 
@@ -1065,7 +1065,6 @@ void UniversalCmdBuffer::CmdBindPipeline(
 
             SetDispatchFunctions(newUsesHsaAbi);
         }
-
     }
 
      Pal::UniversalCmdBuffer::CmdBindPipeline(params);
@@ -1138,7 +1137,6 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
     if (breakBatch)
     {
         pDeCmdSpace += cmdUtil.BuildNonSampleEventWrite(BREAK_BATCH, EngineTypeUniversal, pDeCmdSpace);
-
     }
 
     // Get new pipeline state VS/PS registers
@@ -2723,7 +2721,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
     // can cause hangs and rendering corruption with subsequent indexed draw commands. We must invalidate the
     // index type state so that it will be issued before the next indexed draw.
     pThis->m_drawTimeHwState.dirty.indexedIndexType = 1;
-
 }
 
 // =====================================================================================================================
@@ -2835,7 +2832,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
     // can cause hangs and rendering corruption with subsequent indexed draw commands. We must invalidate the
     // index type state so that it will be issued before the next indexed draw.
     pThis->m_drawTimeHwState.dirty.indexedIndexType = 1;
-
 }
 
 // =====================================================================================================================
@@ -2984,7 +2980,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
     pDeCmdSpace  = pThis->IncrementDeCounter(pDeCmdSpace);
 
     pThis->m_deCmdStream.CommitCommands(pDeCmdSpace);
-
 }
 
 // =====================================================================================================================
@@ -4425,7 +4420,6 @@ Result UniversalCmdBuffer::AddPreamble()
                                                            mmPA_SC_SCREEN_SCISSOR_BR,
                                                            &paScScreenScissor,
                                                            pDeCmdSpace);
-
     }
 
     if (m_cmdUtil.GetRegInfo().mmDbDfsmControl != 0)
@@ -4569,7 +4563,7 @@ Result UniversalCmdBuffer::AddPostamble()
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     if (m_cachedSettings.enablePm4Instrumentation)
     {
         m_deCmdStream.IssueHotRegisterReport(this);
@@ -5299,7 +5293,6 @@ template <bool Indexed, bool Indirect, bool Pm4OptImmediate>
 void UniversalCmdBuffer::ValidateDraw(
     const ValidateDrawInfo& drawInfo)
 {
-
     const auto&  dirtyFlags = m_graphicsState.dirtyFlags.validationBits;
 
     if ((dirtyFlags.vrsRateParams || dirtyFlags.vrsImage || dirtyFlags.depthStencilView) &&
@@ -5311,7 +5304,7 @@ void UniversalCmdBuffer::ValidateDraw(
         ValidateVrsState();
     }
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     uint32 startingCmdLen = GetUsedSize(CommandDataAlloc);
     uint32 pipelineCmdLen = 0;
     uint32 userDataCmdLen = 0;
@@ -5343,7 +5336,7 @@ void UniversalCmdBuffer::ValidateDraw(
         // reserve/commit region before proceeding with validation.
         m_deCmdStream.CommitCommands(pDeCmdSpace);
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
         if (m_cachedSettings.enablePm4Instrumentation != 0)
         {
             pipelineCmdLen  = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
@@ -5355,7 +5348,7 @@ void UniversalCmdBuffer::ValidateDraw(
 
         pDeCmdSpace = (this->*m_pfnValidateUserDataGfxPipelineSwitch)(pPrevSignature, pDeCmdSpace);
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
         if (m_cachedSettings.enablePm4Instrumentation != 0)
         {
             // GetUsedSize() is not accurate if we don't put the user-data validation and miscellaneous validation
@@ -5381,7 +5374,7 @@ void UniversalCmdBuffer::ValidateDraw(
 
         pDeCmdSpace = (this->*m_pfnValidateUserDataGfx)(nullptr, pDeCmdSpace);
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
         if (m_cachedSettings.enablePm4Instrumentation != 0)
         {
             // GetUsedSize() is not accurate if we don't put the user-data validation and miscellaneous validation
@@ -5398,7 +5391,7 @@ void UniversalCmdBuffer::ValidateDraw(
         m_deCmdStream.CommitCommands(pDeCmdSpace);
     }
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     if (m_cachedSettings.enablePm4Instrumentation != 0)
     {
         const uint32 miscCmdLen = (GetUsedSize(CommandDataAlloc) - startingCmdLen);
@@ -5409,7 +5402,6 @@ void UniversalCmdBuffer::ValidateDraw(
 #if PAL_ENABLE_PRINTS_ASSERTS
     m_pipelineStateValid = false;
 #endif
-
 }
 
 // =====================================================================================================================
@@ -6871,11 +6863,11 @@ uint32* UniversalCmdBuffer::ValidateCbColorInfo(
         // when this optimization is not required by the PSO. This is important if CB_TARGET_MASK[0] != 0
         if (m_graphicsState.bindTargets.colorTargetCount == 0)
         {
-            const bool isCbDisable = (pPipeline->CbColorControl().bits.MODE == CB_DISABLE);
-            m_cbColorInfo[0].bits.NUMBER_TYPE = isCbDisable ? Chip::NUMBER_FLOAT : Chip::NUMBER_UNORM;
+            const bool isRbPlusOptDepthOnly = pPipeline->CanRbPlusOptimizeDepthOnly();
+            m_cbColorInfo[0].bits.NUMBER_TYPE = isRbPlusOptDepthOnly ? Chip::NUMBER_FLOAT : Chip::NUMBER_UNORM;
             if (IsGfx9(m_gfxIpLevel) || IsGfx10(m_gfxIpLevel))
             {
-                m_cbColorInfo[0].gfx09_10.FORMAT = isCbDisable ? Chip::COLOR_32 : Chip::COLOR_INVALID;
+                m_cbColorInfo[0].gfx09_10.FORMAT = isRbPlusOptDepthOnly ? Chip::COLOR_32 : Chip::COLOR_INVALID;
             }
         }
 
@@ -7431,7 +7423,7 @@ void UniversalCmdBuffer::ValidateDispatchPalAbi(
     uint32        yDim,
     uint32        zDim)
 {
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     uint32 startingCmdLen = 0;
     uint32 pipelineCmdLen = 0;
     uint32 userDataCmdLen = 0;
@@ -7485,7 +7477,7 @@ void UniversalCmdBuffer::ValidateDispatchPalAbi(
             pUserDataTable = &m_spillTable.stateCs;
         }
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
         if (m_cachedSettings.enablePm4Instrumentation != 0)
         {
             // GetUsedSize() is not accurate if called inside a Reserve/Commit block.
@@ -7513,7 +7505,7 @@ void UniversalCmdBuffer::ValidateDispatchPalAbi(
                                                          pComputeState->dynamicCsInfo,
                                                          launchDescGpuVirtAddr);
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
             if (m_cachedSettings.enablePm4Instrumentation != 0)
             {
                 // GetUsedSize() is not accurate if called inside a Reserve/Commit block.
@@ -7534,7 +7526,7 @@ void UniversalCmdBuffer::ValidateDispatchPalAbi(
                                                    pCmdSpace);
     }
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     if (m_cachedSettings.enablePm4Instrumentation != 0)
     {
         // GetUsedSize() is not accurate if called inside a Reserve/Commit block.
@@ -7568,7 +7560,7 @@ void UniversalCmdBuffer::ValidateDispatchPalAbi(
                                                   pCmdSpace);
     }
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     if (m_cachedSettings.enablePm4Instrumentation != 0)
     {
         // GetUsedSize() is not accurate if called inside a Reserve/Commit block.
@@ -7595,7 +7587,7 @@ void UniversalCmdBuffer::ValidateDispatchHsaAbi(
     uint32        yDim,
     uint32        zDim)
 {
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     uint32 startingCmdLen = 0;
     uint32 pipelineCmdLen = 0;
     uint32 userDataCmdLen = 0;
@@ -7626,7 +7618,7 @@ void UniversalCmdBuffer::ValidateDispatchHsaAbi(
         m_pSignatureCs = &pPipeline->Signature();
     }
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     if (m_cachedSettings.enablePm4Instrumentation != 0)
     {
         // GetUsedSize() is not accurate if called inside a Reserve/Commit block.
@@ -7738,7 +7730,7 @@ void UniversalCmdBuffer::ValidateDispatchHsaAbi(
     PAL_ASSERT((startReg - mmCOMPUTE_USER_DATA_0) == computePgmRsrc2.bitfields.USER_SGPR);
 #endif
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     if (m_cachedSettings.enablePm4Instrumentation != 0)
     {
         // GetUsedSize() is not accurate if called inside a Reserve/Commit block.
@@ -7754,7 +7746,7 @@ void UniversalCmdBuffer::ValidateDispatchHsaAbi(
 
     PAL_ASSERT(m_pSignatureCs->numWorkGroupsRegAddr == UserDataNotMapped);
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     if (m_cachedSettings.enablePm4Instrumentation != 0)
     {
         // GetUsedSize() is not accurate if called inside a Reserve/Commit block.
@@ -7796,7 +7788,6 @@ void UniversalCmdBuffer::AddQuery(
             PAL_ASSERT_ALWAYS();
         }
     }
-
 }
 
 // =====================================================================================================================
@@ -9748,7 +9739,6 @@ void UniversalCmdBuffer::CmdSetUserClipPlanes(
     pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(startRegAddr, endRegAddr, pPlanes, pDeCmdSpace);
     m_deCmdStream.CommitCommands(pDeCmdSpace);
     m_deCmdStream.SetContextRollDetected<true>();
-
 }
 
 // =====================================================================================================================
@@ -10575,6 +10565,5 @@ void UniversalCmdBuffer::EraseVrsCopiesToDepthImage(
         }
     }
 }
-
 } // Gfx9
 } // Pal

@@ -59,7 +59,8 @@ protected:
     virtual Result StoreInternal(
         const Hash128*  pHashId,
         const void*     pData,
-        size_t          dataSize) override;
+        size_t          dataSize,
+        size_t          storeSize) override;
 
     virtual Result LoadInternal(
         const QueryResult* pQuery,
@@ -71,7 +72,7 @@ private:
 
     // Constants
     static constexpr size_t        MinExpectedHeaders   = 256;
-    static constexpr size_t        HashTableBucketCount = 2048;
+    static constexpr size_t        HashTableBucketCount = 0x4000;
 
     // Helper type for ArchiveEntryHeader::entryKey
     struct EntryKey
@@ -84,8 +85,15 @@ private:
     {
         uint64 ordinalId;
         size_t dataSize;
+        size_t storeSize;
     };
-    using EntryMap = HashMap<EntryKey, Entry, ForwardAllocator, JenkinsHashFunc>;
+    using EntryMap = HashMap<EntryKey,
+                             Entry,
+                             ForwardAllocator,
+                             JenkinsHashFunc,
+                             DefaultEqualFunc,
+                             HashAllocator<ForwardAllocator>,
+                             2048>;
 
     // Hashing Utility functions
     void ConvertToEntryKey(const Hash128* pHashId, EntryKey* pKey);

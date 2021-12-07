@@ -998,7 +998,7 @@ uint32* ComputeCmdBuffer::ValidateDispatchPalAbi(
     uint32  zDim,
     uint32* pCmdSpace)
 {
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     const bool enablePm4Instrumentation = m_device.GetPlatform()->PlatformSettings().pm4InstrumentorEnabled;
 
     uint32* pStartingCmdSpace = pCmdSpace;
@@ -1020,7 +1020,7 @@ uint32* ComputeCmdBuffer::ValidateDispatchPalAbi(
                                                 launchDescGpuVirtAddr,
                                                 m_buildFlags.prefetchShaders);
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
         if (enablePm4Instrumentation)
         {
             pipelineCmdLen    = (static_cast<uint32>(pCmdSpace - pStartingCmdSpace) * sizeof(uint32));
@@ -1043,7 +1043,7 @@ uint32* ComputeCmdBuffer::ValidateDispatchPalAbi(
                                                          m_computeState.dynamicCsInfo,
                                                          launchDescGpuVirtAddr);
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
             if (enablePm4Instrumentation)
             {
                 pipelineCmdLen    = (static_cast<uint32>(pCmdSpace - pStartingCmdSpace) * sizeof(uint32));
@@ -1055,7 +1055,7 @@ uint32* ComputeCmdBuffer::ValidateDispatchPalAbi(
         pCmdSpace = ValidateUserData<false>(nullptr, pCmdSpace);
     }
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     if (enablePm4Instrumentation)
     {
         userDataCmdLen    = (static_cast<uint32>(pCmdSpace - pStartingCmdSpace) * sizeof(uint32));
@@ -1086,7 +1086,7 @@ uint32* ComputeCmdBuffer::ValidateDispatchPalAbi(
                                                   pCmdSpace);
     }
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     if (enablePm4Instrumentation)
     {
         const uint32 miscCmdLen = (static_cast<uint32>(pCmdSpace - pStartingCmdSpace) * sizeof(uint32));
@@ -1108,7 +1108,7 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
     uint32  zDim,
     uint32* pCmdSpace)
 {
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     const bool enablePm4Instrumentation = m_device.GetPlatform()->PlatformSettings().pm4InstrumentorEnabled;
 
     uint32* pStartingCmdSpace = pCmdSpace;
@@ -1132,7 +1132,7 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
         m_pSignatureCs = &pPipeline->Signature();
     }
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     if (enablePm4Instrumentation)
     {
         pipelineCmdLen    = (static_cast<uint32>(pCmdSpace - pStartingCmdSpace) * sizeof(uint32));
@@ -1241,7 +1241,7 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
     PAL_ASSERT((startReg - mmCOMPUTE_USER_DATA_0) == computePgmRsrc2.bitfields.USER_SGPR);
 #endif
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     if (enablePm4Instrumentation)
     {
         userDataCmdLen    = (static_cast<uint32>(pCmdSpace - pStartingCmdSpace) * sizeof(uint32));
@@ -1255,7 +1255,7 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
     // We don't expect HSA ABI pipelines to use these.
     PAL_ASSERT(m_pSignatureCs->numWorkGroupsRegAddr == UserDataNotMapped);
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     if (enablePm4Instrumentation)
     {
         const uint32 miscCmdLen = (static_cast<uint32>(pCmdSpace - pStartingCmdSpace) * sizeof(uint32));

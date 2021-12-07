@@ -373,10 +373,12 @@ CmdStreamChunk* CmdStream::GetNextChunk(
         {
             pChunk->Reset(true);
 
-            // Other chunk's reference has already been added in GetNewChunk.
-            // DummyChunk's reference should be added as well,
-            // otherwise Assertion would be triggered in reset()
-            pChunk->AddCommandStreamReference();
+            if (IsAutoMemoryReuse())
+            {
+                // Other chunk's reference has already been added in GetNewChunk.
+                // DummyChunk's reference should be added as well, otherwise Assertion would be triggered in Reset().
+                pChunk->AddCommandStreamReference();
+            }
         }
     }
 
@@ -771,7 +773,12 @@ Result CmdStream::TransferRetainedChunks(
     {
         CmdStreamChunk* pChunk = nullptr;
         m_retainedChunkList.PopBack(&pChunk);
-        pChunk->RemoveCommandStreamReference();
+
+        if (IsAutoMemoryReuse())
+        {
+            pChunk->RemoveCommandStreamReference();
+        }
+
         result = pDest->PushBack(pChunk);
 
         // PushBack can fail if there's not enough space,

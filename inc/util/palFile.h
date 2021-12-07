@@ -204,6 +204,13 @@ public:
     /// @returns Success if the structure was retrieved, error otherwise.
     static Result GetStat(const char* pFilename, Stat* pStatus);
 
+    /// Removes/erases a file, if it exists.
+    ///
+    /// @param [in] pFilename  Name of file to remove.
+    ///
+    /// @returns Success if successful, otherwise an appropriate error.
+    static Result Remove(const char* pFilename);
+
     /// Gets the handle associated with this file.
     ///
     /// @returns A pointer to the file handle

@@ -595,7 +595,7 @@ public:
         uint64            apiPsoHash,
         PipelineBindPoint bindPoint) const;
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     void DescribeDrawDispatchValidation(
         GfxCmdBuffer* pCmdBuf,
         size_t        userDataCmdSize,

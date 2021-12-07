@@ -1,0 +1,23 @@
+[*]
+# Keep native file endings and let source control convert them transparently
+end_of_line = unset
+
+# Trailing whitespace is not allowed
+trim_trailing_whitespace = true
+
+# Linux tools don't always handle the last line correctly without this
+# It's also a part of the C standard.
+insert_final_newline = true
+
+[*.{c,cpp,cxx,h,hpp,inc,inl}]
+indent_style = space
+indent_size = 4
+
+[*.py]
+indent_style = space
+indent_size = 4
+
+[*.json]
+# The json files tend to be large, so keep the indent small (for both size and readability)
+indent_style = space
+indent_size = 2

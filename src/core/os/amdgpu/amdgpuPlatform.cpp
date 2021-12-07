@@ -197,26 +197,28 @@ Result Platform::ReQueryDevices()
         char    busId[MaxBusIdStringLen] = {};
         Device* pDevice = nullptr;
 
-        // Check if the device vendor is AMD
-        if (!AMDGPU_VENDOR_IS_AMD(pDevices[i]->deviceinfo.pci->vendor_id))
+        if (pDevices[i]->bustype == DRM_BUS_PCI)
         {
-            ++notAmdDeviceCount;
-
-            if (notAmdDeviceCount == deviceCount)
+            // Check if the device vendor is AMD
+            if (AMDGPU_VENDOR_IS_AMD(pDevices[i]->deviceinfo.pci->vendor_id) == false)
             {
-                result = Result::ErrorIncompatibleDevice;
+                ++notAmdDeviceCount;
+                continue;
             }
 
+            Util::Snprintf(busId,
+                        MaxBusIdStringLen,
+                        "pci:%04x:%02x:%02x.%d",
+                        pDevices[i]->businfo.pci->domain,
+                        pDevices[i]->businfo.pci->bus,
+                        pDevices[i]->businfo.pci->dev,
+                        pDevices[i]->businfo.pci->func);
+        }
+        else
+        {
+            ++notAmdDeviceCount;
             continue;
         }
-
-        Util::Snprintf(busId,
-                       MaxBusIdStringLen,
-                       "pci:%04x:%02x:%02x.%d",
-                       pDevices[i]->businfo.pci->domain,
-                       pDevices[i]->businfo.pci->bus,
-                       pDevices[i]->businfo.pci->dev,
-                       pDevices[i]->businfo.pci->func);
 
         result = Device::Create(this,
                                 &m_settingsPath[0],
@@ -241,6 +243,11 @@ Result Platform::ReQueryDevices()
             PAL_SAFE_DELETE(pDevice, this);
             break;
         }
+    }
+
+    if ((result == Result::Success) && (notAmdDeviceCount == deviceCount))
+    {
+        result = Result::ErrorIncompatibleDevice;
     }
 
     if ((deviceCount > 0) && (IsEmulationEnabled() == false))

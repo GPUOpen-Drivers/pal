@@ -272,6 +272,7 @@ constexpr unsigned int mmDB_WATERMARKS                                    = 0x26
 constexpr unsigned int mmDB_Z_WRITE_BASE                                  = 0xA014;
 constexpr unsigned int mmGB_ADDR_CONFIG                                   = 0x263E;
 constexpr unsigned int mmGB_ADDR_CONFIG_READ                              = 0x2642;
+constexpr unsigned int mmGRBM_CHIP_REVISION                               = 0x2021;
 constexpr unsigned int mmGRBM_GFX_INDEX                                   = 0xC200;
 constexpr unsigned int mmGRBM_GFX_INDEX_SR_DATA                           = 0xFA01;
 constexpr unsigned int mmGRBM_GFX_INDEX_SR_SELECT                         = 0xFA00;

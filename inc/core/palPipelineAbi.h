@@ -103,7 +103,7 @@ enum class AmdGpuFeatureV4Type : uint8
     On          = 0x03, ///< EF_AMDGPU_FEATURE_*_ON_V4
 };
 
-/// Enumerates the steppng values for each GPU supported by PAL (and by PAL's ABI).  There are many duplicates
+/// Enumerates the stepping values for each GPU supported by PAL (and by PAL's ABI).  There are many duplicates
 /// in this list, because some values are re-used across different GFXIP major/minor versions (e.g., Gfx6.0.0
 /// and Gfx9.0.0 are different GPUs that happen to share a common stepping number).
 enum GfxIpStepping : uint16

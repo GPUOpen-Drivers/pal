@@ -815,6 +815,7 @@ struct GpuChipProperties
                 uint32 support8bitIndices                       :  1;
                 uint32 support16BitInstructions                 :  1;
                 uint32 support64BitInstructions                 :  1;
+                uint32 supportBorderColorSwizzle                :  1;
                 uint32 supportFloatAtomics                      :  1;
                 uint32 supportIndexAttribIndirectPkt            :  1;  // Indicates support for INDEX_ATTRIB_INDIRECT
                 uint32 supportSetShIndexPkt                     :  1;  // Indicates support for packet SET_SH_REG_INDEX
@@ -834,7 +835,7 @@ struct GpuChipProperties
                 uint32 supportOutOfOrderPrimitives              :  1; // HW supports higher throughput for out of order
                 uint32 supportShaderSubgroupClock               :  1; // HW supports clock functions across subgroup.
                 uint32 supportShaderDeviceClock                 :  1; // HW supports clock functions across device.
-                uint32 reserved                                 :  9;
+                uint32 reserved                                 :  8;
             };
 
             Gfx6PerfCounterInfo perfCounterInfo; // Contains information for perf counters for a specific hardware block
@@ -910,6 +911,7 @@ struct GpuChipProperties
                 uint64 supportFp16Dot2                    :  1;
                 uint64 support16BitInstructions           :  1;
                 uint64 support64BitInstructions           :  1;
+                uint64 supportBorderColorSwizzle          :  1;
                 uint64 supportFloatAtomics                :  1;
                 uint64 supportDoubleRate16BitInstructions :  1;
                 uint64 rbPlus                             :  1;
@@ -964,7 +966,7 @@ struct GpuChipProperties
                 uint64 supportInt8Dot                     :  1; // HW supports a dot product 8bit.
                 uint64 supportInt4Dot                     :  1; // HW supports a dot product 4bit.
                 uint64 support2DRectList                  :  1; // HW supports PrimitiveTopology::TwoDRectList.
-                uint64 reserved                           : 16;
+                uint64 reserved                           : 15;
             };
 
             RayTracingIpLevel rayTracingIp;      //< HW RayTracing IP version

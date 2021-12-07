@@ -56,6 +56,8 @@ public:
     bool CanStencilRunOutOfOrder() const { return (m_flags.canStencilRunOutOfOrder != 0); }
     bool DepthForcesOrdering() const { return (m_flags.depthForcesOrdering != 0); }
 
+    bool IsDepthBoundsEnabled() const { return (m_dbDepthControl.bits.DEPTH_BOUNDS_ENABLE != 0); }
+
 private:
     virtual ~DepthStencilState() { }
 

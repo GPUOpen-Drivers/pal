@@ -2074,6 +2074,22 @@
       "Name": "SamplerSecAnisoBias"
     },
     {
+      "Description": "If the workaround is enabled, then AUTO_FLUSH_MODE settings will be inverted.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waAutoFlushModePolarityInversed",
+      "Name": "WaAutoFlushModePolarityInversed"
+    },
+    {
       "Description": "If the workaround is enabled, then only those mips up to and including the first mip in the mip tail will be compressed.",
       "Tags": [
         "Hardware Workarounds"

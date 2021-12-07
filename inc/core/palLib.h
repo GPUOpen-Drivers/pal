@@ -43,7 +43,7 @@
 ///            compatible, it is not assumed that the client will initialize all input structs to 0.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 686
+#define PAL_INTERFACE_MAJOR_VERSION 691
 
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
 /// in @ref Pal::PlatformProperties.
@@ -61,7 +61,7 @@
 /// @ingroup LibInit
 #define PAL_MINIMUM_INTERFACE_MAJOR_VERSION 659
 
-/// Minimum supported major interface version for gpuopen library. This is the minimum interface version of the gpuopen
+/// Minimum supported major interface version for devdriver library. This is the minimum interface version of the devdriver
 /// library that PAL is backwards compatible to.
 ///
 /// @ingroup LibInit
@@ -109,8 +109,8 @@ enum class NullGpuId : uint32
     Navi22           = 0x10,
     Navi23           = 0x11,
 
-    Max = 0x1F,
-    All = 0x20,
+    Max = 0x20,
+    All = 0x21,
 #else // PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 672
     Tahiti    = 0x00,
     Pitcairn  = 0x01,

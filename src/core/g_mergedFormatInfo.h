@@ -1860,7 +1860,7 @@ const FormatInfo FormatInfoTable[] =
         0,                                  // Format Properties
         NumericSupportFlags::Uint,
     },
-    // X16_MM_Unorm
+    // X16_MM10_Unorm
     {
         16,  1,                             // 16 bpp, 1 component
         { 16,  0,  0,  0, },                // # of bits-per-component
@@ -1868,7 +1868,7 @@ const FormatInfo FormatInfoTable[] =
         0,                                  // Format Properties
         NumericSupportFlags::Unorm,
     },
-    // X16_MM_Uint
+    // X16_MM10_Uint
     {
         16,  1,                             // 16 bpp, 1 component
         { 16,  0,  0,  0, },                // # of bits-per-component
@@ -1876,7 +1876,7 @@ const FormatInfo FormatInfoTable[] =
         0,                                  // Format Properties
         NumericSupportFlags::Uint,
     },
-    // X16Y16_MM_Unorm
+    // X16Y16_MM10_Unorm
     {
         32,  2,                             // 32 bpp, 2 components
         { 16, 16,  0,  0, },                // # of bits-per-component
@@ -1885,7 +1885,7 @@ const FormatInfo FormatInfoTable[] =
         0,                                  // Format Properties
         NumericSupportFlags::Unorm,
     },
-    // X16Y16_MM_Uint
+    // X16Y16_MM10_Uint
     {
         32,  2,                             // 32 bpp, 2 components
         { 16, 16,  0,  0, },                // # of bits-per-component
@@ -1898,6 +1898,73 @@ const FormatInfo FormatInfoTable[] =
     {
         12,  3,                             // 12 bpp, 3 components
         {  8,  8,  8,  0, },                // # of bits-per-component
+        (ChannelFlags::X |
+         ChannelFlags::Y |
+         ChannelFlags::Z),                  // Channel Mask: XYZ-
+        (YuvPlanar |
+         BitCountInaccurate),               // Format Properties
+        NumericSupportFlags::Yuv,
+    },
+    // X16_MM12_Unorm
+    {
+        16,  1,                             // 16 bpp, 1 component
+        { 16,  0,  0,  0, },                // # of bits-per-component
+        ChannelFlags::X,                    // Channel Mask: X---
+        0,                                  // Format Properties
+        NumericSupportFlags::Unorm,
+    },
+    // X16_MM12_Uint
+    {
+        16,  1,                             // 16 bpp, 1 component
+        { 16,  0,  0,  0, },                // # of bits-per-component
+        ChannelFlags::X,                    // Channel Mask: X---
+        0,                                  // Format Properties
+        NumericSupportFlags::Uint,
+    },
+    // X16Y16_MM12_Unorm
+    {
+        32,  2,                             // 32 bpp, 2 components
+        { 16, 16,  0,  0, },                // # of bits-per-component
+        (ChannelFlags::X |
+         ChannelFlags::Y),                  // Channel Mask: XY--
+        0,                                  // Format Properties
+        NumericSupportFlags::Unorm,
+    },
+    // X16Y16_MM12_Uint
+    {
+        32,  2,                             // 32 bpp, 2 components
+        { 16, 16,  0,  0, },                // # of bits-per-component
+        (ChannelFlags::X |
+         ChannelFlags::Y),                  // Channel Mask: XY--
+        0,                                  // Format Properties
+        NumericSupportFlags::Uint,
+    },
+    // P012
+    {
+        18,  3,                             // 18 bpp, 3 components
+        { 16, 16, 16,  0, },                // # of bits-per-component
+        (ChannelFlags::X |
+         ChannelFlags::Y |
+         ChannelFlags::Z),                  // Channel Mask: XYZ-
+        (YuvPlanar |
+         BitCountInaccurate),               // Format Properties
+        NumericSupportFlags::Yuv,
+    },
+    // P212
+    {
+        24,  3,                             // 24 bpp, 3 components
+        { 16, 16, 16,  0, },                // # of bits-per-component
+        (ChannelFlags::X |
+         ChannelFlags::Y |
+         ChannelFlags::Z),                  // Channel Mask: XYZ-
+        (YuvPlanar |
+         BitCountInaccurate),               // Format Properties
+        NumericSupportFlags::Yuv,
+    },
+    // P412
+    {
+        36,  3,                             // 36 bpp, 3 components
+        { 16, 16, 16,  0, },                // # of bits-per-component
         (ChannelFlags::X |
          ChannelFlags::Y |
          ChannelFlags::Z),                  // Channel Mask: XYZ-

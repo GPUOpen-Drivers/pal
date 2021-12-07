@@ -250,7 +250,7 @@ void PAL_STDCALL Platform::DbgOverlayCb(
         PAL_ASSERT(pCbData != nullptr);
         TranslateBindPipelineData(pCbData);
         break;
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     case Developer::CallbackType::DrawDispatchValidation:
         PAL_ASSERT(pCbData != nullptr);
         TranslateDrawDispatchValidationData(pCbData);

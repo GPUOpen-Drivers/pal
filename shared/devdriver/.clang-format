@@ -1,0 +1,88 @@
+BasedOnStyle: Microsoft
+Language: Cpp
+Standard: Cpp11
+UseTab: Never
+IndentWidth: '4'
+ColumnLimit: '120'
+
+# WIP, not supported by clang-format yet
+# AlignConsecutiveBitfields: true
+
+# Comments matching this regex must not be broken across lines
+# - Don't modify internal comments
+CommentPragmas: ^#
+
+AccessModifierOffset: '-4'
+AlignAfterOpenBracket: AlwaysBreak
+AlignConsecutiveAssignments: true
+AlignConsecutiveDeclarations: true
+AlignConsecutiveMacros: true
+AlignEscapedNewlines: Right
+AlignOperands: true
+AlignTrailingComments: true
+AllowAllArgumentsOnNextLine: false
+AllowAllConstructorInitializersOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLambdasOnASingleLine: Inline
+AllowShortLoopsOnASingleLine: false
+AlwaysBreakAfterReturnType: None
+AlwaysBreakTemplateDeclarations: 'Yes'
+BinPackArguments: false
+BinPackParameters: false
+BreakBeforeBinaryOperators: None
+BreakBeforeTernaryOperators: false
+BreakConstructorInitializers: BeforeColon
+BreakInheritanceList: AfterColon
+BreakStringLiterals: true
+CompactNamespaces: false
+Cpp11BracedListStyle: false
+DerivePointerAlignment: false
+FixNamespaceComments: true
+IncludeBlocks: Preserve
+IndentCaseLabels: true
+IndentPPDirectives: BeforeHash
+IndentWrappedFunctionNames: false
+MaxEmptyLinesToKeep: 1
+NamespaceIndentation: None
+PointerAlignment: Left
+SortIncludes: true
+SortUsingDeclarations: true
+SpaceAfterTemplateKeyword: false
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeCtorInitializerColon: true
+SpaceBeforeInheritanceColon: true
+SpaceBeforeParens: ControlStatements
+SpaceBeforeRangeBasedForLoopColon: true
+SpaceInEmptyParentheses: false
+SpacesInAngles: false
+SpacesInContainerLiterals: false
+SpacesInCStyleCastParentheses: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+
+BreakBeforeBraces: Custom
+BraceWrapping:
+    AfterCaseLabel: true
+    AfterClass: true
+    AfterControlStatement: true
+    AfterEnum: true
+    AfterExternBlock: false
+    AfterFunction: true
+    AfterNamespace: true
+    AfterObjCDeclaration: true
+    AfterStruct: true
+    AfterUnion: true
+    AfterExternBlock: true
+    BeforeCatch: true
+    BeforeElse: true
+    IndentBraces: false
+    SplitEmptyFunction: true
+    SplitEmptyRecord: true
+    SplitEmptyNamespace: true
+
+# Misc Penalties
+PenaltyBreakAssignment: 999
+PenaltyBreakBeforeFirstCallParameter: 0

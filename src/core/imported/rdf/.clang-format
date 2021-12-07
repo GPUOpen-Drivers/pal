@@ -1,0 +1,36 @@
+BasedOnStyle: Google
+ColumnLimit: 100
+IndentWidth: 4
+AlignAfterOpenBracket: Align
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterCaseLabel: false
+  AfterUnion: true
+  AfterEnum: true
+  AfterStruct: true
+  SplitEmptyFunction: true
+  AfterNamespace: true
+  AfterClass: true
+  AfterFunction: true
+  AfterControlStatement: MultiLine
+  BeforeElse : false
+AllowShortIfStatementsOnASingleLine: false
+IndentCaseLabels: false
+DerivePointerAlignment: false
+PointerAlignment: Left
+AlignTrailingComments: true
+AllowShortBlocksOnASingleLine: false
+AlignConsecutiveDeclarations: false
+AlignConsecutiveAssignments: false
+AlignOperands: true
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowAllArgumentsOnNextLine: true
+AllowShortCaseLabelsOnASingleLine: false
+BinPackArguments: false
+BinPackParameters: false
+AccessModifierOffset: -4
+ReflowComments: false
+SortIncludes: false
+TabWidth: 4
+UseTab: Never
+NamespaceIndentation: Inner

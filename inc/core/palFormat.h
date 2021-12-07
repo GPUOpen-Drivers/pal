@@ -321,19 +321,42 @@ enum class ChNumFormat : Util::uint32
                                         ///  surfaces.
     X8Y8_MM_Uint             = 0xAC,    ///< Multi-media format used with DCC for the interleaved UV plane in YUV planar
                                         ///  surfaces.
-    X16_MM_Unorm             = 0xAD,    ///< Multi-media format used with DCC for non-interleaved planes in YUV planar
-                                        ///  surfaces. Such as the Y plane or any plane in YV12.
-    X16_MM_Uint              = 0xAE,    ///< Multi-media format used with DCC for non-interleaved planes in YUV planar
-                                        ///  surfaces. Such as the Y plane or any plane in YV12.
-    X16Y16_MM_Unorm          = 0xAF,    ///< Multi-media format used with DCC for the interleaved UV plane in YUV planar
-                                        ///  surfaces.
-    X16Y16_MM_Uint           = 0xB0,    ///< Multi-media format used with DCC for the interleaved UV plane in YUV planar
-                                        ///  surfaces.
+    X16_MM10_Unorm           = 0xAD,    ///< Multi-media format used with DCC for non-interleaved planes in YUV planar
+                                        ///  surfaces (10-bit). Such as the Y plane or any plane in YV12.
+    X16_MM10_Uint            = 0xAE,    ///< Multi-media format used with DCC for non-interleaved planes in YUV planar
+                                        ///  surfaces (10-bit). Such as the Y plane or any plane in YV12.
+    X16Y16_MM10_Unorm        = 0xAF,    ///< Multi-media format used with DCC for the interleaved UV plane in YUV planar
+                                        ///  surfaces (10-bit).
+    X16Y16_MM10_Uint         = 0xB0,    ///< Multi-media format used with DCC for the interleaved UV plane in YUV planar
+                                        ///  surfaces (10-bit).
     P208                     = 0xB1,    ///< YUV 4:2:2 planar format, with 8 bits per luma and chroma sample. This is
                                         ///  similar to @ref ChNumFormat::NV12, except that the UV planes are sub-sampled
                                         ///  only in the horizontal direction, but still by a factor of 2 so the UV plane
                                         ///  ends up having the same number of lines as the Y plane.
+    X16_MM12_Unorm           = 0xB2,    ///< Multi-media format used with DCC for non-interleaved planes in YUV planar
+                                        ///  surfaces (12-bit).
+    X16_MM12_Uint            = 0xB3,    ///< Multi-media format used with DCC for non-interleaved planes in YUV planar
+                                        ///  surfaces (12-bit).
+    X16Y16_MM12_Unorm        = 0xB4,    ///< Multi-media format used with DCC for the interleaved UV plane in YUV planar
+                                        ///  surfaces (12-bit).
+    X16Y16_MM12_Uint         = 0xB5,    ///< Multi-media format used with DCC for the interleaved UV plane in YUV planar
+                                        ///  surfaces (12-bit).
+    P012                     = 0xB6,    ///< YUV 4:2:0 planar format, with 12 bits per luma and chroma sample.  This is
+                                        ///  identical to @ref ChNumFormat::P010, except that the lowest 4 bits of each
+                                        ///  luma and chroma sample are ignored.
+    P212                     = 0xB7,    ///< YUV 4:2:2 planar format, with 12 bits per luma and chroma sample.  This is
+                                        ///  identical to @ref ChNumFormat::P210, except that the lowest 4 bits of each
+                                        ///  luma and chroma sample are ignored.
+    P412                     = 0xB8,    ///< YUV 4:4:4 planar format, with 12 bits per luma and chroma sample.
     Count,
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 689
+    // Legacy aliases
+    X16_MM_Unorm    = X16_MM10_Unorm,
+    X16_MM_Uint     = X16_MM10_Uint,
+    X16Y16_MM_Unorm = X16Y16_MM10_Unorm,
+    X16Y16_MM_Uint  = X16Y16_MM10_Uint,
+#endif
 };
 
 /// Specifies which channel of a resource should be mapped to a particular component of an image view.

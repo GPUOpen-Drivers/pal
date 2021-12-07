@@ -75,12 +75,12 @@ function(addrlib_bp AMD_VAR AMD_DFLT)
     if (NOT DEFINED ${AMD_VAR})
         set(${AMD_VAR} ${AMD_DFLT} PARENT_SCOPE)
 
-        message(${AMD_MODE} "addrlib_bp: ${AMD_VAR} not set. Defaulting to ${AMD_DFLT}. ${AMD_MSG}")
+        message(${AMD_MODE} "${AMD_VAR} not set. Defaulting to ${AMD_DFLT}. ${AMD_MSG}")
 
         return()
     endif()
 
     # If we got to this point it means the build parameter is getting overriden.
     # To assist in potential debugging show what the value was set to.
-    message(STATUS "addrlib_bp: ${AMD_VAR} overridden to ${${AMD_VAR}}")
+    message(STATUS "${AMD_VAR} overridden to ${${AMD_VAR}}")
 endfunction()

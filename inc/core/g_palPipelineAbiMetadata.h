@@ -95,6 +95,8 @@ struct HardwareStageMetadata
     uint32                  sgprLimit;
     /// Thread-group X/Y/Z dimensions (Compute only).
     uint32                  threadgroupDimensions[3];
+    /// Original thread-group X/Y/Z dimensions (Compute only).
+    uint32                  origThreadgroupDimensions[3];
     /// Wavefront size (only set if different from HW default).
     uint32                  wavefrontSize;
 
@@ -123,24 +125,26 @@ struct HardwareStageMetadata
     {
         struct
         {
-            uint16 entryPoint            : 1;
-            uint16 scratchMemorySize     : 1;
-            uint16 ldsSize               : 1;
-            uint16 perfDataBufferSize    : 1;
-            uint16 vgprCount             : 1;
-            uint16 sgprCount             : 1;
-            uint16 vgprLimit             : 1;
-            uint16 sgprLimit             : 1;
-            uint16 threadgroupDimensions : 1;
-            uint16 wavefrontSize         : 1;
-            uint16 usesUavs              : 1;
-            uint16 usesRovs              : 1;
-            uint16 writesUavs            : 1;
-            uint16 writesDepth           : 1;
-            uint16 usesAppendConsume     : 1;
-            uint16 usesPrimId            : 1;
+            uint32 entryPoint                : 1;
+            uint32 scratchMemorySize         : 1;
+            uint32 ldsSize                   : 1;
+            uint32 perfDataBufferSize        : 1;
+            uint32 vgprCount                 : 1;
+            uint32 sgprCount                 : 1;
+            uint32 vgprLimit                 : 1;
+            uint32 sgprLimit                 : 1;
+            uint32 threadgroupDimensions     : 1;
+            uint32 origThreadgroupDimensions : 1;
+            uint32 wavefrontSize             : 1;
+            uint32 usesUavs                  : 1;
+            uint32 usesRovs                  : 1;
+            uint32 writesUavs                : 1;
+            uint32 writesDepth               : 1;
+            uint32 usesAppendConsume         : 1;
+            uint32 usesPrimId                : 1;
+            uint32 reserved                  : 15;
         };
-        uint16 uAll;
+        uint32 uAll;
     } hasEntry;
 };
 
@@ -192,7 +196,9 @@ struct PipelineMetadata
             /// feature can render into all 16 viewports, whereas pipelines which do not use it are restricted to
             /// viewport #0.
             uint8 usesViewportArrayIndex : 1;
-            uint8 reserved               : 7;
+            /// Whether the GS outputs lines (needed by client for MSAA dispatch)
+            uint8 gsOutputsLines         : 1;
+            uint8 reserved               : 6;
         };
         uint8 uAll;
     } flags;
@@ -201,24 +207,26 @@ struct PipelineMetadata
     {
         struct
         {
-            uint16 name                   : 1;
-            uint16 type                   : 1;
-            uint16 internalPipelineHash   : 1;
-            uint16 shaderFunctions        : 1;
-            uint16 registers              : 1;
-            uint16 userDataLimit          : 1;
-            uint16 spillThreshold         : 1;
-            uint16 usesViewportArrayIndex : 1;
-            uint16 esGsLdsSize            : 1;
-            uint16 nggSubgroupSize        : 1;
-            uint16 numInterpolants        : 1;
-            uint16 meshScratchMemorySize  : 1;
-            uint16 placeholder0           : 1;
-            uint16 placeholder1           : 1;
-            uint16 api                    : 1;
-            uint16 apiCreateInfo          : 1;
+            uint32 name                   : 1;
+            uint32 type                   : 1;
+            uint32 internalPipelineHash   : 1;
+            uint32 shaderFunctions        : 1;
+            uint32 registers              : 1;
+            uint32 userDataLimit          : 1;
+            uint32 spillThreshold         : 1;
+            uint32 usesViewportArrayIndex : 1;
+            uint32 esGsLdsSize            : 1;
+            uint32 nggSubgroupSize        : 1;
+            uint32 numInterpolants        : 1;
+            uint32 meshScratchMemorySize  : 1;
+            uint32 placeholder0           : 1;
+            uint32 placeholder1           : 1;
+            uint32 api                    : 1;
+            uint32 apiCreateInfo          : 1;
+            uint32 gsOutputsLines         : 1;
+            uint32 reserved               : 15;
         };
-        uint16 uAll;
+        uint32 uAll;
     } hasEntry;
 };
 
@@ -265,26 +273,28 @@ namespace PipelineMetadataKey
     static constexpr char MeshScratchMemorySize[]  = ".mesh_scratch_memory_size";
     static constexpr char Api[]                    = ".api";
     static constexpr char ApiCreateInfo[]          = ".api_create_info";
+    static constexpr char GsOutputsLines[]         = ".gs_outputs_lines";
 };
 
 namespace HardwareStageMetadataKey
 {
-    static constexpr char EntryPoint[]            = ".entry_point";
-    static constexpr char ScratchMemorySize[]     = ".scratch_memory_size";
-    static constexpr char LdsSize[]               = ".lds_size";
-    static constexpr char PerfDataBufferSize[]    = ".perf_data_buffer_size";
-    static constexpr char VgprCount[]             = ".vgpr_count";
-    static constexpr char SgprCount[]             = ".sgpr_count";
-    static constexpr char VgprLimit[]             = ".vgpr_limit";
-    static constexpr char SgprLimit[]             = ".sgpr_limit";
-    static constexpr char ThreadgroupDimensions[] = ".threadgroup_dimensions";
-    static constexpr char WavefrontSize[]         = ".wavefront_size";
-    static constexpr char UsesUavs[]              = ".uses_uavs";
-    static constexpr char UsesRovs[]              = ".uses_rovs";
-    static constexpr char WritesUavs[]            = ".writes_uavs";
-    static constexpr char WritesDepth[]           = ".writes_depth";
-    static constexpr char UsesAppendConsume[]     = ".uses_append_consume";
-    static constexpr char UsesPrimId[]            = ".uses_prim_id";
+    static constexpr char EntryPoint[]                = ".entry_point";
+    static constexpr char ScratchMemorySize[]         = ".scratch_memory_size";
+    static constexpr char LdsSize[]                   = ".lds_size";
+    static constexpr char PerfDataBufferSize[]        = ".perf_data_buffer_size";
+    static constexpr char VgprCount[]                 = ".vgpr_count";
+    static constexpr char SgprCount[]                 = ".sgpr_count";
+    static constexpr char VgprLimit[]                 = ".vgpr_limit";
+    static constexpr char SgprLimit[]                 = ".sgpr_limit";
+    static constexpr char ThreadgroupDimensions[]     = ".threadgroup_dimensions";
+    static constexpr char OrigThreadgroupDimensions[] = ".orig_threadgroup_dimensions";
+    static constexpr char WavefrontSize[]             = ".wavefront_size";
+    static constexpr char UsesUavs[]                  = ".uses_uavs";
+    static constexpr char UsesRovs[]                  = ".uses_rovs";
+    static constexpr char WritesUavs[]                = ".writes_uavs";
+    static constexpr char WritesDepth[]               = ".writes_depth";
+    static constexpr char UsesAppendConsume[]         = ".uses_append_consume";
+    static constexpr char UsesPrimId[]                = ".uses_prim_id";
 };
 
 namespace ShaderMetadataKey

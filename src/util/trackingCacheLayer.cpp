@@ -100,7 +100,8 @@ Result TrackingCacheLayer::Query(
 Result TrackingCacheLayer::Store(
     const Hash128* pHashId,
     const void*    pData,
-    size_t         dataSize)
+    size_t         dataSize,
+    size_t         storeSize)
 {
     Result result = Result::ErrorUnknown;
 
@@ -112,7 +113,7 @@ Result TrackingCacheLayer::Store(
     }
     else
     {
-        result = m_pNextLayer->Store(pHashId, pData, dataSize);
+        result = m_pNextLayer->Store(pHashId, pData, dataSize, storeSize);
     }
 
     if (pHashId != nullptr)

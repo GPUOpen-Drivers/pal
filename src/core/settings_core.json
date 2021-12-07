@@ -130,6 +130,21 @@
       "Description": "Requests that contexts be created with a debug VMID. This allows for better shader debugging by keeping the page tables valid after the context has been switched out.  This is also useful for SQTT profiling as it ensures both compute and graphics queue work will share the same VMID allowing the thread trace to be filtered to a single VMID (to avoid capturing other processes work) while still capturing all work by the target process. NOTE: RGP tracing automatically requests the Debug VMID during setup so there is no need to change this setting when capturing RGP traces."
     },
     {
+      "Name": "DisableVmPageFaultReporting",
+      "Tags": [
+        "General",
+        "Debug",
+        "Profiling"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "disableVmPageFaultReporting",
+      "Description": "Disable VM page fault reporting to OS, if the OS supports it."
+    },
+    {
       "Name": "NeverChangeClockMode",
       "Tags": [
         "General",

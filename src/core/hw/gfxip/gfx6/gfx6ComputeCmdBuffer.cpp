@@ -651,7 +651,7 @@ uint32* ComputeCmdBuffer::ValidateDispatch(
     uint32  zDim,
     uint32* pCmdSpace)
 {
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     const bool enablePm4Instrumentation = m_device.GetPlatform()->PlatformSettings().pm4InstrumentorEnabled;
 
     uint32* pStartingCmdSpace = pCmdSpace;
@@ -668,7 +668,7 @@ uint32* ComputeCmdBuffer::ValidateDispatch(
                                                 m_computeState.dynamicCsInfo,
                                                 m_buildFlags.prefetchShaders);
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
         if (enablePm4Instrumentation)
         {
             pipelineCmdLen    = (static_cast<uint32>(pCmdSpace - pStartingCmdSpace) * sizeof(uint32));
@@ -686,7 +686,7 @@ uint32* ComputeCmdBuffer::ValidateDispatch(
         pCmdSpace = ValidateUserData<false>(nullptr, pCmdSpace);
     }
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     if (enablePm4Instrumentation)
     {
         userDataCmdLen    = (static_cast<uint32>(pCmdSpace - pStartingCmdSpace) * sizeof(uint32));
@@ -716,7 +716,7 @@ uint32* ComputeCmdBuffer::ValidateDispatch(
                                                   pCmdSpace);
     }
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     if (enablePm4Instrumentation)
     {
         const uint32 miscCmdLen = (static_cast<uint32>(pCmdSpace - pStartingCmdSpace) * sizeof(uint32));

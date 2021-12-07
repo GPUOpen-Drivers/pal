@@ -54,6 +54,10 @@
 #include "palSwapChain.h"
 #include "palSysMemory.h"
 
+#if PAL_BUILD_RDF
+#include "palTraceSession.h"
+#endif
+
 // =====================================================================================================================
 // The following classes are all implementations of the Decorator pattern for the public PAL interface.
 // PAL uses this decorator to wrap all classes created by an IDevice (and the IDevice itself) in order to provide added
@@ -207,7 +211,7 @@ static bool TranslateBindPipelineData(
     return hasValidData;
 }
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
 // =====================================================================================================================
 // Returns true if the PreviousObject was non-null, and thus the pData->pCmdBuffer data is valid for this layer.
 static bool TranslateDrawDispatchValidationData(
@@ -286,6 +290,10 @@ public:
         pNextLayer->Destroy();
     }
 
+#if PAL_BUILD_RDF
+    virtual GpuUtil::TraceSession* GetTraceSession() override { return m_pTraceSession; }
+#endif
+
     // Empty developer callback for null operation.
     static void PAL_STDCALL DefaultDeveloperCb(
         void*                   pPrivateData,
@@ -362,6 +370,9 @@ protected:
     bool                   m_installDeveloperCb;
     const bool             m_layerEnabled;
 private:
+#if PAL_BUILD_RDF
+    GpuUtil::TraceSession* m_pTraceSession;
+#endif
     bool                   m_logDirCreated;        // The log dir can only be created once.
     Util::Mutex            m_logDirMutex;          // Grants access to CreateLogDir.
 

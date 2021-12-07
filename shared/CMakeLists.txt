@@ -27,16 +27,3 @@ target_sources(pal PRIVATE CMakeLists.txt)
 
 add_subdirectory(inc)
 
-### GPUOPEN ####################################################################
-
-enable_language(C)
-
-if (${PAL_GPUOPEN_PATH} STREQUAL "default")
-    add_subdirectory(gpuopen)
-else()
-    add_subdirectory(${PAL_GPUOPEN_PATH} ${PROJECT_BINARY_DIR}/gpuopen_stg)
-endif()
-
-# Gpuopen needs to be a public dependency.
-# Clients include "gpuopen.h"
-target_link_libraries(pal PUBLIC gpuopen)

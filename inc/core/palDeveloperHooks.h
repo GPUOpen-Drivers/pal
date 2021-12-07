@@ -60,7 +60,7 @@ enum class CallbackType : uint32
     DrawDispatch,           ///< This callback is to inform that a draw or dispatch command is being recorded.
     BindPipeline,           ///< This callback is to inform that a pipeline (client or internal) has been bound.
     SurfRegData,            ///< This callback is to inform tools of the register state of a surface.
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     DrawDispatchValidation, ///< This callback is to describe the state validation needed by a draw or dispatch.
     OptimizedRegisters,     ///< This callback is to describe the PM4 optimizer's removal of redundant register
                             ///  sets.
@@ -441,7 +441,7 @@ struct BindPipelineData
     PipelineBindPoint bindPoint;  ///< The bind point of the pipeline within a queue.
 };
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
 /// Information for DrawDispatchValidation callbacks
 struct DrawDispatchValidationData
 {

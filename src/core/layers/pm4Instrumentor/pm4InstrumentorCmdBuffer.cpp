@@ -23,7 +23,7 @@
  *
  **********************************************************************************************************************/
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
 
 #include "core/layers/pm4Instrumentor/pm4InstrumentorCmdBuffer.h"
 #include "core/layers/pm4Instrumentor/pm4InstrumentorDevice.h"

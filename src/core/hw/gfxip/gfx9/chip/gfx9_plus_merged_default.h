@@ -472,6 +472,7 @@ namespace Gfx09
     constexpr unsigned int mmGDS_PERFCOUNTER2_LO_DEFAULT                      = 0xCDCDCDCD;
     constexpr unsigned int mmGDS_PERFCOUNTER3_HI_DEFAULT                      = 0xCDCDCDCD;
     constexpr unsigned int mmGDS_PERFCOUNTER3_LO_DEFAULT                      = 0xCDCDCDCD;
+    constexpr unsigned int mmGRBM_CHIP_REVISION_DEFAULT                       = 0x0000;
     constexpr unsigned int mmGRBM_SE2_PERFCOUNTER_HI_DEFAULT                  = 0x0000;
     constexpr unsigned int mmGRBM_SE2_PERFCOUNTER_LO_DEFAULT                  = 0x0000;
     constexpr unsigned int mmGRBM_SE2_PERFCOUNTER_SELECT_DEFAULT              = 0x0000;
@@ -3078,6 +3079,7 @@ namespace Gfx10Core
     constexpr unsigned int mmGCR_PERFCOUNTER0_SELECT_DEFAULT                  = 0x0000;
     constexpr unsigned int mmGCR_PERFCOUNTER1_SELECT_DEFAULT                  = 0x0000;
     constexpr unsigned int mmGE_DMA_FIRST_INDEX_DEFAULT                       = 0x0000;
+    constexpr unsigned int mmGRBM_CHIP_REVISION_DEFAULT                       = 0x0000;
     constexpr unsigned int mmGRBM_SE2_PERFCOUNTER_HI_DEFAULT                  = 0x0000;
     constexpr unsigned int mmGRBM_SE2_PERFCOUNTER_LO_DEFAULT                  = 0x0000;
     constexpr unsigned int mmGRBM_SE2_PERFCOUNTER_SELECT_DEFAULT              = 0x0000;

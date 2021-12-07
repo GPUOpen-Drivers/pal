@@ -50,7 +50,8 @@ public:
     virtual Result Store(
         const Hash128*  pHashId,
         const void*     pData,
-        size_t          dataSize) final;
+        size_t          dataSize,
+        size_t          storeSize = 0) final;
 
     virtual Result Load(
         const QueryResult* pQuery,
@@ -90,15 +91,18 @@ protected:
     virtual Result StoreInternal(
         const Hash128*  pHashId,
         const void*     pData,
-        size_t          dataSize) = 0;
+        size_t          dataSize,
+        size_t          storeSize) = 0;
     virtual Result LoadInternal(
         const QueryResult* pQuery,
         void*              pBuffer) = 0;
 
     // Promote data from a lower cache layer into our own
     // On successful promotion query may be re-written to reflect the newly promoted data rather than the original
+    // pBuffer is optional; if it is nullptr we'll load it from pNextLayer.
     virtual Result PromoteData(
         ICacheLayer* pNextLayer,
+        const void*  pBuffer,
         QueryResult* pQuery) { return Result::Unsupported; }
 
     // Reserve a empty entry in cache
@@ -111,7 +115,8 @@ protected:
         ICacheLayer*   pNextLayer,
         const Hash128* pHashId,
         const void*    pData,
-        size_t         dataSize) { return Result::Unsupported; }
+        size_t         dataSize,
+        size_t         storeSize) { return Result::Unsupported; }
 
 private:
 

@@ -659,8 +659,11 @@ inline void Strncpy(
     PAL_ASSERT(pSrc != nullptr);
     PAL_ALERT(strlen(pSrc) >= dstSize);
 
-    strncpy(pDst, pSrc, (dstSize - 1));
-    pDst[dstSize - 1] = '\0';
+    if (dstSize > 0)
+    {
+        strncpy(pDst, pSrc, (dstSize - 1));
+        pDst[dstSize - 1] = '\0';
+    }
 }
 
 /// Simple wrapper for wcscpy_s or wcsncpy, which are available on Windows and Linux, respectively.

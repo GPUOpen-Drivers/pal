@@ -272,7 +272,7 @@ static Result CreateFileInternal(
                 ArchiveFileFooter footer;
             } data;
 
-            memcpy(data.header.archiveMarker, MagicArchiveMarker, sizeof(data.header.archiveMarker));
+            FastMemCpy(data.header.archiveMarker, MagicArchiveMarker, sizeof(data.header.archiveMarker));
             data.header.majorVersion = CurrentMajorVersion;
             data.header.minorVersion = CurrentMinorVersion;
             data.header.firstBlock   = static_cast<uint32>(VoidPtrDiff(&data.footer, &data));
@@ -287,10 +287,10 @@ static Result CreateFileInternal(
                     Min(sizeof(data.header.platformKey), pOpenInfo->pPlatformKey->GetKeySize()));
             }
 
-            memcpy(data.footer.footerMarker, MagicFooterMarker, sizeof(data.footer.footerMarker));
+            FastMemCpy(data.footer.footerMarker, MagicFooterMarker, sizeof(data.footer.footerMarker));
             data.footer.entryCount         = 0;
             data.footer.lastWriteTimestamp = GetCurrentFileTime();
-            memcpy(data.footer.archiveMarker, MagicArchiveMarker, sizeof(data.footer.archiveMarker));
+            FastMemCpy(data.footer.archiveMarker, MagicArchiveMarker, sizeof(data.footer.archiveMarker));
 
             result = WriteDirect(fd, 0, &data, sizeof(data));
 
@@ -457,6 +457,7 @@ ArchiveFile::ArchiveFile(
     m_entries           (Allocator()),
     // Write Access
     m_haveWriteAccess   (haveWriteAccess),
+    m_refreshedSinceLastWrite(false),
     // Read memory buffering
     m_useBufferedMemory (false),
     m_bufferMemory      (memoryBufferMax),
@@ -522,8 +523,13 @@ Result ArchiveFile::Preload(
         if (startLocation < m_fileSize)
         {
             // Round up the page count division
-            const size_t readSize = Min((maxReadSize - startLocation), static_cast<size_t>(m_fileSize));
-            result                = ReadCached(startLocation, nullptr, readSize, false);
+            size_t readSize = maxReadSize;
+            if ((readSize + startLocation) > static_cast<size_t>(m_fileSize))
+            {
+                readSize = static_cast<size_t>(m_fileSize) - startLocation;
+            }
+
+            result = ReadCached(startLocation, nullptr, readSize, false, false);
 
             if (IsErrorResult(result))
             {
@@ -609,7 +615,11 @@ Result ArchiveFile::Read(
         if ((pHeader->ordinalId <= GetEntryCount()) &&
             ((pHeader->dataPosition + pHeader->dataSize) <= m_curFooterOffset))
         {
-            result = ReadInternal(pHeader->dataPosition, pDataBuffer, pHeader->dataSize, false);
+            result = ReadInternal(pHeader->dataPosition,
+                                  pDataBuffer,
+                                  pHeader->dataSize,
+                                  false,
+                                  true);
         }
         else
         {
@@ -661,7 +671,9 @@ Result ArchiveFile::Write(
         pHeader->dataPosition = curOffset + sizeof(ArchiveEntryHeader);
         pHeader->dataCrc64    = Crc64(pData, pHeader->dataSize);
 
-        size_t writeSize = sizeof(ArchiveEntryHeader) + pHeader->dataSize + sizeof(ArchiveFileFooter);
+        size_t writeSize = sizeof(ArchiveEntryHeader) +
+                           pHeader->dataSize +
+                           sizeof(ArchiveFileFooter);
 
         void* pBuffer = PAL_MALLOC(writeSize, Allocator(), AllocInternalTemp);
 
@@ -670,9 +682,9 @@ Result ArchiveFile::Write(
             void* pOutData   = VoidPtrInc(pBuffer, sizeof(ArchiveEntryHeader));
             void* pOutFooter = VoidPtrInc(pOutData, pHeader->dataSize);
 
-            memcpy(pBuffer, pHeader, sizeof(ArchiveEntryHeader));
+            FastMemCpy(pBuffer, pHeader, sizeof(ArchiveEntryHeader));
             memcpy(pOutData, pData, pHeader->dataSize);
-            memcpy(pOutFooter, &m_cachedFooter, sizeof(ArchiveFileFooter));
+            FastMemCpy(pOutFooter, &m_cachedFooter, sizeof(ArchiveFileFooter));
 
             // Correct the footer we're about to attempt to write
             static_cast<ArchiveFileFooter*>(pOutFooter)->entryCount += 1;
@@ -722,51 +734,57 @@ Result ArchiveFile::RefreshFile(
 
     struct stat statBuf;
 
-    if (fstat(m_hFile, &statBuf) == 0)
+    const bool needCheckSize = ((forceRefresh == true) ||
+                                (m_fileSize == 0) ||
+                                (m_haveWriteAccess == false) ||
+                                (m_refreshedSinceLastWrite == false));
+    if (needCheckSize == false)
     {
-        if (m_fileSize == static_cast<uint64>(statBuf.st_size))
+        result = Result::Success;
+    }
+    else
+    {
+        if (fstat(m_hFile, &statBuf) == 0)
         {
-            result = Result::Success;
-        }
-        else
-        {
-            ArchiveFileFooter tmpFooter    = {};
-            const size_t      footerOffset = static_cast<size_t>(statBuf.st_size - sizeof(tmpFooter));
-
-            if (m_haveWriteAccess &&
-                (footerOffset == m_curFooterOffset) &&
-                (forceRefresh == false))
+            if (m_fileSize == static_cast<uint64>(statBuf.st_size))
             {
                 result = Result::Success;
             }
             else
             {
-                result = ReadInternal(footerOffset, &tmpFooter, sizeof(tmpFooter), true);
+                ArchiveFileFooter tmpFooter    = {};
+                const size_t      footerOffset = static_cast<size_t>(statBuf.st_size - sizeof(tmpFooter));
 
-                while (forceRefresh &&
-                       (result == Result::NotReady))
+                if (m_haveWriteAccess &&
+                    (footerOffset == m_curFooterOffset) &&
+                    (forceRefresh == false))
                 {
-                    result = ReadInternal(footerOffset, &tmpFooter, sizeof(tmpFooter), false);
+                    result = Result::Success;
+                }
+                else
+                {
+                    result = ReadInternal(footerOffset, &tmpFooter, sizeof(tmpFooter), true, true);
+
+                    // Overwrite our cached copy only if we got a new valid footer
+                    if (result == Result::Success)
+                    {
+                        if (ValidateFooter(&tmpFooter))
+                        {
+                            m_curFooterOffset = static_cast<uint64>(footerOffset);
+                            m_cachedFooter    = tmpFooter;
+                        }
+                        else
+                        {
+                            result = Result::ErrorIncompatibleLibrary;
+                        }
+                    }
                 }
 
-                // Overwrite our cached copy only if we got a new valid footer
                 if (result == Result::Success)
                 {
-                    if (ValidateFooter(&tmpFooter))
-                    {
-                        m_curFooterOffset = static_cast<uint32>(footerOffset);
-                        m_cachedFooter    = tmpFooter;
-                    }
-                    else
-                    {
-                        result = Result::ErrorIncompatibleLibrary;
-                    }
+                    m_refreshedSinceLastWrite = true;
+                    m_fileSize = static_cast<uint64>(statBuf.st_size);
                 }
-            }
-
-            if (result == Result::Success)
-            {
-                m_fileSize = static_cast<uint64>(statBuf.st_size);
             }
         }
     }
@@ -790,6 +808,12 @@ Result ArchiveFile::RefreshFile(
         }
 
         PAL_ALERT(IsErrorResult(result));
+        if (result == Result::NotFound)
+        {
+            // This is a recoverable error.
+            PAL_ALERT_ALWAYS();
+            result = Result::Success;
+        }
     }
 
     return result;
@@ -836,19 +860,60 @@ Result ArchiveFile::GetEntryByIndex(
 // =====================================================================================================================
 // Attempt to read the next entry in
 Result ArchiveFile::ReadNextEntry(
-    const ArchiveEntryHeader* pCurheader,
-    ArchiveEntryHeader*       pNextHeader)
+    ArchiveEntryHeader* pCurheader,
+    ArchiveEntryHeader* pNextHeader)
 {
-    Result result = Result::Eof;
+    Result result = Result::ErrorUnknown;
 
-    size_t headerOffset = pCurheader != nullptr ? pCurheader->nextBlock : m_archiveHeader.firstBlock;
+    size_t headerOffset = (pCurheader != nullptr) ? pCurheader->nextBlock : m_archiveHeader.firstBlock;
 
     if (headerOffset < m_curFooterOffset)
     {
-        do
+        result = ReadInternal(headerOffset, pNextHeader, sizeof(ArchiveEntryHeader), false, true);
+    }
+
+    if (result == Result::Success)
+    {
+        const ArchiveFileFooter* footerCheck = reinterpret_cast<const ArchiveFileFooter*>(pNextHeader);
+        if (ValidateFooter(footerCheck))
         {
-            result = ReadInternal(headerOffset, pNextHeader, sizeof(ArchiveEntryHeader), false);
-        } while (result == Result::NotReady);
+            // We've actually found a footer marker, not an entry marker.
+            ArchiveFileFooter tmpFooter = *footerCheck;
+            uint32 tmpFooterOffset = static_cast<uint32>(headerOffset);
+
+            // Try skipping the footer to see if there's a valid entry beyond.
+            headerOffset += sizeof(ArchiveFileFooter);
+            if (headerOffset < m_curFooterOffset)
+            {
+                result = ReadInternal(headerOffset, pNextHeader, sizeof(ArchiveEntryHeader), false, true);
+            }
+
+            if ((result == Result::Success) &&
+                (memcmp(pNextHeader->entryMarker, MagicEntryMarker, sizeof(MagicEntryMarker)) == 0))
+            {
+                if (pCurheader != nullptr)
+                {
+                    // Update the pointer to skip the footer we found.
+                    pCurheader->nextBlock = static_cast<uint32>(headerOffset);
+                }
+            }
+            else
+            {
+                // We want to cut the file off here and not read any more entries,
+                // but what we've read so far is valid.
+                if (m_entries.NumElements() == tmpFooter.entryCount)
+                {
+                    m_curFooterOffset = tmpFooterOffset;
+                    m_cachedFooter    = tmpFooter;
+
+                    result = Result::NotFound;
+                }
+                else
+                {
+                    result = Result::ErrorUnknown;
+                }
+            }
+        }
     }
 
     return result;
@@ -860,7 +925,8 @@ Result ArchiveFile::ReadInternal(
     size_t fileOffset,
     void*  pBuffer,
     size_t readSize,
-    bool   forceCacheReload)
+    bool   forceCacheReload,
+    bool   wait)
 {
     PAL_ASSERT(pBuffer != nullptr);
 
@@ -868,7 +934,7 @@ Result ArchiveFile::ReadInternal(
 
     if (m_useBufferedMemory)
     {
-        result = ReadCached(fileOffset, pBuffer, readSize, forceCacheReload);
+        result = ReadCached(fileOffset, pBuffer, readSize, forceCacheReload, wait);
     }
 
     if (result != Result::Success)
@@ -890,6 +956,8 @@ Result ArchiveFile::WriteInternal(
 
     Result result = Result::ErrorUnknown;
 
+    m_refreshedSinceLastWrite = false;
+
     result = WriteDirect(m_hFile, fileOffset, pData, writeSize);
 
     // Update the cached pages if needed
@@ -909,7 +977,8 @@ Result ArchiveFile::ReadCached(
     size_t fileOffset,
     void*  pBuffer,
     size_t readSize,
-    bool   forceReload)
+    bool   forceReload,
+    bool   wait)
 {
     PAL_ASSERT(m_useBufferedMemory == true);
 
@@ -931,6 +1000,11 @@ Result ArchiveFile::ReadCached(
 
         if (pPage != nullptr)
         {
+            if (wait == true)
+            {
+                pPage->Wait();
+            }
+
             // Allow pBuffer to be nullptr. This allows us to reuse this function to preload cache pages
             if (pBuffer != nullptr)
             {
@@ -955,8 +1029,6 @@ Result ArchiveFile::ReadCached(
 
         curOffset = curEnd;
     }
-
-    PAL_ALERT(curOffset != endOffset);
 
     return result;
 }
@@ -1080,6 +1152,7 @@ ArchiveFile::PageInfo* ArchiveFile::FindPage(
         if ((pFoundPage == nullptr) && (m_recentList.IsEmpty() != true))
         {
             PageInfo* pRecyclePage = m_recentList.Back();
+            pRecyclePage->Cancel();
             if (pRecyclePage->Load(m_hFile, pageBaseAddress, false) == Result::Success)
             {
                 pFoundPage = pRecyclePage;

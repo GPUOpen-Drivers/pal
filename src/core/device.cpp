@@ -490,13 +490,15 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.renderedByString[0] = '\0';
     m_publicSettings.useAcqRelInterface = false;
     m_publicSettings.zeroUnboundDescDebugSrd = false;
-    m_publicSettings.pipelinePreferredHeap = GpuHeap::GpuHeapInvisible;
+    m_publicSettings.pipelinePreferredHeap = HasLargeLocalHeap() ? GpuHeap::GpuHeapLocal : GpuHeap::GpuHeapInvisible;
     m_publicSettings.depthClampBasedOnZExport = true;
     m_publicSettings.forceWaitPointPreColorToPostIndexFetch = false;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 680
     m_publicSettings.enableExecuteIndirectPacket = false;
 #endif
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 691
+    m_publicSettings.disableExecuteIndirectAceOffload = false;
+#endif
     return ret;
 }
 
@@ -2200,6 +2202,7 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.support8bitIndices             = gfx6Props.support8bitIndices;
             pInfo->gfxipProperties.flags.support16BitInstructions       = gfx6Props.support16BitInstructions;
             pInfo->gfxipProperties.flags.support64BitInstructions       = gfx6Props.support64BitInstructions;
+            pInfo->gfxipProperties.flags.supportBorderColorSwizzle      = gfx6Props.supportBorderColorSwizzle;
             pInfo->gfxipProperties.flags.supportFloatAtomics            = gfx6Props.supportFloatAtomics;
             pInfo->gfxipProperties.flags.supportShaderSubgroupClock     = gfx6Props.supportShaderSubgroupClock;
             pInfo->gfxipProperties.flags.supportShaderDeviceClock       = gfx6Props.supportShaderDeviceClock;
@@ -2281,6 +2284,7 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportFp16Dot2                    = gfx9Props.supportFp16Dot2;
             pInfo->gfxipProperties.flags.support16BitInstructions           = gfx9Props.support16BitInstructions;
             pInfo->gfxipProperties.flags.support64BitInstructions           = gfx9Props.support64BitInstructions;
+            pInfo->gfxipProperties.flags.supportBorderColorSwizzle          = gfx9Props.supportBorderColorSwizzle;
             pInfo->gfxipProperties.flags.supportFloatAtomics                = gfx9Props.supportFloatAtomics;
             pInfo->gfxipProperties.flags.supportShaderSubgroupClock         = gfx9Props.supportShaderSubgroupClock;
             pInfo->gfxipProperties.flags.supportShaderDeviceClock           = gfx9Props.supportShaderDeviceClock;
@@ -4087,11 +4091,6 @@ Result Device::ValidateImageViewInfo(
 
         // Views must have at least one array slice, for all types.
         if (viewArraySize == 0)
-        {
-            result = Result::ErrorInvalidViewArraySize;
-        }
-        // Views of YUV planar formats must have exactly one array slice.
-        else if ((viewArraySize != 1) && Formats::IsYuvPlanar(imgInfo.swizzledFormat.format))
         {
             result = Result::ErrorInvalidViewArraySize;
         }

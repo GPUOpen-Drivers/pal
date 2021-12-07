@@ -167,6 +167,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.samplerAnisoBias = 0;
     m_settings.samplerSecAnisoBias = 0;
 
+    m_settings.waAutoFlushModePolarityInversed = false;
     m_settings.waRestrictMetaDataUseInMipTail = false;
     m_settings.waVrsStencilUav = NoFix;
 
@@ -225,6 +226,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.gfx103DisableAsymmetricWgpForPs = false;
 
     m_settings.waNeverStopSqCounters = false;
+
     m_settings.numSettings = g_gfx9PalNumSettings;
 }
 
@@ -739,6 +741,11 @@ void SettingsLoader::ReadSettings()
                            &m_settings.samplerSecAnisoBias,
                            InternalSettingScope::PrivatePalGfx9Key);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaAutoFlushModePolarityInversedStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waAutoFlushModePolarityInversed,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaRestrictMetaDataUseInMipTailStr,
                            Util::ValueType::Boolean,
                            &m_settings.waRestrictMetaDataUseInMipTail,
@@ -1096,6 +1103,11 @@ void SettingsLoader::RereadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pBinningPersistentStatesPerBinStr,
                            Util::ValueType::Uint,
                            &m_settings.binningPersistentStatesPerBin,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaAutoFlushModePolarityInversedStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waAutoFlushModePolarityInversed,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaRestrictMetaDataUseInMipTailStr,
@@ -1832,6 +1844,11 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(2654965201, info);
 
     info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.waAutoFlushModePolarityInversed;
+    info.valueSize = sizeof(m_settings.waAutoFlushModePolarityInversed);
+    m_settingsInfoMap.Insert(259515279, info);
+
+    info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.waRestrictMetaDataUseInMipTail;
     info.valueSize = sizeof(m_settings.waRestrictMetaDataUseInMipTail);
     m_settingsInfoMap.Insert(599120928, info);
@@ -2132,7 +2149,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 2383038994;
+            component.settingsDataHash = 1087103958;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

@@ -63,6 +63,7 @@ public:
         const Util::PalAbi::CodeObjectMetadata& metadata,
         const RegisterVector&                   registers,
         const GraphicsPipelineLoadInfo&         loadInfo,
+        const GraphicsPipelineCreateInfo&       createInfo,
         PipelineUploader*                       pUploader,
         Util::MetroHash64*                      pHasher);
 
@@ -126,6 +127,7 @@ private:
             };
 
             regGE_NGG_SUBGRP_CNTL     geNggSubgrpCntl;
+            regPA_CL_NGG_CNTL         paClNggCntl;
         } context;
 
         struct

@@ -24,7 +24,6 @@
  #######################################################################################################################
 
 include_guard()
-include(PalVersionHelper)
 
 # This file is dedicated to overriding PAL subproject options
 
@@ -35,20 +34,6 @@ set(ADDR_VI_BUILD ON)
 
 # PAL override for ADDRLIB SI/CI/VI register chip headers
 set(ADDR_SI_CHIP_DIR "${PROJECT_SOURCE_DIR}/src/core/hw/gfxip/gfx6/chip")
-
-# GPUOPEN
-
-# PAL override to build GPUOpen without the Metrohash library since PAL has its own.
-set(GPUOPEN_BUILD_METROHASH OFF)
-
-# PAL override to specify the path to the MetroHash module.
-set(METROHASH_PATH "${PAL_METROHASH_PATH}/src")
-
-# PAL override to build GPUOpen with server helper classes
-set(GPUOPEN_BUILD_SERVER_HELPERS ON)
-
-# PAL override to build GPUOpen with support for the standard driver protocols
-set(GPUOPEN_BUILD_STANDARD_DRIVER_PROTOCOLS ON)
 
 # GPU Overrides
 

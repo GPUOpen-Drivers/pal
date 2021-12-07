@@ -1152,7 +1152,7 @@ void CmdStream::SetContextRollDetected<true>();
 template
 void CmdStream::SetContextRollDetected<false>();
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
 // =====================================================================================================================
 // Calls the PAL developer callback to issue a report on how many times SET packets to each SH and context register were
 // seen by the optimizer and kept after redundancy checking.

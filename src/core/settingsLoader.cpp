@@ -237,7 +237,7 @@ void SettingsLoader::ValidateSettings()
             sizeof(pPlatformSettings->eventLogDirectory),
             "%s/%s", pRootPath, subDir);
 
-#if PAL_BUILD_GPU_DEBUG
+#if PAL_DEVELOPER_BUILD
         Strncpy(subDir, pPlatformSettings->gpuDebugConfig.surfaceCaptureLogDirectory, sizeof(subDir));
         Snprintf(pPlatformSettings->gpuDebugConfig.surfaceCaptureLogDirectory,
                  sizeof(pPlatformSettings->gpuDebugConfig.surfaceCaptureLogDirectory),

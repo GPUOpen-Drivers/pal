@@ -1586,8 +1586,6 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
     pCmdStream->CommitCommands(pCmdSpace);
     pCmdSpace = pCmdStream->ReserveCommands();
 
-    regPA_CL_NGG_CNTL paClNggCntl = { };
-
     if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
     {
         struct
@@ -1622,8 +1620,6 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
 
         if (IsGfx103Plus(device))
         {
-            paClNggCntl.gfx103Plus.VERTEX_REUSE_DEPTH = 30;
-
             // Setting all these bits tells the HW to use the driver programmed setting of SX_PS_DOWNCONVERT
             // instead of automatically calculating the value.
             regSX_PS_DOWNCONVERT_CONTROL sxPsDownconvertControl = { };
@@ -1701,8 +1697,6 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
             }
         }
     } // if Gfx10.x
-
-    pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_CL_NGG_CNTL, paClNggCntl.u32All, pCmdSpace);
 
     const uint32 mmSpiShaderPgmHiEs = IsGfx10Plus(device) ? Gfx10Plus::mmSPI_SHADER_PGM_HI_ES :
                                                             Gfx09::mmSPI_SHADER_PGM_HI_ES;

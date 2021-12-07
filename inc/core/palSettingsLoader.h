@@ -102,11 +102,22 @@ protected:
     SettingsLoaderState m_state;
 
     virtual void DevDriverRegister() = 0;
-    // Determines if settings can be modified in the runtime state.  By default we only allow modifying of settings
-    // in EarlyInit or LateInit.
-    virtual bool IsSetValueAvailable()
+
+    // Check if a setting is allowed to be updated after driver passed
+    // initialization and is in running state. By default, settings are
+    // not allowed to update in running state.
+    virtual bool IsSetAllowedInDriverRunningState(SettingNameHash hash)
     {
-        return ((m_state  == SettingsLoaderState::EarlyInit) || (m_state == SettingsLoaderState::LateInit));
+        return false;
+    }
+
+    // Determines if a setting can be modified. By default we allow
+    // modifying of all settings in EarlyInit or LateInit.
+    bool IsSetValueAvailable(SettingNameHash setting)
+    {
+        const bool initState = ((m_state == SettingsLoaderState::EarlyInit) ||
+                                (m_state == SettingsLoaderState::LateInit));
+        return (initState || IsSetAllowedInDriverRunningState(setting));
     }
 
     // This function is called in the static SetValue implementation, it is used to perform any complex processing
@@ -139,8 +150,16 @@ protected:
     };
 
     Util::IndirectAllocator m_allocator;
-    Util::HashMap<SettingNameHash, SettingInfo, Util::IndirectAllocator> m_settingsInfoMap;
-    static constexpr uint32 NumSettingBuckets = 256;
+
+    typedef Util::HashMap<SettingNameHash,
+                  SettingInfo,
+                  Util::IndirectAllocator,
+                  Util::DefaultHashFunc,
+                  Util::DefaultEqualFunc,
+                  Util::HashAllocator<Util::IndirectAllocator>,
+                  192> SettingsInfoHashMap;
+
+    SettingsInfoHashMap m_settingsInfoMap;
 
 private:
     PAL_DISALLOW_COPY_AND_ASSIGN(ISettingsLoader);

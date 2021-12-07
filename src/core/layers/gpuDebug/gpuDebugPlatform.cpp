@@ -23,7 +23,7 @@
  *
  **********************************************************************************************************************/
 
-#if PAL_BUILD_GPU_DEBUG
+#if PAL_DEVELOPER_BUILD
 
 #include "core/g_palPlatformSettings.h"
 #include "core/layers/gpuDebug/gpuDebugCmdBuffer.h"
@@ -201,7 +201,7 @@ void PAL_STDCALL Platform::GpuDebugCb(
         PAL_ASSERT(pCbData != nullptr);
         TranslateBindPipelineData(pCbData);
         break;
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     case Developer::CallbackType::DrawDispatchValidation:
         PAL_ASSERT(pCbData != nullptr);
         TranslateDrawDispatchValidationData(pCbData);

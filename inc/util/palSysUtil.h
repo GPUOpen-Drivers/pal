@@ -558,5 +558,12 @@ extern void BeepSound(
     uint32 frequency,
     uint32 duration);
 
+/// Detect if a debugger is attached to the current process.
+///
+/// @note This function is conservative, declaring the debugger not attached on error.
+///
+/// @returns true if there is a debugger attached.
+extern bool IsDebuggerAttached();
+
 } // Util
 

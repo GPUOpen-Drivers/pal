@@ -58,7 +58,7 @@ static bool UpdateRegState(
         (pCurRegState->state[regOffset].flags.mustWrite == 1)         ||
         tempDisableOptimizer)
     {
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
         pCurRegState->keptSets[regOffset]++;
 #endif
 
@@ -68,7 +68,7 @@ static bool UpdateRegState(
         mustKeep = true;
     }
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     pCurRegState->totalSets[regOffset]++;
 #endif
 
@@ -230,7 +230,7 @@ bool Pm4Optimizer::MustKeepSetBase(
 
     const bool mustKeep = (pBaseState->address != address);
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     pBaseState->totalSets++;
     if (mustKeep)
     {
@@ -506,7 +506,7 @@ uint32 Pm4Optimizer::GetPm4PacketSize(
     return packetSize;
 }
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
 // =====================================================================================================================
 // Calls the PAL developer callback to issue a report on how many times SET packets to each SH and context register were
 // seen by the optimizer and kept after redundancy checking.

@@ -25,7 +25,6 @@
 
 include_guard()
 
-include(PalVersionHelper)
 include(CheckCXXCompilerFlag)
 
 # If the current compiler supports the flag, add it.

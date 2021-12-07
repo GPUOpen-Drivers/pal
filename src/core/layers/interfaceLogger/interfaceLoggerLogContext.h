@@ -25,7 +25,7 @@
 
 #pragma once
 
-#if PAL_BUILD_INTERFACE_LOGGER
+#if PAL_DEVELOPER_BUILD
 
 #include "core/layers/decorators.h"
 #include "palFile.h"

@@ -1332,6 +1332,9 @@ Result PerfExperiment::AddThreadTrace(
             if (IsGfx103Plus(m_device))
             {
                 m_sqtt[traceInfo.instance].ctrl.gfx103Plus.LOWATER_OFFSET = SqttGfx103LoWaterOffsetValue;
+
+                // On Navi2x hw, the polarity of AutoFlushMode is inverted, thus this step is necessary to correct
+                m_sqtt[traceInfo.instance].ctrl.gfx103Plus.AUTO_FLUSH_MODE = m_settings.waAutoFlushModePolarityInversed ? 1 : 0;
             }
 
             // Enable all stalling in "always" mode, "lose detail" mode only disables register stalls.

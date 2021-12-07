@@ -56,16 +56,15 @@ static_assert(PAL_CPLUSPLUS_AT_LEAST(PAL_CPLUSPLUS_11), "C++11 is required to bu
 /// removed if the error caused by including cstdint is figured out.
 #include "stdint.h"
 
-/// Include in the private section of a class declaration in order to disallow use of the copy constructor and
-/// assignment operator for that class.
-#define PAL_DISALLOW_COPY_AND_ASSIGN(_typename) \
-    _typename(const _typename&);                \
-    _typename& operator =(const _typename&);
-
-/// Include in the private section of a class declaration in order to disallow use of the default constructor for a
+/// Include in the class declaration in order to disallow use of the copy constructor and assignment operator for that
 /// class.
+#define PAL_DISALLOW_COPY_AND_ASSIGN(_typename) \
+    _typename(const _typename&) = delete;       \
+    _typename& operator=(const _typename&) = delete;
+
+/// Include in the declaration in order to disallow use of the default constructor for a class.
 #define PAL_DISALLOW_DEFAULT_CTOR(_typename)    \
-    _typename();
+    _typename() = delete;
 
 #if !defined(__GNUC__)
 
@@ -604,7 +603,7 @@ constexpr Result CollapseResults(Result lhs, Result rhs)
  * - HashMap: Fast map implementation.  Note that this implementation has some non-standard restrictions on the key
  *   (can't be 0) and value size (must fit in a cache line).
  * - HashSet: Fast set implementation.  Note the similar restrictions to HashMap.
- * - IntervalTree: [Interval tree](http://en.wikipedia.org/wiki/Interval_tree) implementation.
+ * - IntervalTree: [Interval tree] implementation.
  * - RingBuffer: A ringed buffer of variable length and size.
  *
  * ### Multithreading and Synchronization

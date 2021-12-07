@@ -96,6 +96,9 @@ Platform::Platform(
     m_pDevDriverServer(nullptr),
     m_settingsLoader(this),
     m_pRgpServer(nullptr),
+#if PAL_BUILD_RDF
+    m_pTraceSession(nullptr),
+#endif
     m_pfnDeveloperCb(DefaultDeveloperCb),
     m_pClientPrivateData(nullptr),
     m_svmRangeStart(0),
@@ -127,6 +130,9 @@ Platform::Platform(
 Platform::~Platform()
 {
     DestroyDevDriver();
+#if PAL_BUILD_RDF
+    DestroyTraceSession();
+#endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // Unhook the debug print callback to keep assert/alert function (majorly for client driver) after platform get
@@ -351,6 +357,13 @@ Result Platform::Init()
     {
         result = InitProperties();
     }
+
+#if PAL_BUILD_RDF
+    if (result == Result::Success)
+    {
+        result = InitTraceSession();
+    }
+#endif
 
     return result;
 }
@@ -590,6 +603,34 @@ void Platform::DestroyDevDriver()
         PAL_SAFE_DELETE(m_pDevDriverServer, this);
     }
 }
+
+#if PAL_BUILD_RDF
+// =====================================================================================================================
+// Creates and initializes a TraceSession that's centrally owned and managed by PAL
+Result Platform::InitTraceSession()
+{
+    Result result = Result::ErrorOutOfMemory;
+
+    m_pTraceSession = PAL_NEW(GpuUtil::TraceSession, this, AllocInternal) (this);
+
+    if (m_pTraceSession != nullptr)
+    {
+        result = m_pTraceSession->Init();
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Destroys the PAL-owned TraceSession
+void Platform::DestroyTraceSession()
+{
+    if (m_pTraceSession != nullptr)
+    {
+        PAL_SAFE_DELETE(m_pTraceSession, this);
+    }
+}
+#endif
 
 // =====================================================================================================================
 // Forwards event logging calls to the event provider.

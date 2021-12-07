@@ -554,7 +554,8 @@ Result CmdAllocator::GetNewChunk(
     }
 
     Result result = FindFreeChunk(systemMemory ? &m_sysAllocInfo : &m_gpuAllocInfo[allocType], ppChunk);
-    if (result == Result::Success)
+
+    if ((result == Result::Success) && AutomaticMemoryReuse())
     {
         (*ppChunk)->AddCommandStreamReference();
     }

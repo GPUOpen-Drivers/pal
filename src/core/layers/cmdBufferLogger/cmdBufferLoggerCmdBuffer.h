@@ -25,7 +25,7 @@
 
 #pragma once
 
-#if PAL_BUILD_CMD_BUFFER_LOGGER
+#if PAL_DEVELOPER_BUILD
 
 #include "palCmdBuffer.h"
 #include "palPipeline.h"

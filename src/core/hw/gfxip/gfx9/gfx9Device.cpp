@@ -3339,6 +3339,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
 
         bool  overrideBaseResource              = false;
         bool  overrideZRangeOffset              = false;
+        bool  viewMipAsFullTexture              = false;
         bool  includePadding                    = (viewInfo.flags.includePadding != 0);
         const SubResourceInfo*const pSubResInfo = pParent->SubresourceInfo(baseSubResId);
         const auto&                 surfSetting = image.GetAddrSettings(pSubResInfo);
@@ -3412,7 +3413,8 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
                                                                        &mipLevels,
                                                                        &firstMipLevel,
                                                                        &extent);
-                baseArraySlice   = 0;
+                baseArraySlice       = 0;
+                viewMipAsFullTexture = true;
             }
             else
             {
@@ -3700,13 +3702,14 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             srd.gfx10.depth = ComputeImageViewDepth(viewInfo, imageInfo, *pBaseSubResInfo);
         }
 
-        // (pitch-1)[12:0] of mip 0 for 1D, 2D and 2D MSAA in GFX10.3, if pitch > width and
-        // TA_CNTL_AUX.DEPTH_AS_WIDTH_DIS = 0
+        // (pitch-1)[12:0] of mip 0 for 1D, 2D and 2D MSAA in GFX10.3, if pitch > width,
+        // we aren't treating mip1+ as the base image, and TA_CNTL_AUX.DEPTH_AS_WIDTH_DIS = 0
         const uint32  bytesPerPixel = Formats::BytesPerPixel(format);
         const uint32  pitchInPixels = imageCreateInfo.rowPitch / bytesPerPixel;
         if ((false ||
             IsGfx103(*pPalDevice))                   &&
             (pitchInPixels > programmedExtent.width) &&
+            (viewMipAsFullTexture == false) &&
             ((srd.type == SQ_RSRC_IMG_1D) ||
              (srd.type == SQ_RSRC_IMG_2D) ||
              (srd.type == SQ_RSRC_IMG_2D_MSAA)))
@@ -4574,7 +4577,6 @@ void PAL_STDCALL Device::CreateBvhSrds(
         bvhSrd.size = bvhInfo.numNodes - 1;
 
         //    Number of ULPs to be added during ray-box test, encoded as unsigned integer
-        //    A ULP is https://en.wikipedia.org/wiki/Unit_in_the_last_place
 
         // HW only has eight bits available for this field
         PAL_ASSERT((bvhInfo.boxGrowValue & ~0xFF) == 0);
@@ -4632,6 +4634,7 @@ GfxIpLevel DetermineIpLevel(
     case FAMILY_RV:
         level = GfxIpLevel::GfxIp9;
         break;
+
     // GFX10 GPU's (Navi family)
     case FAMILY_NV:
         if (AMDGPU_IS_NAVI10(familyId, eRevId)
@@ -4808,6 +4811,7 @@ void InitializeGpuChipProperties(
     pInfo->gfx9.supportFp16Fetch                   = 1;
     pInfo->gfx9.support16BitInstructions           = 1;
     pInfo->gfx9.support64BitInstructions           = 1;
+    pInfo->gfx9.supportBorderColorSwizzle          = 1;
     pInfo->gfx9.supportFloatAtomics                = 1;
     pInfo->gfx9.supportDoubleRate16BitInstructions = 1;
 
@@ -5926,17 +5930,13 @@ const RegisterRange* Device::GetRegisterRange(
             break;
 
         case RegRangeSh:
-            {
-                pRange         = Gfx10ShShadowRange;
-                *pRangeEntries = Gfx10NumShShadowRanges;
-            }
+            pRange         = Gfx10ShShadowRange;
+            *pRangeEntries = Gfx10NumShShadowRanges;
             break;
 
         case RegRangeCsSh:
-            {
-                pRange         = Gfx10CsShShadowRange;
-                *pRangeEntries = Gfx10NumCsShShadowRanges;
-            }
+            pRange         = Gfx10CsShShadowRange;
+            *pRangeEntries = Gfx10NumCsShShadowRanges;
             break;
 
 #if PAL_ENABLE_PRINTS_ASSERTS

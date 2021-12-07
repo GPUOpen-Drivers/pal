@@ -3009,6 +3009,7 @@ namespace Core
     constexpr unsigned int GDS_PERFCOUNTER3_HI__PERFCOUNTER_HI__SHIFT         = 0x00000000;
     constexpr unsigned int GDS_PERFCOUNTER3_LO__PERFCOUNTER_LO__SHIFT         = 0x00000000;
     constexpr unsigned int GDS_PERFCOUNTER3_SELECT__CNTR_MODE__SHIFT          = 0x00000014;
+    constexpr unsigned int GRBM_CHIP_REVISION__CHIP_REVISION__SHIFT           = 0x00000000;
     constexpr unsigned int GRBM_PERFCOUNTER0_SELECT__EA_BUSY_USER_DEFINED_MASK__SHIFT = 0x0000001e;
     constexpr unsigned int GRBM_PERFCOUNTER1_SELECT__EA_BUSY_USER_DEFINED_MASK__SHIFT = 0x0000001e;
     constexpr unsigned int GRBM_SE1_PERFCOUNTER_HI__PERFCOUNTER_HI__SHIFT     = 0x00000000;

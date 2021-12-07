@@ -172,7 +172,7 @@ DevDriver::Result PlatformSettingsLoader::PerformSetValue(
     }
 #endif
 
-#if PAL_BUILD_CMD_BUFFER_LOGGER
+#if PAL_DEVELOPER_BUILD
     constexpr uint32 CmdBufferLoggerAnnotations = 462141291;
     constexpr uint32 CmdBufferLoggerSingleStepHash = 1570291248;
     constexpr uint32 CmdBufferLoggerEmbedDrawDispatchInfo = 1801313176;

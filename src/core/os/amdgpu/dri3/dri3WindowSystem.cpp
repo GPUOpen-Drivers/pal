@@ -984,12 +984,14 @@ Result Dri3WindowSystem::GetWindowProperties(
     pSwapChainProperties->minImageCount = 2;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 684
+#if 0
     // XWayland is a transition from Xorg to Wayland, which has poor performance in fullscreen present
     // mode, so windowed mode is preferred on XWayland.
     pSwapChainProperties->preferredPresentModes =
         IsXWayland(hDisplay, pDevice) ?
         static_cast<uint32>(PreferredPresentModeFlags::PreferWindowedPresentMode) :
         static_cast<uint32>(PreferredPresentModeFlags::NoPreference);
+#endif
 #endif
 
     if (pReply != nullptr)

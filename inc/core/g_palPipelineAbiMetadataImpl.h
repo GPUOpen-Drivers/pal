@@ -799,6 +799,12 @@ inline Result DeserializeHardwareStageMetadata(
                 pMetadata->hasEntry.threadgroupDimensions = (result == Result::Success);
                 break;
 
+            case HashLiteralString(HardwareStageMetadataKey::OrigThreadgroupDimensions):
+                PAL_ASSERT(pMetadata->hasEntry.origThreadgroupDimensions == 0);
+                result = pReader->UnpackNext(&pMetadata->origThreadgroupDimensions);
+                pMetadata->hasEntry.origThreadgroupDimensions = (result == Result::Success);
+                break;
+
             case HashLiteralString(HardwareStageMetadataKey::WavefrontSize):
                 PAL_ASSERT(pMetadata->hasEntry.wavefrontSize == 0);
                 result = pReader->UnpackNext(&pMetadata->wavefrontSize);
@@ -1072,6 +1078,20 @@ inline Result DeserializePipelineMetadata(
                 }
                 pMetadata->hasEntry.apiCreateInfo = (result == Result::Success);
                 break;
+
+            case HashLiteralString(PipelineMetadataKey::GsOutputsLines):
+            {
+                PAL_ASSERT(pMetadata->hasEntry.gsOutputsLines == 0);
+                bool value = false;
+                result = pReader->UnpackNext(&value);
+
+                if (result == Result::Success)
+                {
+                    pMetadata->flags.gsOutputsLines = value;
+                }
+                pMetadata->hasEntry.gsOutputsLines = (result == Result::Success);
+                break;
+            }
 
             default:
                 result = pReader->Skip(1);

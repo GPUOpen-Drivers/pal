@@ -132,9 +132,13 @@ Result FileArchiveCacheLayer::QueryInternal(
 
         if (pEntry != nullptr)
         {
+            const size_t storeSize = pEntry->storeSize;
+
             pQuery->pLayer          = this;
             pQuery->hashId          = *pHashId;
             pQuery->dataSize        = pEntry->dataSize;
+            pQuery->storeSize       = storeSize;
+            pQuery->promotionSize   = storeSize;
             pQuery->context.entryId = pEntry->ordinalId;
 
             result = Result::Success;
@@ -153,11 +157,13 @@ Result FileArchiveCacheLayer::QueryInternal(
 Result FileArchiveCacheLayer::StoreInternal(
     const Hash128* pHashId,
     const void*    pData,
-    size_t         dataSize)
+    size_t         dataSize,
+    size_t         storeSize)
 {
     PAL_ASSERT(pHashId != nullptr);
     PAL_ASSERT(pData != nullptr);
     PAL_ASSERT(dataSize > 0);
+    PAL_ASSERT(storeSize > 0);
 
     Result   result = Result::NotFound;
     EntryKey key;
@@ -184,7 +190,7 @@ Result FileArchiveCacheLayer::StoreInternal(
     if (result == Result::NotFound)
     {
         ArchiveEntryHeader header         = {};
-        const size_t       writeDataSize  = dataSize;
+        const size_t       writeDataSize  = storeSize;
         void* const        pMem           = PAL_MALLOC(writeDataSize, Allocator(), AllocInternalTemp);
 
         PAL_ALERT(pMem == nullptr);
@@ -207,7 +213,7 @@ Result FileArchiveCacheLayer::StoreInternal(
             header.dataSize      = static_cast<uint32>(writeDataSize);
             header.metaValue     = static_cast<uint32>(dataSize);
 
-            memcpy(pDataMem, pData, dataSize);
+            memcpy(pDataMem, pData, storeSize);
             memcpy(header.entryKey, key.value, sizeof(EntryKey));
 
             result = m_pArchivefile->Write(&header, pMem);
@@ -290,6 +296,9 @@ Result FileArchiveCacheLayer::LoadInternal(
 
         const size_t readSize      = header.dataSize;
         const size_t dataSize      = header.metaValue;
+        size_t storeSize           = readSize;
+
+        PAL_ASSERT(storeSize == pQuery->storeSize);
 
         void* const pReadMem = PAL_MALLOC(readSize, Allocator(), AllocInternalTemp);
         void* const pDataMem = pReadMem;
@@ -316,7 +325,7 @@ Result FileArchiveCacheLayer::LoadInternal(
 
         if (result == Result::Success)
         {
-            memcpy(pBuffer, pDataMem, dataSize);
+            memcpy(pBuffer, pDataMem, storeSize);
         }
 
         if (pReadMem != nullptr)
@@ -347,6 +356,8 @@ static size_t GetBaseContextSizeFromCreateInfo(
         Result          result = GetHashContextInfo(HashAlgorithm::Sha1, &info);
 
         PAL_ALERT(IsErrorResult(result));
+
+        contextSize = info.contextObjectSize;
     }
 
     return contextSize;
@@ -376,7 +387,6 @@ Result CreateArchiveFileCacheLayer(
     IHashContext*          pBaseContext    = nullptr;
     void*                  pTempContextMem = nullptr;
     const size_t           hashContextSize = GetBaseContextSizeFromCreateInfo(pCreateInfo);
-    ArchiveFileOpenInfo    openInfo        = {};
 
     if ((pCreateInfo == nullptr) ||
         (pPlacementAddr == nullptr) ||
@@ -446,7 +456,12 @@ Result FileArchiveCacheLayer::AddHeaderToTable(
 
     memcpy(key.value, header.entryKey, sizeof(header.entryKey));
 
-    return m_entries.Insert(key, {header.ordinalId, header.metaValue});
+    // Note in this case the "dataSize" in the file is how much is stored.
+    // The *actual* data size, we store as metadata.
+    return m_entries.Insert(key,
+                            {header.ordinalId,
+                             header.metaValue,
+                             header.dataSize});
 }
 
 // =====================================================================================================================

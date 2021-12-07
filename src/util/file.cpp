@@ -28,6 +28,8 @@
 #include "palSysUtil.h"
 #include <cstdio>
 #include <sys/stat.h>
+#include <fstream>
+#include <limits>
 
 namespace Util
 {
@@ -190,6 +192,15 @@ void File::Close()
         }
         m_pFileHandle = nullptr;
     }
+}
+
+// =====================================================================================================================
+// Erases a file if it exists.
+Result File::Remove(
+    const char* pFilename)
+{
+    const int32 ret = remove(pFilename);
+    return ret == 0 ? Result::Success : Result::ErrorUnknown;
 }
 
 // =====================================================================================================================

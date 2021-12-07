@@ -163,7 +163,7 @@ public:
     void SetContextRollDetected();
     bool ContextRollDetected() const { return m_contextRollDetected; }
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
     void IssueHotRegisterReport(GfxCmdBuffer* pCmdBuf) const;
 #endif
 

@@ -2742,9 +2742,10 @@ void InitializeGpuChipProperties(
     pInfo->nullSrds.pNullSampler    = &NullSampler;
 
     // All GFXIP 6-8 hardware cannot support 2-bit signed values.
-    pInfo->gfx6.supports2BitSignedValues = 0;
-    pInfo->gfx6.support64BitInstructions = 1;
-    pInfo->gfx6.supportFloatAtomics      = 1;
+    pInfo->gfx6.supports2BitSignedValues  = 0;
+    pInfo->gfx6.support64BitInstructions  = 1;
+    pInfo->gfx6.supportFloatAtomics       = 1;
+    pInfo->gfx6.supportBorderColorSwizzle = 0;
 
     // Out of order primitives was added in Hawaii, but it has a hardware bug where the hardware can hang when a
     // multi-cycle primitive is processed when out of order is enabled. This is fixed for GFXIP 8.

@@ -1,0 +1,11 @@
+## CODEOWNERS file
+# This file tells GitHub who should be on a review list for certain files
+# We can narrow it by file type and location, with global defaults.
+# See here for more information on this file:
+# https://docs.github.com/en/free-pro-team@latest/github/creating-cloning-and-archiving-repositories/about-code-owners
+
+# Start with default owners for everything.
+* @DevDriver/reviewers
+
+# We can *override* the above with special people for certain files and sub paths.
+# At this time, we do not.

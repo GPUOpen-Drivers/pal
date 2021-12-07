@@ -23,7 +23,7 @@
  *
  **********************************************************************************************************************/
 
-#if PAL_BUILD_CMD_BUFFER_LOGGER
+#if PAL_DEVELOPER_BUILD
 
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerCmdBuffer.h"
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerDevice.h"

@@ -227,8 +227,9 @@ private:
     // Counts the number of active references on this chunk: each command stream which references this chunk adds one
     // to this count, as do any command buffers which execute a nested command buffer containing this chunk. All of
     // the non-master chunks in this chunk's command buffer also add one to this count. A chunk is considered "free"
-    // from the CPU's perspective if this count is zero.
-    volatile uint32  m_referenceCount;
+    // from the CPU's perspective if this count is zero. The reference count should always be zero if our command
+    // allocator has auto-reuse disabled.
+    volatile uint32 m_referenceCount;
 
     // Each time a chunk is reset its generation is incremented. The busy tracker looks at its root chunk's generation
     // to determine if it has been reset, implying that the root (and thus the local chunk) was idle on the GPU. This

@@ -107,6 +107,7 @@ constexpr  NullIdLookup  NullIdLookupTable[] =
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
+    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { PAL_UNDEFINED_NULL_DEVICE },
     { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
     { PAL_UNDEFINED_NULL_DEVICE },

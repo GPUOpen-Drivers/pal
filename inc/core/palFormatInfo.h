@@ -784,11 +784,15 @@ inline Extent3d Log2SubsamplingRatio(
         PAL_ASSERT((plane == 1) || (plane == 2));
         switch (format)
         {
+        // 4:4:4 formats have the same number of samples in every direction.
+        case ChNumFormat::P412:
+            break;
         // 4:2:0 formats have 1/2 as many samples in both the horizontal and vertical directions.
         case ChNumFormat::YV12:
         case ChNumFormat::NV12:
         case ChNumFormat::NV21:
         case ChNumFormat::P010:
+        case ChNumFormat::P012:
         case ChNumFormat::P016:
             ratio.width  = 1;  // log2(1/2) = -1
             ratio.height = 1;
@@ -797,6 +801,7 @@ inline Extent3d Log2SubsamplingRatio(
         // in the vertical direction.
         case ChNumFormat::P208:
         case ChNumFormat::P210:
+        case ChNumFormat::P212:
             ratio.width = 1;
             break;
         // 4:1:1 formats have 1/4 as many samples in the horizontal direction, and the same number of samples

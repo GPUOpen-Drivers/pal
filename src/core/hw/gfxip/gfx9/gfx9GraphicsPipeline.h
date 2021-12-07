@@ -168,6 +168,8 @@ public:
 
     uint32 GetPrimAmpFactor() const { return m_primAmpFactor; }
 
+    bool CanRbPlusOptimizeDepthOnly() const;
+
 protected:
     virtual ~GraphicsPipeline() { }
 
@@ -260,8 +262,6 @@ private:
 
     SX_DOWNCONVERT_FORMAT SxDownConvertFormat(ChNumFormat format) const;
     void DetermineBinningOnOff();
-
-    bool CanRbPlusOptimizeDepthOnly() const;
 
     const GfxIpLevel  m_gfxLevel;
     uint32            m_contextRegHash;

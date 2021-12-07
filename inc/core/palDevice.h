@@ -648,6 +648,12 @@ struct PalPublicSettings
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 680
     bool enableExecuteIndirectPacket;
 #endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 691
+    /// Offers flexibility to the client to choose Graphics vs Compute engine for Indirect Command Generation
+    /// (Shader path) based on performance and other factors. The default is false since we have seen perf gains using
+    /// the ACE.
+    bool disableExecuteIndirectAceOffload;
+#endif
 };
 
 /// Defines the modes that the GPU Profiling layer can use when its buffer fills.
@@ -1133,6 +1139,7 @@ struct DeviceProperties
             {
                 uint64 support8bitIndices                 :  1; ///< Hardware natively supports 8bit indices
                 uint64 support16BitInstructions           :  1; ///< Hardware supports FP16 and INT16 instructions
+                uint64 supportBorderColorSwizzle          :  1; ///< Hardware supports border color swizzle
                 uint64 supportDoubleRate16BitInstructions :  1; ///< Hardware supports double rate packed math
                 uint64 supportFp16Fetch                   :  1; ///< Hardware supports FP16 texture fetches
                 uint64 supportFp16Dot2                    :  1; ///< Hardware supports a paired FP16 dot product.
@@ -1204,7 +1211,7 @@ struct DeviceProperties
                 uint64 supportInt4Dot                     :  1; ///< Hardware supports a dot product 4bit.
                 uint64 support2DRectList                  :  1; ///< HW supports PrimitiveTopology::TwoDRectList.
                 uint64 supportHsaAbi                      :  1; ///< PAL supports HSA ABI compute pipelines.
-                uint64 reserved                           : 18; ///< Reserved for future use.
+                uint64 reserved                           : 17; ///< Reserved for future use.
             };
             uint64 u64All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.
@@ -2187,9 +2194,9 @@ struct GetPrimaryInfoOutput
             uint32 swMode                       :  1;
             /// MGPU flag: this primary surface supports freesync.
             uint32 isFreeSyncEnabled            :  1;
-            /// SGPU flag: gives hint to the client that they should use rotated tiling mode.
+            /// Single-GPU flag: gives hint to the client that they should use rotated tiling mode.
             uint32 hwRotationPortraitMode       :  1;
-            /// SGPU flag: this primary surface supports non local heap.
+            /// Single-GPU flag: this primary surface supports non local heap.
             uint32 displaySupportsNonLocalHeap  :  1;
             /// Reserved for future use.
             uint32  reserved                    : 26;
@@ -3205,7 +3212,7 @@ public:
     /// The basic idea of SVM is to create system memory that has the same CPU and GPU virtual address
     /// (i.e., "pointer is a pointer").  This can work in two modes: fine-grain, or coarse-grain.
     ///
-    /// Fine-grain (SGPU): The client should just call this function with pReservedGpuVaOwner set to null.
+    /// Fine-grain (Single-GPU): The client should just call this function with pReservedGpuVaOwner set to null.
     /// PAL will allocate GPU-accessible system memory that will have the same CPU virtual address
     /// (as returned by IGpuMemory::Map()) as GPU virtual address
     /// (as returned in the gpuVirtAddr value returned by IGpuMemory::Desc()).

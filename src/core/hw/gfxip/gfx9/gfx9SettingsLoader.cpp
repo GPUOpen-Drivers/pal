@@ -446,6 +446,10 @@ static void SetupNavi2xWorkarounds(
     // are incorrect.
     // This workaround is to disable instance packing for adjacent prim_types.
     pSettings->waDisableInstancePacking = true;
+
+    // On Navi2x hw, the polarity of AutoFlushMode is inverted, thus setting this value to true as a Navi2x workaround.
+    // The AUTO_FLUSH_MODE flag will be properly inverted as a part of PerfExperiment.
+    pSettings->waAutoFlushModePolarityInversed = true;
 }
 
 // =====================================================================================================================

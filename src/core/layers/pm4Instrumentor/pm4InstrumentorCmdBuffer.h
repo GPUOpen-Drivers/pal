@@ -25,7 +25,7 @@
 
 #pragma once
 
-#if PAL_BUILD_PM4_INSTRUMENTOR
+#if PAL_DEVELOPER_BUILD
 
 #include "palCmdBuffer.h"
 #include "palDeveloperHooks.h"

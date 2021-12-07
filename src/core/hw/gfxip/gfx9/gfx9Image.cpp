@@ -2364,7 +2364,7 @@ void Image::BuildDccLookupTableBufferView(
 }
 
 // =====================================================================================================================
-// Builds PM4 commands into the command buffer which will update this Image's fast-clear metadata to reflect the most
+// Builds PM4 commands into the command buffer which will update this image's fast-clear metadata to reflect the most
 // recent clear color. Returns the next unused DWORD in pCmdSpace.
 uint32* Image::UpdateColorClearMetaData(
     const SubresRange&  clearRange,
@@ -2373,18 +2373,18 @@ uint32* Image::UpdateColorClearMetaData(
     uint32*             pCmdSpace
     ) const
 {
-    // Verify that we have DCC data that's requierd for handling fast-clears on gfx9
+    // Verify that we have DCC data that's required for handling fast-clears on gfx9
     PAL_ASSERT(HasDccData());
 
-        // Number of DWORD registers which represent the fast-clear color for a bound color target:
-        constexpr size_t MetaDataDwords = sizeof(Gfx9FastColorClearMetaData) / sizeof(uint32);
+    // Number of DWORD registers which represent the fast-clear color for a bound color target:
+    constexpr size_t MetaDataDwords = sizeof(Gfx9FastColorClearMetaData) / sizeof(uint32);
 
-        // Issue a WRITE_DATA command to update the fast-clear metadata.
-        WriteDataInfo writeData = {};
-        writeData.engineType = EngineTypeUniversal;
-        writeData.engineSel  = engine_sel__pfp_write_data__prefetch_parser;
-        writeData.dstSel     = dst_sel__pfp_write_data__memory;
-        writeData.predicate  = predicate;
+    // Issue a WRITE_DATA command to update the fast-clear metadata.
+    WriteDataInfo writeData = {};
+    writeData.engineType = EngineTypeUniversal;
+    writeData.engineSel  = engine_sel__pfp_write_data__prefetch_parser;
+    writeData.dstSel     = dst_sel__pfp_write_data__memory;
+    writeData.predicate  = predicate;
 
     uint32* pSpace = pCmdSpace;
     for (SubresId subresId = clearRange.startSubres;

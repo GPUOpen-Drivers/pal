@@ -2168,7 +2168,7 @@ bool Device::HasRgba16DisplaySupport() const
 
     // On Linux 5.14 (DRM 3.42) and later we also have the 64 bpp rgba16 unorm fixed point format
     // on display engines of generation DCE 8.0 - DCE 12, and on all DCN engines, iow. Sea Islands
-    // and later. However, current pal no longer supports Sea Islands, so check for gfxLevel >= 8.
+    // and later0. However, current pal no longer supports Sea Islands, so check for gfxLevel >= 8.
     if ((IsDrmVersionOrGreater(3, 42) || IsKernelVersionEqualOrGreater(5, 14)) &&
         (m_chipProperties.gfxLevel >= GfxIpLevel::GfxIp8))
     {
@@ -5182,6 +5182,9 @@ Result Device::OpenExternalResource(
         pSharedInfo->hExternalResource     = openInfo.hExternalResource;
         pSharedInfo->handleType            = handleType;
         PAL_ASSERT(pSharedInfo->importResult.alloc_size == pSharedInfo->info.alloc_size);
+        PAL_ALERT_MSG((pSharedInfo->info.metadata.size_metadata == 0) && (GetPlatform()->GetDeviceCount() == 1),
+            "Metadata should not be empty for BO coming from the same device. "
+            "Note this might be a false alarm if you have setup like Intel GPU + AMD GPU");
     }
 
     return result;

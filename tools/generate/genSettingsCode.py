@@ -24,7 +24,6 @@
  #######################################################################################################################
 
 import os
-import glob
 import re
 import sys
 import time
@@ -39,13 +38,13 @@ comment = "// "
 newline = "\n"
 
 def fnv1a(str):
-    fnv_prime = 0x01000193;
-    hval      = 0x811c9dc5;
-    uint32Max = 2 ** 32;
+    fnv_prime = 0x01000193
+    hval      = 0x811c9dc5
+    uint32Max = 2 ** 32
 
     for c in str:
-        hval = hval ^ ord(c);
-        hval = (hval * fnv_prime) % uint32Max;
+        hval = hval ^ ord(c)
+        hval = (hval * fnv_prime) % uint32Max
     return hval
 
 def loadJsonStr(jsonStr):
@@ -203,7 +202,7 @@ def sha1(str):
     m.update(str.encode())
     return m.hexdigest()
 
-def defineEnum(valueList):
+def defineEnum(valueList, enumType):
     enumDef = ""
     # IsEnum indicates that the valid values should be used to create an enum definition
     if ("IsEnum" in valueList) and valueList["IsEnum"]:
@@ -248,7 +247,7 @@ def defineEnum(valueList):
             enumData += valueIfDefTmp + enumValue + valueEndDefTmp
 
         # Now fill in the dynamic data in the enum template
-        enumDef = codeTemplates.Enum.replace("%EnumDataType%", "uint32")
+        enumDef = codeTemplates.Enum.replace("%EnumDataType%", enumType)
         enumDef = enumDef.replace("%EnumName%", valueList["Name"])
         enumDef = enumDef.replace("%EnumData%", enumData)
     return enumDef
@@ -412,6 +411,7 @@ updateSettingsCode = ""
 settingsStrings = ""
 settingHashList = ""
 settingInfoCode = ""
+runningStateSettingsCode = ""
 numHashes = 0
 
 # Parse the defined constants into it's own dictionary for easier lookup
@@ -425,7 +425,7 @@ if "Enums" in settingsData:
     for enum in settingsData["Enums"]:
         #Top level enums don't define this field, but the defineEnum() function looks for it
         enum["IsEnum"] = True
-        enumCode += defineEnum(enum)
+        enumCode += defineEnum(enum, "uint32")
 
 for setting in settingsData["Settings"]:
 
@@ -486,7 +486,11 @@ for setting in settingsData["Settings"]:
     ###################################################################################################################
     if "ValidValues" in setting:
         enumCode += ifDefTmp
-        enumCode += defineEnum(setting["ValidValues"])
+        # Override enum type if Type is defined
+        enumType = "uint32"
+        if "Type" in setting  and setting["Type"] == "uint64":
+            enumType = "uint64"
+        enumCode += defineEnum(setting["ValidValues"], enumType)
         enumCode += endDefTmp
     elif setting["Type"] == "struct":
         for field in setting["Structure"]:
@@ -875,7 +879,6 @@ for setting in settingsData["Settings"]:
     ###################################################################################################################
     # InitSettingsData() per setting code
     ###################################################################################################################
-    settingInfoCodeTmp = ""
     if setting["Type"] == "struct":
         for field in setting["Structure"]:
             varName = setting["VariableName"] + "." + field["VariableName"]
@@ -896,6 +899,13 @@ for setting in settingsData["Settings"]:
         settingHashList += ifDefTmp
         settingHashList += str(setting["HashName"]) + ",\n"
         settingHashList += endDefTmp
+
+    ###################################################################################################################
+    # IsSetAllowedInDriverRunningState() switch cases code
+    ###################################################################################################################
+    if "DriverState" in setting:
+        if "Running" in setting["DriverState"]:
+            runningStateSettingsCode += "case {}: return true;\n".format(setting["HashName"])
 
 upperCamelComponentName = settingsData["ComponentName"].replace("_", " ")
 upperCamelComponentName = "".join(x for x in upperCamelComponentName.title() if not x.isspace())
@@ -1043,6 +1053,15 @@ if hardwareLayer != "":
     namespaceStart += codeTemplates.HwlNamespaceStart.replace("%Hwl%", hardwareLayer)
     namespaceEnd   = codeTemplates.HwlNamespaceEnd.replace("%Hwl%", hardwareLayer) + namespaceEnd
 
+try:
+    isSetAllowedInDriverRunningState = codeTemplates.IsSetAllowedInDriverRunningStateFunc \
+        .replace("%ClassName%", args.className) \
+        .replace("%RunningStateSettableNameHashCases%", runningStateSettingsCode)
+except AttributeError:
+    # templates that have no `IsSetAllowedInDriverRunningStateFunc` won't generate override functions,
+    # and the its corresponding component class will just use its parent's default virtual function.
+    isSetAllowedInDriverRunningState = ""
+
 ###################################################################################################################
 # Build the Header File
 ###################################################################################################################
@@ -1059,7 +1078,7 @@ if args.genRegistryCode:
     sourceFileTxt += readSettings
     if len(rereadSettings) > 0:
         sourceFileTxt += rereadSettings
-sourceFileTxt += initSettingsInfo + devDriverRegister + namespaceEnd
+sourceFileTxt += initSettingsInfo + devDriverRegister + isSetAllowedInDriverRunningState + namespaceEnd
 sourceFile.write(sourceFileTxt)
 sourceFile.close()
 
