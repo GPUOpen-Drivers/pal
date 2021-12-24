@@ -659,6 +659,10 @@ Result Queue::Submit(
                                         NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[i].pPrivFlipMemory);
                                 }
 #endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 695
+                                pNextCmdBufInfoList->frameIndex = origSubQueueInfo.pCmdBufInfoList[i].frameIndex;
+#endif
                             }
                         }
                         localCmdBufInfoIdx++;

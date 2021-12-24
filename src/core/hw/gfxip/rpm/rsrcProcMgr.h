@@ -97,6 +97,17 @@ public:
     virtual Result LateInit();
     virtual void Cleanup();
 
+    void CopyMemoryCs(
+        GfxCmdBuffer*           pCmdBuffer,
+        gpusize                 srcGpuVirtAddr,
+        const Device&           srcDevice,
+        gpusize                 dstGpuVirtAddr,
+        const Device&           dstDevice,
+        uint32                  regionCount,
+        const MemoryCopyRegion* pRegions,
+        bool                    preferWideFormatCopy,
+        const gpusize*          pP2pBltInfoChunks) const;
+
     void CmdCopyImage(
         GfxCmdBuffer*          pCmdBuffer,
         const Image&           srcImage,

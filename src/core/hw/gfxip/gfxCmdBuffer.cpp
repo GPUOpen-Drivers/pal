@@ -598,6 +598,35 @@ void GfxCmdBuffer::SetGfxCmdBufCsBltState(
 }
 
 // =====================================================================================================================
+void GfxCmdBuffer::CmdCopyMemoryByGpuVa(
+    gpusize                 srcGpuVirtAddr,
+    gpusize                 dstGpuVirtAddr,
+    uint32                  regionCount,
+    const MemoryCopyRegion* pRegions)
+{
+    PAL_ASSERT(pRegions != nullptr);
+
+    // We cannot know if the the P2P PCI BAR work around is required for the destination memory, so set an error
+    // to make the client aware of the problem.
+    if (m_device.Parent()->ChipProperties().p2pBltWaInfo.required)
+    {
+        SetCmdRecordingError(Result::ErrorIncompatibleDevice);
+    }
+    else
+    {
+        m_device.RsrcProcMgr().CopyMemoryCs(this,
+                                            srcGpuVirtAddr,
+                                            *m_device.Parent(),
+                                            dstGpuVirtAddr,
+                                            *m_device.Parent(),
+                                            regionCount,
+                                            pRegions,
+                                            false,
+                                            nullptr);
+    }
+}
+
+// =====================================================================================================================
 void GfxCmdBuffer::CmdCopyImage(
     const IImage&          srcImage,
     ImageLayout            srcImageLayout,

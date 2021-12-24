@@ -289,27 +289,18 @@ Result PAL_STDCALL EnumerateNullDevices(
 
     if (pNullGpuCount != nullptr)
     {
-        uint32        nullGpuCount    = 0;
-        const uint32  maxNullGpuCount = (pNullGpuInfoArray != nullptr) ? *pNullGpuCount :
-                                                                         static_cast<uint32>(NullGpuId::Max);
+        uint32 nullGpuCount = NullDevice::NullIdLookupTableCount;
 
-        for (uint32 idx = 0;
-             ((idx < static_cast<uint32>(NullGpuId::Max)) && (nullGpuCount < maxNullGpuCount));
-             ++idx)
+        if (pNullGpuInfoArray != nullptr)
         {
-            const NullGpuId  nullGpuId = static_cast<NullGpuId>(idx);
-
-            if (NullDevice::Device::IsValid(nullGpuId))
+            nullGpuCount = Util::Min(nullGpuCount, *pNullGpuCount);
+            for (uint32 idx = 0; idx < nullGpuCount; ++idx)
             {
-                if (pNullGpuInfoArray != nullptr)
-                {
-                    NullGpuInfo*  pNullGpuInfo = &pNullGpuInfoArray[nullGpuCount];
+                const NullDevice::NullIdLookup& curGpu       = NullDevice::NullIdLookupTable[idx];
+                NullGpuInfo*                    pNullGpuInfo = &pNullGpuInfoArray[idx];
 
-                    pNullGpuInfo->nullGpuId = nullGpuId;
-                    pNullGpuInfo->pGpuName  = NullDevice::pNullGpuNames[idx];
-                }
-
-                ++nullGpuCount;
+                pNullGpuInfo->nullGpuId = curGpu.nullId;
+                pNullGpuInfo->pGpuName  = curGpu.pName;
             }
         }
 

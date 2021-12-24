@@ -23,15 +23,16 @@
  #
  #######################################################################################################################
 
-if (MSVC_IDE)
-    file(GLOB_RECURSE PAL_HEADER_SOURCES CONFIGURE_DEPENDS *.h *.hpp)
-    target_sources(pal PRIVATE ${PAL_HEADER_SOURCES} CMakeLists.txt)
+target_include_directories(pal PUBLIC .)
+
+if (PAL_BUILD_CORE)
+    add_subdirectory(core)
 endif()
 
-target_include_directories(pal PUBLIC
-    .
-    core
-    gpuUtil
-    util
-)
+if (PAL_BUILD_GPUUTIL)
+    add_subdirectory(gpuUtil)
+endif()
 
+add_subdirectory(util)
+
+target_sources(pal PRIVATE CMakeLists.txt)

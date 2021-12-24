@@ -309,6 +309,10 @@ typedef xcb_randr_get_screen_resources_cookie_t (*XcbRandrGetScreenResources)(
             xcb_connection_t*     pConnection,
             xcb_window_t          window);
 
+typedef xcb_randr_get_screen_resources_cookie_t (*XcbRandrGetScreenResourcesCurrent)(
+            xcb_connection_t*     pConnection,
+            xcb_window_t          window);
+
 typedef xcb_randr_get_screen_resources_reply_t* (*XcbRandrGetScreenResourcesReply)(
             xcb_connection_t*                         pConnection,
             xcb_randr_get_screen_resources_cookie_t   cookie,
@@ -798,6 +802,12 @@ struct Dri3LoaderFuncs
     bool pfnXcbRandrGetScreenResourcesisValid() const
     {
         return (pfnXcbRandrGetScreenResources != nullptr);
+    }
+
+    XcbRandrGetScreenResourcesCurrent            pfnXcbRandrGetScreenResourcesCurrent;
+    bool pfnXcbRandrGetScreenResourcesCurrentisValid() const
+    {
+        return (pfnXcbRandrGetScreenResourcesCurrent != nullptr);
     }
 
     XcbRandrGetScreenResourcesReply       pfnXcbRandrGetScreenResourcesReply;
@@ -1503,6 +1513,15 @@ public:
     bool pfnXcbRandrGetScreenResourcesisValid() const
     {
         return (m_pFuncs->pfnXcbRandrGetScreenResources != nullptr);
+    }
+
+    xcb_randr_get_screen_resources_cookie_t pfnXcbRandrGetScreenResourcesCurrent(
+            xcb_connection_t*     pConnection,
+            xcb_window_t          window) const;
+
+    bool pfnXcbRandrGetScreenResourcesCurrentisValid() const
+    {
+        return (m_pFuncs->pfnXcbRandrGetScreenResourcesCurrent != nullptr);
     }
 
     xcb_randr_get_screen_resources_reply_t* pfnXcbRandrGetScreenResourcesReply(

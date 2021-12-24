@@ -428,9 +428,7 @@
         "General",
         "Resource Settings"
       ],
-      "Flags": {
-        "RereadSetting": true
-      },
+      "Flags": {},
       "Defaults": {
         "Default": false
       },
@@ -474,7 +472,8 @@
       ],
       "Flags": {
         "IsHex": true,
-        "IsBitmask": true
+        "IsBitmask": true,
+        "RereadSetting": true
       },
       "Defaults": {
         "Default": 0

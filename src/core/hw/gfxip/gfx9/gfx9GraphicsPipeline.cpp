@@ -886,13 +886,13 @@ void GraphicsPipeline::SetupCommonRegisters(
     if (pPalSettings->depthClampBasedOnZExport == true)
     {
         m_regs.other.dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP =
-            ((createInfo.rsState.depthClampDisable != false) &&
+            ((createInfo.rsState.depthClampMode == DepthClampMode::_None) &&
              (m_chunkVsPs.DbShaderControl().bits.Z_EXPORT_ENABLE != 0));
     }
     else
     {
         // Vulkan (only) will take this path by default, unless an app-detect forces the other way.
-        m_regs.other.dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = (createInfo.rsState.depthClampDisable != false);
+        m_regs.other.dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = (createInfo.rsState.depthClampMode == DepthClampMode::_None);
     }
 
     if (regInfo.mmPaStereoCntl != 0)

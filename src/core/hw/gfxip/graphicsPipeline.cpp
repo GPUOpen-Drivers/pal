@@ -124,6 +124,8 @@ Result GraphicsPipeline::InitFromPipelineBinary(
     // Store the ROP code this pipeline was created with
     m_logicOp = createInfo.cbState.logicOp;
 
+    m_depthClampMode = createInfo.rsState.depthClampMode;
+
     m_flags.perpLineEndCapsEnable = createInfo.rsState.perpLineEndCapsEnable;
 
     m_flags.fastClearElim    = internalInfo.flags.fastClearElim;

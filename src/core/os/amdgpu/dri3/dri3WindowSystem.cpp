@@ -984,14 +984,12 @@ Result Dri3WindowSystem::GetWindowProperties(
     pSwapChainProperties->minImageCount = 2;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 684
-#if 0
     // XWayland is a transition from Xorg to Wayland, which has poor performance in fullscreen present
     // mode, so windowed mode is preferred on XWayland.
     pSwapChainProperties->preferredPresentModes =
         IsXWayland(hDisplay, pDevice) ?
         static_cast<uint32>(PreferredPresentModeFlags::PreferWindowedPresentMode) :
         static_cast<uint32>(PreferredPresentModeFlags::NoPreference);
-#endif
 #endif
 
     if (pReply != nullptr)
@@ -1032,7 +1030,7 @@ bool Dri3WindowSystem::IsXWayland(
     const xcb_setup_t*    pSetup = dri3Procs.pfnXcbGetSetup(pConnection);
     xcb_screen_iterator_t iter = dri3Procs.pfnXcbSetupRootsIterator(pSetup);
     xcb_randr_get_screen_resources_cookie_t scrResCookie =
-        dri3Procs.pfnXcbRandrGetScreenResources(pConnection, iter.data->root);
+        dri3Procs.pfnXcbRandrGetScreenResourcesCurrent(pConnection, iter.data->root);
     xcb_randr_get_screen_resources_reply_t* pScrResReply =
         dri3Procs.pfnXcbRandrGetScreenResourcesReply(pConnection, scrResCookie, nullptr);
 

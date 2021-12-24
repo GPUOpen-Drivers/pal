@@ -70,6 +70,28 @@ static size_t TotalSubresourceCount(
 }
 
 // =====================================================================================================================
+// Helper that asserts images have the same swizzle mode
+static bool SwizzleModesAreSame(
+    const Image* pImage1,
+    const Image* pImage2)
+{
+    const ImageInfo& imageInfo = pImage1->GetImageInfo();
+    PAL_ASSERT(imageInfo.numSubresources == pImage2->GetImageInfo().numSubresources);
+
+    bool swizzleModesAreSame = true;
+    const GfxImage* pGfxImage1 = pImage1->GetGfxImage();
+    const GfxImage* pGfxImage2 = pImage2->GetGfxImage();
+
+    for (uint32 subresId = 0; swizzleModesAreSame && (subresId < imageInfo.numSubresources); ++subresId)
+    {
+        swizzleModesAreSame =
+            (pGfxImage1->GetSwTileMode(pImage1->SubresourceInfo(subresId)) ==
+             pGfxImage2->GetSwTileMode(pImage2->SubresourceInfo(subresId)));
+    }
+    return swizzleModesAreSame;
+}
+
+// =====================================================================================================================
 Image::Image(
     Device*                        pDevice,
     void*                          pGfxImagePlacementAddr,
@@ -428,6 +450,17 @@ Result Image::ValidateCreateInfo(
         }
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 694
+    // imageMemoryBudget should be nonnegative.
+    if (ret == Result::Success)
+    {
+        if (imageInfo.imageMemoryBudget < 0)
+        {
+            ret = Result::ErrorInvalidValue;
+        }
+    }
+#endif
+
     return ret;
 }
 
@@ -708,6 +741,9 @@ Result Image::Init()
                                                                        m_pSubResInfoList,
                                                                        m_pTileInfoList,
                                                                        &dccUnsupported);
+
+        // Peer Images must have the same swizzle mode as the original Image
+        PAL_ASSERT(SwizzleModesAreSame(this, m_imageInfo.internalCreateInfo.pOriginalImage));
     }
 
     if (result == Result::Success)
@@ -975,6 +1011,7 @@ Result Image::GetSubresourceLayout(
         pLayout->mipTailCoord.y = pSubResInfo->mipTailCoord.y;
         pLayout->mipTailCoord.z = pSubResInfo->mipTailCoord.z;
         pLayout->elementBytes   = pSubResInfo->bitsPerTexel >> 3;
+        pLayout->planeFormat    = pSubResInfo->format;
 
         ret = Result::Success;
     }

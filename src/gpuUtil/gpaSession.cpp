@@ -271,8 +271,6 @@ void FillSqttCpuInfo(
 }
 
 // =====================================================================================================================
-// Helper function to fill in the SqttFileChunkAsicInfo struct based on the DeviceProperties and
-// PerfExperimentProperties provided. Required for writing RGP files.
 void FillSqttAsicInfo(
     const Pal::DeviceProperties&         properties,
     const Pal::PerfExperimentProperties& perfExpProps,
@@ -1002,10 +1000,15 @@ Pal::Result GpaSession::TimedSubmit(
                 {
                     // The gpu memory pointer should never be null.
                     PAL_ASSERT(pPreTimestampMemoryInfo->pGpuMemory != nullptr);
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 697
+                    pPreCmdBuffer->CmdWriteTimestamp(Pal::HwPipePostIndexFetch,
+                                                     *pPreTimestampMemoryInfo->pGpuMemory,
+                                                     preTimestampOffset);
+#else
                     pPreCmdBuffer->CmdWriteTimestamp(Pal::HwPipeTop,
                                                      *pPreTimestampMemoryInfo->pGpuMemory,
                                                      preTimestampOffset);
+#endif
 
                     result = pPreCmdBuffer->End();
                 }
@@ -1271,7 +1274,11 @@ Pal::Result GpaSession::TimedQueuePresent(
         // The gpu memory pointer should never be null.
         PAL_ASSERT(timestampMemoryInfo.pGpuMemory != nullptr);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 697
+        pCmdBuffer->CmdWriteTimestamp(Pal::HwPipePostIndexFetch, *timestampMemoryInfo.pGpuMemory, timestampMemoryOffset);
+#else
         pCmdBuffer->CmdWriteTimestamp(Pal::HwPipeTop, *timestampMemoryInfo.pGpuMemory, timestampMemoryOffset);
+#endif
 
         result = pCmdBuffer->End();
     }
@@ -4475,6 +4482,11 @@ Result GpaSession::AppendSpmTraceData(
     ) const
 {
     Result result = Result::Success;
+#if USE_SPM_DB_V2
+    using SpmDbChunk = SqttFileChunkSpmDb;
+#else
+    using SpmDbChunk = SqttFileChunkSpmDbV1;
+#endif
 
     // Initialize the Sqtt chunk, get the spm trace results and add to the file.
     gpusize spmDataSize   = 0;
@@ -4484,35 +4496,41 @@ Result GpaSession::AppendSpmTraceData(
     if (pRgpOutput != nullptr)
     {
         // Header for spm chunk.
-        if (static_cast<gpusize>(*pCurFileOffset + sizeof(SqttFileChunkSpmDb) + spmDataSize) > bufferSize)
+        if (static_cast<gpusize>(*pCurFileOffset + sizeof(SpmDbChunk) + spmDataSize) > bufferSize)
         {
             result = Result::ErrorOutOfMemory;
         }
         else
         {
             // Write the chunk header first.
-            SqttFileChunkSpmDb spmDbChunk               = { };
+            SpmDbChunk spmDbChunk               = { };
             spmDbChunk.header.chunkIdentifier.chunkType = SQTT_FILE_CHUNK_TYPE_SPM_DB;
-            spmDbChunk.header.sizeInBytes               = static_cast<int32>(sizeof(SqttFileChunkSpmDb) + spmDataSize);
+            spmDbChunk.header.sizeInBytes               = static_cast<int32>(sizeof(SpmDbChunk) + spmDataSize);
             spmDbChunk.numTimestamps                    = static_cast<uint32>(numSpmSamples);
             spmDbChunk.numSpmCounterInfo                = pTraceSample->GetNumSpmCounters();
             spmDbChunk.samplingInterval                 = pTraceSample->GetSpmSampleInterval();
+
+#if USE_SPM_DB_V2
             spmDbChunk.preambleSize                     = sizeof(SqttFileChunkSpmDb);
             spmDbChunk.spmCounterInfoSize               = sizeof(SpmCounterInfo);
 
             spmDbChunk.header.majorVersion = RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_SPM_DB].majorVersion;
             spmDbChunk.header.minorVersion = RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_SPM_DB].minorVersion;
+#else
+            spmDbChunk.header.majorVersion = SpmDbV1Version.majorVersion;
+            spmDbChunk.header.minorVersion = SpmDbV1Version.minorVersion;
+#endif
 
-            memcpy(Util::VoidPtrInc(pRgpOutput, static_cast<size_t>(*pCurFileOffset)), &spmDbChunk, sizeof(spmDbChunk));
+            memcpy(Util::VoidPtrInc(pRgpOutput, static_cast<size_t>(*pCurFileOffset)), &spmDbChunk, sizeof(SpmDbChunk));
 
-            size_t curWriteOffset = static_cast<size_t>(*pCurFileOffset + sizeof(SqttFileChunkSpmDb));
+            size_t curWriteOffset = static_cast<size_t>(*pCurFileOffset + sizeof(SpmDbChunk));
 
             result = pTraceSample->GetSpmTraceResults(Util::VoidPtrInc(pRgpOutput, curWriteOffset),
                                                       (bufferSize - curWriteOffset));
         }
     }
 
-    (*pCurFileOffset) += (sizeof(SqttFileChunkSpmDb) + spmDataSize);
+    (*pCurFileOffset) += (sizeof(SpmDbChunk) + spmDataSize);
 
     return result;
 }

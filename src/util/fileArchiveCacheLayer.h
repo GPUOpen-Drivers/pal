@@ -70,10 +70,6 @@ private:
     PAL_DISALLOW_DEFAULT_CTOR(FileArchiveCacheLayer);
     PAL_DISALLOW_COPY_AND_ASSIGN(FileArchiveCacheLayer);
 
-    // Constants
-    static constexpr size_t        MinExpectedHeaders   = 256;
-    static constexpr size_t        HashTableBucketCount = 0x4000;
-
     // Helper type for ArchiveEntryHeader::entryKey
     struct EntryKey
     {
@@ -83,9 +79,9 @@ private:
     // Container types
     struct Entry
     {
-        uint64 ordinalId;
-        size_t dataSize;
-        size_t storeSize;
+        uint32 ordinalId;
+        uint32 dataSize;
+        uint32 storeSize;
     };
     using EntryMap = HashMap<EntryKey,
                              Entry,
@@ -101,6 +97,9 @@ private:
     // Header refresh
     Result AddHeaderToTable(const ArchiveEntryHeader& header);
     Result RefreshHeaders();
+
+    // Helper function for constructor
+    static uint32 GetHashMapNumBuckets(const IArchiveFile* pArchiveFile);
 
     // Invariants that must be passed in by ctor
     IArchiveFile* const  m_pArchivefile;

@@ -54,6 +54,13 @@ private:
     PAL_DISALLOW_COPY_AND_ASSIGN(SettingsLoader);
     PAL_DISALLOW_DEFAULT_CTOR(SettingsLoader);
 
+    virtual bool ReadSetting(
+        const char*          pSettingName,
+        void*                pValue,
+        Util::ValueType      valueType,
+        size_t               bufferSize,
+        InternalSettingScope settingType) override;
+
     // Generate the settings hash which is based on HW-specific setting.
     void GenerateSettingHash();
 

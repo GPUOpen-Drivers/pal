@@ -33,6 +33,7 @@
 
 #include "pal.h"
 #include "palDevice.h"
+#include "palInlineFuncs.h"
 #include "palPlatform.h"
 #include "palHashMap.h"
 #include "palMetroHash.h"
@@ -164,6 +165,19 @@ protected:
 private:
     PAL_DISALLOW_COPY_AND_ASSIGN(ISettingsLoader);
     PAL_DISALLOW_DEFAULT_CTOR(ISettingsLoader);
+
+    // This is a wrapper that should be implemented by different platform to
+    // read initial Settings user-values from a source on local machine, and
+    // is called by Settings generated code.
+    virtual bool ReadSetting(
+        const char*          pSettingName,
+        void*                pValue,
+        Util::ValueType      valueType,
+        size_t               bufferSize,
+        InternalSettingScope settingType)
+    {
+        return false;
+    }
 
     // auto-generated functions
     virtual void SetupDefaults() = 0;

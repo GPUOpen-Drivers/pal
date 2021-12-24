@@ -2886,6 +2886,36 @@ void CmdBuffer::ReplayCmdCopyMemory(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdCopyMemoryByGpuVa(
+    gpusize                 srcGpuVirtAddr,
+    gpusize                 dstGpuVirtAddr,
+    uint32                  regionCount,
+    const MemoryCopyRegion* pRegions)
+{
+    HandleBarrierBlt(false, true);
+
+    InsertToken(CmdBufCallId::CmdCopyMemoryByGpuVa);
+    InsertToken(srcGpuVirtAddr);
+    InsertToken(dstGpuVirtAddr);
+    InsertTokenArray(pRegions, regionCount);
+
+    HandleBarrierBlt(false, false);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdCopyMemoryByGpuVa(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    auto                    srcGpuVirtAddr = ReadTokenVal<gpusize>();
+    auto                    dstGpuVirtAddr = ReadTokenVal<gpusize>();
+    const MemoryCopyRegion* pRegions       = nullptr;
+    auto                    regionCount    = ReadTokenArray(&pRegions);
+
+    pTgtCmdBuffer->CmdCopyMemoryByGpuVa(srcGpuVirtAddr, dstGpuVirtAddr, regionCount, pRegions);
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdCopyTypedBuffer(
     const IGpuMemory&            srcGpuMemory,
     const IGpuMemory&            dstGpuMemory,
@@ -4783,6 +4813,7 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdUpdateBusAddressableMemoryMarker,
         &CmdBuffer::ReplayCmdFillMemory,
         &CmdBuffer::ReplayCmdCopyMemory,
+        &CmdBuffer::ReplayCmdCopyMemoryByGpuVa,
         &CmdBuffer::ReplayCmdCopyTypedBuffer,
         &CmdBuffer::ReplayCmdCopyRegisterToMemory,
         &CmdBuffer::ReplayCmdCopyImage,

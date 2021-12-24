@@ -426,8 +426,8 @@ void ComputeCmdBuffer::CmdMemoryAtomic(
 }
 
 // =====================================================================================================================
-// Issues either an end-of-pipe timestamp or a start of pipe timestamp event.  Writes the results to the pGpuMemory +
-// destOffset.
+// Issues an end-of-pipe timestamp event or immediately copies the current time. Writes the results to the
+// pMemObject + destOffset.
 void ComputeCmdBuffer::CmdWriteTimestamp(
     HwPipePoint       pipePoint,
     const IGpuMemory& dstGpuMemory,
@@ -436,7 +436,11 @@ void ComputeCmdBuffer::CmdWriteTimestamp(
     const gpusize address   = dstGpuMemory.Desc().gpuVirtAddr + dstOffset;
     uint32*       pCmdSpace = m_cmdStream.ReserveCommands();
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 697
+    if (pipePoint <= HwPipePreCs)
+#else
     if (pipePoint == HwPipeTop)
+#endif
     {
         pCmdSpace += m_cmdUtil.BuildCopyData(COPY_DATA_SEL_DST_ASYNC_MEMORY,
                                              address,
@@ -474,7 +478,11 @@ void ComputeCmdBuffer::CmdWriteImmediate(
 {
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 697
+    if (pipePoint <= HwPipePreCs)
+#else
     if (pipePoint == HwPipeTop)
+#endif
     {
         pCmdSpace += m_cmdUtil.BuildCopyData(COPY_DATA_SEL_DST_ASYNC_MEMORY,
                                              address,

@@ -496,7 +496,7 @@ for setting in settingsData["Settings"]:
         for field in setting["Structure"]:
             if "ValidValues" in field:
                 enumCode += ifDefTmp
-                enumCode += defineEnum(field["ValidValues"])
+                enumCode += defineEnum(field["ValidValues"], "uint32")
                 enumCode += endDefTmp
 
     ###################################################################################################################

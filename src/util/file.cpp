@@ -259,7 +259,7 @@ Result File::Read(
     {
         const size_t bytesRead = fread(pBuffer, 1, bufferSize, m_pFileHandle);
 
-        if (bytesRead != bufferSize)
+        if (ferror(m_pFileHandle) != 0)
         {
             result = ConvertErrno(errno);
         }
@@ -450,6 +450,49 @@ bool File::Exists(
     Stat fileStatus{};
     const Result result = GetStat(pFilename, &fileStatus);
     return (result == Result::Success);
+}
+
+// =====================================================================================================================
+// Reads a file into memory.
+Result File::ReadFile(
+    const char* pFilename,
+    void*       pData,
+    size_t      dataSize,
+    size_t*     pBytesRead,
+    bool        binary)
+{
+    PAL_ASSERT(pFilename != nullptr);
+    PAL_ASSERT(pData != nullptr);
+    const size_t fileSize = GetFileSize(pFilename);
+    Result result = Result::ErrorUnknown;
+
+    if (dataSize < fileSize)
+    {
+        result = Result::ErrorInvalidMemorySize;
+    }
+    else
+    {
+        File file;
+        result = file.Open(pFilename, FileAccessMode::FileAccessRead | (binary ? FileAccessMode::FileAccessBinary : 0));
+        if (result == Result::Success)
+        {
+            size_t bytesRead = 0;
+            result = file.Read(pData, fileSize, &bytesRead);
+            if (result == Util::Result::Success)
+            {
+                if (binary && (bytesRead != fileSize))
+                {
+                    result = Result::ErrorUnknown;
+                }
+                else if (pBytesRead != nullptr)
+                {
+                    *pBytesRead = bytesRead;
+                }
+            }
+        }
+    }
+
+    return result;
 }
 
 } // Util

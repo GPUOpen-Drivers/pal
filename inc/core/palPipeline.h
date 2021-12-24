@@ -154,6 +154,20 @@ enum class BinningOverride : uint32
     Count
 };
 
+/// Enumerates the depth clamping modes a pipeline can use.
+enum class DepthClampMode : uint32
+{
+    Viewport    = 0x0,  ///< Clamps to the viewport min/max depth bounds
+    _None       = 0x1,  ///< Disables depth clamping
+    ZeroToOne   = 0x2,  ///< Clamps between 0.0 and 1.0.
+
+    // Unfortunately for Linux clients, X.h includes a "#define None 0" macro.  Clients have their choice of either
+    // undefing None before including this header or using _None when dealing with PAL.
+#ifndef None
+    None = _None,       ///< Disables depth clamping
+#endif
+};
+
 /// Common flags controlling creation of both compute and graphics pipeline.
 union PipelineCreateFlags
 {
@@ -293,7 +307,15 @@ struct GraphicsPipelineCreateInfo
                                                    ///  axis-aligned line end caps during line rasterization.
         BinningOverride binningOverride;           ///< Binning setting for this pipeline.
 
-        bool            depthClampDisable;         ///< Disable depth clamping to viewport min/max depth
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 693
+        union
+        {
+#endif
+            DepthClampMode depthClampMode;         ///< Depth clamping behavior
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 693
+            bool depthClampDisable;                ///< Disable depth clamping to viewport min/max depth
+        };
+#endif
         uint8           clipDistMask;              ///< Mask to indicate the clipDistance.
         PsShadingRate   forcedShadingRate;         ///< Forced PS shading rate
 

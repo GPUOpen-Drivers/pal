@@ -41,9 +41,9 @@ namespace Gfx9
 static constexpr ME_EVENT_WRITE_event_index_enum VgtEventIndex[]=
 {
     event_index__me_event_write__other,                                  // 0x0: Reserved_0x00,
-    event_index__me_event_write__sample_streamoutstats__GFX09_GFX10CORE, // 0x1: SAMPLE_STREAMOUTSTATS1,
-    event_index__me_event_write__sample_streamoutstats__GFX09_GFX10CORE, // 0x2: SAMPLE_STREAMOUTSTATS2,
-    event_index__me_event_write__sample_streamoutstats__GFX09_GFX10CORE, // 0x3: SAMPLE_STREAMOUTSTATS3,
+    event_index__me_event_write__sample_streamoutstats__GFX09_10,        // 0x1: SAMPLE_STREAMOUTSTATS1,
+    event_index__me_event_write__sample_streamoutstats__GFX09_10,        // 0x2: SAMPLE_STREAMOUTSTATS2,
+    event_index__me_event_write__sample_streamoutstats__GFX09_10,        // 0x3: SAMPLE_STREAMOUTSTATS3,
     event_index__me_event_write__other,                                  // 0x4: CACHE_FLUSH_TS,
     event_index__me_event_write__other,                                  // 0x5: CONTEXT_DONE,
     event_index__me_event_write__other,                                  // 0x6: CACHE_FLUSH,
@@ -72,7 +72,7 @@ static constexpr ME_EVENT_WRITE_event_index_enum VgtEventIndex[]=
     event_index__me_event_write__other,                                  // 0x1d: BIN_CONF_OVERRIDE_CHECK,
     event_index__me_event_write__sample_pipelinestat,                    // 0x1e: SAMPLE_PIPELINESTAT,
     event_index__me_event_write__other,                                  // 0x1f: SO_VGTSTREAMOUT_FLUSH,
-    event_index__me_event_write__sample_streamoutstats__GFX09_GFX10CORE, // 0x20: SAMPLE_STREAMOUTSTATS,
+    event_index__me_event_write__sample_streamoutstats__GFX09_10,        // 0x20: SAMPLE_STREAMOUTSTATS,
     event_index__me_event_write__other,                                  // 0x21: RESET_VTX_CNT,
     event_index__me_event_write__other,                                  // 0x22: BLOCK_CONTEXT_DONE,
     event_index__me_event_write__other,                                  // 0x23: CS_CONTEXT_DONE,
@@ -852,15 +852,15 @@ size_t CmdUtil::BuildClearState(
     PFP_CLEAR_STATE_cmd_enum command,
     void*                    pBuffer) // [out] Build the PM4 packet in this buffer.
 {
-    static_assert(PM4_PFP_CLEAR_STATE_SIZEDW__CORE == PM4_ME_CLEAR_STATE_SIZEDW__CORE,
+    static_assert(PM4_PFP_CLEAR_STATE_SIZEDW__HASCLEARSTATE == PM4_ME_CLEAR_STATE_SIZEDW__HASCLEARSTATE,
                   "Clear state packets don't match between PFP and ME!");
 
-    constexpr uint32 PacketSize = PM4_PFP_CLEAR_STATE_SIZEDW__CORE;
+    constexpr uint32 PacketSize = PM4_PFP_CLEAR_STATE_SIZEDW__HASCLEARSTATE;
     auto*const       pPacket    = static_cast<PM4_PFP_CLEAR_STATE*>(pBuffer);
 
-    pPacket->ordinal1.header.u32All = (Type3Header(IT_CLEAR_STATE, PacketSize)).u32All;
+    pPacket->ordinal1.header.u32All = (Type3Header(IT_CLEAR_STATE__HASCLEARSTATE, PacketSize)).u32All;
     pPacket->ordinal2.u32All        = 0;
-    pPacket->ordinal2.bitfields.cmd = command;
+    pPacket->ordinal2.bitfields.hasClearState.cmd = command;
 
     return PacketSize;
 }
@@ -973,33 +973,6 @@ size_t CmdUtil::BuildContextControl(
     return PacketSize;
 }
 
-// =====================================================================================================================
-size_t CmdUtil::BuildCopyDataGraphics(
-    uint32                        engineSel,
-    ME_COPY_DATA_dst_sel_enum     dstSel,
-    gpusize                       dstAddr,
-    ME_COPY_DATA_src_sel_enum     srcSel,
-    gpusize                       srcAddr,
-    ME_COPY_DATA_count_sel_enum   countSel,
-    ME_COPY_DATA_wr_confirm_enum  wrConfirm,
-    void*                         pBuffer)
-{
-    return BuildCopyData(
-        EngineTypeUniversal, engineSel, dstSel, dstAddr, srcSel, srcAddr, countSel, wrConfirm, pBuffer);
-}
-
-// =====================================================================================================================
-size_t CmdUtil::BuildCopyDataCompute(
-    MEC_COPY_DATA_dst_sel_enum     dstSel,
-    gpusize                        dstAddr,
-    MEC_COPY_DATA_src_sel_enum     srcSel,
-    gpusize                        srcAddr,
-    MEC_COPY_DATA_count_sel_enum   countSel,
-    MEC_COPY_DATA_wr_confirm_enum  wrConfirm,
-    void*                          pBuffer)
-{
-    return BuildCopyData(EngineTypeCompute, 0, dstSel, dstAddr, srcSel, srcAddr, countSel, wrConfirm, pBuffer);
-}
 // =====================================================================================================================
 // Builds a COPY_DATA packet for the compute/ graphics engine. Returns the size, in DWORDs, of the assembled PM4 command
 size_t CmdUtil::BuildCopyData(
@@ -2128,7 +2101,7 @@ size_t CmdUtil::BuildNonSampleEventWrite(
                 static_cast<uint32>(event_index__mec_event_write__sample_pipelinestat)));
 
     // If this trips, the caller needs to use the BuildSampleEventWrite() routine instead.
-    PAL_ASSERT(VgtEventIndex[vgtEvent] != event_index__me_event_write__sample_streamoutstats__GFX09_GFX10CORE);
+    PAL_ASSERT(VgtEventIndex[vgtEvent] != event_index__me_event_write__sample_streamoutstats__GFX09_10);
 
     // Don't use PM4_ME_EVENT_WRITE_SIZEDW__CORE here!  The official packet definition contains extra dwords
     // for functionality that is only required for "sample" type events.
@@ -2193,19 +2166,17 @@ size_t CmdUtil::BuildSampleEventWrite(
                (vgtEvent == SAMPLE_STREAMOUTSTATS1)  ||
                (vgtEvent == SAMPLE_STREAMOUTSTATS2)  ||
                (vgtEvent == SAMPLE_STREAMOUTSTATS3)  ||
-               (vgtEvent == ZPASS_DONE__GFX09)       ||
-               (vgtEvent == 0x9)                     ||
+               (vgtEvent == ZPASS_DONE__GFX09_10)    ||
                vsPartialFlushValid);
 
-    static_assert(ZPASS_DONE__GFX09 == ZPASS_DONE__GFX10CORE, "VGT event enums don't match!");
     PAL_ASSERT(vgtEvent != 0x9);
 
     const bool vsPartialFlushEventIndexValid = false;
 
     PAL_ASSERT(
-        (VgtEventIndex[vgtEvent] == event_index__me_event_write__pixel_pipe_stat_control_or_dump)        ||
-        (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_pipelinestat)                    ||
-        (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_streamoutstats__GFX09_GFX10CORE) ||
+        (VgtEventIndex[vgtEvent] == event_index__me_event_write__pixel_pipe_stat_control_or_dump) ||
+        (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_pipelinestat)             ||
+        (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_streamoutstats__GFX09_10) ||
         vsPartialFlushEventIndexValid);
 
     // Event-write packets destined for the compute queue can only use some events.
@@ -3216,10 +3187,9 @@ size_t CmdUtil::BuildReleaseMem(
         m_device.Settings().waDummyZpassDoneBeforeTs)
     {
         const BoundGpuMemory& dummyMemory = m_device.DummyZpassDoneMem();
-        static_assert(ZPASS_DONE__GFX09 == ZPASS_DONE__GFX10CORE, "VGT event needs update");
         PAL_ASSERT(dummyMemory.IsBound());
 
-        totalSize += BuildSampleEventWrite(ZPASS_DONE__GFX09,
+        totalSize += BuildSampleEventWrite(ZPASS_DONE__GFX09_10,
                             event_index__me_event_write__pixel_pipe_stat_control_or_dump,
                             releaseMemInfo.engineType,
                             dummyMemory.GpuVirtAddr(),
@@ -3344,7 +3314,7 @@ size_t CmdUtil::ExplicitBuildReleaseMem(
     // If the asserts in this switch statement trip, you will almost certainly hang the GPU
     switch (releaseMemInfo.vgtEvent)
     {
-    case FLUSH_SX_TS__CORE:
+    case FLUSH_SX_TS:
     case FLUSH_AND_INV_DB_DATA_TS:
     case FLUSH_AND_INV_CB_DATA_TS:
         PAL_ASSERT(Pal::Device::EngineSupportsGraphics(releaseMemInfo.engineType));
@@ -3415,7 +3385,7 @@ size_t CmdUtil::ExplicitBuildReleaseMem(
         packet.ordinal8.bitfields.gfx10Plus.int_ctxid = 0;
 
         {
-            packet.ordinal2.bitfields.gfx10Core.gcr_cntl = releaseMemInfo.gcrCntl;
+            packet.ordinal2.bitfields.gfx10.gcr_cntl = releaseMemInfo.gcrCntl;
         }
     }
 
@@ -3874,7 +3844,7 @@ size_t CmdUtil::BuildStrmoutBufferUpdate(
             pPacket->ordinal2.bitfields.update_memory =
                 update_memory__pfp_strmout_buffer_update__update_memory_at_dst_address;
             pPacket->ordinal3.u32All                  = LowPart(dstGpuVirtAddr);
-            PAL_ASSERT(pPacket->ordinal3.bitfields.hasCe.reserved1 == 0);
+            PAL_ASSERT(pPacket->ordinal3.bitfields.gfx09_10.reserved1 == 0);
             pPacket->ordinal4.dst_address_hi          = HighPart(dstGpuVirtAddr);
             pPacket->ordinal2.bitfields.data_type     = DataType;
             break;

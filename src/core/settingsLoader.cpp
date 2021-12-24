@@ -104,6 +104,22 @@ Result SettingsLoader::Init()
 }
 
 // =====================================================================================================================
+bool SettingsLoader::ReadSetting(
+    const char*          pSettingName,
+    void*                pValue,
+    Util::ValueType      valueType,
+    size_t               bufferSize,
+    InternalSettingScope settingType)
+{
+    return m_pDevice->ReadSetting(
+        pSettingName,
+        valueType,
+        pValue,
+        InternalSettingScope::PrivatePalKey,
+        bufferSize);
+}
+
+// =====================================================================================================================
 // Overrides defaults for the settings based on runtime information.
 void SettingsLoader::OverrideDefaults()
 {

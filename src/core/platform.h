@@ -35,6 +35,7 @@
 
 #if PAL_BUILD_RDF
 #include "palTraceSession.h"
+#include "gpuUtil/asicInfoTraceSource.h"
 #endif
 
 // DevDriver forward declarations.
@@ -271,8 +272,17 @@ private:
     Result InitTraceSession();
     void DestroyTraceSession();
 
+    // Register the "default" trace sources(eg. GpuInfo) on start-up, to reduce burden on clients and
+    // provide boilerplate info to Tools
+    Result InitDefaultTraceSources();
+    Result RegisterDefaultTraceSources();
+    void DestroyDefaultTraceSources();
+
     // TraceSession that is centrally owned and managed by PAL
     GpuUtil::TraceSession* m_pTraceSession;
+
+    // Trace source that sends device info to PAL-owned TraceSession
+    GpuUtil::AsicInfoTraceSource* m_pAsicInfoTraceSource;
 #endif
 
     Developer::Callback    m_pfnDeveloperCb;

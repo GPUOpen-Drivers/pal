@@ -423,6 +423,10 @@ public:
         Extent2d        imageExtent) const override
         { return m_pNextLayer->IsImplicitFullscreenOwnershipSafe(hDisplay, hWindow, imageExtent); }
 
+    virtual Result QueryCurrentDisplayMode(
+        Extent2d* pDisplayModeSize) const override
+        { return m_pNextLayer->QueryCurrentDisplayMode(pDisplayModeSize); }
+
     virtual Result TakeFullscreenOwnership(
         const IImage& image) override
         { return m_pNextLayer->TakeFullscreenOwnership(*NextImage(&image)); }
@@ -1100,8 +1104,7 @@ public:
     virtual Result InitBusAddressableGpuMemory(
         IQueue*           pQueue,
         uint32            gpuMemCount,
-        IGpuMemory*const* ppGpuMemList) override
-        { return m_pNextLayer->InitBusAddressableGpuMemory(pQueue, gpuMemCount, ppGpuMemList); }
+        IGpuMemory*const* ppGpuMemList) override;
 
     virtual Result CreateVirtualDisplay(
         const VirtualDisplayInfo& virtualDisplayInfo,
@@ -1433,6 +1436,18 @@ public:
                                     *NextGpuMemory(&dstGpuMemory),
                                     regionCount,
                                     pRegions);
+    }
+
+    virtual void CmdCopyMemoryByGpuVa(
+        gpusize                 srcGpuVirtAddr,
+        gpusize                 dstGpuVirtAddr,
+        uint32                  regionCount,
+        const MemoryCopyRegion* pRegions) override
+    {
+        m_pNextLayer->CmdCopyMemoryByGpuVa(srcGpuVirtAddr,
+                                           dstGpuVirtAddr,
+                                           regionCount,
+                                           pRegions);
     }
 
     virtual void CmdCopyImage(
@@ -2477,6 +2492,8 @@ public:
 
     const IDevice* GetDevice()    const { return m_pDevice; }
     IGpuMemory*    GetNextLayer() const { return m_pNextLayer; }
+
+    void PopulateNextLayerDesc() { m_desc = m_pNextLayer->Desc(); }
 
 protected:
     virtual ~GpuMemoryDecorator() {}

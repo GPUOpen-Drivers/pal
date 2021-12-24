@@ -217,7 +217,6 @@ Device::Device(
 #endif
     m_force32BitVaSpace(pPlatform->Force32BitVaSpace()),
     m_disableSwapChainAcquireBeforeSignaling(false),
-    m_localInvDropCpuWrites(false),
     m_pSettingsLoader(nullptr),
 #if defined(__unix__)
     m_settingsMgr(SettingsFileName, pPlatform),
@@ -2168,6 +2167,10 @@ Result Device::GetProperties(
                 m_chipProperties.imageProperties.flags.supportsCornerSampling;
 
         pInfo->imageProperties.numSwizzleEqs   = m_chipProperties.imageProperties.numSwizzleEqs;
+
+        PAL_ASSERT(pInfo->imageProperties.numSwizzleEqs > 0);
+        PAL_ASSERT(pInfo->imageProperties.numSwizzleEqs <= 0xFF);
+
         pInfo->imageProperties.pSwizzleEqs     = m_chipProperties.imageProperties.pSwizzleEqs;
 
         for (uint32 idx = 0; idx < static_cast<uint32>(ImageTiling::Count); ++idx)

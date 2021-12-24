@@ -48,8 +48,7 @@ typedef union PM4_ME_TYPE_3_HEADER
         uint32_t predicate      :  1;
         uint32_t shaderType     :  1;
         uint32_t resetFilterCam :  1;
-        uint32_t reserved1      :  1;
-        uint32_t reserved2      :  4;
+        uint32_t reserved1      :  5;
         uint32_t opcode         :  8;
         uint32_t count          : 14;
         uint32_t type           :  2;
@@ -412,10 +411,10 @@ constexpr unsigned int PM4_ME_ATOMIC_MEM_SIZEDW__CORE = 9;
 // ------------------------------------ ME_CLEAR_STATE_cmd_enum ------------------------------------
 enum ME_CLEAR_STATE_cmd_enum
 {
-    cmd__me_clear_state__clear_state      =  0,
-    cmd__me_clear_state__push_state       =  1,
-    cmd__me_clear_state__pop_state        =  2,
-    cmd__me_clear_state__push_clear_state =  3,
+    cmd__me_clear_state__clear_state__HASCLEARSTATE      =  0,
+    cmd__me_clear_state__push_state__HASCLEARSTATE       =  1,
+    cmd__me_clear_state__pop_state__HASCLEARSTATE        =  2,
+    cmd__me_clear_state__push_clear_state__HASCLEARSTATE =  3,
 };
 
 // -------------------------------------- PM4_ME_CLEAR_STATE --------------------------------------
@@ -435,13 +434,13 @@ typedef struct PM4_ME_CLEAR_STATE
             {
                 ME_CLEAR_STATE_cmd_enum cmd        :  4;
                 uint32_t                reserved1  : 28;
-            };
+            } hasClearState;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
 } PM4_ME_CLEAR_STATE;
 
-constexpr unsigned int PM4_ME_CLEAR_STATE_SIZEDW__CORE = 2;
+constexpr unsigned int PM4_ME_CLEAR_STATE_SIZEDW__HASCLEARSTATE = 2;
 
 // ---------------------------------- ME_COND_WRITE_function_enum ----------------------------------
 enum ME_COND_WRITE_function_enum
@@ -1319,11 +1318,11 @@ constexpr unsigned int PM4_ME_DRAW_INDIRECT_MULTI_SIZEDW__CORE  = 2;
 // -------------------------------- ME_EVENT_WRITE_event_index_enum --------------------------------
 enum ME_EVENT_WRITE_event_index_enum
 {
-    event_index__me_event_write__other                                              =  0,
-    event_index__me_event_write__pixel_pipe_stat_control_or_dump                    =  1,
-    event_index__me_event_write__sample_pipelinestat                                =  2,
-    event_index__me_event_write__sample_streamoutstats__GFX09_GFX10CORE             =  3,
-    event_index__me_event_write__cs_vs_ps_partial_flush                             =  4,
+    event_index__me_event_write__other                           =  0,
+    event_index__me_event_write__pixel_pipe_stat_control_or_dump =  1,
+    event_index__me_event_write__sample_pipelinestat             =  2,
+    event_index__me_event_write__sample_streamoutstats__GFX09_10 =  3,
+    event_index__me_event_write__cs_vs_ps_partial_flush          =  4,
 };
 
 // -------------------------------- ME_EVENT_WRITE_counter_id_enum --------------------------------
@@ -2212,14 +2211,10 @@ typedef struct PM4_ME_RELEASE_MEM
             {
                 uint32_t reserved10 :  7;
                 uint32_t wait_dma   :  1;
-                uint32_t reserved11 : 24;
-            } gfx10;
-            struct
-            {
-                uint32_t reserved12 : 12;
+                uint32_t reserved11 :  4;
                 uint32_t gcr_cntl   : 12;
-                uint32_t reserved13 :  8;
-            } gfx10Core;
+                uint32_t reserved12 :  8;
+            } gfx10;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
@@ -2615,7 +2610,7 @@ typedef struct PM4_ME_STRMOUT_BUFFER_UPDATE
             {
                 uint32_t reserved1      :  2;
                 uint32_t dst_address_lo : 30;
-            } hasCe;
+            } gfx09_10;
         } bitfields;
         uint32_t u32All;
     } ordinal3;

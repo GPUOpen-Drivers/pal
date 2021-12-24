@@ -105,7 +105,7 @@ ME_EVENT_WRITE_event_index_enum StreamoutStatsQueryPool::XlateEventIndex(
                (queryType == QueryType::StreamoutStats2) ||
                (queryType == QueryType::StreamoutStats3));
 
-    ME_EVENT_WRITE_event_index_enum eventIndex = event_index__me_event_write__sample_streamoutstats__GFX09_GFX10CORE;
+    ME_EVENT_WRITE_event_index_enum eventIndex = event_index__me_event_write__sample_streamoutstats__GFX09_10;
 
     return eventIndex;
 }

@@ -431,7 +431,12 @@ struct ExternalResourceOpenInfo
                                             ///  instead of fd.
             uint32 isDopp             :  1; ///< This is a Dopp texture, doppDesktopInfo is in use.
             uint32 isDirectCapture    :  1; ///< This is a Direct Capture resource, directCaptureInfo is in use.
-            uint32 reserved           : 28; ///< Reserved for future use.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 696
+            uint32 globalGpuVa        : 1;  ///< The GPU virtual address must be visible to all devices.
+#else
+            uint32 placeholder695     : 1;
+#endif
+            uint32 reserved           : 27; ///< Reserved for future use.
         };
         uint32 u32All;            ///< Flags packed as 32-bit uint.
     } flags;                      ///< External resource open flags.

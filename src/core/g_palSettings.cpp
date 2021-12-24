@@ -663,9 +663,9 @@ void SettingsLoader::ReadSettings()
 void SettingsLoader::RereadSettings()
 {
     // read from the OS adapter for each individual setting
-    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAddr2Disable256BSwizzleModeStr,
-                           Util::ValueType::Boolean,
-                           &m_settings.addr2Disable256BSwizzleMode,
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAddr2Disable4KbSwizzleModeStr,
+                           Util::ValueType::Uint,
+                           &m_settings.addr2Disable4kBSwizzleMode,
                            InternalSettingScope::PrivatePalKey);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pAddr2UseVarSwizzleModeStr,
@@ -1191,7 +1191,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 597957436;
+            component.settingsDataHash = 2177699217;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

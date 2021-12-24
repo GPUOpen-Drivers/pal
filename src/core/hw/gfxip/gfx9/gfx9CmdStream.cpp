@@ -1097,7 +1097,7 @@ uint32* CmdStream::WriteClearState(
 {
     pCmdSpace += m_cmdUtil.BuildClearState(clearMode, pCmdSpace);
 
-    if ((clearMode == cmd__pfp_clear_state__pop_state) && (m_pPm4Optimizer != nullptr))
+    if ((clearMode == cmd__pfp_clear_state__pop_state__HASCLEARSTATE) && (m_pPm4Optimizer != nullptr))
     {
         // We just destroyed all the state, reset the pm4 optimizer
         m_pPm4Optimizer->Reset();

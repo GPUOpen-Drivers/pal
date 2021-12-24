@@ -12,8 +12,8 @@ compile and link against.
 
 ## tl:dr
 
-Find the commands in the next section and run them from console in
-`third_party`.
+Find the commands in the next section and run them from cmd.exe in
+`//depot/stg/gpuopen/gpuopen/third_party`.
 
 ## Importing rapidjson
 
@@ -23,7 +23,11 @@ Here's a quick overview of the process:
 2. Copy the files we want and delete the rest of the git repository
 5. Verify that the integration worked
 
-We'll do this all in the `third_party` directory of `gpuopen`.
+We'll do this all in the `third_party` directory of `gpuopen`. In the depot, it's
+located at `//depot/stg/gpuopen/gpuopen/third_party`. On my machine,
+this is located at`%HOME%/p4/primary/drivers/gpuopen/gpuopen/third_party`.
+YMMV.
+
 Here we will use RapidJSON version 1.1.0, which is tagged in `git` as `v1.1.0`.
 It was released Aug 25, 2016 and was the latest version when integrated in May
 2018.

@@ -419,6 +419,7 @@ Result QuerySystemInfo(
              if (pSystemInfo->cpuLogicalCoreCount == 0)
              {
                  pSystemInfo->cpuLogicalCoreCount = pSystemInfo->cpuPhysicalCoreCount;
+
              }
              pSystemInfo->cpuFrequency = cpuClockSpeedTotal / pSystemInfo->cpuLogicalCoreCount;
         }

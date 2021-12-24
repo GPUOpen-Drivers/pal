@@ -3775,7 +3775,7 @@ void Gfx9Dcc::GetXyzInc(
 
     const Pal::Device& palDevice = *(m_pGfxDevice->Parent());
 
-    if (IsGfx10(palDevice) && (imageType == ImageType::Tex3d))
+    if (IsGfx10Plus(palDevice) && (imageType == ImageType::Tex3d))
     {
         //   SW_Z and SW_R are use the same 256B block dimensions, whether 1d, 2d, or 3d.
         //   3D_D mode has the same dimensions as what's shown for 3D_Z.

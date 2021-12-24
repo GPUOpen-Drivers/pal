@@ -1294,6 +1294,29 @@ xcb_randr_get_screen_resources_cookie_t Dri3LoaderFuncsProxy::pfnXcbRandrGetScre
 }
 
 // =====================================================================================================================
+xcb_randr_get_screen_resources_cookie_t Dri3LoaderFuncsProxy::pfnXcbRandrGetScreenResourcesCurrent(
+    xcb_connection_t*  pConnection,
+    xcb_window_t       window
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_randr_get_screen_resources_cookie_t ret = m_pFuncs->pfnXcbRandrGetScreenResourcesCurrent(pConnection,
+                                                                                          window);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbRandrGetScreenResourcesCurrent,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbRandrGetScreenResourcesCurrent(%p, %x)\n",
+        pConnection,
+        window);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
 xcb_randr_get_screen_resources_reply_t* Dri3LoaderFuncsProxy::pfnXcbRandrGetScreenResourcesReply(
     xcb_connection_t*                        pConnection,
     xcb_randr_get_screen_resources_cookie_t  cookie,
@@ -2335,6 +2358,7 @@ Result Dri3Loader::Init(
             m_library[LibXcbRandr].GetFunction("xcb_randr_create_lease_reply_fds", &m_funcs.pfnXcbRandrCreateLeaseReplyFds);
 #endif
             m_library[LibXcbRandr].GetFunction("xcb_randr_get_screen_resources", &m_funcs.pfnXcbRandrGetScreenResources);
+            m_library[LibXcbRandr].GetFunction("xcb_randr_get_screen_resources_current", &m_funcs.pfnXcbRandrGetScreenResourcesCurrent);
             m_library[LibXcbRandr].GetFunction("xcb_randr_get_screen_resources_reply", &m_funcs.pfnXcbRandrGetScreenResourcesReply);
             m_library[LibXcbRandr].GetFunction("xcb_randr_get_screen_resources_outputs", &m_funcs.pfnXcbRandrGetScreenResourcesOutputs);
             m_library[LibXcbRandr].GetFunction("xcb_randr_get_screen_resources_crtcs", &m_funcs.pfnXcbRandrGetScreenResourcesCrtcs);

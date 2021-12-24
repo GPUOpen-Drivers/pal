@@ -25,6 +25,7 @@
 
 add_library(vam STATIC)
 
+target_sources(vam PRIVATE CMakeLists.txt)
 add_subdirectory(inc)
 add_subdirectory(src)
 

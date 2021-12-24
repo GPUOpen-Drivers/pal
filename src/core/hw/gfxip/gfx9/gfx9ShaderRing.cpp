@@ -476,8 +476,6 @@ gpusize TessFactorBuffer::ComputeAllocationSize() const
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
     const Gfx9PalSettings&   settings  = m_pDevice->Settings();
 
-    // The Tahiti register spec recommends a TF buffer size of 0x2000 DWORDs per shader engine, but discussions
-    // indicate that 0x1000 DWORDs per SE is preferable.
     return (settings.tessFactorBufferSizePerSe * chipProps.gfx9.numShaderEngines * sizeof(uint32));
 }
 
@@ -613,7 +611,7 @@ MeshScratchRing::MeshScratchRing(
     bool          isTmz)
     :
     ShaderRing(pDevice, pSrdTable, isTmz, ShaderRingType::MeshScratch),
-    m_maxThreadgroupsPerChip(1 << CountSetBits(Core::VGT_GS_MAX_WAVE_ID__MAX_WAVE_ID_MASK))
+    m_maxThreadgroupsPerChip(1 << CountSetBits(VGT_GS_MAX_WAVE_ID__MAX_WAVE_ID_MASK))
 {
     BufferSrd*const   pGenericSrd = &m_pSrdTable[static_cast<size_t>(ShaderRingSrd::MeshScratch)];
 

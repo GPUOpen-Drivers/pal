@@ -50,6 +50,10 @@ public:
         OsDisplayHandle hDisplay,
         OsWindowHandle  hWindow,
         Extent2d        imageExtent) const override;
+
+    virtual Result QueryCurrentDisplayMode(
+        Extent2d* pDisplayModeSize) const override;
+
     virtual Result TakeFullscreenOwnership(
         const IImage& image) override;
     virtual Result ReleaseFullscreenOwnership() override;

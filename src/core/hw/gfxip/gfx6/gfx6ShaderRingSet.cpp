@@ -88,20 +88,10 @@ Result ShaderRingSet::Init()
     srdMemCreateInfo.size      = TotalMemSize();
     srdMemCreateInfo.priority  = GpuMemPriority::Normal;
     srdMemCreateInfo.vaRange   = VaRange::DescriptorTable;
-
-    if (m_pDevice->Parent()->LocalInvDropCpuWrites() == false)
-    {
-        srdMemCreateInfo.heaps[0]  = GpuHeapLocal;
-        srdMemCreateInfo.heaps[1]  = GpuHeapGartUswc;
-        srdMemCreateInfo.heaps[2]  = GpuHeapGartCacheable;
-        srdMemCreateInfo.heapCount = 3;
-    }
-    else
-    {
-        srdMemCreateInfo.heaps[0]  = GpuHeapGartUswc;
-        srdMemCreateInfo.heaps[1]  = GpuHeapGartCacheable;
-        srdMemCreateInfo.heapCount = 2;
-    }
+    srdMemCreateInfo.heaps[0]  = GpuHeapLocal;
+    srdMemCreateInfo.heaps[1]  = GpuHeapGartUswc;
+    srdMemCreateInfo.heaps[2]  = GpuHeapGartCacheable;
+    srdMemCreateInfo.heapCount = 3;
 
     GpuMemoryInternalCreateInfo internalInfo = { };
     internalInfo.flags.alwaysResident = 1;
@@ -270,20 +260,10 @@ Result ShaderRingSet::Validate(
             srdMemCreateInfo.size      = TotalMemSize();
             srdMemCreateInfo.priority  = GpuMemPriority::Normal;
             srdMemCreateInfo.vaRange   = VaRange::DescriptorTable;
-
-            if (m_pDevice->Parent()->LocalInvDropCpuWrites() == false)
-            {
-                srdMemCreateInfo.heaps[0]  = GpuHeapLocal;
-                srdMemCreateInfo.heaps[1]  = GpuHeapGartUswc;
-                srdMemCreateInfo.heaps[2]  = GpuHeapGartCacheable;
-                srdMemCreateInfo.heapCount = 3;
-            }
-            else
-            {
-                srdMemCreateInfo.heaps[0]  = GpuHeapGartUswc;
-                srdMemCreateInfo.heaps[1]  = GpuHeapGartCacheable;
-                srdMemCreateInfo.heapCount = 2;
-            }
+            srdMemCreateInfo.heaps[0]  = GpuHeapLocal;
+            srdMemCreateInfo.heaps[1]  = GpuHeapGartUswc;
+            srdMemCreateInfo.heaps[2]  = GpuHeapGartCacheable;
+            srdMemCreateInfo.heapCount = 3;
 
             GpuMemoryInternalCreateInfo internalInfo = { };
             internalInfo.flags.alwaysResident = 1;

@@ -98,6 +98,7 @@ Platform::Platform(
     m_pRgpServer(nullptr),
 #if PAL_BUILD_RDF
     m_pTraceSession(nullptr),
+    m_pAsicInfoTraceSource(nullptr),
 #endif
     m_pfnDeveloperCb(DefaultDeveloperCb),
     m_pClientPrivateData(nullptr),
@@ -131,6 +132,7 @@ Platform::~Platform()
 {
     DestroyDevDriver();
 #if PAL_BUILD_RDF
+    DestroyDefaultTraceSources();
     DestroyTraceSession();
 #endif
 
@@ -362,6 +364,16 @@ Result Platform::Init()
     if (result == Result::Success)
     {
         result = InitTraceSession();
+    }
+
+    if (result == Result::Success)
+    {
+        result = InitDefaultTraceSources();
+    }
+
+    if (result == Result::Success)
+    {
+        result = RegisterDefaultTraceSources();
     }
 #endif
 
@@ -628,6 +640,38 @@ void Platform::DestroyTraceSession()
     if (m_pTraceSession != nullptr)
     {
         PAL_SAFE_DELETE(m_pTraceSession, this);
+    }
+}
+
+// =====================================================================================================================
+Result Platform::InitDefaultTraceSources()
+{
+    Result result = Result::Success;
+    m_pAsicInfoTraceSource = PAL_NEW(GpuUtil::AsicInfoTraceSource, this, AllocInternal) (this);
+
+    if (m_pAsicInfoTraceSource == nullptr)
+    {
+        result = Result::ErrorOutOfMemory;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Register the default trace sources(eg. GpuInfo) on start-up
+Result Platform::RegisterDefaultTraceSources()
+{
+    Result result = m_pTraceSession->RegisterSource(m_pAsicInfoTraceSource);
+    return result;
+}
+
+// =====================================================================================================================
+// Destroy the default trace sources
+void Platform::DestroyDefaultTraceSources()
+{
+    if (m_pAsicInfoTraceSource != nullptr)
+    {
+        PAL_SAFE_DELETE(m_pAsicInfoTraceSource, this);
     }
 }
 #endif

@@ -24,6 +24,7 @@
  **********************************************************************************************************************/
 
 #include "core/device.h"
+#include "core/platform.h"
 #include "core/svmMgr.h"
 #include "palBestFitAllocatorImpl.h"
 

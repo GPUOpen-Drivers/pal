@@ -291,6 +291,16 @@ struct ImageCreateInfo
     MetadataTcCompatMode metadataTcCompatMode; ///< TC compat mode for this image.
     uint32             maxBaseAlign;      ///< Maximum address alignment for this image or zero for an unbounded
                                           ///  alignment.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 694
+    float              imageMemoryBudget; ///< The memoryBudget value used in SW addrlib to determine the minSizeBlk for
+                                          ///  textures. It must be >= 0.0.
+                                          ///  When in [0.0, 1.0), addrlib uses legacy logic to decide minSizeBlk.
+                                          ///  When == 1.0, addrlib uses minimizeAlign.
+                                          ///  When > 1.0, addrlib applies memory budget algorithm.
+                                          ///  Despite 1.5 in tests show significant texture allocation size reduction,
+                                          ///  default value 0.0 (legacy behavior) is recommended if not specified by
+                                          ///  client.
+#endif
 
     struct
     {
@@ -497,6 +507,10 @@ struct SubresLayout
     ///
     /// This value is only valid if supportSplitReleaseAcquire is set in @ref DeviceProperties.
     ImageLayout defaultGfxLayout;
+
+    SwizzledFormat planeFormat; ///< Swizzled format for plane. Planar resource like D32-S8
+                                /// will have different swizzled format per plane.
+
 };
 
 /// Selects a specific subresource of an image resource.

@@ -74,7 +74,7 @@ const RegisterRange Nv10ContextShadowRange[] =
     },
     {
         (HasHwVs::mmVGT_GS_MODE - CONTEXT_SPACE_START),                        // 0xA290 - 0xA29B
-        (Gfx10Core::mmVGT_GS_OUT_PRIM_TYPE - HasHwVs::mmVGT_GS_MODE + 1),
+        (Gfx09_10::mmVGT_GS_OUT_PRIM_TYPE - HasHwVs::mmVGT_GS_MODE + 1),
     },
     {
         (mmVGT_PRIMITIVEID_EN - CONTEXT_SPACE_START),                           // 0xA2A1
@@ -177,7 +177,7 @@ const RegisterRange Navi10NonShadowedRanges[] =
         1
     },
     {
-        Gfx10Core::mmSPI_SHADER_PGM_RSRC4_VS,
+        Gfx10::mmSPI_SHADER_PGM_RSRC4_VS,
         1
     },
     {

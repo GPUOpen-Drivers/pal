@@ -1,0 +1,20 @@
+#pragma once
+
+#include "pal.h"
+
+namespace GpuUtil
+{
+namespace MsaaImageCopy
+{
+
+struct PipelineBinary
+{
+    const void* pBuffer;
+    size_t size;
+};
+
+$PipelineBinaries
+$ElfTables
+
+} // MsaaImageCopy
+} // GpuUtil

@@ -32,5 +32,7 @@ include_guard()
 option(PAL_ENABLE_PRINTS_ASSERTS "Enable print assertions?")
 option(PAL_ENABLE_PRINTS_ASSERTS_DEBUG "Enable print assertions on debug builds?" ON)
 
+option(PAL_ENABLE_LOGGING "Enable debug logging?" OFF)
+
 option(PAL_MEMTRACK "Enable PAL memory tracker?")
 

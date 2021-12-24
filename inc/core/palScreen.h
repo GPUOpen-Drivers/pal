@@ -310,6 +310,14 @@ public:
         OsWindowHandle  hWindow,
         Extent2d        imageExtent) const = 0;
 
+    /// Queries the OS for the current display mode for this screen.
+    ///
+    /// @param [out] pDisplayModeSize  display mode size
+    ///
+    /// @returns Success if can query current display mode size.
+    virtual Result QueryCurrentDisplayMode(
+        Extent2d* pDisplayModeSize) const = 0;
+
     /// Takes fullscreen ownership of this screen.  Application enters exclusive fullscreen mode.
     ///
     /// This function must be called before fullscreen presents (i.e., flip presents) can be performed on this screen.

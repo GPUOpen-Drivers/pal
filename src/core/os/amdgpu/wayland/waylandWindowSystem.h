@@ -28,7 +28,7 @@
 #include "core/os/amdgpu/amdgpuDevice.h"
 #include "core/os/amdgpu/amdgpuImage.h"
 #include "core/os/amdgpu/amdgpuWindowSystem.h"
-#include "g_waylandLoader.h"
+#include "core/os/amdgpu/wayland/g_waylandLoader.h"
 #include "palFile.h"
 #include "palHashSet.h"
 

@@ -120,7 +120,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.numPsWavesSoftGroupedPerCu = 4;
     m_settings.numVsWavesSoftGroupedPerCu = 0;
     m_settings.switchVgtOnDraw = false;
-    m_settings.tessFactorBufferSizePerSe = 8192;
+    m_settings.tessFactorBufferSizePerSe = 0x3000;
     m_settings.disableTessDonutWalkPattern = 0;
     m_settings.useMaxOffchipLdsBuffers = true;
     m_settings.vsHalfPackThreshold = 16;
@@ -2149,7 +2149,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 1087103958;
+            component.settingsDataHash = 2164369015;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

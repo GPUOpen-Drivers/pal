@@ -59,23 +59,23 @@ enum rdfCompression
 
 int RDF_EXPORT rdfStreamOpenFile(const char* filename, rdfStream** stream);
 int RDF_EXPORT rdfStreamCreateFile(const char* filename, rdfStream** stream);
-int RDF_EXPORT rdfStreamFromReadOnlyMemory(const std::size_t size,
+int RDF_EXPORT rdfStreamFromReadOnlyMemory(const std::int64_t size,
                                            const void* buffer,
                                            rdfStream** stream);
 int RDF_EXPORT rdfStreamCreateMemoryStream(rdfStream** stream);
 int RDF_EXPORT rdfStreamClose(rdfStream** stream);
 
 int RDF_EXPORT rdfStreamRead(rdfStream*,
-                             const std::size_t count,
+                             const std::int64_t count,
                              void* buffer,
-                             std::size_t* bytesRead);
+                             std::int64_t* bytesRead);
 int RDF_EXPORT rdfStreamWrite(rdfStream*,
-                              const std::size_t count,
+                              const std::int64_t count,
                               const void* buffer,
-                              std::size_t* bytesWritten);
-int RDF_EXPORT rdfStreamTell(rdfStream* stream, std::size_t* position);
-int RDF_EXPORT rdfStreamSeek(rdfStream* stream, const std::size_t offset);
-int RDF_EXPORT rdfStreamGetSize(rdfStream* stream, std::size_t* size);
+                              std::int64_t* bytesWritten);
+int RDF_EXPORT rdfStreamTell(rdfStream* stream, std::int64_t* position);
+int RDF_EXPORT rdfStreamSeek(rdfStream* stream, const std::int64_t offset);
+int RDF_EXPORT rdfStreamGetSize(rdfStream* stream, std::int64_t* size);
 
 int RDF_EXPORT rdfChunkFileOpenFile(const char* filename, rdfChunkFile** handle);
 int RDF_EXPORT rdfChunkFileOpenStream(rdfStream* stream, rdfChunkFile** handle);
@@ -98,14 +98,14 @@ int RDF_EXPORT rdfChunkFileReadChunkData(rdfChunkFile* handle,
 int RDF_EXPORT rdfChunkFileGetChunkHeaderSize(rdfChunkFile* handle,
                                               const char* chunkId,
                                               const int chunkIndex,
-                                              std::size_t* size);
+                                              std::int64_t* size);
 int RDF_EXPORT rdfChunkFileGetChunkDataSize(rdfChunkFile* handle,
                                             const char* chunkId,
                                             const int chunkIndex,
-                                            std::size_t* size);
+                                            std::int64_t* size);
 int RDF_EXPORT rdfChunkFileGetChunkCount(rdfChunkFile* handle,
                                          const char* chunkId,
-                                         std::size_t* size);
+                                         std::int64_t* count);
 
 int RDF_EXPORT rdfChunkFileContainsChunk(rdfChunkFile* handle,
                                          const char* chunkId,
@@ -119,13 +119,13 @@ int RDF_EXPORT rdfChunkFileDestroyChunkIterator(rdfChunkFileIterator** iterator)
 int RDF_EXPORT rdfChunkFileIteratorAdvance(rdfChunkFileIterator* iterator);
 int RDF_EXPORT rdfChunkFileIteratorIsAtEnd(rdfChunkFileIterator* iterator, int* atEnd);
 int RDF_EXPORT rdfChunkFileIteratorGetChunkIdentifier(rdfChunkFileIterator* iterator,
-                                                      char identifier[16]);
+                                                      char identifier[RDF_IDENTIFIER_SIZE]);
 int RDF_EXPORT rdfChunkFileIteratorGetChunkIndex(rdfChunkFileIterator* iterator, int* index);
 
 struct rdfChunkCreateInfo
 {
     char identifier[RDF_IDENTIFIER_SIZE];
-    std::size_t headerSize;
+    std::int64_t headerSize;
     const void* pHeader;
     rdfCompression compression;
     std::uint32_t version;
@@ -137,13 +137,13 @@ int RDF_EXPORT rdfChunkFileWriterDestroy(rdfChunkFileWriter** writer);
 int RDF_EXPORT rdfChunkFileWriterBeginChunk(rdfChunkFileWriter* writer,
                                             const rdfChunkCreateInfo* info);
 int RDF_EXPORT rdfChunkFileWriterAppendToChunk(rdfChunkFileWriter* writer,
-                                               const std::size_t size,
+                                               const std::int64_t size,
                                                const void* data);
 int RDF_EXPORT rdfChunkFileWriterEndChunk(rdfChunkFileWriter* writer, int* index);
 
 int RDF_EXPORT rdfChunkFileWriterWriteChunk(rdfChunkFileWriter* writer,
                                             const rdfChunkCreateInfo* info,
-                                            const std::size_t size,
+                                            const std::int64_t size,
                                             const void* data,
                                             int* index);
 
@@ -199,7 +199,7 @@ public:
         return result;
     }
 
-    static Stream FromReadOnlyMemory(const std::size_t size, const void* buffer)
+    static Stream FromReadOnlyMemory(const std::int64_t size, const void* buffer)
     {
         Stream result;
         RDF_CHECK_CALL(rdfStreamFromReadOnlyMemory(size, buffer, &result.stream_));
@@ -228,9 +228,9 @@ public:
         }
     }
 
-    std::size_t Read(const std::size_t count, void* buffer)
+    std::int64_t Read(const std::int64_t count, void* buffer)
     {
-        std::size_t bytesRead = 0;
+        std::int64_t bytesRead = 0;
         RDF_CHECK_CALL(rdfStreamRead(stream_, count, buffer, &bytesRead));
 
         return bytesRead;
@@ -242,9 +242,9 @@ public:
         return Read(sizeof(v), &v) == sizeof(v);
     }
 
-    std::size_t Write(const std::size_t count, const void* buffer)
+    std::int64_t Write(const std::int64_t count, const void* buffer)
     {
-        std::size_t bytesWritten = 0;
+        std::int64_t bytesWritten = 0;
         RDF_CHECK_CALL(rdfStreamWrite(stream_, count, buffer, &bytesWritten));
 
         return bytesWritten;
@@ -256,22 +256,22 @@ public:
         return Write(sizeof(v), &v) == sizeof(v);
     }
 
-    std::size_t Tell() const
+    std::int64_t Tell() const
     {
-        std::size_t position = 0;
+        std::int64_t position = 0;
         RDF_CHECK_CALL(rdfStreamTell(stream_, &position));
 
         return position;
     }
 
-    void Seek(const std::size_t offset)
+    void Seek(const std::int64_t offset)
     {
         RDF_CHECK_CALL(rdfStreamSeek(stream_, offset));
     }
 
-    std::size_t GetSize() const
+    std::int64_t GetSize() const
     {
-        std::size_t size = 0;
+        std::int64_t size = 0;
         RDF_CHECK_CALL(rdfStreamGetSize(stream_, &size));
 
         return size;
@@ -418,7 +418,7 @@ public:
 
     void ReadChunkHeader(
         const char* chunkId,
-        const std::function<void(const size_t dataSize, const void* data)>& readCallback)
+        const std::function<void(const std::int64_t dataSize, const void* data)>& readCallback)
     {
         ReadChunkHeader(chunkId, 0, readCallback);
     }
@@ -426,7 +426,7 @@ public:
     void ReadChunkHeader(
         const char* chunkId,
         const int chunkIndex,
-        const std::function<void(const size_t dataSize, const void* data)>& readCallback)
+        const std::function<void(const std::int64_t dataSize, const void* data)>& readCallback)
     {
         const auto size = GetChunkHeaderSize(chunkId, chunkIndex);
         std::vector<unsigned char> buffer(size);
@@ -436,7 +436,7 @@ public:
 
     void ReadChunkData(
         const char* chunkId,
-        const std::function<void(const size_t dataSize, const void* data)>& readCallback)
+        const std::function<void(const std::int64_t dataSize, const void* data)>& readCallback)
     {
         ReadChunkData(chunkId, 0, readCallback);
     }
@@ -444,7 +444,7 @@ public:
     void ReadChunkData(
         const char* chunkId,
         const int chunkIndex,
-        const std::function<void(const size_t dataSize, const void* data)>& readCallback)
+        const std::function<void(const std::int64_t dataSize, const void* data)>& readCallback)
     {
         const auto size = GetChunkDataSize(chunkId, chunkIndex);
         std::vector<unsigned char> buffer(size);
@@ -472,26 +472,26 @@ public:
         ReadChunkDataToBuffer(chunkId, 0, buffer);
     }
 
-    std::size_t GetChunkHeaderSize(const char* chunkId) const
+    std::int64_t GetChunkHeaderSize(const char* chunkId) const
     {
         return GetChunkHeaderSize(chunkId, 0);
     }
 
-    std::size_t GetChunkHeaderSize(const char* chunkId, const int chunkIndex) const
+    std::int64_t GetChunkHeaderSize(const char* chunkId, const int chunkIndex) const
     {
-        std::size_t size = 0;
+        std::int64_t size = 0;
         RDF_CHECK_CALL(rdfChunkFileGetChunkHeaderSize(chunkFile_, chunkId, chunkIndex, &size));
         return size;
     }
 
-    std::size_t GetChunkDataSize(const char* chunkId) const
+    std::int64_t GetChunkDataSize(const char* chunkId) const
     {
         return GetChunkDataSize(chunkId, 0);
     }
 
-    std::size_t GetChunkDataSize(const char* chunkId, const int chunkIndex) const
+    std::int64_t GetChunkDataSize(const char* chunkId, const int chunkIndex) const
     {
-        std::size_t size = 0;
+        std::int64_t size = 0;
         RDF_CHECK_CALL(rdfChunkFileGetChunkDataSize(chunkFile_, chunkId, chunkIndex, &size));
         return size;
     }
@@ -508,9 +508,9 @@ public:
         return version;
     }
 
-    std::size_t GetChunkCount(const char* chunkId) const
+    std::int64_t GetChunkCount(const char* chunkId) const
     {
-        std::size_t size = 0;
+        std::int64_t size = 0;
         RDF_CHECK_CALL(rdfChunkFileGetChunkCount(chunkFile_, chunkId, &size));
         return size;
     }
@@ -564,9 +564,9 @@ public:
     ChunkFileWriter& operator=(const ChunkFileWriter&) = delete;
 
     int WriteChunk(const char* chunkId,
-                   const size_t chunkHeaderSize,
+                   const std::int64_t chunkHeaderSize,
                    const void* chunkHeader,
-                   const size_t chunkDataSize,
+                   const std::int64_t chunkDataSize,
                    const void* chunkData)
     {
         return WriteChunk(
@@ -574,9 +574,9 @@ public:
     }
 
     int WriteChunk(const char* chunkId,
-                   const size_t chunkHeaderSize,
+                   const std::int64_t chunkHeaderSize,
                    const void* chunkHeader,
-                   const size_t chunkDataSize,
+                   const std::int64_t chunkDataSize,
                    const void* chunkData,
                    const rdfCompression compression)
     {
@@ -585,9 +585,9 @@ public:
     }
 
     int WriteChunk(const char* chunkId,
-                   const size_t chunkHeaderSize,
+                   const std::int64_t chunkHeaderSize,
                    const void* chunkHeader,
-                   const size_t chunkDataSize,
+                   const std::int64_t chunkDataSize,
                    const void* chunkData,
                    const rdfCompression compression,
                    const std::uint32_t version)
@@ -606,13 +606,15 @@ public:
         return index;
     }
 
-    void BeginChunk(const char* chunkId, const size_t chunkHeaderSize, const void* chunkHeader)
+    void BeginChunk(const char* chunkId,
+                    const std::int64_t chunkHeaderSize,
+                    const void* chunkHeader)
     {
         BeginChunk(chunkId, chunkHeaderSize, chunkHeader, rdfCompressionNone);
     }
 
     void BeginChunk(const char* chunkId,
-                    const size_t chunkHeaderSize,
+                    const std::int64_t chunkHeaderSize,
                     const void* chunkHeader,
                     const rdfCompression compression)
     {
@@ -620,7 +622,7 @@ public:
     }
 
     void BeginChunk(const char* chunkId,
-                    const size_t chunkHeaderSize,
+                    const std::int64_t chunkHeaderSize,
                     const void* chunkHeader,
                     const rdfCompression compression,
                     const std::uint32_t version)
@@ -642,7 +644,7 @@ public:
         AppendToChunk(sizeof(item), static_cast<const void*>(&item));
     }
 
-    void AppendToChunk(const size_t chunkDataSize, const void* chunkData)
+    void AppendToChunk(const std::int64_t chunkDataSize, const void* chunkData)
     {
         RDF_CHECK_CALL(rdfChunkFileWriterAppendToChunk(writer_, chunkDataSize, chunkData));
     }

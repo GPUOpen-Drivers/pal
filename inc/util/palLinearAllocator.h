@@ -111,7 +111,11 @@ public:
         void* pNextCurrent    = VoidPtrInc(pAlignedCurrent, allocInfo.bytes);
         void* pAlignedEnd     = VoidPtrAlign(pNextCurrent, m_pageSize);
 
-        if (pAlignedEnd > m_pCommittedToPage)
+        if (allocInfo.bytes > Remaining())
+        {
+            pAlignedCurrent = nullptr;
+        }
+        else if (pAlignedEnd > m_pCommittedToPage)
         {
             const size_t commitBytes = VoidPtrDiff(pAlignedEnd, m_pCommittedToPage);
 

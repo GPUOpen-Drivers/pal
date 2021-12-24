@@ -211,6 +211,33 @@ public:
     /// @returns Success if successful, otherwise an appropriate error.
     static Result Remove(const char* pFilename);
 
+    /// Reads a file into memory.
+    ///
+    /// @param [in]  pFilename  Name of the file to read.
+    /// @param [in]  pData      Buffer where the file contents are written to.
+    /// @param [in]  dataSize   Size of the buffer in bytes.
+    /// @param [out] pBytesRead Number of bytes successfully read into the input buffer (can be null).
+    /// @param [in]  binary     True for binary mode, false for text. Defaults to binary.
+    ///
+    /// @returns Success if successful, otherwise an appropriate error.
+    ///
+    /// @note The input buffer must be large enough to hold the file's contents. If the buffer is larger than the file,
+    /// then the region of the buffer beyond the file size is _not_ modified by this function. It is the caller's
+    /// responsibility to _not_ read uninitialized portions of the supplied buffer after this call returns.
+    ///
+    /// @note In binary mode, the number of bytes read is equal to the file size in bytes upon a successful return.
+    /// In text mode, newline conversion is performed on Windows, in which case the number of bytes read may not equal
+    /// the file size in bytes.
+    ///
+    /// @note In text mode, should the caller treat the resulting data as a C string, it is the caller's responsibility
+    /// to null-terminate the buffer.
+    static Result ReadFile(
+        const char* pFilename,
+        void*       pData,
+        size_t      dataSize,
+        size_t*     pBytesRead = nullptr,
+        bool        binary = true);
+
     /// Gets the handle associated with this file.
     ///
     /// @returns A pointer to the file handle

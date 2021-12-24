@@ -298,7 +298,7 @@ constexpr MergedFormatPropertiesTable Gfx6MergedFormatPropertiesTable =
         { IrXsIflIfmm,                    IrXsIflIfmm                    }, // ChNumFormat::X4Y4_Unorm
         { IrXsIfl,                        IrXsIfl                        }, // ChNumFormat::X4Y4_Uscaled
         { IrXsIflIfmm,                    IrXsIflIfmm                    }, // ChNumFormat::L4A4_Unorm
-        { IrXsIwXdIflIfmmCBXP,            IrXsIwXdIflIfmmCBMXP           }, // ChNumFormat::X4Y4Z4W4_Unorm
+        { IrXsIwXdIflIfmmCBX,             IrXsIwXdIflIfmmCBMX            }, // ChNumFormat::X4Y4Z4W4_Unorm
         { IrXsIfl,                        IrXsIflM                       }, // ChNumFormat::X4Y4Z4W4_Uscaled
         { IrXsIwXdIflIfmmCBXP,            IrXsIwXdIflIfmmCBMXP           }, // ChNumFormat::X5Y6Z5_Unorm
         { IrXsIfl,                        IrXsIflM                       }, // ChNumFormat::X5Y6Z5_Uscaled
@@ -7351,7 +7351,7 @@ constexpr MergedFormatPropertiesTable Gfx7MergedFormatPropertiesTable =
         { IrXsIflIfmm,                    IrXsIflIfmm                    }, // ChNumFormat::X4Y4_Unorm
         { IrXsIfl,                        IrXsIfl                        }, // ChNumFormat::X4Y4_Uscaled
         { IrXsIflIfmm,                    IrXsIflIfmm                    }, // ChNumFormat::L4A4_Unorm
-        { IrXsIwXdIflIfmmCBXP,            IrXsIwXdIflIfmmCBMXP           }, // ChNumFormat::X4Y4Z4W4_Unorm
+        { IrXsIwXdIflIfmmCBX,             IrXsIwXdIflIfmmCBMX            }, // ChNumFormat::X4Y4Z4W4_Unorm
         { IrXsIfl,                        IrXsIflM                       }, // ChNumFormat::X4Y4Z4W4_Uscaled
         { IrXsIwXdIflIfmmCBXP,            IrXsIwXdIflIfmmCBMXP           }, // ChNumFormat::X5Y6Z5_Unorm
         { IrXsIfl,                        IrXsIflM                       }, // ChNumFormat::X5Y6Z5_Uscaled
@@ -21457,7 +21457,7 @@ constexpr MergedFormatPropertiesTable Gfx8_1MergedFormatPropertiesTable =
         { IrXsIflIfmm,                    IrXsIflIfmm                    }, // ChNumFormat::X4Y4_Unorm
         { IrXsIfl,                        IrXsIfl                        }, // ChNumFormat::X4Y4_Uscaled
         { IrXsIflIfmm,                    IrXsIflIfmm                    }, // ChNumFormat::L4A4_Unorm
-        { IrXsIwXdIflIfmmCBXP,            IrXsIwXdIflIfmmCBMXP           }, // ChNumFormat::X4Y4Z4W4_Unorm
+        { IrXsIwXdIflIfmmCBX,             IrXsIwXdIflIfmmCBMX            }, // ChNumFormat::X4Y4Z4W4_Unorm
         { IrXsIfl,                        IrXsIflM                       }, // ChNumFormat::X4Y4Z4W4_Uscaled
         { IrXsIwXdIflIfmmCBXP,            IrXsIwXdIflIfmmCBMXP           }, // ChNumFormat::X5Y6Z5_Unorm
         { IrXsIfl,                        IrXsIflM                       }, // ChNumFormat::X5Y6Z5_Uscaled

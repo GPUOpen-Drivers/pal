@@ -1387,7 +1387,7 @@
         "Gfx9"
       ],
       "Defaults": {
-        "Default": 8192
+        "Default": "0x3000"
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",

@@ -27,11 +27,13 @@
 
 #include "palMutex.h"
 #include "palBestFitAllocator.h"
-#include "core/platform.h"
 
 namespace Pal
 {
-class Platform;
+
+class  Device;
+class  Platform;
+struct VaRangeInfo;
 
 // =====================================================================================================================
 // SvmMgr provides a clean interface between PAL and the BestFitAllocator, which is used to allocate and free GPU
@@ -60,9 +62,9 @@ private:
     gpusize      m_vaStart;
     gpusize      m_vaSize;
 
-    Util::BestFitAllocator<Pal::Platform>* m_pSubAllocator;  // Suballocator used for the suballocation
+    Util::BestFitAllocator<Platform>* m_pSubAllocator;  // Suballocator used for the suballocation
 
-    Util::Mutex  m_allocFreeVaLock;                          // Mutex protecting allocation and free of SVM va
+    Util::Mutex  m_allocFreeVaLock;                     // Mutex protecting allocation and free of SVM va
 
     PAL_DISALLOW_DEFAULT_CTOR(SvmMgr);
     PAL_DISALLOW_COPY_AND_ASSIGN(SvmMgr);

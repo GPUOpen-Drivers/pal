@@ -1777,6 +1777,10 @@ struct CmdBufInfo
     const IGpuMemory* pPrivFlipMemory;  ///< The gpu memory object of the private flip primary surface for the
                                         ///  DirectCapture feature.
 #endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 695
+    uint64            frameIndex;       ///< The frame index of this command buffer. It is only required for the
+                                        ///  DirectCapture feature
+#endif
 };
 
 /// Specifies rotation angle between two images.  Used as input to ICmdBuffer::CmdScaledCopyImage.
@@ -2741,6 +2745,29 @@ public:
         uint32                  regionCount,
         const MemoryCopyRegion* pRegions) = 0;
 
+    /// Copies multiple regions from one GPU memory virtual address to another.
+    ///
+    /// @note  The CmdCopyMemory() path should be preferred because it contains more optimizations due to more
+    ///        knowledge about the memory itself that is lost when only virtual addresses are passed in.
+    ///
+    ///
+    /// None of the destination regions are allowed to overlap each other, nor are destination and source regions
+    /// allowed to overlap when the source and destination GPU memory virtual address are the same.  Any illegal
+    /// overlapping will cause undefined results.
+    ///
+    /// For best performance, addresses, offsets, and copy sizes should be 4-byte aligned.
+    ///
+    /// @param [in] srcGpuVirtAddr  GPU memory vitrual address where the source regions are located.
+    /// @param [in] dstGpuVirtAddr  GPU memory virtual address where the destination regions are located.
+    /// @param [in] regionCount     Number of regions to copy; size of the pRegions array.
+    /// @param [in] pRegions        Array of copy regions, each entry specifynig a source offset, destination offset,
+    ///                             and copy size.
+    virtual void CmdCopyMemoryByGpuVa(
+        gpusize                 srcGpuVirtAddr,
+        gpusize                 dstGpuVirtAddr,
+        uint32                  regionCount,
+        const MemoryCopyRegion* pRegions) = 0;
+
     /// Copies multiple regions from one image to another.
     ///
     /// The source and destination subresource of a particular region are not allowed to be the same, and will produce
@@ -3385,16 +3412,17 @@ public:
         uint32            startQuery,
         uint32            queryCount) = 0;
 
-    /// Writes a top-of-pipe or bottom-of-pipe timestamp to the specified memory location.
+    /// Writes a HwPipePostIndexFetch or HwPipeBottom timestamp to the specified memory location.
     ///
     /// The timestamp data is a 64-bit value that increments once per clock.  timestampFrequency in DeviceProperties
     /// reports the frequency the timestamps are clocked at.
     ///
     /// Timestamps are only supported by engines that report supportsTimestamps in DeviceProperties.
     ///
-    /// @param [in] pipePoint    Specifies where in the pipeline the timestamp should be sampled and written.  The only
-    ///                          valid choices are HwPipeTop and HwPipeBottom.  Top-of-pipe timestamps are not supported
-    ///                          on the SDMA engine, so all timestamps will be executed as bottom-of-pipe.
+    /// @param [in] pipePoint    Specifies where in the pipeline the timestamp should be sampled and written. The only
+    ///                          valid choices are HwPipePostIndexFetch and HwPipeBottom. HwPipePostIndexFetch timestamps
+    ///                          are not supported on the SDMA engine, so all timestamps will be executed as
+    ///                          bottom-of-pipe.
     /// @param [in] dstGpuMemory GPU memory object where timestamp should be written.
     /// @param [in] dstOffset    Offset into pDstGpuMemory where the timestamp should be written.  Must be aligned to
     ///                          minTimestampAlignment in DeviceProperties.
@@ -3405,12 +3433,10 @@ public:
 
     /// Writes a top-of-pipe or bottom-of-pipe immediate value to the specified memory location.
     ///
-    /// Timestamps are only supported by engines that report supportsTimestamps in DeviceProperties.
-    ///
     /// @param [in] pipePoint          Specifies where in the pipeline the timestamp should be sampled and written.
-    ///                                The only valid choices are HwPipeTop and HwPipeBottom.  Top-of-pipe timestamps
-    ///                                are not supported on the SDMA engine, so all timestamps will be executed as
-    ///                                bottom-of-pipe.
+    ///                                The only valid choices are HwPipeTop, HwPipePostIndexFetch and HwPipeBottom.
+    ///                                Top-of-pipe timestamps are not supported on the SDMA engine, so all timestamps
+    ///                                will be executed as bottom-of-pipe.
     /// @param [in] data               Value to be written to gpu address.
     /// @param [in] ImmediateDataWidth Size of the data to be written out.
     /// @param [in] address            GPU address where immediate value should be written.

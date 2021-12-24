@@ -193,7 +193,7 @@ void PipelineChunkGs::LateInit(
 
         if (IsGfx10(chipProps.gfxLevel))
         {
-            m_regs.dynamic.spiShaderPgmRsrc4Gs.most.CU_EN = m_device.GetCuEnableMaskHi(GsCuDisableMaskHi,
+            m_regs.dynamic.spiShaderPgmRsrc4Gs.gfx10.CU_EN = m_device.GetCuEnableMaskHi(GsCuDisableMaskHi,
                                                                                         settings.gsCuEnLimitMask);
         }
     }
@@ -227,7 +227,7 @@ void PipelineChunkGs::LateInit(
         allHere &= registers.HasEntry(HasHwVs::mmVGT_GSVS_RING_OFFSET_3, &m_regs.context.vgtGsVsRingOffset3.u32All);
 
         PAL_ASSERT(loadInfo.enableNgg || allHere);
-        m_regs.context.vgtGsOutPrimType.u32All    = registers.At(Gfx10Core::mmVGT_GS_OUT_PRIM_TYPE);
+        m_regs.context.vgtGsOutPrimType.u32All    = registers.At(Gfx09_10::mmVGT_GS_OUT_PRIM_TYPE);
     }
 
     m_regs.context.vgtEsGsRingItemSize.u32All = registers.At(mmVGT_ESGS_RING_ITEMSIZE);
@@ -325,8 +325,8 @@ uint32* PipelineChunkGs::WriteShCommands(
 
         if (IsGfx10(chipProps.gfxLevel))
         {
-            dynamic.spiShaderPgmRsrc4Gs.most.CU_EN =
-                Device::AdjustCuEnHi(dynamic.spiShaderPgmRsrc4Gs.most.CU_EN, gsStageInfo.cuEnableMask);
+            dynamic.spiShaderPgmRsrc4Gs.gfx10.CU_EN =
+                Device::AdjustCuEnHi(dynamic.spiShaderPgmRsrc4Gs.gfx10.CU_EN, gsStageInfo.cuEnableMask);
         }
     }
 
@@ -401,11 +401,9 @@ uint32* PipelineChunkGs::WriteContextCommands(
                                                        HasHwVs::mmVGT_GSVS_RING_ITEMSIZE,
                                                        &m_regs.context.vgtEsGsRingItemSize,
                                                        pCmdSpace);
-        static_assert(Gfx10Core::mmVGT_GS_OUT_PRIM_TYPE == Gfx09::mmVGT_GS_OUT_PRIM_TYPE,
-            "Reg changed");
 
         pCmdSpace = pCmdStream->WriteSetSeqContextRegs(HasHwVs::mmVGT_GS_PER_VS,
-                                                       Gfx10Core::mmVGT_GS_OUT_PRIM_TYPE,
+                                                       Gfx09_10::mmVGT_GS_OUT_PRIM_TYPE,
                                                        &m_regs.context.vgtGsPerVs,
                                                        pCmdSpace);
 

@@ -188,7 +188,7 @@ Result TraceSession::CollectTrace(
         result = RdfResultToPalResult(rdfStreamSeek(m_pCurrentStream, 0));
     }
 
-    size_t streamSize;
+    int64 streamSize;
     if (result == Result::Success)
     {
         result = RdfResultToPalResult(rdfStreamGetSize(m_pCurrentStream, &streamSize));
@@ -213,7 +213,7 @@ Result TraceSession::CollectTrace(
             if (pData != nullptr)
             {
                 // Read all trace data in the current stream in RDF format
-                size_t bytesRead = 0;
+                int64 bytesRead = 0;
                 if (result == Result::Success)
                 {
                     result = RdfResultToPalResult(rdfStreamRead(m_pCurrentStream, streamSize, pData, &bytesRead));

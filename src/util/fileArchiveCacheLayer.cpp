@@ -50,7 +50,7 @@ FileArchiveCacheLayer::FileArchiveCacheLayer(
     m_archiveFileMutex {},
     m_hashContextMutex {},
     m_entryMapLock     {},
-    m_entries          { HashTableBucketCount, Allocator() }
+    m_entries          { GetHashMapNumBuckets(pArchiveFile), Allocator() }
 {
     PAL_ASSERT(m_pArchivefile != nullptr);
     PAL_ASSERT(m_pBaseContext != nullptr);
@@ -61,6 +61,32 @@ FileArchiveCacheLayer::FileArchiveCacheLayer(
 FileArchiveCacheLayer::~FileArchiveCacheLayer()
 {
     m_pBaseContext->Destroy();
+}
+
+// =====================================================================================================================
+uint32 FileArchiveCacheLayer::GetHashMapNumBuckets(
+    const IArchiveFile* pArchiveFile)
+{
+    constexpr uint32 MinExpectedHeaders = 1024;
+    uint32 numBuckets = MinExpectedHeaders;
+
+    uint32 entryCount = static_cast<uint32>(pArchiveFile->GetEntryCount());
+
+    // Generally, if we're opening a file for read only, we don't expect any more headers to be added.
+    // We limit the number of buckets here because many files can be open at a time and we don't want to waste memory.
+    // However, there is the case of multiple processes (on windows only as of now) where one process will open the
+    // file for write, and another will have it open for read. In that specific case, it's possible the parameter
+    // chosen here may slow hash map operations down. That's an extreme edge case, but something to be aware of.
+    // Even then, the hash map operations should be orders of magnitude faster than the file i/o operations.
+    if (entryCount > 0)
+    {
+        if ((pArchiveFile->AllowWriteAccess() == false) || (entryCount > numBuckets))
+        {
+            numBuckets = entryCount;
+        }
+    }
+
+    return numBuckets;
 }
 
 // =====================================================================================================================
@@ -214,7 +240,7 @@ Result FileArchiveCacheLayer::StoreInternal(
             header.metaValue     = static_cast<uint32>(dataSize);
 
             memcpy(pDataMem, pData, storeSize);
-            memcpy(header.entryKey, key.value, sizeof(EntryKey));
+            memcpy(header.entryKey, key.value, sizeof(header.entryKey));
 
             result = m_pArchivefile->Write(&header, pMem);
         }
@@ -507,6 +533,8 @@ void FileArchiveCacheLayer::ConvertToEntryKey(
 {
     PAL_ASSERT(pHashId != nullptr);
     PAL_ASSERT(pKey != nullptr);
+
+    memset(pKey, 0, sizeof(EntryKey));
 
     MutexAuto hashContextLock { &m_hashContextMutex };
 

@@ -131,6 +131,12 @@ public:
         uint32                  regionCount,
         const MemoryCopyRegion* pRegions) override;
 
+    virtual void CmdCopyMemoryByGpuVa(
+        gpusize                 srcGpuVirtAddr,
+        gpusize                 dstGpuVirtAddr,
+        uint32                  regionCount,
+        const MemoryCopyRegion* pRegions) override;
+
     virtual void CmdCopyImage(
         const IImage&          srcImage,
         ImageLayout            srcImageLayout,

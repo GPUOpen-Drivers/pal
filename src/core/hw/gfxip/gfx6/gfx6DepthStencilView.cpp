@@ -392,6 +392,18 @@ uint32* DepthStencilView::WriteCommands(
         UpdateImageVa(&regs);
     }
 
+    if ((stencilLayout.usages == 0) &&
+        ((depthLayout.usages & LayoutDepthStencilTarget) != 0))
+    {
+        regs.dbStencilInfo.bits.FORMAT = 0;
+    }
+
+    if ((depthLayout.usages == 0) &&
+        ((stencilLayout.usages & LayoutDepthStencilTarget) != 0))
+    {
+        regs.dbZInfo.bits.FORMAT = 0;
+    }
+
     if ((depthState != DepthStencilCompressed) || (stencilState != DepthStencilCompressed))
     {
         // For decompressed rendering to an Image, we need to override the values of DB_DEPTH_CONTROL and

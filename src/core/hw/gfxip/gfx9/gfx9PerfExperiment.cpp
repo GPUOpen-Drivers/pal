@@ -1348,7 +1348,7 @@ Result PerfExperiment::AddThreadTrace(
                            static_cast<uint32>(PerfShaderMaskHs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_HS_BIT) &&
                            static_cast<uint32>(PerfShaderMaskCs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_CS_BIT) &&
                            static_cast<uint32>(PerfShaderMaskVs) ==
-                               static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_VS_BIT__GFX10CORE) &&
+                               static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_VS_BIT__GFX10) &&
                            static_cast<uint32>(PerfShaderMaskEs) ==
                                static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_ES_BIT__GFX10CORE) &&
                            static_cast<uint32>(PerfShaderMaskLs) ==
@@ -1950,15 +1950,16 @@ void PerfExperiment::IssueBegin(
                 sqPerfCounterCtrl.bits.CS_EN     = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskCs) != 0);
                 if (m_device.ChipProperties().gfxip.supportsHwVs)
                 {
-                    sqPerfCounterCtrl.most.VS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskVs) != 0);
+                    sqPerfCounterCtrl.gfx09_10.VS_EN =
+                        ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskVs) != 0);
                 }
                 {
                     static_assert(Gfx09::SQ_PERFCOUNTER_CTRL__LS_EN_MASK ==
                                   Gfx10Core::SQ_PERFCOUNTER_CTRL__LS_EN_MASK, "Regs have changed");
                     static_assert(Gfx09::SQ_PERFCOUNTER_CTRL__ES_EN_MASK ==
                                   Gfx10Core::SQ_PERFCOUNTER_CTRL__ES_EN_MASK, "Regs have changed");
-                    sqPerfCounterCtrl.gfx09.LS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskLs) != 0);
-                    sqPerfCounterCtrl.gfx09.ES_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskEs) != 0);
+                    sqPerfCounterCtrl.most.LS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskLs) != 0);
+                    sqPerfCounterCtrl.most.ES_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskEs) != 0);
                 }
             }
             else
@@ -1970,11 +1971,11 @@ void PerfExperiment::IssueBegin(
                 sqPerfCounterCtrl.bits.CS_EN     = 1;
                 if (m_device.ChipProperties().gfxip.supportsHwVs)
                 {
-                    sqPerfCounterCtrl.most.VS_EN = 1;
+                    sqPerfCounterCtrl.gfx09_10.VS_EN = 1;
                 }
                 {
-                    sqPerfCounterCtrl.gfx09.LS_EN = 1;
-                    sqPerfCounterCtrl.gfx09.ES_EN = 1;
+                    sqPerfCounterCtrl.most.LS_EN = 1;
+                    sqPerfCounterCtrl.most.ES_EN = 1;
                 }
             }
 
@@ -3968,17 +3969,17 @@ bool PerfExperiment::IsSqLevelEvent(
         }
         else
         {
-            if ((eventId >= SQ_PERF_SEL_INST_LEVEL_EXP__GFX10CORE) &&
-                (eventId <= SQ_PERF_SEL_INST_LEVEL_TEX_STORE__GFX10CORE))
+            if ((eventId >= SQ_PERF_SEL_INST_LEVEL_EXP__GFX10) &&
+                (eventId <= SQ_PERF_SEL_INST_LEVEL_TEX_STORE__GFX10))
             {
                 isLevelEvent = true;
             }
-            else if (eventId == SQ_PERF_SEL_IFETCH_LEVEL__GFX10CORE)
+            else if (eventId == SQ_PERF_SEL_IFETCH_LEVEL__GFX10)
             {
                 isLevelEvent = true;
             }
-            else if ((eventId >= SQ_PERF_SEL_USER_LEVEL0__GFX10CORE) &&
-                     (eventId <= SQ_PERF_SEL_USER_LEVEL15__GFX10CORE))
+            else if ((eventId >= SQ_PERF_SEL_USER_LEVEL0__GFX10) &&
+                     (eventId <= SQ_PERF_SEL_USER_LEVEL15__GFX10))
             {
                 isLevelEvent = true;
             }

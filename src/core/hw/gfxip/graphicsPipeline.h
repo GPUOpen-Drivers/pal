@@ -60,6 +60,8 @@ public:
 
     BinningOverride GetBinningOverride() const { return m_binningOverride; }
 
+    DepthClampMode GetDepthClampMode() const { return m_depthClampMode; }
+
     uint32 VertexBufferCount() const { return m_vertexBufferCount; }
 
     const ViewInstancingDescriptor& GetViewInstancingDesc() const { return m_viewInstancingDesc; };
@@ -125,6 +127,7 @@ private:
     } m_flags;
 
     BinningOverride  m_binningOverride; // Override global batched binning. Gfx9 only.
+    DepthClampMode   m_depthClampMode;  // Depth clamping behavior
 
     uint32  m_vertexBufferCount;    // Number of vertex buffer slots used by this pipeline.
 

@@ -36,20 +36,23 @@ namespace Pal
 namespace NullDevice
 {
 
-// Lookup table of GPU names by NullGpuId
-extern const char* pNullGpuNames[static_cast<uint32>(NullGpuId::Max)];
-
 class Platform;
 
 // Structure to convert between Null GPU ID's and other GPU asic identification information
 struct  NullIdLookup
 {
-    uint32  familyId;
-    uint32  eRevId;
-    uint32  revisionId;
-    uint32  gfxEngineId;
-    uint32  deviceId;
+    NullGpuId   nullId; // If invalid, this is NullGpuId::Max
+    uint32      familyId;
+    uint32      eRevId;
+    uint32      revisionId;
+    uint32      gfxEngineId;
+    uint32      deviceId;
+    const char* pName;
 };
+
+// Lookup table of GPU names by NullGpuId
+extern const NullIdLookup NullIdLookupTable[];
+extern const uint32       NullIdLookupTableCount;
 
 // =====================================================================================================================
 // Null flavor of the Device class.
@@ -60,7 +63,9 @@ public:
                          Device**   ppDeviceOut,
                          NullGpuId  nullGpuId);
 
-    static bool IsValid(NullGpuId nullGpuId);
+    static inline bool IsValid(NullGpuId nullGpuId) { return GetDeviceById(nullGpuId).nullId == nullGpuId; }
+
+    static NullIdLookup GetDeviceById(NullGpuId nullGpuId);
 
     virtual Result AddEmulatedPrivateScreen(
         const PrivateScreenCreateInfo& createInfo,
@@ -310,7 +315,6 @@ public:
 protected:
     Device(
         Platform*              pPlatform,
-        const char*            pName,
         const NullIdLookup&    nullIdLookup,
         const HwIpDeviceSizes& hwDeviceSizes);
 
@@ -358,10 +362,6 @@ private:
 
     void InitOutputPaths();
 
-    virtual Result OsEarlyInit() override;
-
-    virtual Result OsLateInit() override;
-
     virtual Result QueryRawApplicationProfile(
         const char*              pFilename,
         const char*              pPathname,
@@ -385,6 +385,8 @@ private:
 
 #if PAL_BUILD_GFX6
     void InitGfx6ChipProperties();
+
+    void Gfx8InsertDummyTilingValues();
 #endif
 
     void InitGfx9ChipProperties();

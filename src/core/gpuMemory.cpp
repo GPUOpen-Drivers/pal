@@ -39,22 +39,101 @@ namespace Pal
 // =====================================================================================================================
 // Copies only the valid heaps from pHeaps to pOutHeaps. The filtering happens based on if the heap exists on the
 // device.
-static uint32 CopyViableHeaps(
+static void FilterViableHeaps(
     const GpuHeap* pHeaps,
-    uint32         heapCount,
+    size_t         heapCount,
     const Device&  device,
-    GpuHeap*       pOutHeaps)
+    GpuHeap*       pOutHeaps,
+    size_t*        pOutHeapCount)
 {
-    uint32 outHeapsCount = 0;
+    *pOutHeapCount = 0;
     for (uint32 heap = 0; heap < heapCount; ++heap)
     {
         const GpuMemoryHeapProperties& heapProps = device.HeapProperties(pHeaps[heap]);
         if (heapProps.heapSize > 0u)
         {
-            pOutHeaps[outHeapsCount++] = pHeaps[heap];
+            pOutHeaps[(*pOutHeapCount)++] = pHeaps[heap];
         }
     }
-    return outHeapsCount;
+}
+
+// =====================================================================================================================
+void GpuMemory::TranslateHeapInfo(
+    const Device&              device,
+    const GpuMemoryCreateInfo& createInfo,
+    GpuHeap*                   pOutHeaps,
+    size_t*                    pOutHeapCount)
+{
+    switch (createInfo.heapAccess)
+    {
+    case GpuHeapAccess::GpuHeapAccessExplicit:
+        // imperative heap selection; createInfo.heaps determines the heaps
+        *pOutHeapCount = createInfo.heapCount;
+        for (uint32 heap = 0; heap < createInfo.heapCount; ++heap)
+        {
+            pOutHeaps[heap] = createInfo.heaps[heap];
+        }
+        break;
+    case GpuHeapAccess::GpuHeapAccessCpuNoAccess:
+    {
+        // declarative heap selection; memory does not need to be CPU accessible
+        const GpuChipProperties& chipProps = device.ChipProperties();
+        switch (chipProps.gpuType)
+        {
+        case GpuType::Discrete:
+        {
+            // considering both invisible and local, in case the former is 0 (e.g., under Resizable BAR)
+            constexpr GpuHeap PreferredHeaps[] = { GpuHeap::GpuHeapInvisible, GpuHeap::GpuHeapLocal };
+            FilterViableHeaps(PreferredHeaps, ArrayLen32(PreferredHeaps), device, pOutHeaps, pOutHeapCount);
+        }
+        break;
+        case GpuType::Integrated:
+        {
+            // integrated solutions seem to miss invisible and local
+            constexpr GpuHeap PreferredHeaps[] = { GpuHeap::GpuHeapGartUswc, GpuHeap::GpuHeapGartCacheable };
+            FilterViableHeaps(PreferredHeaps, ArrayLen32(PreferredHeaps), device, pOutHeaps, pOutHeapCount);
+        }
+        break;
+        default:
+            PAL_ALERT_ALWAYS_MSG("Unexpected GPU type");
+            break;
+        }
+    }
+    break;
+    case GpuHeapAccess::GpuHeapAccessGpuMostly:
+    {
+        // declarative heap selection; optimized for GPU access
+        constexpr GpuHeap PreferredHeaps[] = {
+            GpuHeap::GpuHeapLocal, GpuHeap::GpuHeapGartUswc, GpuHeap::GpuHeapGartCacheable
+        };
+        FilterViableHeaps(PreferredHeaps, ArrayLen32(PreferredHeaps), device, pOutHeaps, pOutHeapCount);
+    }
+    break;
+    case GpuHeapAccess::GpuHeapAccessCpuReadMostly:
+    {
+        // declarative heap selection; CPU will mostly do reads
+        constexpr GpuHeap PreferredHeaps[] = { GpuHeap::GpuHeapGartCacheable };
+        FilterViableHeaps(PreferredHeaps, ArrayLen32(PreferredHeaps), device, pOutHeaps, pOutHeapCount);
+    }
+    break;
+    case GpuHeapAccess::GpuHeapAccessCpuWriteMostly:
+    {
+        // declarative heap selection; CPU will do multiple writes
+        constexpr GpuHeap PreferredHeaps[] = { GpuHeap::GpuHeapGartUswc };
+        FilterViableHeaps(PreferredHeaps, ArrayLen32(PreferredHeaps), device, pOutHeaps, pOutHeapCount);
+    }
+    break;
+    case GpuHeapAccess::GpuHeapAccessCpuMostly:
+    {
+        // declarative heap selection; CPU will do a mix of reads and writes
+        constexpr GpuHeap PreferredHeaps[] = { GpuHeap::GpuHeapGartUswc, GpuHeap::GpuHeapGartCacheable };
+        FilterViableHeaps(PreferredHeaps, ArrayLen32(PreferredHeaps), device, pOutHeaps, pOutHeapCount);
+    }
+    break;
+    default:
+        PAL_ALERT_ALWAYS_MSG("Unexpected GPU heap access type");
+        break;
+    }
 }
 
 // =====================================================================================================================
@@ -131,16 +210,32 @@ Result GpuMemory::ValidateCreateInfo(
     {
         if (createInfo.flags.virtualAlloc == false)
         {
-            if (createInfo.heapCount == 0)
+            const GpuHeap *pHeaps = nullptr;
+            size_t heapCount      = 0;
+
+            // if necessary, translate heap access information to explicit heaps
+            GpuHeap implicitHeaps[GpuHeapCount] = {};
+            if (createInfo.heapAccess != GpuHeapAccess::GpuHeapAccessExplicit)
+            {
+                TranslateHeapInfo(*pDevice, createInfo, implicitHeaps, &heapCount);
+                pHeaps = implicitHeaps;
+            }
+            else
+            {
+                pHeaps    = createInfo.heaps;
+                heapCount = createInfo.heapCount;
+            }
+
+            if (heapCount == 0)
             {
                 // Physical GPU memory allocations must specify at least one heap!
                 result = Result::ErrorInvalidValue;
             }
             else
             {
-                for (uint32 idx = 0; idx < createInfo.heapCount; ++idx)
+                for (uint32 idx = 0; idx < heapCount; ++idx)
                 {
-                    if ((createInfo.heaps[idx] == GpuHeapLocal) || (createInfo.heaps[idx] == GpuHeapInvisible))
+                    if ((pHeaps[idx] == GpuHeapLocal) || (pHeaps[idx] == GpuHeapInvisible))
                     {
                         nonLocalOnly = false;
                         break;
@@ -148,7 +243,7 @@ Result GpuMemory::ValidateCreateInfo(
                 }
             }
         }
-        else if (createInfo.heapCount != 0)
+        else if ((createInfo.heapAccess != GpuHeapAccessExplicit) || (createInfo.heapCount != 0))
         {
             // Virtual GPU memory allocations cannot specify any heaps!
             result = Result::ErrorInvalidValue;
@@ -481,80 +576,7 @@ Result GpuMemory::Init(
 
     if (IsVirtual() == false)
     {
-        switch (createInfo.heapAccess)
-        {
-        case GpuHeapAccess::GpuHeapAccessExplicit:
-            // imperative heap selection; createInfo.heaps determines the heaps
-            m_heapCount = createInfo.heapCount;
-            for (uint32 heap = 0; heap < createInfo.heapCount; ++heap)
-            {
-                m_heaps[heap] = createInfo.heaps[heap];
-            }
-            break;
-        case GpuHeapAccess::GpuHeapAccessCpuNoAccess:
-        {
-            // declarative heap selection; memory does not need to be CPU accessible
-            const GpuChipProperties& chipProps = m_pDevice->ChipProperties();
-            switch (chipProps.gpuType)
-            {
-            case GpuType::Discrete:
-            {
-                // considering both invisible and local, in case the former is 0 (e.g., under Resizable BAR)
-                constexpr GpuHeap PreferredHeaps[] = {
-                    GpuHeap::GpuHeapInvisible, GpuHeap::GpuHeapLocal
-                };
-                m_heapCount = CopyViableHeaps(PreferredHeaps, ArrayLen32(PreferredHeaps), *m_pDevice, m_heaps);
-            }
-                break;
-            case GpuType::Integrated:
-            {
-                // integrated solutions seem to miss invisible and local
-                constexpr GpuHeap PreferredHeaps[] = {
-                    GpuHeap::GpuHeapGartUswc, GpuHeap::GpuHeapGartCacheable
-                };
-                m_heapCount = CopyViableHeaps(PreferredHeaps, ArrayLen32(PreferredHeaps), *m_pDevice, m_heaps);
-            }
-                break;
-            default:
-                PAL_ALERT_ALWAYS_MSG("Unexpected GPU type");
-                break;
-            }
-        }
-            break;
-        case GpuHeapAccess::GpuHeapAccessGpuMostly:
-        {
-            // declarative heap selection; optimized for GPU access
-            constexpr GpuHeap PreferredHeaps[] = {
-                GpuHeap::GpuHeapLocal, GpuHeap::GpuHeapGartUswc, GpuHeap::GpuHeapGartCacheable
-            };
-            m_heapCount = CopyViableHeaps(PreferredHeaps, ArrayLen32(PreferredHeaps), *m_pDevice, m_heaps);
-        }
-            break;
-        case GpuHeapAccess::GpuHeapAccessCpuReadMostly:
-        {
-            // declarative heap selection; CPU will mostly do reads
-            constexpr GpuHeap PreferredHeaps[] = { GpuHeap::GpuHeapGartCacheable };
-            m_heapCount = CopyViableHeaps(PreferredHeaps, ArrayLen32(PreferredHeaps), *m_pDevice, m_heaps);
-        }
-            break;
-        case GpuHeapAccess::GpuHeapAccessCpuWriteMostly:
-        {
-            // declarative heap selection; CPU will do multiple writes
-            constexpr GpuHeap PreferredHeaps[] = { GpuHeap::GpuHeapGartUswc };
-            m_heapCount = CopyViableHeaps(PreferredHeaps, ArrayLen32(PreferredHeaps), *m_pDevice, m_heaps);
-        }
-            break;
-        case GpuHeapAccess::GpuHeapAccessCpuMostly:
-        {
-            // declarative heap selection; CPU will do a mix of reads and writes
-            constexpr GpuHeap PreferredHeaps[] = { GpuHeap::GpuHeapGartUswc, GpuHeap::GpuHeapGartCacheable };
-            m_heapCount = CopyViableHeaps(PreferredHeaps, ArrayLen32(PreferredHeaps), *m_pDevice, m_heaps);
-        }
-            break;
-        default:
-            PAL_ALERT_ALWAYS_MSG("Unexpected GPU heap access type");
-            break;
-        }
+        TranslateHeapInfo(*m_pDevice, createInfo, m_heaps, &m_heapCount);
 
         // NOTE: Assume that the heap selection is both local-only and nonlocal-only temporarily. When we scan the
         // heap selections below, this paradoxical assumption will be corrected.
@@ -1020,7 +1042,6 @@ Result GpuMemory::Init(
     m_flags.useReservedGpuVa = (m_vaPartition == VaPartition::Svm);
     m_flags.cpuVisible       = m_pOriginalMem->m_flags.cpuVisible;
     m_flags.peerWritable     = m_pOriginalMem->m_flags.peerWritable;
-    PAL_ASSERT(m_flags.peerWritable == 1);
 
     // Set the gpuVirtAddr if the GPU VA is visible to all devices
     if (IsGlobalGpuVa() || IsGpuVaPreReserved())
@@ -1030,7 +1051,6 @@ Result GpuMemory::Init(
 
     // NOTE: The following flags are not expected to be set for peer memory objects!
     PAL_ASSERT((m_pOriginalMem->m_desc.flags.isVirtual == 0) &&
-               (m_pOriginalMem->m_desc.flags.isShared  == 0) &&
                (m_pOriginalMem->m_flags.isPinned       == 0) &&
                (m_pOriginalMem->m_flags.pageDirectory  == 0) &&
                (m_pOriginalMem->m_flags.pageTableBlock == 0) &&

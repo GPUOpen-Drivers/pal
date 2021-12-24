@@ -2252,8 +2252,8 @@ void UniversalCmdBuffer::CmdMemoryAtomic(
 }
 
 // =====================================================================================================================
-// Issues either an end-of-pipe timestamp or a start of pipe timestamp event.  Writes the results to the pMemObject +
-// destOffset.
+// Issues an end-of-pipe timestamp event or immediately copies the current time at the ME. Writes the results to the
+// pMemObject + destOffset.
 void UniversalCmdBuffer::CmdWriteTimestamp(
     HwPipePoint       pipePoint,
     const IGpuMemory& dstGpuMemory,
@@ -2263,7 +2263,11 @@ void UniversalCmdBuffer::CmdWriteTimestamp(
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 697
+    if (pipePoint == HwPipePostIndexFetch)
+#else
     if (pipePoint == HwPipeTop)
+#endif
     {
         pDeCmdSpace += m_cmdUtil.BuildCopyData(COPY_DATA_SEL_DST_ASYNC_MEMORY,
                                                address,
@@ -2290,7 +2294,8 @@ void UniversalCmdBuffer::CmdWriteTimestamp(
 }
 
 // =====================================================================================================================
-// Writes an immediate value either during top-of-pipe or bottom-of-pipe event.
+// Writes an immediate value during top-of-pipe or bottom-of-pipe event or after indirect arguments and index buffer
+// data have been fetched.
 void UniversalCmdBuffer::CmdWriteImmediate(
     HwPipePoint        pipePoint,
     uint64             data,
@@ -2300,6 +2305,21 @@ void UniversalCmdBuffer::CmdWriteImmediate(
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
     if (pipePoint == HwPipeTop)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 697
+    {
+        pDeCmdSpace += m_cmdUtil.BuildCopyData(COPY_DATA_SEL_DST_ASYNC_MEMORY,
+                                               address,
+                                               COPY_DATA_SEL_SRC_IMME_DATA,
+                                               data,
+                                               ((dataSize == ImmediateDataWidth::ImmediateData32Bit) ?
+                                                   COPY_DATA_SEL_COUNT_1DW :
+                                                   COPY_DATA_SEL_COUNT_2DW),
+                                               COPY_DATA_ENGINE_PFP,
+                                               COPY_DATA_WR_CONFIRM_WAIT,
+                                               pDeCmdSpace);
+    }
+    else if (pipePoint == HwPipePostIndexFetch)
+#endif
     {
         pDeCmdSpace += m_cmdUtil.BuildCopyData(COPY_DATA_SEL_DST_ASYNC_MEMORY,
                                                address,
@@ -3772,8 +3792,18 @@ uint32* UniversalCmdBuffer::ValidateViewports(
         const auto&         viewport    = params.viewports[i];
         VportZMinMaxPm4Img* pZMinMaxImg = reinterpret_cast<VportZMinMaxPm4Img*>(&zMinMaxImg[i]);
 
-        pZMinMaxImg->zMin.f32All = Min(viewport.minDepth, viewport.maxDepth);
-        pZMinMaxImg->zMax.f32All = Max(viewport.minDepth, viewport.maxDepth);
+        const auto* const pPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
+
+        if (pPipeline->GetDepthClampMode() == DepthClampMode::ZeroToOne)
+        {
+            pZMinMaxImg->zMin.f32All = 0.0f;
+            pZMinMaxImg->zMax.f32All = 1.0f;
+        }
+        else
+        {
+            pZMinMaxImg->zMin.f32All = Min(viewport.minDepth, viewport.maxDepth);
+            pZMinMaxImg->zMax.f32All = Max(viewport.minDepth, viewport.maxDepth);
+        }
     }
 
     return m_deCmdStream.WriteSetSeqContextRegs<pm4OptImmediate>(mmPA_SC_VPORT_ZMIN_0,

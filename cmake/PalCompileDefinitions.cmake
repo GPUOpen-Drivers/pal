@@ -140,6 +140,12 @@ function(pal_compile_definitions TARGET)
         )
     endif()
 
+    if(PAL_ENABLE_LOGGING)
+        target_compile_definitions(${TARGET} PUBLIC
+            $<$<CONFIG:Debug>:PAL_ENABLE_LOGGING=1>
+        )
+    endif()
+
     target_compile_definitions(${TARGET} PUBLIC
         # Turn on memory tracking in Debug builds or when the user asks for it
         $<$<OR:$<CONFIG:Debug>,$<BOOL:${PAL_MEMTRACK}>>:

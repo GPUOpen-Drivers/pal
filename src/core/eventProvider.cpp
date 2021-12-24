@@ -255,7 +255,7 @@ void EventProvider::LogGpuMemoryCpuUnmapEvent(
 // =====================================================================================================================
 // Logs an event when GPU memory allocations are added to a per-device or per-queue reference list. The flags field is
 // a GpuMemoryRefFlags flags type.
-// NOTE: It is expected that pQueue will always be null for WDDM2.
+// NOTE: It is expected that pQueue will always be null for WDDM.
 void EventProvider::LogGpuMemoryAddReferencesEvent(
     uint32              gpuMemRefCount,
     const GpuMemoryRef* pGpuMemoryRefs,
@@ -280,7 +280,7 @@ void EventProvider::LogGpuMemoryAddReferencesEvent(
 
 // =====================================================================================================================
 // Logs an event when GPU memory allocations are removed from a per-device or per-queue reference list.
-// NOTE: It is expected that pQueue will always be null for WDDM2.
+// NOTE: It is expected that pQueue will always be null for WDDM.
 void EventProvider::LogGpuMemoryRemoveReferencesEvent(
     uint32            gpuMemoryCount,
     IGpuMemory*const* ppGpuMemory,

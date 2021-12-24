@@ -82,6 +82,32 @@ Result Screen::IsImplicitFullscreenOwnershipSafe(
 }
 
 // =====================================================================================================================
+Result Screen::QueryCurrentDisplayMode(
+    Extent2d* pDisplayModeSize
+    )const
+{
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId       = InterfaceFunc::ScreenQueryCurrentDisplayMode;
+    funcInfo.objectId     = m_objectId;
+    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    const Result result   = ScreenDecorator::QueryCurrentDisplayMode(pDisplayModeSize);
+    funcInfo.postCallTime = m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginOutput();
+        pLogContext->KeyAndEnum("result", result);
+        pLogContext->KeyAndStruct("displayModeSize", *pDisplayModeSize);
+        pLogContext->EndOutput();
+
+        m_pPlatform->LogEndFunc(pLogContext);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 Result Screen::TakeFullscreenOwnership(
     const IImage& image)
 {

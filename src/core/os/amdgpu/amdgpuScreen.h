@@ -114,6 +114,8 @@ public:
         OsDisplayHandle hDisplay,
         OsWindowHandle  hWindow,
         Extent2d        imageExtent) const override { return Result::Unsupported; }
+    virtual Result QueryCurrentDisplayMode(
+        Extent2d* pDisplayModeSize) const override { return Result::Unsupported; }
     virtual Result TakeFullscreenOwnership(const Pal::IImage&) override { return Result::Unsupported; }
     virtual Result ReleaseFullscreenOwnership() override { return Result::Unsupported; }
     virtual Result SetGammaRamp(const Pal::GammaRamp&) override { return Result::Unsupported; }

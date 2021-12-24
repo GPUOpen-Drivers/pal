@@ -50,146 +50,35 @@ namespace NullDevice
 static constexpr uint32 GfxEngineGfx6 = CIASICIDGFXENGINE_SOUTHERNISLAND;
 static constexpr uint32 GfxEngineGfx9 = CIASICIDGFXENGINE_ARCTICISLAND;
 
-#define PAL_UNDEFINED_NULL_DEVICE  FAMILY_UNKNOWN, 0, 0, CIASICIDGFXENGINE_UNKNOWN, 0
+constexpr NullIdLookup SentinelNullGpu = {NullGpuId::Max};
 
 // Identification table for all the GPUs that are supported in NULL device mode
-constexpr  NullIdLookup  NullIdLookupTable[] =
+extern const NullIdLookup  NullIdLookupTable[] =
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 672
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // TAHITI
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // PITCAIRN
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // CAPEVERDE
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // OLAND
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // HAINAN
+    { NullGpuId::Polaris10, FAMILY_VI,  VI_POLARIS10_P_A0,    PRID_VI_POLARIS10_C7,         GfxEngineGfx6,  DEVICE_ID_VI_POLARIS10_P_67DF, "POLARIS10:gfx803" },
+    { NullGpuId::Polaris11, FAMILY_VI,  VI_POLARIS11_M_A0,    PRID_VI_POLARIS11_CF,         GfxEngineGfx6,  DEVICE_ID_VI_POLARIS11_M_67EF, "POLARIS11:gfx803" },
+    { NullGpuId::Polaris12, FAMILY_VI,  VI_POLARIS12_V_A0,    PRID_VI_POLARIS12_C7,         GfxEngineGfx6,  DEVICE_ID_VI_POLARIS12_V_699F, "POLARIS12:gfx803" },
+    { NullGpuId::Vega10,    FAMILY_AI,  AI_VEGA10_P_A0,       PRID_AI_VEGA10_C3,            GfxEngineGfx9,  DEVICE_ID_AI_VEGA10_P_6860,    "VEGA10:gfx900" },
+    { NullGpuId::Raven,     FAMILY_RV,  RAVEN_A0,             PRID_RV_81,                   GfxEngineGfx9,  DEVICE_ID_RV_15DD,             "RAVEN:gfx902" },
+    { NullGpuId::Vega12,    FAMILY_AI,  AI_VEGA12_P_A0,       PRID_AI_VEGA12_00,            GfxEngineGfx9,  DEVICE_ID_AI_VEGA12_P_69A0,    "VEGA12:gfx904" },
+    { NullGpuId::Vega20,    FAMILY_AI,  AI_VEGA20_P_A0,       PRID_AI_VEGA20_00,            GfxEngineGfx9,  DEVICE_ID_AI_VEGA20_P_66A0,    "VEGA20:gfx906" },
+    { NullGpuId::Raven2,    FAMILY_RV,  RAVEN2_A0,            PRID_RV_E2,                   GfxEngineGfx9,  DEVICE_ID_RV2_15D8,            "RAVEN2:gfx909" },
+    { NullGpuId::Renoir,    FAMILY_RV,  RENOIR_A0,            PRID_RENOIR_01,               GfxEngineGfx9,  DEVICE_ID_RENOIR_1636,         "RENOIR:gfx90C" },
 
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // SPECTRE
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // SPOOKY
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // HAWAIIPRO
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // HAWAII
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // KALINDI
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // GODAVARI
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // BONAIRE
+    { NullGpuId::Navi10,     FAMILY_NV,  NV_NAVI10_P_A2,       PRID_NV_NAVI10_00,           GfxEngineGfx9,  DEVICE_ID_NV_NAVI10_P_7310,    "NAVI10:gfx1010" },
+    { NullGpuId::Navi12,     FAMILY_NV,  NV_NAVI12_P_A0,       PRID_NV_NAVI12_00,           GfxEngineGfx9,  DEVICE_ID_NV_NAVI12_P_7360,    "NAVI12:gfx1011" },
+    { NullGpuId::Navi14,     FAMILY_NV,  NV_NAVI14_M_A0,       PRID_NV_NAVI14_00,           GfxEngineGfx9,  DEVICE_ID_NV_NAVI14_M_7340,    "NAVI14:gfx1012" },
 
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // CARRIZO
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // BRISTOL
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // ICELAND
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // TONGA
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // TONGAPRO
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // FIJI
-#endif
-    { FAMILY_VI,  VI_POLARIS10_P_A0,    PRID_VI_POLARIS10_C7,         GfxEngineGfx6,  DEVICE_ID_VI_POLARIS10_P_67DF   },
-    { FAMILY_VI,  VI_POLARIS11_M_A0,    PRID_VI_POLARIS11_CF,         GfxEngineGfx6,  DEVICE_ID_VI_POLARIS11_M_67EF   },
-    { FAMILY_VI,  VI_POLARIS12_V_A0,    PRID_VI_POLARIS12_C7,         GfxEngineGfx6,  DEVICE_ID_VI_POLARIS12_V_699F   },
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
+    { NullGpuId::Navi21, FAMILY_NV,  NV_NAVI21_P_A0,       PRID_NV_NAVI10_00,            GfxEngineGfx9,  DEVICE_ID_NV_NAVI10_P_7310, "NAVI21:gfx1030" },
+    { NullGpuId::Navi22, FAMILY_NV,  NV_NAVI22_P_A0,       PRID_NV_NAVI10_00,            GfxEngineGfx9,  DEVICE_ID_NV_NAVI10_P_7310, "NAVI22:gfx1031" },
+    { NullGpuId::Navi23, FAMILY_NV,  NV_NAVI23_P_A0,       PRID_NV_NAVI10_00,            GfxEngineGfx9,  DEVICE_ID_NV_NAVI10_P_7310, "NAVI23:gfx1032" },
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 672
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // STONEY
-#endif
-
-    { FAMILY_AI,  AI_VEGA10_P_A0,       PRID_AI_VEGA10_C3,            GfxEngineGfx9,  DEVICE_ID_AI_VEGA10_P_6860      },
-    { FAMILY_RV,  RAVEN_A0,             PRID_RV_81,                   GfxEngineGfx9,  DEVICE_ID_RV_15DD               },
-    { FAMILY_AI,  AI_VEGA12_P_A0,       PRID_AI_VEGA12_00,            GfxEngineGfx9,  DEVICE_ID_AI_VEGA12_P_69A0      },
-    { FAMILY_AI,  AI_VEGA20_P_A0,       PRID_AI_VEGA20_00,            GfxEngineGfx9,  DEVICE_ID_AI_VEGA20_P_66A0      },
-    { FAMILY_RV,  RAVEN2_A0,            PRID_RV_E2,                   GfxEngineGfx9,  DEVICE_ID_RV2_15D8              },
-    { FAMILY_RV,  RENOIR_A0,            PRID_RENOIR_01,               GfxEngineGfx9,  DEVICE_ID_RENOIR_1636           },
-
-    { FAMILY_NV,  NV_NAVI10_P_A2,       PRID_NV_NAVI10_00,            GfxEngineGfx9,  DEVICE_ID_NV_NAVI10_P_7310      },
-    { FAMILY_NV,  NV_NAVI12_P_A0,       PRID_NV_NAVI12_00,            GfxEngineGfx9,  DEVICE_ID_NV_NAVI12_P_7360      },
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
-    { FAMILY_NV,  NV_NAVI14_M_A0,       PRID_NV_NAVI14_00,            GfxEngineGfx9,  DEVICE_ID_NV_NAVI14_M_7340      },
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
-    { FAMILY_NV,  NV_NAVI21_P_A0,       PRID_NV_NAVI10_00,            GfxEngineGfx9,  DEVICE_ID_NV_NAVI10_P_7310      },
-    { FAMILY_NV,  NV_NAVI22_P_A0,       PRID_NV_NAVI10_00,            GfxEngineGfx9,  DEVICE_ID_NV_NAVI10_P_7310      },
-    { FAMILY_NV,  NV_NAVI23_P_A0,       PRID_NV_NAVI10_00,            GfxEngineGfx9,  DEVICE_ID_NV_NAVI10_P_7310      },
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
-    { PAL_UNDEFINED_NULL_DEVICE },
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
-    { PAL_UNDEFINED_NULL_DEVICE },
-    { PAL_UNDEFINED_NULL_DEVICE },
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       },
-    { PAL_UNDEFINED_NULL_DEVICE },
-    { PAL_UNDEFINED_NULL_DEVICE                                                                                       }, // All
 };
-static_assert(Util::ArrayLen(NullIdLookupTable) == static_cast<uint32>(NullGpuId::All),
-              "NullIdLookupTable needs update!");
-
-const char* pNullGpuNames[static_cast<uint32>(Pal::NullGpuId::Max)] =
-{
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 672
-    nullptr, // TAHITI:gfx600
-    nullptr, // PITCAIRN:gfx601
-    nullptr, // CAPEVERDE:gfx601
-    nullptr, // OLAND:gfx602
-    nullptr, // HAINAN:gfx602
-
-    nullptr, // SPECTRE:gfx700
-    nullptr, // SPOOKY:gfx700
-    nullptr, // HAWAIIPRO:gfx701
-    nullptr, // HAWAII:gfx702
-    nullptr, // KALINDI:gfx703
-    nullptr, // GODAVARI:gfx705
-    nullptr, // BONAIRE:gfx704
-
-    nullptr, // CARRIZO:gfx801
-    nullptr, // BRISTOL:gfx801
-    nullptr, // ICELAND:gfx802
-    nullptr, // TONGA:gfx802
-    nullptr, // TONGAPRO:gfx805
-    nullptr, // FIJI:gfx803
-#endif
-    "POLARIS10:gfx803",
-    "POLARIS11:gfx803",
-    "POLARIS12:gfx803",
-    nullptr,
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 672
-    nullptr, // STONEY:gfx810
-#endif
-
-    "VEGA10:gfx900",
-    "RAVEN:gfx902",
-    "VEGA12:gfx904",
-    "VEGA20:gfx906",
-    "RAVEN2:gfx909",
-    "RENOIR:gfx90C",
-
-    "NAVI10:gfx1010",
-    "NAVI12:gfx1011",
-    nullptr,
-    "NAVI14:gfx1012",
-    nullptr,
-    "NAVI21:gfx1030",
-    "NAVI22:gfx1031",
-    "NAVI23:gfx1032",
-    nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
-    nullptr,
-};
-
-static_assert(Util::ArrayLen(pNullGpuNames) == static_cast<uint32>(NullGpuId::Max),
-              "pNullGpuNames needs update!");
+extern const uint32 NullIdLookupTableCount = static_cast<uint32>(Util::ArrayLen(NullIdLookupTable));
 
 // =====================================================================================================================
 Device::Device(
     Platform*              pPlatform,
-    const char*            pName,
     const NullIdLookup&    nullIdLookup,
     const HwIpDeviceSizes& hwDeviceSizes)
     :
@@ -201,7 +90,7 @@ Device::Device(
                 UINT_MAX), // max semaphore count
     m_nullIdLookup(nullIdLookup)
 {
-    Strncpy(&m_gpuName[0], pName, sizeof(m_gpuName));
+    Strncpy(&m_gpuName[0], nullIdLookup.pName, sizeof(m_gpuName));
 }
 
 // =====================================================================================================================
@@ -212,9 +101,8 @@ Result Device::Create(
     Device**   ppDeviceOut,
     NullGpuId  nullGpuId)
 {
-    const auto&  nullIdLookup = NullIdLookupTable[static_cast<uint32>(nullGpuId)];
-    const char*  pName        = pNullGpuNames[static_cast<uint32>(nullGpuId)];
-    Result       result       = Result::ErrorInitializationFailed;
+    const NullIdLookup nullIdLookup = GetDeviceById(nullGpuId);
+    Result             result       = Result::ErrorInitializationFailed;
 
     // Determine if the GPU is supported by PAL, and if so, what its hardware IP levels are.
     HwIpLevels ipLevels = {};
@@ -237,7 +125,6 @@ Result Device::Create(
         if (pMemory != nullptr)
         {
             (*ppDeviceOut) = PAL_PLACEMENT_NEW(pMemory) Device(pPlatform,
-                                                               pName,
                                                                nullIdLookup,
                                                                hwDeviceSizes);
 
@@ -259,19 +146,20 @@ Result Device::Create(
 }
 
 // =====================================================================================================================
-// Queries whether a given NullGpuId corresponds to a valid device.
-bool Device::IsValid(
+// Finds the device info for a given NullGpuId
+NullIdLookup Device::GetDeviceById(
     NullGpuId nullGpuId)
 {
-    const auto&  nullIdLookup = NullIdLookupTable[static_cast<uint32>(nullGpuId)];
-    const char*  pName        = pNullGpuNames[static_cast<uint32>(nullGpuId)];
-
-    return ((nullGpuId                <  NullGpuId::Max)            &&
-            (pName                    != nullptr)                   &&
-            (nullIdLookup.familyId    != FAMILY_UNKNOWN)            &&
-            (nullIdLookup.gfxEngineId != CIASICIDGFXENGINE_UNKNOWN) &&
-            (nullIdLookup.deviceId    != 0)                         &&
-            (nullIdLookup.eRevId      != 0));
+    NullIdLookup deviceInfo = SentinelNullGpu;
+    for (const NullIdLookup& entry : NullIdLookupTable)
+    {
+        if (entry.nullId == nullGpuId)
+        {
+            deviceInfo = entry;
+            break;
+        }
+    }
+    return deviceInfo;
 }
 
 // =====================================================================================================================
@@ -831,6 +719,12 @@ void Device::InitGfx6ChipProperties()
     pChipInfo->backendDisableMask      = 0; // everything is enabled!
     pChipInfo->numActiveRbs            = pChipInfo->maxNumRbPerSe * pChipInfo->numShaderEngines;
     pChipInfo->gbTileMode[TILEINDEX_LINEAR_ALIGNED] = ADDR_TM_LINEAR_ALIGNED << 2;
+
+    if ((m_chipProperties.gfxLevel == GfxIpLevel::GfxIp8) || (m_chipProperties.gfxLevel == GfxIpLevel::GfxIp8_1))
+    {
+        Gfx8InsertDummyTilingValues();
+    }
+
     PAL_ASSERT(m_chipProperties.gfxLevel >= GfxIpLevel::GfxIp6);
     const uint32  activeCuMask = (1 << pChipInfo->numCuPerSh) - 1;
 
@@ -857,6 +751,75 @@ void Device::InitGfx6ChipProperties()
     // Call into the HWL to finish initializing some GPU properties which can be derived from the ones which we
     // overrode above.
     Gfx6::FinalizeGpuChipProperties(*this, &m_chipProperties);
+}
+
+// =====================================================================================================================
+// Clients expect a valid number of swizzle equations when querying the device properties during their init code.
+// It's a minor quality of life that doesn't impact correctness. Values are taken from a gfx8 GPU.
+void Device::Gfx8InsertDummyTilingValues()
+{
+    auto* const  pChipInfo = &m_chipProperties.gfx6;
+
+    uint32 constexpr Gfx8DummyTileModeValues[] = {
+        0x00800150,
+        0x00800950,
+        0x00801150,
+        0x00801950,
+        0x00802950,
+        0x00802948,
+        0x00802954,
+        0x00802954,
+        0x00000144,
+        0x02000148,
+        0x02000150,
+        0x06000154,
+        0x06000154,
+        0x02400148,
+        0x02400150,
+        0x02400170,
+        0x06400154,
+        0x06400154,
+        0x0040014C,
+        0x0100014C,
+        0x0100015C,
+        0x01000174,
+        0x01000164,
+        0x01000164,
+        0x0040015C,
+        0x01000160,
+        0x01000178,
+        0x02C00148,
+        0x02C00150,
+        0x06C00154,
+        0x06C00154,
+        0x00000000,
+    };
+
+    static_assert(sizeof(pChipInfo->gbTileMode) == sizeof(Gfx8DummyTileModeValues), "Size mismatch!");
+
+    uint32 constexpr Gfx8DummyMacroTileModeValues[] = {
+        0x000000E8,
+        0x000000E8,
+        0x000000E8,
+        0x000000E4,
+        0x000000D0,
+        0x000000D0,
+        0x000000D0,
+        0x00000000,
+        0x000000ED,
+        0x000000E9,
+        0x000000E8,
+        0x000000E4,
+        0x000000D0,
+        0x00000090,
+        0x00000040,
+        0x00000000,
+    };
+
+    static_assert(sizeof(pChipInfo->gbMacroTileMode) == sizeof(Gfx8DummyMacroTileModeValues), "Size mismatch!");
+
+    memcpy(pChipInfo->gbTileMode, &Gfx8DummyTileModeValues, sizeof(Gfx8DummyTileModeValues));
+    memcpy(pChipInfo->gbMacroTileMode, &Gfx8DummyMacroTileModeValues, sizeof(Gfx8DummyMacroTileModeValues));
 }
 #endif
 
@@ -1541,22 +1504,6 @@ Result Device::OpenExternalSharedImage(
     PAL_NEVER_CALLED();
 
     return Result::Unsupported;
-}
-
-// =====================================================================================================================
-// Performs OS-specific early initialization steps for this Device object. Anything created or initialized by this
-// function can only be destroyed or deinitialized on Device destruction.
-Result Device::OsEarlyInit()
-{
-    return Result::Success;
-}
-
-// =====================================================================================================================
-// Performs potentially unsafe OS-specific late initialization steps for this Device object. Anything created or
-// initialized by this function must be destroyed or deinitialized in Cleanup().
-Result Device::OsLateInit()
-{
-    return Result::Success;
 }
 
 // =====================================================================================================================

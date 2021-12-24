@@ -234,9 +234,6 @@ void RsrcProcMgr::CopyMemoryCs(
     const MemoryCopyRegion* pRegions
     ) const
 {
-    constexpr uint32  NumGpuMemory  = 2;        // source & destination.
-    constexpr gpusize CopySizeLimit = 16777216; // 16 MB.
-
     bool p2pBltInfoRequired = m_pDevice->Parent()->IsP2pBltWaRequired(dstGpuMemory);
 
     uint32 newRegionCount = 0;
@@ -274,19 +271,47 @@ void RsrcProcMgr::CopyMemoryCs(
         }
     }
 
-    // Save current command buffer state.
-    pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
-
     // Local to local copy prefers wide format copy for better performance. Copy to/from nonlocal heap
     // with wide format may result in worse performance.
     const bool preferWideFormatCopy = (srcGpuMemory.IsLocalPreferred() && dstGpuMemory.IsLocalPreferred());
 
+    CopyMemoryCs(pCmdBuffer,
+                 srcGpuMemory.Desc().gpuVirtAddr,
+                 *srcGpuMemory.GetDevice(),
+                 dstGpuMemory.Desc().gpuVirtAddr,
+                 *dstGpuMemory.GetDevice(),
+                 regionCount,
+                 pRegions,
+                 preferWideFormatCopy,
+                 (p2pBltInfoRequired ? chunkAddrs.Data() : nullptr));
+}
+
+// =====================================================================================================================
+// Builds commands to copy one or more regions from one GPU memory location to another with a compute shader.
+void RsrcProcMgr::CopyMemoryCs(
+    GfxCmdBuffer*           pCmdBuffer,
+    gpusize                 srcGpuVirtAddr,
+    const Device&           srcDevice,
+    gpusize                 dstGpuVirtAddr,
+    const Device&           dstDevice,
+    uint32                  regionCount,
+    const MemoryCopyRegion* pRegions,
+    bool                    preferWideFormatCopy,
+    const gpusize*          pP2pBltInfoChunks
+    ) const
+{
+    constexpr uint32  NumGpuMemory  = 2;        // source & destination.
+    constexpr gpusize CopySizeLimit = 16777216; // 16 MB.
+
+    // Save current command buffer state.
+    pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
+
     // Now begin processing the list of copy regions.
     for (uint32 idx = 0; idx < regionCount; ++idx)
     {
-        if (p2pBltInfoRequired)
+        if (pP2pBltInfoChunks != nullptr)
         {
-            pCmdBuffer->P2pBltWaCopyNextRegion(chunkAddrs[idx]);
+            pCmdBuffer->P2pBltWaCopyNextRegion(pP2pBltInfoChunks[idx]);
         }
 
         const gpusize srcOffset  = pRegions[idx].srcOffset;
@@ -341,15 +366,15 @@ void RsrcProcMgr::CopyMemoryCs(
             // Populate the table with raw buffer views, by convention the destination is placed before the source.
             BufferViewInfo rawBufferView = {};
             RpmUtil::BuildRawBufferViewInfo(&rawBufferView,
-                                            dstGpuMemory,
-                                            dstOffset + copyOffset,
+                                            dstDevice,
+                                            (dstGpuVirtAddr + dstOffset + copyOffset),
                                             copySectionSize);
             m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &rawBufferView, pSrdTable);
             pSrdTable += SrdDwordAlignment();
 
             RpmUtil::BuildRawBufferViewInfo(&rawBufferView,
-                                            srcGpuMemory,
-                                            srcOffset + copyOffset,
+                                            srcDevice,
+                                            (srcGpuVirtAddr + srcOffset + copyOffset),
                                             copySectionSize);
             m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &rawBufferView, pSrdTable);
 
@@ -359,7 +384,7 @@ void RsrcProcMgr::CopyMemoryCs(
         }
     }
 
-    if (p2pBltInfoRequired)
+    if (pP2pBltInfoChunks != nullptr)
     {
         pCmdBuffer->P2pBltWaCopyEnd();
     }
@@ -7615,6 +7640,8 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
 
     bindTargetsInfo.depthTarget.depthLayout.usages = LayoutDepthStencilTarget;
     bindTargetsInfo.depthTarget.depthLayout.engines = LayoutUniversalEngine;
+    bindTargetsInfo.depthTarget.stencilLayout.usages = LayoutDepthStencilTarget;
+    bindTargetsInfo.depthTarget.stencilLayout.engines = LayoutUniversalEngine;
 
     // Save current command buffer state and bind graphics state which is common for all regions.
     pCmdBuffer->PushGraphicsState();

@@ -129,6 +129,12 @@ public:
         uint32                  regionCount,
         const MemoryCopyRegion* pRegions) override;
 
+    virtual void CmdCopyMemoryByGpuVa(
+        gpusize                 srcGpuVirtAddr,
+        gpusize                 dstGpuVirtAddr,
+        uint32                  regionCount,
+        const MemoryCopyRegion* pRegions) override;
+
     virtual void CmdCopyImage(
         const IImage&          srcImage,
         ImageLayout            srcImageLayout,
@@ -269,9 +275,11 @@ protected:
         const DmaImageInfo&          imageInfo,
         const MemoryImageCopyRegion& region);
 
-    void CopyMemoryRegion(const IGpuMemory& srcGpuMemory,
-                          const IGpuMemory& dstGpuMemory,
-                          const MemoryCopyRegion& region);
+    void CopyMemoryRegion(
+        gpusize                 srcGpuVirtAddr,
+        gpusize                 dstGpuVirtAddr,
+        DmaCopyFlags            flags,
+        const MemoryCopyRegion& region);
 
     virtual void WriteCopyMemImageDwordUnalignedCmd(
         bool                         memToImg,

@@ -23,7 +23,15 @@
  #
  #######################################################################################################################
 
-if (MSVC_IDE)
-    file(GLOB_RECURSE PAL_CMAKE_SOURCES CONFIGURE_DEPENDS *.cmake)
-    target_sources(pal PRIVATE ${PAL_CMAKE_SOURCES} CMakeLists.txt)
-endif()
+add_subdirectory(Modules)
+
+target_sources(pal PRIVATE
+    CMakeLists.txt
+    PalBuildParameters.cmake
+    PalCompileDefinitions.cmake
+    PalCompilerOptions.cmake
+    PalCompilerWarnings.cmake
+    PalOptions.cmake
+    PalOverrides.cmake
+    PalVersionHelper.cmake
+)

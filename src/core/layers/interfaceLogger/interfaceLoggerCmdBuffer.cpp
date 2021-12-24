@@ -1315,6 +1315,40 @@ void CmdBuffer::CmdCopyMemory(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdCopyMemoryByGpuVa(
+    gpusize                 srcGpuVirtAddr,
+    gpusize                 dstGpuVirtAddr,
+    uint32                  regionCount,
+    const MemoryCopyRegion* pRegions)
+{
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdCopyMemoryByGpuVa;
+    funcInfo.objectId     = m_objectId;
+    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    m_pNextLayer->CmdCopyMemoryByGpuVa(srcGpuVirtAddr, dstGpuVirtAddr, regionCount, pRegions);
+    funcInfo.postCallTime = m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndValue("srcGpuVirtAddr", srcGpuVirtAddr);
+        pLogContext->KeyAndValue("dstGpuVirtAddr", dstGpuVirtAddr);
+        pLogContext->KeyAndBeginList("regions", false);
+
+        for (uint32 idx = 0; idx < regionCount; ++idx)
+        {
+            pLogContext->Struct(pRegions[idx]);
+        }
+
+        pLogContext->EndList();
+        pLogContext->EndInput();
+
+        m_pPlatform->LogEndFunc(pLogContext);
+    }
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdCopyImage(
     const IImage&          srcImage,
     ImageLayout            srcImageLayout,

@@ -471,17 +471,15 @@ void DmaCmdBuffer::CmdReleaseThenAcquire(
 // =====================================================================================================================
 // Executes one region's worth of memory-memory copy.
 void DmaCmdBuffer::CopyMemoryRegion(
-    const IGpuMemory&       srcGpuMemory,
-    const IGpuMemory&       dstGpuMemory,
+    gpusize                 srcGpuVirtAddr,
+    gpusize                 dstGpuVirtAddr,
+    DmaCopyFlags            flags,
     const MemoryCopyRegion& region)
 {
-    gpusize srcGpuAddr      = srcGpuMemory.Desc().gpuVirtAddr + region.srcOffset;
-    gpusize dstGpuAddr      = dstGpuMemory.Desc().gpuVirtAddr + region.dstOffset;
+    gpusize srcGpuAddr      = srcGpuVirtAddr + region.srcOffset;
+    gpusize dstGpuAddr      = dstGpuVirtAddr + region.dstOffset;
     gpusize bytesJustCopied = 0;
     gpusize bytesLeftToCopy = region.copySize;
-
-    const DmaCopyFlags flags =
-        static_cast<const GpuMemory&>(srcGpuMemory).IsTmzProtected() ? DmaCopyFlags::TmzCopy : DmaCopyFlags::None;
 
     while (bytesLeftToCopy > 0)
     {
@@ -559,6 +557,9 @@ void DmaCmdBuffer::CmdCopyMemory(
         }
     }
 
+    const DmaCopyFlags flags =
+        static_cast<const GpuMemory&>(srcGpuMemory).IsTmzProtected() ? DmaCopyFlags::TmzCopy : DmaCopyFlags::None;
+
     // Splits up each region's copy size into chunks that the specific hardware can handle.
     for (uint32 rgnIdx = 0; rgnIdx < regionCount; rgnIdx++)
     {
@@ -567,7 +568,7 @@ void DmaCmdBuffer::CmdCopyMemory(
             P2pBltWaCopyNextRegion(chunkAddrs[rgnIdx]);
         }
 
-        CopyMemoryRegion(srcGpuMemory, dstGpuMemory, pRegions[rgnIdx]);
+        CopyMemoryRegion(srcGpuMemory.Desc().gpuVirtAddr, dstGpuMemory.Desc().gpuVirtAddr, flags, pRegions[rgnIdx]);
     }
 
     if (p2pBltInfoRequired)
@@ -579,6 +580,49 @@ void DmaCmdBuffer::CmdCopyMemory(
     {
         // We're done writing commands, patch the predicate command.
         PatchPredicateCmd(static_cast<size_t>(pCmdSpace - pPredCmd), pPredCmd);
+    }
+}
+
+// =====================================================================================================================
+void DmaCmdBuffer::CmdCopyMemoryByGpuVa(
+    gpusize                 srcGpuVirtAddr,
+    gpusize                 dstGpuVirtAddr,
+    uint32                  regionCount,
+    const MemoryCopyRegion* pRegions)
+{
+    // We cannot know if the the P2P PCI BAR work around is required for the destination memory, so set an error
+    // to make the client aware of the problem.
+    if (m_pDevice->ChipProperties().p2pBltWaInfo.required)
+    {
+        SetCmdRecordingError(Result::ErrorIncompatibleDevice);
+    }
+    else
+    {
+        uint32* pCmdSpace = nullptr;
+        uint32* pPredCmd  = nullptr;
+
+        if (m_predMemEnabled)
+        {
+            // Write the predication command, we will patch its predication size later.
+            pCmdSpace = m_cmdStream.ReserveCommands();
+
+            pPredCmd  = pCmdSpace;
+            pCmdSpace = WritePredicateCmd(0, pCmdSpace);
+
+            m_cmdStream.CommitCommands(pCmdSpace);
+        }
+
+        // Splits up each region's copy size into chunks that the specific hardware can handle.
+        for (uint32 rgnIdx = 0; rgnIdx < regionCount; rgnIdx++)
+        {
+            CopyMemoryRegion(srcGpuVirtAddr, dstGpuVirtAddr, DmaCopyFlags::None, pRegions[rgnIdx]);
+        }
+
+        if (m_predMemEnabled)
+        {
+            // We're done writing commands, patch the predicate command.
+            PatchPredicateCmd(static_cast<size_t>(pCmdSpace - pPredCmd), pPredCmd);
+        }
     }
 }
 
@@ -1880,7 +1924,13 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
                         memToEmbeddedRgn.srcOffset = memOffset;
                         memToEmbeddedRgn.dstOffset = embeddedOffset;
 
-                        CopyMemoryRegion(gpuMemory, *m_pT2tEmbeddedGpuMemory, memToEmbeddedRgn);
+                        const DmaCopyFlags flags =
+                            gpuMemory.IsTmzProtected() ? DmaCopyFlags::TmzCopy : DmaCopyFlags::None;
+
+                        CopyMemoryRegion(gpuMemory.Desc().gpuVirtAddr,
+                                         m_pT2tEmbeddedGpuMemory->Desc().gpuVirtAddr,
+                                         flags,
+                                         memToEmbeddedRgn);
 
                         // Copy from embedded back to the image
                         if (wholeSliceInEmbedded == false)
@@ -1912,8 +1962,14 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
                         embeddedToMemRgn.srcOffset = embeddedOffset;
                         embeddedToMemRgn.dstOffset = memOffset;
 
+                        const DmaCopyFlags flags =
+                            m_pT2tEmbeddedGpuMemory->IsTmzProtected() ? DmaCopyFlags::TmzCopy : DmaCopyFlags::None;
+
                         // Copy from embedded region to memory
-                        CopyMemoryRegion(*m_pT2tEmbeddedGpuMemory, gpuMemory, embeddedToMemRgn);
+                        CopyMemoryRegion(m_pT2tEmbeddedGpuMemory->Desc().gpuVirtAddr,
+                                         gpuMemory.Desc().gpuVirtAddr,
+                                         flags,
+                                         embeddedToMemRgn);
                     }
 
                     CmdBarrier(barrierInfo);

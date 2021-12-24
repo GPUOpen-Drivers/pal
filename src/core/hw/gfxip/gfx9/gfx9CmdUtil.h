@@ -411,23 +411,6 @@ public:
         uint32 orMask,
         uint32 andMask,
         void*  pBuffer) const;
-    static size_t BuildCopyDataGraphics(
-        uint32                        engineSel,
-        ME_COPY_DATA_dst_sel_enum     dstSel,
-        gpusize                       dstAddr,
-        ME_COPY_DATA_src_sel_enum     srcSel,
-        gpusize                       srcAddr,
-        ME_COPY_DATA_count_sel_enum   countSel,
-        ME_COPY_DATA_wr_confirm_enum  wrConfirm,
-        void*                         pBuffer);
-    static size_t BuildCopyDataCompute(
-        MEC_COPY_DATA_dst_sel_enum     dstSel,
-        gpusize                        dstAddr,
-        MEC_COPY_DATA_src_sel_enum     srcSel,
-        gpusize                        srcAddr,
-        MEC_COPY_DATA_count_sel_enum   countSel,
-        MEC_COPY_DATA_wr_confirm_enum  wrConfirm,
-        void*                          pBuffer);
     // This generic version of BuildCopyData works on graphics and compute but doesn't provide any user-friendly enums.
     // The caller must make sure that the arguments they use are legal on their engine.
     static size_t BuildCopyData(

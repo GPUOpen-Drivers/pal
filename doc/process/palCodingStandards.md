@@ -152,6 +152,9 @@ General Language Restrictions
         -   In cases where the type is specified in the right-hand
             initialization expression.
 
+-   **Avoid** overloading function names for class hierarchies. This can
+    lead to tedious casting of the class that defines the function.
+
 Preprocessor
 ------------
 

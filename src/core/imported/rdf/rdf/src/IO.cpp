@@ -29,6 +29,7 @@
 #include <cassert>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 #include <stdexcept>
 
 #include <algorithm>
@@ -45,29 +46,43 @@ namespace rdf
 {
 namespace internal
 {
+    /**
+    Check if the value v could have been a size_t-like type on the current
+    platform. For 64-bit, it's always true, for 32-bit it checks if the value
+    can be represented by size_t/uint32_t.
+    */
+    bool CheckIsInSystemSizeRange(std::int64_t v)
+    {
+        if (sizeof(size_t) == 4) {
+            return v <= static_cast<std::int64_t>(std::numeric_limits<std::uint32_t>::max());
+        }
+
+        return true;
+    }
+
     ///////////////////////////////////////////////////////////////////////////
     class RDF_EXPORT IStream
     {
     public:
         virtual ~IStream();
 
-        std::size_t Read(const std::size_t count, void* buffer);
-        std::size_t Write(const std::size_t count, const void* buffer);
+        std::int64_t Read(const std::int64_t count, void* buffer);
+        std::int64_t Write(const std::int64_t count, const void* buffer);
 
-        std::size_t Tell() const;
-        void Seek(const std::size_t offset);
-        std::size_t GetSize() const;
+        std::int64_t Tell() const;
+        void Seek(const std::int64_t offset);
+        std::int64_t GetSize() const;
 
         bool CanWrite() const;
         bool CanRead() const;
 
     private:
-        virtual std::size_t ReadImpl(const std::size_t count, void* buffer) = 0;
-        virtual std::size_t WriteImpl(const std::size_t count, const void* buffer) = 0;
-        virtual std::size_t TellImpl() const = 0;
+        virtual std::int64_t ReadImpl(const std::int64_t count, void* buffer) = 0;
+        virtual std::int64_t WriteImpl(const std::int64_t count, const void* buffer) = 0;
+        virtual std::int64_t TellImpl() const = 0;
 
-        virtual void SeekImpl(const std::size_t offset) = 0;
-        virtual std::size_t GetSizeImpl() const = 0;
+        virtual void SeekImpl(const std::int64_t offset) = 0;
+        virtual std::int64_t GetSizeImpl() const = 0;
 
         virtual bool CanWriteImpl() const = 0;
         virtual bool CanReadImpl() const = 0;
@@ -145,7 +160,7 @@ namespace internal
     std::unique_ptr<IStream> RDF_EXPORT OpenFile(const char* filename, AccessMode accessMode);
     std::unique_ptr<IStream> RDF_EXPORT CreateFile(const char* filename);
 
-    std::unique_ptr<IStream> RDF_EXPORT CreateReadOnlyMemoryStream(const std::size_t bufferSize,
+    std::unique_ptr<IStream> RDF_EXPORT CreateReadOnlyMemoryStream(const std::int64_t bufferSize,
                                                                    const void* buffer);
 
     std::unique_ptr<IStream> RDF_EXPORT CreateMemoryStream();
@@ -285,7 +300,7 @@ namespace internal
             return index_[it->second.first + chunkIndex];
         }
 
-        const size_t GetChunkCount(const char* chunkId) const
+        int64_t GetChunkCount(const char* chunkId) const
         {
             assert(chunkId);
 
@@ -342,7 +357,7 @@ namespace internal
             return GetChunkInfo(chunkId, index).version;
         }
 
-        std::size_t GetChunkDataSize(const char* chunkId, const int index) const
+        std::int64_t GetChunkDataSize(const char* chunkId, const int index) const
         {
             const auto& info = GetChunkInfo(chunkId, index);
             if (info.compression != Compression::None) {
@@ -352,7 +367,7 @@ namespace internal
             }
         }
 
-        std::size_t GetChunkHeaderSize(const char* chunkId, const int index) const
+        std::int64_t GetChunkHeaderSize(const char* chunkId, const int index) const
         {
             return GetChunkInfo(chunkId, index).chunkHeaderSize;
         }
@@ -482,12 +497,16 @@ namespace internal
         }
 
         void BeginChunk(const char* chunkIdentifier,
-                        const size_t chunkHeaderSize,
+                        const std::int64_t chunkHeaderSize,
                         const void* chunkHeader,
                         const Compression compression,
                         const std::uint32_t version)
         {
             assert(currentChunk_ == nullptr);
+
+            if (chunkHeaderSize < 0) {
+                throw std::runtime_error("Chunk header size must be positive or null");
+            }
 
             ChunkFile::IndexEntry entry;
             ::memset(&entry, 0, sizeof(entry));
@@ -520,9 +539,13 @@ namespace internal
             assert(currentChunk_->chunkDataOffset >= 0);
         }
 
-        void AppendToChunk(const size_t chunkDataSize, const void* chunkData)
+        void AppendToChunk(const std::int64_t chunkDataSize, const void* chunkData)
         {
             assert(currentChunk_);
+
+            if (chunkDataSize < 0) {
+                throw std::runtime_error("Chunk data size must be positive or null");
+            }
 
             if (currentChunk_->compression != Compression::None) {
                 chunkDataBuffer_.insert(
@@ -581,9 +604,9 @@ namespace internal
         }
 
         int WriteChunk(const char* chunkIdentifier,
-                       const size_t chunkHeaderSize,
+                       const std::int64_t chunkHeaderSize,
                        const void* chunkHeader,
-                       const size_t chunkDataSize,
+                       const std::int64_t chunkDataSize,
                        const void* chunkData,
                        const Compression compression,
                        const std::uint32_t version)
@@ -641,21 +664,33 @@ namespace internal
     IStream::~IStream() {}
 
     //////////////////////////////////////////////////////////////////////
-    std::size_t IStream::Read(const std::size_t size, void* buffer)
+    std::int64_t IStream::Read(const std::int64_t size, void* buffer)
     {
         if (size > 0 && buffer == nullptr) {
             throw std::runtime_error("Buffer cannot be null");
         }
+
+        if (size < 0) {
+            throw std::runtime_error("Size must be >= 0");
+        }
+
+        assert(CheckIsInSystemSizeRange(size));
 
         return ReadImpl(size, buffer);
     }
 
     //////////////////////////////////////////////////////////////////////
-    std::size_t IStream::Write(const std::size_t size, const void* buffer)
+    std::int64_t IStream::Write(const std::int64_t size, const void* buffer)
     {
         if (size > 0 && buffer == nullptr) {
             throw std::runtime_error("Buffer cannot be null");
         }
+
+        if (size < 0) {
+            throw std::runtime_error("Size must be >= 0");
+        }
+
+        assert(CheckIsInSystemSizeRange(size));
 
         return WriteImpl(size, buffer);
     }
@@ -673,20 +708,24 @@ namespace internal
     }
 
     //////////////////////////////////////////////////////////////////////
-    std::size_t IStream::Tell() const
+    std::int64_t IStream::Tell() const
     {
         return TellImpl();
     }
 
     //////////////////////////////////////////////////////////////////////
-    std::size_t IStream::GetSize() const
+    std::int64_t IStream::GetSize() const
     {
         return GetSizeImpl();
     }
 
     //////////////////////////////////////////////////////////////////////
-    void IStream::Seek(const std::size_t offset)
+    void IStream::Seek(const std::int64_t offset)
     {
+        if (offset < 0) {
+            throw std::runtime_error("Seek offset must not be negative");
+        }
+
         SeekImpl(offset);
     }
 
@@ -702,17 +741,17 @@ namespace internal
         }
 
     private:
-        std::size_t ReadImpl(const std::size_t count, void* buffer) override
+        std::int64_t ReadImpl(const std::int64_t count, void* buffer) override
         {
             return std::fread(buffer, 1, count, fd_);
         }
 
-        std::size_t WriteImpl(const std::size_t count, const void* buffer) override
+        std::int64_t WriteImpl(const std::int64_t count, const void* buffer) override
         {
             return std::fwrite(buffer, 1, count, fd_);
         }
 
-        std::size_t TellImpl() const override
+        std::int64_t TellImpl() const override
         {
 #if RDF_PLATFORM_WINDOWS
             return _ftelli64(fd_);
@@ -724,7 +763,7 @@ namespace internal
 #endif
         }
 
-        void SeekImpl(const std::size_t offset) override
+        void SeekImpl(const std::int64_t offset) override
         {
 #if RDF_PLATFORM_WINDOWS
             _fseeki64(fd_, offset, SEEK_SET);
@@ -746,7 +785,7 @@ namespace internal
             return true;
         }
 
-        std::size_t GetSizeImpl() const override
+        std::int64_t GetSizeImpl() const override
         {
 #if RDF_PLATFORM_WINDOWS
             struct _stat64 statBuffer;
@@ -766,16 +805,20 @@ namespace internal
     };
 
     //////////////////////////////////////////////////////////////////////
+    /**
+    TODO Not supported on 32-bit platforms as it cannot handle buffers
+         >= 2^32 bit there
+    */
     class ReadOnlyMemoryStream final : public IStream
     {
     public:
-        ReadOnlyMemoryStream(const std::size_t size, const void* buffer)
+        ReadOnlyMemoryStream(const std::int64_t size, const void* buffer)
             : size_(size), buffer_(buffer)
         {
         }
 
     private:
-        std::size_t ReadImpl(const std::size_t count, void* buffer) override
+        std::int64_t ReadImpl(const std::int64_t count, void* buffer) override
         {
             const auto startPointer = readPointer_;
             auto endPointer = readPointer_ + count;
@@ -793,23 +836,23 @@ namespace internal
             return endPointer - startPointer;
         }
 
-        std::size_t WriteImpl(const std::size_t count, const void* buffer) override
+        std::int64_t WriteImpl(const std::int64_t count, const void* buffer) override
         {
             assert(false);
             return 0;
         }
 
-        std::size_t TellImpl() const override
+        std::int64_t TellImpl() const override
         {
             return readPointer_;
         }
 
-        std::size_t GetSizeImpl() const override
+        std::int64_t GetSizeImpl() const override
         {
             return size_;
         }
 
-        void SeekImpl(const std::size_t offset) override
+        void SeekImpl(const std::int64_t offset) override
         {
             if (offset >= size_) {
                 throw std::runtime_error("Seek out-of-bounds");
@@ -828,16 +871,19 @@ namespace internal
             return true;
         }
 
-        std::size_t size_;
+        std::int64_t size_;
         std::size_t readPointer_ = 0;
         const void* buffer_;
     };
 
     //////////////////////////////////////////////////////////////////////
+    /**
+    Limited to 4 GiB on 32-bit platforms.
+    */
     class MemoryStream final : public IStream
     {
     private:
-        std::size_t ReadImpl(const std::size_t count, void* buffer) override
+        std::int64_t ReadImpl(const std::int64_t count, void* buffer) override
         {
             // This is all prone to overflow, but we try to apply mostly "safe"
             // math operations here
@@ -853,7 +899,7 @@ namespace internal
             return bytesToRead;
         }
 
-        std::size_t WriteImpl(const std::size_t count, const void* buffer) override
+        std::int64_t WriteImpl(const std::int64_t count, const void* buffer) override
         {
             const auto end = offset_ + count;
             if (end > data_.size()) {
@@ -865,18 +911,20 @@ namespace internal
             return count;
         }
 
-        std::size_t TellImpl() const override
+        std::int64_t TellImpl() const override
         {
             return offset_;
         }
 
-        std::size_t GetSizeImpl() const override
+        std::int64_t GetSizeImpl() const override
         {
             return data_.size();
         }
 
-        void SeekImpl(const std::size_t offset) override
+        void SeekImpl(const std::int64_t offset) override
         {
+            assert(CheckIsInSystemSizeRange(offset));
+
             offset_ = offset;
 
             // Resize the file if we seek beyond the end
@@ -900,7 +948,7 @@ namespace internal
     };
 
     //////////////////////////////////////////////////////////////////////
-    std::unique_ptr<IStream> CreateReadOnlyMemoryStream(const std::size_t size, const void* buffer)
+    std::unique_ptr<IStream> CreateReadOnlyMemoryStream(const std::int64_t size, const void* buffer)
     {
         return rdf_make_unique<ReadOnlyMemoryStream>(size, buffer);
     }
@@ -1034,11 +1082,15 @@ Create a stream from read-only memory.
 This creates a new stream which is backed by the provided memory. This is
 useful for testing, as you can load data directly from memory.
 */
-int RDF_EXPORT rdfStreamFromReadOnlyMemory(const std::size_t size,
+int RDF_EXPORT rdfStreamFromReadOnlyMemory(const std::int64_t size,
                                            const void* data,
                                            rdfStream** handle)
 {
     RDF_C_API_BEGIN
+
+    if (size < 0) {
+        return rdfResult::rdfResultInvalidArgument;
+    }
 
     *handle = new rdfStream;
     try {
@@ -1110,13 +1162,17 @@ Read a number of bytes from the stream.
 If bytesRead is non-null, the number of bytes read will be stored there.
 */
 int RDF_EXPORT rdfStreamRead(rdfStream* stream,
-                             const std::size_t count,
+                             const std::int64_t count,
                              void* buffer,
-                             std::size_t* bytesRead)
+                             std::int64_t* bytesRead)
 {
     RDF_C_API_BEGIN
 
     if (stream == nullptr) {
+        return rdfResult::rdfResultInvalidArgument;
+    }
+
+    if (count < 0) {
         return rdfResult::rdfResultInvalidArgument;
     }
 
@@ -1137,13 +1193,17 @@ Write a number of bytes to the stream.
 If bytesWritten is non-null, the number of bytes written will be stored there.
 */
 int RDF_EXPORT rdfStreamWrite(rdfStream* stream,
-                              const std::size_t count,
+                              const std::int64_t count,
                               const void* buffer,
-                              std::size_t* bytesWritten)
+                              std::int64_t* bytesWritten)
 {
     RDF_C_API_BEGIN
 
     if (stream == nullptr) {
+        return rdfResult::rdfResultInvalidArgument;
+    }
+
+    if (count < 0) {
         return rdfResult::rdfResultInvalidArgument;
     }
 
@@ -1157,10 +1217,7 @@ int RDF_EXPORT rdfStreamWrite(rdfStream* stream,
     RDF_C_API_END
 }
 
-int RDF_EXPORT rdfStreamTell(rdfStream* stream, std::size_t* position)
-/**
-Get the current stream position.
-*/
+int RDF_EXPORT rdfStreamTell(rdfStream* stream, std::int64_t* position)
 {
     RDF_C_API_BEGIN
 
@@ -1183,11 +1240,15 @@ Get the current stream position.
 /**
 Set the current stream position.
 */
-int RDF_EXPORT rdfStreamSeek(rdfStream* stream, const std::size_t offset)
+int RDF_EXPORT rdfStreamSeek(rdfStream* stream, const std::int64_t offset)
 {
     RDF_C_API_BEGIN
 
     if (stream == nullptr) {
+        return rdfResult::rdfResultInvalidArgument;
+    }
+
+    if (offset < 0) {
         return rdfResult::rdfResultInvalidArgument;
     }
 
@@ -1202,7 +1263,7 @@ int RDF_EXPORT rdfStreamSeek(rdfStream* stream, const std::size_t offset)
 /**
 Get the size of the stream.
 */
-int RDF_EXPORT rdfStreamGetSize(rdfStream* stream, std::size_t* size)
+int RDF_EXPORT rdfStreamGetSize(rdfStream* stream, std::int64_t* size)
 {
     RDF_C_API_BEGIN
 
@@ -1381,7 +1442,7 @@ Get the size of the chunk header.
 int RDF_EXPORT rdfChunkFileGetChunkHeaderSize(rdfChunkFile* handle,
                                               const char* chunkId,
                                               const int chunkIndex,
-                                              std::size_t* size)
+                                              std::int64_t* size)
 {
     RDF_C_API_BEGIN
 
@@ -1407,7 +1468,7 @@ Get the size of the chunk data.
 int RDF_EXPORT rdfChunkFileGetChunkDataSize(rdfChunkFile* handle,
                                             const char* chunkId,
                                             const int chunkIndex,
-                                            std::size_t* size)
+                                            std::int64_t* size)
 {
     RDF_C_API_BEGIN
 
@@ -1432,7 +1493,7 @@ Get the number of chunks using the provided chunk id.
 */
 int RDF_EXPORT rdfChunkFileGetChunkCount(rdfChunkFile* handle,
                                          const char* chunkId,
-                                         std::size_t* size)
+                                         std::int64_t* count)
 {
     RDF_C_API_BEGIN
 
@@ -1440,11 +1501,11 @@ int RDF_EXPORT rdfChunkFileGetChunkCount(rdfChunkFile* handle,
         return rdfResult::rdfResultInvalidArgument;
     }
 
-    if (size == nullptr) {
+    if (count == nullptr) {
         return rdfResult::rdfResultInvalidArgument;
     }
 
-    *size = handle->chunkFile->GetChunkCount(chunkId);
+    *count = handle->chunkFile->GetChunkCount(chunkId);
 
     return rdfResult::rdfResultOk;
 
@@ -1754,12 +1815,16 @@ To begin a chunk, use rdfChunkFileWriterBeginChunk. Once done, call
 rdfChunkFileWriterEndChunk which finalizes the current chunk.
 */
 int RDF_EXPORT rdfChunkFileWriterAppendToChunk(rdfChunkFileWriter* writer,
-                                               const std::size_t size,
+                                               const std::int64_t size,
                                                const void* data)
 {
     RDF_C_API_BEGIN
 
     if (writer == nullptr) {
+        return rdfResult::rdfResultInvalidArgument;
+    }
+
+    if (size < 0) {
         return rdfResult::rdfResultInvalidArgument;
     }
 
@@ -1805,7 +1870,7 @@ rdfChunkFileWriterEndChunk.
 */
 int RDF_EXPORT rdfChunkFileWriterWriteChunk(rdfChunkFileWriter* writer,
                                             const rdfChunkCreateInfo* info,
-                                            const std::size_t size,
+                                            const std::int64_t size,
                                             const void* data,
                                             int* index)
 {
@@ -1816,6 +1881,10 @@ int RDF_EXPORT rdfChunkFileWriterWriteChunk(rdfChunkFileWriter* writer,
     }
 
     if (info == nullptr) {
+        return rdfResult::rdfResultInvalidArgument;
+    }
+
+    if (size < 0) {
         return rdfResult::rdfResultInvalidArgument;
     }
 

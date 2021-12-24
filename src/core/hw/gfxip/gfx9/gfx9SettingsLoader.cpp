@@ -256,22 +256,6 @@ void SettingsLoader::ValidateSettings(
         // the "optimized" algorithm for processing the meta-equations.
         m_settings.optimizedFastClear = 0;
 
-        // The suggested size of the tessellation factor buffer per SE is 0x4000 DWORDs, to account for the
-        // multiples SA's per SE.
-        // More updates:  It is true that for Navi10 this value should be 0xC000. This translates to 128
-        //                threadgroups per SPI for 3 control point patches and 64 patches per threadgroup.
-        //                GE has internal FIFO limits and that prevents it from launching more work.
-        //                So there is no point in increasing the size of the buffer
-        m_settings.tessFactorBufferSizePerSe = Gfx10::mmVGT_TF_RING_SIZE_DEFAULT / gfx9Props.numShaderEngines;
-
-        if ((m_settings.tessFactorBufferSizePerSe * gfx9Props.numShaderEngines) > Gfx09_10::VGT_TF_RING_SIZE__SIZE_MASK)
-        {
-            m_settings.tessFactorBufferSizePerSe =
-                Pow2AlignDown(Gfx09_10::VGT_TF_RING_SIZE__SIZE_MASK,
-                              gfx9Props.numShaderEngines) / gfx9Props.numShaderEngines;
-            static_assert(VGT_TF_RING_SIZE__SIZE__SHIFT == 0, "VGT_TF_RING_SIZE::SIZE shift is no longer zero!");
-        }
-
         if (m_settings.waClampQuadDistributionFactor)
         {
             // VGT_TESS_DISTRIBUTION.ACCUM_QUAD should never be allowed to exceed 64
@@ -311,6 +295,17 @@ void SettingsLoader::ValidateSettings(
         {
             m_settings.psCuEnLimitMask = (1 << (gfx9Props.gfx10.minNumWgpPerSa * 2)) - 1;
         }
+    }
+
+    uint32 tessFactRingSizeMask = Gfx09_10::VGT_TF_RING_SIZE__SIZE_MASK;
+    uint32 tessFactScalar       = gfx9Props.numShaderEngines;
+
+    // Default values for Tess Factor buffer are safe. This could have been changed by the panel settings so for a
+    // sanity check let's adjust the tess factor buffer size down if it's to big:
+    if ((m_settings.tessFactorBufferSizePerSe * tessFactScalar) > tessFactRingSizeMask)
+    {
+        m_settings.tessFactorBufferSizePerSe = Pow2AlignDown(tessFactRingSizeMask, tessFactScalar) / tessFactScalar;
+        static_assert(VGT_TF_RING_SIZE__SIZE__SHIFT == 0, "VGT_TF_RING_SIZE::SIZE shift is no longer zero!");
     }
 
     if ((pPalSettings->distributionTessMode == DistributionTessTrapezoidOnly) ||

@@ -773,8 +773,8 @@ void ComputeCmdBuffer::CmdMemoryAtomic(
 }
 
 // =====================================================================================================================
-// Issues either an end-of-pipe timestamp or a start of pipe timestamp event.  Writes the results to the pGpuMemory +
-// destOffset.
+// Issues an end-of-pipe timestamp event or immediately copies the current time. Writes the results to the
+// pMemObject + destOffset.
 void ComputeCmdBuffer::CmdWriteTimestamp(
     HwPipePoint       pipePoint,
     const IGpuMemory& dstGpuMemory,
@@ -783,15 +783,21 @@ void ComputeCmdBuffer::CmdWriteTimestamp(
     const gpusize address   = dstGpuMemory.Desc().gpuVirtAddr + dstOffset;
     uint32*       pCmdSpace = m_cmdStream.ReserveCommands();
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 697
+    if (pipePoint <= HwPipePreCs)
+#else
     if (pipePoint == HwPipeTop)
+#endif
     {
-        pCmdSpace += m_cmdUtil.BuildCopyDataCompute(dst_sel__mec_copy_data__memory__GFX09,
-                                                    address,
-                                                    src_sel__mec_copy_data__gpu_clock_count,
-                                                    0,
-                                                    count_sel__mec_copy_data__64_bits_of_data,
-                                                    wr_confirm__mec_copy_data__wait_for_confirmation,
-                                                    pCmdSpace);
+        pCmdSpace += m_cmdUtil.BuildCopyData(EngineTypeCompute,
+                                             0,
+                                             dst_sel__mec_copy_data__memory__GFX09,
+                                             address,
+                                             src_sel__mec_copy_data__gpu_clock_count,
+                                             0,
+                                             count_sel__mec_copy_data__64_bits_of_data,
+                                             wr_confirm__mec_copy_data__wait_for_confirmation,
+                                             pCmdSpace);
     }
     else
     {
@@ -821,17 +827,23 @@ void ComputeCmdBuffer::CmdWriteImmediate(
 {
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 697
+    if (pipePoint <= HwPipePreCs)
+#else
     if (pipePoint == HwPipeTop)
+#endif
     {
-        pCmdSpace += m_cmdUtil.BuildCopyDataCompute(dst_sel__mec_copy_data__memory__GFX09,
-                                                    address,
-                                                    src_sel__mec_copy_data__immediate_data,
-                                                    data,
-                                                    ((dataSize == ImmediateDataWidth::ImmediateData32Bit) ?
-                                                        count_sel__mec_copy_data__32_bits_of_data :
-                                                        count_sel__mec_copy_data__64_bits_of_data),
-                                                    wr_confirm__mec_copy_data__wait_for_confirmation,
-                                                    pCmdSpace);
+        pCmdSpace += m_cmdUtil.BuildCopyData(EngineTypeCompute,
+                                             0,
+                                             dst_sel__mec_copy_data__memory__GFX09,
+                                             address,
+                                             src_sel__mec_copy_data__immediate_data,
+                                             data,
+                                             ((dataSize == ImmediateDataWidth::ImmediateData32Bit) ?
+                                              count_sel__mec_copy_data__32_bits_of_data :
+                                              count_sel__mec_copy_data__64_bits_of_data),
+                                             wr_confirm__mec_copy_data__wait_for_confirmation,
+                                             pCmdSpace);
     }
     else
     {
@@ -2037,13 +2049,15 @@ void ComputeCmdBuffer::CmdExecuteNestedCmdBuffers(
 
             uint32 *pCmdSpace = m_cmdStream.ReserveCommands();
 
-            pCmdSpace += m_cmdUtil.BuildCopyDataCompute(dst_sel__mec_copy_data__tc_l2,
-                                                        pCallee->m_predGpuAddr,
-                                                        src_sel__mec_copy_data__tc_l2,
-                                                        m_predGpuAddr,
-                                                        count_sel__mec_copy_data__32_bits_of_data,
-                                                        wr_confirm__mec_copy_data__wait_for_confirmation,
-                                                        pCmdSpace);
+            pCmdSpace += m_cmdUtil.BuildCopyData(EngineTypeCompute,
+                                                 0,
+                                                 dst_sel__mec_copy_data__tc_l2,
+                                                 pCallee->m_predGpuAddr,
+                                                 src_sel__mec_copy_data__tc_l2,
+                                                 m_predGpuAddr,
+                                                 count_sel__mec_copy_data__32_bits_of_data,
+                                                 wr_confirm__mec_copy_data__wait_for_confirmation,
+                                                 pCmdSpace);
 
             m_cmdStream.CommitCommands(pCmdSpace);
         }
@@ -2131,13 +2145,15 @@ void ComputeCmdBuffer::AddPerPresentCommands(
                                           UINT32_MAX,
                                           pCmdSpace);
 
-    pCmdSpace += m_cmdUtil.BuildCopyDataCompute(dst_sel__mec_copy_data__perfcounters,
-                                                frameCntReg,
-                                                src_sel__mec_copy_data__tc_l2,
-                                                frameCountGpuAddr,
-                                                count_sel__mec_copy_data__32_bits_of_data,
-                                                wr_confirm__mec_copy_data__do_not_wait_for_confirmation,
-                                                pCmdSpace);
+    pCmdSpace += m_cmdUtil.BuildCopyData(EngineTypeCompute,
+                                         0,
+                                         dst_sel__mec_copy_data__perfcounters,
+                                         frameCntReg,
+                                         src_sel__mec_copy_data__tc_l2,
+                                         frameCountGpuAddr,
+                                         count_sel__mec_copy_data__32_bits_of_data,
+                                         wr_confirm__mec_copy_data__do_not_wait_for_confirmation,
+                                         pCmdSpace);
 
     m_cmdStream.CommitCommands(pCmdSpace);
 }

@@ -228,6 +228,11 @@ public:
         ArchiveEntryHeader* pHeader,
         const void*         pData) = 0;
 
+    /// Return whether the file allows writes.
+    ///
+    /// @return true if the file was opened with allowWriteAccess, false otherwise.
+    virtual bool   AllowWriteAccess() const = 0;
+
     /// Destroy the archive file interface. Closing the file if necessary.
     ///
     ///  If async file writes are allowed this function may block if there are pending writes to complete.

@@ -181,6 +181,11 @@ union GpuMemoryFlags
 class GpuMemory : public IGpuMemory
 {
 public:
+    static void TranslateHeapInfo(
+        const Device&              device,
+        const GpuMemoryCreateInfo& createInfo,
+        GpuHeap*                   pOutHeaps,
+        size_t*                    pOutHeapCount);
     static Result ValidateCreateInfo(const Device* pDevice, const GpuMemoryCreateInfo& createInfo);
     static Result ValidatePinInfo(const Device* pDevice, const PinnedGpuMemoryCreateInfo& createInfo);
     static Result ValidateSvmInfo(const Device* pDevice, const SvmGpuMemoryCreateInfo& createInfo);

@@ -114,6 +114,7 @@ static uint64 Crc64(
         uint64 crc64;
         uint8  raw[8];
     } hashOutput;
+    hashOutput.crc64 = 0;
     MetroHash64::Hash(static_cast<const uint8*>(pData), dataSize, hashOutput.raw, seed);
 
     return hashOutput.crc64;
@@ -144,11 +145,10 @@ static Result ReadDirect(
         {
             result = ConvertErrno(errno);
         }
-
     }
 
     size_t alreadyReadSize = 0;
-    size_t exactSize = Min(readSize, static_cast<size_t>(statBuf.st_size));
+    size_t exactSize = Min(readSize, (static_cast<size_t>(statBuf.st_size) - fileOffset));
 
     if (result == Result::Success)
     {
@@ -189,6 +189,7 @@ static Result WriteDirect(
     }
 
     size_t alreadyWriteSize = write(fd, pData, writeSize);
+    fdatasync(fd);
 
     if (alreadyWriteSize == writeSize)
     {
@@ -272,7 +273,7 @@ static Result CreateFileInternal(
                 ArchiveFileFooter footer;
             } data;
 
-            FastMemCpy(data.header.archiveMarker, MagicArchiveMarker, sizeof(data.header.archiveMarker));
+            memcpy(data.header.archiveMarker, MagicArchiveMarker, sizeof(data.header.archiveMarker));
             data.header.majorVersion = CurrentMajorVersion;
             data.header.minorVersion = CurrentMinorVersion;
             data.header.firstBlock   = static_cast<uint32>(VoidPtrDiff(&data.footer, &data));
@@ -287,10 +288,10 @@ static Result CreateFileInternal(
                     Min(sizeof(data.header.platformKey), pOpenInfo->pPlatformKey->GetKeySize()));
             }
 
-            FastMemCpy(data.footer.footerMarker, MagicFooterMarker, sizeof(data.footer.footerMarker));
+            memcpy(data.footer.footerMarker, MagicFooterMarker, sizeof(data.footer.footerMarker));
             data.footer.entryCount         = 0;
             data.footer.lastWriteTimestamp = GetCurrentFileTime();
-            FastMemCpy(data.footer.archiveMarker, MagicArchiveMarker, sizeof(data.footer.archiveMarker));
+            memcpy(data.footer.archiveMarker, MagicArchiveMarker, sizeof(data.footer.archiveMarker));
 
             result = WriteDirect(fd, 0, &data, sizeof(data));
 
@@ -665,7 +666,7 @@ Result ArchiveFile::Write(
         // cache off the write location
         uint32 curOffset = m_curFooterOffset;
 
-        FastMemCpy(pHeader->entryMarker, MagicEntryMarker, sizeof(MagicEntryMarker));
+        memcpy(pHeader->entryMarker, MagicEntryMarker, sizeof(MagicEntryMarker));
         pHeader->ordinalId    = m_cachedFooter.entryCount;
         pHeader->nextBlock    = curOffset + sizeof(ArchiveEntryHeader) + pHeader->dataSize;
         pHeader->dataPosition = curOffset + sizeof(ArchiveEntryHeader);
@@ -682,9 +683,9 @@ Result ArchiveFile::Write(
             void* pOutData   = VoidPtrInc(pBuffer, sizeof(ArchiveEntryHeader));
             void* pOutFooter = VoidPtrInc(pOutData, pHeader->dataSize);
 
-            FastMemCpy(pBuffer, pHeader, sizeof(ArchiveEntryHeader));
+            memcpy(pBuffer, pHeader, sizeof(ArchiveEntryHeader));
             memcpy(pOutData, pData, pHeader->dataSize);
-            FastMemCpy(pOutFooter, &m_cachedFooter, sizeof(ArchiveFileFooter));
+            memcpy(pOutFooter, &m_cachedFooter, sizeof(ArchiveFileFooter));
 
             // Correct the footer we're about to attempt to write
             static_cast<ArchiveFileFooter*>(pOutFooter)->entryCount += 1;
@@ -792,6 +793,7 @@ Result ArchiveFile::RefreshFile(
     // Repopulate our headers if we need to
     if (result == Result::Success)
     {
+        m_entries.Reserve(m_cachedFooter.entryCount);
         while ((m_entries.NumElements() < m_cachedFooter.entryCount) &&
                (result == Result::Success))
         {
@@ -1128,8 +1130,12 @@ ArchiveFile::PageInfo* ArchiveFile::FindPage(
         // Alloc all pages before recycling
         if (m_pageCount < MaxPageCount)
         {
-            void* pMem = PAL_MALLOC(m_pageSize, &m_bufferMemory, AllocInternal);
-            PAL_ALERT(pMem == nullptr);
+            void* pMem = nullptr;
+            if (m_bufferMemory.Remaining() >= m_pageSize)
+            {
+                pMem = PAL_MALLOC(m_pageSize, &m_bufferMemory, AllocInternal);
+                PAL_ALERT(pMem == nullptr);
+            }
 
             if (pMem != nullptr)
             {

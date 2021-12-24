@@ -790,6 +790,10 @@ void LogContext::Struct(
             KeyAndObject("pPrivFlipMemory", value.pPrivFlipMemory);
         }
 #endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 695
+        KeyAndValue("frameIndex", value.frameIndex);
+#endif
     }
 
     EndMap();
@@ -1167,6 +1171,18 @@ void LogContext::Struct(
     {
         KeyAndStruct("directCaptureInfo", value.directCaptureInfo);
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 696
+    KeyAndBeginList("flags", true);
+
+    if (value.flags.globalGpuVa)
+    {
+        Value("globalGpuVa");
+    }
+
+    EndList();
+#endif
+    static_assert(CheckReservedBits<decltype(value.flags)>(32, 27), "Update interfaceLogger!");
     EndMap();
 }
 

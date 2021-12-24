@@ -268,7 +268,7 @@ union CachedSettings
         uint64 reserved10                 :  1;
         uint64 optimizeDepthOnlyFmt       :  1;
         uint64 has32bPred                 :  1;
-        uint64 reserved                   :  7;
+        uint64 reserved                   :  6;
     };
     uint64 u64All;
 };

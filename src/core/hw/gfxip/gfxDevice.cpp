@@ -738,7 +738,11 @@ bool GfxDevice::CanEnableDualSourceBlend(
     bool funcAlphaIsMinMax = (createInfo.targets[0].blendFuncAlpha == BlendFunc::Min ||
                               createInfo.targets[0].blendFuncAlpha == BlendFunc::Max);
 
-    if (funcColorIsMinMax && funcAlphaIsMinMax)
+    if (createInfo.targets[0].blendEnable == false)
+    {
+        dualSourceBlendEnable = false;
+    }
+    else if (funcColorIsMinMax && funcAlphaIsMinMax)
     {
         dualSourceBlendEnable = false;
     }

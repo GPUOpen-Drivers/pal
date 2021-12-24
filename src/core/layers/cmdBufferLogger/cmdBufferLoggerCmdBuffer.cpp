@@ -4414,6 +4414,34 @@ void CmdBuffer::CmdCopyMemory(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdCopyMemoryByGpuVa(
+    gpusize                 srcGpuVirtAddr,
+    gpusize                 dstGpuVirtAddr,
+    uint32                  regionCount,
+    const MemoryCopyRegion* pRegions)
+{
+    if (m_annotations.logCmdBlts)
+    {
+        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdCopyMemoryByGpuVa));
+
+        LinearAllocatorAuto<VirtualLinearAllocator> allocator(Allocator(), false);
+        char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+
+        Snprintf(pString, StringLength, "srcGpuVirtAddr = 0x%016llX", srcGpuVirtAddr);
+        GetNextLayer()->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "dstGpuVirtAddr = 0x%016llX", dstGpuVirtAddr);
+        GetNextLayer()->CmdCommentString(pString);
+
+        PAL_SAFE_DELETE_ARRAY(pString, &allocator);
+
+        DumpMemoryCopyRegion(this, regionCount, pRegions);
+    }
+
+    GetNextLayer()->CmdCopyMemoryByGpuVa(srcGpuVirtAddr, dstGpuVirtAddr, regionCount, pRegions);
+}
+
+// =====================================================================================================================
 static void DumpMemoryTiledImageCopyRegion(
     CmdBuffer*                        pCmdBuffer,
     uint32                            regionCount,

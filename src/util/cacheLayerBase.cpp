@@ -40,9 +40,6 @@ CacheLayerBase::CacheLayerBase(
     // Alloc and Free MUST NOT be nullptr
     PAL_ASSERT(callbacks.pfnAlloc != nullptr);
     PAL_ASSERT(callbacks.pfnFree != nullptr);
-
-    // pClientData SHOULD not be nullptr
-    PAL_ALERT(callbacks.pClientData == nullptr);
 }
 
 // =====================================================================================================================

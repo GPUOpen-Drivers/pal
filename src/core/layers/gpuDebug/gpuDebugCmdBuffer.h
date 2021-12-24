@@ -200,6 +200,11 @@ public:
         const IGpuMemory&       dstGpuMemory,
         uint32                  regionCount,
         const MemoryCopyRegion* pRegions) override;
+    virtual void CmdCopyMemoryByGpuVa(
+        gpusize                 srcGpuVirtAddr,
+        gpusize                 dstGpuVirtAddr,
+        uint32                  regionCount,
+        const MemoryCopyRegion* pRegions) override;
     virtual void CmdCopyTypedBuffer(
         const IGpuMemory&            srcGpuMemory,
         const IGpuMemory&            dstGpuMemory,
@@ -733,6 +738,7 @@ private:
     void ReplayCmdUpdateBusAddressableMemoryMarker(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdFillMemory(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdCopyMemory(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdCopyMemoryByGpuVa(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdCopyTypedBuffer(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdCopyRegisterToMemory(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdCopyImage(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);

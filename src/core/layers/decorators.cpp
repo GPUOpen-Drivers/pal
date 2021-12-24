@@ -1949,6 +1949,44 @@ Result DeviceDecorator::SetPowerProfile(
 }
 
 // =====================================================================================================================
+Result DeviceDecorator::InitBusAddressableGpuMemory(
+    IQueue*           pQueue,
+    uint32            gpuMemCount,
+    IGpuMemory*const* ppGpuMemList)
+{
+    AutoBuffer<IGpuMemory*, 128, PlatformDecorator> nextGpuMemory(gpuMemCount, m_pPlatform);
+
+    Result result = Result::Success;
+
+    if (nextGpuMemory.Capacity() < gpuMemCount)
+    {
+        result = Result::ErrorOutOfMemory;
+    }
+    else
+    {
+        for (uint32 i = 0; i < gpuMemCount; i++)
+        {
+            nextGpuMemory[i] = NextGpuMemory(ppGpuMemList[i]);
+        }
+
+        result = m_pNextLayer->InitBusAddressableGpuMemory(NextQueue(pQueue),
+                                                           gpuMemCount,
+                                                           &nextGpuMemory[0]);
+
+        // Accessing IGpuMemory::m_desc is intented to be a non-virtual and inlined call to avoid extra CPU cost for
+        // PAL clients, because IGpuMemory::m_desc rarely update after creation of IGpuMemory.
+        // Writing BusAddressable is one of the exceptions that IGpuMemory::m_desc is changed, so updates need to be
+        // populated to GpuMemoryDecorator in each layer.
+        for (uint32 i = 0; i < gpuMemCount; i++)
+        {
+            static_cast<GpuMemoryDecorator*>(ppGpuMemList[i])->PopulateNextLayerDesc();
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 const CmdPostProcessFrameInfo* CmdBufferDecorator::NextCmdPostProcessFrameInfo(
     const CmdPostProcessFrameInfo& postProcessInfo,
     CmdPostProcessFrameInfo*       pNextPostProcessInfo)
@@ -2353,7 +2391,7 @@ GpuMemoryDecorator::GpuMemoryDecorator(
     m_pDevice(pNextDevice)
 {
     // We must duplicate the next layer's GpuMemoryDesc or the client will get the wrong data when it calls our Desc().
-    m_desc = m_pNextLayer->Desc();
+    PopulateNextLayerDesc();
 }
 
 // =====================================================================================================================
@@ -2720,6 +2758,10 @@ Result QueueDecorator::Submit(
                                 pNextCmdBufInfoList->pPrivFlipMemory =
                                     NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].pPrivFlipMemory);
                             }
+#endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 695
+                            pNextCmdBufInfoList->frameIndex = origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].frameIndex;
 #endif
                         }
                     }

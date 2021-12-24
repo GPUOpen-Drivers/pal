@@ -111,10 +111,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -135,10 +135,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -159,10 +159,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -183,10 +183,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -212,10 +212,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -241,10 +241,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -277,10 +277,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         internalInfo = { };
         internalInfo.flags.dccDecompress = true;
@@ -304,10 +304,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -328,10 +328,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -352,10 +352,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -381,10 +381,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         internalInfo = { };
         internalInfo.flags.fastClearElim = true;
@@ -420,10 +420,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         internalInfo = { };
         internalInfo.flags.fmaskDecompress = true;
@@ -452,10 +452,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -481,10 +481,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -510,10 +510,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -539,10 +539,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -568,10 +568,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -597,10 +597,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -626,10 +626,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -655,10 +655,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -691,10 +691,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -730,10 +730,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -769,10 +769,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -808,10 +808,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -847,10 +847,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -886,10 +886,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -925,10 +925,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -964,10 +964,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         internalInfo = { };
         internalInfo.flags.resolveFixedFunc = true;
@@ -996,10 +996,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1025,10 +1025,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1054,10 +1054,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1083,10 +1083,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1112,10 +1112,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1141,10 +1141,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1170,10 +1170,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1199,10 +1199,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1228,10 +1228,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1257,10 +1257,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1286,10 +1286,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1315,10 +1315,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1344,10 +1344,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1373,10 +1373,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1402,10 +1402,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1431,10 +1431,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1460,10 +1460,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1489,10 +1489,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1518,10 +1518,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1547,10 +1547,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1576,10 +1576,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1605,10 +1605,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1634,10 +1634,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1663,10 +1663,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1692,10 +1692,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1721,10 +1721,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1750,10 +1750,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1779,10 +1779,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1808,10 +1808,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1837,10 +1837,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1866,10 +1866,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1895,10 +1895,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1924,10 +1924,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1953,10 +1953,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -1982,10 +1982,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2011,10 +2011,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2040,10 +2040,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2069,10 +2069,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2098,10 +2098,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2127,10 +2127,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2156,10 +2156,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2185,10 +2185,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2214,10 +2214,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2243,10 +2243,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2272,10 +2272,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2301,10 +2301,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2330,10 +2330,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2359,10 +2359,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2388,10 +2388,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2417,10 +2417,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2446,10 +2446,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2475,10 +2475,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2504,10 +2504,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2533,10 +2533,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2562,10 +2562,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2591,10 +2591,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2620,10 +2620,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2649,10 +2649,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2678,10 +2678,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2707,10 +2707,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2736,10 +2736,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2765,10 +2765,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2794,10 +2794,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2823,10 +2823,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2852,10 +2852,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2881,10 +2881,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2910,10 +2910,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2939,10 +2939,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2968,10 +2968,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -2997,10 +2997,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3026,10 +3026,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3055,10 +3055,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3084,10 +3084,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3113,10 +3113,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3142,10 +3142,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3171,10 +3171,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3200,10 +3200,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3229,10 +3229,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3258,10 +3258,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3287,10 +3287,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3311,10 +3311,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3340,10 +3340,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3415,10 +3415,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3439,10 +3439,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3468,10 +3468,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,
@@ -3497,10 +3497,10 @@ Result CreateRpmGraphicsPipelines(
 
         pipeInfo.viewportInfo.depthClipNearEnable = false;
         pipeInfo.viewportInfo.depthClipFarEnable  = false;
-        pipeInfo.viewportInfo.depthRange   = DepthRange::ZeroToOne;
-        pipeInfo.cbState.logicOp           = LogicOp::Copy;
-        pipeInfo.rsState.binningOverride   = BinningOverride::Disable;
-        pipeInfo.rsState.depthClampDisable = true;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
 
         result = pDevice->CreateGraphicsPipelineInternal(
             pipeInfo,

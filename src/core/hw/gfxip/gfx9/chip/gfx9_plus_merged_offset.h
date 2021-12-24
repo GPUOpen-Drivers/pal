@@ -1134,7 +1134,6 @@ namespace Gfx09
     constexpr unsigned int mmMC_VM_L2_PERFCOUNTER_HI                          = 0xD509;
     constexpr unsigned int mmMC_VM_L2_PERFCOUNTER_LO                          = 0xD508;
     constexpr unsigned int mmMC_VM_L2_PERFCOUNTER_RSLT_CNTL                   = 0xDD54;
-    constexpr unsigned int mmPA_SIDEBAND_REQUEST_DELAYS                       = 0x22FB;
     constexpr unsigned int mmPA_SU_PERFCOUNTER3_SELECT                        = 0xD905;
     constexpr unsigned int mmPA_UTCL1_CNTL1                                   = 0x22F9;
     constexpr unsigned int mmPA_UTCL1_CNTL2                                   = 0x22FA;
@@ -1311,10 +1310,8 @@ namespace Gfx09
     constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_7                          = 0x24B2;
     constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_8                          = 0x24B3;
     constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_9                          = 0x24B4;
-    constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_1                         = 0x24B6;
     constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_3                         = 0x24B8;
     constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_5                         = 0x24BA;
-    constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_8                         = 0x24BD;
     constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_10                        = 0x24BF;
     constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_12                        = 0x24C1;
     constexpr unsigned int mmSQ_BUF_RSRC_WORD0                                = 0x23C0;
@@ -1465,27 +1462,12 @@ namespace Gfx09
     constexpr unsigned int mmVGT_CACHE_INVALIDATION                           = 0x2231;
     constexpr unsigned int mmVGT_CNTL_STATUS                                  = 0x223C;
     constexpr unsigned int mmVGT_DISPATCH_DRAW_INDEX                          = 0xA2DD;
-    constexpr unsigned int mmVGT_ES_PER_GS                                    = 0xA296;
-    constexpr unsigned int mmVGT_FIFO_DEPTHS                                  = 0x2234;
-    constexpr unsigned int mmVGT_GROUP_DECR                                   = 0xA28B;
-    constexpr unsigned int mmVGT_GROUP_FIRST_DECR                             = 0xA28A;
-    constexpr unsigned int mmVGT_GROUP_PRIM_TYPE                              = 0xA289;
-    constexpr unsigned int mmVGT_GROUP_VECT_0_CNTL                            = 0xA28C;
-    constexpr unsigned int mmVGT_GROUP_VECT_0_FMT_CNTL                        = 0xA28E;
-    constexpr unsigned int mmVGT_GROUP_VECT_1_CNTL                            = 0xA28D;
-    constexpr unsigned int mmVGT_GROUP_VECT_1_FMT_CNTL                        = 0xA28F;
     constexpr unsigned int mmVGT_GSVS_RING_SIZE                               = 0xC241;
     constexpr unsigned int mmVGT_GS_MAX_PRIMS_PER_SUBGROUP                    = 0xA2A5;
-    constexpr unsigned int mmVGT_GS_OUT_PRIM_TYPE                             = 0xA29B;
-    constexpr unsigned int mmVGT_HOS_CNTL                                     = 0xA285;
-    constexpr unsigned int mmVGT_HOS_REUSE_DEPTH                              = 0xA288;
-    constexpr unsigned int mmVGT_IMMED_DATA                                   = 0xA1FD;
     constexpr unsigned int mmVGT_INDX_OFFSET                                  = 0xC24A;
-    constexpr unsigned int mmVGT_LAST_COPY_STATE                              = 0x2230;
     constexpr unsigned int mmVGT_MAX_VTX_INDX                                 = 0xC248;
     constexpr unsigned int mmVGT_MIN_VTX_INDX                                 = 0xC249;
     constexpr unsigned int mmVGT_MULTI_PRIM_IB_RESET_EN                       = 0xC24B;
-    constexpr unsigned int mmVGT_OUTPUT_PATH_CNTL                             = 0xA284;
     constexpr unsigned int mmVGT_PERFCOUNTER0_HI                              = 0xD091;
     constexpr unsigned int mmVGT_PERFCOUNTER0_LO                              = 0xD090;
     constexpr unsigned int mmVGT_PERFCOUNTER0_SELECT                          = 0xD88C;
@@ -1503,15 +1485,6 @@ namespace Gfx09
     constexpr unsigned int mmVGT_PERFCOUNTER_SEID_MASK                        = 0xD894;
     constexpr unsigned int mmVGT_STRMOUT_DELAY                                = 0x2233;
     constexpr unsigned int mmVGT_TF_MEMORY_BASE_HI                            = 0xC251;
-    constexpr unsigned int mmVGT_VS_MAX_WAVE_ID                               = 0x2268;
-    constexpr unsigned int mmVGT_VTX_CNT_EN                                   = 0xA2AE;
-    constexpr unsigned int mmVGT_VTX_VECT_EJECT_REG                           = 0x222C;
-    constexpr unsigned int mmWD_BUF_RESOURCE_1                                = 0x2276;
-    constexpr unsigned int mmWD_BUF_RESOURCE_2                                = 0x2277;
-    constexpr unsigned int mmWD_CNTL_SB_BUF_BASE                              = 0xC254;
-    constexpr unsigned int mmWD_CNTL_SB_BUF_BASE_HI                           = 0xC255;
-    constexpr unsigned int mmWD_INDEX_BUF_BASE                                = 0xC256;
-    constexpr unsigned int mmWD_INDEX_BUF_BASE_HI                             = 0xC257;
     constexpr unsigned int mmWD_PERFCOUNTER0_HI                               = 0xD081;
     constexpr unsigned int mmWD_PERFCOUNTER0_LO                               = 0xD080;
     constexpr unsigned int mmWD_PERFCOUNTER0_SELECT                           = 0xD880;
@@ -1524,8 +1497,6 @@ namespace Gfx09
     constexpr unsigned int mmWD_PERFCOUNTER3_HI                               = 0xD087;
     constexpr unsigned int mmWD_PERFCOUNTER3_LO                               = 0xD086;
     constexpr unsigned int mmWD_PERFCOUNTER3_SELECT                           = 0xD883;
-    constexpr unsigned int mmWD_POS_BUF_BASE                                  = 0xC252;
-    constexpr unsigned int mmWD_POS_BUF_BASE_HI                               = 0xC253;
 } // namespace Gfx09
 
 namespace Gfx09_0
@@ -1618,6 +1589,7 @@ namespace Gfx09_10
     constexpr unsigned int mmPA_SC_PKR_WAVE_TABLE_CNTL                        = 0x22F8;
     constexpr unsigned int mmPA_SC_TILE_STEERING_CREST_OVERRIDE               = 0x22FF;
     constexpr unsigned int mmPA_SC_TRAP_SCREEN_HV_LOCK                        = 0x22C2;
+    constexpr unsigned int mmPA_SIDEBAND_REQUEST_DELAYS                       = 0x22FB;
     constexpr unsigned int mmRLC_SPM_INT_CNTL                                 = 0xEC72;
     constexpr unsigned int mmRLC_SPM_INT_STATUS                               = 0xEC73;
     constexpr unsigned int mmRLC_SPM_MC_CNTL                                  = 0xEC71;
@@ -1630,6 +1602,8 @@ namespace Gfx09_10
     constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_0                     = 0x31E6;
     constexpr unsigned int mmSPI_RESOURCE_RESERVE_EN_CU_1                     = 0x31E7;
     constexpr unsigned int mmSPI_START_PHASE                                  = 0x243B;
+    constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_1                         = 0x24B6;
+    constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_8                         = 0x24BD;
     constexpr unsigned int mmSQ_LB_CTR_CTRL                                   = 0x2398;
     constexpr unsigned int mmSQ_LB_DATA0                                      = 0x2399;
     constexpr unsigned int mmSQ_LB_DATA1                                      = 0x239A;
@@ -1662,9 +1636,35 @@ namespace Gfx09_10
     constexpr unsigned int mmSQ_RUNTIME_CONFIG                                = 0x2308;
     constexpr unsigned int mmTCP_PERFCOUNTER_FILTER                           = 0x32B9;
     constexpr unsigned int mmTCP_PERFCOUNTER_FILTER_EN                        = 0x32BA;
+    constexpr unsigned int mmVGT_ES_PER_GS                                    = 0xA296;
+    constexpr unsigned int mmVGT_FIFO_DEPTHS                                  = 0x2234;
+    constexpr unsigned int mmVGT_GROUP_DECR                                   = 0xA28B;
+    constexpr unsigned int mmVGT_GROUP_FIRST_DECR                             = 0xA28A;
+    constexpr unsigned int mmVGT_GROUP_PRIM_TYPE                              = 0xA289;
+    constexpr unsigned int mmVGT_GROUP_VECT_0_CNTL                            = 0xA28C;
+    constexpr unsigned int mmVGT_GROUP_VECT_0_FMT_CNTL                        = 0xA28E;
+    constexpr unsigned int mmVGT_GROUP_VECT_1_CNTL                            = 0xA28D;
+    constexpr unsigned int mmVGT_GROUP_VECT_1_FMT_CNTL                        = 0xA28F;
     constexpr unsigned int mmVGT_GS_ONCHIP_CNTL                               = 0xA291;
+    constexpr unsigned int mmVGT_GS_OUT_PRIM_TYPE                             = 0xA29B;
+    constexpr unsigned int mmVGT_HOS_CNTL                                     = 0xA285;
+    constexpr unsigned int mmVGT_HOS_REUSE_DEPTH                              = 0xA288;
+    constexpr unsigned int mmVGT_IMMED_DATA                                   = 0xA1FD;
     constexpr unsigned int mmVGT_INSTANCE_STEP_RATE_0                         = 0xA2A8;
     constexpr unsigned int mmVGT_INSTANCE_STEP_RATE_1                         = 0xA2A9;
+    constexpr unsigned int mmVGT_LAST_COPY_STATE                              = 0x2230;
+    constexpr unsigned int mmVGT_OUTPUT_PATH_CNTL                             = 0xA284;
+    constexpr unsigned int mmVGT_VS_MAX_WAVE_ID                               = 0x2268;
+    constexpr unsigned int mmVGT_VTX_CNT_EN                                   = 0xA2AE;
+    constexpr unsigned int mmVGT_VTX_VECT_EJECT_REG                           = 0x222C;
+    constexpr unsigned int mmWD_BUF_RESOURCE_1                                = 0x2276;
+    constexpr unsigned int mmWD_BUF_RESOURCE_2                                = 0x2277;
+    constexpr unsigned int mmWD_CNTL_SB_BUF_BASE                              = 0xC254;
+    constexpr unsigned int mmWD_CNTL_SB_BUF_BASE_HI                           = 0xC255;
+    constexpr unsigned int mmWD_INDEX_BUF_BASE                                = 0xC256;
+    constexpr unsigned int mmWD_INDEX_BUF_BASE_HI                             = 0xC257;
+    constexpr unsigned int mmWD_POS_BUF_BASE                                  = 0xC252;
+    constexpr unsigned int mmWD_POS_BUF_BASE_HI                               = 0xC253;
 } // namespace Gfx09_10
 
 namespace Gfx09_1x
@@ -1729,11 +1729,13 @@ namespace Gfx10
     constexpr unsigned int mmGCVML2_PERFCOUNTER2_1_MODE                       = 0xDD41;
     constexpr unsigned int mmGCVML2_PERFCOUNTER2_1_SELECT                     = 0xDD3D;
     constexpr unsigned int mmGCVML2_PERFCOUNTER2_1_SELECT1                    = 0xDD3F;
+    constexpr unsigned int mmGE_DMA_FIRST_INDEX                               = 0xC251;
     constexpr unsigned int mmGE_PC_CNTL                                       = 0x2245;
     constexpr unsigned int mmIA_MULTI_VGT_PARAM                               = 0xA2AA;
     constexpr unsigned int mmIA_MULTI_VGT_PARAM_PIPED                         = 0xC258;
     constexpr unsigned int mmPA_PH_ENHANCE                                    = 0x22E1;
     constexpr unsigned int mmPA_PH_INTERFACE_FIFO_SIZE                        = 0x22E0;
+    constexpr unsigned int mmPA_SC_BC_WAVE_BREAK                              = 0x22E4;
     constexpr unsigned int mmPA_SC_BINNER_CNTL_OVERRIDE                       = 0x22DE;
     constexpr unsigned int mmPA_SC_ENHANCE_2                                  = 0x22DC;
     constexpr unsigned int mmPA_SC_PBB_OVERRIDE_FLAG                          = 0x22DF;
@@ -1765,7 +1767,15 @@ namespace Gfx10
     constexpr unsigned int mmRLC_SPM_VIRT_STATUS                              = 0xDCA3;
     constexpr unsigned int mmSPI_FEATURE_CTRL                                 = 0x31FE;
     constexpr unsigned int mmSPI_LB_DATA_PERWGP_WAVE_VSPS                     = 0x24E6;
+    constexpr unsigned int mmSPI_SHADER_PGM_CHKSUM_VS                         = 0x2C45;
+    constexpr unsigned int mmSPI_SHADER_PGM_RSRC2_GS_VS                       = 0x2C7B;
+    constexpr unsigned int mmSPI_SHADER_PGM_RSRC4_VS                          = 0x2C41;
+    constexpr unsigned int mmSPI_SHADER_REQ_CTRL_VS                           = 0x2C70;
     constexpr unsigned int mmSPI_SHADER_RSRC_LIMIT_CTRL                       = 0x31FF;
+    constexpr unsigned int mmSPI_SHADER_USER_ACCUM_VS_0                       = 0x2C72;
+    constexpr unsigned int mmSPI_SHADER_USER_ACCUM_VS_1                       = 0x2C73;
+    constexpr unsigned int mmSPI_SHADER_USER_ACCUM_VS_2                       = 0x2C74;
+    constexpr unsigned int mmSPI_SHADER_USER_ACCUM_VS_3                       = 0x2C75;
     constexpr unsigned int mmSQ_LB_CTR_SEL0                                   = 0x239D;
     constexpr unsigned int mmSQ_LB_CTR_SEL1                                   = 0x239E;
     constexpr unsigned int mmTCP_PERFCOUNTER_FILTER2                          = 0x32BB;
@@ -1775,6 +1785,11 @@ namespace Gfx10
     constexpr unsigned int mmUTCL1_PERFCOUNTER1_HI                            = 0xD51F;
     constexpr unsigned int mmUTCL1_PERFCOUNTER1_LO                            = 0xD51E;
     constexpr unsigned int mmUTCL1_PERFCOUNTER1_SELECT                        = 0xDD64;
+    constexpr unsigned int mmVGT_INDX_OFFSET                                  = 0xA102;
+    constexpr unsigned int mmVGT_MAX_VTX_INDX                                 = 0xA100;
+    constexpr unsigned int mmVGT_MIN_VTX_INDX                                 = 0xA101;
+    constexpr unsigned int mmVGT_MULTI_PRIM_IB_RESET_EN                       = 0xA2A5;
+    constexpr unsigned int mmVGT_STRMOUT_DELAY                                = 0x2275;
 } // namespace Gfx10
 
 namespace Gfx101
@@ -2303,10 +2318,7 @@ namespace Gfx103
     constexpr unsigned int mmATC_PERFCOUNTER_LO                               = 0x0C15;
     constexpr unsigned int mmATC_PERFCOUNTER_RSLT_CNTL                        = 0x0C14;
     constexpr unsigned int mmRPB_PERF_COUNTER_CNTL                            = 0x0CE7;
-    constexpr unsigned int mmSPI_IND_DATA                                     = 0xF053;
-    constexpr unsigned int mmSPI_IND_INDEX                                    = 0xF052;
     constexpr unsigned int mmSQ_THREAD_TRACE_STATUS2                          = 0x234F;
-    constexpr unsigned int mmVGT_CACHE_INVALIDATION                           = 0x2220;
 } // namespace Gfx103
 
 namespace Gfx103CorePlus
@@ -2449,16 +2461,13 @@ namespace Gfx10Core
     constexpr unsigned int mmDB_DFSM_TILES_IN_FLIGHT                          = 0x2632;
     constexpr unsigned int mmDB_DFSM_WATCHDOG                                 = 0x2634;
     constexpr unsigned int mmDB_RMI_BC_GL2_CACHE_CONTROL                      = 0x261E;
-    constexpr unsigned int mmGE_DMA_FIRST_INDEX                               = 0xC251;
     constexpr unsigned int mmGRBM_SE2_PERFCOUNTER_HI                          = 0xD04A;
     constexpr unsigned int mmGRBM_SE2_PERFCOUNTER_LO                          = 0xD049;
     constexpr unsigned int mmGRBM_SE2_PERFCOUNTER_SELECT                      = 0xD844;
     constexpr unsigned int mmGRBM_SE3_PERFCOUNTER_HI                          = 0xD04C;
     constexpr unsigned int mmGRBM_SE3_PERFCOUNTER_LO                          = 0xD04B;
     constexpr unsigned int mmGRBM_SE3_PERFCOUNTER_SELECT                      = 0xD845;
-    constexpr unsigned int mmPA_SC_BC_WAVE_BREAK                              = 0x22E4;
     constexpr unsigned int mmPA_SC_ENHANCE_INTERNAL                           = 0x22DD;
-    constexpr unsigned int mmPA_SIDEBAND_REQUEST_DELAYS                       = 0x22FB;
     constexpr unsigned int mmRPB_PERFCOUNTER0_CFG                             = 0x0CEB;
     constexpr unsigned int mmRPB_PERFCOUNTER1_CFG                             = 0x0CEC;
     constexpr unsigned int mmRPB_PERFCOUNTER2_CFG                             = 0x0CED;
@@ -2466,16 +2475,6 @@ namespace Gfx10Core
     constexpr unsigned int mmRPB_PERFCOUNTER_HI                               = 0x0CEA;
     constexpr unsigned int mmRPB_PERFCOUNTER_LO                               = 0x0CE9;
     constexpr unsigned int mmRPB_PERFCOUNTER_RSLT_CNTL                        = 0x0CEF;
-    constexpr unsigned int mmSPI_SHADER_PGM_CHKSUM_VS                         = 0x2C45;
-    constexpr unsigned int mmSPI_SHADER_PGM_RSRC2_GS_VS                       = 0x2C7B;
-    constexpr unsigned int mmSPI_SHADER_PGM_RSRC4_VS                          = 0x2C41;
-    constexpr unsigned int mmSPI_SHADER_REQ_CTRL_VS                           = 0x2C70;
-    constexpr unsigned int mmSPI_SHADER_USER_ACCUM_VS_0                       = 0x2C72;
-    constexpr unsigned int mmSPI_SHADER_USER_ACCUM_VS_1                       = 0x2C73;
-    constexpr unsigned int mmSPI_SHADER_USER_ACCUM_VS_2                       = 0x2C74;
-    constexpr unsigned int mmSPI_SHADER_USER_ACCUM_VS_3                       = 0x2C75;
-    constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_1                         = 0x24B6;
-    constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_8                         = 0x24BD;
     constexpr unsigned int mmSQ_EDC_CNT                                       = 0x23A6;
     constexpr unsigned int mmSQ_EDC_FUE_CNTL                                  = 0x23A7;
     constexpr unsigned int mmSQ_THREAD_TRACE_BUF0_BASE                        = 0x2340;
@@ -2499,37 +2498,6 @@ namespace Gfx10Core
     constexpr unsigned int mmTA_POWER_CNTL                                    = 0x2540;
     constexpr unsigned int mmTA_RESERVED_010C                                 = 0x2543;
     constexpr unsigned int mmVGT_DISPATCH_DRAW_INDEX                          = 0xA2DD;
-    constexpr unsigned int mmVGT_ES_PER_GS                                    = 0xA296;
-    constexpr unsigned int mmVGT_FIFO_DEPTHS                                  = 0x2234;
-    constexpr unsigned int mmVGT_GROUP_DECR                                   = 0xA28B;
-    constexpr unsigned int mmVGT_GROUP_FIRST_DECR                             = 0xA28A;
-    constexpr unsigned int mmVGT_GROUP_PRIM_TYPE                              = 0xA289;
-    constexpr unsigned int mmVGT_GROUP_VECT_0_CNTL                            = 0xA28C;
-    constexpr unsigned int mmVGT_GROUP_VECT_0_FMT_CNTL                        = 0xA28E;
-    constexpr unsigned int mmVGT_GROUP_VECT_1_CNTL                            = 0xA28D;
-    constexpr unsigned int mmVGT_GROUP_VECT_1_FMT_CNTL                        = 0xA28F;
-    constexpr unsigned int mmVGT_GS_OUT_PRIM_TYPE                             = 0xA29B;
-    constexpr unsigned int mmVGT_HOS_CNTL                                     = 0xA285;
-    constexpr unsigned int mmVGT_HOS_REUSE_DEPTH                              = 0xA288;
-    constexpr unsigned int mmVGT_IMMED_DATA                                   = 0xA1FD;
-    constexpr unsigned int mmVGT_INDX_OFFSET                                  = 0xA102;
-    constexpr unsigned int mmVGT_LAST_COPY_STATE                              = 0x2230;
-    constexpr unsigned int mmVGT_MAX_VTX_INDX                                 = 0xA100;
-    constexpr unsigned int mmVGT_MIN_VTX_INDX                                 = 0xA101;
-    constexpr unsigned int mmVGT_MULTI_PRIM_IB_RESET_EN                       = 0xA2A5;
-    constexpr unsigned int mmVGT_OUTPUT_PATH_CNTL                             = 0xA284;
-    constexpr unsigned int mmVGT_STRMOUT_DELAY                                = 0x2275;
-    constexpr unsigned int mmVGT_VS_MAX_WAVE_ID                               = 0x2268;
-    constexpr unsigned int mmVGT_VTX_CNT_EN                                   = 0xA2AE;
-    constexpr unsigned int mmVGT_VTX_VECT_EJECT_REG                           = 0x222C;
-    constexpr unsigned int mmWD_BUF_RESOURCE_1                                = 0x2276;
-    constexpr unsigned int mmWD_BUF_RESOURCE_2                                = 0x2277;
-    constexpr unsigned int mmWD_CNTL_SB_BUF_BASE                              = 0xC254;
-    constexpr unsigned int mmWD_CNTL_SB_BUF_BASE_HI                           = 0xC255;
-    constexpr unsigned int mmWD_INDEX_BUF_BASE                                = 0xC256;
-    constexpr unsigned int mmWD_INDEX_BUF_BASE_HI                             = 0xC257;
-    constexpr unsigned int mmWD_POS_BUF_BASE                                  = 0xC252;
-    constexpr unsigned int mmWD_POS_BUF_BASE_HI                               = 0xC253;
 } // namespace Gfx10Core
 
 namespace Gfx10CorePlus
@@ -2914,11 +2882,14 @@ namespace Gfx10Vrs
     constexpr unsigned int mmRLC_SPM_PERFMON_SWA_SE3TO0_SEGMENT_SIZE          = 0xDCA6;
     constexpr unsigned int mmRLC_SPM_PERFMON_SWA_SEGMENT_SIZE                 = 0xDCA2;
     constexpr unsigned int mmRLC_SPM_SE_MUXSEL_ADDR_OFFSET                    = 0xDCA8;
+    constexpr unsigned int mmSPI_IND_DATA                                     = 0xF053;
+    constexpr unsigned int mmSPI_IND_INDEX                                    = 0xF052;
     constexpr unsigned int mmSPI_USER_ACCUM_VMID_CNTL                         = 0x244B;
     constexpr unsigned int mmSQ_SHADER_TBA_HI                                 = 0x2313;
     constexpr unsigned int mmSQ_SHADER_TBA_LO                                 = 0x2312;
     constexpr unsigned int mmSQ_SHADER_TMA_HI                                 = 0x2315;
     constexpr unsigned int mmSQ_SHADER_TMA_LO                                 = 0x2314;
+    constexpr unsigned int mmVGT_CACHE_INVALIDATION                           = 0x2220;
 } // namespace Gfx10Vrs
 
 namespace HasHwVs

@@ -4678,6 +4678,10 @@ Result Device::OpenExternalSharedGpuMemory(
 {
     Result result = Result::ErrorInvalidPointer;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 696
+    PAL_ASSERT(openInfo.resourceInfo.flags.globalGpuVa == 0);
+#endif
+
     if ((pPlacementAddr != nullptr) && (pMemCreateInfo != nullptr) && (ppGpuMemory != nullptr))
     {
         GpuMemoryCreateInfo createInfo = {};
@@ -5241,6 +5245,10 @@ Result Device::OpenExternalSharedImage(
     IGpuMemory**                 ppGpuMemory)
 {
     Result result = Result::ErrorInvalidPointer;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 696
+    PAL_ASSERT(openInfo.resourceInfo.flags.globalGpuVa == 0);
+#endif
 
     if ((pImagePlacementAddr     != nullptr) &&
         (pGpuMemoryPlacementAddr != nullptr) &&

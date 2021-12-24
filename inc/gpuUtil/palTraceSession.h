@@ -50,7 +50,7 @@ namespace GpuUtil
 class ITraceController;
 class ITraceSource;
 
-constexpr uint16_t TextIdentifierSize = 16;
+constexpr Pal::uint16 TextIdentifierSize = 16;
 
 /// Information required to create a new chunk of trace data in a TraceSession
 ///
@@ -59,11 +59,11 @@ constexpr uint16_t TextIdentifierSize = 16;
 struct TraceChunkInfo
 {
     char        id[TextIdentifierSize]; ///<      Text identifier
-    uint32_t    version;                ///<      Version number
+    Pal::uint32 version;                ///<      Version number
     const void* pHeader;                ///< [in] Pointer to a buffer that contains the header data for the chunk
-    size_t      headerSize;             ///<      Size of the buffer pointed to by pHeader
+    Pal::int64  headerSize;             ///<      Size of the buffer pointed to by pHeader
     const void* pData;                  ///< [in] Pointer to a buffer that contains the data for the chunk
-    size_t      dataSize;               ///<      Size of the buffer pointed to by pData
+    Pal::int64  dataSize;               ///<      Size of the buffer pointed to by pData
     bool        enableCompression;      ///<      Indicates if the chunk's data should be compressed or not
 };
 

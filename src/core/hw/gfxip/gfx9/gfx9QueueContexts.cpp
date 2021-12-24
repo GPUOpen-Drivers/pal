@@ -844,7 +844,7 @@ void UniversalQueueContext::WritePerSubmitPreamble(
     pCmdSpace += CmdUtil::BuildContextControl(m_pDevice->GetContextControl(), pCmdSpace);
     if (m_pDevice->Settings().useClearStateToInitialize)
     {
-        pCmdSpace += CmdUtil::BuildClearState(cmd__pfp_clear_state__clear_state, pCmdSpace);
+        pCmdSpace += CmdUtil::BuildClearState(cmd__pfp_clear_state__clear_state__HASCLEARSTATE, pCmdSpace);
     }
 
     if (m_useShadowing)
@@ -1594,7 +1594,7 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
             regVGT_MIN_VTX_INDX  minVtxIndx;
             regVGT_INDX_OFFSET   indxOffset;
         } vgt = { };
-        vgt.maxVtxIndx.most.MAX_INDX = UINT_MAX;
+        vgt.maxVtxIndx.bits.MAX_INDX = UINT_MAX;
 
         pCmdSpace = m_deCmdStream.WriteSetSeqConfigRegs(Gfx09::mmVGT_MAX_VTX_INDX,
                                                         Gfx09::mmVGT_INDX_OFFSET,
@@ -1652,13 +1652,13 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
 
         if (settings.numPsWavesSoftGroupedPerCu > 0)
         {
-            spiShaderReqCtrl.most.SOFT_GROUPING_EN = 1;
-            spiShaderReqCtrl.most.NUMBER_OF_REQUESTS_PER_CU = settings.numPsWavesSoftGroupedPerCu - 1;
+            spiShaderReqCtrl.bits.SOFT_GROUPING_EN = 1;
+            spiShaderReqCtrl.bits.NUMBER_OF_REQUESTS_PER_CU = settings.numPsWavesSoftGroupedPerCu - 1;
         }
 
         if (chipProps.gfxip.supportsHwVs)
         {
-            pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(Gfx10Core::mmSPI_SHADER_REQ_CTRL_VS,
+            pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(Gfx10::mmSPI_SHADER_REQ_CTRL_VS,
                                                                        spiShaderReqCtrl.u32All,
                                                                        pCmdSpace);
         }
@@ -1689,8 +1689,8 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
 
             if (chipProps.gfxip.supportsHwVs)
             {
-                pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(Gfx10Core::mmSPI_SHADER_USER_ACCUM_VS_0,
-                                                            Gfx10Core::mmSPI_SHADER_USER_ACCUM_VS_3,
+                pCmdSpace = m_deCmdStream.WriteSetSeqShRegs(Gfx10::mmSPI_SHADER_USER_ACCUM_VS_0,
+                                                            Gfx10::mmSPI_SHADER_USER_ACCUM_VS_3,
                                                             ShaderGraphics,
                                                             &FourZeros,
                                                             pCmdSpace);

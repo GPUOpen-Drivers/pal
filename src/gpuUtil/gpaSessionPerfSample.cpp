@@ -322,6 +322,11 @@ void GpaSession::TraceSample::GetSpmResultsSize(
     Pal::gpusize* pSizeInBytes,
     Pal::gpusize* pNumSamples)
 {
+#if USE_SPM_DB_V2
+    const size_t CounterInfoSizeInBytes   = m_numSpmCounters * sizeof(SpmCounterInfo);
+#else
+    const size_t CounterInfoSizeInBytes   = m_numSpmCounters * sizeof(SpmCounterInfoV1);
+#endif
     if (m_numSpmSamples < 0)
     {
         // Cache the number of samples if not computed before.
@@ -333,7 +338,7 @@ void GpaSession::TraceSample::GetSpmResultsSize(
 
     // This is calculated according to the spm data layout in the RGP spec, excluding the header, num timestamps
     // and the timestampOffset fields.
-    (*pSizeInBytes) = m_numSpmCounters * sizeof(SpmCounterInfo) +          // SpmCounterInfo for each counter.
+    (*pSizeInBytes) = CounterInfoSizeInBytes +                             // SpmCounterInfo for each counter.
                       m_numSpmSamples * sizeof(gpusize) +                  // Timestamp data.
                       m_numSpmCounters * m_numSpmSamples * sizeof(uint16); // Counter data.
 }
@@ -361,7 +366,11 @@ Result GpaSession::TraceSample::GetSpmTraceResults(
     const gpusize SampleSizeInWords       = m_pSpmTraceLayout->sampleSizeInBytes / sizeof(uint16);
     const size_t TimestampDataSizeInBytes = m_numSpmSamples * sizeof(gpusize);
     const gpusize CounterDataSizeInBytes  = m_numSpmSamples * sizeof(uint16); // Size of data written for one counter.
+#if USE_SPM_DB_V2
     const size_t CounterInfoSizeInBytes   = m_numSpmCounters * sizeof(SpmCounterInfo);
+#else
+    const size_t CounterInfoSizeInBytes   = m_numSpmCounters * sizeof(SpmCounterInfoV1);
+#endif
     const uint32  SegmentSizeInWords      = m_pSpmTraceLayout->sampleSizeInBytes / sizeof(uint16);
     const size_t CounterDataOffset        = TimestampDataSizeInBytes + CounterInfoSizeInBytes;
 
@@ -389,8 +398,13 @@ Result GpaSession::TraceSample::GetSpmTraceResults(
     }
 
     // Beginning of the SpmCounterInfo section.
+#if USE_SPM_DB_V2
     SpmCounterInfo* pCounterInfo =
         static_cast<SpmCounterInfo*>(Util::VoidPtrInc(pDstBuffer, TimestampDataSizeInBytes));
+#else
+    SpmCounterInfoV1* pCounterInfo =
+        static_cast<SpmCounterInfoV1*>(Util::VoidPtrInc(pDstBuffer, TimestampDataSizeInBytes));
+#endif
 
     // Offset from the beginning of the RGP spm chunk to where the counter values begin.
     gpusize curCounterDataOffset = CounterDataOffset;
@@ -402,7 +416,9 @@ Result GpaSession::TraceSample::GetSpmTraceResults(
         pCounterInfo[counter].instance   = m_pSpmTraceLayout->counterData[counter].instance;
         pCounterInfo[counter].dataOffset = static_cast<uint32>(curCounterDataOffset);
         pCounterInfo[counter].eventIndex = m_pSpmTraceLayout->counterData[counter].eventId;
+#if USE_SPM_DB_V2
         pCounterInfo[counter].dataSize   = sizeof(uint16);
+#endif
 
         curCounterDataOffset += CounterDataSizeInBytes;
     }

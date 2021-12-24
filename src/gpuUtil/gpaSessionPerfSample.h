@@ -40,6 +40,8 @@
 #include "palSysUtil.h"
 #include "sqtt_file_format.h"
 
+#define USE_SPM_DB_V2 1
+
 // Forward declarations.
 namespace Pal
 {

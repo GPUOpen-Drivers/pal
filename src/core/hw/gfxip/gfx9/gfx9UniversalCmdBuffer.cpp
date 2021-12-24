@@ -478,10 +478,10 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     // GFX10 moves the RESET_EN functionality to a new register called GE_MULTI_PRIM_IB_RESET_EN.  Verify that
     // the GFX10 register has the exact same layout as the GFX9 register to eliminate the need for run-time "if"
     // statements to verify which Gfx level the active device uses.
-    static_assert(Gfx09::VGT_MULTI_PRIM_IB_RESET_EN__MATCH_ALL_BITS_MASK ==
+    static_assert(Gfx09_10::VGT_MULTI_PRIM_IB_RESET_EN__MATCH_ALL_BITS_MASK ==
                   Gfx10Plus::GE_MULTI_PRIM_IB_RESET_EN__MATCH_ALL_BITS_MASK,
                   "MATCH_ALL_BITS bits are not in the same place on GFX9 and GFX10!");
-    static_assert(Gfx09::VGT_MULTI_PRIM_IB_RESET_EN__RESET_EN_MASK ==
+    static_assert(Gfx09_10::VGT_MULTI_PRIM_IB_RESET_EN__RESET_EN_MASK ==
                   Gfx10Plus::GE_MULTI_PRIM_IB_RESET_EN__RESET_EN_MASK,
                   "RESET_EN bits are not in the same place on GFX9 and GFX10!");
 
@@ -4022,8 +4022,8 @@ void UniversalCmdBuffer::CmdMemoryAtomic(
 }
 
 // =====================================================================================================================
-// Issues either an end-of-pipe timestamp or a start of pipe timestamp event.  Writes the results to the pMemObject +
-// destOffset.
+// Issues an end-of-pipe timestamp event or immediately copies the current time at the ME. Writes the results to the
+// pMemObject + destOffset.
 void UniversalCmdBuffer::CmdWriteTimestamp(
     HwPipePoint       pipePoint,
     const IGpuMemory& dstGpuMemory,
@@ -4033,16 +4033,21 @@ void UniversalCmdBuffer::CmdWriteTimestamp(
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 697
+    if (pipePoint == HwPipePostIndexFetch)
+#else
     if (pipePoint == HwPipeTop)
+#endif
     {
-        pDeCmdSpace += CmdUtil::BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
-                                                      dst_sel__me_copy_data__memory__GFX09,
-                                                      address,
-                                                      src_sel__me_copy_data__gpu_clock_count,
-                                                      0,
-                                                      count_sel__me_copy_data__64_bits_of_data,
-                                                      wr_confirm__me_copy_data__wait_for_confirmation,
-                                                      pDeCmdSpace);
+        pDeCmdSpace += CmdUtil::BuildCopyData(EngineTypeUniversal,
+                                              engine_sel__me_copy_data__micro_engine,
+                                              dst_sel__me_copy_data__memory__GFX09,
+                                              address,
+                                              src_sel__me_copy_data__gpu_clock_count,
+                                              0,
+                                              count_sel__me_copy_data__64_bits_of_data,
+                                              wr_confirm__me_copy_data__wait_for_confirmation,
+                                              pDeCmdSpace);
     }
     else
     {
@@ -4063,7 +4068,8 @@ void UniversalCmdBuffer::CmdWriteTimestamp(
 }
 
 // =====================================================================================================================
-// Writes an immediate value either during top-of-pipe or bottom-of-pipe event.
+// Writes an immediate value during top-of-pipe or bottom-of-pipe event or after indirect arguments and index buffer
+// data have been fetched.
 void UniversalCmdBuffer::CmdWriteImmediate(
     HwPipePoint        pipePoint,
     uint64             data,
@@ -4073,17 +4079,34 @@ void UniversalCmdBuffer::CmdWriteImmediate(
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
     if (pipePoint == HwPipeTop)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 697
     {
-        pDeCmdSpace += CmdUtil::BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
-                                                      dst_sel__me_copy_data__memory__GFX09,
-                                                      address,
-                                                      src_sel__me_copy_data__immediate_data,
-                                                      data,
-                                                      ((dataSize == ImmediateDataWidth::ImmediateData32Bit) ?
-                                                       count_sel__me_copy_data__32_bits_of_data :
-                                                       count_sel__me_copy_data__64_bits_of_data),
-                                                      wr_confirm__me_copy_data__wait_for_confirmation,
-                                                      pDeCmdSpace);
+        pDeCmdSpace += CmdUtil::BuildCopyData(EngineTypeUniversal,
+                                              engine_sel__pfp_copy_data__prefetch_parser,
+                                              dst_sel__pfp_copy_data__memory__GFX09,
+                                              address,
+                                              src_sel__pfp_copy_data__immediate_data,
+                                              data,
+                                              ((dataSize == ImmediateDataWidth::ImmediateData32Bit) ?
+                                               count_sel__pfp_copy_data__32_bits_of_data :
+                                               count_sel__pfp_copy_data__64_bits_of_data),
+                                              wr_confirm__pfp_copy_data__wait_for_confirmation,
+                                              pDeCmdSpace);
+    }
+    else if (pipePoint == HwPipePostIndexFetch)
+#endif
+    {
+        pDeCmdSpace += CmdUtil::BuildCopyData(EngineTypeUniversal,
+                                              engine_sel__me_copy_data__micro_engine,
+                                              dst_sel__me_copy_data__memory__GFX09,
+                                              address,
+                                              src_sel__me_copy_data__immediate_data,
+                                              data,
+                                              ((dataSize == ImmediateDataWidth::ImmediateData32Bit) ?
+                                               count_sel__me_copy_data__32_bits_of_data :
+                                               count_sel__me_copy_data__64_bits_of_data),
+                                              wr_confirm__me_copy_data__wait_for_confirmation,
+                                              pDeCmdSpace);
     }
     else
     {
@@ -6106,7 +6129,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
 
     // Validate primitive restart enable.  Primitive restart should only apply for indexed draws, but on gfx9,
     // VGT also applies it to auto-generated vertex index values.
-    m_vgtMultiPrimIbResetEn.most.RESET_EN =
+    m_vgtMultiPrimIbResetEn.bits.RESET_EN =
         static_cast<uint32>(Indexed && m_graphicsState.inputAssemblyState.primitiveRestartEnable);
 
     // Validate the per-draw HW state.
@@ -6786,8 +6809,18 @@ uint32* UniversalCmdBuffer::ValidateViewports(
         const auto&         viewport    = params.viewports[i];
         VportZMinMaxPm4Img* pZMinMaxImg = reinterpret_cast<VportZMinMaxPm4Img*>(&zMinMaxImg[i]);
 
-        pZMinMaxImg->zMin.f32All = Min(viewport.minDepth, viewport.maxDepth);
-        pZMinMaxImg->zMax.f32All = Max(viewport.minDepth, viewport.maxDepth);
+        const auto* const pPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
+
+        if (pPipeline->GetDepthClampMode() == DepthClampMode::ZeroToOne)
+        {
+            pZMinMaxImg->zMin.f32All = 0.0f;
+            pZMinMaxImg->zMax.f32All = 1.0f;
+        }
+        else
+        {
+            pZMinMaxImg->zMin.f32All = Min(viewport.minDepth, viewport.maxDepth);
+            pZMinMaxImg->zMax.f32All = Max(viewport.minDepth, viewport.maxDepth);
+        }
     }
 
     pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs<pm4OptImmediate>(mmPA_SC_VPORT_ZMIN_0,
@@ -8743,14 +8776,16 @@ void UniversalCmdBuffer::CmdSetPredication(
                                                                        &predicateVirtAddr);
         pPredicate[0] = 0;
         pPredicate[1] = 0;
-        pDeCmdSpace += CmdUtil::BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
-                                                      dst_sel__me_copy_data__memory__GFX09,
-                                                      predicateVirtAddr,
-                                                      src_sel__me_copy_data__memory__GFX09,
-                                                      gpuVirtAddr,
-                                                      count_sel__me_copy_data__32_bits_of_data,
-                                                      wr_confirm__me_copy_data__wait_for_confirmation,
-                                                      pDeCmdSpace);
+        pDeCmdSpace += CmdUtil::BuildCopyData(EngineTypeUniversal,
+                                              engine_sel__me_copy_data__micro_engine,
+                                              dst_sel__me_copy_data__memory__GFX09,
+                                              predicateVirtAddr,
+                                              src_sel__me_copy_data__memory__GFX09,
+                                              gpuVirtAddr,
+                                              count_sel__me_copy_data__32_bits_of_data,
+                                              wr_confirm__me_copy_data__wait_for_confirmation,
+                                              pDeCmdSpace);
+
         pDeCmdSpace += CmdUtil::BuildPfpSyncMe(pDeCmdSpace);
         gpuVirtAddr = predicateVirtAddr;
         predType    = PredicateType::Boolean64;
@@ -9885,14 +9920,15 @@ void UniversalCmdBuffer::AddPerPresentCommands(
                                            UINT32_MAX,
                                            pDeCmdSpace);
 
-    pDeCmdSpace += CmdUtil::BuildCopyDataGraphics(engine_sel__me_copy_data__micro_engine,
-                                                  dst_sel__me_copy_data__perfcounters,
-                                                  frameCntReg,
-                                                  src_sel__me_copy_data__tc_l2,
-                                                  frameCountGpuAddr,
-                                                  count_sel__me_copy_data__32_bits_of_data,
-                                                  wr_confirm__me_copy_data__do_not_wait_for_confirmation,
-                                                  pDeCmdSpace);
+    pDeCmdSpace += CmdUtil::BuildCopyData(EngineTypeUniversal,
+                                          engine_sel__me_copy_data__micro_engine,
+                                          dst_sel__me_copy_data__perfcounters,
+                                          frameCntReg,
+                                          src_sel__me_copy_data__tc_l2,
+                                          frameCountGpuAddr,
+                                          count_sel__me_copy_data__32_bits_of_data,
+                                          wr_confirm__me_copy_data__do_not_wait_for_confirmation,
+                                          pDeCmdSpace);
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 }

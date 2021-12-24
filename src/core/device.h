@@ -1895,8 +1895,6 @@ public:
 
     bool DisableSwapChainAcquireBeforeSignalingClient() const { return m_disableSwapChainAcquireBeforeSignaling; }
 
-    bool LocalInvDropCpuWrites() const { return m_localInvDropCpuWrites; }
-
     void SetHdrColorspaceFormat(ScreenColorSpace newFormat) { m_hdrColorspaceFormat = newFormat; }
 
     bool UsingHdrColorspaceFormat() const;
@@ -1970,8 +1968,8 @@ protected:
     void InitMemoryHeapProperties();
     Result InitSettings();
 
-    virtual Result OsEarlyInit() = 0;
-    virtual Result OsLateInit() = 0;
+    virtual Result OsEarlyInit() { return Result::Success; }
+    virtual Result OsLateInit()  { return Result::Success; }
 
     virtual void OsFinalizeSettings() { }
 
@@ -2119,7 +2117,6 @@ protected:
     } m_flags;
 
     bool m_disableSwapChainAcquireBeforeSignaling;
-    bool m_localInvDropCpuWrites;
 
     PalPublicSettings      m_publicSettings;
     SettingsLoader*        m_pSettingsLoader;

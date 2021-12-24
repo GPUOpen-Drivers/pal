@@ -2109,8 +2109,8 @@ struct CustomPowerProfile
 /// directed by the application or hard-code them to a single value.  Driver-internal memory references should be marked
 /// as CantTrim unless the client explicitly handles trim support.
 ///
-/// Note that the CantTrim and MustSucceed flags are based on the same WDDM2 flags; it is expected that PAL will ignore
-/// them on non-WDDM2 platforms.
+/// Note that the CantTrim and MustSucceed flags are based on the same WDDM flags; it is expected that PAL will ignore
+/// them on non-WDDM platforms.
 enum GpuMemoryRefFlags : uint32
 {
     GpuMemoryRefCantTrim    = 0x1, ///< The caller can't or won't free this allocation on OS request.

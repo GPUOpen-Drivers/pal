@@ -607,7 +607,13 @@ ADDR2_SURFACE_FLAGS AddrMgr2::DetermineSurfaceFlags(
     // - minimizeAlignment: If 2D padding is bigger than 1d padding, convert tile mode to 1D.
     // - maxAlignment64k:   If 2D macro block size is bigger than 64KB, convert tile mode to PRT.
     // - needEquation:      If tile mode is 2D, convert it to PRT tile mode.
-    if (image.IsShared() == false)
+    //
+    // Adding the check for forFmask to prevent TilingOptMode settings from affecting fmask.  This is needed because
+    // when fmask swizzle mode isn't known on image import and TilingOptMode settings are applied it sometimes leads to
+    // a swizzle mode mismatch that results in an incorrectly initialized cmask.  The full solution is to add fmask
+    // swizzle mode to the image metadata and honor it during image import to correctly initialize cmask for shared
+    // images. After the full solution is implemented, this check for forFmask will be removed.
+    if ((image.IsShared() == false) && (forFmask == false))
     {
         // NV12 or P010 only support 2D THIN1 or linear tile mode, setting the opt4Space or minimizeAlignment flag for
         // those surfaces could change the tile mode to 1D THIN1.
@@ -669,6 +675,10 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
     surfSettingInput.flags           = DetermineSurfaceFlags(*pImage, pBaseSubRes->subresId.plane, forFmask);
     surfSettingInput.resourceType    = GetAddrResourceType(pImage);
     surfSettingInput.resourceLoction = ADDR_RSRC_LOC_UNDEF;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 694
+    surfSettingInput.memoryBudget    = createInfo.imageMemoryBudget;
+#endif
 
     // Note: This is used by the AddrLib as an additional clamp on 4kB vs. 64kB swizzle modes. It can be set to zero
     // to force the AddrLib to chose the most optimal mode.
@@ -834,13 +844,6 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
             const auto*     pDepthSubResInfo = pImage->SubresourceInfo(depthSubResId);
 
             pOut->swizzleMode = static_cast<AddrSwizzleMode>(pImage->GetGfxImage()->GetSwTileMode(pDepthSubResInfo));
-        }
-
-        if (pImage->IsPeer())
-        {
-            // Todo: Peer Images must have the same swizzle mode as the original Image (this is implemented for
-            // AddrMgr1/Gfx6).
-            PAL_NOT_IMPLEMENTED();
         }
 
         // Fmask surfaces can only use Z-swizzle modes; verify that here.

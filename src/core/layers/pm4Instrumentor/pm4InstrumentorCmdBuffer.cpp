@@ -718,6 +718,18 @@ void CmdBuffer::CmdCopyMemory(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdCopyMemoryByGpuVa(
+    gpusize                 srcGpuVirtAddr,
+    gpusize                 dstGpuVirtAddr,
+    uint32                  regionCount,
+    const MemoryCopyRegion* pRegions)
+{
+    PreCall();
+    CmdBufferFwdDecorator::CmdCopyMemoryByGpuVa(srcGpuVirtAddr, dstGpuVirtAddr, regionCount, pRegions);
+    PostCall(CmdBufCallId::CmdCopyMemoryByGpuVa);
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdCopyImage(
     const IImage&          srcImage,
     ImageLayout            srcImageLayout,

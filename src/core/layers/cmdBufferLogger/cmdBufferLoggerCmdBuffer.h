@@ -221,6 +221,11 @@ public:
         const IGpuMemory&       dstGpuMemory,
         uint32                  regionCount,
         const MemoryCopyRegion* pRegions) override;
+    virtual void CmdCopyMemoryByGpuVa(
+        gpusize                 srcGpuVirtAddr,
+        gpusize                 dstGpuVirtAddr,
+        uint32                  regionCount,
+        const MemoryCopyRegion* pRegions) override;
     virtual void CmdCopyTypedBuffer(
         const IGpuMemory&            srcGpuMemory,
         const IGpuMemory&            dstGpuMemory,

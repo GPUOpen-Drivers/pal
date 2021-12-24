@@ -705,6 +705,24 @@ typedef struct SqttFileChunkSpmDb
     uint32_t             samplingInterval;       /*!<  The sampling interval */
 } SqttFileChunkSpmDb;
 
+static constexpr RgpChunkVersionNumbers SpmDbV1Version = {1, 3};
+typedef struct SpmCounterInfoV1
+{
+    SpmGpuBlock   block;
+    uint32_t      instance;
+    uint32_t      dataOffset;                   /*!<  Offset of counter data from the beginning of the chunk. */
+    uint32_t      eventIndex;                   /*!<  Index of the perf counter event within the block.       */
+} SpmCounterInfoV1;
+
+typedef struct SqttFileChunkSpmDbV1
+{
+    SqttFileChunkHeader  header;
+    SqttFileSpmInfoFlags flags;
+    uint32_t             numTimestamps;          /*!<  Number of timestamps in this trace. */
+    uint32_t             numSpmCounterInfo;      /*!<  Number of SpmCounterInfo. */
+    uint32_t             samplingInterval;       /*!<  The sampling interval */
+} SqttFileChunkSpmDbV1;
+
 typedef struct SqttFileDfSpmInfoFlags
 {
     union

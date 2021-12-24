@@ -71,6 +71,8 @@ public:
         ArchiveEntryHeader* pHeader,
         const void*         pData) override;
 
+    virtual bool   AllowWriteAccess() const final { return m_haveWriteAccess; }
+
     virtual void   Destroy() override { this->~ArchiveFile(); }
 
 private:
@@ -151,9 +153,9 @@ private:
     ArchiveFileFooter       m_cachedFooter;
     uint32                  m_curFooterOffset;
     EntryVector             m_entries;
+    const bool              m_haveWriteAccess;
 
     // Write components: MAY NOT BE INITIALIZED IF WE DON'T HAVE WRITE ACCESS
-    const bool              m_haveWriteAccess;
     bool                    m_refreshedSinceLastWrite;
 
     // Internal memory buffer: MAY NOT BE INITIALIZED IF WE AREN'T USING A MEMORY BUFFER
