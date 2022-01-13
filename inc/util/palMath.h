@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -33,6 +33,8 @@
 
 #include "palSysMemory.h"
 
+#include <limits>
+
 namespace Util
 {
 
@@ -41,28 +43,28 @@ namespace Math
 {
 
 /// Exponent mask of a single-precision IEEE float.
-static constexpr uint32 FloatExponentMask      = 0x7F800000;
+constexpr uint32 FloatExponentMask      = 0x7F800000;
 /// Exponent bias of a single-precision IEEE float.
-static constexpr uint32 FloatExponentBias      = 127;
+constexpr uint32 FloatExponentBias      = 127;
 /// Number of bits in the mantissa of a single-precision IEEE float.
-static constexpr uint32 FloatNumMantissaBits   = 23;
+constexpr uint32 FloatNumMantissaBits   = 23;
 /// Mantissa mask of a single-precision IEEE float.
-static constexpr uint32 FloatMantissaMask      = 0x007FFFFF;
+constexpr uint32 FloatMantissaMask      = 0x007FFFFF;
 /// Sign bit mask of a single precision IEEE float.
-static constexpr uint32 FloatSignBitMask       = 0x80000000;
+constexpr uint32 FloatSignBitMask       = 0x80000000;
 /// Mask of all non-sign bits of a single-precision IEEE float.
-static constexpr uint32 FloatMaskOutSignBit    = 0x7FFFFFFF;
+constexpr uint32 FloatMaskOutSignBit    = 0x7FFFFFFF;
 /// Minimum number of float bits in a normalized IEE float.
-static constexpr uint32 MinNormalizedFloatBits = 0x00800000;
+constexpr uint32 MinNormalizedFloatBits = 0x00800000;
 
 /// Positive one.
-static constexpr float FloatOne      = 1.0f;
+constexpr float FloatOne      = 1.0f;
 /// Negative one.
-static constexpr float FloatNegOne   = -1.0f;
+constexpr float FloatNegOne   = -1.0f;
 /// Zero.
-static constexpr float FloatZero     = 0.0f;
+constexpr float FloatZero     = 0.0f;
 /// Positive infinity.
-static const     float FloatInfinity = *(reinterpret_cast<const float*>(&FloatExponentMask));
+constexpr float FloatInfinity = std::numeric_limits<float>::infinity();
 
 /// Fraction structure.
 struct Fraction
@@ -72,13 +74,13 @@ struct Fraction
 };
 
 /// Returns the bits of a floating point value as an unsigned integer.
-static uint32 FloatToBits(float f)
+inline uint32 FloatToBits(float f)
 {
     return (*(reinterpret_cast<uint32*>(&f)));
 }
 
 /// Assigns the bits contained in an unsigned integer to the float pointer location
-static void SetBitsToFloat(float* f, uint32 u)
+inline void SetBitsToFloat(float* f, uint32 u)
 {
     *(reinterpret_cast<uint32*>(f)) = u;
 }
@@ -91,7 +93,7 @@ extern bool IsInf(float f);
 extern bool IsNaN(float f);
 
 /// Determines if a floating-point number is either +/-Infinity or NaN.
-static bool IsInfOrNaN(float f)
+inline bool IsInfOrNaN(float f)
 {
     return (IsInf(f) || IsNaN(f));
 }
@@ -196,7 +198,7 @@ extern uint8 IntToSignedMagnitude(int8 input);
 /// @param [in] n          Number of fractional bits.
 ///
 /// @returns rounded fixed point number in Q0 format (unsigned integer).
-static inline uint32 UFixedRoundToUint32(uint32 value, uint8 n)
+inline uint32 UFixedRoundToUint32(uint32 value, uint8 n)
 {
     PAL_ASSERT((0 < n) && (n < 31));
     return ((value + (((1 << n) >> 1))) >> n);
@@ -208,7 +210,7 @@ static inline uint32 UFixedRoundToUint32(uint32 value, uint8 n)
 /// @param [in] n          Number of fractional bits.
 ///
 /// @returns rounded fixed point number in Q0 format (signed integer).
-static inline int32 SFixedRoundToInt32(int32 value, uint8 n)
+inline int32 SFixedRoundToInt32(int32 value, uint8 n)
 {
     PAL_ASSERT((0 < n) && (n < 30));
     return ((value + (((1 << n) >> 1))) >> n);

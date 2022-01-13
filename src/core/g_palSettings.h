@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -298,109 +298,109 @@ struct PalSettings : public Pal::DriverSettings
     UseExecuteIndirectPacket                    useExecuteIndirectPacket;
     uint32                                      useDcc;
 };
-static const char* pTFQStr = "TFQ";
-static const char* pCatalystAIStr = "CatalystAI";
-static const char* pForcePreambleCmdStreamStr = "#2987947496";
-static const char* pMaxNumCmdStreamsPerSubmitStr = "#2467045849";
-static const char* pRequestHighPriorityVmidStr = "#1580739202";
-static const char* pRequestDebugVmidStr = "#359792145";
-static const char* pDisableVmPageFaultReportingStr = "#1477288807";
-static const char* pNeverChangeClockModeStr = "#2936106678";
-static const char* pNonlocalDestGraphicsCopyRbsStr = "#501901000";
-static const char* pIFHStr = "#3299864138";
-static const char* pIdleAfterSubmitGpuMaskStr = "#2665794079";
-static const char* pTossPointModeStr = "#440136999";
-static const char* pForceFixedFuncColorResolveStr = "#4239167273";
-static const char* pUnboundDescriptorAddressStr = "#2972919517";
-static const char* pIsLocalHeapPreferredStr = "#1465087975";
-static const char* pEnableNullCpuAccessFlagStr = "#3709502715";
-static const char* pClearAllocatedLfbStr = "#2657420565";
-static const char* pEnableAdaptiveSyncStr = "#1325234467";
-static const char* pAddr2Disable256BSwizzleModeStr = "#2981505442";
-static const char* pAddr2Disable4KbSwizzleModeStr = "#2252676842";
-static const char* pAddr2UseVarSwizzleModeStr = "#2076875821";
-static const char* pRpmViewsBypassMallStr = "#2274774246";
-static const char* penableBigPagePreAlignmentStr = "#3301250889";
-static const char* penableIterate256PreAlignmentStr = "#2507710515";
-static const char* pAddr2DisableSModes8BppColorStr = "#3379142860";
-static const char* pDisableOptimizedDisplayStr = "#3371140286";
-static const char* pDisplayDccSkipRetileBltStr = "#2325903599";
-static const char* pOverlayReportHDRStr = "#2354711641";
-static const char* pPreferredPipelineUploadHeapStr = "#1170638299";
+constexpr const char* pTFQStr = "TFQ";
+constexpr const char* pCatalystAIStr = "CatalystAI";
+constexpr const char* pForcePreambleCmdStreamStr = "#2987947496";
+constexpr const char* pMaxNumCmdStreamsPerSubmitStr = "#2467045849";
+constexpr const char* pRequestHighPriorityVmidStr = "#1580739202";
+constexpr const char* pRequestDebugVmidStr = "#359792145";
+constexpr const char* pDisableVmPageFaultReportingStr = "#1477288807";
+constexpr const char* pNeverChangeClockModeStr = "#2936106678";
+constexpr const char* pNonlocalDestGraphicsCopyRbsStr = "#501901000";
+constexpr const char* pIFHStr = "#3299864138";
+constexpr const char* pIdleAfterSubmitGpuMaskStr = "#2665794079";
+constexpr const char* pTossPointModeStr = "#440136999";
+constexpr const char* pForceFixedFuncColorResolveStr = "#4239167273";
+constexpr const char* pUnboundDescriptorAddressStr = "#2972919517";
+constexpr const char* pIsLocalHeapPreferredStr = "#1465087975";
+constexpr const char* pEnableNullCpuAccessFlagStr = "#3709502715";
+constexpr const char* pClearAllocatedLfbStr = "#2657420565";
+constexpr const char* pEnableAdaptiveSyncStr = "#1325234467";
+constexpr const char* pAddr2Disable256BSwizzleModeStr = "#2981505442";
+constexpr const char* pAddr2Disable4KbSwizzleModeStr = "#2252676842";
+constexpr const char* pAddr2UseVarSwizzleModeStr = "#2076875821";
+constexpr const char* pRpmViewsBypassMallStr = "#2274774246";
+constexpr const char* penableBigPagePreAlignmentStr = "#3301250889";
+constexpr const char* penableIterate256PreAlignmentStr = "#2507710515";
+constexpr const char* pAddr2DisableSModes8BppColorStr = "#3379142860";
+constexpr const char* pDisableOptimizedDisplayStr = "#3371140286";
+constexpr const char* pDisplayDccSkipRetileBltStr = "#2325903599";
+constexpr const char* pOverlayReportHDRStr = "#2354711641";
+constexpr const char* pPreferredPipelineUploadHeapStr = "#1170638299";
 #if PAL_DEVELOPER_BUILD
-static const char* pInsertGuardPageBetweenWddm2VAsStr = "#3303637006";
+constexpr const char* pInsertGuardPageBetweenWddm2VAsStr = "#3303637006";
 #endif
 
-static const char* pAllocationListReusableStr = "#1727036994";
-static const char* pCmdStreamReadOnlyStr = "#3519117785";
-static const char* pFenceTimeoutOverrideStr = "#970172817";
-static const char* pForce64kPageGranularityStr = "#1833432496";
-static const char* pUpdateOneGpuVirtualAddressStr = "#4178383571";
-static const char* pAlwaysResidentStr = "#198913068";
-static const char* pDisableSyncobjFenceStr = "#1287715858";
-static const char* pDisableSdmaEngineStr = "#2254617940";
-static const char* pForceT2tScanlineCopiesStr = "#2746133908";
-static const char* pEnableVmAlwaysValidStr = "#1718264096";
-static const char* pDisableSyncObjectStr = "#830933859";
-static const char* pCmdBufDumpModeStr = "#3607991033";
-static const char* pCmdBufDumpFormatStr = "#1905164977";
-static const char* pCmdBufDumpDirectoryStr = "#3293295025";
-static const char* pSubmitTimeCmdBufDumpStartFrameStr = "#1639305458";
-static const char* pSubmitTimeCmdBufDumpEndFrameStr = "#4221961293";
-static const char* pDumpCmdBufPerFrameStr = "#653867010";
-static const char* pLogCmdBufCommitSizesStr = "#2222002517";
-static const char* pLogPipelineElfStr = "#2287487712";
-static const char* pPipelineElfLogConfig_LogInternalStr = "#2576934177";
-static const char* pPipelineElfLogConfig_LogExternalStr = "#3434531143";
-static const char* pPipelineElfLogConfig_LogHashStr = "#1952137328";
-static const char* pPipelineElfLogConfig_LogDirectoryStr = "#1171198787";
-static const char* pCmdStreamReserveLimitStr = "#3843913604";
-static const char* pCmdStreamEnableMemsetOnReserveStr = "#3927521274";
-static const char* pCmdStreamMemsetValueStr = "#3661455441";
-static const char* pCmdBufChunkEnableStagingBufferStr = "#169161685";
-static const char* pCmdBufDisallowNestedLaunchViaIb2Str = "#459136606";
-static const char* pCmdAllocatorFreeOnResetStr = "#1461164706";
-static const char* pCmdBufOptimizePm4Str = "#1018895288";
-static const char* pCmdBufOptimizePm4SplitStr = "#1787111592";
-static const char* pCmdBufForceOneTimeSubmitStr = "#909934676";
-static const char* pCmdBufPreemptionModeStr = "#3640527208";
-static const char* pCommandBufferForceCeRamDumpInPostambleStr = "#3413911781";
-static const char* pCommandBufferCombineDePreamblesStr = "#148412311";
-static const char* pVideoCommandBufferAddVerifySignatureStr = "#3347736595";
-static const char* pCmdUtilVerifyShadowedRegRangesStr = "#3890704045";
-static const char* pSubmitOptModeOverrideStr = "#3054810609";
-static const char* pTileSwizzleModeStr = "#1146877010";
-static const char* pEnableVidMmGpuVaMappingValidationStr = "#2751785051";
-static const char* pEnableUswcHeapAllAllocationsStr = "#3408333164";
-static const char* pAddr2PreferredSwizzleTypeSetStr = "#1836557167";
-static const char* pPipelinePrefetchEnableStr = "#3800985923";
-static const char* pShaderPrefetchClampSizeStr = "#2406290039";
-static const char* pMaxAvailableSgprStr = "#1008439776";
-static const char* pMaxAvailableVgprStr = "#2116546305";
-static const char* pMaxThreadGroupsPerComputeUnitStr = "#1284517999";
-static const char* pMaxScratchRingSizeBaselineStr = "#913921073";
-static const char* pMaxScratchRingSizeScalePctStr = "#3497759531";
-static const char* pIfhGpuMaskStr = "#3517626664";
-static const char* pHwCompositingEnabledStr = "#1872169717";
-static const char* pMgpuCompatibilityEnabledStr = "#1177937299";
-static const char* pPeerMemoryEnabledStr = "#259362511";
-static const char* pForcePresentViaCpuBltStr = "#2055732513";
-static const char* pPresentViaOglRuntimeStr = "#2466363770";
+constexpr const char* pAllocationListReusableStr = "#1727036994";
+constexpr const char* pCmdStreamReadOnlyStr = "#3519117785";
+constexpr const char* pFenceTimeoutOverrideStr = "#970172817";
+constexpr const char* pForce64kPageGranularityStr = "#1833432496";
+constexpr const char* pUpdateOneGpuVirtualAddressStr = "#4178383571";
+constexpr const char* pAlwaysResidentStr = "#198913068";
+constexpr const char* pDisableSyncobjFenceStr = "#1287715858";
+constexpr const char* pDisableSdmaEngineStr = "#2254617940";
+constexpr const char* pForceT2tScanlineCopiesStr = "#2746133908";
+constexpr const char* pEnableVmAlwaysValidStr = "#1718264096";
+constexpr const char* pDisableSyncObjectStr = "#830933859";
+constexpr const char* pCmdBufDumpModeStr = "#3607991033";
+constexpr const char* pCmdBufDumpFormatStr = "#1905164977";
+constexpr const char* pCmdBufDumpDirectoryStr = "#3293295025";
+constexpr const char* pSubmitTimeCmdBufDumpStartFrameStr = "#1639305458";
+constexpr const char* pSubmitTimeCmdBufDumpEndFrameStr = "#4221961293";
+constexpr const char* pDumpCmdBufPerFrameStr = "#653867010";
+constexpr const char* pLogCmdBufCommitSizesStr = "#2222002517";
+constexpr const char* pLogPipelineElfStr = "#2287487712";
+constexpr const char* pPipelineElfLogConfig_LogInternalStr = "#2576934177";
+constexpr const char* pPipelineElfLogConfig_LogExternalStr = "#3434531143";
+constexpr const char* pPipelineElfLogConfig_LogHashStr = "#1952137328";
+constexpr const char* pPipelineElfLogConfig_LogDirectoryStr = "#1171198787";
+constexpr const char* pCmdStreamReserveLimitStr = "#3843913604";
+constexpr const char* pCmdStreamEnableMemsetOnReserveStr = "#3927521274";
+constexpr const char* pCmdStreamMemsetValueStr = "#3661455441";
+constexpr const char* pCmdBufChunkEnableStagingBufferStr = "#169161685";
+constexpr const char* pCmdBufDisallowNestedLaunchViaIb2Str = "#459136606";
+constexpr const char* pCmdAllocatorFreeOnResetStr = "#1461164706";
+constexpr const char* pCmdBufOptimizePm4Str = "#1018895288";
+constexpr const char* pCmdBufOptimizePm4SplitStr = "#1787111592";
+constexpr const char* pCmdBufForceOneTimeSubmitStr = "#909934676";
+constexpr const char* pCmdBufPreemptionModeStr = "#3640527208";
+constexpr const char* pCommandBufferForceCeRamDumpInPostambleStr = "#3413911781";
+constexpr const char* pCommandBufferCombineDePreamblesStr = "#148412311";
+constexpr const char* pVideoCommandBufferAddVerifySignatureStr = "#3347736595";
+constexpr const char* pCmdUtilVerifyShadowedRegRangesStr = "#3890704045";
+constexpr const char* pSubmitOptModeOverrideStr = "#3054810609";
+constexpr const char* pTileSwizzleModeStr = "#1146877010";
+constexpr const char* pEnableVidMmGpuVaMappingValidationStr = "#2751785051";
+constexpr const char* pEnableUswcHeapAllAllocationsStr = "#3408333164";
+constexpr const char* pAddr2PreferredSwizzleTypeSetStr = "#1836557167";
+constexpr const char* pPipelinePrefetchEnableStr = "#3800985923";
+constexpr const char* pShaderPrefetchClampSizeStr = "#2406290039";
+constexpr const char* pMaxAvailableSgprStr = "#1008439776";
+constexpr const char* pMaxAvailableVgprStr = "#2116546305";
+constexpr const char* pMaxThreadGroupsPerComputeUnitStr = "#1284517999";
+constexpr const char* pMaxScratchRingSizeBaselineStr = "#913921073";
+constexpr const char* pMaxScratchRingSizeScalePctStr = "#3497759531";
+constexpr const char* pIfhGpuMaskStr = "#3517626664";
+constexpr const char* pHwCompositingEnabledStr = "#1872169717";
+constexpr const char* pMgpuCompatibilityEnabledStr = "#1177937299";
+constexpr const char* pPeerMemoryEnabledStr = "#259362511";
+constexpr const char* pForcePresentViaCpuBltStr = "#2055732513";
+constexpr const char* pPresentViaOglRuntimeStr = "#2466363770";
 
-static const char* pDebugForceResourceAlignmentStr = "#397089904";
-static const char* pDebugForceResourceAdditionalPaddingStr = "#3601080919";
-static const char* pOverlayReportMesStr = "#1685803860";
-static const char* pMipGenUseFastPathStr = "#3353227045";
-static const char* pUseFp16GenMipsStr = "#192229910";
-static const char* pTmzEnabledStr = "#2606194033";
+constexpr const char* pDebugForceResourceAlignmentStr = "#397089904";
+constexpr const char* pDebugForceResourceAdditionalPaddingStr = "#3601080919";
+constexpr const char* pOverlayReportMesStr = "#1685803860";
+constexpr const char* pMipGenUseFastPathStr = "#3353227045";
+constexpr const char* pUseFp16GenMipsStr = "#192229910";
+constexpr const char* pTmzEnabledStr = "#2606194033";
 #if PAL_DEVELOPER_BUILD
-static const char* pDbgHelperBitsStr = "#3894710420";
+constexpr const char* pDbgHelperBitsStr = "#3894710420";
 #endif
 
-static const char* pUseExecuteIndirectPacketStr = "#1605308413";
-static const char* pUseDccStr = "#4029518654";
+constexpr const char* pUseExecuteIndirectPacketStr = "#1605308413";
+constexpr const char* pUseDccStr = "#4029518654";
 
-static const SettingNameHash g_palSettingHashList[] = {
+constexpr const SettingNameHash g_palSettingHashList[] = {
 4265240458,
 1901986348,
 2987947496,
@@ -503,9 +503,9 @@ static const SettingNameHash g_palSettingHashList[] = {
 1605308413,
 4029518654,
 };
-static const uint32 g_palNumSettings = sizeof(g_palSettingHashList) / sizeof(SettingNameHash);
+constexpr uint32 g_palNumSettings = sizeof(g_palSettingHashList) / sizeof(SettingNameHash);
 
-static const uint8 g_palJsonData[] = {
+constexpr uint8 g_palJsonData[] = {
     26, 250, 84, 220, 1, 92, 96, 106, 146, 207, 33, 32, 160, 3, 90, 155, 144, 218, 198, 78, 114, 176, 3, 33, 5, 77, 19,
     112, 240, 60, 51, 124, 70, 64, 201, 5, 158, 97, 87, 77, 204, 74, 98, 194, 41, 7, 146, 217, 196, 241, 199, 35, 58,
     39, 53, 61, 197, 5, 96, 122, 152, 156, 157, 71, 204, 69, 14, 191, 122, 45, 161, 99, 42, 5, 57, 6, 198, 213, 152,

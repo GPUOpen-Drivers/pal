@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -647,7 +647,7 @@ extern Result OsInitDefaultAllocCallbacks(AllocCallbacks* pAllocCb);
 ///
 /// @param [in] p Object to be destructed.
 template<typename T>
-void static Destructor(T* p)
+void Destructor(T* p)
 {
     if ((p != nullptr) && !std::is_pod<T>::value)
     {
@@ -671,7 +671,7 @@ void static Destructor(T* p)
 ///
 /// @returns Pointer to the allocated array, nullptr if the allocation failed.
 template<typename T, typename Allocator>
-static T* NewArray(
+T* NewArray(
     size_t          arrayCnt,
     Allocator*      pAllocator,
     SystemAllocType allocType
@@ -729,7 +729,7 @@ static T* NewArray(
 /// @param [in] p          Pointer to the memory to be deleted.
 /// @param [in] pAllocator The allocator that will free the memory for the array.
 template<typename T, typename Allocator>
-void static DeleteArray(T* p, Allocator* pAllocator)
+void DeleteArray(T* p, Allocator* pAllocator)
 {
     if ((p != nullptr) && !std::is_pod<T>::value)
     {
@@ -757,7 +757,7 @@ constexpr size_t FastMemCpyMaxSmallSize = 64;
 
 typedef void* (PAL_CDECL *FastMemCpySmallFunc)(void* pDst, const void* pSrc, size_t count);
 
-extern FastMemCpySmallFunc FastMemCpySmallFuncTable[];
+extern const FastMemCpySmallFunc FastMemCpySmallFuncTable[];
 
 /// A version of memcpy that has fewer branches for small copies.  It computes an index into
 /// a table based on the size requested then jumps to a branchless memcpy for that size.

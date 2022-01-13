@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -38,11 +38,11 @@ namespace Util
 {
 
 // Structs and defines taken from readelf.h.
-static constexpr uint32 ElfMagic      = 0x464C457F;   ///< "/177ELF" in little endian.
-static constexpr uint32 ElfIdentSize  = 16;           ///< Identification information size.
-static constexpr int16  ElfAmdMachine = 0x3FD;        ///< AMD GPU magic number, machine architecture.
-static const     char*  ShStrtabName  = ".shstrtab";  ///< Section header name for the string table.
-static constexpr uint32 ElfBucketNum  = 32;           ///< Number of buckets for the read HashMap.
+constexpr uint32      ElfMagic      = 0x464C457F;   ///< "/177ELF" in little endian.
+constexpr uint32      ElfIdentSize  = 16;           ///< Identification information size.
+constexpr int16       ElfAmdMachine = 0x3FD;        ///< AMD GPU magic number, machine architecture.
+constexpr const char* ShStrtabName  = ".shstrtab";  ///< Section header name for the string table.
+constexpr uint32      ElfBucketNum  = 32;           ///< Number of buckets for the read HashMap.
 
 #pragma pack (push, 1)
 /// ELF file header. This is specified at the very beginning of every ELF file.

@@ -252,6 +252,7 @@ union drm_amdgpu_bo_list {
 #define AMDGPU_CTX_PRIORITY_VERY_HIGH   1023
 
 #define AMDGPU_CTX_FLAGS_IFH            (1<<0)
+#define AMDGPU_CTX_FLAGS_SECURE         (1<<1)
 
 struct drm_amdgpu_ctx_in {
 	/** AMDGPU_CTX_OP_* */

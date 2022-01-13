@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -82,11 +82,12 @@ enum RMT_PROCESS_EVENT_TYPE
 // Enumeration of Userdata event types
 enum RMT_USERDATA_EVENT_TYPE
 {
-    RMT_USERDATA_EVENT_TYPE_NAME             = 0,
-    RMT_USERDATA_EVENT_TYPE_SNAPSHOT         = 1,
-    RMT_USERDATA_EVENT_TYPE_BINARY           = 2,
-    RMT_USERDATA_EVENT_TYPE_CALL_STACK       = 3,
-    RMT_USERDATA_EVENT_TYPE_RSRC_CORRELATION = 4
+    RMT_USERDATA_EVENT_TYPE_NAME                   = 0,
+    RMT_USERDATA_EVENT_TYPE_SNAPSHOT               = 1,
+    RMT_USERDATA_EVENT_TYPE_BINARY                 = 2,
+    RMT_USERDATA_EVENT_TYPE_CALL_STACK             = 3,
+    RMT_USERDATA_EVENT_TYPE_RSRC_CORRELATION       = 4,
+    RMT_USERDATA_EVENT_TYPE_MARK_IMPLICIT_RESOURCE = 5
 };
 
 // Enumeration of the MISC event types
@@ -344,6 +345,39 @@ struct RMT_MSG_USERDATA_DEBUG_NAME : RMT_TOKEN_DATA
 
         // Insert the resource id into the payload after the NULL
         memcpy(&bytes[RMT_MSG_USERDATA_TOKEN_BYTES_SIZE + stringSize + 1], &resourceId, sizeof(resourceId));
+    }
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// RMT_MSG_USERDATA variant for marking implicit resources.
+struct RMT_MSG_USERDATA_MARK_IMPLICIT_RESOURCE : RMT_TOKEN_DATA
+{
+private:
+    static uint32 constexpr PAYLOAD_SIZE = sizeof(uint32);
+
+public:
+    uint8 bytes[RMT_MSG_USERDATA_TOKEN_BYTES_SIZE + PAYLOAD_SIZE] = {};
+
+    // Initializes the token fields
+    RMT_MSG_USERDATA_MARK_IMPLICIT_RESOURCE(uint8 delta, uint32 resourceId)
+    {
+        sizeInBytes = sizeof(bytes);
+        pByteData   = &bytes[0];
+
+        // RMT_TOKEN_TYPE [3:0] Token type (see Table 2). Encoded to RMT_TOKEN_TYPE_ALLOCATE.
+        // DELTA      [7:4] The delta from the last token. In increments of 32-time units.
+        RMT_TOKEN_HEADER header(RMT_TOKEN_USERDATA, delta);
+        SetBits(header.byteVal, 7, 0);
+
+        // TYPE[11:8] The type of the user data being emitted encoded as RMT_USERDATAYPE.
+        SetBits(RMT_USERDATA_EVENT_TYPE_MARK_IMPLICIT_RESOURCE, 11, 8);
+
+        // PAYLOAD_SIZE[31:12] The size of the payload that immediately follows this token, expressed in bytes.
+        SetBits(PAYLOAD_SIZE, 31, 12);
+
+        // Copy the resource ID into the PAYLOAD
+        uint8* pPayload = &pByteData[RMT_MSG_USERDATA_TOKEN_BYTES_SIZE];
+        memcpy(pPayload, &resourceId, sizeof(resourceId));
     }
 };
 

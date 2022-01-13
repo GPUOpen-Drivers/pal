@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,7 @@
 #include <ddPlatform.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <Tdh.h>
 
 ////////////////////////////////
 // UMD
@@ -628,6 +629,130 @@ namespace DevDriver
             DD_ASSERT(pSrc2 != nullptr);
 
             return _stricmp(pSrc1, pSrc2);
+        }
+
+        // A structure used by the Microsft Trace Helper function.
+        struct SessionProperties
+        {
+            EVENT_TRACE_PROPERTIES properties; ///< The ETW properties.
+            char                   name[128];  ///< Storage for the ETW session name
+        };
+
+        static bool GetEtwStatus(uint32& statusCode, char* pDescription, uint32 descriptionMaxLength)
+        {
+            bool result = false;
+            statusCode = ERROR_SUCCESS;
+
+            SessionProperties sessionProperties = {};
+            ZeroMemory(&sessionProperties, sizeof(sessionProperties));
+
+            Platform::Strncpy(sessionProperties.name, "ETW Status Query", sizeof(sessionProperties.name));
+
+            char traceSuffix[32];
+            Platform::Snprintf(traceSuffix, sizeof(traceSuffix), " - (%u)", DevDriver::Platform::GetProcessId());
+
+            Platform::Strncat(sessionProperties.name, traceSuffix, sizeof(sessionProperties.name));
+
+            sessionProperties.properties.Wnode.BufferSize = sizeof(sessionProperties);
+
+            sessionProperties.properties.Wnode.ClientContext = 1;
+            sessionProperties.properties.Wnode.Flags         = WNODE_FLAG_TRACED_GUID;
+            sessionProperties.properties.LogFileMode         = EVENT_TRACE_REAL_TIME_MODE;
+            sessionProperties.properties.LoggerNameOffset    = sizeof(EVENT_TRACE_PROPERTIES);
+            sessionProperties.properties.LogFileNameOffset   = 0;
+
+            TRACEHANDLE sessionHandle;
+
+            // Create the trace session.
+            ULONG startStatus = StartTrace(&sessionHandle, sessionProperties.name, &sessionProperties.properties);
+
+            if (startStatus == ERROR_ALREADY_EXISTS)
+            {
+                // Handle the case where the session was previously left open.  Try closing then starting again.
+                ULONG stopStatus = ControlTrace(
+                    sessionHandle,
+                    sessionProperties.name,
+                    &sessionProperties.properties,
+                    EVENT_TRACE_CONTROL_STOP);
+
+                if (stopStatus == ERROR_SUCCESS)
+                {
+                    startStatus = StartTrace(&sessionHandle, sessionProperties.name, &sessionProperties.properties);
+                }
+                else
+                {
+                    DD_PRINT(
+                        LogLevel::Verbose,
+                        "[QueryMonitoringStatus] Failed to stop ETW status query trace! Status: %u",
+                        stopStatus);
+                }
+            }
+
+            statusCode = startStatus;
+
+            if (startStatus == ERROR_SUCCESS)
+            {
+                ULONG stopStatus = ControlTrace(
+                    sessionHandle,
+                    sessionProperties.name,
+                    &sessionProperties.properties,
+                    EVENT_TRACE_CONTROL_STOP);
+
+                if (stopStatus == ERROR_SUCCESS)
+                {
+                    result = true;
+                }
+                else
+                {
+                    statusCode = stopStatus;
+                    DD_PRINT(
+                        LogLevel::Verbose,
+                        "[QueryMonitoringStatus] Failed to stop ETW status query trace! Status: %u",
+                        stopStatus);
+                }
+            }
+            else if (startStatus != ERROR_ACCESS_DENIED)
+            {
+                DD_PRINT(
+                    LogLevel::Verbose,
+                    "[QueryMonitoringStatus] StartTrace in ETW status query returned an unexpected status: %u",
+                    startStatus);
+            }
+
+            FormatMessage(
+                FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                NULL,
+                statusCode,
+                MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                pDescription,
+                descriptionMaxLength,
+                NULL);
+
+            return result;
+        }
+
+        Result QueryEtwInfo(EtwSupportInfo* pInfo)
+        {
+            /// Query information about system monitoring
+            {
+                // The Windows platform supports ETW monitoring.
+                pInfo->isSupported = true;
+
+                size_t statusDescLength = sizeof(pInfo->statusDescription);
+                DD_ASSERT(statusDescLength <= UINT32_MAX);
+                GetEtwStatus(pInfo->statusCode, pInfo->statusDescription, (uint32)statusDescLength);
+
+                if (pInfo->statusCode == ERROR_ACCESS_DENIED)
+                {
+                    pInfo->hasPermission = false;
+                }
+                else
+                {
+                    pInfo->hasPermission= true;
+                }
+            }
+
+            return Result::Success;
         }
 
         Result QueryOsInfo(OsInfo* pInfo)

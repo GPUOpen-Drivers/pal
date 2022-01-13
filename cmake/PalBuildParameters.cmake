@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2020-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2020-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -46,10 +46,12 @@ pal_bp(PAL_BUILD_GPUUTIL ON)
 pal_bp(PAL_DEVELOPER_BUILD OFF)
 #endif
 
+if (PAL_CLIENT_INTERFACE_MAJOR_VERSION GREATER 698 AND (PAL_BUILD_OSS1 OR PAL_BUILD_OSS2))
+    message(FATAL_ERROR "PAL_BUILD_OSS1 / PAL_BUILD_OSS2 have been deprecated")
+endif()
+
 # Build PAL with Operating System support
 pal_bp(PAL_BUILD_OSS    ON)
-pal_bp(PAL_BUILD_OSS1   ON DEPENDS_ON ${PAL_BUILD_OSS})
-pal_bp(PAL_BUILD_OSS2   ON DEPENDS_ON ${PAL_BUILD_OSS})
 pal_bp(PAL_BUILD_OSS2_4 ON DEPENDS_ON ${PAL_BUILD_OSS})
 pal_bp(PAL_BUILD_OSS4   ON DEPENDS_ON ${PAL_BUILD_OSS})
 

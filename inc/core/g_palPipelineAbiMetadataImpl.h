@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1090,6 +1090,20 @@ inline Result DeserializePipelineMetadata(
                     pMetadata->flags.gsOutputsLines = value;
                 }
                 pMetadata->hasEntry.gsOutputsLines = (result == Result::Success);
+                break;
+            }
+
+            case HashLiteralString(PipelineMetadataKey::PsDummyExport):
+            {
+                PAL_ASSERT(pMetadata->hasEntry.psDummyExport == 0);
+                bool value = false;
+                result = pReader->UnpackNext(&value);
+
+                if (result == Result::Success)
+                {
+                    pMetadata->flags.psDummyExport = value;
+                }
+                pMetadata->hasEntry.psDummyExport = (result == Result::Success);
                 break;
             }
 

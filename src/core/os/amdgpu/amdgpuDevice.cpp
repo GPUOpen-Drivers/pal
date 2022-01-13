@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -417,8 +417,10 @@ Device::Device(
     m_primaryFileDescriptor(constructorParams.primaryFileDescriptor),
     m_hDevice(constructorParams.hDevice),
     m_pVamMgr(nullptr),
-    m_hContext(nullptr),
     m_deviceNodeIndex(constructorParams.deviceNodeIndex),
+    m_useSharedGpuContexts(false),
+    m_hContext(nullptr),
+    m_hTmzContext(nullptr),
     m_drmMajorVer(constructorParams.drmMajorVer),
     m_drmMinorVer(constructorParams.drmMinorVer),
     m_useDedicatedVmid(false),
@@ -458,6 +460,12 @@ Device::~Device()
     {
         m_drmProcs.pfnAmdgpuCsCtxFree(m_hContext);
         m_hContext = nullptr;
+    }
+
+    if (m_hTmzContext != nullptr)
+    {
+        m_drmProcs.pfnAmdgpuCsCtxFree(m_hTmzContext);
+        m_hTmzContext = nullptr;
     }
 
     if (m_useDedicatedVmid)
@@ -790,7 +798,14 @@ void Device::FinalizeQueueProperties()
     if (m_memoryProperties.flags.supportsTmz)
     {
         m_engineProperties.perEngine[EngineTypeUniversal].tmzSupportLevel     = TmzSupportLevel::PerSubmission;
-        m_engineProperties.perEngine[EngineTypeCompute].tmzSupportLevel       = TmzSupportLevel::None;
+        if (SupportCsTmz())
+        {
+            m_engineProperties.perEngine[EngineTypeCompute].tmzSupportLevel   = TmzSupportLevel::PerQueue;
+        }
+        else
+        {
+            m_engineProperties.perEngine[EngineTypeCompute].tmzSupportLevel   = TmzSupportLevel::None;
+        }
         m_engineProperties.perEngine[EngineTypeDma].tmzSupportLevel           = TmzSupportLevel::PerCommandOp;
     }
 }
@@ -939,16 +954,6 @@ Result Device::InitGpuProperties()
 
     switch (m_chipProperties.ossLevel)
     {
-#if PAL_BUILD_OSS1
-    case OssIpLevel::OssIp1:
-        Oss1::InitializeGpuEngineProperties(&m_engineProperties);
-        break;
-#endif
-#if PAL_BUILD_OSS2
-    case OssIpLevel::OssIp2:
-        Oss2::InitializeGpuEngineProperties(&m_engineProperties);
-        break;
-#endif
 #if PAL_BUILD_OSS2_4
     case OssIpLevel::OssIp2_4:
         Oss2_4::InitializeGpuEngineProperties(&m_engineProperties);
@@ -2750,16 +2755,21 @@ Result Device::WaitBufferIdle(
 }
 
 // =====================================================================================================================
-// Call amdgpu to create a command submission context.
-Result Device::CreateCommandSubmissionContext(
+// Call amdgpu to create a command submission context, without checking global contexts
+Result Device::CreateCommandSubmissionContextRaw(
     amdgpu_context_handle* pContextHandle,
-    QueuePriority          priority
+    QueuePriority          priority,
+    bool                   isTmzOnly
     ) const
 {
     Result result = Result::Success;
 
-    // Check if the global scheduling context isn't available and allocate a new one for each queue
-    if (m_hContext == nullptr)
+    if ((SupportCsTmz() == false) && isTmzOnly)
+    {
+        result = Result::ErrorInvalidValue;
+    }
+
+    if (result == Result::Success)
     {
         if (m_featureState.supportQueuePriority != 0)
         {
@@ -2780,7 +2790,9 @@ Result Device::CreateCommandSubmissionContext(
                 "The QueuePriorityToAmdgpuPriority table needs to be updated.");
             if (m_featureState.supportQueueIfhKmd != 0)
             {
-                const uint32 flags = (Settings().ifh == IfhModeKmd) ? AMDGPU_CTX_FLAGS_IFH : 0;
+                uint32 flags = 0;
+                flags |= (Settings().ifh == IfhModeKmd) ? AMDGPU_CTX_FLAGS_IFH : 0;
+                flags |= isTmzOnly ? AMDGPU_CTX_FLAGS_SECURE : 0;
                 result = CheckResult(m_drmProcs.pfnAmdgpuCsCtxCreate3(m_hDevice,
                                                         QueuePriorityToAmdgpuPriority[static_cast<uint32>(priority)],
                                                         flags,
@@ -2804,10 +2816,46 @@ Result Device::CreateCommandSubmissionContext(
             }
         }
     }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Call amdgpu to create a command submission context.
+Result Device::CreateCommandSubmissionContext(
+    amdgpu_context_handle* pContextHandle,
+    QueuePriority          priority,
+    bool                   isTmzOnly
+    )
+{
+    Result result = Result::Success;
+
+    // Check if the global scheduling context isn't available and allocate a new one for each queue
+    if (m_useSharedGpuContexts == false)
+    {
+        result = CreateCommandSubmissionContextRaw(pContextHandle, priority, isTmzOnly);
+    }
     else
     {
-        // Return the global scheduling context
-        *pContextHandle = m_hContext;
+        // If we're using global scheduling contexts, lazy-create and return them.
+        // Ignore queue priority for the global scheduling contexts
+        const MutexAuto guard(&m_contextLock);
+        if (isTmzOnly)
+        {
+            if (m_hTmzContext == nullptr)
+            {
+                result = CreateCommandSubmissionContextRaw(&m_hTmzContext, QueuePriority::Medium, isTmzOnly);
+            }
+            *pContextHandle = m_hTmzContext;
+        }
+        else
+        {
+            if (m_hContext == nullptr)
+            {
+                result = CreateCommandSubmissionContextRaw(&m_hContext, QueuePriority::Medium, isTmzOnly);
+            }
+            *pContextHandle = m_hContext;
+        }
     }
 
     return result;
@@ -2821,7 +2869,7 @@ Result Device::DestroyCommandSubmissionContext(
 {
     Result result = Result::Success;
 
-    if (m_hContext == nullptr)
+    if ((hContext != m_hContext) && (hContext != m_hTmzContext))
     {
         if (m_drmProcs.pfnAmdgpuCsCtxFree(hContext) != 0)
         {

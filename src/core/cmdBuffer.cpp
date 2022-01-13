@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1036,7 +1036,7 @@ void CmdBuffer::OpenCmdBufDumpFile(
     const char* pFilename)
 {
     const auto& settings = m_device.Settings();
-    static const char* const pSuffix[] =
+    constexpr const char* const pSuffix[] =
     {
         ".txt",     // CmdBufDumpFormat::CmdBufDumpFormatText
         ".bin",     // CmdBufDumpFormat::CmdBufDumpFormatBinary

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -63,6 +63,8 @@ void PopulateTraceGfxIpLevel(
 {
     switch (gfxIpLevel)
     {
+#if PAL_BUILD_GFX
+#if PAL_BUILD_GFX6
     case GfxIpLevel::GfxIp6:
         *pTraceGfxIpLevel = { 6, 0, 0 };
         break;
@@ -75,16 +77,17 @@ void PopulateTraceGfxIpLevel(
     case GfxIpLevel::GfxIp8_1:
         *pTraceGfxIpLevel = { 8, 1, 0 };
         break;
-    case GfxIpLevel::GfxIp9:
-        *pTraceGfxIpLevel = { 9, 0, 0 };
-        break;
-
+#endif
     case GfxIpLevel::GfxIp10_1:
         *pTraceGfxIpLevel = { 10, 1, 0 };
+        break;
+    case GfxIpLevel::GfxIp9:
+        *pTraceGfxIpLevel = { 9, 0, 0 };
         break;
     case GfxIpLevel::GfxIp10_3:
         *pTraceGfxIpLevel = { 10, 3, 0 };
         break;
+#endif
     default:
         PAL_ASSERT_ALWAYS();
         break;
@@ -278,7 +281,8 @@ void AsicInfoTraceSource::WriteAsicInfoTraceChunk()
             TraceChunkAsicInfo traceChunkAsicInfo = {};
             result = FillTraceChunkAsicInfo(deviceProps, perfExperimentProps, gpuClocksSample, &traceChunkAsicInfo);
 
-            // Prepare the chunk header and write the chunk data (ie. device info) into TraceSession
+            // Prepare the chunk header and write the chunk data (ie. device info) into TraceSession.
+            // Each device corresponds to one chunk in the RDF file.
             if (result == Result::Success)
             {
                 TraceChunkInfo info;

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2018-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -189,7 +189,6 @@ static Result WriteDirect(
     }
 
     size_t alreadyWriteSize = write(fd, pData, writeSize);
-    fdatasync(fd);
 
     if (alreadyWriteSize == writeSize)
     {
@@ -340,6 +339,10 @@ static Result OpenFileInternal(
         // It will be automatically released when we close the file handle.
         if (flock(fd, LOCK_EX | LOCK_NB) == 0)
         {
+            if (pOpenInfo->useBufferedReadMemory)
+            {
+                posix_fadvise(fd, 0, 0, POSIX_FADV_SEQUENTIAL | POSIX_FADV_WILLNEED);
+            }
             *pFd = fd;
         }
         else

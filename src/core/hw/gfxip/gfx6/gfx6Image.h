@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -458,10 +458,6 @@ private:
     static uint32 HwMicroTileModeFromAddrTileType(AddrTileType addrType);
     static uint32 HwArrayModeFromAddrTileMode(AddrTileMode addrMode);
     bool DoesImageSupportCopySrcCompression() const;
-
-    // These static variables ensure that we are assigning a rotating set of swizzle indices for each new image.
-    static uint32  s_cbSwizzleIdx;
-    static uint32  s_txSwizzleIdx;
 
     PAL_DISALLOW_DEFAULT_CTOR(Image);
     PAL_DISALLOW_COPY_AND_ASSIGN(Image);

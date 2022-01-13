@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -513,8 +513,8 @@ enum class LogCategory : uint64
     Count
 };
 
-/// Static string table used to register log categories
-static const char* LogCategoryTable[] =
+/// String table used to register log categories
+constexpr const char* LogCategoryTable[] =
 {
     "Correctness",
     "Performance",
@@ -526,16 +526,16 @@ static const char* LogCategoryTable[] =
 typedef uint64 LogCategoryMask;
 
 /// Log category mask for messages related to application correctness
-static constexpr LogCategoryMask LogCategoryMaskCorrectness = (1 << static_cast<uint32>(LogCategory::Correctness));
+constexpr LogCategoryMask LogCategoryMaskCorrectness = (1 << static_cast<uint32>(LogCategory::Correctness));
 
 /// Log category mask for messages related to application performance
-static constexpr LogCategoryMask LogCategoryMaskPerformance = (1 << static_cast<uint32>(LogCategory::Performance));
+constexpr LogCategoryMask LogCategoryMaskPerformance = (1 << static_cast<uint32>(LogCategory::Performance));
 
 /// Log category mask for messages related to internal messages
-static constexpr LogCategoryMask LogCategoryMaskInternal    = (1 << static_cast<uint32>(LogCategory::Internal));
+constexpr LogCategoryMask LogCategoryMaskInternal    = (1 << static_cast<uint32>(LogCategory::Internal));
 
 /// Log category mask for messages related to display information (e.g. HDR format)
-static constexpr LogCategoryMask LogCategoryMaskDisplay = (1 << static_cast<uint32>(LogCategory::Display));
+constexpr LogCategoryMask LogCategoryMaskDisplay = (1 << static_cast<uint32>(LogCategory::Display));
 
 /// Defines the modes that the GPU Profiling layer can be enabled with. If the GpuProfilerMode is
 /// GpuProfilerTraceEnabledTtv or GpuProfilerTraceEnabledRgp, then the GpuProfilerConfig_TraceModeMask is examined to

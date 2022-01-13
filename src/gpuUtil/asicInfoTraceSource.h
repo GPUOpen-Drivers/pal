@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -135,7 +135,7 @@ namespace GpuUtil
 constexpr char AsicInfoTraceSourceName[] = "asicinfo";
 constexpr Pal::uint32 AsicInfoTraceSourceVersion = 1;
 
-const char chunkTextIdentifier[GpuUtil::TextIdentifierSize] = "ASIC_INFO";
+const char chunkTextIdentifier[GpuUtil::TextIdentifierSize] = "AsicInfo";
 
 // =====================================================================================================================
 // A trace source that sends ASIC information to the trace session. This is one of the "default" trace sources that are

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -439,7 +439,7 @@ struct SectionHeaderInfo
 };
 
 /// A mapping from SectionType to the corresponding name of that section.
-static const char* const SectionNameStringTable[] =
+constexpr const char* SectionNameStringTable[] =
 {
     "",
     ".bss",
@@ -463,7 +463,7 @@ static const char* const SectionNameStringTable[] =
 };
 
 /// A mapping from SectionType to the corresponding SectionHeaderType and flags.
-static constexpr SectionHeaderInfo SectionHeaderInfoTable[] =
+constexpr SectionHeaderInfo SectionHeaderInfoTable[] =
 {
     // SectionType::Null
     {

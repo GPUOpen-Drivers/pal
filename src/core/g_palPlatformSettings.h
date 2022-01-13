@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -265,131 +265,131 @@ struct PalPlatformSettings : public Pal::DriverSettings
     } gpuDebugConfig;
 };
 #if PAL_ENABLE_PRINTS_ASSERTS
-static const char* pDbgPrintConfig_InfoEnabledStr = "#87264462";
+constexpr const char* pDbgPrintConfig_InfoEnabledStr = "#87264462";
 #endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-static const char* pDbgPrintConfig_WarningEnabledStr = "#3111217572";
+constexpr const char* pDbgPrintConfig_WarningEnabledStr = "#3111217572";
 #endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-static const char* pDbgPrintConfig_ErrorEnabledStr = "#1058771018";
+constexpr const char* pDbgPrintConfig_ErrorEnabledStr = "#1058771018";
 #endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-static const char* pDbgPrintConfig_ScEnabledStr = "#2827996440";
+constexpr const char* pDbgPrintConfig_ScEnabledStr = "#2827996440";
 #endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-static const char* pDbgPrintConfig_EventPrintEnabledStr = "#4283850211";
+constexpr const char* pDbgPrintConfig_EventPrintEnabledStr = "#4283850211";
 #endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-static const char* pDbgPrintConfig_EventPrintCbEnabledStr = "#74653004";
+constexpr const char* pDbgPrintConfig_EventPrintCbEnabledStr = "#74653004";
 #endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-static const char* pAssertsEnabledStr = "#1110605001";
+constexpr const char* pAssertsEnabledStr = "#1110605001";
 #endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-static const char* pAlertsEnabledStr = "#3333004859";
+constexpr const char* pAlertsEnabledStr = "#3333004859";
 #endif
 
-static const char* pEnableEventLogFileStr = "#3288205286";
+constexpr const char* pEnableEventLogFileStr = "#3288205286";
 
-static const char* pDebugOverlayEnabledStr = "#3362163801";
-static const char* pDebugOverlayConfig_VisualConfirmEnabledStr = "#1802476957";
-static const char* pDebugOverlayConfig_TimeGraphEnabledStr = "#2933558408";
-static const char* pDebugOverlayConfig_DebugOverlayLocationStr = "#3045745206";
-static const char* pDebugOverlayConfig_RenderedByStringStr = "#3912270641";
-static const char* pDebugOverlayConfig_MiscellaneousDebugStringStr = "#1196026490";
-static const char* pDebugOverlayConfig_DateTimeEnabledStr = "#239137718";
-static const char* pDebugOverlayConfig_PrintFrameNumberStr = "#2763643877";
-static const char* pDebugOverlayConfig_UseDebugOverlayOnColorSpaceConversionCopyStr = "#1533629425";
-static const char* pTimeGraphConfig_GridLineColorStr = "#3989097989";
-static const char* pTimeGraphConfig_CpuLineColorStr = "#689918007";
-static const char* pTimeGraphConfig_GpuLineColorStr = "#2929386323";
-static const char* pOverlayBenchmarkConfig_MaxBenchmarkTimeStr = "#480313510";
-static const char* pOverlayBenchmarkConfig_UsageLogEnableStr = "#3176801238";
-static const char* pOverlayBenchmarkConfig_UsageLogDirectoryStr = "#219820144";
-static const char* pOverlayBenchmarkConfig_UsageLogFilenameStr = "#2551463600";
-static const char* pOverlayBenchmarkConfig_LogFrameStatsStr = "#266798632";
-static const char* pOverlayBenchmarkConfig_FrameStatsLogDirectoryStr = "#3945706803";
-static const char* pOverlayBenchmarkConfig_MaxLoggedFramesStr = "#3387883484";
-static const char* pOverlayMemoryInfoConfig_CombineNonLocalStr = "#452099995";
-static const char* pOverlayMemoryInfoConfig_ReportCmdAllocatorStr = "#2545297707";
-static const char* pOverlayMemoryInfoConfig_ReportExternalStr = "#1692103889";
-static const char* pOverlayMemoryInfoConfig_ReportInternalStr = "#1276999751";
-static const char* pOverlayMemoryInfoConfig_DisplayPeakMemUsageStr = "#2059768529";
-static const char* pGpuProfilerModeStr = "#3490085415";
-static const char* pGpuProfilerTokenAllocatorSizeStr = "#2716183183";
-static const char* pGpuProfilerConfig_LogDirectoryStr = "#602986973";
-static const char* pGpuProfilerConfig_TargetApplicationStr = "#716949517";
-static const char* pGpuProfilerConfig_StartFrameStr = "#17496565";
-static const char* pGpuProfilerConfig_FrameCountStr = "#3630548216";
-static const char* pGpuProfilerConfig_RecordPipelineStatsStr = "#1092484338";
-static const char* pGpuProfilerConfig_BreakSubmitBatchesStr = "#2743656777";
-static const char* pGpuProfilerConfig_IgnoreNonDrawDispatchCmdBufsStr = "#2163321285";
-static const char* pGpuProfilerConfig_UseFullPipelineHashStr = "#3204367348";
-static const char* pGpuProfilerConfig_TraceModeMaskStr = "#2717664970";
-static const char* pGpuProfilerConfig_GranularityStr = "#1675329864";
-static const char* pGpuProfilerPerfCounterConfig_GlobalPerfCounterConfigFileStr = "#1666123781";
-static const char* pGpuProfilerPerfCounterConfig_CacheFlushOnCounterCollectionStr = "#3543519762";
-static const char* pGpuProfilerSqttConfig_TokenMaskStr = "#258959117";
-static const char* pGpuProfilerSqttConfig_SEMaskStr = "#113814584";
-static const char* pGpuProfilerSqttConfig_PipelineHashStr = "#562315366";
-static const char* pGpuProfilerSqttConfig_PipelineHashAsApiPsoHashStr = "#1180115076";
-static const char* pGpuProfilerSqttConfig_TsHashHiStr = "#3100319562";
-static const char* pGpuProfilerSqttConfig_TsHashLoStr = "#3535846108";
-static const char* pGpuProfilerSqttConfig_VsHashHiStr = "#3546147188";
-static const char* pGpuProfilerSqttConfig_VsHashLoStr = "#2975119762";
-static const char* pGpuProfilerSqttConfig_HsHashHiStr = "#3728558198";
-static const char* pGpuProfilerSqttConfig_HsHashLoStr = "#3225818008";
-static const char* pGpuProfilerSqttConfig_DsHashHiStr = "#2656705114";
-static const char* pGpuProfilerSqttConfig_DsHashLoStr = "#2018464044";
-static const char* pGpuProfilerSqttConfig_GsHashHiStr = "#4196229765";
-static const char* pGpuProfilerSqttConfig_GsHashLoStr = "#338172111";
-static const char* pGpuProfilerSqttConfig_MsHashHiStr = "#2228026635";
-static const char* pGpuProfilerSqttConfig_MsHashLoStr = "#2329383897";
-static const char* pGpuProfilerSqttConfig_PsHashHiStr = "#1306425790";
-static const char* pGpuProfilerSqttConfig_PsHashLoStr = "#1340672576";
-static const char* pGpuProfilerSqttConfig_CsHashHiStr = "#2590676505";
-static const char* pGpuProfilerSqttConfig_CsHashLoStr = "#3160424003";
-static const char* pGpuProfilerSqttConfig_MaxDrawsStr = "#2938324269";
-static const char* pGpuProfilerSqttConfig_AddTtvHashesStr = "#121855179";
-static const char* pGpuProfilerSqttConfig_BufferSizeStr = "#3633385103";
-static const char* pGpuProfilerSqttConfig_StallBehaviorStr = "#1808881616";
-static const char* pGpuProfilerSpmConfig_SpmPerfCounterConfigFileStr = "#1162192613";
-static const char* pGpuProfilerSpmConfig_SpmTraceIntervalStr = "#3291932008";
-static const char* pGpuProfilerSpmConfig_SpmBufferSizeStr = "#1857600927";
-static const char* pCmdBufferLoggerEnabledStr = "#1206982834";
-static const char* pCmdBufferLoggerConfig_CmdBufferLoggerAnnotationsStr = "#462141291";
-static const char* pCmdBufferLoggerConfig_EmbedDrawDispatchInfoStr = "#1801313176";
-static const char* pPm4InstrumentorEnabledStr = "#817764955";
-static const char* pPm4InstrumentorConfig_LogDirectoryStr = "#2823822363";
-static const char* pPm4InstrumentorConfig_FilenameSuffixStr = "#1848754234";
-static const char* pPm4InstrumentorConfig_DumpModeStr = "#1873500379";
-static const char* pPm4InstrumentorConfig_DumpIntervalStr = "#1471065745";
-static const char* pInterfaceLoggerEnabledStr = "#2678054117";
-static const char* pInterfaceLoggerConfig_LogDirectoryStr = "#3997041373";
-static const char* pInterfaceLoggerConfig_MultithreadedStr = "#4177532476";
-static const char* pInterfaceLoggerConfig_BasePresetStr = "#3886684530";
-static const char* pInterfaceLoggerConfig_ElevatedPresetStr = "#3991423149";
+constexpr const char* pDebugOverlayEnabledStr = "#3362163801";
+constexpr const char* pDebugOverlayConfig_VisualConfirmEnabledStr = "#1802476957";
+constexpr const char* pDebugOverlayConfig_TimeGraphEnabledStr = "#2933558408";
+constexpr const char* pDebugOverlayConfig_DebugOverlayLocationStr = "#3045745206";
+constexpr const char* pDebugOverlayConfig_RenderedByStringStr = "#3912270641";
+constexpr const char* pDebugOverlayConfig_MiscellaneousDebugStringStr = "#1196026490";
+constexpr const char* pDebugOverlayConfig_DateTimeEnabledStr = "#239137718";
+constexpr const char* pDebugOverlayConfig_PrintFrameNumberStr = "#2763643877";
+constexpr const char* pDebugOverlayConfig_UseDebugOverlayOnColorSpaceConversionCopyStr = "#1533629425";
+constexpr const char* pTimeGraphConfig_GridLineColorStr = "#3989097989";
+constexpr const char* pTimeGraphConfig_CpuLineColorStr = "#689918007";
+constexpr const char* pTimeGraphConfig_GpuLineColorStr = "#2929386323";
+constexpr const char* pOverlayBenchmarkConfig_MaxBenchmarkTimeStr = "#480313510";
+constexpr const char* pOverlayBenchmarkConfig_UsageLogEnableStr = "#3176801238";
+constexpr const char* pOverlayBenchmarkConfig_UsageLogDirectoryStr = "#219820144";
+constexpr const char* pOverlayBenchmarkConfig_UsageLogFilenameStr = "#2551463600";
+constexpr const char* pOverlayBenchmarkConfig_LogFrameStatsStr = "#266798632";
+constexpr const char* pOverlayBenchmarkConfig_FrameStatsLogDirectoryStr = "#3945706803";
+constexpr const char* pOverlayBenchmarkConfig_MaxLoggedFramesStr = "#3387883484";
+constexpr const char* pOverlayMemoryInfoConfig_CombineNonLocalStr = "#452099995";
+constexpr const char* pOverlayMemoryInfoConfig_ReportCmdAllocatorStr = "#2545297707";
+constexpr const char* pOverlayMemoryInfoConfig_ReportExternalStr = "#1692103889";
+constexpr const char* pOverlayMemoryInfoConfig_ReportInternalStr = "#1276999751";
+constexpr const char* pOverlayMemoryInfoConfig_DisplayPeakMemUsageStr = "#2059768529";
+constexpr const char* pGpuProfilerModeStr = "#3490085415";
+constexpr const char* pGpuProfilerTokenAllocatorSizeStr = "#2716183183";
+constexpr const char* pGpuProfilerConfig_LogDirectoryStr = "#602986973";
+constexpr const char* pGpuProfilerConfig_TargetApplicationStr = "#716949517";
+constexpr const char* pGpuProfilerConfig_StartFrameStr = "#17496565";
+constexpr const char* pGpuProfilerConfig_FrameCountStr = "#3630548216";
+constexpr const char* pGpuProfilerConfig_RecordPipelineStatsStr = "#1092484338";
+constexpr const char* pGpuProfilerConfig_BreakSubmitBatchesStr = "#2743656777";
+constexpr const char* pGpuProfilerConfig_IgnoreNonDrawDispatchCmdBufsStr = "#2163321285";
+constexpr const char* pGpuProfilerConfig_UseFullPipelineHashStr = "#3204367348";
+constexpr const char* pGpuProfilerConfig_TraceModeMaskStr = "#2717664970";
+constexpr const char* pGpuProfilerConfig_GranularityStr = "#1675329864";
+constexpr const char* pGpuProfilerPerfCounterConfig_GlobalPerfCounterConfigFileStr = "#1666123781";
+constexpr const char* pGpuProfilerPerfCounterConfig_CacheFlushOnCounterCollectionStr = "#3543519762";
+constexpr const char* pGpuProfilerSqttConfig_TokenMaskStr = "#258959117";
+constexpr const char* pGpuProfilerSqttConfig_SEMaskStr = "#113814584";
+constexpr const char* pGpuProfilerSqttConfig_PipelineHashStr = "#562315366";
+constexpr const char* pGpuProfilerSqttConfig_PipelineHashAsApiPsoHashStr = "#1180115076";
+constexpr const char* pGpuProfilerSqttConfig_TsHashHiStr = "#3100319562";
+constexpr const char* pGpuProfilerSqttConfig_TsHashLoStr = "#3535846108";
+constexpr const char* pGpuProfilerSqttConfig_VsHashHiStr = "#3546147188";
+constexpr const char* pGpuProfilerSqttConfig_VsHashLoStr = "#2975119762";
+constexpr const char* pGpuProfilerSqttConfig_HsHashHiStr = "#3728558198";
+constexpr const char* pGpuProfilerSqttConfig_HsHashLoStr = "#3225818008";
+constexpr const char* pGpuProfilerSqttConfig_DsHashHiStr = "#2656705114";
+constexpr const char* pGpuProfilerSqttConfig_DsHashLoStr = "#2018464044";
+constexpr const char* pGpuProfilerSqttConfig_GsHashHiStr = "#4196229765";
+constexpr const char* pGpuProfilerSqttConfig_GsHashLoStr = "#338172111";
+constexpr const char* pGpuProfilerSqttConfig_MsHashHiStr = "#2228026635";
+constexpr const char* pGpuProfilerSqttConfig_MsHashLoStr = "#2329383897";
+constexpr const char* pGpuProfilerSqttConfig_PsHashHiStr = "#1306425790";
+constexpr const char* pGpuProfilerSqttConfig_PsHashLoStr = "#1340672576";
+constexpr const char* pGpuProfilerSqttConfig_CsHashHiStr = "#2590676505";
+constexpr const char* pGpuProfilerSqttConfig_CsHashLoStr = "#3160424003";
+constexpr const char* pGpuProfilerSqttConfig_MaxDrawsStr = "#2938324269";
+constexpr const char* pGpuProfilerSqttConfig_AddTtvHashesStr = "#121855179";
+constexpr const char* pGpuProfilerSqttConfig_BufferSizeStr = "#3633385103";
+constexpr const char* pGpuProfilerSqttConfig_StallBehaviorStr = "#1808881616";
+constexpr const char* pGpuProfilerSpmConfig_SpmPerfCounterConfigFileStr = "#1162192613";
+constexpr const char* pGpuProfilerSpmConfig_SpmTraceIntervalStr = "#3291932008";
+constexpr const char* pGpuProfilerSpmConfig_SpmBufferSizeStr = "#1857600927";
+constexpr const char* pCmdBufferLoggerEnabledStr = "#1206982834";
+constexpr const char* pCmdBufferLoggerConfig_CmdBufferLoggerAnnotationsStr = "#462141291";
+constexpr const char* pCmdBufferLoggerConfig_EmbedDrawDispatchInfoStr = "#1801313176";
+constexpr const char* pPm4InstrumentorEnabledStr = "#817764955";
+constexpr const char* pPm4InstrumentorConfig_LogDirectoryStr = "#2823822363";
+constexpr const char* pPm4InstrumentorConfig_FilenameSuffixStr = "#1848754234";
+constexpr const char* pPm4InstrumentorConfig_DumpModeStr = "#1873500379";
+constexpr const char* pPm4InstrumentorConfig_DumpIntervalStr = "#1471065745";
+constexpr const char* pInterfaceLoggerEnabledStr = "#2678054117";
+constexpr const char* pInterfaceLoggerConfig_LogDirectoryStr = "#3997041373";
+constexpr const char* pInterfaceLoggerConfig_MultithreadedStr = "#4177532476";
+constexpr const char* pInterfaceLoggerConfig_BasePresetStr = "#3886684530";
+constexpr const char* pInterfaceLoggerConfig_ElevatedPresetStr = "#3991423149";
 
-static const char* pGpuDebugEnabledStr = "#3844687577";
-static const char* pGpuDebugConfig_SubmitOnActionCountStr = "#1833875306";
-static const char* pGpuDebugConfig_TokenAllocatorSizeStr = "#673202515";
-static const char* pGpuDebugConfig_WaitIdleSleepMsStr = "#616327818";
-static const char* pGpuDebugConfig_SingleStepStr = "#2565248934";
-static const char* pGpuDebugConfig_CacheFlushInvOnActionStr = "#454658208";
-static const char* pGpuDebugConfig_VerificationOptionsStr = "#3198774615";
-static const char* pGpuDebugConfig_SurfaceCaptureHashStr = "#2803473291";
-static const char* pGpuDebugConfig_SurfaceCaptureDrawStartStr = "#2313928635";
-static const char* pGpuDebugConfig_SurfaceCaptureDrawCountStr = "#3264482272";
-static const char* pGpuDebugConfig_SurfaceCaptureLogDirectoryStr = "#1085905498";
+constexpr const char* pGpuDebugEnabledStr = "#3844687577";
+constexpr const char* pGpuDebugConfig_SubmitOnActionCountStr = "#1833875306";
+constexpr const char* pGpuDebugConfig_TokenAllocatorSizeStr = "#673202515";
+constexpr const char* pGpuDebugConfig_WaitIdleSleepMsStr = "#616327818";
+constexpr const char* pGpuDebugConfig_SingleStepStr = "#2565248934";
+constexpr const char* pGpuDebugConfig_CacheFlushInvOnActionStr = "#454658208";
+constexpr const char* pGpuDebugConfig_VerificationOptionsStr = "#3198774615";
+constexpr const char* pGpuDebugConfig_SurfaceCaptureHashStr = "#2803473291";
+constexpr const char* pGpuDebugConfig_SurfaceCaptureDrawStartStr = "#2313928635";
+constexpr const char* pGpuDebugConfig_SurfaceCaptureDrawCountStr = "#3264482272";
+constexpr const char* pGpuDebugConfig_SurfaceCaptureLogDirectoryStr = "#1085905498";
 
-static const SettingNameHash g_palPlatformSettingHashList[] = {
+constexpr const SettingNameHash g_palPlatformSettingHashList[] = {
 #if PAL_ENABLE_PRINTS_ASSERTS
 87264462,
 #endif
@@ -517,9 +517,9 @@ static const SettingNameHash g_palPlatformSettingHashList[] = {
 3264482272,
 1085905498,
 };
-static const uint32 g_palPlatformNumSettings = sizeof(g_palPlatformSettingHashList) / sizeof(SettingNameHash);
+constexpr uint32 g_palPlatformNumSettings = sizeof(g_palPlatformSettingHashList) / sizeof(SettingNameHash);
 
-static const uint8 g_palPlatformJsonData[] = {
+constexpr uint8 g_palPlatformJsonData[] = {
     26, 250, 84, 220, 1, 92, 96, 106, 146, 207, 33, 32, 160, 3, 90, 155, 144, 218, 198, 78, 114, 176, 126, 93, 73, 14,
     35, 100, 246, 56, 59, 44, 57, 20, 138, 53, 137, 42, 27, 8, 229, 59, 94, 194, 49, 22, 213, 135, 171, 196, 161, 14,
     45, 34, 34, 61, 232, 36, 103, 94, 214, 160, 197, 1, 129, 99, 2, 145, 103, 102, 239, 97, 44, 11, 73, 81, 247, 220,

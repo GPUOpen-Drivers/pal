@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -44,15 +44,17 @@ DD_STATIC_CONST const char* Components_ComponentsKey = "components";
 
 // We define the basic data types in this struct, components are free to extend this enumeration to include
 // additional/custom types.
-enum struct SettingType : uint32
+enum class SettingType : uint32
 {
-    Boolean = 0,
-    Int     = 1,
-    Uint    = 2,
-    Int64   = 3,
-    Uint64  = 4,
-    Float   = 5,
-    String  = 6,
+    Boolean,
+    Int,
+    Uint,
+    Int8,
+    Uint8,
+    Int64,
+    Uint64,
+    Float,
+    String,
 };
 
 // Struct to hold a setting value

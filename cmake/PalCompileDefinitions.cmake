@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2020-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2020-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -193,14 +193,6 @@ function(pal_compile_definitions TARGET)
 
     if (PAL_BUILD_OSS)
         target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_OSS=1)
-
-        if(PAL_BUILD_OSS1)
-            target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_OSS1=1)
-        endif()
-
-        if(PAL_BUILD_OSS2)
-            target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_OSS2=1)
-        endif()
 
         if(PAL_BUILD_OSS2_4)
             target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_OSS2_4=1)

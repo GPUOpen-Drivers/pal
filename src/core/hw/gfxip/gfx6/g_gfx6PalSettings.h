@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -158,89 +158,89 @@ struct Gfx6PalSettings : public Pal::DriverSettings
     bool                                        waLogicOpDisablesOverwriteCombiner;
     bool                                        disableAceCsPartialFlush;
 };
-static const char* pCpDmaSrcAlignmentStr = "#2945629691";
-static const char* pDisableBorderColorPaletteBindsStr = "#3825276041";
-static const char* pForceOcclusionQueryResultStr = "#1419797586";
-static const char* pForceOcclusionQueryResultValueStr = "#3761151579";
-static const char* pPrimgroupSizeStr = "#3402504325";
-static const char* pDynamicPrimgroupEnableStr = "#1334465030";
-static const char* pDynamicPrimgroupMinStr = "#4066308367";
-static const char* pDynamicPrimgroupMaxStr = "#3763031297";
-static const char* pDynamicPrimgroupStepStr = "#2488885191";
-static const char* pDynamicPrimgroupWindowSizeStr = "#1070254748";
-static const char* pSwitchVgtOnDrawStr = "#1102013901";
-static const char* pEsGsRatioStr = "#3217804174";
-static const char* pVsForcePartialWaveStr = "#1946161867";
-static const char* pVsHalfPackThresholdStr = "#987247393";
-static const char* pEsCuGroupEnabledStr = "#1448769209";
-static const char* pGsCuGroupEnabledStr = "#2295262967";
-static const char* pVsCuGroupEnabledStr = "#1712293842";
-static const char* pPsCuGroupEnabledStr = "#1924559864";
-static const char* pTessFactorBufferSizePerSeStr = "#3112016659";
-static const char* pTessWalkPatternStr = "#2972449453";
-static const char* pMaxTessFactorStr = "#3272504111";
-static const char* pNumTessPatchesPerThreadGroupStr = "#2699532302";
-static const char* pNumOffchipLdsBuffersStr = "#4150915470";
-static const char* pUseMaxOffchipLdsBuffersStr = "#3365086421";
-static const char* pTessDsWavesPerSimdOverflowStr = "#3832811323";
-static const char* pLsCuEnLimitMaskStr = "#1219961810";
-static const char* pEsCuEnLimitMaskStr = "#1411431225";
-static const char* pGsCuEnLimitMaskStr = "#3021103171";
-static const char* pVsCuEnLimitMaskStr = "#989310036";
-static const char* pPsCuEnLimitMaskStr = "#1509811598";
-static const char* pCsCuEnLimitMaskStr = "#3382331351";
-static const char* pCsMaxWavesPerCuStr = "#4216700794";
-static const char* pCsLockThresholdStr = "#346110079";
-static const char* pCsSimdDestCntlStr = "#3574730191";
-static const char* pAnisoFilterOptEnabledStr = "#958470227";
-static const char* pCeilingLogicEnabledStr = "#2986992899";
-static const char* pPrecisionFixEnabledStr = "#286847775";
-static const char* pSamplerPerfMipStr = "#3696903510";
-static const char* pSamplerAnisoThresholdStr = "#1521283108";
-static const char* pSamplerAnisoBiasStr = "#4085812096";
-static const char* pSamplerSecAnisoBiasStr = "#2654965201";
-static const char* pFastColorClearEnableStr = "#1938040824";
-static const char* pFastColorClearOn3DEnableStr = "#655987862";
-static const char* pFmaskCompressEnableStr = "#1936153062";
-static const char* pBlendOptimizationEnableStr = "#3560979294";
-static const char* pHtileEnableStr = "#2379988876";
-static const char* pDepthCompressEnableStr = "#3404166969";
-static const char* pStencilCompressEnableStr = "#3041432192";
-static const char* pLinearHtileEnableStr = "#3857035179";
-static const char* pDbPreloadEnableStr = "#2946289999";
-static const char* pDbPreloadWinEnableStr = "#4030437501";
-static const char* pDbPerTileExpClearEnableStr = "#399713165";
-static const char* pHiDepthEnableStr = "#950148604";
-static const char* pHiStencilEnableStr = "#37862373";
-static const char* pDbRequestSizeStr = "#2835145461";
-static const char* pDbAddr5SwizzleMaskStr = "#1221993759";
-static const char* pDbDisableColorOnValidationStr = "#4057416918";
-static const char* pEnableSeparatePlaneMetadataInitStr = "#2144505780";
-static const char* pVsPartialWaveWithEoiEnabledStr = "#392471174";
-static const char* pOffchipLdsBufferSizeStr = "#4262839798";
-static const char* pLateAllocVsOnCuAlwaysOnStr = "#1551275668";
-static const char* pEnableOutOfOrderPrimitivesStr = "#4194624623";
-static const char* pOutOfOrderWatermarkStr = "#2921949520";
-static const char* pGsMaxLdsSizeStr = "#3033759533";
-static const char* pEnableOnchipGsStr = "#4034461831";
-static const char* pGsOffChipThresholdStr = "#1659075697";
-static const char* pGsPrimsPerSubGroupStr = "#307437762";
-static const char* pAvoidVgtNullPrimsStr = "#1901956459";
-static const char* pPatchDistributionFactorStr = "#3445840960";
-static const char* pDonutDistributionFactorStr = "#891881186";
-static const char* pTrapezoidDistributionFactorStr = "#674984646";
-static const char* pAlwaysDecompressStr = "#2887583419";
-static const char* pRbPlusEnableStr = "#2122164302";
-static const char* pFastClearAllTcCompatColorSurfsStr = "#3864495440";
-static const char* pCheckMetaDataFetchFromStartMipStr = "#999816292";
-static const char* pIgnoreMipInterleaveStr = "#3804096310";
-static const char* pCopyDstIsCompressedStr = "#3919048798";
-static const char* pWaMiscGsNullPrimStr = "#203570314";
-static const char* pWaRotatedSwizzleDisablesOverwriteCombinerStr = "#863498563";
-static const char* pWaLogicOpDisablesOverwriteCombinerStr = "#2566203469";
-static const char* pDisableAceCsPartialFlushStr = "#4181362005";
+constexpr const char* pCpDmaSrcAlignmentStr = "#2945629691";
+constexpr const char* pDisableBorderColorPaletteBindsStr = "#3825276041";
+constexpr const char* pForceOcclusionQueryResultStr = "#1419797586";
+constexpr const char* pForceOcclusionQueryResultValueStr = "#3761151579";
+constexpr const char* pPrimgroupSizeStr = "#3402504325";
+constexpr const char* pDynamicPrimgroupEnableStr = "#1334465030";
+constexpr const char* pDynamicPrimgroupMinStr = "#4066308367";
+constexpr const char* pDynamicPrimgroupMaxStr = "#3763031297";
+constexpr const char* pDynamicPrimgroupStepStr = "#2488885191";
+constexpr const char* pDynamicPrimgroupWindowSizeStr = "#1070254748";
+constexpr const char* pSwitchVgtOnDrawStr = "#1102013901";
+constexpr const char* pEsGsRatioStr = "#3217804174";
+constexpr const char* pVsForcePartialWaveStr = "#1946161867";
+constexpr const char* pVsHalfPackThresholdStr = "#987247393";
+constexpr const char* pEsCuGroupEnabledStr = "#1448769209";
+constexpr const char* pGsCuGroupEnabledStr = "#2295262967";
+constexpr const char* pVsCuGroupEnabledStr = "#1712293842";
+constexpr const char* pPsCuGroupEnabledStr = "#1924559864";
+constexpr const char* pTessFactorBufferSizePerSeStr = "#3112016659";
+constexpr const char* pTessWalkPatternStr = "#2972449453";
+constexpr const char* pMaxTessFactorStr = "#3272504111";
+constexpr const char* pNumTessPatchesPerThreadGroupStr = "#2699532302";
+constexpr const char* pNumOffchipLdsBuffersStr = "#4150915470";
+constexpr const char* pUseMaxOffchipLdsBuffersStr = "#3365086421";
+constexpr const char* pTessDsWavesPerSimdOverflowStr = "#3832811323";
+constexpr const char* pLsCuEnLimitMaskStr = "#1219961810";
+constexpr const char* pEsCuEnLimitMaskStr = "#1411431225";
+constexpr const char* pGsCuEnLimitMaskStr = "#3021103171";
+constexpr const char* pVsCuEnLimitMaskStr = "#989310036";
+constexpr const char* pPsCuEnLimitMaskStr = "#1509811598";
+constexpr const char* pCsCuEnLimitMaskStr = "#3382331351";
+constexpr const char* pCsMaxWavesPerCuStr = "#4216700794";
+constexpr const char* pCsLockThresholdStr = "#346110079";
+constexpr const char* pCsSimdDestCntlStr = "#3574730191";
+constexpr const char* pAnisoFilterOptEnabledStr = "#958470227";
+constexpr const char* pCeilingLogicEnabledStr = "#2986992899";
+constexpr const char* pPrecisionFixEnabledStr = "#286847775";
+constexpr const char* pSamplerPerfMipStr = "#3696903510";
+constexpr const char* pSamplerAnisoThresholdStr = "#1521283108";
+constexpr const char* pSamplerAnisoBiasStr = "#4085812096";
+constexpr const char* pSamplerSecAnisoBiasStr = "#2654965201";
+constexpr const char* pFastColorClearEnableStr = "#1938040824";
+constexpr const char* pFastColorClearOn3DEnableStr = "#655987862";
+constexpr const char* pFmaskCompressEnableStr = "#1936153062";
+constexpr const char* pBlendOptimizationEnableStr = "#3560979294";
+constexpr const char* pHtileEnableStr = "#2379988876";
+constexpr const char* pDepthCompressEnableStr = "#3404166969";
+constexpr const char* pStencilCompressEnableStr = "#3041432192";
+constexpr const char* pLinearHtileEnableStr = "#3857035179";
+constexpr const char* pDbPreloadEnableStr = "#2946289999";
+constexpr const char* pDbPreloadWinEnableStr = "#4030437501";
+constexpr const char* pDbPerTileExpClearEnableStr = "#399713165";
+constexpr const char* pHiDepthEnableStr = "#950148604";
+constexpr const char* pHiStencilEnableStr = "#37862373";
+constexpr const char* pDbRequestSizeStr = "#2835145461";
+constexpr const char* pDbAddr5SwizzleMaskStr = "#1221993759";
+constexpr const char* pDbDisableColorOnValidationStr = "#4057416918";
+constexpr const char* pEnableSeparatePlaneMetadataInitStr = "#2144505780";
+constexpr const char* pVsPartialWaveWithEoiEnabledStr = "#392471174";
+constexpr const char* pOffchipLdsBufferSizeStr = "#4262839798";
+constexpr const char* pLateAllocVsOnCuAlwaysOnStr = "#1551275668";
+constexpr const char* pEnableOutOfOrderPrimitivesStr = "#4194624623";
+constexpr const char* pOutOfOrderWatermarkStr = "#2921949520";
+constexpr const char* pGsMaxLdsSizeStr = "#3033759533";
+constexpr const char* pEnableOnchipGsStr = "#4034461831";
+constexpr const char* pGsOffChipThresholdStr = "#1659075697";
+constexpr const char* pGsPrimsPerSubGroupStr = "#307437762";
+constexpr const char* pAvoidVgtNullPrimsStr = "#1901956459";
+constexpr const char* pPatchDistributionFactorStr = "#3445840960";
+constexpr const char* pDonutDistributionFactorStr = "#891881186";
+constexpr const char* pTrapezoidDistributionFactorStr = "#674984646";
+constexpr const char* pAlwaysDecompressStr = "#2887583419";
+constexpr const char* pRbPlusEnableStr = "#2122164302";
+constexpr const char* pFastClearAllTcCompatColorSurfsStr = "#3864495440";
+constexpr const char* pCheckMetaDataFetchFromStartMipStr = "#999816292";
+constexpr const char* pIgnoreMipInterleaveStr = "#3804096310";
+constexpr const char* pCopyDstIsCompressedStr = "#3919048798";
+constexpr const char* pWaMiscGsNullPrimStr = "#203570314";
+constexpr const char* pWaRotatedSwizzleDisablesOverwriteCombinerStr = "#863498563";
+constexpr const char* pWaLogicOpDisablesOverwriteCombinerStr = "#2566203469";
+constexpr const char* pDisableAceCsPartialFlushStr = "#4181362005";
 
-static const SettingNameHash g_gfx6PalSettingHashList[] = {
+constexpr const SettingNameHash g_gfx6PalSettingHashList[] = {
 2945629691,
 3825276041,
 1419797586,
@@ -323,9 +323,9 @@ static const SettingNameHash g_gfx6PalSettingHashList[] = {
 2566203469,
 4181362005,
 };
-static const uint32 g_gfx6PalNumSettings = sizeof(g_gfx6PalSettingHashList) / sizeof(SettingNameHash);
+constexpr uint32 g_gfx6PalNumSettings = sizeof(g_gfx6PalSettingHashList) / sizeof(SettingNameHash);
 
-static const uint8 g_gfx6PalJsonData[] = {
+constexpr uint8 g_gfx6PalJsonData[] = {
     26, 250, 84, 220, 1, 92, 96, 106, 146, 207, 33, 32, 160, 3, 90, 155, 144, 218, 198, 89, 117, 164, 23, 82, 117, 14,
     59, 32, 181, 106, 116, 74, 103, 93, 222, 20, 137, 16, 25, 12, 227, 13, 8, 153, 101, 40, 213, 245, 234, 243, 247, 35,
     40, 1, 56, 28, 233, 29, 96, 109, 223, 136, 223, 14, 154, 51, 50, 244, 41, 45, 211, 52, 29, 5, 83, 83, 134, 254, 151,

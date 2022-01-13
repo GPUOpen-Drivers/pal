@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -56,7 +56,7 @@ enum class SeverityLevel : uint32
 
 /// Look up table for SeverityLevel. The order of entries in this table must match the order of enums in
 /// SeverityLevel and this table should be updated whenever there is a change to SeverityLevel enums.
-static const char* SeverityLevelTable[] =
+constexpr const char* SeverityLevelTable[] =
 {
     "Debug",
     "Info",

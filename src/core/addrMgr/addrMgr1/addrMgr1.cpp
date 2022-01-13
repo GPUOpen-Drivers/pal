@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -87,15 +87,6 @@ void AddrMgr1::BuildTileToken(
 
     switch (GetDevice()->ChipProperties().ossLevel)
     {
-    case OssIpLevel::OssIp1:
-        token.bits.tileMode         = pTileInfo->tileMode;
-        token.bits.bankHeight       = pTileInfo->bankHeight;
-        token.bits.bankWidth        = pTileInfo->bankWidth;
-        token.bits.banks            = pTileInfo->banks;
-        token.bits.macroAspectRatio = pTileInfo->macroAspectRatio;
-        token.bits.tileSplitBytes   = pTileInfo->tileSplitBytes;
-        // Fall-through intentional
-    case OssIpLevel::OssIp2:
     case OssIpLevel::OssIp2_4:
         token.bits.tileType    = pTileInfo->tileType;
         token.bits.elementSize = Util::Log2(pSubResInfo->bitsPerTexel >> 3);

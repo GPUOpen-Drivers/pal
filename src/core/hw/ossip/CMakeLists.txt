@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2021-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -22,14 +22,6 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
-
-if(PAL_BUILD_OSS1)
-    add_subdirectory(oss1)
-endif()
-
-if(PAL_BUILD_OSS2)
-    add_subdirectory(oss2)
-endif()
 
 if(PAL_BUILD_OSS2_4)
     add_subdirectory(oss2_4)

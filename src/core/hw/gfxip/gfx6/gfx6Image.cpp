@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -34,6 +34,8 @@
 #include "palMath.h"
 #include "palMetroHash.h"
 
+#include <atomic>
+
 using namespace Pal::AddrMgr1;
 using namespace Util;
 using namespace Pal::Formats;
@@ -44,8 +46,9 @@ namespace Pal
 namespace Gfx6
 {
 
-uint32 Image::s_cbSwizzleIdx = 0;
-uint32 Image::s_txSwizzleIdx = 0;
+// These variables ensure that we are assigning a rotating set of swizzle indices for each new image.
+static std::atomic<uint32> cbSwizzleIdx{};
+static std::atomic<uint32> txSwizzleIdx{};
 
 // =====================================================================================================================
 Image::Image(
@@ -2799,12 +2802,12 @@ uint32 Image::ComputeBaseTileSwizzle(
             else if (Parent()->IsRenderTarget())
             {
                 // Give this color target a unique index.
-                surfaceIndex = s_cbSwizzleIdx++;
+                surfaceIndex = cbSwizzleIdx.fetch_add(1, std::memory_order_relaxed);
             }
             else
             {
                 // Give this shader resource a unique index.
-                surfaceIndex = s_txSwizzleIdx++;
+                surfaceIndex = txSwizzleIdx.fetch_add(1, std::memory_order_relaxed);
             }
 
             PAL_ASSERT(surfOut.pTileInfo != nullptr);

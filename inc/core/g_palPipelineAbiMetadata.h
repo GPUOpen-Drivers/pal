@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -198,7 +198,11 @@ struct PipelineMetadata
             uint8 usesViewportArrayIndex : 1;
             /// Whether the GS outputs lines (needed by client for MSAA dispatch)
             uint8 gsOutputsLines         : 1;
-            uint8 reserved               : 6;
+            // Set if there may be a PS dummy export that actually writes to an MRT, including the case of the compiler
+            // adding a null PS. The client driver or PAL may need to disable binding of MRTs for a pipeline where this
+            // is set.
+            uint8 psDummyExport          : 1;
+            uint8 reserved               : 5;
         };
         uint8 uAll;
     } flags;
@@ -224,7 +228,8 @@ struct PipelineMetadata
             uint32 api                    : 1;
             uint32 apiCreateInfo          : 1;
             uint32 gsOutputsLines         : 1;
-            uint32 reserved               : 15;
+            uint32 psDummyExport          : 1;
+            uint32 reserved               : 14;
         };
         uint32 uAll;
     } hasEntry;
@@ -274,6 +279,7 @@ namespace PipelineMetadataKey
     static constexpr char Api[]                    = ".api";
     static constexpr char ApiCreateInfo[]          = ".api_create_info";
     static constexpr char GsOutputsLines[]         = ".gs_outputs_lines";
+    static constexpr char PsDummyExport[]          = ".ps_dummy_export";
 };
 
 namespace HardwareStageMetadataKey

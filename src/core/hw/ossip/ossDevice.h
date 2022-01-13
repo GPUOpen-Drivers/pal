@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -95,28 +95,6 @@ private:
 // Result CreateDevice(Device* pDevice, void* pPlacementAddr, OssDevice** ppOssDevice);
 // * This function is the actual factory for creating OssDevice objects. It creates a new object in the specified
 //   preallocated memory buffer and returns a pointer to that object through ppOssDevice.
-
-#if PAL_BUILD_OSS1
-namespace Oss1
-{
-extern size_t GetDeviceSize();
-extern Result CreateDevice(
-    Device*      pDevice,
-    void*        pPlacementAddr,
-    OssDevice**  ppOssDevice);
-} // Oss1
-#endif
-
-#if PAL_BUILD_OSS2
-namespace Oss2
-{
-extern size_t GetDeviceSize();
-extern Result CreateDevice(
-    Device*      pDevice,
-    void*        pPlacementAddr,
-    OssDevice**  ppOssDevice);
-} // Oss2
-#endif
 
 #if PAL_BUILD_OSS2_4
 namespace Oss2_4

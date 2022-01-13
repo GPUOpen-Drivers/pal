@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -37,7 +37,7 @@ namespace Pal
 
 // =====================================================================================================================
 // DevDriver DeviceClockMode to Pal::DeviceClockMode table
-static DeviceClockMode PalDeviceClockModeTable[] =
+constexpr DeviceClockMode PalDeviceClockModeTable[] =
 {
     DeviceClockMode::Default,       // Unknown       = 0
     DeviceClockMode::Default,       // Default       = 1

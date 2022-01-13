@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -58,8 +58,8 @@ constexpr uint64 PipelineShaderBaseAddrAlignment = 256;  ///< Base address align
 constexpr uint64 DataMinBaseAddrAlignment        = 32;   ///< Minimum base address alignment for Data section.
 constexpr uint64 RoDataMinBaseAddrAlignment      = 32;   ///< Minimum base address alignment for RoData section.
 
-static constexpr char AmdGpuVendorName[]         = "AMD";     ///< Vendor name string.
-static constexpr char AmdGpuArchName[]           = "AMDGPU";  ///< Architecture name string.
+constexpr const char AmdGpuVendorName[]         = "AMD";     ///< Vendor name string.
+constexpr const char AmdGpuArchName[]           = "AMDGPU";  ///< Architecture name string.
 
 /// AmdGpuMachineType for the EF_AMDGPU_MACH selection mask in e_flags.
 enum class AmdGpuMachineType : uint8
@@ -159,19 +159,19 @@ enum GfxIpStepping : uint16
 };
 
 /// Name of the section where our pipeline binaries store the disassembly for all shader stages.
-static constexpr char AmdGpuDisassemblyName[] = ".AMDGPU.disasm";
+constexpr const char AmdGpuDisassemblyName[] = ".AMDGPU.disasm";
 
 /// Name prefix of the section where our pipeline binaries store extra information e.g. LLVM IR.
-static constexpr char AmdGpuCommentName[] = ".AMDGPU.comment.";
+constexpr const char AmdGpuCommentName[] = ".AMDGPU.comment.";
 
 /// Name of the section where our pipeline binaries store AMDIL disassembly.
-static constexpr char AmdGpuCommentAmdIlName[] = ".AMDGPU.comment.amdil";
+constexpr const char AmdGpuCommentAmdIlName[] = ".AMDGPU.comment.amdil";
 
 /// Name of the section where our pipeline binaries store LLVMIR disassembly.
-static constexpr char AmdGpuCommentLlvmIrName[] = ".AMDGPU.comment.llvmir";
+constexpr const char AmdGpuCommentLlvmIrName[] = ".AMDGPU.comment.llvmir";
 
 /// String table of the Pipeline ABI symbols.
-static const char* PipelineAbiSymbolNameStrings[] =
+constexpr const char* PipelineAbiSymbolNameStrings[] =
 {
     "unknown",
     "_amdgpu_ls_main",

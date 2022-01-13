@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2018-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -163,7 +163,7 @@ enum class CmdBufCallId : uint32
 };
 
 // Table converting CmdBufCallId enums to strings.
-static const char* CmdBufCallIdStrings[] =
+constexpr const char* CmdBufCallIdStrings[] =
 {
     "Begin()",
     "End()",
@@ -310,7 +310,7 @@ enum class QueueCallId : uint32
 };
 
 // Table converting QueueCallId enums to strings.
-static const char* QueueCallIdStrings[] =
+constexpr const char* QueueCallIdStrings[] =
 {
     "Submit()",
     "WaitIdle()",

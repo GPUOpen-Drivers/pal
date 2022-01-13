@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,7 @@
  *  SOFTWARE.
  *
  **********************************************************************************************************************/
+#if PAL_BUILD_RDF
 #include "palTraceSession.h"
 #include "palHashSetImpl.h"
 #include "core/imported/rdf/rdf/inc/IO.h"
@@ -60,9 +61,11 @@ static Result RdfResultToPalResult(
 TraceSession::TraceSession(IPlatform* pPlatform)
     :
     m_pPlatform(pPlatform),
-    m_registeredTraceSources(512, pPlatform),
-    m_registeredTraceControllers(512, pPlatform),
-    m_sessionState(TraceSessionState::Ready)
+    m_registeredTraceSources(64, pPlatform),
+    m_registeredTraceControllers(64, pPlatform),
+    m_sessionState(TraceSessionState::Ready),
+    m_pChunkFileWriter(nullptr),
+    m_pCurrentStream(nullptr)
 {
 }
 
@@ -294,3 +297,4 @@ Result TraceSession::WriteDataChunk(
 }
 
 }
+#endif

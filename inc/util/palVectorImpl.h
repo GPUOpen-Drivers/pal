@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -31,6 +31,7 @@
 
 #pragma once
 
+#include <utility>
 #include "palVector.h"
 #include "palSysMemory.h"
 
@@ -154,14 +155,66 @@ Result Vector<T, defaultCapacity, Allocator>::PushBack(
     // Alloc more space if push back requested when current size is at max capacity.
     if (m_numElements == m_maxCapacity)
     {
-        // Allocate an additional amount of memory that is double the old size.
-        result = Reserve(m_numElements * 2);
+        result = Reserve(m_numElements * GrowthFactor);
     }
 
     if (result == Result::_Success)
     {
         // Insert new data into the array.
         PAL_PLACEMENT_NEW(m_pData + m_numElements) T(data);
+        ++(m_numElements);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Pushes the new element to the end of the vector. If the vector has reached maximum capacity, new space is allocated
+// on the heap and the data in the old space is copied over to the new space. The old space is freed if it was also
+// allocated on the heap.
+template<typename T, uint32 defaultCapacity, typename Allocator>
+Result Vector<T, defaultCapacity, Allocator>::PushBack(
+    T&& data)
+{
+    Result result = Result::_Success;
+
+    // Alloc more space if push back requested when current size is at max capacity.
+    if (m_numElements == m_maxCapacity)
+    {
+        result = Reserve(m_numElements * GrowthFactor);
+    }
+
+    if (result == Result::_Success)
+    {
+        // Insert new data into the array.
+        PAL_PLACEMENT_NEW(m_pData + m_numElements) T(Move(data));
+        ++(m_numElements);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Constructs a new element at the end of the vector. If the vector has reached maximum capacity, new space is allocated
+// on the heap and the data in the old space is copied over to the new space. The old space is freed if it was also
+// allocated on the heap.
+template<typename T, uint32 defaultCapacity, typename Allocator>
+template<typename... Args>
+Result Vector<T, defaultCapacity, Allocator>::EmplaceBack(
+    Args&&... args)
+{
+    Result result = Result::_Success;
+
+    // Alloc more space if push back requested when current size is at max capacity.
+    if (m_numElements == m_maxCapacity)
+    {
+        result = Reserve(m_numElements * GrowthFactor);
+    }
+
+    if (result == Result::_Success)
+    {
+        // Insert new data into the array.
+        PAL_PLACEMENT_NEW(m_pData + m_numElements) T(std::forward<Args>(args)...);
         ++(m_numElements);
     }
 
@@ -178,7 +231,7 @@ void Vector<T, defaultCapacity, Allocator>::PopBack(
 
     if (pData != nullptr)
     {
-        *pData = *(m_pData + m_numElements);
+        PAL_PLACEMENT_NEW(pData) T(Move(*(m_pData + m_numElements)));
     }
 
     // Explicitly destroy the removed value if it's non-trivial.

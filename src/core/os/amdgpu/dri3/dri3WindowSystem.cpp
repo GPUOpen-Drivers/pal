@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1595,7 +1595,7 @@ void Dri3WindowSystem::SetAdaptiveSyncProperty(
     bool enable)
 {
     const Dri3LoaderFuncs&         dri3Procs      = m_device.GetPlatform()->GetDri3Loader().GetProcsTable();
-    static char const              propertyName[] = "_VARIABLE_REFRESH";
+    constexpr const char           propertyName[] = "_VARIABLE_REFRESH";
     const xcb_intern_atom_cookie_t cookie         = dri3Procs.pfnXcbInternAtom(m_pConnection,
                                                                                0,
                                                                                strlen(propertyName),

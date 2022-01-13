@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -35,6 +35,7 @@
 #include "core/addrMgr/addrMgr2/addrMgr2.h"
 #include "palMath.h"
 
+#include <atomic>
 #include <limits.h>
 #include <type_traits>
 
@@ -48,9 +49,10 @@ namespace Pal
 namespace Gfx9
 {
 
-uint32 Image::s_cbSwizzleIdx    = 0;
-uint32 Image::s_txSwizzleIdx    = 0;
-uint32 Image::s_fMaskSwizzleIdx = 0;
+// These variables ensure that we are assigning a rotating set of swizzle indices for each new image.
+static std::atomic<uint32> cbSwizzleIdx{};
+static std::atomic<uint32> txSwizzleIdx{};
+static std::atomic<uint32> fMaskSwizzleIdx{};
 
 // =====================================================================================================================
 // Helper function for allocating memory for a Gfx9MaskRam object, and instantiating the derived class.
@@ -1615,15 +1617,15 @@ Result Image::ComputePipeBankXor(
                 {
                     // Fmask check has to be first because everything else is checking the properties of the image
                     // which owns the Fmask buffer...  those properties will still be true.
-                    surfaceIndex = s_fMaskSwizzleIdx++;
+                    surfaceIndex = fMaskSwizzleIdx.fetch_add(1, std::memory_order_relaxed);
                 }
                 else if (Parent()->IsRenderTarget())
                 {
-                    surfaceIndex = s_cbSwizzleIdx++;
+                    surfaceIndex = cbSwizzleIdx.fetch_add(1, std::memory_order_relaxed);
                 }
                 else
                 {
-                    surfaceIndex = s_txSwizzleIdx++;
+                    surfaceIndex = txSwizzleIdx.fetch_add(1, std::memory_order_relaxed);
                 }
 
                 const auto*      pBaseSubResInfo = Parent()->SubresourceInfo(0);

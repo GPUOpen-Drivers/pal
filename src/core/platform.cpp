@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -407,7 +407,7 @@ Result Platform::EarlyInitDevDriver()
     if (isConnectionAvailable)
     {
         // OGL apps can only be captured when the client id is "Vulkan".
-        static const char* pClientStr = "AMD Vulkan Driver";
+        constexpr const char* pClientStr = "AMD Vulkan Driver";
 
         // Configure the developer driver server for driver usage
         DevDriver::ServerCreateInfo  createInfo = {};

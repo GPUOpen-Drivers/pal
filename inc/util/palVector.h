@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -53,8 +53,6 @@ template<typename T, uint32 defaultCapacity, typename Allocator>
 class VectorIterator
 {
 public:
-    ~VectorIterator() { }
-
     /// Checks if the current index is within bounds of the number of elements in the vector.
     ///
     /// @returns True if the current element this iterator is pointing to is within the permitted range.
@@ -116,13 +114,16 @@ public:
     /// A convenient shorthand for VectorIterator.
     typedef VectorIterator<T, defaultCapacity, Allocator> Iter;
 
+    /// When this allocates, it doubles the old size of memory
+    static constexpr uint32 GrowthFactor = 2;
+
     /// Constructor.
     ///
     /// @param [in] pAllocator The allocator that will allocate memory if required.
     Vector(Allocator*const pAllocator);
 
     /// Destructor.
-    virtual ~Vector();
+    ~Vector();
 
     /// Move constructor.
     ///
@@ -168,13 +169,23 @@ public:
     /// @returns Result ErrorOutOfMemory if the operation failed.
     Result Resize(uint32 newSize, const T& newVal = T());
 
-    /// Copy an element to end of the vector. If not enough space is available, new space will be allocated and the old
-    /// data will be copied to the new space.
+    /// Copy/Move an element to end of the vector. If not enough space is available, new space will be allocated and
+    /// the old data will be copied to the new space.
     ///
     /// @param [in] data The element to be pushed to the vector. The element will become the last element.
     ///
     /// @returns Result ErrorOutOfMemory if the operation failed.
     Result PushBack(const T& data);
+    Result PushBack(T&& data);
+
+    /// Constructs an object in-place at the end of the vector. If not enough space is available, new space will be
+    /// allocated and the old data will be copied to the new space.
+    ///
+    /// @param [in] args... The arguments passed to the constructor
+    ///
+    /// @returns Result ErrorOutOfMemory if the operation failed.
+    template <typename... Args>
+    Result EmplaceBack(Args&&... args);
 
     /// Returns the element at the end of the vector and destroys it.
     ///

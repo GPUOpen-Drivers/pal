@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -48,9 +48,9 @@ using namespace DevDriver;
 namespace Pal
 {
 
-static constexpr uint32 kEventFlushTimeoutInMs = 10;
+constexpr uint32 kEventFlushTimeoutInMs = 10;
 
-static const char kEventDescription[] = "All available events are RmtTokens directly embedded.";
+constexpr const char kEventDescription[] = "All available events are RmtTokens directly embedded.";
 
 const void* EventProvider::GetEventDescriptionData() const
 {

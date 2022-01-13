@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -334,6 +334,20 @@ void SettingsLoader::ValidateSettings(
         else
         {
             pPalSettings->dccBitsPerPixelThreshold = 0;
+        }
+    }
+
+    // For sufficiently small GPUs, we want to disable late-alloc and allow NGG waves access to the whole chip.
+    if (IsGfx10Plus(chipProps.gfxLevel) &&
+        ((chipProps.gfx9.gfx10.minNumWgpPerSa <= 2) || (chipProps.gfx9.numActiveCus < 4)))
+    {
+        constexpr uint32 MaskEnableAll                          = UINT_MAX;
+        m_settings.gsCuEnLimitMask                              = MaskEnableAll;
+        m_settings.allowNggOnAllCusWgps                         = true;
+        m_settings.nggLateAllocGs                               = 0;
+        {
+            m_settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru = 0;
+            m_settings.gfx10GePcAllocNumLinesPerSeNggCulling        = 0;
         }
     }
 

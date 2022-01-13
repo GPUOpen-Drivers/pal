@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -552,16 +552,6 @@ Result Device::HwlEarlyInit()
     {
         switch (ChipProperties().ossLevel)
         {
-#if PAL_BUILD_OSS1
-        case OssIpLevel::OssIp1:
-            result = Oss1::CreateDevice(this, pOssPlacementAddr, &m_pOssDevice);
-            break;
-#endif
-#if PAL_BUILD_OSS2
-        case OssIpLevel::OssIp2:
-            result = Oss2::CreateDevice(this, pOssPlacementAddr, &m_pOssDevice);
-            break;
-#endif
 #if PAL_BUILD_OSS2_4
         case OssIpLevel::OssIp2_4:
             result = Oss2_4::CreateDevice(this, pOssPlacementAddr, &m_pOssDevice);
@@ -584,7 +574,7 @@ Result Device::HwlEarlyInit()
         if ((ChipProperties().gfxLevel < GfxIpLevel::GfxIp9) &&
             (ChipProperties().ossLevel < OssIpLevel::OssIp4))
         {
-#if PAL_BUILD_GFX6 || PAL_BUILD_OSS1 || PAL_BUILD_OSS2 || PAL_BUILD_OSS2_4
+#if PAL_BUILD_GFX6 || PAL_BUILD_OSS2_4
             result = AddrMgr1::Create(this, pAddrMgrPlacementAddr, &m_pAddrMgr);
 #endif
         }
@@ -810,18 +800,6 @@ void Device::GetHwIpDeviceSizes(
 #if PAL_BUILD_OSS
     switch (ipLevels.oss)
     {
-#if PAL_BUILD_OSS1
-    case OssIpLevel::OssIp1:
-        pHwDeviceSizes->oss = Oss1::GetDeviceSize();
-        ossAddrMgrSize      = AddrMgr1::GetSize();
-        break;
-#endif
-#if PAL_BUILD_OSS2
-    case OssIpLevel::OssIp2:
-        pHwDeviceSizes->oss = Oss2::GetDeviceSize();
-        ossAddrMgrSize      = AddrMgr1::GetSize();
-        break;
-#endif
 #if PAL_BUILD_OSS2_4
     case OssIpLevel::OssIp2_4:
         pHwDeviceSizes->oss = Oss2_4::GetDeviceSize();
@@ -4792,7 +4770,7 @@ void Device::ApplyDevOverlay(
     // Increment after every write
     uint32 letterHeight = 0;
     // Write the Developer Mode text on screen
-    static const char* DeveloperModeString = "Radeon Developer Mode";
+    constexpr const char* DeveloperModeString = "Radeon Developer Mode";
     m_pTextWriter->DrawDebugText(dstImage,
                                  pCmdBuffer,
                                  DeveloperModeString,
@@ -4800,7 +4778,7 @@ void Device::ApplyDevOverlay(
                                  letterHeight);
     letterHeight += GpuUtil::TextWriterFont::LetterHeight;
 
-    static constexpr uint32 OverlayTextBufferSize = 256;
+    constexpr uint32 OverlayTextBufferSize = 256;
     char overlayTextBuffer[OverlayTextBufferSize] = {};
 
     if (pDevDriverServer->IsConnected())
@@ -4846,7 +4824,7 @@ void Device::ApplyDevOverlay(
         // Write the device clock mode
 
         // These labels differ from the DeviceClockMode enum name so as to match the names used by RDP.
-        static const char* pClockModeTable[] = {
+        constexpr const char* pClockModeTable[] = {
             "Unknown",          // Corresponds with DeviceClockMode::Unknown
             "Normal",           // Corresponds with DeviceClockMode::Default
             "Stable",           // Corresponds with DeviceClockMode::Profiling
@@ -4895,7 +4873,7 @@ void Device::ApplyDevOverlay(
         letterHeight += GpuUtil::TextWriterFont::LetterHeight;
 
         // Print the client string and Client Id on screen
-        static const char* pClientStr = "AMD Vulkan Driver";
+        constexpr const char* pClientStr = "AMD Vulkan Driver";
         Util::Snprintf(overlayTextBuffer,
             OverlayTextBufferSize,
             "Client: %s",

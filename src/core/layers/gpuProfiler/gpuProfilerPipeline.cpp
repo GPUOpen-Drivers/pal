@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -40,7 +40,7 @@ namespace GpuProfiler
 {
 
 // Pal::ShaderType to string conversion table.
-const char* ApiShaderTypeStrings[] =
+constexpr const char* ApiShaderTypeStrings[] =
 {
     "CS",
     "TASK",
@@ -56,7 +56,7 @@ static_assert(ArrayLen(ApiShaderTypeStrings) == static_cast<uint32>(ApiShaderTyp
               "ApiShaderTypeStrings is not the same size as Abi::ApiShaderType enum!");
 
 // HardwareStage to string conversion table.
-const char* HardwareStageStrings[] =
+constexpr const char* HardwareStageStrings[] =
 {
     "LS",
     "HS",

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -90,19 +90,23 @@ static uint32 GetIpType(
 
 // =====================================================================================================================
 Result SubmissionContext::Create(
-    const Device&            device,
+    Device*                  pDevice,
     EngineType               engineType,
     uint32                   engineId,
     Pal::QueuePriority       priority,
+    bool                     isTmzOnly,
     Pal::SubmissionContext** ppContext)
 {
     Result     result   = Result::ErrorOutOfMemory;
-    auto*const pContext =
-        PAL_NEW(SubmissionContext, device.GetPlatform(), AllocInternal)(device, engineType, engineId, priority);
+    auto*const pContext = PAL_NEW(SubmissionContext, pDevice->GetPlatform(), AllocInternal)(*pDevice,
+                                                                                            engineType,
+                                                                                            engineId,
+                                                                                            priority,
+                                                                                            isTmzOnly);
 
     if (pContext != nullptr)
     {
-        result = pContext->Init();
+        result = pContext->Init(pDevice);
 
         if (result == Result::Success)
         {
@@ -123,13 +127,15 @@ SubmissionContext::SubmissionContext(
     const Device&       device,
     EngineType          engineType,
     uint32              engineId,
-    Pal::QueuePriority  priority)
+    Pal::QueuePriority  priority,
+    bool                isTmzOnly)
     :
     Pal::SubmissionContext(device.GetPlatform()),
     m_device(device),
     m_ipType(GetIpType(engineType)),
     m_engineId(engineId),
     m_queuePriority(priority),
+    m_isTmzOnly(isTmzOnly),
     m_lastSignaledSyncObject(0),
     m_hContext(nullptr)
 {
@@ -148,9 +154,10 @@ SubmissionContext::~SubmissionContext()
 }
 
 // =====================================================================================================================
-Result SubmissionContext::Init()
+Result SubmissionContext::Init(
+    Device* pDevice)
 {
-    return m_device.CreateCommandSubmissionContext(&m_hContext, m_queuePriority);
+    return pDevice->CreateCommandSubmissionContext(&m_hContext, m_queuePriority, m_isTmzOnly);
 }
 
 // =====================================================================================================================
@@ -265,10 +272,11 @@ Result Queue::Init(
 
     if (result == Result::Success)
     {
-        result = SubmissionContext::Create(static_cast<Device&>(*m_pDevice),
+        result = SubmissionContext::Create(static_cast<Device*>(m_pDevice),
                                            GetEngineType(),
                                            EngineId(),
                                            Priority(),
+                                           pCreateInfo->tmzOnly,
                                            &m_pSubmissionContext);
     }
 

@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2017-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2017-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -109,7 +109,7 @@ SettingStructDef = """    struct {
 %StructSettingFields%    } %StructSettingName%;
 """
 
-SettingStr = "static const char* %SettingStrName% = %SettingString%;\n"
+SettingStr = "constexpr const char* %SettingStrName% = %SettingString%;\n"
 
 SetupDefaultsFunc = """
 // =====================================================================================================================
@@ -166,9 +166,9 @@ PalOsiSettingType = """,
 SettingHashListName = "g_%LowerCamelComponentName%SettingHashList"
 SettingNumSettingsName = "g_%LowerCamelComponentName%NumSettings"
 SettingHashList = """
-static const SettingNameHash %SettingHashListName%[] = {
+constexpr const SettingNameHash %SettingHashListName%[] = {
 %SettingHashList%};
-static const uint32 %SettingNumSettingsName% = sizeof(%SettingHashListName%) / sizeof(SettingNameHash);
+constexpr uint32 %SettingNumSettingsName% = sizeof(%SettingHashListName%) / sizeof(SettingNameHash);
 """
 
 InitSettingsInfoFunc = """
@@ -189,7 +189,7 @@ InitSettingInfo = """
 """
 
 JsonDataArray = """
-static const uint8 %JsonDataArrayName%[] = {
+constexpr uint8 %JsonDataArrayName%[] = {
 %JsonArrayData%
 };  // %JsonDataArrayName%[]
 """

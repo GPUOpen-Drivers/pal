@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -224,8 +224,10 @@ enum class OssIpLevel : uint32
     None     = _None, ///< The device does not have an OSSIP block, or its level cannot be determined
 #endif
 
-    OssIp1   = 0x1,
-    OssIp2   = 0x2,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 699
+    OssIp1 = 0x1,
+    OssIp2 = 0x2,
+#endif
     OssIp2_4 = 0x3,
     OssIp4   = 0x4,
 };

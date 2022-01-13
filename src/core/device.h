@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -185,18 +185,29 @@ enum class SchedulerMode : uint32
     MesHws    = 2,  // MES hardware scheduling (GFX10+)
 };
 
+// defines Video Hardware Scheduling Mode
+enum class VideoSchedulerMode : uint32
+{
+    Software  = 0,  // Video HWS Mode is disabled, Software scheduling only
+    LegacyHws = 1,
+    NormalHws = 2
+};
+
 struct HwsInfo
 {
-    SchedulerMode                             mode;              // Indicates which scheduler mode is active
-    HwsContextInfo                            gfx;               // Graphics HWS context info
-    HwsContextInfo                            compute;           // Compute HWS context info
-    HwsContextInfo                            sdma;              // SDMA HWS context info
-    uint32                                    gdsSaveAreaSize;   // GDS save area size in bytes
-    uint64                                    engineOrdinalMask; // Indicates which engines (by ordinal) support HWS
+    SchedulerMode                mode;                   // Indicates which MES scheduler mode is active
+    VideoSchedulerMode           videoHwsMode;           // Indicates which Video UMSCH mode is active
+    HwsContextInfo               gfx;                    // Graphics HWS context info
+    HwsContextInfo               compute;                // Compute HWS context info
+    HwsContextInfo               sdma;                   // SDMA HWS context info
+    HwsContextInfo               vcn;                    // VCN HWS context info
+    uint32                       gdsSaveAreaSize;        // GDS save area size in bytes
+    uint64                       engineOrdinalMask;      // Indicates which engines (by ordinal) support MES HWS
+    uint64                       videoEngineOrdinalMask; // Indicates which video engines (by ordinal) support UMS HWS
     // Indicates whether this engine instance can be used for gang submission workloads via a multi-queue.
-    GangSubmitEngineSupportFlags              gangSubmitEngineFlags;
+    GangSubmitEngineSupportFlags gangSubmitEngineFlags;
     // Indicates the number of available pipes for each engine type.
-    HwsPipesPerEngine                         numOfPipesPerEngine;
+    HwsPipesPerEngine            numOfPipesPerEngine;
 };
 
 // Additional flags that are kept with the IP levels
@@ -1700,6 +1711,7 @@ public:
     const PerfExperimentProperties& PerfProperties() const { return m_perfExperimentProperties; }
 
     SchedulerMode GetSchedulerMode() const { return m_hwsInfo.mode; }
+    VideoSchedulerMode  GetVideoHwsMode()  const { return m_hwsInfo.videoHwsMode; }
 
     InternalMemMgr* MemMgr() { return &m_memMgr; }
 
@@ -2267,34 +2279,6 @@ extern void InitializeGpuEngineProperties(
     const GpuChipProperties&  chipProps,
     GpuEngineProperties*      pInfo);
 }
-
-#if PAL_BUILD_OSS1
-namespace Oss1
-{
-// Determines the OSSIP level of an OSSIP 1 GPU.
-extern OssIpLevel DetermineIpLevel(
-    uint32 familyId,        // Hardware Family ID.
-    uint32 eRevId);         // Software Revision ID.
-
-// Initialize default values for the GPU engine properties for OSSIP 1 hardware.
-extern void InitializeGpuEngineProperties(
-    GpuEngineProperties* pInfo);
-} // Oss1
-#endif
-
-#if PAL_BUILD_OSS2
-namespace Oss2
-{
-// Determines the OSSIP level of an OSSIP 2 GPU.
-extern OssIpLevel DetermineIpLevel(
-    uint32 familyId,        // Hardware Family ID.
-    uint32 eRevId);         // Software Revision ID.
-
-// Initialize default values for the GPU engine properties for OSSIP 2 hardware.
-extern void InitializeGpuEngineProperties(
-    GpuEngineProperties* pInfo);
-} // Oss2
-#endif
 
 #if PAL_BUILD_OSS2_4
 namespace Oss2_4

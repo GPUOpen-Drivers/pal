@@ -2,7 +2,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -69,14 +69,14 @@ namespace Pal
 {
 namespace Gfx6
 {
-static const uint32 NullBufferView[4] = { 0, 0, 0, SQ_RSRC_BUF << SQ_BUF_RSRC_WORD3__TYPE__SHIFT };
-static const uint32 NullImageView[8] =
+constexpr uint32 NullBufferView[4] = { 0, 0, 0, SQ_RSRC_BUF << SQ_BUF_RSRC_WORD3__TYPE__SHIFT };
+constexpr uint32 NullImageView[8] =
 {
     0, 0, 0,
     static_cast<uint32>(SQ_RSRC_IMG_2D_ARRAY) << static_cast<uint32>(SQ_IMG_RSRC_WORD3__TYPE__SHIFT),
     0, 0, 0, 0
 };
-static const uint32 NullSampler[4] = { 0, 0, 0, 0 };
+constexpr uint32 NullSampler[4] = { 0, 0, 0, 0 };
 
 // =====================================================================================================================
 size_t GetDeviceSize()

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -79,10 +79,11 @@ class SubmissionContext : public Pal::SubmissionContext
 {
 public:
     static Result Create(
-        const Device&            device,
+        Device*                  pDevice,
         EngineType               engineType,
         uint32                   engineId,
         QueuePriority            priority,
+        bool                     isTmzOnly,
         Pal::SubmissionContext** ppContext);
 
     virtual bool IsTimestampRetired(uint64 timestamp) const override;
@@ -95,15 +96,20 @@ public:
     void SetLastSignaledSyncObj(amdgpu_syncobj_handle hSyncObj) { m_lastSignaledSyncObject = hSyncObj; }
 
 private:
-    SubmissionContext(const Device& device, EngineType engineType, uint32 engineId, Pal::QueuePriority priority);
+    SubmissionContext(const Device&      device,
+                      EngineType         engineType,
+                      uint32             engineId,
+                      Pal::QueuePriority priority,
+                      bool               isTmzOnly);
     virtual ~SubmissionContext();
 
-    Result Init();
+    Result Init(Device* pDevice);
 
     const Device&               m_device;
     const uint32                m_ipType;    // This context's HW IP type as defined by amdgpu.
     const uint32                m_engineId;
     QueuePriority               m_queuePriority;
+    bool                        m_isTmzOnly;
     amdgpu_syncobj_handle       m_lastSignaledSyncObject;
     amdgpu_context_handle       m_hContext;  // Command submission context handle.
 

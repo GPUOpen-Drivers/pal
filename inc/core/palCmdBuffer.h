@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1757,7 +1757,12 @@ struct CmdBufInfo
             uint32 preflip            : 1;  ///< This command buffer has pre-flip access to DirectCapture resource
             uint32 postflip           : 1;  ///< This command buffer has post-flip access to DirectCapture resource
             uint32 privateFlip        : 1;  ///< Need to flip to a private primary surface for DirectCapture feature
-            uint32 reserved           : 22; ///< Reserved for future usage.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 698
+            uint32 vpBltExecuted      : 1;  ///< This command buffer comtains VP Blt work.
+            uint32 reserved           : 21; ///< Reserved for future usage.
+#else
+            uint32 reserved           : 22;
+#endif
 #else
             uint32 reserved           : 25; ///< Reserved for future usage.
 #endif

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -523,7 +523,13 @@ public:
 
     Result CreateCommandSubmissionContext(
         amdgpu_context_handle* pContextHandle,
-        QueuePriority          priority) const;
+        QueuePriority          priority,
+        bool                   isTmzOnly);
+
+    Result CreateCommandSubmissionContextRaw(
+        amdgpu_context_handle* pContextHandle,
+        QueuePriority          priority,
+        bool                   isTmzOnly) const;
 
     Result DestroyCommandSubmissionContext(
         amdgpu_context_handle hContext) const;
@@ -767,6 +773,10 @@ public:
         return m_drmProcs.pfnAmdgpuCsSubmitRaw2isValid();
     }
 
+    bool SupportCsTmz() const {
+        return false;
+    }
+
     SemaphoreType GetSemaphoreType() const { return m_semType; }
     FenceType     GetFenceType()     const { return m_fenceType; }
 
@@ -967,9 +977,13 @@ private:
     int32                 m_primaryFileDescriptor;  // primary node file descriptor used for display subsystem.
     amdgpu_device_handle  m_hDevice;                // Device handle of the amdgpu
     VamMgr*               m_pVamMgr;                // VAM manager per amdgpu_device_handle
-    amdgpu_context_handle m_hContext;               // Context handle of the amdgpu device
     const uint32          m_deviceNodeIndex;        // The device node index in the system, with this node, driver could
                                                     // open the device with /dev/dri/card+m_deviceNodeIndex.
+
+    const bool            m_useSharedGpuContexts; // Whether to use same contexts per-device vs. per-queue.
+    Util::Mutex           m_contextLock;          // Synchronizes the following, which are created lazily:
+    amdgpu_context_handle m_hContext;             //  - Context handle of the amdgpu device
+    amdgpu_context_handle m_hTmzContext;          //  - Secure context handle of the amdgpu device
 
     uint32 const     m_drmMajorVer;
     uint32 const     m_drmMinorVer;

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -6896,7 +6896,7 @@ uint32* UniversalCmdBuffer::ValidateCbColorInfo(
         // when this optimization is not required by the PSO. This is important if CB_TARGET_MASK[0] != 0
         if (m_graphicsState.bindTargets.colorTargetCount == 0)
         {
-            const bool isRbPlusOptDepthOnly = pPipeline->CanRbPlusOptimizeDepthOnly();
+            const bool isRbPlusOptDepthOnly = (pPipeline != nullptr) ? pPipeline->CanRbPlusOptimizeDepthOnly() : false;
             m_cbColorInfo[0].bits.NUMBER_TYPE = isRbPlusOptDepthOnly ? Chip::NUMBER_FLOAT : Chip::NUMBER_UNORM;
             if (IsGfx9(m_gfxIpLevel) || IsGfx10(m_gfxIpLevel))
             {

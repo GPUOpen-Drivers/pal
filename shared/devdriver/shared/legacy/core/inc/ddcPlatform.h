@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -637,7 +637,17 @@ struct OsInfo
     uint64 swapMemory; /// Total amount of swap memory available on host in bytes
 };
 
-Result QueryOsInfo(OsInfo* pInfo);
+ Result QueryOsInfo(OsInfo* pInfo);
+
+struct EtwSupportInfo
+ {
+     bool   isSupported;            ///< If true, indicates that the OS platform supports system monitoring, false otherwise.
+     bool   hasPermission;          ///< If true, indicates the account has the required permissions, false otherwise.
+     uint32 statusCode;             ///< The status result returned when attempting to open a monitoring session.
+     char   statusDescription[256]; ///< The textual status result returned when attempting to open a monitoring.
+ };
+
+ Result QueryEtwInfo(EtwSupportInfo* pInfo);
 
 } // Platform
 

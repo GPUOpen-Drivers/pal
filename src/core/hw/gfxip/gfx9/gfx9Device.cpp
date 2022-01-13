@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -69,9 +69,9 @@ namespace Pal
 {
 namespace Gfx9
 {
-BufferSrd                nullBufferView = {};
-ImageSrd                 nullImageView  = {};
-static const SamplerSrd  NullSampler    = {};
+static BufferSrd     nullBufferView = {};
+static ImageSrd      nullImageView  = {};
+constexpr SamplerSrd NullSampler    = {};
 
 // Microcode version for CE dump offset support
 constexpr uint32 UcodeVersionWithDumpOffsetSupport = 30;

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -36,9 +36,9 @@ namespace HsaAbi
 
 namespace PipelineMetadataKey
 {
-    static constexpr char Name[]    = ".name";
-    static constexpr char Version[] = "amdhsa.version";
-    static constexpr char Kernels[] = "amdhsa.kernels";
+    constexpr const char Name[]    = ".name";
+    constexpr const char Version[] = "amdhsa.version";
+    constexpr const char Kernels[] = "amdhsa.kernels";
 };
 
 /// An enum version of the legal ".value_kind" strings. It's required so there's no "None" value.

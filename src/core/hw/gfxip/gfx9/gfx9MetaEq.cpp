@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2021 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -544,7 +544,7 @@ void MetaDataAddrEquation::PrintEquation(
 
         for (uint32 bit = 0; bit < GetNumValidBits(); bit++)
         {
-            static const char  CompNames[MetaDataAddrCompNumTypes] = { 'x', 'y', 'z', 's', 'm' };
+            constexpr const char CompNames[MetaDataAddrCompNumTypes] = { 'x', 'y', 'z', 's', 'm' };
 
             // Guessing?  I hope 256 is long enough.  :-)
             char  printMe[256] = {};
