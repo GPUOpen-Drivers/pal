@@ -188,6 +188,11 @@ typedef enum IT_OpCodeType {
     IT_DISPATCH_DRAW__NV23                             = 0x0000008d,
     IT_DISPATCH_DRAW_ACE__NV23                         = 0x0000008d,
     IT_EXECUTE_INDIRECT__NV23                          = 0x000000ae,
+    IT_DISPATCH_DRAW_PREAMBLE__NV24                    = 0x0000008c,
+    IT_DISPATCH_DRAW_PREAMBLE_ACE__NV24                = 0x0000008c,
+    IT_DISPATCH_DRAW__NV24                             = 0x0000008d,
+    IT_DISPATCH_DRAW_ACE__NV24                         = 0x0000008d,
+    IT_EXECUTE_INDIRECT__NV24                          = 0x000000ae,
     IT_EXECUTE_INDIRECT__VEGA                          = 0x000000ae,
 } IT_OpCodeType;
 

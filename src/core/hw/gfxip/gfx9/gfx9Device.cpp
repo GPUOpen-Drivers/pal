@@ -4657,6 +4657,10 @@ GfxIpLevel DetermineIpLevel(
         {
             level = GfxIpLevel::GfxIp10_3;
         }
+        else if (AMDGPU_IS_NAVI24(familyId, eRevId))
+        {
+            level = GfxIpLevel::GfxIp10_3;
+        }
         else
         {
             PAL_NOT_IMPLEMENTED_MSG("NV_FAMILY Revision %d unsupported", eRevId);
@@ -5086,6 +5090,25 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.gfx10.numGl2a            = 2;
             pInfo->gfx9.gfx10.numGl2c            = 8;
             pInfo->gfx9.gfx10.numWgpAboveSpi     = 4; // GPU__GC__NUM_WGP0_PER_SA
+            pInfo->gfx9.gfx10.numWgpBelowSpi     = 0; // GPU__GC__NUM_WGP1_PER_SA
+            pInfo->gfx9.supportInt8Dot           = 1;
+            pInfo->gfx9.supportInt4Dot           = 1;
+        }
+        else if (AMDGPU_IS_NAVI24(pInfo->familyId, pInfo->eRevId))
+        {
+            pInfo->gpuType                       = GpuType::Discrete;
+            pInfo->revision                      = AsicRevision::Navi24;
+            pInfo->gfxStepping                   = Abi::GfxIpSteppingNavi24;
+            pInfo->gfx9.numShaderEngines         = 1;
+            pInfo->gfx9.rbPlus                   = 1;
+            pInfo->gfx9.numSdpInterfaces         = 8;
+            pInfo->gfx9.maxNumCuPerSh            = 8;
+            pInfo->gfx9.maxNumRbPerSe            = 2;
+            pInfo->gfx9.supportFp16Dot2          = 1;
+            pInfo->gfx9.parameterCacheLines      = 512; //Navi24 differs from the rest of Navi2x family
+            pInfo->gfx9.gfx10.numGl2a            = 2;
+            pInfo->gfx9.gfx10.numGl2c            = 8;
+            pInfo->gfx9.gfx10.numWgpAboveSpi     = 5; // GPU__GC__NUM_WGP0_PER_SA
             pInfo->gfx9.gfx10.numWgpBelowSpi     = 0; // GPU__GC__NUM_WGP1_PER_SA
             pInfo->gfx9.supportInt8Dot           = 1;
             pInfo->gfx9.supportInt4Dot           = 1;

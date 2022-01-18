@@ -74,6 +74,13 @@ endif()
         target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI23=1)
     endif()
 
+    if(PAL_BUILD_NAVI24)
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI24=1)
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_GFX103=1)
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI2X=1)
+        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI24=1)
+    endif()
+
 endfunction()
 
 function(pal_compile_definitions_gpu TARGET)

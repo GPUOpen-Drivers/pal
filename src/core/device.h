@@ -2524,11 +2524,16 @@ inline bool IsNavi23(const Device& device)
 {
     return AMDGPU_IS_NAVI23(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
+inline bool IsNavi24(const Device& device)
+{
+    return AMDGPU_IS_NAVI24(device.ChipProperties().familyId, device.ChipProperties().eRevId);
+}
 inline bool IsNavi2x(const Device& device)
 {
     return (IsNavi21(device) ||
             IsNavi22(device) ||
             IsNavi23(device)
+            || IsNavi24(device)
            );
 }
 

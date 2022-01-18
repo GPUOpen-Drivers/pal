@@ -578,6 +578,21 @@ static void SetupNavi23Workarounds(
 }
 
 // =====================================================================================================================
+// Setup workarounds that only apply to Navi23.
+static void SetupNavi24Workarounds(
+    const Pal::Device&  device,
+    Gfx9PalSettings*    pSettings)
+{
+    // Setup any Gfx10 workarounds.
+    SetupGfx10Workarounds(device, pSettings);
+
+    // Setup any Navi2x workarounds.
+    SetupNavi2xWorkarounds(device, pSettings);
+
+    // Setup any Navi24 workarounds.
+}
+
+// =====================================================================================================================
 // Override Gfx9 layer settings. This also includes setting up the workaround flags stored in the settings structure
 // based on chip Family & ID.
 //
@@ -661,6 +676,10 @@ void SettingsLoader::OverrideDefaults(
         else if (IsNavi23(device))
         {
             SetupNavi23Workarounds(device, &m_settings);
+        }
+        else if (IsNavi24(device))
+        {
+            SetupNavi24Workarounds(device, &m_settings);
         }
 
         //  DISABLE_BINNING_USE_LEGACY_SC: reverts binning completely and uses the old scan converter (along with

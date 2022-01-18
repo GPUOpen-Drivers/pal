@@ -92,6 +92,7 @@ enum class AmdGpuMachineType : uint8
     Gfx1030 = 0x36,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1030
     Gfx1031 = 0x37,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1031
     Gfx1032 = 0x38,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1032
+    Gfx1034 = 0x3e,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1034
 };
 
 /// AmdGpuFeatureV4Type for the feature selection mask bits in e_flags.
@@ -155,6 +156,9 @@ enum GfxIpStepping : uint16
 
     // GFXIP 10.3.x steppings:
     GfxIpSteppingNavi23        = 2,
+
+    // GFXIP 10.3.x steppings:
+    GfxIpSteppingNavi24        = 4,
 
 };
 

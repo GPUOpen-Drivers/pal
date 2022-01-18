@@ -1587,5 +1587,12 @@ constexpr PipelineBinary msaaImageCopyComputeBinaryTableNavi21[] =
     {MsaaRTCopy_Cs_1D32F7A1,  sizeof(MsaaRTCopy_Cs_1D32F7A1)},
 };
 
+// Table of compute pipeline binaries for Navi24
+constexpr PipelineBinary msaaImageCopyComputeBinaryTableNavi24[] =
+{
+    {MsaaDSCopy_Cs_1D32F7A1,  sizeof(MsaaDSCopy_Cs_1D32F7A1)},
+    {MsaaRTCopy_Cs_1D32F7A1,  sizeof(MsaaRTCopy_Cs_1D32F7A1)},
+};
+
 } // MsaaImageCopy
 } // GpuUtil
