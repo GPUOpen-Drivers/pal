@@ -292,6 +292,7 @@ public:
     virtual Result AddCounter(const PerfCounterInfo& counterInfo) override;
     virtual Result AddThreadTrace(const ThreadTraceInfo& traceInfo) override;
     virtual Result AddSpmTrace(const SpmTraceCreateInfo& spmCreateInfo) override;
+    virtual Result AddDfSpmTrace(const SpmTraceCreateInfo& dfSpmCreateInfo) override;
     virtual Result Finalize() override;
 
     virtual Result GetGlobalCounterLayout(GlobalCounterLayout* pLayout) const override;
@@ -309,6 +310,8 @@ public:
         Pal::CmdStream*               pPalCmdStream,
         const ThreadTraceTokenConfig& sqttTokenConfig) const override;
 
+    virtual const DfSpmPerfmonInfo* GetDfSpmPerfmonInfo() const override { return &m_dfSpmPerfmonInfo; }
+
     static void UpdateSqttTokenMaskStatic(
         Pal::CmdStream*               pPalCmdStream,
         const ThreadTraceTokenConfig& sqttTokenConfig,
@@ -322,6 +325,7 @@ private:
     Result AddSpmCounter(const PerfCounterInfo& counterInfo, SpmCounterMapping* pMapping);
     Result BuildCounterMapping(const PerfCounterInfo& info, CounterMapping* pMapping) const;
     Result BuildInstanceMapping(GpuBlock block, uint32 globalInstance, InstanceMapping* pMapping) const;
+    Result AllocateDfSpmBuffers(gpusize dfSpmBufferSize);
 
     regGRBM_GFX_INDEX BuildGrbmGfxIndex(const InstanceMapping& mapping, GpuBlock block) const;
     MuxselEncoding BuildMuxselEncoding(const InstanceMapping& mapping, GpuBlock block, uint32 counter) const;
@@ -387,6 +391,10 @@ private:
     uint32             m_numMuxselLines[MaxNumSpmSegments];
     uint32             m_spmRingSize;                       // The SPM ring buffer size in bytes.
     uint16             m_spmSampleInterval;                 // The SPM sample interval in sclks.
+
+    DfSpmPerfmonInfo   m_dfSpmPerfmonInfo;
+    SpmCounterMapping* m_pDfSpmCounters;
+    uint32             m_numDfSpmCounters;
 
     // A big struct that lists every block's PERFCOUNTER#_SELECT registers.
     GlobalSelectState m_select;

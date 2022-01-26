@@ -34,6 +34,7 @@ namespace Pal
 class CmdStream;
 class Device;
 class GfxCmdBuffer;
+class Platform;
 
 // These flags indicate whether Performance (Global) Counters, SPM Trace and/or Thread (SQ) Trace  have been
 // enabled through this command buffer so that appropriate submit-time operations can be done.
@@ -41,12 +42,26 @@ union PerfExperimentFlags
 {
     struct
     {
-        uint32 perfCtrsEnabled : 1;
-        uint32 spmTraceEnabled : 1;
-        uint32 sqtTraceEnabled : 1;
-        uint32 reserved        : 29;
+        uint32 perfCtrsEnabled   : 1;
+        uint32 spmTraceEnabled   : 1;
+        uint32 sqtTraceEnabled   : 1;
+        uint32 dfSpmTraceEnabled : 1;
+        uint32 reserved          : 28;
     };
     uint32 u32All;
+};
+
+/// This is all of the data that needs to be passed down to the KMD for them to start a DF SPM trace.
+struct DfSpmPerfmonInfo
+{
+    GpuMemory* pDfSpmTraceBuffer;
+    GpuMemory* pDfSpmMetadataBuffer;
+
+    uint32 perfmonUsed;
+    uint16 perfmonEvents[8];
+    uint8  perfmonUnitMasks[8];
+
+    uint32 samplingIntervalNs;
 };
 
 // =====================================================================================================================
@@ -70,11 +85,14 @@ public:
 
     PerfExperimentFlags TracesEnabled() const { return m_perfExperimentFlags; }
 
+    virtual const DfSpmPerfmonInfo* GetDfSpmPerfmonInfo() const = 0;
+
 protected:
     PerfExperiment(Device* pDevice, const PerfExperimentCreateInfo& createInfo, gpusize memAlignment);
     virtual ~PerfExperiment();
 
-    const Device&                  m_device;
+    Device*                        m_pDevice;
+    Platform*                      m_pPlatform;
     const PerfExperimentCreateInfo m_createInfo;
     const gpusize                  m_memAlignment;      // The GPU memory alignment required by this perf experiment.
     BoundGpuMemory                 m_gpuMemory;

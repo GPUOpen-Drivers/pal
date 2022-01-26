@@ -531,6 +531,11 @@ public:
     bool SqttClosed() const
         { return m_gfxCmdBufState.flags.sqttStopped; }
 
+    // Allows the queue to query the MALL perfmon info for this command buffer and
+    // add it to the CmdBufInfo if need be.
+    const DfSpmPerfmonInfo* GetDfSpmPerfmonInfo() const
+        { return m_pDfSpmPerfmonInfo; }
+
     void AddFceSkippedImageCounter(GfxImage* pGfxImage);
 
     // Other Cmd* functions may call this function to notify our VRS copy state tracker of changes to VRS resources.
@@ -685,6 +690,9 @@ private:
     uint32  m_computeStateFlags;   // The flags that CmdSaveComputeState was called with.
 
     FceRefCountsVector m_fceRefCountVec;
+
+    const DfSpmPerfmonInfo* m_pDfSpmPerfmonInfo; // Cached pointer to the DF SPM perfmon info for the DF SPM perf
+                                                 // experiment.
 
     PerfExperimentFlags m_cmdBufPerfExptFlags; // Flags that indicate which Performance Experiments are ongoing in
                                                // this CmdBuffer.

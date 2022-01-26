@@ -5539,6 +5539,21 @@ void CmdBuffer::CmdInsertRgpTraceMarker(
     GetNextLayer()->CmdInsertRgpTraceMarker(numDwords, pData);
 }
 
+// ====================================================================================================================
+void CmdBuffer::CmdCopyDfSpmTraceData(
+    const IPerfExperiment& perfExperiment,
+    const IGpuMemory&      dstGpuMemory,
+    gpusize                dstOffset)
+{
+    if (m_annotations.logMiscellaneous)
+    {
+        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdCopyDfSpmTraceData));
+
+        // TODO: Add comment string.
+    }
+
+    GetNextLayer()->CmdCopyDfSpmTraceData(perfExperiment, dstGpuMemory, dstOffset);
+}
 // =====================================================================================================================
 void CmdBuffer::CmdSaveComputeState(
     uint32 stateFlags)

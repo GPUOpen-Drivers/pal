@@ -345,7 +345,10 @@ typedef xcb_randr_get_output_info_reply_t* (*XcbRandrGetOutputInfoReply)(
             xcb_generic_error_t**                 ppError);
 
 typedef uint8_t* (*XcbRandrGetOutputInfoName)(
-            xcb_randr_get_output_info_reply_t* pOutReply);
+            const xcb_randr_get_output_info_reply_t*  pOutReply);
+
+typedef int (*XcbRandrGetOutputInfoNameLength)(
+            const xcb_randr_get_output_info_reply_t*  pOutReply);
 
 typedef xcb_randr_output_t* (*XcbRandrGetCrtcInfoOutputs)(
             xcb_randr_get_crtc_info_reply_t*  pCrtcInfoReply);
@@ -856,6 +859,12 @@ struct Dri3LoaderFuncs
     bool pfnXcbRandrGetOutputInfoNameisValid() const
     {
         return (pfnXcbRandrGetOutputInfoName != nullptr);
+    }
+
+    XcbRandrGetOutputInfoNameLength       pfnXcbRandrGetOutputInfoNameLength;
+    bool pfnXcbRandrGetOutputInfoNameLengthisValid() const
+    {
+        return (pfnXcbRandrGetOutputInfoNameLength != nullptr);
     }
 
     XcbRandrGetCrtcInfoOutputs            pfnXcbRandrGetCrtcInfoOutputs;
@@ -1590,13 +1599,20 @@ public:
         return (m_pFuncs->pfnXcbRandrGetOutputInfoReply != nullptr);
     }
 
-    xcb_randr_get_output_info_reply_t* pfnXcbRandrGetOutputInfoName(
-        const xcb_randr_get_output_info_reply_t*  pOutReply
-        ) const;
+    uint8_t* pfnXcbRandrGetOutputInfoName(
+            const xcb_randr_get_output_info_reply_t*  pOutReply) const;
 
     bool pfnXcbRandrGetOutputInfoNameisValid() const
     {
         return (m_pFuncs->pfnXcbRandrGetOutputInfoName != nullptr);
+    }
+
+    int pfnXcbRandrGetOutputInfoNameLength(
+            const xcb_randr_get_output_info_reply_t*  pOutReply) const;
+
+    bool pfnXcbRandrGetOutputInfoNameLengthisValid() const
+    {
+        return (m_pFuncs->pfnXcbRandrGetOutputInfoNameLength != nullptr);
     }
 
     xcb_randr_output_t* pfnXcbRandrGetCrtcInfoOutputs(

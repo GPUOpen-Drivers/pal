@@ -247,6 +247,12 @@ struct ComputePipelineCreateInfo
                                            ///  can occur when thread group granularity preemption is available and
                                            ///  instruction level (CWSR) is not. This setting is useful for allowing
                                            ///  dispatches with interdependent thread groups.
+
+    /// PAL expects a fixed 3D thread group size for each compute pipeline but the HSA ABI supports dynamic group sizes.
+    /// If this pipeline's ELF binary metadata doesn't specify a fixed thread group size, this should be used to force
+    /// a particular thread group size. If this extent is set to all zeros PAL will use the metadata's group size.
+    /// This field is not supported on PAL ABI ELFs, it should be set to all zeros.
+    Extent3d            threadsPerGroup;
 };
 
 /// Specifies information about the viewport behavior of an assembled graphics pipeline.  Part of the input

@@ -36,7 +36,8 @@ PerfExperiment::PerfExperiment(
     const PerfExperimentCreateInfo& createInfo,
     gpusize                         memAlignment)
     :
-    m_device(*pDevice),
+    m_pDevice(pDevice),
+    m_pPlatform(pDevice->GetPlatform()),
     m_createInfo(createInfo),
     m_memAlignment(memAlignment),
     m_isFinalized(false),
@@ -53,7 +54,7 @@ PerfExperiment::~PerfExperiment()
 {
     ResourceDestroyEventData data = {};
     data.pObj = this;
-    m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(data);
+    m_pPlatform->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(data);
 }
 
 // =====================================================================================================================
@@ -66,7 +67,7 @@ void PerfExperiment::GetGpuMemoryRequirements(
 
     if (m_perfExperimentFlags.sqtTraceEnabled || m_perfExperimentFlags.spmTraceEnabled)
     {
-        const bool noInvisibleMem = (m_device.MemoryProperties().invisibleHeapSize == 0);
+        const bool noInvisibleMem = (m_pDevice->MemoryProperties().invisibleHeapSize == 0);
 
         if (noInvisibleMem)
         {
@@ -123,7 +124,7 @@ Result PerfExperiment::BindGpuMemory(
     data.pResourceDescData = static_cast<void*>(&desc);
     data.resourceDescSize = sizeof(ResourceDescriptionPerfExperiment);
     data.pObj = this;
-    m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
+    m_pPlatform->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
 
     if (m_isFinalized == false)
     {
@@ -144,7 +145,7 @@ Result PerfExperiment::BindGpuMemory(
         bindData.pGpuMemory = pGpuMemory;
         bindData.requiredGpuMemSize = m_totalMemSize;
         bindData.offset = offset;
-        m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+        m_pPlatform->GetEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
     }
 
     return result;

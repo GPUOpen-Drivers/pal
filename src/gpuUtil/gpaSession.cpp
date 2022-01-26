@@ -1722,6 +1722,12 @@ Result GpaSession::BeginSample(
                         {
                             result = pTraceSample->InitSpmTrace(pSampleItem->sampleConfig);
                         }
+
+                        // DF spm trace is enabled, so init the Df spm trace portion.
+                        if (pSampleItem->sampleConfig.dfSpmPerfCounters.numCounters > 0)
+                        {
+                            result = pTraceSample->InitDfSpmTrace(pSampleItem->sampleConfig);
+                        }
                     }
                     else
                     {
@@ -1920,6 +1926,16 @@ void GpaSession::EndSample(
         PAL_NEVER_CALLED(); // beginSample prevents undefined-mode sample to be added to the list.
         // TODO: Record error code in SampleItem, and return error result at End().
     }
+}
+
+// =====================================================================================================================
+// Calls into the TraceSample to copy the DF SPM trace data.
+void GpaSession::CopyDfSpmTraceResults(
+    ICmdBuffer* pCmdBuf,
+    uint32      sampleId)
+{
+    SampleItem* pSampleItem = m_sampleItemArray.At(sampleId);
+    static_cast<TraceSample*>(pSampleItem->pPerfSample)->WriteCopyDfSpmTraceData(pCmdBuf);
 }
 
 // =====================================================================================================================
@@ -3070,7 +3086,7 @@ Result GpaSession::ImportSampleItem(
 
                         pCounterSample->SetCopySampleMemInfo(
                             pSrcCounterSample->GetSampleDataGpuMem().pGpuMemory,
-                            pSrcCounterSample->GetSampleDataOffset());
+                            pSrcCounterSample->GetGcSampleDataOffset());
 
                         pCounterSample->SetSampleMemoryProperties(gpuMemInfo, offset, gpuMemReqs.size);
 
@@ -3096,7 +3112,7 @@ Result GpaSession::ImportSampleItem(
                         PerfSample* pSrcTraceSample = pSrcSampleItem->pPerfSample;
 
                         pSample->SetCopySampleMemInfo(pSrcTraceSample->GetSampleDataGpuMem().pGpuMemory,
-                                                        pSrcTraceSample->GetSampleDataOffset());
+                                                        pSrcTraceSample->GetGcSampleDataOffset());
 
                         pSample->SetSampleMemoryProperties(gpuMemInfo, offset, gpuMemReqs.size);
 
@@ -3194,7 +3210,7 @@ Result GpaSession::ImportSampleItem(
                     pQuerySample->SetPipeStatsQuery(pPipeStatsQuery);
                     pQuerySample->SetCopySampleMemInfo(
                         pSrcQuerySample->GetSampleDataGpuMem().pGpuMemory,
-                        pSrcQuerySample->GetSampleDataOffset());
+                        pSrcQuerySample->GetGcSampleDataOffset());
                     pQuerySample->SetSampleMemoryProperties(gpuMemInfo, offset, heapSize);
                 }
                 else
@@ -3625,6 +3641,41 @@ Result GpaSession::AcquirePerfExperiment(
                     result = Result::ErrorOutOfMemory;
                 }
             }
+            if ((result == Result::Success) && (sampleConfig.dfSpmPerfCounters.numCounters > 0))
+            {
+                const uint32 numStreamingCounters = sampleConfig.dfSpmPerfCounters.numCounters;
+                const PerfCounterId* pCounters    = sampleConfig.dfSpmPerfCounters.pIds;
+
+                SpmTraceCreateInfo dfSpmCreateInfo = {};
+                dfSpmCreateInfo.numPerfCounters    = sampleConfig.dfSpmPerfCounters.numCounters;
+                dfSpmCreateInfo.spmInterval        = sampleConfig.dfSpmPerfCounters.sampleInterval;
+                dfSpmCreateInfo.ringSize           = sampleConfig.dfSpmPerfCounters.gpuMemoryLimit;
+                void* pMem = PAL_CALLOC(numStreamingCounters * sizeof(PerfCounterInfo),
+                                        m_pPlatform,
+                                        Util::SystemAllocType::AllocInternal);
+
+                if (pMem != nullptr)
+                {
+                    dfSpmCreateInfo.pPerfCounterInfos = static_cast<PerfCounterInfo*>(pMem);
+                    PerfCounterInfo* pCounterInfo     = nullptr;
+                    for (uint32 i = 0; i < numStreamingCounters; i++)
+                    {
+                        pCounterInfo = &(static_cast<PerfCounterInfo*>(pMem)[i]);
+                        pCounterInfo->df.eventQualifier = pCounters[i].df.eventQualifier;
+                        pCounterInfo->block             = GpuBlock::DfMall;
+                        pCounterInfo->eventId           = pCounters[i].eventId;
+                        pCounterInfo->instance          = pCounters[i].instance;
+                    }
+
+                    result = pExperiment->AddDfSpmTrace(dfSpmCreateInfo);
+                    // Free the memory allocated for the PerfCounterInfo(s) once AddDfSpmTrace returns.
+                    PAL_SAFE_FREE(pMem, m_pPlatform);
+                }
+                else
+                {
+                    result = Result::ErrorOutOfMemory;
+                }
+            }
         }
         else
         {
@@ -3643,13 +3694,24 @@ Result GpaSession::AcquirePerfExperiment(
         GpuMemoryRequirements gpuMemReqs = {};
         pExperiment->GetGpuMemoryRequirements(&gpuMemReqs);
 
+        // DF SPM data is not included in the perf experiment memory so it needs to be
+        // manually added to the combined copy.
+        gpusize secondaryBufferSize = gpuMemReqs.size;
+
+        if (sampleConfig.dfSpmPerfCounters.numCounters > 0)
+        {
+            secondaryBufferSize = gpuMemReqs.size +
+                                  sampleConfig.dfSpmPerfCounters.gpuMemoryLimit +
+                                  sizeof(DfSpmTraceMetadataLayout);
+        }
+
         if (result == Result::Success)
         {
             const GpuMemMallPolicy mallPolicy = (sampleConfig.type == GpaSampleType::Trace) ?
                                                 GpuMemMallPolicy::Never :
                                                 GpuMemMallPolicy::Default;
 
-            result = AcquireGpuMem(gpuMemReqs.size,
+            result = AcquireGpuMem(secondaryBufferSize,
                                    gpuMemReqs.alignment,
                                    GpuHeapGartCacheable,
                                    mallPolicy,
@@ -4466,7 +4528,63 @@ Result GpaSession::DumpRgpData(
         result = AppendSpmTraceData(pTraceSample, (*pTraceSize), pRgpOutput, &curFileOffset);
     }
 
+    if ((result == Result::Success) && (pTraceSample->IsDfSpmTraceEnabled()))
+    {
+        // Add DF SPM chunk to RGP file
+        result = AppendDfSpmTraceData(pTraceSample, (*pTraceSize), pRgpOutput, &curFileOffset);
+    }
+
     *pTraceSize = static_cast<size_t>(curFileOffset);
+
+    return result;
+}
+
+// =====================================================================================================================
+// Appends the df spm trace data in the buffer provided. If nullptr buffer is provided, it returns the size required for
+// the spm data.
+Result GpaSession::AppendDfSpmTraceData(
+    TraceSample* pTraceSample,  // [in] The PerfSample from which to get the spm trace data.
+    size_t       bufferSize,    // [in] Size of the buffer.
+    void*        pRgpOutput,    // [out] The buffer into which spm trace data is written. May contain thread trace data.
+    gpusize*     pCurFileOffset // [in|out] Current wptr position in buffer.
+    ) const
+{
+    Result result = Result::Success;
+    // Initialize the Sqtt chunk, get the spm trace results and add to the file.
+    gpusize dfSpmDataSize     = 0;
+    gpusize numDfSpmSamples   = 0;
+    pTraceSample->GetDfSpmResultsSize(&dfSpmDataSize, &numDfSpmSamples);
+
+    if (pRgpOutput != nullptr)
+    {
+        // Header for df spm chunk.
+        if (static_cast<gpusize>(*pCurFileOffset + sizeof(SqttFileChunkDfSpmDb) + dfSpmDataSize) > bufferSize)
+        {
+            result = Result::ErrorOutOfMemory;
+        }
+        else
+        {
+            // Write the chunk header first.
+            SqttFileChunkDfSpmDb dfSpmDbChunk             = { };
+            dfSpmDbChunk.header.chunkIdentifier.chunkType = SQTT_FILE_CHUNK_TYPE_DF_SPM_DB;
+            dfSpmDbChunk.header.sizeInBytes               = static_cast<int32>(sizeof(SqttFileChunkDfSpmDb) + dfSpmDataSize);
+            dfSpmDbChunk.numTimestamps                    = static_cast<uint32>(numDfSpmSamples);
+            dfSpmDbChunk.numDfSpmCounterInfo              = pTraceSample->GetNumDfSpmCounters();
+            dfSpmDbChunk.samplingInterval                 = pTraceSample->GetDfSpmSampleInterval();
+
+            dfSpmDbChunk.header.majorVersion = RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_DF_SPM_DB].majorVersion;
+            dfSpmDbChunk.header.minorVersion = RgpChunkVersionNumberLookup[SQTT_FILE_CHUNK_TYPE_DF_SPM_DB].minorVersion;
+
+            memcpy(Util::VoidPtrInc(pRgpOutput, static_cast<size_t>(*pCurFileOffset)), &dfSpmDbChunk, sizeof(dfSpmDbChunk));
+
+            size_t curWriteOffset = static_cast<size_t>(*pCurFileOffset + sizeof(SqttFileChunkSpmDb));
+
+            result = pTraceSample->GetDfSpmTraceResults(Util::VoidPtrInc(pRgpOutput, curWriteOffset),
+                                                        (bufferSize - curWriteOffset));
+        }
+    }
+
+    (*pCurFileOffset) += (sizeof(SqttFileChunkSpmDb) + dfSpmDataSize);
 
     return result;
 }

@@ -9100,7 +9100,11 @@ void UniversalCmdBuffer::ExecuteIndirectShader(
     const bool isTaskEnabled = ((gfx9Generator.Type() == GeneratorType::DispatchMesh) &&
                                 pGfxPipeline->HasTaskShader());
 
-    const bool cmdGenUseAce = (m_cachedSettings.supportsAceOffload && (isTaskEnabled == false));
+    const bool cmdGenUseAce = (m_cachedSettings.supportsAceOffload &&
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 691
+                              (m_device.Parent()->GetPublicSettings()->disableExecuteIndirectAceOffload != true) &&
+#endif
+                              (isTaskEnabled == false));
 
     if ((deChunks.Capacity() < maximumCount) || (isTaskEnabled && (aceChunks.Capacity() < maximumCount)))
     {

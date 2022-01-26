@@ -287,6 +287,7 @@ typedef struct _amdgpu_shared_metadata_info
     uint32_t            htile_lookup_table_offset;
     uint32_t            resource_id;  ///< This id is a unique name for the cross-process shared memory used to pass extra
                                       ///< information. Currently it's composed by the image object pointer and process id.
+    AMDGPU_SWIZZLE_MODE fmaskSwizzleMode;
 } amdgpu_shared_metadata_info;
 
 typedef struct _amdgpu_bo_umd_metadata

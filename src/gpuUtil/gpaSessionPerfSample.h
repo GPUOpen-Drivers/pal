@@ -81,8 +81,8 @@ public:
     void SetSampleMemoryProperties(const GpuMemoryInfo& pGpuMemory, Pal::gpusize offset, Pal::gpusize buffersize);
 
     GpuMemoryInfo    GetSampleDataGpuMem()     { return m_sampleDataGpuMemoryInfo; }
-    Pal::gpusize     GetSampleDataOffset()     { return m_sampleDataOffset; }
-    Pal::gpusize     GetSampleDataSize()       { return m_pSampleDataBufferSize; }
+    Pal::gpusize     GetGcSampleDataOffset()   { return m_gcSampleDataOffset; }
+    Pal::gpusize     GetGcSampleDataSize()     { return m_pGcSampleDataBufferSize; }
     void*            GetPerfExpResults()       { return m_pPerfExpResults; }
     Pal::IGpuMemory* GetCopySampleDataGpuMem() { return m_pCopySampleGpuMem; }
     Pal::gpusize     GetCopySampleDataOffset() { return m_copySampleOffset; }
@@ -104,11 +104,11 @@ protected:
 
     Pal::IDevice*         m_pDevice;
     GpaAllocator*         m_pAllocator;
-    Pal::IPerfExperiment* m_pPerfExperiment;         // The PerfExperiment this PerfSample configures.
-    GpuMemoryInfo         m_sampleDataGpuMemoryInfo; // Destination of sample results, read as m_pPerfExpResults by CPU.
-    Pal::gpusize          m_sampleDataOffset;        // Offset of the sample results in gpu memory.
-    Pal::gpusize          m_pSampleDataBufferSize;   // Size of the sample data gpu memory.
-    void*                 m_pPerfExpResults;         // Sample data gpu memory mapped to be CPU-readable.
+    Pal::IPerfExperiment* m_pPerfExperiment;           // The PerfExperiment this PerfSample configures.
+    GpuMemoryInfo         m_sampleDataGpuMemoryInfo;   // Destination of sample results, read as m_pPerfExpResults by CPU.
+    Pal::gpusize          m_gcSampleDataOffset;        // Offset of the graphics core (GC) sample results in gpu memory.
+    Pal::gpusize          m_pGcSampleDataBufferSize;   // Size of the graphics core (GC) sample data gpu memory.
+    void*                 m_pPerfExpResults;           // Sample data gpu memory mapped to be CPU-readable.
     SampleTraceApiInfo    m_traceApiInfo;
 
     // The sample data GPU memory location and offset are stored here. On request, a copy is initiated from this
@@ -167,10 +167,17 @@ public:
         m_spmRingSize(0),
         m_spmSampleInterval(0),
         m_pSpmTraceLayout(nullptr),
-        m_numSpmSamples(-1)
+        m_numSpmSamples(-1),
+        m_numDfSpmCounters(0),
+        m_dfSpmSampleInterval(0),
+        m_numDfSpmSamples(-1),
+        m_pDfSpmEventQualifiers(nullptr),
+        m_pDfSpmEventIds(nullptr),
+        m_pDfSpmInstances(nullptr),
+        m_pDfSpmGpuBlocks(nullptr)
     {
         m_traceGpuMemoryInfo = {};
-        m_flags.u32All = 0;
+        m_flags.u32All       = 0;
     }
 
     virtual ~TraceSample();
@@ -178,26 +185,35 @@ public:
     // Initializes this TraceSample by setting thread trace layout.
     Pal::Result InitThreadTrace();
     Pal::Result InitSpmTrace(const GpaSampleConfig& sampleconfig);
+    Pal::Result InitDfSpmTrace(const GpaSampleConfig& sampleConfig);
 
-    Pal::ThreadTraceLayout* GetThreadTraceLayout() const { return m_pThreadTraceLayout; }
-    Pal::gpusize            GetTraceBufferSize() const { return m_traceMemorySize; }
-    Pal::SpmTraceLayout*    GetSpmTraceLayout() const { return m_pSpmTraceLayout; }
-    Pal::uint32             GetNumSpmCounters() const { return m_numSpmCounters; }
+    Pal::ThreadTraceLayout* GetThreadTraceLayout()   const { return m_pThreadTraceLayout; }
+    Pal::gpusize            GetTraceBufferSize()     const { return m_traceMemorySize; }
+    Pal::SpmTraceLayout*    GetSpmTraceLayout()      const { return m_pSpmTraceLayout; }
+    Pal::uint32             GetNumSpmCounters()      const { return m_numSpmCounters; }
+    Pal::uint32             GetNumDfSpmCounters()    const { return m_numDfSpmCounters; }
+    Pal::uint32             GetSpmSampleInterval()   const { return m_spmSampleInterval; }
+    Pal::uint32             GetDfSpmSampleInterval() const { return m_dfSpmSampleInterval; }
+
     Pal::Result             GetSpmTraceResults(void* pDstBuffer, size_t bufferSize);
+    Pal::Result             GetDfSpmTraceResults(void* pDstBuffer, size_t bufferSize);
     void                    GetSpmResultsSize(Pal::gpusize* pSizeInBytes, Pal::gpusize* pNumSamples);
-    Pal::uint32             GetSpmSampleInterval() const { return m_spmSampleInterval; }
+    void                    GetDfSpmResultsSize(Pal::gpusize* pSizeInBytes, Pal::gpusize* pNumSamples);
 
     Pal::Result SetThreadTraceLayout(Pal::ThreadTraceLayout* pLayout);
     void SetTraceMemory(const GpuMemoryInfo& gpuMemoryInfo, Pal::gpusize offset, Pal::gpusize size);
     void WriteCopyTraceData(Pal::ICmdBuffer* pCmdBuffer);
+    void WriteCopyDfSpmTraceData(Pal::ICmdBuffer* pCmdBuffer);
 
     bool IsThreadTraceEnabled() const { return m_flags.threadTraceEnabled; }
     bool IsSpmTraceEnabled() const { return m_flags.spmTraceEnabled; }
+    bool IsDfSpmTraceEnabled() const { return m_flags.dfSpmTraceEnabled; }
 
 private:
     static const Pal::uint32 MaxNumCountersPerBitline = 16;
 
     Pal::uint32 CountNumSamples(void* pBufferStart);
+    Pal::uint32 CountNumDfSamples(void* pBufferStart);
 
     // Common trace specific memory properties.
     GpuMemoryInfo m_traceGpuMemoryInfo; // CPU invisible memory used as thread trace buffer.
@@ -210,7 +226,8 @@ private:
         {
             Pal::uint32 threadTraceEnabled : 1;
             Pal::uint32 spmTraceEnabled    : 1;
-            Pal::uint32 reserved           : 30;
+            Pal::uint32 dfSpmTraceEnabled  : 1;
+            Pal::uint32 reserved           : 29;
         };
         Pal::uint32 u32All;
     } m_flags;
@@ -224,6 +241,14 @@ private:
     Pal::uint32          m_spmSampleInterval;   // Sample interval of this spm trace.
     Pal::SpmTraceLayout* m_pSpmTraceLayout;     // Layout describing the results of the spm trace.
     Pal::int32           m_numSpmSamples;       // Number of samples of data written by HW.
+
+    Pal::uint32            m_numDfSpmCounters;
+    Pal::uint32            m_dfSpmSampleInterval;
+    Pal::int32             m_numDfSpmSamples;
+    Pal::uint32*           m_pDfSpmEventQualifiers;
+    Pal::uint32*           m_pDfSpmEventIds;
+    Pal::uint32*           m_pDfSpmInstances;
+    SpmGpuBlock*           m_pDfSpmGpuBlocks;
 };
 
 // =====================================================================================================================

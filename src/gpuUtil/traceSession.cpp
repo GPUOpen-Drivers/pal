@@ -25,7 +25,7 @@
 #if PAL_BUILD_RDF
 #include "palTraceSession.h"
 #include "palHashSetImpl.h"
-#include "core/imported/rdf/rdf/inc/IO.h"
+#include "core/imported/rdf/rdf/inc/amdrdf.h"
 
 using namespace Pal;
 

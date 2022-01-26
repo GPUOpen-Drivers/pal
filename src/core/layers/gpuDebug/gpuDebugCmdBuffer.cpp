@@ -4548,6 +4548,30 @@ void CmdBuffer::ReplayCmdInsertRgpTraceMarker(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdCopyDfSpmTraceData(
+    const IPerfExperiment& perfExperiment,
+    const IGpuMemory&      dstGpuMemory,
+    gpusize                dstOffset)
+{
+    InsertToken(CmdBufCallId::CmdCopyDfSpmTraceData);
+    InsertToken(&perfExperiment);
+    InsertToken(&dstGpuMemory);
+    InsertToken(dstOffset);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdCopyDfSpmTraceData(
+    Queue* pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    const IPerfExperiment& perfExperiment  = *ReadTokenVal<IPerfExperiment*>();
+    const IGpuMemory&      dstGpuMemory    = *ReadTokenVal<IGpuMemory*>();
+    gpusize                dstOffset       = ReadTokenVal<gpusize>();
+
+    pTgtCmdBuffer->CmdCopyDfSpmTraceData(perfExperiment, dstGpuMemory, dstOffset);
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdSaveComputeState(
     uint32 stateFlags)
 {
@@ -4865,6 +4889,7 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdEndPerfExperiment,
         &CmdBuffer::ReplayCmdInsertTraceMarker,
         &CmdBuffer::ReplayCmdInsertRgpTraceMarker,
+        &CmdBuffer::ReplayCmdCopyDfSpmTraceData,
         &CmdBuffer::ReplayCmdSaveComputeState,
         &CmdBuffer::ReplayCmdRestoreComputeState,
         &CmdBuffer::ReplayCmdSetUserClipPlanes,

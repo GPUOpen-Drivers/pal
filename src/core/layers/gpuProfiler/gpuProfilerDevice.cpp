@@ -69,7 +69,9 @@ Device::Device(
     m_pGlobalPerfCounters(nullptr),
     m_numGlobalPerfCounters(0),
     m_pStreamingPerfCounters(nullptr),
-    m_numStreamingPerfCounters(0)
+    m_numStreamingPerfCounters(0),
+    m_pDfStreamingPerfCounters(nullptr),
+    m_numDfStreamingPerfCounters(0)
 {
     memset(m_queueIds, 0, sizeof(m_queueIds));
 
@@ -686,12 +688,17 @@ Result Device::ExtractPerfCounterInfo(
     File*                           pConfigFile,
     bool                            isSpmConfig,
     uint32                          numPerfCounter,
-    PerfCounter*                    pPerfCounters)
+    PerfCounter*                    pPerfCounters,
+    uint32                          numDfPerfCounter,
+    PerfCounter*                    pDfPerfCounters)
 {
     Result result = Result::Success;
-    uint32 counterIdx = 0;
+    uint32 counterIdx   = 0;
+    uint32 dfCounterIdx = 0;
+    uint32*      pIndexPointer   = nullptr;
+    PerfCounter* pCounterPointer = nullptr;
     uint32 lineNum = 1;
-    while ((counterIdx < numPerfCounter) && (result == Result::Success))
+    while (((counterIdx + dfCounterIdx) < (numPerfCounter + numDfPerfCounter)) && (result == Result::Success))
     {
         constexpr size_t BufSize = 512;
         char buf[BufSize];
@@ -769,6 +776,18 @@ Result Device::ExtractPerfCounterInfo(
                         }
                     }
 
+                    // If we have a DF trace, then use the DF index and counter list
+                    if ((block == GpuBlock::DfMall) && isSpmConfig)
+                    {
+                        pIndexPointer   = &dfCounterIdx;
+                        pCounterPointer = pDfPerfCounters;
+                    }
+                    else
+                    {
+                        pIndexPointer   = &counterIdx;
+                        pCounterPointer = pPerfCounters;
+                    }
+
                     if (result == Result::Success)
                     {
                         // Handle instanceName(EACH, ALL, MAX, EVEN, ODD, MASK:<mask>, or number)
@@ -786,8 +805,8 @@ Result Device::ExtractPerfCounterInfo(
                                                    0, // instanceMask: unused
                                                    hasOptionalData,
                                                    optionalData,
-                                                   &pPerfCounters[counterIdx]);
-                                counterIdx++;
+                                                   &pCounterPointer[*pIndexPointer]);
+                                (*pIndexPointer)++;
                             }
                         }
                         else if (strcmp(instanceName,  "ALL")  == 0  ||
@@ -838,13 +857,13 @@ Result Device::ExtractPerfCounterInfo(
                                                instanceMask,
                                                hasOptionalData,
                                                optionalData,
-                                               &pPerfCounters[counterIdx]);
-                            if (pPerfCounters[counterIdx].instanceCount == 0)
+                                               &pCounterPointer[*pIndexPointer]);
+                            if (pCounterPointer[*pIndexPointer].instanceCount == 0)
                             {
                                 PAL_DPERROR("Bad perfcounter config (%d): Block %s not available.", lineNum, blockName);
                                 result = Result::ErrorInitializationFailed;
                             }
-                            counterIdx++;
+                            (*pIndexPointer)++;
                         }
                         else
                         {
@@ -860,8 +879,8 @@ Result Device::ExtractPerfCounterInfo(
                                                    0, // instanceMask: unused
                                                    hasOptionalData,
                                                    optionalData,
-                                                   &pPerfCounters[counterIdx]);
-                                counterIdx++;
+                                                   &pCounterPointer[*pIndexPointer]);
+                                (*pIndexPointer)++;
                             }
                             else
                             {
@@ -974,7 +993,7 @@ Result Device::InitGlobalPerfCounterState()
 
     if (result == Result::Success)
     {
-        result = CountPerfCounters(&configFile, perfExpProps, &m_numGlobalPerfCounters);
+        result = CountPerfCounters(&configFile, perfExpProps, &m_numGlobalPerfCounters, nullptr);
 
         if ((result == Result::Success) && (m_numGlobalPerfCounters > 0))
         {
@@ -988,7 +1007,9 @@ Result Device::InitGlobalPerfCounterState()
                                             &configFile,
                                             false,
                                             m_numGlobalPerfCounters,
-                                            m_pGlobalPerfCounters);
+                                            m_pGlobalPerfCounters,
+                                            0,
+                                            nullptr);
         }
     }
 
@@ -1001,7 +1022,8 @@ Result Device::InitGlobalPerfCounterState()
 Result Device::CountPerfCounters(
     File*                           pFile,
     const PerfExperimentProperties& perfExpProps,
-    uint32*                         pNumPerfCounters)
+    uint32*                         pNumPerfCounters,
+    uint32*                         pNumDfPerfCounters)
 {
     Result result = Result::Success;
     constexpr size_t BufSize = 512;
@@ -1053,13 +1075,27 @@ Result Device::CountPerfCounters(
 
                 if ((block != GpuBlock::Count) && perfExpProps.blocks[blockIdx].available)
                 {
-                    if (strcmp(instanceName, "EACH") == 0)
+                    if ((block == GpuBlock::DfMall) && (pNumDfPerfCounters != nullptr))
                     {
-                        *pNumPerfCounters += perfExpProps.blocks[blockIdx].instanceCount;
+                        if (strcmp(instanceName, "EACH") == 0)
+                        {
+                            *pNumDfPerfCounters += perfExpProps.blocks[blockIdx].instanceCount;
+                        }
+                        else
+                        {
+                            *pNumDfPerfCounters += 1;
+                        }
                     }
                     else
                     {
-                        *pNumPerfCounters += 1;
+                        if (strcmp(instanceName, "EACH") == 0)
+                        {
+                            *pNumPerfCounters += perfExpProps.blocks[blockIdx].instanceCount;
+                        }
+                        else
+                        {
+                            *pNumPerfCounters += 1;
+                        }
                     }
                 }
                 else
@@ -1089,7 +1125,12 @@ Result Device::InitSpmTraceCounterState()
 {
     Result result = Result::Success;
 
-    File configFile;
+    File         configFile;
+    uint32       numCounters     = 0;
+    uint32       numDfCounters   = 0;
+    PerfCounter* pDfPerfCounters = nullptr;
+    PerfCounter* pPerfCounters   = nullptr;
+
     result = configFile.Open(GetPlatform()->PlatformSettings().gpuProfilerSpmConfig.spmPerfCounterConfigFile,
                              FileAccessRead);
 
@@ -1101,26 +1142,48 @@ Result Device::InitSpmTraceCounterState()
 
     if (result == Result::Success)
     {
-        result = CountPerfCounters(&configFile, perfExpProps, &m_numStreamingPerfCounters);
+        result = CountPerfCounters(&configFile, perfExpProps, &numCounters, &numDfCounters);
 
-        if ((result == Result::Success) && (m_numStreamingPerfCounters > 0))
+        if ((result == Result::Success) && (numCounters > 0))
         {
-            m_pStreamingPerfCounters =
-                PAL_NEW_ARRAY(GpuProfiler::PerfCounter, m_numStreamingPerfCounters, GetPlatform(), AllocInternal);
+            pPerfCounters =
+                PAL_NEW_ARRAY(GpuProfiler::PerfCounter, numCounters, GetPlatform(), AllocInternal);
         }
 
-        if ((result == Result::Success) && (m_pStreamingPerfCounters != nullptr))
+        if ((result == Result::Success) && (numDfCounters > 0))
+        {
+            pDfPerfCounters =
+                PAL_NEW_ARRAY(GpuProfiler::PerfCounter, numDfCounters, GetPlatform(), AllocInternal);
+        }
+
+        if ((result == Result::Success)                        &&
+            (((numCounters > 0) && (pPerfCounters != nullptr)) ||
+             ((numDfCounters > 0) && (pDfPerfCounters != nullptr))))
         {
             result = ExtractPerfCounterInfo(perfExpProps,
                                             &configFile,
                                             true,
-                                            m_numStreamingPerfCounters,
-                                            m_pStreamingPerfCounters);
+                                            numCounters,
+                                            pPerfCounters,
+                                            numDfCounters,
+                                            pDfPerfCounters);
         }
     }
 
-    return result;
+    m_numDfStreamingPerfCounters = numDfCounters;
+    m_pDfStreamingPerfCounters   = pDfPerfCounters;
+    m_numStreamingPerfCounters   = numCounters;
+    m_pStreamingPerfCounters     = pPerfCounters;
 
+    // Draw granularity is not supported with DF SPM becaue the enable/disable
+    // flag is submitted per command buffer.
+    if ((m_numDfStreamingPerfCounters > 0) &&
+        LoggingEnabled(GpuProfilerGranularityDraw))
+    {
+        result = Result::ErrorInitializationFailed;
+    }
+
+    return result;
 }
 
 // =====================================================================================================================

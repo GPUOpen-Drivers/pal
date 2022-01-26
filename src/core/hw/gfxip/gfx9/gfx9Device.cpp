@@ -1893,12 +1893,13 @@ void Device::PatchPipelineInternalSrdTable(
 {
     // See Pipeline::PerformRelocationsAndUploadToGpuMemory() for more information.
 
-    auto*const pSrcSrd = static_cast<const BufferSrd*>(pSrcSrdTable);
     auto*const pDstSrd = static_cast<BufferSrd*>(pDstSrdTable);
 
     for (uint32 i = 0; i < (tableBytes / sizeof(BufferSrd)); ++i)
     {
-        BufferSrd srd = pSrcSrd[i];
+        // pSrcSrdTable may be unaligned, so do unaligned memcpy's rather than direct (aligned) pointer accesses.
+        BufferSrd srd;
+        memcpy(&srd, VoidPtrInc(pSrcSrdTable, (i * sizeof(BufferSrd))), sizeof(BufferSrd));
 
         const gpusize patchedGpuVa = (GetBaseAddress(&srd) + dataGpuVirtAddr);
         SetBaseAddress(&srd, patchedGpuVa);
@@ -5279,6 +5280,11 @@ void InitializePerfExperimentProperties(
             pBlock->maxEventId                = blockInfo.maxEventId;
             pBlock->maxGlobalOnlyCounters     = blockInfo.numGlobalOnlyCounters;
             pBlock->maxSpmCounters            = blockInfo.num16BitSpmCounters;
+            if (blockIdx == static_cast<uint32>(GpuBlock::DfMall))
+            {
+                // For DF SPM, the max number of counters is equal to the number of global counters
+                pBlock->maxSpmCounters = blockInfo.numGlobalOnlyCounters;
+            }
 
             // Note that the current interface says the shared count includes all global counters. This seems
             // to be contradictory, how can something be shared and global-only? Regardless, we cannot change this
@@ -5361,7 +5367,8 @@ void InitializeGpuEngineProperties(
     pCompute->minTimestampAlignment                 = 8; // The CP spec requires 8-byte alignment.
     pCompute->queueSupport                          = SupportQueueTypeCompute;
 
-    if (IsGfx10Plus(gfxIpLevel))
+    if (IsGfx10Plus(gfxIpLevel)
+    )
     {
         // SDMA engine is part of GFXIP for GFX10+, so set that up here
         auto*const pDma = &pInfo->perEngine[EngineTypeDma];

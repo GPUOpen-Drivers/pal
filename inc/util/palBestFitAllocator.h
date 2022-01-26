@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include "pal.h"
+#include "palUtil.h"
 #include "palList.h"
 
 namespace Util
@@ -60,9 +60,9 @@ public:
     /// @param [in]  minAllocSize   The size of the smallest block this allocator can allocate.
     ///                             Must be a power of two.
     BestFitAllocator(
-        Allocator*   pAllocator,
-        Pal::gpusize baseAllocSize,
-        Pal::gpusize minAllocSize);
+        Allocator* pAllocator,
+        gpusize    baseAllocSize,
+        gpusize    minAllocSize);
     ~BestFitAllocator();
 
     /// Initializes the allocator.
@@ -80,9 +80,9 @@ public:
     ///          fulfill the request, or @ref ErrorOutOfGpuMemory if there isn't a large enough block free in the
     ///          base allocation to fulfill the request.
     Result Allocate(
-        Pal::gpusize  size,
-        Pal::gpusize  alignment,
-        Pal::gpusize* pOffset);
+        gpusize  size,
+        gpusize  alignment,
+        gpusize* pOffset);
 
     /// Frees a previously allocated suballocation.
     ///
@@ -90,31 +90,31 @@ public:
     /// @param [in]  size           Optional parameter specifying the size of the original allocation.
     /// @param [in]  alignment      Optional parameter specifying the alignment of the original allocation.
     void Free(
-        Pal::gpusize offset,
-        Pal::gpusize size = 0,
-        Pal::gpusize alignment = 0);
+        gpusize offset,
+        gpusize size = 0,
+        gpusize alignment = 0);
 
     /// Tells whether the base allocation is completely free. If the returned value is true then the caller is safe
     /// to deallocate the base allocation.
     bool IsEmpty() const;
 
     /// Returns the size of the largest allocation that can be suballocated with this allocator.
-    Pal::gpusize MaximumAllocationSize() const;
+    gpusize MaximumAllocationSize() const;
 
 private:
     struct Block
     {
-        Pal::gpusize offset; // Offset in bytes from the base allocation address where this block begins
-        Pal::gpusize size;   // Size in bytes of the sub allocation
-        bool         isBusy; // Indicates the in-use status of the block
+        gpusize offset; // Offset in bytes from the base allocation address where this block begins
+        gpusize size;   // Size in bytes of the sub allocation
+        bool    isBusy; // Indicates the in-use status of the block
     };
     typedef Util::List<Block, Allocator> BlockList;
 
-    Allocator* const   m_pAllocator;
-    Pal::gpusize const m_totalBytes;
-    Pal::gpusize const m_minBlockSize;
-    Pal::gpusize       m_freeBytes;
-    BlockList          m_blockList;
+    Allocator* const m_pAllocator;
+    gpusize    const m_totalBytes;
+    gpusize    const m_minBlockSize;
+    gpusize          m_freeBytes;
+    BlockList        m_blockList;
 
     void SanityCheck();
 

@@ -78,6 +78,13 @@ static uint32* WriteCommonPreamble(
             ((chipProps.gfx9.numShaderEngines >= 4) ? computeStaticThreadMgmtPerSe.u32All : 0),
         };
 
+        // We are using index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask instead of
+        // index__mec_set_sh_reg_index__apply_kmd_cu_and_mask since both packets are essentially similar. Just double
+        // checking that the enums use the same values.
+        static_assert(static_cast<uint32>(index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask) ==
+                      static_cast<uint32>(index__mec_set_sh_reg_index__apply_kmd_cu_and_mask),
+                      "pfp and mec index enums not the same!");
+
         pCmdSpace = pCmdStream->WriteSetSeqShRegsIndex(mmCOMPUTE_STATIC_THREAD_MGMT_SE0,
                                                        mmCOMPUTE_STATIC_THREAD_MGMT_SE1,
                                                        ShaderCompute,

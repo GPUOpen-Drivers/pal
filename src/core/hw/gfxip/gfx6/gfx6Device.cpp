@@ -1821,12 +1821,13 @@ void Device::PatchPipelineInternalSrdTable(
 {
     // See Pipeline::PerformRelocationsAndUploadToGpuMemory() for more information.
 
-    auto*const pSrcSrd = static_cast<const BufferSrd*>(pSrcSrdTable);
     auto*const pDstSrd = static_cast<BufferSrd*>(pDstSrdTable);
 
     for (uint32 i = 0; i < (tableBytes / sizeof(BufferSrd)); ++i)
     {
-        BufferSrd srd = pSrcSrd[i];
+        // pSrcSrdTable may be unaligned, so do unaligned memcpy's rather than direct (aligned) pointer accesses.
+        BufferSrd srd;
+        memcpy(&srd, VoidPtrInc(pSrcSrdTable, (i * sizeof(BufferSrd))), sizeof(BufferSrd));
 
         const gpusize patchedGpuVa =
             ((static_cast<gpusize>(srd.word1.bits.BASE_ADDRESS_HI) << 32) | srd.word0.bits.BASE_ADDRESS) +

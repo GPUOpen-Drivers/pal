@@ -41,9 +41,47 @@ namespace Util
 
 // Forward declarations.
 template<typename T, typename Allocator> class StringBag;
+template<typename T, typename Allocator> class StringBagIterator;
 
-// Type aliases.
-using StringBagHandle = uint32;
+/**
+***********************************************************************************************************************
+* @brief  Handle to a string in a @ref StringBag.
+***********************************************************************************************************************
+*/
+template<typename T>
+class StringBagHandle
+{
+public:
+    constexpr StringBagHandle()
+        :
+        m_value(0)
+    {}
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    template<typename Allocator>
+    constexpr StringBagHandle(const StringBag<T, Allocator>& stringBag, uint32 v)
+        :
+        m_value(v),
+        m_ppStringBagData{&(stringBag.m_pData)}
+    {}
+#else
+    constexpr explicit StringBagHandle(uint32 v)
+        :
+        m_value(v)
+    {}
+#endif
+
+    constexpr uint32 InternalValue() const { return m_value; }
+
+    constexpr bool operator==(StringBagHandle rhs) const { return m_value == rhs.m_value; }
+    constexpr bool operator!=(StringBagHandle rhs) const { return (m_value == rhs.m_value) == false; }
+
+private:
+    uint32             m_value;
+#if PAL_ENABLE_PRINTS_ASSERTS
+    const T* const*    m_ppStringBagData{};
+#endif
+};
 
 /**
 ***********************************************************************************************************************
@@ -56,8 +94,6 @@ template<typename T, typename Allocator>
 class StringBagIterator
 {
 public:
-    ~StringBagIterator() {}
-
     /// Checks if the current index is within bounds of the strings in the bag.
     ///
     /// @returns True if the current string this iterator is pointing to is within the permitted range.
@@ -79,10 +115,10 @@ public:
     /// @warning This may cause an access violation if the iterator is not valid.
     ///
     /// @returns A handle for the string the iterator is currently pointing to.
-    StringBagHandle GetHandle() const
+    StringBagHandle<T> GetHandle() const
     {
         PAL_ASSERT(IsValid());
-        return Position();
+        return m_pSrcBag->GetHandleAt(Position());
     }
 
     /// Advances the iterator to the next string.  Iterating to the next string in the container is an O(N) operation,
@@ -105,12 +141,12 @@ public:
     uint32 Position() const { return m_currIndex; }
 
 private:
+    StringBagIterator() = delete;
+
     StringBagIterator(uint32 index, const StringBag<T, Allocator>* pSrcBag);
 
     uint32                          m_currIndex; // The current index of the bag iterator.
     const StringBag<T, Allocator>*  m_pSrcBag;   // The bag container this iterator is used for.
-
-    StringBagIterator() = delete; // Default constructor.
 
     // Although this is a transgression of coding standards, it means that StringBag does not need to have a public
     // interface specifically to implement this class. The added encapsulation this provides is worthwhile.
@@ -138,7 +174,8 @@ class StringBag
                   "StringBag type T must be either char or wchar_t.");
 public:
     /// A convenient shorthand for StringBagIterator.
-    using Iter = StringBagIterator<T, Allocator>;
+    using Iter   = StringBagIterator<T, Allocator>;
+    using Handle = StringBagHandle<T>;
 
     /// Constructor.
     ///
@@ -191,7 +228,7 @@ public:
     ///
     /// @returns A valid handle to the inserted string if @ref pResult is set to Success. The handle is the
     ///          interger offset to the start of the inserted string in the bag.
-    StringBagHandle PushBack(const T* pString, Result* pResult);
+    StringBagHandle<T> PushBack(const T* pString, Result* pResult);
 
     /// Copy a string to end of the bag. If there is not enough space available, new space will be allocated
     /// and the old strings will be copied to the new space.
@@ -216,7 +253,7 @@ public:
     ///
     /// @returns A valid handle to the inserted string if @ref pResult is set to Success. The handle is the
     ///          interger offset to the start of the inserted string in the bag.
-    StringBagHandle PushBack(const T* pString, uint32 length, Result* pResult);
+    StringBagHandle<T> PushBack(const T* pString, uint32 length, Result* pResult);
 
     /// Resets the bag. All dynamically allocated memory will be saved for reuse.
     ///
@@ -224,7 +261,6 @@ public:
     void Clear()
     {
         m_currOffset = 0;
-        m_prevOffset = 0;
     }
 
     /// Returns the string specified by @ref handle.
@@ -240,32 +276,10 @@ public:
     ///                             - @ref StringBagIterator::GetHandle()
     ///
     /// @returns A const pointer to the string at the location specified by @ref handle.
-    const T* At(StringBagHandle handle) const
+    const T* At(StringBagHandle<T> handle) const
     {
-        PAL_ASSERT(handle < m_currOffset);
-        return (m_pData + handle);
-    }
-
-    /// Returns the string at the back of the bag.
-    ///
-    /// @warning Calling this function on an empty bag will cause an access violation!
-    ///
-    /// @returns A const pointer to the string at the back of the bag.
-    const T* Back() const
-    {
-        PAL_ASSERT(IsEmpty() == false);
-        return (m_pData + m_prevOffset);
-    }
-
-    /// Returns a handle to the string at the back of the bag.
-    ///
-    /// @warning Calling this function on an empty bag will cause an access violation!
-    ///
-    /// @returns A handle to the string at the back of the bag.
-    StringBagHandle BackHandle() const
-    {
-        PAL_ASSERT(IsEmpty() == false);
-        return m_prevOffset;
+        PAL_ASSERT(handle.InternalValue() < NumChars());
+        return (m_pData + handle.InternalValue());
     }
 
     /// Returns an iterator to the first string in the bag.
@@ -304,25 +318,37 @@ public:
     Allocator* GetAllocator() const { return m_pAllocator; }
 
 private:
+    StringBagHandle<T> GetHandleAt(uint32 offset) const
+    {
+#if PAL_ENABLE_PRINTS_ASSERTS
+        return Handle{*this, offset};
+#else
+        return Handle{offset};
+#endif
+    }
+
     Result ReserveInternal(uint32 newCapacity);
-    Result PushBackInternal(const T* pString, uint32 length);
+    Result PushBackInternal(const T* pString, uint32 length, Handle* pHandle);
 
     T*               m_pData;        // Pointer to the string buffer.
     uint32           m_currOffset;   // Current character offset into the string buffer.
-    StringBagHandle  m_prevOffset;   // Previous character offset into the string buffer.
     uint32           m_maxCapacity;  // Maximum size it can hold.
     Allocator*const  m_pAllocator;   // Allocator for this StringBag.
 
-    StringBag()                            = delete; // Default constructor.
-    StringBag(StringBag const &)           = delete; // Copy construtor.
-    StringBag& operator=(const StringBag&) = delete; // Copy assignment operator.
-    StringBag(StringBag&& bag)             = delete; // Move constructor.
-    StringBag& operator=(StringBag&& bag)  = delete; // Move assignment operator.
+    StringBag()                            = delete;
+    StringBag(StringBag const&)            = delete;
+    StringBag& operator=(const StringBag&) = delete;
+    StringBag(StringBag&&)                 = delete;
+    StringBag& operator=(StringBag&&)      = delete;
 
-    // Although this is a transgression of coding standards, it prevents StringBagIterator requiring a public constructor;
-    // constructing a 'bare' StringBagIterator (i.e. without calling StringBag::GetIterator) can never be a legal operation,
-    // so this means that these two classes are much safer to use.
+    // Although this is a transgression of coding standards, it prevents StringBagIterator requiring a public
+    // constructor; constructing a default StringBagIterator (i.e. without calling StringBag::GetIterator) can never be
+    // a legal operation, so this means that these two classes are much safer to use.
     friend class StringBagIterator<T, Allocator>;
+#if PAL_ENABLE_PRINTS_ASSERTS
+    // Although this is a transgression of coding standards, it allows StringBagHandle to access &StringBag::m_pData.
+    friend class StringBagHandle<T>;
+#endif
 };
 
 // =====================================================================================================================
@@ -342,7 +368,6 @@ StringBag<T, Allocator>::StringBag(
     :
     m_pData(nullptr),
     m_currOffset(0),
-    m_prevOffset(0),
     m_maxCapacity(0),
     m_pAllocator(pAllocator)
 {}
@@ -351,12 +376,7 @@ StringBag<T, Allocator>::StringBag(
 template<typename T, typename Allocator>
 StringBag<T, Allocator>::~StringBag()
 {
-    // Check if we have dynamically allocated memory.
-    if (m_pData != nullptr)
-    {
-        // Free the memory that was allocated dynamically.
-        PAL_FREE(m_pData, m_pAllocator);
-    }
+    PAL_FREE(m_pData, m_pAllocator);
 }
 
 } // Util

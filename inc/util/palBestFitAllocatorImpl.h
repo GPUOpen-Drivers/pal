@@ -41,9 +41,9 @@ namespace Util
 // =====================================================================================================================
 template<typename Allocator>
 BestFitAllocator<Allocator>::BestFitAllocator(
-    Allocator*   pAllocator,
-    Pal::gpusize baseAllocSize,
-    Pal::gpusize minAllocSize)
+    Allocator* pAllocator,
+    gpusize    baseAllocSize,
+    gpusize    minAllocSize)
     :
     m_pAllocator(pAllocator),
     m_totalBytes(baseAllocSize),
@@ -95,9 +95,9 @@ Result BestFitAllocator<Allocator>::Init()
 // appropriate error is returned.
 template<typename Allocator>
 Result BestFitAllocator<Allocator>::Allocate(
-    Pal::gpusize  size,
-    Pal::gpusize  alignment,
-    Pal::gpusize* pOffset)
+    gpusize  size,
+    gpusize  alignment,
+    gpusize* pOffset)
 {
     PAL_ASSERT(m_blockList.NumElements() > 0);
 
@@ -164,9 +164,9 @@ Result BestFitAllocator<Allocator>::Allocate(
 // Frees a suballocated block making it available for future re-use.
 template<typename Allocator>
 void BestFitAllocator<Allocator>::Free(
-    Pal::gpusize offset,
-    Pal::gpusize size,
-    Pal::gpusize alignment)
+    gpusize offset,
+    gpusize size,
+    gpusize alignment)
 {
     PAL_ASSERT(m_blockList.NumElements() > 0);
 
@@ -225,7 +225,7 @@ bool BestFitAllocator<Allocator>::IsEmpty() const
 // =====================================================================================================================
 // Gets maximum allocation size supported by this buddy allocator.
 template<typename Allocator>
-Pal::gpusize BestFitAllocator<Allocator>::MaximumAllocationSize() const
+gpusize BestFitAllocator<Allocator>::MaximumAllocationSize() const
 {
     return m_totalBytes;
 }

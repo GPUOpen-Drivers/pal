@@ -1656,9 +1656,10 @@ Result Device::InitQueueInfo()
                 break;
 
             case EngineTypeDma:
-                // GFX10+ parts have the DMA engine in the GFX block, not in the OSS
+                // GFX10+ parts have the DMA engine in the GFX block, not in the OSS, but any DMA engine
+                // will report queue support before this is called.
                 if ((Settings().disableSdmaEngine == false) &&
-                    ((m_chipProperties.ossLevel != OssIpLevel::None) || IsGfx10Plus(m_chipProperties.gfxLevel)))
+                    (TestAnyFlagSet(pEngineInfo->queueSupport, SupportQueueTypeDma)))
                 {
                     if (m_drmProcs.pfnAmdgpuQueryHwIpInfo(m_hDevice, AMDGPU_HW_IP_DMA, 0, &engineInfo) != 0)
                     {
@@ -3711,6 +3712,8 @@ void Device::UpdateMetaData(
             PAL_ASSERT(sharedMetadataInfo.htileOffset == 0);
             pUmdSharedMetadata->flags.htile_as_fmask_xor = 1;
             pUmdSharedMetadata->htile_offset = sharedMetadataInfo.fmaskXor;
+            pUmdSharedMetadata->fmaskSwizzleMode = static_cast<AMDGPU_SWIZZLE_MODE>
+                (sharedMetadataInfo.fmaskSwizzleMode);
         }
         if (sharedMetadataInfo.flags.hasHtileLookupTable)
         {

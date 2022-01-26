@@ -33,11 +33,11 @@ target_include_directories(amdrdf PUBLIC inc)
 
 add_library(rdf ALIAS amdrdf)
 
-set(HEADERS inc/IO.h)
+set(HEADERS inc/amdrdf.h)
 
 target_sources(amdrdf PRIVATE
     ${HEADERS}
-    src/IO.cpp
+    src/amdrdf.cpp
 )
 
 target_link_libraries(amdrdf PRIVATE zstd)

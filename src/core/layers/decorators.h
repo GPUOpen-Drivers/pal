@@ -1929,6 +1929,16 @@ public:
         const void* pData) override
         { m_pNextLayer->CmdInsertRgpTraceMarker(numDwords, pData); }
 
+    virtual void CmdCopyDfSpmTraceData(
+        const IPerfExperiment& perfExperiment,
+        const IGpuMemory&      dstGpuMemory,
+        gpusize                dstOffset) override
+    {
+        m_pNextLayer->CmdCopyDfSpmTraceData(*(NextPerfExperiment(&perfExperiment)),
+                                            *(NextGpuMemory(&dstGpuMemory)),
+                                            dstOffset);
+    }
+
     virtual void CmdLoadCeRam(
         const IGpuMemory& srcGpuMemory,
         gpusize           memOffset,
@@ -2661,6 +2671,10 @@ public:
     virtual Result AddSpmTrace(
         const SpmTraceCreateInfo& spmInfo) override
         { return m_pNextLayer->AddSpmTrace(spmInfo); }
+
+    virtual Result AddDfSpmTrace(
+        const SpmTraceCreateInfo& dfSpmInfo) override
+        { return m_pNextLayer->AddDfSpmTrace(dfSpmInfo); }
 
     virtual Result GetThreadTraceLayout(
         ThreadTraceLayout* pLayout) const override

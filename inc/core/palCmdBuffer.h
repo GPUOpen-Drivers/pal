@@ -1748,6 +1748,8 @@ struct CmdBufInfo
         {
             uint32 isValid            : 1;  ///< Indicate if this CmdBufInfo is valid and should be submitted
             uint32 frameBegin         : 1;  ///< First command buffer after Queue creation or Present.
+            uint32 dfSpmTraceBegin    : 1;  ///< This command buffer begins a DF SPM trace.
+            uint32 dfSpmTraceEnd      : 1;  ///< This command buffer ends a DF SPM trace.
             uint32 frameEnd           : 1;  ///< Last command buffer before Present.
             uint32 p2pCmd             : 1;  ///< Is P2P copy command. See CmdBufInfo comments for details.
             uint32 captureBegin       : 1;  ///< This command buffer begins a Direct Capture frame capture.
@@ -1759,12 +1761,12 @@ struct CmdBufInfo
             uint32 privateFlip        : 1;  ///< Need to flip to a private primary surface for DirectCapture feature
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 698
             uint32 vpBltExecuted      : 1;  ///< This command buffer comtains VP Blt work.
-            uint32 reserved           : 21; ///< Reserved for future usage.
+            uint32 reserved           : 19; ///< Reserved for future usage.
 #else
-            uint32 reserved           : 22;
+            uint32 reserved           : 20;
 #endif
 #else
-            uint32 reserved           : 25; ///< Reserved for future usage.
+            uint32 reserved           : 23; ///< Reserved for future usage.
 #endif
         };
         uint32 u32All;                  ///< Flags packed as uint32.
@@ -2981,8 +2983,8 @@ public:
     /// For compressed images, the compression block size is used as the pixel size.  For compressed images, the image
     /// extents are specified in compression blocks.
     ///
-    /// The source and destination images must to be of the same type (1D, 2D or 3D).  Only single sampled images are
-    /// supported.
+    /// The source and destination images must to be of the same type (1D, 2D or 3D). Both single sampled images and
+    /// MSAA color images are supported. MSAA depth/stencil images are not supported.
     ///
     /// Linear texture filtering is only supported for images with non-integer formats.
     ///
@@ -3690,6 +3692,36 @@ public:
     virtual void CmdInsertRgpTraceMarker(
         uint32      numDwords,
         const void* pData) = 0;
+
+    /// This function is to be used to copy the DF SPM (MALL SPM) data from the output buffers to an accessible buffer.
+    /// The buffer that HW outputs to is allocated with a special KMD flag and therefore cannot be the same as the
+    /// normal IPerfExperiment buffer so we need a special command to get the data.
+    ///
+    /// The bulk of the implementation for this is done by the KMD. They are in charge of starting and stopping the
+    /// trace as well as all of the register programming. When KMD recieves a dfSpmTraceEnd bit from a CmdBufInfo
+    /// flag, they will wait for the command buffer to be completely idle before stopping the trace. Therefore, a
+    /// CmdEndPerfExperiment call does not stop this particular sample, the end of a command buffer with a
+    /// dfSpmTraceEnd does. This means that calling CmdCopyDfSpmTraceData in the same command buffer as
+    /// dfSpmTraceEnd will give you incorrect data. The sample will still be in progress when the copy happens.
+    /// You must call CmdCopyDfSpmTraceData in a separate command buffer after one where the dfSpmTraceEnd bit is
+    /// set.
+    ///
+    /// There is also a metadata buffer that does not need a special KMD flag. It is also stored in a separate buffer
+    /// and is copied along with the output buffer with this command. It contains a uint32 trace size, a uint32 pad,
+    /// a uint64 start trace GPU timestamp and a uint64 stop trace GPU timestamp and is placed at the beginning of the
+    /// dstGpuMemory.
+    ///
+    /// The minimum size of the dstGpuMemory should be the size of the metadata struct plus the size of the DF SPM
+    /// ringSize given to the perf experiment. The SPM data may not fill the entire memory, but the client is
+    /// responsible for parsing the data.
+    ///
+    /// @param [in] perfExperiment  The perfExperiment that we will be copying the data from
+    /// @param [in] dstGpuMemory    The memory location that the DF SPM trace data will be copied to.
+    /// @param [in] dstOffset       The offset into the destination memory that the data will be copied to.
+    virtual void CmdCopyDfSpmTraceData(
+        const IPerfExperiment& perfExperiment,
+        const IGpuMemory&      dstGpuMemory,
+        gpusize                dstOffset) = 0;
 
     /// Loads data from the provided GPU Memory object into Constant Engine RAM.
     ///

@@ -2287,7 +2287,8 @@ void RsrcProcMgr::CmdCopyTypedBuffer(
 // =====================================================================================================================
 bool RsrcProcMgr::ScaledCopyImageUseGraphics(
     GfxCmdBuffer*           pCmdBuffer,
-    const ScaledCopyInfo&   copyInfo) const
+    const ScaledCopyInfo&   copyInfo
+    ) const
 {
     const auto&      srcInfo      = copyInfo.pSrcImage->GetImageCreateInfo();
     const auto&      dstInfo      = copyInfo.pDstImage->GetImageCreateInfo();
@@ -2317,6 +2318,7 @@ bool RsrcProcMgr::ScaledCopyImageUseGraphics(
     const bool useGraphicsCopy = ((preferGraphicsCopy && pCmdBuffer->IsGraphicsSupported()) &&
                                   ((srcImageType != ImageType::Tex1d) &&
                                    (dstImageType != ImageType::Tex1d) &&
+                                   (dstInfo.samples == 1)             &&
                                    (isCompressed == false)            &&
                                    (isYuv == false)                   &&
                                    (p2pBltWa == false)                &&
@@ -2325,13 +2327,21 @@ bool RsrcProcMgr::ScaledCopyImageUseGraphics(
     // Scissor-enabled blit for OGLP is only supported on graphics path.
     PAL_ASSERT(useGraphicsCopy || (copyInfo.flags.scissorTest == 0));
 
+    if (isDepth)
+    {
+        // MSAA depth scaled copies are unsupported for both paths, HW doesn't support UAV writes to depth/stencil MSAA
+        // surfaces, it can be implemented in grahpics scaled copy path if needed at a future point.
+        PAL_ASSERT((srcInfo.samples == 1) && (dstInfo.samples == 1));
+    }
+
     return useGraphicsCopy;
 }
 
 // =====================================================================================================================
 void RsrcProcMgr::CmdScaledCopyImage(
     GfxCmdBuffer*           pCmdBuffer,
-    const ScaledCopyInfo&   copyInfo) const
+    const ScaledCopyInfo&   copyInfo
+    ) const
 {
     const bool useGraphicsCopy = ScaledCopyImageUseGraphics(pCmdBuffer, copyInfo);
 
@@ -2389,7 +2399,8 @@ void RsrcProcMgr::CmdScaledCopyImage(
 // =====================================================================================================================
 void RsrcProcMgr::CmdGenerateMipmaps(
     GfxCmdBuffer*         pCmdBuffer,
-    const GenMipmapsInfo& genInfo) const
+    const GenMipmapsInfo& genInfo
+    ) const
 {
     // The range cannot start at mip zero and cannot extend past the last mip level.
     PAL_ASSERT((genInfo.range.startSubres.mipLevel >= 1) &&
@@ -3513,11 +3524,11 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
 
 // =====================================================================================================================
 void RsrcProcMgr::ScaledCopyImageCompute(
-    GfxCmdBuffer*           pCmdBuffer,
-    const ScaledCopyInfo&   copyInfo) const
+    GfxCmdBuffer*         pCmdBuffer,
+    const ScaledCopyInfo& copyInfo
+    ) const
 {
     PAL_ASSERT(copyInfo.flags.scissorTest == 0);
-    PAL_ASSERT(copyInfo.flags.coordsInFloat == 0);
 
     const auto& device       = *m_pDevice->Parent();
     const auto* pSrcImage    = static_cast<const Image*>(copyInfo.pSrcImage);
@@ -3540,13 +3551,33 @@ void RsrcProcMgr::ScaledCopyImageCompute(
     else
     {
         const bool isDepth = (pSrcImage->IsDepthStencilTarget() || pDstImage->IsDepthStencilTarget());
-        if ((srcInfo.samples > 1) && (isDepth == false))
+
+        if (srcInfo.fragments > 1)
         {
-            // EQAA images or MSAA images with FMask disabled are unsupported for scaled copy. There is no use case for
+            // HW doesn't support UAV writes to depth/stencil MSAA surfaces, it can be implemented in grahpics
+            // scaled copy path if needed at a future point.
+            PAL_ASSERT(isDepth == false);
+
+            // EQAA images with FMask disabled are unsupported for scaled copy. There is no use case for
             // EQAA and it would require several new shaders. It can be implemented if needed at a future point.
-            PAL_ASSERT((srcInfo.samples == srcInfo.fragments) && (pSrcGfxImage->HasFmaskData() == true));
-            pPipeline = GetPipeline(RpmComputePipeline::MsaaFmaskScaledCopy);
-            isFmaskCopy = true;
+            PAL_ASSERT(srcInfo.samples == srcInfo.fragments);
+
+            // Sampling msaa image with linear filter for scaled copy are unsupported, It should be simulated in
+            // shader if needed at a future point.
+            if (copyInfo.filter.magnification != Pal::XyFilterPoint)
+            {
+                PAL_ASSERT_MSG(0, "HW doesn't support image Opcode for msaa image with sampler");
+            }
+
+            if (pSrcGfxImage->HasFmaskData())
+            {
+                pPipeline = GetPipeline(RpmComputePipeline::MsaaFmaskScaledCopy);
+                isFmaskCopy = true;
+            }
+            else
+            {
+                pPipeline = GetPipeline(RpmComputePipeline::MsaaScaledCopyImage2d);
+            }
         }
         else
         {
@@ -3555,14 +3586,14 @@ void RsrcProcMgr::ScaledCopyImageCompute(
     }
 
     // Get number of threads per groups in each dimension, we will need this data later.
-    uint32 threadsPerGroup[3] = {0};
+    uint32 threadsPerGroup[3] = { 0 };
     pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
 
     PAL_ASSERT(pCmdBuffer->IsComputeStateSaved());
 
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
 
-    uint32 colorKey[4]          = {0};
+    uint32 colorKey[4]          = { 0 };
     uint32 alphaDiffMul         = 0;
     float  threshold            = 0.0f;
     uint32 colorKeyEnableMask   = 0;
@@ -3615,36 +3646,75 @@ void RsrcProcMgr::ScaledCopyImageCompute(
         ImageScaledCopyRegion copyRegion = copyInfo.pRegions[idx];
 
         // Calculate the absolute value of dstExtent, which will get fed to the shader.
-        const uint32 dstExtentW = Math::Absu(copyRegion.dstExtent.width);
-        const uint32 dstExtentH = Math::Absu(copyRegion.dstExtent.height);
-        const uint32 dstExtentD = Math::Absu(copyRegion.dstExtent.depth);
+        const int32 dstExtentW = (copyInfo.flags.coordsInFloat != 0) ?
+            static_cast<int32>(copyRegion.dstExtentFloat.width + 0.5f) : copyRegion.dstExtent.width;
+        const int32 dstExtentH = (copyInfo.flags.coordsInFloat != 0) ?
+            static_cast<int32>(copyRegion.dstExtentFloat.height + 0.5f) : copyRegion.dstExtent.height;
+        const int32 dstExtentD = (copyInfo.flags.coordsInFloat != 0) ?
+            static_cast<int32>(copyRegion.dstExtentFloat.depth + 0.5f) : copyRegion.dstExtent.depth;
 
-        if ((dstExtentW > 0) && (dstExtentH > 0) && (dstExtentD > 0))
+        const uint32 absDstExtentW = Math::Absu(dstExtentW);
+        const uint32 absDstExtentH = Math::Absu(dstExtentH);
+        const uint32 absDstExtentD = Math::Absu(dstExtentD);
+
+        if ((absDstExtentW > 0) && (absDstExtentH > 0) && (absDstExtentD > 0))
         {
             // A negative extent means that we should do a reverse the copy.
             // We want to always use the absolute value of dstExtent.
             // otherwise the compute shader can't handle it. If dstExtent is negative in one
             // dimension, then we negate srcExtent in that dimension, and we adjust the offsets
             // as well.
-            if (copyRegion.dstExtent.width < 0)
+            if (copyInfo.flags.coordsInFloat != 0)
             {
-                copyRegion.dstOffset.x = copyRegion.dstOffset.x + copyRegion.dstExtent.width;
-                copyRegion.srcOffset.x = copyRegion.srcOffset.x + copyRegion.srcExtent.width;
-                copyRegion.srcExtent.width = -copyRegion.srcExtent.width;
-            }
+                if (copyRegion.dstExtentFloat.width < 0)
+                {
+                    copyRegion.dstOffsetFloat.x = copyRegion.dstOffsetFloat.x + copyRegion.dstExtentFloat.width;
+                    copyRegion.srcOffsetFloat.x = copyRegion.srcOffsetFloat.x + copyRegion.srcExtentFloat.width;
+                    copyRegion.srcExtentFloat.width = -copyRegion.srcExtentFloat.width;
+                    copyRegion.dstExtentFloat.width = -copyRegion.dstExtentFloat.width;
+                }
 
-            if (copyRegion.dstExtent.height < 0)
-            {
-                copyRegion.dstOffset.y = copyRegion.dstOffset.y + copyRegion.dstExtent.height;
-                copyRegion.srcOffset.y = copyRegion.srcOffset.y + copyRegion.srcExtent.height;
-                copyRegion.srcExtent.height = -copyRegion.srcExtent.height;
-            }
+                if (copyRegion.dstExtentFloat.height < 0)
+                {
+                    copyRegion.dstOffsetFloat.y = copyRegion.dstOffsetFloat.y + copyRegion.dstExtentFloat.height;
+                    copyRegion.srcOffsetFloat.y = copyRegion.srcOffsetFloat.y + copyRegion.srcExtentFloat.height;
+                    copyRegion.srcExtentFloat.height = -copyRegion.srcExtentFloat.height;
+                    copyRegion.dstExtentFloat.height = -copyRegion.dstExtentFloat.height;
+                }
 
-            if (copyRegion.dstExtent.depth < 0)
+                if (copyRegion.dstExtentFloat.depth < 0)
+                {
+                    copyRegion.dstOffsetFloat.z = copyRegion.dstOffsetFloat.z + copyRegion.dstExtentFloat.depth;
+                    copyRegion.srcOffsetFloat.z = copyRegion.srcOffsetFloat.z + copyRegion.srcExtentFloat.depth;
+                    copyRegion.srcExtentFloat.depth = -copyRegion.srcExtentFloat.depth;
+                    copyRegion.dstExtentFloat.depth = -copyRegion.dstExtentFloat.depth;
+                }
+            }
+            else
             {
-                copyRegion.dstOffset.z = copyRegion.dstOffset.z + copyRegion.dstExtent.depth;
-                copyRegion.srcOffset.z = copyRegion.srcOffset.z + copyRegion.srcExtent.depth;
-                copyRegion.srcExtent.depth = -copyRegion.srcExtent.depth;
+                if (copyRegion.dstExtent.width < 0)
+                {
+                    copyRegion.dstOffset.x = copyRegion.dstOffset.x + copyRegion.dstExtent.width;
+                    copyRegion.srcOffset.x = copyRegion.srcOffset.x + copyRegion.srcExtent.width;
+                    copyRegion.srcExtent.width = -copyRegion.srcExtent.width;
+                    copyRegion.dstExtent.width = -copyRegion.dstExtent.width;
+                }
+
+                if (copyRegion.dstExtent.height < 0)
+                {
+                    copyRegion.dstOffset.y = copyRegion.dstOffset.y + copyRegion.dstExtent.height;
+                    copyRegion.srcOffset.y = copyRegion.srcOffset.y + copyRegion.srcExtent.height;
+                    copyRegion.srcExtent.height = -copyRegion.srcExtent.height;
+                    copyRegion.dstExtent.height = -copyRegion.dstExtent.height;
+                }
+
+                if (copyRegion.dstExtent.depth < 0)
+                {
+                    copyRegion.dstOffset.z = copyRegion.dstOffset.z + copyRegion.dstExtent.depth;
+                    copyRegion.srcOffset.z = copyRegion.srcOffset.z + copyRegion.srcExtent.depth;
+                    copyRegion.srcExtent.depth = -copyRegion.srcExtent.depth;
+                    copyRegion.dstExtent.depth = -copyRegion.dstExtent.depth;
+                }
             }
 
             // The shader expects the region data to be arranged as follows for each dispatch:
@@ -3655,19 +3725,50 @@ void RsrcProcMgr::ScaledCopyImageCompute(
             // For 3D blts, the source Z-values are normalized as the X and Y values are for 1D, 2D, and 3D.
 
             const Extent3d& srcExtent = pSrcImage->SubresourceInfo(copyRegion.srcSubres)->extentTexels;
-            const float srcLeft   = (1.f * copyRegion.srcOffset.x) / srcExtent.width;
-            const float srcTop    = (1.f * copyRegion.srcOffset.y) / srcExtent.height;
-            const float srcSlice  = (1.f * copyRegion.srcOffset.z) / srcExtent.depth;
-            const float srcRight  = (1.f * (copyRegion.srcOffset.x + copyRegion.srcExtent.width))  / srcExtent.width;
-            const float srcBottom = (1.f * (copyRegion.srcOffset.y + copyRegion.srcExtent.height)) / srcExtent.height;
-            const float srcDepth  = (1.f * (copyRegion.srcOffset.z + copyRegion.srcExtent.depth))  / srcExtent.depth;
+            float srcLeft    = 0.0f;
+            float srcTop     = 0.0f;
+            float srcRight   = 0.0f;
+            float srcBottom  = 0.0f;
+            float srcSlice   = 0.0f;
+            float srcDepth   = 0.0f;
+            float dstOffsetX = 0.0f;
+            float dstOffsetY = 0.0f;
+            float dstOffsetZ = 0.0f;
 
-            PAL_ASSERT((srcLeft   >= 0.0f) && (srcLeft   <= 1.0f) &&
-                       (srcTop    >= 0.0f) && (srcTop    <= 1.0f) &&
-                       (srcSlice  >= 0.0f) && (srcSlice  <= 1.0f) &&
-                       (srcRight  >= 0.0f) && (srcRight  <= 1.0f) &&
-                       (srcBottom >= 0.0f) && (srcBottom <= 1.0f) &&
-                       (srcDepth  >= 0.0f) && (srcDepth  <= 1.0f));
+            if (copyInfo.flags.coordsInFloat != 0)
+            {
+                srcLeft   = copyRegion.srcOffsetFloat.x / srcExtent.width;
+                srcTop    = copyRegion.srcOffsetFloat.y / srcExtent.height;
+                srcRight  = (copyRegion.srcOffsetFloat.x + copyRegion.srcExtentFloat.width) / srcExtent.width;
+                srcBottom = (copyRegion.srcOffsetFloat.y + copyRegion.srcExtentFloat.height) / srcExtent.height;
+                srcSlice  = (1.f * copyRegion.srcOffsetFloat.z) / srcExtent.depth;
+                srcDepth  = (1.f * (copyRegion.srcOffsetFloat.z + copyRegion.srcExtentFloat.depth)) / srcExtent.depth;
+
+                dstOffsetX = copyRegion.dstOffsetFloat.x;
+                dstOffsetY = copyRegion.dstOffsetFloat.y;
+                dstOffsetZ = copyRegion.dstOffsetFloat.z;
+
+            }
+            else
+            {
+                srcLeft   = (1.f * copyRegion.srcOffset.x) / srcExtent.width;
+                srcTop    = (1.f * copyRegion.srcOffset.y) / srcExtent.height;
+                srcRight  = (1.f * (copyRegion.srcOffset.x + copyRegion.srcExtent.width)) / srcExtent.width;
+                srcBottom = (1.f * (copyRegion.srcOffset.y + copyRegion.srcExtent.height)) / srcExtent.height;
+                srcSlice  = (1.f * copyRegion.srcOffset.z) / srcExtent.depth;
+                srcDepth  = (1.f * (copyRegion.srcOffset.z + copyRegion.srcExtent.depth)) / srcExtent.depth;
+
+                dstOffsetX = 1.f * copyRegion.dstOffset.x;
+                dstOffsetY = 1.f * copyRegion.dstOffset.y;
+                dstOffsetZ = 1.f * copyRegion.dstOffset.z;
+            }
+
+            PAL_ASSERT((srcLeft >= 0.0f) && (srcLeft <= 1.0f) &&
+                (srcTop >= 0.0f) && (srcTop <= 1.0f)          &&
+                (srcSlice >= 0.0f) && (srcSlice <= 1.0f)      &&
+                (srcRight >= 0.0f) && (srcRight <= 1.0f)      &&
+                (srcBottom >= 0.0f) && (srcBottom <= 1.0f)    &&
+                (srcDepth >= 0.0f) && (srcDepth <= 1.0f));
 
             SwizzledFormat dstFormat = pDstImage->SubresourceInfo(copyRegion.dstSubres)->format;
             SwizzledFormat srcFormat = pSrcImage->SubresourceInfo(copyRegion.srcSubres)->format;
@@ -3721,15 +3822,15 @@ void RsrcProcMgr::ScaledCopyImageCompute(
                 reinterpret_cast<const uint32&>(srcLeft),
                 reinterpret_cast<const uint32&>(srcTop),
                 reinterpret_cast<const uint32&>(srcSlice),
-                dstExtentW,
-                static_cast<uint32>(copyRegion.dstOffset.x),
-                static_cast<uint32>(copyRegion.dstOffset.y),
-                static_cast<uint32>(copyRegion.dstOffset.z),
-                dstExtentH,
+                absDstExtentW,
+                static_cast<uint32>(dstOffsetX),
+                static_cast<uint32>(dstOffsetY),
+                static_cast<uint32>(dstOffsetZ),
+                absDstExtentH,
                 reinterpret_cast<const uint32&>(srcRight),
                 reinterpret_cast<const uint32&>(srcBottom),
                 reinterpret_cast<const uint32&>(srcDepth),
-                dstExtentD,
+                absDstExtentD,
                 enableGammaConversion,
                 reinterpret_cast<const uint32&>(zOffset),
                 srcInfo.samples,
@@ -3752,8 +3853,8 @@ void RsrcProcMgr::ScaledCopyImageCompute(
             // subresources, a sampler for the src subresource, as well as some inline constants for the copy offsets
             // and extents.
             const uint32 DataDwords = NumBytesToNumDwords(sizeof(copyData));
-            const uint8  numSlots   = isFmaskCopy ? 4 : 3;
-            uint32*      pUserData  = RpmUtil::CreateAndBindEmbeddedUserData(
+            const uint8  numSlots   = ((srcInfo.samples > 1) && !isFmaskCopy) ? 2 : 3;
+            uint32* pUserData       = RpmUtil::CreateAndBindEmbeddedUserData(
                                                     pCmdBuffer,
                                                     SrdDwordAlignment() * numSlots + DataDwords,
                                                     SrdDwordAlignment(),
@@ -3799,7 +3900,7 @@ void RsrcProcMgr::ScaledCopyImageCompute(
             if (isFmaskCopy)
             {
                 // If this is an Fmask-accelerated Copy, create an image view of the source Image's Fmask surface.
-                FmaskViewInfo fmaskView = {};
+                FmaskViewInfo fmaskView  = {};
                 fmaskView.pImage         = pSrcImage;
                 fmaskView.baseArraySlice = copyRegion.srcSubres.arraySlice;
                 fmaskView.arraySize      = copyRegion.numSlices;
@@ -3807,25 +3908,28 @@ void RsrcProcMgr::ScaledCopyImageCompute(
                 m_pDevice->Parent()->CreateFmaskViewSrds(1, &fmaskView, pUserData);
                 pUserData += SrdDwordAlignment();
             }
-
-            SamplerInfo samplerInfo = {};
-            samplerInfo.filter      = copyInfo.filter;
-            samplerInfo.addressU    = TexAddressMode::Clamp;
-            samplerInfo.addressV    = TexAddressMode::Clamp;
-            samplerInfo.addressW    = TexAddressMode::Clamp;
-            samplerInfo.compareFunc = CompareFunc::Always;
-            device.CreateSamplerSrds(1, &samplerInfo, pUserData);
-            pUserData += SrdDwordAlignment();
+            // HW doesn't support image Opcode for msaa image with sampler.
+            else if (srcInfo.samples == 1)
+            {
+                SamplerInfo samplerInfo = {};
+                samplerInfo.filter      = copyInfo.filter;
+                samplerInfo.addressU    = TexAddressMode::Clamp;
+                samplerInfo.addressV    = TexAddressMode::Clamp;
+                samplerInfo.addressW    = TexAddressMode::Clamp;
+                samplerInfo.compareFunc = CompareFunc::Always;
+                device.CreateSamplerSrds(1, &samplerInfo, pUserData);
+                pUserData += SrdDwordAlignment();
+            }
 
             // Copy the copy parameters into the embedded user-data space
             memcpy(pUserData, &copyData[0], sizeof(copyData));
 
-            const uint32 zGroups = is3d ? dstExtentD : copyRegion.numSlices;
+            const uint32 zGroups = is3d ? absDstExtentD : copyRegion.numSlices;
 
             // Execute the dispatch, we need one thread per texel.
-            pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(dstExtentW, threadsPerGroup[0]),
-                                    RpmUtil::MinThreadGroups(dstExtentH, threadsPerGroup[1]),
-                                    RpmUtil::MinThreadGroups(zGroups,    threadsPerGroup[2]));
+            pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(absDstExtentW, threadsPerGroup[0]),
+                                    RpmUtil::MinThreadGroups(absDstExtentH, threadsPerGroup[1]),
+                                    RpmUtil::MinThreadGroups(zGroups, threadsPerGroup[2]));
         }
     }
 

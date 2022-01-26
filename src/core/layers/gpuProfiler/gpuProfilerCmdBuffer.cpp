@@ -217,12 +217,17 @@ void CmdBuffer::ReplayBegin(
 {
     auto info = ReadTokenVal<CmdBufferBuildInfo>();
 
+    // Reset any per command buffer state we're tracking.
+    memset(&m_cpState, 0, sizeof(m_cpState));
+    memset(&m_gfxpState, 0, sizeof(m_gfxpState));
+
     InheritedStateParams inheritedState = {};
     if (info.pInheritedState != nullptr)
     {
         inheritedState = ReadTokenVal<InheritedStateParams>();
         info.pInheritedState = &inheritedState;
     }
+
     // We must remove the client's external allocator because PAL can only use it during command building from the
     // client's perspective. By batching and replaying command building later on we're breaking that rule. The good news
     // is that we can replace it with our queue's command buffer replay allocator because replaying is thread-safe with
@@ -230,10 +235,6 @@ void CmdBuffer::ReplayBegin(
     info.pMemAllocator = pQueue->ReplayAllocator();
 
     pTgtCmdBuffer->Begin(NextCmdBufferBuildInfo(info));
-
-    // Reset any per command buffer state we're tracking.
-    memset(&m_cpState,  0, sizeof(m_cpState));
-    memset(&m_gfxpState, 0, sizeof(m_gfxpState));
 
     if (m_pDevice->LoggingEnabled(GpuProfilerGranularityDraw) ||
         m_pDevice->LoggingEnabled(GpuProfilerGranularityCmdBuf))
@@ -254,8 +255,9 @@ void CmdBuffer::ReplayBegin(
 
             if (m_pDevice->LoggingEnabled(GpuProfilerGranularityCmdBuf))
             {
-                enablePerfExp    = (m_pDevice->NumGlobalPerfCounters() > 0)    ||
-                                   (m_pDevice->NumStreamingPerfCounters() > 0) ||
+                enablePerfExp    = (m_pDevice->NumGlobalPerfCounters() > 0)      ||
+                                   (m_pDevice->NumStreamingPerfCounters() > 0)   ||
+                                   (m_pDevice->NumDfStreamingPerfCounters() > 0) ||
                                    (m_flags.enableSqThreadTrace != 0);
                 enablePerfExp   &= pTgtCmdBuffer->IsFromMasterSubQue();
                 enablePipeStats  = m_flags.logPipeStats && pTgtCmdBuffer->IsFromMasterSubQue();
@@ -333,7 +335,7 @@ Result CmdBuffer::Reset(
     bool           returnGpuMemory)
 {
     m_releaseTokenList.Clear();
-    m_numReleaseTokens = 0;
+    m_numReleaseTokens  = 0;
 
     return NextLayer()->Reset(NextCmdAllocator(pCmdAllocator), returnGpuMemory);
 }
@@ -3752,6 +3754,30 @@ void CmdBuffer::ReplayCmdInsertRgpTraceMarker(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdCopyDfSpmTraceData(
+    const IPerfExperiment& perfExperiment,
+    const IGpuMemory&      dstGpuMemory,
+    gpusize                dstOffset)
+{
+    InsertToken(CmdBufCallId::CmdCopyDfSpmTraceData);
+    InsertToken(&perfExperiment);
+    InsertToken(&dstGpuMemory);
+    InsertToken(dstOffset);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdCopyDfSpmTraceData(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    const IPerfExperiment& perfExperiment  = *ReadTokenVal<IPerfExperiment*>();
+    const IGpuMemory&      dstGpuMemory    = *ReadTokenVal<IGpuMemory*>();
+    gpusize                dstOffset       = ReadTokenVal<gpusize>();
+
+    pTgtCmdBuffer->CmdCopyDfSpmTraceData(perfExperiment, dstGpuMemory, dstOffset);
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdSaveComputeState(
     uint32 stateFlags)
 {
@@ -4089,6 +4115,7 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdEndPerfExperiment,
         &CmdBuffer::ReplayCmdInsertTraceMarker,
         &CmdBuffer::ReplayCmdInsertRgpTraceMarker,
+        &CmdBuffer::ReplayCmdCopyDfSpmTraceData,
         &CmdBuffer::ReplayCmdSaveComputeState,
         &CmdBuffer::ReplayCmdRestoreComputeState,
         &CmdBuffer::ReplayCmdSetUserClipPlanes,
@@ -4872,6 +4899,20 @@ Result TargetCmdBuffer::EndGpaSession(
     LogItem* pLogItem)
 {
     return pLogItem->pGpaSession->End(this);
+}
+
+// ====================================================================================================================
+// Finishes a DF SPM trace by copying the results into the GpaSession result buffer. Must be called in a separate
+// command buffer following the last command buffer you wish to trace (signaled by a dfSpmTraceEnd flag in the
+// CmdBufInfo.
+void TargetCmdBuffer::EndDfSpmTraceSession(
+    Queue*         pQueue,
+    const LogItem* pLogItem)
+{
+    if (pQueue->HasValidGpaSample(pLogItem, GpuUtil::GpaSampleType::Cumulative))
+    {
+        pLogItem->pGpaSession->CopyDfSpmTraceResults(this, pLogItem->gpaSampleId);
+    }
 }
 
 } // GpuProfiler

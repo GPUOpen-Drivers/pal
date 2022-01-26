@@ -552,6 +552,9 @@ void LogContext::Struct(
 {
     BeginMap(false);
     KeyAndStruct("flags", value.flags);
+    KeyAndValue("maxFunctionCallDepth", value.maxFunctionCallDepth);
+    KeyAndValue("disablePartialDispatchPreemption", value.disablePartialDispatchPreemption);
+    KeyAndStruct("threadsPerGroup", value.threadsPerGroup);
     EndMap();
 }
 

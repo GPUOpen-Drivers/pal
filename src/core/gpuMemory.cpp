@@ -489,6 +489,7 @@ Result GpuMemory::Init(
     m_flags.tmzProtected         = createInfo.flags.tmzProtected;
     m_flags.tmzUserQueue         = internalInfo.flags.tmzUserQueue;
     m_flags.mallRangeActive      = createInfo.flags.mallRangeActive;
+    m_flags.dfSpmTraceBuffer     = internalInfo.flags.dfSpmTraceBuffer;
     m_flags.explicitSync         = createInfo.flags.explicitSync;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 677
     m_flags.privPrimary          = createInfo.flags.privPrimary;

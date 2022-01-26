@@ -147,6 +147,7 @@ union PerfExperimentDeviceFeatureFlags
         uint32 counters          :  1; ///< Device supports performance counters.
         uint32 threadTrace       :  1; ///< Device supports thread traces.
         uint32 spmTrace          :  1; ///< Device supports streaming perf monitor traces.
+        uint32 dfSpmTrace        :  1; ///< Device supports streaming df perf monitor traces.
         uint32 supportPs1Events  :  1; ///< The thread trace HW of this Device is capable of producing event tokens
                                        ///  from the second PS backend of SC.
         uint32 sqttBadScPackerId :  1; ///< Hardware is affected by bug causing the packer ID specified in new PS waves
@@ -389,6 +390,17 @@ struct SpmTraceLayout
     SpmCounterData counterData[1];    ///< Contains numCounters - 1 CounterInfo
 };
 
+/// Represents the information that is stored in the DF SPM trace metadata buffer.
+struct DfSpmTraceMetadataLayout
+{
+    uint32 numRecordPairs; ///< The number of 64-byte blocks written by this trace. There are two time segments
+                           ///< per 64-byte block so we have to check the lastSpmPkt bit to see which half of
+                           ///< the last 64-byte block is the last packet.
+    uint32 padding;        ///< Padding to match what the compiler does by default.
+    uint64 beginTimestamp; ///< The DF timestamp at the start of the DF SPM trace.
+    uint64 endTimestamp;   ///< The DF timestamp at the finish of the DF SPM trace.
+};
+
 /// Specifies properties for creation of an @ref IPerfExperiment object.  Input structure to
 /// IDevice::CreatePerfExperiment().
 struct PerfExperimentCreateInfo
@@ -452,6 +464,16 @@ public:
     /// @returns Success if the trace was successfully added to the experiment, otherwise an appropriate error code.
     virtual Result AddThreadTrace(
         const ThreadTraceInfo& traceInfo) = 0;
+
+    /// Adds the specified DfSpmTrace to be recorded as part of this perf experiment.
+    ///
+    /// @param [in] dfSpmCreateInfo Specifies the parameters of the df spm trace and
+    /// provides the list of perf counters.
+    ///
+    /// @returns Success if the df spm trace was successfully added to the experiment,
+    /// otherwise and appropriate error code.
+    virtual Result AddDfSpmTrace(
+        const SpmTraceCreateInfo& dfSpmCreateInfo) = 0;
 
     /// Adds the specified SpmTrace to be recorded as part of this perf experiment.
     ///

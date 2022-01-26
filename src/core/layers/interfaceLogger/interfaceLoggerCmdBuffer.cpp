@@ -2989,6 +2989,16 @@ void CmdBuffer::CmdInsertRgpTraceMarker(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdCopyDfSpmTraceData(
+    const IPerfExperiment& perfExperiment,
+    const IGpuMemory&      dstGpuMemory,
+    gpusize                dstOffset)
+{
+    // This function is not logged because it should only be called by other debug tools.
+    m_pNextLayer->CmdCopyDfSpmTraceData(*(NextPerfExperiment(&perfExperiment)), dstGpuMemory, dstOffset);
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdLoadCeRam(
     const IGpuMemory& srcGpuMemory,
     gpusize           memOffset,

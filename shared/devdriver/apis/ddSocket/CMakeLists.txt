@@ -25,30 +25,3 @@ target_sources(ddSocket PRIVATE
     src/socketServer.h
     src/socketServer.cpp
 )
-
-### Unit tests
-if(DD_OPT_ENABLE_TESTS)
-    devdriver_executable(tests_ddSocket
-        tests/ddSocketTests.h
-        tests/ddSocketTests.cpp
-    )
-
-    target_include_directories(tests_ddSocket
-        PRIVATE
-            tests
-    )
-
-    target_link_libraries(tests_ddSocket
-        PRIVATE
-            ddSocket
-            ddNet
-            ddTestUtil
-    )
-
-    set_target_properties(tests_ddSocket
-        PROPERTIES
-            FOLDER "${DEVDRIVER_TESTS_ROOT}"
-    )
-
-    devdriver_discover_tests(tests_ddSocket)
-endif()

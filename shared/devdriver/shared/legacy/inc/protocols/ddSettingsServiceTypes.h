@@ -44,17 +44,18 @@ DD_STATIC_CONST const char* Components_ComponentsKey = "components";
 
 // We define the basic data types in this struct, components are free to extend this enumeration to include
 // additional/custom types.
+// NOTE, since this type will be serialized, only appending is allowed.
 enum class SettingType : uint32
 {
     Boolean,
     Int,
     Uint,
-    Int8,
-    Uint8,
     Int64,
     Uint64,
     Float,
     String,
+    Int8,
+    Uint8,
 };
 
 // Struct to hold a setting value

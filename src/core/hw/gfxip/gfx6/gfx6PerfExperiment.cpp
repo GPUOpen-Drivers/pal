@@ -193,7 +193,7 @@ PerfExperiment::PerfExperiment(
     m_settings(pDevice->Settings()),
     m_registerInfo(pDevice->CmdUtil().GetRegInfo()),
     m_cmdUtil(pDevice->CmdUtil()),
-    m_globalCounters(pDevice->GetPlatform()),
+    m_globalCounters(m_pPlatform),
     m_pSpmCounters(nullptr),
     m_numSpmCounters(0),
     m_spmRingSize(0),
@@ -208,11 +208,11 @@ PerfExperiment::PerfExperiment(
 // =====================================================================================================================
 PerfExperiment::~PerfExperiment()
 {
-    PAL_SAFE_DELETE_ARRAY(m_pSpmCounters, m_device.GetPlatform());
+    PAL_SAFE_DELETE_ARRAY(m_pSpmCounters, m_pPlatform);
 
     for (uint32 idx = 0; idx < MaxNumSpmSegments; ++idx)
     {
-        PAL_SAFE_DELETE_ARRAY(m_pMuxselRams[idx], m_device.GetPlatform());
+        PAL_SAFE_DELETE_ARRAY(m_pMuxselRams[idx], m_pPlatform);
     }
 
     for (uint32 block = 0; block < GpuBlockCount; ++block)
@@ -221,10 +221,10 @@ PerfExperiment::~PerfExperiment()
         {
             for (uint32 instance = 0; instance < m_select.numGeneric[block]; ++instance)
             {
-                PAL_SAFE_DELETE_ARRAY(m_select.pGeneric[block][instance].pModules, m_device.GetPlatform());
+                PAL_SAFE_DELETE_ARRAY(m_select.pGeneric[block][instance].pModules, m_pPlatform);
             }
 
-            PAL_SAFE_DELETE_ARRAY(m_select.pGeneric[block], m_device.GetPlatform());
+            PAL_SAFE_DELETE_ARRAY(m_select.pGeneric[block], m_pPlatform);
         }
     }
 }
@@ -272,7 +272,7 @@ Result PerfExperiment::AllocateGenericStructs(
         {
             m_select.numGeneric[blockIdx] = numGlobalInstances;
             m_select.pGeneric[blockIdx] =
-                PAL_NEW_ARRAY(GenericBlockSelect, numGlobalInstances, m_device.GetPlatform(), AllocObject);
+                PAL_NEW_ARRAY(GenericBlockSelect, numGlobalInstances, m_pPlatform, AllocObject);
 
             if (m_select.pGeneric[blockIdx] == nullptr)
             {
@@ -291,7 +291,7 @@ Result PerfExperiment::AllocateGenericStructs(
 
             // We need one GenericModule for each SPM module and legacy module.
             pSelect->numModules = numGenericModules;
-            pSelect->pModules   = PAL_NEW_ARRAY(GenericSelect, numGenericModules, m_device.GetPlatform(), AllocObject);
+            pSelect->pModules   = PAL_NEW_ARRAY(GenericSelect, numGenericModules, m_pPlatform, AllocObject);
 
             if (pSelect->pModules == nullptr)
             {
@@ -1046,7 +1046,7 @@ Result PerfExperiment::AddThreadTrace(
         m_sqtt[traceInfo.instance].mode.bits.WRAP =
             ((traceInfo.optionFlags.threadTraceWrapBuffer != 0) && traceInfo.optionValues.threadTraceWrapBuffer);
 
-        if ((m_chipProps.gfxLevel >= GfxIpLevel::GfxIp7) || IsOland(m_device) || IsHainan(m_device))
+        if ((m_chipProps.gfxLevel >= GfxIpLevel::GfxIp7) || IsOland(*m_pDevice) || IsHainan(*m_pDevice))
         {
             // On gfx7+, Oland, and Hainan, we must get some SQ_THREAD_TRACE_MASK fields from our chip props.
             m_sqtt[traceInfo.instance].mask.u32All = m_chipProps.gfx6.sqThreadTraceMask;
@@ -1177,7 +1177,7 @@ Result PerfExperiment::AddSpmTrace(
     {
         // Create a SpmCounterMapping for every SPM counter.
         m_numSpmCounters = spmCreateInfo.numPerfCounters;
-        m_pSpmCounters   = PAL_NEW_ARRAY(SpmCounterMapping, m_numSpmCounters, m_device.GetPlatform(), AllocObject);
+        m_pSpmCounters   = PAL_NEW_ARRAY(SpmCounterMapping, m_numSpmCounters, m_pPlatform, AllocObject);
 
         if (m_pSpmCounters == nullptr)
         {
@@ -1240,7 +1240,7 @@ Result PerfExperiment::AddSpmTrace(
         if (totalLines > 0)
         {
             m_numMuxselLines[segment] = totalLines;
-            m_pMuxselRams[segment]    = PAL_NEW_ARRAY(SpmLineMapping, totalLines, m_device.GetPlatform(), AllocObject);
+            m_pMuxselRams[segment]    = PAL_NEW_ARRAY(SpmLineMapping, totalLines, m_pPlatform, AllocObject);
 
             if (m_pMuxselRams[segment] == nullptr)
             {
@@ -1361,11 +1361,11 @@ Result PerfExperiment::AddSpmTrace(
     {
         // If some error occured do what we can to reset our state. It's too much trouble to revert each select
         // register so those counter slots are inaccessable for the lifetime of this perf experiment.
-        PAL_SAFE_DELETE_ARRAY(m_pSpmCounters, m_device.GetPlatform());
+        PAL_SAFE_DELETE_ARRAY(m_pSpmCounters, m_pPlatform);
 
         for (uint32 idx = 0; idx < MaxNumSpmSegments; ++idx)
         {
-            PAL_SAFE_DELETE_ARRAY(m_pMuxselRams[idx], m_device.GetPlatform());
+            PAL_SAFE_DELETE_ARRAY(m_pMuxselRams[idx], m_pPlatform);
         }
     }
 
@@ -1719,7 +1719,7 @@ void PerfExperiment::IssueBegin(
             // The old perf experiment code did a PS_PARTIAL_FLUSH and a wait-idle here because it "seems to help us
             // more reliably gather thread-trace data". That doesn't make any sense and isn't backed-up by any of the
             // HW programming guides. It has been duplicated here to avoid initial regressions but should be removed.
-            if (m_device.EngineSupportsGraphics(engineType))
+            if (m_pDevice->EngineSupportsGraphics(engineType))
             {
                 pCmdSpace += m_cmdUtil.BuildEventWrite(PS_PARTIAL_FLUSH, pCmdSpace);
             }
@@ -3059,7 +3059,7 @@ uint32* PerfExperiment::WriteMcConfigTargetInstance(
     uint32*    pCmdSpace
     ) const
 {
-    if (IsTonga(m_device) && (m_chipProps.gfx6.numMcdTiles == 4))
+    if (IsTonga(*m_pDevice) && (m_chipProps.gfx6.numMcdTiles == 4))
     {
         // The four MCD Tonga uses MCDs 0, 2, 3, and 5.
         // So we must map the logical MCD instance in the [0123] range to MCD [0235].
@@ -3107,7 +3107,7 @@ uint32* PerfExperiment::WriteUpdateWindowedCounters(
     ) const
 {
     // We should use an event on universal queues but set a register on async compute queues.
-    if ((m_chipProps.gfxLevel == GfxIpLevel::GfxIp6) || m_device.EngineSupportsGraphics(pCmdStream->GetEngineType()))
+    if ((m_chipProps.gfxLevel == GfxIpLevel::GfxIp6) || m_pDevice->EngineSupportsGraphics(pCmdStream->GetEngineType()))
     {
         pCmdSpace += m_cmdUtil.BuildEventWrite(enable ? PERFCOUNTER_START : PERFCOUNTER_STOP, pCmdSpace);
     }
@@ -3134,7 +3134,7 @@ uint32* PerfExperiment::WriteWaitIdle(
     uint32*       pCmdSpace
     ) const
 {
-    if (m_device.EngineSupportsGraphics(pCmdStream->GetEngineType()))
+    if (m_pDevice->EngineSupportsGraphics(pCmdStream->GetEngineType()))
     {
         // Use a CS_PARTIAL_FLUSH and SURFACE_SYNC to wait for CS and graphics work to complete. Use the surface sync
         // to flush caches if requested.

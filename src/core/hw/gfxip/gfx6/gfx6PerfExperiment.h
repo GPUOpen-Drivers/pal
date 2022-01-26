@@ -259,6 +259,8 @@ public:
     virtual Result AddCounter(const PerfCounterInfo& counterInfo) override;
     virtual Result AddThreadTrace(const ThreadTraceInfo& traceInfo) override;
     virtual Result AddSpmTrace(const SpmTraceCreateInfo& spmCreateInfo) override;
+    virtual Result AddDfSpmTrace(const SpmTraceCreateInfo& dfSpmCreateInfo) override
+        { return Result::ErrorIncompatibleDevice; }
     virtual Result Finalize() override;
 
     virtual Result GetGlobalCounterLayout(GlobalCounterLayout* pLayout) const override;
@@ -275,6 +277,8 @@ public:
     virtual void UpdateSqttTokenMask(
         Pal::CmdStream*               pPalCmdStream,
         const ThreadTraceTokenConfig& sqttTokenConfig) const override;
+
+    virtual const DfSpmPerfmonInfo* GetDfSpmPerfmonInfo() const override { return nullptr; }
 
     static void UpdateSqttTokenMaskStatic(
         Pal::CmdStream*               pPalCmdStream,

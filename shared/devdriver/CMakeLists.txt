@@ -27,23 +27,10 @@ cmake_minimum_required(VERSION 3.13..3.21)
 
 project(DevDriver LANGUAGES CXX)
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-include(DevDriver)
-
-# This should be defined anytime we're consumed with this top-level CML
-# We'll use this to root all of our CMake folders instead of polluting the global space.
-set(DEVDRIVER_FOLDER_ROOT "${CMAKE_FOLDER}/DevDriver")
-
-# This should be defined anytime we're consumed with this top-level CML
-# We use this to ensure that all of our test executables end up in the same place
-set(DEVDRIVER_TESTS_ROOT "${DEVDRIVER_FOLDER_ROOT}/Tests")
+include(cmake/DevDriver.cmake)
 
 option(DD_OPT_ENABLE_TESTS "Configure whether tests are built" ${DEVDRIVER_IS_TOP_LEVEL})
 if (DD_OPT_ENABLE_TESTS)
-    list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/tests/cmake")
-    include(DevDriver_Tests)
-    enable_testing()
-
     # Tool libraries are required for testing
     set(DD_BP_ENABLE_TOOL_LIBRARIES ON)
 endif()
@@ -64,9 +51,6 @@ if (DD_BP_ENABLE_TOOL_LIBRARIES)
     set(DD_BP_ENABLE_DD_MODULE_APIS ON)
 endif()
 
-### DevDriver CMake IDE Folder management
-devdriver_push_scope("DevDriver")
-
 ### Shared Components #################################################################################################
 ## These are never disabled, since most things depend on them (directly or indirectly)
 add_subdirectory(shared)
@@ -81,22 +65,19 @@ if (DD_BP_ENABLE_TOOL_LIBRARIES)
 endif()
 
 ### Rust ###########################################################################################################
-option(DD_OPT_ENABLE_RUST OFF "Configure whether Rust bindings are built")
+option(DD_OPT_ENABLE_RUST "Configure whether Rust bindings are built")
 if (DD_OPT_ENABLE_RUST)
-    if (CMAKE_GENERATOR STREQUAL "Ninja Multi-Config")
-        message(WARNING "Ninja Multi-Config is not supported by Corrosion, so ignoring Rust targets")
-    else()
-        add_subdirectory(rust)
-    endif()
+    add_subdirectory(rust)
 endif()
 
 ### Tests #############################################################################################################
 if (DD_OPT_ENABLE_TESTS)
+    enable_testing()
     add_subdirectory(tests)
 endif()
 
 ### Examples ##########################################################################################################
-option(DD_OPT_ENABLE_EXAMPLES "Configure whether examples are built" OFF)
+option(DD_OPT_ENABLE_EXAMPLES "Configure whether examples are built")
 if (DD_OPT_ENABLE_EXAMPLES)
     add_subdirectory(examples)
 endif()

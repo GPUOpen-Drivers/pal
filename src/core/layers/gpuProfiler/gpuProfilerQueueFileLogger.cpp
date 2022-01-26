@@ -34,6 +34,8 @@
 #include "palSysUtil.h"
 #include "sqtt_file_format.h"
 
+#define USE_SPM_DB_V2 1
+
 using namespace Util;
 
 namespace Pal
@@ -306,7 +308,8 @@ void Queue::OpenSqttFile(
 void Queue::OpenSpmFile(
     Util::File*    pFile,
     uint32         traceId,
-    const LogItem& logItem)
+    const LogItem& logItem,
+    bool           isDataFabric)
 {
     const auto& settings = m_pDevice->GetPlatform()->PlatformSettings();
 
@@ -361,18 +364,36 @@ void Queue::OpenSpmFile(
     //     - G:      Trace ID for correlation between per-Draw output and SPM logs.
     //     - I:      Concatenation of shader IDs bound (for draw/dispatch calls only).
     char logFilePath[512];
-    Snprintf(&logFilePath[0],
-             sizeof(logFilePath),
-             "%s/frame%06uDev%uEng%s%u-%02u.CmdBuf%uTrace%uSpm%s.csv",
-             m_pDevice->GetPlatform()->LogDirPath(),
-             m_curLogFrame,
-             m_pDevice->Id(),
-             EngineTypeStrings[static_cast<uint32>(m_pQueueInfos[0].engineType)],
-             m_pQueueInfos[0].engineIndex,
-             m_queueId,
-             m_curLogCmdBufIdx,
-             traceId,
-             crcInfo);
+    if (isDataFabric)
+    {
+        Snprintf(&logFilePath[0],
+                 sizeof(logFilePath),
+                 "%s/frame%06uDev%uEng%s%u-%02u.CmdBuf%uTrace%uDfSpm%s.csv",
+                 m_pDevice->GetPlatform()->LogDirPath(),
+                 m_curLogFrame,
+                 m_pDevice->Id(),
+                 EngineTypeStrings[static_cast<uint32>(m_pQueueInfos[0].engineType)],
+                 m_pQueueInfos[0].engineIndex,
+                 m_queueId,
+                 m_curLogCmdBufIdx,
+                 traceId,
+                 crcInfo);
+    }
+    else
+    {
+        Snprintf(&logFilePath[0],
+                 sizeof(logFilePath),
+                 "%s/frame%06uDev%uEng%s%u-%02u.CmdBuf%uTrace%uSpm%s.csv",
+                 m_pDevice->GetPlatform()->LogDirPath(),
+                 m_curLogFrame,
+                 m_pDevice->Id(),
+                 EngineTypeStrings[static_cast<uint32>(m_pQueueInfos[0].engineType)],
+                 m_pQueueInfos[0].engineIndex,
+                 m_queueId,
+                 m_curLogCmdBufIdx,
+                 traceId,
+                 crcInfo);
+    }
 
     Result result = pFile->Open(&logFilePath[0], FileAccessWrite);
     PAL_ASSERT(result == Result::Success);
@@ -848,69 +869,34 @@ void Queue::OutputTraceDataToFile(
                         pChunk = static_cast<const SqttFileChunkHeader*>(VoidPtrInc(pResult, offset));
                     }
 
-                    const auto* pSpmDbChunk = static_cast<const SqttFileChunkSpmDb*>(VoidPtrInc(pResult, offset));
-
-                    if ((offset < dataSize) &&
-                        (pSpmDbChunk->header.chunkIdentifier.chunkType == SQTT_FILE_CHUNK_TYPE_SPM_DB))
+                    if (offset < dataSize)
                     {
-                        // Extract the SPM DB data arrays.
-                        offset += sizeof(*pSpmDbChunk);
+                        OutputRlcSpmData(logItem,
+                                         pResult,
+                                         offset,
+                                         dataSize);
+                    }
+                }
 
-                        const size_t offsetToData = offset;
+                // Df Spm trace chunk: This will also go in a separate .csv file
+                if (m_pDevice->IsSpmTraceEnabled())
+                {
+                    // Find the first DF_SPM_DB chunk, stopping if we reach the end before finding any.
+                    size_t      offset = sizeof(SqttFileHeader);
+                    const auto* pChunk = static_cast<const SqttFileChunkHeader*>(VoidPtrInc(pResult, offset));
 
-                        const auto* pTimestamp = static_cast<const gpusize*>(VoidPtrInc(pResult, offset));
-                        offset += pSpmDbChunk->numTimestamps * sizeof(*pTimestamp);
+                    while ((offset < dataSize) && (pChunk->chunkIdentifier.chunkType != SQTT_FILE_CHUNK_TYPE_DF_SPM_DB))
+                    {
+                        offset += pChunk->sizeInBytes;
+                        pChunk = static_cast<const SqttFileChunkHeader*>(VoidPtrInc(pResult, offset));
+                    }
 
-                        const auto* pCounterInfo = static_cast<const SpmCounterInfo*>(VoidPtrInc(pResult, offset));
-                        offset += pSpmDbChunk->numSpmCounterInfo * sizeof(*pCounterInfo);
-
-                        File spmFile;
-                        OpenSpmFile(&spmFile, m_curLogTraceIdx, logItem);
-
-                        if (pSpmDbChunk->numTimestamps > 0)
-                        {
-                            // Some tools supports draw and command buffer interval markers. We don't have
-                            // this hooked up in the GPU profiler currently but we can still write a single
-                            // "command buffer" indicating where SPM started and stopped.
-                            spmFile.Printf("frame%u_cb%u,%llu,%llu\n", m_curLogFrame, m_curLogCmdBufIdx,
-                                            pTimestamp[0], pTimestamp[pSpmDbChunk->numTimestamps - 1]);
-                        }
-
-                        // The column header must be this exact string for some tools to detect that it
-                        // can correlate the SPM timeline with the SQTT timeline.
-                        spmFile.Printf("Time (realtime clock),");
-
-                        // Print the first line consisting of the counter names.
-                        for (uint32 i = 0; i < m_pDevice->NumStreamingPerfCounters(); ++i)
-                        {
-                            const auto& counter = m_pDevice->StreamingPerfCounters()[i];
-                            spmFile.Printf("%s,", &counter.name[0]);
-                        }
-
-                        spmFile.Printf("\n");
-
-                        for (uint32 sample = 0; sample < pSpmDbChunk->numTimestamps; ++sample)
-                        {
-                            // Write the raw sample timestamps so that the tools can correlate the SPM
-                            // timeline to the SQTT timeline.
-                            spmFile.Printf("%llu,", pTimestamp[sample]);
-
-                            uint32 counterIdx = 0;
-                            for (uint32 i = 0; i < m_pDevice->NumStreamingPerfCounters(); i++)
-                            {
-                                uint32 sumAll = 0;
-                                for (uint32 j = 0; j < m_pDevice->StreamingPerfCounters()[i].instanceCount; j++)
-                                {
-                                    const size_t offsetToCntr = offsetToData + pCounterInfo[counterIdx++].dataOffset;
-                                    const auto*  pData = static_cast<const uint16*>(VoidPtrInc(pResult, offsetToCntr));
-                                    sumAll += pData[sample];
-                                }
-                                spmFile.Printf("%u,", sumAll);
-                            }
-
-                            PAL_ASSERT(counterIdx == m_gpaSessionSampleConfig.perfCounters.numCounters);
-                            spmFile.Printf("\n");
-                        }
+                    if (offset < dataSize)
+                    {
+                        OutputDfSpmData(logItem,
+                                        pResult,
+                                        offset,
+                                        dataSize);
                     }
                 }
 
@@ -934,6 +920,169 @@ void Queue::OutputTraceDataToFile(
     else
     {
         m_logFile.Printf(",");
+    }
+}
+
+// =====================================================================================================================
+void Queue::OutputRlcSpmData(
+    const LogItem&     logItem,
+    void*              pResult,
+    size_t             offset,
+    size_t             dataSize)
+{
+    const PerfCounter* pPerfCounters   = m_pDevice->StreamingPerfCounters();
+    uint32             numPerfCounters = m_pDevice->NumStreamingPerfCounters();
+    uint32             checkNum        = m_gpaSessionSampleConfig.perfCounters.numCounters;
+#if USE_SPM_DB_V2
+    const auto*        pSpmDbChunk     = static_cast<const SqttFileChunkSpmDb*>(VoidPtrInc(pResult, offset));
+#else
+    const auto*        pSpmDbChunk     = static_cast<const SqttFileChunkSpmDbV1*>(VoidPtrInc(pResult, offset));
+#endif
+    uint32             sizeOfChunk     = sizeof(*pSpmDbChunk);
+    uint32             numTimestamps   = pSpmDbChunk->numTimestamps;
+    uint32             numCounterInfo  = pSpmDbChunk->numSpmCounterInfo;
+
+    // Extract the SPM DB data arrays.
+    offset += sizeOfChunk;
+
+    const size_t offsetToData = offset;
+
+    const auto* pTimestamp = static_cast<const gpusize*>(VoidPtrInc(pResult, offset));
+    offset += numTimestamps * sizeof(*pTimestamp);
+
+#if USE_SPM_DB_V2
+    const auto* pCounterInfo = static_cast<const SpmCounterInfo*>(VoidPtrInc(pResult, offset));
+#else
+    const auto* pCounterInfo = static_cast<const SpmCounterInfoV1*>(VoidPtrInc(pResult, offset));
+#endif
+    offset += numCounterInfo * sizeof(*pCounterInfo);
+
+    File spmFile;
+    OpenSpmFile(&spmFile, m_curLogTraceIdx, logItem, false);
+
+    if (numTimestamps > 0)
+    {
+        // Some tools supports draw and command buffer interval markers. We don't have
+        // this hooked up in the GPU profiler currently but we can still write a single
+        // "command buffer" indicating where SPM started and stopped.
+        spmFile.Printf("frame%u_cb%u,%llu,%llu\n", m_curLogFrame, m_curLogCmdBufIdx,
+            pTimestamp[0], pTimestamp[numTimestamps - 1]);
+    }
+
+    // The column header must be this exact string for some tools to detect that it
+    // can correlate the SPM timeline with the SQTT timeline.
+    spmFile.Printf("Time (realtime clock),");
+
+    // Print the first line consisting of the counter names.
+    for (uint32 i = 0; i < numPerfCounters; ++i)
+    {
+        const auto& counter = pPerfCounters[i];
+        spmFile.Printf("%s,", &counter.name[0]);
+    }
+
+    spmFile.Printf("\n");
+
+    for (uint32 sample = 0; sample < numTimestamps; ++sample)
+    {
+        // Write the raw sample timestamps so that the tools can correlate the SPM
+        // timeline to the SQTT timeline.
+        spmFile.Printf("%llu,", pTimestamp[sample]);
+
+        uint32 counterIdx = 0;
+        for (uint32 i = 0; i < numPerfCounters; i++)
+        {
+            uint32 sumAll = 0;
+            for (uint32 j = 0; j < pPerfCounters[i].instanceCount; j++)
+            {
+                const size_t offsetToCntr = offsetToData + pCounterInfo[counterIdx++].dataOffset;
+                const auto* pData = static_cast<const uint16*>(VoidPtrInc(pResult, offsetToCntr));
+                sumAll += pData[sample];
+            }
+            spmFile.Printf("%u,", sumAll);
+        }
+
+        PAL_ASSERT(counterIdx == checkNum);
+        spmFile.Printf("\n");
+    }
+}
+
+// =====================================================================================================================
+void Queue::OutputDfSpmData(
+    const LogItem&     logItem,
+    void*              pResult,
+    size_t             offset,
+    size_t             dataSize)
+{
+    const PerfCounter* pPerfCounters   = m_pDevice->DfStreamingPerfCounters();
+    uint32             numPerfCounters = m_pDevice->NumDfStreamingPerfCounters();
+    uint32             checkNum        = m_gpaSessionSampleConfig.dfSpmPerfCounters.numCounters;
+    const auto*        pSpmDbChunk     = static_cast<const SqttFileChunkDfSpmDb*>(VoidPtrInc(pResult, offset));
+    uint32             sizeOfChunk     = sizeof(*pSpmDbChunk);
+    uint32             numTimestamps   = pSpmDbChunk->numTimestamps;
+    uint32             numCounterInfo  = pSpmDbChunk->numDfSpmCounterInfo;
+
+    // Extract the SPM DB data arrays.
+    offset += sizeOfChunk;
+
+    const size_t offsetToData = offset;
+
+    const auto* pTimestamp = static_cast<const gpusize*>(VoidPtrInc(pResult, offset));
+    offset += numTimestamps * sizeof(*pTimestamp);
+
+    const auto* pCounterInfo = static_cast<const DfSpmCounterInfo*>(VoidPtrInc(pResult, offset));
+    offset += numCounterInfo * sizeof(*pCounterInfo);
+
+    File spmFile;
+    OpenSpmFile(&spmFile, m_curLogTraceIdx, logItem, false);
+
+    if (numTimestamps > 0)
+    {
+        // Some tools supports draw and command buffer interval markers. We don't have
+        // this hooked up in the GPU profiler currently but we can still write a single
+        // "command buffer" indicating where SPM started and stopped.
+        spmFile.Printf("frame%u_cb%u,%llu,%llu\n", m_curLogFrame, m_curLogCmdBufIdx,
+            pTimestamp[0], pTimestamp[numTimestamps - 1]);
+    }
+
+    // The column header must be this exact string for some tools to detect that it
+    // can correlate the SPM timeline with the SQTT timeline.
+    spmFile.Printf("Time (realtime clock),");
+
+    // Print the first line consisting of the counter names.
+    for (uint32 i = 0; i < numPerfCounters; ++i)
+    {
+        const auto& counter = pPerfCounters[i];
+        spmFile.Printf("%s,", &counter.name[0]);
+    }
+
+    spmFile.Printf("\n");
+
+    for (uint32 sample = 0; sample < numTimestamps; ++sample)
+    {
+        // Write the raw sample timestamps so that the tools can correlate the SPM
+        // timeline to the SQTT timeline.
+        spmFile.Printf("%llu,", pTimestamp[sample]);
+
+        uint32 counterIdx = 0;
+        for (uint32 i = 0; i < numPerfCounters; i++)
+        {
+            uint32 sumAll = 0;
+            for (uint32 j = 0; j < pPerfCounters[i].instanceCount; j++)
+            {
+                const size_t offsetToCntr  = offsetToData + pCounterInfo[counterIdx++].dataOffset;
+                const size_t offsetToValid = offsetToData + pCounterInfo[counterIdx++].dataValidOffset;
+                const auto* pData  = static_cast<const uint16*>(VoidPtrInc(pResult, offsetToCntr));
+                const auto* pValid = static_cast<const uint32*>(VoidPtrInc(pResult, offsetToValid));
+                if (pValid[sample] == 1)
+                {
+                    sumAll += pData[sample];
+                }
+            }
+            spmFile.Printf("%u,", sumAll);
+        }
+
+        PAL_ASSERT(counterIdx == checkNum);
+        spmFile.Printf("\n");
     }
 }
 

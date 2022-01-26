@@ -1407,6 +1407,17 @@ void CmdBuffer::CmdInsertRgpTraceMarker(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdCopyDfSpmTraceData(
+    const IPerfExperiment& perfExperiment,
+    const IGpuMemory&      dstGpuMemory,
+    gpusize                dstOffset)
+{
+    PreCall();
+    CmdBufferFwdDecorator::CmdCopyDfSpmTraceData(perfExperiment, dstGpuMemory, dstOffset);
+    PostCall(CmdBufCallId::CmdCopyDfSpmTraceData);
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdLoadCeRam(
     const IGpuMemory& srcGpuMemory,
     gpusize           memOffset,

@@ -79,6 +79,9 @@ constexpr uint32  SqttGfx103RegExcludeMaskDefault = 0x0;
 // The SPM ring buffer base address must be 32-byte aligned.
 constexpr uint32 SpmRingBaseAlignment = 32;
 
+// The DF SPM buffer alignment
+constexpr uint32 DfSpmBufferAlignment = 0x10000;
+
 // The bound GPU memory must be aligned to the maximum of all alignment requirements.
 constexpr gpusize GpuMemoryAlignment = Max<gpusize>(SqttBufferAlignment, SpmRingBaseAlignment);
 
@@ -327,6 +330,29 @@ static regSQ_THREAD_TRACE_TOKEN_MASK GetGfx10SqttTokenMask(
 }
 
 // =====================================================================================================================
+// Gets the event select value for this perfmon based on the perf counter info
+static const uint32 GetMallEventSelect(
+    const PerfCounterInfo& info)
+{
+    // The DF counters are programmed differently than other blocks
+    // using "EventSelect" which is a 14-bit two part field.
+    //   EventSelect[13:6] specifies the DF subblock instance. There are 16 MALL instances.
+    //   EventSelect[5:0]  specifies the subblock event ID
+    PAL_ASSERT(info.eventId <= ((1 << 6) - 1));
+
+    // Compute the HW event select from the DF subblock instance and subblock event ID.
+    // The first MALL is DF subblock 0x26, the rest of them follow immediately after.
+    constexpr uint32 FirstMallInstance = 0x26;
+
+    const uint32 eventSelect = ((FirstMallInstance + info.instance) << 6) | info.eventId;
+
+    // DF EventSelect fields are 14 bits (in three sections). Verify that our event select can fit.
+    PAL_ASSERT(eventSelect <= ((1 << 14) - 1));
+
+    return eventSelect;
+}
+
+// =====================================================================================================================
 PerfExperiment::PerfExperiment(
     const Device*                   pDevice,
     const PerfExperimentCreateInfo& createInfo)
@@ -337,27 +363,31 @@ PerfExperiment::PerfExperiment(
     m_settings(pDevice->Settings()),
     m_registerInfo(pDevice->CmdUtil().GetRegInfo()),
     m_cmdUtil(pDevice->CmdUtil()),
-    m_globalCounters(pDevice->GetPlatform()),
+    m_globalCounters(m_pPlatform),
     m_pSpmCounters(nullptr),
     m_numSpmCounters(0),
     m_spmRingSize(0),
     m_spmSampleInterval(0),
+    m_pDfSpmCounters(nullptr),
+    m_numDfSpmCounters(0),
     m_neverStopCounters(false)
 {
-    memset(m_sqtt,           0, sizeof(m_sqtt));
-    memset(m_pMuxselRams,    0, sizeof(m_pMuxselRams));
-    memset(m_numMuxselLines, 0, sizeof(m_numMuxselLines));
-    memset(&m_select,        0, sizeof(m_select));
+    memset(m_sqtt,              0, sizeof(m_sqtt));
+    memset(m_pMuxselRams,       0, sizeof(m_pMuxselRams));
+    memset(m_numMuxselLines,    0, sizeof(m_numMuxselLines));
+    memset(&m_dfSpmPerfmonInfo, 0, sizeof(m_dfSpmPerfmonInfo));
+    memset(&m_select,           0, sizeof(m_select));
 }
 
 // =====================================================================================================================
 PerfExperiment::~PerfExperiment()
 {
-    PAL_SAFE_DELETE_ARRAY(m_pSpmCounters, m_device.GetPlatform());
+    PAL_SAFE_DELETE_ARRAY(m_pSpmCounters, m_pPlatform);
+    PAL_SAFE_DELETE_ARRAY(m_pDfSpmCounters, m_pPlatform);
 
     for (uint32 idx = 0; idx < MaxNumSpmSegments; ++idx)
     {
-        PAL_SAFE_DELETE_ARRAY(m_pMuxselRams[idx], m_device.GetPlatform());
+        PAL_SAFE_DELETE_ARRAY(m_pMuxselRams[idx], m_pPlatform);
     }
 
     for (uint32 block = 0; block < GpuBlockCount; ++block)
@@ -366,11 +396,21 @@ PerfExperiment::~PerfExperiment()
         {
             for (uint32 instance = 0; instance < m_select.numGeneric[block]; ++instance)
             {
-                PAL_SAFE_DELETE_ARRAY(m_select.pGeneric[block][instance].pModules, m_device.GetPlatform());
+                PAL_SAFE_DELETE_ARRAY(m_select.pGeneric[block][instance].pModules, m_pPlatform);
             }
 
-            PAL_SAFE_DELETE_ARRAY(m_select.pGeneric[block], m_device.GetPlatform());
+            PAL_SAFE_DELETE_ARRAY(m_select.pGeneric[block], m_pPlatform);
         }
+    }
+
+    if (m_dfSpmPerfmonInfo.pDfSpmTraceBuffer != nullptr)
+    {
+        m_dfSpmPerfmonInfo.pDfSpmTraceBuffer->DestroyInternal();
+    }
+
+    if (m_dfSpmPerfmonInfo.pDfSpmMetadataBuffer != nullptr)
+    {
+        m_dfSpmPerfmonInfo.pDfSpmMetadataBuffer->DestroyInternal();
     }
 }
 
@@ -417,7 +457,7 @@ Result PerfExperiment::AllocateGenericStructs(
         {
             m_select.numGeneric[blockIdx] = numGlobalInstances;
             m_select.pGeneric[blockIdx] =
-                PAL_NEW_ARRAY(GenericBlockSelect, numGlobalInstances, m_device.GetPlatform(), AllocObject);
+                PAL_NEW_ARRAY(GenericBlockSelect, numGlobalInstances, m_pPlatform, AllocObject);
 
             if (m_select.pGeneric[blockIdx] == nullptr)
             {
@@ -436,7 +476,7 @@ Result PerfExperiment::AllocateGenericStructs(
 
             // We need one GenericModule for each SPM module and legacy module.
             pSelect->numModules = numGenericModules;
-            pSelect->pModules   = PAL_NEW_ARRAY(GenericSelect, numGenericModules, m_device.GetPlatform(), AllocObject);
+            pSelect->pModules   = PAL_NEW_ARRAY(GenericSelect, numGenericModules, m_pPlatform, AllocObject);
 
             if (pSelect->pModules == nullptr)
             {
@@ -505,6 +545,11 @@ Result PerfExperiment::AddCounter(
         // The perf experiment cannot be changed once it is finalized.
         result = Result::ErrorUnavailable;
     }
+    else if ((info.block == GpuBlock::DfMall) && m_perfExperimentFlags.dfSpmTraceEnabled)
+    {
+        // DF cumulative counters cannot be added if DF SPM is enabled.
+        result = Result::ErrorInitializationFailed;
+    }
     else
     {
         // Set up the general mapping information and validate the counter. We will decide on an output offset later.
@@ -566,7 +611,7 @@ Result PerfExperiment::AddCounter(
                     }
 
                     // The SQC bank mask was removed in gfx10.3.
-                    if (IsGfx103Plus(m_device) == false)
+                    if (IsGfx103Plus(*m_pDevice) == false)
                     {
                         m_select.sqg[info.instance].perfmon[idx].most.SQC_BANK_MASK = DefaultSqSelectBankMask;
                     }
@@ -660,7 +705,7 @@ Result PerfExperiment::AddCounter(
                     m_select.umcch[info.instance].perfmonCntl[idx].most.EventSelect = info.eventId;
                     m_select.umcch[info.instance].perfmonCntl[idx].most.Enable = 1;
 
-                    if (IsGfx103(m_device))
+                    if (IsGfx103(*m_pDevice))
                     {
                         if ((info.eventId == UMC_PERF_SEL_DcqOccupancy__NV21) ||
                             (info.eventId == UMC_PERF_SEL_PgtActiveBanksCnt__NV21) ||
@@ -709,7 +754,7 @@ Result PerfExperiment::AddCounter(
             mapping.general.dataType = PerfCounterDataType::Uint64;
 
             // If CP supports PERFMON_CONTROL packet then that is preferred to avoid security access issues.
-            m_select.df.usePerfmonControlPacket = (m_device.EngineProperties().cpUcodeVersion > 29);
+            m_select.df.usePerfmonControlPacket = (m_pDevice->EngineProperties().cpUcodeVersion > 29);
 
             // Find the next unused global counter in the special DF state.
             bool searching = true;
@@ -717,20 +762,7 @@ Result PerfExperiment::AddCounter(
             {
                 if (m_select.df.perfmonConfig[idx].perfmonInUse == false)
                 {
-                    // The DF counters are programmed differently than other blocks
-                    // using "EventSelect" which is a 14-bit two part field.
-                    //   EventSelect[13:6] specifies the DF subblock instance. There are 16 MALL instances.
-                    //   EventSelect[5:0]  specifies the subblock event ID
-                    PAL_ASSERT(info.eventId <= ((1 << 6) - 1));
-
-                    // Compute the HW event select from the DF subblock instance and subblock event ID.
-                    // The first MALL is DF subblock 0x26, the rest of them follow immediately after.
-                    constexpr uint32 FirstMallInstance = 0x26;
-
-                    const uint32 eventSelect = ((FirstMallInstance + info.instance) << 6) | info.eventId;
-
-                    // DF EventSelect fields are 14 bits (in three sections). Verify that our event select can fit.
-                    PAL_ASSERT(eventSelect <= ((1 << 14) - 1));
+                    const uint32 eventSelect = GetMallEventSelect(info);
 
                     m_select.df.hasCounters                           = true;
                     m_select.df.perfmonConfig[idx].perfmonInUse       = true;
@@ -932,7 +964,7 @@ Result PerfExperiment::AddSpmCounter(
                     }
 
                     // The SQC bank mask was removed in gfx10.3.
-                    if (IsGfx103Plus(m_device) == false)
+                    if (IsGfx103Plus(*m_pDevice) == false)
                     {
                         m_select.sqg[info.instance].perfmon[idx].most.SQC_BANK_MASK = DefaultSqSelectBankMask;
                     }
@@ -1329,7 +1361,7 @@ Result PerfExperiment::AddThreadTrace(
             m_sqtt[traceInfo.instance].ctrl.gfx10Plus.RT_FREQ           = SQ_TT_RT_FREQ_4096_CLK;
             m_sqtt[traceInfo.instance].ctrl.gfx10Plus.DRAW_EVENT_EN     = 1;
 
-            if (IsGfx103Plus(m_device))
+            if (IsGfx103Plus(*m_pDevice))
             {
                 m_sqtt[traceInfo.instance].ctrl.gfx103Plus.LOWATER_OFFSET = SqttGfx103LoWaterOffsetValue;
 
@@ -1393,20 +1425,122 @@ Result PerfExperiment::AddThreadTrace(
             if (traceInfo.optionFlags.threadTraceTokenConfig != 0)
             {
                 m_sqtt[traceInfo.instance].tokenMask =
-                    GetGfx10SqttTokenMask(m_device, traceInfo.optionValues.threadTraceTokenConfig);
+                    GetGfx10SqttTokenMask(*m_pDevice, traceInfo.optionValues.threadTraceTokenConfig);
             }
             else
             {
                 // By default trace all tokens and registers.
                 uint32 excludeMask = SqttGfx10TokenMaskDefault;
-                SetSqttTokenExclude(m_device, &m_sqtt[traceInfo.instance].tokenMask, SqttGfx10TokenMaskDefault);
+                SetSqttTokenExclude(*m_pDevice, &m_sqtt[traceInfo.instance].tokenMask, SqttGfx10TokenMaskDefault);
                 m_sqtt[traceInfo.instance].tokenMask.gfx10Plus.REG_INCLUDE   = SqttGfx10RegMaskDefault;
-                if (IsGfx103Plus(m_device))
+                if (IsGfx103Plus(*m_pDevice))
                 {
                     m_sqtt[traceInfo.instance].tokenMask.gfx103Plus.REG_EXCLUDE = SqttGfx103RegExcludeMaskDefault;
                 }
             }
         }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// The KMD is responsible for actually adding the counters so we just need to attach the create info to
+// the experiment. This includes a pointer to the buffers that have not been created yet, but will be created
+// in GpaSession::AcquireDfGpuMem().
+Result PerfExperiment::AddDfSpmTrace(
+    const SpmTraceCreateInfo& dfSpmCreateInfo)
+{
+    Result result = Result::Success;
+    if (m_isFinalized)
+    {
+        // The perf experiment cannot be changed once it is finalized.
+        result = Result::ErrorUnavailable;
+    }
+    else if (dfSpmCreateInfo.ringSize > UINT32_MAX)
+    {
+        // The ring size register is only 32 bits and its value must be aligned.
+        result = Result::ErrorInvalidValue;
+    }
+    else if (dfSpmCreateInfo.spmInterval < 1)
+    {
+        // The sample interval must be at least 1.
+        result = Result::ErrorInvalidValue;
+    }
+    else if (m_perfExperimentFlags.perfCtrsEnabled && m_select.df.hasCounters)
+    {
+        // DF SPM cannot be enabled if there are alreay DF cumulative counters.
+        result = Result::ErrorInitializationFailed;
+    }
+    else
+    {
+        m_numDfSpmCounters = dfSpmCreateInfo.numPerfCounters;
+        m_pDfSpmCounters   = PAL_NEW_ARRAY(SpmCounterMapping, m_numDfSpmCounters, m_pPlatform, AllocObject);
+
+        m_perfExperimentFlags.dfSpmTraceEnabled  = true;
+        m_dfSpmPerfmonInfo.perfmonUsed           = m_numDfSpmCounters;
+        m_dfSpmPerfmonInfo.samplingIntervalNs    = static_cast<uint16>(dfSpmCreateInfo.spmInterval);
+        for (uint32 i = 0; i < dfSpmCreateInfo.numPerfCounters; i++)
+        {
+            m_pDfSpmCounters[i].general.block          = dfSpmCreateInfo.pPerfCounterInfos[i].block;
+            m_pDfSpmCounters[i].general.eventId        = dfSpmCreateInfo.pPerfCounterInfos[i].eventId;
+            m_pDfSpmCounters[i].general.globalInstance = dfSpmCreateInfo.pPerfCounterInfos[i].instance;
+
+            const uint32 eventSelect = GetMallEventSelect(dfSpmCreateInfo.pPerfCounterInfos[i]);
+
+            m_dfSpmPerfmonInfo.perfmonEvents[i]    = eventSelect;
+            m_dfSpmPerfmonInfo.perfmonUnitMasks[i] = dfSpmCreateInfo.pPerfCounterInfos[i].df.eventQualifier & 0xFF;
+        }
+        result = AllocateDfSpmBuffers(dfSpmCreateInfo.ringSize);
+    }
+    return result;
+}
+
+// ====================================================================================================================
+// Acquires additional buffers for the DF SPM trace.
+Result PerfExperiment::AllocateDfSpmBuffers(
+    gpusize    dfSpmBufferSize)
+{
+    GpuMemoryCreateInfo createInfo = {};
+    createInfo.size       = Pow2Align(dfSpmBufferSize, DfSpmBufferAlignment);
+    createInfo.alignment  = DfSpmBufferAlignment;
+    createInfo.vaRange    = VaRange::Default;
+    createInfo.priority   = GpuMemPriority::High;
+    createInfo.mallPolicy = GpuMemMallPolicy::Never;
+    createInfo.flags.gl2Uncached  = 1;
+    createInfo.flags.cpuInvisible = 1;
+    // Ensure a fall back to local is available in case there is no Invisible Memory.
+    if (m_pDevice->MemoryProperties().invisibleHeapSize > 0)
+    {
+        createInfo.heapCount = 3;
+        createInfo.heaps[0] = GpuHeapInvisible;
+        createInfo.heaps[1] = GpuHeapLocal;
+        createInfo.heaps[2] = GpuHeapGartCacheable;
+    }
+    else
+    {
+        createInfo.heapCount = 2;
+        createInfo.heaps[0] = GpuHeapLocal;
+        createInfo.heaps[1] = GpuHeapGartCacheable;
+    }
+
+    GpuMemoryInternalCreateInfo internalCreateInfo = {};
+    internalCreateInfo.flags.dfSpmTraceBuffer = 1;
+    internalCreateInfo.flags.alwaysResident   = 1;
+
+    Result result = m_pDevice->CreateInternalGpuMemory(createInfo,
+                                                       internalCreateInfo,
+                                                       &m_dfSpmPerfmonInfo.pDfSpmTraceBuffer);
+
+    if (result == Result::Success)
+    {
+        createInfo.size      = sizeof(DfSpmTraceMetadataLayout);
+        createInfo.alignment = DfSpmBufferAlignment;
+
+        internalCreateInfo.flags.dfSpmTraceBuffer = 0;
+        result = m_pDevice->CreateInternalGpuMemory(createInfo,
+                                                    internalCreateInfo,
+                                                    &m_dfSpmPerfmonInfo.pDfSpmMetadataBuffer);
     }
 
     return result;
@@ -1441,7 +1575,7 @@ Result PerfExperiment::AddSpmTrace(
     {
         // Create a SpmCounterMapping for every SPM counter.
         m_numSpmCounters = spmCreateInfo.numPerfCounters;
-        m_pSpmCounters   = PAL_NEW_ARRAY(SpmCounterMapping, m_numSpmCounters, m_device.GetPlatform(), AllocObject);
+        m_pSpmCounters   = PAL_NEW_ARRAY(SpmCounterMapping, m_numSpmCounters, m_pPlatform, AllocObject);
 
         if (m_pSpmCounters == nullptr)
         {
@@ -1504,7 +1638,7 @@ Result PerfExperiment::AddSpmTrace(
         if (totalLines > 0)
         {
             m_numMuxselLines[segment] = totalLines;
-            m_pMuxselRams[segment]    = PAL_NEW_ARRAY(SpmLineMapping, totalLines, m_device.GetPlatform(), AllocObject);
+            m_pMuxselRams[segment]    = PAL_NEW_ARRAY(SpmLineMapping, totalLines, m_pPlatform, AllocObject);
 
             if (m_pMuxselRams[segment] == nullptr)
             {
@@ -1625,11 +1759,11 @@ Result PerfExperiment::AddSpmTrace(
     {
         // If some error occured do what we can to reset our state. It's too much trouble to revert each select
         // register so those counter slots are inaccessable for the lifetime of this perf experiment.
-        PAL_SAFE_DELETE_ARRAY(m_pSpmCounters, m_device.GetPlatform());
+        PAL_SAFE_DELETE_ARRAY(m_pSpmCounters, m_pPlatform);
 
         for (uint32 idx = 0; idx < MaxNumSpmSegments; ++idx)
         {
-            PAL_SAFE_DELETE_ARRAY(m_pMuxselRams[idx], m_device.GetPlatform());
+            PAL_SAFE_DELETE_ARRAY(m_pMuxselRams[idx], m_pPlatform);
         }
     }
 
@@ -1948,7 +2082,7 @@ void PerfExperiment::IssueBegin(
                 sqPerfCounterCtrl.bits.GS_EN     = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskGs) != 0);
                 sqPerfCounterCtrl.bits.HS_EN     = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskHs) != 0);
                 sqPerfCounterCtrl.bits.CS_EN     = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskCs) != 0);
-                if (m_device.ChipProperties().gfxip.supportsHwVs)
+                if (m_pDevice->ChipProperties().gfxip.supportsHwVs)
                 {
                     sqPerfCounterCtrl.gfx09_10.VS_EN =
                         ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskVs) != 0);
@@ -1969,7 +2103,7 @@ void PerfExperiment::IssueBegin(
                 sqPerfCounterCtrl.bits.GS_EN     = 1;
                 sqPerfCounterCtrl.bits.HS_EN     = 1;
                 sqPerfCounterCtrl.bits.CS_EN     = 1;
-                if (m_device.ChipProperties().gfxip.supportsHwVs)
+                if (m_pDevice->ChipProperties().gfxip.supportsHwVs)
                 {
                     sqPerfCounterCtrl.gfx09_10.VS_EN = 1;
                 }
@@ -2004,7 +2138,7 @@ void PerfExperiment::IssueBegin(
             // The old perf experiment code did a PS_PARTIAL_FLUSH and a wait-idle here because it "seems to help us
             // more reliably gather thread-trace data". That doesn't make any sense and isn't backed-up by any of the
             // HW programming guides. It has been duplicated here to avoid initial regressions but should be removed.
-            if (m_device.EngineSupportsGraphics(engineType))
+            if (m_pDevice->EngineSupportsGraphics(engineType))
             {
                 pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, engineType, pCmdSpace);
             }
@@ -2298,7 +2432,7 @@ void PerfExperiment::UpdateSqttTokenMask(
                 }
                 else
                 {
-                    regSQ_THREAD_TRACE_TOKEN_MASK tokenMask = GetGfx10SqttTokenMask(m_device, sqttTokenConfig);
+                    regSQ_THREAD_TRACE_TOKEN_MASK tokenMask = GetGfx10SqttTokenMask(*m_pDevice, sqttTokenConfig);
 
                     // These fields aren't controlled by the token config.
                     tokenMask.gfx10Plus.INST_EXCLUDE   = m_sqtt[idx].tokenMask.gfx10Plus.INST_EXCLUDE;
@@ -2882,7 +3016,7 @@ uint32* PerfExperiment::WriteStartThreadTraces(
     // THREAD_TRACE_ENABLE register on compute.
     pCmdSpace = WriteGrbmGfxIndexBroadcastGlobal(pCmdStream, pCmdSpace);
 
-    if (m_device.EngineSupportsGraphics(pCmdStream->GetEngineType()))
+    if (m_pDevice->EngineSupportsGraphics(pCmdStream->GetEngineType()))
     {
         pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_START, pCmdStream->GetEngineType(), pCmdSpace);
     }
@@ -2911,7 +3045,7 @@ uint32* PerfExperiment::WriteStopThreadTraces(
 
     // Stop the thread traces. The spec says it's best to use an event on graphics but we should write the
     // THREAD_TRACE_ENABLE register on compute.
-    if (m_device.EngineSupportsGraphics(engineType))
+    if (m_pDevice->EngineSupportsGraphics(engineType))
     {
         pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(THREAD_TRACE_STOP, engineType, pCmdSpace);
     }
@@ -3157,7 +3291,7 @@ uint32* PerfExperiment::WriteSelectRegisters(
                                                 m_counterInfo.umcchRegAddr[instance].perModule[idx].perfMonCtl,
                                                 m_select.umcch[instance].perfmonCntl[idx].u32All,
                                                 pCmdSpace);
-                    if (IsGfx103(m_device) && (m_select.umcch[instance].thresholdSet[idx] == true))
+                    if (IsGfx103(*m_pDevice) && (m_select.umcch[instance].thresholdSet[idx] == true))
                     {
                        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(
                                                     m_counterInfo.umcchRegAddr[instance].perModule[idx].perfMonCtrHi,
@@ -3401,7 +3535,7 @@ uint32* PerfExperiment::WriteEnableCfgRegisters(
             rmiPerfCounterCntl.bits.PERF_COUNTER_BURST_LENGTH_THRESHOLD = 1;
 
             // This field exists on every ASIC except Raven2.
-            if (IsRaven2(m_device) == false)
+            if (IsRaven2(*m_pDevice) == false)
             {
                 rmiPerfCounterCntl.most.PERF_EVENT_WINDOW_MASK1 = 0x2;
             }
@@ -3787,7 +3921,7 @@ uint32* PerfExperiment::WriteUpdateSpiConfigCntl(
     else
     {
         // MEC doesn't support RMW, so directly set the register as we do on gfx9.
-        if (m_device.EngineSupportsGraphics(pCmdStream->GetEngineType()))
+        if (m_pDevice->EngineSupportsGraphics(pCmdStream->GetEngineType()))
         {
             constexpr uint32 SpiConfigCntlSqgEventsMask = ((1 << SPI_CONFIG_CNTL__ENABLE_SQG_BOP_EVENTS__SHIFT) |
                                                            (1 << SPI_CONFIG_CNTL__ENABLE_SQG_TOP_EVENTS__SHIFT));
@@ -3817,7 +3951,7 @@ uint32* PerfExperiment::WriteUpdateWindowedCounters(
     ) const
 {
     // As with thread traces, we must use an event on universal queues but set a register on compute queues.
-    if (m_device.EngineSupportsGraphics(pCmdStream->GetEngineType()))
+    if (m_pDevice->EngineSupportsGraphics(pCmdStream->GetEngineType()))
     {
         pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(enable ? PERFCOUNTER_START : PERFCOUNTER_STOP,
                                                         pCmdStream->GetEngineType(),
@@ -3843,7 +3977,7 @@ uint32* PerfExperiment::WriteWaitIdle(
     uint32*       pCmdSpace
     ) const
 {
-    if (m_device.EngineSupportsGraphics(pCmdStream->GetEngineType()))
+    if (m_pDevice->EngineSupportsGraphics(pCmdStream->GetEngineType()))
     {
         // Use a CS_PARTIAL_FLUSH and ACQUIRE_MEM to wait for CS and graphics work to complete. Use the acquire mem
         // to flush caches if requested.

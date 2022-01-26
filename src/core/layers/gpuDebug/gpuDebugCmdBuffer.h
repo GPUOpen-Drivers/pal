@@ -455,6 +455,10 @@ public:
     virtual void CmdInsertRgpTraceMarker(
         uint32      numDwords,
         const void* pData) override;
+    virtual void CmdCopyDfSpmTraceData(
+        const IPerfExperiment& perfExperiment,
+        const IGpuMemory&      dstGpuMemory,
+        gpusize                dstOffset) override;
     virtual void CmdSaveComputeState(
         uint32 stateFlags) override;
     virtual void CmdRestoreComputeState(
@@ -789,6 +793,7 @@ private:
     void ReplayCmdEndPerfExperiment(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdInsertTraceMarker(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdInsertRgpTraceMarker(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdCopyDfSpmTraceData(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSaveComputeState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdRestoreComputeState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdCommentString(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);

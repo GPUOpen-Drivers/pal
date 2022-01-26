@@ -36,9 +36,9 @@ void GpaSession::PerfSample::SetSampleMemoryProperties(
     Pal::gpusize         offset,
     Pal::gpusize         buffersize)
 {
-    m_sampleDataGpuMemoryInfo = pGpuMemory;
-    m_sampleDataOffset        = offset;
-    m_pSampleDataBufferSize   = buffersize;
+    m_sampleDataGpuMemoryInfo   = pGpuMemory;
+    m_gcSampleDataOffset        = offset;
+    m_pGcSampleDataBufferSize   = buffersize;
 
     m_pPerfExpResults = Util::VoidPtrInc(m_sampleDataGpuMemoryInfo.pCpuAddr, static_cast<size_t>(offset));
 }
@@ -65,8 +65,8 @@ void GpaSession::PerfSample::WriteCopySampleData(Pal::ICmdBuffer* pCmdBuffer)
     Pal::MemoryCopyRegion copyRegions = {};
 
     copyRegions.srcOffset = m_copySampleOffset;
-    copyRegions.dstOffset = m_sampleDataOffset;
-    copyRegions.copySize  = m_pSampleDataBufferSize;
+    copyRegions.dstOffset = m_gcSampleDataOffset;
+    copyRegions.copySize  = m_pGcSampleDataBufferSize;
 
     pCmdBuffer->CmdCopyMemory(*m_pCopySampleGpuMem, *(m_sampleDataGpuMemoryInfo.pGpuMemory), 1, &copyRegions);
 }
@@ -197,6 +197,10 @@ GpaSession::TraceSample::~TraceSample()
 {
     PAL_SAFE_FREE(m_pThreadTraceLayout, m_pAllocator);
     PAL_SAFE_FREE(m_pSpmTraceLayout, m_pAllocator);
+    PAL_SAFE_FREE(m_pDfSpmEventIds, m_pAllocator);
+    PAL_SAFE_FREE(m_pDfSpmEventQualifiers, m_pAllocator);
+    PAL_SAFE_FREE(m_pDfSpmInstances, m_pAllocator);
+    PAL_SAFE_FREE(m_pDfSpmGpuBlocks, m_pAllocator);
 }
 
 // =====================================================================================================================
@@ -231,6 +235,48 @@ Pal::Result GpaSession::TraceSample::InitThreadTrace()
         }
     }
 
+    return result;
+}
+
+// =====================================================================================================================
+Pal::Result GpaSession::TraceSample::InitDfSpmTrace(
+    const GpaSampleConfig& sampleConfig)
+{
+    Result result = Result::ErrorOutOfMemory;
+
+    // These are used for parsing the final output buffer.
+    m_numDfSpmCounters    = sampleConfig.dfSpmPerfCounters.numCounters;
+    m_dfSpmSampleInterval = sampleConfig.dfSpmPerfCounters.sampleInterval;
+
+    // Space is already allocated for one
+    const size_t size = sizeof(uint32) +
+                        ((m_numDfSpmCounters - 1) * sizeof(uint32));
+    const size_t spmGpuBlocksSize = sizeof(SpmGpuBlock) +
+                                    ((m_numDfSpmCounters - 1) * sizeof(SpmGpuBlock));
+
+    void* pEventIdsMem     = PAL_CALLOC(size, m_pAllocator, Util::SystemAllocType::AllocInternal);
+    void* pEventQualsMem   = PAL_CALLOC(size, m_pAllocator, Util::SystemAllocType::AllocInternal);
+    void* pInstancesMem    = PAL_CALLOC(size, m_pAllocator, Util::SystemAllocType::AllocInternal);
+    void* pSpmGpuBlocksMem = PAL_CALLOC(spmGpuBlocksSize, m_pAllocator, Util::SystemAllocType::AllocInternal);
+
+    if (pEventIdsMem     != nullptr &&
+        pEventQualsMem   != nullptr &&
+        pInstancesMem    != nullptr &&
+        pSpmGpuBlocksMem != nullptr)
+    {
+        result = Result::Success;
+        m_flags.dfSpmTraceEnabled = 1;
+
+        const PerfCounterId* pCounters = sampleConfig.dfSpmPerfCounters.pIds;
+
+        for (uint32 idx = 0; idx < m_numDfSpmCounters; ++idx)
+        {
+            m_pDfSpmEventIds[idx]        = pCounters[idx].eventId;
+            m_pDfSpmEventQualifiers[idx] = pCounters[idx].df.eventQualifier;
+            m_pDfSpmInstances[idx]       = pCounters[idx].instance;
+            m_pDfSpmGpuBlocks[idx]       = static_cast<SpmGpuBlock>(pCounters[idx].block);
+        }
+    }
     return result;
 }
 
@@ -307,13 +353,49 @@ void GpaSession::TraceSample::WriteCopyTraceData(ICmdBuffer* pCmdBuf)
     MemoryCopyRegion copyRegions = {};
 
     copyRegions.srcOffset = m_traceMemoryOffset;
-    copyRegions.dstOffset = m_sampleDataOffset;
-    copyRegions.copySize  = m_pSampleDataBufferSize;
+    copyRegions.dstOffset = m_gcSampleDataOffset;
+    copyRegions.copySize  = m_pGcSampleDataBufferSize;
 
     pCmdBuf->CmdCopyMemory(*(m_traceGpuMemoryInfo.pGpuMemory),
                            *(m_sampleDataGpuMemoryInfo.pGpuMemory),
                            1,
                            &copyRegions);
+}
+
+// ====================================================================================================================
+void GpaSession::TraceSample::WriteCopyDfSpmTraceData(
+    ICmdBuffer* pCmdBuf)
+{
+    // m_gcSampleDataOffset and m_pGcSampleDataBufferSize refer to the normal Counter/SQTT buffer. DF SPM data is stored
+    // after that.
+    pCmdBuf->CmdCopyDfSpmTraceData(*m_pPerfExperiment,
+                                   *(m_sampleDataGpuMemoryInfo.pGpuMemory),
+                                   (m_gcSampleDataOffset + m_pGcSampleDataBufferSize));
+}
+
+// =====================================================================================================================
+// Obtains the number of bytes of df spm data written in the df spm trace buffer and the number of samples
+void GpaSession::TraceSample::GetDfSpmResultsSize(
+    Pal::gpusize* pSizeInBytes,
+    Pal::gpusize* pNumSamples)
+{
+    if (m_numDfSpmSamples < 0)
+    {
+        // m_gcSampleDataOffset and m_pGcSampleDataBufferSize refer to the normal Counter/SQTT buffer. DF SPM data is stored
+        // after that.
+        gpusize location = m_gcSampleDataOffset + m_pGcSampleDataBufferSize;
+        // Cache the number of samples if not computed before.
+        m_numDfSpmSamples = CountNumDfSamples(Util::VoidPtrInc(m_pPerfExpResults,
+                                                               static_cast<size_t>(location)));
+    }
+
+    (*pNumSamples) = m_numDfSpmSamples;
+
+    // This is calculated according to the spm data layout in the RGP spec, excluding the header, num timestamps
+    // and the timestampOffset fields.
+    (*pSizeInBytes) = m_numDfSpmCounters * sizeof(SpmCounterInfo) +            // SpmCounterInfo for each counter.
+                      m_numDfSpmSamples  * sizeof(gpusize)        +            // Timestamp data.
+                      m_numDfSpmCounters * m_numDfSpmSamples * sizeof(uint16); // Counter data.
 }
 
 // =====================================================================================================================
@@ -341,6 +423,168 @@ void GpaSession::TraceSample::GetSpmResultsSize(
     (*pSizeInBytes) = CounterInfoSizeInBytes +                             // SpmCounterInfo for each counter.
                       m_numSpmSamples * sizeof(gpusize) +                  // Timestamp data.
                       m_numSpmCounters * m_numSpmSamples * sizeof(uint16); // Counter data.
+}
+
+// =====================================================================================================================
+// Returns the size of the DF SPM counter delta output if nullptr buffer is provided, or outputs the counter sample
+// values into the buffer provided.
+Result GpaSession::TraceSample::GetDfSpmTraceResults(
+    void*  pDstBuffer,
+    size_t bufferSize)
+{
+    /* RGP Layout for DF SPM trace data:
+     *    1. Header
+     *    2. Flags
+     *    3. Preamble Size
+     *    4. Num Timestamps
+     *    5. Num DfSpmCounterInfo
+     *    6. DfSpmCounterInfo Size
+     *    6. Sampling Interval
+     *    8. Timestamps[]
+     *    9. DfSampleFlags[]
+     *   10. DfSpmCounterInfo[]
+     *   11. CounterData[]
+    */
+
+    Result result = Result::Success;
+
+    // These offsets are defined by HW. They are hardcoded in the chunk returned.
+    constexpr uint32 CounterValidOffsetInBits           = 244;
+    constexpr uint32 GlobalTimestampCounterOffsetInBits = 160;
+    constexpr uint32 GtscLimitHitOffsetInBits           = 253;
+    constexpr uint32 OverFlowBitOffsetInBits            = 254;
+    constexpr uint32 SegmentSizeInBytes                 = 32;
+
+    constexpr gpusize SampleSizeInQWords       = SegmentSizeInBytes / sizeof(uint8);
+    constexpr gpusize SampleSizeInWords        = SegmentSizeInBytes / 4;
+    constexpr size_t  TwoCounterSizeInBytes    = 5;
+    constexpr size_t  OneCounterDataSizeInBits = 20;
+
+    const size_t  TimestampDataSizeInBytes = m_numDfSpmSamples  * sizeof(gpusize);
+    const size_t  FlagsDataSizeInBytes     = m_numDfSpmSamples  * sizeof(uint32);
+    const gpusize CounterDataSizeInBytes   = m_numDfSpmSamples  * sizeof(uint32); // Size of data written for one counter.
+    const size_t  CounterInfoSizeInBytes   = m_numDfSpmCounters * sizeof(DfSpmCounterInfo);
+    const size_t  CounterInfoOffset        = TimestampDataSizeInBytes + FlagsDataSizeInBytes;
+    const size_t  CounterDataOffset        = CounterInfoOffset + CounterInfoSizeInBytes;
+    const size_t  TotalCounterDataSizeInBytes = m_numDfSpmCounters * m_numDfSpmSamples * sizeof(uint32);
+    const size_t  CounterValidSizeInBytes  = m_numDfSpmSamples * sizeof(uint32);
+
+    // A valid destination buffer size is expected.
+    PAL_ASSERT((bufferSize > 0) && (pDstBuffer != nullptr));
+
+    gpusize location = m_gcSampleDataOffset + m_pGcSampleDataBufferSize + sizeof(DfSpmTraceMetadataLayout);
+    // Start of the spm results section.
+    void* pSrcBufferStart = Util::VoidPtrInc(m_pPerfExpResults,
+                                             static_cast<size_t>(location));
+
+    // Move to the actual start of the Spm data. The first dword is the wptr. There are 32 bytes of
+    // reserved fields after which the data begins.
+    void*   pTimestampData = Util::VoidPtrInc(pSrcBufferStart,
+                                              (GlobalTimestampCounterOffsetInBits / sizeof(uint8)));
+    uint64* pTimestamp     = static_cast<uint64*>(pTimestampData);
+
+    for (int32 sample = 0; sample < m_numDfSpmSamples; ++sample)
+    {
+        // RGP Spm output: Write the timestamps.
+        static_cast<uint64*>(pDstBuffer)[sample] = *pTimestamp & 0xFFFFFFFFFF;
+
+        pTimestamp += SampleSizeInQWords;
+    }
+
+    // Beginning of DfSampleFlags section.
+    uint32* pFlags    = static_cast<uint32*>(Util::VoidPtrInc(pDstBuffer, TimestampDataSizeInBytes));
+    uint32* pFlagData = static_cast<uint32*>(Util::VoidPtrInc(pSrcBufferStart, (GtscLimitHitOffsetInBits / sizeof(uint8))));
+    for (int32 sample = 0; sample < m_numDfSpmSamples; ++sample)
+    {
+        //Write out the flags
+        if (((*pFlagData) & 0x20) != 0)
+        {
+            pFlags[sample] |= 0x2;
+        }
+        if (((*pFlagData) & 0x40) != 0)
+        {
+            pFlags[sample] |= 0x1;
+        }
+        pFlagData += SampleSizeInQWords;
+    }
+
+    // Beginning of the DfSpmCounterInfo section.
+    DfSpmCounterInfo* pCounterInfo =
+        static_cast<DfSpmCounterInfo*>(Util::VoidPtrInc(pDstBuffer, CounterInfoOffset));
+
+    // Offset from the beginning of the RGP spm chunk to where the counter values begin.
+    gpusize curCounterDataOffset  = CounterDataOffset;
+    gpusize curCounterValidOffset = CounterDataOffset + TotalCounterDataSizeInBytes;
+
+    // RGP SPM output: write the DfSpmCounterInfo for each counter.
+    for (uint32 counter = 0; counter < m_numDfSpmCounters; counter++)
+    {
+        pCounterInfo[counter].block           = m_pDfSpmGpuBlocks[counter];
+        pCounterInfo[counter].eventQualifier  = m_pDfSpmEventQualifiers[counter];
+        pCounterInfo[counter].eventIndex      = m_pDfSpmEventIds[counter];
+        pCounterInfo[counter].instance        = m_pDfSpmInstances[counter];
+        pCounterInfo[counter].dataOffset      = static_cast<uint32>(curCounterDataOffset);
+        pCounterInfo[counter].dataValidOffset = static_cast<uint32>(curCounterValidOffset);
+        pCounterInfo[counter].dataSize        = sizeof(uint16);
+
+        curCounterDataOffset  += CounterDataSizeInBytes;
+        curCounterValidOffset += CounterValidSizeInBytes;
+    }
+
+    // Read pointer points to the first segment of the first sample.
+    void* pSample = pSrcBufferStart;
+
+    // Write pointer points to the beginning ofthe first counter data.
+    uint16* pDstCounterData  = static_cast<uint16*>(Util::VoidPtrInc(pDstBuffer, CounterDataOffset));
+    uint32* pDstCounterValid = static_cast<uint32*>(Util::VoidPtrInc(pDstBuffer, CounterDataOffset + TotalCounterDataSizeInBytes));
+
+    void*   pOverflow         = Util::VoidPtrInc(pSrcBufferStart,
+                                                 (OverFlowBitOffsetInBits / sizeof(uint8)));
+    uint64* counter1And2      = nullptr;
+    uint32  counter1          = 0;
+    uint32  counter2          = 0;
+    void*   pCounterValid     = nullptr;
+    uint16* counterValid1And2 = nullptr;
+    uint32  counterValid1     = 0;
+    uint32  counterValid2     = 0;
+
+    // Go through all counters 2 at a time
+    for (uint32 counter = 0; counter < 4 && result == Result::Success; counter++)
+    {
+        // Move by 2 counters because that is 40 bits and 40 bits can be divided into bytes evenly
+        pSample       = Util::VoidPtrInc(pSrcBufferStart, TwoCounterSizeInBytes * counter);
+        for (int32 sample = 0; sample < m_numDfSpmSamples; sample++)
+        {
+            // The first two counters are stored in the first 40 bits. One in the first 20
+            // and the second in the second 20.
+            counter1And2 = static_cast<uint64*>(pSample);
+            counter1     = *counter1And2 & 0xFFFFF;
+            counter2     = (*counter1And2 >> OneCounterDataSizeInBits) & 0xFFFFF;
+
+            // Check the counter valid bits
+            counterValid1And2 = static_cast<uint16*>(pCounterValid);
+            counterValid1 = ((*counterValid1And2) >> (4 + (counter * 2))) & 1;
+            counterValid2 = ((*counterValid1And2) >> (5 + (counter * 2))) & 1;
+
+            // Move to the next sample segment
+            pSample       = Util::VoidPtrInc(pSample, SegmentSizeInBytes);
+            pCounterValid = Util::VoidPtrInc(pCounterValid, SegmentSizeInBytes);
+
+            // RGP SPM OUTPUT: write the delta values of the current counter for all samples.
+            (*pDstCounterData) = static_cast<uint16>(counter1);
+            pDstCounterData++;
+            (*pDstCounterData) = static_cast<uint16>(counter2);
+            pDstCounterData++;
+
+            (*pDstCounterValid) = counterValid1;
+            pDstCounterValid++;
+            (*pDstCounterValid) = counterValid2;
+            pDstCounterValid++;
+
+        } // Iterate over samples.
+    } // Iterate over counters.
+
+    return result;
 }
 
 // =====================================================================================================================
@@ -449,6 +693,31 @@ Result GpaSession::TraceSample::GetSpmTraceResults(
     } // Iterate over counters.
 
     return result;
+}
+
+// =====================================================================================================================
+// Parses the DF SPM trace buffer to find the number of samples of data written in the buffer.
+uint32 GpaSession::TraceSample::CountNumDfSamples(
+    void* pBufferStart)
+{
+    // This offset is defined by HW. It is hardcoded in the chunk returned.
+    constexpr uint32 LastSpmPktOffsetInBits = 252;
+    constexpr uint32 SegmentSizeInBytes     = 32;
+
+    // Trace size is stored in metadata and is in 64-byte blocks and there are 2 samples per block.
+    uint32  numRecords      = static_cast<uint32*>(pBufferStart)[0] * 2;
+    void*   pDataStart      = Util::VoidPtrInc(pBufferStart, sizeof(DfSpmTraceMetadataLayout));
+    void*   pLastSpmPktByte = Util::VoidPtrInc(pDataStart,
+                                              (LastSpmPktOffsetInBits / 8));
+    // Move to the second to last record and check the lastSpmPkt bit
+    pLastSpmPktByte = Util::VoidPtrInc(pLastSpmPktByte, (SegmentSizeInBytes * (numRecords - 2)));
+    uint32* pLastSpmPktBit = static_cast<uint32*>(pLastSpmPktByte);
+    uint32  lastSpmPktBit  = ((*pLastSpmPktBit) >> (LastSpmPktOffsetInBits % 8)) & 1;
+    if (lastSpmPktBit == 1)
+    {
+        numRecords -= 1;
+    }
+    return numRecords;
 }
 
 // =====================================================================================================================

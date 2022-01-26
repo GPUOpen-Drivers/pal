@@ -77,7 +77,8 @@ struct GpuMemoryInternalCreateInfo
             uint32 accessedPhysically :  1; // GPU memory will be accessed physically (physical engine like MM video).
             uint32 pageFaultDebugSrd  :  1; // GPU memory will be used for PageFaultDebugSrd feature.
             uint32 gpuReadOnly        :  1; // Indicates the memory is read-only on the GPU
-            uint32 reserved           : 14;
+            uint32 dfSpmTraceBuffer   :  1; // GPU memory will be used for a DF SPM trace buffer.
+            uint32 reserved           : 13;
         };
         uint32 u32All;
     } flags;
@@ -159,9 +160,10 @@ union GpuMemoryFlags
         uint32 crossAdapter             :  1; // GPU memory is shared cross-adapter resource
         uint32 gpuReadOnly              :  1; // GPU memory is read only.
         uint32 mallRangeActive          :  1;
+        uint32 dfSpmTraceBuffer         :  1; // GPU memory will be used by KMD for DF SPM trace.
         uint32 explicitSync             :  1;
         uint32 privPrimary              :  1; // GPU memory is a private primary
-        uint32 reserved                 : 21;
+        uint32 reserved                 : 20;
     };
     uint64  u64All;
 };
@@ -275,6 +277,7 @@ public:
     bool IsReadOnlyOnGpu()       const { return (m_flags.gpuReadOnly              != 0); }
     bool IsAccessedPhysically()  const { return (m_flags.accessedPhysically       != 0); }
     bool IsMallRangeActive()     const { return (m_flags.mallRangeActive          != 0); }
+    bool IsDfSpmTraceBuffer()    const { return (m_flags.dfSpmTraceBuffer         != 0); }
     bool IsExplicitSync()        const { return (m_flags.explicitSync             != 0); }
     bool IsPrivPrimary()         const { return (m_flags.privPrimary              != 0); }
     void SetAccessedPhysically() { m_flags.accessedPhysically = 1; }

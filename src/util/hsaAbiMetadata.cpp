@@ -633,6 +633,12 @@ Result CodeObjectMetadata::DeserializeKernel(
     {
         result = Result::ErrorInvalidPipelineElf;
     }
+    else if (((m_reqdWorkgroupSize[0] == 0) != (m_reqdWorkgroupSize[1] == 0)) ||
+             ((m_reqdWorkgroupSize[0] == 0) != (m_reqdWorkgroupSize[2] == 0)))
+    {
+        // The three required workgroup sizes must all be zero or all non-zero.
+        result = Result::ErrorInvalidPipelineElf;
+    }
 
     return result;
 }

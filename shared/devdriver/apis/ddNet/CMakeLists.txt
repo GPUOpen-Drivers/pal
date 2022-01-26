@@ -23,29 +23,3 @@ target_sources(ddNet PRIVATE
     inc/ddNet.h
     src/ddNet.cpp
 )
-
-### Unit tests
-if(DD_OPT_ENABLE_TESTS)
-    devdriver_executable(tests_ddNet
-        tests/ddNetTests.h
-        tests/ddNetTests.cpp
-    )
-
-    target_include_directories(tests_ddNet
-        PRIVATE
-            tests
-    )
-
-    target_link_libraries(tests_ddNet
-        PRIVATE
-            ddNet
-            ddTestUtil
-    )
-
-    set_target_properties(tests_ddNet
-        PROPERTIES
-            FOLDER "${DEVDRIVER_TESTS_ROOT}"
-    )
-
-    devdriver_discover_tests(tests_ddNet)
-endif()

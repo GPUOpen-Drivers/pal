@@ -27,6 +27,7 @@
 #include "core/device.h"
 #include "core/gpuEvent.h"
 #include "core/platform.h"
+#include "core/perfExperiment.h"
 #include "core/queue.h"
 #include "palAutoBuffer.h"
 #include "palLinearAllocator.h"
@@ -811,6 +812,36 @@ void CmdBuffer::CmdReleaseThenAcquire(
 #if PAL_ENABLE_PRINTS_ASSERTS
     VerifyBarrierTransitions(barrierInfo);
 #endif
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdCopyDfSpmTraceData(
+    const IPerfExperiment& perfExperiment,
+    const IGpuMemory&      dstGpuMemory,
+    gpusize                dstOffset)
+{
+    const PerfExperiment& experiment  = static_cast<const PerfExperiment&>(perfExperiment);
+
+    const DfSpmPerfmonInfo* pDfSpmPerfmonInfo = experiment.GetDfSpmPerfmonInfo();
+
+    const gpusize dfSpmTraceBufferSize = pDfSpmPerfmonInfo->pDfSpmTraceBuffer->Desc().size;
+
+    MemoryCopyRegion region = { };
+    region.copySize  = sizeof(DfSpmTraceMetadataLayout);
+    region.srcOffset = 0;
+    region.dstOffset = dstOffset;
+    CmdCopyMemory(*pDfSpmPerfmonInfo->pDfSpmMetadataBuffer,
+                  dstGpuMemory,
+                  1,
+                  &region);
+
+    region.copySize  = dfSpmTraceBufferSize;
+    region.srcOffset = 0;
+    region.dstOffset = dstOffset + sizeof(DfSpmTraceMetadataLayout);
+    CmdCopyMemory(*pDfSpmPerfmonInfo->pDfSpmTraceBuffer,
+                  dstGpuMemory,
+                  1,
+                  &region);
 }
 
 // =====================================================================================================================

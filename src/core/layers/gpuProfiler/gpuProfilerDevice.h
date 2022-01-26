@@ -84,8 +84,10 @@ public:
 
     uint32 NumGlobalPerfCounters() const { return m_numGlobalPerfCounters; }
     uint32 NumStreamingPerfCounters() const { return m_numStreamingPerfCounters; }
+    uint32 NumDfStreamingPerfCounters() const { return m_numDfStreamingPerfCounters; }
     const PerfCounter* GlobalPerfCounters() const { return m_pGlobalPerfCounters; }
     const PerfCounter* StreamingPerfCounters() const { return m_pStreamingPerfCounters; }
+    const PerfCounter* DfStreamingPerfCounters() const { return m_pDfStreamingPerfCounters; }
 
     GpuProfilerStallMode GetSqttStallMode() const { return m_stallMode; }
     uint32 GetSeMask() const { return m_seMask; }
@@ -175,7 +177,8 @@ private:
     Result CountPerfCounters(
         Util::File* pFile,
         const PerfExperimentProperties& perfExpProps,
-        uint32* pNumPerfCounters);
+        uint32* pNumPerfCounters,
+        uint32* pNumDfPerfCounters);
 
     Result InitSpmTraceCounterState();
     Result ExtractPerfCounterInfo(
@@ -183,7 +186,9 @@ private:
         Util::File*                     pConfigFile,
         bool                            isSpmConfig,
         uint32                          numPerfCounter,
-        PerfCounter*                    pPerfCounters);
+        PerfCounter*                    pPerfCounters,
+        uint32                          numDfPerfCounter,
+        PerfCounter*                    pDfPerfCounters);
 
     const uint32 m_id;    // Unique ID for this device for reporting purposes.
     Util::Mutex  m_mutex; // A general purpose mutex for any muti-threaded non-const functions.
@@ -225,6 +230,8 @@ private:
 
     PerfCounter* m_pStreamingPerfCounters;
     uint32       m_numStreamingPerfCounters; // Tracks number of counters requested.
+    PerfCounter* m_pDfStreamingPerfCounters;
+    uint32       m_numDfStreamingPerfCounters;
 
     // The following array is used for assigning unique IDs when the client creates multiple queues for a single engine.
     // Useful for reporting purposes.

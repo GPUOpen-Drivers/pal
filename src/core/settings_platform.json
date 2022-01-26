@@ -1312,6 +1312,56 @@
       "Description": "Configuration options for capturing Streaming Performance Monitors through the PAL GPU Profiler layer."
     },
     {
+      "Name": "GpuProfilerDfSpmConfig",
+      "Tags": [
+        "GPU Profiler"
+      ],
+      "DependsOn": {
+        "Settings": [
+          {
+            "Values": [
+              1
+            ],
+            "LogicOp": "GreaterThan",
+            "Name": "GpuProfilerMode"
+          }
+        ]
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "struct",
+      "VariableName": "gpuProfilerDfSpmConfig",
+      "Structure": [
+        {
+          "ValidValues": {
+            "Values": [
+              {
+                "LogicOp": "GreaterThanOrEqual",
+                "Description": "Minimum 1",
+                "Value": 1
+              }
+            ]
+          },
+          "Name": "DfSpmTraceInterval",
+          "Defaults": {
+            "Default": 1280
+          },
+          "Type": "uint32",
+          "VariableName": "dfSpmTraceInterval",
+          "Description": "DF Sample interval in nano seconds. KMD will choose the closest possible interval value."
+        },
+        {
+          "Description": "Maximum amount of data in MB to capture per trace.  A trace will cover a span of commands based on the GpuProfilerGranularity setting.  Defaults to 1MB.  Current HW requires the size be aligned to 0x10000 bytes.",
+          "Defaults": {
+            "Default": 1
+          },
+          "Type": "size_t",
+          "VariableName": "dfSpmBufferSize",
+          "Name": "DfSpmBufferSize"
+        }
+      ],
+      "Description": "Configuration options for capturing Data Fabric Streaming Performance Monitors through the PAL GPU Profiler layer."
+    },
+    {
       "Name": "CmdBufferLoggerEnabled",
       "Tags": [
         "CmdBuffer Logger"

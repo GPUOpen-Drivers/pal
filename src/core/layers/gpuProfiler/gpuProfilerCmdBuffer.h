@@ -74,6 +74,8 @@ public:
 
     bool ContainsPresent() const { return m_flags.containsPresent; }
 
+    LogItem GetCmdBufLogItem() const { return m_cmdBufLogItem; }
+
     ICmdBuffer* NextLayer() { return GetNextLayer(); }
     const ICmdBuffer* NextLayer() const { return GetNextLayer(); }
 
@@ -459,6 +461,10 @@ public:
     virtual void CmdInsertRgpTraceMarker(
         uint32      numDwords,
         const void* pData) override;
+    virtual void CmdCopyDfSpmTraceData(
+        const IPerfExperiment& perfExperiment,
+        const IGpuMemory&      dstGpuMemory,
+        gpusize                dstOffset) override;
     virtual void CmdSaveComputeState(
         uint32 stateFlags) override;
     virtual void CmdRestoreComputeState(
@@ -781,6 +787,7 @@ private:
     void ReplayCmdEndPerfExperiment(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdInsertTraceMarker(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdInsertRgpTraceMarker(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdCopyDfSpmTraceData(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSaveComputeState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdRestoreComputeState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdCommentString(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
@@ -896,6 +903,11 @@ public:
 
     Result BeginGpaSession(Queue* pQueue);
     Result EndGpaSession(LogItem* pLogItem);
+
+    void EndDfSpmTraceSession(
+        Queue*         pQueue,
+        const LogItem* pLogItem);
+
     GpuUtil::GpaSession* GetGpaSession() { return m_pGpaSession; }
 
     Result GetLastResult() const { return m_result; }

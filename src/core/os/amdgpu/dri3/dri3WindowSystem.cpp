@@ -31,6 +31,8 @@
 #include "palScreen.h"
 #include "palSwapChain.h"
 
+#include <algorithm>
+
 extern "C"
 {
 #include <X11/xshmfence.h>
@@ -1049,12 +1051,13 @@ bool Dri3WindowSystem::IsXWayland(
             {
                 const char*const pName =
                     reinterpret_cast<const char*>(dri3Procs.pfnXcbRandrGetOutputInfoName(pOutReply));
-                free(pOutReply);
+                const int nameLength = dri3Procs.pfnXcbRandrGetOutputInfoNameLength(pOutReply);
 
-                if ((pName != nullptr) && (strncmp(pName, "XWAYLAND", 8) == 0))
+                if ((pName != nullptr) && (strncmp(pName, "XWAYLAND", std::min(nameLength, 8)) == 0))
                 {
                     result = true;
                 }
+                free(pOutReply);
             }
         }
         free(pScrResReply);

@@ -25,10 +25,12 @@
 
 #pragma once
 
+#include "core/layers/gpuProfiler/gpuProfilerDevice.h"
 #include "core/layers/decorators.h"
 #include "core/layers/functionIds.h"
 #include "palDeque.h"
 #include "palFile.h"
+#include "palAutoBuffer.h"
 #include "palGpaSession.h"
 #include "palLinearAllocator.h"
 
@@ -230,6 +232,24 @@ private:
 
     IFence* AcquireFence();
     void ProcessIdleSubmits();
+    void AddDfSpmEndCmdBuffer(
+        Util::AutoBuffer<ICmdBuffer*, 64, PlatformDecorator>* pNextCmdBuffers,
+        Util::AutoBuffer<CmdBufInfo, 64, PlatformDecorator>*  pNextCmdBufferInfos,
+        uint32                                                subQueueIdx,
+        uint32                                                globalCmdBufIdx,
+        uint32*                                               pLocalCmdBufIdx,
+        uint32                                                globalCmdBufInfoIdx,
+        uint32*                                               pLocalCmdBufInfoIdx,
+        const LogItem&                                        logItem);
+
+    Result EndDfSpm();
+    void   RecordDfSpmEndCmdBufInfo(CmdBufInfo* cmdBufInfo);
+
+    void RecordDfSpmEndCmdBuffer(
+        TargetCmdBuffer* pEndDfSpmCmdBuf,
+        const LogItem&   logItem);
+
+    Result SubmitDfSpmEndCmdBuffer(TargetCmdBuffer* pEndDfSpmCmdBuf);
 
     Result InternalSubmit(
         const MultiSubmitInfo& submitInfo,
@@ -247,7 +267,7 @@ private:
         uint32         traceId,
         Util::File*    pFile,
         const LogItem& logItem);
-    void OpenSpmFile(Util::File* pFile, uint32 traceId, const LogItem& logItem);
+    void OpenSpmFile(Util::File* pFile, uint32 traceId, const LogItem& logItem, bool isDataFabric);
     void OutputRgpFile(const GpuUtil::GpaSession& gpaSession, uint32 gpaSampleId);
     void OutputQueueCallToFile(const LogItem& logItem);
     void OutputCmdBufCallToFile(const LogItem& logItem, const char* pNestedCmdBufPrefix);
@@ -257,6 +277,21 @@ private:
     void OutputPipelineStatsToFile(const LogItem& logItem);
     void OutputGlobalPerfCountersToFile(const LogItem& logItem);
     void OutputTraceDataToFile(const LogItem& logItem);
+    void OutputDfSpmData(
+        const LogItem&     logItem,
+        void*              pResult,
+        size_t             offset,
+        size_t             dataSize);
+    void OutputRlcSpmData(
+        const LogItem&     logItem,
+        void*              pResult,
+        size_t             offset,
+        size_t             dataSize);
+
+    Result FillOutSpmGpaSessionSampleConfig(
+        uint32                           numSpmCountersRequested,
+        const GpuProfiler::PerfCounter*  pStreamingCounters,
+        bool                             isDataFabric);
 
     Device*const     m_pDevice;
 
@@ -320,6 +355,7 @@ private:
     uint32                            m_curLogTraceIdx;   // Current SQTT/SPM index for the cmdbuf being logged.
 
     LogItem                           m_perFrameLogItem;  // Log item used when the profiling granularity is per frame.
+    bool                              m_isDfSpmTraceEnabled;
 
     PAL_DISALLOW_DEFAULT_CTOR(Queue);
     PAL_DISALLOW_COPY_AND_ASSIGN(Queue);

@@ -42,7 +42,7 @@ namespace Util
 // Allocates on the heap new storage for the bag buffer, moves objects from the bag buffer to heap allocation and,
 // takes ownership of that allocation.
 template<typename T, typename Allocator>
-inline Result StringBag<T, Allocator>::ReserveInternal(
+Result StringBag<T, Allocator>::ReserveInternal(
     uint32 newCapacity)
 {
     Result result = Result::_Success;
@@ -80,9 +80,10 @@ inline Result StringBag<T, Allocator>::ReserveInternal(
 // on the heap and the data in the old space is copied over to the new space. The old space is freed if it was also
 // allocated on the heap.
 template<typename T, typename Allocator>
-inline Result StringBag<T, Allocator>::PushBackInternal(
-    const T* pString,
-    uint32   length)
+Result StringBag<T, Allocator>::PushBackInternal(
+    const T*            pString,
+    uint32              length,
+    StringBagHandle<T>* pHandle)
 {
     Result result = Result::_Success;
 
@@ -112,11 +113,11 @@ inline Result StringBag<T, Allocator>::PushBackInternal(
         std::memcpy((m_pData + m_currOffset), pString, sizeof(T) * length);
 
         // Store the previous offset so that the last string in the bag can be quickly retrieved.
-        m_prevOffset = m_currOffset;
+        *pHandle = GetHandleAt(m_currOffset);
 
         // Push the current offset one past the end of the copied data, and insert a null terminator.
         m_currOffset += (length + 1);
-        m_pData[m_currOffset - 1] = T(0);
+        m_pData[m_currOffset - 1] = T('\0');
     }
 
     return result;
@@ -125,38 +126,44 @@ inline Result StringBag<T, Allocator>::PushBackInternal(
 // =====================================================================================================================
 // Pushes a new string to the end of the bag after calculating the length.
 template<typename T, typename Allocator>
-StringBagHandle StringBag<T, Allocator>::PushBack(
+StringBagHandle<T> StringBag<T, Allocator>::PushBack(
     const T* pString,
     Result*  pResult)
 {
-    Result& result = *pResult;
-    result = (pString != nullptr) ? Result::_Success : Result::ErrorInvalidPointer;
+    StringBagHandle<T> handle;
 
     if (pString != nullptr)
     {
-        result = PushBackInternal(pString, StringLength(pString));
+        *pResult = PushBackInternal(pString, StringLength(pString), &handle);
+    }
+    else
+    {
+        *pResult = Result::ErrorInvalidPointer;
     }
 
-    return m_prevOffset;
+    return handle;
 }
 
 // =====================================================================================================================
 // Pushes a new string to the end of the bag using the specified length.
 template<typename T, typename Allocator>
-StringBagHandle StringBag<T, Allocator>::PushBack(
+StringBagHandle<T> StringBag<T, Allocator>::PushBack(
     const T* pString,
     uint32   length,
     Result*  pResult)
 {
-    Result& result = *pResult;
-    result = (pString != nullptr) ? Result::_Success : Result::ErrorInvalidPointer;
+    StringBagHandle<T> handle;
 
-    if (result == Result::_Success)
+    if (pString != nullptr)
     {
-        result = PushBackInternal(pString, length);
+        *pResult = PushBackInternal(pString, length, &handle);
+    }
+    else
+    {
+        *pResult = Result::ErrorInvalidPointer;
     }
 
-    return m_prevOffset;
+    return handle;
 }
 
 } // Util

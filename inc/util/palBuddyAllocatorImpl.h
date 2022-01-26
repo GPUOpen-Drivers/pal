@@ -42,9 +42,9 @@ namespace Util
 // =====================================================================================================================
 template <typename Allocator>
 BuddyAllocator<Allocator>::BuddyAllocator(
-    Allocator*      pAllocator,
-    Pal::gpusize    baseAllocSize,
-    Pal::gpusize    minAllocSize)
+    Allocator* pAllocator,
+    gpusize    baseAllocSize,
+    gpusize    minAllocSize)
     :
     m_pAllocator(pAllocator),
     m_baseAllocKval(SizeToKval(baseAllocSize)),
@@ -89,7 +89,7 @@ BuddyAllocator<Allocator>::~BuddyAllocator()
 // =====================================================================================================================
 // Gets maximum allocation size supported by this buddy allocator.
 template <typename Allocator>
-Pal::gpusize BuddyAllocator<Allocator>::MaximumAllocationSize() const
+gpusize BuddyAllocator<Allocator>::MaximumAllocationSize() const
 {
     // NOTE: Report one less than our base allocation k-value because there's no sense in suballocating a memory
     // request which is larger than half a chunk
@@ -120,8 +120,8 @@ Result BuddyAllocator<Allocator>::Init()
         }
 
         // We need to create the first two largest-size blocks and add them to the last block list
-        const uint32        blockKval = (m_baseAllocKval - 1);
-        const Pal::gpusize  blockSize = KvalToSize(blockKval);
+        const uint32   blockKval = (m_baseAllocKval - 1);
+        const gpusize  blockSize = KvalToSize(blockKval);
 
         BlockList* pBlockList = &m_pBlockLists[blockKval - m_minKval];
 
@@ -149,9 +149,9 @@ Result BuddyAllocator<Allocator>::Init()
 // appropriate error is returned.
 template <typename Allocator>
 Result BuddyAllocator<Allocator>::Allocate(
-    Pal::gpusize    size,
-    Pal::gpusize    alignment,
-    Pal::gpusize*   pOffset)
+    gpusize  size,
+    gpusize  alignment,
+    gpusize* pOffset)
 {
     PAL_ASSERT(m_pBlockLists != nullptr);
 
@@ -175,8 +175,8 @@ Result BuddyAllocator<Allocator>::Allocate(
 // Gets the next free block of the provided size and marks it as used.
 template <typename Allocator>
 Result BuddyAllocator<Allocator>::GetNextFreeBlock(
-    uint32          kval,
-    Pal::gpusize*   pOffset)
+    uint32   kval,
+    gpusize* pOffset)
 {
     Result result = Result::ErrorOutOfGpuMemory;
 
@@ -227,9 +227,9 @@ Result BuddyAllocator<Allocator>::GetNextFreeBlock(
 // Frees a suballocated block making it available for future re-use.
 template <typename Allocator>
 void BuddyAllocator<Allocator>::Free(
-    Pal::gpusize    offset,
-    Pal::gpusize    size,
-    Pal::gpusize    alignment)
+    gpusize offset,
+    gpusize size,
+    gpusize alignment)
 {
     PAL_ASSERT(m_pBlockLists != nullptr);
 
@@ -248,8 +248,8 @@ void BuddyAllocator<Allocator>::Free(
 // Frees a block with the matching offset.
 template <typename Allocator>
 Result BuddyAllocator<Allocator>::FreeBlock(
-    uint32          kval,
-    Pal::gpusize    offset)
+    uint32  kval,
+    gpusize offset)
 {
     Result result = Result::ErrorInvalidValue;
 
@@ -273,7 +273,7 @@ Result BuddyAllocator<Allocator>::FreeBlock(
                 // Find the buddy block to see if it is free, and if so remove the blocks and free the next size up.
                 // Because all offsets are zero relative and aligned to block size, buddy offset can be simply
                 // calculated by XOR-ing the block offset with its size.
-                Pal::gpusize buddyOffset = (offset ^ KvalToSize(kval));
+                gpusize buddyOffset = (offset ^ KvalToSize(kval));
 
                 // Because buddies are always consecutive in the block list we can find the buddy block next to the
                 // current one.

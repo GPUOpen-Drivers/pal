@@ -71,6 +71,7 @@ GfxCmdBuffer::GfxCmdBuffer(
     m_timestampGpuVa(0),
     m_computeStateFlags(0),
     m_fceRefCountVec(device.GetPlatform()),
+    m_pDfSpmPerfmonInfo(nullptr),
     m_cmdBufPerfExptFlags{}
 {
     PAL_ASSERT((createInfo.queueType == QueueTypeUniversal) || (createInfo.queueType == QueueTypeCompute));
@@ -1590,6 +1591,17 @@ void GfxCmdBuffer::CmdBeginPerfExperiment(
     {
         m_gfxCmdBufState.flags.sqttStarted = 1;
         m_gfxCmdBufState.flags.sqttStopped = 0;
+    }
+    if (tracesEnabled.dfSpmTraceEnabled)
+    {
+        // Cache a pointer to the DF SPM Perfmon Info so we can access it at submit time
+        const DfSpmPerfmonInfo* pDfSpmPerfmonInfo = pExperiment->GetDfSpmPerfmonInfo();
+        // We only support 1 DF perf experiment per command buffer.
+        PAL_ASSERT((m_pDfSpmPerfmonInfo == nullptr) || (pDfSpmPerfmonInfo == m_pDfSpmPerfmonInfo));
+        if (m_pDfSpmPerfmonInfo == nullptr)
+        {
+            m_pDfSpmPerfmonInfo = pDfSpmPerfmonInfo;
+        }
     }
 
     m_pCurrentExperiment = pExperiment;

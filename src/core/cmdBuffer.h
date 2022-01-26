@@ -658,6 +658,11 @@ public:
     virtual void CmdInsertRgpTraceMarker(uint32 numDwords, const void* pData) override
         { PAL_NEVER_CALLED(); }
 
+    virtual void CmdCopyDfSpmTraceData(
+        const IPerfExperiment& perfExperiment,
+        const IGpuMemory&      dstGpuMemory,
+        gpusize                dstOffset) override;
+
     virtual void CmdLoadCeRam(
         const IGpuMemory& srcGpuMemory,
         gpusize           memOffset,

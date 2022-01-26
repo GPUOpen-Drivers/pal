@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2021-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -198,9 +198,9 @@ struct PipelineMetadata
             uint8 usesViewportArrayIndex : 1;
             /// Whether the GS outputs lines (needed by client for MSAA dispatch)
             uint8 gsOutputsLines         : 1;
-            // Set if there may be a PS dummy export that actually writes to an MRT, including the case of the compiler
-            // adding a null PS. The client driver or PAL may need to disable binding of MRTs for a pipeline where this
-            // is set.
+            /// Set if there may be a PS dummy export that actually writes to an MRT, including the case of the compiler
+            /// adding a null PS. The client driver or PAL may need to disable binding of MRTs for a pipeline where this
+            /// is set.
             uint8 psDummyExport          : 1;
             uint8 reserved               : 5;
         };

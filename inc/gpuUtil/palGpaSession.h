@@ -222,6 +222,26 @@ struct GpaSampleConfig
 
     struct
     {
+        /// Number of entries in pIds.
+        Pal::uint32  numCounters;
+
+        /// Period for DF SPM sample collection in nano seconds.
+        Pal::uint32  sampleInterval;
+
+        /// Maximum amount of GPU memory in bytes this sample can allocate for DF SPM data.
+        Pal::gpusize gpuMemoryLimit;
+
+        /// List of performance counters to be gathered for a df sample. This has to be separate from the list
+        /// list of normal counters because it is a completely different mechanism for gathering data.
+        ///
+        /// Note that it is up to the client to respect the hardware counter limit per block.  This can be
+        /// determined by the maxSpmCounters fields of
+        /// @ref Pal::GpuBlockPerfProperties.
+        const PerfCounterId* pIds;
+    } dfSpmPerfCounters;
+
+    struct
+    {
         union
         {
             struct
@@ -577,6 +597,17 @@ public:
     ///       executed before the command inserted by EndSample().  Since a session is a single-threaded object, this
     ///       will normally happen naturally.
     void EndSample(
+        Pal::ICmdBuffer* pCmdBuf,
+        Pal::uint32      sampleId);
+
+    /// Copies the DF SPM trace buffer to the GpaSession result buffer
+    ///
+    /// @param [in] pCmdBuf  Command buffer to issue the copy commands.
+    /// @param [in] sampleId Identifies the sample to be copied.
+    /// @note This must be called after a command buffer with the dfSpmTraceEnd CmdBufInfo flag
+    ///       and with a separate command buffer. DF SPM traces are on a per command buffer granularity
+    ///       because they are started and stopped by the KMD.
+    void CopyDfSpmTraceResults(
         Pal::ICmdBuffer* pCmdBuf,
         Pal::uint32      sampleId);
 
@@ -956,6 +987,12 @@ private:
                                    size_t        bufferSize,
                                    void*         pData,
                                    Pal::gpusize* pSizeInBytes) const;
+
+    // Dumps the df spm trace data in the buffer provided.
+    Pal::Result AppendDfSpmTraceData(TraceSample*  pTraceSample,
+                                     size_t        bufferSize,
+                                     void*         pData,
+                                     Pal::gpusize* pSizeInBytes) const;
 
     Pal::Result AddCodeObjectLoadEvent(const Pal::IPipeline* pPipeline, CodeObjectLoadEventType eventType);
     Pal::Result AddCodeObjectLoadEvent(const Pal::IShaderLibrary* pLibrary, CodeObjectLoadEventType eventType);

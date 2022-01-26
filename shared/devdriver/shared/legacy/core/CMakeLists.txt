@@ -56,8 +56,8 @@ target_link_libraries(ddCore PUBLIC metrohash)
 ### Build Defines ######################################################################################################
 
 # Also enable these features from CMake
-option(DD_OPT_ASSERTS_ENABLE     "Print info when asserts fail" OFF)
-option(DD_OPT_ASSERTS_DEBUGBREAK "Trigger a debug break when asserts fail - implies DD_OPT_ASSERTS_ENABLE" OFF)
+option(DD_OPT_ASSERTS_ENABLE     "Print info when asserts fail")
+option(DD_OPT_ASSERTS_DEBUGBREAK "Trigger a debug break when asserts fail - implies DD_OPT_ASSERTS_ENABLE")
 
 # Enable features with debug builds unconditionally
 target_compile_definitions(ddCore PUBLIC

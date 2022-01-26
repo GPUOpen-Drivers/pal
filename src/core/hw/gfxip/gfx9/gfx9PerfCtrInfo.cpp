@@ -1918,6 +1918,7 @@ void InitPerfCtrInfo(
     pInfo->features.threadTrace      = 1;
     pInfo->features.spmTrace         = 1;
     pInfo->features.supportPs1Events = 1;
+    pInfo->features.dfSpmTrace = IsGfx103Plus(pProps->gfxLevel);
 
     // Set the hardware specified per-block information (see the function for what exactly that means).
     // There's so much code to do this that it had to go in a helper function for each version.

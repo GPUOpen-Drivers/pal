@@ -104,6 +104,7 @@ struct SharedMetadataInfo
     gpusize             htileLookupTableOffset;
     uint64              resourceId; // This id is a unique name for the cross-process shared memory used to pass extra
                                     // information. Currently it's composed by the image object pointer and process id.
+    AddrSwizzleMode     fmaskSwizzleMode;
 };
 
 // Display Dcc state for a plane

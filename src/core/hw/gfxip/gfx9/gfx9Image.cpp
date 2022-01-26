@@ -3533,6 +3533,7 @@ void Image::GetSharedMetadataInfo(
         pMetadataInfo->fmaskOffset                = m_pFmask->MemoryOffset();
         pMetadataInfo->flags.shaderFetchableFmask = IsComprFmaskShaderReadable(baseSubResId);
         pMetadataInfo->fmaskXor                   = m_pFmask->GetPipeBankXor();
+        pMetadataInfo->fmaskSwizzleMode           = m_pFmask->GetSwizzleMode();
     }
     if (m_pHtile != nullptr)
     {

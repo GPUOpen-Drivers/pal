@@ -86,6 +86,60 @@ Result ComputePipeline::HwlInit(
 
     m_disablePartialPreempt = createInfo.disablePartialDispatchPreemption;
 
+    // The metadata guarantees that the required size components are all zero or all non-zero.
+    const bool hasRequiredSize = (metadata.RequiredWorkgroupSizeX() != 0);
+
+    // Pick a thread group size for this pipeline. It may come from the create info or from the HSA metadata.
+    Extent3d groupSize;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 700
+    // These always have to be all non-zero or all zero.
+    PAL_ASSERT(((createInfo.threadsPerGroup.width == 0) != (createInfo.threadsPerGroup.height == 0)) ||
+               ((createInfo.threadsPerGroup.width == 0) != (createInfo.threadsPerGroup.depth  == 0)));
+
+    // The caller can pick the thread group size if the ELF wasn't compiled against a particular size.
+    if (createInfo.threadsPerGroup.width != 0)
+    {
+        groupSize = createInfo.threadsPerGroup;
+
+        if (hasRequiredSize &&
+            ((groupSize.width  != metadata.RequiredWorkgroupSizeX()) ||
+             (groupSize.height != metadata.RequiredWorkgroupSizeY()) ||
+             (groupSize.depth  != metadata.RequiredWorkgroupSizeZ())))
+        {
+            // This ELF requires a specific thread group size which cannot be changed.
+            result = Result::ErrorInvalidValue;
+        }
+    }
+    else if (hasRequiredSize)
+#else
+    if (hasRequiredSize)
+#endif
+    {
+        groupSize.width  = metadata.RequiredWorkgroupSizeX();
+        groupSize.height = metadata.RequiredWorkgroupSizeY();
+        groupSize.depth  = metadata.RequiredWorkgroupSizeZ();
+    }
+    else
+    {
+        // We could fail here since we don't really know what group size to use. Instead, let's assume we're
+        // supposed to launch a 1D thread group of the maximum supported size. We may change this in the future.
+        groupSize.width  = metadata.MaxFlatWorkgroupSize();
+        groupSize.height = 1;
+        groupSize.depth  = 1;
+    }
+
+    if (result == Result::Success)
+    {
+        // The X/Y/Z sizes must be non-zero and cover a volume no greater than the max flat group size.
+        const uint32 flatSize = groupSize.width * groupSize.height * groupSize.depth;
+
+        if ((flatSize == 0) || (flatSize > metadata.MaxFlatWorkgroupSize()))
+        {
+            result = Result::ErrorInvalidValue;
+        }
+    }
+
     const llvm::amdhsa::kernel_descriptor_t& desc = KernelDescriptor();
 
     regCOMPUTE_PGM_RSRC2 computePgmRsrc2 = {};
@@ -93,65 +147,45 @@ Result ComputePipeline::HwlInit(
     computePgmRsrc2.bitfields.LDS_SIZE =
         RoundUpQuotient(NumBytesToNumDwords(desc.group_segment_fixed_size), Gfx9LdsDwGranularity);
 
-    regCOMPUTE_NUM_THREAD_X computeNumThreadX = {};
-    regCOMPUTE_NUM_THREAD_Y computeNumThreadY = {};
-    regCOMPUTE_NUM_THREAD_Z computeNumThreadZ = {};
-
-    // The HSA ABI doesn't require a fixed threadgroup X/Y/Z size. Instead it only requires a flat size that puts an
-    // upper limit on the number of threads in the whole dispatch. In general, the exact size and shape of the actual
-    // threadgroup is expected to be a dynamic dispatch-time property. PAL doesn't support this, so the best we can do
-    // is force the threadgroup shape to 1D and assume we need up to the maximum.
-    if ((metadata.RequiredWorkgroupSizeX() != 0) &&
-        (metadata.RequiredWorkgroupSizeY() != 0) &&
-        (metadata.RequiredWorkgroupSizeZ() != 0))
+    if (result == Result::Success)
     {
-        computeNumThreadX.bits.NUM_THREAD_FULL = metadata.RequiredWorkgroupSizeX();
-        computeNumThreadY.bits.NUM_THREAD_FULL = metadata.RequiredWorkgroupSizeY();
-        computeNumThreadZ.bits.NUM_THREAD_FULL = metadata.RequiredWorkgroupSizeZ();
-    }
-    else
-    {
-        computeNumThreadX.bits.NUM_THREAD_FULL = metadata.MaxFlatWorkgroupSize();
-        computeNumThreadY.bits.NUM_THREAD_FULL = 1;
-        computeNumThreadZ.bits.NUM_THREAD_FULL = 1;
-    }
-
-    // These features aren't yet implemented in PAL's HSA ABI path.
-    // - The queue pointer, dispatch ID, flat scratch, or private segment SGPRs.
-    // - Any kind of scratch memory or register spilling.
-    // - Dynamic threadgroup sizes.
-    // - Init or Fini kernels.
-    if (TestAnyFlagSet(desc.kernel_code_properties,
-                       AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_QUEUE_PTR         |
-                       AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_DISPATCH_ID       |
-                       AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_FLAT_SCRATCH_INIT |
-                       AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_PRIVATE_SEGMENT_SIZE) ||
-        (computePgmRsrc2.bits.SCRATCH_EN    != 0) ||
-        (metadata.PrivateSegmentFixedSize() != 0) ||
-        (metadata.KernelKind() != HsaAbi::Kind::Normal))
-    {
-        result = Result::Unsupported;
-    }
-    else
-    {
-        // We only have partial support for the Hidden arguments. We support:
-        // - HiddenNone: Which we just need to allocate and ignore.
-        // - HiddenGlobalOffsetX/Y/Z: Which are the global thread starting offsets (i.e. CmdDispatchOffset).
-        // We permit HiddenMultigridSyncArg but don't actually support it. Normal kernels declare it but never use it.
-        // We don't have any required metadata that lets us distinguish between cases that don't use it and cases that
-        // do use it. We just have to tell users to not use it or they'll get a GPU page fault. The remaining hidden
-        // arguments are not supported and rejected right here.
-        for (uint32 idx = 0; idx < metadata.NumArguments(); ++idx)
+        // These features aren't yet implemented in PAL's HSA ABI path.
+        // - The queue pointer, dispatch ID, flat scratch, or private segment SGPRs.
+        // - Any kind of scratch memory or register spilling.
+        // - Dynamic threadgroup sizes.
+        // - Init or Fini kernels.
+        if (TestAnyFlagSet(desc.kernel_code_properties,
+                           AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_QUEUE_PTR         |
+                           AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_DISPATCH_ID       |
+                           AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_FLAT_SCRATCH_INIT |
+                           AMD_KERNEL_CODE_PROPERTIES_ENABLE_SGPR_PRIVATE_SEGMENT_SIZE) ||
+            (computePgmRsrc2.bits.SCRATCH_EN    != 0) ||
+            (metadata.PrivateSegmentFixedSize() != 0) ||
+            (metadata.KernelKind() != HsaAbi::Kind::Normal))
         {
-            const HsaAbi::KernelArgument& arg = metadata.Arguments()[idx];
-
-            if ((arg.valueKind == HsaAbi::ValueKind::HiddenPrintfBuffer)   ||
-                (arg.valueKind == HsaAbi::ValueKind::HiddenHostcallBuffer) ||
-                (arg.valueKind == HsaAbi::ValueKind::HiddenDefaultQueue)   ||
-                (arg.valueKind == HsaAbi::ValueKind::HiddenCompletionAction))
+            result = Result::Unsupported;
+        }
+        else
+        {
+            // We only have partial support for the Hidden arguments. We support:
+            // - HiddenNone: Which we just need to allocate and ignore.
+            // - HiddenGlobalOffsetX/Y/Z: Which are the global thread starting offsets (i.e. CmdDispatchOffset).
+            // We permit HiddenMultigridSyncArg but don't actually support it. Normal kernels declare it but never use
+            // it. We don't have any required metadata that lets us distinguish between cases that don't use it and
+            // cases that do use it. We just have to tell users to not use it or they'll get a GPU page fault. The
+            // remaining hidden arguments are not supported and rejected right here.
+            for (uint32 idx = 0; idx < metadata.NumArguments(); ++idx)
             {
-                result = Result::Unsupported;
-                break;
+                const HsaAbi::KernelArgument& arg = metadata.Arguments()[idx];
+
+                if ((arg.valueKind == HsaAbi::ValueKind::HiddenPrintfBuffer)   ||
+                    (arg.valueKind == HsaAbi::ValueKind::HiddenHostcallBuffer) ||
+                    (arg.valueKind == HsaAbi::ValueKind::HiddenDefaultQueue)   ||
+                    (arg.valueKind == HsaAbi::ValueKind::HiddenCompletionAction))
+                {
+                    result = Result::Unsupported;
+                    break;
+                }
             }
         }
     }
@@ -176,16 +210,25 @@ Result ComputePipeline::HwlInit(
 
     if (result == Result::Success)
     {
+        regCOMPUTE_NUM_THREAD_X computeNumThreadX = {};
+        computeNumThreadX.bits.NUM_THREAD_FULL = groupSize.width;
+
         result = registers.Insert(mmCOMPUTE_NUM_THREAD_X, computeNumThreadX.u32All);
     }
 
     if (result == Result::Success)
     {
+        regCOMPUTE_NUM_THREAD_Y computeNumThreadY = {};
+        computeNumThreadY.bits.NUM_THREAD_FULL = groupSize.height;
+
         result = registers.Insert(mmCOMPUTE_NUM_THREAD_Y, computeNumThreadY.u32All);
     }
 
     if (result == Result::Success)
     {
+        regCOMPUTE_NUM_THREAD_Z computeNumThreadZ = {};
+        computeNumThreadZ.bits.NUM_THREAD_FULL = groupSize.depth;
+
         result = registers.Insert(mmCOMPUTE_NUM_THREAD_Z, computeNumThreadZ.u32All);
     }
 

@@ -35,7 +35,13 @@ target_link_libraries(pal PRIVATE pal_uuid)
 # See: palMetroHash.h
 
 if (NOT TARGET metrohash)
-    add_subdirectory(pal_metrohash)
+    if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/pal_metrohash")
+        add_subdirectory(pal_metrohash)
+    elseif(EXISTS "${GLOBAL_ROOT_SRC_DIR}/drivers/third_party/metrohash")
+        add_subdirectory("${GLOBAL_ROOT_SRC_DIR}/drivers/third_party/metrohash")
+    else()
+        message(FATAL_ERROR "MetroHash not found (either vendored or in drivers/third_party)")
+    endif()
 endif()
 
 target_link_libraries(pal PUBLIC metrohash)
@@ -46,7 +52,13 @@ target_link_libraries(pal PUBLIC metrohash)
 # See: palMsgPack.h
 
 if (NOT TARGET cwpack)
-    add_subdirectory(pal_cwpack)
+    if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/pal_cwpack")
+        add_subdirectory(pal_cwpack)
+    elseif(EXISTS "${GLOBAL_ROOT_SRC_DIR}/drivers/third_party/cwpack")
+        add_subdirectory("${GLOBAL_ROOT_SRC_DIR}/drivers/third_party/cwpack")
+    else()
+        message(FATAL_ERROR "CWPack not found (either vendored or in drivers/third_party)")
+    endif()
 endif()
 
 target_link_libraries(pal PUBLIC cwpack)

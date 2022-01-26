@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2021-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -171,6 +171,8 @@ void PlatformSettingsLoader::SetupDefaults()
     strncpy(m_settings.gpuProfilerSpmConfig.spmPerfCounterConfigFile, "", 256);
     m_settings.gpuProfilerSpmConfig.spmTraceInterval = 4096;
     m_settings.gpuProfilerSpmConfig.spmBufferSize = 1048576;
+    m_settings.gpuProfilerDfSpmConfig.dfSpmTraceInterval = 1280;
+    m_settings.gpuProfilerDfSpmConfig.dfSpmBufferSize = 1;
     m_settings.cmdBufferLoggerEnabled = false;
     m_settings.cmdBufferLoggerConfig.cmdBufferLoggerAnnotations = 0x1ff;
     m_settings.cmdBufferLoggerConfig.embedDrawDispatchInfo = CblEmbedDrawDispatchNone;
@@ -621,6 +623,16 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
     pDevice->ReadSetting(pGpuProfilerSpmConfig_SpmBufferSizeStr,
                            Util::ValueType::Uint64,
                            &m_settings.gpuProfilerSpmConfig.spmBufferSize,
+                           InternalSettingScope::PrivatePalKey);
+
+    pDevice->ReadSetting(pGpuProfilerDfSpmConfig_DfSpmTraceIntervalStr,
+                           Util::ValueType::Uint,
+                           &m_settings.gpuProfilerDfSpmConfig.dfSpmTraceInterval,
+                           InternalSettingScope::PrivatePalKey);
+
+    pDevice->ReadSetting(pGpuProfilerDfSpmConfig_DfSpmBufferSizeStr,
+                           Util::ValueType::Uint64,
+                           &m_settings.gpuProfilerDfSpmConfig.dfSpmBufferSize,
                            InternalSettingScope::PrivatePalKey);
 
     pDevice->ReadSetting(pCmdBufferLoggerEnabledStr,
@@ -1158,6 +1170,16 @@ void PlatformSettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.gpuProfilerSpmConfig.spmBufferSize);
     m_settingsInfoMap.Insert(1857600927, info);
 
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.gpuProfilerDfSpmConfig.dfSpmTraceInterval;
+    info.valueSize = sizeof(m_settings.gpuProfilerDfSpmConfig.dfSpmTraceInterval);
+    m_settingsInfoMap.Insert(2932969128, info);
+
+    info.type      = SettingType::Uint64;
+    info.pValuePtr = &m_settings.gpuProfilerDfSpmConfig.dfSpmBufferSize;
+    info.valueSize = sizeof(m_settings.gpuProfilerDfSpmConfig.dfSpmBufferSize);
+    m_settingsInfoMap.Insert(4160531167, info);
+
     info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.cmdBufferLoggerEnabled;
     info.valueSize = sizeof(m_settings.cmdBufferLoggerEnabled);
@@ -1299,7 +1321,7 @@ void PlatformSettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palPlatformJsonData[0];
             component.settingsDataSize = sizeof(g_palPlatformJsonData);
-            component.settingsDataHash = 3027988040;
+            component.settingsDataHash = 2780522613;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

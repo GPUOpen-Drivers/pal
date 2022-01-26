@@ -728,7 +728,10 @@ Result Image::CreateExternalSharedImage(
                 internalCreateInfo.sharedMetadata.htileOffset = 0;
             }
 
-            internalCreateInfo.sharedMetadata.resourceId = pUmdSharedMetadata->resource_id;
+            internalCreateInfo.sharedMetadata.resourceId       = pUmdSharedMetadata->resource_id;
+            internalCreateInfo.sharedMetadata.fmaskSwizzleMode = static_cast<AddrSwizzleMode>
+                (pUmdSharedMetadata->fmaskSwizzleMode);
+
             createInfo.flags.optimalShareable = 1;
         }
         else

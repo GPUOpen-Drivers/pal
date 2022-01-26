@@ -23,8 +23,6 @@
  #
  #######################################################################################################################
 
-devdriver_push_scope("Third Party")
-
 # We cannot fix warnings in third-party code, so we silence them instead.
 # This should never be used on code you can easily modify.
 function(dd_third_party_disable_warnings name)
@@ -142,6 +140,8 @@ function(dd_third_party_add_lib)
     endif()
 
 endfunction()
+
+set(CMAKE_FOLDER ${CMAKE_FOLDER}/third_party)
 
 ### MessagePack Reader/Writer ###
 # WA: Check that this target hasn't already been added (Only until we have a global CMake context)

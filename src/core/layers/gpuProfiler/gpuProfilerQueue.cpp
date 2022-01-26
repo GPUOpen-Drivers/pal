@@ -24,10 +24,8 @@
  **********************************************************************************************************************/
 
 #include "core/layers/gpuProfiler/gpuProfilerCmdBuffer.h"
-#include "core/layers/gpuProfiler/gpuProfilerDevice.h"
 #include "core/layers/gpuProfiler/gpuProfilerPlatform.h"
 #include "core/layers/gpuProfiler/gpuProfilerQueue.h"
-#include "palAutoBuffer.h"
 #include "palDequeImpl.h"
 #include "palSysUtil.h"
 
@@ -62,7 +60,8 @@ Queue::Queue(
     m_logItems(static_cast<Platform*>(pDevice->GetPlatform())),
     m_curLogFrame(0),
     m_curLogCmdBufIdx(0),
-    m_curLogTraceIdx(0)
+    m_curLogTraceIdx(0),
+    m_isDfSpmTraceEnabled(false)
 {
     memset(&m_gpaSessionSampleConfig,    0, sizeof(m_gpaSessionSampleConfig));
     memset(&m_nextSubmitInfo,            0, sizeof(m_nextSubmitInfo));
@@ -420,8 +419,9 @@ Result Queue::BeginNextFrame(
 
             if (result == Result::Success)
             {
-                const bool perfExp = (m_pDevice->NumGlobalPerfCounters() > 0)    ||
-                                     (m_pDevice->NumStreamingPerfCounters() > 0) ||
+                const bool perfExp = (m_pDevice->NumGlobalPerfCounters() > 0)      ||
+                                     (m_pDevice->NumStreamingPerfCounters() > 0)   ||
+                                     (m_pDevice->NumDfStreamingPerfCounters() > 0) ||
                                      (m_pDevice->IsThreadTraceEnabled());
 
                 pStartFrameTgtCmdBuf->BeginSample(this, &m_perFrameLogItem, false, perfExp);
@@ -438,6 +438,14 @@ Result Queue::BeginNextFrame(
                 MultiSubmitInfo nextSubmitInfo        = {};
                 nextSubmitInfo.perSubQueueInfoCount   = 1;
                 nextSubmitInfo.pPerSubQueueInfo       = &perSubQueueInfo;
+                if ((m_pDevice->NumDfStreamingPerfCounters() > 0) && (m_isDfSpmTraceEnabled == false))
+                {
+                    m_isDfSpmTraceEnabled = true;
+                }
+                CmdBufInfo cmdBufInfo           = {};
+                cmdBufInfo.dfSpmTraceBegin      = m_isDfSpmTraceEnabled ? 1 : 0;
+                cmdBufInfo.isValid              = cmdBufInfo.dfSpmTraceBegin;
+                perSubQueueInfo.pCmdBufInfoList = &cmdBufInfo;
 
                 result = InternalSubmit(nextSubmitInfo, false);
             }
@@ -490,6 +498,20 @@ Result Queue::Submit(
             {
                 cmdBufferCount += 1;
                 numPresentCmdBuf++;
+                // We add another one to copy the DF SPM data
+                if (m_pDevice->NumDfStreamingPerfCounters() > 0)
+                {
+                    cmdBufferCount += 1;
+                }
+            }
+            else if (m_pDevice->LoggingEnabled(GpuProfilerGranularityCmdBuf) &&
+                     (m_pDevice->NumDfStreamingPerfCounters() > 0) &&
+                     (m_pQueueInfos[i].queueType == QueueType::QueueTypeUniversal ||
+                      m_pQueueInfos[i].queueType == QueueType::QueueTypeCompute))
+            {
+                // For every DF SPM trace on a valid queue we will add a cmd buffer
+                // to copy the results.
+                cmdBufferCount += 1;
             }
         }
     }
@@ -550,6 +572,7 @@ Result Queue::Submit(
         memset(nextPerSubQueueInfosBreakBatch.Data(),
                0,
                sizeof(PerSubQueueSubmitInfo) * submitInfo.perSubQueueInfoCount);
+        memset(nextCmdBufInfoList.Data(), 0, sizeof(CmdBufInfo) * Max(cmdBufferCount, 1u));
 
         MultiSubmitInfo nextSubmitInfo      = {};
         nextSubmitInfo.gpuMemRefCount       = submitInfo.gpuMemRefCount;
@@ -579,13 +602,18 @@ Result Queue::Submit(
             {
                 releaseObjectsBreakBatch        = (m_pDevice->LoggingEnabled(GpuProfilerGranularityFrame) == false);
                 pNextSubQueueInfo->ppCmdBuffers = &nextCmdBuffers[globalCmdBufIdx];
-                if (origSubQueueInfo.pCmdBufInfoList != nullptr)
+
+                // Need to add CmdBufInfo list if Df Streaming perf counters exist to enable and disable them
+                if ((origSubQueueInfo.pCmdBufInfoList != nullptr) ||
+                    ((m_pDevice->NumDfStreamingPerfCounters() > 0) && m_pDevice->LoggingEnabled()))
                 {
                     pNextSubQueueInfo->pCmdBufInfoList = &nextCmdBufInfoList[globalCmdBufInfoIdx];
                 }
+
                 for (uint32 i = 0; ((i < origSubQueueInfo.cmdBufferCount) && (result == Result::Success)); i++)
                 {
-                    bool needPresent = false;
+                    bool needDfSpmFlags = false;
+                    bool needPresent    = false;
                     // Get an available queue-owned command buffer for this recorded command buffer.
                     auto*const pRecordedCmdBuffer =
                         static_cast<CmdBuffer*>(submitInfo.pPerSubQueueInfo[subQueueIdx].ppCmdBuffers[i]);
@@ -604,14 +632,36 @@ Result Queue::Submit(
                         pEndFrameTgtCmdBuf->EndGpaSession(&m_perFrameLogItem);
                         pEndFrameTgtCmdBuf->End();
 
+                        if (m_pDevice->NumDfStreamingPerfCounters() > 0)
+                        {
+                            nextCmdBufInfoList[globalCmdBufInfoIdx + localCmdBufInfoIdx].isValid           = 1;
+                            nextCmdBufInfoList[globalCmdBufInfoIdx + localCmdBufInfoIdx].dfSpmTraceEnd     = 1;
+                            localCmdBufInfoIdx++;
+                        }
+                        else if (origSubQueueInfo.pCmdBufInfoList != nullptr)
+                        {
+                            // We need to insert a dummy CmdBufInfo if any caller command buffers specify a CmdBufInfo.
+                            nextCmdBufInfoList[globalCmdBufInfoIdx + localCmdBufInfoIdx].isValid = 0;
+                            localCmdBufInfoIdx++;
+                        }
+
                         nextCmdBuffers[globalCmdBufIdx + localCmdBufIdx] = NextCmdBuffer(pEndFrameTgtCmdBuf);
                         localCmdBufIdx++;
 
-                        if (origSubQueueInfo.pCmdBufInfoList != nullptr)
+                        // We need a separate command buffer to copy the DF SPM trace data into the GpaSession result
+                        // buffer.
+                        if (m_pDevice->NumDfStreamingPerfCounters() > 0)
                         {
-                            // We need to insert a dummy CmdBufInfo if any caller command buffers specify a CmdBufInfo.
-                            nextCmdBufInfoList[globalCmdBufInfoIdx + localCmdBufInfoIdx].isValid = false;
-                            localCmdBufInfoIdx++;
+                            AddDfSpmEndCmdBuffer(&nextCmdBuffers,
+                                                 &nextCmdBufInfoList,
+                                                 subQueueIdx,
+                                                 globalCmdBufIdx,
+                                                 &localCmdBufIdx,
+                                                 globalCmdBufInfoIdx,
+                                                 &localCmdBufInfoIdx,
+                                                 m_perFrameLogItem);
+
+                            m_isDfSpmTraceEnabled = false;
                         }
 
                         AddLogItem(m_perFrameLogItem);
@@ -627,48 +677,86 @@ Result Queue::Submit(
                     nextCmdBuffers[globalCmdBufIdx + localCmdBufIdx] = NextCmdBuffer(pTargetCmdBuffer);
                     localCmdBufIdx++;
 
+                    // Save this index so that we can match the command buffer info that we create after we add
+                    // the split command buffers to this command buffer.
+                    uint32 saveLocalCmdBufInfoIdx = localCmdBufInfoIdx;
+                    localCmdBufInfoIdx++;
+
                     // Replay the client-specified command buffer commands into the queue-owned command buffer.
                     result = pRecordedCmdBuffer->Replay(this,
                                                         pTargetCmdBuffer,
                                                         static_cast<Platform*>(m_pDevice->GetPlatform())->FrameId());
 
+                    // After we're done replaying we need an extra command buffer to copy the DF SPM trace data
+                    // to the GpaSession result buffer
+                    if (m_pDevice->LoggingEnabled(GpuProfilerGranularityCmdBuf) &&
+                        (m_pDevice->NumDfStreamingPerfCounters() > 0))
+                    {
+                        LogItem recordedCmdBufLogItem = pRecordedCmdBuffer->GetCmdBufLogItem();
+                        AddDfSpmEndCmdBuffer(&nextCmdBuffers,
+                                             &nextCmdBufInfoList,
+                                             subQueueIdx,
+                                             globalCmdBufIdx,
+                                             &localCmdBufIdx,
+                                             globalCmdBufInfoIdx,
+                                             &localCmdBufInfoIdx,
+                                             recordedCmdBufLogItem);
+
+                        needDfSpmFlags = true;
+                    }
+
                     nextPerSubQueueInfosBreakBatch[subQueueIdx].cmdBufferCount = needPresent ? 2 : 1;
                     nextPerSubQueueInfosBreakBatch[subQueueIdx].ppCmdBuffers = &nextCmdBuffers[
                         globalCmdBufIdx + localCmdBufIdx - nextPerSubQueueInfosBreakBatch[subQueueIdx].cmdBufferCount];
 
-                    if (origSubQueueInfo.pCmdBufInfoList != nullptr)
+                    // If there's a DF SPM trace then we need to check if we should add that info to the CmdBufInfo
+                    // list as well.
+                    if ((origSubQueueInfo.pCmdBufInfoList != nullptr)  ||
+                        ((m_pDevice->NumDfStreamingPerfCounters() > 0) &&
+                         m_pDevice->LoggingEnabled()))
                     {
                         CmdBufInfo* pNextCmdBufInfoList =
-                                &nextCmdBufInfoList[globalCmdBufInfoIdx + localCmdBufInfoIdx];
-                        pNextCmdBufInfoList->u32All = origSubQueueInfo.pCmdBufInfoList[i].u32All;
+                                &nextCmdBufInfoList[globalCmdBufInfoIdx + saveLocalCmdBufInfoIdx];
 
-                        if (pNextCmdBufInfoList->isValid)
+                        if (origSubQueueInfo.pCmdBufInfoList != nullptr)
                         {
-                            pNextCmdBufInfoList->pPrimaryMemory =
+                            pNextCmdBufInfoList->u32All = origSubQueueInfo.pCmdBufInfoList[i].u32All;
+
+                            if (pNextCmdBufInfoList->isValid)
+                            {
+                                pNextCmdBufInfoList->pPrimaryMemory =
                                     NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[i].pPrimaryMemory);
 
-                            if ((pNextCmdBufInfoList->captureBegin) || (pNextCmdBufInfoList->captureEnd))
-                            {
-                                pNextCmdBufInfoList->pDirectCapMemory =
-                                    NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[i].pDirectCapMemory);
+                                if ((pNextCmdBufInfoList->captureBegin) || (pNextCmdBufInfoList->captureEnd))
+                                {
+                                    pNextCmdBufInfoList->pDirectCapMemory =
+                                        NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[i].pDirectCapMemory);
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 677
-                                if (pNextCmdBufInfoList->privateFlip)
-                                {
-                                    pNextCmdBufInfoList->pPrivFlipMemory =
-                                        NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[i].pPrivFlipMemory);
-                                }
+                                    if (pNextCmdBufInfoList->privateFlip)
+                                    {
+                                        pNextCmdBufInfoList->pPrivFlipMemory =
+                                            NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[i].pPrivFlipMemory);
+                                    }
 #endif
-
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 695
-                                pNextCmdBufInfoList->frameIndex = origSubQueueInfo.pCmdBufInfoList[i].frameIndex;
+                                    pNextCmdBufInfoList->frameIndex = origSubQueueInfo.pCmdBufInfoList[i].frameIndex;
 #endif
+                                }
                             }
                         }
-                        localCmdBufInfoIdx++;
+
+                        // Check if we need to add DF SPM info as well
+                        if (needDfSpmFlags)
+                        {
+                            nextCmdBufInfoList[globalCmdBufInfoIdx + saveLocalCmdBufInfoIdx].isValid           = 1;
+                            nextCmdBufInfoList[globalCmdBufInfoIdx + saveLocalCmdBufInfoIdx].dfSpmTraceBegin   = 1;
+                            nextCmdBufInfoList[globalCmdBufInfoIdx + saveLocalCmdBufInfoIdx].dfSpmTraceEnd     = 1;
+                        }
+
                         nextPerSubQueueInfosBreakBatch[subQueueIdx].pCmdBufInfoList =
                             &nextCmdBufInfoList[globalCmdBufIdx +
-                                                localCmdBufIdx -
+                                                localCmdBufIdx  -
                                                 nextPerSubQueueInfosBreakBatch[subQueueIdx].cmdBufferCount];
                     }
 
@@ -739,6 +827,40 @@ Result Queue::Submit(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+// Helper function to add an extra command buffer that copies the DF SPM trace data
+void Queue::AddDfSpmEndCmdBuffer(
+    AutoBuffer<ICmdBuffer*, 64, PlatformDecorator>* pNextCmdBuffers,
+    AutoBuffer<CmdBufInfo, 64, PlatformDecorator>*  pNextCmdBufferInfos,
+    uint32                                          subQueueIdx,
+    uint32                                          globalCmdBufIdx,
+    uint32*                                         pLocalCmdBufIdx,
+    uint32                                          globalCmdBufInfoIdx,
+    uint32*                                         pLocalCmdBufInfoIdx,
+    const LogItem&                                  logItem)
+{
+    TargetCmdBuffer* const pEndDfSpmCmdBuf = AcquireCmdBuf(subQueueIdx, false);
+    RecordDfSpmEndCmdBuffer(pEndDfSpmCmdBuf, logItem);
+
+    (*pNextCmdBuffers)[globalCmdBufIdx + *pLocalCmdBufIdx] = NextCmdBuffer(pEndDfSpmCmdBuf);
+    (*pLocalCmdBufIdx)++;
+
+    (*pNextCmdBufferInfos)[globalCmdBufInfoIdx + *pLocalCmdBufInfoIdx].isValid = 0;
+    (*pLocalCmdBufInfoIdx)++;
+}
+
+// =====================================================================================================================
+// Helper function to record commands that copy the DF SPM trace data
+void Queue::RecordDfSpmEndCmdBuffer(
+    TargetCmdBuffer* pEndDfSpmCmdBuf,
+    const LogItem&   logItem)
+{
+    CmdBufferBuildInfo buildInfo = { };
+    pEndDfSpmCmdBuf->Begin(buildInfo);
+    pEndDfSpmCmdBuf->EndDfSpmTraceSession(this, &logItem);
+    pEndDfSpmCmdBuf->End();
 }
 
 // =====================================================================================================================
@@ -814,9 +936,18 @@ Result Queue::PresentDirect(
             nextSubmitInfo.perSubQueueInfoCount   = 1;
             nextSubmitInfo.pPerSubQueueInfo       = &perSubQueueInfo;
 
+            CmdBufInfo cmdBufInfo = {};
+            RecordDfSpmEndCmdBufInfo(&cmdBufInfo);
+            perSubQueueInfo.pCmdBufInfoList = &cmdBufInfo;
+
             AddLogItem(m_perFrameLogItem);
 
             result = InternalSubmit(nextSubmitInfo, true);
+
+            if (result == Result::Success)
+            {
+                result = EndDfSpm();
+            }
         }
     }
 
@@ -829,6 +960,49 @@ Result Queue::PresentDirect(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+Result Queue::EndDfSpm()
+{
+    Result result = Result::Success;
+    if (m_pDevice->NumDfStreamingPerfCounters() > 0)
+    {
+        TargetCmdBuffer* pEndDfSpmTgtCmdBuf = AcquireCmdBuf(0, false);
+        RecordDfSpmEndCmdBuffer(pEndDfSpmTgtCmdBuf, m_perFrameLogItem);
+
+        result = SubmitDfSpmEndCmdBuffer(pEndDfSpmTgtCmdBuf);
+    }
+    return result;
+}
+
+// =====================================================================================================================
+// Helper function to fill out a CmdBufInfo object with info to end a DF SPM trace
+void Queue::RecordDfSpmEndCmdBufInfo(
+    CmdBufInfo* pCmdBufInfo)
+{
+    if (m_pDevice->NumDfStreamingPerfCounters() > 0)
+    {
+        m_isDfSpmTraceEnabled    = false;
+        pCmdBufInfo->dfSpmTraceEnd = 1;
+        pCmdBufInfo->isValid       = 1;
+    }
+}
+
+// =====================================================================================================================
+// Helper function to submit the end DF SPM command buffer
+Result Queue::SubmitDfSpmEndCmdBuffer(
+    TargetCmdBuffer* pEndDfSpmTgtCmdBuf)
+{
+    ICmdBuffer* pEndDfSpmCmdBuf = NextCmdBuffer(pEndDfSpmTgtCmdBuf);
+    PerSubQueueSubmitInfo dfSpmPerSubQueueInfo = {};
+    dfSpmPerSubQueueInfo.cmdBufferCount        = 1;
+    dfSpmPerSubQueueInfo.ppCmdBuffers          = &pEndDfSpmCmdBuf;
+    MultiSubmitInfo endDfSpmSubmitInfo         = {};
+    endDfSpmSubmitInfo.perSubQueueInfoCount    = 1;
+    endDfSpmSubmitInfo.pPerSubQueueInfo        = &dfSpmPerSubQueueInfo;
+
+    return InternalSubmit(endDfSpmSubmitInfo, true);
 }
 
 // =====================================================================================================================
@@ -875,9 +1049,18 @@ Result Queue::PresentSwapChain(
             nextSubmitInfo.perSubQueueInfoCount   = 1;
             nextSubmitInfo.pPerSubQueueInfo       = &perSubQueueInfo;
 
+            CmdBufInfo cmdBufInfo = {};
+            RecordDfSpmEndCmdBufInfo(&cmdBufInfo);
+            perSubQueueInfo.pCmdBufInfoList = &cmdBufInfo;
+
             AddLogItem(m_perFrameLogItem);
 
             result = InternalSubmit(nextSubmitInfo, true);
+
+            if (result == Result::Success)
+            {
+                result = EndDfSpm();
+            }
         }
     }
 
@@ -1194,6 +1377,9 @@ Result Queue::BuildGpaSessionSampleConfig()
     const uint32 numSpmCountersRequested               = m_pDevice->NumStreamingPerfCounters();
     const GpuProfiler::PerfCounter* pStreamingCounters = m_pDevice->StreamingPerfCounters();
 
+    const uint32 numDfSpmCountersRequested               = m_pDevice->NumDfStreamingPerfCounters();
+    const GpuProfiler::PerfCounter* pDfStreamingCounters = m_pDevice->DfStreamingPerfCounters();
+
     m_gpaSessionSampleConfig.type = GpuUtil::GpaSampleType::None;
 
     if (numCounters > 0)
@@ -1289,79 +1475,12 @@ Result Queue::BuildGpaSessionSampleConfig()
             // Streaming performance counter trace config.
             if (numSpmCountersRequested > 0)
             {
-                uint32 numTotalInstances = 0;
-                for (uint32 i = 0; i < numSpmCountersRequested; i++)
-                {
-                    numTotalInstances += (pStreamingCounters[i].instanceMask == 0)
-                                          ? pStreamingCounters[i].instanceCount
-                                          : Util::CountSetBits(pStreamingCounters[i].instanceMask);
-                }
+                FillOutSpmGpaSessionSampleConfig(numSpmCountersRequested, pStreamingCounters, false);
+            }
 
-                gpusize ringSizeInBytes = settings.gpuProfilerSpmConfig.spmBufferSize;
-
-                if (ringSizeInBytes == 0)
-                {
-                    switch (settings.gpuProfilerConfig.granularity)
-                    {
-                    case GpuProfilerGranularityDraw:
-                        ringSizeInBytes = 1024 * 1024; // 1 MB
-                        break;
-                    case GpuProfilerGranularityCmdBuf:
-                        ringSizeInBytes = 32 * 1024 * 1024; // 32 MB
-                        break;
-                    case GpuProfilerGranularityFrame:
-                        ringSizeInBytes = 128 * 1024 * 1024; // 128 MB
-                        break;
-                    default:
-                        break;
-                    }
-                }
-
-                // Each instance of the requested block is a unique perf counter according to GpaSession.
-                m_gpaSessionSampleConfig.perfCounters.numCounters            = numTotalInstances;
-                m_gpaSessionSampleConfig.perfCounters.spmTraceSampleInterval =
-                    settings.gpuProfilerSpmConfig.spmTraceInterval;
-                m_gpaSessionSampleConfig.perfCounters.gpuMemoryLimit         = ringSizeInBytes;
-
-                // Create pIds for the counters that were requested in the config file.
-                GpuUtil::PerfCounterId* pIds =
-                   static_cast<GpuUtil::PerfCounterId*>(PAL_CALLOC(numTotalInstances * sizeof(GpuUtil::PerfCounterId),
-                                                                   m_pDevice->GetPlatform(),
-                                                                   AllocInternal));
-                if (pIds != nullptr)
-                {
-                    m_gpaSessionSampleConfig.perfCounters.pIds = pIds;
-
-                    uint32 pIdIndex = 0;
-
-                    // Create PerfCounterIds with same eventId for all instances of the block.
-                    for (uint32 counter = 0; counter < numSpmCountersRequested; ++counter)
-                    {
-                        GpuUtil::PerfCounterId counterInfo = {};
-                        counterInfo.block   = pStreamingCounters[counter].block;
-                        counterInfo.eventId = pStreamingCounters[counter].eventId;
-
-                        if (counterInfo.block == GpuBlock::DfMall)
-                        {
-                            counterInfo.df.eventQualifier = pStreamingCounters[counter].optionalData;
-                        }
-
-                        const uint64 instanceMask = pStreamingCounters[counter].instanceMask;
-                        for (uint32 j = 0; j < pStreamingCounters[counter].instanceCount; j++)
-                        {
-                            if ((instanceMask == 0) || Util::BitfieldIsSet(instanceMask, j))
-                            {
-                                counterInfo.instance = pStreamingCounters[counter].instanceId + j;
-                                pIds[pIdIndex++]     = counterInfo;
-                            }
-                        }
-                    }
-                    PAL_ASSERT(pIdIndex == numTotalInstances);
-                }
-                else
-                {
-                    result = Result::ErrorOutOfMemory;
-                }
+            if (numDfSpmCountersRequested > 0)
+            {
+                FillOutSpmGpaSessionSampleConfig(numDfSpmCountersRequested, pDfStreamingCounters, true);
             }
 
             // Thread trace specific config.
@@ -1385,6 +1504,113 @@ Result Queue::BuildGpaSessionSampleConfig()
     return result;
 }
 
+Result Queue::FillOutSpmGpaSessionSampleConfig(
+    uint32              numSpmCountersRequested,
+    const  PerfCounter* pStreamingCounters,
+    bool                isDataFabric)
+{
+    Result result = Result::Success;
+    const auto& settings = m_pDevice->GetPlatform()->PlatformSettings();
+
+    uint32 numTotalInstances = 0;
+    for (uint32 i = 0; i < numSpmCountersRequested; i++)
+    {
+        numTotalInstances += (pStreamingCounters[i].instanceMask == 0)
+            ? pStreamingCounters[i].instanceCount
+            : Util::CountSetBits(pStreamingCounters[i].instanceMask);
+    }
+
+    gpusize ringSizeInBytes;
+    if (isDataFabric)
+    {
+        // DF SPM buffer size is specified in MB
+        ringSizeInBytes = settings.gpuProfilerDfSpmConfig.dfSpmBufferSize * 0x100000;
+    }
+    else
+    {
+        ringSizeInBytes = settings.gpuProfilerSpmConfig.spmBufferSize;
+    }
+
+    if (ringSizeInBytes == 0)
+    {
+        switch (settings.gpuProfilerConfig.granularity)
+        {
+        case GpuProfilerGranularityDraw:
+            ringSizeInBytes = 1024 * 1024; // 1 MB
+            break;
+        case GpuProfilerGranularityCmdBuf:
+            ringSizeInBytes = 32 * 1024 * 1024; // 32 MB
+            break;
+        case GpuProfilerGranularityFrame:
+            ringSizeInBytes = 128 * 1024 * 1024; // 128 MB
+            break;
+        default:
+            break;
+        }
+    }
+
+    // Each instance of the requested block is a unique perf counter according to GpaSession.
+    if (isDataFabric)
+    {
+        m_gpaSessionSampleConfig.dfSpmPerfCounters.numCounters    = numTotalInstances;
+        m_gpaSessionSampleConfig.dfSpmPerfCounters.sampleInterval = settings.gpuProfilerDfSpmConfig.dfSpmTraceInterval;
+        m_gpaSessionSampleConfig.dfSpmPerfCounters.gpuMemoryLimit = ringSizeInBytes;
+    }
+    else
+    {
+        m_gpaSessionSampleConfig.perfCounters.numCounters            = numTotalInstances;
+        m_gpaSessionSampleConfig.perfCounters.spmTraceSampleInterval =
+            settings.gpuProfilerSpmConfig.spmTraceInterval;
+        m_gpaSessionSampleConfig.perfCounters.gpuMemoryLimit         = ringSizeInBytes;
+    }
+
+    // Create pIds for the counters that were requested in the config file.
+    GpuUtil::PerfCounterId* pIds =
+        static_cast<GpuUtil::PerfCounterId*>(PAL_CALLOC(numTotalInstances * sizeof(GpuUtil::PerfCounterId),
+                                             m_pDevice->GetPlatform(),
+                                             AllocInternal));
+    if (pIds != nullptr)
+    {
+        if (isDataFabric)
+        {
+            m_gpaSessionSampleConfig.dfSpmPerfCounters.pIds = pIds;
+        }
+        else
+        {
+            m_gpaSessionSampleConfig.perfCounters.pIds = pIds;
+        }
+
+        uint32 pIdIndex = 0;
+
+        // Create PerfCounterIds with same eventId for all instances of the block.
+        for (uint32 counter = 0; counter < numSpmCountersRequested; ++counter)
+        {
+            GpuUtil::PerfCounterId counterInfo = {};
+            counterInfo.block   = pStreamingCounters[counter].block;
+            counterInfo.eventId = pStreamingCounters[counter].eventId;
+            if (counterInfo.block == GpuBlock::DfMall)
+            {
+                counterInfo.df.eventQualifier = pStreamingCounters[counter].optionalData;
+            }
+            const uint64 instanceMask = pStreamingCounters[counter].instanceMask;
+            for (uint32 j = 0; j < pStreamingCounters[counter].instanceCount; j++)
+            {
+                if ((instanceMask == 0) || Util::BitfieldIsSet(instanceMask, j))
+                {
+                    counterInfo.instance = pStreamingCounters[counter].instanceId + j;
+                    pIds[pIdIndex++]     = counterInfo;
+                }
+            }
+        }
+        PAL_ASSERT(pIdIndex == numTotalInstances);
+    }
+    else
+    {
+        result = Result::ErrorOutOfMemory;
+    }
+    return result;
+}
+
 // =====================================================================================================================
 // Destruct sample config info
 void Queue::DestroyGpaSessionSampleConfig()
@@ -1392,6 +1618,11 @@ void Queue::DestroyGpaSessionSampleConfig()
     if (m_gpaSessionSampleConfig.perfCounters.pIds != nullptr)
     {
         PAL_SAFE_FREE(m_gpaSessionSampleConfig.perfCounters.pIds, m_pDevice->GetPlatform());
+    }
+
+    if (m_gpaSessionSampleConfig.dfSpmPerfCounters.pIds != nullptr)
+    {
+        PAL_SAFE_FREE(m_gpaSessionSampleConfig.dfSpmPerfCounters.pIds, m_pDevice->GetPlatform());
     }
 
     m_gpaSessionSampleConfig = {};

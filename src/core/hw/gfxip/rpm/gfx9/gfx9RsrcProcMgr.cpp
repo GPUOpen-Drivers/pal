@@ -5472,12 +5472,14 @@ void Gfx9RsrcProcMgr::FastDepthStencilClearCompute(
     uint8              stencil
     ) const
 {
-    const Pal::Image*      pPalImage    = dstImage.Parent();
-    const Pal::Device*     pDevice      = pPalImage->GetDevice();
-    const Gfx9PalSettings& settings     = GetGfx9Settings(*pDevice);
-    const auto&            createInfo   = pPalImage->GetImageCreateInfo();
-    const auto*            pHtile       = dstImage.GetHtile();
-    const auto&            hTileMipInfo = pHtile->GetAddrMipInfo(range.startSubres.mipLevel);
+    const Pal::Image*      pPalImage        = dstImage.Parent();
+    const Pal::Device*     pDevice          = pPalImage->GetDevice();
+    const Gfx9PalSettings& settings         = GetGfx9Settings(*pDevice);
+    const auto&            createInfo       = pPalImage->GetImageCreateInfo();
+    const auto*            pHtile           = dstImage.GetHtile();
+    const auto&            hTileMipInfo     = pHtile->GetAddrMipInfo(range.startSubres.mipLevel);
+    const auto*            pSubResInfo      = pPalImage->SubresourceInfo(range.startSubres);
+    const auto             firstMipIdInTail = dstImage.GetAddrOutput(pSubResInfo)->firstMipIdInTail;
 
     // We haven't implemented the ExpClear paths yet in gfx9
     PAL_ASSERT(settings.dbPerTileExpClearEnable == false);
@@ -5485,6 +5487,7 @@ void Gfx9RsrcProcMgr::FastDepthStencilClearCompute(
     // For now just find out here if this resource can do Optimized Htile clear (for all depth surfaces except
     // those whose meta data is in mip tail)
     const bool canDoHtileOptimizedClear = ((hTileMipInfo.inMiptail == 0) &&
+                                           (firstMipIdInTail == createInfo.mipLevels) &&
                                            (TestAnyFlagSet(settings.optimizedFastClear, Gfx9OptimizedFastClearDepth)));
 
     const uint32 htileMask = pHtile->GetPlaneMask(clearMask);

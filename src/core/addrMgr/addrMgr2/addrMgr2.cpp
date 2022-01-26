@@ -605,15 +605,7 @@ ADDR2_SURFACE_FLAGS AddrMgr2::DetermineSurfaceFlags(
     // they are listed. We shouldn't set any of them for shared surfaces because the tiling mode is already defined.
     // - opt4space:         If 2D padding is bigger than 1.5x 1D padding, convert tile mode to 1D.
     // - minimizeAlignment: If 2D padding is bigger than 1d padding, convert tile mode to 1D.
-    // - maxAlignment64k:   If 2D macro block size is bigger than 64KB, convert tile mode to PRT.
-    // - needEquation:      If tile mode is 2D, convert it to PRT tile mode.
-    //
-    // Adding the check for forFmask to prevent TilingOptMode settings from affecting fmask.  This is needed because
-    // when fmask swizzle mode isn't known on image import and TilingOptMode settings are applied it sometimes leads to
-    // a swizzle mode mismatch that results in an incorrectly initialized cmask.  The full solution is to add fmask
-    // swizzle mode to the image metadata and honor it during image import to correctly initialize cmask for shared
-    // images. After the full solution is implemented, this check for forFmask will be removed.
-    if ((image.IsShared() == false) && (forFmask == false))
+    if (image.IsShared() == false)
     {
         // NV12 or P010 only support 2D THIN1 or linear tile mode, setting the opt4Space or minimizeAlignment flag for
         // those surfaces could change the tile mode to 1D THIN1.
@@ -813,6 +805,12 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
                  (forFmask == false))
         {
             pOut->swizzleMode = imageInfo.internalCreateInfo.gfx9.sharedSwizzleMode;
+        }
+        else if (IsGfx9(*m_pDevice) &&
+                 forFmask &&
+                 (imageInfo.internalCreateInfo.flags.useSharedMetadata != 0))
+        {
+            pOut->swizzleMode = imageInfo.internalCreateInfo.sharedMetadata.fmaskSwizzleMode;
         }
         else if (pImage->GetGfxImage()->IsRestrictedTiledMultiMediaSurface() &&
                  (createInfo.tiling == ImageTiling::Optimal))

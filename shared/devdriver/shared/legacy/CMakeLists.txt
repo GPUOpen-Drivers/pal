@@ -29,8 +29,6 @@ include(DevDriver)
 # Put ZERO_CHECK, INSTALL, etc default targets in a separate folder in VS solutions
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-devdriver_push_scope("DevDriver Libs")
-
 ### Create GpuOpen Library #############################################################################################
 devdriver_library(devdriver STATIC)
 
@@ -65,21 +63,7 @@ endif()
 target_link_libraries(devdriver PUBLIC ddCore)
 
 ### Third Party Components #############################################################################################
-if (DEFINED DEVDRIVER_FOLDER_ROOT)
-    ## WA: This does not use the devdriver_scope_* functionality. We're side-stepping it here.
-    ## In the future, the driver can include the top-level repo and we can remove this work around.
-    ## We do this to place Third Party at the top of the IDE Folder tree, but source-wise it's nested
-    ## under ddLegacy for use in the driver.
-    # Save the current folder and force third_party under "/DevDriver/"
-    set(DEVDRIVER_FOLDER_BAK ${CMAKE_FOLDER})
-    set(CMAKE_FOLDER ${DEVDRIVER_FOLDER_ROOT})
-
-    add_subdirectory(third_party)
-
-    set(CMAKE_FOLDER ${DEVDRIVER_FOLDER_BAK})
-else()
-    add_subdirectory(third_party)
-endif()
+add_subdirectory(third_party)
 
 target_link_libraries(devdriver PRIVATE mpack)
 target_link_libraries(devdriver PUBLIC  metrohash)

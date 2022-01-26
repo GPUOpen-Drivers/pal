@@ -476,6 +476,10 @@ public:
     virtual void CmdInsertRgpTraceMarker(
         uint32      numDwords,
         const void* pData) override;
+    virtual void CmdCopyDfSpmTraceData(
+        const IPerfExperiment& perfExperiment,
+        const IGpuMemory&      dstGpuMemory,
+        gpusize                dstOffset) override;
     virtual void CmdSaveComputeState(
         uint32 stateFlags) override;
     virtual void CmdRestoreComputeState(
