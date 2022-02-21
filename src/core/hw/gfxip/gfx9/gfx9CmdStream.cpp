@@ -1014,7 +1014,7 @@ void CmdStream::EndCurrentChunk(
         dmaInfo.numBytes     = m_chunkList.Back()->DwordsAllocated() * sizeof(uint32);
         dmaInfo.usePfp       = true;
 
-        m_cmdUtil.BuildDmaData(dmaInfo, m_pChunkPreamble);
+        m_cmdUtil.BuildDmaData<false>(dmaInfo, m_pChunkPreamble);
         m_pChunkPreamble = nullptr;
     }
 }

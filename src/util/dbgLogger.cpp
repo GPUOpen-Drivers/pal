@@ -30,13 +30,6 @@
 
 namespace Util
 {
-static constexpr uint32 MsgSize = 1024;  ///< max size for the main message
-
-/// Final formatted message consists of: "<severity>:<main message>\r\n"
-/// Max size for severity = 8, which is strlen("Critical")
-/// So, Final msg size = 8 + 1(for :) + msgSize + 2(for \r\t) + 1(for null termination) = msgSize + 12
-static constexpr uint32 FinalMsgSize = MsgSize + 12;
-
 static constexpr char LineEnd[] = "\n";
 
 // =====================================================================================================================
@@ -54,11 +47,11 @@ Result FormatMessageSimple(
     Result result = Result::ErrorInvalidMemorySize;
 
     // Proceed only if there is enough space.
-    if (outputMsgSize >= FinalMsgSize)
+    if (outputMsgSize >= DefaultFinalMsgSize)
     {
-        char buffer[MsgSize];
+        char buffer[DefaultMsgSize];
         buffer[0] = '\0';
-        if (Util::Vsnprintf(buffer, MsgSize, pFormat, args) > 0)
+        if (Util::Vsnprintf(buffer, DefaultMsgSize, pFormat, args) > 0)
         {
             result = Result::Success;
         }
@@ -72,9 +65,18 @@ Result FormatMessageSimple(
 // =====================================================================================================================
 /// Initialize any data structures needed by the file logger.
 Result DbgLoggerFile::Init(
-    const char* pFileName)
+    const char* pFileName,
+    uint32      fileAccessMask)
 {
-    return m_file.Open(pFileName, FileAccessWrite);
+    Result result = Result::ErrorInvalidFlags;
+
+    // This logger always writes to a file, so a FileAccessRead mode is invalid.
+    if (TestAnyFlagSet(fileAccessMask, FileAccessMode::FileAccessRead) == false)
+    {
+        result = m_file.Open(pFileName, fileAccessMask);
+    }
+
+    return result;
 }
 
 // =====================================================================================================================
@@ -85,7 +87,7 @@ void DbgLoggerFile::Cleanup()
 }
 
 // =====================================================================================================================
-/// Write the incoming message to the file if it passes through this logger's filter.
+/// Formatted writes - Write the incoming message to the file if it passes through this logger's filter.
 void DbgLoggerFile::LogMessage(
     SeverityLevel   severity,
     OriginationType source,
@@ -95,9 +97,9 @@ void DbgLoggerFile::LogMessage(
 {
     if (FilterMessage(severity, source))
     {
-        char outputMsg[FinalMsgSize];
+        char outputMsg[DefaultFinalMsgSize];
         outputMsg[0] = '\0';
-        FormatMessageSimple(outputMsg, FinalMsgSize, severity, pFormat, args);
+        FormatMessageSimple(outputMsg, DefaultFinalMsgSize, severity, pFormat, args);
         // If the msg was truncated, just accept it as is. We are not going to format
         // again with a bigger buffer at this time.
         m_file.Write(outputMsg, (strlen(outputMsg) * sizeof(char)));
@@ -105,6 +107,7 @@ void DbgLoggerFile::LogMessage(
 }
 
 // =====================================================================================================================
+/// Unformatted writes - Write the incoming raw data to the file if it passes through this logger's filter.
 void DbgLoggerFile::LogMessage(
     SeverityLevel   severity,
     OriginationType source,
@@ -112,8 +115,10 @@ void DbgLoggerFile::LogMessage(
     size_t          dataSize,
     const void*     pData)
 {
-    // TODO in the next phase of development
-    PAL_NOT_IMPLEMENTED();
+    if (FilterMessage(severity, source))
+    {
+        m_file.Write(pData, dataSize);
+    }
 }
 } //namespace Util
 #endif

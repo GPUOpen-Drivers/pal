@@ -70,8 +70,20 @@ constexpr uint32 SeverityLevelTableSize = sizeof(SeverityLevelTable) / sizeof(Se
 static_assert(SeverityLevelTableSize == static_cast<uint32>(SeverityLevel::Count),
               "SeverityLevel and SeverityLevelTable are out of sync!");
 
-/// Specifies the origination type (source) of each log message. Each of the following
-/// indicates the bit position which can be used to turn on/off this origination type.
+/// Specifies the origination type (source) of each log message.
+enum class OriginationType : uint32
+{
+    Unknown = 0, ///< Originating from an unknown source
+    DebugPrint,  ///< Originating from PAL_DPINFO, PAL_DPERROR, etc. .
+    Alert,       ///< Originating from PAL_ALERT* macros.
+    Assert,      ///< Originating from PAL_ASSERT* macros.
+    Telemetry,   ///< Used for msgs regarding crash dump and offline analysis
+    Count
+};
+
+/// Specifies the flag, or the bit position of each origination type used to turn
+/// on/off this origination type. The number of enumerators here must match the
+/// number of enumerators in the OriginationType enum.
 /// A debug logger may be interested in logging msgs from multiple sources. Hence, these
 /// can be used to create a mask of origination types to be used as a filter by the
 /// debug loggers.
@@ -83,14 +95,20 @@ static_assert(SeverityLevelTableSize == static_cast<uint32>(SeverityLevel::Count
 /// |      0    |     1      |      1     |     1      |      0     |
 /// -----------------------------------------------------------------
 /// and pass this mask in the constructor of the debug logger.
-enum OriginationType : uint32
+enum OriginationTypeFlags : uint32
 {
-    OriginationUnknown    = (1ul << 0),
-    OriginationDebugPrint = (1ul << 1),  ///< Originating from PAL_DPINFO, PAL_DPERROR, etc. .
-    OriginationAlert      = (1ul << 2),  ///< Originating from PAL_ALERT* macros.
-    OriginationAssert     = (1ul << 3),  ///< Originating from PAL_ASSERT* macros.
-    OriginationTelemetry  = (1ul << 4),  ///< Used for msgs regarding crash dump and offline analysis
+    OriginationTypeFlagUnknown    = (1ul << uint32(OriginationType::Unknown)),
+    OriginationTypeFlagDebugPrint = (1ul << uint32(OriginationType::DebugPrint)),
+    OriginationTypeFlagAlert      = (1ul << uint32(OriginationType::Alert)),
+    OriginationTypeFlagAssert     = (1ul << uint32(OriginationType::Assert)),
+    OriginationTypeFlagTelemetry  = (1ul << uint32(OriginationType::Telemetry))
 };
+
+constexpr uint32 AllOriginationTypes = uint32(OriginationTypeFlags::OriginationTypeFlagUnknown)    |
+                                       uint32(OriginationTypeFlags::OriginationTypeFlagDebugPrint) |
+                                       uint32(OriginationTypeFlags::OriginationTypeFlagAlert)      |
+                                       uint32(OriginationTypeFlags::OriginationTypeFlagAssert)     |
+                                       uint32(OriginationTypeFlags::OriginationTypeFlagTelemetry);
 
 /// Expected maximum number of characters in the client tag.
 /// A client tag indicates the client that logs a message.

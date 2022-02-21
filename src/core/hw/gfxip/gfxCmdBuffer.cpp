@@ -40,6 +40,7 @@
 #include "palHashMapImpl.h"
 #include "palImage.h"
 #include "palIntrusiveListImpl.h"
+#include "palIterator.h"
 #include "palQueryPool.h"
 #include "palVectorImpl.h"
 
@@ -1500,16 +1501,10 @@ void GfxCmdBuffer::LeakPerPipelineStateChanges(
         pDestUserDataEntries->touched[index] |= leakedUserDataEntries.touched[index];
 
         auto mask = leakedUserDataEntries.touched[index];
-        while (mask != 0)
+        for (uint32 bit : BitIterSizeT(mask))
         {
-            // There is no need to check if the bit-scan found a set bit because the loop condition already does that.
-            uint32 bit;
-            BitMaskScanForward(&bit, mask);
-
             const uint32 entry = (bit + (UserDataEntriesPerMask * index));
             pDestUserDataEntries->entries[entry] = leakedUserDataEntries.entries[entry];
-
-            mask &= ~static_cast<size_t>(1ull << bit);
         }
     }
 }

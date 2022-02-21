@@ -246,9 +246,9 @@ void PipelineChunkGs::LateInit(
     m_regs.context.paClNggCntl.bits.INDEX_BUF_EDGE_FLAG_ENA =
         (createInfo.iaState.topologyInfo.primitiveType == Pal::PrimitiveType::Quad);
 
-    if (IsGfx103Plus(*m_device.Parent()))
+    if (IsGfx103PlusExclusive(*m_device.Parent()))
     {
-        m_regs.context.paClNggCntl.gfx103Plus.VERTEX_REUSE_DEPTH = 30;
+        m_regs.context.paClNggCntl.gfx103PlusExclusive.VERTEX_REUSE_DEPTH = 30;
     }
 
     pHasher->Update(m_regs.context);

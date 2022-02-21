@@ -43,6 +43,7 @@
 #include "palFormatInfo.h"
 #include "palHashMapImpl.h"
 #include "palIntrusiveListImpl.h"
+#include "palIterator.h"
 #include "palPipeline.h"
 #if defined(__unix__)
 #include "palSettingsFileMgrImpl.h"
@@ -497,6 +498,9 @@ Result Device::SetupPublicSettingDefaults()
 #endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 691
     m_publicSettings.disableExecuteIndirectAceOffload = false;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 706
+    m_publicSettings.dccInitialClearKind = static_cast<uint32>(DccInitialClearKind::Uncompressed);
 #endif
     return ret;
 }
@@ -1818,13 +1822,13 @@ Result Device::CreateEngines(
         uint32           engines    = finalizeInfo.requestedEngineCounts[i].engines;
         const EngineType engineType = static_cast<EngineType>(i);
 
-        uint32 index = 0;
-        while ((result == Result::Success) && (Util::BitMaskScanForward(&index, engines)))
+        for (uint32 index : BitIter32(engines))
         {
-            // We need to mask off the bit we just found to prevent an infinite loop.
-            engines &= ~(1 << index);
-
             result = CreateEngine(engineType, index);
+            if (result != Result::Success)
+            {
+                break;
+            }
 
             if (m_engineProperties.perEngine[engineType].flags.physicalAddressingMode)
             {
@@ -4930,7 +4934,9 @@ void Device::ApplyDevOverlay(
         Util::Snprintf(overlayTextBuffer,
                        OverlayTextBufferSize,
                        "MES HWS: %s",
-                       (GetSchedulerMode() == SchedulerMode::MesHws) ? "Enabled" : "Disabled");
+                       (GetHwsInfo().gfxHwsEnabled     ||
+                        GetHwsInfo().computeHwsEnabled ||
+                        GetHwsInfo().dmaHwsEnabled) ? "Enabled" : "Disabled");
 
         m_pTextWriter->DrawDebugText(dstImage,
                                      pCmdBuffer,

@@ -25,6 +25,7 @@
 
 #include "pal.h"
 #include "palInlineFuncs.h"
+#include "palIterator.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9Image.h"
@@ -230,9 +231,8 @@ void MetaDataAddrEquation::FilterOneCompType(
 {
     if ((axis == MetaDataAddrCompNumTypes) || (axis == compType))
     {
-        uint32  dataBitPos = 0;
         uint32  eqData     = Get(eqBitPos, compType);
-        while (BitMaskScanForward(&dataBitPos, eqData))
+        for (uint32 dataBitPos : BitIter32(eqData))
         {
             const CompPair eqCompPair  = SetCompPair(compType, dataBitPos);
             const uint32   dataBitMask = ~(1 << dataBitPos);
@@ -241,9 +241,6 @@ void MetaDataAddrEquation::FilterOneCompType(
             {
                 ClearBits(eqBitPos, compType, dataBitMask);
             }
-
-            // Don't test against this bit again
-            eqData &= dataBitMask;
         }
     } // end check for anything to do
 }
@@ -552,17 +549,13 @@ void MetaDataAddrEquation::PrintEquation(
             for (uint32  compType = 0; compType < MetaDataAddrCompNumTypes; compType++)
             {
                 uint32  data      = m_equation[bit][compType];
-                uint32  lowSetBit = 0;
-                while (BitMaskScanForward(&lowSetBit, data))
+                for (uint32 lowSetBit : BitIter32(data))
                 {
                     static const uint32  CompNameSize = 16;
                     char  compName[CompNameSize] = {};
 
                     Snprintf(compName, CompNameSize, "%c%u ^ ", CompNames[compType], lowSetBit);
                     strcat (printMe, compName);
-
-                    // Don't find this bit again
-                    data &= ~(1 << lowSetBit);
                 }
             }
 

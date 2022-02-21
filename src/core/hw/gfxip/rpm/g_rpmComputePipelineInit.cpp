@@ -847,14 +847,7 @@ Result CreateRpmComputePipelines(
             RpmComputePipeline::MsaaResolveStencil8xMin, pDevice, pTable, pPipelineMem);
     }
 
-    if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
-        || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
-        || (properties.gfxLevel == GfxIpLevel::GfxIp9)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
-        || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-        ))
+    if (result == Result::Success)
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::MsaaScaledCopyImage2d, pDevice, pTable, pPipelineMem);

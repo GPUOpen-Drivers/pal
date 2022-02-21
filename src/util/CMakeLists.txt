@@ -29,6 +29,13 @@ if (UNIX)
     add_subdirectory(lnx)
 endif()
 
+#if ANDROID
+if(ANDROID)
+    # Needed to pick up __android_log_write
+    target_link_libraries(pal PUBLIC log)
+endif()
+#endif
+
 target_sources(pal PRIVATE
     assert.cpp
     cacheLayerBase.cpp

@@ -265,6 +265,63 @@ struct ViewportInfo
                                 ///  0 to 1 or -1 to 1).
 };
 
+/// Specifies Rasterizer state in properties for creation of a graphics
+struct RasterizerState
+{
+    PointOrigin     pointCoordOrigin;          ///< Controls texture coordinate orientation for point sprites.
+    bool            expandLineWidth;           ///< If true, line primitives will have their width expanded by 1/cos(a)
+                                                ///  where a is the minimum angle from horizontal or vertical.
+                                                ///  This can be used in conjunction with PS patching for a client to
+                                                ///  implement line antialiasing.
+    ShadeMode       shadeMode;                 ///< Specifies shading mode, Gouraud or Flat
+    bool            rasterizeLastLinePixel;    ///< Specifies whether to draw last pixel in a line.
+    bool            outOfOrderPrimsEnable;     ///< Enables out-of-order primitive rasterization.  PAL silently
+                                                ///  ignores this if it is unsupported in hardware.
+    bool            perpLineEndCapsEnable;     ///< Forces the use of perpendicular line end caps as opposed to
+                                                ///  axis-aligned line end caps during line rasterization.
+    BinningOverride binningOverride;           ///< Binning setting for this pipeline.
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 693
+    union
+    {
+#endif
+        DepthClampMode depthClampMode;         ///< Depth clamping behavior
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 693
+        bool depthClampDisable;                ///< Disable depth clamping to viewport min/max depth
+    };
+#endif
+    uint8           clipDistMask;              ///< Mask to indicate the clipDistance.
+    PsShadingRate   forcedShadingRate;         ///< Forced PS shading rate
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 665
+    bool            dx10DiamondTestDisable;     ///< Disable DX10 diamond test during line rasterization.
+#endif
+};
+
+/// Specifies Per-MRT color target info in olor target state
+struct ColorTargetInfo
+{
+    SwizzledFormat swizzledFormat;      ///< Color target format and channel swizzle. Set the format to invalid
+                                        ///  if no color target will be bound at this slot.
+    uint8          channelWriteMask;    ///< Color target write mask.  Bit 0 controls the red channel, bit 1 is
+                                        ///  green, bit 2 is blue, and bit 3 is alpha.
+    bool           forceAlphaToOne;     ///< Treat alpha as one regardless of the shader output.  Ignored unless
+                                        ///  supportAlphaToOne is set in DeviceProperties.
+};
+
+/// Specifies color target state in properties for creation of a graphics
+struct ColorTargetState
+{
+    bool    alphaToCoverageEnable;           ///< Enable alpha to coverage.
+    bool    dualSourceBlendEnable;           ///< Blend state bound at draw time will use a dual source blend mode.
+    LogicOp logicOp;                         ///< Logic operation to perform.
+    bool    uavExportSingleDraw;             ///< When UAV export is enabled, acts as a hint that only a single draw
+                                             ///  is done on a color target with this or subsequent pipelines before
+                                             ///  a barrier. Improves performance by allowing pipelines to overlap.
+
+    ColorTargetInfo target[MaxColorTargets]; ///< Per-MRT color target info.
+};
+
 /// Specifies properties for creation of a graphics @ref IPipeline object.  Input structure to
 /// IDevice::CreateGraphicsPipeline().
 struct GraphicsPipelineCreateInfo
@@ -298,57 +355,9 @@ struct GraphicsPipelineCreateInfo
         uint32            vertexBufferCount;
     } iaState;                                 ///< Input assembler state.
 
-    struct
-    {
-        PointOrigin     pointCoordOrigin;          ///< Controls texture coordinate orientation for point sprites.
-        bool            expandLineWidth;           ///< If true, line primitives will have their width expanded by 1/cos(a)
-                                                   ///  where a is the minimum angle from horizontal or vertical.
-                                                   ///  This can be used in conjunction with PS patching for a client to
-                                                   ///  implement line antialiasing.
-        ShadeMode       shadeMode;                 ///< Specifies shading mode, Gouraud or Flat
-        bool            rasterizeLastLinePixel;    ///< Specifies whether to draw last pixel in a line.
-        bool            outOfOrderPrimsEnable;     ///< Enables out-of-order primitive rasterization.  PAL silently
-                                                   ///  ignores this if it is unsupported in hardware.
-        bool            perpLineEndCapsEnable;     ///< Forces the use of perpendicular line end caps as opposed to
-                                                   ///  axis-aligned line end caps during line rasterization.
-        BinningOverride binningOverride;           ///< Binning setting for this pipeline.
+    RasterizerState rsState;                   ///< Rasterizer state.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 693
-        union
-        {
-#endif
-            DepthClampMode depthClampMode;         ///< Depth clamping behavior
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 693
-            bool depthClampDisable;                ///< Disable depth clamping to viewport min/max depth
-        };
-#endif
-        uint8           clipDistMask;              ///< Mask to indicate the clipDistance.
-        PsShadingRate   forcedShadingRate;         ///< Forced PS shading rate
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 665
-        bool            dx10DiamondTestDisable;     ///< Disable DX10 diamond test during line rasterization.
-#endif
-    } rsState;             ///< Rasterizer state.
-
-    struct
-    {
-        bool    alphaToCoverageEnable;          ///< Enable alpha to coverage.
-        bool    dualSourceBlendEnable;          ///< Blend state bound at draw time will use a dual source blend mode.
-        LogicOp logicOp;                        ///< Logic operation to perform.
-        bool    uavExportSingleDraw;            ///< When UAV export is enabled, acts as a hint that only a single draw
-                                                ///  is done on a color target with this or subsequent pipelines before
-                                                ///  a barrier. Improves performance by allowing pipelines to overlap.
-
-        struct
-        {
-            SwizzledFormat swizzledFormat;      ///< Color target format and channel swizzle. Set the format to invalid
-                                                ///  if no color target will be bound at this slot.
-            uint8          channelWriteMask;    ///< Color target write mask.  Bit 0 controls the red channel, bit 1 is
-                                                ///  green, bit 2 is blue, and bit 3 is alpha.
-            bool           forceAlphaToOne;     ///< Treat alpha as one regardless of the shader output.  Ignored unless
-                                                ///  supportAlphaToOne is set in DeviceProperties.
-        } target[MaxColorTargets];              ///< Per-MRT color target info.
-    } cbState;                                  ///< Color target state.
+    ColorTargetState cbState;                  ///< Color target state.
 
     ViewInstancingDescriptor  viewInstancingDesc; ///< Descriptor describes view instancing state
                                                   ///  of the graphics pipeline

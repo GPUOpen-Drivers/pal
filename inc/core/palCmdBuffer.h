@@ -479,8 +479,10 @@ union CmdBufferBuildFlags
         /// non-TMZ memory, the results are undefined. Only valid for graphics and compute.
         uint32  enableTmz                    :  1;
 
+        uint32 placeholder2                  :  1;
+
         /// Reserved for future use.
-        uint32 reserved                      :  22;
+        uint32 reserved                      :  21;
 
     };
 

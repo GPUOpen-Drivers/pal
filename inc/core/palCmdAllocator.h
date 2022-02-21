@@ -59,7 +59,10 @@ union CmdAllocatorCreateFlags
                                               ///  not returned to the allocator before the GPU has finished processing
                                               ///  them.  Failure to guarantee this will result in undefined behavior.
                                               ///  This flag has no effect if @ref autoMemoryReuse is not set.
-        uint32 reserved                 : 29; ///< Reserved for future use.
+        uint32 autoTrimMemory           :  1; ///< If set the allocator will automatically trim down the allocations
+                                              ///  (where all chunks are idle on the freeList). A minimum of
+                                              ///  allocFreeThreshold allocations are kept for fast reuse.
+        uint32 reserved                 : 28; ///< Reserved for future use.
     };
 
     uint32     u32All;          ///< Flags packed as 32-bit uint.
@@ -93,7 +96,20 @@ struct CmdAllocatorCreateInfo
                                           ///  command buffers.  It must be an integer multiple of 4096.
                                           ///  Must be greater than zero even if the client doesn't plan on using this
                                           ///  allocation type.
+        uint32      allocFreeThreshold;   ///< Minimum count of free allocations that the allocator should keep around
+                                          ///  for fast reuse. It is either used when the autoTrimMemory flag is set
+                                          ///  or the Trim() function is called explicitly.
     } allocInfo[CmdAllocatorTypeCount];   ///< Information for each allocation type.
+};
+
+/// Output structure for QueryUtilizationInfo().
+/// The CmdAllocator utilization data can be queried by PAL clients in order to decide whether to trim the allocations.
+struct CmdAllocatorUtilizationInfo
+{
+    uint32  numAllocations;     ///< Number of allocations owned by the allocator.
+    uint32  numFreeChunks;      ///< Number of chunks that are reset and not in use.
+    uint32  numBusyChunks;      ///< Number of chunks that in use by the GPU.
+    uint32  numReuseChunks;     ///< Number of chunks that have been 'returned' to the allocator for reuse.
 };
 
 /**
@@ -124,6 +140,28 @@ public:
     ///          returned:
     ///          + ErrorUnknown if an internal PAL error occurs.
     virtual Result Reset() = 0;
+
+    /// Explicitly trims a command allocator, deleting as many unused internal GPU memory allocations as possible.
+    ///
+    /// @returns Success if the command allocator was successfully trimmed.
+    ///
+    /// @param [in] allocTypeMask    Gives control whether trimming will be applied for each CmdAllocType.
+    ///                              Use (1 << CmdAllocatorTypeCount) - 1 to apply trimming to all types.
+    ///                              When trimming only the embedded date use (1 << EmbeddedDataAlloc).
+    /// @param [in] dynamicThreshold Allows to use a higher trim threshold than given for at the CmdAllocator
+    ///                              initialization. The maximum of this argument and the type specific static
+    ///                              threshold will be used (thus keeping more allocations around).
+    virtual Result Trim(uint32 allocTypeMask, uint32 dynamicThreshold) = 0;
+
+    /// Query the numbers of allocations and chunks of the given CmdAllocator type.
+    /// This may help clients to decide whether they may apply trimming or not.
+    ///
+    /// @returns Success if valid values can be reported.
+    ///
+    /// @param [in]  type             CmdAllocType that is being queried
+    /// @param [out] pUtilizationInfo The allocation and chunk counts will be stored here.
+
+    virtual Result QueryUtilizationInfo(CmdAllocType type, CmdAllocatorUtilizationInfo* pUtilizationInfo) const = 0;
 
     /// Returns the value of the associated arbitrary client data pointer.
     /// Can be used to associate arbitrary data with a particular PAL object.

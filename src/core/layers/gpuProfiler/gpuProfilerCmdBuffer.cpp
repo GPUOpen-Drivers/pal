@@ -30,6 +30,7 @@
 #include "palAutoBuffer.h"
 #include "palGpaSession.h"
 #include "palHsaAbiMetadata.h"
+#include "palIterator.h"
 #include "palVectorImpl.h"
 
 // This is required because we need the definition of the D3D12DDI_PRESENT_0003 struct in order to make a copy of the
@@ -971,7 +972,7 @@ void CmdBuffer::ReplayCmdBarrier(
     barrierInfo.rangeCheckedTargetWaitCount = ReadTokenArray(&barrierInfo.ppTargets);
     barrierInfo.transitionCount             = ReadTokenArray(&barrierInfo.pTransitions);
 
-    pTgtCmdBuffer->ResetBarrierString();
+    pTgtCmdBuffer->ResetCommentString(LogType::Barrier);
 
     // We can only log the parameters of one transition at a time.
     // TODO: Expand batched barrier calls into calls with one transition each when the profiler is enabled so we
@@ -986,7 +987,7 @@ void CmdBuffer::ReplayCmdBarrier(
              "globalDstCacheMask: 0x%08x",
              barrierInfo.globalSrcCacheMask,
              barrierInfo.globalDstCacheMask);
-    pTgtCmdBuffer->AddBarrierString(&commentString[0]);
+    pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
 
     for (uint32 i = 0; i < barrierInfo.transitionCount; i++)
     {
@@ -1000,14 +1001,14 @@ void CmdBuffer::ReplayCmdBarrier(
                  transition.srcCacheMask, transition.dstCacheMask,
                  *reinterpret_cast<const uint32*>(&transition.imageInfo.oldLayout),
                  *reinterpret_cast<const uint32*>(&transition.imageInfo.newLayout));
-        pTgtCmdBuffer->AddBarrierString(&commentString[0]);
+        pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
     }
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdBarrier);
 
     pTgtCmdBuffer->CmdBarrier(barrierInfo);
 
-    logItem.cmdBufCall.barrier.pComment = pTgtCmdBuffer->GetBarrierString();
+    logItem.cmdBufCall.barrier.pComment = pTgtCmdBuffer->GetCommentString(LogType::Barrier);
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 
@@ -1050,7 +1051,7 @@ void CmdBuffer::ReplayCmdRelease(
     const uint32 releaseIdx         = ReadTokenVal<uint32>();
     PAL_ASSERT(releaseIdx == m_releaseTokenList.NumElements());
 
-    pTgtCmdBuffer->ResetBarrierString();
+    pTgtCmdBuffer->ResetCommentString(LogType::Barrier);
 
     // We can only log the parameters of one transition at a time.
     LogItem logItem = { };
@@ -1063,7 +1064,7 @@ void CmdBuffer::ReplayCmdRelease(
                 "DstGlobalAccessMask: 0x%08x",
                 releaseInfo.srcGlobalAccessMask,
                 releaseInfo.dstGlobalAccessMask);
-    pTgtCmdBuffer->AddBarrierString(&commentString[0]);
+    pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
 
     for (uint32 i = 0; i < releaseInfo.memoryBarrierCount; i++)
     {
@@ -1074,7 +1075,7 @@ void CmdBuffer::ReplayCmdRelease(
                  "DstAccessMask: 0x%08x",
                  memoryBarrier.srcAccessMask,
                  memoryBarrier.dstAccessMask);
-        pTgtCmdBuffer->AddBarrierString(&commentString[0]);
+        pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
     }
     for (uint32 i = 0; i < releaseInfo.imageBarrierCount; i++)
     {
@@ -1089,20 +1090,20 @@ void CmdBuffer::ReplayCmdRelease(
                  imageBarrier.dstAccessMask,
                  *reinterpret_cast<const uint32*>(&imageBarrier.oldLayout),
                  *reinterpret_cast<const uint32*>(&imageBarrier.newLayout));
-        pTgtCmdBuffer->AddBarrierString(&commentString[0]);
+        pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
     }
 
     Snprintf(&commentString[0], MaxCommentLength,
              "ReleaseIdx: %u",
              releaseIdx);
-    pTgtCmdBuffer->AddBarrierString(&commentString[0]);
+    pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdRelease);
 
     const uint32 releaseToken = pTgtCmdBuffer->CmdRelease(releaseInfo);
     m_releaseTokenList.PushBack(releaseToken);
 
-    logItem.cmdBufCall.barrier.pComment = pTgtCmdBuffer->GetBarrierString();
+    logItem.cmdBufCall.barrier.pComment = pTgtCmdBuffer->GetCommentString(LogType::Barrier);
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 
@@ -1152,7 +1153,7 @@ void CmdBuffer::ReplayCmdAcquire(
         releaseTokens[i] = m_releaseTokenList.At(pReleaseIndices[i]);
     }
 
-    pTgtCmdBuffer->ResetBarrierString();
+    pTgtCmdBuffer->ResetCommentString(LogType::Barrier);
 
     // We can only log the parameters of one transition at a time.
     LogItem logItem = { };
@@ -1165,7 +1166,7 @@ void CmdBuffer::ReplayCmdAcquire(
                 "DstGlobalAccessMask: 0x%08x",
                 acquireInfo.srcGlobalAccessMask,
                 acquireInfo.dstGlobalAccessMask);
-    pTgtCmdBuffer->AddBarrierString(&commentString[0]);
+    pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
 
     for (uint32 i = 0; i < acquireInfo.memoryBarrierCount; i++)
     {
@@ -1176,7 +1177,7 @@ void CmdBuffer::ReplayCmdAcquire(
                  "DstAccessMask: 0x%08x",
                  memoryBarrier.srcAccessMask,
                  memoryBarrier.dstAccessMask);
-        pTgtCmdBuffer->AddBarrierString(&commentString[0]);
+        pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
     }
     for (uint32 i = 0; i < acquireInfo.imageBarrierCount; i++)
     {
@@ -1191,7 +1192,7 @@ void CmdBuffer::ReplayCmdAcquire(
                  imageBarrier.dstAccessMask,
                  *reinterpret_cast<const uint32*>(&imageBarrier.oldLayout),
                  *reinterpret_cast<const uint32*>(&imageBarrier.newLayout));
-        pTgtCmdBuffer->AddBarrierString(&commentString[0]);
+        pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
     }
 
     // Dump release IDs to correlate to previous releases.
@@ -1200,14 +1201,14 @@ void CmdBuffer::ReplayCmdAcquire(
         Snprintf(&commentString[0], MaxCommentLength,
             "BarrierReleaseId: 0x%08x",
             &pReleaseIndices[i]);
-        pTgtCmdBuffer->AddBarrierString(&commentString[0]);
+        pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
     }
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdAcquire);
 
     pTgtCmdBuffer->CmdAcquire(acquireInfo, syncTokenCount, &releaseTokens[0]);
 
-    logItem.cmdBufCall.barrier.pComment = pTgtCmdBuffer->GetBarrierString();
+    logItem.cmdBufCall.barrier.pComment = pTgtCmdBuffer->GetCommentString(LogType::Barrier);
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 
@@ -1263,7 +1264,7 @@ void CmdBuffer::ReplayCmdReleaseEvent(
 
     auto pGpuEvent                  = ReadTokenVal<IGpuEvent*>();
 
-    pTgtCmdBuffer->ResetBarrierString();
+    pTgtCmdBuffer->ResetCommentString(LogType::Barrier);
 
     // We can only log the parameters of one transition at a time.
     LogItem logItem = { };
@@ -1276,7 +1277,7 @@ void CmdBuffer::ReplayCmdReleaseEvent(
                 "DstGlobalAccessMask: 0x%08x",
                 releaseInfo.srcGlobalAccessMask,
                 releaseInfo.dstGlobalAccessMask);
-    pTgtCmdBuffer->AddBarrierString(&commentString[0]);
+    pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
 
     for (uint32 i = 0; i < releaseInfo.memoryBarrierCount; i++)
     {
@@ -1287,7 +1288,7 @@ void CmdBuffer::ReplayCmdReleaseEvent(
                  "DstAccessMask: 0x%08x",
                  memoryBarrier.srcAccessMask,
                  memoryBarrier.dstAccessMask);
-        pTgtCmdBuffer->AddBarrierString(&commentString[0]);
+        pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
     }
     for (uint32 i = 0; i < releaseInfo.imageBarrierCount; i++)
     {
@@ -1302,14 +1303,14 @@ void CmdBuffer::ReplayCmdReleaseEvent(
                  imageBarrier.dstAccessMask,
                  *reinterpret_cast<const uint32*>(&imageBarrier.oldLayout),
                  *reinterpret_cast<const uint32*>(&imageBarrier.newLayout));
-        pTgtCmdBuffer->AddBarrierString(&commentString[0]);
+        pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
     }
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdReleaseEvent);
 
     pTgtCmdBuffer->CmdReleaseEvent(releaseInfo, pGpuEvent);
 
-    logItem.cmdBufCall.barrier.pComment = pTgtCmdBuffer->GetBarrierString();
+    logItem.cmdBufCall.barrier.pComment = pTgtCmdBuffer->GetCommentString(LogType::Barrier);
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 
@@ -1331,7 +1332,7 @@ void CmdBuffer::ReplayCmdAcquireEvent(
     IGpuEvent** ppGpuEvents   = nullptr;
     uint32      gpuEventCount = ReadTokenArray(&ppGpuEvents);
 
-    pTgtCmdBuffer->ResetBarrierString();
+    pTgtCmdBuffer->ResetCommentString(LogType::Barrier);
 
     // We can only log the parameters of one transition at a time.
     LogItem logItem = { };
@@ -1344,7 +1345,7 @@ void CmdBuffer::ReplayCmdAcquireEvent(
                 "DstGlobalAccessMask: 0x%08x",
                 acquireInfo.srcGlobalAccessMask,
                 acquireInfo.dstGlobalAccessMask);
-    pTgtCmdBuffer->AddBarrierString(&commentString[0]);
+    pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
 
     for (uint32 i = 0; i < acquireInfo.memoryBarrierCount; i++)
     {
@@ -1355,7 +1356,7 @@ void CmdBuffer::ReplayCmdAcquireEvent(
                  "DstAccessMask: 0x%08x",
                  memoryBarrier.srcAccessMask,
                  memoryBarrier.dstAccessMask);
-        pTgtCmdBuffer->AddBarrierString(&commentString[0]);
+        pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
     }
     for (uint32 i = 0; i < acquireInfo.imageBarrierCount; i++)
     {
@@ -1370,14 +1371,14 @@ void CmdBuffer::ReplayCmdAcquireEvent(
                  imageBarrier.dstAccessMask,
                  *reinterpret_cast<const uint32*>(&imageBarrier.oldLayout),
                  *reinterpret_cast<const uint32*>(&imageBarrier.newLayout));
-        pTgtCmdBuffer->AddBarrierString(&commentString[0]);
+        pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
     }
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdAcquireEvent);
 
     pTgtCmdBuffer->CmdAcquireEvent(acquireInfo, gpuEventCount, ppGpuEvents);
 
-    logItem.cmdBufCall.barrier.pComment = pTgtCmdBuffer->GetBarrierString();
+    logItem.cmdBufCall.barrier.pComment = pTgtCmdBuffer->GetCommentString(LogType::Barrier);
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 
@@ -1410,7 +1411,7 @@ void CmdBuffer::ReplayCmdReleaseThenAcquire(
     barrierInfo.imageBarrierCount   = ReadTokenArray(&barrierInfo.pImageBarriers);
     barrierInfo.reason              = ReadTokenVal<uint32>();
 
-    pTgtCmdBuffer->ResetBarrierString();
+    pTgtCmdBuffer->ResetCommentString(LogType::Barrier);
 
     // We can only log the parameters of one transition at a time.
     LogItem logItem = { };
@@ -1423,7 +1424,7 @@ void CmdBuffer::ReplayCmdReleaseThenAcquire(
                 "DstGlobalAccessMask: 0x%08x",
                 barrierInfo.srcGlobalAccessMask,
                 barrierInfo.dstGlobalAccessMask);
-    pTgtCmdBuffer->AddBarrierString(&commentString[0]);
+    pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
 
     for (uint32 i = 0; i < barrierInfo.memoryBarrierCount; i++)
     {
@@ -1434,7 +1435,7 @@ void CmdBuffer::ReplayCmdReleaseThenAcquire(
                  "DstAccessMask: 0x%08x",
                  memoryBarrier.srcAccessMask,
                  memoryBarrier.dstAccessMask);
-        pTgtCmdBuffer->AddBarrierString(&commentString[0]);
+        pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
     }
     for (uint32 i = 0; i < barrierInfo.imageBarrierCount; i++)
     {
@@ -1449,14 +1450,14 @@ void CmdBuffer::ReplayCmdReleaseThenAcquire(
                  imageBarrier.dstAccessMask,
                  *reinterpret_cast<const uint32*>(&imageBarrier.oldLayout),
                  *reinterpret_cast<const uint32*>(&imageBarrier.newLayout));
-        pTgtCmdBuffer->AddBarrierString(&commentString[0]);
+        pTgtCmdBuffer->AppendCommentString(&commentString[0], LogType::Barrier);
     }
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdReleaseThenAcquire);
 
     pTgtCmdBuffer->CmdReleaseThenAcquire(barrierInfo);
 
-    logItem.cmdBufCall.barrier.pComment = pTgtCmdBuffer->GetBarrierString();
+    logItem.cmdBufCall.barrier.pComment = pTgtCmdBuffer->GetCommentString(LogType::Barrier);
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 
@@ -4338,8 +4339,6 @@ TargetCmdBuffer::TargetCmdBuffer(
     m_allocator(8 * 1024 * 1024),
 #endif
     m_pAllocatorStream(nullptr),
-    m_pCurrentBarrierComment(nullptr),
-    m_currentCommentSize(0),
     m_queueType(createInfo.queueType),
     m_engineType(createInfo.engineType),
     m_supportTimestamps(false),
@@ -4380,29 +4379,48 @@ Result TargetCmdBuffer::Begin(
     // Rewind the allocator to the beginning, overwriting any data stored from the last time this command buffer was
     // recorded.
     m_allocator.Rewind(m_pAllocatorStream, false);
-    ResetBarrierString();
+    for (uint32 i = 0; i < uint32(LogType::Count); i++)
+    {
+        ResetCommentString(LogType(i));
+    }
 
     return CmdBufferFwdDecorator::Begin(info);
 }
 
 // =====================================================================================================================
-void TargetCmdBuffer::ResetBarrierString()
+void TargetCmdBuffer::ResetCommentString(
+    LogType logType)
 {
-    m_pCurrentBarrierComment = nullptr;
-    m_currentCommentSize     = 0;
+    PAL_ASSERT(logType < LogType::Count);
+    m_commentStrings[uint32(logType)].pString    = nullptr;
+    m_commentStrings[uint32(logType)].stringSize = 0;
 }
 
 // =====================================================================================================================
-void TargetCmdBuffer::AddBarrierString(
-    const char* pString)
+const char* TargetCmdBuffer::GetCommentString(
+    LogType logType)
+{
+    PAL_ASSERT(logType < LogType::Count);
+    return m_commentStrings[uint32(logType)].pString;
+}
+
+// =====================================================================================================================
+// Append current comment string for the specified logType
+void TargetCmdBuffer::AppendCommentString(
+    const char* pString,
+    LogType     logType)
 {
     // The space we append to the current string must fit the contents of pString plus a newline and a null terminator.
+    constexpr uint32 NullTerminatorStrSize = 2;
     size_t newStrLen           = strlen(pString);
-    size_t newStringLenToAlloc = newStrLen + 2;
+    size_t newStringLenToAlloc = newStrLen + NullTerminatorStrSize;
     size_t currentStringLength = 0;
-    if (m_pCurrentBarrierComment != nullptr)
+    PAL_ASSERT(logType < LogType::Count);
+    auto* pCommentString = &m_commentStrings[uint32(logType)];
+
+    if (pCommentString->pString != nullptr)
     {
-        currentStringLength  = strlen(m_pCurrentBarrierComment);
+        currentStringLength  = strlen(pCommentString->pString);
         // A null terminator is already counted when allocate the 1st comment string
         newStringLenToAlloc -= 1;
     }
@@ -4425,20 +4443,21 @@ void TargetCmdBuffer::AddBarrierString(
         const AllocInfo info(newStringLenToAlloc, 1, false, AllocInternal);
 #endif
 
-        char* pBarrierComment = static_cast<char*>(m_allocator.Alloc(info));
-        if (m_pCurrentBarrierComment == nullptr)
+        char* pNewComment = static_cast<char*>(m_allocator.Alloc(info));
+        if (pCommentString->pString == nullptr)
         {
-            m_pCurrentBarrierComment = pBarrierComment;
+            pCommentString->pString = pNewComment;
         }
         else
         {
-            PAL_ASSERT(static_cast<size_t>(VoidPtrDiff(pBarrierComment, m_pCurrentBarrierComment)) ==
+            PAL_ASSERT(static_cast<size_t>(VoidPtrDiff(pNewComment, pCommentString)) ==
                       (currentStringLength + 1));
         }
 
-        m_currentCommentSize = currentStringLength + newStrLen + 2;
+        pCommentString->stringSize = currentStringLength + newStrLen + NullTerminatorStrSize;
 
-        Snprintf(m_pCurrentBarrierComment + currentStringLength, newStrLen + 2, "%s\n", pString);
+        Snprintf(pCommentString->pString + currentStringLength,
+                 newStrLen + NullTerminatorStrSize, "%s\n", pString);
     }
 }
 
@@ -4658,12 +4677,12 @@ void TargetCmdBuffer::UpdateCommentString(
                  FormatToString(imageInfo.swizzledFormat.format),
                  pData->transition.imageInfo.subresRange.startSubres.plane);
 
-        AddBarrierString(&newBarrierComment[0]);
+        AppendCommentString(&newBarrierComment[0], LogType::Barrier);
     }
     if (pData->operations.layoutTransitions.u16All != 0)
     {
         Snprintf(&newBarrierComment[0], MaxCommentLength, "Layout Transitions:");
-        AddBarrierString(&newBarrierComment[0]);
+        AppendCommentString(&newBarrierComment[0], LogType::Barrier);
 
         const char* LayoutTransitionStrings[] =
         {
@@ -4690,19 +4709,17 @@ void TargetCmdBuffer::UpdateCommentString(
                       "Number of layout transitions has changed!");
 
         uint32 data      = pData->operations.layoutTransitions.u16All;
-        uint32 lowSetBit = 0;
-        while (BitMaskScanForward(&lowSetBit, data))
+        for (uint32 lowSetBit : BitIter32(data))
         {
-            data &= ~(1 << lowSetBit);
             const char* pString = LayoutTransitionStrings[lowSetBit];
             Snprintf(&newBarrierComment[0], MaxCommentLength, " - %s", pString);
-            AddBarrierString(&newBarrierComment[0]);
+            AppendCommentString(&newBarrierComment[0], LogType::Barrier);
         }
     }
     if (pData->operations.pipelineStalls.u16All != 0)
     {
         Snprintf(&newBarrierComment[0], MaxCommentLength, "Pipeline Stalls:");
-        AddBarrierString(&newBarrierComment[0]);
+        AppendCommentString(&newBarrierComment[0], LogType::Barrier);
 
         const char* PipelineStallsStrings[] =
         {
@@ -4729,19 +4746,17 @@ void TargetCmdBuffer::UpdateCommentString(
                       "Number of pipeline stalls has changed!");
 
         uint32 data      = pData->operations.pipelineStalls.u16All;
-        uint32 lowSetBit = 0;
-        while (BitMaskScanForward(&lowSetBit, data))
+        for (uint32 lowSetBit : BitIter32(data))
         {
-            data &= ~(1 << lowSetBit);
             const char* pString = PipelineStallsStrings[lowSetBit];
             Snprintf(&newBarrierComment[0], MaxCommentLength, " - %s", pString);
-            AddBarrierString(&newBarrierComment[0]);
+            AppendCommentString(&newBarrierComment[0], LogType::Barrier);
         }
     }
     if (pData->operations.caches.u16All != 0)
     {
         Snprintf(&newBarrierComment[0], MaxCommentLength, "Caches:");
-        AddBarrierString(&newBarrierComment[0]);
+        AppendCommentString(&newBarrierComment[0], LogType::Barrier);
 
         const char* CachesStrings[] =
         {
@@ -4768,13 +4783,11 @@ void TargetCmdBuffer::UpdateCommentString(
                       "Number of caches has changed!");
 
         uint32 data = pData->operations.caches.u16All;
-        uint32 lowSetBit = 0;
-        while (BitMaskScanForward(&lowSetBit, data))
+        for (uint32 lowSetBit : BitIter32(data))
         {
-            data &= ~(1 << lowSetBit);
             const char* pString = CachesStrings[lowSetBit];
             Snprintf(&newBarrierComment[0], MaxCommentLength, " - %s", pString);
-            AddBarrierString(&newBarrierComment[0]);
+            AppendCommentString(&newBarrierComment[0], LogType::Barrier);
         }
     }
 }

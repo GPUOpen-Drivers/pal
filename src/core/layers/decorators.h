@@ -290,10 +290,6 @@ public:
         pNextLayer->Destroy();
     }
 
-#if PAL_BUILD_RDF
-    virtual GpuUtil::TraceSession* GetTraceSession() override { return m_pTraceSession; }
-#endif
-
     // Empty developer callback for null operation.
     static void PAL_STDCALL DefaultDeveloperCb(
         void*                   pPrivateData,
@@ -324,6 +320,18 @@ public:
     virtual DevDriver::DevDriverServer* GetDevDriverServer() override
     {
         return m_pNextLayer->GetDevDriverServer();
+    }
+
+#if PAL_BUILD_RDF
+    virtual GpuUtil::TraceSession* GetTraceSession() override
+    {
+        return m_pNextLayer->GetTraceSession();
+    }
+#endif
+
+    virtual DevDriver::EventProtocol::EventServer* GetEventServer() override
+    {
+        return m_pNextLayer->GetEventServer();
     }
 
     virtual const PalPlatformSettings& PlatformSettings() const override
@@ -370,9 +378,6 @@ protected:
     bool                   m_installDeveloperCb;
     const bool             m_layerEnabled;
 private:
-#if PAL_BUILD_RDF
-    GpuUtil::TraceSession* m_pTraceSession;
-#endif
     bool                   m_logDirCreated;        // The log dir can only be created once.
     Util::Mutex            m_logDirMutex;          // Grants access to CreateLogDir.
 
@@ -1212,6 +1217,12 @@ public:
     {}
 
     virtual Result Reset() override { return m_pNextLayer->Reset(); }
+    virtual Result Trim(
+        uint32 allocTypeMask,
+        uint32 dynamicThreshold) override
+    {
+        return m_pNextLayer->Trim(allocTypeMask, dynamicThreshold);
+    }
 
     // Part of the IDestroyable public interface.
     virtual void Destroy() override
@@ -1222,6 +1233,12 @@ public:
     }
 
     ICmdAllocator* GetNextLayer() const { return m_pNextLayer; }
+
+    virtual Result QueryUtilizationInfo(
+        CmdAllocType type, CmdAllocatorUtilizationInfo* pUtilizationInfo) const override
+    {
+        return m_pNextLayer->QueryUtilizationInfo(type, pUtilizationInfo);
+    }
 
 protected:
     virtual ~CmdAllocatorDecorator() {}

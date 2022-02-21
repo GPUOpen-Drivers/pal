@@ -208,8 +208,6 @@ protected:
         const Pal::Image&  image,
         gpusize            srdBaseAddr) const;
 
-    static uint32 ExpandClearCodeToDword(uint8  clearCode);
-
     virtual void FastDepthStencilClearCompute(
         GfxCmdBuffer*      pCmdBuffer,
         const Image&       dstImage,
@@ -433,6 +431,13 @@ private:
         bool           shaderExportsAlpha,
         bool           blendSrcAlphaToColor,
         bool           enableAlphaToCoverage) const;
+
+    void PfpCopyMetadataHeader(
+        GfxCmdBuffer* pCmdBuffer,
+        gpusize       dstAddr,
+        gpusize       srcAddr,
+        uint32        size,
+        bool          hasDccLookupTable) const;
 
     Pal::ComputePipeline* m_pEchoGlobalTablePipeline;
 

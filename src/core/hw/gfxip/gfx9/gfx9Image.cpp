@@ -33,6 +33,7 @@
 #include "core/hw/gfxip/gfx9/g_gfx9PalSettings.h"
 #include "core/hw/gfxip/gfx9/gfx9DepthStencilState.h"
 #include "core/addrMgr/addrMgr2/addrMgr2.h"
+#include "palHasher.h"
 #include "palMath.h"
 
 #include <atomic>
@@ -992,6 +993,10 @@ Result Image::CreateDccObject(
         result = CreateGfx9MaskRam(m_device, *this, &m_pDcc[planeIdx], false);
         if (result == Result::Success)
         {
+            // Determine whether or not we need to set the first pixel of each block that corresponds to each
+            // byte of DCC memory.  This result is used during DCC initialization.
+            CheckCompToSingle();
+
             Gfx9Dcc*  pDcc = m_pDcc[planeIdx];
 
             if (useSharedMetadata)
@@ -1004,10 +1009,6 @@ Result Image::CreateDccObject(
             }
             else
             {
-                // Determine whether or not we need to set the first pixel of each block that corresponds to each
-                // byte of DCC memory.  This result is used during DCC initialization.
-                CheckCompToSingle();
-
                 result = pDcc->Init(planeBaseSubResId, pGpuMemSize, true);
             }
 
@@ -1599,17 +1600,10 @@ Result Image::ComputePipeBankXor(
                     // Data invariant and cloneable images must generate identical swizzles given identical create info.
                     // This means we can hash the public create info struct to get half-way decent swizzling.
                     //
-                    // Note that one client is not able to guarantee that they consistently set the perSubresInit flag
-                    // for all images that must be identical so we need to skip over the ImageCreateFlags.
-                    constexpr size_t HashOffset = offsetof(ImageCreateInfo, usageFlags);
-                    constexpr uint64 HashSize   = sizeof(ImageCreateInfo) - HashOffset;
-                    const uint8*     pHashStart = reinterpret_cast<const uint8*>(&m_createInfo) + HashOffset;
-
                     uint64 hash = 0;
-                    MetroHash64::Hash(
-                        pHashStart,
-                        HashSize,
-                        reinterpret_cast<uint8* const>(&hash));
+                    Hasher64 hasher;
+                    hasher.Hash(m_createInfo);
+                    hasher.Finalize(&hash);
 
                     surfaceIndex = MetroHash::Compact32(hash);
                 }
@@ -3036,21 +3030,17 @@ void Image::InitMetadataFill(
     {
         if (HasDccData())
         {
-            constexpr uint32   DccInitValue = (static_cast<uint32>(Gfx9Dcc::InitialValue << 24) |
-                                               static_cast<uint32>(Gfx9Dcc::InitialValue << 16) |
-                                               static_cast<uint32>(Gfx9Dcc::InitialValue <<  8) |
-                                               static_cast<uint32>(Gfx9Dcc::InitialValue <<  0));
-
             for (SubresId subresId = range.startSubres;
                  subresId.plane < (range.startSubres.plane + range.numPlanes);
                  subresId.plane++)
             {
                 const Gfx9Dcc* pDcc = GetDcc(subresId.plane);
+                const uint32 dccInitValue = ReplicateByteAcrossDword(pDcc->GetInitialValue(layout));
 
                 pCmdBuffer->CmdFillMemory(gpuMemObj,
                                           pDcc->MemoryOffset() + boundGpuMemOffset,
                                           pDcc->TotalSize(),
-                                          DccInitValue);
+                                          dccInitValue);
 
                 PAL_ASSERT(pDcc->HasMetaEqGenerator());
                 pDcc->GetMetaEqGenerator()->UploadEq(pCmdBuffer);
@@ -3069,10 +3059,7 @@ void Image::InitMetadataFill(
         if (HasFmaskData())
         {
             const uint8  cmaskInitValue    = m_pCmask->GetInitialValue();
-            const uint32 expandedInitValue = (static_cast<uint32>(cmaskInitValue << 24) |
-                                              static_cast<uint32>(cmaskInitValue << 16) |
-                                              static_cast<uint32>(cmaskInitValue <<  8) |
-                                              static_cast<uint32>(cmaskInitValue <<  0));
+            const uint32 expandedInitValue = ReplicateByteAcrossDword(cmaskInitValue);
 
             pCmdBuffer->CmdFillMemory(gpuMemObj,
                                       m_pCmask->MemoryOffset() + boundGpuMemOffset,

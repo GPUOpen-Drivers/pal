@@ -46,6 +46,7 @@
 #include "marker_payload.h"
 #include "palHsaAbiMetadata.h"
 #include "palMath.h"
+#include "palIterator.h"
 #include "palIntervalTreeImpl.h"
 #include "palVectorImpl.h"
 
@@ -4294,21 +4295,15 @@ void UniversalCmdBuffer::WriteNullColorTargets(
 {
     // Compute a mask of slots which were previously bound to valid targets, but are now being bound to NULL.
     uint32 newNullSlotMask = (oldColorTargetMask & ~newColorTargetMask);
-    while (newNullSlotMask != 0)
+    for (uint32 slot : BitIter32(newNullSlotMask))
     {
-        uint32 slot = 0;
-        BitMaskScanForward(&slot, newNullSlotMask);
-
         static_assert((COLOR_INVALID == 0), "COLOR_INVALID != 0");
 
         // Zero out all the RTV owned fields of CB_COLOR_INFO.
         BitfieldUpdateSubfield(&(m_cbColorInfo[slot].u32All), 0u, ColorTargetView::CbColorInfoMask);
 
-        m_state.flags.cbColorInfoDirtyRtv |= (1 << slot);
-
-        // Clear the bit since we've already added it to our PM4 image.
-        newNullSlotMask &= ~(1 << slot);
     }
+    m_state.flags.cbColorInfoDirtyRtv |= newNullSlotMask;
 }
 
 // =====================================================================================================================
@@ -5063,14 +5058,16 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
                                                                                                     &pDeCmdSpace);
     }
 
-    const bool anyUserDataDirty = IsAnyGfxUserDataDirty();
+    const uint16 spillThreshold   = m_pSignatureGfx->spillThreshold;
+    bool         reUpload         = false;
+    const bool   anyUserDataDirty = IsAnyGfxUserDataDirty();
+
     if (anyUserDataDirty)
     {
         pDeCmdSpace = WriteDirtyUserDataEntriesToSgprsGfx<TessEnabled, GsEnabled, VsEnabled>(pPrevSignature,
                                                                                              alreadyWrittenStageMask,
                                                                                              pDeCmdSpace);
 
-        const uint16 spillThreshold = m_pSignatureGfx->spillThreshold;
         if (spillThreshold != NoUserDataSpilling)
         {
             const uint16 userDataLimit = m_pSignatureGfx->userDataLimit;
@@ -5079,8 +5076,8 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
 
             // Step #3:
             // Because the spill table is managed using CPU writes to embedded data, it must be fully re-uploaded for
-            // any Dispatch whenever *any* contents have changed.
-            bool reUpload = (m_spillTable.stateCs.dirty != 0);
+            // any Draw/Dispatch whenever *any* contents have changed.
+            reUpload = (m_spillTable.stateGfx.dirty != 0);
             if (HasPipelineChanged &&
                 ((spillThreshold < pPrevSignature->spillThreshold) || (userDataLimit > pPrevSignature->userDataLimit)))
             {
@@ -5126,24 +5123,6 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
                                        spillThreshold,
                                        &m_graphicsState.gfxUserDataEntries.entries[0]);
             }
-
-            // NOTE: If the pipeline is changing, we may need to re-write the spill table address to any shader stage,
-            // even if the spill table wasn't re-uploaded because the mapped user-SGPRs for the spill table could have
-            // changed.
-            if (HasPipelineChanged || reUpload)
-            {
-                const uint32 gpuVirtAddrLo = LowPart(m_spillTable.stateGfx.gpuVirtAddr);
-                for (uint32 s = 0; s < NumHwShaderStagesGfx; ++s)
-                {
-                    const uint16 userSgpr = m_pSignatureGfx->stage[s].spillTableRegAddr;
-                    if (userSgpr != UserDataNotMapped)
-                    {
-                        pDeCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(userSgpr,
-                                                                                     gpuVirtAddrLo,
-                                                                                     pDeCmdSpace);
-                    }
-                }
-            }
         } // if current pipeline spills user-data
 
         // All dirtied user-data entries have been written to user-SGPR's or to the spill table somewhere in this
@@ -5154,6 +5133,24 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
             pDirtyMask[i] = 0;
         }
     }// if any user data is dirty
+
+    // NOTE: If the pipeline is changing, we may need to re-write the spill table address to any shader stage,
+    // even if the spill table wasn't re-uploaded because the mapped user-SGPRs for the spill table could have
+    // changed.
+    if ((spillThreshold != NoUserDataSpilling) && (HasPipelineChanged || reUpload))
+    {
+        const uint32 gpuVirtAddrLo = LowPart(m_spillTable.stateGfx.gpuVirtAddr);
+        for (uint32 s = 0; s < NumHwShaderStagesGfx; ++s)
+        {
+            const uint16 userSgpr = m_pSignatureGfx->stage[s].spillTableRegAddr;
+            if (userSgpr != UserDataNotMapped)
+            {
+                pDeCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(userSgpr,
+                    gpuVirtAddrLo,
+                    pDeCmdSpace);
+            }
+        }
+    }
 
     return pDeCmdSpace;
 }
@@ -6019,9 +6016,10 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     }
 
     // We shouldn't rewrite the PBB bin sizes unless at least one of these state objects has changed
-    if (PipelineDirty || (StateDirty && (dirtyFlags.colorTargetView   ||
-                                         dirtyFlags.depthStencilView  ||
-                                         dirtyFlags.depthStencilState)))
+    if (PipelineDirty ||
+        (StateDirty && (dirtyFlags.colorTargetView   ||
+                        dirtyFlags.depthStencilView  ||
+                        dirtyFlags.depthStencilState)))
     {
         bool shouldEnablePbb = m_enabledPbb;
         // Accessing pipeline state in this function is usually a cache miss, so avoid function call
@@ -6037,7 +6035,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         if (m_enabledPbb || shouldEnablePbb || IsGfx10(m_gfxIpLevel))
         {
             m_enabledPbb = shouldEnablePbb;
-            pDeCmdSpace  = ValidateBinSizes<Pm4OptImmediate, IsNgg>(pDeCmdSpace);
+            pDeCmdSpace  = ValidateBinSizes<Pm4OptImmediate, IsNgg, Indirect>(pDeCmdSpace);
         }
     }
 
@@ -6622,7 +6620,7 @@ bool UniversalCmdBuffer::SetPaScBinnerCntl01(
 
 // =====================================================================================================================
 // Updates the bin sizes and writes to the register.
-template <bool Pm4OptImmediate, bool IsNgg>
+template <bool Pm4OptImmediate, bool IsNgg, bool Indirect>
 uint32* UniversalCmdBuffer::ValidateBinSizes(
     uint32* pDeCmdSpace)
 {
@@ -6909,8 +6907,7 @@ uint32* UniversalCmdBuffer::ValidateCbColorInfo(
 
     if (cbColorInfoCheckMask != 0)
     {
-        uint32 x;
-        while (Util::BitMaskScanForward(&x, cbColorInfoCheckMask))
+        for (uint32 x : BitIter32(cbColorInfoCheckMask))
         {
             const bool slotDirtyRtv      = BitfieldIsSet(m_state.flags.cbColorInfoDirtyRtv, x);
             const bool slotDirtyBlendOpt = BitfieldIsSet(cbColorInfoDirtyBlendOpt, x);
@@ -6944,8 +6941,6 @@ uint32* UniversalCmdBuffer::ValidateCbColorInfo(
                                                                     pDeCmdSpace);
                 }
             }
-
-            cbColorInfoCheckMask &= ~(1u << x);
         }
 
         // Track state written over the course of the entire CmdBuf. Needed for Nested CmdBufs to know what
@@ -7328,7 +7323,7 @@ uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
         m_drawTimeHwState.dirty.indexType        = 0;
         m_drawTimeHwState.dirty.indexedIndexType = 0;
 
-        if (IsGfx103(*(m_device.Parent())))
+        if (IsGfx103Plus(*(m_device.Parent())))
         {
             m_vgtDmaIndexType.gfx103Plus.DISABLE_INSTANCE_PACKING = disableInstancePacking;
         }
@@ -8818,22 +8813,75 @@ void UniversalCmdBuffer::CmdCopyRegisterToMemory(
     dmaData.srcAddrSpace = sas__pfp_dma_data__register;
     dmaData.sync         = true;
     dmaData.usePfp       = false;
-    pCmdSpace += CmdUtil::BuildDmaData(dmaData, pCmdSpace);
+    pCmdSpace += CmdUtil::BuildDmaData<false>(dmaData, pCmdSpace);
 
     m_deCmdStream.CommitCommands(pCmdSpace);
+}
+
+// =====================================================================================================================
+uint32 UniversalCmdBuffer::ComputeSpillTableInstanceCnt(
+    uint32 spillTableDwords,
+    uint32 maxCmdCnt
+    ) const
+{
+    // Since the SpillTable/s data needs to be virtually contiguous the way it is referenced later, we do not wish to
+    // allocate more memory for it than what can fit in a single chunk of the CmdAllocator::EmbeddedData.
+    const uint32 embeddedDataLimitDwords = GetEmbeddedDataLimit();
+    const uint32 spillCnt                = Min((embeddedDataLimitDwords / spillTableDwords), maxCmdCnt);
+    const uint32 spillTableInstCnt       = Util::Pow2Pad(spillCnt);
+    return (spillTableInstCnt > spillCnt) ? spillTableInstCnt >> 1 : spillTableInstCnt;
 }
 
 // =====================================================================================================================
 gpusize UniversalCmdBuffer::ConstructExecuteIndirectIb2(
     const IndirectCmdGenerator& gfx9Generator,
     PipelineBindPoint           bindPoint,
+    const uint32                maximumCount,
     const GraphicsPipeline*     pGfxPipeline,
-    gpusize*                    pIb2GpuSize)
+    gpusize*                    pIb2GpuSize,
+    gpusize&                    spillTableAddress,
+    uint32&                     spillTableInstCnt,
+    uint32&                     spillTableStride)
 {
-    uint32 cmdCount = gfx9Generator.ParameterCount();
+    uint32 cmdCount                     = gfx9Generator.ParameterCount();
     IndirectParamData* const pParamData = gfx9Generator.GetIndirectParamData();
+    const auto& signature               = pGfxPipeline->Signature();
+    const auto& properties              = gfx9Generator.Properties();
+    gpusize ib2GpuVa                    = 0;
+    bool userDataSpillTableSupported    = false;
 
-    gpusize ib2GpuVa = 0;
+    if (m_device.Parent()->Settings().useExecuteIndirectPacket == UseExecuteIndirectPacketForDrawSpillTable)
+    {
+        userDataSpillTableSupported = true;
+    }
+
+    uint32 spillThreshold               = signature.spillThreshold;
+    const uint32 spillDwords            = (spillThreshold <= properties.userDataWatermark) ?
+        properties.maxUserDataEntries  :  0;
+
+    const uint32* pUserDataEntries = &m_graphicsState.gfxUserDataEntries.entries[0];
+    uint32 spillTableLocalOffset   = 0;
+
+    // UserData that spills over the assigned SGPRs is also modified by this generator and we will need to create and
+    // handle SpillTable/s.
+    if ((spillDwords > 0) && (userDataSpillTableSupported == true))
+    {
+        // Number of instances means max number of (1 UserDataSpillTable per Command) of SpillTables we can fit.
+        // If the number of SpillTables required exceeds the number we can fit in this buffer the CP will replace
+        // the UserData entries stored in the current SpillTable buffer with the next set of entries from the
+        // Argument Buffer. spillTableInstCnt should always be a power of 2.
+        spillTableInstCnt = ComputeSpillTableInstanceCnt(spillDwords, maximumCount);
+        spillTableStride  = spillDwords * sizeof(uint32);
+
+        // Allocate and populate SpillTable Buffer with UserData. Each instance of the SpillTable needs to be
+        // initialized with UserDataEntries of current context.
+        uint32* pUserDataSpace = CmdAllocateEmbeddedData(spillDwords * spillTableInstCnt, 1, &spillTableAddress);
+        for (uint32 i = 0; i < spillTableInstCnt; i++)
+        {
+            memcpy(pUserDataSpace, pUserDataEntries, (sizeof(uint32) * spillDwords));
+            pUserDataSpace += spillDwords;
+        }
+    }
 
     // The memory size we allocate here is the worst case. In most cases it won't all be used.
     uint32* pDeCmdIb2Space =
@@ -8891,17 +8939,20 @@ gpusize UniversalCmdBuffer::ConstructExecuteIndirectIb2(
         }
         case IndirectOpType::SetUserData:
         {
-            const auto& signature          = pGfxPipeline->Signature();
-            const UserDataEntryMap* pStage = &signature.stage[0];
+            uint32 firstEntry              = pParamData[cmdIndex].data[0];
+            uint32 entryCount              = pParamData[cmdIndex].data[1];
             uint32 stageCount              = NumHwShaderStagesGfx;
-            uint32_t count                 = 0;
-            for (size_t stgId = 0; stgId < stageCount; stgId++)
+            const UserDataEntryMap* pStage = &signature.stage[0];
+
+            for (uint32 stgId = 0; stgId < stageCount; stgId++)
             {
                 uint32 regAddrStart = pStage->firstUserSgprRegAddr;
                 if (pStage->userSgprCount > 0)
                 {
                     for (uint32 sgprIndx = 0; sgprIndx < pStage->userSgprCount; sgprIndx++)
                     {
+                        // If any mapped entry for this stage matches the 'first userdata entry to be updated' we
+                        // update all user SGPRs.
                         if (pStage->mappedEntry[sgprIndx] == pParamData[cmdIndex].data[0])
                         {
                             regAddrStart += sgprIndx;
@@ -8916,6 +8967,40 @@ gpusize UniversalCmdBuffer::ConstructExecuteIndirectIb2(
                     }
                 }
                 pStage++;
+            }
+
+            // Indicates spilling is required.
+            if ((spillThreshold <= (firstEntry + entryCount - 1)) && (userDataSpillTableSupported == true))
+            {
+                uint32 argBufOffset = pParamData[cmdIndex].argBufOffset;
+
+                if (spillThreshold > firstEntry)
+                {
+                    const uint32 difference = (spillThreshold - firstEntry);
+                    firstEntry += difference;
+                    entryCount -= difference;
+                    // Because first 'difference' user data entries are already in registers above.
+                    argBufOffset += (difference * sizeof(uint32));
+                }
+
+                // Every next iteration we are overwriting the buffer at pSpillTableAddress. The CP handles the work of
+                // cache flush and the PFP-ME sync before overwriting this buffer for the next set of Commands.
+                spillTableLocalOffset = (firstEntry * sizeof(uint32));
+
+                DmaDataInfo copyInfo = {};
+                copyInfo.srcOffset    = argBufOffset;
+                copyInfo.srcAddrSpace = sas__pfp_dma_data__memory;
+                copyInfo.srcSel       = src_sel__pfp_dma_data__src_addr_using_l2;
+                copyInfo.dstOffset    = spillTableLocalOffset;
+                copyInfo.dstAddrSpace = das__pfp_dma_data__memory;
+                copyInfo.dstSel       = dst_sel__pfp_dma_data__dst_addr_using_l2;
+                copyInfo.numBytes     = (entryCount * sizeof(uint32));
+                copyInfo.rawWait      = 0;
+                copyInfo.usePfp       = true;
+                copyInfo.sync         = true;
+                copyInfo.predicate    = PredDisable;
+
+                pDeCmdIb2Space += m_cmdUtil.BuildDmaData<true>(copyInfo, pDeCmdIb2Space);
             }
             break;
         }
@@ -9001,8 +9086,20 @@ void UniversalCmdBuffer::ExecuteIndirectPacket(
     m_deCmdStream.NotifyIndirectShRegWrite(vtxOffsetReg);
     m_deCmdStream.NotifyIndirectShRegWrite(instOffsetReg);
 
-    gpusize ib2GpuSize = 0;
-    gpusize ib2GpuVa   = ConstructExecuteIndirectIb2(gfx9Generator, bindPoint, pGfxPipeline, &ib2GpuSize);
+    gpusize ib2GpuSize          = 0;
+    gpusize spillTableAddress   = 0;
+    uint32  spillTableInstCount = 0;
+    uint32  spillTableStride    = 0;
+
+    gpusize ib2GpuVa = ConstructExecuteIndirectIb2(
+        gfx9Generator,
+        bindPoint,
+        maximumCount,
+        pGfxPipeline,
+        &ib2GpuSize,
+        spillTableAddress,
+        spillTableInstCount,
+        spillTableStride);
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
@@ -9013,6 +9110,9 @@ void UniversalCmdBuffer::ExecuteIndirectPacket(
     packetInfo.commandBufferAddr         = ib2GpuVa;
     packetInfo.argumentBufferAddr        = gpuMemory.Desc().gpuVirtAddr + offset;
     packetInfo.countBufferAddr           = countGpuAddr;
+    packetInfo.spillTableAddr            = spillTableAddress;
+    packetInfo.spillTableInstanceCnt     = spillTableInstCount;
+    packetInfo.spillTableStrideBytes     = spillTableStride;
     packetInfo.maxCount                  = maximumCount;
     packetInfo.commandBufferSizeDwords   = static_cast<uint32>(ib2GpuSize) / sizeof(uint32);
     packetInfo.argumentBufferStrideBytes = gfx9Generator.Properties().argBufStride;
@@ -9309,9 +9409,18 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
     gpusize                      countGpuAddr)
 {
     const auto& gfx9Generator = static_cast<const IndirectCmdGenerator&>(generator);
+    bool userDataSpillTableUsedButNotSupported = false;
+    const auto& properties = gfx9Generator.Properties();
+    uint32 spillThreshold = m_pSignatureGfx->spillThreshold;
+    const uint32 spillDwords = (spillThreshold <= properties.userDataWatermark) ? properties.maxUserDataEntries : 0;
 
-    if ((m_cachedSettings.useExecuteIndirectPacket == UseExecuteIndirectPacketForDraw) &&
-        gfx9Generator.UsingExecuteIndirectPacket())
+    if ((m_device.Parent()->Settings().useExecuteIndirectPacket < UseExecuteIndirectPacketForDrawSpillTable) &&
+        (spillDwords > 0))
+    {
+        userDataSpillTableUsedButNotSupported = true;
+    }
+
+    if (gfx9Generator.UsingExecuteIndirectPacket() && (userDataSpillTableUsedButNotSupported == false))
     {
        ExecuteIndirectPacket(generator, gpuMemory, offset, maximumCount, countGpuAddr);
     }
@@ -10183,7 +10292,7 @@ void UniversalCmdBuffer::CpCopyMemory(
     dmaDataInfo.numBytes    = static_cast<uint32>(numBytes);
 
     uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
-    pCmdSpace += CmdUtil::BuildDmaData(dmaDataInfo, pCmdSpace);
+    pCmdSpace += CmdUtil::BuildDmaData<false>(dmaDataInfo, pCmdSpace);
     m_deCmdStream.CommitCommands(pCmdSpace);
 
     SetGfxCmdBufCpBltState(true);

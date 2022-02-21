@@ -446,8 +446,8 @@ public:
 
     const ADDR2_META_MIP_INFO& GetAddrMipInfo(uint32 mipLevel) const { return m_addrMipOutput[mipLevel]; }
 
-    // Initial value for a DCC allocation.
-    static constexpr uint8 InitialValue = 0xFF;
+    static constexpr uint8 DecompressedValue = 0xFF;
+    uint8 GetInitialValue(ImageLayout layout) const;
 
     uint32  GetNumEffectiveSamples(DccClearPurpose  clearPurpose) const;
 

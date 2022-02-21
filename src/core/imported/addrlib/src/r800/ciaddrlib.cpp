@@ -376,35 +376,16 @@ ChipFamily CiLib::HwlConvertChipFamily(
     UINT_32 uChipFamily,        ///< [in] chip family defined in atiih.h
     UINT_32 uChipRevision)      ///< [in] chip revision defined in "asic_family"_id.h
 {
-    ChipFamily family = ADDR_CHIP_FAMILY_CI;
+    ChipFamily family = ADDR_CHIP_FAMILY_POLARIS;
 
     switch (uChipFamily)
     {
-        case FAMILY_CI:
-            m_settings.isSeaIsland  = 1;
-            m_settings.isBonaire    = ASICREV_IS_BONAIRE_M(uChipRevision);
-            m_settings.isHawaii     = ASICREV_IS_HAWAII_P(uChipRevision);
-            break;
-        case FAMILY_KV:
-            m_settings.isKaveri     = 1;
-            m_settings.isSpectre    = ASICREV_IS_SPECTRE(uChipRevision);
-            m_settings.isSpooky     = ASICREV_IS_SPOOKY(uChipRevision);
-            m_settings.isKalindi    = ASICREV_IS_KALINDI(uChipRevision);
-            break;
-        case FAMILY_VI:
+        case FAMILY_POLARIS:
             m_settings.isVolcanicIslands = 1;
-            m_settings.isIceland         = ASICREV_IS_ICELAND_M(uChipRevision);
-            m_settings.isTonga           = ASICREV_IS_TONGA_P(uChipRevision);
             m_settings.isFiji            = ASICREV_IS_FIJI_P(uChipRevision);
             m_settings.isPolaris10       = ASICREV_IS_POLARIS10_P(uChipRevision);
             m_settings.isPolaris11       = ASICREV_IS_POLARIS11_M(uChipRevision);
             m_settings.isPolaris12       = ASICREV_IS_POLARIS12_V(uChipRevision);
-            family = ADDR_CHIP_FAMILY_VI;
-            break;
-        case FAMILY_CZ:
-            m_settings.isCarrizo         = 1;
-            m_settings.isVolcanicIslands = 1;
-            family = ADDR_CHIP_FAMILY_VI;
             break;
         default:
             ADDR_ASSERT(!"No Chip found");

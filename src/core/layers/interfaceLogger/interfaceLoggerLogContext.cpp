@@ -100,6 +100,7 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::BorderColorPaletteBindGpuMemory,                           InterfaceObject::BorderColorPalette,   "BindGpuMemory"                           },
     { InterfaceFunc::BorderColorPaletteDestroy,                                 InterfaceObject::BorderColorPalette,   "Destroy"                                 },
     { InterfaceFunc::CmdAllocatorReset,                                         InterfaceObject::CmdAllocator,         "Reset"                                   },
+    { InterfaceFunc::CmdAllocatorTrim,                                          InterfaceObject::CmdAllocator,         "Trim"                                    },
     { InterfaceFunc::CmdAllocatorDestroy,                                       InterfaceObject::CmdAllocator,         "Destroy"                                 },
     { InterfaceFunc::CmdBufferBegin,                                            InterfaceObject::CmdBuffer,            "Begin"                                   },
     { InterfaceFunc::CmdBufferEnd,                                              InterfaceObject::CmdBuffer,            "End"                                     },

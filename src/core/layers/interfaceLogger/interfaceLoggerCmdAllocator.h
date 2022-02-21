@@ -48,6 +48,7 @@ public:
 
     // Public ICmdAllocator interface methods:
     virtual Result Reset() override;
+    virtual Result Trim(uint32 allocTypeMask, uint32 dynamicThreshold) override;
 
     // Public IDestroyable interface methods:
     virtual void Destroy() override;

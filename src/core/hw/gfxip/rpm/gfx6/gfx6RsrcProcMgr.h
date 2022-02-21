@@ -82,6 +82,7 @@ public:
         Pal::CmdStream*    pCmdStream,
         const Image&       dstImage,
         const SubresRange& range,
+        ImageLayout        layout,
         SyncReqs*          pSyncReqs) const;
 
     void FastClearEliminate(
@@ -260,7 +261,7 @@ private:
         Pal::CmdStream*    pCmdStream,
         const Image&       dstImage,
         const SubresRange& clearRange,
-        uint32             clearValue,
+        uint8              clearValue,
         DccClearPurpose    clearPurpose) const;
 
     void ClearHtile(

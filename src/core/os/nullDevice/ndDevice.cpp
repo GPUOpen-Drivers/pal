@@ -1071,7 +1071,7 @@ void Device::InitGfx9ChipProperties()
         PAL_ASSERT_ALWAYS();
     }
 
-    if (IsGfx103Plus(m_chipProperties.gfxLevel))
+    if (IsGfx103PlusExclusive(m_chipProperties.gfxLevel))
     {
         pChipInfo->supportMeshTaskShader = pChipInfo->supportImplicitPrimitiveShader;
     }

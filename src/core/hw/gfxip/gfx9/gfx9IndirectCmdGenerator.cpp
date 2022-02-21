@@ -140,18 +140,9 @@ IndirectCmdGenerator::IndirectCmdGenerator(
             }
         }
 
-        constexpr uint32 PfpUcodeVersionNativeExecuteIndirectGfx9    = 192;
-        constexpr uint32 PfpUcodeVersionNativeExecuteIndirectGfx10_1 = 151;
-        constexpr uint32 PfpUcodeVersionNativeExecuteIndirectGfx10_3 = 88;
-
-        if ((settings.useExecuteIndirectPacket == UseExecuteIndirectPacketForDraw) &&
-            (canUseExecuteIndirectPacket == true)                                  &&
-            (((device.Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9) &&
-              (device.Parent()->ChipProperties().pfpUcodeVersion >= PfpUcodeVersionNativeExecuteIndirectGfx9))    ||
-             ((device.Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp10_1) &&
-              (device.Parent()->ChipProperties().pfpUcodeVersion >= PfpUcodeVersionNativeExecuteIndirectGfx10_1)) ||
-             ((device.Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp10_3) &&
-              (device.Parent()->ChipProperties().pfpUcodeVersion >= PfpUcodeVersionNativeExecuteIndirectGfx10_3))))
+        if ((canUseExecuteIndirectPacket == true) &&
+            ((settings.useExecuteIndirectPacket == UseExecuteIndirectPacketForDraw) ||
+            (settings.useExecuteIndirectPacket == UseExecuteIndirectPacketForDrawSpillTable)))
         {
             m_usingExecuteIndirectPacket = true;
         }
@@ -162,7 +153,7 @@ IndirectCmdGenerator::IndirectCmdGenerator(
 
     if (m_usingExecuteIndirectPacket)
     {
-        // we use the generator binding memory to store the PM4 in ib2
+        // We use the generator binding memory to store the PM4 in IB2
         uint32 cmdSize         = 0;
         uint32 sizeAlignDwords = device.Parent()->EngineProperties().perEngine[EngineTypeUniversal].sizeAlignInDwords;
         uint32 cmdCount        = ParameterCount();
@@ -333,7 +324,7 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
     case IndirectOpType::SetUserData:
         if (m_usingExecuteIndirectPacket)
         {
-            size = CmdUtil::SetUserDataIndirectSize * NumHwShaderStagesGfx;
+            size = CmdUtil::SetUserDataIndirectSize * NumHwShaderStagesGfx + CmdUtil::DmaDataSizeDwords;
         }
         else
         {

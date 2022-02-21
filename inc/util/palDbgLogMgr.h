@@ -99,7 +99,7 @@ public:
     Result DetachDbgLogger(
         IDbgLogger* pDbgLogger);
 
-    /// Calls the LogMessage() functions of all attached debug loggers in its list.
+    /// Calls LogMessageInternal() which calls the LogMessage() functions of all attached debug loggers in its list.
     /// Individual debug loggers will log the incoming message if they are interested in it.
     /// This variant of LogMessage() logs the raw data buffer to a destination.
     ///
@@ -114,7 +114,10 @@ public:
         OriginationType source,
         const char*     pClientTag,
         size_t          dataSize,
-        const void*     pData);
+        const void*     pData)
+    {
+        LogMessageInternal(severity, source, pClientTag, dataSize, pData);
+    }
 
     /// Calls the LogMessage() functions of all attached debug loggers in its list.
     /// Individual debug loggers will log the incoming message if they are interested in it.
@@ -139,7 +142,7 @@ public:
         va_end(args);
     }
 
-    /// Calls the LogMessage() functions of all attached debug loggers in its list.
+    /// Calls LogMessageInternal() which calls the LogMessage() functions of all attached debug loggers in its list.
     /// Individual debug loggers will log the incoming message if they are interested in it.
     /// This variant of LogMessage() logs a text string to a destination.
     ///
@@ -157,7 +160,10 @@ public:
         OriginationType source,
         const char*     pClientTag,
         const char*     pFormat,
-        va_list         args);
+        va_list         args)
+    {
+        LogMessageInternal(severity, source, pClientTag, pFormat, args);
+    }
 
     /// Enable/Disable debug logging
     /// @param [in] enabled   indicates if debug logging should be enabled or disabled
@@ -178,6 +184,16 @@ public:
     }
 
 private:
+    /// A variadic template function having common code to check for thread safety (reentry guard and RWLock)
+    /// before calling each logger's LogMessage(). All public LogMessage() variants will call this internal
+    /// helper so that there is no code duplication.
+    ///
+    /// Individual debug loggers will log the incoming message if they are interested in it.
+    ///
+    /// @param [in] args         Variable arguments typename
+    template <typename... Args>
+    void LogMessageInternal(Args... args);
+
     bool m_logEnabled;  ///< Indicates whether or not logging is enabled globally. Defaults to true.
     bool m_error;       ///< Keeps track of internal errors. Clients can query for this
                         ///< and decide whether to use the DbgLogMgr object or not.

@@ -35,6 +35,7 @@ target_sources(pal PRIVATE
     palCmdBuffer.h
     palColorBlendState.h
     palColorTargetView.h
+    palDbgLoggerDevDriver.h
     palDepthStencilState.h
     palDepthStencilView.h
     palDestroyable.h
@@ -47,6 +48,7 @@ target_sources(pal PRIVATE
     palGpuEvent.h
     palGpuMemory.h
     palGpuMemoryBindable.h
+    palHasher.h
     palHsaAbiMetadata.h
     palImage.h
     palIndirectCmdGenerator.h

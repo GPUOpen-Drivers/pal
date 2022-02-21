@@ -104,6 +104,10 @@ CmdAllocator::CmdAllocator(
 
     m_flags.u32All          = 0;
     m_flags.autoMemoryReuse = createInfo.flags.autoMemoryReuse;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 707
+    m_flags.autoTrimMemory  = createInfo.flags.autoTrimMemory;
+#endif
+
     if (createInfo.flags.disableBusyChunkTracking == 0)
     {
         m_flags.trackBusyChunks = m_flags.autoMemoryReuse;
@@ -204,6 +208,7 @@ CmdAllocator::CmdAllocator(
         {
             m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.vaRange = VaRange::DescriptorTable;
         }
+        m_gpuAllocInfo[i].allocFreeThreshold = createInfo.allocInfo[i].allocFreeThreshold;
     }
 
     // The system-memory command allocation info should be a duplicate of the GPU memory ones, but with zero GPU
@@ -483,6 +488,135 @@ Result CmdAllocator::Reset()
 }
 
 // =====================================================================================================================
+// Informs the command allocator to trim down its allocations.
+Result CmdAllocator::Trim(
+    uint32 allocTypeMask,
+    uint32 dynamicThreshold)
+{
+    if (m_pChunkLock != nullptr)
+    {
+        m_pChunkLock->Lock();
+    }
+
+    for (uint32 type = 0; type < CmdAllocatorTypeCount; ++type)
+    {
+        if (allocTypeMask & (1 << type))
+        {
+            CmdAllocInfo* const pAllocInfo = &m_gpuAllocInfo[type];
+            const uint32 threshold = Max(dynamicThreshold, pAllocInfo->allocFreeThreshold);
+
+            // Avoid trim overhead when there are not enough free chunks
+            if (pAllocInfo->freeList.NumElements() > threshold * pAllocInfo->allocCreateInfo.numChunks)
+            {
+                TrimMemory(pAllocInfo, threshold);
+            }
+        }
+    }
+
+    if (m_pChunkLock != nullptr)
+    {
+        m_pChunkLock->Unlock();
+    }
+
+    return Result::Success;
+}
+
+// =====================================================================================================================
+// Helper function to destroy allocations of the given type where its chunks are all idle.
+// A minimum of allocFreeThreshold free allocation will be kept around for fast reuse.
+void CmdAllocator::TrimMemory(
+    CmdAllocInfo* const pAllocInfo,
+    uint32              allocFreeThreshold)
+{
+    // m_pChunkLock should be handled by the caller
+
+    // Destroy all but allocFreeThreshold allocations where their chunks are all idle.
+    // New allocations get added at the end of the list; so the oldest ones are at the beginning.
+    auto iter = pAllocInfo->allocList.Begin();
+    uint32 numFreeAllocations = 0;
+
+    while (iter.IsValid())
+    {
+        CmdStreamAllocation* pAlloc = iter.Get();
+        CmdStreamChunk* pChunks = pAlloc->Chunks();
+
+        bool allIdle = true;
+        for (uint32 idx = 0; idx < pAllocInfo->allocCreateInfo.numChunks; ++idx)
+        {
+            if (pChunks[idx].IsIdle() == false)
+            {
+                allIdle = false;
+                break;
+            }
+        }
+
+        if (allIdle)
+        {
+            numFreeAllocations++;
+
+            if (numFreeAllocations > allocFreeThreshold)
+            {
+                // make sure the chunks are removed from all the lists (freeList)
+                for (uint32 idx = 0; idx < pAllocInfo->allocCreateInfo.numChunks; ++idx)
+                {
+                    auto* const pNode = pChunks[idx].ListNode();
+                    pAllocInfo->freeList.Erase(pNode);
+                }
+
+                // Remove the allocation from the list and destroy it.
+                // this will already move iter to the next item
+                pAllocInfo->allocList.Erase(&iter);
+
+                pAlloc->Destroy(m_pDevice);
+                PAL_SAFE_FREE(pAlloc, m_pDevice->GetPlatform());
+            }
+            else
+            {
+                iter.Next();
+            }
+        }
+        else
+        {
+            iter.Next();
+        }
+    }
+}
+
+// =====================================================================================================================
+Result CmdAllocator::QueryUtilizationInfo(
+    CmdAllocType                 type,
+    CmdAllocatorUtilizationInfo* pUtilizationInfo
+    ) const
+{
+    Result result = Result::Success;
+
+    if (pUtilizationInfo == nullptr)
+    {
+        result = Result::ErrorInvalidPointer;
+    }
+    else
+    {
+        if (m_pChunkLock != nullptr)
+        {
+            m_pChunkLock->Lock();
+        }
+
+        const CmdAllocInfo* pAllocInfo = &m_gpuAllocInfo[type];
+        pUtilizationInfo->numAllocations = static_cast<uint32>(pAllocInfo->allocList.NumElements());
+        pUtilizationInfo->numFreeChunks  = static_cast<uint32>(pAllocInfo->freeList.NumElements());
+        pUtilizationInfo->numBusyChunks  = static_cast<uint32>(pAllocInfo->busyList.NumElements());
+        pUtilizationInfo->numReuseChunks = static_cast<uint32>(pAllocInfo->reuseList.NumElements());
+
+        if (m_pChunkLock != nullptr)
+        {
+            m_pChunkLock->Unlock();
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Takes an iterator to a list of CmdStreamChunk(s) and moves them to the reuse list for use later.
 void CmdAllocator::ReuseChunks(
     CmdAllocType   allocType,
@@ -515,6 +649,15 @@ void CmdAllocator::ReuseChunks(
                 // Remember that items on the free list must be reset.
                 iter.Get()->Reset(true);
                 iter.Next();
+            }
+
+            // Only trim when:
+            // - enabled by the PAL client
+            // - there are enough free chunks (that implies that there are more than allocFreeThreshold allocations)
+            if (AutoTrimMemory() && (pAllocInfo->freeList.NumElements() >
+                pAllocInfo->allocFreeThreshold * pAllocInfo->allocCreateInfo.numChunks))
+            {
+                TrimMemory(pAllocInfo, pAllocInfo->allocFreeThreshold);
             }
         }
         else

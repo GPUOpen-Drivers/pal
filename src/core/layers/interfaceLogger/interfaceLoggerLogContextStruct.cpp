@@ -580,7 +580,12 @@ void LogContext::Struct(
         Value("disableBusyChunkTracking");
     }
 
-    static_assert(CheckReservedBits<decltype(value.flags)>(32, 29), "Update interfaceLogger!");
+    if (value.flags.autoTrimMemory)
+    {
+        Value("autoTrimMemory");
+    }
+
+    static_assert(CheckReservedBits<decltype(value.flags)>(32, 28), "Update interfaceLogger!");
 
     EndList();
     KeyAndBeginMap("allocInfo", false);
@@ -601,6 +606,7 @@ void LogContext::Struct(
         KeyAndEnum("allocHeap", value.allocInfo[idx].allocHeap);
         KeyAndValue("allocSize", value.allocInfo[idx].allocSize);
         KeyAndValue("suballocSize", value.allocInfo[idx].suballocSize);
+        KeyAndValue("allocFreeThreshold", value.allocInfo[idx].allocFreeThreshold);
         EndMap();
     }
 
@@ -660,7 +666,7 @@ void LogContext::Struct(
         Value("enableTmz");
     }
 
-    static_assert(CheckReservedBits<decltype(value.flags)>(32, 22), "Update interfaceLogger!");
+    static_assert(CheckReservedBits<decltype(value.flags)>(32, 21), "Update interfaceLogger!");
 
     EndList();
 

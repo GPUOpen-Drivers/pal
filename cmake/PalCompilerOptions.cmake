@@ -30,7 +30,7 @@ include(CheckCXXCompilerFlag)
 
 function(pal_compiler_options TARGET)
     set_target_properties(${TARGET} PROPERTIES
-        CXX_STANDARD 11
+        CXX_STANDARD 14
         CXX_STANDARD_REQUIRED ON
         CXX_EXTENSIONS OFF
         POSITION_INDEPENDENT_CODE TRUE

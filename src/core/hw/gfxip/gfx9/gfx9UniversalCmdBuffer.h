@@ -529,17 +529,26 @@ public:
         ICmdBuffer*const* ppCmdBuffers) override;
 
     virtual void CmdCommentString(const char* pComment) override;
+
     virtual void CmdNop(
         const void* pPayload,
         uint32      payloadSize) override;
 
     virtual uint32 CmdInsertExecutionMarker() override;
 
+    uint32 ComputeSpillTableInstanceCnt(
+        uint32 spillTableDwords,
+        uint32 maxCmdCnt) const;
+
     gpusize ConstructExecuteIndirectIb2(
         const IndirectCmdGenerator& gfx9Generator,
         PipelineBindPoint           bindPoint,
+        const uint32                maximumCount,
         const GraphicsPipeline*     pGfxPipeline,
-        gpusize*                    pIb2GpuSize);
+        gpusize*                    pIb2GpuSize,
+        gpusize&                    spillTableAddress,
+        uint32&                     spillTableInstCnt,
+        uint32&                     spillTableStride);
 
     void ExecuteIndirectPacket(
         const IIndirectCmdGenerator& generator,
@@ -641,7 +650,7 @@ protected:
 
     virtual void InheritStateFromCmdBuf(const GfxCmdBuffer* pCmdBuffer) override;
 
-    template <bool Pm4OptImmediate, bool IsNgg>
+    template <bool Pm4OptImmediate, bool IsNgg, bool Indirect>
     uint32* ValidateBinSizes(uint32* pDeCmdSpace);
 
     template <bool Indexed, bool Indirect>

@@ -3303,7 +3303,7 @@ typedef struct PM4_ME_DRAW_INDEX_MULTI_INST
     } ordinal4;
 } PM4_ME_DRAW_INDEX_MULTI_INST;
 
-constexpr unsigned int PM4_ME_DRAW_INDEX_MULTI_INST_SIZEDW__GFX101 = 4;
+constexpr unsigned int PM4_ME_DRAW_INDEX_MULTI_INST_SIZEDW__GFX101        = 4;
 
 // ------------------------------------- PM4_ME_GFX_PIPE_LOCK -------------------------------------
 typedef struct PM4_ME_GFX_PIPE_LOCK

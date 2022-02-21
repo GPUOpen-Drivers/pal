@@ -74,6 +74,7 @@ enum class InterfaceFunc : uint32
     BorderColorPaletteBindGpuMemory,
     BorderColorPaletteDestroy,
     CmdAllocatorReset,
+    CmdAllocatorTrim,
     CmdAllocatorDestroy,
     CmdBufferBegin,
     CmdBufferEnd,

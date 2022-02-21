@@ -429,6 +429,16 @@ enum ContextRollOptimizationFlags : uint32
     PadParamCacheSpace = 0x00000001,
 };
 
+/// Defines the initial value to use for DCC metadata
+enum class DccInitialClearKind {
+    Uncompressed = 0x0,
+    OpaqueBlack  = 0x1,
+    OpaqueWhite  = 0x2,
+    ForceBit     = 0x10,
+    ForceOpaqueBlack = (ForceBit | OpaqueBlack),
+    ForceOpaqueWhite = (ForceBit | OpaqueWhite),
+};
+
 /// Enum defining the different scopes (i.e. registry locations) where settings values are stored
 enum InternalSettingScope : uint32
 {
@@ -656,6 +666,16 @@ struct PalPublicSettings
     /// (Shader path) based on performance and other factors. The default is false since we have seen perf gains using
     /// the ACE.
     bool disableExecuteIndirectAceOffload;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 706
+    /// Value to initialize metadata for DCC surfaces to, if they are compressable. This has no effect on non-DCC
+    /// images. Images whose initial layout is not compressable are only affected if this is "forced".
+    ///  0x00 - Uncompressed (default)
+    ///  0x01 - Opaque Black
+    ///  0x02 - Opaque White
+    ///  0x11 - Forced Opaque Black
+    ///  0x12 - Forced Opaque White
+    uint32 dccInitialClearKind;
 #endif
 };
 

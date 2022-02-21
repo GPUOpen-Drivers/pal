@@ -205,9 +205,9 @@ static void SetSqttTokenExclude(
     {
         pRegValue->gfx101.TOKEN_EXCLUDE = tokenExclude;
     }
-    else if (IsGfx103Plus(device))
+    else if (IsGfx103PlusExclusive(device))
     {
-        pRegValue->gfx103Plus.TOKEN_EXCLUDE = tokenExclude;
+        pRegValue->gfx103PlusExclusive.TOKEN_EXCLUDE = tokenExclude;
     }
     else
     {
@@ -223,11 +223,11 @@ static regSQ_THREAD_TRACE_TOKEN_MASK GetGfx10SqttTokenMask(
     const ThreadTraceTokenConfig& tokenConfig)
 {
     regSQ_THREAD_TRACE_TOKEN_MASK value = {};
-    if (IsGfx103Plus(device))
+    if (IsGfx103PlusExclusive(device))
     {
         // Setting SPI_CONFIG_CNTL.bits.ENABLE_SQG_BOP_EVENTS to 1 only allows SPI to send BOP events to SQG.
         // If BOP_EVENTS_TOKEN_INCLUDE is 0, SQG will not issue BOP event token writes to SQTT buffer.
-        value.gfx103Plus.BOP_EVENTS_TOKEN_INCLUDE = 1;
+        value.gfx103PlusExclusive.BOP_EVENTS_TOKEN_INCLUDE = 1;
     }
 
     const uint32 tokenExclude       = ~tokenConfig.tokenMask;
@@ -320,10 +320,10 @@ static regSQ_THREAD_TRACE_TOKEN_MASK GetGfx10SqttTokenMask(
                                    (grbmCsDataRegs  << SQ_TT_TOKEN_MASK_OTHER_SHIFT__GFX10CORE)     |
                                    (regReads        << SQ_TT_TOKEN_MASK_READS_SHIFT__GFX10));
 
-    if (IsGfx103Plus(device))
+    if (IsGfx103PlusExclusive(device))
     {
         // We want to update REG_EXCLUDE based on the bools we computed above but can't until we fix the reg headers.
-        value.gfx103Plus.REG_EXCLUDE = SqttGfx103RegExcludeMaskDefault;
+        value.gfx103PlusExclusive.REG_EXCLUDE = SqttGfx103RegExcludeMaskDefault;
     }
 
     return value;
@@ -1361,12 +1361,13 @@ Result PerfExperiment::AddThreadTrace(
             m_sqtt[traceInfo.instance].ctrl.gfx10Plus.RT_FREQ           = SQ_TT_RT_FREQ_4096_CLK;
             m_sqtt[traceInfo.instance].ctrl.gfx10Plus.DRAW_EVENT_EN     = 1;
 
-            if (IsGfx103Plus(*m_pDevice))
+            if (IsGfx103PlusExclusive(*m_pDevice))
             {
-                m_sqtt[traceInfo.instance].ctrl.gfx103Plus.LOWATER_OFFSET = SqttGfx103LoWaterOffsetValue;
+                m_sqtt[traceInfo.instance].ctrl.gfx103PlusExclusive.LOWATER_OFFSET = SqttGfx103LoWaterOffsetValue;
 
                 // On Navi2x hw, the polarity of AutoFlushMode is inverted, thus this step is necessary to correct
-                m_sqtt[traceInfo.instance].ctrl.gfx103Plus.AUTO_FLUSH_MODE = m_settings.waAutoFlushModePolarityInversed ? 1 : 0;
+                m_sqtt[traceInfo.instance].ctrl.gfx103PlusExclusive.AUTO_FLUSH_MODE =
+                                                               m_settings.waAutoFlushModePolarityInversed ? 1 : 0;
             }
 
             // Enable all stalling in "always" mode, "lose detail" mode only disables register stalls.
@@ -1433,9 +1434,10 @@ Result PerfExperiment::AddThreadTrace(
                 uint32 excludeMask = SqttGfx10TokenMaskDefault;
                 SetSqttTokenExclude(*m_pDevice, &m_sqtt[traceInfo.instance].tokenMask, SqttGfx10TokenMaskDefault);
                 m_sqtt[traceInfo.instance].tokenMask.gfx10Plus.REG_INCLUDE   = SqttGfx10RegMaskDefault;
-                if (IsGfx103Plus(*m_pDevice))
+                if (IsGfx103PlusExclusive(*m_pDevice))
                 {
-                    m_sqtt[traceInfo.instance].tokenMask.gfx103Plus.REG_EXCLUDE = SqttGfx103RegExcludeMaskDefault;
+                    m_sqtt[traceInfo.instance].tokenMask.gfx103PlusExclusive.REG_EXCLUDE =
+                                                                               SqttGfx103RegExcludeMaskDefault;
                 }
             }
         }

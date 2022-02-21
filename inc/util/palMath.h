@@ -198,9 +198,9 @@ extern uint8 IntToSignedMagnitude(int8 input);
 /// @param [in] n          Number of fractional bits.
 ///
 /// @returns rounded fixed point number in Q0 format (unsigned integer).
-inline uint32 UFixedRoundToUint32(uint32 value, uint8 n)
+constexpr uint32 UFixedRoundToUint32(uint32 value, uint8 n)
 {
-    PAL_ASSERT((0 < n) && (n < 31));
+    PAL_CONSTEXPR_ASSERT((0 < n) && (n < 31));
     return ((value + (((1 << n) >> 1))) >> n);
 }
 
@@ -210,9 +210,9 @@ inline uint32 UFixedRoundToUint32(uint32 value, uint8 n)
 /// @param [in] n          Number of fractional bits.
 ///
 /// @returns rounded fixed point number in Q0 format (signed integer).
-inline int32 SFixedRoundToInt32(int32 value, uint8 n)
+constexpr int32 SFixedRoundToInt32(int32 value, uint8 n)
 {
-    PAL_ASSERT((0 < n) && (n < 30));
+    PAL_CONSTEXPR_ASSERT((0 < n) && (n < 30));
     return ((value + (((1 << n) >> 1))) >> n);
 }
 

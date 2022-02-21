@@ -988,24 +988,6 @@ namespace Core
     constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_3                          = 0x24AE;
     constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_4                          = 0x24AF;
     constexpr unsigned int mmSPI_WF_LIFETIME_LIMIT_5                          = 0x24B0;
-    constexpr unsigned int mmUMCCH0_PerfMonCtl1                               = 0x14341;
-    constexpr unsigned int mmUMCCH0_PerfMonCtl2                               = 0x14342;
-    constexpr unsigned int mmUMCCH0_PerfMonCtl3                               = 0x14343;
-    constexpr unsigned int mmUMCCH0_PerfMonCtl4                               = 0x14344;
-    constexpr unsigned int mmUMCCH0_PerfMonCtl5                               = 0x14345;
-    constexpr unsigned int mmUMCCH0_PerfMonCtlClk                             = 0x14340;
-    constexpr unsigned int mmUMCCH0_PerfMonCtr1_Hi                            = 0x1434B;
-    constexpr unsigned int mmUMCCH0_PerfMonCtr1_Lo                            = 0x1434A;
-    constexpr unsigned int mmUMCCH0_PerfMonCtr2_Hi                            = 0x1434D;
-    constexpr unsigned int mmUMCCH0_PerfMonCtr2_Lo                            = 0x1434C;
-    constexpr unsigned int mmUMCCH0_PerfMonCtr3_Hi                            = 0x1434F;
-    constexpr unsigned int mmUMCCH0_PerfMonCtr3_Lo                            = 0x1434E;
-    constexpr unsigned int mmUMCCH0_PerfMonCtr4_Hi                            = 0x14351;
-    constexpr unsigned int mmUMCCH0_PerfMonCtr4_Lo                            = 0x14350;
-    constexpr unsigned int mmUMCCH0_PerfMonCtr5_Hi                            = 0x14353;
-    constexpr unsigned int mmUMCCH0_PerfMonCtr5_Lo                            = 0x14352;
-    constexpr unsigned int mmUMCCH0_PerfMonCtrClk_Hi                          = 0x14349;
-    constexpr unsigned int mmUMCCH0_PerfMonCtrClk_Lo                          = 0x14348;
 } // namespace Core
 
 namespace Gfx09
@@ -1459,6 +1441,24 @@ namespace Gfx09
     constexpr unsigned int mmTCC_PERFCOUNTER3_HI                              = 0xD387;
     constexpr unsigned int mmTCC_PERFCOUNTER3_LO                              = 0xD386;
     constexpr unsigned int mmTCC_PERFCOUNTER3_SELECT                          = 0xDB85;
+    constexpr unsigned int mmUMCCH0_PerfMonCtl1                               = 0x14341;
+    constexpr unsigned int mmUMCCH0_PerfMonCtl2                               = 0x14342;
+    constexpr unsigned int mmUMCCH0_PerfMonCtl3                               = 0x14343;
+    constexpr unsigned int mmUMCCH0_PerfMonCtl4                               = 0x14344;
+    constexpr unsigned int mmUMCCH0_PerfMonCtl5                               = 0x14345;
+    constexpr unsigned int mmUMCCH0_PerfMonCtlClk                             = 0x14340;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr1_Hi                            = 0x1434B;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr1_Lo                            = 0x1434A;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr2_Hi                            = 0x1434D;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr2_Lo                            = 0x1434C;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr3_Hi                            = 0x1434F;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr3_Lo                            = 0x1434E;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr4_Hi                            = 0x14351;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr4_Lo                            = 0x14350;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr5_Hi                            = 0x14353;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr5_Lo                            = 0x14352;
+    constexpr unsigned int mmUMCCH0_PerfMonCtrClk_Hi                          = 0x14349;
+    constexpr unsigned int mmUMCCH0_PerfMonCtrClk_Lo                          = 0x14348;
     constexpr unsigned int mmVGT_CACHE_INVALIDATION                           = 0x2231;
     constexpr unsigned int mmVGT_CNTL_STATUS                                  = 0x223C;
     constexpr unsigned int mmVGT_DISPATCH_DRAW_INDEX                          = 0xA2DD;
@@ -1814,6 +1814,9 @@ namespace Gfx101
     constexpr unsigned int mmCHCG_PERFCOUNTER3_HI                             = 0xD3CF;
     constexpr unsigned int mmCHCG_PERFCOUNTER3_LO                             = 0xD3CE;
     constexpr unsigned int mmCHCG_PERFCOUNTER3_SELECT                         = 0xDBCA;
+    constexpr unsigned int mmDB_RESERVED_REG_1                                = 0xA016;
+    constexpr unsigned int mmDB_RESERVED_REG_2                                = 0xA00F;
+    constexpr unsigned int mmDB_RESERVED_REG_3                                = 0xA017;
     constexpr unsigned int mmDF_PIE_AON_PerfMonCtlHi0                         = 0x7511;
     constexpr unsigned int mmDF_PIE_AON_PerfMonCtlHi1                         = 0x7515;
     constexpr unsigned int mmDF_PIE_AON_PerfMonCtlHi2                         = 0x7519;
@@ -2040,6 +2043,24 @@ namespace Gfx101
     constexpr unsigned int mmSQ_SHADER_TBA_LO                                 = 0x231C;
     constexpr unsigned int mmSQ_SHADER_TMA_HI                                 = 0x231F;
     constexpr unsigned int mmSQ_SHADER_TMA_LO                                 = 0x231E;
+    constexpr unsigned int mmUMCCH0_PerfMonCtl1                               = 0x14341;
+    constexpr unsigned int mmUMCCH0_PerfMonCtl2                               = 0x14342;
+    constexpr unsigned int mmUMCCH0_PerfMonCtl3                               = 0x14343;
+    constexpr unsigned int mmUMCCH0_PerfMonCtl4                               = 0x14344;
+    constexpr unsigned int mmUMCCH0_PerfMonCtl5                               = 0x14345;
+    constexpr unsigned int mmUMCCH0_PerfMonCtlClk                             = 0x14340;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr1_Hi                            = 0x1434B;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr1_Lo                            = 0x1434A;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr2_Hi                            = 0x1434D;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr2_Lo                            = 0x1434C;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr3_Hi                            = 0x1434F;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr3_Lo                            = 0x1434E;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr4_Hi                            = 0x14351;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr4_Lo                            = 0x14350;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr5_Hi                            = 0x14353;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr5_Lo                            = 0x14352;
+    constexpr unsigned int mmUMCCH0_PerfMonCtrClk_Hi                          = 0x14349;
+    constexpr unsigned int mmUMCCH0_PerfMonCtrClk_Lo                          = 0x14348;
     constexpr unsigned int mmUMCCH1_PerfMonCtl1                               = 0x14B41;
     constexpr unsigned int mmUMCCH1_PerfMonCtl2                               = 0x14B42;
     constexpr unsigned int mmUMCCH1_PerfMonCtl3                               = 0x14B43;
@@ -2058,6 +2079,24 @@ namespace Gfx101
     constexpr unsigned int mmUMCCH1_PerfMonCtr5_Lo                            = 0x14B52;
     constexpr unsigned int mmUMCCH1_PerfMonCtrClk_Hi                          = 0x14B49;
     constexpr unsigned int mmUMCCH1_PerfMonCtrClk_Lo                          = 0x14B48;
+    constexpr unsigned int mmUMCCH2_PerfMonCtl1                               = 0x54341;
+    constexpr unsigned int mmUMCCH2_PerfMonCtl2                               = 0x54342;
+    constexpr unsigned int mmUMCCH2_PerfMonCtl3                               = 0x54343;
+    constexpr unsigned int mmUMCCH2_PerfMonCtl4                               = 0x54344;
+    constexpr unsigned int mmUMCCH2_PerfMonCtl5                               = 0x54345;
+    constexpr unsigned int mmUMCCH2_PerfMonCtlClk                             = 0x54340;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr1_Hi                            = 0x5434B;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr1_Lo                            = 0x5434A;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr2_Hi                            = 0x5434D;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr2_Lo                            = 0x5434C;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr3_Hi                            = 0x5434F;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr3_Lo                            = 0x5434E;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr4_Hi                            = 0x54351;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr4_Lo                            = 0x54350;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr5_Hi                            = 0x54353;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr5_Lo                            = 0x54352;
+    constexpr unsigned int mmUMCCH2_PerfMonCtrClk_Hi                          = 0x54349;
+    constexpr unsigned int mmUMCCH2_PerfMonCtrClk_Lo                          = 0x54348;
     constexpr unsigned int mmUMCCH3_PerfMonCtl1                               = 0x54B41;
     constexpr unsigned int mmUMCCH3_PerfMonCtl2                               = 0x54B42;
     constexpr unsigned int mmUMCCH3_PerfMonCtl3                               = 0x54B43;
@@ -2346,11 +2385,72 @@ namespace Gfx103CorePlus
     constexpr unsigned int mmSDMA0_PERFCOUNTER1_SELECT                        = 0xDE26;
     constexpr unsigned int mmSDMA0_PERFCOUNTER1_SELECT1                       = 0xDE27;
     constexpr unsigned int mmSPI_CSG_PIPE_CONTROL                             = 0x243D;
+    constexpr unsigned int mmUMCCH0_PerfMonCtl1                               = 0x14341;
+    constexpr unsigned int mmUMCCH0_PerfMonCtl2                               = 0x14342;
+    constexpr unsigned int mmUMCCH0_PerfMonCtl3                               = 0x14343;
+    constexpr unsigned int mmUMCCH0_PerfMonCtl4                               = 0x14344;
+    constexpr unsigned int mmUMCCH0_PerfMonCtl5                               = 0x14345;
+    constexpr unsigned int mmUMCCH0_PerfMonCtlClk                             = 0x14340;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr1_Hi                            = 0x1434B;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr1_Lo                            = 0x1434A;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr2_Hi                            = 0x1434D;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr2_Lo                            = 0x1434C;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr3_Hi                            = 0x1434F;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr3_Lo                            = 0x1434E;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr4_Hi                            = 0x14351;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr4_Lo                            = 0x14350;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr5_Hi                            = 0x14353;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr5_Lo                            = 0x14352;
+    constexpr unsigned int mmUMCCH0_PerfMonCtrClk_Hi                          = 0x14349;
+    constexpr unsigned int mmUMCCH0_PerfMonCtrClk_Lo                          = 0x14348;
+    constexpr unsigned int mmUMCCH2_PerfMonCtl1                               = 0x54341;
+    constexpr unsigned int mmUMCCH2_PerfMonCtl2                               = 0x54342;
+    constexpr unsigned int mmUMCCH2_PerfMonCtl3                               = 0x54343;
+    constexpr unsigned int mmUMCCH2_PerfMonCtl4                               = 0x54344;
+    constexpr unsigned int mmUMCCH2_PerfMonCtl5                               = 0x54345;
+    constexpr unsigned int mmUMCCH2_PerfMonCtlClk                             = 0x54340;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr1_Hi                            = 0x5434B;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr1_Lo                            = 0x5434A;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr2_Hi                            = 0x5434D;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr2_Lo                            = 0x5434C;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr3_Hi                            = 0x5434F;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr3_Lo                            = 0x5434E;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr4_Hi                            = 0x54351;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr4_Lo                            = 0x54350;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr5_Hi                            = 0x54353;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr5_Lo                            = 0x54352;
+    constexpr unsigned int mmUMCCH2_PerfMonCtrClk_Hi                          = 0x54349;
+    constexpr unsigned int mmUMCCH2_PerfMonCtrClk_Lo                          = 0x54348;
 } // namespace Gfx103CorePlus
+
+namespace Gfx103Derivative
+{
+    constexpr unsigned int mmSPI_IND_DATA                                     = 0xF053;
+    constexpr unsigned int mmSPI_IND_INDEX                                    = 0xF052;
+    constexpr unsigned int mmSPI_USER_ACCUM_VMID_CNTL                         = 0x244B;
+    constexpr unsigned int mmSQ_SHADER_TBA_HI                                 = 0x2313;
+    constexpr unsigned int mmSQ_SHADER_TBA_LO                                 = 0x2312;
+    constexpr unsigned int mmSQ_SHADER_TMA_HI                                 = 0x2315;
+    constexpr unsigned int mmSQ_SHADER_TMA_LO                                 = 0x2314;
+    constexpr unsigned int mmVGT_CACHE_INVALIDATION                           = 0x2220;
+} // namespace Gfx103Derivative
 
 namespace Gfx103Plus
 {
     constexpr unsigned int mmDB_SPI_VRS_CENTER_LOCATION                       = 0xA018;
+    constexpr unsigned int mmGE_VRS_RATE                                      = 0xC263;
+    constexpr unsigned int mmPA_CL_VRS_CNTL                                   = 0xA212;
+    constexpr unsigned int mmSPI_BARYC_SSAA_CNTL                              = 0xA1B7;
+    constexpr unsigned int mmSPI_CS_CRAWLER_CONFIG                            = 0x24F7;
+    constexpr unsigned int mmSPI_GFX_CRAWLER_CONFIG                           = 0x24F6;
+    constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_21                        = 0x24CB;
+} // namespace Gfx103Plus
+
+namespace Gfx103PlusExclusive
+{
+    constexpr unsigned int mmDB_RESERVED_REG_1                                = 0xA016;
+    constexpr unsigned int mmDB_RESERVED_REG_2                                = 0xA00F;
+    constexpr unsigned int mmDB_RESERVED_REG_3                                = 0xA017;
     constexpr unsigned int mmGE1_PERFCOUNTER0_HI                              = 0xD0A5;
     constexpr unsigned int mmGE1_PERFCOUNTER0_LO                              = 0xD0A4;
     constexpr unsigned int mmGE1_PERFCOUNTER0_SELECT                          = 0xD8A4;
@@ -2399,21 +2499,15 @@ namespace Gfx103Plus
     constexpr unsigned int mmGE2_SE_PERFCOUNTER3_LO                           = 0xD0BA;
     constexpr unsigned int mmGE2_SE_PERFCOUNTER3_SELECT                       = 0xD8BA;
     constexpr unsigned int mmGE2_SE_PERFCOUNTER3_SELECT1                      = 0xD8BB;
-    constexpr unsigned int mmGE_VRS_RATE                                      = 0xC263;
-    constexpr unsigned int mmPA_CL_VRS_CNTL                                   = 0xA212;
-    constexpr unsigned int mmSPI_BARYC_SSAA_CNTL                              = 0xA1B7;
     constexpr unsigned int mmSPI_CONFIG_PS_CU_EN                              = 0x2452;
-    constexpr unsigned int mmSPI_CS_CRAWLER_CONFIG                            = 0x24F7;
     constexpr unsigned int mmSPI_EXP_THROTTLE_CTRL                            = 0x2723;
-    constexpr unsigned int mmSPI_GFX_CRAWLER_CONFIG                           = 0x24F6;
     constexpr unsigned int mmSPI_WF_ACTIVE_COUNT_GFX                          = 0x24E8;
     constexpr unsigned int mmSPI_WF_ACTIVE_COUNT_HPG                          = 0x24E9;
-    constexpr unsigned int mmSPI_WF_LIFETIME_STATUS_21                        = 0x24CB;
     constexpr unsigned int mmSQ_CLK_CTRL                                      = 0xF091;
     constexpr unsigned int mmSQ_INTERRUPT_AUTO_MASK                           = 0x231E;
     constexpr unsigned int mmSQ_INTERRUPT_MSG_CTRL                            = 0x231F;
     constexpr unsigned int mmSX_PS_DOWNCONVERT_CONTROL                        = 0xA1D4;
-} // namespace Gfx103Plus
+} // namespace Gfx103PlusExclusive
 
 namespace Gfx10Core
 {
@@ -2508,24 +2602,6 @@ namespace Gfx10CorePlus
     constexpr unsigned int mmGCEA_PERFCOUNTER2_SELECT                         = 0xDA00;
     constexpr unsigned int mmGCEA_PERFCOUNTER2_SELECT1                        = 0xDA01;
     constexpr unsigned int mmIA_UTCL1_STATUS_2                                = 0x2237;
-    constexpr unsigned int mmUMCCH2_PerfMonCtl1                               = 0x54341;
-    constexpr unsigned int mmUMCCH2_PerfMonCtl2                               = 0x54342;
-    constexpr unsigned int mmUMCCH2_PerfMonCtl3                               = 0x54343;
-    constexpr unsigned int mmUMCCH2_PerfMonCtl4                               = 0x54344;
-    constexpr unsigned int mmUMCCH2_PerfMonCtl5                               = 0x54345;
-    constexpr unsigned int mmUMCCH2_PerfMonCtlClk                             = 0x54340;
-    constexpr unsigned int mmUMCCH2_PerfMonCtr1_Hi                            = 0x5434B;
-    constexpr unsigned int mmUMCCH2_PerfMonCtr1_Lo                            = 0x5434A;
-    constexpr unsigned int mmUMCCH2_PerfMonCtr2_Hi                            = 0x5434D;
-    constexpr unsigned int mmUMCCH2_PerfMonCtr2_Lo                            = 0x5434C;
-    constexpr unsigned int mmUMCCH2_PerfMonCtr3_Hi                            = 0x5434F;
-    constexpr unsigned int mmUMCCH2_PerfMonCtr3_Lo                            = 0x5434E;
-    constexpr unsigned int mmUMCCH2_PerfMonCtr4_Hi                            = 0x54351;
-    constexpr unsigned int mmUMCCH2_PerfMonCtr4_Lo                            = 0x54350;
-    constexpr unsigned int mmUMCCH2_PerfMonCtr5_Hi                            = 0x54353;
-    constexpr unsigned int mmUMCCH2_PerfMonCtr5_Lo                            = 0x54352;
-    constexpr unsigned int mmUMCCH2_PerfMonCtrClk_Hi                          = 0x54349;
-    constexpr unsigned int mmUMCCH2_PerfMonCtrClk_Lo                          = 0x54348;
 } // namespace Gfx10CorePlus
 
 namespace Gfx10Plus
@@ -2622,9 +2698,6 @@ namespace Gfx10Plus
     constexpr unsigned int mmDB_LAST_OF_BURST_CONFIG                          = 0x261A;
     constexpr unsigned int mmDB_LQUAD_STUTTER_CONTROL                         = 0x2613;
     constexpr unsigned int mmDB_LTILE_STUTTER_CONTROL                         = 0x2611;
-    constexpr unsigned int mmDB_RESERVED_REG_1                                = 0xA016;
-    constexpr unsigned int mmDB_RESERVED_REG_2                                = 0xA00F;
-    constexpr unsigned int mmDB_RESERVED_REG_3                                = 0xA017;
     constexpr unsigned int mmDB_RMI_L2_CACHE_CONTROL                          = 0xA01F;
     constexpr unsigned int mmDB_STENCIL_INFO                                  = 0xA011;
     constexpr unsigned int mmDB_STENCIL_READ_BASE                             = 0xA013;
@@ -2882,14 +2955,6 @@ namespace Gfx10Vrs
     constexpr unsigned int mmRLC_SPM_PERFMON_SWA_SE3TO0_SEGMENT_SIZE          = 0xDCA6;
     constexpr unsigned int mmRLC_SPM_PERFMON_SWA_SEGMENT_SIZE                 = 0xDCA2;
     constexpr unsigned int mmRLC_SPM_SE_MUXSEL_ADDR_OFFSET                    = 0xDCA8;
-    constexpr unsigned int mmSPI_IND_DATA                                     = 0xF053;
-    constexpr unsigned int mmSPI_IND_INDEX                                    = 0xF052;
-    constexpr unsigned int mmSPI_USER_ACCUM_VMID_CNTL                         = 0x244B;
-    constexpr unsigned int mmSQ_SHADER_TBA_HI                                 = 0x2313;
-    constexpr unsigned int mmSQ_SHADER_TBA_LO                                 = 0x2312;
-    constexpr unsigned int mmSQ_SHADER_TMA_HI                                 = 0x2315;
-    constexpr unsigned int mmSQ_SHADER_TMA_LO                                 = 0x2314;
-    constexpr unsigned int mmVGT_CACHE_INVALIDATION                           = 0x2220;
 } // namespace Gfx10Vrs
 
 namespace HasHwVs

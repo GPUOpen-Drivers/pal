@@ -61,7 +61,7 @@ union sq_buf_rsrc_t {
         uint64_t                                                              : 58;
         uint64_t llc_noalloc                                                  :  2;
         uint64_t                                                              :  4;
-    } gfx103Plus;
+    } gfx103PlusExclusive;
     struct {
         uint64_t                                                              : 64;
         uint64_t                                                              : 44;
@@ -87,7 +87,7 @@ constexpr uint32_t SqBufRsrcTWord3OobSelectShift                                
 constexpr uint32_t SqBufRsrcTWord3TypeShift                                                 = 30;
 constexpr uint32_t Gfx10SqBufRsrcTWord1CacheSwizzleShift                                    = 30;
 constexpr uint32_t Gfx10SqBufRsrcTWord1SwizzleEnableShift                                   = 31;
-constexpr uint32_t Gfx103PlusSqBufRsrcTWord3LlcNoallocShift                                 = 26;
+constexpr uint32_t Gfx103PlusExclusiveSqBufRsrcTWord3LlcNoallocShift                        = 26;
 constexpr uint32_t Gfx10CoreSqBufRsrcTWord3FormatShift                                      = 12;
 constexpr uint32_t Gfx10CoreSqBufRsrcTWord3ResourceLevelShift                               = 24;
 

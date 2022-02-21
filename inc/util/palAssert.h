@@ -133,8 +133,8 @@ extern bool IsAssertCategoryEnabled(
 } // namespace Util
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-/// If the expression evaluates to false, then an error message with the specified reason will be printed via the
-/// debug print system. A debug break will also be triggered if they're currently enabled for asserts.
+/// Prints an error message with the specified reason via the debug print system. A debug break will also be triggered
+/// if they're currently enabled for asserts.
 ///
 /// @note This version of assert inlines an 'int 3' every time it is used so that each occurrence can be zapped
 ///       independently.  This macro cannot be used in assignment operations.
@@ -147,9 +147,13 @@ extern bool IsAssertCategoryEnabled(
     }                                                         \
 }
 
+/// If the expression evaluates to false, then it calls the PAL_TRIGGER_ASSERT macro with an error message with the
+/// specified reason.
+///
+/// @note This assert should not be used in constant evaluated contexts (e.g., constexpr functions).
 #define PAL_ASSERT_MSG(_expr, _pReasonFmt, ...)                                                   \
 {                                                                                                 \
-    bool _expr_eval = static_cast<bool>(_expr);                                                   \
+    const bool _expr_eval = static_cast<bool>(_expr);                                             \
     if (PAL_PREDICT_FALSE(_expr_eval == false))                                                   \
     {                                                                                             \
         PAL_TRIGGER_ASSERT("Assertion failed: %s | Reason: " _pReasonFmt, #_expr, ##__VA_ARGS__); \
@@ -157,8 +161,75 @@ extern bool IsAssertCategoryEnabled(
     PAL_ANALYSIS_ASSUME(_expr_eval);                                                              \
 }
 
+#if !defined(__clang__) && (__GNUC__< 6)
+
+// Function to circumvent gcc 5.x inability to use lambdas in unevaluated constant expression contexts.
+constexpr void PalTriggerAssertImpl(
+    const char* pFormat,
+    const char* pExpr,
+    const char* pFile,
+    int         line,
+    const char* pFunc)
+{
+    // pExpr is always not nullptr, as it's supposed to be a preprocessor string, but it does convince gcc
+    // to compile PalTriggerAssertImpl() as potentially constexpr
+    pExpr != nullptr ?
+        [&]
+        {
+            Util::DbgPrintf(
+                Util::DbgPrintCatErrorMsg,
+                Util::DbgPrintStyleDefault,
+                pFormat,
+                pExpr,
+                pFile,
+                line,
+                pFunc);
+            if (Util::IsAssertCategoryEnabled(Util::AssertCatAssert))
+            {
+                PAL_DEBUG_BREAK();
+            }
+            return 0;
+        }()
+        : 0;
+}
+
+// gcc 5.4 implementation of PAL_CONSTEXPR_ASSERT_MSG that ignores the additional reason for the assertion
+#define PAL_CONSTEXPR_ASSERT_MSG(_expr, _pReasonFmt, ...)                                               \
+{                                                                                                       \
+    const bool _expr_eval = static_cast<bool>(_expr);                                                   \
+    if (PAL_PREDICT_FALSE(_expr_eval == false))                                                         \
+    {                                                                                                   \
+        PalTriggerAssertImpl("Assertion failed: %s (%s:%d:%s)", #_expr,  __FILE__, __LINE__, __func__); \
+    }                                                                                                   \
+    PAL_ANALYSIS_ASSUME(_expr_eval);                                                                    \
+}
+
+#else
+
+/// If the expression evaluates to false, then it calls the PAL_TRIGGER_ASSERT macro with an error message with the
+/// specified reason.
+///
+/// @note This assert should be used in constant evaluated contexts (e.g., constexpr functions).
+/// @note This assert uses an immediately-invoked function expression in the form of an internal lambda to signal a
+///       failed assert. Since PAL_TRIGGER_ASSERT is not constexpr, an _expr that evaluates to false will fail to
+///       compile the function operator of the lambda.
+#define PAL_CONSTEXPR_ASSERT_MSG(_expr, _pReasonFmt, ...)                                                    \
+{                                                                                                            \
+    const bool _expr_eval = static_cast<bool>(_expr);                                                        \
+    if (PAL_PREDICT_FALSE(_expr_eval == false))                                                              \
+    {                                                                                                        \
+        [&] { PAL_TRIGGER_ASSERT("Assertion failed: %s | Reason: " _pReasonFmt, #_expr, ##__VA_ARGS__); }(); \
+    }                                                                                                        \
+    PAL_ANALYSIS_ASSUME(_expr_eval);                                                                         \
+}
+
+#endif
+
 /// Calls the PAL_ASSERT_MSG macro with a generic reason string
 #define PAL_ASSERT(_expr) PAL_ASSERT_MSG(_expr, "%s", "Unknown")
+
+/// Calls the PAL_CONSTEXPR_ASSERT_MSG macro with a generic reason string
+#define PAL_CONSTEXPR_ASSERT(_expr) PAL_CONSTEXPR_ASSERT_MSG(_expr, "%s", "Unknown")
 
 /// Debug build only PAL assert, the typical usage is when make an assertion on a debug-only variables.
 /// The only difference than PAL assert is it's empty in release mode.
@@ -219,21 +290,23 @@ extern bool IsAssertCategoryEnabled(
 
 #else
 
-#define PAL_ASSERT(_expr)                  PAL_ANALYSIS_ASSUME(_expr)
-#define PAL_ASSERT_MSG(_expr, ...)         PAL_ANALYSIS_ASSUME(_expr)
-#define PAL_DEBUG_BUILD_ONLY_ASSERT(_expr) ((void)0)
-#define PAL_ALERT(_expr)                   ((void)0)
-#define PAL_ALERT_MSG(_expr, ...)          ((void)0)
-#define PAL_NOT_TESTED()                   ((void)0)
-#define PAL_NOT_TESTED_MSG(...)            ((void)0)
-#define PAL_NOT_IMPLEMENTED()              ((void)0)
-#define PAL_NOT_IMPLEMENTED_MSG(...)       ((void)0)
-#define PAL_NEVER_CALLED()                 ((void)0)
-#define PAL_NEVER_CALLED_MSG(...)          ((void)0)
-#define PAL_ASSERT_ALWAYS()                ((void)0)
-#define PAL_ASSERT_ALWAYS_MSG(...)         ((void)0)
-#define PAL_ALERT_ALWAYS()                 ((void)0)
-#define PAL_ALERT_ALWAYS_MSG(...)          ((void)0)
+#define PAL_ASSERT(_expr)                    PAL_ANALYSIS_ASSUME(_expr)
+#define PAL_CONSTEXPR_ASSERT(_expr)          PAL_ANALYSIS_ASSUME(_expr)
+#define PAL_ASSERT_MSG(_expr, ...)           PAL_ANALYSIS_ASSUME(_expr)
+#define PAL_CONSTEXPR_ASSERT_MSG(_expr, ...) PAL_ANALYSIS_ASSUME(_expr)
+#define PAL_DEBUG_BUILD_ONLY_ASSERT(_expr)   ((void)0)
+#define PAL_ALERT(_expr)                     ((void)0)
+#define PAL_ALERT_MSG(_expr, ...)            ((void)0)
+#define PAL_NOT_TESTED()                     ((void)0)
+#define PAL_NOT_TESTED_MSG(...)              ((void)0)
+#define PAL_NOT_IMPLEMENTED()                ((void)0)
+#define PAL_NOT_IMPLEMENTED_MSG(...)         ((void)0)
+#define PAL_NEVER_CALLED()                   ((void)0)
+#define PAL_NEVER_CALLED_MSG(...)            ((void)0)
+#define PAL_ASSERT_ALWAYS()                  ((void)0)
+#define PAL_ASSERT_ALWAYS_MSG(...)           ((void)0)
+#define PAL_ALERT_ALWAYS()                   ((void)0)
+#define PAL_ALERT_ALWAYS_MSG(...)            ((void)0)
 
 #endif
 

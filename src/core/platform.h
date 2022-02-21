@@ -32,10 +32,16 @@
 #include "core/g_palSettings.h"
 #include "core/g_palPlatformSettings.h"
 #include "ver.h"
+#include "ddApi.h"
 
 #if PAL_BUILD_RDF
-#include "palTraceSession.h"
-#include "gpuUtil/asicInfoTraceSource.h"
+// GpuUtil forward declarations.
+namespace GpuUtil
+{
+class TraceSession;
+class AsicInfoTraceSource;
+class UberTraceService;
+}
 #endif
 
 // DevDriver forward declarations.
@@ -148,6 +154,7 @@ public:
         { m_pfnDeveloperCb(m_pClientPrivateData, deviceIndex, type, pData); }
 
     virtual DevDriver::DevDriverServer* GetDevDriverServer() override { return m_pDevDriverServer; }
+    virtual DevDriver::EventProtocol::EventServer* GetEventServer() override { return m_pEventServer; }
 
     bool IsDeveloperModeEnabled() const { return (m_pDevDriverServer != nullptr); }
     bool IsDevDriverProfilingEnabled() const;
@@ -262,6 +269,7 @@ private:
     // driver functionality. The server object handles all developer driver protocol management internally and exposes
     // interfaces to each protocol through explicit objects which can be retrieved through the main interface.
     DevDriver::DevDriverServer* m_pDevDriverServer;
+    DevDriver::EventProtocol::EventServer* m_pEventServer;
     PlatformSettingsLoader m_settingsLoader;
 
     // Locally cached pointers to protocol servers.
@@ -278,11 +286,20 @@ private:
     Result RegisterDefaultTraceSources();
     void DestroyDefaultTraceSources();
 
+    // Starts the UberTraceService on the driver side
+    Result CreateUberTraceService();
+    void RegisterRpcServices();
+    void DestroyRpcServices();
+
     // TraceSession that is centrally owned and managed by PAL
     GpuUtil::TraceSession* m_pTraceSession;
 
     // Trace source that sends device info to PAL-owned TraceSession
     GpuUtil::AsicInfoTraceSource* m_pAsicInfoTraceSource;
+
+    // UberTraceService that communicates with Tools
+    GpuUtil::UberTraceService* m_pUberTraceService;
+    DDRpcServer m_rpcServer;
 #endif
 
     Developer::Callback    m_pfnDeveloperCb;

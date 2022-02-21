@@ -56,7 +56,8 @@ public:
     static constexpr uint32 Hash(
         const char (&string)[N])
     {
-        return LowPart(static_cast<uint64>(Fnv1aHashHelper<N, I - 1>::Hash(string) ^ string[I - 1]) * Fnv1aPrime);
+        return
+            LowPart(static_cast<uint64>(Fnv1aHashHelper<N, I - 1>::Hash(string) ^ uint8(string[I - 1])) * Fnv1aPrime);
     }
 };
 
@@ -74,7 +75,7 @@ public:
     static constexpr uint32 Hash(
         const char (&string)[N])
     {
-        return LowPart(static_cast<uint64>(Fnv1aOffset ^ string[0]) * Fnv1aPrime);
+        return LowPart(static_cast<uint64>(Fnv1aOffset ^ uint8(string[0])) * Fnv1aPrime);
     }
 };
 

@@ -53,8 +53,8 @@ const RegisterRange Gfx103ContextShadowRange[] =
         (mmSPI_SHADER_COL_FORMAT - mmSPI_PS_INPUT_CNTL_0 + 1),
     },
     {
-        (Gfx103Plus::mmSX_PS_DOWNCONVERT_CONTROL - CONTEXT_SPACE_START),        // 0xA1D4 - 0xA1E7
-        (mmCB_BLEND7_CONTROL - Gfx103Plus::mmSX_PS_DOWNCONVERT_CONTROL + 1),
+        (Gfx103PlusExclusive::mmSX_PS_DOWNCONVERT_CONTROL - CONTEXT_SPACE_START),        // 0xA1D4 - 0xA1E7
+        (mmCB_BLEND7_CONTROL - Gfx103PlusExclusive::mmSX_PS_DOWNCONVERT_CONTROL + 1),
     },
     {
         (mmPA_CL_POINT_X_RAD - CONTEXT_SPACE_START),                            // 0xA1F5 - 0xA1F8

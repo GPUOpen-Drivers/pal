@@ -69,7 +69,7 @@ public:
         m_pData{s},
         m_length{count}
     {
-        PAL_ASSERT((s != nullptr) || (count == 0));
+        PAL_CONSTEXPR_ASSERT((s != nullptr) || (count == 0));
     }
 
     StringView(
@@ -96,7 +96,7 @@ public:
     /// @returns The element at location specified by index by reference
     constexpr const CharT& At(uint32 index) const
     {
-        PAL_ASSERT(index < Length());
+        PAL_CONSTEXPR_ASSERT(index < Length());
         return m_pData[index];
     }
 
@@ -122,7 +122,7 @@ public:
     /// @returns The data at the front of the view.
     constexpr const CharT& Front() const
     {
-        PAL_ASSERT(Length() > 0);
+        PAL_CONSTEXPR_ASSERT(IsEmpty() == false);
         return m_pData[0];
     }
 
@@ -133,7 +133,7 @@ public:
     /// @returns The data at the back of the view.
     constexpr const CharT& Back() const
     {
-        PAL_ASSERT(Length() > 0);
+        PAL_CONSTEXPR_ASSERT(IsEmpty() == false);
         return m_pData[Length() - 1];
     }
 

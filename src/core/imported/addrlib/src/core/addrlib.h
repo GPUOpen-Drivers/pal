@@ -405,7 +405,6 @@ private:
 
 Lib* R600HwlInit( const Client* pClient);
 Lib* R800HwlInit (const Client* pClient);
-Lib* SiHwlInit   (const Client* pClient);
 Lib* CiHwlInit   (const Client* pClient);
 Lib* Gfx9HwlInit (const Client* pClient);
 Lib* Gfx10HwlInit(const Client* pClient);

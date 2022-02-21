@@ -1336,7 +1336,12 @@ void Device::Barrier(
                         barrierOps.layoutTransitions.initMaskRam = 1;
                         DescribeBarrier(pCmdBuf, &barrierOps, &barrier.pTransitions[i]);
 
-                        RsrcProcMgr().InitMaskRam(pCmdBuf, pCmdStream, gfx6Image, subresRange, &initSyncReqs);
+                        RsrcProcMgr().InitMaskRam(pCmdBuf,
+                                                  pCmdStream,
+                                                  gfx6Image,
+                                                  subresRange,
+                                                  imageInfo.newLayout,
+                                                  &initSyncReqs);
                     }
                 }
                 else if (TestAnyFlagSet(imageInfo.newLayout.usages, LayoutUninitializedTarget))

@@ -31,6 +31,7 @@
 #include "core/hw/gfxip/gfx6/g_gfx6PalSettings.h"
 #include "core/hw/gfxip/gfx6/gfx6DepthStencilState.h"
 #include "core/platform.h"
+#include "palHasher.h"
 #include "palMath.h"
 #include "palMetroHash.h"
 
@@ -2782,20 +2783,10 @@ uint32 Image::ComputeBaseTileSwizzle(
             }
             else if (Parent()->IsDataInvariant() || Parent()->IsCloneable())
             {
-                // Data invariant and cloneable images must generate identical swizzles given identical create info.
-                // This means we can hash the public create info struct to get half-way decent swizzling.
-                //
-                // Note that one client is not able to guarantee that they consistently set the perSubresInit flag for
-                // all images that must be identical so we need to skip over the ImageCreateFlags.
-                constexpr size_t HashOffset = offsetof(ImageCreateInfo, usageFlags);
-                constexpr uint64 HashSize   = sizeof(ImageCreateInfo) - HashOffset;
-                const uint8*     pHashStart = reinterpret_cast<const uint8*>(&m_createInfo) + HashOffset;
-
                 uint64 hash = 0;
-                MetroHash64::Hash(
-                    pHashStart,
-                    HashSize,
-                    reinterpret_cast<uint8* const>(&hash));
+                Hasher64 hasher;
+                hasher.Hash(m_createInfo);
+                hasher.Finalize(&hash);
 
                 surfaceIndex = MetroHash::Compact32(hash);
             }
@@ -3155,8 +3146,10 @@ void Image::InitMetadataFill(
             const uint32 numSlices = (is3dImage ? 1 : range.numSlices);
 
             const uint32 lastMip = range.startSubres.mipLevel + range.numMips - 1;
+            SubresId curSubres = range.startSubres;
             for (uint32 mip = range.startSubres.mipLevel; mip <= lastMip; ++mip)
             {
+                curSubres.mipLevel = mip;
                 // Assume we will initialize all slices, adjust the offset and size if we aren't.
                 const auto& dcc    = m_pDcc[mip];
                 gpusize     offset = boundMem.Offset() + dcc.MemoryOffset();
@@ -3172,7 +3165,8 @@ void Image::InitMetadataFill(
                     offset += (dcc.SliceSize() * baseSlice);
                 }
 
-                pCmdBuffer->CmdFillMemory(*boundMem.Memory(), offset, size, Gfx6Dcc::InitialValue);
+                uint32 initialValue = ReplicateByteAcrossDword(dcc.GetInitialValue(*this, curSubres, layout));
+                pCmdBuffer->CmdFillMemory(*boundMem.Memory(), offset, size, initialValue);
             }
         }
     }

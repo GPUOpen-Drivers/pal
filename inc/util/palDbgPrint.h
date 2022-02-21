@@ -217,7 +217,7 @@ extern int Vsnprintf(
 {                                                                                                                   \
     Util::DbgPrintf(Util::DbgPrintCatInfoMsg, Util::DbgPrintStyleDefault, _pFormat " (%s:%d:%s)",                   \
                     ##__VA_ARGS__, __FILE__, __LINE__, __func__);                                                   \
-    Util::DbgLog(Util::SeverityLevel::Info, Util::OriginationType::OriginationDebugPrint,                           \
+    Util::DbgLog(Util::SeverityLevel::Info, Util::OriginationType::DebugPrint,                                      \
                  "AMD-PAL", _pFormat " (%s:%d:%s)",  ##__VA_ARGS__, __FILE__, __LINE__, __func__);                  \
 }
 /// Debug warning printf macro.
@@ -225,7 +225,7 @@ extern int Vsnprintf(
 {                                                                                                                    \
     Util::DbgPrintf(Util::DbgPrintCatWarnMsg, Util::DbgPrintStyleDefault, _pFormat " (%s:%d:%s)",                    \
                     ##__VA_ARGS__, __FILE__, __LINE__, __func__);                                                    \
-    Util::DbgLog(Util::SeverityLevel::Warning, Util::OriginationType::OriginationDebugPrint,                         \
+    Util::DbgLog(Util::SeverityLevel::Warning, Util::OriginationType::DebugPrint,                                    \
                  "AMD-PAL", _pFormat " (%s:%d:%s)", ##__VA_ARGS__, __FILE__, __LINE__, __func__);                    \
 }
 /// Debug error printf macro.
@@ -233,7 +233,7 @@ extern int Vsnprintf(
 {                                                                                                                     \
     Util::DbgPrintf(Util::DbgPrintCatErrorMsg, Util::DbgPrintStyleDefault, _pFormat " (%s:%d:%s)",                    \
                     ##__VA_ARGS__, __FILE__, __LINE__, __func__);                                                     \
-    Util::DbgLog(Util::SeverityLevel::Error, Util::OriginationType::OriginationDebugPrint,                            \
+    Util::DbgLog(Util::SeverityLevel::Error, Util::OriginationType::DebugPrint,                                       \
                  "AMD-PAL", _pFormat " (%s:%d:%s)", ##__VA_ARGS__, __FILE__, __LINE__, __func__);                     \
 }
 #elif PAL_ENABLE_PRINTS_ASSERTS
@@ -261,19 +261,19 @@ extern int Vsnprintf(
 /// Debug info printf macro.
 #define PAL_DPINFO(_pFormat, ...)                                                                                      \
 {                                                                                                                      \
-    Util::DbgLog(Util::SeverityLevel::Info, Util::OriginationType::OriginationDebugPrint,                              \
+    Util::DbgLog(Util::SeverityLevel::Info, Util::OriginationType::DebugPrint,                                         \
                  "AMD-PAL", _pFormat " (%s:%d:%s)", ##__VA_ARGS__, __FILE__, __LINE__, __func__);                      \
 }
 /// Debug warning printf macro.
 #define PAL_DPWARN(_pFormat, ...)                                                                                      \
 {                                                                                                                      \
-    Util::DbgLog(Util::SeverityLevel::Warning, Util::OriginationType::OriginationDebugPrint,                           \
+    Util::DbgLog(Util::SeverityLevel::Warning, Util::OriginationType::DebugPrint,                                      \
                  "AMD-PAL", _pFormat " (%s:%d:%s)", ##__VA_ARGS__, __FILE__, __LINE__, __func__);                      \
 }
 /// Debug error printf macro.
 #define PAL_DPERROR(_pFormat, ...)                                                                                     \
 {                                                                                                                      \
-    Util::DbgLog(Util::SeverityLevel::Error, Util::OriginationType::OriginationDebugPrint,                             \
+    Util::DbgLog(Util::SeverityLevel::Error, Util::OriginationType::DebugPrint,                                        \
                  "AMD-PAL", _pFormat " (%s:%d:%s)", ##__VA_ARGS__, __FILE__, __LINE__, __func__);                      \
 }
 #else

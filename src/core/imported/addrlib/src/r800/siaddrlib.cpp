@@ -40,22 +40,6 @@
 namespace Addr
 {
 
-/**
-****************************************************************************************************
-*   SiHwlInit
-*
-*   @brief
-*       Creates an SiLib object.
-*
-*   @return
-*       Returns an SiLib object pointer.
-****************************************************************************************************
-*/
-Lib* SiHwlInit(const Client* pClient)
-{
-    return V1::SiLib::CreateObj(pClient);
-}
-
 namespace V1
 {
 
@@ -1883,22 +1867,9 @@ ChipFamily SiLib::HwlConvertChipFamily(
     UINT_32 uChipFamily,        ///< [in] chip family defined in atiih.h
     UINT_32 uChipRevision)      ///< [in] chip revision defined in "asic_family"_id.h
 {
-    ChipFamily family = ADDR_CHIP_FAMILY_SI;
+    ChipFamily family = ADDR_CHIP_FAMILY_UNKNOWN;
 
-    switch (uChipFamily)
-    {
-        case FAMILY_SI:
-            m_settings.isSouthernIsland = 1;
-            m_settings.isTahiti     = ASICREV_IS_TAHITI_P(uChipRevision);
-            m_settings.isPitCairn   = ASICREV_IS_PITCAIRN_PM(uChipRevision);
-            m_settings.isCapeVerde  = ASICREV_IS_CAPEVERDE_M(uChipRevision);
-            m_settings.isOland      = ASICREV_IS_OLAND_M(uChipRevision);
-            m_settings.isHainan     = ASICREV_IS_HAINAN_V(uChipRevision);
-            break;
-        default:
-            ADDR_ASSERT(!"No Chip found");
-            break;
-    }
+    ADDR_ASSERT_ALWAYS();
 
     return family;
 }
@@ -2657,8 +2628,7 @@ ADDR_E_RETURNCODE SiLib::HwlComputeSurfaceInfo(
 
         if ((pIn->numSlices > 1) &&
             (IsMacroTiled(pOut->tileMode) == TRUE) &&
-            ((m_chipFamily == ADDR_CHIP_FAMILY_SI) ||
-             (IsPrtTileMode(pOut->tileMode) == FALSE)))
+             (IsPrtTileMode(pOut->tileMode) == FALSE))
         {
             pOut->equationIndex = ADDR_INVALID_EQUATION_INDEX;
         }
@@ -3624,8 +3594,7 @@ VOID SiLib::InitEquationTable()
                 key.fields.bankWidth        = tileConfig.info.bankWidth;
                 key.fields.bankHeight       = tileConfig.info.bankHeight;
                 key.fields.macroAspectRatio = tileConfig.info.macroAspectRatio;
-                key.fields.prt              = ((m_chipFamily == ADDR_CHIP_FAMILY_SI) &&
-                                               ((1 << tileIndex) & SiPrtTileIndexMask)) ? 1 : 0;
+                key.fields.prt              = 0;
 
                 // Find in the table if the equation has been built based on the key
                 for (UINT_32 i = 0; i < m_numEquations; i++)
@@ -3732,48 +3701,6 @@ VOID SiLib::InitEquationTable()
             // fill the invalid equation index
             m_equationLookupTable[log2ElementBytes][tileIndex] = equationIndex;
         }
-
-        if (m_chipFamily == ADDR_CHIP_FAMILY_SI)
-        {
-            // For tile index 3 which is shared between PRT depth and uncompressed depth
-            m_uncompressDepthEqIndex = m_numEquations;
-
-            for (UINT_32 log2ElemBytes = 0; log2ElemBytes < MaxNumElementBytes; log2ElemBytes++)
-            {
-                TileConfig        tileConfig = m_tileTable[3];
-                ADDR_EQUATION     equation;
-                ADDR_E_RETURNCODE retCode;
-
-                memset(&equation, 0, sizeof(ADDR_EQUATION));
-
-                retCode = ComputeMacroTileEquation(log2ElemBytes,
-                                                   tileConfig.mode,
-                                                   tileConfig.type,
-                                                   &tileConfig.info,
-                                                   &equation);
-
-                if (retCode == ADDR_OK)
-                {
-                    UINT_32 equationIndex = m_numEquations;
-                    ADDR_ASSERT(equationIndex < EquationTableSize);
-
-                    m_blockSlices[equationIndex] = 1;
-
-                    const ADDR_TILEINFO* pTileInfo = &tileConfig.info;
-
-                    m_blockWidth[equationIndex]  =
-                        HwlGetPipes(pTileInfo) * MicroTileWidth * pTileInfo->bankWidth *
-                        pTileInfo->macroAspectRatio;
-                    m_blockHeight[equationIndex] =
-                        MicroTileHeight * pTileInfo->bankHeight * pTileInfo->banks /
-                        pTileInfo->macroAspectRatio;
-
-                    m_equationTable[equationIndex] = equation;
-
-                    m_numEquations++;
-                }
-            }
-        }
     }
 }
 
@@ -3824,11 +3751,6 @@ BOOL_32 SiLib::IsEquationSupported(
         if (((bpp >> 3) * MicroTilePixels * thickness) > tileConfig.info.tileSplitBytes)
         {
             supported = FALSE;
-        }
-
-        if ((supported == TRUE) && (m_chipFamily == ADDR_CHIP_FAMILY_SI))
-        {
-            supported = m_EquationSupport[tileIndex][elementBytesLog2];
         }
     }
 

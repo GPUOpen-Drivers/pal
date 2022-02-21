@@ -411,9 +411,9 @@ Result UniversalRingSet::Init()
 
         // The OFFCHIP_GRANULARITY field of VGT_HS_OFFCHIP_PRARM is determined at init-time by the value of the related
         // setting.
-        if (IsGfx103Plus(device))
+        if (IsGfx103PlusExclusive(device))
         {
-            m_regs.vgtHsOffchipParam.gfx103Plus.OFFCHIP_GRANULARITY = m_pDevice->Settings().offchipLdsBufferSize;
+            m_regs.vgtHsOffchipParam.gfx103PlusExclusive.OFFCHIP_GRANULARITY = m_pDevice->Settings().offchipLdsBufferSize;
         }
         else if (IsGfx9(device) || IsGfx101(device)
            )
@@ -531,9 +531,9 @@ Result UniversalRingSet::Validate(
         {
             const uint32 offchipBuffering = pOffchipLds->OffchipBuffering();
 
-            if (IsGfx103Plus(device))
+            if (IsGfx103PlusExclusive(device))
             {
-                m_regs.vgtHsOffchipParam.gfx103Plus.OFFCHIP_BUFFERING = offchipBuffering;
+                m_regs.vgtHsOffchipParam.gfx103PlusExclusive.OFFCHIP_BUFFERING = offchipBuffering;
             }
             else if (IsGfx9(device) || IsGfx10(m_gfxLevel)
                )

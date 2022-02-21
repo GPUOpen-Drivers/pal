@@ -157,7 +157,32 @@ void SettingsLoader::OverrideDefaults()
 
     if (gfxLevel >= GfxIpLevel::GfxIp9)
     {
-        m_settings.useExecuteIndirectPacket = UseExecuteIndirectPacketForDraw;
+        constexpr uint32 PfpUcodeVersionNativeExecuteIndirectGfx9    = 192;
+        constexpr uint32 PfpUcodeVersionNativeExecuteIndirectGfx10_1 = 151;
+        constexpr uint32 PfpUcodeVersionNativeExecuteIndirectGfx10_3 = 88;
+
+        if (((m_pDevice->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9) &&
+            (m_pDevice->ChipProperties().pfpUcodeVersion >= PfpUcodeVersionNativeExecuteIndirectGfx9))        ||
+            ((m_pDevice->ChipProperties().gfxLevel == GfxIpLevel::GfxIp10_1) &&
+                (m_pDevice->ChipProperties().pfpUcodeVersion >= PfpUcodeVersionNativeExecuteIndirectGfx10_1)) ||
+            ((m_pDevice->ChipProperties().gfxLevel == GfxIpLevel::GfxIp10_3) &&
+                (m_pDevice->ChipProperties().pfpUcodeVersion >= PfpUcodeVersionNativeExecuteIndirectGfx10_3)))
+        {
+            m_settings.useExecuteIndirectPacket = UseExecuteIndirectPacketForDraw;
+        }
+
+        constexpr uint32 PfpUcodeVersionSpillTableSupportedExecuteIndirectGfx10_1 = 155;
+        constexpr uint32 PfpUcodeVersionSpillTableSupportedExecuteIndirectGfx10_3 = 91;
+
+        if (((m_pDevice->ChipProperties().gfxLevel == GfxIpLevel::GfxIp10_1) &&
+                (m_pDevice->ChipProperties().pfpUcodeVersion >=
+                    PfpUcodeVersionSpillTableSupportedExecuteIndirectGfx10_1)) ||
+                ((m_pDevice->ChipProperties().gfxLevel == GfxIpLevel::GfxIp10_3) &&
+                    (m_pDevice->ChipProperties().pfpUcodeVersion >=
+                        PfpUcodeVersionSpillTableSupportedExecuteIndirectGfx10_3)))
+        {
+            m_settings.useExecuteIndirectPacket = UseExecuteIndirectPacketForDrawSpillTable;
+        }
     }
 
     if (m_pDevice->PhysicalEnginesAvailable())

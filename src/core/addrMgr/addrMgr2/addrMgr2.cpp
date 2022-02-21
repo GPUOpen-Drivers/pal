@@ -426,6 +426,7 @@ void AddrMgr2::InitTilingCaps(
         pBlockSettings->macroThick4KB  = 1;
         pBlockSettings->macroThin64KB  = 1;
         pBlockSettings->macroThick64KB = 1;
+
     }
     else if (createInfo.flags.prt)
     {
@@ -579,9 +580,9 @@ ADDR2_SURFACE_FLAGS AddrMgr2::DetermineSurfaceFlags(
                     image.IsTurboSyncSurface()     |
                     createInfo.flags.pipSwapChain;
 
-    if (IsGfx10(m_gfxLevel) && ((flags.depth == 1) || (createInfo.samples > 1)))
+    if (IsGfx10Plus(m_gfxLevel) && ((flags.depth == 1) || (createInfo.samples > 1)))
     {
-        // Gfx10 doesn't support PRT synonyms for depth or MSAA resource; so set prt to 0 to allow suporting
+        // Gfx10+ doesn't support PRT synonyms for depth or MSAA resource; so set prt to 0 to allow suporting
         // non-synonyms case. If prt is set to 1, Gfx10Lib::HwlComputeSurfaceInfoSanityCheck will
         // return ADDR_INVALIDPARAMS.
         flags.prt = 0;
@@ -767,9 +768,11 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
     // So, here, we disable the D swizzle mode for the described situation.
     // For BCn textures, they have >= 64bpp, which is what really matters when we are doing the address equation.
     // So, here, instead of checking for BC<n>, we check for 3D resource and >=64bpp.
-    if ((createInfo.imageType == ImageType::Tex3d)  &&
-        (surfSettingInput.bpp >= 64)                &&
-        pImage->GetDevice()->ChipProperties().gfx9.rbPlus)
+    if ((createInfo.imageType == ImageType::Tex3d)         &&
+        (surfSettingInput.bpp >= 64)                       &&
+        pImage->GetDevice()->ChipProperties().gfx9.rbPlus
+        && ((IsRaven(*m_pDevice) == false) && (IsRaven2(*m_pDevice) == false))
+        )
     {
         surfSettingInput.preferredSwSet.sw_D = 0;
     }

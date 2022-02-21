@@ -408,12 +408,24 @@ void RsrcProcMgr::CmdCloneImageData(
     PAL_ASSERT(memcmp(&srcParent.GetImageCreateInfo(), &dstParent.GetImageCreateInfo(), sizeof(ImageCreateInfo)) == 0);
     PAL_ASSERT(srcParent.GetGpuMemSize() == dstParent.GetGpuMemSize());
 
-    // Copy all of the source image (including metadata) to the destination image.
+    // dstImgMemLayout metadata size comparison to srcImgMemLayout is checked by caller.
+    const ImageMemoryLayout& srcImgMemLayout = srcParent.GetMemoryLayout();
+
+    // First copy header by PFP
+    // We always read and write the metadata header using the PFP so the copy must also use the PFP.
+    PfpCopyMetadataHeader(pCmdBuffer,
+                          dstParent.GetBoundGpuMemory().GpuVirtAddr() + srcImgMemLayout.metadataHeaderOffset,
+                          srcParent.GetBoundGpuMemory().GpuVirtAddr() + srcImgMemLayout.metadataHeaderOffset,
+                          static_cast<uint32>(srcImgMemLayout.metadataHeaderSize),
+                          srcImage.HasDccLookupTable());
+
+    // Do the rest copy
+    // Copy all of the source image (including metadata, excluding metadata header) to the destination image.
     Pal::MemoryCopyRegion copyRegion = {};
 
     copyRegion.srcOffset = srcParent.GetBoundGpuMemory().Offset();
     copyRegion.dstOffset = dstParent.GetBoundGpuMemory().Offset();
-    copyRegion.copySize  = dstParent.GetGpuMemSize();
+    copyRegion.copySize  = srcImgMemLayout.metadataHeaderOffset;
 
     pCmdBuffer->CmdCopyMemory(*srcParent.GetBoundGpuMemory().Memory(),
                               *dstParent.GetBoundGpuMemory().Memory(),
@@ -555,7 +567,7 @@ void RsrcProcMgr::CmdUpdateMemory(
 
         // Write the DMA_DATA packet to the command stream.
         uint32* pCmdSpace = pStream->ReserveCommands();
-        pCmdSpace += m_cmdUtil.BuildDmaData(dmaDataInfo, pCmdSpace);
+        pCmdSpace += m_cmdUtil.BuildDmaData<false>(dmaDataInfo, pCmdSpace);
         pStream->CommitCommands(pCmdSpace);
 
         // Update all variable addresses and sizes except for srcAddr and numBytes which will be reset above.
@@ -796,14 +808,6 @@ void RsrcProcMgr::CmdResolveQueryComputeShader(
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
 }
 
-// ====================================================================================================================
-// Replicates the input code across all four bytes of a dword.
-uint32 RsrcProcMgr::ExpandClearCodeToDword(
-    uint8  clearCode)
-{
-    return (clearCode | (clearCode << 8) | (clearCode << 16) | (clearCode << 24));
-}
-
 // =====================================================================================================================
 // Performs a fast-clear on a Depth/Stencil Image range by updating the Image's HTile buffer.
 void RsrcProcMgr::FastDepthStencilClearComputeCommon(
@@ -927,6 +931,7 @@ bool RsrcProcMgr::InitMaskRam(
     // If we're in this function, we know this surface has meta-data.  Most of the meta-data init functions use compute
     // so assume that by default.
     bool usedCompute = true;
+    bool isDccInitCompressed = false;
 
     // If any of following conditions is met, that means we are going to use PFP engine to update the metadata
     // (e.g. UpdateColorClearMetaData(); UpdateDccStateMetaData() etc.)
@@ -961,11 +966,13 @@ bool RsrcProcMgr::InitMaskRam(
     {
         if (dstImage.HasDccData())
         {
+            uint8 initialDccVal = Gfx9Dcc::DecompressedValue;
             for (SubresId subresId = range.startSubres;
                  subresId.plane < (range.startSubres.plane + range.numPlanes);
                  subresId.plane++)
             {
                 const Gfx9Dcc* pDcc = dstImage.GetDcc(subresId.plane);
+                initialDccVal = pDcc->GetInitialValue(layout);
 
                 PAL_ASSERT(pDcc->HasMetaEqGenerator());
                 pDcc->GetMetaEqGenerator()->UploadEq(pCmdBuffer);
@@ -979,12 +986,13 @@ bool RsrcProcMgr::InitMaskRam(
 
                 }
             }
+            isDccInitCompressed = (initialDccVal != Gfx9Dcc::DecompressedValue);
 
             const bool dccClearUsedCompute = ClearDcc(pCmdBuffer,
                                                       pCmdStream,
                                                       dstImage,
                                                       range,
-                                                      Gfx9Dcc::InitialValue,
+                                                      initialDccVal,
                                                       DccClearPurpose::Init);
 
             // Even if we cleared DCC using graphics, we will always clear CMask below using compute.
@@ -1064,7 +1072,10 @@ bool RsrcProcMgr::InitMaskRam(
     {
         // We need to initialize the Image's DCC state metadata to indicate that the Image can become DCC compressed
         // (or not) in upcoming operations.
-        const bool canCompress = ImageLayoutCanCompressColorData(dstImage.LayoutToColorCompressionState(), layout);
+        bool canCompress = ImageLayoutCanCompressColorData(dstImage.LayoutToColorCompressionState(), layout);
+
+        // Client can force this, but keep dcc state coherent.
+        canCompress |= isDccInitCompressed;
 
         // If the new layout is one which can write compressed DCC data,  then we need to update the Image's DCC state
         // metadata to indicate that the image will become DCC compressed in upcoming operations.
@@ -1594,8 +1605,8 @@ bool RsrcProcMgr::HwlUseOptimizedImageCopy(
         // compression modes (1 TC compat, other not).  For RT Src will need to be decompressed which means
         // we can't take advanatge of optimized copy since we keep fmask compressed. Moreover, there are
         // metadata layout differences between gfxip8 and below and gfxip9.
-        if ((dstImgMemLayout.metadataSize + dstImgMemLayout.metadataHeaderSize) !=
-            (srcImgMemLayout.metadataSize + srcImgMemLayout.metadataHeaderSize))
+        if ((dstImgMemLayout.metadataSize       != srcImgMemLayout.metadataSize) ||
+            (dstImgMemLayout.metadataHeaderSize != srcImgMemLayout.metadataHeaderSize))
         {
             useFmaskOptimizedCopy = false;
         }
@@ -1677,16 +1688,23 @@ void RsrcProcMgr::HwlFixupCopyDstImageMetaData(
             // dstImgMemLayout metadata size comparison to srcImgMemLayout is checked by caller.
             const ImageMemoryLayout& srcImgMemLayout = pSrcImage->GetMemoryLayout();
 
+            // First copy header by PFP
+            // We always read and write the metadata header using the PFP so the copy must also use the PFP.
+            PfpCopyMetadataHeader(pCmdBuffer,
+                                  dstBoundMem.GpuVirtAddr() + srcImgMemLayout.metadataHeaderOffset,
+                                  srcBoundMem.GpuVirtAddr() + srcImgMemLayout.metadataHeaderOffset,
+                                  static_cast<uint32>(srcImgMemLayout.metadataHeaderSize),
+                                  gfx9SrcImage.HasDccLookupTable());
+
+            // Do the rest copy
             const gpusize srcCopySize =
-                (srcImgMemLayout.metadataSize - (pSrcFmask->MemoryOffset() - srcImgMemLayout.metadataOffset)) +
-                srcImgMemLayout.metadataHeaderSize;
+                (srcImgMemLayout.metadataSize - (pSrcFmask->MemoryOffset() - srcImgMemLayout.metadataOffset));
 
             MemoryCopyRegion memcpyRegion = {};
             memcpyRegion.srcOffset = srcBoundMem.Offset() + pSrcFmask->MemoryOffset();
             memcpyRegion.dstOffset = dstBoundMem.Offset() + pDstFmask->MemoryOffset();
             memcpyRegion.copySize  = srcCopySize;
 
-            // Do the copy
             pCmdBuffer->CmdCopyMemory(*pSrcMemory, *pDstMemory, 1, &memcpyRegion);
         }
         else
@@ -2949,7 +2967,7 @@ void RsrcProcMgr::DccDecompressOnCompute(
         // Put DCC memory itself back into a "fully decompressed" state, since only compressed fragments needed
         // to be written, as initialization of dcc memory will write to uncompressed fragment and hence
         // they don't need to be written here. Change from init to fastclear.
-        ClearDcc(pCmdBuffer, pCmdStream, image, range, Gfx9Dcc::InitialValue, DccClearPurpose::FastClear);
+        ClearDcc(pCmdBuffer, pCmdStream, image, range, Gfx9Dcc::DecompressedValue, DccClearPurpose::FastClear);
     }
 
     // And let the DCC fixup finish as well
@@ -3361,6 +3379,43 @@ uint32 RsrcProcMgr::GetInitHtileClearMask(
     }
 
     return clearMask;
+}
+
+// =====================================================================================================================
+// Helper function to build a DMA packet to copy metadata header by PFP
+void RsrcProcMgr::PfpCopyMetadataHeader(
+    GfxCmdBuffer* pCmdBuffer,
+    gpusize       dstAddr,
+    gpusize       srcAddr,
+    uint32        size,
+    bool          hasDccLookupTable
+    ) const
+{
+    Pal::CmdStream* pCmdStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::CpDma);
+
+    DmaDataInfo dmaDataInfo = {};
+    dmaDataInfo.dstSel      = dst_sel__pfp_dma_data__dst_addr_using_l2;
+    dmaDataInfo.srcSel      = src_sel__pfp_dma_data__src_addr_using_l2;
+    dmaDataInfo.sync        = true;
+    dmaDataInfo.usePfp      = true;
+    dmaDataInfo.predicate   = static_cast<Pm4Predicate>(pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
+    dmaDataInfo.dstAddr     = dstAddr;
+    dmaDataInfo.srcAddr     = srcAddr;
+    dmaDataInfo.numBytes    = size;
+
+    uint32* pCmdSpace = pCmdStream->ReserveCommands();
+
+    if (hasDccLookupTable)
+    {
+        // The DCC lookup table is accessed by the ME (really, by shaders) so we need to wait for prior ME work.
+        pCmdSpace += CmdUtil::BuildPfpSyncMe(pCmdSpace);
+    }
+
+    pCmdSpace += CmdUtil::BuildDmaData<false>(dmaDataInfo, pCmdSpace);
+    pCmdStream->CommitCommands(pCmdSpace);
+
+    pCmdBuffer->SetGfxCmdBufCpBltState(true);
+    pCmdBuffer->SetGfxCmdBufCpBltWriteCacheState(true);
 }
 
 // =====================================================================================================================
@@ -4649,7 +4704,7 @@ void Gfx9RsrcProcMgr::DoOptimizedCmaskInit(
     const uint32 numSlices  = range.numSlices;
 
     // clearColor is 32 bit data and we clear 4Dwords in one thread
-    const uint32 clearColor = ExpandClearCodeToDword(initValue);
+    const uint32 clearColor = ReplicateByteAcrossDword(initValue);
 
     // MSAA surfaces don't have mipmaps.
     PAL_ASSERT(createInfo.mipLevels == 1);
@@ -4846,7 +4901,7 @@ void Gfx9RsrcProcMgr::DoOptimizedFastClear(
     const uint32 numSlices = sliceEnd - sliceStart;
 
     // clearColor is 32 bit data and we clear 4Dwords in one thread
-    const uint32 clearColor = ExpandClearCodeToDword(clearCode);
+    const uint32 clearColor = ReplicateByteAcrossDword(clearCode);
 
     // Check if meta is interleaved, if it is not we can directly fill the surface with
     // dcc Clear Color. In this case addressing is Metablock[all], CombinedOffset[all]
@@ -5803,7 +5858,7 @@ void Gfx9RsrcProcMgr::HwlFixupCopyDstImageMetaData(
             range.numSlices              = clearRegion.numSlices;
 
             // Since color data is no longer dcc compressed set Dcc to fully uncompressed.
-            ClearDcc(pCmdBuffer, pStream, gfx9DstImage, range, Gfx9Dcc::InitialValue, DccClearPurpose::FastClear);
+            ClearDcc(pCmdBuffer, pStream, gfx9DstImage, range, Gfx9Dcc::DecompressedValue, DccClearPurpose::FastClear);
         }
     }
 
@@ -5831,7 +5886,7 @@ void Gfx10RsrcProcMgr::ClearDccCompute(
     const uint32         startSlice    = ((createInfo.imageType == ImageType::Tex3d)
                                           ? 0
                                           : clearRange.startSubres.arraySlice);
-    const uint32         clearColor    = ExpandClearCodeToDword(clearCode);
+    const uint32         clearColor    = ReplicateByteAcrossDword(clearCode);
     const auto*          pSubResInfo   = dstImage.Parent()->SubresourceInfo(clearRange.startSubres);
     const SwizzledFormat planeFormat   = pSubResInfo->format;
     const uint32         bytesPerPixel = Formats::BytesPerPixel(planeFormat.format);
@@ -6741,7 +6796,7 @@ void Gfx10RsrcProcMgr::InitCmask(
     const ImageCreateInfo& createInfo      = image.Parent()->GetImageCreateInfo();
     const Gfx9Cmask*       pCmask          = image.GetCmask();
     const auto&            cMaskAddrOut    = pCmask->GetAddrOutput();
-    const uint32           expandedInitVal = ExpandClearCodeToDword(initValue);
+    const uint32           expandedInitVal = ReplicateByteAcrossDword(initValue);
     const uint32           startSlice      = ((createInfo.imageType == ImageType::Tex3d)
                                               ? 0
                                               : range.startSubres.arraySlice);
@@ -6841,7 +6896,12 @@ void Gfx10RsrcProcMgr::HwlFixupCopyDstImageMetaData(
                 range.numSlices              = clearRegion.numSlices;
 
                 // Since color data is no longer dcc compressed set Dcc to fully uncompressed.
-                ClearDcc(pCmdBuffer, pStream, gfx9DstImage, range, Gfx9Dcc::InitialValue, DccClearPurpose::FastClear);
+                ClearDcc(pCmdBuffer,
+                         pStream,
+                         gfx9DstImage,
+                         range,
+                         Gfx9Dcc::DecompressedValue,
+                         DccClearPurpose::FastClear);
             }
         }
     }
@@ -7208,7 +7268,7 @@ void Gfx10RsrcProcMgr::CopyVrsIntoHtile(
     // Note that we pass our values through RpmUtil::PackBits to make sure that they actually fit.
     // An assert will trip if one of the assumptions outlined above is actually false.
     userData.pipeInterleaveLog2 = RpmUtil::PackBits<3>(gbAddrConfig.bits.PIPE_INTERLEAVE_SIZE);
-    userData.packersLog2        = RpmUtil::PackBits<3>(gbAddrConfig.gfx103Plus.NUM_PKRS);
+    userData.packersLog2        = RpmUtil::PackBits<3>(gbAddrConfig.gfx103PlusExclusive.NUM_PKRS);
     userData.pipesLog2          = RpmUtil::PackBits<3>(gbAddrConfig.bits.NUM_PIPES);
     userData.capPipeLog2        = RpmUtil::PackBits<5>(pEqGenerator->CapPipe());
     userData.metaBlkWidthLog2   = RpmUtil::PackBits<5>(metaBlkExtentLog2.width);
@@ -7411,7 +7471,7 @@ void Gfx10RsrcProcMgr::InitDisplayDcc(
     const GpuMemory*       pGpuMemory  = image.GetBoundGpuMemory().Memory();
     const ImageCreateInfo& createInfo  = image.GetImageCreateInfo();
     const Image*           pGfx9Image  = static_cast<const Image*>(image.GetGfxImage());
-    const uint32           clearValue  = ExpandClearCodeToDword(Gfx9Dcc::InitialValue);
+    const uint32           clearValue  = ReplicateByteAcrossDword(Gfx9Dcc::DecompressedValue);
     const Gfx9Dcc*         pDispDcc    = pGfx9Image->GetDisplayDcc(0);
 
     const auto&            dispDccAddrOutput = pDispDcc->GetAddrOutput();

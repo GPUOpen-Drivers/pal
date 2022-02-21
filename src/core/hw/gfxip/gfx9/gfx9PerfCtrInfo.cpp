@@ -114,6 +114,18 @@ enum Gfx10SpmSeBlockSelect : uint32
     pInfo->umcchRegAddr[Idx].perModule[3] = { Ns::mmUMCCH##Idx##_PerfMonCtl4, Ns::mmUMCCH##Idx##_PerfMonCtr4_Lo, Ns::mmUMCCH##Idx##_PerfMonCtr4_Hi }; \
     pInfo->umcchRegAddr[Idx].perModule[4] = { Ns::mmUMCCH##Idx##_PerfMonCtl5, Ns::mmUMCCH##Idx##_PerfMonCtr5_Lo, Ns::mmUMCCH##Idx##_PerfMonCtr5_Hi };
 
+// There are a large numbe of mmGE_PERFCOUNT registers. These two macros allow confirming equivalence without an
+// overwhelmingly large block of code
+#define STATIC_ASSERT_GE_PERFCOUNT_REGS(Ns, Idx) \
+    static_assert(((Gfx101::mmGE_PERFCOUNTER##Idx##_SELECT == Ns::mmGE_PERFCOUNTER##Idx##_SELECT) \
+                   && (Gfx101::mmGE_PERFCOUNTER##Idx##_LO == Ns::mmGE_PERFCOUNTER##Idx##_LO) \
+                   && (Gfx101::mmGE_PERFCOUNTER##Idx##_HI == Ns::mmGE_PERFCOUNTER##Idx##_HI)), \
+                   "mmGE_PERFCOUNTER registers do not match!");
+
+#define STATIC_ASSERT_GE_PERFCOUNT_SELECT1_REGS(Ns, Idx) \
+    static_assert(Gfx101::mmGE_PERFCOUNTER##Idx##_SELECT1 == Ns::mmGE_PERFCOUNTER##Idx##_SELECT1, \
+                    "mmGE_PERFCOUNTER SELECT1 registers do not match!");
+
 // =====================================================================================================================
 // A helper function which updates the UMCCH's block info with device-specific data.
 static void UpdateUmcchBlockInfo(
@@ -124,7 +136,7 @@ static void UpdateUmcchBlockInfo(
     if (IsGfx9(device))
     {
         // The first instance's registers are common to all ASICs, the rest are a total mess.
-        SET_UMCCH_INSTANCE_REGS(Core, 0);
+        SET_UMCCH_INSTANCE_REGS(Gfx09, 0);
         if (device.ChipProperties().familyId == FAMILY_AI)
         {
             SET_UMCCH_INSTANCE_REGS(Vega, 1);
@@ -175,8 +187,23 @@ static void UpdateUmcchBlockInfo(
     else if (IsGfx10(device)
             )
     {
-        SET_UMCCH_INSTANCE_REGS(Core,          0);
-        SET_UMCCH_INSTANCE_REGS(Gfx10CorePlus, 2);
+        static_assert((
+                (Gfx101::mmUMCCH0_PerfMonCtlClk == Gfx103CorePlus::mmUMCCH0_PerfMonCtlClk)  ||
+                (Gfx101::mmUMCCH0_PerfMonCtl1   == Gfx103CorePlus::mmUMCCH0_PerfMonCtl1)    ||
+                (Gfx101::mmUMCCH0_PerfMonCtl2   == Gfx103CorePlus::mmUMCCH0_PerfMonCtl2)    ||
+                (Gfx101::mmUMCCH0_PerfMonCtl3   == Gfx103CorePlus::mmUMCCH0_PerfMonCtl3)    ||
+                (Gfx101::mmUMCCH0_PerfMonCtl4   == Gfx103CorePlus::mmUMCCH0_PerfMonCtl4)    ||
+                (Gfx101::mmUMCCH0_PerfMonCtl5   == Gfx103CorePlus::mmUMCCH0_PerfMonCtl5)    ||
+                (Gfx101::mmUMCCH2_PerfMonCtlClk == Gfx103CorePlus::mmUMCCH2_PerfMonCtlClk)  ||
+                (Gfx101::mmUMCCH2_PerfMonCtl1   == Gfx103CorePlus::mmUMCCH2_PerfMonCtl1)    ||
+                (Gfx101::mmUMCCH2_PerfMonCtl2   == Gfx103CorePlus::mmUMCCH2_PerfMonCtl2)    ||
+                (Gfx101::mmUMCCH2_PerfMonCtl3   == Gfx103CorePlus::mmUMCCH2_PerfMonCtl3)    ||
+                (Gfx101::mmUMCCH2_PerfMonCtl4   == Gfx103CorePlus::mmUMCCH2_PerfMonCtl4)    ||
+                (Gfx101::mmUMCCH2_PerfMonCtl5   == Gfx103CorePlus::mmUMCCH2_PerfMonCtl5)),
+                "UMMCH0 and 2 regs don't match between Gfx101 and Gfx103CorePlus!");
+
+        SET_UMCCH_INSTANCE_REGS(Gfx101, 0);
+        SET_UMCCH_INSTANCE_REGS(Gfx101, 2);
 
         if (IsNavi21(device))
         {
@@ -852,7 +879,7 @@ static void Gfx9InitBasicBlockInfo(
     pGds->numGenericLegacyModules   = 3; // GDS_PERFCOUNTER1-3
     pGds->numSpmWires               = 2;
     pGds->spmBlockSelect            = Gfx9SpmGlobalBlockSelectGds;
-    pGds->maxEventId                = MaxGdsPerfcountSelectGfx10Core;
+    pGds->maxEventId                = MaxGdsPerfcountSelectGfx09;
 
     pGds->regAddr = { 0, {
         { Core::mmGDS_PERFCOUNTER0_SELECT, Core::mmGDS_PERFCOUNTER0_SELECT1, Core::mmGDS_PERFCOUNTER0_LO, Core::mmGDS_PERFCOUNTER0_HI },
@@ -1529,7 +1556,7 @@ static void Gfx10InitBasicBlockInfo(
     pRmi->spmBlockSelect            = Gfx10SpmSeBlockSelectRmi;
     pRmi->maxEventId                = maxIds[RMIPerfSelId];
 
-    if (IsGfx103Plus(device))
+    if (IsGfx103PlusExclusive(device))
     {
         // In gfx10.2+ there is only one RMI per RB. The RMI_PERFCOUNTER0/1 is only for read pipeline related counters
         // and RMI_PERCOUNTER2/3 is for write pipeline related counters. So in RMI_PERFCOUNTER0/1 all write related
@@ -1584,9 +1611,9 @@ static void Gfx10InitBasicBlockInfo(
     }
 
     // The following blocks are new or renamed in gfx10.
-    if (IsGfx103Plus(device))
+    if (IsGfx103PlusExclusive(device))
     {
-        using namespace Gfx103Plus;
+        using namespace Gfx103PlusExclusive;
         // Gfx10.3 split the GE perf counters into three independent units: GE1, GE2_DIST, and GE2_SE.
         PerfCounterBlockInfo*const pGe = &pInfo->block[static_cast<uint32>(GpuBlock::Ge)];
         pGe->distribution              = PerfCounterDistribution::GlobalBlock;

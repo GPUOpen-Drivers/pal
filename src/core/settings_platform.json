@@ -856,6 +856,46 @@
           "Type": "enum",
           "VariableName": "granularity",
           "Description": "Determines what granularity should be used for gathering performance data:  0: Per draw.  Each separate draw will be measured. 1: Per command buffer.  Whole command buffers will be grouped. 2: Per frame.  Whole frame will be grouped.  Useful to get a thread trace covering all command buffers across the universal and compute queues.  Pipeline stats cannot be gathered in this mode.  If you wish to gather a thread trace across multiple queues (i.e., including async compute work), you should also set requestDebugVmid."
+        },
+        {
+          "ValidValues": {
+            "IsEnum": true,
+            "Values": [
+              {
+                "Name": "GpuProfilerClockModeDefault",
+                "Value": 0,
+                "Description": "Do not change the clocks. This may break performance counters unless some power settings are disabled."
+              },
+              {
+                "Name": "GpuProfilerClockModeStable",
+                "Value": 1,
+                "Description": "Clocks are set to a constant amount which is known to be power and thermal sustainable. Can be much, much lower than peak clocks."
+              },
+              {
+                "Name": "GpuProfilerClockModePeak",
+                "Value": 2,
+                "Description": "Clocks set to maximum when possible. Downclocking may occur if the profiled workload is long."
+              },
+              {
+                "Name": "GpuProfilerClockModeMinMemory",
+                "Value": 3,
+                "Description": "Memory clock is set to the lowest available level. Other clocks are set to a stable level."
+              },
+              {
+                "Name": "GpuProfilerClockModeMinEngine",
+                "Value": 4,
+                "Description": "Engine clock is set to the lowest available level. Other clocks are set to a stable level."
+              }
+            ],
+            "Name": "GpuProfilerClockMode"
+          },
+          "Name": "ClockMode",
+          "Defaults": {
+            "Default": "GpuProfilerClockModePeak"
+          },
+          "Type": "enum",
+          "VariableName": "clockMode",
+          "Description": "What clock mode PAL should enable when profiling."
         }
       ],
       "Description": "Configuration options for the PAL GPU Profiler layer."

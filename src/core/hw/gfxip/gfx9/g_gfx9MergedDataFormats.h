@@ -12088,7 +12088,7 @@ constexpr MergedFlatFmtInfo Gfx10_3MergedChannelFmtInfoTbl[] =
     // ChNumFormat::X9Y9Z9E5_Float
     {
         ChNumFormat::X9Y9Z9E5_Float,       // ChNumFormat
-        Chip::COLOR_5_9_9_9__GFX103PLUS,   // CB Channel Format
+        Chip::COLOR_5_9_9_9__GFX103PLUSEXCLUSIVE, // CB Channel Format
         Chip::NUMBER_FLOAT,                // CB Numeric Format
         Chip::IMG_FMT_5_9_9_9_FLOAT__GFX10CORE, // Image Channel Format
         Chip::BUF_FMT_INVALID,             // Buffer Image Format

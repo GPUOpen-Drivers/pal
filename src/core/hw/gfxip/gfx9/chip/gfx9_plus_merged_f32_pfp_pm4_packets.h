@@ -1223,6 +1223,13 @@ typedef struct PM4_PFP_DMA_DATA
                 PFP_DMA_DATA_src_sel_enum          src_sel          :  2;
                 uint32_t                           cp_sync          :  1;
             };
+            struct
+            {
+                uint32_t reserved5    :  1;
+                uint32_t src_indirect :  1;
+                uint32_t dst_indirect :  1;
+                uint32_t reserved6    : 29;
+            } hasCe;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
@@ -1230,6 +1237,7 @@ typedef struct PM4_PFP_DMA_DATA
     union
     {
         uint32_t src_addr_lo_or_data;
+        uint32_t src_addr_offset;
         uint32_t u32All;
     } ordinal3;
 
@@ -1242,6 +1250,7 @@ typedef struct PM4_PFP_DMA_DATA
     union
     {
         uint32_t dst_addr_lo;
+        uint32_t dst_addr_offset;
         uint32_t u32All;
     } ordinal5;
 
@@ -3347,8 +3356,8 @@ typedef struct PM4_PFP_EXECUTE_INDIRECT
         {
             struct
             {
-                uint32_t spill_table_reg_offset3 : 16;
-                uint32_t reserved1               : 16;
+                uint32_t spill_table_reg_offset3    : 16;
+                uint32_t spill_table_instance_count : 16;
             } hasCe;
         } bitfields;
         uint32_t u32All;
@@ -3999,7 +4008,7 @@ typedef struct PM4_PFP_DRAW_INDEX_MULTI_INST
     } ordinal9;
 } PM4_PFP_DRAW_INDEX_MULTI_INST;
 
-constexpr unsigned int PM4_PFP_DRAW_INDEX_MULTI_INST_SIZEDW__GFX101 = 9;
+constexpr unsigned int PM4_PFP_DRAW_INDEX_MULTI_INST_SIZEDW__GFX101        = 9;
 
 // ----------------------------- PFP_LOAD_UCONFIG_REG_INDEX_index_enum -----------------------------
 enum PFP_LOAD_UCONFIG_REG_INDEX_index_enum

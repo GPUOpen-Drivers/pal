@@ -39,6 +39,15 @@
 
 namespace Util
 {
+static constexpr uint32 DefaultMsgSize = 1024;  ///< default max size for the main message
+
+/// By default, the final formatted message consists of: "<severity>:<main message>\r\n"
+/// Max size for severity = 8, which is strlen("Critical")
+/// So, default final msg size is:
+/// 8 + 1(for :) + DefaultMsgSize + 2(for \r\t) + 1(for null termination) = DefaultMsgSize + 12
+/// Individual loggers may override these defaults when implementing more sophisticated formatting scheme.
+static constexpr uint32 DefaultFinalMsgSize = DefaultMsgSize + 12;
+
 /// Provides simple formatting of the log message of the form: "<severity level>:<main msg>\r\t".
 /// The main msg conforms to a max size of 'msgSize' beyond which the main message will be truncated.
 /// It assumes that the input msg string is null terminated and formats only if there is enough space
@@ -162,7 +171,8 @@ protected:
         SeverityLevel   severity,
         OriginationType source)
     {
-        return ((severity >= m_cutoffSeverityLevel) && (static_cast<uint32>(source) & m_originationTypeMask));
+        const uint32 sourceFlag = (1ul << uint32(source));
+        return ((severity >= m_cutoffSeverityLevel) && (TestAnyFlagSet(m_originationTypeMask, sourceFlag)));
     }
 
     SeverityLevel        m_cutoffSeverityLevel;   ///< All messages below this SeverityLevel get filtered out.
@@ -179,7 +189,7 @@ protected:
 * 2. Initialize this logger with:           pDbgLoggerFile->Init("someFileName")
 * 3. Attach it with:                        AttachDbgLogger(pDbgLoggerFile)
 * 4. When done, detach it with:             DetachDbgLogger(pDbgLoggerFile)
-* 5. De-initialize with:                    g_pDbgLoggerFile->Cleanup();
+* 5. De-initialize with:                    pDbgLoggerFile->Cleanup();
 * 6. Delete this logger:                    PAL_SAFE_DELETE()
 ************************************************************************************************************************
 */
@@ -202,11 +212,14 @@ public:
 
     /// Initialize any data structures needed by the file logger.
     ///
-    /// @param [in]  pFileName    Name of the file where the messages will be logged
-    /// @returns Success if successful, otherwise an error code as returned by the
-    ///          file Open() operation.
+    /// @param [in]  pFileName      Name of the file where the messages will be logged
+    /// @param [in]  fileAccessMask Mask of file access modes
+    /// @returns Success if successful, otherwise returns one of the following codes:
+    ///          1. ErrorInvalidFlags - if fileAccessMask contains a file read mode
+    ///          2. An error code as returned by the file Open() operation.
     Result Init(
-        const char* pFileName);
+        const char* pFileName,
+        uint32      fileAccessMask);
 
     /// Cleanup any data structures used by the file logger.
     void Cleanup();

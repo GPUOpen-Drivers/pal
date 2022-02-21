@@ -200,6 +200,8 @@ struct SwapChainCreateInfo
                                                ///  access to the IScreen is required, that is the IScreen needs to call
                                                ///  AcquireScreenAccess before swap chain creation.
     ScreenColorSpace      colorSpace;          ///< Colorspace to create the swapchain in.
+    uint32                frameLatency;        ///< DXGI only, Number of presents that can be queued up.
+                                               ///  Final framelatency is defined as min(imageCount, frameLatency)
 
     IDevice*              pSlaveDevices[XdmaMaxDevices - 1]; ///< Array of up to XdmaMaxDevices minus one for the device
                                                              ///  that is creating this swap chain. These are additional

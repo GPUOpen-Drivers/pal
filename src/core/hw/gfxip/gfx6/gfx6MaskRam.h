@@ -446,8 +446,8 @@ public:
 
     void SetEnableCompression(uint32 val);
 
-    // Initial value for a DCC allocation.
-    static constexpr uint32 InitialValue = 0xFFFFFFFF;
+    static constexpr uint8 DecompressedValue = 0xFF;
+    uint8 GetInitialValue(const Image& image, SubresId subresId, ImageLayout layout) const;
 
 private:
     static Result ComputeDccInfo(
@@ -476,6 +476,8 @@ private:
     // Number of bytes of DCC memory that should be written for a fast-clear operation
     gpusize                   m_fastClearSize;
     regCB_COLOR0_DCC_CONTROL__VI  m_dccControl; // the DCC control reg for this DCC memory
+
+    DccInitialClearKind       m_clearKind;
 
     void SetControlReg(const Image& image, const SubResourceInfo& subResInfo);
 

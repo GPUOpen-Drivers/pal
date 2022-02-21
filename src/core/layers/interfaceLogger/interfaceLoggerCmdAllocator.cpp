@@ -70,6 +70,36 @@ Result CmdAllocator::Reset()
 }
 
 // =====================================================================================================================
+Result CmdAllocator::Trim(
+    uint32 allocTypeMask,
+    uint32 dynamicThreshold)
+{
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId       = InterfaceFunc::CmdAllocatorTrim;
+    funcInfo.objectId     = m_objectId;
+    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    const Result result   = CmdAllocatorDecorator::Trim(allocTypeMask, dynamicThreshold);
+    funcInfo.postCallTime = m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndValue("allocTypeMask", allocTypeMask);
+        pLogContext->KeyAndValue("dynamicThreshold", dynamicThreshold);
+        pLogContext->EndInput();
+
+        pLogContext->BeginOutput();
+        pLogContext->KeyAndEnum("result", result);
+        pLogContext->EndOutput();
+
+        m_pPlatform->LogEndFunc(pLogContext);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 void CmdAllocator::Destroy()
 {
     // Note that we can't time a Destroy call.

@@ -235,29 +235,47 @@ Result Device::CommitSettingsAndInit()
 }
 
 // =====================================================================================================================
-// Sets the device engine and memory clocks to the stable "profiling mode". Restored on false.
+// Sets the device engine and memory clocks to the configurable profiling clock mode. Restored on false.
 Result Device::ProfilingClockMode(
     bool enable)
 {
     Result result = Result::Success;
 
-    MutexAuto lock(&m_mutex);
+    const GpuProfilerClockMode profilerMode = GetPlatform()->PlatformSettings().gpuProfilerConfig.clockMode;
 
-    if (m_profilingModeEnabled != enable)
+    // We assume the clocks are already in the default mode when profiling is disabled. If we've been asked to run
+    // default clocks when profiling then that's the same as never changing the clock mode in the first place.
+    if (profilerMode != GpuProfilerClockModeDefault)
     {
-        m_profilingModeEnabled = enable;
+        MutexAuto lock(&m_mutex);
 
-        SetClockModeInput clockModeInput = {};
-        clockModeInput.clockMode = enable ? DeviceClockMode::Profiling : DeviceClockMode::Default;
-
-        result = SetClockMode(clockModeInput, nullptr);
-
-        // If the user sets the NeverChangeClockMode setting we'll get ErrorUnavailable. We shouldn't treat this as
-        // an actual error so that profiling can continue. It would be better to check the setting directly but it's
-        // an internal setting so we can't read it in the layer code.
-        if (result == Result::ErrorUnavailable)
+        if (m_profilingModeEnabled != enable)
         {
-            result = Result::Success;
+            m_profilingModeEnabled = enable;
+
+            constexpr DeviceClockMode ModeMap[5] =
+            {
+                DeviceClockMode::Default,       // GpuProfilerClockModeDefault
+                DeviceClockMode::Profiling,     // GpuProfilerClockModeStable
+                DeviceClockMode::Peak,          // GpuProfilerClockModePeak
+                DeviceClockMode::MinimumMemory, // GpuProfilerClockModeMinMemory
+                DeviceClockMode::MinimumEngine, // GpuProfilerClockModeMinEngine
+            };
+
+            PAL_ASSERT(profilerMode < ArrayLen(ModeMap));
+
+            SetClockModeInput clockModeInput = {};
+            clockModeInput.clockMode = enable ? ModeMap[profilerMode] : DeviceClockMode::Default;
+
+            result = SetClockMode(clockModeInput, nullptr);
+
+            // If the user sets the NeverChangeClockMode setting we'll get ErrorUnavailable. We shouldn't treat this as
+            // an actual error so that profiling can continue. It would be better to check the setting directly but it's
+            // an internal setting so we can't read it in the layer code.
+            if (result == Result::ErrorUnavailable)
+            {
+                result = Result::Success;
+            }
         }
     }
 

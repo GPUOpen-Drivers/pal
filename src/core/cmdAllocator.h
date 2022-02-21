@@ -60,6 +60,7 @@ public:
     void DestroyInternal();
 
     virtual Result Reset() override;
+    virtual Result Trim(uint32 allocTypeMask, uint32 dynamicThreshold) override;
 
     // CmdBuffers and CmdStreams will use these public functions to interact with the CmdAllocator.
     Result GetNewChunk(CmdAllocType allocType, bool systemMemory, CmdStreamChunk** ppChunk);
@@ -90,8 +91,12 @@ public:
     bool AutomaticMemoryReuse() const { return (m_flags.autoMemoryReuse != 0); }
     bool TrackBusyChunks() const      { return (m_flags.trackBusyChunks != 0); }
     bool LocalCommandData() const     { return (m_flags.localCmdData    != 0); }
+    bool AutoTrimMemory() const       { return (m_flags.autoTrimMemory  != 0); }
 
     uint64 LastPagingFence() const { return m_lastPagingFence; }
+
+    virtual Result QueryUtilizationInfo(
+        CmdAllocType type, CmdAllocatorUtilizationInfo* pUtilizationInfo) const override;
 
     static size_t GetPlacementSize(const CmdAllocatorCreateInfo& createInfo);
 
@@ -110,6 +115,8 @@ private:
 
         // All allocations for each alloc type are identical, so we can build the create info up-front.
         CmdStreamAllocationCreateInfo allocCreateInfo;
+
+        uint32 allocFreeThreshold; // Minimum number of free allocations to keep around.
     };
 
     // These internal functions are used to manage all types of chunks.
@@ -120,6 +127,9 @@ private:
     void TransferChunks(ChunkList* pFreeList, ChunkList* pSrcList);
     void FreeAllChunks();
     void FreeAllLinearAllocators();
+
+    // Free allocations where all chunks are idle. Keep at least allocFreeThreshold allocations.
+    void TrimMemory(CmdAllocInfo* const pAllocInfo, uint32 allocFreeThreshold);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     void PrintCommitLog() const;
@@ -133,7 +143,9 @@ private:
             uint32 trackBusyChunks :  1; // Indicates that the allocator will track which chunks are idle (for debugging
                                          // purposes, or for supporting 'autoMemoryReuse').
             uint32 localCmdData    :  1; // If CommandDataAlloc memory is allocated from the CPU-visible local heap.
-            uint32 reserved        : 29;
+            uint32 autoTrimMemory  :  1; // Indicates that the allocator will automatically trim down the allocations
+                                         // where all chunks are idle. A minimum of allocFreeThreshold is kept.
+            uint32 reserved        : 28;
         };
         uint32 u32All;
     }  m_flags;

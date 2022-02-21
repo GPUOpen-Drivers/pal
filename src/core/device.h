@@ -175,28 +175,20 @@ struct GangSubmitEngineSupportFlags
     };
 };
 
-// Supported scheduler modes.  Note that software scheduling is generally still available when
-// hardware scheduling (HWS) is supported, but using a mix of both software and hardware scheduling
-// simultaneously on the same engine may not work.
-enum class SchedulerMode : uint32
-{
-    Software  = 0,  // Software scheduling only
-    LegacyHws = 1,  // Legacy compute-only hardware scheduling (GFX8+)
-    MesHws    = 2,  // MES hardware scheduling (GFX10+)
-};
-
-// defines Video Hardware Scheduling Mode
-enum class VideoSchedulerMode : uint32
-{
-    Software  = 0,  // Video HWS Mode is disabled, Software scheduling only
-    LegacyHws = 1,
-    NormalHws = 2
-};
-
 struct HwsInfo
 {
-    SchedulerMode                mode;                   // Indicates which MES scheduler mode is active
-    VideoSchedulerMode           videoHwsMode;           // Indicates which Video UMSCH mode is active
+    union
+    {
+        struct
+        {
+            uint32 gfxHwsEnabled     : 1;                // flag graphic engine enablement using OS HWS (MES)
+            uint32 computeHwsEnabled : 1;                // flag compute engine enablement using OS HWS (MES)
+            uint32 dmaHwsEnabled     : 1;                // flag dma engine enablement using OS HWS (MES)
+            uint32 vcnHwsEnabled     : 1;                // flag vcn engine enablement using OS HWS (MM HWS)
+            uint32 reserved          : 28;
+        };
+        uint32 osHwsEnableFlags;
+    };
     HwsContextInfo               gfx;                    // Graphics HWS context info
     HwsContextInfo               compute;                // Compute HWS context info
     HwsContextInfo               sdma;                   // SDMA HWS context info
@@ -1710,9 +1702,6 @@ public:
     const HwsInfo& GetHwsInfo() const { return m_hwsInfo; }
     const PerfExperimentProperties& PerfProperties() const { return m_perfExperimentProperties; }
 
-    SchedulerMode GetSchedulerMode() const { return m_hwsInfo.mode; }
-    VideoSchedulerMode  GetVideoHwsMode()  const { return m_hwsInfo.videoHwsMode; }
-
     InternalMemMgr* MemMgr() { return &m_memMgr; }
 
     // Returns the internal tracked command allocator except for engines that do not support tracking.
@@ -2548,6 +2537,15 @@ inline bool IsGfx103(const Device& device)
 {
     return (device.ChipProperties().gfxLevel == GfxIpLevel::GfxIp10_3);
 }
+constexpr bool IsGfx103Derivative(GfxIpLevel gfxLevel)
+{
+    return ((gfxLevel == GfxIpLevel::GfxIp10_3)
+           );
+}
+inline bool IsGfx103Derivative(const Device& device)
+{
+    return (IsGfx103Derivative(device.ChipProperties().gfxLevel));
+}
 inline bool IsGfx103Plus(GfxIpLevel gfxLevel)
 {
     return (gfxLevel > GfxIpLevel::GfxIp10_1);
@@ -2555,6 +2553,24 @@ inline bool IsGfx103Plus(GfxIpLevel gfxLevel)
 inline bool IsGfx103Plus(const Device& device)
 {
     return IsGfx103Plus(device.ChipProperties().gfxLevel);
+}
+constexpr bool IsGfx103PlusExclusive(GfxIpLevel gfxLevel)
+{
+    return ((gfxLevel > GfxIpLevel::GfxIp10_1)
+           );
+}
+inline bool IsGfx103PlusExclusive(const Device& device)
+{
+    return IsGfx103PlusExclusive(device.ChipProperties().gfxLevel);
+}
+constexpr bool IsGfx103CorePlus(GfxIpLevel gfxLevel)
+{
+    return ((gfxLevel > GfxIpLevel::GfxIp10_3)
+            );
+}
+inline bool IsGfx103CorePlus(const Device& device)
+{
+    return (IsGfx103CorePlus(device.ChipProperties().gfxLevel));
 }
 constexpr bool IsGfx101(GfxIpLevel gfxLevel)
 {

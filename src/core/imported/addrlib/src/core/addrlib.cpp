@@ -163,14 +163,8 @@ ADDR_E_RETURNCODE Lib::Create(
             case CIASICIDGFXENGINE_SOUTHERNISLAND:
                 switch (pCreateIn->chipFamily)
                 {
-                    case FAMILY_SI:
-                        pLib = SiHwlInit(&client);
-                        break;
 #if ADDR_CI_BUILD
-                    case FAMILY_VI:
-                    case FAMILY_CZ:
-                    case FAMILY_CI:
-                    case FAMILY_KV:
+                    case FAMILY_POLARIS:
                         pLib = CiHwlInit(&client);
                         break;
 #endif

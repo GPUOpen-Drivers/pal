@@ -336,8 +336,8 @@ void StreamoutStatsQueryPool::OptimizedReset(
     tsDmaData.sync         = 1;
     tsDmaData.usePfp       = false;
 
-    pCmdSpace += cmdUtil.BuildDmaData(dmaData, pCmdSpace);
-    pCmdSpace += cmdUtil.BuildDmaData(tsDmaData, pCmdSpace);
+    pCmdSpace += cmdUtil.BuildDmaData<false>(dmaData, pCmdSpace);
+    pCmdSpace += cmdUtil.BuildDmaData<false>(tsDmaData, pCmdSpace);
 
     pCmdStream->CommitCommands(pCmdSpace);
 }

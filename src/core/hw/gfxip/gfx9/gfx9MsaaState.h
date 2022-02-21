@@ -79,9 +79,9 @@ protected:
 
     void Init(const Device& device, const MsaaStateCreateInfo& msaaState);
 
-    uint32             m_log2Samples;
-    uint32             m_log2OcclusionQuerySamples;
-    regPA_SC_AA_CONFIG m_paScAaConfig; // This register is only written in the draw-time validation code.
+    uint32              m_log2Samples;
+    uint32              m_log2OcclusionQuerySamples;
+    regPA_SC_AA_CONFIG  m_paScAaConfig; // This register is only written in the draw-time validation code.
 
     union
     {

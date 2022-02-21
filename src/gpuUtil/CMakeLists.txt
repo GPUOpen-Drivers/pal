@@ -32,4 +32,5 @@ target_sources(pal PRIVATE
     gpuUtil.cpp
     traceSession.cpp
     asicInfoTraceSource.cpp
+    uberTraceService.cpp
 )

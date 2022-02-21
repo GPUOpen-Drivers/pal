@@ -2410,9 +2410,6 @@ PlatformDecorator::PlatformDecorator(
     m_pClientPrivateData(nullptr),
     m_installDeveloperCb(installDeveloperCb),
     m_layerEnabled(isLayerEnabled),
-#if PAL_BUILD_RDF
-    m_pTraceSession(nullptr),
-#endif
     m_logDirCreated(false)
 {
     memset(&m_pDevices[0], 0, sizeof(m_pDevices));
@@ -2579,7 +2576,6 @@ void PAL_STDCALL PlatformDecorator::DefaultDeveloperCb(
     case Developer::CallbackType::BarrierBegin:
     case Developer::CallbackType::BarrierEnd:
         break;
-
     default:
         // If we are here, there is a callback we haven't implemented above!
         PAL_ASSERT_ALWAYS();

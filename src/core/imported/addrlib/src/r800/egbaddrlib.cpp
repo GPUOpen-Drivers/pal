@@ -568,52 +568,6 @@ BOOL_32 EgBasedLib::ComputeSurfaceInfoMacroTiled(
             }
         }
 
-        if ((pIn->flags.needEquation == TRUE) &&
-            (m_chipFamily == ADDR_CHIP_FAMILY_SI) &&
-            (pIn->numMipLevels > 1) &&
-            (pIn->mipLevel == 0))
-        {
-            BOOL_32 convertTo1D = FALSE;
-
-            ADDR_ASSERT(Thickness(expTileMode) == 1);
-
-            for (UINT_32 i = 1; i < pIn->numMipLevels; i++)
-            {
-                UINT_32 mipPitch = Max(1u, paddedPitch >> i);
-                UINT_32 mipHeight = Max(1u, pIn->height >> i);
-                UINT_32 mipSlices = pIn->flags.volume ?
-                                    Max(1u, pIn->numSlices >> i) : pIn->numSlices;
-                expTileMode = ComputeSurfaceMipLevelTileMode(expTileMode,
-                                                             pIn->bpp,
-                                                             mipPitch,
-                                                             mipHeight,
-                                                             mipSlices,
-                                                             numSamples,
-                                                             pOut->blockWidth,
-                                                             pOut->blockHeight,
-                                                             pOut->pTileInfo);
-
-                if (IsMacroTiled(expTileMode))
-                {
-                    if (PowTwoAlign(mipPitch, pOut->blockWidth) !=
-                        PowTwoAlign(mipPitch, pOut->pitchAlign))
-                    {
-                        convertTo1D = TRUE;
-                        break;
-                    }
-                }
-                else
-                {
-                    break;
-                }
-            }
-
-            if (convertTo1D)
-            {
-                return ComputeSurfaceInfoMicroTiled(pIn, pOut, padDims, ADDR_TM_1D_TILED_THIN1);
-            }
-        }
-
         pOut->pitch = paddedPitch;
         // Put this check right here to workaround special mipmap cases which the original height
         // is needed.
@@ -2124,7 +2078,7 @@ VOID EgBasedLib::HwlComputePixelCoordFromOffset(
     }
     else
     {
-        ADDR_ASSERT((m_chipFamily >= ADDR_CHIP_FAMILY_CI) && (thickness > 1));
+        ADDR_ASSERT((m_chipFamily >= ADDR_CHIP_FAMILY_POLARIS) && (thickness > 1));
         /*
             8-Bit Elements and 16-Bit Elements
             element_index[7:0] = { y[2], x[2], z[1], z[0], y[1], x[1], y[0], x[0] }

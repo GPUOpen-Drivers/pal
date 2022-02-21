@@ -30,6 +30,7 @@
 #include "palAutoBuffer.h"
 #include "palFile.h"
 #include "palPipelineAbiReader.h"
+#include "palIterator.h"
 
 using namespace Util;
 using namespace Util::Abi;
@@ -209,12 +210,8 @@ void Pipeline::Destroy()
             {
                 uint32 mapping = m_apiHwMapping.apiShaders[i];
 
-                uint32 bitIndex = 0;
-                while (Util::BitMaskScanForward(&bitIndex, mapping))
+                for (uint32 bitIndex : BitIter32(mapping))
                 {
-                    // We need to mask off the bit we just found to prevent an infinite loop.
-                    mapping &= ~(1 << bitIndex);
-
                     const HardwareStage hwStage = static_cast<HardwareStage>(bitIndex);
 
                     size_t size   = 0;

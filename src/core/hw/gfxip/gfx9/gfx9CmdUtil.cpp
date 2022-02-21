@@ -440,7 +440,7 @@ bool CmdUtil::CanUseCsPartialFlush(
 bool CmdUtil::HasEnhancedLoadShRegIndex() const
 {
     // This was only implemented on gfx10.3+.
-    return ((m_cpUcodeVersion >= Gfx103UcodeVersionLoadShRegIndexIndirectAddr) && IsGfx103Plus(m_gfxIpLevel));
+    return ((m_cpUcodeVersion >= Gfx103UcodeVersionLoadShRegIndexIndirectAddr) && IsGfx103CorePlus(m_gfxIpLevel));
 }
 
 // =====================================================================================================================
@@ -1338,21 +1338,18 @@ size_t CmdUtil::BuildExecuteIndirect(
     packet.ordinal8.stride                                = packetInfo.argumentBufferStrideBytes;
     packet.ordinal9.data_addr_lo                          = LowPart(packetInfo.argumentBufferAddr);
     packet.ordinal10.bitfields.hasCe.data_addr_hi         = HighPart(packetInfo.argumentBufferAddr);
-    packet.ordinal10.bitfields.hasCe.spill_table_stride   = pSignature->userDataLimit - pSignature->spillThreshold;
+    packet.ordinal10.bitfields.hasCe.spill_table_stride   = packetInfo.spillTableStrideBytes;
     packet.ordinal11.spill_table_addr_lo                  = LowPart(packetInfo.spillTableAddr);
     packet.ordinal12.bitfields.hasCe.spill_table_addr_hi  = HighPart(packetInfo.spillTableAddr);
     if (packetInfo.spillTableAddr != 0)
     {
-        packet.ordinal12.bitfields.hasCe.spill_table_reg_offset0 =
-            (pSignature->stage[0].spillTableRegAddr - PERSISTENT_SPACE_START);
-        packet.ordinal13.bitfields.hasCe.spill_table_reg_offset1 =
-            (pSignature->stage[1].spillTableRegAddr - PERSISTENT_SPACE_START);
-        packet.ordinal13.bitfields.hasCe.spill_table_reg_offset2 =
-            (pSignature->stage[2].spillTableRegAddr - PERSISTENT_SPACE_START);
-        packet.ordinal14.bitfields.hasCe.spill_table_reg_offset3 =
-            (pSignature->stage[3].spillTableRegAddr - PERSISTENT_SPACE_START);
+        packet.ordinal12.bitfields.hasCe.spill_table_reg_offset0 = ShRegOffset(pSignature->stage[0].spillTableRegAddr);
+        packet.ordinal13.bitfields.hasCe.spill_table_reg_offset1 = ShRegOffset(pSignature->stage[1].spillTableRegAddr);
+        packet.ordinal13.bitfields.hasCe.spill_table_reg_offset2 = ShRegOffset(pSignature->stage[2].spillTableRegAddr);
+        packet.ordinal14.bitfields.hasCe.spill_table_reg_offset3 = ShRegOffset(pSignature->stage[3].spillTableRegAddr);
+        packet.ordinal14.bitfields.hasCe.spill_table_instance_count = packetInfo.spillTableInstanceCnt;
     }
-    packet.ordinal15.untyped_srd_dword3                = packetInfo.untypedSrdDword3;
+    packet.ordinal15.untyped_srd_dword3                   = packetInfo.untypedSrdDword3;
 
     memcpy(pBuffer, &packet, PacketSize * sizeof(uint32));
     return PacketSize;
@@ -1932,6 +1929,7 @@ size_t CmdUtil::BuildDispatchTaskMeshDirectAce(
 // =====================================================================================================================
 // Constructs a DMA_DATA packet for any engine (PFP, ME, MEC).  Copies data from the source (can be immediate 32-bit
 // data or a memory location) to a destination (either memory or a register).
+template<bool indirectAddress>
 size_t CmdUtil::BuildDmaData(
     DmaDataInfo&  dmaDataInfo,
     void*         pBuffer) // [out] Build the PM4 packet in this buffer.
@@ -1989,14 +1987,27 @@ size_t CmdUtil::BuildDmaData(
         packet.ordinal3.src_addr_lo_or_data = dmaDataInfo.srcData;
         packet.ordinal4.src_addr_hi         = 0; // ignored for data
     }
+    else if (indirectAddress)
+    {
+        packet.ordinal2.bitfields.hasCe.src_indirect     = 1;
+        packet.ordinal2.bitfields.hasCe.dst_indirect     = 1;
+        packet.ordinal3.src_addr_offset                  = dmaDataInfo.srcOffset;
+        packet.ordinal4.src_addr_hi                      = 0; // ignored for data
+    }
     else
     {
         packet.ordinal3.src_addr_lo_or_data = LowPart(dmaDataInfo.srcAddr);
         packet.ordinal4.src_addr_hi         = HighPart(dmaDataInfo.srcAddr);
     }
 
-    packet.ordinal5.dst_addr_lo          = LowPart(dmaDataInfo.dstAddr);
-    packet.ordinal6.dst_addr_hi          = HighPart(dmaDataInfo.dstAddr);
+    packet.ordinal5.dst_addr_lo         = LowPart(dmaDataInfo.dstAddr);
+    packet.ordinal6.dst_addr_hi         = HighPart(dmaDataInfo.dstAddr);
+    if (indirectAddress)
+    {
+        packet.ordinal5.dst_addr_lo                      = dmaDataInfo.dstOffset;
+        packet.ordinal6.dst_addr_hi                      = 0; // ignored for data
+    }
+
     packet.ordinal7.u32All               = 0;
     packet.ordinal7.bitfields.byte_count = dmaDataInfo.numBytes;
     packet.ordinal7.bitfields.sas        = dmaDataInfo.srcAddrSpace;
@@ -2008,6 +2019,16 @@ size_t CmdUtil::BuildDmaData(
 
     return PacketSize;
 }
+
+template
+size_t CmdUtil::BuildDmaData<true>(
+    DmaDataInfo& dmaDataInfo,
+    void*        pBuffer);
+
+template
+size_t CmdUtil::BuildDmaData<false>(
+    DmaDataInfo& dmaDataInfo,
+    void*        pBuffer);
 
 // =====================================================================================================================
 // Builds a PM4 constant engine command to dump the specified amount of data from CE RAM into GPU memory through the L2
@@ -2924,7 +2945,9 @@ size_t CmdUtil::BuildLoadShRegsIndex(
     pPacket->ordinal2.u32All        = 0;
     if (directAddress)
     {
-        pPacket->ordinal2.bitfields.gfx103CorePlus.index = index__pfp_load_sh_reg_index__direct_addr;
+        {
+            pPacket->ordinal2.bitfields.gfx103CorePlus.index = index__pfp_load_sh_reg_index__direct_addr;
+        }
         pPacket->ordinal2.bitfields.mem_addr_lo          = LowPart(gpuVirtAddrOrAddrOffset);
         pPacket->ordinal3.mem_addr_hi                    = HighPart(gpuVirtAddrOrAddrOffset);
         // Only the low 16 bits of addrOffset are honored for the high portion of the GPU virtual address!
@@ -3891,7 +3914,7 @@ size_t CmdUtil::BuildWaitDmaData(
     dmaDataInfo.sync     = true;
     dmaDataInfo.usePfp   = false;
 
-    return BuildDmaData(dmaDataInfo, pBuffer);
+    return BuildDmaData<false>(dmaDataInfo, pBuffer);
 }
 
 // =====================================================================================================================
@@ -4403,7 +4426,7 @@ void CmdUtil::BuildPipelinePrefetchPm4(
             dmaDataInfo.numBytes     = prefetchSize;
             dmaDataInfo.disWc        = true;
 
-            pOutput->spaceNeeded = static_cast<uint32>(BuildDmaData(dmaDataInfo, &pOutput->dmaData));
+            pOutput->spaceNeeded = static_cast<uint32>(BuildDmaData<false>(dmaDataInfo, &pOutput->dmaData));
         }
         else
         {
@@ -4463,7 +4486,7 @@ size_t CmdUtil::BuildPrimeGpuCaches(
         dmaDataInfo.numBytes     = prefetchSize;
         dmaDataInfo.disWc        = true;
 
-        packetSize = BuildDmaData(dmaDataInfo, pBuffer);
+        packetSize = BuildDmaData<false>(dmaDataInfo, pBuffer);
     }
     else
     {

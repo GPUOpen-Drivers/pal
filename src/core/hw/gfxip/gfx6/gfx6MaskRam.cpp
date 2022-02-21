@@ -1077,7 +1077,8 @@ Gfx6Dcc::Gfx6Dcc()
     MaskRam(),
     m_flags(),
     m_fastClearSize(0),
-    m_dccControl()
+    m_dccControl(),
+    m_clearKind(DccInitialClearKind::Uncompressed)
 {
 }
 
@@ -1310,6 +1311,13 @@ Result Gfx6Dcc::Init(
 
     // We disable DCC memory for mipmapped arrays due to bad performance, see UseDccForImage().
     PAL_ASSERT ((imageCreateInfo.arraySize == 1) || (mipLevel == 0));
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 706
+    // Save away the initial clear behavior
+    m_clearKind = static_cast<DccInitialClearKind>(device.GetPublicSettings()->dccInitialClearKind);
+#else
+    m_clearKind = DccInitialClearKind::Uncompressed;
+#endif
 
     // First pass is to calculate DCC memory size of all array slices. This should be *actual* arraySize of this mip,
     // But we disable DCC memory for mipmaped arrays, which might cause *extra* slice padding. For tex3d, the arraySize
@@ -1683,7 +1691,42 @@ uint32 Gfx6Dcc::GetFastClearCode(
     // DCC memory is organized in bytes from the HW perspective; however, the caller expects the clear code to be a
     // DWORD value, so replicate the clear code byte value across all four positions.
     uint8 clearCodeVal = static_cast<uint8>(clearCode);
-    return ((clearCodeVal << 24) | (clearCodeVal << 16) | (clearCodeVal <<  8) | (clearCodeVal <<  0));
+    return ReplicateByteAcrossDword(clearCodeVal);
+}
+
+// =====================================================================================================================
+uint8 Gfx6Dcc::GetInitialValue(
+    const Image& image,
+    SubresId     subRes,
+    ImageLayout  layout
+    ) const
+{
+    // If nothing else applies, initialize to "uncompressed"
+    uint8 initialValue = Gfx6Dcc::DecompressedValue;
+    bool isForceEnabled = TestAnyFlagSet(static_cast<uint32>(m_clearKind),
+                                         static_cast<uint32>(DccInitialClearKind::ForceBit));
+
+    if ((m_clearKind != DccInitialClearKind::Uncompressed) &&
+        ((ImageLayoutToColorCompressionState(image.LayoutToColorCompressionState(subRes), layout)
+           != ColorDecompressed) ||
+         isForceEnabled))
+    {
+        switch (m_clearKind)
+        {
+            case DccInitialClearKind::ForceOpaqueBlack:
+            case DccInitialClearKind::OpaqueBlack:
+                initialValue = static_cast<uint8>(Gfx8DccClearColor::ClearColor0001);
+                break;
+            case DccInitialClearKind::ForceOpaqueWhite:
+            case DccInitialClearKind::OpaqueWhite:
+                initialValue = static_cast<uint8>(Gfx8DccClearColor::ClearColor1111);
+                break;
+            default:
+                PAL_ASSERT_ALWAYS();
+        }
+    }
+
+    return initialValue;
 }
 
 // =====================================================================================================================

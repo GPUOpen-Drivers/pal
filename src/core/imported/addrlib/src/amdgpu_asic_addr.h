@@ -34,12 +34,7 @@
 
 #define FAMILY_UNKNOWN 0x00
 #define FAMILY_TN      0x69
-#define FAMILY_SI      0x6E
-#define FAMILY_CI      0x78
-#define FAMILY_KV      0x7D
-#define FAMILY_VI      0x82
 #define FAMILY_POLARIS 0x82
-#define FAMILY_CZ      0x87
 #if ADDR_GFX9_BUILD
 #define FAMILY_AI      0x8D
 #endif
@@ -51,12 +46,7 @@
 // AMDGPU_FAMILY_IS(familyId, familyName)
 #define FAMILY_IS(f, fn)     (f == FAMILY_##fn)
 #define FAMILY_IS_TN(f)      FAMILY_IS(f, TN)
-#define FAMILY_IS_SI(f)      FAMILY_IS(f, SI)
-#define FAMILY_IS_CI(f)      FAMILY_IS(f, CI)
-#define FAMILY_IS_KV(f)      FAMILY_IS(f, KV)
-#define FAMILY_IS_VI(f)      FAMILY_IS(f, VI)
 #define FAMILY_IS_POLARIS(f) FAMILY_IS(f, POLARIS)
-#define FAMILY_IS_CZ(f)      FAMILY_IS(f, CZ)
 #if ADDR_GFX9_BUILD
 #define FAMILY_IS_AI(f)      FAMILY_IS(f, AI)
 #endif
@@ -127,22 +117,7 @@
 
 // ASICREV_IS(eRevisionId, revisionName)
 #define ASICREV_IS(r, rn)              AMDGPU_IN_RANGE(r, AMDGPU_##rn##_RANGE)
-#define ASICREV_IS_TAHITI_P(r)         ASICREV_IS(r, TAHITI)
-#define ASICREV_IS_PITCAIRN_PM(r)      ASICREV_IS(r, PITCAIRN)
-#define ASICREV_IS_CAPEVERDE_M(r)      ASICREV_IS(r, CAPEVERDE)
-#define ASICREV_IS_OLAND_M(r)          ASICREV_IS(r, OLAND)
-#define ASICREV_IS_HAINAN_V(r)         ASICREV_IS(r, HAINAN)
-
-#define ASICREV_IS_BONAIRE_M(r)        ASICREV_IS(r, BONAIRE)
-#define ASICREV_IS_HAWAII_P(r)         ASICREV_IS(r, HAWAII)
-
-#define ASICREV_IS_SPECTRE(r)          ASICREV_IS(r, SPECTRE)
-#define ASICREV_IS_SPOOKY(r)           ASICREV_IS(r, SPOOKY)
-#define ASICREV_IS_KALINDI(r)          ASICREV_IS(r, KALINDI)
 #define ASICREV_IS_KALINDI_GODAVARI(r) ASICREV_IS(r, GODAVARI)
-
-#define ASICREV_IS_ICELAND_M(r)        ASICREV_IS(r, ICELAND)
-#define ASICREV_IS_TONGA_P(r)          ASICREV_IS(r, TONGA)
 #define ASICREV_IS_FIJI_P(r)           ASICREV_IS(r, FIJI)
 
 #define ASICREV_IS_POLARIS10_P(r)      ASICREV_IS(r, POLARIS10)

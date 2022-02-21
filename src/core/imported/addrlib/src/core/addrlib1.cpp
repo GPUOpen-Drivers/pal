@@ -137,9 +137,9 @@ Lib* Lib::GetLib(
     Addr::Lib* pAddrLib = Addr::Lib::GetLib(hLib);
     if ((pAddrLib != NULL) &&
         ((pAddrLib->GetChipFamily() == ADDR_CHIP_FAMILY_IVLD) ||
-         (pAddrLib->GetChipFamily() > ADDR_CHIP_FAMILY_VI)))
+         (pAddrLib->GetChipFamily() > ADDR_CHIP_FAMILY_POLARIS)))
     {
-        // only valid and pre-VI ASIC can use AddrLib1 function.
+        // only valid and Polaris ASICs can use AddrLib1 functions.
         ADDR_ASSERT_ALWAYS();
         hLib = NULL;
     }

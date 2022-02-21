@@ -90,13 +90,20 @@ uint32* MsaaState::WriteCommands(
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_SC_MODE_CNTL_0, m_regs.paScModeCntl0.u32All, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_ALPHA_TO_MASK, m_regs.dbAlphaToMask.u32All, pCmdSpace);
 
-    if (m_flags.waFixPostZConservativeRasterization != 0)
-    {
-        pCmdSpace = pCmdStream->WriteContextRegRmw(Gfx10Plus::mmDB_RESERVED_REG_2,
-                                                   static_cast<uint32>(~Gfx10Plus::DB_RESERVED_REG_2__FIELD_1_MASK),
-                                                   m_regs.dbReservedReg2,
-                                                   pCmdSpace);
-    }
+        if (m_flags.waFixPostZConservativeRasterization != 0)
+        {
+            uint32 dbReservedReg2Mask = static_cast<uint32_t>(~Gfx101::DB_RESERVED_REG_2__FIELD_1_MASK);
+
+            static_assert(Gfx101::mmDB_RESERVED_REG_2 == Gfx103PlusExclusive::mmDB_RESERVED_REG_2,
+                    "Register offset for DB_RESERVED_REG_2 do not match between Gfx101 and Gfx103Plus");
+            static_assert(Gfx101::DB_RESERVED_REG_2__FIELD_1_MASK == Gfx103PlusExclusive::DB_RESERVED_REG_2__FIELD_1_MASK,
+                    "Register offsets for DB_RESERVED_REG_2__FIELD_1_MASK do not match between Gfx101 and Gfx103Plus");
+
+            pCmdSpace = pCmdStream->WriteContextRegRmw(Gfx101::mmDB_RESERVED_REG_2,
+                                                       dbReservedReg2Mask,
+                                                       m_regs.dbReservedReg2,
+                                                       pCmdSpace);
+        }
 
     return pCmdSpace;
 }
@@ -242,7 +249,10 @@ void MsaaState::Init(
         //    lit.  The SWA would require that when PA_SC_AA_MASK_AA_MASK is partially lit with the number of
         //    samples defined by PA_SC_AA_CONFIG_MSAA_EXPOSED_SAMPLES, software would need to write the corresponding
         //    "PARTIALLY LIT" bit for that context.
-        m_regs.dbReservedReg2 = Gfx10Plus::DB_RESERVED_REG_2__FIELD_1_MASK & 0x1;
+
+        // NOTE: A check to confirm equivalence b/w DB_RESERVED_REG_2__FIELD_1_MASK offset for Gfx101 and Gfx103 is
+        //       already performed in WriteCommands() above.
+        m_regs.dbReservedReg2 = Gfx101::DB_RESERVED_REG_2__FIELD_1_MASK & 0x1;
     }
 
     if (settings.waWrite1xAASampleLocationsToZero && (m_log2Samples == 0) && (usedMask != 0))

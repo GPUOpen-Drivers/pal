@@ -59,6 +59,7 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::BorderColorPaletteBindGpuMemory,               (BindMem)             },
     { InterfaceFunc::BorderColorPaletteDestroy,                     (CrtDstry | BindMem)  },
     { InterfaceFunc::CmdAllocatorReset,                             (GenCalls | CmdBuild) },
+    { InterfaceFunc::CmdAllocatorTrim,                              (GenCalls | CmdBuild) },
     { InterfaceFunc::CmdAllocatorDestroy,                           (CrtDstry | CmdBuild) },
     { InterfaceFunc::CmdBufferBegin,                                (CmdBuild)            },
     { InterfaceFunc::CmdBufferEnd,                                  (CmdBuild)            },

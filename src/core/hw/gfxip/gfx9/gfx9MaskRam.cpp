@@ -32,6 +32,7 @@
 #include "core/addrMgr/addrMgr2/addrMgr2.h"
 #include "palMath.h"
 #include "palAutoBuffer.h"
+#include "palIterator.h"
 
 #include <limits.h>
 
@@ -196,7 +197,7 @@ uint32 Gfx9MaskRam::GetMetaBlockSize(
     const uint32           bppLog2               = GetBytesPerPixelLog2();
     const uint32           numSamplesLog2        = GetNumSamplesLog2();
     uint32                 numPipesLog2          = m_pGfxDevice->GetNumPipesLog2();
-    const uint32           numShaderArraysLog2   = IsGfx103Plus(*pPalDevice)
+    const uint32           numShaderArraysLog2   = IsGfx103PlusExclusive(*pPalDevice)
                                                    ? m_pEqGenerator->GetNumShaderArrayLog2()
                                                    : 0;
     const uint32           effectiveNumPipesLog2 = m_pEqGenerator->GetEffectiveNumPipes();
@@ -939,9 +940,10 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx9()
     // After meta equation calculation is done extract meta equation parameter information
     m_meta.GenerateMetaEqParamConst(m_pParent->GetImage(), maxFragsLog2, m_firstUploadBit, &m_metaEqParam);
 
-    // For some reason, the number of samples addressed by the equation sometimes differs from the number of
-    // samples associated with the data-surface.  Still seems to work...
-    PAL_ALERT (m_effectiveSamples != (1u << numSamplesLog2));
+    // m_effectiveSamples == 1 means that samples do not affect the equation's formula; assert if there is some other
+    // discrepancy between m_effectiveSamples and numSamplesLog2.
+    PAL_ASSERT ((m_effectiveSamples == 1) ||
+                ((m_effectiveSamples > 1) && (m_effectiveSamples == (1u << numSamplesLog2))));
 }
 
 // =====================================================================================================================
@@ -1107,9 +1109,8 @@ void Gfx9MetaEqGenerator::MergePipeAndRbEq(
                                  localPipeCompType++)
                     {
                         uint32  eqData = pPipe->Get(pipeAddrBit, localPipeCompType);
-                        uint32  lowPipeBit;
 
-                        while (BitMaskScanForward(&lowPipeBit, eqData))
+                        for (uint32 lowPipeBit : BitIter32(eqData))
                         {
                             const CompPair  localPipePair =
                                     MetaDataAddrEquation::SetCompPair(localPipeCompType, lowPipeBit);
@@ -1121,8 +1122,6 @@ void Gfx9MetaEqGenerator::MergePipeAndRbEq(
                                 pRb->SetBit(rbAddrBit, localPipePair.compType, localPipePair.compPos);
                                 SetRbAppendedBit(rbAddrBit, 1);
                             }
-
-                            eqData &= ~(1 << lowPipeBit);
                         }
                     }
                 }
@@ -1289,7 +1288,7 @@ void Gfx9MetaEqGenerator::AddMetaPipeBits(
     const uint32           effectiveNumPipesLog2       = GetEffectiveNumPipes();
     const uint32           numPipesLog2                = m_pParent->GetGfxDevice()->GetNumPipesLog2();
     const uint32           numSamplesLog2              = m_pParent->GetNumSamplesLog2();
-    const uint32           numShaderArraysLog2         = IsGfx103Plus(*pPalDevice) ? GetNumShaderArrayLog2() : 0;
+    const uint32           numShaderArraysLog2         = IsGfx103PlusExclusive(*pPalDevice) ? GetNumShaderArrayLog2() : 0;
     const uint32           pipeInterleaveLog2          = m_pParent->GetGfxDevice()->GetPipeInterleaveLog2();
     const uint32           startBase                   = 8;
     const uint32           endBase                     = startBase + effectiveNumPipesLog2;
@@ -2408,7 +2407,7 @@ uint32 Gfx9MetaEqGenerator::GetPipeBlockSize() const
 uint32 Gfx9MetaEqGenerator::GetEffectiveNumPipes() const
 {
     const uint32 numPipesLog2 = m_pParent->GetGfxDevice()->GetNumPipesLog2();
-    const uint32 numSaLog2    = IsGfx103Plus(*(m_pParent->GetGfxDevice()->Parent())) ? GetNumShaderArrayLog2() : 0;
+    const uint32 numSaLog2    = IsGfx103PlusExclusive(*(m_pParent->GetGfxDevice()->Parent())) ? GetNumShaderArrayLog2() : 0;
 
     uint32 effectiveNumPipes = 0;
 
@@ -2513,7 +2512,7 @@ void Gfx9MetaEqGenerator::GetMicroBlockSize(
 // Returns log2 of the total number of shader arrays on the GPU.
 uint32 Gfx9MetaEqGenerator::GetNumShaderArrayLog2() const
 {
-    return m_pParent->GetGfxDevice()->Gfx103PlusGetNumActiveShaderArraysLog2();
+    return m_pParent->GetGfxDevice()->Gfx103PlusExclusiveGetNumActiveShaderArraysLog2();
 }
 
 // =====================================================================================================================
@@ -2558,7 +2557,7 @@ uint32 Gfx9MetaEqGenerator::GetPipeRotateAmount() const
 {
     const Pal::Device*  pPalDevice   = m_pParent->GetGfxDevice()->Parent();
     const uint32        numPipesLog2 = m_pParent->GetGfxDevice()->GetNumPipesLog2();
-    const uint32        numSaLog2    = IsGfx103Plus(*pPalDevice) ? GetNumShaderArrayLog2() : 0;
+    const uint32        numSaLog2    = IsGfx103PlusExclusive(*pPalDevice) ? GetNumShaderArrayLog2() : 0;
     uint32  pipeRotateAmount = 0;
 
     if (IsGfx103(*pPalDevice))
@@ -2602,7 +2601,7 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10()
     const uint32           numSamplesLog2        = m_pParent->GetNumSamplesLog2();
     const uint32           numPipesLog2          = m_pParent->GetGfxDevice()->GetNumPipesLog2();
     uint32                 modNumPipesLog2       = numPipesLog2;
-    const uint32           numShaderArraysLog2   = IsGfx103Plus(*pPalDevice) ? GetNumShaderArrayLog2() : 0;
+    const uint32           numShaderArraysLog2   = IsGfx103PlusExclusive(*pPalDevice) ? GetNumShaderArrayLog2() : 0;
     const uint32           effectiveNumPipesLog2 = GetEffectiveNumPipes();
     const uint32           cachelineSize         = m_pParent->GetMetaCachelineSize();
     const uint32           pipeInterleaveLog2    = m_pParent->GetGfxDevice()->GetPipeInterleaveLog2();
@@ -3714,6 +3713,52 @@ gpusize Gfx9Dcc::SliceOffset(
 }
 
 // =====================================================================================================================
+uint8 Gfx9Dcc::GetInitialValue(
+    ImageLayout layout
+    ) const
+{
+    // If nothing else applies, initialize to "uncompressed"
+    uint8 initialValue = Gfx9Dcc::DecompressedValue;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 706
+    const DccInitialClearKind clearKind =
+        static_cast<DccInitialClearKind>(m_pGfxDevice->Parent()->GetPublicSettings()->dccInitialClearKind);
+    bool isForceEnabled = TestAnyFlagSet(static_cast<uint32>(clearKind),
+                                         static_cast<uint32>(DccInitialClearKind::ForceBit));
+
+    if ((clearKind != DccInitialClearKind::Uncompressed) &&
+        ((ImageLayoutToColorCompressionState(m_image.LayoutToColorCompressionState(), layout) != ColorDecompressed) ||
+         isForceEnabled))
+    {
+        uint32 color[4] = {};
+        constexpr uint32 Ones[4] = {1, 1, 1, 1};
+
+        switch (clearKind)
+        {
+            case DccInitialClearKind::ForceOpaqueBlack:
+            case DccInitialClearKind::OpaqueBlack:
+                color[3] = Ones[3];
+                break;
+            case DccInitialClearKind::ForceOpaqueWhite:
+            case DccInitialClearKind::OpaqueWhite:
+                color[0] = Ones[0];
+                color[1] = Ones[1];
+                color[2] = Ones[2];
+                color[3] = Ones[3];
+                break;
+            default:
+                PAL_ASSERT_ALWAYS();
+        }
+
+        GetBlackOrWhiteClearCode(m_image.Parent(), color, Ones, &initialValue);
+        PAL_ALERT_MSG(initialValue == Gfx9Dcc::DecompressedValue,
+                      "Failed to get compatible clear color for InitMaskRam");
+    }
+#endif
+
+    return initialValue;
+}
+
+// =====================================================================================================================
 uint32 Gfx9Dcc::GetNumEffectiveSamples(
     DccClearPurpose  clearPurpose
     ) const
@@ -4596,7 +4641,7 @@ uint8 Gfx9Dcc::GetFastClearCode(
 void Gfx9Dcc::GetBlackOrWhiteClearCode(
     const Pal::Image*  pImage,          // Image being cleared
     const uint32       color[],         // The clear color
-    const uint32       ones[],          // "1" in the image format
+    const uint32       ones[],          // Sentinel values for "1", typically in the image format
     uint8*             pClearCode)      // [in, out] the clear code corresponding to the supplied clear color if it's
                                         //           black or white...  Othewrise unchanged from input.
 {

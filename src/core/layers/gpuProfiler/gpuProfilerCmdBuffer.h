@@ -52,6 +52,13 @@ struct PipelineState
     uint64       apiPsoHash;
 };
 
+// Used to update the corresponding comment strings with logging.
+enum class LogType : uint32
+{
+    Barrier = 0,
+    Count
+};
+
 // =====================================================================================================================
 // GpuProfiler implementation of the ICmdBuffer interface.  Instead of passing commands on to the next layer, the
 // various command buffer calls are tokenized and stored for later replay.  The Replay() interface will replay the
@@ -892,10 +899,9 @@ public:
 
     virtual Result Begin(const CmdBufferBuildInfo& info) override;
 
-    void ResetBarrierString();
-    void AddBarrierString(const char* pString);
-    const char* GetBarrierString() const { return m_pCurrentBarrierComment; }
-
+    void AppendCommentString(const char* pString, LogType logType);
+    void ResetCommentString(LogType LogType);
+    const char* GetCommentString(LogType logType);
     virtual void UpdateCommentString(Developer::BarrierData* pData) override;
 
     void BeginSample(Queue* pQueue, LogItem* pLogItem, bool pipeStats, bool perfExp);
@@ -923,9 +929,12 @@ private:
     Util::VirtualLinearAllocator m_allocator;
     void*                        m_pAllocatorStream; // Base address of m_allocator. Rewind here on reset.
 
-    // Track the current comment string for the barrier call.
-    char*                        m_pCurrentBarrierComment;
-    size_t                       m_currentCommentSize;
+    // Track the current comment string for each defined 'LogType'
+    struct
+    {
+        char* pString;
+        size_t stringSize;
+    } m_commentStrings[uint32(LogType::Count)];
 
     const QueueType              m_queueType;         // Universal, compute, etc.
     const EngineType             m_engineType;

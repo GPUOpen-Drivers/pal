@@ -84,6 +84,7 @@ target_sources(pal PRIVATE
     palSemaphore.h
     palSettingsFileMgr.h
     palSettingsFileMgrImpl.h
+    palSpan.h
     palSparseVector.h
     palSparseVectorImpl.h
     palStringBag.h

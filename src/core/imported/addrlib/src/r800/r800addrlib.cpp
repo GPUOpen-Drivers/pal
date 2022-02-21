@@ -1786,7 +1786,7 @@ UINT_64 R800Lib::ComputeSurfaceAddrFromCoordPowerSave(
     UINT_32*            pBitPosition            ///< [out] bit position, e.g. FMT_1 will use this
     ) const
 {
-    ADDR_ASSERT(m_chipFamily < ADDR_CHIP_FAMILY_SI);
+    ADDR_ASSERT(m_chipFamily < ADDR_CHIP_FAMILY_POLARIS);
     UINT_64 addr = 0;
 
     const UINT_32 pipeInterleaveBytes = m_pipeInterleaveBytes;

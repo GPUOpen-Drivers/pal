@@ -33,6 +33,7 @@
 
 #include "palUtil.h"
 #include "palAssert.h"
+#include "palSpan.h"
 #include "palSysMemory.h"
 #include <type_traits>
 
@@ -254,6 +255,14 @@ public:
     ///
     /// @returns VectorIterator An iterator to last element of the vector.
     Iter End() const { return Iter((m_numElements - 1), *this); }
+
+    ///@{
+    /// Implicitly gets the current contents of the vector as a Span.
+    ///
+    /// @returns The contents of the vector as a Span; same as Span<T>(Data(), NumElements()).
+    operator Span<T>() { return Span<T>(Data(), NumElements()); }
+    operator Span<const T>() const { return Span<const T>(Data(), NumElements()); }
+    ///@}
 
     /// Returns pointer to the underlying buffer serving as data storage.
     /// The returned pointer defines always valid range [Data(), Data() + NumElements()),

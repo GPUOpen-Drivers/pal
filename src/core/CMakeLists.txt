@@ -28,6 +28,13 @@ add_subdirectory(hw)
 add_subdirectory(imported)
 add_subdirectory(layers)
 add_subdirectory(os)
+add_subdirectory(g_service)
+
+# Add required rpc modules from DevDriver
+target_link_libraries(pal PRIVATE
+    UberTraceService
+    ddNet
+)
 
 target_sources(pal PRIVATE
     CMakeLists.txt
@@ -39,6 +46,7 @@ target_sources(pal PRIVATE
     cmdStream.h
     cmdStreamAllocation.cpp
     cmdStreamAllocation.h
+    dbgLoggerDevDriver.cpp
     devDriverEventService.cpp
     devDriverEventService.h
     devDriverEventServiceConv.h

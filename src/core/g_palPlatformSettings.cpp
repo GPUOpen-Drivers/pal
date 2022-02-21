@@ -140,6 +140,7 @@ void PlatformSettingsLoader::SetupDefaults()
     m_settings.gpuProfilerConfig.useFullPipelineHash = false;
     m_settings.gpuProfilerConfig.traceModeMask = 0x0;
     m_settings.gpuProfilerConfig.granularity = GpuProfilerGranularityDraw;
+    m_settings.gpuProfilerConfig.clockMode = GpuProfilerClockModePeak;
     memset(m_settings.gpuProfilerPerfCounterConfig.globalPerfCounterConfigFile, 0, 256);
     strncpy(m_settings.gpuProfilerPerfCounterConfig.globalPerfCounterConfigFile, "", 256);
     m_settings.gpuProfilerPerfCounterConfig.cacheFlushOnCounterCollection = false;
@@ -476,6 +477,11 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
     pDevice->ReadSetting(pGpuProfilerConfig_GranularityStr,
                            Util::ValueType::Uint,
                            &m_settings.gpuProfilerConfig.granularity,
+                           InternalSettingScope::PrivatePalKey);
+
+    pDevice->ReadSetting(pGpuProfilerConfig_ClockModeStr,
+                           Util::ValueType::Uint,
+                           &m_settings.gpuProfilerConfig.clockMode,
                            InternalSettingScope::PrivatePalKey);
 
     pDevice->ReadSetting(pGpuProfilerPerfCounterConfig_GlobalPerfCounterConfigFileStr,
@@ -1025,6 +1031,11 @@ void PlatformSettingsLoader::InitSettingsInfo()
     info.valueSize = sizeof(m_settings.gpuProfilerConfig.granularity);
     m_settingsInfoMap.Insert(1675329864, info);
 
+    info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.gpuProfilerConfig.clockMode;
+    info.valueSize = sizeof(m_settings.gpuProfilerConfig.clockMode);
+    m_settingsInfoMap.Insert(1818533417, info);
+
     info.type      = SettingType::String;
     info.pValuePtr = &m_settings.gpuProfilerPerfCounterConfig.globalPerfCounterConfigFile;
     info.valueSize = sizeof(m_settings.gpuProfilerPerfCounterConfig.globalPerfCounterConfigFile);
@@ -1321,7 +1332,7 @@ void PlatformSettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palPlatformJsonData[0];
             component.settingsDataSize = sizeof(g_palPlatformJsonData);
-            component.settingsDataHash = 2780522613;
+            component.settingsDataHash = 2449398422;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

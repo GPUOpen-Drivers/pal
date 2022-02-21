@@ -305,7 +305,7 @@ void OcclusionQueryPool::OptimizedReset(
                 // Only now do we know how many bytes we need to DMA.
                 dmaData.numBytes = static_cast<uint32>(GetGpuResultSizeInBytes(slotCount));
 
-                const size_t numDwords = cmdUtil.BuildDmaData(dmaData, pCmdSpace);
+                const size_t numDwords = cmdUtil.BuildDmaData<false>(dmaData, pCmdSpace);
 
                 PAL_ASSERT(numDwords <= maxPacketSize);
 
@@ -387,7 +387,7 @@ void OcclusionQueryPool::OptimizedReset(
             dmaData.sync         = 1;
             dmaData.usePfp       = false;
 
-            pCmdSpace += cmdUtil.BuildDmaData(dmaData, pCmdSpace);
+            pCmdSpace += cmdUtil.BuildDmaData<false>(dmaData, pCmdSpace);
         }
     }
 

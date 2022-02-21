@@ -1111,7 +1111,7 @@ void RsrcProcMgr::HwlFixupCopyDstImageMetaData(
             range.numSlices              = clearRegion.numSlices;
 
             // Since color data is no longer dcc compressed set Dcc to fully uncompressed.
-            ClearDcc(pCmdBuffer, pStream, gfx6DstImage, range, Gfx6Dcc::InitialValue, DccClearPurpose::FastClear);
+            ClearDcc(pCmdBuffer, pStream, gfx6DstImage, range, Gfx6Dcc::DecompressedValue, DccClearPurpose::FastClear);
         }
     }
 
@@ -2651,6 +2651,7 @@ void RsrcProcMgr::InitMaskRam(
     Pal::CmdStream*    pCmdStream,
     const Image&       dstImage,
     const SubresRange& range,
+    ImageLayout        layout,
     SyncReqs*          pSyncReqs
     ) const
 {
@@ -2710,7 +2711,9 @@ void RsrcProcMgr::InitMaskRam(
 
         if (dstImage.HasDccData())
         {
-            ClearDcc(pCmdBuffer, pCmdStream, dstImage, range, Gfx6Dcc::InitialValue, DccClearPurpose::Init);
+            const uint8 initialValue =
+                dstImage.GetDcc(range.startSubres)->GetInitialValue(dstImage, range.startSubres, layout);
+            ClearDcc(pCmdBuffer, pCmdStream, dstImage, range, initialValue, DccClearPurpose::Init);
         }
     }
 
@@ -2843,7 +2846,7 @@ void RsrcProcMgr::ClearDcc(
     Pal::CmdStream*    pCmdStream,
     const Image&       dstImage,
     const SubresRange& clearRange,
-    uint32             clearValue,
+    uint8              clearValue,
     DccClearPurpose    clearPurpose
     ) const
 {
@@ -2875,7 +2878,12 @@ void RsrcProcMgr::ClearDcc(
             // It's possible for the fill size to be zero so we should only continue if there's something to clear.
             if (fillSize > 0)
             {
-                CmdFillMemory(pCmdBuffer, false, *pGpuMemory, dstOffset, fillSize, clearValue);
+                CmdFillMemory(pCmdBuffer,
+                              false,
+                              *pGpuMemory,
+                              dstOffset,
+                              fillSize,
+                              ReplicateByteAcrossDword(clearValue));
             }
             else
             {
@@ -2890,7 +2898,7 @@ void RsrcProcMgr::ClearDcc(
     // Since we're using a compute shader we have to update the DCC state metadata manually.
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
     pCmdSpace = dstImage.UpdateDccStateMetaData(clearRange,
-                                                (clearPurpose == DccClearPurpose::FastClear),
+                                                (clearValue != Gfx6Dcc::DecompressedValue),
                                                 packetPredicate,
                                                 pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
@@ -3333,7 +3341,7 @@ void RsrcProcMgr::DccDecompressOnCompute(
     pComputeCmdStream->CommitCommands(pComputeCmdSpace);
 
     // Put DCC memory itself back into a "fully decompressed" state.
-    ClearDcc(pCmdBuffer, pCmdStream, image, range, Gfx6Dcc::InitialValue, DccClearPurpose::Init);
+    ClearDcc(pCmdBuffer, pCmdStream, image, range, Gfx6Dcc::DecompressedValue, DccClearPurpose::Init);
 
     // And let the DCC fixup finish as well
     pComputeCmdSpace  = pComputeCmdStream->ReserveCommands();

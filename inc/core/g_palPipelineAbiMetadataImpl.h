@@ -689,6 +689,12 @@ inline Result DeserializeShaderMetadata(
                 pMetadata->hasEntry.hardwareMapping = (result == Result::Success);
                 break;
 
+            case HashLiteralString(ShaderMetadataKey::ShaderSubtype):
+                PAL_ASSERT(pMetadata->hasEntry.shaderSubtype == 0);
+                result = DeserializeEnum(pReader, &pMetadata->shaderSubtype);
+                pMetadata->hasEntry.shaderSubtype = (result == Result::Success);
+                break;
+
             default:
                 result = pReader->Skip(1);
                 break;

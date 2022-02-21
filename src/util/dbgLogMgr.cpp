@@ -150,13 +150,11 @@ Result DbgLogMgr::DetachDbgLogger(
 }
 
 // =====================================================================================================================
-// Call each logger's LogMessage(). The actual logging will be done by each of these loggers.
-void DbgLogMgr::LogMessage(
-    SeverityLevel   severity,
-    OriginationType source,
-    const char*     pClientTag,
-    const char*     pFormat,
-    va_list         args)
+// A variadic template function to call each logger's LogMessage(). The actual logging will be done by
+// each of these loggers.
+template <typename... Args>
+void DbgLogMgr::LogMessageInternal(
+    Args... args)
 {
     // The code below calls functions outside of DbgLogMgr and so it is quite
     // likey that this chain of call may end up calling LogMessage() again. This
@@ -169,8 +167,7 @@ void DbgLogMgr::LogMessage(
     // will not get logged.
     //
     // The guard check must be the first statement in this function
-    if ((m_error == false) &&
-        (Util::GetThreadLocalValue(m_reentryGuardKey) == nullptr) &&
+    if ((Util::GetThreadLocalValue(m_reentryGuardKey) == nullptr) && (m_error == false) &&
         (Util::SetThreadLocalValue(m_reentryGuardKey, &g_reentryGuard) == Result::Success)) // set to non null addr
     {
         {
@@ -179,7 +176,7 @@ void DbgLogMgr::LogMessage(
             {
                 for (auto iter = m_dbgLoggersList.Begin(); iter.IsValid(); iter.Next())
                 {
-                    iter.Get()->LogMessage(severity, source, pClientTag, pFormat, args);
+                    iter.Get()->LogMessage(args...);
                 }
             }
         }
@@ -187,18 +184,5 @@ void DbgLogMgr::LogMessage(
     }
 }
 
-// =====================================================================================================================
-// Call each logger's LogMessage() passing it the incoming raw data. Each logger will know how to handle the raw
-// data and log it appropriately.
-void DbgLogMgr::LogMessage(
-    SeverityLevel   severity,
-    OriginationType source,
-    const char*     clientTag,
-    size_t          dataSize,
-    const void*     pData)
-{
-    // TODO in the next phase of development
-    PAL_NOT_IMPLEMENTED();
-}
 } // Util
 #endif

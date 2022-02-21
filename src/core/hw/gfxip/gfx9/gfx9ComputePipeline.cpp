@@ -94,8 +94,12 @@ Result ComputePipeline::HwlInit(
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 700
     // These always have to be all non-zero or all zero.
-    PAL_ASSERT(((createInfo.threadsPerGroup.width == 0) != (createInfo.threadsPerGroup.height == 0)) ||
-               ((createInfo.threadsPerGroup.width == 0) != (createInfo.threadsPerGroup.depth  == 0)));
+    PAL_ASSERT(((createInfo.threadsPerGroup.width  == 0) &&
+                (createInfo.threadsPerGroup.height == 0) &&
+                (createInfo.threadsPerGroup.depth  == 0)) ||
+               ((createInfo.threadsPerGroup.width  != 0) &&
+                (createInfo.threadsPerGroup.height != 0) &&
+                (createInfo.threadsPerGroup.depth  != 0)));
 
     // The caller can pick the thread group size if the ELF wasn't compiled against a particular size.
     if (createInfo.threadsPerGroup.width != 0)

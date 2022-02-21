@@ -126,7 +126,8 @@ void QueryAMDCpuType(
                     pSystemInfo->cpuType = CpuType::AmdFamily16h;
                     break;
                 case 8:
-                    // Ryzen
+                case 10:
+                    // Family 17h and Family 19h - Ryzen
                     pSystemInfo->cpuType = CpuType::AmdRyzen;
                     break;
                 default:

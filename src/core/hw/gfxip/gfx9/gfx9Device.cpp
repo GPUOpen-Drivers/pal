@@ -198,7 +198,7 @@ Device::Device(
     }
     memset(const_cast<uint32*>(&m_msaaHistogram[0]), 0, sizeof(m_msaaHistogram));
 
-    if (IsGfx103Plus(*Parent())
+    if (IsGfx103PlusExclusive(*Parent())
        )
     {
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -206,7 +206,7 @@ Device::Device(
         const auto&  chipProps     = m_pParent->ChipProperties().gfx9;
         const uint32 chipPropNumSa = chipProps.numShaderArrays * chipProps.numShaderEngines;
 
-        PAL_ASSERT((1u << Gfx103PlusGetNumActiveShaderArraysLog2()) <= chipPropNumSa);
+        PAL_ASSERT((1u << Gfx103PlusExclusiveGetNumActiveShaderArraysLog2()) <= chipPropNumSa);
 #endif
         // Var block size = number of total pipes * 16KB
         // This fields is filled out for all Gfx10.2+, but only used
@@ -2050,14 +2050,14 @@ void PAL_STDCALL Device::Gfx10CreateTypedBufferViewSrds(
 
         // If we get an invalid format in the buffer SRD, then the memory operation involving this SRD will be dropped
         PAL_ASSERT(hwBufFmt != BUF_FMT_INVALID);
-        pOutSrd->u32All[3] = ((SqSelX                         << SqBufRsrcTWord3DstSelXShift)                      |
-                              (SqSelY                         << SqBufRsrcTWord3DstSelYShift)                      |
-                              (SqSelZ                         << SqBufRsrcTWord3DstSelZShift)                      |
-                              (SqSelW                         << SqBufRsrcTWord3DstSelWShift)                      |
-                              (hwBufFmt                       << Gfx10CoreSqBufRsrcTWord3FormatShift)              |
-                              (pGfxDevice->BufferSrdResourceLevel() << Gfx10CoreSqBufRsrcTWord3ResourceLevelShift) |
-                              (OobSelect                      << SqBufRsrcTWord3OobSelectShift)                    |
-                              (llcNoalloc                     << Gfx103PlusSqBufRsrcTWord3LlcNoallocShift)         |
+        pOutSrd->u32All[3] = ((SqSelX                         << SqBufRsrcTWord3DstSelXShift)                       |
+                              (SqSelY                         << SqBufRsrcTWord3DstSelYShift)                       |
+                              (SqSelZ                         << SqBufRsrcTWord3DstSelZShift)                       |
+                              (SqSelW                         << SqBufRsrcTWord3DstSelWShift)                       |
+                              (hwBufFmt                       << Gfx10CoreSqBufRsrcTWord3FormatShift)               |
+                              (pGfxDevice->BufferSrdResourceLevel() << Gfx10CoreSqBufRsrcTWord3ResourceLevelShift)  |
+                              (OobSelect                      << SqBufRsrcTWord3OobSelectShift)                     |
+                              (llcNoalloc                     << Gfx103PlusExclusiveSqBufRsrcTWord3LlcNoallocShift) |
                               (SQ_RSRC_BUF                    << SqBufRsrcTWord3TypeShift));
 
         pOutSrd++;
@@ -2157,14 +2157,16 @@ void PAL_STDCALL Device::Gfx10CreateUntypedBufferViewSrds(
             const uint32 oobSelect = ((pBufferViewInfo->stride == 1) ||
                                       (pBufferViewInfo->stride == 0)) ? SQ_OOB_COMPLETE : SQ_OOB_INDEX_ONLY;
 
-            pOutSrd->u32All[3] = ((SQ_SEL_X                       << SqBufRsrcTWord3DstSelXShift)                      |
-                                  (SQ_SEL_Y                       << SqBufRsrcTWord3DstSelYShift)                      |
-                                  (SQ_SEL_Z                       << SqBufRsrcTWord3DstSelZShift)                      |
-                                  (SQ_SEL_W                       << SqBufRsrcTWord3DstSelWShift)                      |
-                                  (BUF_FMT_32_UINT                << Gfx10CoreSqBufRsrcTWord3FormatShift)              |
-                                  (pGfxDevice->BufferSrdResourceLevel() << Gfx10CoreSqBufRsrcTWord3ResourceLevelShift) |
-                                  (oobSelect                      << SqBufRsrcTWord3OobSelectShift)                    |
-                                  (llcNoalloc                     << Gfx103PlusSqBufRsrcTWord3LlcNoallocShift)         |
+            PAL_ASSERT((llcNoalloc == 0) || (IsGfx103PlusExclusive(*pPalDevice)));
+
+            pOutSrd->u32All[3] = ((SQ_SEL_X                       << SqBufRsrcTWord3DstSelXShift)                       |
+                                  (SQ_SEL_Y                       << SqBufRsrcTWord3DstSelYShift)                       |
+                                  (SQ_SEL_Z                       << SqBufRsrcTWord3DstSelZShift)                       |
+                                  (SQ_SEL_W                       << SqBufRsrcTWord3DstSelWShift)                       |
+                                  (BUF_FMT_32_UINT                << Gfx10CoreSqBufRsrcTWord3FormatShift)               |
+                                  (pGfxDevice->BufferSrdResourceLevel() << Gfx10CoreSqBufRsrcTWord3ResourceLevelShift)  |
+                                  (oobSelect                      << SqBufRsrcTWord3OobSelectShift)                     |
+                                  (llcNoalloc                     << Gfx103PlusExclusiveSqBufRsrcTWord3LlcNoallocShift) |
                                   (SQ_RSRC_BUF                    << SqBufRsrcTWord3TypeShift));
         }
         else
@@ -3364,7 +3366,8 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
         //    can access each array slice).
         //    This has the unfortunate side-effect of making normalized texture coordinates inaccurate.
         //    However, this is required for access to multiple slices.
-        if (imgIsBc && (Formats::IsBlockCompressed(format) == false))
+        if (imgIsBc && (Formats::IsBlockCompressed(format) == false) &&
+            (viewInfo.pImage->GetImageCreateInfo().prtPlus.mapType == PrtMapType::None))
         {
             // If we have the following image:
             //              Uncompressed pixels   Compressed block sizes (4x4)
@@ -4690,10 +4693,8 @@ const MergedFormatPropertiesTable* GetFormatPropertiesTable(
         pTable = &Gfx9MergedFormatPropertiesTable;
         break;
     case GfxIpLevel::GfxIp10_1:
-
         pTable = &Gfx10MergedFormatPropertiesTable;
         break;
-
     case GfxIpLevel::GfxIp10_3:
         pTable = &Gfx10_3MergedFormatPropertiesTable;
         break;
@@ -5160,7 +5161,7 @@ void InitializeGpuChipProperties(
                 pInfo->gfx9.supportIntersectRayBarycentrics = 1;
             }
         }
-        if (IsGfx103Plus(pInfo->gfxLevel))
+        if (IsGfx103PlusExclusive(pInfo->gfxLevel))
         {
             pInfo->gfx9.supportSortAgnosticBarycentrics = 1;
         }
@@ -7474,13 +7475,13 @@ bool IsFmaskBigPageCompatible(
 
 // =====================================================================================================================
 // Returns the number of shader-arrays based on the NUM_PKRS field in GB_ADDR_CONFIG
-uint32 Device::Gfx103PlusGetNumActiveShaderArraysLog2() const
+uint32 Device::Gfx103PlusExclusiveGetNumActiveShaderArraysLog2() const
 {
     const auto&  gbAddrConfig  = GetGbAddrConfig();
-    const uint32 numPkrLog2    = gbAddrConfig.gfx103Plus.NUM_PKRS;
+    const uint32 numPkrLog2    = gbAddrConfig.gfx103PlusExclusive.NUM_PKRS;
 
     // Packers is a 10.3+ concept.
-    PAL_ASSERT(IsGfx103Plus(*Parent()));
+    PAL_ASSERT(IsGfx103PlusExclusive(*Parent()));
 
     // See Gfx10Lib::HwlInitGlobalParams (address library) for where this bit of non-intuitiveness comes from
     const uint32  numSaLog2FromPkr = ((numPkrLog2 > 0) ? (numPkrLog2 - 1) : 0);

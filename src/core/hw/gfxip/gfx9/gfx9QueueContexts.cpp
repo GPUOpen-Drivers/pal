@@ -897,7 +897,7 @@ void UniversalQueueContext::WritePerSubmitPreamble(
             dmaData.numBytes     = static_cast<uint32>(m_shadowGpuMemSizeInBytes);
             dmaData.sync         = true;
             dmaData.usePfp       = true;
-            pCmdSpace += CmdUtil::BuildDmaData(dmaData, pCmdSpace);
+            pCmdSpace += CmdUtil::BuildDmaData<false>(dmaData, pCmdSpace);
 
             // After initializing shadow memory to 0, load user config and sh register again, otherwise the registers
             // might contain invalid value. We don't need to load context register again because in the
@@ -1625,14 +1625,14 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                         &Ge,
                                                         pCmdSpace);
 
-        if (IsGfx103Plus(device))
+        if (IsGfx103PlusExclusive(device))
         {
             // Setting all these bits tells the HW to use the driver programmed setting of SX_PS_DOWNCONVERT
             // instead of automatically calculating the value.
             regSX_PS_DOWNCONVERT_CONTROL sxPsDownconvertControl = { };
             sxPsDownconvertControl.u32All = (1 << MaxColorTargets) - 1;
 
-            pCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx103Plus::mmSX_PS_DOWNCONVERT_CONTROL,
+            pCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx103PlusExclusive::mmSX_PS_DOWNCONVERT_CONTROL,
                                                             sxPsDownconvertControl.u32All,
                                                             pCmdSpace);
         }

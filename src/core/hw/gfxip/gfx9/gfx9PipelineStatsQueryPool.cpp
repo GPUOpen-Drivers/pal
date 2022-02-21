@@ -409,8 +409,8 @@ void PipelineStatsQueryPool::OptimizedReset(
     tsDmaData.sync        = 1;
     tsDmaData.usePfp      = false;
 
-    pCmdSpace += CmdUtil::BuildDmaData(dmaData, pCmdSpace);
-    pCmdSpace += CmdUtil::BuildDmaData(tsDmaData, pCmdSpace);
+    pCmdSpace += CmdUtil::BuildDmaData<false>(dmaData, pCmdSpace);
+    pCmdSpace += CmdUtil::BuildDmaData<false>(tsDmaData, pCmdSpace);
 
     pCmdStream->CommitCommands(pCmdSpace);
 }
@@ -610,7 +610,7 @@ uint32* PipelineStatsQueryPool::CopyMeshPipeStatsToQuerySlots(
         copyInfo.usePfp       = false;
         copyInfo.sync         = true;
 
-        pCmdSpace += CmdUtil::BuildDmaData(copyInfo, pCmdSpace);
+        pCmdSpace += CmdUtil::BuildDmaData<false>(copyInfo, pCmdSpace);
     }
     else
     {

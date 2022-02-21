@@ -252,27 +252,39 @@ Deque<T, Allocator>::Deque(
 template<typename T, typename Allocator>
 Deque<T, Allocator>::~Deque()
 {
-    while (m_pFrontHeader != nullptr)
+    if (!std::is_pod<T>::value)
     {
-        // Explicitly destroy the removed value if it's non-trivial.
-        if (!std::is_pod<T>::value)
+        while (m_pFrontHeader != nullptr)
         {
+            // Explicitly destroy the removed value since it's non-trivial and advance.
+            // We must destroy all of them in the current block before freeing it.
             m_pFront->~T();
-        }
-        ++m_pFront; // Advance to the next element
-        --m_numElements;
+            ++m_pFront;
+            --m_numElements;
 
-        if ((m_pFront == m_pFrontHeader->pEnd) || (m_numElements == 0))
+            if ((m_pFront == m_pFrontHeader->pEnd) || (m_numElements == 0))
+            {
+                // Okay, the front block is now empty. Free it and advance to the next block.
+                DequeBlockHeader* pBlockToFree = m_pFrontHeader;
+                m_pFrontHeader = m_pFrontHeader->pNext;
+                PAL_SAFE_FREE(pBlockToFree, m_pAllocator);
+
+                if (m_pFrontHeader != nullptr)
+                {
+                    // Fixup to the new block.
+                    m_pFront = static_cast<T*>(m_pFrontHeader->pStart);
+                }
+            }
+        }
+    }
+    else
+    {
+        // Elements are trivial so skip iterating through elements and free each block.
+        while (m_pFrontHeader != nullptr)
         {
-            // Okay, the front block is now empty. Free it and advance to the next block.
             DequeBlockHeader* pBlockToFree = m_pFrontHeader;
             m_pFrontHeader = m_pFrontHeader->pNext;
             PAL_SAFE_FREE(pBlockToFree, m_pAllocator);
-
-            if (m_pFrontHeader != nullptr)
-            {
-                m_pFront = static_cast<T*>(m_pFrontHeader->pStart);
-            }
         }
     }
 

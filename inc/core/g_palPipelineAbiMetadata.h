@@ -57,9 +57,11 @@ struct BinaryData
 struct ShaderMetadata
 {
     /// Input shader hash, typically passed in from the client.
-    uint64 apiShaderHash[2];
+    uint64                apiShaderHash[2];
     /// Flags indicating the HW stages this API shader maps to.
-    uint32 hardwareMapping;
+    uint32                hardwareMapping;
+    /// shader subtype
+    Abi::ApiShaderSubType shaderSubtype;
 
     union
     {
@@ -67,7 +69,8 @@ struct ShaderMetadata
         {
             uint8 apiShaderHash   : 1;
             uint8 hardwareMapping : 1;
-            uint8 reserved        : 6;
+            uint8 shaderSubtype   : 1;
+            uint8 reserved        : 5;
         };
         uint8 uAll;
     } hasEntry;
@@ -307,6 +310,7 @@ namespace ShaderMetadataKey
 {
     static constexpr char ApiShaderHash[]   = ".api_shader_hash";
     static constexpr char HardwareMapping[] = ".hardware_mapping";
+    static constexpr char ShaderSubtype[]   = ".shader_subtype";
 };
 
 namespace Metadata

@@ -216,9 +216,11 @@ struct PM4_ME_NON_SAMPLE_EVENT_WRITE
 struct DmaDataInfo
 {
     PFP_DMA_DATA_dst_sel_enum     dstSel;
+    uint32                        dstOffset;
     gpusize                       dstAddr;        // Destination address for dstSel Addr or offset for GDS
     PFP_DMA_DATA_das_enum         dstAddrSpace;   // Destination address space
     PFP_DMA_DATA_src_sel_enum     srcSel;
+    uint32                        srcOffset;
     uint32                        srcData;        // Source data for srcSel data or offset for srcSel GDS
     gpusize                       srcAddr;        // Source gpu virtual address
     PFP_DMA_DATA_sas_enum         srcAddrSpace;   // Source address space
@@ -291,9 +293,11 @@ struct ExecuteIndirectPacketInfo
     gpusize      argumentBufferAddr;
     gpusize      countBufferAddr;
     gpusize      spillTableAddr;
+    uint32       spillTableInstanceCnt;
     uint32       maxCount;
     uint32       commandBufferSizeDwords;
     uint32       argumentBufferStrideBytes;
+    uint32       spillTableStrideBytes;
     union
     {
         const GraphicsPipelineSignature*  pSignatureGfx;
@@ -372,6 +376,8 @@ public:
 
     // If we have support for the indirect_addr index and compute engines.
     bool HasEnhancedLoadShRegIndex() const;
+
+    static uint16 ShRegOffset(uint16 regAddr) { return (regAddr == 0) ? 0 : (regAddr - PERSISTENT_SPACE_START); }
 
     size_t BuildAcquireMem(
         const AcquireMemInfo& acquireMemInfo,
@@ -543,6 +549,7 @@ public:
         Pm4Predicate    predicate,
         bool            isWave32,
         void*           pBuffer);
+    template<bool indirectAddress>
     static size_t BuildDmaData(
         DmaDataInfo&  dmaDataInfo,
         void*         pBuffer);

@@ -2105,7 +2105,7 @@ void InitializeContextRegistersGfx103(
     pCmdSpace = pCmdStream->ReserveCommands();
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_MULTI_PRIM_IB_RESET_INDX, mmPA_CL_UCP_5_W, VgtMultiPrimIbResetIndxGfx103, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_PS_INPUT_CNTL_0, mmSPI_SHADER_COL_FORMAT, SpiPsInputCntl0Gfx103, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx103Plus::mmSX_PS_DOWNCONVERT_CONTROL, mmCB_BLEND7_CONTROL, SxPsDownconvertControlGfx103, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx103PlusExclusive::mmSX_PS_DOWNCONVERT_CONTROL, mmCB_BLEND7_CONTROL, SxPsDownconvertControlGfx103, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_CL_POINT_X_RAD, mmPA_CL_POINT_CULL_RAD, PaClPointXRadGfx103, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP, Gfx103Plus::mmPA_CL_VRS_CNTL, GeMaxOutputPerSubgroupGfx103, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_POINT_SIZE, mmPA_SC_LINE_STIPPLE, PaSuPointSizeGfx103, pCmdSpace);

@@ -47,6 +47,7 @@ target_sources(pal PRIVATE
     lnxSemaphore.cpp
     lnxSysMemory.cpp
     lnxSysUtil.cpp
+    lnxSysUtil.h
     lnxThread.cpp
     lnxTimeout.cpp
     lnxTimeout.h

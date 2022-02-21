@@ -1868,6 +1868,11 @@ void DmaCmdBuffer::SetupDmaInfoExtent(
         pImageInfo->extent       = pBaseSubResInfo->extentTexels;
         pImageInfo->actualExtent = pBaseSubResInfo->actualExtentTexels;
     }
+
+    if (pImageInfo->pImage->GetImageCreateInfo().imageType != ImageType::Tex3d)
+    {
+        pImageInfo->extent.depth = pImageInfo->pImage->GetImageCreateInfo().arraySize;
+    }
 }
 
 // =====================================================================================================================

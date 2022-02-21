@@ -118,11 +118,11 @@ constexpr void* VoidPtrDec(
 /// This function expects the first pointer to not be smaller than the second.
 ///
 /// @returns Number of bytes between the two pointers.
-inline size_t VoidPtrDiff(
+constexpr size_t VoidPtrDiff(
     const void* p1,  ///< [in] First pointer (higher address).
     const void* p2)  ///< [in] Second pointer (lower address).
 {
-    PAL_ASSERT(p1 >= p2);
+    PAL_CONSTEXPR_ASSERT(p1 >= p2);
     return (static_cast<const uint8*>(p1) - static_cast<const uint8*>(p2));
 }
 
@@ -142,6 +142,20 @@ constexpr uint32 LowPart(
     uint64 value)  ///< 64-bit input value.
 {
     return (value & 0x00000000FFFFFFFF);
+}
+
+/// Returns a larger value from repeating a single byte
+constexpr uint32 ReplicateByteAcrossDword(
+    uint8 value)  ///< 8-bit input value.
+{
+    return (value | (value << 8) | (value << 16) | (value << 24));
+}
+
+/// Returns a larger value from repeating a single byte
+constexpr uint64 ReplicateByteAcrossQword(
+    uint8 value)  ///< 8-bit input value.
+{
+    return ((static_cast<uint64>(ReplicateByteAcrossDword(value)) << 32) | ReplicateByteAcrossDword(value));
 }
 
 /// Returns a bitfield from within some value.
@@ -183,11 +197,11 @@ constexpr bool TestAllFlagsSet(
 ///
 /// @returns True if the flag is set.
 template <typename T>
-bool BitfieldIsSet(
+constexpr bool BitfieldIsSet(
     const T bitfield,
     uint32  bit)
 {
-    PAL_ASSERT(bit < (sizeof(T) * 8));
+    PAL_CONSTEXPR_ASSERT(bit < (sizeof(T) * 8));
     return (bitfield & (static_cast<T>(1) << bit));
 }
 
@@ -216,7 +230,7 @@ void BitfieldUpdateSubfield(
 ///
 /// @returns True if the flag is set.
 template <typename T, size_t N>
-bool WideBitfieldIsSet(
+constexpr bool WideBitfieldIsSet(
     const T (&bitfield)[N],
     uint32  bit)
 {
@@ -292,6 +306,20 @@ void WideBitfieldAndBits(
     {
         pOut[i] = (bitfield1[i] & bitfield2[i]);
     }
+}
+
+/// Unsets the least-significant '1' bit in the given number.
+/// Usually used in conjunction with BitMaskScanForward
+///
+/// @param [in] value  The value to be modified
+///
+/// @returns A copy of value with the lowest '1' bit unset.
+template <typename T>
+T UnsetLeastBit(
+    T val)
+{
+    static_assert(std::is_unsigned<T>::value, "Must use unsigned ints here");
+    return val & (val - 1);
 }
 
 /// Scans the specified bit-mask for the least-significant '1' bit.
@@ -422,10 +450,10 @@ bool WideBitMaskScanReverse(
 ///
 /// @returns Bitmask in storage of type T with bits [0:numBits-1] set.
 template <typename T>
-T BitfieldGenMask(
+constexpr T BitfieldGenMask(
     T numBits)
 {
-    PAL_ASSERT(numBits <= (sizeof(T) * 8));
+    PAL_CONSTEXPR_ASSERT(numBits <= (sizeof(T) * 8));
 
     const T mask = (numBits < (sizeof(T) * 8)) ? ((static_cast<T>(1) << (numBits)) - static_cast<T>(1)) : static_cast<T>(-1);
     return mask;
@@ -443,11 +471,11 @@ constexpr bool IsPowerOfTwo(
 /// Determines if 'value' is at least aligned to the specified power-of-2 alignment.
 ///
 /// @returns True if aligned, false otherwise.
-inline bool IsPow2Aligned(
+constexpr bool IsPow2Aligned(
     uint64 value,      ///< Value to check.
     uint64 alignment)  ///< Desired alignment.
 {
-    PAL_ASSERT(IsPowerOfTwo(alignment));
+    PAL_CONSTEXPR_ASSERT(IsPowerOfTwo(alignment));
     return ((value & (alignment - 1)) == 0);
 }
 
@@ -467,11 +495,11 @@ inline bool VoidPtrIsPow2Aligned(
 ///
 /// @returns Aligned value.
 template <typename T>
-T Pow2Align(
+constexpr T Pow2Align(
     T      value,      ///< Value to align.
     uint64 alignment)  ///< Desired alignment (must be a power of 2).
 {
-    PAL_ASSERT(IsPowerOfTwo(alignment));
+    PAL_CONSTEXPR_ASSERT(IsPowerOfTwo(alignment));
     return ((value + static_cast<T>(alignment) - 1) & ~(static_cast<T>(alignment) - 1));
 }
 
@@ -562,11 +590,11 @@ constexpr T RoundDownToMultiple(
 ///
 /// @returns Rounded value.
 template <typename T>
-T Pow2AlignDown(
+constexpr T Pow2AlignDown(
     T      value,      ///< Value to align.
     uint64 alignment)  ///< Desired alignment (must be a power of 2).
 {
-    PAL_ASSERT(IsPowerOfTwo(alignment));
+    PAL_CONSTEXPR_ASSERT(IsPowerOfTwo(alignment));
     return (value & ~(alignment - 1));
 }
 
@@ -632,7 +660,7 @@ constexpr T Clamp(
 /// Converts a byte value to the equivalent number of DWORDs (uint32) rounded up.  I.e., 3 bytes will return 1 dword.
 ///
 /// @returns Number of dwords necessary to cover numBytes.
-inline uint32 NumBytesToNumDwords(
+constexpr uint32 NumBytesToNumDwords(
     uint32 numBytes)  ///< Byte count to convert.
 {
     return Pow2Align(numBytes, static_cast<uint32>(sizeof(uint32))) / sizeof(uint32);
@@ -864,14 +892,14 @@ PAL_NODISCARD inline bool StringToValueTypeChecked(
 /// Hashes the provided string using FNV1a hashing (http://www.isthe.com/chongo/tech/comp/fnv/) algorithm.
 ///
 /// @returns 32-bit hash generated from the provided string.
-inline uint32 HashString(
+constexpr uint32 HashString(
     const char* pStr,     ///< [in] String to be hashed.
     size_t      strSize)  ///< Size of the input string.
 {
-    PAL_ASSERT((pStr != nullptr) && (strSize > 0));
+    PAL_CONSTEXPR_ASSERT((pStr != nullptr) && (strSize > 0));
 
-    static constexpr uint32 FnvPrime  = 16777619u;
-    static constexpr uint32 FnvOffset = 2166136261u;
+    constexpr uint32 FnvPrime  = 16777619u;
+    constexpr uint32 FnvOffset = 2166136261u;
 
     uint32 hash = FnvOffset;
 
@@ -892,7 +920,7 @@ inline uint32 HashString(
 ///
 /// @returns Number of one bits in the input
 template <typename T>
-uint32 CountSetBits(
+constexpr uint32 CountSetBits(
     T  value)
 {
     uint32 x = static_cast<uint32>(value);
@@ -904,7 +932,7 @@ uint32 CountSetBits(
     return x;
 }
 
-inline uint32 CountSetBits(
+constexpr uint32 CountSetBits(
     uint64  value)
 {
     uint64 x = value;
@@ -937,7 +965,7 @@ constexpr typename std::remove_reference<T>::type&& Move(T&& object)
 /// @param [in] left  First variable used in swap operation.
 /// @param [in] right Second variable used in swap operation.
 template <typename T>
-void Swap(T& left, T& right)
+constexpr void Swap(T& left, T& right)
 {
     T tmp = Move(left);
     left  = Move(right);

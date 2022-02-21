@@ -48,7 +48,7 @@
 /// Checks if PAL is compiled with C++ of at least version @p v.
 #define PAL_CPLUSPLUS_AT_LEAST(v) (PAL_CPLUSPLUS >= (v))
 
-static_assert(PAL_CPLUSPLUS_AT_LEAST(PAL_CPLUSPLUS_11), "C++11 is required to build PAL.");
+static_assert(PAL_CPLUSPLUS_AT_LEAST(PAL_CPLUSPLUS_14), "C++14 is required to build PAL.");
 
 #include <cstddef>
 

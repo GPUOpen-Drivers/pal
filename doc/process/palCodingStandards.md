@@ -817,7 +817,9 @@ private:
 -   Conversion constructors ***must*** be declared explicit. Conversion
     constructors are single argument constructors that construct objects
     from other data types. This is necessary to avoid unintended constructor
-    conversion.
+    conversion. An exception to this is where the implicit conversion can be
+    considered a "decay", that is, possibly losing information and not actually
+    needing to execute any real code.
 
 ```c++
 class Token
@@ -992,6 +994,11 @@ uint32 SomeClass::AnotherConstFunc(
     parenthesis and the parameter list. That is, the formatting
     ***must*** be `doSomething(arg1, arg2)`, not
     `doSomething (arg1, arg2)` or `doSomething( arg1, arg2 )`.
+
+-   There ***must not*** be any implicit conversion to another type implemented
+    with an `operator` method. An exception to this is where the implicit
+    conversion can be considered a "decay", that is, possibly losing information
+    and not actually needing to execute any real code.
 
 ### Member Variables
 

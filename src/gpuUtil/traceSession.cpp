@@ -180,40 +180,47 @@ Result TraceSession::CollectTrace(
     void*   pData,
     size_t* pDataSize)
 {
-    // Destroying(ie.closing) the ChunkWriter ensures that all data, both compressed and uncompressed, is written to
-    // the data stream. This step also completes the RDF file by adding the final parts(index entries) of the file.
-    // Trace data and data-sizes will be correctly outputted only after this step.
-    Result result = RdfResultToPalResult(rdfChunkFileWriterDestroy(&m_pChunkFileWriter));
+    Result result     = Result::Success;
 
-    // We need to move the RDF offset manually to the beginning of the data stream
-    if (result == Result::Success)
+    if (pDataSize == nullptr)
     {
-        result = RdfResultToPalResult(rdfStreamSeek(m_pCurrentStream, 0));
+        result = Result::ErrorInvalidPointer;
     }
-
-    int64 streamSize;
-    if (result == Result::Success)
+    else if (m_sessionState == TraceSessionState::Ready)
     {
-        result = RdfResultToPalResult(rdfStreamGetSize(m_pCurrentStream, &streamSize));
+        result = Result::ErrorUnavailable;
     }
-
-    if (result == Result::Success)
+    else if (m_sessionState == TraceSessionState::Progress)
     {
-        if (pDataSize == nullptr)
+        int64 streamSize = static_cast<int64>(*pDataSize);
+
+        // Check if the ChunkWriter hasn't already been closed ie. don't destroy it twice.
+        if (m_pChunkFileWriter != nullptr)
         {
-            result = Result::ErrorInvalidPointer;
+            // Destroying(ie.closing) the ChunkWriter ensures that all data, both compressed and uncompressed, is written
+            // to the data stream. This step also completes the RDF file by adding the final parts(index entries) of the
+            // file. Trace data and data-sizes will be correctly outputted only after this step.
+            result = RdfResultToPalResult(rdfChunkFileWriterDestroy(&m_pChunkFileWriter));
+
+            // We need to move the RDF offset manually to the beginning of the data stream
+            if (result == Result::Success)
+            {
+                result = RdfResultToPalResult(rdfStreamSeek(m_pCurrentStream, 0));
+            }
+
+            if (result == Result::Success)
+            {
+                result = RdfResultToPalResult(rdfStreamGetSize(m_pCurrentStream, &streamSize));
+            }
         }
-        else if (*pDataSize < streamSize)
+
+        if (pData != nullptr)
         {
-            result  = Result::ErrorInvalidMemorySize;
-        }
-        else if (m_sessionState == TraceSessionState::Ready)
-        {
-            result = Result::ErrorUnavailable;
-        }
-        else if (m_sessionState == TraceSessionState::Progress)
-        {
-            if (pData != nullptr)
+            if (*pDataSize < streamSize)
+            {
+                result = Result::ErrorInvalidMemorySize;
+            }
+            else
             {
                 // Read all trace data in the current stream in RDF format
                 int64 bytesRead = 0;
@@ -232,15 +239,15 @@ Result TraceSession::CollectTrace(
                     m_sessionState = TraceSessionState::Ready;
                 }
             }
-            else
-            {
-                *pDataSize = streamSize;
-            }
         }
         else
         {
-            result = Result::ErrorUnknown;
+            *pDataSize = streamSize;
         }
+    }
+    else
+    {
+        result = Result::ErrorUnknown;
     }
 
     return result;
@@ -294,6 +301,21 @@ Result TraceSession::WriteDataChunk(
     m_chunkAppendLock.UnlockForWrite();
 
     return result;
+}
+
+// =====================================================================================================================
+void TraceSession::FinishTrace()
+{
+
+    m_registerTraceSourceLock.LockForRead();
+
+    // Notify all trace sources that the trace has finished
+    for (auto iter = m_registeredTraceSources.Begin(); iter.Get() != nullptr; iter.Next())
+    {
+        iter.Get()->key->OnTraceFinished(); // Writes data into TraceSession
+    }
+
+    m_registerTraceSourceLock.UnlockForRead();
 }
 
 }

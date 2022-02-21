@@ -38,6 +38,12 @@
 #include "core/os/wddm/wddmHeaders.h"
 #endif
 
+#if PAL_BUILD_RDF
+#include "palTraceSession.h"
+#include "gpuUtil/asicInfoTraceSource.h"
+#include "gpuUtil/uberTraceService.h"
+#endif
+
 // Dev Driver includes
 #include "devDriverUtil.h"
 #include "devDriverServer.h"
@@ -94,11 +100,14 @@ Platform::Platform(
     Pal::IPlatform(allocCb),
     m_deviceCount(0),
     m_pDevDriverServer(nullptr),
+    m_pEventServer(nullptr),
     m_settingsLoader(this),
     m_pRgpServer(nullptr),
 #if PAL_BUILD_RDF
     m_pTraceSession(nullptr),
     m_pAsicInfoTraceSource(nullptr),
+    m_pUberTraceService(nullptr),
+    m_rpcServer(DD_API_INVALID_HANDLE),
 #endif
     m_pfnDeveloperCb(DefaultDeveloperCb),
     m_pClientPrivateData(nullptr),
@@ -465,6 +474,10 @@ Result Platform::EarlyInitDevDriver()
                 PAL_DELETE(m_pDevDriverServer, this);
                 m_pDevDriverServer = nullptr;
             }
+            else // Initialize the event server if we have a valid DevDriver server.
+            {
+                m_pEventServer = m_pDevDriverServer->GetEventServer();
+            }
         }
         else
         {
@@ -491,9 +504,17 @@ Result Platform::EarlyInitDevDriver()
 
             PAL_ASSERT(pDriverControlServer != nullptr);
 
-            pDriverControlServer->StartEarlyDeviceInit();
+#if PAL_BUILD_RDF
+            CreateUberTraceService();
+            // For now, UberTraceService is the only rpc service. This will likely change to CreateRpcServices.
+            if (CreateUberTraceService() == Result::Success)
+            {
+                RegisterRpcServices();
+            }
 #endif
 
+            pDriverControlServer->StartEarlyDeviceInit();
+#endif
             if (pDriverControlServer->IsDriverIgnored() == false)
             {
                 // Cache the pointer for the RGP server after successful initialization.
@@ -606,10 +627,14 @@ void Platform::DestroyDevDriver()
 {
     if (m_pDevDriverServer != nullptr)
     {
+#if PAL_BUILD_RDF
+        DestroyRpcServices();
+#endif
         m_eventProvider.Destroy();
 
         // Null out cached pointers
-        m_pRgpServer = nullptr;
+        m_pRgpServer   = nullptr;
+        m_pEventServer = nullptr;
 
         m_pDevDriverServer->Destroy();
         PAL_SAFE_DELETE(m_pDevDriverServer, this);
@@ -672,6 +697,61 @@ void Platform::DestroyDefaultTraceSources()
     if (m_pAsicInfoTraceSource != nullptr)
     {
         PAL_SAFE_DELETE(m_pAsicInfoTraceSource, this);
+    }
+}
+
+// =====================================================================================================================
+// Creates a UberTraceService that forwards network requests into TraceSession
+Result Platform::CreateUberTraceService()
+{
+    Result result = Result::Success;
+
+    m_pUberTraceService = PAL_NEW(GpuUtil::UberTraceService, this, AllocInternal) (this);
+
+    if (m_pUberTraceService == nullptr)
+    {
+        result = Result::ErrorOutOfMemory;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+void Platform::RegisterRpcServices()
+{
+    DD_RESULT devDriverResult = DD_RESULT_SUCCESS;
+
+    DevDriver::IMsgChannel* pMsgChannel = m_pDevDriverServer->GetMessageChannel();
+
+    DDRpcServerCreateInfo rpcServerInfo = {};
+    rpcServerInfo.hConnection = reinterpret_cast<DDNetConnection>(pMsgChannel);
+
+    // Create the rpc server with above parameters
+    devDriverResult = ddRpcServerCreate(&rpcServerInfo, &m_rpcServer);
+
+    if (devDriverResult == DD_RESULT_SUCCESS)
+    {
+        devDriverResult = UberTrace::RegisterService(m_rpcServer, m_pUberTraceService);
+
+        if (devDriverResult == DD_RESULT_SUCCESS)
+        {
+            pMsgChannel->RegisterProtocolServer(m_pDevDriverServer->GetDriverControlServer());
+        }
+    }
+}
+
+// =====================================================================================================================
+void Platform::DestroyRpcServices()
+{
+    if (m_pUberTraceService != nullptr)
+    {
+        PAL_SAFE_DELETE(m_pUberTraceService, this);
+    }
+
+    if (m_rpcServer != DD_API_INVALID_HANDLE)
+    {
+        ddRpcServerDestroy(m_rpcServer);
+        m_rpcServer = DD_API_INVALID_HANDLE;
     }
 }
 #endif

@@ -41,6 +41,10 @@
 namespace DevDriver
 {
 class DevDriverServer;
+namespace EventProtocol
+{
+class EventServer;
+}
 }
 
 #if PAL_BUILD_RDF
@@ -432,6 +436,12 @@ public:
     /// @returns A valid DevDriver::DevDriverServer pointer if developer mode is enabled. If developer mode is not
     ///          enabled, nullptr will be returned.
     virtual DevDriver::DevDriverServer* GetDevDriverServer() = 0;
+
+    /// Returns a pointer to the event server object. The event server will soon move out of the DevDriver
+    /// server. Hence the need to provide a separate interface to access the event server.
+    ///
+    /// @returns A valid EventServer pointer or nullptr if not valid.
+    virtual DevDriver::EventProtocol::EventServer* GetEventServer() = 0;
 
 #if PAL_BUILD_RDF
     /// Returns a pointer to the current trace session if one was created during startup

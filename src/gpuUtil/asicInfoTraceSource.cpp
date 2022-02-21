@@ -300,6 +300,7 @@ void AsicInfoTraceSource::WriteAsicInfoTraceChunk()
     }
 }
 
+// =====================================================================================================================
 void AsicInfoTraceSource::OnTraceFinished()
 {
     WriteAsicInfoTraceChunk();

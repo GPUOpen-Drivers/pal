@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -36,16 +36,17 @@
 
 namespace Util
 {
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 704
 /// Convenience alias to typename std::enable_if::type
-/// Will be deprecated by C++14's std::enable_if_t
+/// Deprecated by C++14's std::enable_if_t
 template<bool B, typename T = void>
 using EnableIf = typename std::enable_if<B, T>::type;
 
 /// Convenience alias to typename std::underlying_type::type
-/// Will be deprecated by C++14's std::underlying_type_t
+/// Deprecated by C++14's std::underlying_type_t
 template<typename T>
 using UnderlyingType = typename std::underlying_type<T>::type;
+#endif
 
 /// Convenience alias to typename std::integral_constant for the common case where T is bool
 /// Will be deprecated by C++17's std::bool_constant
@@ -72,7 +73,7 @@ struct Disjunction : Negation<Conjunction<B1, Bn...>>{};
 template<typename E, bool = std::is_enum<E>::value>
 struct IsScopedEnum : std::false_type{};
 template<typename E>
-struct IsScopedEnum<E, true> : public BoolConstant<!std::is_convertible<E, UnderlyingType<E>>::value>{};
+struct IsScopedEnum<E, true> : public BoolConstant<!std::is_convertible<E, std::underlying_type_t<E>>::value>{};
 
 /// Type trait to determine if two types are the same scoped enums.
 template<typename T1, typename T2>
@@ -90,10 +91,10 @@ using OneIsScopedEnumOneIsIntegral = Disjunction<Conjunction<IsScopedEnum<T1>, s
 ///
 /// @returns The value of e as it's underlying integer type.
 template<typename E,
-         EnableIf<std::is_enum<E>::value, int> = 0>
-constexpr UnderlyingType<E> ToUnderlyingType(E e) noexcept
+         std::enable_if_t<std::is_enum<E>::value, int> = 0>
+constexpr std::underlying_type_t<E> ToUnderlyingType(E e) noexcept
 {
-    return static_cast<UnderlyingType<E>>(e);
+    return static_cast<std::underlying_type_t<E>>(e);
 }
 
 /// Helper for the auto enum operators.
@@ -102,7 +103,7 @@ constexpr UnderlyingType<E> ToUnderlyingType(E e) noexcept
 ///
 /// @returns i unchanged
 template<typename I,
-         EnableIf<std::is_integral<I>::value, int> = 0>
+         std::enable_if_t<std::is_integral<I>::value, int> = 0>
 constexpr I ToUnderlyingType(I i) noexcept
 {
     return i;
@@ -112,7 +113,7 @@ constexpr I ToUnderlyingType(I i) noexcept
 ///
 /// @returns the bitwise inverse of the passed enum
 template<typename E,
-         EnableIf<IsScopedEnum<E>::value, int> = 0>
+         std::enable_if_t<IsScopedEnum<E>::value, int> = 0>
 constexpr E operator~(E rhs) noexcept
 {
     return static_cast<E>(~ToUnderlyingType(rhs));
@@ -124,7 +125,7 @@ constexpr E operator~(E rhs) noexcept
 /// @returns the bitwise or of the two operands. The resulting type is the underlying type of the enum.
 template<typename T1,
          typename T2,
-         EnableIf<AreSameScopedEnum<T1, T2>::value || OneIsScopedEnumOneIsIntegral<T1, T2>::value, int> = 0>
+         std::enable_if_t<AreSameScopedEnum<T1, T2>::value || OneIsScopedEnumOneIsIntegral<T1, T2>::value, int> = 0>
 constexpr auto operator|(T1 lhs, T2 rhs) noexcept -> decltype(ToUnderlyingType(lhs) | ToUnderlyingType(rhs))
 {
     return ToUnderlyingType(lhs) | ToUnderlyingType(rhs);
@@ -136,7 +137,7 @@ constexpr auto operator|(T1 lhs, T2 rhs) noexcept -> decltype(ToUnderlyingType(l
 /// @returns the bitwise and of the two operands. The resulting type is the underlying type of the enum.
 template<typename T1,
          typename T2,
-         EnableIf<AreSameScopedEnum<T1, T2>::value || OneIsScopedEnumOneIsIntegral<T1, T2>::value, int> = 0>
+         std::enable_if_t<AreSameScopedEnum<T1, T2>::value || OneIsScopedEnumOneIsIntegral<T1, T2>::value, int> = 0>
 constexpr auto operator&(T1 lhs, T2 rhs) noexcept -> decltype(ToUnderlyingType(lhs) | ToUnderlyingType(rhs))
 {
     return ToUnderlyingType(lhs) & ToUnderlyingType(rhs);
@@ -148,7 +149,7 @@ constexpr auto operator&(T1 lhs, T2 rhs) noexcept -> decltype(ToUnderlyingType(l
 /// @returns the bitwise xor of the two operands. The resulting type is the underlying type of the enum.
 template<typename T1,
          typename T2,
-         EnableIf<AreSameScopedEnum<T1, T2>::value || OneIsScopedEnumOneIsIntegral<T1, T2>::value, int> = 0>
+         std::enable_if_t<AreSameScopedEnum<T1, T2>::value || OneIsScopedEnumOneIsIntegral<T1, T2>::value, int> = 0>
 constexpr auto operator^(T1 lhs, T2 rhs) noexcept -> decltype(ToUnderlyingType(lhs) | ToUnderlyingType(rhs))
 {
     return ToUnderlyingType(lhs) ^ ToUnderlyingType(rhs);
@@ -157,7 +158,7 @@ constexpr auto operator^(T1 lhs, T2 rhs) noexcept -> decltype(ToUnderlyingType(l
 /// Bitwise or-equals operator for scoped enums (enum classes).
 ///
 /// @returns the bitwise or-equals of the two passed enums
-template<typename E, EnableIf<IsScopedEnum<E>::value, int> = 0>
+template<typename E, std::enable_if_t<IsScopedEnum<E>::value, int> = 0>
 constexpr E& operator|=(E& lhs, E rhs) noexcept
 {
     return lhs = static_cast<E>(lhs | rhs);
@@ -168,8 +169,8 @@ constexpr E& operator|=(E& lhs, E rhs) noexcept
 /// @returns the bitwise or-equals of the two passed enums
 template<typename E,
          typename T,
-         EnableIf<IsScopedEnum<E>::value, int> = 0,
-         EnableIf<std::is_integral<T>::value, int> = 0>
+         std::enable_if_t<IsScopedEnum<E>::value, int> = 0,
+         std::enable_if_t<std::is_integral<T>::value, int> = 0>
 constexpr T& operator|=(T& lhs, E rhs) noexcept
 {
     return lhs = static_cast<T>(lhs | rhs);
@@ -178,7 +179,7 @@ constexpr T& operator|=(T& lhs, E rhs) noexcept
 /// Bitwise and-equals operator for scoped enums (enum classes).
 ///
 /// @returns the bitwise and-equals of the two passed enums
-template<typename E, EnableIf<IsScopedEnum<E>::value, int> = 0>
+template<typename E, std::enable_if_t<IsScopedEnum<E>::value, int> = 0>
 constexpr E& operator&=(E& lhs, E rhs) noexcept
 {
     return lhs = static_cast<E>(lhs & rhs);
@@ -189,8 +190,8 @@ constexpr E& operator&=(E& lhs, E rhs) noexcept
 /// @returns the bitwise and-equals of the two passed enums
 template<typename E,
          typename T,
-         EnableIf<IsScopedEnum<E>::value, int> = 0,
-         EnableIf<std::is_integral<T>::value, int> = 0>
+         std::enable_if_t<IsScopedEnum<E>::value, int> = 0,
+         std::enable_if_t<std::is_integral<T>::value, int> = 0>
 constexpr T& operator&=(T& lhs, E rhs) noexcept
 {
     return lhs = static_cast<T>(lhs & rhs);
@@ -199,7 +200,7 @@ constexpr T& operator&=(T& lhs, E rhs) noexcept
 /// Bitwise xor-equals operator for scoped enums (enum classes).
 ///
 /// @returns the bitwise xor-equals of the two passed enums
-template<typename E, EnableIf<IsScopedEnum<E>::value, int> = 0>
+template<typename E, std::enable_if_t<IsScopedEnum<E>::value, int> = 0>
 constexpr E& operator^=(E& lhs, E rhs) noexcept
 {
     return lhs = static_cast<E>(lhs ^ rhs);
@@ -210,8 +211,8 @@ constexpr E& operator^=(E& lhs, E rhs) noexcept
 /// @returns the bitwise xor-equals of the two passed enums
 template<typename E,
          typename T,
-         EnableIf<IsScopedEnum<E>::value, int> = 0,
-         EnableIf<std::is_integral<T>::value, int> = 0>
+         std::enable_if_t<IsScopedEnum<E>::value, int> = 0,
+         std::enable_if_t<std::is_integral<T>::value, int> = 0>
 constexpr T& operator^=(T& lhs, E rhs) noexcept
 {
     return lhs = static_cast<T>(lhs ^ rhs);
@@ -223,7 +224,7 @@ constexpr T& operator^=(T& lhs, E rhs) noexcept
 /// @returns the bitwise left shift of the two operands. The resulting type is the underlying type of the enum.
 template<typename T1,
          typename T2,
-         EnableIf<AreSameScopedEnum<T1, T2>::value || OneIsScopedEnumOneIsIntegral<T1, T2>::value, int> = 0>
+         std::enable_if_t<AreSameScopedEnum<T1, T2>::value || OneIsScopedEnumOneIsIntegral<T1, T2>::value, int> = 0>
 constexpr auto operator<<(T1 lhs, T2 rhs) noexcept -> decltype(ToUnderlyingType(lhs) | ToUnderlyingType(rhs))
 {
     return ToUnderlyingType(lhs) << ToUnderlyingType(rhs);
@@ -235,7 +236,7 @@ constexpr auto operator<<(T1 lhs, T2 rhs) noexcept -> decltype(ToUnderlyingType(
 /// @returns the bitwise right shift of the two operands. The resulting type is the underlying type of the enum.
 template<typename T1,
          typename T2,
-         EnableIf<AreSameScopedEnum<T1, T2>::value || OneIsScopedEnumOneIsIntegral<T1, T2>::value, int> = 0>
+         std::enable_if_t<AreSameScopedEnum<T1, T2>::value || OneIsScopedEnumOneIsIntegral<T1, T2>::value, int> = 0>
 constexpr auto operator>>(T1 lhs, T2 rhs) noexcept -> decltype(ToUnderlyingType(lhs) | ToUnderlyingType(rhs))
 {
     return ToUnderlyingType(lhs) >> ToUnderlyingType(rhs);

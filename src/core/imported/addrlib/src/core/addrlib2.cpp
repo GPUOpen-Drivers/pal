@@ -132,7 +132,7 @@ Lib* Lib::GetLib(
 {
     Addr::Lib* pAddrLib = Addr::Lib::GetLib(hLib);
     if ((pAddrLib != NULL) &&
-        (pAddrLib->GetChipFamily() <= ADDR_CHIP_FAMILY_VI))
+        (pAddrLib->GetChipFamily() <= ADDR_CHIP_FAMILY_POLARIS))
     {
         // only valid and GFX9+ ASIC can use AddrLib2 function.
         ADDR_ASSERT_ALWAYS();

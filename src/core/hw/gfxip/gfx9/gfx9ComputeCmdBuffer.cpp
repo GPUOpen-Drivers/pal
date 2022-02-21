@@ -1425,7 +1425,7 @@ void ComputeCmdBuffer::CmdCopyRegisterToMemory(
     dmaData.srcAddrSpace = sas__pfp_dma_data__register;
     dmaData.sync         = true;
     dmaData.usePfp       = false;
-    pCmdSpace += m_cmdUtil.BuildDmaData(dmaData, pCmdSpace);
+    pCmdSpace += m_cmdUtil.BuildDmaData<false>(dmaData, pCmdSpace);
 
     m_cmdStream.CommitCommands(pCmdSpace);
 }
@@ -2189,7 +2189,7 @@ void ComputeCmdBuffer::CpCopyMemory(
     {
         pCmdSpace += m_cmdUtil.BuildCondExec(m_predGpuAddr, CmdUtil::DmaDataSizeDwords, pCmdSpace);
     }
-    pCmdSpace += m_cmdUtil.BuildDmaData(dmaDataInfo, pCmdSpace);
+    pCmdSpace += m_cmdUtil.BuildDmaData<false>(dmaDataInfo, pCmdSpace);
     m_cmdStream.CommitCommands(pCmdSpace);
 
     SetGfxCmdBufCpBltState(true);

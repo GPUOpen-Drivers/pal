@@ -45,6 +45,7 @@
 #include "palMath.h"
 #include "palIntervalTreeImpl.h"
 #include "palVectorImpl.h"
+#include "palIterator.h"
 
 #include <float.h>
 #include <limits.h>
@@ -2474,17 +2475,11 @@ uint32* UniversalCmdBuffer::WriteNullColorTargets(
 
     // Compute a mask of slots which were previously bound to valid targets, but are now being bound to NULL.
     uint32 newNullSlotMask = (oldColorTargetMask & ~newColorTargetMask);
-    while (newNullSlotMask != 0)
+    for (uint32 slot : BitIter32(newNullSlotMask))
     {
-        uint32 slot = 0;
-        BitMaskScanForward(&slot, newNullSlotMask);
-
         pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmCB_COLOR0_INFO + (slot * CbRegsPerSlot),
                                                         cbColorInfo.u32All,
                                                         pCmdSpace);
-
-        // Clear the bit since we've already added it to our PM4 image.
-        newNullSlotMask &= ~(1 << slot);
     }
 
     return pCmdSpace;
@@ -3095,14 +3090,15 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
         alreadyWrittenStageMask = FixupUserSgprsOnPipelineSwitch<TessEnabled, GsEnabled>(pPrevSignature, &pDeCmdSpace);
     }
 
-    const bool anyUserDataDirty = IsAnyGfxUserDataDirty();
+    bool         reUpload         = false;
+    const uint16 spillThreshold   = m_pSignatureGfx->spillThreshold;
+    const bool   anyUserDataDirty = IsAnyGfxUserDataDirty();
+
     if (anyUserDataDirty)
     {
         pDeCmdSpace = WriteDirtyUserDataEntriesToSgprsGfx<TessEnabled, GsEnabled>(pPrevSignature,
                                                                                   alreadyWrittenStageMask,
                                                                                   pDeCmdSpace);
-
-        const uint16 spillThreshold = m_pSignatureGfx->spillThreshold;
         if (spillThreshold != NoUserDataSpilling)
         {
             const uint16 userDataLimit = m_pSignatureGfx->userDataLimit;
@@ -3111,8 +3107,8 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
 
             // Step #3:
             // Because the spill table is managed using CPU writes to embedded data, it must be fully re-uploaded for
-            // any Dispatch whenever *any* contents have changed.
-            bool reUpload = (m_spillTable.stateCs.dirty != 0);
+            // any Draw/Dispatch whenever *any* contents have changed.
+            reUpload = (m_spillTable.stateGfx.dirty != 0);
             if (HasPipelineChanged &&
                 ((spillThreshold < pPrevSignature->spillThreshold) || (userDataLimit > pPrevSignature->userDataLimit)))
             {
@@ -3159,23 +3155,6 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
                                        &m_graphicsState.gfxUserDataEntries.entries[0]);
             }
 
-            // NOTE: If the pipeline is changing, we may need to re-write the spill table address to any shader stage,
-            // even if the spill table wasn't re-uploaded because the mapped user-SGPRs for the spill table could have
-            // changed.
-            if (HasPipelineChanged || reUpload)
-            {
-                const uint32 gpuVirtAddrLo = LowPart(m_spillTable.stateGfx.gpuVirtAddr);
-                for (uint32 s = 0; s < NumHwShaderStagesGfx; ++s)
-                {
-                    const uint16 userSgpr = m_pSignatureGfx->stage[s].spillTableRegAddr;
-                    if (userSgpr != UserDataNotMapped)
-                    {
-                        pDeCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(userSgpr,
-                                                                                     gpuVirtAddrLo,
-                                                                                     pDeCmdSpace);
-                    }
-                }
-            }
         } // if current pipeline spills user-data
 
         // All dirtied user-data entries have been written to user-SGPR's or to the spill table somewhere in this
@@ -3186,6 +3165,24 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
             pDirtyMask[i] = 0;
         }
     } // if any user data is dirty
+
+    // NOTE: If the pipeline is changing, we may need to re-write the spill table address to any shader stage,
+    // even if the spill table wasn't re-uploaded because the mapped user-SGPRs for the spill table could have
+    // changed.
+    if ((spillThreshold != NoUserDataSpilling) && (HasPipelineChanged || reUpload))
+    {
+        const uint32 gpuVirtAddrLo = LowPart(m_spillTable.stateGfx.gpuVirtAddr);
+        for (uint32 s = 0; s < NumHwShaderStagesGfx; ++s)
+        {
+            const uint16 userSgpr = m_pSignatureGfx->stage[s].spillTableRegAddr;
+            if (userSgpr != UserDataNotMapped)
+            {
+                pDeCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(userSgpr,
+                    gpuVirtAddrLo,
+                    pDeCmdSpace);
+            }
+        }
+    }
 
     // Step #5:
     // Even though the spill table is not being managed using CE RAM, it is possible for the client to use CE RAM for

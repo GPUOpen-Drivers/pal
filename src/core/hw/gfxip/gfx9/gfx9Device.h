@@ -679,7 +679,7 @@ public:
 
     const Gfx10DepthStencilView*  GetVrsDepthStencilView() const { return m_pVrsDepthView; }
 
-    uint32 Gfx103PlusGetNumActiveShaderArraysLog2() const;
+    uint32 Gfx103PlusExclusiveGetNumActiveShaderArraysLog2() const;
 
     virtual uint32 GetVarBlockSize() const override { return m_varBlockSize; }
 
