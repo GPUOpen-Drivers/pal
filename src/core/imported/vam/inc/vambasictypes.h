@@ -48,6 +48,8 @@
 #define TARGET_64_OS                    1   // We build for 64-bit target
 #elif defined(__arm__)
 #define TARGET_32_OS                    1   // We build for 32-bit target
+#elif defined(__riscv) && __riscv_xlen == 64
+#define TARGET_64_OS                    1   // We build for 64-bit target
 #else
 #error Could not detect if this 32-bit or 64-bit OS
 #endif
