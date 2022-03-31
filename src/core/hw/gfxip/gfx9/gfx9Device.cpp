@@ -417,7 +417,11 @@ Result Device::Finalize()
         const Pal::Device*  pParent  = Parent();
         const auto&         settings = GetGfx9Settings(*pParent);
 
-        if (pParent->ChipProperties().gfxip.supportsVrs && (settings.vrsImageSize != 0))
+        if (pParent->ChipProperties().gfxip.supportsVrs                      &&
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 713
+            (pParent->GetPublicSettings()->disableInternalVrsImage == false) &&
+#endif
+            (settings.vrsImageSize != 0))
         {
             if (IsGfx10(*pParent))
             {
@@ -1650,13 +1654,16 @@ DccFormatEncoding Device::ComputeDccFormatEncoding(
     uint32                viewFormatCount
     ) const
 {
+    const auto&       palDevice         = *Parent();
     DccFormatEncoding dccFormatEncoding = DccFormatEncoding::Optimal;
 
     if (viewFormatCount == AllCompatibleFormats)
     {
-        // If all compatible formats are allowed as view formats then the image is not DCC compatible as none of
-        // the format compatibility classes comprise only of formats that are DCC compatible.
-        dccFormatEncoding = DccFormatEncoding::Incompatible;
+        {
+            // If all compatible formats are allowed as view formats then the image is not DCC compatible as none of
+            // the format compatibility classes comprise only of formats that are DCC compatible.
+            dccFormatEncoding = DccFormatEncoding::Incompatible;
+        }
     }
     else
     {
@@ -4818,8 +4825,10 @@ void InitializeGpuChipProperties(
     pInfo->gfx9.support16BitInstructions           = 1;
     pInfo->gfx9.support64BitInstructions           = 1;
     pInfo->gfx9.supportBorderColorSwizzle          = 1;
-    pInfo->gfx9.supportFloatAtomics                = 1;
     pInfo->gfx9.supportDoubleRate16BitInstructions = 1;
+    {
+        pInfo->gfx9.supportImageViewMinLod         = 1;
+    }
 
     // Support PrimitiveTopology::TwoDRectList for GfxIp9 and onwards.
     pInfo->gfx9.support2DRectList                  = 1;
@@ -4834,6 +4843,8 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.supportAddrOffsetSetSh256Pkt     = (cpUcodeVersion >= Gfx10UcodeVersionSetShRegOffset256B);
         pInfo->gfx9.supportPostDepthCoverage         = 1;
         pInfo->gfx9.supportTextureGatherBiasLod      = 1;
+        pInfo->gfx9.supportFloat32Atomics            = 1;
+        pInfo->gfx9.supportFloat64Atomics            = 1;
 
         pInfo->gfx9.numShaderArrays         = 2;
         pInfo->gfx9.numSimdPerCu            = Gfx10NumSimdPerCu;
@@ -4855,6 +4866,8 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.supportAddrOffsetDumpAndSetShPkt = (cpUcodeVersion >= UcodeVersionWithDumpOffsetSupport);
         pInfo->gfx9.supportAddrOffsetSetSh256Pkt     = (cpUcodeVersion >= Gfx9UcodeVersionSetShRegOffset256B);
         pInfo->gfx9.supportTextureGatherBiasLod      = 1;
+        pInfo->gfx9.supportFloat32Atomics            = 1;
+        pInfo->gfx9.supportFloat64Atomics            = 1;
 
         pInfo->gfx9.numShaderArrays         = 1;
         pInfo->gfx9.numSimdPerCu            = Gfx9NumSimdPerCu;

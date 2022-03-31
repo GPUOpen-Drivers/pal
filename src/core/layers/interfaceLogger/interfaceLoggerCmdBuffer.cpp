@@ -2981,11 +2981,12 @@ void CmdBuffer::CmdInsertTraceMarker(
 
 // =====================================================================================================================
 void CmdBuffer::CmdInsertRgpTraceMarker(
-    uint32      numDwords,
-    const void* pData)
+    RgpMarkerSubQueueFlags subQueueFlags,
+    uint32                 numDwords,
+    const void*            pData)
 {
     // This function is not logged because it should only be called by other debug tools.
-    m_pNextLayer->CmdInsertRgpTraceMarker(numDwords, pData);
+    m_pNextLayer->CmdInsertRgpTraceMarker(subQueueFlags, numDwords, pData);
 }
 
 // =====================================================================================================================

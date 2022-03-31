@@ -121,6 +121,7 @@ void PlatformSettingsLoader::SetupDefaults()
     m_settings.overlayMemoryInfoConfig.reportExternal = true;
     m_settings.overlayMemoryInfoConfig.reportInternal = true;
     m_settings.overlayMemoryInfoConfig.displayPeakMemUsage = false;
+    m_settings.gpuProfilerCaptureTriggerKey = GpuProfilerCaptureTriggerKey::Shift_F11;
     m_settings.gpuProfilerMode = GpuProfilerDisabled;
     m_settings.gpuProfilerTokenAllocatorSize = 64*1024;
 #if   (__unix__)
@@ -415,6 +416,11 @@ void PlatformSettingsLoader::ReadSettings(Pal::Device* pDevice)
     pDevice->ReadSetting(pOverlayMemoryInfoConfig_DisplayPeakMemUsageStr,
                            Util::ValueType::Boolean,
                            &m_settings.overlayMemoryInfoConfig.displayPeakMemUsage,
+                           InternalSettingScope::PrivatePalKey);
+
+    pDevice->ReadSetting(pGpuProfilerCaptureTriggerKeyStr,
+                           Util::ValueType::Uint,
+                           &m_settings.gpuProfilerCaptureTriggerKey,
                            InternalSettingScope::PrivatePalKey);
 
     pDevice->ReadSetting(pGpuProfilerModeStr,
@@ -972,6 +978,11 @@ void PlatformSettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(2059768529, info);
 
     info.type      = SettingType::Uint;
+    info.pValuePtr = &m_settings.gpuProfilerCaptureTriggerKey;
+    info.valueSize = sizeof(m_settings.gpuProfilerCaptureTriggerKey);
+    m_settingsInfoMap.Insert(269352245, info);
+
+    info.type      = SettingType::Uint;
     info.pValuePtr = &m_settings.gpuProfilerMode;
     info.valueSize = sizeof(m_settings.gpuProfilerMode);
     m_settingsInfoMap.Insert(3490085415, info);
@@ -1332,7 +1343,7 @@ void PlatformSettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palPlatformJsonData[0];
             component.settingsDataSize = sizeof(g_palPlatformJsonData);
-            component.settingsDataHash = 2449398422;
+            component.settingsDataHash = 1133415120;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

@@ -243,6 +243,7 @@ public:
 
     // Universal command buffers have three command streams: Draw Engine, Constant Engine and a hidden ACE cmd stream.
     static constexpr uint32 NumCmdStreamsVal = 3;
+    static constexpr uint32 AceStreamCount   = 1;
 
     // Returns the number of command streams associated with this command buffer.
     virtual uint32 NumCmdStreams() const override
@@ -250,6 +251,9 @@ public:
         return NumCmdStreamsVal;
     }
     virtual const CmdStream* GetCmdStream(uint32 cmdStreamIdx) const override;
+
+    virtual uint32 NumCmdStreamsInSubQueue(int32 subQueueIndex) const override;
+    virtual const CmdStream* GetCmdStreamInSubQueue(int32 subQueueIndex, uint32 cmdStreamIndex) const override;
 
     // Universal command buffers support every type of query
     virtual bool IsQueryAllowed(QueryPoolType queryPoolType) const override { return true; }

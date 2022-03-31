@@ -76,94 +76,87 @@ Result StringBag<T, Allocator>::ReserveInternal(
 }
 
 // =====================================================================================================================
-// Pushes a new string onto the end of the buffer. If the buffer has reached maximum capacity, new space is allocated
-// on the heap and the data in the old space is copied over to the new space. The old space is freed if it was also
-// allocated on the heap.
+// Pushes a new string to the end of the bag using the specified string view.
 template<typename T, typename Allocator>
-Result StringBag<T, Allocator>::PushBackInternal(
-    const T*            pString,
-    uint32              length,
-    StringBagHandle<T>* pHandle)
+typename StringBag<T, Allocator>::Handle StringBag<T, Allocator>::PushBack(
+    Util::StringView<T> sv,
+    Result*             pResult)
 {
-    Result result = Result::_Success;
+    // Storage for the string length, the string and the null terminator.
+    const StringLengthType stringLength = sv.Length();
+    const size_t requiredSize           = RequiredSpace(stringLength);
 
-    const size_t requiredCapacity = m_currOffset + length + 1; // Add one for the null terminator.
-
-    // Alloc more space if push back requested cannot fit in the data buffer.
-    if (requiredCapacity > static_cast<size_t>(m_maxCapacity))
+    if (sv.Data() != nullptr)
     {
-        // Allocate an additional amount of memory that is double the required size needed for
-        // the current bag plus the incoming string length. Clamp the maximum to the largest
-        // possible uint32.
-        const size_t newMaxCapacity = Min(requiredCapacity * 2, static_cast<size_t>(~0u));
+        const size_t requiredCapacity = m_currOffset + requiredSize;
 
-        // Ensure the new capacity will fit the incoming string.
-        if (newMaxCapacity <= requiredCapacity)
+        // Alloc more space if push back requested cannot fit in the data buffer.
+        if (requiredCapacity > static_cast<size_t>(m_maxCapacity))
         {
-            result = Result::ErrorInvalidMemorySize;
-        }
-        else
-        {
-            result = ReserveInternal(static_cast<uint32>(newMaxCapacity));
+            // Allocate an additional amount of memory that is double the required size needed for
+            // the current bag plus the incoming string length. Clamp the maximum to the largest
+            // possible uint32.
+            const size_t newMaxCapacity = Min(requiredCapacity * 2, static_cast<size_t>(~0u));
+
+            // Ensure the new capacity will fit the incoming string.
+            if (newMaxCapacity <= requiredCapacity)
+            {
+                *pResult = Result::ErrorInvalidMemorySize;
+            }
+            else
+            {
+                *pResult = ReserveInternal(static_cast<uint32>(newMaxCapacity));
+            }
         }
     }
-
-    if (result == Result::_Success)
+    else
     {
-        std::memcpy((m_pData + m_currOffset), pString, sizeof(T) * length);
+        *pResult = Result::ErrorInvalidPointer;
+    }
 
+    Handle handle;
+    if (*pResult == Result::_Success)
+    {
         // Store the previous offset so that the last string in the bag can be quickly retrieved.
-        *pHandle = GetHandleAt(m_currOffset);
+        const uint32 prevOffset = m_currOffset;
 
-        // Push the current offset one past the end of the copied data, and insert a null terminator.
-        m_currOffset += (length + 1);
-        m_pData[m_currOffset - 1] = T('\0');
+        // Store string length.
+        auto* pStringLength =
+            Util::AssumeAligned<alignof(StringLengthType)>(reinterpret_cast<uint32*>(m_pData + m_currOffset));
+        *pStringLength      = stringLength;
+        // Copy string.
+        std::memcpy((m_pData + m_currOffset + StringLengthSizeof), sv.Data(), sizeof(T) * stringLength);
+        // Add terminator.
+        m_pData[m_currOffset + StringLengthSizeof + stringLength] = T('\0');
+
+        // Push the current offset one past the end of the copied data, including alignment.
+        m_currOffset += uint32(requiredSize);
+
+        handle = GetHandleAt(prevOffset);
     }
 
-    return result;
+    return handle;
 }
 
 // =====================================================================================================================
 // Pushes a new string to the end of the bag after calculating the length.
 template<typename T, typename Allocator>
-StringBagHandle<T> StringBag<T, Allocator>::PushBack(
+typename StringBag<T, Allocator>::Handle StringBag<T, Allocator>::PushBack(
     const T* pString,
     Result*  pResult)
 {
-    StringBagHandle<T> handle;
-
-    if (pString != nullptr)
-    {
-        *pResult = PushBackInternal(pString, StringLength(pString), &handle);
-    }
-    else
-    {
-        *pResult = Result::ErrorInvalidPointer;
-    }
-
-    return handle;
+    return PushBack(Util::StringView<T>{pString}, pResult);
 }
 
 // =====================================================================================================================
 // Pushes a new string to the end of the bag using the specified length.
 template<typename T, typename Allocator>
-StringBagHandle<T> StringBag<T, Allocator>::PushBack(
+typename StringBag<T, Allocator>::Handle StringBag<T, Allocator>::PushBack(
     const T* pString,
     uint32   length,
     Result*  pResult)
 {
-    StringBagHandle<T> handle;
-
-    if (pString != nullptr)
-    {
-        *pResult = PushBackInternal(pString, length, &handle);
-    }
-    else
-    {
-        *pResult = Result::ErrorInvalidPointer;
-    }
-
-    return handle;
+    return PushBack(Util::StringView<T>{pString, length}, pResult);
 }
 
 } // Util

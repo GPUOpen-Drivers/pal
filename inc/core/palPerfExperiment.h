@@ -159,6 +159,17 @@ union PerfExperimentDeviceFeatureFlags
 
 /// Specifies properties for a perf counter being added to a perf experiment.  Input structure to
 /// IPerfExperiment::AddCounter().
+///
+/// A note for GpuBlock::SqWgp
+/// Client of palPerfExperiment may configure counters of GpuBlock::SqWgp based on a per-wgp granularity
+/// only if the following are disabled: GFXOFF, virtualization/SRIOV, VDDGFX (power down features), clock gating (CGCG)
+/// and power gating. PAL expose this feature to clients.
+/// If any of the conditions above cannot be met, it's the client's job to set all WGPs in the same SE to the same
+/// perf counter programming. In this case, GpuBlock::SqWgp's perf counter works on a per-SE granularity.
+/// Strictly speaking, it's not true that the counters work on a per-SE granularity when those power features
+/// are enabled. It's all still per-WGP in HW, we just can't support different counter configs within the same SE.
+/// The counter data is still reported per WGP (not aggregated for the whole SE).
+///
 struct PerfCounterInfo
 {
     PerfCounterType              counterType; ///< Type of counter to add.

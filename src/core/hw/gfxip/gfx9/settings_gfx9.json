@@ -1573,6 +1573,9 @@
       "Defaults": {
         "Default": 4294967295
       },
+      "Flags": {
+        "RereadSetting": true
+      },
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
       "VariableName": "shaderPrefetchSizeBytes",
@@ -2819,6 +2822,22 @@
       "Type": "bool",
       "VariableName": "waClampGeCntlVertGrpSize",
       "Name": "WaClampGeCntlVertGrpSize"
+    },
+    {
+      "Description": "If the workaround is enabled, ignore thread-trace finish results and flush the pipe instead due to RB harvesting issues.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waBadSqttFinishResults",
+      "Name": "WaBadSqttFinishResults"
     },
     {
       "Description": "If the workaround is enabled, we to issue a VGT_FLUSH between legacy GS pipelines that have different VGT_GS_MODE::CUT_MODE values.",

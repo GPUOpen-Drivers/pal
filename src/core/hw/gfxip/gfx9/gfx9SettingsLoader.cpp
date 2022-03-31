@@ -575,6 +575,7 @@ static void SetupNavi23Workarounds(
     SetupNavi2xWorkarounds(device, pSettings);
 
     // Setup any Navi23 workarounds.
+    pSettings->waBadSqttFinishResults = true;
 }
 
 // =====================================================================================================================
@@ -590,6 +591,7 @@ static void SetupNavi24Workarounds(
     SetupNavi2xWorkarounds(device, pSettings);
 
     // Setup any Navi24 workarounds.
+    pSettings->waBadSqttFinishResults = true;
 }
 
 // =====================================================================================================================

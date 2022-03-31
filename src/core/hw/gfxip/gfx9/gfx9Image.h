@@ -378,6 +378,7 @@ public:
                 : static_cast<const Gfx9MaskRam*>(GetHtile()));
     }
 
+    gpusize GetMaskRamBaseOffset(const MaskRam* pMaskRam, uint32 arraySlice) const;
     gpusize GetMaskRamBaseAddr(const MaskRam* pMaskRam, uint32 arraySlice) const;
 
     const ColorLayoutToState& LayoutToColorCompressionState() const { return m_layoutToState.color; }

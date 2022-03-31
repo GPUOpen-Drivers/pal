@@ -611,6 +611,7 @@ constexpr unsigned int mmPA_SU_PRIM_FILTER_CNTL                           = 0xA2
 constexpr unsigned int mmPA_SU_SC_MODE_CNTL                               = 0xA205;
 constexpr unsigned int mmPA_SU_SMALL_PRIM_FILTER_CNTL                     = 0xA20C;
 constexpr unsigned int mmPA_SU_VTX_CNTL                                   = 0xA2F9;
+constexpr unsigned int mmRLC_CGTT_MGCG_OVERRIDE                           = 0xEC48;
 constexpr unsigned int mmRLC_PERFCOUNTER0_HI                              = 0xD481;
 constexpr unsigned int mmRLC_PERFCOUNTER0_LO                              = 0xD480;
 constexpr unsigned int mmRLC_PERFCOUNTER0_SELECT                          = 0xDCC1;
@@ -1776,6 +1777,9 @@ namespace Gfx10
     constexpr unsigned int mmSPI_SHADER_USER_ACCUM_VS_1                       = 0x2C73;
     constexpr unsigned int mmSPI_SHADER_USER_ACCUM_VS_2                       = 0x2C74;
     constexpr unsigned int mmSPI_SHADER_USER_ACCUM_VS_3                       = 0x2C75;
+    constexpr unsigned int mmSQG_UTCL0_CNTL1                                  = 0x2317;
+    constexpr unsigned int mmSQG_UTCL0_CNTL2                                  = 0x2318;
+    constexpr unsigned int mmSQG_UTCL0_STATUS                                 = 0x2319;
     constexpr unsigned int mmSQ_LB_CTR_SEL0                                   = 0x239D;
     constexpr unsigned int mmSQ_LB_CTR_SEL1                                   = 0x239E;
     constexpr unsigned int mmTCP_PERFCOUNTER_FILTER2                          = 0x32BB;
@@ -2922,6 +2926,8 @@ namespace Gfx10Plus
     constexpr unsigned int mmSPI_SHADER_USER_DATA_HS_29                       = 0x2D29;
     constexpr unsigned int mmSPI_SHADER_USER_DATA_HS_30                       = 0x2D2A;
     constexpr unsigned int mmSPI_SHADER_USER_DATA_HS_31                       = 0x2D2B;
+    constexpr unsigned int mmSQG_CONFIG                                       = 0x231A;
+    constexpr unsigned int mmSQG_STATUS                                       = 0x2304;
     constexpr unsigned int mmSQ_ARB_CONFIG                                    = 0x230C;
     constexpr unsigned int mmSQ_THREAD_TRACE_USERDATA_4                       = 0xC344;
     constexpr unsigned int mmSQ_THREAD_TRACE_USERDATA_5                       = 0xC345;

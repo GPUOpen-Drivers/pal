@@ -28,6 +28,8 @@
 #include "palSysUtil.h"
 #include "palHashMapImpl.h"
 
+#include <atomic>
+
 using namespace Util;
 
 namespace Pal
@@ -675,7 +677,7 @@ Result VamMgrSingleton::Init()
         }
         if (result == Result::Success)
         {
-            MemoryBarrier();
+            std::atomic_thread_fence(std::memory_order_acq_rel);
             s_initialized ++;
         }
     }

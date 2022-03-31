@@ -794,7 +794,7 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
         // for more details about why this is currently OK but could theoretically cause blending corruption.
         PAL_ALERT(disableSModes8BppColor && IsStandardSwzzle(pOut->swizzleMode));
 
-        if (IsGfx10(*m_pDevice) &&
+        if (IsGfx10Plus(*m_pDevice) &&
             Formats::IsMacroPixelPackedRgbOnly(createInfo.swizzledFormat.format))
         {
             pOut->swizzleMode = ADDR_SW_LINEAR;
@@ -925,6 +925,27 @@ Result AddrMgr2::ComputeAlignedPlaneDimensions(
         constexpr uint32 Gfx9LinearAlign = 256;
         surfInfoIn.pitchInElement = Util::Pow2Align(surfInfoIn.width, Gfx9LinearAlign * 2);
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 722
+    const PalSettings& settings = m_pDevice->Settings();
+
+    if (settings.waForceLinearHeight16Alignment &&
+        Formats::IsYuvPlanar(createInfo.swizzledFormat.format) &&
+        IsLinearSwizzleMode(swizzleMode) &&
+        createInfo.usageFlags.videoDecoder)
+    {
+        constexpr uint32 LinearAlignForHeight = 16;
+
+        if (pBaseSubRes->subresId.plane == 0)
+        {
+            surfInfoIn.height = Util::Pow2Align(surfInfoIn.height, LinearAlignForHeight);
+        }
+        else
+        {
+            surfInfoIn.height = Util::Pow2Align((surfInfoIn.height << 1), LinearAlignForHeight) >> 1;
+        }
+    }
+#endif
 
     ADDR_E_RETURNCODE addrRet = Addr2ComputeSurfaceInfo(AddrLibHandle(), &surfInfoIn, pOut);
     if (addrRet == ADDR_OK)

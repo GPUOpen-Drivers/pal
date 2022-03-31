@@ -40,6 +40,10 @@ class Platform;
 namespace GpuUtil
 {
 
+// Translates a Pal::Result to a DD_RESULT
+static DD_RESULT DdResultToPalResult(
+    Pal::Result result);
+
 // =====================================================================================================================
 // UberTraceService based off of DevDriver's UberTrace protocol. This is required in order for Tools to drive PAL's
 // TraceSession remotely. This service will mostly just forward network requests into the TraceSession object.
@@ -53,13 +57,16 @@ public:
     virtual DD_RESULT EnableTracing() override { return DD_RESULT_SUCCESS; }
 
     // Queries the current set of trace parameters
-    virtual DD_RESULT QueryTraceParams(
-        const DDByteWriter& writer) override { return DD_RESULT_SUCCESS; }
+    virtual DD_RESULT QueryTraceParams(const DDByteWriter& writer) override { return DD_RESULT_SUCCESS; }
 
     // Configures the current set of trace parameters
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 712
+    virtual DD_RESULT ConfigureTraceParams(const void* pParamBuffer, size_t paramBufferSize) override;
+#else
     virtual DD_RESULT ConfigureTraceParams(
         const void* pParamBuffer,
         size_t      paramBufferSize) override { return DD_RESULT_SUCCESS; }
+#endif
 
     // Requests execution of a trace
     virtual DD_RESULT RequestTrace() override;

@@ -1278,6 +1278,7 @@ typedef union PerfMonCtr5_Hi                                     regPerfMonCtr5_
 typedef union PerfMonCtr5_Lo                                     regPerfMonCtr5_Lo;
 typedef union PerfMonCtrClk_Hi                                   regPerfMonCtrClk_Hi;
 typedef union PerfMonCtrClk_Lo                                   regPerfMonCtrClk_Lo;
+typedef union RLC_CGTT_MGCG_OVERRIDE                             regRLC_CGTT_MGCG_OVERRIDE;
 typedef union RLC_PERFCOUNTER0_HI                                regRLC_PERFCOUNTER0_HI;
 typedef union RLC_PERFCOUNTER0_LO                                regRLC_PERFCOUNTER0_LO;
 typedef union RLC_PERFCOUNTER0_SELECT                            regRLC_PERFCOUNTER0_SELECT;
@@ -1982,6 +1983,11 @@ typedef union SPI_WF_LIFETIME_STATUS_18                          regSPI_WF_LIFET
 typedef union SPI_WF_LIFETIME_STATUS_19                          regSPI_WF_LIFETIME_STATUS_19;
 typedef union SPI_WF_LIFETIME_STATUS_20                          regSPI_WF_LIFETIME_STATUS_20;
 typedef union SPI_WF_LIFETIME_STATUS_21                          regSPI_WF_LIFETIME_STATUS_21;
+typedef union SQG_CONFIG                                         regSQG_CONFIG;
+typedef union SQG_STATUS                                         regSQG_STATUS;
+typedef union SQG_UTCL0_CNTL1                                    regSQG_UTCL0_CNTL1;
+typedef union SQG_UTCL0_CNTL2                                    regSQG_UTCL0_CNTL2;
+typedef union SQG_UTCL0_STATUS                                   regSQG_UTCL0_STATUS;
 typedef union SQ_ALU_CLK_CTRL                                    regSQ_ALU_CLK_CTRL;
 typedef union SQ_ARB_CONFIG                                      regSQ_ARB_CONFIG;
 typedef union SQ_BUF_RSRC_WORD0                                  regSQ_BUF_RSRC_WORD0;

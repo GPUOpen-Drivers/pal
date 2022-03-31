@@ -902,11 +902,8 @@ void UniversalCmdBuffer::CmdBindPipeline(
 
         if (taskEnabled)
         {
-            // Mesh+Task means HybridPipeline.
+            EnableImplicitGangedSubQueueCount(1);
             ReportHybridPipelineBind();
-
-            // Task shader workload uses the ImplicitAce and so we set this flag here.
-            m_flags.usesImplicitAceCmdStream = 1;
         }
 
         bool requiresMeshPipeStatsBuf = false;
@@ -2345,9 +2342,7 @@ void UniversalCmdBuffer::CmdBindStreamOutTargets(
             bufferSize = LowPart(params.target[idx].size) / sizeof(uint32);
             PAL_ASSERT(HighPart(params.target[idx].size) == 0);
 
-            const uint32 strideInBytes =
-                ((pPipeline == nullptr) ? 0 : pPipeline->StrmoutVtxStrideDw(idx)) * sizeof(uint32);
-
+            uint32 strideInBytes = ((pPipeline == nullptr) ? 0 : pPipeline->StrmoutVtxStrideDw(idx)) * sizeof(uint32);
             m_device.SetNumRecords(pBufferSrd, StreamOutNumRecords(chipProps,
                                                                    LowPart(params.target[idx].size),
                                                                    strideInBytes));
@@ -2420,8 +2415,13 @@ void UniversalCmdBuffer::CmdSetTriangleRasterStateInternal(
     m_nggState.flags.dirty                                           = 1;
 
     regPA_SU_SC_MODE_CNTL paSuScModeCntl = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 721
+    paSuScModeCntl.bits.POLY_OFFSET_FRONT_ENABLE = params.flags.frontDepthBiasEnable;
+    paSuScModeCntl.bits.POLY_OFFSET_BACK_ENABLE  = params.flags.backDepthBiasEnable;
+#else
     paSuScModeCntl.bits.POLY_OFFSET_FRONT_ENABLE = params.flags.depthBiasEnable;
     paSuScModeCntl.bits.POLY_OFFSET_BACK_ENABLE  = params.flags.depthBiasEnable;
+#endif
     paSuScModeCntl.bits.MULTI_PRIM_IB_ENA        = 1;
 
     static_assert(
@@ -2606,7 +2606,8 @@ void UniversalCmdBuffer::CmdSetGlobalScissor(
 // =====================================================================================================================
 // This function produces a draw developer callback based on current pipeline state.
 void UniversalCmdBuffer::DescribeDraw(
-    Developer::DrawDispatchType cmdType)
+    Developer::DrawDispatchType cmdType,
+    bool                        includedGangedAce)
 {
     // Get the first user data register offset depending on which HW shader stage is running the VS
     const auto*  pPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
@@ -2627,7 +2628,11 @@ void UniversalCmdBuffer::DescribeDraw(
         drawIndexIdx = m_drawIndexReg - userData0;
     }
 
-    m_device.DescribeDraw(this, cmdType, firstVertexIdx, startInstanceIdx, drawIndexIdx);
+    RgpMarkerSubQueueFlags subQueueFlags { };
+    subQueueFlags.includeMainSubQueue    = 1;
+    subQueueFlags.includeGangedSubQueues = includedGangedAce;
+
+    m_device.DescribeDraw(this, subQueueFlags, cmdType, firstVertexIdx, startInstanceIdx, drawIndexIdx);
 }
 
 // =====================================================================================================================
@@ -3240,7 +3245,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatch(
 
     if (DescribeDrawDispatch)
     {
-        pThis->m_device.DescribeDispatch(pThis, Developer::DrawDispatchType::CmdDispatch, 0, 0, 0, x, y, z);
+        pThis->DescribeDispatch(Developer::DrawDispatchType::CmdDispatch, x, y, z);
     }
 
     if (HsaAbi)
@@ -3286,7 +3291,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchIndirect(
 
     if (DescribeDrawDispatch)
     {
-        pThis->m_device.DescribeDispatch(pThis, Developer::DrawDispatchType::CmdDispatchIndirect, 0, 0, 0, 0, 0, 0);
+        pThis->DescribeDispatchIndirect();
     }
 
     PAL_ASSERT(IsPow2Aligned(offset, sizeof(uint32)));
@@ -3337,8 +3342,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchOffset(
 
     if (DescribeDrawDispatch)
     {
-        pThis->m_device.DescribeDispatch(pThis, Developer::DrawDispatchType::CmdDispatchOffset,
-            xOffset, yOffset, zOffset, xDim, yDim, zDim);
+        pThis->DescribeDispatchOffset(xOffset, yOffset, zOffset, xDim, yDim, zDim);
     }
 
     if (HsaAbi)
@@ -3399,7 +3403,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchDynamic(
 
     if (DescribeDrawDispatch)
     {
-        pThis->m_device.DescribeDispatch(pThis, Developer::DrawDispatchType::CmdDispatchDynamic, 0, 0, 0, x, y, z);
+        pThis->DescribeDispatch(Developer::DrawDispatchType::CmdDispatchDynamic, x, y, z);
     }
 
     pThis->ValidateDispatchPalAbi(&pThis->m_computeState, &pThis->m_deCmdStream, 0uLL, gpuVa, x, y, z);
@@ -3768,7 +3772,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshTask(
 
     // The task shader workload uses the ImplicitAce. We set this flag here so it ensures proper reporting to the Queue
     // that a MultiQueue Gang submission will be needed for this CmdBuffer.
-    pThis->m_flags.usesImplicitAceCmdStream = 1;
+    pThis->EnableImplicitGangedSubQueueCount(1);
 
     // On Gfx9, we need to invalidate the index type which was previously programmed because the CP clobbers
     // that state when executing a non-indexed indirect draw.
@@ -3943,7 +3947,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshIndirectMultiTask(
 
     // The task shader workload uses the ImplicitAce. We set this flag here so it ensures proper reporting to the Queue
     // that a MultiQueue Gang submission will be needed for this CmdBuffer.
-    pThis->m_flags.usesImplicitAceCmdStream = 1;
+    pThis->EnableImplicitGangedSubQueueCount(1);
 
     // On Gfx9, we need to invalidate the index type which was previously programmed because the CP clobbers
     // that state when executing a non-indexed indirect draw.
@@ -4184,9 +4188,12 @@ void UniversalCmdBuffer::CmdInsertTraceMarker(
 
 // =====================================================================================================================
 void UniversalCmdBuffer::CmdInsertRgpTraceMarker(
-    uint32      numDwords,
-    const void* pData)
+    RgpMarkerSubQueueFlags subQueueFlags,
+    uint32                 numDwords,
+    const void*            pData)
 {
+    PAL_ASSERT(subQueueFlags.u32All != 0);
+
     // The first dword of every RGP trace marker packet is written to SQ_THREAD_TRACE_USERDATA_2.  The second dword
     // is written to SQ_THREAD_TRACE_USERDATA_3.  For packets longer than 64-bits, continue alternating between
     // user data 2 and 3.
@@ -4197,27 +4204,37 @@ void UniversalCmdBuffer::CmdInsertRgpTraceMarker(
     {
         const uint32 dwordsToWrite = Min(numDwords, 2u);
 
+        constexpr uint16 Start = mmSQ_THREAD_TRACE_USERDATA_2;
+        const uint16 end = (Start + dwordsToWrite - 1);
+
         // Reserve and commit command space inside this loop.  Some of the RGP packets are unbounded, like adding a
         // comment string, so it's not safe to assume the whole packet will fit under our reserve limit.
-        uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
-        if (IsGfx9(m_gfxIpLevel) == false)
+        if (subQueueFlags.includeMainSubQueue != 0)
         {
-            pCmdSpace = m_deCmdStream.WriteSetSeqConfigRegs<true>(mmSQ_THREAD_TRACE_USERDATA_2,
-                                                                  mmSQ_THREAD_TRACE_USERDATA_2 + dwordsToWrite - 1,
-                                                                  pDwordData,
-                                                                  pCmdSpace);
+            uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
+            if (IsGfx9(m_gfxIpLevel) == false)
+            {
+                pCmdSpace = m_deCmdStream.WriteSetSeqConfigRegs<true>(Start, end, pDwordData, pCmdSpace);
+            }
+            else
+            {
+                pCmdSpace = m_deCmdStream.WriteSetSeqConfigRegs<false>(Start, end, pDwordData, pCmdSpace);
+            }
+            m_deCmdStream.CommitCommands(pCmdSpace);
         }
-        else
+
+        if (subQueueFlags.includeGangedSubQueues != 0)
         {
-            pCmdSpace = m_deCmdStream.WriteSetSeqConfigRegs<false>(mmSQ_THREAD_TRACE_USERDATA_2,
-                                                                   mmSQ_THREAD_TRACE_USERDATA_2 + dwordsToWrite - 1,
-                                                                   pDwordData,
-                                                                   pCmdSpace);
+            PAL_ASSERT(ImplicitGangedSubQueueCount() == 1);
+
+            CmdStream*const pAceCmdStream = GetAceCmdStream();
+            uint32* pCmdSpace = pAceCmdStream->ReserveCommands();
+            pCmdSpace = pAceCmdStream->WriteSetSeqConfigRegs(Start, end, pDwordData, pCmdSpace);
+            pAceCmdStream->CommitCommands(pCmdSpace);
         }
+
         pDwordData += dwordsToWrite;
         numDwords  -= dwordsToWrite;
-
-        m_deCmdStream.CommitCommands(pCmdSpace);
     }
 }
 
@@ -6691,12 +6708,81 @@ uint32* UniversalCmdBuffer::ValidateBinSizes(
 }
 
 // =====================================================================================================================
+// Constructs a virtual rectangle that surrounds all viewports in order to find a center point that must be written to
+// PA_SU_HARDWARE_SCREEN_OFFSET so that the guardband originates from the rectangle's center rather than its origin.
+// Also calculates scale factors, which is the factor by which the center rectangle can be scaled to fill the entire
+// guardband region.
+VportCenterRect UniversalCmdBuffer::GetViewportsCenterAndScale() const
+{
+    const ViewportParams& params = m_graphicsState.viewportState;
+    const uint32 viewportCount   = (m_graphicsState.enableMultiViewport) ? params.count : 1;
+
+    float rectLeft   = 0;
+    float rectRight  = 0;
+    float rectTop    = 0;
+    float rectBottom = 0;
+
+    VportCenterRect centerRect = {};
+
+    for (uint32 i = 0; i < viewportCount; i++)
+    {
+        const Viewport& viewport = params.viewports[i];
+
+        // Calculate the left and rightmost coordinates of the surrounding rectangle
+        float left  = viewport.originX;
+        float right = viewport.originX + viewport.width;
+        // Swap left and right to correct negSize and posSize if width is negative
+        if (viewport.width < 0)
+        {
+            Swap(left, right);
+        }
+        rectLeft    = Min(left, rectLeft);
+        rectRight   = Max(right, rectRight);
+
+        // Calculate the top and bottommost coordinates of the surrounding rectangle
+        float top    = viewport.originY;
+        float bottom = viewport.originY + viewport.height;
+        // Swap top and bottom to correct negSize and posSize if height is negative
+        if (viewport.height < 0)
+        {
+            Swap(top, bottom);
+        }
+        rectTop      = Min(top, rectTop);
+        rectBottom   = Max(bottom, rectBottom);
+    }
+
+    // Calculate accumulated viewport rectangle center point
+    float centerX          = (rectLeft   + rectRight) / 2;
+    float centerY          = (rectBottom + rectTop)   / 2;
+    // We must clamp the center point coords to 0 in the corner case where viewports are centered in negative space
+    centerRect.centerX     = centerX > 0 ? centerX : 0;
+    centerRect.centerY     = centerY > 0 ? centerY : 0;
+
+    // Calculate max acceptable X and Y limit for guardband clipping
+    float negSize          = (-MinHorzScreenCoord) + rectLeft;
+    float posSize          = MaxHorzScreenCoord - rectRight;
+    const float clipLimitX = Min(negSize, posSize);
+
+    negSize                = (-MinVertScreenCoord) + rectTop;
+    posSize                = MaxVertScreenCoord - rectBottom;
+    const float clipLimitY = Min(negSize, posSize);
+
+    // Calculate accumulated viewport rectangle scale factors
+    const float xScale     = (rectRight - rectLeft) * 0.5f;
+    const float yScale     = (rectBottom - rectTop) * 0.5f;
+    centerRect.xClipFactor = (clipLimitX + xScale) / xScale;
+    centerRect.yClipFactor = (clipLimitY + yScale) / yScale;
+
+    return centerRect;
+}
+
+// =====================================================================================================================
 // Writes the latest set of viewports to HW. It is illegal to call this if the viewports aren't dirty.
 template <bool pm4OptImmediate>
 uint32* UniversalCmdBuffer::ValidateViewports(
     uint32* pDeCmdSpace)
 {
-    const auto& params = m_graphicsState.viewportState;
+    const ViewportParams& params = m_graphicsState.viewportState;
     PAL_ASSERT(m_graphicsState.dirtyFlags.validationBits.viewports != 0);
 
     const uint32 viewportCount       = (m_graphicsState.enableMultiViewport) ? params.count : 1;
@@ -6717,12 +6803,12 @@ uint32* UniversalCmdBuffer::ValidateViewports(
     VportScaleOffsetPm4Img scaleOffsetImg[MaxViewports];
     for (uint32 i = 0; i < viewportCount; i++)
     {
-        const auto&             viewport          = params.viewports[i];
+        const Viewport&         viewport          = params.viewports[i];
         VportScaleOffsetPm4Img* pScaleOffsetImg   = &scaleOffsetImg[i];
         auto*                   pNggViewports     = &m_state.primShaderCullingCb.viewports[i];
 
-        float xScale = (viewport.width * 0.5f);
-        float yScale = (viewport.height * 0.5f);
+        const float xScale = (viewport.width  * 0.5f);
+        const float yScale = (viewport.height * 0.5f);
 
         pScaleOffsetImg->xScale.f32All  = xScale;
         pScaleOffsetImg->xOffset.f32All = (viewport.originX + xScale);
@@ -6741,50 +6827,17 @@ uint32* UniversalCmdBuffer::ValidateViewports(
             pScaleOffsetImg->zOffset.f32All = viewport.minDepth;
         }
 
-        // Calc the max acceptable X limit for guardband clipping.
-        float left  = viewport.originX;
-        float right = viewport.originX + viewport.width;
-        // Swap left and right to correct negSize and posSize if width is negative
-        if (viewport.width < 0)
-        {
-            left  = viewport.originX + viewport.width;
-            right = viewport.originX;
-            xScale = -xScale;
-        }
-        float negSize = (-MinHorzScreenCoord) + left;
-        float posSize = MaxHorzScreenCoord - right;
-
-        const float xLimit = Min(negSize, posSize);
-
-        // Calc the max acceptable Y limit for guardband clipping.
-        float top    = viewport.originY;
-        float bottom = viewport.originY + viewport.height;
-
-        // Swap top and bottom to correct negSize and posSize if height is negative
-        if (viewport.height < 0)
-        {
-             top    = viewport.originY + viewport.height;
-             bottom = viewport.originY;
-             yScale = -yScale;
-        }
-        negSize = (-MinVertScreenCoord) + top;
-        posSize = MaxVertScreenCoord - bottom;
-
-        const float yLimit = Min(negSize, posSize);
-
-        // Calculate this viewport's clip guardband scale factors.
-        const float xClip = (xLimit + xScale) / xScale;
-        const float yClip = (yLimit + yScale) / yScale;
-
-        // Accumulate the clip guardband scales for all active viewports.
-        guardbandImg.paClGbHorzClipAdj.f32All = Min(xClip, guardbandImg.paClGbHorzClipAdj.f32All);
-        guardbandImg.paClGbVertClipAdj.f32All = Min(yClip, guardbandImg.paClGbVertClipAdj.f32All);
+        pNggViewports->paClVportXOffset = pScaleOffsetImg->xOffset.u32All;
+        pNggViewports->paClVportYOffset = pScaleOffsetImg->yOffset.u32All;
 
         pNggViewports->paClVportXScale  = pScaleOffsetImg->xScale.u32All;
-        pNggViewports->paClVportXOffset = pScaleOffsetImg->xOffset.u32All;
         pNggViewports->paClVportYScale  = pScaleOffsetImg->yScale.u32All;
-        pNggViewports->paClVportYOffset = pScaleOffsetImg->yOffset.u32All;
     }
+
+    const VportCenterRect vpCenterRect = GetViewportsCenterAndScale();
+
+    guardbandImg.paClGbHorzClipAdj.f32All = vpCenterRect.xClipFactor;
+    guardbandImg.paClGbVertClipAdj.f32All = vpCenterRect.yClipFactor;
 
     m_state.primShaderCullingCb.paClGbHorzClipAdj = guardbandImg.paClGbHorzClipAdj.u32All;
     m_state.primShaderCullingCb.paClGbHorzDiscAdj = guardbandImg.paClGbHorzDiscAdj.u32All;
@@ -6800,6 +6853,20 @@ uint32* UniversalCmdBuffer::ValidateViewports(
                                                                         mmPA_CL_VPORT_XSCALE + numVportScaleRegs - 1,
                                                                         &scaleOffsetImg[0],
                                                                         pDeCmdSpace);
+
+    // Write accumulated rectangle's center coords to PA_SU_HARDWARE_SCREEN_OFFSET to center guardband correctly.
+    // Without doing this, there is fewer potential guardband region below and to the right of the viewport than
+    // above and to the left.
+    regPA_SU_HARDWARE_SCREEN_OFFSET hwScreenOffset = {};
+    hwScreenOffset.bits.HW_SCREEN_OFFSET_X = RoundUpToMultiple(uint32(vpCenterRect.centerX), 32u) / 16u;
+    hwScreenOffset.bits.HW_SCREEN_OFFSET_Y = RoundUpToMultiple(uint32(vpCenterRect.centerY), 32u) / 16u;
+
+    PAL_ASSERT(((hwScreenOffset.bits.HW_SCREEN_OFFSET_X & 0x1) == 0) &&
+               ((hwScreenOffset.bits.HW_SCREEN_OFFSET_Y & 0x1) == 0));
+
+    pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<pm4OptImmediate>(mmPA_SU_HARDWARE_SCREEN_OFFSET,
+                                                                       hwScreenOffset.u32All,
+                                                                       pDeCmdSpace);
 
     VportZMinMaxPm4Img zMinMaxImg[MaxViewports];
     for (uint32 i = 0; i < viewportCount; i++)
@@ -8821,13 +8888,15 @@ void UniversalCmdBuffer::CmdCopyRegisterToMemory(
 // =====================================================================================================================
 uint32 UniversalCmdBuffer::ComputeSpillTableInstanceCnt(
     uint32 spillTableDwords,
+    uint32 vertexBufTableDwords,
     uint32 maxCmdCnt
     ) const
 {
     // Since the SpillTable/s data needs to be virtually contiguous the way it is referenced later, we do not wish to
     // allocate more memory for it than what can fit in a single chunk of the CmdAllocator::EmbeddedData.
     const uint32 embeddedDataLimitDwords = GetEmbeddedDataLimit();
-    const uint32 spillCnt                = Min((embeddedDataLimitDwords / spillTableDwords), maxCmdCnt);
+    const uint32 tableSizeDwords         = spillTableDwords + vertexBufTableDwords;
+    const uint32 spillCnt                = Min((embeddedDataLimitDwords / tableSizeDwords), maxCmdCnt);
     const uint32 spillTableInstCnt       = Util::Pow2Pad(spillCnt);
     return (spillTableInstCnt > spillCnt) ? spillTableInstCnt >> 1 : spillTableInstCnt;
 }
@@ -8839,47 +8908,65 @@ gpusize UniversalCmdBuffer::ConstructExecuteIndirectIb2(
     const uint32                maximumCount,
     const GraphicsPipeline*     pGfxPipeline,
     gpusize*                    pIb2GpuSize,
-    gpusize&                    spillTableAddress,
-    uint32&                     spillTableInstCnt,
-    uint32&                     spillTableStride)
+    gpusize*                    pSpillTableAddress,
+    uint32*                     pSpillTableInstCnt,
+    uint32*                     pSpillTableStride,
+    uint32*                     pVbTableRegOffset,
+    uint32*                     pVbTableSize)
 {
     uint32 cmdCount                     = gfx9Generator.ParameterCount();
     IndirectParamData* const pParamData = gfx9Generator.GetIndirectParamData();
     const auto& signature               = pGfxPipeline->Signature();
     const auto& properties              = gfx9Generator.Properties();
     gpusize ib2GpuVa                    = 0;
-    bool userDataSpillTableSupported    = false;
-
-    if (m_device.Parent()->Settings().useExecuteIndirectPacket == UseExecuteIndirectPacketForDrawSpillTable)
-    {
-        userDataSpillTableSupported = true;
-    }
 
     uint32 spillThreshold               = signature.spillThreshold;
     const uint32 spillDwords            = (spillThreshold <= properties.userDataWatermark) ?
-        properties.maxUserDataEntries  :  0;
+        properties.maxUserDataEntries : 0;
 
-    const uint32* pUserDataEntries = &m_graphicsState.gfxUserDataEntries.entries[0];
-    uint32 spillTableLocalOffset   = 0;
+    const uint32* pUserDataEntries    = &m_graphicsState.gfxUserDataEntries.entries[0];
+    const uint32 vertexBufTableDwords = properties.vertexBufTableSize;
+    uint32 spillTableLocalOffset      = 0;
+
+    *pSpillTableStride = (spillDwords + vertexBufTableDwords) * sizeof(uint32);
+
+    // Set VertexBuffer parameters.
+    if (vertexBufTableDwords > 0)
+    {
+        *pVbTableSize = vertexBufTableDwords * sizeof(uint32);
+        *pVbTableRegOffset = ((signature.vertexBufTableRegAddr != 0) && (vertexBufTableDwords != 0)) ?
+            signature.vertexBufTableRegAddr : 0;
+    }
 
     // UserData that spills over the assigned SGPRs is also modified by this generator and we will need to create and
-    // handle SpillTable/s.
-    if ((spillDwords > 0) && (userDataSpillTableSupported == true))
+    // handle SpillTable/s + VertexBuffer/s. We manage the VertexBuffer/SRD as part of the SpillTable Buffer.
+    // Memory layout is [VertexBuffer + SpillTable].
+    if (*pSpillTableStride > 0)
     {
-        // Number of instances means max number of (1 UserDataSpillTable per Command) of SpillTables we can fit.
-        // If the number of SpillTables required exceeds the number we can fit in this buffer the CP will replace
-        // the UserData entries stored in the current SpillTable buffer with the next set of entries from the
+        // Number of instances means max number of (1 UserDataSpillTable + VertexBuffer per Command) Spill+VBTables we
+        // can fit. If the number of Tables required exceeds the number we can fit in this buffer the CP will
+        // replace the UserData entries stored in the current SpillTable buffer with the next set of entries from the
         // Argument Buffer. spillTableInstCnt should always be a power of 2.
-        spillTableInstCnt = ComputeSpillTableInstanceCnt(spillDwords, maximumCount);
-        spillTableStride  = spillDwords * sizeof(uint32);
+        *pSpillTableInstCnt = ComputeSpillTableInstanceCnt(spillDwords, vertexBufTableDwords, maximumCount);
 
-        // Allocate and populate SpillTable Buffer with UserData. Each instance of the SpillTable needs to be
-        // initialized with UserDataEntries of current context.
-        uint32* pUserDataSpace = CmdAllocateEmbeddedData(spillDwords * spillTableInstCnt, 1, &spillTableAddress);
-        for (uint32 i = 0; i < spillTableInstCnt; i++)
+        // Allocate and populate Spill+VBTable Buffer with UserData. Each instance of the SpillTable and VertexBuffer
+        // needs to be initialized with UserDataEntries of current context.
+        uint32* pUserDataSpace = CmdAllocateEmbeddedData(((vertexBufTableDwords + spillDwords) * (*pSpillTableInstCnt)),
+                                                         1,
+                                                         pSpillTableAddress);
+        for (uint32 i = 0; i < *pSpillTableInstCnt; i++)
         {
-            memcpy(pUserDataSpace, pUserDataEntries, (sizeof(uint32) * spillDwords));
-            pUserDataSpace += spillDwords;
+            if (vertexBufTableDwords != 0)
+            {
+                memcpy(pUserDataSpace, m_vbTable.pSrds, (sizeof(uint32) * vertexBufTableDwords));
+                pUserDataSpace += vertexBufTableDwords;
+            }
+
+            if (spillDwords != 0)
+            {
+                memcpy(pUserDataSpace, pUserDataEntries, (sizeof(uint32) * spillDwords));
+                pUserDataSpace += spillDwords;
+            }
         }
     }
 
@@ -8970,7 +9057,7 @@ gpusize UniversalCmdBuffer::ConstructExecuteIndirectIb2(
             }
 
             // Indicates spilling is required.
-            if ((spillThreshold <= (firstEntry + entryCount - 1)) && (userDataSpillTableSupported == true))
+            if (spillThreshold <= (firstEntry + entryCount - 1))
             {
                 uint32 argBufOffset = pParamData[cmdIndex].argBufOffset;
 
@@ -8985,7 +9072,7 @@ gpusize UniversalCmdBuffer::ConstructExecuteIndirectIb2(
 
                 // Every next iteration we are overwriting the buffer at pSpillTableAddress. The CP handles the work of
                 // cache flush and the PFP-ME sync before overwriting this buffer for the next set of Commands.
-                spillTableLocalOffset = (firstEntry * sizeof(uint32));
+                spillTableLocalOffset = ((firstEntry + vertexBufTableDwords) * sizeof(uint32));
 
                 DmaDataInfo copyInfo = {};
                 copyInfo.srcOffset    = argBufOffset;
@@ -9002,6 +9089,48 @@ gpusize UniversalCmdBuffer::ConstructExecuteIndirectIb2(
 
                 pDeCmdIb2Space += m_cmdUtil.BuildDmaData<true>(copyInfo, pDeCmdIb2Space);
             }
+            break;
+        }
+        case IndirectOpType::VertexBufTableSrd:
+        {
+            uint32 argBufOffset = pParamData[cmdIndex].argBufOffset;
+            BuildUntypedSrdInfo srdInfo = {};
+
+            srdInfo.srcGpuVirtAddressOffset = argBufOffset;
+            srdInfo.dstGpuVirtAddressOffset = pParamData[cmdIndex].data[0] * sizeof(uint32);
+
+            if (IsGfx10Plus(*m_device.Parent()))
+            {
+                // Always set oob_select = 2 (allow transaction unless numRecords == 0)
+                constexpr uint32 OobSelect = 0x2;
+                // Always set resource_level = 1 because we're in GEN_TWO  mode
+                constexpr uint32 ResourceLevel = 0x1;
+
+                srdInfo.srdDword3 = ((SQ_SEL_X << SqBufRsrcTWord3DstSelXShift) |
+                                     (SQ_SEL_Y << SqBufRsrcTWord3DstSelYShift) |
+                                     (SQ_SEL_Z << SqBufRsrcTWord3DstSelZShift) |
+                                     (SQ_SEL_W << SqBufRsrcTWord3DstSelWShift) |
+                                     (BUF_FMT_32_UINT << Gfx10CoreSqBufRsrcTWord3FormatShift) |
+                                     (ResourceLevel << Gfx10CoreSqBufRsrcTWord3ResourceLevelShift) |
+                                     (OobSelect << SqBufRsrcTWord3OobSelectShift) |
+                                     (SQ_RSRC_BUF << SqBufRsrcTWord3TypeShift));
+            }
+            else
+            {
+                srdInfo.srdDword3 = ((SQ_RSRC_BUF << Gfx09::SQ_BUF_RSRC_WORD3__TYPE__SHIFT) |
+                                     (SQ_SEL_X << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_X__SHIFT) |
+                                     (SQ_SEL_Y << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_Y__SHIFT) |
+                                     (SQ_SEL_Z << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_Z__SHIFT) |
+                                     (SQ_SEL_W << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_W__SHIFT) |
+                                     (BUF_DATA_FORMAT_32 << Gfx09::SQ_BUF_RSRC_WORD3__DATA_FORMAT__SHIFT) |
+                                     (BUF_NUM_FORMAT_UINT << Gfx09::SQ_BUF_RSRC_WORD3__NUM_FORMAT__SHIFT));
+            }
+
+            pDeCmdIb2Space += m_cmdUtil.BuildUntypedSrd(
+                PacketPredicate(),
+                &srdInfo,
+                ShaderGraphics,
+                pDeCmdIb2Space);
             break;
         }
         default:
@@ -9048,104 +9177,129 @@ void UniversalCmdBuffer::ExecuteIndirectPacket(
     const auto*             pGfxPipeline =
         static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
     const bool              isGfx        = (bindPoint == PipelineBindPoint::Graphics);
+    uint32                  mask         = 1;
 
-    if (isGfx)
+    if (isGfx && (pGfxPipeline->HwStereoRenderingEnabled() == false))
     {
         const auto& viewInstancingDesc = pGfxPipeline->GetViewInstancingDesc();
-        uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-        pDeCmdSpace = BuildWriteViewId(viewInstancingDesc.viewId[0], pDeCmdSpace);
-        m_deCmdStream.CommitCommands(pDeCmdSpace);
-
-        ValidateDrawInfo drawInfo;
-        drawInfo.vtxIdxCount   = 0;
-        drawInfo.instanceCount = 0;
-        drawInfo.firstVertex   = 0;
-        drawInfo.firstInstance = 0;
-        drawInfo.firstIndex    = 0;
-        drawInfo.useOpaque     = false;
-        if (gfx9Generator.ContainsIndexBufferBind() || (gfx9Generator.Type() == GeneratorType::Draw))
+        mask = (1 << viewInstancingDesc.viewInstanceCount) - 1;
+        if (viewInstancingDesc.enableMasking)
         {
-            ValidateDraw<false, true>(drawInfo);
+            mask &= m_graphicsState.viewInstanceMask;
+        }
+    }
+
+    for (uint32 i = 0; mask != 0; ++i, mask >>= 1)
+    {
+        if (TestAnyFlagSet(mask, 1) == false)
+        {
+            continue;
+        }
+
+        if (isGfx)
+        {
+            const auto& viewInstancingDesc = pGfxPipeline->GetViewInstancingDesc();
+            uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+            pDeCmdSpace = BuildWriteViewId(viewInstancingDesc.viewId[i], pDeCmdSpace);
+            m_deCmdStream.CommitCommands(pDeCmdSpace);
+
+            ValidateDrawInfo drawInfo;
+            drawInfo.vtxIdxCount   = 0;
+            drawInfo.instanceCount = 0;
+            drawInfo.firstVertex   = 0;
+            drawInfo.firstInstance = 0;
+            drawInfo.firstIndex    = 0;
+            drawInfo.useOpaque     = false;
+            if (gfx9Generator.ContainsIndexBufferBind() || (gfx9Generator.Type() == GeneratorType::Draw))
+            {
+                ValidateDraw<false, true>(drawInfo);
+            }
+            else
+            {
+                ValidateDraw<true, true>(drawInfo);
+            }
+
+            CommandGeneratorTouchedUserData(m_graphicsState.gfxUserDataEntries.touched, gfx9Generator, *m_pSignatureGfx);
         }
         else
         {
-            ValidateDraw<true, true>(drawInfo);
+            ValidateDispatchPalAbi(&m_computeState, &m_deCmdStream, 0uLL, 0uLL, 0, 0, 0);
+            CommandGeneratorTouchedUserData(m_computeState.csUserDataEntries.touched, gfx9Generator, *m_pSignatureCs);
         }
 
-        CommandGeneratorTouchedUserData(m_graphicsState.gfxUserDataEntries.touched, gfx9Generator, *m_pSignatureGfx);
-    }
-    else
-    {
-        ValidateDispatchPalAbi(&m_computeState, &m_deCmdStream, 0uLL, 0uLL, 0, 0, 0);
-        CommandGeneratorTouchedUserData(m_computeState.csUserDataEntries.touched, gfx9Generator, *m_pSignatureCs);
-    }
+        const uint16 vtxOffsetReg = GetVertexOffsetRegAddr();
+        const uint16 instOffsetReg = GetInstanceOffsetRegAddr();
 
-    const uint16 vtxOffsetReg = GetVertexOffsetRegAddr();
-    const uint16 instOffsetReg = GetInstanceOffsetRegAddr();
+        m_deCmdStream.NotifyIndirectShRegWrite(vtxOffsetReg);
+        m_deCmdStream.NotifyIndirectShRegWrite(instOffsetReg);
 
-    m_deCmdStream.NotifyIndirectShRegWrite(vtxOffsetReg);
-    m_deCmdStream.NotifyIndirectShRegWrite(instOffsetReg);
+        gpusize ib2GpuSize          = 0;
+        gpusize spillTableAddress   = 0;
+        uint32  spillTableInstCount = 0;
+        uint32  spillTableStride    = 0;
+        uint32  vbTableRegOffset    = 0;
+        uint32  vbTableSize         = 0;
 
-    gpusize ib2GpuSize          = 0;
-    gpusize spillTableAddress   = 0;
-    uint32  spillTableInstCount = 0;
-    uint32  spillTableStride    = 0;
+        gpusize ib2GpuVa = ConstructExecuteIndirectIb2(
+            gfx9Generator,
+            bindPoint,
+            maximumCount,
+            pGfxPipeline,
+            &ib2GpuSize,
+            &spillTableAddress,
+            &spillTableInstCount,
+            &spillTableStride,
+            &vbTableRegOffset,
+            &vbTableSize);
 
-    gpusize ib2GpuVa = ConstructExecuteIndirectIb2(
-        gfx9Generator,
-        bindPoint,
-        maximumCount,
-        pGfxPipeline,
-        &ib2GpuSize,
-        spillTableAddress,
-        spillTableInstCount,
-        spillTableStride);
+        uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+        pDeCmdSpace = WaitOnCeCounter(pDeCmdSpace);
 
-    pDeCmdSpace = WaitOnCeCounter(pDeCmdSpace);
+        ExecuteIndirectPacketInfo packetInfo{ };
 
-    ExecuteIndirectPacketInfo packetInfo { };
-
-    packetInfo.commandBufferAddr         = ib2GpuVa;
-    packetInfo.argumentBufferAddr        = gpuMemory.Desc().gpuVirtAddr + offset;
-    packetInfo.countBufferAddr           = countGpuAddr;
-    packetInfo.spillTableAddr            = spillTableAddress;
-    packetInfo.spillTableInstanceCnt     = spillTableInstCount;
-    packetInfo.spillTableStrideBytes     = spillTableStride;
-    packetInfo.maxCount                  = maximumCount;
-    packetInfo.commandBufferSizeDwords   = static_cast<uint32>(ib2GpuSize) / sizeof(uint32);
-    packetInfo.argumentBufferStrideBytes = gfx9Generator.Properties().argBufStride;
-    if (isGfx)
-    {
-        packetInfo.pipelineSignature.pSignatureGfx = m_pSignatureGfx;
-    }
-    else
-    {
-        packetInfo.pipelineSignature.pSignatureCs = m_pSignatureCs;
-    }
-
-    pDeCmdSpace += CmdUtil::BuildExecuteIndirect(PacketPredicate(), isGfx, packetInfo, pDeCmdSpace);
-
-    // We need to issue any post-draw or post-dispatch workarounds after the ExecuteIndirect packet has finished
-    // executing.
-    if (isGfx)
-    {
-        if ((gfx9Generator.Type() == GeneratorType::Draw) ||
-            (gfx9Generator.Type() == GeneratorType::DrawIndexed) ||
-            (gfx9Generator.Type() == GeneratorType::DispatchMesh))
+        packetInfo.commandBufferAddr         = ib2GpuVa;
+        packetInfo.argumentBufferAddr        = gpuMemory.Desc().gpuVirtAddr + offset;
+        packetInfo.countBufferAddr           = countGpuAddr;
+        packetInfo.spillTableAddr            = spillTableAddress;
+        packetInfo.spillTableInstanceCnt     = spillTableInstCount;
+        packetInfo.spillTableStrideBytes     = spillTableStride;
+        packetInfo.vbTableRegOffset          = vbTableRegOffset;
+        packetInfo.vbTableSize               = vbTableSize;
+        packetInfo.maxCount                  = maximumCount;
+        packetInfo.commandBufferSizeDwords   = static_cast<uint32>(ib2GpuSize) / sizeof(uint32);
+        packetInfo.argumentBufferStrideBytes = gfx9Generator.Properties().argBufStride;
+        if (isGfx)
         {
-            // Command generators which issue non-indexed draws generate DRAW_INDEX_AUTO packets, which will
-            // invalidate some of our draw-time HW state. SEE: CmdDraw() for more details.
-            // ExecuteIndirect Command Generator may modify the index buffer element size but PAL's state
-            // tracking would fail to recognize this. So the index type may be set to 32 bit when its actually
-            // 16 bit or vice versa. Which is why also include 'DrawIndexed' here.
-            m_drawTimeHwState.dirty.indexedIndexType = 1;
+            packetInfo.pipelineSignature.pSignatureGfx = m_pSignatureGfx;
         }
-    }
+        else
+        {
+            packetInfo.pipelineSignature.pSignatureCs = m_pSignatureCs;
+        }
 
-    pDeCmdSpace = IncrementDeCounter(pDeCmdSpace);
-    m_deCmdStream.CommitCommands(pDeCmdSpace);
+        pDeCmdSpace += CmdUtil::BuildExecuteIndirect(PacketPredicate(), isGfx, packetInfo, pDeCmdSpace);
+
+        // We need to issue any post-draw or post-dispatch workarounds after the ExecuteIndirect packet has finished
+        // executing.
+        if (isGfx)
+        {
+            if ((gfx9Generator.Type() == GeneratorType::Draw) ||
+                (gfx9Generator.Type() == GeneratorType::DrawIndexed) ||
+                (gfx9Generator.Type() == GeneratorType::DispatchMesh))
+            {
+                // Command generators which issue non-indexed draws generate DRAW_INDEX_AUTO packets, which will
+                // invalidate some of our draw-time HW state. SEE: CmdDraw() for more details.
+                // ExecuteIndirect Command Generator may modify the index buffer element size but PAL's state
+                // tracking would fail to recognize this. So the index type may be set to 32 bit when its actually
+                // 16 bit or vice versa. Which is why also include 'DrawIndexed' here.
+                m_drawTimeHwState.dirty.indexedIndexType = 1;
+            }
+        }
+
+        pDeCmdSpace = IncrementDeCounter(pDeCmdSpace);
+        m_deCmdStream.CommitCommands(pDeCmdSpace);
+    }
 }
 
 // =====================================================================================================================
@@ -9446,7 +9600,7 @@ void UniversalCmdBuffer::CmdDispatchAce(
 
     if (m_cachedSettings.describeDrawDispatch)
     {
-        m_device.DescribeDispatch(this, Developer::DrawDispatchType::CmdDispatchAce, 0, 0, 0, x, y, z);
+        DescribeDispatch(Developer::DrawDispatchType::CmdDispatchAce, x, y, z);
     }
 
     const auto* pComputePipeline = static_cast<const ComputePipeline*>(m_computeState.pipelineState.pPipeline);
@@ -9486,7 +9640,7 @@ void UniversalCmdBuffer::CmdDispatchAce(
 
     // If this function was called it means we will be using the ImplicitAceCmdStream for Indirect Cmd Generation.
     // So we will set this flag here to ensure gang submission is used when MS HWS is enabled.
-    m_flags.usesImplicitAceCmdStream = 1;
+    EnableImplicitGangedSubQueueCount(1);
 }
 
 // =====================================================================================================================
@@ -9801,7 +9955,7 @@ uint8 UniversalCmdBuffer::CheckStreamOutBufferStridesOnPipelineSwitch()
     uint8 dirtySlotMask = 0;
     for (uint32 idx = 0; idx < MaxStreamOutTargets; ++idx)
     {
-        const uint32 strideInBytes = (sizeof(uint32) * pPipeline->StrmoutVtxStrideDw(idx));
+        uint32 strideInBytes = (sizeof(uint32) * pPipeline->StrmoutVtxStrideDw(idx));
         const uint32 sizeInBytes   = LowPart(m_graphicsState.bindStreamOutTargets.target[idx].size);
         const uint32 numRecords    = StreamOutNumRecords(chipProps, sizeInBytes, strideInBytes);
 

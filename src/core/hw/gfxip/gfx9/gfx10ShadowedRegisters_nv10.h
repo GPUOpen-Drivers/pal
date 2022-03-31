@@ -205,6 +205,14 @@ const RegisterRange Navi10NonShadowedRanges[] =
         1
     },
     {
+        mmPA_SU_LINE_STIPPLE_VALUE,
+        1
+    },
+    {
+        mmPA_SC_LINE_STIPPLE_STATE,
+        1
+    },
+    {
         Gfx101::mmSPI_CONFIG_CNTL_REMAP,
         1
     },

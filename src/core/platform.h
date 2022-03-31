@@ -40,7 +40,9 @@ namespace GpuUtil
 {
 class TraceSession;
 class AsicInfoTraceSource;
+class ApiInfoTraceSource;
 class UberTraceService;
+class FrameTraceController;
 }
 #endif
 
@@ -133,6 +135,7 @@ public:
 
 #if PAL_BUILD_RDF
     virtual GpuUtil::TraceSession* GetTraceSession() override { return m_pTraceSession; }
+    void UpdateFrameTraceController(ICmdBuffer* pCmdBuffer);
 #endif
 
     uint32       GetDeviceCount()  const { return m_deviceCount; }
@@ -183,6 +186,9 @@ public:
 
     bool OverrideGpuId(GpuId* pGpuId) const;
 
+    const uint16 GetClientApiMajorVer() const { return m_clientApiMajorVer; }
+    const uint16 GetClientApiMinorVer() const { return m_clientApiMinorVer; }
+
 protected:
     Platform(const PlatformCreateInfo& createInfo, const Util::AllocCallbacks& allocCb);
 
@@ -218,6 +224,9 @@ protected:
     Device*            m_pDevice[MaxDevices];
     uint32             m_deviceCount;
     PlatformProperties m_properties;
+
+    uint16 m_clientApiMajorVer;
+    uint16 m_clientApiMinorVer;
 
     static constexpr uint32 MaxSettingsPathLength = 256;
     char m_settingsPath[MaxSettingsPathLength];
@@ -280,6 +289,11 @@ private:
     Result InitTraceSession();
     void DestroyTraceSession();
 
+    // Register the trace controllers in TraceSession
+    Result InitTraceControllers();
+    Result RegisterTraceControllers();
+    void DestroyTraceControllers();
+
     // Register the "default" trace sources(eg. GpuInfo) on start-up, to reduce burden on clients and
     // provide boilerplate info to Tools
     Result InitDefaultTraceSources();
@@ -294,8 +308,11 @@ private:
     // TraceSession that is centrally owned and managed by PAL
     GpuUtil::TraceSession* m_pTraceSession;
 
-    // Trace source that sends device info to PAL-owned TraceSession
-    GpuUtil::AsicInfoTraceSource* m_pAsicInfoTraceSource;
+    // Frame trace controller that drives the PAL-owned TraceSession from begin to end
+    GpuUtil::FrameTraceController* m_pFrameTraceController;
+
+    GpuUtil::AsicInfoTraceSource* m_pAsicInfoTraceSource; // Trace source that sends device info to PAL-owned TraceSession
+    GpuUtil::ApiInfoTraceSource* m_pApiInfoTraceSource;   // Trace source that sends api info to PAL-owned TraceSession
 
     // UberTraceService that communicates with Tools
     GpuUtil::UberTraceService* m_pUberTraceService;

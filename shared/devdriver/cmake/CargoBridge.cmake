@@ -50,7 +50,9 @@ list(APPEND CARGO_FLAGS --target-dir=${DEVDRIVER_RS_TARGET_DIR})
 list(APPEND CARGO_FLAGS --manifest-path=${CMAKE_CURRENT_SOURCE_DIR}/Cargo.toml)
 list(APPEND CARGO_FLAGS $<IF:$<NOT:$<CONFIG:Debug>>,--release,>)
 
-if (DD_OPT_CI_BUILD)
+# Make Rust respect CMake's verbosity
+# https://cmake.org/cmake/help/latest/envvar/VERBOSE.html?highlight=verbose
+if (DEFINED ENV{VERBOSE})
 
     # Normal developers don't need ths kind of verbosity, but it's useful when debugging CI
     list(APPEND CARGO_FLAGS "-v")

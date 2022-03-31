@@ -40,7 +40,7 @@
 
 namespace Util
 {
-#if PAL_ENABLE_PRINTS_ASSERTS
+#if (PAL_ENABLE_PRINTS_ASSERTS || PAL_ENABLE_LOGGING)
 // Forward declarations.
 class File;
 enum  FileAccessMode : uint32;
@@ -205,13 +205,38 @@ extern int Vsnprintf(
     const char* pFormat,
     va_list     argList);
 
+/// Copy an arbitrary string into the provided buffer, encoding as necessary to avoid characters that are illegal
+/// in filenames (assuming the more restrictive Windows rules, even on non-Windows OSs).
+///
+/// Any byte that would be illegal is encoded as % then two hex digits, like in a URL.
+///
+/// @param [out] pOutput           Output string.
+/// @param       bufSize           Available space in pOutput.
+/// @param [in]  pInput            Input string
+/// @param       allowSpace        Allow (do not % encode) space
+/// @param       allowDirSeparator Allow (do not % encode) / and \ characters
+///
+/// @returns Works like C++ standard snprintf:
+///          - If the provided buffer is big enough, it returns the number of bytes written, excluding the
+///            terminating \0.
+///          - If the provided buffer is not big enough, then the result string is truncated to fit, and the
+///            function returns the number of bytes that would have been written if the buffer had been long
+///            enough, excluding the terminating \0.
+///          - Passing 0 buffer length is allowed as a special case of that, and nullptr pOutput is then allowed.
+extern size_t EncodeAsFilename(
+    char*       pOutput,
+    size_t      bufSize,
+    const char* pInput,
+    bool        allowSpace,
+    bool        allowDirSeparator);
+
 } // Util
 
 /// PAL_ENABLE_LOGGING enables the new logging code. At this time, both, the current and new logging
 /// code will be active for development purpose if both macros are enabled.
 #if (PAL_ENABLE_PRINTS_ASSERTS && PAL_ENABLE_LOGGING)
 /// Debug printf macro.
-#define PAL_DPF  Util::DbgPrintf
+#define PAL_DPF Util::DbgPrintf
 /// Debug info printf macro.
 #define PAL_DPINFO(_pFormat, ...)                                                                                   \
 {                                                                                                                   \
@@ -238,7 +263,7 @@ extern int Vsnprintf(
 }
 #elif PAL_ENABLE_PRINTS_ASSERTS
 /// Debug printf macro.
-#define PAL_DPF                    Util::DbgPrintf
+#define PAL_DPF Util::DbgPrintf
 /// Debug info printf macro.
 #define PAL_DPINFO(_pFormat, ...)                                                                                      \
 {                                                                                                                      \
@@ -258,6 +283,8 @@ extern int Vsnprintf(
                     ##__VA_ARGS__, __FILE__, __LINE__, __func__);                                                      \
 }
 #elif PAL_ENABLE_LOGGING
+/// Debug printf macro.
+#define PAL_DPF Util::DbgPrintf
 /// Debug info printf macro.
 #define PAL_DPINFO(_pFormat, ...)                                                                                      \
 {                                                                                                                      \

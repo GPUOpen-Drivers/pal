@@ -32,6 +32,7 @@
 #pragma once
 
 #include "palFormat.h"
+#include "palSysUtil.h"
 
 // Forward declarations of global types (must be done outside of Pal namespace).
 
@@ -547,6 +548,9 @@ enum GpuProfilerMode : uint32
     GpuProfilerTraceEnabledTtv       = 2, ///< Traces are output in format (.csv, .out) for Thread trace viewer.
     GpuProfilerTraceEnabledRgp       = 3, ///< Trace data is output as .rgp file for Radeon Gpu Profiler.
 };
+
+// Defines the trigger keys for capturing the GPU profiler.
+typedef Util::KeyCode GpuProfilerCaptureTriggerKey;
 
 #define PAL_EVENT_LOGGING_VERSION 528
 

@@ -39,7 +39,19 @@ DbgLogMgr g_dbgLogMgr;
 static bool g_reentryGuard = true;
 
 // =====================================================================================================================
-// Generic debug log function called by PAL_DPF* macros.
+// Generic debug log function for debug prints - va_list version
+void DbgVLog(
+    SeverityLevel   severity,
+    OriginationType source,
+    const char*     pClientTag,
+    const char*     pFormat,  // Printf-style format string.
+    va_list         argList)  // Printf-style argument list.
+{
+    g_dbgLogMgr.LogMessage(severity, source, pClientTag, pFormat, argList);
+}
+
+// =====================================================================================================================
+// Generic debug log function called by PAL_DPF* macros - variable args version
 void DbgLog(
     SeverityLevel   severity,
     OriginationType source,
@@ -49,7 +61,7 @@ void DbgLog(
 {
     va_list argList;
     va_start(argList, pFormat);
-    g_dbgLogMgr.LogMessage(severity, source, pClientTag, pFormat, argList);
+    DbgVLog(severity, source, pClientTag, pFormat, argList);
     va_end(argList);
 }
 

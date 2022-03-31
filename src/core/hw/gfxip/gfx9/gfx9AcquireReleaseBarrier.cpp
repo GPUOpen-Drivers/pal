@@ -1840,39 +1840,6 @@ uint32 Device::Gfx10BuildAcquireGcrCntl(
     // Cache operations supported by ACQUIRE_MEM's gcr_cntl.
     Gfx10AcquireMemGcrCntl gcrCntl = {};
 
-    // The L1 / L2 caches are physical address based. When specify the range, the GCR will perform virtual address
-    // to physical address translation before the wb / inv. If the acquired op is full sync, we must ignore the range,
-    // otherwise page fault may occur because page table cannot cover full range virtual address.
-    //    When the source address is virtual , the GCR block will have to perform the virtual address to physical
-    //    address translation before the wb / inv. Since the pages in memory are a collection of fragments, you can't
-    //    specify the full range without walking into a page that has no PTE triggering a fault. In the cases where
-    //    the driver wants to wb / inv the entire cache, you should not use range based method, and instead flush the
-    //    entire cache without it. The range based method is not meant to be used this way, it is for selective page
-    //    invalidation.
-    //
-    // GL1_RANGE[1:0] - range control for L0 / L1 physical caches(K$, V$, M$, GL1)
-    //  0:ALL         - wb / inv op applies to entire physical cache (ignore range)
-    //  1:reserved
-    //  2:RANGE       - wb / inv op applies to just the base / limit virtual address range
-    //  3:FIRST_LAST  - wb / inv op applies to 128B at BASE_VA and 128B at LIMIT_VA
-    //
-    // GL2_RANGE[1:0]
-    //  0:ALL         - wb / inv op applies to entire physical cache (ignore range)
-    //  1:VOL         - wb / inv op applies to all volatile tagged lines in the GL2 (ignore range)
-    //  2:RANGE       - wb / inv op applies to just the base/limit virtual address range
-    //  3:FIRST_LAST  - wb / inv op applies to 128B at BASE_VA and 128B at LIMIT_VA
-    if (((baseAddress == FullSyncBaseAddr) && (sizeBytes == FullSyncSize)) ||
-        (sizeBytes > CmdUtil::Gfx10AcquireMemGl1Gl2RangedCheckMaxSurfaceSizeBytes))
-    {
-        gcrCntl.bits.gl1Range = 0;
-        gcrCntl.bits.gl2Range = 0;
-    }
-    else
-    {
-        gcrCntl.bits.gl1Range = 2;
-        gcrCntl.bits.gl2Range = 2;
-    }
-
     // GLM_WB[0]  - write-back control for the meta-data cache of GL2. L2MD is write-through, ignore this bit.
     // GLK_WB[0]  - write-back control for shaded scalar L0 cache
     gcrCntl.bits.glmWb = 0;
@@ -1922,6 +1889,43 @@ uint32 Device::Gfx10BuildAcquireGcrCntl(
     //  Note: If we ever start flushing K$ or M$, isFlushing should be updated
     PAL_ASSERT((gcrCntl.bits.glmWb == 0) && (gcrCntl.bits.glkWb == 0));
     gcrCntl.bits.seq = (isFlushing && gcrCntl.bits.gl2Wb) ? 1 : 0;
+
+    // Don't set bits gl1Range/gl2Range if there are no other gcrCntl bits set.
+    if (gcrCntl.u32All != 0)
+    {
+        // The L1 / L2 caches are physical address based. When specify the range, the GCR will perform virtual address
+        // to physical address translation before the wb / inv. If the acquired op is full sync, we must ignore the
+        // range, otherwise page fault may occur because page table cannot cover full range virtual address.
+        //    When the source address is virtual , the GCR block will have to perform the virtual address to physical
+        //    address translation before the wb / inv. Since the pages in memory are a collection of fragments, you
+        //    can't specify the full range without walking into a page that has no PTE triggering a fault. In the cases
+        //    where the driver wants to wb / inv the entire cache, you should not use range based method, and instead
+        //    flush the entire cache without it. The range based method is not meant to be used this way, it is for
+        //    selective page invalidation.
+        //
+        // GL1_RANGE[1:0] - range control for L0 / L1 physical caches(K$, V$, M$, GL1)
+        //  0:ALL         - wb / inv op applies to entire physical cache (ignore range)
+        //  1:reserved
+        //  2:RANGE       - wb / inv op applies to just the base / limit virtual address range
+        //  3:FIRST_LAST  - wb / inv op applies to 128B at BASE_VA and 128B at LIMIT_VA
+        //
+        // GL2_RANGE[1:0]
+        //  0:ALL         - wb / inv op applies to entire physical cache (ignore range)
+        //  1:VOL         - wb / inv op applies to all volatile tagged lines in the GL2 (ignore range)
+        //  2:RANGE       - wb / inv op applies to just the base/limit virtual address range
+        //  3:FIRST_LAST  - wb / inv op applies to 128B at BASE_VA and 128B at LIMIT_VA
+        if (((baseAddress == FullSyncBaseAddr) && (sizeBytes == FullSyncSize)) ||
+            (sizeBytes > CmdUtil::Gfx10AcquireMemGl1Gl2RangedCheckMaxSurfaceSizeBytes))
+        {
+            gcrCntl.bits.gl1Range = 0;
+            gcrCntl.bits.gl2Range = 0;
+        }
+        else
+        {
+            gcrCntl.bits.gl1Range = 2;
+            gcrCntl.bits.gl2Range = 2;
+        }
+    }
 
     return gcrCntl.u32All;
 }

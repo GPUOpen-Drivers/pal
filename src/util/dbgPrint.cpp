@@ -31,7 +31,7 @@
 namespace Util
 {
 
-#if PAL_ENABLE_PRINTS_ASSERTS
+#if (PAL_ENABLE_PRINTS_ASSERTS || PAL_ENABLE_LOGGING)
 /// Global callback used to report debug print messages.
 /// If the pointer is set to a valid callback, the callback will be called every time a debug message is printed
 DbgPrintCallback g_dbgPrintCallback = { nullptr, nullptr };
@@ -60,6 +60,12 @@ static DbgPrintTarget g_dbgPrintTable[DbgPrintCatCount] =
     { DbgPrintMode::PrintCallback, "Event", "palEvent.txt", },  // DbgPrintCatEventPrintCallbackMsg
     { DbgPrintMode::File,          "Info",  "palLog.txt",   }   // DbgPrintCatMsgFile
 };
+
+#if PAL_ENABLE_LOGGING
+/// Some defaults for debug prints
+constexpr SeverityLevel   DefaultSeverityLevel   = SeverityLevel::Error;
+constexpr OriginationType DefaultOriginationType = OriginationType::DebugPrint;
+#endif
 
 // =====================================================================================================================
 // Sends the specified log string (pString) to the appropriate output (i.e., file or debugger, configured in the target
@@ -196,6 +202,40 @@ static void DbgVPrintfHelper(
     delete [] pLargeBuf;
 }
 
+#if PAL_ENABLE_LOGGING
+// =====================================================================================================================
+// Map DbgPrintCategory enumerators to the new logging system.
+static void MapDbgPrintCategory(
+    DbgPrintCategory category,       // Debug message category.
+    SeverityLevel*   pSeverityLevel, // Severity level above which all severities are accepted
+    OriginationType* pOrigType)      // Source of debug message
+{
+    switch (category)
+    {
+    case DbgPrintCategory::DbgPrintCatInfoMsg:
+        *pSeverityLevel = SeverityLevel::Info;
+        break;
+    case DbgPrintCategory::DbgPrintCatWarnMsg:
+        *pSeverityLevel = SeverityLevel::Warning;
+        break;
+    case DbgPrintCategory::DbgPrintCatErrorMsg:
+        *pSeverityLevel = SeverityLevel::Error;
+        break;
+    case DbgPrintCategory::DbgPrintCatScMsg:
+        *pOrigType = OriginationType::PipelineCompiler;
+        break;
+    case DbgPrintCategory::DbgPrintCatEventPrintMsg:
+    case DbgPrintCategory::DbgPrintCatEventPrintCallbackMsg:
+    case DbgPrintCategory::DbgPrintCatMsgFile:
+        // Ignore these enumerators
+        break;
+    default:
+        PAL_NEVER_CALLED();
+        break;
+    }
+}
+#endif
+
 // =====================================================================================================================
 // Assembles a log string and sends it to the desired output target.  This method accepts a pre-initialized va_list
 // parameter instead of a direct variable argument list, and is used when printing out messages on behalf of SC.
@@ -207,10 +247,19 @@ void DbgVPrintf(
 {
     PAL_ASSERT(category < DbgPrintCatCount);
 
+#if PAL_ENABLE_PRINTS_ASSERTS
     if (g_dbgPrintTable[category].outputMode != DbgPrintMode::Disable)
     {
         DbgVPrintfHelper(category, style, pFormat, argList);
     }
+#elif PAL_ENABLE_LOGGING
+    SeverityLevel severityLevel = DefaultSeverityLevel;
+    OriginationType origType    = DefaultOriginationType;
+
+    // Map DbgPrintCategory to the new logging system. DbgPrintStyle is currently ignored.
+    MapDbgPrintCategory(category, &severityLevel, &origType);
+    Util::DbgVLog(severityLevel, origType, "AMD-PAL", pFormat, argList);
+#endif
 }
 
 // =====================================================================================================================
@@ -223,6 +272,10 @@ void DbgPrintf(
 {
     PAL_ASSERT(category < DbgPrintCatCount);
 
+    // Check for PAL_ENABLE_PRINTS_ASSERTS before checking for PAL_ENABLE_LOGGING
+    // so that the call to DbgLog() isn't duplicated when also called from PAL_DPINFO,
+    // PAL_DPWARN, and PAL_DPERROR.
+#if PAL_ENABLE_PRINTS_ASSERTS
     if (g_dbgPrintTable[category].outputMode != DbgPrintMode::Disable)
     {
         va_list argList;
@@ -232,6 +285,18 @@ void DbgPrintf(
 
         va_end(argList);
     }
+#elif PAL_ENABLE_LOGGING
+    va_list argList;
+    va_start(argList, pFormat);
+
+    SeverityLevel severityLevel = DefaultSeverityLevel;
+    OriginationType origType    = DefaultOriginationType;
+    // Map DbgPrintCategory to the new logging system. DbgPrintStyle is currently ignored.
+    MapDbgPrintCategory(category, &severityLevel, &origType);
+    Util::DbgVLog(severityLevel, origType, "AMD-PAL", pFormat, argList);
+
+    va_end(argList);
+#endif
 }
 
 // =====================================================================================================================
@@ -318,6 +383,48 @@ int Snprintf(
     va_end(argList);
 
     return length;
+}
+
+// =====================================================================================================================
+// Copy an arbitrary string into the provided buffer, encoding as necessary to avoid characters that are illegal
+// in filenames (assuming the more restrictive Windows rules, even on non-Windows OSs).
+//
+// Any byte that would be illegal is encoded as % then two hex digits, like in a URL.
+//
+// The return value works like C++ standard snprintf:
+// - If the provided buffer is big enough, it returns the number of bytes written, excluding the terminating \0.
+// - If the provided buffer is not big enough, then the result string is truncated to fit, and the function returns
+//   the number of bytes that would have been written if the buffer had been long enough, excluding the
+//   terminating \0.
+// - Passing 0 buffer length is allowed as a special case of that, and nullptr pOutput is then allowed.
+size_t EncodeAsFilename(
+    char*       pOutput,           // [out] Output string; can be nullptr if bufSize is 0
+    size_t      bufSize,           // Available space in pOutput (in bytes)
+    const char* pInput,            // [in] Input string
+    bool        allowSpace,        // Allow (do not % encode) space
+    bool        allowDirSeparator) // Allow (do not % encode) / and \ characters
+{
+    size_t sizeSoFar = 0;
+    for (;; ++pInput)
+    {
+        int ch = *pInput;
+        if (ch == '\0')
+        {
+            break;
+        }
+        const char* pFormat = "%c";
+        if (((ch >= '\0' && (ch < ' '))) ||
+            ((ch == ' ') && (allowSpace == false)) ||
+            (((ch == '\\') || (ch == '/')) && (allowDirSeparator == false)) ||
+            (ch == '<') || (ch == '>') || (ch == ':') || (ch == '"') || (ch == '|') ||
+            (ch == '?') || (ch == '?') || (ch == 0x7f))
+        {
+            // Illegal character needs encoding.
+            pFormat = "%%%2.2X";
+        }
+        sizeSoFar += snprintf(pOutput + sizeSoFar, (sizeSoFar < bufSize) ? bufSize - sizeSoFar : 0, pFormat, ch & 0xff);
+    }
+    return sizeSoFar;
 }
 
 } // Util

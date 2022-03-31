@@ -202,6 +202,14 @@ const RegisterRange Gfx103NonShadowedRanges[] =
         mmGRBM_GFX_INDEX,
         1
     },
+    {
+        mmPA_SU_LINE_STIPPLE_VALUE,
+        1
+    },
+    {
+        mmPA_SC_LINE_STIPPLE_STATE,
+        1
+    },
     // This is the correct value for all gfx10.3 ASICs. See the asserts in gfx9PerfExperiment.cpp,
     // PerfExperiment::WriteUpdateSpiConfigCntl for more information.
     {

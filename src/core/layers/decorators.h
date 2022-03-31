@@ -1140,6 +1140,11 @@ public:
         size_t bufferLength) const override
         { return m_pNextLayer->QueryRadeonSoftwareVersion(pBuffer, bufferLength); }
 
+    virtual Result QueryDriverVersion(
+        char* pBuffer,
+        size_t bufferLength) const override
+        { return m_pNextLayer->QueryDriverVersion(pBuffer, bufferLength); }
+
     const DeviceFinalizeInfo& GetFinalizeInfo() const { return m_finalizeInfo; }
     IDevice*                  GetNextLayer() const { return m_pNextLayer; }
     PlatformDecorator*        GetPlatform()  const { return m_pPlatform; }
@@ -1942,9 +1947,10 @@ public:
         { m_pNextLayer->CmdInsertTraceMarker(markerType, markerData); }
 
     virtual void CmdInsertRgpTraceMarker(
-        uint32      numDwords,
-        const void* pData) override
-        { m_pNextLayer->CmdInsertRgpTraceMarker(numDwords, pData); }
+        RgpMarkerSubQueueFlags subQueueFlags,
+        uint32                 numDwords,
+        const void*            pData) override
+        { m_pNextLayer->CmdInsertRgpTraceMarker(subQueueFlags, numDwords, pData); }
 
     virtual void CmdCopyDfSpmTraceData(
         const IPerfExperiment& perfExperiment,

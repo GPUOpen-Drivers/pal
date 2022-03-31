@@ -149,6 +149,8 @@ enum DD_RESULT_SECTIONS
     DD_RESULT_DD_EVENT__START                                                   = INT32_C(10400),
     DD_RESULT_DD_EVENT__COUNT                                                   = INT32_C(100),
 
+    DD_RESULT_SETTINGS_SERVICE__START                                           = INT32_C(10500),
+    DD_RESULT_SETTINGS_SERVICE__COUNT                                           = INT32_C(100),
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Future sections!
     // ADDING_SECTIONS_0
@@ -464,6 +466,12 @@ typedef enum
 
     /// An application attempted to emit an event that's currently disabled
     DD_RESULT_DD_EVENT_EMIT_EVENT_DISABLED                                      = DD_R_CODE(DD_RESULT_DD_EVENT, 3),
+
+    /// Settings Service ///
+    DD_RESULT_SETTINGS_SERVICE_UNKNOWN                                          = DD_RESULT_SETTINGS_SERVICE__START,
+    DD_RESULT_SETTINGS_SERVICE_INVALID_NAME                                     = DD_R_CODE(DD_RESULT_SETTINGS_SERVICE, 1),
+    DD_RESULT_SETTINGS_SERVICE_INVALID_COMPONENT                                = DD_R_CODE(DD_RESULT_SETTINGS_SERVICE, 2),
+    DD_RESULT_SETTINGS_SERVICE_INVALID_SETTING_DATA                             = DD_R_CODE(DD_RESULT_SETTINGS_SERVICE, 3),
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // ADDING_SECTIONS_3

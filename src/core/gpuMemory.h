@@ -70,7 +70,11 @@ struct GpuMemoryInternalCreateInfo
             uint32 alwaysResident     :  1; // Indicates the GPU memory allocation must be always resident.
             uint32 buddyAllocated     :  1; // GPU memory was allocated by a buddy allocator to be used for
                                             // suballocating smaller memory blocks.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 723
+            uint32 placeHolder723     :  1;
+#else
             uint32 privateScreen      :  1; // GPU memory will be used for a private screen image.
+#endif
             uint32 userQueue          :  1; // GPU memory will be used for an user queue.
             uint32 tmzUserQueue       :  1; // GPU memory will be used for a TMZ enabled user queue.
             uint32 timestamp          :  1; // GPU memory will be used for KMD timestamp writeback.

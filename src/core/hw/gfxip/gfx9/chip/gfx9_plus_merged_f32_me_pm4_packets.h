@@ -655,13 +655,13 @@ enum ME_COPY_DATA_src_sel_enum
 // ----------------------------------- ME_COPY_DATA_dst_sel_enum -----------------------------------
 enum ME_COPY_DATA_dst_sel_enum
 {
-    dst_sel__me_copy_data__mem_mapped_register       =  0,
-    dst_sel__me_copy_data__memory_sync_across_grbm   =  1,
-    dst_sel__me_copy_data__tc_l2                     =  2,
-    dst_sel__me_copy_data__gds__CORE                 =  3,
-    dst_sel__me_copy_data__perfcounters              =  4,
-    dst_sel__me_copy_data__memory__GFX09             =  5,
-    dst_sel__me_copy_data__tc_l2_obsolete__GFX10PLUS =  5,
+    dst_sel__me_copy_data__mem_mapped_register         =  0,
+    dst_sel__me_copy_data__memory_sync_across_grbm     =  1,
+    dst_sel__me_copy_data__tc_l2                       =  2,
+    dst_sel__me_copy_data__gds__CORE                   =  3,
+    dst_sel__me_copy_data__perfcounters                =  4,
+    dst_sel__me_copy_data__memory__GFX09               =  5,
+    dst_sel__me_copy_data__tc_l2_obsolete__GFX10PLUS   =  5,
 };
 
 // ------------------------------ ME_COPY_DATA_src_cache_policy_enum ------------------------------
@@ -1398,15 +1398,15 @@ constexpr unsigned int PM4_ME_EVENT_WRITE_SIZEDW__CORE = 4;
 // ----------------------------------- ME_FRAME_CONTROL_tmz_enum -----------------------------------
 enum ME_FRAME_CONTROL_tmz_enum
 {
-    tmz__me_frame_control__tmz_off =  0,
-    tmz__me_frame_control__tmz_on  =  1,
+    tmz__me_frame_control__tmz_off__GFX09_10 =  0,
+    tmz__me_frame_control__tmz_on__GFX09_10  =  1,
 };
 
 // --------------------------------- ME_FRAME_CONTROL_command_enum ---------------------------------
 enum ME_FRAME_CONTROL_command_enum
 {
-    command__me_frame_control__kmd_frame_begin =  0,
-    command__me_frame_control__kmd_frame_end   =  1,
+    command__me_frame_control__kmd_frame_begin__GFX09_10 =  0,
+    command__me_frame_control__kmd_frame_end__GFX09_10   =  1,
 };
 
 // ------------------------------------- PM4_ME_FRAME_CONTROL -------------------------------------
@@ -1427,13 +1427,13 @@ typedef struct PM4_ME_FRAME_CONTROL
                 ME_FRAME_CONTROL_tmz_enum     tmz        :  1;
                 uint32_t                      reserved1  : 27;
                 ME_FRAME_CONTROL_command_enum command    :  4;
-            };
+            } gfx09_10;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
 } PM4_ME_FRAME_CONTROL;
 
-constexpr unsigned int PM4_ME_FRAME_CONTROL_SIZEDW__CORE = 2;
+constexpr unsigned int PM4_ME_FRAME_CONTROL_SIZEDW__GFX09_10 = 2;
 
 // ------------------------------ ME_GET_LOD_STATS_cache_policy_enum ------------------------------
 enum ME_GET_LOD_STATS_cache_policy_enum
@@ -2660,7 +2660,7 @@ typedef struct PM4_ME_SWITCH_BUFFER
     } ordinal2;
 } PM4_ME_SWITCH_BUFFER;
 
-constexpr unsigned int PM4_ME_SWITCH_BUFFER_SIZEDW__CORE = 2;
+constexpr unsigned int PM4_ME_SWITCH_BUFFER_SIZEDW__HASCE = 2;
 
 // ----------------------------------- PM4_ME_WAIT_ON_CE_COUNTER -----------------------------------
 typedef struct PM4_ME_WAIT_ON_CE_COUNTER

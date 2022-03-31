@@ -1182,6 +1182,7 @@ namespace Gfx09_10
     constexpr unsigned int mmPA_SC_BINNER_TIMEOUT_COUNTER_DEFAULT             = 0x0000;
     constexpr unsigned int mmPA_SC_SHADER_CONTROL_DEFAULT                     = 0x0000;
     constexpr unsigned int mmPA_SIDEBAND_REQUEST_DELAYS_DEFAULT               = 0x8000020;
+    constexpr unsigned int mmRLC_CGTT_MGCG_OVERRIDE_DEFAULT                   = 0xFFFFFFFF;
     constexpr unsigned int mmRLC_PERFMON_CLK_CNTL_DEFAULT                     = 0x0001;
     constexpr unsigned int mmSPI_CONFIG_CNTL_2_DEFAULT                        = 0x0011;
     constexpr unsigned int mmSPI_SHADER_PGM_RSRC3_HS_DEFAULT                  = 0xFFFF0000;
@@ -1317,6 +1318,10 @@ namespace Gfx10
     constexpr unsigned int mmSPI_SHADER_USER_ACCUM_VS_1_DEFAULT               = 0x0000;
     constexpr unsigned int mmSPI_SHADER_USER_ACCUM_VS_2_DEFAULT               = 0x0000;
     constexpr unsigned int mmSPI_SHADER_USER_ACCUM_VS_3_DEFAULT               = 0x0000;
+    constexpr unsigned int mmSQG_CONFIG_DEFAULT                               = 0x0000;
+    constexpr unsigned int mmSQG_UTCL0_CNTL1_DEFAULT                          = 0x0580;
+    constexpr unsigned int mmSQG_UTCL0_CNTL2_DEFAULT                          = 0x0000;
+    constexpr unsigned int mmSQG_UTCL0_STATUS_DEFAULT                         = 0x0000;
     constexpr unsigned int mmSQ_LB_CTR_SEL0_DEFAULT                           = 0x0000;
     constexpr unsigned int mmSQ_LB_CTR_SEL1_DEFAULT                           = 0x0000;
     constexpr unsigned int mmSQ_PERFCOUNTER_CTRL_DEFAULT                      = 0x0200;
@@ -3306,6 +3311,7 @@ namespace Gfx10Plus
     constexpr unsigned int mmSPI_SHADER_RSRC_LIMIT_CTRL_DEFAULT               = 0x0000;
     constexpr unsigned int mmSPI_SX_SCOREBOARD_BUFFER_SIZES_DEFAULT           = 0x800040;
     constexpr unsigned int mmSPI_USER_ACCUM_VMID_CNTL_DEFAULT                 = 0x0000;
+    constexpr unsigned int mmSQG_STATUS_DEFAULT                               = 0x0000;
     constexpr unsigned int mmSQ_ARB_CONFIG_DEFAULT                            = 0x0030;
     constexpr unsigned int mmSQ_FIFO_SIZES_DEFAULT                            = 0xD001;
     constexpr unsigned int mmSQ_THREAD_TRACE_BUF0_BASE_DEFAULT                = 0x0000;

@@ -39,6 +39,7 @@ target_sources(pal PRIVATE
     palCacheLayer.h
     palConditionVariable.h
     palDbgLogger.h
+    palDbgLogHelper.h
     palDbgLogMgr.h
     palDbgPrint.h
     palDeque.h

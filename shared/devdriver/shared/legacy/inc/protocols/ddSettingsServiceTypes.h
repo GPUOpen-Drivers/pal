@@ -56,6 +56,8 @@ enum class SettingType : uint32
     String,
     Int8,
     Uint8,
+    Int16,
+    Uint16,
 };
 
 // Struct to hold a setting value

@@ -158,7 +158,8 @@ static void PAL_STDCALL WriteCmdDumpToFile(
             subEngineId = 1; // CE subengine ID
         }
     }
-    else if (cmdBufferDesc.engineType == EngineType::EngineTypeCompute)
+    else if ((cmdBufferDesc.engineType == EngineType::EngineTypeCompute) ||
+             (cmdBufferDesc.subEngineType == SubEngineType::AsyncCompute))
     {
         subEngineId = 3; // Compute subengine ID
     }
@@ -865,7 +866,7 @@ Result Queue::OpenCommandDumpFile(
                 "Failed to open CmdBuf dump file '%s'", filename);
         }
         else if ((dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinary) ||
-            (dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinaryHeaders))
+                 (dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinaryHeaders))
         {
             const uint32 fileMode = FileAccessMode::FileAccessWrite | FileAccessMode::FileAccessBinary;
             PAL_ALERT_MSG(pLogFile->Open(&filename[0], fileMode) != Result::Success,
@@ -2130,50 +2131,43 @@ void Queue::SubmitConfig(
     const MultiSubmitInfo& submitInfo,
     InternalSubmitInfo*    pInternalSubmitInfos)
 {
-    bool isTmzEnabled = false;
-    bool isDummySubmission = false;
-    bool usesImplicitAceCmdStream = false;
-
     if ((submitInfo.pPerSubQueueInfo == nullptr) || (submitInfo.pPerSubQueueInfo[0].cmdBufferCount == 0))
     {
         // Dummy submission doesn't need to update resource list since dummy resource list will be used.
-        isDummySubmission = true;
+        pInternalSubmitInfos->flags.isDummySubmission = 1;
     }
-
-    pInternalSubmitInfos->flags.isDummySubmission = isDummySubmission;
-
-    if (isDummySubmission == false)
+    else
     {
         // Loop over all CmdBuffers from all SubQueues to check if a HybridPipeline is bound.
-        for (uint32 i = 0; (i < submitInfo.perSubQueueInfoCount) && (usesImplicitAceCmdStream == false); ++i)
+        for (uint32 i = 0; i < submitInfo.perSubQueueInfoCount; ++i)
         {
             const PerSubQueueSubmitInfo perSubQueueInfo = submitInfo.pPerSubQueueInfo[i];
+
             for (uint32 j = 0; j < perSubQueueInfo.cmdBufferCount; ++j)
             {
-                const CmdBuffer*const pCmdBuffer = static_cast<CmdBuffer*>(perSubQueueInfo.ppCmdBuffers[j]);
-                if (pCmdBuffer->UsesImplicitAceCmdStream() == true)
+                CmdBuffer*const pCurCmdBuffer = static_cast<CmdBuffer*>(perSubQueueInfo.ppCmdBuffers[j]);
+
+                const uint32 implicitGangedSubQueues = pCurCmdBuffer->ImplicitGangedSubQueueCount();
+                if (implicitGangedSubQueues > pInternalSubmitInfos->implicitGangedSubQueues)
                 {
-                    usesImplicitAceCmdStream = true;
-                    break;
+                    pInternalSubmitInfos->implicitGangedSubQueues = implicitGangedSubQueues;
                 }
             }
         }
 
         CmdBuffer*const pCmdBuffer = static_cast<CmdBuffer*>(submitInfo.pPerSubQueueInfo[0].ppCmdBuffers[0]);
-        if (pCmdBuffer->GetEngineType() == Pal::EngineTypeUniversal ||
-            pCmdBuffer->GetEngineType() == Pal::EngineTypeCompute)
+        if ((pCmdBuffer->GetEngineType() == Pal::EngineTypeUniversal) ||
+            (pCmdBuffer->GetEngineType() == Pal::EngineTypeCompute))
         {
             // Indicate this submision is tmz protected or not.
             // All IBs in this submission should be marked with TMZ flag.
-            isTmzEnabled = pCmdBuffer->IsTmzEnabled();
+            pInternalSubmitInfos->flags.isTmzEnabled = pCmdBuffer->IsTmzEnabled();
         }
 
-        pInternalSubmitInfos->flags.isTmzEnabled             = isTmzEnabled;
-        pInternalSubmitInfos->flags.usesImplicitAceCmdStream = usesImplicitAceCmdStream;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 663
-        pInternalSubmitInfos->stackSizeInDwords              = submitInfo.stackSizeInDwords;
+        pInternalSubmitInfos->stackSizeInDwords = submitInfo.stackSizeInDwords;
 #else
-        pInternalSubmitInfos->stackSizeInDwords              = 0;
+        pInternalSubmitInfos->stackSizeInDwords = 0;
 #endif
     }
 }

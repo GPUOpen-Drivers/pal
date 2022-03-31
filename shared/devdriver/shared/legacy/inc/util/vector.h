@@ -77,20 +77,9 @@ namespace DevDriver
             Clear();
         }
 
-        // Copy elision assignment operator. The compiler will decide whether to initialize the object via the move
-        // or copy constructor. This borders on "compiler magic" but is (alarmingly) valid since it relies on the fact
-        // that the compiler is able to generate a temporary copy of the parameter, then swaps contents of the current
-        // object with those from the temporary copy. The temporary copy is then destroyed, effectively destroying the
-        // the existing instance. Where things get weird is that the compiler, if the parameter is bound to an rvalue,
-        // is allowed to use it directly without making a temporary copy. This allows the compiler to simply treat the
-        // assignment as a swap, as opposed to having to copy all resources. The compiler is also allowed to do other
-        // optimizations based on context, so the actual behavior of this operator is somewhat squirrel. It does,
-        // however, allow implementing both the copy and move assignment operators with a single operator, relying
-        // on the compiler to pick a contextually appropriate behavior.
-        Vector& operator=(Vector rhs)
+        void operator=(Vector&& rhs)
         {
             Swap(rhs);
-            return *this;
         }
 
         // Convenience methods

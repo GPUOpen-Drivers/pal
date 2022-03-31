@@ -63,6 +63,18 @@ enum class PresentMode : uint32
     Count
 };
 
+/// Enumerates the possible overrides for the flip interval.
+enum class FlipIntervalOverride : uint32
+{
+    _None                 = 0, ///< No override.
+    Immediate             = 1, ///< Zero frames of flip latency.
+    ImmediateAllowTearing = 2, ///< Same as Immediate, but allows tearing (no vsync).
+    One                   = 3, ///< One frame of flip latency.
+    Two                   = 4, ///< Two frames of flip latency.
+    Three                 = 5, ///< Three frames of flip latency.
+    Four                  = 6, ///< Four frames of flip latency.
+};
+
 /// Defines flags for describing which types of present modes are supported on a given queue.
 enum PresentModeSupport : uint32
 {
@@ -79,6 +91,25 @@ enum class SubmitOptMode : uint32
     MinKernelSubmits  = 2, ///< Minimize the overhead of launching command buffers on the CPU and GPU.
     MinGpuCmdOverhead = 3, ///< Minimize the overhead of reading command buffer commands on the GPU.
     Count
+};
+
+/// Enumerates vcn instance affinity statuses
+enum MmAffinityStatus : uint32
+{
+    MmAffinityNotAllowed = 0, ///< The specific vcn instance can't be used.
+    MmAffinityAllowed    = 1  ///< The specific vcn instance can be used.
+};
+
+/// Union describes all vcn instance affinity status.
+union MmAffinity
+{
+    struct
+    {
+        uint32 vcn0Affinity : 2;  ///< Affinity for instance vcn0
+        uint32 vcn1Affinity : 2;  ///< Affinity for instance vcn1
+        uint32 reserved     : 28; ///< Reserved (all 0)
+    };
+    uint32 u32All;
 };
 
 /// Structure describing dump information for a command buffer.
@@ -240,6 +271,7 @@ struct MultiSubmitInfo
                                                   ///  Note that the size will not shrink for the lifetime of the queue
                                                   ///  once it is grown and only affects compute scratch ring.
 #endif
+
 };
 
 typedef MultiSubmitInfo SubmitInfo;

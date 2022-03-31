@@ -4529,10 +4529,12 @@ void CmdBuffer::ReplayCmdInsertTraceMarker(
 
 // =====================================================================================================================
 void CmdBuffer::CmdInsertRgpTraceMarker(
-    uint32      numDwords,
-    const void* pData)
+    RgpMarkerSubQueueFlags subQueueFlags,
+    uint32                 numDwords,
+    const void*            pData)
 {
     InsertToken(CmdBufCallId::CmdInsertRgpTraceMarker);
+    InsertToken(subQueueFlags);
     InsertTokenArray(static_cast<const uint32*>(pData), numDwords);
 }
 
@@ -4541,10 +4543,11 @@ void CmdBuffer::ReplayCmdInsertRgpTraceMarker(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
+    const RgpMarkerSubQueueFlags subQueueFlags = ReadTokenVal<RgpMarkerSubQueueFlags>();
     const uint32* pData = nullptr;
     uint32 numDwords = ReadTokenArray(&pData);
 
-    pTgtCmdBuffer->CmdInsertRgpTraceMarker(numDwords, pData);
+    pTgtCmdBuffer->CmdInsertRgpTraceMarker(subQueueFlags, numDwords, pData);
 }
 
 // =====================================================================================================================

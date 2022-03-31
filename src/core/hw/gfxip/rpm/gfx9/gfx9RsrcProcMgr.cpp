@@ -5912,29 +5912,57 @@ void Gfx10RsrcProcMgr::ClearDccCompute(
             {
                 // The number of slices for 2D images is the number of slices; for 3D images, it's the depth
                 // of the image for the current mip level.
-                const uint32 numSlices = GetClearDepth(dstImage, plane, clearRange.numSlices, absMipLevel);
+                const uint32  numSlices = GetClearDepth(dstImage, plane, clearRange.numSlices, absMipLevel);
 
                 // The "metaBlkDepth" parameter is the number of slices that the "dccRamSliceSize" covers.  For non-3D
                 // images, this should always be 1 (i.e., one addrlib slice is one PAL API slice).  For 3D images, this
                 // can be way more than the number of PAL API slices.
-                const uint32 numSlicesToClear = Max(1u, numSlices / dccAddrOutput.metaBlkDepth);
+                const uint32  numSlicesToClear = Max(1u, numSlices / dccAddrOutput.metaBlkDepth);
 
-                for (uint32  sliceIdx = 0; sliceIdx < numSlicesToClear; sliceIdx++)
+                // GetMaskRamBaseOffset doesn't compute the base address of a mip level (only a slice offset), so
+                // we have to do the math here ourselves. However, DCC memory is contiguous and traversed upon by
+                // slice size, so we only need the first slice offset and the total size of all slices calculated by
+                // num slices * ram slice size (if the ram slice size is identical to the mip's slice size - see below).
+                const gpusize maskRamBaseOffset = dstImage.GetMaskRamBaseOffset(pDcc, 0);
+                gpusize sliceOffset = startSlice * dccAddrOutput.dccRamSliceSize;
+                gpusize clearOffset = maskRamBaseOffset + sliceOffset + dccMipInfo.offset;
+
+                // On gfx10+, metadata for all mips in each slice are packed together.
+                // For an image with 3 mips and 3 slices, this is packing order from smallest offset to largest:
+                //     S0M2 S0M1 S0M0 S1M2 S1M1 S1M0 S2M2 S2M1 S2M0
+                // dccRamSliceSize is the distance between SN and SN+1, the size of the full mip chain. So although DCC
+                // memory is contiguous per subresource, the offset of each slice is traversed by an interval of
+                // dccRamSliceSize, though written to with mip slice size. Thus, we may dispatch a clear once only if
+                // the two sizes match.
+                const bool canDispatchSingleClear = dccMipInfo.sliceSize == dccAddrOutput.dccRamSliceSize;
+
+                if (canDispatchSingleClear)
                 {
-                    // GetMaskRamBaseAddr doesn't compute the base address of a mip level (only a slice offset), so
-                    // we have to do the math here ourselves.
-                    const uint32    absSlice      = startSlice + sliceIdx;
-                    const gpusize   clearBaseAddr = dstImage.GetMaskRamBaseAddr(pDcc, 0) +
-                                                    absSlice * dccAddrOutput.dccRamSliceSize        +
-                                                    dccMipInfo.offset;
-                    const gpusize   clearOffset   = clearBaseAddr - pBoundMemory->Desc().gpuVirtAddr;
+                    const gpusize totalSize = numSlicesToClear * dccMipInfo.sliceSize;
 
                     CmdFillMemory(pCmdBuffer,
-                                  false,            // don't save / restore the compute state
+                                  false,         // don't save / restore the compute state
                                   *pBoundMemory,
                                   clearOffset,
-                                  dccMipInfo.sliceSize,
+                                  totalSize,
                                   clearColor);
+                }
+                else
+                {
+                    for (uint32  sliceIdx = 0; sliceIdx < numSlicesToClear; sliceIdx++)
+                    {
+                        // Get the mem offset for each slice
+                        const uint32 absSlice = startSlice + sliceIdx;
+                        sliceOffset = absSlice * dccAddrOutput.dccRamSliceSize;
+                        clearOffset = maskRamBaseOffset + sliceOffset + dccMipInfo.offset;
+
+                        CmdFillMemory(pCmdBuffer,
+                                      false,         // don't save / restore the compute state
+                                      *pBoundMemory,
+                                      clearOffset,
+                                      dccMipInfo.sliceSize,
+                                      clearColor);
+                    }
                 }
 
                 if ((clearCode == static_cast<uint8>(Gfx9DccClearColor::Gfx10ClearColorCompToSingle))
@@ -7491,32 +7519,55 @@ void Gfx10RsrcProcMgr::InitDisplayDcc(
             break;
         }
 
-        // Initialize DCC for this mip level
         // The number of slices for 2D images is the number of slices; for 3D images, it's the depth
         // of the image for the current mip level.
-        const uint32 numSlices = GetClearDepth(*pGfx9Image, range.startSubres.plane, range.numSlices, absMipLevel);
+        const uint32  numSlices = GetClearDepth(*pGfx9Image, range.startSubres.plane, range.numSlices, absMipLevel);
 
         // The "metaBlkDepth" parameter is the number of slices that the "dccRamSliceSize" covers.  For non-3D
         // images, this should always be 1 (i.e., one addrlib slice is one PAL API slice).  For 3D images, this
         // can be way more than the number of PAL API slices.
-        const uint32 numSlicesToClear = Max(1u, numSlices / dispDccAddrOutput.metaBlkDepth);
+        const uint32  numSlicesToClear = Max(1u, numSlices / dispDccAddrOutput.metaBlkDepth);
 
-        for (uint32 sliceIdx = 0; sliceIdx < numSlicesToClear; sliceIdx++)
+        // GetMaskRamBaseOffset doesn't compute the base address of a mip level (only a slice offset), so we have to do
+        // the math here ourselves. However, DCC memory is contiguous and traversed upon by  slice size, so we only need
+        // the first slice offset and the total size of all slices calculated by num slices * ram slice size (if the ram
+        // is identical to the mip's slice size).
+        const gpusize maskRamBaseOffset = pGfx9Image->GetMaskRamBaseOffset(pDispDcc, 0);
+        gpusize sliceOffset = range.startSubres.arraySlice * dispDccAddrOutput.dccRamSliceSize;
+        gpusize clearOffset = maskRamBaseOffset + sliceOffset + displayDccMipInfo.offset;
+
+        // Although DCC memory is contiguous per subresource, the offset of each slice is traversed by an interval of
+        // dccRamSliceSize, though written to with mip slice size. We can therfore dispatch a clear  once only if the
+        // two sizes match. See also: Gfx10RsrcProcMgr::ClearDccCompute() for a more detailed explanation.
+        const bool canDispatchSingleClear = displayDccMipInfo.sliceSize == dispDccAddrOutput.dccRamSliceSize;
+
+        if (canDispatchSingleClear)
         {
-            // GetMaskRamBaseAddr doesn't compute the base address of a mip level (only a slice offset), so
-            // we have to do the math here ourselves.
-            const uint32    absSlice      = range.startSubres.arraySlice + sliceIdx;
-            const gpusize   clearBaseAddr = pGfx9Image->GetMaskRamBaseAddr(pDispDcc, 0) +
-                                            absSlice * dispDccAddrOutput.dccRamSliceSize +
-                                            displayDccMipInfo.offset;
-            const gpusize   clearOffset   = clearBaseAddr - pGpuMemory->Desc().gpuVirtAddr;
+            const gpusize totalSize = numSlicesToClear * displayDccMipInfo.sliceSize;
 
             CmdFillMemory(pCmdBuffer,
-                false,            // don't save / restore the compute state
-                *pGpuMemory,
-                clearOffset,
-                displayDccMipInfo.sliceSize,
-                clearValue);
+                          false,         // don't save / restore the compute state
+                          *pGpuMemory,
+                          clearOffset,
+                          totalSize,
+                          clearValue);
+        }
+        else
+        {
+            for (uint32  sliceIdx = 0; sliceIdx < numSlicesToClear; sliceIdx++)
+            {
+                // Get the mem offset for each slice
+                const uint32 absSlice = range.startSubres.arraySlice + sliceIdx;
+                sliceOffset = absSlice * dispDccAddrOutput.dccRamSliceSize;
+                clearOffset = maskRamBaseOffset + sliceOffset + displayDccMipInfo.offset;
+
+                CmdFillMemory(pCmdBuffer,
+                              false,         // don't save / restore the compute state
+                              *pGpuMemory,
+                              clearOffset,
+                              displayDccMipInfo.sliceSize,
+                              clearValue);
+            }
         }
     }
 

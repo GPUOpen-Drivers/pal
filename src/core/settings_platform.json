@@ -636,6 +636,49 @@
       "ValidValues": {
         "Values": [
           {
+            "Name": "GpuProfilerCaptureTriggerKey::Shift_F11",
+            "Value": 107,
+            "Description": "Default GPU profiler capture trigger key"
+          },
+          {
+            "Name": "GpuProfilerCaptureTriggerKey::F1",
+            "Value": 1,
+            "Description": "Forced GPU profiler capture trigger key."
+          },
+          {
+            "Name": "GpuProfilerCaptureTriggerKey::F2",
+            "Value": 2,
+            "Description": "Forced GPU profiler capture trigger key."
+          },
+          {
+            "Name": "GpuProfilerCaptureTriggerKey::F13",
+            "Value": 13,
+            "Description": "Forced GPU profiler capture trigger key."
+          },
+          {
+            "Name": "GpuProfilerCaptureTriggerKey::F16",
+            "Value": 16,
+            "Description": "Forced GPU profiler capture trigger key."
+          }
+        ],
+        "Name": "GpuProfilerCaptureTriggerKey"
+      },
+      "Name": "GpuProfilerCaptureTriggerKey",
+      "Tags": [
+        "GPU Profiler"
+      ],
+      "Defaults": {
+        "Default": "GpuProfilerCaptureTriggerKey::Shift_F11"
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "enum",
+      "VariableName": "gpuProfilerCaptureTriggerKey",
+      "Description": "Default trigger key is Shift_F11 and forced trigger keys are F1, F2, F13, and F16 for capturing GPU profiler."
+    },
+    {
+      "ValidValues": {
+        "Values": [
+          {
             "Name": "GpuProfilerDisabled",
             "Value": 0,
             "Description": "GPU Profiler Disabled"

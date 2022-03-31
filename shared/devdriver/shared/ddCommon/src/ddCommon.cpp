@@ -140,6 +140,10 @@ const char* ddApiResultToString(DD_RESULT result)
         RESULT_TO_STRING_CASE(DD_RESULT_DD_EVENT_EMIT_INVALID_EVENT_ID);
         RESULT_TO_STRING_CASE(DD_RESULT_DD_EVENT_EMIT_EVENT_DISABLED);
 
+        RESULT_TO_STRING_CASE(DD_RESULT_SETTINGS_SERVICE_UNKNOWN);
+        RESULT_TO_STRING_CASE(DD_RESULT_SETTINGS_SERVICE_INVALID_NAME);
+        RESULT_TO_STRING_CASE(DD_RESULT_SETTINGS_SERVICE_INVALID_COMPONENT);
+        RESULT_TO_STRING_CASE(DD_RESULT_SETTINGS_SERVICE_INVALID_SETTING_DATA);
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         // ADDING_SECTIONS_7
         //
@@ -269,6 +273,9 @@ DD_RESULT ddApiClampResult(int32_t result)
         case DD_RESULT_DD_EVENT_EMIT_INVALID_EVENT_ID:
         case DD_RESULT_DD_EVENT_EMIT_EVENT_DISABLED:
 
+        case DD_RESULT_SETTINGS_SERVICE_INVALID_NAME:
+        case DD_RESULT_SETTINGS_SERVICE_INVALID_COMPONENT:
+        case DD_RESULT_SETTINGS_SERVICE_INVALID_SETTING_DATA:
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         // ADDING_SECTIONS_5
         //
@@ -322,6 +329,10 @@ DD_RESULT ddApiClampResult(int32_t result)
         return DD_RESULT_DD_EVENT_UNKNOWN;
     }
 
+    if (DD_RESULT_IS_IN_SECTION(result, DD_RESULT_SETTINGS_SERVICE))
+    {
+        return DD_RESULT_SETTINGS_SERVICE_UNKNOWN;
+    }
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // ADDING_SECTIONS_6
     //
@@ -374,6 +385,7 @@ DD_RESULT DevDriverToDDResult(Result result)
         case Result::FileAccessError:              return DD_RESULT_DD_GENERIC_FILE_ACCESS_ERROR;
         case Result::FileIoError:                  return DD_RESULT_DD_GENERIC_FILE_IO_ERROR;
         case Result::LimitReached:                 return DD_RESULT_DD_GENERIC_LIMIT_REACHED;
+        case Result::MemoryOverLimit:              return DD_RESULT_DD_GENERIC_INSUFFICIENT_MEMORY;
 
         case Result::UriServiceRegistrationError:  return DD_RESULT_DD_URI_SERVICE_REGISTRATION_ERROR;
         case Result::UriStringParseError:          return DD_RESULT_DD_URI_STRING_PARSE_ERROR;
@@ -397,6 +409,12 @@ DD_RESULT DevDriverToDDResult(Result result)
         case Result::InfoUriSourceCallbackInvalid:
         case Result::InfoUriSourceAlreadyRegistered:
         case Result::InfoUriSourceWriteFailed:
+        // Settings Service
+        case Result::SettingsInvalidComponent:
+        case Result::SettingsInvalidSettingName:
+        case Result::SettingsInvalidSettingValue:
+        case Result::SettingsInsufficientValueSize:
+        case Result::SettingsInvalidSettingValueSize:
             // These Results aren't expected to be used in the Apis, so we'll map them to UNKNOWN
             // Avoid using `default` here, so that we get warnings when new Results are added but not added here.
             return DD_RESULT_UNKNOWN;

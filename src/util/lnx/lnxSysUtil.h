@@ -147,7 +147,82 @@ constexpr KeyCode KeyLookupTable[] =
     KeyCode::ArrowDown,  // KEY_DOWN             = 108
     KeyCode::PageDown,   // KEY_PAGEDOWN         = 109
     KeyCode::Insert,     // KEY_INSERT           = 110
-    KeyCode::Delete      // KEY_DELETE           = 111
+    KeyCode::Delete,     // KEY_DELETE           = 111
+    KeyCode::Undefined,  // 112
+    KeyCode::Undefined,  // 113
+    KeyCode::Undefined,  // 114
+    KeyCode::Undefined,  // 115
+    KeyCode::Undefined,  // 116
+    KeyCode::Undefined,  // 117
+    KeyCode::Undefined,  // 118
+    KeyCode::Undefined,  // 119
+    KeyCode::Undefined,  // 120
+    KeyCode::Undefined,  // 121
+    KeyCode::Undefined,  // 122
+    KeyCode::Undefined,  // 123
+    KeyCode::Undefined,  // 124
+    KeyCode::Undefined,  // 125
+    KeyCode::Undefined,  // 126
+    KeyCode::Undefined,  // 127
+    KeyCode::Undefined,  // 128
+    KeyCode::Undefined,  // 129
+    KeyCode::Undefined,  // 130
+    KeyCode::Undefined,  // 131
+    KeyCode::Undefined,  // 132
+    KeyCode::Undefined,  // 133
+    KeyCode::Undefined,  // 134
+    KeyCode::Undefined,  // 135
+    KeyCode::Undefined,  // 136
+    KeyCode::Undefined,  // 137
+    KeyCode::Undefined,  // 138
+    KeyCode::Undefined,  // 139
+    KeyCode::Undefined,  // 140
+    KeyCode::Undefined,  // 141
+    KeyCode::Undefined,  // 142
+    KeyCode::Undefined,  // 143
+    KeyCode::Undefined,  // 144
+    KeyCode::Undefined,  // 145
+    KeyCode::Undefined,  // 146
+    KeyCode::Undefined,  // 147
+    KeyCode::Undefined,  // 148
+    KeyCode::Undefined,  // 149
+    KeyCode::Undefined,  // 150
+    KeyCode::Undefined,  // 151
+    KeyCode::Undefined,  // 152
+    KeyCode::Undefined,  // 153
+    KeyCode::Undefined,  // 154
+    KeyCode::Undefined,  // 155
+    KeyCode::Undefined,  // 156
+    KeyCode::Undefined,  // 157
+    KeyCode::Undefined,  // 158
+    KeyCode::Undefined,  // 159
+    KeyCode::Undefined,  // 160
+    KeyCode::Undefined,  // 161
+    KeyCode::Undefined,  // 162
+    KeyCode::Undefined,  // 163
+    KeyCode::Undefined,  // 164
+    KeyCode::Undefined,  // 165
+    KeyCode::Undefined,  // 166
+    KeyCode::Undefined,  // 167
+    KeyCode::Undefined,  // 168
+    KeyCode::Undefined,  // 169
+    KeyCode::Undefined,  // 170
+    KeyCode::Undefined,  // 171
+    KeyCode::Undefined,  // 172
+    KeyCode::Undefined,  // 173
+    KeyCode::Undefined,  // 174
+    KeyCode::Undefined,  // 175
+    KeyCode::Undefined,  // 176
+    KeyCode::Undefined,  // 177
+    KeyCode::Undefined,  // 178
+    KeyCode::Undefined,  // 179
+    KeyCode::Undefined,  // 180
+    KeyCode::Undefined,  // 181
+    KeyCode::Undefined,  // 182
+    KeyCode::F13,         // KEY_F13             = 183
+    KeyCode::F14,         // KEY_F14             = 184
+    KeyCode::F15,         // KEY_F15             = 185
+    KeyCode::F16         // KEY_F16              = 186
 };
 
 static_assert(KeyLookupTable[KEY_BACKSLASH] == KeyCode::Backslash, "Wrong KeyLookupTable");

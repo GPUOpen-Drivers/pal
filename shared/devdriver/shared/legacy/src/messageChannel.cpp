@@ -26,7 +26,10 @@
 #include "ddPlatform.h"
 #include "messageChannel.h"
 
+#define DD_SUPPORT_SOCKET_TRANSPORT ((DD_PLATFORM_WINDOWS_UM && DEVDRIVER_BUILD_REMOTE_TRANSPORT)|| (DD_PLATFORM_IS_POSIX))
+#if DD_SUPPORT_SOCKET_TRANSPORT
 #include "socketMsgTransport.h"
+#endif
 
 namespace DevDriver
 {
@@ -61,10 +64,12 @@ namespace DevDriver
             if ((createInfo.hostInfo.type == TransportType::Remote) |
                 (createInfo.hostInfo.type == TransportType::Local))
             {
+#if DD_SUPPORT_SOCKET_TRANSPORT
                 using MsgChannelSocket = MessageChannel<SocketMsgTransport>;
                 pMsgChannel = DD_NEW(MsgChannelSocket, createInfo.allocCb)(createInfo.allocCb,
                     createInfo.channelInfo,
                     createInfo.hostInfo);
+#endif
             }
 #endif
             else

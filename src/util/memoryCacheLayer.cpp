@@ -37,6 +37,9 @@ MemoryCacheLayer::MemoryCacheLayer(
     const AllocCallbacks& callbacks,
     size_t                maxMemorySize,
     size_t                maxObjectCount,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 711
+    uint32                expectedEntries,
+#endif
     bool                  evictOnFull,
     bool                  evictDuplicates)
     :
@@ -49,7 +52,11 @@ MemoryCacheLayer::MemoryCacheLayer(
     m_curSize         { 0 },
     m_curCount        { 0 },
     m_recentEntryList {},
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 711
+    m_entryLookup     { ((expectedEntries == 0) ? 0x4000 : expectedEntries), Allocator() }
+#else
     m_entryLookup     { 0x4000, Allocator() }
+#endif
 {
 }
 
@@ -830,6 +837,9 @@ Result CreateMemoryCacheLayer(
             (pCreateInfo->baseInfo.pCallbacks == nullptr) ? callbacks : *pCreateInfo->baseInfo.pCallbacks,
             pCreateInfo->maxMemorySize,
             pCreateInfo->maxObjectCount,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 711
+            pCreateInfo->expectedEntries,
+#endif
             pCreateInfo->evictOnFull,
             pCreateInfo->evictDuplicates);
 

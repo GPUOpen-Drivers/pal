@@ -106,6 +106,9 @@ typedef enum RmtMemoryType
     RMT_MEMORY_TYPE_HBM,
     RMT_MEMORY_TYPE_HBM2,
     RMT_MEMORY_TYPE_HBM3,
+    RMT_MEMORY_TYPE_LPDDR4,
+    RMT_MEMORY_TYPE_LPDDR5,
+    RMT_MEMORY_TYPE_DDR5,
     RMT_MEMORY_TYPE_COUNT        ///< The number of memory types supported.
 } RmtMemoryType;
 

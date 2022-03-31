@@ -655,7 +655,10 @@ public:
     virtual void CmdInsertTraceMarker(PerfTraceMarkerType markerType, uint32 markerData) override
         { PAL_NEVER_CALLED(); }
 
-    virtual void CmdInsertRgpTraceMarker(uint32 numDwords, const void* pData) override
+    virtual void CmdInsertRgpTraceMarker(
+        RgpMarkerSubQueueFlags subQueueFlags,
+        uint32                 numDwords,
+        const void*            pData) override
         { PAL_NEVER_CALLED(); }
 
     virtual void CmdCopyDfSpmTraceData(
@@ -788,6 +791,19 @@ public:
     // Returns a pointer to the command stream specified by "cmdStreamIdx".
     virtual const CmdStream* GetCmdStream(uint32 cmdStreamIdx) const = 0;
 
+    // Special sub-queue index representing the "main" sub-queue.
+    static constexpr int32 MainSubQueueIdx = -1;
+
+    // Returns the number of command streams associated with this command buffer, for the specified ganged
+    // sub-queue index.  An index of MainSubQueueIdx indicates the "main" sub-queue.
+    virtual uint32 NumCmdStreamsInSubQueue(int32 subQueueIndex) const
+        { PAL_ASSERT(subQueueIndex == MainSubQueueIdx); return NumCmdStreams(); }
+
+    // Returns a pointer to the command stream specified by the given ganged sub-queue index and command stream
+    // index.  A sub-queue index of MainSubQueueIdx indicates the "main" sub-queue.
+    virtual const CmdStream* GetCmdStreamInSubQueue(int32 subQueueIndex, uint32 cmdStreamIndex) const
+        { PAL_ASSERT(subQueueIndex == MainSubQueueIdx); return GetCmdStream(cmdStreamIndex); }
+
     CmdBufferRecordState RecordState() const { return m_recordState; }
 
     QueueType       GetQueueType()      const { return m_createInfo.queueType; }
@@ -855,13 +871,14 @@ public:
     virtual void CmdBindSampleRateImage(
         const IImage*  pImage) override;
 
-    // True if this CmdBuffer used ImplicitAce either for task/mesh or IndirectCmdGenUsingAce.
-    bool UsesImplicitAceCmdStream() const { return (m_flags.usesImplicitAceCmdStream == 1); }
-
     // True if a Hybrid pipeline was bound to this command buffer or if any of the task/mesh draw functions were
     // invoked.
     bool HasHybridPipeline() const { return (m_flags.hasHybridPipeline == 1); }
     void ReportHybridPipelineBind() { m_flags.hasHybridPipeline = 1; }
+
+    uint32 ImplicitGangedSubQueueCount() const { return m_implicitGangSubQueueCount; }
+    void EnableImplicitGangedSubQueueCount(uint32 count)
+        { if (count > m_implicitGangSubQueueCount) { m_implicitGangSubQueueCount = count; } }
 
     // Get the cmd allocator currently associated with this cmd buffer
     CmdAllocator* GetCmdAllocator() { return m_pCmdAllocator; }
@@ -1017,13 +1034,15 @@ protected:
         {
             uint32 internalMemAllocator     : 1;  // True if m_pMemAllocator is owned internally by PAL.
             uint32 hasHybridPipeline        : 1;  // True if this command buffer has a hybrid pipeline bound.
-            uint32 usesImplicitAceCmdStream : 1;  // True if command buffer used ImplicitACE + GFX CmdStreams
             uint32 autoMemoryReuse          : 1;  // True if the command buffer uses autoMemoryReuse.
-            uint32 reserved                 : 28;
+            uint32 reserved                 : 29;
         };
 
         uint32     u32All;
     } m_flags;
+
+    // Number of implicit ganged sub-queues.
+    uint32 m_implicitGangSubQueueCount;
 
 private:
     CmdStreamChunk* GetNextDataChunk(

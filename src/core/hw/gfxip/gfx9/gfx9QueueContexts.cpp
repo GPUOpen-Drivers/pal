@@ -70,7 +70,7 @@ static uint32* WriteCommonPreamble(
         computeStaticThreadMgmtPerSe.gfx09.SH0_CU_EN = cuEnableMask;
         computeStaticThreadMgmtPerSe.gfx09.SH1_CU_EN = cuEnableMask;
 
-        const uint32 masksPerSe[4] =
+        const uint32 masksPerSe[] =
         {
             computeStaticThreadMgmtPerSe.u32All,
             ((chipProps.gfx9.numShaderEngines >= 2) ? computeStaticThreadMgmtPerSe.u32All : 0),
@@ -1006,7 +1006,7 @@ Result UniversalQueueContext::PreProcessSubmit(
             ++preambleCount;
         }
 
-        if ((m_acePreambleCmdStream.IsEmpty() == false) && (pSubmitInfo->flags.usesImplicitAceCmdStream != 0))
+        if ((m_acePreambleCmdStream.IsEmpty() == false) && (pSubmitInfo->implicitGangedSubQueues > 0))
         {
             pSubmitInfo->pPreambleCmdStream[preambleCount] = &m_acePreambleCmdStream;
             ++preambleCount;
@@ -1472,6 +1472,17 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                     paSuLineStippleScale.u32All,
                                                     pCmdSpace);
 
+    // We always start stipple from zero.
+    // Auto-reset only kicks in after the first line so clear the state for the first line here.
+    constexpr regPA_SU_LINE_STIPPLE_VALUE paSuLineStippleValue = {};
+    pCmdSpace = m_deCmdStream.WriteSetOneConfigReg(mmPA_SU_LINE_STIPPLE_VALUE,
+                                                   paSuLineStippleValue.u32All,
+                                                   pCmdSpace);
+    constexpr regPA_SC_LINE_STIPPLE_STATE paScLineStippleState = {};
+    pCmdSpace = m_deCmdStream.WriteSetOneConfigReg(mmPA_SC_LINE_STIPPLE_STATE,
+                                                   paScLineStippleState.u32All,
+                                                   pCmdSpace);
+
     // Set-and-forget DCC register:
     //  This will stop compression to one of the four "magic" clear colors.
     regCB_DCC_CONTROL cbDccControl = { };
@@ -1714,32 +1725,29 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
 
     if (settings.useClearStateToInitialize == false)
     {
-        constexpr uint32 PaRegisters1[2] = { 0xaa99aaaa, 0x00000000 };
-        pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmPA_SC_EDGERULE,
-                                                         mmPA_SU_HARDWARE_SCREEN_OFFSET,
-                                                         &PaRegisters1,
-                                                         pCmdSpace);
         constexpr struct
         {
             regPA_CL_POINT_X_RAD    paClPointXRad;
             regPA_CL_POINT_Y_RAD    paClPointYRad;
             regPA_CL_POINT_SIZE     paClPointSize;
             regPA_CL_POINT_CULL_RAD paClPointCullRad;
-        } PaRegisters2 = { };
+        } PaRegisters1 = { };
         pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmPA_CL_POINT_X_RAD,
                                                          mmPA_CL_POINT_CULL_RAD,
-                                                         &PaRegisters2,
+                                                         &PaRegisters1,
                                                          pCmdSpace);
         constexpr struct
         {
             regPA_CL_NANINF_CNTL        paClNanifCntl;
             regPA_SU_LINE_STIPPLE_CNTL  paSuLineStippleCntl;
-        } PaRegisters3 = { };
+        } PaRegisters2 = { };
+
         pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmPA_CL_NANINF_CNTL,
                                                          mmPA_SU_LINE_STIPPLE_CNTL,
-                                                         &PaRegisters3,
+                                                         &PaRegisters2,
                                                          pCmdSpace);
 
+        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SU_HARDWARE_SCREEN_OFFSET,  0x00000000, pCmdSpace);
         pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SU_PRIM_FILTER_CNTL,        0x00000000, pCmdSpace);
         pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SU_OVER_RASTERIZATION_CNTL, 0x00000000, pCmdSpace);
         pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmVGT_PRIMITIVEID_RESET,         0x00000000, pCmdSpace);

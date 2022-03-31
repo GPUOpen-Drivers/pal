@@ -341,13 +341,17 @@ struct GraphicsPipelineCreateInfo
     {
         struct
         {
-            PrimitiveType primitiveType;       ///< Basic primitive category: points, line, triangles, patches.
-            uint32        patchControlPoints;  ///< Number of control points per patch.  Only required if primitiveType
-                                               ///  is PrimitiveType::Patch.
-        } topologyInfo;                        ///< Various information about the primitive topology that will be used
-                                               ///  with this pipeline.  All of this info must be consistent with the
-                                               ///  full topology specified by ICmdBuffer::SetPrimitiveTopology() when
-                                               ///  drawing with this pipeline bound.
+            PrimitiveType     primitiveType;        ///< Basic primitive category: points, line, triangles, patches.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 709
+            bool              topologyIsPolygon;    ///< Indicates that triangle primitives are combined to represent more
+                                                    ///  complex polygons. Only valid for triangle primitive types.
+#endif
+            uint32            patchControlPoints;   ///< Number of control points per patch. Only required if primitiveType
+                                                    ///  is PrimitiveType::Patch.
+        } topologyInfo;                             ///< Various information about the primitive topology that will be used
+                                                    ///  with this pipeline.  All of this info must be consistent with the
+                                                    ///  full topology specified by ICmdBuffer::SetPrimitiveTopology() when
+                                                    ///  drawing with this pipeline bound.
         /// Number of vertex buffer slots which are accessed by this pipeline.  Behavior is undefined if the pipeline
         /// tries to access a vertex buffer slot outside the range [0, vertexBufferCount).  It is generally advisable
         /// to make this the minimum value possible because that reduces the number of vertex buffer slots PAL has to
@@ -417,7 +421,8 @@ struct PipelineInfo
             struct
             {
                 uint32 perSampleShading : 1;    ///< Shader instructions want per-sample execution.
-                uint32 reserved         : 31;   ///< Reserved for future use.
+                uint32 usesSampleMask   : 1;    ///< Shader is using sample mask.
+                uint32 reserved         : 30;   ///< Reserved for future use.
             };
             uint32 u32All;                      ///< All flags combined as a single uint32.
         } flags;

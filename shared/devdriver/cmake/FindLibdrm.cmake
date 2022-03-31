@@ -57,70 +57,80 @@
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #=============================================================================
 
-if(NOT WIN32)
-    # Use pkg-config to get the directories and then use these values
-    # in the FIND_PATH() and FIND_LIBRARY() calls
-    find_package(PkgConfig)
-    pkg_check_modules(PKG_Libdrm QUIET libdrm)
-
-    set(Libdrm_DEFINITIONS ${PKG_Libdrm_CFLAGS_OTHER})
-    set(Libdrm_VERSION ${PKG_Libdrm_VERSION})
-
-    find_path(Libdrm_INCLUDE_DIR
-        NAMES
-            xf86drm.h
-        HINTS
-            ${PKG_Libdrm_INCLUDE_DIRS}
-    )
-
-    set (Libdrm_LIBRARY_HINTS ${PKG_Libdrm_LIBRARY_DIRS})
-
-    find_library(Libdrm_LIBRARY
-        NAMES
-            drm
-        HINTS
-            ${Libdrm_LIBRARY_HINTS}
-    )
-
-    include(FindPackageHandleStandardArgs)
-    find_package_handle_standard_args(Libdrm
-        FOUND_VAR
-            Libdrm_FOUND
-        REQUIRED_VARS
-            Libdrm_LIBRARY
-            Libdrm_INCLUDE_DIR
-        VERSION_VAR
-            Libdrm_VERSION
-    )
-
-    set(Libdrm_INCLUDE_DIR1 "${Libdrm_INCLUDE_DIR}")
-    set(Libdrm_INCLUDE_DIR2 "${Libdrm_INCLUDE_DIR}/libdrm")
-
-    if(Libdrm_FOUND AND NOT TARGET Libdrm::Libdrm)
-        add_library(Libdrm::Libdrm UNKNOWN IMPORTED)
-        set_target_properties(Libdrm::Libdrm PROPERTIES
-            IMPORTED_LOCATION "${Libdrm_LIBRARY}"
-            INTERFACE_COMPILE_OPTIONS "${Libdrm_DEFINITIONS}"
-            INTERFACE_INCLUDE_DIRECTORIES "${Libdrm_INCLUDE_DIR1}"
-            INTERFACE_INCLUDE_DIRECTORIES "${Libdrm_INCLUDE_DIR2}"
-        )
-    endif()
-
-    mark_as_advanced(Libdrm_LIBRARY Libdrm_INCLUDE_DIR)
-
-    # compatibility variables
-    set(Libdrm_LIBRARIES ${Libdrm_LIBRARY})
-    set(Libdrm_INCLUDE_DIRS ${Libdrm_INCLUDE_DIR1} ${Libdrm_INCLUDE_DIR2})
-    set(Libdrm_VERSION_STRING ${Libdrm_VERSION})
-
-else()
+if (WIN32)
     message(FATAL_ERROR "FindLibdrm.cmake cannot find libdrm on Windows systems.")
-    set(Libdrm_FOUND FALSE)
 endif()
 
-include(FeatureSummary)
-set_package_properties(Libdrm
-    PROPERTIES
-        URL "https://wiki.freedesktop.org/dri/"
-        DESCRIPTION "Userspace interface to kernel DRM services."
+# Use pkg-config to get the directories and then use these values
+# in the FIND_PATH() and FIND_LIBRARY() calls
+find_package(PkgConfig)
+pkg_check_modules(PKG_Libdrm QUIET libdrm)
+
+set(Libdrm_DEFINITIONS ${PKG_Libdrm_CFLAGS_OTHER})
+set(Libdrm_VERSION ${PKG_Libdrm_VERSION})
+
+find_path(Libdrm_INCLUDE_DIR
+    NAMES
+        xf86drm.h
+    HINTS
+        ${PKG_Libdrm_INCLUDE_DIRS}
 )
+
+set(Libdrm_LIBRARY_HINTS ${PKG_Libdrm_LIBRARY_DIRS})
+
+if (ANDROID)
+    if (CMAKE_SIZEOF_VOID_P EQUAL "8")
+        set(Libdrm_LIBRARY_HINTS ${Libdrm_LIBRARY_HINTS} "/usr/lib/x86_64-linux-gnu")
+    elseif (CMAKE_SIZEOF_VOID_P EQUAL "4")
+        set(Libdrm_LIBRARY_HINTS ${Libdrm_LIBRARY_HINTS} "/usr/lib/i386-linux-gnu")
+    else()
+        message(FATAL_ERROR "CMAKE_SIZEOF_VOID_P contains an invalid value!")
+    endif()
+endif()
+
+find_library(Libdrm_LIBRARY
+    NAMES
+        drm
+    HINTS
+        ${Libdrm_LIBRARY_HINTS}
+)
+
+include(FindPackageHandleStandardArgs)
+
+find_package_handle_standard_args(Libdrm
+FOUND_VAR
+    Libdrm_FOUND
+REQUIRED_VARS
+    # Don't require the library due to CI issues regarding 32-bit binaries
+    # Libdrm_LIBRARY
+    Libdrm_INCLUDE_DIR
+VERSION_VAR
+    Libdrm_VERSION
+)
+
+# When targeting Android, /usr/include is filtered out by CMake.
+# We work around it by using /usr/include/libdrm/.. instead.
+if(ANDROID)
+    set(Libdrm_INCLUDE_DIR1 "${Libdrm_INCLUDE_DIR}/libdrm/..")
+else()
+    set(Libdrm_INCLUDE_DIR1 "${Libdrm_INCLUDE_DIR}")
+endif()
+
+set(Libdrm_INCLUDE_DIR2 "${Libdrm_INCLUDE_DIR}/libdrm")
+
+if(Libdrm_FOUND AND NOT TARGET Libdrm::Libdrm)
+    add_library(Libdrm::Libdrm UNKNOWN IMPORTED)
+    set_target_properties(Libdrm::Libdrm PROPERTIES
+        IMPORTED_LOCATION "${Libdrm_LIBRARY}"
+        INTERFACE_COMPILE_OPTIONS "${Libdrm_DEFINITIONS}"
+        INTERFACE_INCLUDE_DIRECTORIES "${Libdrm_INCLUDE_DIR1}"
+        INTERFACE_INCLUDE_DIRECTORIES "${Libdrm_INCLUDE_DIR2}"
+    )
+endif()
+
+mark_as_advanced(Libdrm_LIBRARY Libdrm_INCLUDE_DIR)
+
+# compatibility variables
+set(Libdrm_LIBRARIES ${Libdrm_LIBRARY})
+set(Libdrm_INCLUDE_DIRS ${Libdrm_INCLUDE_DIR1} ${Libdrm_INCLUDE_DIR2})
+set(Libdrm_VERSION_STRING ${Libdrm_VERSION})

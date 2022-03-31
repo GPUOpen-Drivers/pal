@@ -494,7 +494,6 @@ Result GpuMemory::Init(
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 677
     m_flags.privPrimary          = createInfo.flags.privPrimary;
 #endif
-
     m_flags.isClient             = internalInfo.flags.isClient;
     m_flags.pageDirectory        = internalInfo.flags.pageDirectory;
     m_flags.pageTableBlock       = internalInfo.flags.pageTableBlock;
@@ -503,7 +502,11 @@ Result GpuMemory::Init(
     m_flags.historyBuffer        = internalInfo.flags.historyBuffer;
     m_flags.isCmdAllocator       = internalInfo.flags.isCmdAllocator;
     m_flags.buddyAllocated       = internalInfo.flags.buddyAllocated;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 723
+    m_flags.privateScreen        = createInfo.flags.privateScreen;
+#else
     m_flags.privateScreen        = internalInfo.flags.privateScreen;
+#endif
     m_flags.isUserQueue          = internalInfo.flags.userQueue;
     m_flags.isTimestamp          = internalInfo.flags.timestamp;
     m_flags.accessedPhysically   = internalInfo.flags.accessedPhysically;

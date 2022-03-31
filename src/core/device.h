@@ -819,7 +819,8 @@ struct GpuChipProperties
                 uint32 support16BitInstructions                 :  1;
                 uint32 support64BitInstructions                 :  1;
                 uint32 supportBorderColorSwizzle                :  1;
-                uint32 supportFloatAtomics                      :  1;
+                uint64 supportFloat32Atomics                    :  1;
+                uint64 supportFloat64Atomics                    :  1;
                 uint32 supportIndexAttribIndirectPkt            :  1;  // Indicates support for INDEX_ATTRIB_INDIRECT
                 uint32 supportSetShIndexPkt                     :  1;  // Indicates support for packet SET_SH_REG_INDEX
                 uint32 supportLoadRegIndexPkt                   :  1;  // Indicates support for LOAD_*_REG_INDEX packets
@@ -838,7 +839,8 @@ struct GpuChipProperties
                 uint32 supportOutOfOrderPrimitives              :  1; // HW supports higher throughput for out of order
                 uint32 supportShaderSubgroupClock               :  1; // HW supports clock functions across subgroup.
                 uint32 supportShaderDeviceClock                 :  1; // HW supports clock functions across device.
-                uint32 reserved                                 :  8;
+                uint32 supportImageViewMinLod                   :  1; // Indicates image srd supports min_lod.
+                uint32 reserved                                 :  7;
             };
 
             Gfx6PerfCounterInfo perfCounterInfo; // Contains information for perf counters for a specific hardware block
@@ -901,6 +903,7 @@ struct GpuChipProperties
                                                     // when z or stencil exports are enabled
 
                 uint32  minNumWgpPerSa;
+                uint32  maxNumWgpPerSa;
                 uint16  activeWgpMask  [Gfx9MaxShaderEngines] [MaxShaderArraysPerSe];
                 uint16  alwaysOnWgpMask[Gfx9MaxShaderEngines] [MaxShaderArraysPerSe];
             } gfx10;
@@ -915,7 +918,8 @@ struct GpuChipProperties
                 uint64 support16BitInstructions           :  1;
                 uint64 support64BitInstructions           :  1;
                 uint64 supportBorderColorSwizzle          :  1;
-                uint64 supportFloatAtomics                :  1;
+                uint64 supportFloat32Atomics              :  1;
+                uint64 supportFloat64Atomics              :  1;
                 uint64 supportDoubleRate16BitInstructions :  1;
                 uint64 rbPlus                             :  1;
                 uint64 supportConservativeRasterization   :  1;
@@ -969,7 +973,8 @@ struct GpuChipProperties
                 uint64 supportInt8Dot                     :  1; // HW supports a dot product 8bit.
                 uint64 supportInt4Dot                     :  1; // HW supports a dot product 4bit.
                 uint64 support2DRectList                  :  1; // HW supports PrimitiveTopology::TwoDRectList.
-                uint64 reserved                           : 15;
+                uint64 supportImageViewMinLod             :  1; // Indicates image srd supports min_lod.
+                uint64 reserved                           : 14;
             };
 
             RayTracingIpLevel rayTracingIp;      //< HW RayTracing IP version
@@ -2565,7 +2570,7 @@ inline bool IsGfx103PlusExclusive(const Device& device)
 }
 constexpr bool IsGfx103CorePlus(GfxIpLevel gfxLevel)
 {
-    return ((gfxLevel > GfxIpLevel::GfxIp10_3)
+    return ((gfxLevel >= GfxIpLevel::GfxIp10_3)
             );
 }
 inline bool IsGfx103CorePlus(const Device& device)

@@ -125,6 +125,7 @@ CmdBuffer::CmdBuffer(
     m_lastPagingFence(0),
     m_p2pBltWaInfo(device.GetPlatform()),
     m_p2pBltWaLastChunkAddr(0),
+    m_implicitGangSubQueueCount(0),
     m_device(device),
     m_recordState(CmdBufferRecordState::Reset)
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -283,6 +284,7 @@ Result CmdBuffer::Begin(
 
             if (result == Result::Success)
             {
+                m_implicitGangSubQueueCount = 0;
                 m_p2pBltWaInfo.Clear();
 
                 // Reset and initialize all internal state before we start building commands.

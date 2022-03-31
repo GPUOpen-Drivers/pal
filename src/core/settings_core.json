@@ -1959,6 +1959,19 @@
       "Description": "When true, TMZ is enabled if HW supports it. Otherwise TMZ is disabled. TMZ(trusted memory zone / protected memory)"
     },
     {
+      "Name": "WaForceLinearHeight16Alignment",
+      "Tags": [
+        "General"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "waForceLinearHeight16Alignment",
+      "Description": "For YUV planar video decoder resource with linear swizzle mode, focring height as 16 alignment."
+    },
+    {
       "Name": "DbgHelperBits",
       "Tags": [
         "General"
@@ -1995,22 +2008,30 @@
             "Description": "Spill table for user data is supported with DMA_DATA_INDIRECT."
           },
           {
-            "Name": "UseExecuteIndirectPacketForDrawDispatch",
+            "Name": "UseExecuteIndirectPacketForDrawSpillAndVbTable",
             "Value": 3,
+            "Description": "VertexBufferTable requires BUILD_UNTYPED_SRD."
+          },
+          {
+            "Name": "UseExecuteIndirectPacketForDrawDispatch",
+            "Value": 4,
             "Description": "Dispatch functionality on compute queue is now supported."
           },
           {
             "Name": "UseExecuteIndirectPacketDefault",
-            "Value": 4,
+            "Value": 5,
             "Description": "Packet feature is completely functional and can be used in place of the CmdGen shaders."
           }
         ],
         "Name": "UseExecuteIndirectPacket"
       },
+      "Flags": {
+        "RereadSetting": true
+      },
       "Description": "Use the ExecuteIndirect packet in place of the IndirectCmdGen shaders as and when supported.",
       "Tags": [
-        "Shader Options",
-        "Gfx9"
+        "General",
+        "Performance"
       ],
       "Defaults": {
         "Default": "UseExecuteIndirectShaders"
@@ -2088,6 +2109,11 @@
             "Name": "UseDccYuvPlanar",
             "Value": 4096,
             "Description": "YUV planar surfaces. Gfx10+."
+          },
+          {
+            "Name": "UseDccForAllCompatibleFormats",
+            "Value": 8192,
+            "Description": "DCC is allowed for typeless resources.  Not supported on all ASICs"
           }
         ],
         "Name": "UseDcc"

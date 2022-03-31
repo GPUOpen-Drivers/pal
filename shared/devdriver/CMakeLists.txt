@@ -30,54 +30,39 @@ project(DevDriver LANGUAGES CXX)
 include(cmake/DevDriver.cmake)
 
 option(DD_OPT_ENABLE_TESTS "Configure whether tests are built" ${DEVDRIVER_IS_TOP_LEVEL})
-if (DD_OPT_ENABLE_TESTS)
-    # Tool libraries are required for testing
-    set(DD_BP_ENABLE_TOOL_LIBRARIES ON)
-endif()
 
-### DevDriver Component Options ########################################################################################
+### DevDriver Component Options ################################################
 
 # Configure whether tool related libraries are built
-dd_bp(DD_BP_ENABLE_TOOL_LIBRARIES OFF)
+dd_bp(DD_BP_ENABLE_TOOL_LIBRARIES ${DEVDRIVER_IS_TOP_LEVEL})
 
-# DevDriver module APIs, module extension APIs and related utility libraries for building a DevDriver module.
-dd_bp(DD_BP_ENABLE_DD_MODULE_APIS OFF)
+# DevDriver module APIs, module extension APIs and related utility libraries for
+# building a DevDriver module.
+dd_bp(DD_BP_ENABLE_DD_MODULE_APIS ${DEVDRIVER_IS_TOP_LEVEL})
 
 # Configure whether CMake install commands are run.
 # If we are building for tools we want to enable install logic.
-dd_bp(DD_BP_INSTALL ${DD_BP_ENABLE_TOOL_LIBRARIES})
+dd_bp(DD_BP_INSTALL ${DEVDRIVER_IS_TOP_LEVEL})
 
-if (DD_BP_ENABLE_TOOL_LIBRARIES)
-    set(DD_BP_ENABLE_DD_MODULE_APIS ON)
-endif()
-
-### Shared Components #################################################################################################
-## These are never disabled, since most things depend on them (directly or indirectly)
 add_subdirectory(shared)
-
-### APIs ##############################################################################################################
-## These are never disabled, since most things depend on them (directly or indirectly)
 add_subdirectory(apis)
+add_subdirectory(settings)
 
-### Modules ###########################################################################################################
 if (DD_BP_ENABLE_TOOL_LIBRARIES)
     add_subdirectory(modules)
 endif()
 
-### Rust ###########################################################################################################
 option(DD_OPT_ENABLE_RUST "Configure whether Rust bindings are built")
 if (DD_OPT_ENABLE_RUST)
     add_subdirectory(rust)
 endif()
 
-### Tests #############################################################################################################
 if (DD_OPT_ENABLE_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()
 
-### Examples ##########################################################################################################
-option(DD_OPT_ENABLE_EXAMPLES "Configure whether examples are built")
+option(DD_OPT_ENABLE_EXAMPLES "Configure whether examples are built"  ${DEVDRIVER_IS_TOP_LEVEL})
 if (DD_OPT_ENABLE_EXAMPLES)
     add_subdirectory(examples)
 endif()

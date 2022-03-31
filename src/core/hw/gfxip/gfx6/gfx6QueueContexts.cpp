@@ -1497,6 +1497,17 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                     paSuLineStippleScale.u32All,
                                                     pCmdSpace);
 
+    // We always start stipple from zero.
+    // Auto-reset only kicks in after the first line so clear the state for the first line here.
+    constexpr regPA_SU_LINE_STIPPLE_VALUE paSuLineStippleValue = {};
+    pCmdSpace = m_deCmdStream.WriteSetOneConfigReg(mmPA_SU_LINE_STIPPLE_VALUE__CI__VI,
+                                                   paSuLineStippleValue.u32All,
+                                                   pCmdSpace);
+    constexpr regPA_SC_LINE_STIPPLE_STATE paScLineStippleState = {};
+    pCmdSpace = m_deCmdStream.WriteSetOneConfigReg(mmPA_SC_LINE_STIPPLE_STATE__CI__VI,
+                                                   paScLineStippleState.u32All,
+                                                   pCmdSpace);
+
     if (chipProps.gfxLevel == GfxIpLevel::GfxIp6)
     {
         // On Gfx6 hardware, there is a possible deadlock scenario between the LS/HS and PS waves: Because they both

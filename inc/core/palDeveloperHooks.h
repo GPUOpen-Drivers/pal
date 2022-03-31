@@ -430,6 +430,11 @@ struct DrawDispatchData
         /// Dispatch-specific parameters.  Valid when cmdType is CmdDispatch*
         DrawDispatchDispatchArgs dispatch;
     };
+
+    /// If the handler of this callback inserts an RGP trace marker using ICmdBuffer::CmdInsertRgpTraceMarker(),
+    /// these flags should be passed to that call to control which sub-queue(s) in the command buffer should insert
+    /// the marker.
+    RgpMarkerSubQueueFlags subQueueFlags;
 };
 
 /// Information for BindPipeline callbacks

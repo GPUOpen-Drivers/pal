@@ -205,7 +205,9 @@ struct PipelineMetadata
             /// adding a null PS. The client driver or PAL may need to disable binding of MRTs for a pipeline where this
             /// is set.
             uint8 psDummyExport          : 1;
-            uint8 reserved               : 5;
+            /// Set if a PS is using sample mask.
+            uint8 psSampleMask           : 1;
+            uint8 reserved               : 4;
         };
         uint8 uAll;
     } flags;
@@ -232,7 +234,8 @@ struct PipelineMetadata
             uint32 apiCreateInfo          : 1;
             uint32 gsOutputsLines         : 1;
             uint32 psDummyExport          : 1;
-            uint32 reserved               : 14;
+            uint32 psSampleMask           : 1;
+            uint32 reserved               : 13;
         };
         uint32 uAll;
     } hasEntry;
@@ -283,6 +286,7 @@ namespace PipelineMetadataKey
     static constexpr char ApiCreateInfo[]          = ".api_create_info";
     static constexpr char GsOutputsLines[]         = ".gs_outputs_lines";
     static constexpr char PsDummyExport[]          = ".ps_dummy_export";
+    static constexpr char PsSampleMask[]           = ".ps_sample_mask";
 };
 
 namespace HardwareStageMetadataKey

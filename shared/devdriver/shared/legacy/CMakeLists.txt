@@ -55,6 +55,11 @@ dd_bp(
     DD_BRANCH_STRING "unknown"
 )
 
+dd_bp(DD_BP_REMOTE_WIN_TRANSPORT ON
+    DEPENDS_ON "WIN32"
+    MSG        "Enables building remote transport on Windows. (Linux is unconditional)"
+)
+
 ### Core Component #####################################################################################################
 # WA: Check that this target hasn't already been added (Only until we have a global CMake context)
 if(NOT TARGET ddCore)
@@ -195,9 +200,18 @@ elseif(WIN32
 )
     target_sources(devdriver PRIVATE
         src/win/ddWinPipeMsgTransport.cpp
+    )
+endif()
+
+# Build remote transport (Only required for Windows UM since Linux always supports remote and Windows KM does not support remote)
+if(DD_BP_REMOTE_WIN_TRANSPORT)
+    target_sources(devdriver PRIVATE
         src/win/ddWinSocket.cpp
         src/socketMsgTransport.cpp
     )
+
+    # Pass the build system variable down to the code
+    target_compile_definitions(devdriver PUBLIC DEVDRIVER_BUILD_REMOTE_TRANSPORT)
 endif()
 
 ### Protocols & Helpers ###

@@ -73,11 +73,12 @@ static_assert(SeverityLevelTableSize == static_cast<uint32>(SeverityLevel::Count
 /// Specifies the origination type (source) of each log message.
 enum class OriginationType : uint32
 {
-    Unknown = 0, ///< Originating from an unknown source
-    DebugPrint,  ///< Originating from PAL_DPINFO, PAL_DPERROR, etc. .
-    Alert,       ///< Originating from PAL_ALERT* macros.
-    Assert,      ///< Originating from PAL_ASSERT* macros.
-    Telemetry,   ///< Used for msgs regarding crash dump and offline analysis
+    Unknown = 0,     ///< Originating from an unknown source
+    DebugPrint,      ///< Originating from PAL_DPINFO, PAL_DPERROR, etc. .
+    Alert,           ///< Originating from PAL_ALERT* macros.
+    Assert,          ///< Originating from PAL_ASSERT* macros.
+    Telemetry,       ///< Used for msgs regarding crash dump and offline analysis
+    PipelineCompiler,///< Originating from pipeline compiler
     Count
 };
 
@@ -90,31 +91,33 @@ enum class OriginationType : uint32
 /// Example: If a client wants to create a debug logger to log debug prints, alerts and
 /// asserts, then it should create the following bit mask:
 ///
-///   Telemetry    Assert        Alert      DebugPrint    Unknown
-/// -----------------------------------------------------------------
-/// |      0    |     1      |      1     |     1      |      0     |
-/// -----------------------------------------------------------------
+/// uint32 mask = uint32(OriginationTypeFlags::OriginationTypeFlagDebugPrint) |
+///               uint32(OriginationTypeFlags::OriginationTypeFlagAlert)      |
+///               uint32(OriginationTypeFlags::OriginationTypeFlagAssert);
+///
 /// and pass this mask in the constructor of the debug logger.
 enum OriginationTypeFlags : uint32
 {
-    OriginationTypeFlagUnknown    = (1ul << uint32(OriginationType::Unknown)),
-    OriginationTypeFlagDebugPrint = (1ul << uint32(OriginationType::DebugPrint)),
-    OriginationTypeFlagAlert      = (1ul << uint32(OriginationType::Alert)),
-    OriginationTypeFlagAssert     = (1ul << uint32(OriginationType::Assert)),
-    OriginationTypeFlagTelemetry  = (1ul << uint32(OriginationType::Telemetry))
+    OriginationTypeFlagUnknown        = (1ul << uint32(OriginationType::Unknown)),
+    OriginationTypeFlagDebugPrint     = (1ul << uint32(OriginationType::DebugPrint)),
+    OriginationTypeFlagAlert          = (1ul << uint32(OriginationType::Alert)),
+    OriginationTypeFlagAssert         = (1ul << uint32(OriginationType::Assert)),
+    OriginationTypeFlagTelemetry      = (1ul << uint32(OriginationType::Telemetry)),
+    OriginationTypeFlagShaderCompiler = (1ul << uint32(OriginationType::PipelineCompiler))
 };
 
 constexpr uint32 AllOriginationTypes = uint32(OriginationTypeFlags::OriginationTypeFlagUnknown)    |
                                        uint32(OriginationTypeFlags::OriginationTypeFlagDebugPrint) |
                                        uint32(OriginationTypeFlags::OriginationTypeFlagAlert)      |
                                        uint32(OriginationTypeFlags::OriginationTypeFlagAssert)     |
-                                       uint32(OriginationTypeFlags::OriginationTypeFlagTelemetry);
+                                       uint32(OriginationTypeFlags::OriginationTypeFlagTelemetry)  |
+                                       uint32(OriginationTypeFlags::OriginationTypeFlagShaderCompiler);
 
 /// Expected maximum number of characters in the client tag.
 /// A client tag indicates the client that logs a message.
 constexpr uint32 ClientTagSize = 8;
 
-/// Generic debug log function called by PAL_DPF macros.
+/// Generic debug log function called by PAL_DPF macros - variable args version.
 /// Clients should use the PAL_DPF macros instead of calling this function directly.
 ///
 /// @param [in] severity     Specifies the severity level of the log message
@@ -129,6 +132,22 @@ extern void DbgLog(
     const char*     pClientTag,
     const char*     pFormat,
     ...);
+
+/// Generic debug log function for debug prints - va_list version
+/// Clients should use the PAL_DPF macros instead of calling this function directly.
+///
+/// @param [in] severity     Specifies the severity level of the log message
+/// @param [in] source       Specifies the origination type (source) of the log message
+/// @param [in] pClientTag   Indicates the client that logs a message. Only the first 'ClientTagSize'
+///                          number of characters will be used to identify the client.
+/// @param [in] pFormat      Format string for the log message.
+/// @param [in] argList      Printf-style argument list.
+extern void DbgVLog(
+    SeverityLevel   severity,
+    OriginationType source,
+    const char*     pClientTag,
+    const char*     pFormat,
+    va_list         argList);
 
 } // Util
 #endif

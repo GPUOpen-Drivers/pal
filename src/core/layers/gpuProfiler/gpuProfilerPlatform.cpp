@@ -117,11 +117,10 @@ void Platform::IncrementFrameId()
     // for frame N+1 before issuing a present on frame N.  If that happens, the commands issued for frame N+1 will
     // be logged as part of frame N.  This hasn't been observed in practice, and would really only affect which files
     // the commands are logged in, but it is something to be aware of.
-
     m_frameId++;
 
-    // Force logging on for the next frame if the user is currently holding Shift-F11.
-    m_forceLogging = IsKeyPressed(KeyCode::Shift_F11);
+    // Force logging on for the next frame if the user is currently holding the trigger key (defaults to Shift-F11).
+    m_forceLogging = IsKeyPressed(PlatformSettings().gpuProfilerCaptureTriggerKey);
 }
 
 // =====================================================================================================================

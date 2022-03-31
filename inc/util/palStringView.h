@@ -217,4 +217,12 @@ bool operator>(StringView<CharT> x, StringView<CharT> y) { return y < x; }
 template<typename CharT>
 bool operator>=(StringView<CharT> x, StringView<CharT> y) { return (x < y) == false; }
 
+/// Specialization of @ref HashString(const char*,size_t) for @ref StringView.
+template<typename T>
+constexpr uint32 HashString(
+    StringView<T> sv)
+{
+    return HashString(sv.Data(), sv.Length());
+}
+
 } // Util

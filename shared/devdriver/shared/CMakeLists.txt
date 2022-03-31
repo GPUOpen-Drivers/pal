@@ -25,10 +25,8 @@
 
 set(CMAKE_FOLDER "${CMAKE_FOLDER}/shared")
 
-### ddApi #############################################################################################################
 add_subdirectory(ddApi)
 
-### ddCommon ##########################################################################################################
 add_subdirectory(ddCommon)
 
 if (DD_BP_ENABLE_DD_MODULE_APIS)
@@ -39,8 +37,8 @@ if (DD_BP_ENABLE_DD_MODULE_APIS)
     add_subdirectory(protocols/info/g_client)
 endif()
 
-### legacy ############################################################################################################
 add_subdirectory(legacy)
 
-### ddGpuInfo #########################################################################################################
-add_subdirectory(ddGpuInfo)
+if (DD_BP_ENABLE_TOOL_LIBRARIES)
+    add_subdirectory(ddGpuInfo)
+endif()

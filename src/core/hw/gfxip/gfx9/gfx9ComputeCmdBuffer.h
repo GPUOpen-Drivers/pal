@@ -204,8 +204,9 @@ public:
 
     virtual void CmdInsertTraceMarker(PerfTraceMarkerType markerType, uint32 markerData) override;
     virtual void CmdInsertRgpTraceMarker(
-        uint32      numDwords,
-        const void* pData) override;
+        RgpMarkerSubQueueFlags subQueueFlags,
+        uint32                 numDwords,
+        const void*            pData) override;
 
     virtual void CmdUpdateSqttTokenMask(const ThreadTraceTokenConfig& sqttTokenConfig) override;
 

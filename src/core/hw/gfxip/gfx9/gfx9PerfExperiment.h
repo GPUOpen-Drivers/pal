@@ -136,10 +136,10 @@ struct GlobalSelectState
     // format that can be a legacy counter or a single 32-bit SPM counter.
     struct
     {
-        bool                      perfmonInUse[Gfx9MaxSqgPerfmonModules];
-        bool                      hasCounters;
-        regGRBM_GFX_INDEX         grbmGfxIndex;
-        regSQ_PERFCOUNTER0_SELECT perfmon[Gfx9MaxSqgPerfmonModules];
+        bool                       perfmonInUse[Gfx9MaxSqgPerfmonModules];
+        bool                       hasCounters;
+        regGRBM_GFX_INDEX          grbmGfxIndex;
+        regSQ_PERFCOUNTER0_SELECT  perfmon[Gfx9MaxSqgPerfmonModules];
     } sqg[Gfx9MaxShaderEngines];
 
     // The GRBM is a global block but it defines one special counter per SE. We treat its global counters generically
@@ -335,7 +335,7 @@ private:
     // Here are a few helper functions which write into reserved command space.
     uint32* WriteSpmSetup(CmdStream* pCmdStream, uint32* pCmdSpace) const;
     uint32* WriteStartThreadTraces(CmdStream* pCmdStream, uint32* pCmdSpace) const;
-    uint32* WriteStopThreadTraces(CmdStream* pCmdStream, uint32* pCmdSpace) const;
+    uint32* WriteStopThreadTraces(GfxCmdBuffer* pCmdBuffer, CmdStream* pCmdStream, uint32* pCmdSpace) const;
     uint32* WriteSelectRegisters(CmdStream* pCmdStream, uint32* pCmdSpace) const;
     uint32* WriteEnableCfgRegisters(bool enable, bool clear, CmdStream* pCmdStream, uint32* pCmdSpace) const;
 

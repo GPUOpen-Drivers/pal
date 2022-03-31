@@ -133,7 +133,8 @@ IndirectCmdGenerator::IndirectCmdGenerator(
             IndirectParam* pCheckParam = m_pCreationParam + i;
             if ((pCheckParam->type == IndirectParamType::Dispatch) ||
                 (pCheckParam->type == IndirectParamType::DispatchMesh) ||
-                (pCheckParam->type == IndirectParamType::BindVertexData))
+                ((pCheckParam->type == IndirectParamType::BindVertexData) &&
+                    (settings.useExecuteIndirectPacket < UseExecuteIndirectPacketForDrawSpillAndVbTable)))
             {
                 canUseExecuteIndirectPacket = false;
                 break;
@@ -141,8 +142,7 @@ IndirectCmdGenerator::IndirectCmdGenerator(
         }
 
         if ((canUseExecuteIndirectPacket == true) &&
-            ((settings.useExecuteIndirectPacket == UseExecuteIndirectPacketForDraw) ||
-            (settings.useExecuteIndirectPacket == UseExecuteIndirectPacketForDrawSpillTable)))
+            (settings.useExecuteIndirectPacket >= UseExecuteIndirectPacketForDraw))
         {
             m_usingExecuteIndirectPacket = true;
         }
@@ -324,7 +324,7 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
     case IndirectOpType::SetUserData:
         if (m_usingExecuteIndirectPacket)
         {
-            size = CmdUtil::SetUserDataIndirectSize * NumHwShaderStagesGfx + CmdUtil::DmaDataSizeDwords;
+            size = CmdUtil::SetUserDataIndirectSize * NumHwShaderStagesGfx;
         }
         else
         {
@@ -334,6 +334,11 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
         }
         break;
     case IndirectOpType::VertexBufTableSrd:
+        if (m_usingExecuteIndirectPacket && m_properties.vertexBufTableSize != 0)
+        {
+            size = CmdUtil::BuildUntypedSrdSize;
+        }
+        break;
     case IndirectOpType::Skip:
         // INDIRECT_TABLE_SRD and SKIP operations don't directly generate any PM4 packets.
         break;
@@ -380,7 +385,7 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
             size += ((CmdUtil::ShRegSizeDwords + 1) * spillTableShaderStageCount);
         }
 
-        if (m_properties.vertexBufTableSize != 0)
+        if ((m_properties.vertexBufTableSize != 0) && (m_usingExecuteIndirectPacket == false))
         {
             size += (CmdUtil::ShRegSizeDwords + 1);
         }

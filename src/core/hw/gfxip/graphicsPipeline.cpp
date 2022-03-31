@@ -63,6 +63,14 @@ Result GraphicsPipeline::Init(
 {
     Result result = Result::Success;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 709
+    if ((createInfo.iaState.topologyInfo.topologyIsPolygon == true) &&
+        (createInfo.iaState.topologyInfo.primitiveType != Pal::PrimitiveType::Triangle))
+    {
+        result = Result::ErrorInvalidValue;
+    }
+    else
+#endif
     if ((createInfo.pPipelineBinary != nullptr) && (createInfo.pipelineBinarySize != 0))
     {
         m_pipelineBinaryLen = createInfo.pipelineBinarySize;

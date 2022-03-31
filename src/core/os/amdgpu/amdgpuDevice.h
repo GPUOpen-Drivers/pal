@@ -446,6 +446,14 @@ public:
         return Result::Unsupported;
     }
 
+    virtual Result QueryDriverVersion(
+        char* pBuffer,
+        size_t bufferLength) const override
+    {
+        PAL_NOT_IMPLEMENTED();
+        return Result::Unsupported;
+    }
+
     bool IsVmAlwaysValidSupported() const { return (m_featureState.supportVmAlwaysValid != 0); }
 
     bool IsRaw2SubmitSupported() const { return (m_featureState.supportRaw2Submit != 0); }

@@ -27,13 +27,14 @@ cmake_minimum_required(VERSION 3.13...3.21)
 include(cmake/PalVersionHelper.cmake)
 project(PAL LANGUAGES CXX)
 
+message(STATUS "PAL_SOURCE_DIR = ${PAL_SOURCE_DIR}")
+
 include(PalBuildParameters)
 include(PalOptions)
 include(PalOverrides)
 
 set(CMAKE_FOLDER "${CMAKE_FOLDER}/PAL Libs")
 add_library(pal STATIC)
-add_library(AMD::PAL ALIAS pal)
 
 add_subdirectory(cmake)
 add_subdirectory(inc)

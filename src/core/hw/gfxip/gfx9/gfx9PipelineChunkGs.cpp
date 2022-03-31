@@ -180,6 +180,7 @@ void PipelineChunkGs::LateInit(
 
     m_regs.dynamic.spiShaderPgmRsrc3Gs.bits.CU_EN = m_device.GetCuEnableMask(gsCuDisableMask,
                                                                              settings.gsCuEnLimitMask);
+
     if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
     {
         m_regs.dynamic.spiShaderPgmRsrc4Gs.gfx09.SPI_SHADER_LATE_ALLOC_GS = lateAllocWaves;
@@ -243,8 +244,13 @@ void PipelineChunkGs::LateInit(
         m_regs.context.geNggSubgrpCntl.u32All        = registers.At(Gfx10Plus::mmGE_NGG_SUBGRP_CNTL);
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 709
+    m_regs.context.paClNggCntl.bits.INDEX_BUF_EDGE_FLAG_ENA = createInfo.iaState.topologyInfo.topologyIsPolygon ||
+        (createInfo.iaState.topologyInfo.primitiveType == Pal::PrimitiveType::Quad);
+#else
     m_regs.context.paClNggCntl.bits.INDEX_BUF_EDGE_FLAG_ENA =
         (createInfo.iaState.topologyInfo.primitiveType == Pal::PrimitiveType::Quad);
+#endif
 
     if (IsGfx103PlusExclusive(*m_device.Parent()))
     {

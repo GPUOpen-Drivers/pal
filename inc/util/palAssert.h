@@ -97,7 +97,7 @@ constexpr bool CheckReservedBits(
 #endif
 }
 
-#if PAL_ENABLE_PRINTS_ASSERTS
+#if (PAL_ENABLE_PRINTS_ASSERTS || PAL_ENABLE_LOGGING)
 
 /// Specifies how severe an triggered assert (or alert) is.
 ///
@@ -132,7 +132,7 @@ extern bool IsAssertCategoryEnabled(
 
 } // namespace Util
 
-#if PAL_ENABLE_PRINTS_ASSERTS
+#if (PAL_ENABLE_PRINTS_ASSERTS || PAL_ENABLE_LOGGING)
 /// Prints an error message with the specified reason via the debug print system. A debug break will also be triggered
 /// if they're currently enabled for asserts.
 ///

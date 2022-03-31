@@ -3487,6 +3487,83 @@ Result CreateRpmGraphicsPipelines(
     if (result == Result::Success)
     {
         pipeInfo = { };
+        pipeInfo.pPipelineBinary       = pTable[ScaledCopyMsaaDepth].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ScaledCopyMsaaDepth].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[ScaledCopyMsaaDepth],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary       = pTable[ScaledCopyMsaaDepthStencil].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ScaledCopyMsaaDepthStencil].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[ScaledCopyMsaaDepthStencil],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
+        pipeInfo.pPipelineBinary       = pTable[ScaledCopyMsaaStencil].pBuffer;
+        pipeInfo.pipelineBinarySize    = pTable[ScaledCopyMsaaStencil].size;
+
+        PAL_ASSERT((pipeInfo.pPipelineBinary != nullptr) && (pipeInfo.pipelineBinarySize != 0));
+
+        pipeInfo.iaState.topologyInfo.primitiveType = PrimitiveType::Rect;
+
+        pipeInfo.cbState.target[0].channelWriteMask       = 0x1;
+        pipeInfo.cbState.target[0].swizzledFormat.format  = ChNumFormat::X8_Uint;
+        pipeInfo.cbState.target[0].swizzledFormat.swizzle =
+            { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
+
+        pipeInfo.viewportInfo.depthClipNearEnable = false;
+        pipeInfo.viewportInfo.depthClipFarEnable  = false;
+        pipeInfo.viewportInfo.depthRange = DepthRange::ZeroToOne;
+        pipeInfo.cbState.logicOp         = LogicOp::Copy;
+        pipeInfo.rsState.binningOverride = BinningOverride::Disable;
+        pipeInfo.rsState.depthClampMode  = DepthClampMode::_None;
+
+        result = pDevice->CreateGraphicsPipelineInternal(
+            pipeInfo,
+            NullInternalInfo,
+            &pPipelineMem[ScaledCopyMsaaStencil],
+            AllocInternal);
+    }
+
+    if (result == Result::Success)
+    {
+        pipeInfo = { };
         pipeInfo.pPipelineBinary       = pTable[ScaledCopyStencil].pBuffer;
         pipeInfo.pipelineBinarySize    = pTable[ScaledCopyStencil].size;
 

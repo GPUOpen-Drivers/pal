@@ -615,6 +615,7 @@ uint32* GraphicsPipeline::WriteContextCommandsSetPath(
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_SU_VTX_CNTL, m_regs.context.paSuVtxCntl.u32All, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_CL_VTE_CNTL, m_regs.context.paClVteCntl.u32All, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_SC_LINE_CNTL, m_regs.context.paScLineCntl.u32All, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_SC_EDGERULE, m_regs.context.paScEdgerule.u32All, pCmdSpace);
 
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmSPI_INTERP_CONTROL_0,
                                                   m_regs.context.spiInterpControl0.u32All,
@@ -684,6 +685,27 @@ void GraphicsPipeline::SetupNonShaderRegisters(
 #endif
     m_regs.context.paScLineCntl.bits.LAST_PIXEL               = createInfo.rsState.rasterizeLastLinePixel;
     m_regs.context.paScLineCntl.bits.PERPENDICULAR_ENDCAP_ENA = createInfo.rsState.perpLineEndCapsEnable;
+
+    if (createInfo.rsState.pointCoordOrigin == Pal::PointOrigin::UpperLeft)
+    {
+        m_regs.context.paScEdgerule.bits.ER_TRI     = 0xa;
+        m_regs.context.paScEdgerule.bits.ER_POINT   = 0xa;
+        m_regs.context.paScEdgerule.bits.ER_RECT    = 0xa;
+        m_regs.context.paScEdgerule.bits.ER_LINE_LR = 0x1a;
+        m_regs.context.paScEdgerule.bits.ER_LINE_RL = 0x26;
+        m_regs.context.paScEdgerule.bits.ER_LINE_TB = 0xa;
+        m_regs.context.paScEdgerule.bits.ER_LINE_BT = 0xa;
+    }
+    else
+    {
+        m_regs.context.paScEdgerule.bits.ER_TRI     = 0xa;
+        m_regs.context.paScEdgerule.bits.ER_POINT   = 0x5;
+        m_regs.context.paScEdgerule.bits.ER_RECT    = 0x9;
+        m_regs.context.paScEdgerule.bits.ER_LINE_LR = 0x29;
+        m_regs.context.paScEdgerule.bits.ER_LINE_RL = 0x29;
+        m_regs.context.paScEdgerule.bits.ER_LINE_TB = 0xa;
+        m_regs.context.paScEdgerule.bits.ER_LINE_BT = 0xa;
+    }
 
     m_regs.context.cbShaderMask.u32All = registers.At(mmCB_SHADER_MASK);
     // CB_TARGET_MASK is determined by the RT write masks in the pipeline create info.

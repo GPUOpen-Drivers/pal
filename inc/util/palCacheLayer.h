@@ -368,6 +368,9 @@ struct MemoryCacheCreateInfo
     CacheLayerBaseCreateInfo baseInfo;        ///< Base cache layer creation info
     size_t                   maxObjectCount;  ///< Maximum number of entries in cache
     size_t                   maxMemorySize;   ///< Maximum total size of entries in cache
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 711
+    uint32                   expectedEntries; ///< Expected number of entries in cache
+#endif
     bool                     evictOnFull;     ///< Whether or not the cache should evict entries based on LRU to
                                               ///  make room for new ones
     bool                     evictDuplicates; ///< Whether or not the cache should evict entries with a duplicate hash

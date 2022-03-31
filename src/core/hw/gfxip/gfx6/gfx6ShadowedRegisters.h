@@ -408,6 +408,14 @@ const RegisterRange NonShadowedRangesGfx8[] =
         1
     },
     {
+        mmPA_SU_LINE_STIPPLE_VALUE__CI__VI,
+        1
+    },
+    {
+        mmPA_SC_LINE_STIPPLE_STATE__CI__VI,
+        1
+    },
+    {
         mmVGT_STRMOUT_BUFFER_FILLED_SIZE_0__CI__VI,
         mmVGT_STRMOUT_BUFFER_FILLED_SIZE_3__CI__VI - mmVGT_STRMOUT_BUFFER_FILLED_SIZE_0__CI__VI + 1
     },

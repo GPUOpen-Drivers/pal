@@ -5120,7 +5120,15 @@ void CmdBuffer::CmdLoadBufferFilledSizes(
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdLoadBufferFilledSizes));
 
-        // TODO: Add comment string.
+        LinearAllocatorAuto<VirtualLinearAllocator> allocator(Allocator(), false);
+        char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+
+        for (uint32 i = 0; i < MaxStreamOutTargets; i++)
+        {
+            Snprintf(pString, StringLength, "\tTarget #%d GpuVirtAddr = 0x%016llX", i, gpuVirtAddr[i]);
+            GetNextLayer()->CmdCommentString(pString);
+        }
+        PAL_SAFE_DELETE_ARRAY(pString, &allocator);
     }
 
     GetNextLayer()->CmdLoadBufferFilledSizes(gpuVirtAddr);
@@ -5134,7 +5142,15 @@ void CmdBuffer::CmdSaveBufferFilledSizes(
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSaveBufferFilledSizes));
 
-        // TODO: Add comment string.
+        LinearAllocatorAuto<VirtualLinearAllocator> allocator(Allocator(), false);
+        char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+
+        for (uint32 i = 0; i < MaxStreamOutTargets; i++)
+        {
+            Snprintf(pString, StringLength, "\tTarget #%d GpuVirtAddr = 0x%016llX", i, gpuVirtAddr[i]);
+            GetNextLayer()->CmdCommentString(pString);
+        }
+        PAL_SAFE_DELETE_ARRAY(pString, &allocator);
     }
 
     GetNextLayer()->CmdSaveBufferFilledSizes(gpuVirtAddr);
@@ -5149,7 +5165,8 @@ void CmdBuffer::CmdSetBufferFilledSize(
     {
         GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSetBufferFilledSize));
 
-        // TODO: Add comment string.
+        DumpUint(this, "\tbufferId", bufferId);
+        DumpUint(this, "\toffset", offset);
     }
 
     GetNextLayer()->CmdSetBufferFilledSize(bufferId, offset);
@@ -5526,8 +5543,9 @@ void CmdBuffer::CmdInsertTraceMarker(
 
 // =====================================================================================================================
 void CmdBuffer::CmdInsertRgpTraceMarker(
-    uint32      numDwords,
-    const void* pData)
+    RgpMarkerSubQueueFlags subQueueFlags,
+    uint32                 numDwords,
+    const void*            pData)
 {
     if (m_annotations.logMiscellaneous)
     {
@@ -5536,7 +5554,7 @@ void CmdBuffer::CmdInsertRgpTraceMarker(
         // TODO: Add comment string.
     }
 
-    GetNextLayer()->CmdInsertRgpTraceMarker(numDwords, pData);
+    GetNextLayer()->CmdInsertRgpTraceMarker(subQueueFlags, numDwords, pData);
 }
 
 // ====================================================================================================================

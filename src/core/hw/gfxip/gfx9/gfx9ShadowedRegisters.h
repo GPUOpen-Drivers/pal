@@ -385,6 +385,14 @@ const RegisterRange Gfx90NonShadowedRanges[] =
         1
     },
     {
+        mmPA_SU_LINE_STIPPLE_VALUE,
+        1
+    },
+    {
+        mmPA_SC_LINE_STIPPLE_STATE,
+        1
+    },
+    {
         mmVGT_INDEX_TYPE,
         HasHwVs::mmVGT_STRMOUT_BUFFER_FILLED_SIZE_3 - mmVGT_INDEX_TYPE + 1
     },
@@ -517,6 +525,14 @@ const RegisterRange Gfx91NonShadowedRanges[] =
     },
     {
         mmGRBM_GFX_INDEX,
+        1
+    },
+    {
+        mmPA_SU_LINE_STIPPLE_VALUE,
+        1
+    },
+    {
+        mmPA_SC_LINE_STIPPLE_STATE,
         1
     },
     {

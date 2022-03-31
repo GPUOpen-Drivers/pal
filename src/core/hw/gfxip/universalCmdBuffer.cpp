@@ -867,6 +867,42 @@ const CmdStream* UniversalCmdBuffer::GetCmdStream(
 }
 
 // =====================================================================================================================
+// Returns the number of command streams associated with this command buffer, for the specified ganged sub-queue index.
+uint32 UniversalCmdBuffer::NumCmdStreamsInSubQueue(
+    int32 subQueueIndex
+    ) const
+{
+    PAL_ASSERT(subQueueIndex < int32(AceStreamCount));
+
+    // The main sub-queue has two streams (DE and CE), other ganged sub-queues have one stream (ACE).
+    return (subQueueIndex == MainSubQueueIdx) ? 2 : 1;
+}
+
+// =====================================================================================================================
+// Returns a pointer to the command stream specified by the given ganged sub-queue index and command stream index.
+const CmdStream* UniversalCmdBuffer::GetCmdStreamInSubQueue(
+    int32  subQueueIndex,
+    uint32 cmdStreamIndex
+    ) const
+{
+    PAL_ASSERT(cmdStreamIndex < NumCmdStreamsInSubQueue(subQueueIndex));
+
+    const CmdStream* pStream = nullptr;
+    if (subQueueIndex == MainSubQueueIdx)
+    {
+        // For the "main" sub-queue, CE always comes first.
+        pStream = (cmdStreamIndex == 0) ? m_pCeCmdStream : m_pDeCmdStream;
+    }
+    else
+    {
+        PAL_ASSERT(subQueueIndex == 0); // Only one ganged sub-queue currently supported.
+        pStream = m_pAceCmdStream; // Ganged sub-queues are always ACE queues.
+    }
+
+    return pStream;
+}
+
+// =====================================================================================================================
 uint32 UniversalCmdBuffer::GetUsedSize(
     CmdAllocType type
     ) const

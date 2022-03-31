@@ -32,6 +32,8 @@
 #include "palCmdBuffer.h"
 #include "palSysUtil.h"
 
+#include <atomic>
+
 using namespace Util;
 
 namespace Pal
@@ -348,7 +350,7 @@ bool StreamoutStatsQueryPool::IsQueryDataValid(
         {
             // One of the halves appears unwritten. Use memory barrier here to
             // make sure all writes to this memory from other threads/devices visible to this thread.
-            Util::MemoryBarrier();
+            std::atomic_thread_fence(std::memory_order_acq_rel);
         }
         result = true;
     }

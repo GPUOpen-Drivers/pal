@@ -252,7 +252,12 @@ union ImageUsageFlags
         uint32 stencilOnlyTarget      :  1; ///< This must be set if a stencil-only IDepthStencilView will be created
                                             ///< for this image.
         uint32 vrsRateImage           :  1; ///< This image is potentially used with CmdBindSampleRateImage
-        uint32 reserved               : 13; ///< Reserved for future use.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 722
+        uint32 videoDecoder           :  1; ///< Indicating this Image is video decoder target
+#else
+        uint32 reserved722            :  1;
+#endif
+        uint32 reserved               : 12; ///< Reserved for future use.
     };
     uint32 u32All;                          ///< Flags packed as 32-bit uint.
 };

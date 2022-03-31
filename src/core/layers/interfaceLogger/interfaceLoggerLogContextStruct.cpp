@@ -1512,7 +1512,14 @@ void LogContext::Struct(
     }
 #endif
 
-    static_assert(CheckReservedBits<GpuMemoryCreateFlags>(32, 4), "Need to update interfaceLogger!");
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 723
+    if (value.privateScreen)
+    {
+        Value("privateScreen");
+    }
+#endif
+
+    static_assert(CheckReservedBits<GpuMemoryCreateFlags>(32, 3), "Need to update interfaceLogger!");
 
     EndList();
 }
@@ -1612,6 +1619,9 @@ void LogContext::Struct(
         KeyAndBeginMap("topologyInfo", false);
         {
             KeyAndEnum("primitiveType", value.iaState.topologyInfo.primitiveType);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 709
+            KeyAndValue("topologyIsPolygon", value.iaState.topologyInfo.topologyIsPolygon);
+#endif
             KeyAndValue("patchControlPoints", value.iaState.topologyInfo.patchControlPoints);
         }
         EndMap();
@@ -3229,10 +3239,21 @@ void LogContext::Struct(
     KeyAndEnum("provokingVertex", value.provokingVertex);
     KeyAndBeginList("flags", true);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 721
+    if (value.flags.frontDepthBiasEnable)
+    {
+        Value("frontDepthBiasEnable");
+    }
+    if (value.flags.backDepthBiasEnable)
+    {
+        Value("backDepthBiasEnable");
+    }
+#else
     if (value.flags.depthBiasEnable)
     {
         Value("depthBiasEnable");
     }
+#endif
 
     EndList();
     EndMap();

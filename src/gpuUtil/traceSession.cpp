@@ -24,8 +24,11 @@
  **********************************************************************************************************************/
 #if PAL_BUILD_RDF
 #include "palTraceSession.h"
-#include "palHashSetImpl.h"
+#include "palHashMapImpl.h"
 #include "core/imported/rdf/rdf/inc/amdrdf.h"
+#include "uberTraceService.h"
+#include "util/ddStructuredReader.h"
+#include "util/ddJsonWriter.h"
 
 using namespace Pal;
 
@@ -58,26 +61,51 @@ static Result RdfResultToPalResult(
 }
 
 // =====================================================================================================================
-TraceSession::TraceSession(IPlatform* pPlatform)
+TraceSession::TraceSession(
+    IPlatform* pPlatform)
     :
     m_pPlatform(pPlatform),
     m_registeredTraceSources(64, pPlatform),
+    m_traceSourcesConfigs(64, pPlatform),
     m_registeredTraceControllers(64, pPlatform),
+    m_pActiveController(nullptr),
     m_sessionState(TraceSessionState::Ready),
     m_pChunkFileWriter(nullptr),
-    m_pCurrentStream(nullptr)
+    m_pCurrentStream(nullptr),
+    m_pReader(nullptr)
 {
 }
 
 // =====================================================================================================================
 TraceSession::~TraceSession()
 {
+    // Free config memory of each TraceSource
+    if (m_traceSourcesConfigs.GetNumEntries() > 0)
+    {
+        for (auto iter = m_traceSourcesConfigs.Begin(); iter.Get() != nullptr; iter.Next())
+        {
+            if (iter.Get()->value != nullptr)
+            {
+                PAL_DELETE(iter.Get()->value, m_pPlatform);
+            }
+        }
+    }
+
+    if (m_pReader != nullptr)
+    {
+        DevDriver::IStructuredReader::Destroy(&m_pReader);
+    }
 }
 
 // =====================================================================================================================
 Result TraceSession::Init()
 {
     Result result = m_registeredTraceSources.Init();
+
+    if (result == Result::Success)
+    {
+        result = m_traceSourcesConfigs.Init();
+    }
 
     if (result == Result::Success)
     {
@@ -98,11 +126,26 @@ Result TraceSession::RegisterController(
         if (m_sessionState == TraceSessionState::Ready)
         {
             m_registerTraceControllerLock.LockForWrite();
-            result = m_registeredTraceControllers.Contains(pController) ?
-                    Result::AlreadyExists : m_registeredTraceControllers.Insert(pController);
+
+            bool existed = false;
+            ITraceController** ppMapEntry;
+            result = m_registeredTraceControllers.FindAllocate(pController->GetName(), &existed, &ppMapEntry);
+
+            if(result == Result::Success)
+            {
+                if (existed)
+                {
+                    result = Result::AlreadyExists;
+                }
+                else
+                {
+                    *(ppMapEntry) = pController;
+                }
+            }
+
             m_registerTraceControllerLock.UnlockForWrite();
         }
-        else if (m_sessionState == TraceSessionState::Progress)
+        else
         {
             result = Result::ErrorUnavailable;
         }
@@ -120,10 +163,10 @@ Result TraceSession::UnregisterController(
     if (m_sessionState == TraceSessionState::Ready)
     {
         m_registerTraceControllerLock.LockForWrite();
-        result = m_registeredTraceControllers.Erase(pController) ? Result::Success : Result::NotFound;
+        result = m_registeredTraceControllers.Erase(pController->GetName()) ? Result::Success : Result::NotFound;
         m_registerTraceControllerLock.UnlockForWrite();
     }
-    else if (m_sessionState == TraceSessionState::Progress)
+    else
     {
         result = Result::ErrorUnavailable;
     }
@@ -142,11 +185,40 @@ Result TraceSession::RegisterSource(
         if (m_sessionState == TraceSessionState::Ready)
         {
             m_registerTraceSourceLock.LockForWrite();
-            result = m_registeredTraceSources.Contains(pSource) ?
-                    Result::AlreadyExists : m_registeredTraceSources.Insert(pSource);
+
+            bool existed = false;
+            ITraceSource** ppMapEntry;
+            result = m_registeredTraceSources.FindAllocate(pSource->GetName(), &existed, &ppMapEntry);
+
+            if(result == Result::Success)
+            {
+                if (existed)
+                {
+                    result = Result::AlreadyExists;
+                }
+                else
+                {
+                    *ppMapEntry = pSource;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 712
+                    // Update source configs if available
+                    DevDriver::StructuredValue** ppSourceConfig =
+                        m_traceSourcesConfigs.FindKey(pSource->GetName());
+
+                    if (ppSourceConfig != nullptr)
+                    {
+                        if (*ppSourceConfig != nullptr)
+                        {
+                            pSource->OnConfigUpdated(*ppSourceConfig);
+                        }
+                    }
+#endif
+                }
+            }
+
             m_registerTraceSourceLock.UnlockForWrite();
         }
-        else if (m_sessionState == TraceSessionState::Progress)
+        else
         {
             result = Result::ErrorUnavailable;
         }
@@ -164,12 +236,230 @@ Result TraceSession::UnregisterSource(
     if (m_sessionState == TraceSessionState::Ready)
     {
         m_registerTraceSourceLock.LockForWrite();
-        result = m_registeredTraceSources.Erase(pSource) ? Result::Success : Result::NotFound;
+        result = m_registeredTraceSources.Erase(pSource->GetName()) ? Result::Success : Result::NotFound;
         m_registerTraceSourceLock.UnlockForWrite();
     }
-    else if (m_sessionState == TraceSessionState::Progress)
+    else
     {
         result = Result::ErrorUnavailable;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result TraceSession::RequestTrace()
+{
+    Result result = Result::Success;
+
+    if (m_sessionState == TraceSessionState::Ready)
+    {
+        m_sessionState = TraceSessionState::Requested;
+    }
+    else
+    {
+        result = Result::ErrorUnavailable;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 712
+Result TraceSession::UpdateTraceConfig(
+    const void* pData,
+    size_t      dataSize)
+{
+    Result result = Result::ErrorUnknown;
+
+    if (pData == nullptr)
+    {
+        result = Result::ErrorInvalidPointer;
+    }
+    else if (m_sessionState != TraceSessionState::Ready)
+    {
+        result = Result::ErrorUnavailable;
+    }
+    else
+    {
+        // Parse the JSON string into a structured reader
+        DevDriver::Result devDriverResult
+            = DevDriver::IStructuredReader::CreateFromJson(pData,
+                                                            dataSize,
+                                                            DevDriver::Platform::GenericAllocCb,
+                                                            &m_pReader);
+
+        if (devDriverResult == DevDriver::Result::Success)
+        {
+            result = Result::Success;
+            const DevDriver::StructuredValue root = m_pReader->GetRoot();
+
+            // Update configs of registered TraceControllers
+            const DevDriver::StructuredValue traceControllers    = root["controllers"];
+            const size_t                     numTraceControllers = traceControllers.GetArrayLength();
+
+            if (traceControllers.IsNull() == false)
+            {
+                for (uint32 idx = 0; idx < numTraceControllers; ++idx)
+                {
+                    // Grab the config for each controller
+                    const DevDriver::StructuredValue traceController       = traceControllers[idx];
+                    const char*                      pName                 = traceController["name"].GetStringPtr();
+                    DevDriver::StructuredValue       traceControllerConfig = traceController["config"];
+
+                    if ((pName != nullptr) && (traceControllerConfig.IsNull() == false))
+                    {
+                        auto ppController = m_registeredTraceControllers.FindKey(pName);
+                        if (ppController != nullptr)
+                        {
+                            (*ppController)->OnConfigUpdated(&traceControllerConfig);
+                        }
+                    }
+                }
+            }
+
+            // Configs of TraceSources will be updated later during registration. This is because clients might register
+            // sources during DevDriver's LateDeviceInit and require that configs be updated at that time. In the future,
+            // we might want to move LateDeviceInit from client's responsibility to PAL's.
+            const DevDriver::StructuredValue traceSources    = root["sources"];
+            const size_t                     numTraceSources = traceSources.GetArrayLength();
+
+            if (traceSources.IsNull() == false)
+            {
+                for (uint32 idx = 0; idx < numTraceSources; ++idx)
+                {
+                    // Grab the config for each source
+                    const DevDriver::StructuredValue traceSource       = traceSources[idx];
+                    const char*                      pName             = traceSource["name"].GetStringPtr();
+                    DevDriver::StructuredValue       traceSourceConfig = traceSource["config"];
+
+                    if ((pName != nullptr) && (traceSourceConfig.IsNull() == false))
+                    {
+                        // Store configs of TraceSources
+                        bool existed = false;
+                        DevDriver::StructuredValue** ppMapEntry;
+                        result = m_traceSourcesConfigs.FindAllocate(pName, &existed, &ppMapEntry);
+
+                        if (result == Result::Success)
+                        {
+                            // Ensure deallocations when TraceSession is destroyed
+                            *ppMapEntry = PAL_NEW(DevDriver::StructuredValue, m_pPlatform, Util::AllocInternalTemp);
+                            **ppMapEntry = traceSourceConfig;
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            result  = Result::ErrorInvalidValue; // Invalid JSON parameter
+        }
+    }
+
+    return result;
+}
+#endif
+
+// =====================================================================================================================
+Result TraceSession::AcceptTrace(
+    ITraceController* pController,
+    uint64            supportedGpuMask)
+{
+    Result result = Result::ErrorUnknown;
+
+    if (pController == nullptr)
+    {
+        result = Result::ErrorInvalidPointer;
+    }
+    else
+    {
+        if (m_sessionState == TraceSessionState::Requested)
+        {
+            m_pActiveController = pController;
+
+            // Create the stream to be used in the chunkFileWriter. This will also be used to retrieve
+            // the final list of appended chunks in CollectTrace().
+            result = RdfResultToPalResult(rdfStreamCreateMemoryStream(&m_pCurrentStream));
+
+            // Create the chunkFileWriter to setup the chunk data structures and buffers to collect the incoming chunks
+            if (result == Result::Success)
+            {
+                result = RdfResultToPalResult(rdfChunkFileWriterCreate(m_pCurrentStream, &m_pChunkFileWriter));
+            }
+
+            if (result == Result::Success)
+            {
+                m_registerTraceSourceLock.LockForRead();
+
+                // Notify all trace sources that the trace has been accepted
+                for (auto iter = m_registeredTraceSources.Begin(); iter.Get() != nullptr; iter.Next())
+                {
+                    iter.Get()->value->OnTraceAccepted();
+                }
+
+                m_registerTraceSourceLock.UnlockForRead();
+            }
+        }
+        else
+        {
+            result = Result::ErrorUnavailable;
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result TraceSession::BeginTrace()
+{
+    Result result = Result::Success;
+
+    // GPU Index has been hardcoded for now
+    uint32 gpuIndex = 0;
+    ICmdBuffer* pBeginCmdBuf = nullptr;
+
+    // Notify the active controller of any required GPU work
+    result = m_pActiveController->OnBeginGpuWork(gpuIndex, &pBeginCmdBuf);
+
+    if (result == Result::Success)
+    {
+        m_registerTraceSourceLock.LockForRead();
+
+        // Notify all trace sources that the trace has begun
+        for (auto iter = m_registeredTraceSources.Begin(); iter.Get() != nullptr; iter.Next())
+        {
+            iter.Get()->value->OnTraceBegin(gpuIndex, pBeginCmdBuf);
+        }
+
+        m_registerTraceSourceLock.UnlockForRead();
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result TraceSession::EndTrace()
+{
+    Result result = Result::Success;
+
+    // GPU Index has been hardcoded for now
+    uint32 gpuIndex = 0;
+    ICmdBuffer* pCmdBuf = nullptr;
+
+    // Notify the active controller of any required GPU work
+    result = m_pActiveController->OnEndGpuWork(gpuIndex, &pCmdBuf);
+
+    if (result == Result::Success)
+    {
+        m_registerTraceSourceLock.LockForRead();
+
+        // Notify all trace sources that the trace has begun
+        for (auto iter = m_registeredTraceSources.Begin(); iter.Get() != nullptr; iter.Next())
+        {
+            iter.Get()->value->OnTraceEnd(gpuIndex, pCmdBuf);
+        }
+
+        m_registerTraceSourceLock.UnlockForRead();
     }
 
     return result;
@@ -180,74 +470,71 @@ Result TraceSession::CollectTrace(
     void*   pData,
     size_t* pDataSize)
 {
-    Result result     = Result::Success;
+    Result result = Result::ErrorUnknown;
 
     if (pDataSize == nullptr)
     {
         result = Result::ErrorInvalidPointer;
     }
-    else if (m_sessionState == TraceSessionState::Ready)
+    else
     {
-        result = Result::ErrorUnavailable;
-    }
-    else if (m_sessionState == TraceSessionState::Progress)
-    {
-        int64 streamSize = static_cast<int64>(*pDataSize);
-
-        // Check if the ChunkWriter hasn't already been closed ie. don't destroy it twice.
-        if (m_pChunkFileWriter != nullptr)
+        if (m_sessionState == TraceSessionState::Completed)
         {
-            // Destroying(ie.closing) the ChunkWriter ensures that all data, both compressed and uncompressed, is written
-            // to the data stream. This step also completes the RDF file by adding the final parts(index entries) of the
-            // file. Trace data and data-sizes will be correctly outputted only after this step.
-            result = RdfResultToPalResult(rdfChunkFileWriterDestroy(&m_pChunkFileWriter));
+            int64 streamSize = static_cast<int64>(*pDataSize);
 
-            // We need to move the RDF offset manually to the beginning of the data stream
-            if (result == Result::Success)
+            // Check if the ChunkWriter hasn't already been closed ie. don't destroy it twice.
+            if (m_pChunkFileWriter != nullptr)
             {
-                result = RdfResultToPalResult(rdfStreamSeek(m_pCurrentStream, 0));
+                // Destroying(ie.closing) the ChunkWriter ensures that all data, both compressed and uncompressed, is written
+                // to the data stream. This step also completes the RDF file by adding the final parts(index entries) of the
+                // file. Trace data and data-sizes will be correctly outputted only after this step.
+                result = RdfResultToPalResult(rdfChunkFileWriterDestroy(&m_pChunkFileWriter));
+
+                // We need to move the RDF offset manually to the beginning of the data stream
+                if (result == Result::Success)
+                {
+                    result = RdfResultToPalResult(rdfStreamSeek(m_pCurrentStream, 0));
+                }
+
+                if (result == Result::Success)
+                {
+                    result = RdfResultToPalResult(rdfStreamGetSize(m_pCurrentStream, &streamSize));
+                }
             }
 
-            if (result == Result::Success)
+            // Read the trace data if pData is valid, else simply output the data-size.
+            if (pData != nullptr)
             {
-                result = RdfResultToPalResult(rdfStreamGetSize(m_pCurrentStream, &streamSize));
-            }
-        }
+                if (*pDataSize < streamSize)
+                {
+                    result = Result::ErrorInvalidMemorySize;
+                }
+                else
+                {
+                    // Read all trace data in the current stream in RDF format
+                    int64 bytesRead = 0;
+                    result = RdfResultToPalResult(rdfStreamRead(m_pCurrentStream, streamSize, pData, &bytesRead));
 
-        if (pData != nullptr)
-        {
-            if (*pDataSize < streamSize)
-            {
-                result = Result::ErrorInvalidMemorySize;
+                    if (result == Result::Success)
+                    {
+                        result = RdfResultToPalResult(rdfStreamClose(&m_pCurrentStream));
+                    }
+
+                    if (result == Result::Success)
+                    {
+                        m_sessionState = TraceSessionState::Ready;
+                    }
+                }
             }
             else
             {
-                // Read all trace data in the current stream in RDF format
-                int64 bytesRead = 0;
-                if (result == Result::Success)
-                {
-                    result = RdfResultToPalResult(rdfStreamRead(m_pCurrentStream, streamSize, pData, &bytesRead));
-                }
-
-                if (result == Result::Success)
-                {
-                    result = RdfResultToPalResult(rdfStreamClose(&m_pCurrentStream));
-                }
-
-                if (result == Result::Success)
-                {
-                    m_sessionState = TraceSessionState::Ready;
-                }
+                *pDataSize = streamSize;
             }
         }
         else
         {
-            *pDataSize = streamSize;
+            result = Result::ErrorUnavailable;
         }
-    }
-    else
-    {
-        result = Result::ErrorUnknown;
     }
 
     return result;
@@ -260,22 +547,6 @@ Result TraceSession::WriteDataChunk(
     const TraceChunkInfo& info)
 {
     Result result = Result::Success;
-
-    // Setup the chunk data stream and chunk writer at the beginning
-    if (m_sessionState == TraceSessionState::Ready)
-    {
-        // Create the stream to be used in the chunkFileWriter. This will also be used to retrieve
-        // the final list of appended chunks for a trace in CollectTrace()
-        result = RdfResultToPalResult(rdfStreamCreateMemoryStream(&m_pCurrentStream));
-
-        // Create the chunkFileWriter to setup the chunk data structures and buffers to collect the incoming chunks
-        if (result == Result::Success)
-        {
-            result = RdfResultToPalResult(rdfChunkFileWriterCreate(m_pCurrentStream, &m_pChunkFileWriter));
-        }
-
-        m_sessionState = TraceSessionState::Progress;
-    }
 
     // Populate rdfChunkCreateInfo parameters from TraceChunkInfo struct
     rdfChunkCreateInfo currentChunkInfo;
@@ -312,7 +583,7 @@ void TraceSession::FinishTrace()
     // Notify all trace sources that the trace has finished
     for (auto iter = m_registeredTraceSources.Begin(); iter.Get() != nullptr; iter.Next())
     {
-        iter.Get()->key->OnTraceFinished(); // Writes data into TraceSession
+        iter.Get()->value->OnTraceFinished(); // Writes data into TraceSession
     }
 
     m_registerTraceSourceLock.UnlockForRead();

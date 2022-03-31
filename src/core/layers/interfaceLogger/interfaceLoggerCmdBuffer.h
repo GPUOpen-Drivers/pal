@@ -414,8 +414,9 @@ public:
         PerfTraceMarkerType markerType,
         uint32              markerData) override;
     virtual void CmdInsertRgpTraceMarker(
-        uint32      numDwords,
-        const void* pData) override;
+        RgpMarkerSubQueueFlags subQueueFlags,
+        uint32                 numDwords,
+        const void*            pData) override;
     virtual void CmdCopyDfSpmTraceData(
         const IPerfExperiment& perfExperiment,
         const IGpuMemory&      dstGpuMemory,

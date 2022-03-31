@@ -51,6 +51,19 @@ namespace Util { enum SystemAllocType : uint32; }
 #define PAL_DEFAULT_MEM_ALIGN alignof(::max_align_t)
 #endif
 
+namespace Util
+{
+
+/// Informs that @p p is aligned to at least @p Alignment.
+template<size_t Alignment, typename T>
+constexpr T* AssumeAligned(T* p)
+{
+    __builtin_assume_aligned(p, Alignment);
+    return p;
+}
+
+} // Util
+
 #if PAL_MEMTRACK
 
 /// @internal Malloc allocation method with extra memory leak tracking arguments.

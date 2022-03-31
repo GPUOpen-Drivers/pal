@@ -574,6 +574,7 @@ Result GfxDevice::InitAndGetFrameCountCmdBuffer(
 // Call back to above layers to describe a compute dispatch command
 void GfxDevice::DescribeDispatch(
     GfxCmdBuffer*               pCmdBuf,
+    RgpMarkerSubQueueFlags      subQueueFlags,
     Developer::DrawDispatchType cmdType,
     uint32                      xOffset,
     uint32                      yOffset,
@@ -583,16 +584,17 @@ void GfxDevice::DescribeDispatch(
     uint32                      zDim
     ) const
 {
-    Developer::DrawDispatchData data = {};
+    Developer::DrawDispatchData data { };
 
-    data.pCmdBuffer                    = pCmdBuf;
-    data.cmdType                       = cmdType;
-    data.dispatch.groupStart[0]        = xOffset;
-    data.dispatch.groupStart[1]        = yOffset;
-    data.dispatch.groupStart[2]        = zOffset;
-    data.dispatch.groupDims[0]         = xDim;
-    data.dispatch.groupDims[1]         = yDim;
-    data.dispatch.groupDims[2]         = zDim;
+    data.pCmdBuffer             = pCmdBuf;
+    data.subQueueFlags          = subQueueFlags;
+    data.cmdType                = cmdType;
+    data.dispatch.groupStart[0] = xOffset;
+    data.dispatch.groupStart[1] = yOffset;
+    data.dispatch.groupStart[2] = zOffset;
+    data.dispatch.groupDims[0]  = xDim;
+    data.dispatch.groupDims[1]  = yDim;
+    data.dispatch.groupDims[2]  = zDim;
 
     m_pParent->DeveloperCb(Developer::CallbackType::DrawDispatch, &data);
 }
@@ -601,15 +603,17 @@ void GfxDevice::DescribeDispatch(
 // Call back to above layers to describe a graphics draw command
 void GfxDevice::DescribeDraw(
     GfxCmdBuffer*               pCmdBuf,
+    RgpMarkerSubQueueFlags      subQueueFlags,
     Developer::DrawDispatchType cmdType,
     uint32                      firstVertexUserDataIdx,
     uint32                      instanceOffsetUserDataIdx,
     uint32                      drawIndexUserDataIdx
     ) const
 {
-    Developer::DrawDispatchData data = {};
+    Developer::DrawDispatchData data { };
 
     data.pCmdBuffer                       = pCmdBuf;
+    data.subQueueFlags                    = subQueueFlags;
     data.cmdType                          = cmdType;
     data.draw.userDataRegs.firstVertex    = firstVertexUserDataIdx;
     data.draw.userDataRegs.instanceOffset = instanceOffsetUserDataIdx;

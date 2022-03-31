@@ -203,6 +203,7 @@ enum struct Result : uint32
     FileAccessError = 16,
     FileIoError = 17,
     LimitReached = 18,
+    MemoryOverLimit = 19,
 
     //// URI PROTOCOL  ////
     UriServiceRegistrationError = 1000,
@@ -228,6 +229,13 @@ enum struct Result : uint32
     InfoUriSourceCallbackInvalid = 3001,
     InfoUriSourceAlreadyRegistered = 3002,
     InfoUriSourceWriteFailed = 3003,
+
+    //// Settings Service  ////
+    SettingsInvalidComponent = 4000,
+    SettingsInvalidSettingName = 4001,
+    SettingsInvalidSettingValue = 4002,
+    SettingsInsufficientValueSize = 4003,
+    SettingsInvalidSettingValueSize = 4004,
 };
 
 } // namespace DevDriver

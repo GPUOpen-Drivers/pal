@@ -1299,6 +1299,7 @@ void Device::InitGfx9CuMask(
     {
         // We start by assuming that the most WGP per SA that we get will are the feature defines.
         pChipInfo->gfx10.minNumWgpPerSa = pChipInfo->gfx10.numWgpAboveSpi + pChipInfo->gfx10.numWgpBelowSpi;
+        pChipInfo->gfx10.maxNumWgpPerSa = 1;
         PAL_ASSERT(pChipInfo->gfx10.minNumWgpPerSa != 0);
 
         // In GFX 10, we need convert CU mask to WGP mask.
@@ -1328,9 +1329,12 @@ void Device::InitGfx9CuMask(
                 if (numActiveWgpPerSa > 0)
                 {
                     pChipInfo->gfx10.minNumWgpPerSa = Min(pChipInfo->gfx10.minNumWgpPerSa, numActiveWgpPerSa);
+                    pChipInfo->gfx10.maxNumWgpPerSa = Max(pChipInfo->gfx10.maxNumWgpPerSa, numActiveWgpPerSa);
                 }
             }
         }
+
+        PAL_ASSERT(pChipInfo->gfx10.maxNumWgpPerSa >= 1);
     }
 }
 

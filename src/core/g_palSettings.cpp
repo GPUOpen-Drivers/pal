@@ -165,6 +165,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.mipGenUseFastPath = false;
     m_settings.useFp16GenMips = false;
     m_settings.tmzEnabled = true;
+    m_settings.waForceLinearHeight16Alignment = false;
 #if PAL_DEVELOPER_BUILD
     m_settings.dbgHelperBits = 0x0;
 #endif
@@ -638,6 +639,11 @@ void SettingsLoader::ReadSettings()
                            &m_settings.tmzEnabled,
                            InternalSettingScope::PrivatePalKey);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaForceLinearHeight16AlignmentStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waForceLinearHeight16Alignment,
+                           InternalSettingScope::PrivatePalKey);
+
 #if PAL_DEVELOPER_BUILD
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pDbgHelperBitsStr,
                            Util::ValueType::Uint64,
@@ -681,6 +687,11 @@ void SettingsLoader::RereadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pUseFp16GenMipsStr,
                            Util::ValueType::Boolean,
                            &m_settings.useFp16GenMips,
+                           InternalSettingScope::PrivatePalKey);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pUseExecuteIndirectPacketStr,
+                           Util::ValueType::Uint,
+                           &m_settings.useExecuteIndirectPacket,
                            InternalSettingScope::PrivatePalKey);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pUseDccStr,
@@ -1152,6 +1163,11 @@ void SettingsLoader::InitSettingsInfo()
     info.pValuePtr = &m_settings.tmzEnabled;
     info.valueSize = sizeof(m_settings.tmzEnabled);
     m_settingsInfoMap.Insert(2606194033, info);
+
+    info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.waForceLinearHeight16Alignment;
+    info.valueSize = sizeof(m_settings.waForceLinearHeight16Alignment);
+    m_settingsInfoMap.Insert(4070442646, info);
 #if PAL_DEVELOPER_BUILD
 
     info.type      = SettingType::Uint64;
@@ -1191,9 +1207,9 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_palJsonData[0];
             component.settingsDataSize = sizeof(g_palJsonData);
-            component.settingsDataHash = 2177699217;
-            component.settingsDataHeader.isEncoded = true;
-            component.settingsDataHeader.magicBufferId = 402778310;
+            component.settingsDataHash = 0;
+            component.settingsDataHeader.isEncoded = false;
+            component.settingsDataHeader.magicBufferId = 0;
             component.settingsDataHeader.magicBufferOffset = 0;
 
             pSettingsService->RegisterComponent(component);

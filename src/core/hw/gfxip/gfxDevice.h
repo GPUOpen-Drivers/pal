@@ -574,6 +574,7 @@ public:
 
     void DescribeDispatch(
         GfxCmdBuffer*               pCmdBuf,
+        RgpMarkerSubQueueFlags      subQueueFlags,
         Developer::DrawDispatchType cmdType,
         uint32                      xOffset,
         uint32                      yOffset,
@@ -584,6 +585,7 @@ public:
 
     void DescribeDraw(
         GfxCmdBuffer*               pCmdBuf,
+        RgpMarkerSubQueueFlags      subQueueFlags,
         Developer::DrawDispatchType cmdType,
         uint32                      firstVertexUserDataIdx,
         uint32                      instanceOffsetUserDataIdx,

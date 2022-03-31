@@ -102,7 +102,7 @@ enum Gfx10SpmSeBlockSelect : uint32
     Gfx10SpmSeBlockSelectGl1a  = 10,
     Gfx10SpmSeBlockSelectRmi   = 11,
     Gfx10SpmSeBlockSelectGl1c  = 12,
-    Gfx10SpmSeBlockSelectGl1cg = 13
+    Gfx10SpmSeBlockSelectGl1cg = 13,
 };
 
 // There's a terrifyingly large number of UMCCH registers. This macro makes UpdateUmcchBlockInfo much more sane.
@@ -114,7 +114,7 @@ enum Gfx10SpmSeBlockSelect : uint32
     pInfo->umcchRegAddr[Idx].perModule[3] = { Ns::mmUMCCH##Idx##_PerfMonCtl4, Ns::mmUMCCH##Idx##_PerfMonCtr4_Lo, Ns::mmUMCCH##Idx##_PerfMonCtr4_Hi }; \
     pInfo->umcchRegAddr[Idx].perModule[4] = { Ns::mmUMCCH##Idx##_PerfMonCtl5, Ns::mmUMCCH##Idx##_PerfMonCtr5_Lo, Ns::mmUMCCH##Idx##_PerfMonCtr5_Hi };
 
-// There are a large numbe of mmGE_PERFCOUNT registers. These two macros allow confirming equivalence without an
+// There are a large number of mmGE_PERFCOUNT registers. These two macros allow confirming equivalence without an
 // overwhelmingly large block of code
 #define STATIC_ASSERT_GE_PERFCOUNT_REGS(Ns, Idx) \
     static_assert(((Gfx101::mmGE_PERFCOUNTER##Idx##_SELECT == Ns::mmGE_PERFCOUNTER##Idx##_SELECT) \

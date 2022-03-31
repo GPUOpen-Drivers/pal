@@ -140,7 +140,8 @@ struct GfxCmdBufferState
                                                     // submitted on this queue may still be active.  This flag starts
                                                     // set and will be cleared if/when an EOP wait is inserted in this
                                                     // command buffer.
-            uint32 reserved                  : 18;
+            uint32 reserved1                 :  1;
+            uint32 reserved                  : 17;
         };
 
         uint32 u32All;
@@ -572,6 +573,10 @@ protected:
     virtual void ResetState() override;
 
     virtual Pal::PipelineState* PipelineState(PipelineBindPoint bindPoint) = 0;
+
+    void DescribeDispatch(Developer::DrawDispatchType cmdType, uint32 xDim, uint32 yDim, uint32 zDim);
+    void DescribeDispatchOffset(uint32 xOffset, uint32 yOffset, uint32 zOffset, uint32 xDim, uint32 yDim, uint32 zDim);
+    void DescribeDispatchIndirect();
 
     // Returns the number of queries associated with this command buffer that have yet to "end"
     uint32 NumActiveQueries(QueryPoolType queryPoolType) const

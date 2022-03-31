@@ -246,6 +246,8 @@ void Pipeline::ExtractPipelineInfo(
             m_apiHwMapping.apiShaders[shaderTypeIdx] = static_cast<uint8>(shaderMetadata.hardwareMapping);
         }
     }
+
+    m_info.ps.flags.usesSampleMask = metadata.pipeline.flags.psSampleMask;
 }
 
 // =====================================================================================================================

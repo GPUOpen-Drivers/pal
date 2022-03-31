@@ -213,6 +213,7 @@ void SettingsLoader::SetupDefaults()
     m_settings.waTessIncorrectRelativeIndex = false;
     m_settings.waLimitLateAllocGsNggFifo = false;
     m_settings.waClampGeCntlVertGrpSize = false;
+    m_settings.waBadSqttFinishResults = false;
     m_settings.waLegacyGsCutModeFlush = false;
     m_settings.sdmaBypassMall = 0x3;
     m_settings.enableMallCursorCache = true;
@@ -966,6 +967,11 @@ void SettingsLoader::ReadSettings()
                            &m_settings.waClampGeCntlVertGrpSize,
                            InternalSettingScope::PrivatePalGfx9Key);
 
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaBadSqttFinishResultsStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waBadSqttFinishResults,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaLegacyGsCutModeFlushStr,
                            Util::ValueType::Boolean,
                            &m_settings.waLegacyGsCutModeFlush,
@@ -1068,6 +1074,11 @@ void SettingsLoader::RereadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pUseClearStateToInitializeStr,
                            Util::ValueType::Boolean,
                            &m_settings.useClearStateToInitialize,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pShaderPrefetchSizeBytesStr,
+                           Util::ValueType::Uint,
+                           &m_settings.shaderPrefetchSizeBytes,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pNggSupportedStr,
@@ -1298,6 +1309,11 @@ void SettingsLoader::RereadSettings()
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaClampGeCntlVertGrpSizeStr,
                            Util::ValueType::Boolean,
                            &m_settings.waClampGeCntlVertGrpSize,
+                           InternalSettingScope::PrivatePalGfx9Key);
+
+    static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaBadSqttFinishResultsStr,
+                           Util::ValueType::Boolean,
+                           &m_settings.waBadSqttFinishResults,
                            InternalSettingScope::PrivatePalGfx9Key);
 
     static_cast<Pal::Device*>(m_pDevice)->ReadSetting(pWaLegacyGsCutModeFlushStr,
@@ -2069,6 +2085,11 @@ void SettingsLoader::InitSettingsInfo()
     m_settingsInfoMap.Insert(4183598840, info);
 
     info.type      = SettingType::Boolean;
+    info.pValuePtr = &m_settings.waBadSqttFinishResults;
+    info.valueSize = sizeof(m_settings.waBadSqttFinishResults);
+    m_settingsInfoMap.Insert(548261479, info);
+
+    info.type      = SettingType::Boolean;
     info.pValuePtr = &m_settings.waLegacyGsCutModeFlush;
     info.valueSize = sizeof(m_settings.waLegacyGsCutModeFlush);
     m_settingsInfoMap.Insert(1477053247, info);
@@ -2149,7 +2170,7 @@ void SettingsLoader::DevDriverRegister()
             component.pfnSetValue = ISettingsLoader::SetValue;
             component.pSettingsData = &g_gfx9PalJsonData[0];
             component.settingsDataSize = sizeof(g_gfx9PalJsonData);
-            component.settingsDataHash = 2164369015;
+            component.settingsDataHash = 1692832899;
             component.settingsDataHeader.isEncoded = true;
             component.settingsDataHeader.magicBufferId = 402778310;
             component.settingsDataHeader.magicBufferOffset = 0;

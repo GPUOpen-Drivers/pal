@@ -142,6 +142,17 @@ struct DrawTimeHwState
     gpusize                       nggIndexBufferPfEndAddr;   // End address of last IndexBuffer prefetch for NGG.
 };
 
+// Structure used to store values relating to viewport centering, specifically relevant values of an accumulated
+// rectangle surrounding all viewports which aids in efficiently centering viewports in a guardband.
+struct VportCenterRect
+{
+    float centerX; // Center X coordinate
+    float centerY; // Center Y coordinate
+
+    float xClipFactor;   // Clip adjust factor, X axis
+    float yClipFactor;   // Clip adjust factor, Y axis
+};
+
 // Register state for a single viewport's X,Y,Z scales and offsets.
 struct VportScaleOffsetPm4Img
 {
@@ -408,7 +419,10 @@ public:
         const IBorderColorPalette* pPalette) override;
 
     virtual void CmdInsertTraceMarker(PerfTraceMarkerType markerType, uint32 markerData) override;
-    virtual void CmdInsertRgpTraceMarker(uint32 numDwords, const void* pData) override;
+    virtual void CmdInsertRgpTraceMarker(
+        RgpMarkerSubQueueFlags subQueueFlags,
+        uint32                 numDwords,
+        const void*            pData) override;
 
     virtual void AddQuery(QueryPoolType queryPoolType, QueryControlFlags flags) override;
     virtual void RemoveQuery(QueryPoolType queryPoolType) override;
@@ -538,6 +552,7 @@ public:
 
     uint32 ComputeSpillTableInstanceCnt(
         uint32 spillTableDwords,
+        uint32 vertexBufTableDwords,
         uint32 maxCmdCnt) const;
 
     gpusize ConstructExecuteIndirectIb2(
@@ -546,9 +561,11 @@ public:
         const uint32                maximumCount,
         const GraphicsPipeline*     pGfxPipeline,
         gpusize*                    pIb2GpuSize,
-        gpusize&                    spillTableAddress,
-        uint32&                     spillTableInstCnt,
-        uint32&                     spillTableStride);
+        gpusize*                    pSpillTableAddress,
+        uint32*                     pSpillTableInstCnt,
+        uint32*                     pSpillTableStride,
+        uint32*                     pVbTableRegOffset,
+        uint32*                     pVbTableSize);
 
     void ExecuteIndirectPacket(
         const IIndirectCmdGenerator& generator,
@@ -860,6 +877,8 @@ private:
 
     bool ForceWdSwitchOnEop(const GraphicsPipeline& pipeline, const ValidateDrawInfo& drawInfo) const;
 
+    VportCenterRect GetViewportsCenterAndScale() const;
+
     template <bool pm4OptImmediate>
     uint32* ValidateViewports(uint32* pDeCmdSpace);
     uint32* ValidateViewports(uint32* pDeCmdSpace);
@@ -957,7 +976,7 @@ private:
 
     void SendFlglSyncCommands(FlglRegSeqType type);
 
-    void DescribeDraw(Developer::DrawDispatchType cmdType);
+    void DescribeDraw(Developer::DrawDispatchType cmdType, bool includedGangedAce = false);
 
     void P2pBltWaSync();
 

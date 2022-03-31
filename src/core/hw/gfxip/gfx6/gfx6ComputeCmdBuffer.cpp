@@ -177,7 +177,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatch(
 
     if (issueSqttMarkerEvent)
     {
-        pThis->m_device.DescribeDispatch(pThis, Developer::DrawDispatchType::CmdDispatch, 0, 0, 0, x, y, z);
+        pThis->DescribeDispatch(Developer::DrawDispatchType::CmdDispatch, x, y, z);
     }
 
     uint32* pCmdSpace = pThis->m_cmdStream.ReserveCommands();
@@ -220,7 +220,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchIndirect(
 
     if (issueSqttMarkerEvent)
     {
-        pThis->m_device.DescribeDispatch(pThis, Developer::DrawDispatchType::CmdDispatchIndirect, 0, 0, 0, 0, 0, 0);
+        pThis->DescribeDispatchIndirect();
     }
 
     PAL_ASSERT(IsPow2Aligned(offset, sizeof(uint32)));
@@ -317,8 +317,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchOffset(
 
     if (issueSqttMarkerEvent)
     {
-        pThis->m_device.DescribeDispatch(pThis, Developer::DrawDispatchType::CmdDispatchOffset,
-            xOffset, yOffset, zOffset, xDim, yDim, zDim);
+        pThis->DescribeDispatchOffset(xOffset, yOffset, zOffset, xDim, yDim, zDim);
     }
 
     uint32* pCmdSpace = pThis->m_cmdStream.ReserveCommands();
@@ -1528,9 +1527,12 @@ void ComputeCmdBuffer::CmdInsertTraceMarker(
 
 // =====================================================================================================================
 void ComputeCmdBuffer::CmdInsertRgpTraceMarker(
-    uint32      numDwords,
-    const void* pData)
+    RgpMarkerSubQueueFlags subQueueFlags,
+    uint32                 numDwords,
+    const void*            pData)
 {
+    PAL_ASSERT((subQueueFlags.includeMainSubQueue == 1) && (subQueueFlags.includeGangedSubQueues == 0));
+
     // The first dword of every RGP trace marker packet is written to SQ_THREAD_TRACE_USERDATA_2.  The second dword
     // is written to SQ_THREAD_TRACE_USERDATA_3.  For packets longer than 64-bits, continue alternating between
     // user data 2 and 3.

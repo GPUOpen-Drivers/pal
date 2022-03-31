@@ -64,11 +64,10 @@ union InternalSubmitFlags
 {
     struct
     {
-        uint32 isTmzEnabled             : 1;  // Is TMZ protected submission.
-        uint32 isDummySubmission        : 1;  // Is dummy submission.
-        uint32 usesImplicitAceCmdStream : 1;  // This submission uses ImplicitACE + GFX CmdStreams.
-        uint32 placeholder1             : 1;
-        uint32 reserved                 : 28; // reserved.
+        uint32 isTmzEnabled      : 1;  // Is TMZ protected submission.
+        uint32 isDummySubmission : 1;  // Is dummy submission.
+        uint32 placeholder1      : 1;
+        uint32 reserved          : 29; // reserved.
     };
     uint32 u32All;
 };
@@ -91,6 +90,9 @@ struct InternalSubmitInfo
     InternalSubmitFlags flags;
 
     uint32 stackSizeInDwords;               // Frame stack size for indirect shaders
+
+    // Number of implicit ganged sub-queues (not including the "main" sub-queue).
+    uint32 implicitGangedSubQueues;
 
     // The semaphore arrays are only used by Linux backend to better align with u/k interface
     uint32                  signalSemaphoreCount; // The count of semaphores that have to signal after the submission.

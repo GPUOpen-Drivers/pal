@@ -746,13 +746,13 @@ enum MEC_COPY_DATA_src_sel_enum
 // ---------------------------------- MEC_COPY_DATA_dst_sel_enum ----------------------------------
 enum MEC_COPY_DATA_dst_sel_enum
 {
-    dst_sel__mec_copy_data__mem_mapped_register       =  0,
-    dst_sel__mec_copy_data__tc_l2                     =  2,
-    dst_sel__mec_copy_data__gds__CORE                 =  3,
-    dst_sel__mec_copy_data__perfcounters              =  4,
-    dst_sel__mec_copy_data__memory__GFX09             =  5,
-    dst_sel__mec_copy_data__tc_l2_obsolete__GFX10PLUS =  5,
-    dst_sel__mec_copy_data__mem_mapped_reg_dc         =  6,
+    dst_sel__mec_copy_data__mem_mapped_register         =  0,
+    dst_sel__mec_copy_data__tc_l2                       =  2,
+    dst_sel__mec_copy_data__gds__CORE                   =  3,
+    dst_sel__mec_copy_data__perfcounters                =  4,
+    dst_sel__mec_copy_data__memory__GFX09               =  5,
+    dst_sel__mec_copy_data__tc_l2_obsolete__GFX10PLUS   =  5,
+    dst_sel__mec_copy_data__mem_mapped_reg_dc           =  6,
 };
 
 // ------------------------------ MEC_COPY_DATA_src_cache_policy_enum ------------------------------

@@ -439,8 +439,14 @@ bool CmdUtil::CanUseCsPartialFlush(
 // If we have support for the indirect_addr index and compute engines.
 bool CmdUtil::HasEnhancedLoadShRegIndex() const
 {
-    // This was only implemented on gfx10.3+.
-    return ((m_cpUcodeVersion >= Gfx103UcodeVersionLoadShRegIndexIndirectAddr) && IsGfx103CorePlus(m_gfxIpLevel));
+    bool hasEnhancedLoadShRegIndex = false;
+    {
+        // This was only implemented on gfx10.3+.
+        hasEnhancedLoadShRegIndex =
+            ((m_cpUcodeVersion >= Gfx103UcodeVersionLoadShRegIndexIndirectAddr) && IsGfx103CorePlus(m_gfxIpLevel));
+    }
+
+    return hasEnhancedLoadShRegIndex;
 }
 
 // =====================================================================================================================
@@ -1323,33 +1329,34 @@ size_t CmdUtil::BuildExecuteIndirect(
     const ExecuteIndirectPacketInfo& packetInfo,
     void*                            pBuffer)       // [out] Build the PM4 packet in this buffer.
 {
-    constexpr uint32 PacketSize                  = PM4_PFP_EXECUTE_INDIRECT_SIZEDW__HASCE;
+    constexpr uint32 PacketSize                  = PM4_PFP_EXECUTE_INDIRECT_SIZEDW__CORE;
     const GraphicsPipelineSignature* pSignature  = packetInfo.pipelineSignature.pSignatureGfx;
     PM4_PFP_EXECUTE_INDIRECT  packet             = {};
     packet.ordinal1.header.u32All =
-        (Type3Header(IT_EXECUTE_INDIRECT__GFX101, PacketSize, false, ShaderGraphics, predicate)).u32All;
-    packet.ordinal2.bitfields.hasCe.cmd_base_lo           = LowPart(packetInfo.commandBufferAddr) >> 2;
-    packet.ordinal3.cmd_base_hi                           = HighPart(packetInfo.commandBufferAddr);
-    packet.ordinal4.bitfields.hasCe.count_indirect_enable = (packetInfo.countBufferAddr != 0);
-    packet.ordinal4.bitfields.hasCe.ib_size               = packetInfo.commandBufferSizeDwords;
-    packet.ordinal5.count                                 = packetInfo.maxCount;
-    packet.ordinal6.bitfields.hasCe.count_addr_lo         = LowPart(packetInfo.countBufferAddr) >> 2;
-    packet.ordinal7.count_addr_hi                         = HighPart(packetInfo.countBufferAddr);
-    packet.ordinal8.stride                                = packetInfo.argumentBufferStrideBytes;
-    packet.ordinal9.data_addr_lo                          = LowPart(packetInfo.argumentBufferAddr);
-    packet.ordinal10.bitfields.hasCe.data_addr_hi         = HighPart(packetInfo.argumentBufferAddr);
-    packet.ordinal10.bitfields.hasCe.spill_table_stride   = packetInfo.spillTableStrideBytes;
-    packet.ordinal11.spill_table_addr_lo                  = LowPart(packetInfo.spillTableAddr);
-    packet.ordinal12.bitfields.hasCe.spill_table_addr_hi  = HighPart(packetInfo.spillTableAddr);
+        (Type3Header(IT_EXECUTE_INDIRECT__EXECINDIRECT, PacketSize, false, ShaderGraphics, predicate)).u32All;
+    packet.ordinal2.bitfields.core.cmd_base_lo           = LowPart(packetInfo.commandBufferAddr) >> 2;
+    packet.ordinal3.cmd_base_hi                          = HighPart(packetInfo.commandBufferAddr);
+    packet.ordinal4.bitfields.core.count_indirect_enable = (packetInfo.countBufferAddr != 0);
+    packet.ordinal4.bitfields.core.ib_size               = packetInfo.commandBufferSizeDwords;
+    packet.ordinal5.count                                = packetInfo.maxCount;
+    packet.ordinal6.bitfields.core.count_addr_lo         = LowPart(packetInfo.countBufferAddr) >> 2;
+    packet.ordinal7.count_addr_hi                        = HighPart(packetInfo.countBufferAddr);
+    packet.ordinal8.stride                               = packetInfo.argumentBufferStrideBytes;
+    packet.ordinal9.data_addr_lo                         = LowPart(packetInfo.argumentBufferAddr);
+    packet.ordinal10.bitfields.core.data_addr_hi         = HighPart(packetInfo.argumentBufferAddr);
+    packet.ordinal10.bitfields.core.spill_table_stride   = packetInfo.spillTableStrideBytes;
+    packet.ordinal11.spill_table_addr_lo                 = LowPart(packetInfo.spillTableAddr);
+    packet.ordinal12.bitfields.core.spill_table_addr_hi  = HighPart(packetInfo.spillTableAddr);
     if (packetInfo.spillTableAddr != 0)
     {
-        packet.ordinal12.bitfields.hasCe.spill_table_reg_offset0 = ShRegOffset(pSignature->stage[0].spillTableRegAddr);
-        packet.ordinal13.bitfields.hasCe.spill_table_reg_offset1 = ShRegOffset(pSignature->stage[1].spillTableRegAddr);
-        packet.ordinal13.bitfields.hasCe.spill_table_reg_offset2 = ShRegOffset(pSignature->stage[2].spillTableRegAddr);
-        packet.ordinal14.bitfields.hasCe.spill_table_reg_offset3 = ShRegOffset(pSignature->stage[3].spillTableRegAddr);
+        packet.ordinal12.bitfields.core.spill_table_reg_offset0 = ShRegOffset(pSignature->stage[0].spillTableRegAddr);
+        packet.ordinal13.bitfields.core.spill_table_reg_offset1 = ShRegOffset(pSignature->stage[1].spillTableRegAddr);
+        packet.ordinal13.bitfields.core.spill_table_reg_offset2 = ShRegOffset(pSignature->stage[2].spillTableRegAddr);
+        packet.ordinal14.bitfields.core.spill_table_reg_offset3 = ShRegOffset(pSignature->stage[3].spillTableRegAddr);
         packet.ordinal14.bitfields.hasCe.spill_table_instance_count = packetInfo.spillTableInstanceCnt;
     }
-    packet.ordinal15.untyped_srd_dword3                   = packetInfo.untypedSrdDword3;
+    packet.ordinal15.bitfields.hasCe.vb_table_reg_offset = ShRegOffset(packetInfo.vbTableRegOffset);
+    packet.ordinal15.bitfields.hasCe.vb_table_size       = packetInfo.vbTableSize;
 
     memcpy(pBuffer, &packet, PacketSize * sizeof(uint32));
     return PacketSize;
@@ -1766,46 +1773,42 @@ size_t CmdUtil::BuildDispatchMeshIndirectMulti(
     // The count address must be Dword aligned.
     PAL_ASSERT(IsPow2Aligned(countGpuAddr, 4));
 
-    constexpr uint32 PacketSize = PM4_ME_DISPATCH_MESH_INDIRECT_MULTI_SIZEDW__GFX10COREPLUS;
-    auto*const       pPacket    = static_cast<PM4_ME_DISPATCH_MESH_INDIRECT_MULTI*>(pBuffer);
+    PM4_ME_DISPATCH_MESH_INDIRECT_MULTI packet     = {};
+    constexpr uint32                    PacketSize = PM4_ME_DISPATCH_MESH_INDIRECT_MULTI_SIZEDW__GFX10COREPLUS;
 
-    pPacket->ordinal1.header = Type3Header(IT_DISPATCH_MESH_INDIRECT_MULTI__GFX101,
-                                           PacketSize,
-                                           false,
-                                           ShaderGraphics,
-                                           predicate);
+    packet.ordinal1.header = Type3Header(IT_DISPATCH_MESH_INDIRECT_MULTI__GFX101,
+                                         PacketSize,
+                                         false,
+                                         ShaderGraphics,
+                                         predicate);
 
-    pPacket->ordinal2.data_offset                         = LowPart(dataOffset);
-    pPacket->ordinal3.u32All                              = 0;
-    pPacket->ordinal3.bitfields.gfx10CorePlus.xyz_dim_loc = xyzOffset - PERSISTENT_SPACE_START;
+    packet.ordinal2.data_offset                         = LowPart(dataOffset);
+    packet.ordinal3.bitfields.gfx10CorePlus.xyz_dim_loc = xyzOffset - PERSISTENT_SPACE_START;
 
     if (drawIndexOffset != UserDataNotMapped)
     {
-        pPacket->ordinal3.bitfields.gfx10CorePlus.draw_index_loc    = drawIndexOffset - PERSISTENT_SPACE_START;
-        pPacket->ordinal4.u32All                                    = 0;
-        pPacket->ordinal4.bitfields.gfx10CorePlus.draw_index_enable = 1;
+        packet.ordinal3.bitfields.gfx10CorePlus.draw_index_loc    = drawIndexOffset - PERSISTENT_SPACE_START;
+        packet.ordinal4.bitfields.gfx10CorePlus.draw_index_enable = 1;
     }
 
     if (countGpuAddr != 0)
     {
-        pPacket->ordinal4.bitfields.gfx10CorePlus.count_indirect_enable = 1;
-        pPacket->ordinal6.u32All                                        = LowPart(countGpuAddr);
-        PAL_ASSERT(pPacket->ordinal6.bitfields.gfx10CorePlus.reserved1 == 0);
+        packet.ordinal4.bitfields.gfx10CorePlus.count_indirect_enable = 1;
+        packet.ordinal6.u32All                                        = LowPart(countGpuAddr);
+        PAL_ASSERT(packet.ordinal6.bitfields.gfx10CorePlus.reserved1 == 0);
 
-        pPacket->ordinal7.count_addr_hi = HighPart(countGpuAddr);
-    }
-    else
-    {
-        pPacket->ordinal7.count_addr_hi = 0;
+        packet.ordinal7.count_addr_hi = HighPart(countGpuAddr);
     }
 
-    pPacket->ordinal5.count  = count;
-    pPacket->ordinal8.stride = stride;
+    packet.ordinal5.count  = count;
+    packet.ordinal8.stride = stride;
 
     regVGT_DRAW_INITIATOR drawInitiator = {};
     drawInitiator.bits.SOURCE_SELECT    = DI_SRC_SEL_AUTO_INDEX;
     drawInitiator.bits.MAJOR_MODE       = DI_MAJOR_MODE_0;
-    pPacket->ordinal9.draw_initiator    = drawInitiator.u32All;
+    packet.ordinal9.draw_initiator      = drawInitiator.u32All;
+
+    *static_cast<PM4_ME_DISPATCH_MESH_INDIRECT_MULTI*>(pBuffer) = packet;
 
     return PacketSize;
 }
@@ -1989,8 +1992,8 @@ size_t CmdUtil::BuildDmaData(
     }
     else if (indirectAddress)
     {
-        packet.ordinal2.bitfields.hasCe.src_indirect     = 1;
-        packet.ordinal2.bitfields.hasCe.dst_indirect     = 1;
+        packet.ordinal2.bitfields.core.src_indirect     = 1;
+        packet.ordinal2.bitfields.core.dst_indirect     = 1;
         packet.ordinal3.src_addr_offset                  = dmaDataInfo.srcOffset;
         packet.ordinal4.src_addr_hi                      = 0; // ignored for data
     }
@@ -2029,6 +2032,34 @@ template
 size_t CmdUtil::BuildDmaData<false>(
     DmaDataInfo& dmaDataInfo,
     void*        pBuffer);
+
+//=====================================================================================================================
+// Constructs a PM4 packet for the PFP with information to build an untyped Shader Resource Descriptor. This SRD will
+// typically be used to store the VertexBuffer table in IndirectDrawing (ExecuteIndirect).
+size_t CmdUtil::BuildUntypedSrd(
+    Pm4Predicate               predicate,
+    const BuildUntypedSrdInfo* pSrdInfo,
+    Pm4ShaderType              shaderType,
+    void*                      pBuffer)
+{
+    const uint32 PacketSize = PM4_PFP_BUILD_UNTYPED_SRD_SIZEDW__HASCE;
+    auto* const  pPacket = static_cast<PM4_PFP_BUILD_UNTYPED_SRD*>(pBuffer);
+
+    pPacket->ordinal1.header.u32All =
+        (Type3Header(IT_BUILD_UNTYPED_SRD__GFX101, PacketSize, predicate, shaderType)).u32All;
+    pPacket->ordinal2.u32All                      = 0;
+    // For ExecuteIndirect CP will fetch the Vertex Data from ArgumentBuffer which has index data, set index = 1.
+    pPacket->ordinal2.bitfields.hasCe.index       = 1;
+    pPacket->ordinal2.bitfields.hasCe.src_addr_lo = LowPart(pSrdInfo->srcGpuVirtAddress);
+    pPacket->ordinal3.src_addr_hi                 = HighPart(pSrdInfo->srcGpuVirtAddress);
+    pPacket->ordinal4.src_offset                  = pSrdInfo->srcGpuVirtAddressOffset;
+    pPacket->ordinal5.u32All                      = 0;
+    pPacket->ordinal5.bitfields.hasCe.dst_addr_lo = LowPart(pSrdInfo->dstGpuVirtAddress);
+    pPacket->ordinal6.dst_addr_hi                 = HighPart(pSrdInfo->dstGpuVirtAddress);
+    pPacket->ordinal7.dst_offset                  = pSrdInfo->dstGpuVirtAddressOffset;
+    pPacket->ordinal8.dword3                      = pSrdInfo->srdDword3;
+    return PacketSize;
+}
 
 // =====================================================================================================================
 // Builds a PM4 constant engine command to dump the specified amount of data from CE RAM into GPU memory through the L2

@@ -270,7 +270,10 @@ public:
         const IBorderColorPalette* pPalette) override;
 
     virtual void CmdInsertTraceMarker(PerfTraceMarkerType markerType, uint32 markerData) override;
-    virtual void CmdInsertRgpTraceMarker(uint32 numDwords, const void* pData) override;
+    virtual void CmdInsertRgpTraceMarker(
+        RgpMarkerSubQueueFlags subQueueFlags,
+        uint32                 numDwords,
+        const void*            pData) override;
 
     virtual void AddQuery(QueryPoolType queryPoolType, QueryControlFlags flags) override;
     virtual void RemoveQuery(QueryPoolType queryPoolType) override;

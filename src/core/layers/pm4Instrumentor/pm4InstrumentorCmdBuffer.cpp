@@ -1398,11 +1398,12 @@ void CmdBuffer::CmdInsertTraceMarker(
 
 // =====================================================================================================================
 void CmdBuffer::CmdInsertRgpTraceMarker(
-    uint32      numDwords,
-    const void* pData)
+    RgpMarkerSubQueueFlags subQueueFlags,
+    uint32                 numDwords,
+    const void*            pData)
 {
     PreCall();
-    CmdBufferFwdDecorator::CmdInsertRgpTraceMarker(numDwords, pData);
+    CmdBufferFwdDecorator::CmdInsertRgpTraceMarker(subQueueFlags, numDwords, pData);
     PostCall(CmdBufCallId::CmdInsertRgpTraceMarker);
 }
 

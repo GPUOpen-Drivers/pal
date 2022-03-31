@@ -1436,8 +1436,14 @@ struct TriangleRasterStateParams
     {
         struct
         {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 721
+            uint32 frontDepthBiasEnable : 1;  ///< Enable depth bias (i.e. polygon offset) for front-facing triangle-based primitives
+            uint32 backDepthBiasEnable  : 1;  ///< Enable depth bias (i.e. polygon offset) for back-facing triangle-based primitives
+            uint32 reserved             : 30; ///< Reserved for future use.
+#else
             uint32 depthBiasEnable : 1;  ///< Enable depth bias (i.e. polygon offset) for triangle-based primitives
             uint32 reserved        : 31; ///< Reserved for future use.
+#endif
         };
         uint32 u32All;                   ///< Flags packed as 32-bit uint.
     } flags;                             ///< Triangle raster state flags.
@@ -1597,30 +1603,32 @@ struct BlendConstParams
     float blendConst[4];  ///< 4-component RGBA float specifying the new blend constant.
 };
 
+/// Specifies the parameters for a single viewport
+struct Viewport
+{
+    float       originX;   ///< X coordinate for the viewport's origin.
+    float       originY;   ///< Y coordinate for the viewport's origin.
+    float       width;     ///< Width of the viewport.
+    float       height;    ///< Height of the viewport.
+    float       minDepth;  ///< Minimum depth value of the viewport.  Must be in the [0..1] range.
+    float       maxDepth;  ///< Maximum depth value of the viewport.  Must be in the [0..1] range.
+    PointOrigin origin;    ///< Origin of the viewport relative to NDC. UpperLeft or LowerLeft.
+};
+
 /// Specifies the viewport transform parameters for setting a single viewport.
 /// @see ICmdBuffer::CmdSetViewport
 struct ViewportParams
 {
-    uint32 count;              ///< Number of viewports.
-    struct
-    {
-        float       originX;   ///< X coordinate for the viewport's origin.
-        float       originY;   ///< Y coordinate for the viewport's origin.
-        float       width;     ///< Width of the viewport.
-        float       height;    ///< Height of the viewport.
-        float       minDepth;  ///< Minimum depth value of the viewport.  Must be in the [0..1] range.
-        float       maxDepth;  ///< Maximum depth value of the viewport.  Must be in the [0..1] range.
-        PointOrigin origin;    ///< Origin of the viewport relative to NDC. UpperLeft or LowerLeft.
-    } viewports[MaxViewports]; ///< Array of desciptors for each viewport.
-
-    float           horzDiscardRatio;   ///< The ratio between guardband discard rect width and viewport width.
+    uint32     count;                   ///< Number of viewports.
+    Viewport   viewports[MaxViewports]; ///< Array of desciptors for each viewport.
+    float      horzDiscardRatio;        ///< The ratio between guardband discard rect width and viewport width.
                                         ///  For all guard band ratio settings, values less than 1.0f are illegal.
                                         ///  Value FLT_MAX opens the guardband as wide as the HW supports.
                                         ///  Value 1.0f disables the guardband.
-    float           vertDiscardRatio;   ///< The ratio between guardband discard rect height and viewport height.
-    float           horzClipRatio;      ///< The ratio between guardband clip rect width and viewport width.
-    float           vertClipRatio;      ///< The ratio between guardband clip rect height and viewport height.
-    DepthRange      depthRange;         ///< Specifies the target range of Z values
+    float      vertDiscardRatio;        ///< The ratio between guardband discard rect height and viewport height.
+    float      horzClipRatio;           ///< The ratio between guardband clip rect width and viewport width.
+    float      vertClipRatio;           ///< The ratio between guardband clip rect height and viewport height.
+    DepthRange depthRange;              ///< Specifies the target range of Z values
 };
 
 /// Specifies the parameters for specifing the scissor rectangle.
@@ -1939,6 +1947,19 @@ struct CmdBufferPayload
                                         ///  MaxPayloadSize.
     CmdBufferPayloadType type;          ///< The type of payload.
     uint32               payload[1];    ///< Initial DWORD of payload data with the other data to follow.
+};
+
+/// Flags controlling which sub-queue(s) of a command buffer should insert an RGP trace marker.  Zeroing out this
+/// union is invalid, because RGP makrers must be sent to at least one sub-queue.
+union RgpMarkerSubQueueFlags
+{
+    struct
+    {
+        uint32  includeMainSubQueue    :  1; ///< If set, includes the main sub-queue in the RGP marker.
+        uint32  includeGangedSubQueues :  1; ///< If set, includes any ganged sub-queues in the RGP marker.
+        uint32  reserved               : 30; ///< Reserved for future use.
+    };
+    uint32  u32All; ///< Flags packed into a uint32
 };
 
 /**
@@ -2986,7 +3007,7 @@ public:
     /// extents are specified in compression blocks.
     ///
     /// The source and destination images must to be of the same type (1D, 2D or 3D). Both single sampled images and
-    /// MSAA color images are supported. MSAA depth/stencil images are not supported.
+    /// MSAA images are supported.
     ///
     /// Linear texture filtering is only supported for images with non-integer formats.
     ///
@@ -3692,8 +3713,18 @@ public:
     /// @param [in] pData     SQTT marker data.  See the RGP SQTT Instrumentation Specification for details on how this
     ///                       data should be formatted.
     virtual void CmdInsertRgpTraceMarker(
-        uint32      numDwords,
-        const void* pData) = 0;
+        RgpMarkerSubQueueFlags subQueueFlags,
+        uint32                 numDwords,
+        const void*            pData) = 0;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 708
+    inline void CmdInsertRgpTraceMarker(uint32 numDwords, const void* pData)
+    {
+        RgpMarkerSubQueueFlags subQueueFlags { };
+        subQueueFlags.includeMainSubQueue = 1;
+
+        CmdInsertRgpTraceMarker(subQueueFlags, numDwords, pData);
+    }
+#endif
 
     /// This function is to be used to copy the DF SPM (MALL SPM) data from the output buffers to an accessible buffer.
     /// The buffer that HW outputs to is allocated with a special KMD flag and therefore cannot be the same as the

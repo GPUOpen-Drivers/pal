@@ -33,7 +33,9 @@
 
 #include "palUtil.h"
 #include "palAssert.h"
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 715
 #include <atomic>
+#endif
 #include <errno.h>
 #include <string.h>
 
@@ -67,6 +69,10 @@ enum class KeyCode : uint32
     F10,
     F11,
     F12,
+    F13,
+    F14,
+    F15,
+    F16,
     Backtick,   // ` ~
     Minus,      // - _
     Equal,      // = +
@@ -459,6 +465,7 @@ extern size_t DumpStackTrace(
     size_t  bufSize,
     uint32  skipFrames);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 715
 /// Flushes CPU cached writes to memory.
 inline void FlushCpuWrites()
 {
@@ -469,6 +476,7 @@ inline void FlushCpuWrites()
 #endif
 }
 
+#ifndef MemoryBarrier
 /// Issues a full memory barrier.
 inline void MemoryBarrier()
 {
@@ -478,6 +486,8 @@ inline void MemoryBarrier()
 #error "Not implemented for the current platform"
 #endif
 }
+#endif
+#endif
 
 /// Puts the calling thread to sleep for a specified number of milliseconds.
 ///

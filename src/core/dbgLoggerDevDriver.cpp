@@ -35,7 +35,7 @@ namespace Pal
 {
 constexpr uint32 EventFlushTimeoutInMs = 10;
 constexpr uint32 NumLogProviderEvents  = uint32(OriginationType::Count) + uint32(SeverityLevel::Count);
-const char EventDescription[]          = "Generic driver log messages";
+constexpr char   EventDescription[]    = "Generic driver log messages";
 
 /// Some defaults for this logger
 constexpr SeverityLevel DefaultSeverityLevel = SeverityLevel::Debug; ///< Least restrictive, accepts all levels

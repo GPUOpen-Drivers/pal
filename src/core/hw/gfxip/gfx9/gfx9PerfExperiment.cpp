@@ -578,27 +578,28 @@ Result PerfExperiment::AddCounter(
 
         if (info.block == GpuBlock::Sq)
         {
-            // The SQ counters are 64-bit.
+            // The SQG counters are 64-bit.
             mapping.general.dataType = PerfCounterDataType::Uint64;
 
             // The SQG has special registers so it needs its own implementation.
             if (m_select.sqg[info.instance].hasCounters == false)
             {
                 // Turn on this instance and populate its GRBM_GFX_INDEX.
-                m_select.sqg[info.instance].hasCounters  = true;
+                m_select.sqg[info.instance].hasCounters = true;
                 m_select.sqg[info.instance].grbmGfxIndex = BuildGrbmGfxIndex(instanceMapping, info.block);
             }
 
             bool searching = true;
+            uint32 sqgNumModules = Gfx9MaxSqgPerfmonModules;
 
-            for (uint32 idx = 0; searching && (idx < ArrayLen(m_select.sqg[info.instance].perfmon)); ++idx)
+            for (uint32 idx = 0; searching && (idx < sqgNumModules); ++idx)
             {
                 if (m_select.sqg[info.instance].perfmonInUse[idx] == false)
                 {
-                    // Our SQ PERF_SEL fields are 9 bits. Verify that our event ID can fit.
+                    // Our SQ/SQG PERF_SEL fields are 9 bits. Verify that our event ID can fit.
                     PAL_ASSERT(info.eventId <= ((1 << 9) - 1));
 
-                    m_select.sqg[info.instance].perfmonInUse[idx]           = true;
+                    m_select.sqg[info.instance].perfmonInUse[idx]              = true;
                     m_select.sqg[info.instance].perfmon[idx].bits.PERF_SEL  = info.eventId;
                     m_select.sqg[info.instance].perfmon[idx].bits.SPM_MODE  = PERFMON_SPM_MODE_OFF;
                     m_select.sqg[info.instance].perfmon[idx].bits.PERF_MODE = PERFMON_COUNTER_MODE_ACCUM;
@@ -606,8 +607,10 @@ Result PerfExperiment::AddCounter(
                     // The SQC client mask and SIMD mask only exist on gfx9.
                     if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp9)
                     {
-                        m_select.sqg[info.instance].perfmon[idx].gfx09.SQC_CLIENT_MASK = DefaultSqSelectClientMask;
-                        m_select.sqg[info.instance].perfmon[idx].gfx09.SIMD_MASK       = DefaultSqSelectSimdMask;
+                        m_select.sqg[info.instance].perfmon[idx].gfx09.SQC_CLIENT_MASK
+                                                             = DefaultSqSelectClientMask;
+                        m_select.sqg[info.instance].perfmon[idx].gfx09.SIMD_MASK
+                                                             = DefaultSqSelectSimdMask;
                     }
 
                     // The SQC bank mask was removed in gfx10.3.
@@ -617,10 +620,9 @@ Result PerfExperiment::AddCounter(
                     }
 
                     mapping.counterId = idx;
-                    searching         = false;
+                    searching = false;
                 }
             }
-
             if (searching)
             {
                 // There are no more global counters in this instance.
@@ -935,21 +937,20 @@ Result PerfExperiment::AddSpmCounter(
                 m_select.sqg[info.instance].grbmGfxIndex = BuildGrbmGfxIndex(instanceMapping, info.block);
             }
 
-            bool searching = true;
-
-            for (uint32 idx = 0; searching && (idx < ArrayLen(m_select.sqg[info.instance].perfmon)); ++idx)
+            bool searching       = true;
+            uint32 sqgNumModules = Gfx9MaxSqgPerfmonModules;
+            // The SQG doesn't support 16-bit counters and only has one 32-bit counter per select register.
+            // As long as the counter doesn't wrap over 16 bits we can enable a 32-bit counter and treat
+            // it exactly like a 16-bit counter and still get useful data. Note that "LEVEL" counters require
+            // us to use the no-clamp & no-reset SPM mode.
+            uint32 spmMode = IsSqLevelEvent(info.eventId) ? PERFMON_SPM_MODE_32BIT_NO_CLAMP
+                                                          : PERFMON_SPM_MODE_32BIT_CLAMP;
+            for (uint32 idx = 0; searching && (idx < sqgNumModules); ++idx)
             {
                 if (m_select.sqg[info.instance].perfmonInUse[idx] == false)
                 {
-                    // Our SQ PERF_SEL fields are 9 bits. Verify that our event ID can fit.
+                    // Our SQG PERF_SEL fields are 9 bits. Verify that our event ID can fit.
                     PAL_ASSERT(info.eventId <= ((1 << 9) - 1));
-
-                    // The SQG doesn't support 16-bit counters and only has one 32-bit counter per select register.
-                    // As long as the counter doesn't wrap over 16 bits we can enable a 32-bit counter and treat
-                    // it exactly like a 16-bit counter and still get useful data. Note that "LEVEL" counters require
-                    // us to use the no-clamp & no-reset SPM mode.
-                    const uint32 spmMode = IsSqLevelEvent(info.eventId) ? PERFMON_SPM_MODE_32BIT_NO_CLAMP
-                                                                        : PERFMON_SPM_MODE_32BIT_CLAMP;
 
                     m_select.sqg[info.instance].perfmonInUse[idx]           = true;
                     m_select.sqg[info.instance].perfmon[idx].bits.PERF_SEL  = info.eventId;
@@ -959,8 +960,10 @@ Result PerfExperiment::AddSpmCounter(
                     // The SQC client mask and SIMD mask only exist on gfx9.
                     if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp9)
                     {
-                        m_select.sqg[info.instance].perfmon[idx].gfx09.SQC_CLIENT_MASK = DefaultSqSelectClientMask;
-                        m_select.sqg[info.instance].perfmon[idx].gfx09.SIMD_MASK       = DefaultSqSelectSimdMask;
+                        m_select.sqg[info.instance].perfmon[idx].gfx09.SQC_CLIENT_MASK
+                                                                    = DefaultSqSelectClientMask;
+                        m_select.sqg[info.instance].perfmon[idx].gfx09.SIMD_MASK
+                                                                    = DefaultSqSelectSimdMask;
                     }
 
                     // The SQC bank mask was removed in gfx10.3.
@@ -974,7 +977,6 @@ Result PerfExperiment::AddSpmCounter(
                     searching = false;
                 }
             }
-
             if (searching)
             {
                 // There are no more compatible SPM counters in this instance.
@@ -1694,9 +1696,12 @@ Result PerfExperiment::AddSpmTrace(
                 if (static_cast<SpmDataSegmentType>(segment) == SpmDataSegmentType::Global)
                 {
                     // First, add the global timestamp selects.
-                    for (uint32 idx = 0; idx < GlobalTimestampCounters; ++idx)
                     {
-                        m_pMuxselRams[segment][evenLineIdx].muxsel[evenCounterIdx++].u16All = GlobalTimestampSelect;
+                        for (uint32 idx = 0; idx < GlobalTimestampCounters; ++idx)
+                        {
+                            m_pMuxselRams[segment][evenLineIdx].muxsel[evenCounterIdx++].u16All
+                                                                        = GlobalTimestampSelect;
+                        }
                     }
                 }
 
@@ -2052,22 +2057,24 @@ void PerfExperiment::IssueBegin(
 
         pCmdSpace = WriteWaitIdle(cacheFlush, pCmdBuffer, pCmdStream, pCmdSpace);
 
+        regCP_PERFMON_CNTL cpPerfmonCntl = {};
         // Disable and reset all types of perf counters. We will enable the counters when everything is ready.
         // Note that PERFMON_ENABLE_MODE controls per-context filtering which we don't support.
-        regCP_PERFMON_CNTL cpPerfmonCntl = {};
-        cpPerfmonCntl.bits.PERFMON_STATE       = CP_PERFMON_STATE_DISABLE_AND_RESET;
-        cpPerfmonCntl.bits.SPM_PERFMON_STATE   = STRM_PERFMON_STATE_DISABLE_AND_RESET;
+        cpPerfmonCntl.bits.PERFMON_STATE = CP_PERFMON_STATE_DISABLE_AND_RESET;
+        cpPerfmonCntl.bits.SPM_PERFMON_STATE = STRM_PERFMON_STATE_DISABLE_AND_RESET;
         cpPerfmonCntl.bits.PERFMON_ENABLE_MODE = CP_PERFMON_ENABLE_MODE_ALWAYS_COUNT;
 
-        pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmCP_PERFMON_CNTL, cpPerfmonCntl.u32All, pCmdSpace);
+        {
+            pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmCP_PERFMON_CNTL, cpPerfmonCntl.u32All, pCmdSpace);
 
-        // The RLC controls perfmon clock gating. Before doing anything else we should turn on perfmon clocks.
-        regRLC_PERFMON_CLK_CNTL rlcPerfmonClkCntl = {};
-        rlcPerfmonClkCntl.bits.PERFMON_CLOCK_STATE = 1;
+            // The RLC controls perfmon clock gating. Before doing anything else we should turn on perfmon clocks.
+            regRLC_PERFMON_CLK_CNTL rlcPerfmonClkCntl  = {};
+            rlcPerfmonClkCntl.bits.PERFMON_CLOCK_STATE = 1;
 
-        pCmdSpace = pCmdStream->WriteSetOneConfigReg(m_registerInfo.mmRlcPerfmonClkCntl,
-                                                     rlcPerfmonClkCntl.u32All,
-                                                     pCmdSpace);
+            pCmdSpace = pCmdStream->WriteSetOneConfigReg(m_registerInfo.mmRlcPerfmonClkCntl,
+                                                         rlcPerfmonClkCntl.u32All,
+                                                         pCmdSpace);
+        }
 
         // Thread traces and many types of perf counters require SQG events. To keep things simple we should just
         // enable them unconditionally. This shouldn't have any effect in the cases that don't really need them on.
@@ -2242,7 +2249,7 @@ void PerfExperiment::IssueEnd(
         if (m_perfExperimentFlags.sqtTraceEnabled)
         {
             // Stop all thread traces and copy back some information not contained in the thread trace tokens.
-            pCmdSpace = WriteStopThreadTraces(pCmdStream, pCmdSpace);
+            pCmdSpace = WriteStopThreadTraces(pCmdBuffer, pCmdStream, pCmdSpace);
         }
 
         if (m_perfExperimentFlags.spmTraceEnabled)
@@ -2266,13 +2273,15 @@ void PerfExperiment::IssueEnd(
         // Restore SPI_CONFIG_CNTL by turning SQG events back off.
         pCmdSpace = WriteUpdateSpiConfigCntl(false, pCmdStream, pCmdSpace);
 
-        // The RLC controls perfmon clock gating. Before we're done here, we must turn the perfmon clocks back off.
-        regRLC_PERFMON_CLK_CNTL rlcPerfmonClkCntl = {};
-        rlcPerfmonClkCntl.bits.PERFMON_CLOCK_STATE = 0;
+        {
+            // The RLC controls perfmon clock gating. Before we're done here, we must turn the perfmon clocks back off.
+            regRLC_PERFMON_CLK_CNTL rlcPerfmonClkCntl  = {};
+            rlcPerfmonClkCntl.bits.PERFMON_CLOCK_STATE = 0;
 
-        pCmdSpace = pCmdStream->WriteSetOneConfigReg(m_registerInfo.mmRlcPerfmonClkCntl,
-                                                     rlcPerfmonClkCntl.u32All,
-                                                     pCmdSpace);
+            pCmdSpace = pCmdStream->WriteSetOneConfigReg(m_registerInfo.mmRlcPerfmonClkCntl,
+                                                         rlcPerfmonClkCntl.u32All,
+                                                         pCmdSpace);
+        }
 
         pCmdStream->CommitCommands(pCmdSpace);
     }
@@ -2635,7 +2644,7 @@ regGRBM_GFX_INDEX PerfExperiment::BuildGrbmGfxIndex(
     // Note that SQ registers would normally require a special per-SIMD instance index format but the SQ perf counter
     // registers are special. All SQ and SQC perf counters are implemented in the per-SE SQG block. Thus we don't
     // need any special handing for the SQ or SQC here, we can just pass along our flat index.
-    if (IsGfx10(m_chipProps.gfxLevel) &&
+    if (IsGfx10Plus(m_chipProps.gfxLevel) &&
         ((block == GpuBlock::Ta) || (block == GpuBlock::Td) || (block == GpuBlock::Tcp)))
     {
         // The shader array hardware defines this instance index format.
@@ -2664,6 +2673,7 @@ regGRBM_GFX_INDEX PerfExperiment::BuildGrbmGfxIndex(
 
         grbmGfxIndex.bits.INSTANCE_INDEX = instanceIndex.u32All;
     }
+
     else
     {
         grbmGfxIndex.bits.INSTANCE_INDEX = mapping.instanceIndex;
@@ -3039,8 +3049,9 @@ uint32* PerfExperiment::WriteStartThreadTraces(
 // A helper function for IssueEnd which writes the necessary commands to stop all thread traces.
 //
 uint32* PerfExperiment::WriteStopThreadTraces(
-    CmdStream* pCmdStream,
-    uint32*    pCmdSpace
+    GfxCmdBuffer* pCmdBuffer,
+    CmdStream*    pCmdStream,
+    uint32*       pCmdSpace
     ) const
 {
     const EngineType engineType = pCmdStream->GetEngineType();
@@ -3131,15 +3142,24 @@ uint32* PerfExperiment::WriteStopThreadTraces(
             }
             else
             {
-                // Poll the status register's finish_done bit to be sure that the trace buffer is written out.
-                pCmdSpace += m_cmdUtil.BuildWaitRegMem(engineType,
-                                                       mem_space__me_wait_reg_mem__register_space,
-                                                       function__me_wait_reg_mem__not_equal_reference_value,
-                                                       engine_sel__me_wait_reg_mem__micro_engine,
-                                                       Gfx10Core::mmSQ_THREAD_TRACE_STATUS,
-                                                       0,
-                                                       Gfx10Plus::SQ_THREAD_TRACE_STATUS__FINISH_DONE_MASK,
-                                                       pCmdSpace);
+                if (m_settings.waBadSqttFinishResults)
+                {
+                    // On some chips, the finish_done field is broken due to harvesting.
+                    // A full pipe flush can be done instead.
+                    pCmdSpace = WriteWaitIdle(false, pCmdBuffer, pCmdStream, pCmdSpace);
+                }
+                else
+                {
+                    // Poll the status register's finish_done bit to be sure that the trace buffer is written out.
+                    pCmdSpace += m_cmdUtil.BuildWaitRegMem(engineType,
+                                                        mem_space__me_wait_reg_mem__register_space,
+                                                        function__me_wait_reg_mem__not_equal_reference_value,
+                                                        engine_sel__me_wait_reg_mem__micro_engine,
+                                                        Gfx10Core::mmSQ_THREAD_TRACE_STATUS,
+                                                        0,
+                                                        Gfx10Plus::SQ_THREAD_TRACE_STATUS__FINISH_DONE_MASK,
+                                                        pCmdSpace);
+                }
 
                 // Set the mode to "OFF".
                 regSQ_THREAD_TRACE_CTRL sqttCtrl = m_sqtt[idx].ctrl;
@@ -3209,15 +3229,16 @@ uint32* PerfExperiment::WriteSelectRegisters(
     {
         if (m_select.sqg[instance].hasCounters)
         {
-            const PerfCounterRegAddr& regAddr = m_counterInfo.block[static_cast<uint32>(GpuBlock::Sq)].regAddr;
-
             // The SQ counters must be programmed while broadcasting to all SQs on the target SE. This should be
             // fine because each "SQ" instance here is really a SQG instance and there's only one in each SE.
             pCmdSpace = WriteGrbmGfxIndexBroadcastSe(m_select.sqg[instance].grbmGfxIndex.bits.SE_INDEX,
                                                      pCmdStream,
                                                      pCmdSpace);
 
-            for (uint32 idx = 0; idx < ArrayLen(m_select.sqg[instance].perfmon); ++idx)
+            uint32 sqgNumModules = Gfx9MaxSqgPerfmonModules;
+
+            const PerfCounterRegAddr& regAddr = m_counterInfo.block[static_cast<uint32>(GpuBlock::Sq)].regAddr;
+            for (uint32 idx = 0; idx < sqgNumModules; ++idx)
             {
                 if (m_select.sqg[instance].perfmonInUse[idx])
                 {
@@ -3228,7 +3249,6 @@ uint32* PerfExperiment::WriteSelectRegisters(
                                                                   pCmdSpace);
                 }
             }
-
             // Get fresh command space just in case we're close to running out.
             pCmdStream->CommitCommands(pCmdSpace);
             pCmdSpace = pCmdStream->ReserveCommands();
@@ -3485,8 +3505,19 @@ uint32* PerfExperiment::WriteEnableCfgRegisters(
             if (clear)
             {
                 regPerfMonCtlClk perfmonCtlClk = {};
-                perfmonCtlClk.most.GlblResetMsk = 0x3f;
-                perfmonCtlClk.most.GlblReset    = 1;
+                perfmonCtlClk.most.GlblReset   = 1;
+
+                {
+                    constexpr uint32 GblbRsrcMskMask = Gfx101::PerfMonCtlClk__GlblResetMsk_MASK;
+                    static_assert((GblbRsrcMskMask == Nv21::PerfMonCtlClk__GlblResetMsk_MASK)    &&
+                                  (GblbRsrcMskMask == Nv22::PerfMonCtlClk__GlblResetMsk_MASK)    &&
+                                  (GblbRsrcMskMask == Nv23::PerfMonCtlClk__GlblResetMsk_MASK)    &&
+                                  (GblbRsrcMskMask == Nv24::PerfMonCtlClk__GlblResetMsk_MASK)    &&
+                                  (GblbRsrcMskMask == Vg12_Rn::PerfMonCtlClk__GlblResetMsk_MASK),
+                                  "GblbRsrcMskMask does not match all chips!");
+
+                    perfmonCtlClk.u32All |= GblbRsrcMskMask;
+                }
 
                 pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(m_counterInfo.umcchRegAddr[instance].perfMonCtlClk,
                                                               perfmonCtlClk.u32All,
@@ -3638,7 +3669,19 @@ uint32* PerfExperiment::WriteStopAndSampleGlobalCounters(
         const uint32                instance = mapping.general.globalInstance;
         const uint32                block    = static_cast<uint32>(mapping.general.block);
 
-        if (mapping.general.block == GpuBlock::Sq)
+        if (mapping.general.block == GpuBlock::GrbmSe)
+        {
+            // The per-SE counters are different from the generic case in two ways:
+            // 1. The GRBM is a global block so we need to use global broadcasting.
+            // 2. The register addresses are unique for each instance.
+            pCmdSpace = WriteGrbmGfxIndexBroadcastGlobal(pCmdStream, pCmdSpace);
+            pCmdSpace = WriteCopy64BitCounter(m_counterInfo.block[block].regAddr.perfcounter[instance].lo,
+                                              m_counterInfo.block[block].regAddr.perfcounter[instance].hi,
+                                              destBaseAddr + mapping.offset,
+                                              pCmdStream,
+                                              pCmdSpace);
+        }
+        else if (mapping.general.block == GpuBlock::Sq)
         {
             pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmGRBM_GFX_INDEX,
                                                          m_select.sqg[instance].grbmGfxIndex.u32All,
@@ -3653,18 +3696,6 @@ uint32* PerfExperiment::WriteStopAndSampleGlobalCounters(
             // Get fresh command space just in case we're close to running out.
             pCmdStream->CommitCommands(pCmdSpace);
             pCmdSpace = pCmdStream->ReserveCommands();
-        }
-        else if (mapping.general.block == GpuBlock::GrbmSe)
-        {
-            // The per-SE counters are different from the generic case in two ways:
-            // 1. The GRBM is a global block so we need to use global broadcasting.
-            // 2. The register addresses are unique for each instance.
-            pCmdSpace = WriteGrbmGfxIndexBroadcastGlobal(pCmdStream, pCmdSpace);
-            pCmdSpace = WriteCopy64BitCounter(m_counterInfo.block[block].regAddr.perfcounter[instance].lo,
-                                              m_counterInfo.block[block].regAddr.perfcounter[instance].hi,
-                                              destBaseAddr + mapping.offset,
-                                              pCmdStream,
-                                              pCmdSpace);
         }
         else if ((mapping.general.block == GpuBlock::Dma) && (mapping.general.dataType == PerfCounterDataType::Uint32))
         {
@@ -4069,7 +4100,7 @@ bool PerfExperiment::HasRmiSubInstances(
 }
 
 // =====================================================================================================================
-// Assuming this is an SQ counter select, return true if it's a "LEVEL" counter, which require special SPM handling.
+// Assuming this is an SQG counter select, return true if it's a "LEVEL" counter, which require special SPM handling.
 bool PerfExperiment::IsSqLevelEvent(
     uint32 eventId
     ) const

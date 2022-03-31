@@ -1253,8 +1253,13 @@ void UniversalCmdBuffer::CmdSetTriangleRasterStateInternal(
     m_graphicsState.dirtyFlags.validationBits.triangleRasterState = 1;
 
     regPA_SU_SC_MODE_CNTL paSuScModeCntl = { };
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 721
+    paSuScModeCntl.bits.POLY_OFFSET_FRONT_ENABLE = params.flags.frontDepthBiasEnable;
+    paSuScModeCntl.bits.POLY_OFFSET_BACK_ENABLE  = params.flags.backDepthBiasEnable;
+#else
     paSuScModeCntl.bits.POLY_OFFSET_FRONT_ENABLE = params.flags.depthBiasEnable;
     paSuScModeCntl.bits.POLY_OFFSET_BACK_ENABLE  = params.flags.depthBiasEnable;
+#endif
     paSuScModeCntl.bits.MULTI_PRIM_IB_ENA        = 1;
 
     static_assert(
@@ -1449,7 +1454,10 @@ void UniversalCmdBuffer::DescribeDraw(
         drawIndexIdx = m_drawIndexReg - userData0;
     }
 
-    m_device.DescribeDraw(this, cmdType, firstVertexIdx, startInstanceIdx, drawIndexIdx);
+    RgpMarkerSubQueueFlags subQueueFlags { };
+    subQueueFlags.includeMainSubQueue = 1;
+
+    m_device.DescribeDraw(this, subQueueFlags, cmdType, firstVertexIdx, startInstanceIdx, drawIndexIdx);
 }
 
 // =====================================================================================================================
@@ -2066,7 +2074,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatch(
 
     if (DescribeDrawDispatch)
     {
-        pThis->m_device.DescribeDispatch(pThis, Developer::DrawDispatchType::CmdDispatch, 0, 0, 0, x, y, z);
+        pThis->DescribeDispatch(Developer::DrawDispatchType::CmdDispatch, x, y, z);
     }
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
@@ -2101,7 +2109,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchIndirect(
 
     if (DescribeDrawDispatch)
     {
-        pThis->m_device.DescribeDispatch(pThis, Developer::DrawDispatchType::CmdDispatchIndirect, 0, 0, 0, 0, 0, 0);
+        pThis->DescribeDispatchIndirect();
     }
 
     const gpusize gpuMemBaseAddr = gpuMemory.Desc().gpuVirtAddr;
@@ -2143,8 +2151,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchOffset(
 
     if (DescribeDrawDispatch)
     {
-        pThis->m_device.DescribeDispatch(pThis, Developer::DrawDispatchType::CmdDispatchOffset,
-            xOffset, yOffset, zOffset, xDim, yDim, zDim);
+        pThis->DescribeDispatchOffset(xOffset, yOffset, zOffset, xDim, yDim, zDim);
     }
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
@@ -2400,9 +2407,12 @@ void UniversalCmdBuffer::CmdInsertTraceMarker(
 
 // =====================================================================================================================
 void UniversalCmdBuffer::CmdInsertRgpTraceMarker(
-    uint32      numDwords,
-    const void* pData)
+    RgpMarkerSubQueueFlags subQueueFlags,
+    uint32                 numDwords,
+    const void*            pData)
 {
+    PAL_ASSERT((subQueueFlags.includeMainSubQueue == 1) && (subQueueFlags.includeGangedSubQueues == 0));
+
     // The first dword of every RGP trace marker packet is written to SQ_THREAD_TRACE_USERDATA_2.  The second dword
     // is written to SQ_THREAD_TRACE_USERDATA_3.  For packets longer than 64-bits, continue alternating between
     // user data 2 and 3.

@@ -502,6 +502,12 @@ Result Device::SetupPublicSettingDefaults()
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 706
     m_publicSettings.dccInitialClearKind = static_cast<uint32>(DccInitialClearKind::Uncompressed);
 #endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 713
+    m_publicSettings.disableInternalVrsImage = false;
+#endif
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 716) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 719)
+    m_publicSettings.memMgrPoolAllocationSizeInBytes = 0;
+#endif
     return ret;
 }
 
@@ -1470,15 +1476,9 @@ Result Device::Finalize(
     PAL_ASSERT(m_settingsCommitted);
 #endif
 
-    Result result = Result::Success;
-
-    if (result == Result::Success)
-    {
-        if (finalizeInfo.flags.internalGpuMemAutoPriority && !m_memoryProperties.flags.autoPrioritySupport)
-        {
-            result = Result::ErrorInvalidFlags;
-        }
-    }
+    Result result = (finalizeInfo.flags.internalGpuMemAutoPriority && !m_memoryProperties.flags.autoPrioritySupport)
+        ? Result::ErrorInvalidFlags
+        : Result::Success;
 
     if (result == Result::Success)
     {
@@ -2188,11 +2188,18 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.support16BitInstructions       = gfx6Props.support16BitInstructions;
             pInfo->gfxipProperties.flags.support64BitInstructions       = gfx6Props.support64BitInstructions;
             pInfo->gfxipProperties.flags.supportBorderColorSwizzle      = gfx6Props.supportBorderColorSwizzle;
-            pInfo->gfxipProperties.flags.supportFloatAtomics            = gfx6Props.supportFloatAtomics;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 720
+            pInfo->gfxipProperties.flags.supportFloat32Atomics          = gfx6Props.supportFloat32Atomics;
+            pInfo->gfxipProperties.flags.supportFloat64Atomics          = gfx6Props.supportFloat64Atomics;
+#else
+            pInfo->gfxipProperties.flags.supportFloatAtomics            =
+                gfx6Props.supportFloat32Atomics | gfx6Props.supportFloat64Atomics;
+#endif
             pInfo->gfxipProperties.flags.supportShaderSubgroupClock     = gfx6Props.supportShaderSubgroupClock;
             pInfo->gfxipProperties.flags.supportShaderDeviceClock       = gfx6Props.supportShaderDeviceClock;
             pInfo->gfxipProperties.flags.supports2BitSignedValues       = gfx6Props.supports2BitSignedValues;
             pInfo->gfxipProperties.flags.supportRgpTraces               = gfx6Props.supportRgpTraces;
+            pInfo->gfxipProperties.flags.supportImageViewMinLod         = gfx6Props.supportImageViewMinLod;
 
             pInfo->gfxipProperties.flags.supportSingleChannelMinMaxFilter = 1;
             pInfo->gfxipProperties.flags.supportPerChannelMinMaxFilter    = 0; // GFX6-8 only support single channel
@@ -2270,7 +2277,14 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.support16BitInstructions           = gfx9Props.support16BitInstructions;
             pInfo->gfxipProperties.flags.support64BitInstructions           = gfx9Props.support64BitInstructions;
             pInfo->gfxipProperties.flags.supportBorderColorSwizzle          = gfx9Props.supportBorderColorSwizzle;
-            pInfo->gfxipProperties.flags.supportFloatAtomics                = gfx9Props.supportFloatAtomics;
+            pInfo->gfxipProperties.flags.supportImageViewMinLod             = gfx9Props.supportImageViewMinLod;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 720
+            pInfo->gfxipProperties.flags.supportFloat32Atomics              = gfx9Props.supportFloat32Atomics;
+            pInfo->gfxipProperties.flags.supportFloat64Atomics              = gfx9Props.supportFloat64Atomics;
+#else
+            pInfo->gfxipProperties.flags.supportFloatAtomics                =
+                gfx9Props.supportFloat32Atomics | gfx9Props.supportFloat64Atomics;
+#endif
             pInfo->gfxipProperties.flags.supportShaderSubgroupClock         = gfx9Props.supportShaderSubgroupClock;
             pInfo->gfxipProperties.flags.supportShaderDeviceClock           = gfx9Props.supportShaderDeviceClock;
             pInfo->gfxipProperties.flags.supportAlphaToOne                  = gfx9Props.supportAlphaToOne;

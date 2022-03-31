@@ -2310,29 +2310,23 @@ bool RsrcProcMgr::ScaledCopyImageUseGraphics(
     const bool preferGraphicsCopy = Image::PreferGraphicsCopy &&
                                     (PreferComputeForNonLocalDestCopy(*pDstImage) == false);
 
-    // IsGfxPipelineForFormatSupported is only relevant for non depth formats
-    const auto isSupported = isDepth || IsGfxPipelineForFormatSupported(dstInfo.swizzledFormat);
+    // isDepthOrSingleSampleColorFormatSupported is used for depth or single-sample color format checking.
+    // IsGfxPipelineForFormatSupported is only relevant for non depth formats.
+    const bool isDepthOrSingleSampleColorFormatSupported = isDepth ||
+        ((dstInfo.samples == 1) && IsGfxPipelineForFormatSupported(dstInfo.swizzledFormat));
 
     // We need to decide between the graphics copy path and the compute copy path. The graphics path only supports
-    // single-sampled non-compressed, non-YUV 2D or 2D color images for now.
+    // single-sampled non-compressed, non-YUV 2D or 2D color images, or depth stencil images.
     const bool useGraphicsCopy = ((preferGraphicsCopy && pCmdBuffer->IsGraphicsSupported()) &&
                                   ((srcImageType != ImageType::Tex1d) &&
                                    (dstImageType != ImageType::Tex1d) &&
-                                   (dstInfo.samples == 1)             &&
                                    (isCompressed == false)            &&
                                    (isYuv == false)                   &&
                                    (p2pBltWa == false)                &&
-                                   (isSupported)));
+                                   (isDepthOrSingleSampleColorFormatSupported)));
 
     // Scissor-enabled blit for OGLP is only supported on graphics path.
     PAL_ASSERT(useGraphicsCopy || (copyInfo.flags.scissorTest == 0));
-
-    if (isDepth)
-    {
-        // MSAA depth scaled copies are unsupported for both paths, HW doesn't support UAV writes to depth/stencil MSAA
-        // surfaces, it can be implemented in grahpics scaled copy path if needed at a future point.
-        PAL_ASSERT((srcInfo.samples == 1) && (dstInfo.samples == 1));
-    }
 
     return useGraphicsCopy;
 }
@@ -3096,7 +3090,9 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
             }
             else
             {
+                const uint32 extent[2] = { srcExtent.width, srcExtent.height };
                 pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 2, 10, &userData[0]);
+                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 13, 2, &extent[0]);
             }
         }
 
@@ -3200,20 +3196,29 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
             if (isDepthStencil)
             {
                 pCmdBuffer->CmdBindDepthStencilState(m_pDepthStencilResolveState);
-                pPipeline = GetGfxPipeline(ScaledCopyDepthStencil);
             }
             else if (isDepth)
             {
                 pCmdBuffer->CmdBindDepthStencilState(m_pDepthResolveState);
-                pPipeline = GetGfxPipeline(ScaledCopyDepth);
             }
             else
             {
                 pCmdBuffer->CmdBindDepthStencilState(m_pStencilResolveState);
-                pPipeline = GetGfxPipeline(ScaledCopyStencil);
             }
 
+            pPipeline = GetScaledCopyDepthStencilPipeline(isDepth, isDepthStencil, pSrcImage->GetImageCreateInfo().samples);
+
             sizeInDwords = isDepthStencil ? SrdDwordAlignment() * 3 : SrdDwordAlignment() * 2;
+
+            if (pSrcImage->GetImageCreateInfo().samples > 1)
+            {
+                // HW doesn't support image Opcode for msaa image with sampler, needn't sampler srd for msaa image sampler.
+                sizeInDwords = isDepthStencil ? SrdDwordAlignment() * 2 : SrdDwordAlignment() * 1;
+            }
+            else
+            {
+                sizeInDwords = isDepthStencil ? SrdDwordAlignment() * 3 : SrdDwordAlignment() * 2;
+            }
         }
 
         // Only switch to the appropriate graphics pipeline if it differs from the previous region's pipeline.
@@ -3383,14 +3388,17 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
                 pSrdTable += SrdDwordAlignment();
             }
 
-            SamplerInfo samplerInfo = {};
-            samplerInfo.filter      = copyInfo.filter;
-            samplerInfo.addressU    = TexAddressMode::Clamp;
-            samplerInfo.addressV    = TexAddressMode::Clamp;
-            samplerInfo.addressW    = TexAddressMode::Clamp;
-            samplerInfo.compareFunc = CompareFunc::Always;
-            device.CreateSamplerSrds(1, &samplerInfo, pSrdTable);
-            pSrdTable += SrdDwordAlignment();
+            if (pSrcImage->GetImageCreateInfo().samples == 1)
+            {
+                SamplerInfo samplerInfo = {};
+                samplerInfo.filter      = copyInfo.filter;
+                samplerInfo.addressU    = TexAddressMode::Clamp;
+                samplerInfo.addressV    = TexAddressMode::Clamp;
+                samplerInfo.addressW    = TexAddressMode::Clamp;
+                samplerInfo.compareFunc = CompareFunc::Always;
+                device.CreateSamplerSrds(1, &samplerInfo, pSrdTable);
+                pSrdTable += SrdDwordAlignment();
+            }
         }
 
         // Copy may happen between the layers of a 2d image and the slices of a 3d image.
@@ -3554,8 +3562,7 @@ void RsrcProcMgr::ScaledCopyImageCompute(
 
         if (srcInfo.fragments > 1)
         {
-            // HW doesn't support UAV writes to depth/stencil MSAA surfaces, it can be implemented in grahpics
-            // scaled copy path if needed at a future point.
+            // HW doesn't support UAV writes to depth/stencil MSAA surfaces.
             PAL_ASSERT(isDepth == false);
 
             // EQAA images with FMask disabled are unsupported for scaled copy. There is no use case for
@@ -3817,7 +3824,7 @@ void RsrcProcMgr::ScaledCopyImageCompute(
             const uint32 enableGammaConversion =
                 (Formats::IsSrgb(dstFormat.format) || copyInfo.flags.dstAsSrgb) ? 1 : 0;
 
-            const uint32 copyData[] =
+            uint32 copyData[] =
             {
                 reinterpret_cast<const uint32&>(srcLeft),
                 reinterpret_cast<const uint32&>(srcTop),
@@ -3897,19 +3904,28 @@ void RsrcProcMgr::ScaledCopyImageCompute(
             device.CreateImageViewSrds(2, &imageView[0], pUserData);
             pUserData += SrdDwordAlignment() * 2;
 
-            if (isFmaskCopy)
+            if (srcInfo.samples > 1)
             {
-                // If this is an Fmask-accelerated Copy, create an image view of the source Image's Fmask surface.
-                FmaskViewInfo fmaskView  = {};
-                fmaskView.pImage         = pSrcImage;
-                fmaskView.baseArraySlice = copyRegion.srcSubres.arraySlice;
-                fmaskView.arraySize      = copyRegion.numSlices;
+                if (isFmaskCopy)
+                {
+                    // If this is an Fmask-accelerated Copy, create an image view of the source Image's Fmask surface.
+                    FmaskViewInfo fmaskView  = {};
+                    fmaskView.pImage         = pSrcImage;
+                    fmaskView.baseArraySlice = copyRegion.srcSubres.arraySlice;
+                    fmaskView.arraySize      = copyRegion.numSlices;
 
-                m_pDevice->Parent()->CreateFmaskViewSrds(1, &fmaskView, pUserData);
-                pUserData += SrdDwordAlignment();
+                    m_pDevice->Parent()->CreateFmaskViewSrds(1, &fmaskView, pUserData);
+                    pUserData += SrdDwordAlignment();
+                }
+
+                // HW doesn't support sample_resource instruction for msaa image, we need use load_resource to fetch
+                // data for msaa image, should use src image extent to convert floating point texture coordinate values
+                // referencing normalized space to signed integer values in IL shader.
+                copyData[10] = srcExtent.width;
+                copyData[11] = srcExtent.height;
             }
             // HW doesn't support image Opcode for msaa image with sampler.
-            else if (srcInfo.samples == 1)
+            else
             {
                 SamplerInfo samplerInfo = {};
                 samplerInfo.filter      = copyInfo.filter;
@@ -7916,6 +7932,35 @@ const GraphicsPipeline* RsrcProcMgr::GetCopyDepthStencilPipeline(
         else
         {
             pipelineType = (numSamples > 1) ? CopyMsaaStencil : CopyStencil;
+        }
+    }
+
+    return GetGfxPipeline(pipelineType);
+}
+
+// =====================================================================================================================
+// Selects the appropriate scaled Depth Stencil copy pipeline based on usage and samples
+const GraphicsPipeline* RsrcProcMgr::GetScaledCopyDepthStencilPipeline(
+    bool isDepth,
+    bool isDepthStencil,
+    uint32 numSamples
+    ) const
+{
+    RpmGfxPipeline pipelineType;
+
+    if (isDepthStencil)
+    {
+        pipelineType = (numSamples > 1) ? ScaledCopyMsaaDepthStencil : ScaledCopyDepthStencil;
+    }
+    else
+    {
+        if (isDepth)
+        {
+            pipelineType = (numSamples > 1) ? ScaledCopyMsaaDepth : ScaledCopyDepth;
+        }
+        else
+        {
+            pipelineType = (numSamples > 1) ? ScaledCopyMsaaStencil : ScaledCopyStencil;
         }
     }
 

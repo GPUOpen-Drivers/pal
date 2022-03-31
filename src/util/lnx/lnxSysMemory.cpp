@@ -34,7 +34,6 @@ namespace Util
 // =====================================================================================================================
 // Default pfnAlloc implementation used if the client doesn't specify allocation callbacks.  Memory will be allocated
 // from the standard C runtime.  Returns nullptr if the allocation fails.
-// Due to Android libc do not support aligned_alloc, use posix_memalign instead
 static void* PAL_STDCALL DefaultAllocCb(
     void*           pClientData,  // Ignored in default implementation.
     size_t          size,         // Size of the requested allocation in bytes.
@@ -45,7 +44,15 @@ static void* PAL_STDCALL DefaultAllocCb(
 
     alignment = Pow2Align(alignment, sizeof(void*));
     void* pMem = nullptr;
-    pMem = aligned_alloc(alignment, Pow2Align(size, alignment));
+    // posix_memalign is unilaterally preferred over aligned_alloc for several reasons
+    //  - Older versions of glibc have it (eg, for RHEL6)
+    //  - Several shipping games override the global allocator, but use an old enough lib that aligned_alloc's aren't
+    //    handled (exploding on free). This issue only appears on newer glibc due to some removed debug hooks that
+    //    previously saved it despite the buggy tcmalloc_minimal.
+    if (0 != ::posix_memalign(&pMem, alignment, size))
+    {
+        pMem = nullptr;
+    }
     return pMem;
 }
 
@@ -225,7 +232,12 @@ void* GenericAllocator::Alloc(
     const size_t alignment = Pow2Align(allocInfo.alignment, sizeof(void*));
     const size_t size      = Pow2Align(allocInfo.bytes, alignment);
 
-    void* pMem = aligned_alloc(alignment, size);
+    // Never replace this with aligned_alloc-- see DefaultAllocCb for explanation
+    void* pMem = nullptr;
+    if (0 != ::posix_memalign(&pMem, alignment, size))
+    {
+        pMem = nullptr;
+    }
 
     if ((pMem != nullptr) && allocInfo.zeroMem)
     {

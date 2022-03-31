@@ -38,8 +38,9 @@ using namespace Util;
 namespace Pal
 {
 
-static constexpr gpusize PoolAllocationSize       = 1ull << 22; // 4 megabytes
-static constexpr gpusize PoolMinSuballocationSize = 1ull << 4;  // 16 bytes
+static constexpr gpusize DefaultPoolAllocationSize    = 1ull << 22; // 4 megabytes
+static constexpr gpusize DefaultPoolAllocationMinSize = 1ull << 16; // 64 kilobytes
+static constexpr gpusize PoolMinSuballocationSize     = 1ull << 4;  // 16 bytes
 
 // =====================================================================================================================
 // Determines whether a base allocation matches the requested parameters
@@ -230,15 +231,19 @@ Result InternalMemMgr::AllocateGpuMemNoAllocLock(
     }
 
     // If the requested allocation is small enough, try to find an appropriate pool and sub-allocate from it.
-    if ((result                    == Result::Success)        &&
-        (pOffset                   != nullptr)                &&
-        (localCreateInfo.size      <= PoolAllocationSize / 2) &&
-        (localCreateInfo.alignment <= PoolAllocationSize / 2))
+    if ((result                    == Result::Success)             &&
+        (pOffset                   != nullptr)                     &&
+        (localCreateInfo.size      <= DefaultPoolAllocationSize / 2) &&
+        (localCreateInfo.alignment <= DefaultPoolAllocationSize / 2))
     {
         // Calculate GPU memory flags based on the creation information
         const GpuMemoryFlags requestedMemFlags = ConvertGpuMemoryFlags(localCreateInfo, internalInfo);
 
         result = Result::ErrorOutOfMemory;
+
+        // CurrentPoolSize will be double in first use.
+        gpusize currentPoolSize = DefaultPoolAllocationMinSize / 2;
+
         // Try to find a base allocation of the appropriate type that has sufficient enough space
         for (auto it = m_poolList.Begin(); it.Get() != nullptr; it.Next())
         {
@@ -252,20 +257,32 @@ Result InternalMemMgr::AllocateGpuMemNoAllocLock(
                                localCreateInfo.vaRange,
                                internalInfo.mtype))
             {
-                // If the base allocation matches the search criteria then try to allocate from it
-                result = pPool->pBuddyAllocator->Allocate(localCreateInfo.size, localCreateInfo.alignment, pOffset);
+                const GpuMemoryDesc& desc = pPool->pGpuMemory->Desc();
 
-                if (result == Result::Success)
+                // Now pool size is not fixed value. Make sure sub allocation size is matching with this pool.
+                if ((localCreateInfo.size      <= desc.size / 2) &&
+                    (localCreateInfo.alignment <= desc.size / 2))
                 {
-                    // If we found a free block, fill in the memory object pointer from the base allocation and
-                    // stop searching
-                    *ppGpuMemory = pPool->pGpuMemory;
-                    if (internalInfo.pPagingFence != nullptr)
+                    // If the base allocation matches the search criteria then try to allocate from it
+                    result = pPool->pBuddyAllocator->Allocate(localCreateInfo.size,
+                                                              localCreateInfo.alignment,
+                                                              pOffset);
+
+                    if (result == Result::Success)
                     {
-                        *internalInfo.pPagingFence = pPool->pagingFenceVal;
+                        // If we found a free block, fill in the memory object pointer from the base allocation and
+                        // stop searching
+                        *ppGpuMemory = pPool->pGpuMemory;
+                        if (internalInfo.pPagingFence != nullptr)
+                        {
+                            *internalInfo.pPagingFence = pPool->pagingFenceVal;
+                        }
+                        break;
                     }
-                    break;
                 }
+
+                // Loop to find the max size we have in the matched pools.
+                currentPoolSize = Util::Max(currentPoolSize, desc.size);
             }
         }
 
@@ -278,10 +295,20 @@ Result InternalMemMgr::AllocateGpuMemNoAllocLock(
             GpuMemoryInternalCreateInfo localInternalInfo  = internalInfo;
 
             const gpusize localCreateInfoAlignment = localCreateInfo.alignment;
-            const gpusize localCreateInfoSize = localCreateInfo.size;
+            const gpusize localCreateInfoSize      = localCreateInfo.size;
 
-            localCreateInfo.size = PoolAllocationSize;
-            localCreateInfo.alignment = PoolAllocationSize / 2;
+            // Enlarge next pool allocation as double current max pool size
+            gpusize nextPoolAllocationSize = currentPoolSize * 2;
+
+            // Check if need to enlarge the pool size base on creation allocate size and alignment
+            nextPoolAllocationSize = Util::Max(Util::Pow2Pad(localCreateInfoSize * 2), nextPoolAllocationSize);
+            nextPoolAllocationSize = Util::Max(Util::Pow2Pad(localCreateInfoAlignment * 2), nextPoolAllocationSize);
+
+            // Clamp to maximum size
+            nextPoolAllocationSize = Util::Min(DefaultPoolAllocationSize, nextPoolAllocationSize);
+
+            localCreateInfo.size                   = nextPoolAllocationSize;
+            localCreateInfo.alignment              = nextPoolAllocationSize / 2;
             localInternalInfo.flags.buddyAllocated = 1;
 
             GpuMemory* pGpuMemory = nullptr;
@@ -314,7 +341,9 @@ Result InternalMemMgr::AllocateGpuMemNoAllocLock(
 
                 // Create and initialize the buddy allocator
                 newPool.pBuddyAllocator = PAL_NEW(BuddyAllocator<Platform>, m_pDevice->GetPlatform(), AllocInternal)
-                                          (m_pDevice->GetPlatform(), PoolAllocationSize, PoolMinSuballocationSize);
+                                          (m_pDevice->GetPlatform(),
+                                           nextPoolAllocationSize,
+                                           PoolMinSuballocationSize);
 
                 if (newPool.pBuddyAllocator != nullptr)
                 {

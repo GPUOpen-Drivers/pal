@@ -148,8 +148,11 @@ void PipelineChunkCs::LateInit(
     // LOCK_THRESHOLD's maximum value: (6 bits), in units of 4, so it is max of 252.
     constexpr uint32 Gfx9MaxLockThreshold = 252;
     PAL_ASSERT(settings.csLockThreshold <= Gfx9MaxLockThreshold);
-    m_regs.dynamic.computeResourceLimits.bits.LOCK_THRESHOLD = Min((settings.csLockThreshold >> 2),
-                                                                   (Gfx9MaxLockThreshold >> 2));
+
+    {
+       m_regs.dynamic.computeResourceLimits.bits.LOCK_THRESHOLD = Min((settings.csLockThreshold >> 2),
+                                                                      (Gfx9MaxLockThreshold >> 2));
+    }
 
     // SIMD_DEST_CNTL: Controls whichs SIMDs thread groups get scheduled on.  If no override is set, just keep
     // the existing value in COMPUTE_RESOURCE_LIMITS.

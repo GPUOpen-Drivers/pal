@@ -310,6 +310,10 @@ public:
         char*  pBuffer,
         size_t bufferLength) const override { return Result::Unsupported; }
 
+    virtual Result QueryDriverVersion(
+        char*  pBuffer,
+        size_t bufferLength) const override { return Result::Unsupported; }
+
     virtual Result CreateDmaUploadRing() override { return Result::Success; };
 
 protected:

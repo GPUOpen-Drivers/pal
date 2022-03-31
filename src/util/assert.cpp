@@ -25,7 +25,7 @@
 
 #include "palAssert.h"
 
-#if PAL_ENABLE_PRINTS_ASSERTS
+#if (PAL_ENABLE_PRINTS_ASSERTS || PAL_ENABLE_LOGGING)
 
 namespace Util
 {

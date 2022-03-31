@@ -677,6 +677,14 @@ struct PalPublicSettings
     ///  0x12 - Forced Opaque White
     uint32 dccInitialClearKind;
 #endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 713
+    /// Allows the client to not create internal VrsImage. Pal internal will create a 16M image as vrsImageSize.
+    bool disableInternalVrsImage;
+#endif
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 716) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 719)
+    /// Allows the client to control internalMemMgr::PoolAllocationSize. 0 is use pal default value.
+    gpusize memMgrPoolAllocationSizeInBytes;
+#endif
 };
 
 /// Defines the modes that the GPU Profiling layer can use when its buffer fills.
@@ -1218,8 +1226,12 @@ struct DeviceProperties
 
                 uint64 supportIntersectRayBarycentrics    :  1; ///< HW supports the ray intersection mode which
                                                                 ///  returns triangle barycentrics.
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 720
+                uint64 supportFloat32Atomics              :  1; ///< Hardware supports float32 atomics
+                uint64 supportFloat64Atomics              :  1; ///< Hardware supports float64 atomics
+#else
                 uint64 supportFloatAtomics                :  1; ///< Hardware supports float atomics
+#endif
                 uint64 support64BitInstructions           :  1; ///< Hardware supports 64b instructions
                 uint64 supportShaderSubgroupClock         :  1; ///< HW supports clock functions across subgroup.
                 uint64 supportShaderDeviceClock           :  1; ///< HW supports clock functions across device.
@@ -1234,7 +1246,8 @@ struct DeviceProperties
                 uint64 supportInt4Dot                     :  1; ///< Hardware supports a dot product 4bit.
                 uint64 support2DRectList                  :  1; ///< HW supports PrimitiveTopology::TwoDRectList.
                 uint64 supportHsaAbi                      :  1; ///< PAL supports HSA ABI compute pipelines.
-                uint64 reserved                           : 17; ///< Reserved for future use.
+                uint64 supportImageViewMinLod             :  1; ///< Indicates image srd supports min_lod.
+                uint64 reserved                           : 16; ///< Reserved for future use.
             };
             uint64 u64All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.
@@ -4804,6 +4817,20 @@ public:
     ///          + ErrorInvalidValue if nullptr was passed for pBuffer or 0 for bufferLength.
     virtual Result QueryRadeonSoftwareVersion(
         char*  pBuffer,
+        size_t bufferLength) const = 0;
+
+    /// Queries the base Driver Version string.
+    ///
+    /// @param [out]  pBuffer           A non-null pointer to the buffer where the string will be written.
+    /// @param [in]   bufferLength      The byte size of the string buffer (must be non-zero).
+    ///
+    /// @returns Success if the string was successfully retrieved. Otherwise, one of the following errors
+    ///          may be returned:
+    ///          + Unsupported if this function is not available on this environment.
+    ///          + NotFound if the Widnows Driver Version string is not present.
+    ///          + ErrorInvalidValue if nullptr was passed for pBuffer or 0 for bufferLength.
+    virtual Result QueryDriverVersion(
+        char* pBuffer,
         size_t bufferLength) const = 0;
 
     /// Returns the value of the associated arbitrary client data pointer.

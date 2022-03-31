@@ -303,7 +303,17 @@ struct ExecuteIndirectPacketInfo
         const GraphicsPipelineSignature*  pSignatureGfx;
         const ComputePipelineSignature*   pSignatureCs;
     } pipelineSignature;
-    uint32       untypedSrdDword3;
+    uint32       vbTableRegOffset;
+    uint32       vbTableSize;
+};
+
+struct BuildUntypedSrdInfo
+{
+    gpusize srcGpuVirtAddress;
+    uint32  srcGpuVirtAddressOffset;
+    gpusize dstGpuVirtAddress;
+    uint32  dstGpuVirtAddressOffset;
+    uint32  srdDword3;
 };
 
 // =====================================================================================================================
@@ -323,6 +333,7 @@ public:
     static constexpr uint32 DrawIndirectMultiSize         = PM4_PFP_DRAW_INDEX_INDIRECT_MULTI_SIZEDW__CORE;
     static constexpr uint32 SetIndexAttributesSize        = PM4_PFP_INDEX_ATTRIBUTES_INDIRECT_SIZEDW__CORE;
     static constexpr uint32 SetUserDataIndirectSize       = PM4_PFP_LOAD_SH_REG_INDEX_SIZEDW__CORE;
+    static constexpr uint32 BuildUntypedSrdSize           = PM4_PFP_BUILD_UNTYPED_SRD_SIZEDW__HASCE;
     static constexpr uint32 DrawIndexAutoSize             = PM4_PFP_DRAW_INDEX_AUTO_SIZEDW__CORE;
     static constexpr uint32 DrawIndex2Size                = PM4_PFP_DRAW_INDEX_2_SIZEDW__CORE;
     static constexpr uint32 DrawIndexOffset2Size          = PM4_PFP_DRAW_INDEX_OFFSET_2_SIZEDW__CORE;
@@ -553,6 +564,11 @@ public:
     static size_t BuildDmaData(
         DmaDataInfo&  dmaDataInfo,
         void*         pBuffer);
+    static size_t BuildUntypedSrd(
+        Pm4Predicate               predicate,
+        const BuildUntypedSrdInfo* pSrdInfo,
+        Pm4ShaderType              shaderType,
+        void* pBuffer);
     static size_t BuildDumpConstRam(
         gpusize dstGpuAddr,
         uint32  ramByteOffset,

@@ -120,6 +120,33 @@ bool SettingsLoader::ReadSetting(
 }
 
 // =====================================================================================================================
+// Helper function for checking the CP microcode version for Gfx9.
+static bool CheckGfx9CpUcodeVersion(
+    const Device& device,
+    uint32        pfpUcodeVersion)
+{
+    return (IsGfx9(device) && (device.ChipProperties().pfpUcodeVersion >= pfpUcodeVersion));
+}
+
+// =====================================================================================================================
+// Helper function for checking the CP microcode version for Gfx10.1.
+static bool CheckGfx101CpUcodeVersion(
+    const Device& device,
+    uint32        pfpUcodeVersion)
+{
+    return (IsGfx101(device) && (device.ChipProperties().pfpUcodeVersion >= pfpUcodeVersion));
+}
+
+// =====================================================================================================================
+// Helper function for checking the CP microcode version for Gfx10.3.
+static bool CheckGfx103CpUcodeVersion(
+    const Device& device,
+    uint32        pfpUcodeVersion)
+{
+    return (IsGfx103(device) && (device.ChipProperties().pfpUcodeVersion >= pfpUcodeVersion));
+}
+
+// =====================================================================================================================
 // Overrides defaults for the settings based on runtime information.
 void SettingsLoader::OverrideDefaults()
 {
@@ -161,27 +188,31 @@ void SettingsLoader::OverrideDefaults()
         constexpr uint32 PfpUcodeVersionNativeExecuteIndirectGfx10_1 = 151;
         constexpr uint32 PfpUcodeVersionNativeExecuteIndirectGfx10_3 = 88;
 
-        if (((m_pDevice->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9) &&
-            (m_pDevice->ChipProperties().pfpUcodeVersion >= PfpUcodeVersionNativeExecuteIndirectGfx9))        ||
-            ((m_pDevice->ChipProperties().gfxLevel == GfxIpLevel::GfxIp10_1) &&
-                (m_pDevice->ChipProperties().pfpUcodeVersion >= PfpUcodeVersionNativeExecuteIndirectGfx10_1)) ||
-            ((m_pDevice->ChipProperties().gfxLevel == GfxIpLevel::GfxIp10_3) &&
-                (m_pDevice->ChipProperties().pfpUcodeVersion >= PfpUcodeVersionNativeExecuteIndirectGfx10_3)))
         {
-            m_settings.useExecuteIndirectPacket = UseExecuteIndirectPacketForDraw;
-        }
+            if (CheckGfx9CpUcodeVersion(*m_pDevice,   PfpUcodeVersionNativeExecuteIndirectGfx9)    ||
+                CheckGfx101CpUcodeVersion(*m_pDevice, PfpUcodeVersionNativeExecuteIndirectGfx10_1) ||
+                CheckGfx103CpUcodeVersion(*m_pDevice, PfpUcodeVersionNativeExecuteIndirectGfx10_3))
+            {
+                m_settings.useExecuteIndirectPacket = UseExecuteIndirectPacketForDraw;
+            }
 
-        constexpr uint32 PfpUcodeVersionSpillTableSupportedExecuteIndirectGfx10_1 = 155;
-        constexpr uint32 PfpUcodeVersionSpillTableSupportedExecuteIndirectGfx10_3 = 91;
+            constexpr uint32 PfpUcodeVersionSpillTableSupportedExecuteIndirectGfx10_1 = 155;
+            constexpr uint32 PfpUcodeVersionSpillTableSupportedExecuteIndirectGfx10_3 = 91;
 
-        if (((m_pDevice->ChipProperties().gfxLevel == GfxIpLevel::GfxIp10_1) &&
-                (m_pDevice->ChipProperties().pfpUcodeVersion >=
-                    PfpUcodeVersionSpillTableSupportedExecuteIndirectGfx10_1)) ||
-                ((m_pDevice->ChipProperties().gfxLevel == GfxIpLevel::GfxIp10_3) &&
-                    (m_pDevice->ChipProperties().pfpUcodeVersion >=
-                        PfpUcodeVersionSpillTableSupportedExecuteIndirectGfx10_3)))
-        {
-            m_settings.useExecuteIndirectPacket = UseExecuteIndirectPacketForDrawSpillTable;
+            if (CheckGfx101CpUcodeVersion(*m_pDevice, PfpUcodeVersionSpillTableSupportedExecuteIndirectGfx10_1) ||
+                CheckGfx103CpUcodeVersion(*m_pDevice, PfpUcodeVersionSpillTableSupportedExecuteIndirectGfx10_3))
+            {
+                m_settings.useExecuteIndirectPacket = UseExecuteIndirectPacketForDrawSpillTable;
+            }
+
+            constexpr uint32 PfpUcodeVerionVbTableSupportedExecuteIndirectGfx10_1 = 155;
+            constexpr uint32 PfpUcodeVerionVbTableSupportedExecuteIndirectGfx10_3 = 95;
+
+            if (CheckGfx101CpUcodeVersion(*m_pDevice, PfpUcodeVerionVbTableSupportedExecuteIndirectGfx10_1) ||
+                CheckGfx103CpUcodeVersion(*m_pDevice, PfpUcodeVerionVbTableSupportedExecuteIndirectGfx10_3))
+            {
+                m_settings.useExecuteIndirectPacket = UseExecuteIndirectPacketForDrawSpillAndVbTable;
+            }
         }
     }
 
@@ -202,6 +233,12 @@ void SettingsLoader::OverrideDefaults()
        )
     {
         m_settings.addr2UseVarSwizzleMode = Addr2UseVarSwizzle::Addr2UseVarSwizzleDisable;
+    }
+
+    if (m_pDevice->ChipProperties().vcnLevel > VcnIpLevel::VcnIp1)
+    {
+
+        m_settings.waForceLinearHeight16Alignment = true;
     }
 
     m_state = SettingsLoaderState::LateInit;

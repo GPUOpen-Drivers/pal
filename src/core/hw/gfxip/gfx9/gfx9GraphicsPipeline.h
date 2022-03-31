@@ -307,6 +307,7 @@ private:
             regPA_SU_VTX_CNTL               paSuVtxCntl;
             regPA_CL_VTE_CNTL               paClVteCntl;
             regPA_SC_LINE_CNTL              paScLineCntl;
+            regPA_SC_EDGERULE               paScEdgerule;
             regPA_STEREO_CNTL               paStereoCntl;
             regSPI_INTERP_CONTROL_0         spiInterpControl0;
             regVGT_VERTEX_REUSE_BLOCK_CNTL  vgtVertexReuseBlockCntl;

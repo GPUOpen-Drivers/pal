@@ -64,6 +64,17 @@ General
 
 -   Source lines ***must*** be no more than 120 characters long.
 
+    -   On VS Code, you can set a vertical ruler to display the 120 character
+        limit by setting "editor.rulers" to 120 in ```Settings.json``` (press
+        CTRL + P and search for Settings.json)
+
+        - The color of the vertical ruler can also be customized with the following
+          json object:
+          ```"workbench.colorCustomizations": {"editorRuler.foreground": "#colorcode" }}```
+
+    -   On Visual Studio, you can use the Editor Guidelines extension (found on the Visual
+        Studio marketplace)
+
 >  This is a point of frustration for some developers in an age when
 >  everyone is using 24"+ widescreen monitors. However, we find that the 120 column
 >  limit keeps side-by-side diffs easily readable and enables a better
@@ -93,6 +104,9 @@ General Language Restrictions
 -   When necessary for implementing a templated function or class, STL
     helpers from the `type_traits` header and `std::numeric_limits`
     **may** be used.
+
+-   The std `atomic` header ***should*** be used to implement atomic
+    values and thread barriers.
 
 -   Standard I/O stream functionality (i.e., cin, cout, cerr, clog)
     ***must not*** be used.

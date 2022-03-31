@@ -160,7 +160,12 @@ union GpuMemoryCreateFlags
 #else
         uint32 placeholder677    :  1;
 #endif
-        uint32 reserved          :  4; ///< Reserved for future use.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 723
+        uint32 privateScreen     :  1; // GPU memory will be used for a private screen image.
+#else
+        uint32 placeHolder723    :  1;
+#endif
+        uint32 reserved          :  3; ///< Reserved for future use.
     };
     uint32     u32All;                 ///< Flags packed as 32-bit uint.
 };

@@ -1460,30 +1460,41 @@ void Image::InitLayoutStateMasks()
 }
 
 // =====================================================================================================================
-// Gets the raw base address for the specified mask-ram.
-gpusize Image::GetMaskRamBaseAddr(
-    const MaskRam*   pMaskRam,
-    uint32           arraySlice
+// Gets the offset for the specified mask-ram, relative to the image's bound GPU memory base address
+gpusize Image::GetMaskRamBaseOffset(
+    const MaskRam* pMaskRam,
+    uint32         arraySlice
     ) const
 {
-    gpusize  maskRamMemOffset = pMaskRam->MemoryOffset();
+    gpusize maskRamMemOffset = pMaskRam->MemoryOffset();
 
     if (arraySlice != 0)
     {
-        const  auto*  pGfx9MaskRam  = static_cast<const Gfx9MaskRam*>(pMaskRam);
+        const auto* pGfx9MaskRam = static_cast<const Gfx9MaskRam*>(pMaskRam);
 
         maskRamMemOffset += pGfx9MaskRam->SliceOffset(arraySlice);
     }
 
     // Verify that the mask ram isn't thought to be in the same place as the image itself.  That would be "bad".
     // Exception:  if the image is being created to be "mask ram only", then the offset could very well
-    //              be zero as there is no image data.
+    //             be zero as there is no image data.
     if (Parent()->GetInternalCreateInfo().flags.vrsOnlyDepth == 0)
     {
         PAL_ASSERT(maskRamMemOffset != 0);
     }
 
-    const  gpusize  baseAddr = m_pParent->GetBoundGpuMemory().GpuVirtAddr() + maskRamMemOffset;
+    return maskRamMemOffset + m_pParent->GetBoundGpuMemory().Offset();
+}
+
+// =====================================================================================================================
+// Gets the raw base address for the specified mask-ram.
+gpusize Image::GetMaskRamBaseAddr(
+    const MaskRam* pMaskRam,
+    uint32         arraySlice
+    ) const
+{
+    const gpusize memAddr  = m_pParent->GetBoundGpuMemory().Memory()->Desc().gpuVirtAddr;
+    const gpusize baseAddr = memAddr + GetMaskRamBaseOffset(pMaskRam, arraySlice);
 
     return baseAddr;
 }

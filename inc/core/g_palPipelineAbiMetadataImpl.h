@@ -1113,6 +1113,20 @@ inline Result DeserializePipelineMetadata(
                 break;
             }
 
+            case HashLiteralString(PipelineMetadataKey::PsSampleMask):
+            {
+                PAL_ASSERT(pMetadata->hasEntry.psSampleMask == 0);
+                bool value = false;
+                result = pReader->UnpackNext(&value);
+
+                if (result == Result::Success)
+                {
+                    pMetadata->flags.psSampleMask = value;
+                }
+                pMetadata->hasEntry.psSampleMask = (result == Result::Success);
+                break;
+            }
+
             default:
                 result = pReader->Skip(1);
                 break;

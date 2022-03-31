@@ -380,6 +380,10 @@ protected:
                                                         bool isDepthStencil,
                                                         uint32 numSamples) const;
 
+    const GraphicsPipeline* GetScaledCopyDepthStencilPipeline(bool isDepth,
+                                                              bool isDepthStencil,
+                                                              uint32 numSamples) const;
+
     void GenericColorBlit(
         GfxCmdBuffer*        pCmdBuffer,
         const Image&         dstImage,

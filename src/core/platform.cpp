@@ -41,7 +41,9 @@
 #if PAL_BUILD_RDF
 #include "palTraceSession.h"
 #include "gpuUtil/asicInfoTraceSource.h"
+#include "gpuUtil/apiInfoTraceSource.h"
 #include "gpuUtil/uberTraceService.h"
+#include "gpuUtil/frameTraceController.h"
 #endif
 
 // Dev Driver includes
@@ -105,7 +107,9 @@ Platform::Platform(
     m_pRgpServer(nullptr),
 #if PAL_BUILD_RDF
     m_pTraceSession(nullptr),
+    m_pFrameTraceController(nullptr),
     m_pAsicInfoTraceSource(nullptr),
+    m_pApiInfoTraceSource(nullptr),
     m_pUberTraceService(nullptr),
     m_rpcServer(DD_API_INVALID_HANDLE),
 #endif
@@ -114,7 +118,9 @@ Platform::Platform(
     m_svmRangeStart(0),
     m_maxSvmSize(createInfo.maxSvmSize),
     m_logCb(),
-    m_eventProvider(this)
+    m_eventProvider(this),
+    m_clientApiMajorVer(createInfo.apiMajorVer),
+    m_clientApiMinorVer(createInfo.apiMinorVer)
 {
     memset(&m_pDevice[0], 0, sizeof(m_pDevice));
     memset(&m_properties, 0, sizeof(m_properties));
@@ -142,6 +148,7 @@ Platform::~Platform()
     DestroyDevDriver();
 #if PAL_BUILD_RDF
     DestroyDefaultTraceSources();
+    DestroyTraceControllers();
     DestroyTraceSession();
 #endif
 
@@ -334,6 +341,15 @@ Result Platform::Init()
 {
     Result result = IPlatform::Init();
 
+#if PAL_BUILD_RDF
+    // Safer to initialize the TraceSession before EarlyInitDevDriver(), since the session's JSON-based config may be
+    // updated during that method
+    if (result == Result::Success)
+    {
+        result = InitTraceSession();
+    }
+#endif
+
     // Perform early initialization of the developer driver after the platform is available.
     if (result == Result::Success)
     {
@@ -372,7 +388,12 @@ Result Platform::Init()
 #if PAL_BUILD_RDF
     if (result == Result::Success)
     {
-        result = InitTraceSession();
+        result = InitTraceControllers();
+    }
+
+    if (result == Result::Success)
+    {
+        result = RegisterTraceControllers();
     }
 
     if (result == Result::Success)
@@ -415,7 +436,6 @@ Result Platform::EarlyInitDevDriver()
     DevDriver::Result devDriverResult = DevDriver::Result::Success;
     if (isConnectionAvailable)
     {
-        // OGL apps can only be captured when the client id is "Vulkan".
         constexpr const char* pClientStr = "AMD Vulkan Driver";
 
         // Configure the developer driver server for driver usage
@@ -471,8 +491,7 @@ Result Platform::EarlyInitDevDriver()
             // Free the memory for the developer driver server object if we fail to initialize it completely.
             if (devDriverResult != DevDriver::Result::Success)
             {
-                PAL_DELETE(m_pDevDriverServer, this);
-                m_pDevDriverServer = nullptr;
+                PAL_SAFE_DELETE(m_pDevDriverServer, this);
             }
             else // Initialize the event server if we have a valid DevDriver server.
             {
@@ -526,8 +545,11 @@ Result Platform::EarlyInitDevDriver()
                 // so we can safely destroy all of the previously initialized DevDriver infrastructure.
                 m_eventProvider.Destroy();
 
-                PAL_DELETE(m_pDevDriverServer, this);
-                m_pDevDriverServer = nullptr;
+#if PAL_BUILD_RDF
+                DestroyRpcServices();
+#endif
+
+                PAL_SAFE_DELETE(m_pDevDriverServer, this);
             }
         }
     }
@@ -669,12 +691,50 @@ void Platform::DestroyTraceSession()
 }
 
 // =====================================================================================================================
+Result Platform::InitTraceControllers()
+{
+    Result result = Result::Success;
+    m_pFrameTraceController = PAL_NEW(GpuUtil::FrameTraceController, this, AllocInternal) (this);
+
+    if (m_pFrameTraceController == nullptr)
+    {
+        result = Result::ErrorOutOfMemory;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result Platform::RegisterTraceControllers()
+{
+    Result result = m_pTraceSession->RegisterController(m_pFrameTraceController);
+    return result;
+}
+
+// =====================================================================================================================
+void Platform::UpdateFrameTraceController(
+    ICmdBuffer* pCmdBuffer)
+{
+    m_pFrameTraceController->UpdateFrame(pCmdBuffer);
+}
+
+// =====================================================================================================================
+void Platform::DestroyTraceControllers()
+{
+    if (m_pFrameTraceController != nullptr)
+    {
+        PAL_SAFE_DELETE(m_pFrameTraceController, this);
+    }
+}
+
+// =====================================================================================================================
 Result Platform::InitDefaultTraceSources()
 {
     Result result = Result::Success;
     m_pAsicInfoTraceSource = PAL_NEW(GpuUtil::AsicInfoTraceSource, this, AllocInternal) (this);
+    m_pApiInfoTraceSource  = PAL_NEW(GpuUtil::ApiInfoTraceSource, this, AllocInternal) (this);
 
-    if (m_pAsicInfoTraceSource == nullptr)
+    if ((m_pAsicInfoTraceSource == nullptr) || (m_pApiInfoTraceSource == nullptr))
     {
         result = Result::ErrorOutOfMemory;
     }
@@ -687,6 +747,12 @@ Result Platform::InitDefaultTraceSources()
 Result Platform::RegisterDefaultTraceSources()
 {
     Result result = m_pTraceSession->RegisterSource(m_pAsicInfoTraceSource);
+
+    if (Util::IsErrorResult(result) == false)
+    {
+        result = m_pTraceSession->RegisterSource(m_pApiInfoTraceSource);
+    }
+
     return result;
 }
 
@@ -697,6 +763,10 @@ void Platform::DestroyDefaultTraceSources()
     if (m_pAsicInfoTraceSource != nullptr)
     {
         PAL_SAFE_DELETE(m_pAsicInfoTraceSource, this);
+    }
+    if (m_pApiInfoTraceSource != nullptr)
+    {
+        PAL_SAFE_DELETE(m_pApiInfoTraceSource, this);
     }
 }
 

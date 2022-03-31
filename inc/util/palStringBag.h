@@ -33,6 +33,8 @@
 
 #include "palUtil.h"
 #include "palAssert.h"
+#include "palInlineFuncs.h"
+#include "palStringView.h"
 #include "palSysMemory.h"
 #include <type_traits>
 
@@ -97,42 +99,39 @@ public:
     /// Checks if the current index is within bounds of the strings in the bag.
     ///
     /// @returns True if the current string this iterator is pointing to is within the permitted range.
-    bool IsValid() const { return (m_currIndex < m_pSrcBag->m_currOffset); }
+    bool IsValid() const { return m_pSrcBag->IsValid(m_currIndex); }
 
     /// Returns the string the iterator is currently pointing to as const pointer.
     ///
     /// @warning This may cause an access violation if the iterator is not valid.
     ///
     /// @returns The string the iterator is currently pointing to as const pointer.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 717
     const T* Get() const
     {
         PAL_ASSERT(IsValid());
         return (m_pSrcBag->m_pData + m_currIndex);
     }
+#else
+    StringView<T> Get() const
+    {
+        return StringView<T>{m_pSrcBag->GetDataAt(m_currIndex), m_pSrcBag->GetLengthAt(m_currIndex)};
+    }
+#endif
 
     /// Returns a handle for the string the iterator is currently pointing to.
     ///
     /// @warning This may cause an access violation if the iterator is not valid.
     ///
     /// @returns A handle for the string the iterator is currently pointing to.
-    StringBagHandle<T> GetHandle() const
-    {
-        PAL_ASSERT(IsValid());
-        return m_pSrcBag->GetHandleAt(Position());
-    }
+    StringBagHandle<T> GetHandle() const { return m_pSrcBag->GetHandleAt(m_currIndex); }
 
-    /// Advances the iterator to the next string.  Iterating to the next string in the container is an O(N) operation,
-    /// where N is the length of the current string.
+    /// Advances the iterator to the next string.  Iterating to the next string in the container is an O(1) operation.
     ///
     /// @warning Does not do bounds checking.
     void Next()
     {
-        PAL_ASSERT(IsValid());
-        do
-        {
-            m_currIndex++;
-            PAL_ASSERT(m_currIndex <= m_pSrcBag->m_maxCapacity);
-        } while (m_pSrcBag->m_pData[m_currIndex - 1] != T(0));
+        m_currIndex += uint32(StringBag<T, Allocator>::RequiredSpace(m_pSrcBag->GetLengthAt(m_currIndex)));
     }
 
     /// Retrieves the current position of this iterator.
@@ -143,7 +142,13 @@ public:
 private:
     StringBagIterator() = delete;
 
-    StringBagIterator(uint32 index, const StringBag<T, Allocator>* pSrcBag);
+    StringBagIterator(
+        uint32                         index,
+        const StringBag<T, Allocator>* pSrcBag)
+        :
+        m_currIndex(index),
+        m_pSrcBag(pSrcBag)
+    {}
 
     uint32                          m_currIndex; // The current index of the bag iterator.
     const StringBag<T, Allocator>*  m_pSrcBag;   // The bag container this iterator is used for.
@@ -164,6 +169,8 @@ private:
 * - Forward iteration.
 * - Random access from valid handles.
 *
+* All strings are stored with their length before the actual string data in the buffer.
+*
 * @warning This class is not thread-safe.
 ***********************************************************************************************************************
 */
@@ -172,10 +179,12 @@ class StringBag
 {
     static_assert((std::is_same<T, char>::value || std::is_same<T, wchar_t>::value),
                   "StringBag type T must be either char or wchar_t.");
+
+    using StringLengthType = uint32;
 public:
-    /// A convenient shorthand for StringBagIterator.
-    using Iter   = StringBagIterator<T, Allocator>;
-    using Handle = StringBagHandle<T>;
+    using Iter             = StringBagIterator<T, Allocator>;
+    using Handle           = StringBagHandle<T>;
+    using StringViewType   = StringView<T>;
 
     /// Constructor.
     ///
@@ -228,7 +237,7 @@ public:
     ///
     /// @returns A valid handle to the inserted string if @ref pResult is set to Success. The handle is the
     ///          interger offset to the start of the inserted string in the bag.
-    StringBagHandle<T> PushBack(const T* pString, Result* pResult);
+    Handle PushBack(const T* pString, Result* pResult);
 
     /// Copy a string to end of the bag. If there is not enough space available, new space will be allocated
     /// and the old strings will be copied to the new space.
@@ -253,7 +262,30 @@ public:
     ///
     /// @returns A valid handle to the inserted string if @ref pResult is set to Success. The handle is the
     ///          interger offset to the start of the inserted string in the bag.
-    StringBagHandle<T> PushBack(const T* pString, uint32 length, Result* pResult);
+    Handle PushBack(const T* pString, uint32 length, Result* pResult);
+
+    /// Copy the string from a @ref StringView to end of the bag. If there is not enough space available, new space will
+    /// be allocated and the old strings will be copied to the new space.
+    ///
+    /// @note Even if the string view does not point to a null terminated string, the stored string will be null
+    ///       terminated.
+    ///
+    /// @warning Calling with an invalid @ref length results in undefined behavior!
+    ///
+    /// @warning Calling with an invalid @ref pResult pointer will cause an access violation!
+    ///
+    /// @param [in] sv  The string view with the string to be pushed to the bag. The string will become the last string
+    ///                 in the bag.
+    ///
+    /// @param [out] pResult - Set to ErrorInvalidPointer if @ref pString an invalid pointer, but leaves the bag
+    ///                        in an unmodified state.
+    ///                      - Set to ErrorOutOfMemory if the operation failed because memory couldn't be allocated.
+    ///                      - Set to ErrorInvalidMemorySize if the operation would result in a memory allocation
+    ///                        larger than the maximum value possible for a uint32.
+    ///
+    /// @returns A valid handle to the inserted string if @ref pResult is set to Success. The handle is the
+    ///          interger offset to the start of the inserted string in the bag.
+    Handle PushBack(Util::StringView<T> sv, Result* pResult);
 
     /// Resets the bag. All dynamically allocated memory will be saved for reuse.
     ///
@@ -276,11 +308,14 @@ public:
     ///                             - @ref StringBagIterator::GetHandle()
     ///
     /// @returns A const pointer to the string at the location specified by @ref handle.
-    const T* At(StringBagHandle<T> handle) const
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 717
+    const T* At(Handle handle) const { return GetDataAt(handle.InternalValue()); }
+#else
+    StringViewType At(Handle handle) const
     {
-        PAL_ASSERT(handle.InternalValue() < NumChars());
-        return (m_pData + handle.InternalValue());
+        return StringViewType{GetDataAt(handle.InternalValue()), GetLengthAt(handle.InternalValue())};
     }
+#endif
 
     /// Returns an iterator to the first string in the bag.
     ///
@@ -289,6 +324,7 @@ public:
     /// @returns An iterator to first string in the bag.
     Iter Begin() const { return Iter(0, this); }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 717
     /// Returns a pointer to the underlying buffer serving as the data storage.
     /// The returned pointer defines an always valid range [Data(), Data() + NumElements()),
     /// even if the container is empty (Data() is not dereferenceable in that case).
@@ -306,6 +342,10 @@ public:
     ///          in the bag. The size in bytes of this portion of the data buffer is equal to:
     ///                 size(T) * NumChars()
     uint32 NumChars() const { return m_currOffset; }
+#endif
+
+    /// Returns the size of the bag in bytes.
+    uint32 GetByteSize() const { return m_currOffset; }
 
     /// Returns true if the number of strings present in the bag is equal to zero.
     ///
@@ -318,8 +358,39 @@ public:
     Allocator* GetAllocator() const { return m_pAllocator; }
 
 private:
-    StringBagHandle<T> GetHandleAt(uint32 offset) const
+    /// Space required for the string length. <summary>
+    constexpr static size_t StringLengthSizeof = sizeof(StringLengthType);
+
+    /// Returns how much space is required for a string with the given length, with additional padding for alignment.
+    static constexpr size_t RequiredSpace(uint32 stringLength)
     {
+        return Pow2Align(StringLengthSizeof + stringLength + 1, alignof(StringLengthType));
+    }
+
+    /// Returns if the offset is within bounds of the strings in the bag.
+    ///
+    /// @returns True if the current string this iterator is pointing to is within the permitted range.
+    bool IsValid(uint32 offset) const { return (offset < m_currOffset); }
+
+    /// Returns the length for the string at the given offset.
+    uint32 GetLengthAt(uint32 offset) const
+    {
+        PAL_ASSERT(IsValid(offset));
+        const auto* pStringLength =
+            Util::AssumeAligned<alignof(StringLengthType)>(reinterpret_cast<uint32*>(m_pData + offset));
+        return *pStringLength;
+    }
+
+    /// Returns the data of the string at the given offset.
+    const T* GetDataAt(uint32 offset) const
+    {
+        PAL_ASSERT(IsValid(offset));
+        return m_pData + StringLengthSizeof + offset;
+    }
+
+    Handle GetHandleAt(uint32 offset) const
+    {
+        PAL_ASSERT(IsValid(offset));
 #if PAL_ENABLE_PRINTS_ASSERTS
         return Handle{*this, offset};
 #else
@@ -328,7 +399,6 @@ private:
     }
 
     Result ReserveInternal(uint32 newCapacity);
-    Result PushBackInternal(const T* pString, uint32 length, Handle* pHandle);
 
     T*               m_pData;        // Pointer to the string buffer.
     uint32           m_currOffset;   // Current character offset into the string buffer.
@@ -350,16 +420,6 @@ private:
     friend class StringBagHandle<T>;
 #endif
 };
-
-// =====================================================================================================================
-template<typename T, typename Allocator>
-StringBagIterator<T, Allocator>::StringBagIterator(
-    uint32                         index,
-    const StringBag<T, Allocator>* pSrcBag)
-    :
-    m_currIndex(index),
-    m_pSrcBag(pSrcBag)
-{}
 
 // =====================================================================================================================
 template<typename T, typename Allocator>

@@ -34,6 +34,33 @@ namespace GpuUtil
 {
 
 // =====================================================================================================================
+// Translates a Pal::Result to a DD_RESULT
+static DD_RESULT PalResultToDdResult(
+    Result result)
+{
+    DD_RESULT devDriverResult;
+
+    switch (result)
+    {
+    case Result::Success:
+        devDriverResult = DD_RESULT_SUCCESS;
+        break;
+    case Result::ErrorInvalidPointer:
+    case Result::ErrorInvalidValue:
+        devDriverResult = DD_RESULT_COMMON_INVALID_PARAMETER;
+        break;
+    case Result::ErrorUnavailable:
+        devDriverResult = DD_RESULT_COMMON_UNSUPPORTED;
+        break;
+    default:
+        devDriverResult = DD_RESULT_DD_UNKNOWN;
+        break;
+    }
+
+    return devDriverResult;
+}
+
+// =====================================================================================================================
 UberTraceService::UberTraceService(
     Platform* pPlatform)
     :
@@ -47,9 +74,23 @@ UberTraceService::~UberTraceService()
 }
 
 // =====================================================================================================================
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 712
+DD_RESULT UberTraceService::ConfigureTraceParams(
+    const void* pParamBuffer,
+    size_t      paramBufferSize)
+{
+    Result    result          = m_pPlatform->GetTraceSession()->UpdateTraceConfig(pParamBuffer, paramBufferSize);
+    DD_RESULT devDriverResult = PalResultToDdResult(result);
+    return devDriverResult;
+}
+#endif
+
+// =====================================================================================================================
 DD_RESULT UberTraceService::RequestTrace()
 {
-    return DD_RESULT_SUCCESS;
+    DD_RESULT devDriverResult = (m_pPlatform->GetTraceSession()->RequestTrace() == Result::Success) ?
+                                DD_RESULT_SUCCESS : DD_RESULT_DD_GENERIC_UNAVAILABLE;
+    return devDriverResult;
 }
 
 // =====================================================================================================================

@@ -25,12 +25,6 @@
 
 #pragma once
 
-#if DD_PLATFORM_WINDOWS_KM
-// WA: A header file somewhere references this without defining it, so we forward declare it here for compatibility.
-// GH #336
-extern "C" __declspec(dllimport) __declspec(noreturn) void __cdecl abort(void);
-#endif
-
 #include <stdarg.h>
 #include <new>
 
@@ -806,6 +800,7 @@ static inline const char* ResultToString(Result result)
         case Result::FileAccessError:    return "FileAccessError";
         case Result::FileIoError:        return "FileIoError";
         case Result::LimitReached:       return "LimitReached";
+        case Result::MemoryOverLimit:    return "MemoryOverLimit";
 
         //// URI PROTOCOL  ////
         case Result::UriServiceRegistrationError:  return "UriServiceRegistrationError";
@@ -831,6 +826,13 @@ static inline const char* ResultToString(Result result)
         case Result::InfoUriSourceCallbackInvalid:   return "InfoUriSourceCallbackInvalid";
         case Result::InfoUriSourceAlreadyRegistered: return "InfoUriSourceAlreadyRegistered";
         case Result::InfoUriSourceWriteFailed:       return "InfoUriSourceWriteFailed";
+
+        //// Settings Service  ////
+        case Result::SettingsInvalidComponent:        return "SettingsInvalidComponent";
+        case Result::SettingsInvalidSettingName:      return "SettingsInvalidSettingName";
+        case Result::SettingsInvalidSettingValue:     return "SettingsInvalidSettingValue";
+        case Result::SettingsInsufficientValueSize:   return "SettingsInsufficientValueSize";
+        case Result::SettingsInvalidSettingValueSize: return "SettingsInvalidSettingValueSize";
     }
 
     DD_PRINT(LogLevel::Warn, "Result code %u is not handled", static_cast<uint32>(result));
