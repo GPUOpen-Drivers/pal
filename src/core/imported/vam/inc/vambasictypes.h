@@ -38,20 +38,6 @@
 // --------------------------  Autodetect settings ----------------------------
 //
 
-// We try to detect if we build for 64-bit or 32-bit OS.
-// Note: We assume that we have flat address model, not segment one.
-#if  defined(__x86_64__)
-#define TARGET_64_OS                    1   // We build for 64-bit target
-#elif  defined(__i386__)
-#define TARGET_32_OS                    1   // We build for 32-bit target
-#elif defined(__aarch64__)
-#define TARGET_64_OS                    1   // We build for 64-bit target
-#elif defined(__arm__)
-#define TARGET_32_OS                    1   // We build for 32-bit target
-#else
-#error Could not detect if this 32-bit or 64-bit OS
-#endif
-
 // Different compiler has different definitions for int8, int16, int32, etc.
 #if defined(__unix__)
 #include <stdint.h>
@@ -153,15 +139,9 @@ typedef int32_t             BOOLEAN;
 #define TRUE                1
 typedef void   *            HANDLE;
 
-#ifdef TARGET_32_OS
-typedef uint32_t            DWORD_PTR;
-typedef uint32_t            ULONG_PTR;
-typedef uint32_t            UINT_PTR;
-#else                                       // #ifdef TARGET_32_OS
-typedef uint64_t            DWORD_PTR;
-typedef uint64_t            ULONG_PTR;
-typedef uint64_t            UINT_PTR;
-#endif
+typedef uintptr_t           DWORD_PTR;
+typedef uintptr_t           ULONG_PTR;
+typedef uintptr_t           UINT_PTR;
 
 #define DWORD_PTR           DWORD_PTR
 #define ULONG_PTR           ULONG_PTR
