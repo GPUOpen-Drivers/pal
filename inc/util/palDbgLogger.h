@@ -48,6 +48,37 @@ static constexpr uint32 DefaultMsgSize = 1024;  ///< default max size for the ma
 /// Individual loggers may override these defaults when implementing more sophisticated formatting scheme.
 static constexpr uint32 DefaultFinalMsgSize = DefaultMsgSize + 12;
 
+/// DbgLoggerFile related enums used by DbgLoggerFileSettings struct
+enum FileSettings : uint32
+{
+    LogToDisk     = 0x01,  ///< Write debug messages to a disk file
+    LogToTerminal = 0x02,  ///< Write debug messages to terminal or debuger's output window
+    AddPid        = 0x04,  ///< Add PID to file name
+    AddPname      = 0x08,  ///< Add process name to file name
+    AddLibName    = 0x10   ///< Add Library name to file name
+};
+
+constexpr uint32 AllFileSettings = FileSettings::LogToDisk     |
+                                   FileSettings::LogToTerminal |
+                                   FileSettings::AddPid        |
+                                   FileSettings::AddPname      |
+                                   FileSettings::AddLibName;
+
+/// Base structure for debug log settings
+struct DbgLoggerSettings
+{
+    SeverityLevel severityLevel;  ///< All messages below this SeverityLevel get filtered out.
+    uint32        origTypeMask;   ///< A mask of acceptable origination types
+};
+
+/// Structure of file debug logger settings
+struct DbgLoggerFileSettings : public DbgLoggerSettings
+{
+    uint32       fileSettingsFlags; ///< Mask of file settings as defined above in FileSettings
+    uint32       fileAccessFlags;   ///< Mask of file access modes as defined in Util::FileAccessMode
+    const char*  pLogDirectory;     ///< Directory where log files will be written
+};
+
 /// Provides simple formatting of the log message of the form: "<severity level>:<main msg>\r\t".
 /// The main msg conforms to a max size of 'msgSize' beyond which the main message will be truncated.
 /// It assumes that the input msg string is null terminated and formats only if there is enough space
@@ -94,12 +125,18 @@ public:
     ///                          number of characters will be used to identify the client.
     /// @param [in] dataSize     Size of raw data.
     /// @param [in] pData        Pointer to raw data.
-    virtual void LogMessage(
+    void LogMessage(
         SeverityLevel   severity,
         OriginationType source,
         const char*     pClientTag,
         size_t          dataSize,
-        const void*     pData) = 0;
+        const void*     pData)
+    {
+        if (AcceptMessage(severity, source))
+        {
+            WriteMessage(severity, source, pClientTag, dataSize, pData);
+        }
+    }
 
     /// Logs a text string to a destination if this logger is interested in the input message.
     ///
@@ -109,7 +146,7 @@ public:
     ///                          number of characters will be used to identify the client.
     /// @param [in] pFormat      Format string for the log message.
     /// @param [in] ...          Variable arguments that correspond to the format string.
-    virtual void LogMessage(
+    void LogMessage(
         SeverityLevel   severity,
         OriginationType source,
         const char*     pClientTag,
@@ -130,12 +167,23 @@ public:
     ///                          number of characters will be used to identify the client.
     /// @param [in] pFormat      Format string for the log message.
     /// @param [in] args         Variable arguments list
-    virtual void LogMessage(
+    void LogMessage(
         SeverityLevel   severity,
         OriginationType source,
         const char*     pClientTag,
         const char*     pFormat,
-        va_list         args) = 0;
+        va_list         args)
+    {
+        if (AcceptMessage(severity, source))
+        {
+            char outputMsg[DefaultFinalMsgSize];
+            outputMsg[0] = '\0';
+            FormatMessageSimple(outputMsg, DefaultFinalMsgSize, severity, pFormat, args);
+            // If the msg was truncated, just accept it as is. We are not going to format
+            // again with a bigger buffer at this time.
+            WriteMessage(severity, source, pClientTag, (strlen(outputMsg) * sizeof(char)), outputMsg);
+        }
+    }
 
     /// Returns the pointer to debug loggers list node containing this logger.
     DbgLoggersList::Node* ListNode()
@@ -160,20 +208,36 @@ protected:
     ///  Destructor
     virtual ~IDbgLogger() {}
 
-    /// Filters the incoming msg according to its severity and source. Messages will only
-    /// get logged if they pass through this filter.
+    /// Checks to see if an incoming msg should be accpeted according to its severity and source.
+    /// Messages will only get logged if they pass through this check.
     ///
     /// @param [in] severity     Specifies the log msg's severity level.
     /// @param [in] source       Specifies the log msg's origination type (source).
     /// @returns true if log msg's severity is above the cutoff level and source is in this logger's mask.
     ///          Otherwise, returns false.
-    bool FilterMessage(
+    bool AcceptMessage(
         SeverityLevel   severity,
         OriginationType source)
     {
         const uint32 sourceFlag = (1ul << uint32(source));
         return ((severity >= m_cutoffSeverityLevel) && (TestAnyFlagSet(m_originationTypeMask, sourceFlag)));
     }
+
+    /// Writes the message to a destination. Each derived class implements this method
+    /// and knows where and how to write the message.
+    ///
+    /// @param [in] severity     Specifies the severity level of the log message
+    /// @param [in] source       Specifies the origination type (source) of the log message
+    /// @param [in] pClientTag   Indicates the client that logs a message. Only the first 'ClientTagSize'
+    ///                          number of characters will be used to identify the client.
+    /// @param [in] dataSize     Size of raw data.
+    /// @param [in] pData        Pointer to raw data.
+    virtual void WriteMessage(
+        SeverityLevel   severity,
+        OriginationType source,
+        const char*     pClientTag,
+        size_t          dataSize,
+        const void*     pData) = 0;
 
     SeverityLevel        m_cutoffSeverityLevel;   ///< All messages below this SeverityLevel get filtered out.
     uint32               m_originationTypeMask;   ///< A mask of acceptable origination types
@@ -182,7 +246,7 @@ protected:
 
 /**
 ************************************************************************************************************************
-* @brief     Class to log to a file. Log messages will be buffered and dumped to a file.
+* @brief     Class to log to a file. Log messages will be dumped to a file.
 *
 * Clients can use objects of this class for logging as:
 * 1. Instantiate this logger, to get:       pDbgLoggerFile = PAL_NEW()(severityLevel, maskOfOriginationTypes)
@@ -222,9 +286,13 @@ public:
         uint32      fileAccessMask);
 
     /// Cleanup any data structures used by the file logger.
-    void Cleanup();
+    void Cleanup()
+    {
+        m_file.Close();
+    }
 
-    /// Logs a buffer to a destination if this logger is interested in the input message.
+protected:
+    /// Writes the message to the file.
     ///
     /// @param [in] severity     Specifies the severity level of the log message
     /// @param [in] source       Specifies the origination type (source) of the log message
@@ -232,30 +300,61 @@ public:
     ///                          number of characters will be used to identify the client.
     /// @param [in] dataSize     Size of raw data.
     /// @param [in] pData        Pointer to raw data.
-    virtual void LogMessage(
+    virtual void WriteMessage(
         SeverityLevel   severity,
         OriginationType source,
         const char*     pClientTag,
         size_t          dataSize,
-        const void*     pData) override;
+        const void*     pData)
+    {
+        m_file.Write(pData, dataSize);
+    }
 
-    /// Logs a text string to a destination if this logger is interested in the input message.
+private:
+    File m_file; ///< File where debug messages will be logged.
+};
+
+/**
+************************************************************************************************************************
+* @brief     Class to print log messages to an output window.
+*
+* Clients can use objects of this class for logging as:
+* 1. Instantiate this logger, to get:       DbgLoggerPrint = PAL_NEW()(severityLevel, maskOfOriginationTypes)
+* 2. Attach it with:                        AttachDbgLogger(DbgLoggerPrint)
+* 3. When done, detach it with:             DetachDbgLogger(DbgLoggerPrint)
+* 4. Delete this logger:                    PAL_SAFE_DELETE()
+************************************************************************************************************************
+*/
+class DbgLoggerPrint final : public IDbgLogger
+{
+public:
+    /// Constructor
+    /// @param [in] severity     Specifies this logger's acceptable severity level.
+    /// @param [in] sourceMask   Specifies this logger's acceptable origination types as a bit mask.
+    DbgLoggerPrint(
+        SeverityLevel   severity,
+        uint32          sourceMask)
+        :
+        IDbgLogger(severity, sourceMask) {}
+
+    /// Destructor
+    virtual ~DbgLoggerPrint() {}
+
+protected:
+    /// Prints the message to an output window.
     ///
     /// @param [in] severity     Specifies the severity level of the log message
     /// @param [in] source       Specifies the origination type (source) of the log message
     /// @param [in] pClientTag   Indicates the client that logs a message. Only the first 'ClientTagSize'
     ///                          number of characters will be used to identify the client.
-    /// @param [in] pFormat      Format string for the log message.
-    /// @param [in] args         Variable arguments list
-    virtual void LogMessage(
+    /// @param [in] dataSize     Size of raw data.
+    /// @param [in] pData        Pointer to raw data.
+    virtual void WriteMessage(
         SeverityLevel   severity,
         OriginationType source,
         const char*     pClientTag,
-        const char*     pFormat,
-        va_list         args) override;
-
-private:
-    File m_file; ///< File where debug messages will be logged.
+        size_t          dataSize,
+        const void*     pData);
 };
 } //namespace Util
 #endif

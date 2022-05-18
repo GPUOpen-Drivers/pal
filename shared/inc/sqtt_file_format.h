@@ -145,10 +145,11 @@ typedef enum SqttFileChunkAsicInfoFlags
  */
 typedef enum SqttApiType
 {
-    SQTT_API_TYPE_DIRECTX_12,
-    SQTT_API_TYPE_VULKAN,
-    SQTT_API_TYPE_GENERIC,
-    SQTT_API_TYPE_OPENCL
+    SQTT_API_TYPE_DIRECTX_12 = 0,
+    SQTT_API_TYPE_VULKAN     = 1,
+    SQTT_API_TYPE_GENERIC    = 2,
+    SQTT_API_TYPE_OPENCL     = 3,
+    SQTT_API_TYPE_HIP        = 5
 } SqttApiType;
 
 /** A structure encapsulating a single chunk identifier.

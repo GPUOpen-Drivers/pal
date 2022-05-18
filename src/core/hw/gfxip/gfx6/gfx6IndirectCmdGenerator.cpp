@@ -29,7 +29,7 @@
 #include "core/hw/gfxip/gfx6/gfx6Device.h"
 #include "core/hw/gfxip/gfx6/gfx6GraphicsPipeline.h"
 #include "core/hw/gfxip/gfx6/gfx6IndirectCmdGenerator.h"
-#include "core/g_palPlatformSettings.h"
+#include "g_platformSettings.h"
 #include "palInlineFuncs.h"
 #include "palFormatInfo.h"
 

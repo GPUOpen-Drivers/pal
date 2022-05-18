@@ -27,7 +27,7 @@
 
 #include "palSettingsLoader.h"
 #include "core/device.h"
-#include "core/hw/gfxip/gfx6/g_gfx6PalSettings.h"
+#include "g_gfx6Settings.h"
 
 namespace Pal
 {

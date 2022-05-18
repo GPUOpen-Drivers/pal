@@ -74,7 +74,7 @@ CppIncludes = """#include \"core/platform.h\"
 #include \"core/platformSettingsLoader.h\"
 """
 
-IncludeDir = "core/"
+IncludeDir = ""
 HwlIncludeDir = ""
 
 PrefixName = ""
@@ -82,9 +82,10 @@ PrefixName = ""
 DevDriverIncludes = """
 #include \"devDriverServer.h\"
 #include \"protocols/ddSettingsService.h\"
+#include \"settingsService.h\"
 
 using namespace DevDriver::SettingsURIService;
-
+using namespace SettingsRpcService;
 """
 
 Enum = """
@@ -199,7 +200,28 @@ DevDriverRegisterFunc = """
 // Registers the core settings with the Developer Driver settings service.
 void %ClassName%::DevDriverRegister()
 {
-    PAL_ASSERT(m_pPlatform != nullptr);\
+    PAL_ASSERT(m_pPlatform != nullptr);
+
+    auto* pRpcSettingsService = m_pPlatform->GetSettingsService();
+    if (pRpcSettingsService != nullptr)
+    {
+        RegisteredComponent component = {};
+        strncpy(&component.componentName[0], m_pComponentName, kMaxComponentNameStrLen);
+        component.pPrivateData = static_cast<void*>(this);
+        component.pSettingsHashes = &%SettingHashListName%[0];
+        component.numSettings = %SettingNumSettingsName%;
+        component.pfnGetValue = ISettingsLoader::GetValue;
+        component.pfnSetValue = ISettingsLoader::SetValue;
+        component.pSettingsData = &%JsonDataArrayName%[0];
+        component.settingsDataSize = sizeof(%JsonDataArrayName%);
+        component.settingsDataHash = %SettingsDataHash%;
+        component.settingsDataHeader.isEncoded = %IsJsonEncoded%;
+        component.settingsDataHeader.magicBufferId = %MagicBufferId%;
+        component.settingsDataHeader.magicBufferOffset = %MagicBufferOffset%;
+
+        pRpcSettingsService->RegisterComponent(component);
+    }
+
     auto* pDevDriverServer = m_pPlatform->GetDevDriverServer();
     if (pDevDriverServer != nullptr)
     {

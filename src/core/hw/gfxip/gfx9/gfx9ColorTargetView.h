@@ -25,6 +25,7 @@
 
 #pragma once
 
+#include "palAssert.h"
 #include "palColorTargetView.h"
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "core/hw/gfxip/gfx9/gfx9Image.h"

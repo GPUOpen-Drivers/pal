@@ -597,9 +597,9 @@ void UniversalCmdBuffer::DumpCmdStreamsToFile(
 #endif
 
 // =====================================================================================================================
-// Copies the currently bound state to m_graphicsRestoreState. This cannot be called again until PopGraphicsState is
-// called.
-void UniversalCmdBuffer::PushGraphicsState()
+// Copies the currently bound state to m_graphicsRestoreState. This cannot be called again until CmdRestoreGraphicsState
+// is called.
+void UniversalCmdBuffer::CmdSaveGraphicsState()
 {
 #if PAL_ENABLE_PRINTS_ASSERTS
     PAL_ASSERT(m_graphicsStateIsPushed == false);
@@ -618,7 +618,7 @@ void UniversalCmdBuffer::PushGraphicsState()
 
 // =====================================================================================================================
 // Restores the last saved to m_graphicsRestoreState, rebinding all objects as necessary.
-void UniversalCmdBuffer::PopGraphicsState()
+void UniversalCmdBuffer::CmdRestoreGraphicsState()
 {
 #if PAL_ENABLE_PRINTS_ASSERTS
     PAL_ASSERT(m_graphicsStateIsPushed);
@@ -727,7 +727,7 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     if (graphics.pipelineState.pPipeline != nullptr)
     {
         m_graphicsState.enableMultiViewport    = graphics.enableMultiViewport;
-        m_graphicsState.everUsedMultiViewport |= graphics.everUsedMultiViewport;
+        m_graphicsState.depthClampMode         = graphics.depthClampMode;
     }
 
     if (graphics.leakFlags.validationBits.colorTargetView != 0)

@@ -1576,8 +1576,8 @@ Result Device::CreatePerfExperiment(
 // =====================================================================================================================
 bool Device::SupportsIterate256() const
 {
-    // ITERATE_256 is only supported on Gfx10 and newer product
-    return IsGfx10Plus(m_gfxIpLevel)                  &&
+    // ITERATE_256 is only supported on Gfx10 products.
+    return IsGfx10(m_gfxIpLevel)                       &&
         // Emulation cannot suport iterate256 = 0 since the frame buffer is really just system memory where the
         // page size is unknown.
         (GetPlatform()->IsEmulationEnabled() == false) &&
@@ -2961,7 +2961,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
             {
                 if (image.Parent()->IsDepthStencilTarget())
                 {
-                    if (TestAnyFlagSet(viewInfo.possibleLayouts.usages, LayoutShaderWrite | LayoutCopyDst) == false)
+                    if (TestAnyFlagSet(viewInfo.possibleLayouts.usages, LayoutShaderWrite) == false)
                     {
                         srd.word6.bits.COMPRESSION_EN = 1;
                         const gpusize htile256BAddrSwizzled = image.GetHtile256BAddrSwizzled();
@@ -2972,7 +2972,7 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
                 }
                 else
                 {
-                    if (TestAnyFlagSet(viewInfo.possibleLayouts.usages, LayoutShaderWrite | LayoutCopyDst) == false)
+                    if (TestAnyFlagSet(viewInfo.possibleLayouts.usages, LayoutShaderWrite) == false)
                     {
                         srd.word6.bits.COMPRESSION_EN = 1;
                         // The color image's meta-data always points at the DCC surface.  Any existing cMask or fMask
@@ -3713,19 +3713,21 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             srd.gfx10.depth = ComputeImageViewDepth(viewInfo, imageInfo, *pBaseSubResInfo);
         }
 
-        // (pitch-1)[12:0] of mip 0 for 1D, 2D and 2D MSAA in GFX10.3, if pitch > width,
+        // (pitch-1)[12:0] of mip 0 for 1D, 2D and 2D MSAA in GFX10.3+, if pitch > width,
         // we aren't treating mip1+ as the base image, and TA_CNTL_AUX.DEPTH_AS_WIDTH_DIS = 0
         const uint32  bytesPerPixel = Formats::BytesPerPixel(format);
         const uint32  pitchInPixels = imageCreateInfo.rowPitch / bytesPerPixel;
-        if ((false ||
-            IsGfx103(*pPalDevice))                   &&
-            (pitchInPixels > programmedExtent.width) &&
+        if ((pitchInPixels > programmedExtent.width) &&
             (viewMipAsFullTexture == false) &&
             ((srd.type == SQ_RSRC_IMG_1D) ||
              (srd.type == SQ_RSRC_IMG_2D) ||
              (srd.type == SQ_RSRC_IMG_2D_MSAA)))
         {
-            srd.gfx10.depth = pitchInPixels - 1;
+            if (IsGfx103(*pPalDevice)
+                )
+            {
+                srd.gfx10.depth = pitchInPixels - 1;
+            }
         }
 
         if (pPalDevice->MemoryProperties().flags.supportsMall != 0)
@@ -4548,11 +4550,12 @@ void PAL_STDCALL Device::CreateBvhSrds(
 {
     PAL_ASSERT((pDevice != nullptr) && (pOut != nullptr) && (pBvhInfo != nullptr) && (count > 0));
 
-    const Pal::Device*  pPalDevice = static_cast<const Pal::Device*>(pDevice);
-    const Device*       pGfxDevice = static_cast<const Device*>(pPalDevice->GetGfxDevice());
+    const Pal::Device*      pPalDevice = static_cast<const Pal::Device*>(pDevice);
+    const Device*           pGfxDevice = static_cast<const Device*>(pPalDevice->GetGfxDevice());
+    const GpuChipProperties chipProperties = pPalDevice->ChipProperties();
 
     // If this trips, then this hardware doesn't support ray-trace.  Why are we being called?
-    PAL_ASSERT(pPalDevice->ChipProperties().srdSizes.bvh != 0);
+    PAL_ASSERT(chipProperties.srdSizes.bvh != 0);
 
     for (uint32 idx = 0; idx < count; idx++)
     {
@@ -4596,8 +4599,8 @@ void PAL_STDCALL Device::CreateBvhSrds(
 
         if (pPalDevice->MemoryProperties().flags.supportsMall != 0)
         {
-            bvhSrd.llc_noalloc = CalcLlcNoalloc(bvhInfo.flags.bypassMallRead,
-                                                bvhInfo.flags.bypassMallWrite);
+            bvhSrd.gfx103PlusExclusive.llc_noalloc = CalcLlcNoalloc(bvhInfo.flags.bypassMallRead,
+                                                                    bvhInfo.flags.bypassMallWrite);
         }
 
         //    0: Return data for triangle tests are
@@ -4605,7 +4608,7 @@ void PAL_STDCALL Device::CreateBvhSrds(
         //    1: Return data for triangle tests are
         //    { 0: t_num, 1 : t_denom, 2 : I_num, 3 : J_num }
         // This should only be set if HW supports the ray intersection mode that returns triangle barycentrics.
-        PAL_ASSERT((pPalDevice->ChipProperties().gfx9.supportIntersectRayBarycentrics == 1) ||
+        PAL_ASSERT((chipProperties.gfx9.supportIntersectRayBarycentrics == 1) ||
                    (bvhInfo.flags.returnBarycentrics == 0));
 
         bvhSrd.triangle_return_mode = bvhInfo.flags.returnBarycentrics;
@@ -5198,6 +5201,7 @@ void InitializeGpuChipProperties(
         if (IsGfx103Plus(pInfo->gfxLevel))
         {
             pInfo->gfx9.rayTracingIp = RayTracingIpLevel::RtIp1_1;
+
         }
     }
 

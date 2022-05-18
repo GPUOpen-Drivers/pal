@@ -25,7 +25,7 @@
 
 #if PAL_DEVELOPER_BUILD
 
-#include "core/g_palPlatformSettings.h"
+#include "g_platformSettings.h"
 #include "core/layers/gpuDebug/gpuDebugCmdBuffer.h"
 #include "core/layers/gpuDebug/gpuDebugDevice.h"
 #include "core/layers/gpuDebug/gpuDebugPlatform.h"

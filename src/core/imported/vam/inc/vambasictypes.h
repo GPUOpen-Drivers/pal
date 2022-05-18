@@ -76,11 +76,7 @@
 //           unrecognized pragmas (e.g. #pragma pack(..)).
 #ifdef __GNUC__
 #define GCC_PACK_STRUCT __attribute__((packed))
-#ifdef TARGET_32_OS
 #define GCC_STRUCT_DEFAULT_ALIGN  __attribute__ ((aligned (8)))
-#else                                   // #ifdef TARGET_32_OS
-#define GCC_STRUCT_DEFAULT_ALIGN  __attribute__ ((aligned (8)))
-#endif
 #define GCC_STRUCT_ALIGN(a)  __attribute__ ((aligned (a)))
 #else                                   // #ifdef __GNUC__
 #define GCC_STRUCT_DEFAULT_ALIGN

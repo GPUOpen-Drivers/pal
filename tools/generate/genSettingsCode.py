@@ -935,7 +935,7 @@ if hardwareLayer != "":
     headerIncludeList += "\n#include \"core/hw/gfxip/gfxDevice.h\"\n"
     includeFileList += "\n#include \"" + codeTemplates.HwlIncludeDir.replace("%Hwl%", hardwareLayerLower)
     includeFileList += hardwareLayerLower + codeTemplates.PrefixName + "SettingsLoader.h\"\n"
-    includeFileList += "#include \""+ codeTemplates.HwlIncludeDir.replace("%Hwl%", hardwareLayerLower) + headerFileName + "\"\n"
+    includeFileList += "#include \"" + headerFileName + "\"\n"
 else:
     includeFileList  += "#include \"" + codeTemplates.IncludeDir + headerFileName + "\"\n"
 

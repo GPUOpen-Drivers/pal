@@ -100,10 +100,16 @@ union sq_bvh_rsrc_t {
         uint64_t size                                                         : 42;
         uint64_t                                                              : 14;
         uint64_t triangle_return_mode                                         :  1;
-        uint64_t llc_noalloc                                                  :  2;
+        uint64_t                                                              :  2;
         uint64_t big_page                                                     :  1;
         uint64_t type                                                         :  4;
     };
+    struct {
+        uint64_t                                                              : 64;
+        uint64_t                                                              : 57;
+        uint64_t llc_noalloc                                                  :  2;
+        uint64_t                                                              :  5;
+    } gfx103PlusExclusive;
     uint64_t u64All[2];
     uint32_t u32All[4];
 };
@@ -113,9 +119,9 @@ constexpr uint32_t SqBvhRsrcTWord1BoxGrowValueShift                             
 constexpr uint32_t SqBvhRsrcTWord1BoxSortEnShift                                            = 31;
 constexpr uint32_t SqBvhRsrcTWord2SizeShift                                                 =  0;
 constexpr uint32_t SqBvhRsrcTWord3TriangleReturnModeShift                                   = 24;
-constexpr uint32_t SqBvhRsrcTWord3LlcNoallocShift                                           = 25;
 constexpr uint32_t SqBvhRsrcTWord3BigPageShift                                              = 27;
 constexpr uint32_t SqBvhRsrcTWord3TypeShift                                                 = 28;
+constexpr uint32_t Gfx103PlusExclusiveSqBvhRsrcTWord3LlcNoallocShift                        = 25;
 
 union sq_img_rsrc_linked_rsrc_t {
     struct {

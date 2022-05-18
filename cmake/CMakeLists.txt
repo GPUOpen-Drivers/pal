@@ -28,6 +28,7 @@ add_subdirectory(Modules)
 target_sources(pal PRIVATE
     CMakeLists.txt
     PalBuildParameters.cmake
+    PalCodegen.cmake
     PalCompileDefinitions.cmake
     PalCompilerOptions.cmake
     PalCompilerWarnings.cmake

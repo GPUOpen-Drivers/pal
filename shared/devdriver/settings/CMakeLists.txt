@@ -35,6 +35,7 @@ target_link_libraries(ddSettings
     PRIVATE
         devdriver
         ddCommon
+        dd_libyaml
         SettingsRpcClient
 )
 
@@ -43,6 +44,8 @@ target_include_directories(ddSettings
 )
 
 target_sources(ddSettings PRIVATE
+    libyamlUtils.cpp
+    libyamlUtils.h
     settingsBase.cpp
     settingsBase.h
     settingsService.h
@@ -50,4 +53,6 @@ target_sources(ddSettings PRIVATE
     settingsTypes.h
     settingsConfig.cpp
     settingsConfig.h
+    settingsParsingUtils.cpp
+    settingsParsingUtils.h
 )

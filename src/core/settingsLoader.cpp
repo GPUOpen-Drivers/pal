@@ -34,6 +34,7 @@
 #include "core/hw/amdgpu_asic.h"
 #include "devDriverServer.h"
 #include "protocols/ddSettingsService.h"
+#include "settingsService.h"
 
 using namespace DevDriver::SettingsURIService;
 
@@ -60,6 +61,12 @@ SettingsLoader::SettingsLoader(
 // =====================================================================================================================
 SettingsLoader::~SettingsLoader()
 {
+    SettingsRpcService::SettingsService* pRpcSettingsService = m_pDevice->GetPlatform()->GetSettingsService();
+    if (pRpcSettingsService != nullptr)
+    {
+        pRpcSettingsService->UnregisterComponent(m_pComponentName);
+    }
+
     auto* pDevDriverServer = m_pDevice->GetPlatform()->GetDevDriverServer();
     if (pDevDriverServer != nullptr)
     {
@@ -205,11 +212,12 @@ void SettingsLoader::OverrideDefaults()
                 m_settings.useExecuteIndirectPacket = UseExecuteIndirectPacketForDrawSpillTable;
             }
 
-            constexpr uint32 PfpUcodeVerionVbTableSupportedExecuteIndirectGfx10_1 = 155;
-            constexpr uint32 PfpUcodeVerionVbTableSupportedExecuteIndirectGfx10_3 = 95;
+            constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectGfx10_1   = 155;
+            constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectGfx10_3   = 95;
 
-            if (CheckGfx101CpUcodeVersion(*m_pDevice, PfpUcodeVerionVbTableSupportedExecuteIndirectGfx10_1) ||
-                CheckGfx103CpUcodeVersion(*m_pDevice, PfpUcodeVerionVbTableSupportedExecuteIndirectGfx10_3))
+            if (CheckGfx101CpUcodeVersion(*m_pDevice, PfpUcodeVersionVbTableSupportedExecuteIndirectGfx10_1) ||
+                CheckGfx103CpUcodeVersion(*m_pDevice, PfpUcodeVersionVbTableSupportedExecuteIndirectGfx10_3)
+                )
             {
                 m_settings.useExecuteIndirectPacket = UseExecuteIndirectPacketForDrawSpillAndVbTable;
             }
@@ -241,6 +249,13 @@ void SettingsLoader::OverrideDefaults()
         m_settings.waForceLinearHeight16Alignment = true;
     }
 
+    if (m_pDevice->IsSpoofed())
+    {
+        // Sending commands intended for a spoofed GPU model to the different physical device is
+        // almost certain to hang the device.
+        m_settings.ifh = IfhModeKmd;
+    }
+
     m_state = SettingsLoaderState::LateInit;
 }
 
@@ -257,6 +272,12 @@ void SettingsLoader::ValidateSettings()
     {
         m_settings.requestDebugVmid = true;
         m_settings.cmdBufPreemptionMode = CmdBufPreemptModeDisable;
+    }
+
+    // When tracing is enabled, we need to request debug VMID. This can be enabled via the DriverUtilsService.
+    if (m_pDevice->GetPlatform()->IsTracingEnabled())
+    {
+        m_settings.requestDebugVmid = true;
     }
 
     // Emulated devices may not be visible to the host OS, so use CPU paths to send data to the window system.

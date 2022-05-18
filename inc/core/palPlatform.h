@@ -47,11 +47,23 @@ class EventServer;
 }
 }
 
+namespace SettingsRpcService
+{
+class SettingsService;
+}
+
 #if PAL_BUILD_RDF
 // GpuUtil forward declarations.
 namespace GpuUtil
 {
 class TraceSession;
+}
+#endif
+
+#if PAL_ENABLE_LOGGING
+namespace Util
+{
+struct DbgLoggerFileSettings;
 }
 #endif
 
@@ -437,6 +449,8 @@ public:
     ///          enabled, nullptr will be returned.
     virtual DevDriver::DevDriverServer* GetDevDriverServer() = 0;
 
+    virtual SettingsRpcService::SettingsService* GetSettingsService() = 0;
+
     /// Returns a pointer to the event server object. The event server will soon move out of the DevDriver
     /// server. Hence the need to provide a separate interface to access the event server.
     ///
@@ -450,6 +464,11 @@ public:
     ///          startup, nullptr will be returned.
     virtual GpuUtil::TraceSession* GetTraceSession() = 0;
 #endif
+
+    /// Indicates whether tracing has been enabled.
+    ///
+    /// @returns True if tracing is enabled, false otherwise.
+    virtual bool IsTracingEnabled() const = 0;
 
     /// Returns a pointer to the Platform settings structure
     ///
@@ -572,6 +591,16 @@ public:
         PalEvent    eventId,
         const void* pEventData,
         uint32      eventDataSize) {}
+
+#if PAL_ENABLE_LOGGING
+    /// Function to access the current settings of file logger.
+    /// Clients can call this function to get file logger settings in order to configure
+    /// this logger at the time of its creation.
+    ///
+    /// @param [in] pSettings  A struct in which file logger settings are copied.
+    virtual void GetDbgLoggerFileSettings(
+        Util::DbgLoggerFileSettings* pSettings) = 0;
+#endif
 
 protected:
     /// @internal Constructor. Prevent use of new operator on this interface. Client must create objects by explicitly

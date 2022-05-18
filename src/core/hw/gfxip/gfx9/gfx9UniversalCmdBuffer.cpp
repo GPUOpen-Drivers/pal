@@ -23,7 +23,7 @@
  *
  **********************************************************************************************************************/
 
-#include "core/g_palPlatformSettings.h"
+#include "g_platformSettings.h"
 #include "core/hw/gfxip/gfx9/gfx9BorderColorPalette.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9ColorBlendState.h"
@@ -365,7 +365,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.supportsVrs                               = chipProps.gfxip.supportsVrs;
     m_cachedSettings.vrsForceRateFine                          = settings.vrsForceRateFine;
 
-    m_cachedSettings.supportsAceOffload       = chipProps.gfx9.supportAceOffload;
+    m_cachedSettings.supportAceOffload        = chipProps.gfxip.supportAceOffload;
     m_cachedSettings.useExecuteIndirectPacket = coreSettings.useExecuteIndirectPacket;
 
     m_cachedSettings.optimizeDepthOnlyFmt = settings.rbPlusOptimizeDepthOnlyExportRate;
@@ -451,14 +451,15 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     }
 
     m_pbbCntlRegs.paScBinnerCntl1.u32All       = 0;
-    m_pbbCntlRegs.paScBinnerCntl1.bits.MAX_PRIM_PER_BATCH = (settings.binningMaxPrimPerBatch        - 1);
-
     m_cachedPbbSettings.maxAllocCountNgg       = (settings.binningMaxAllocCountNggOnChip - 1);
     m_cachedPbbSettings.maxAllocCountLegacy    = (settings.binningMaxAllocCountLegacy    - 1);
     m_cachedPbbSettings.persistentStatesPerBin = (settings.binningPersistentStatesPerBin - 1);
+    m_cachedPbbSettings.maxPrimsPerBatch       = (settings.binningMaxPrimPerBatch        - 1);
     PAL_ASSERT(m_cachedPbbSettings.maxAllocCountNgg    == (settings.binningMaxAllocCountNggOnChip - 1));
     PAL_ASSERT(m_cachedPbbSettings.maxAllocCountLegacy == (settings.binningMaxAllocCountLegacy    - 1));
+    PAL_ASSERT(m_cachedPbbSettings.maxPrimsPerBatch    == (settings.binningMaxPrimPerBatch        - 1));
 
+    m_pbbCntlRegs.paScBinnerCntl1.bits.MAX_PRIM_PER_BATCH        = m_cachedPbbSettings.maxPrimsPerBatch;
     m_pbbCntlRegs.paScBinnerCntl0.bits.PERSISTENT_STATES_PER_BIN = m_cachedPbbSettings.persistentStatesPerBin;
 
     // Initialize to the common value for most pipelines (no conservative rast).
@@ -875,7 +876,7 @@ void UniversalCmdBuffer::CmdBindPipeline(
         const bool newNeedsUavExportFlush = (pNewPipeline != nullptr) && pNewPipeline->NeedsUavExportFlush();
         const bool oldNeedsUavExportFlush = (pOldPipeline != nullptr) && pOldPipeline->NeedsUavExportFlush();
 
-        if (static_cast<uint32>(meshEnabled) != m_state.flags.meshShaderEnabled)
+        if ((static_cast<uint32>(meshEnabled) != m_state.flags.meshShaderEnabled) && (IsGfx10(m_gfxIpLevel)))
         {
             // When mesh shader is either being enabled or being disabled, we need to re-write VGT_PRIMITIVE_TYPE:
             // - Enabling mesh shader requires using the point-list VGT topology;
@@ -1144,7 +1145,7 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
     // To reduce context rolls due to pipeline state switches the command buffer tracks VS export count and
     // the PS interpolant count and only sets these registers when the maximum value increases. This heuristic
     // pads the actual parameter cache space required for VS/PS to avoid context rolls.
-    if (m_cachedSettings.padParamCacheSpace)
+    if (m_cachedSettings.padParamCacheSpace && (IsGfx9(m_gfxIpLevel) || IsGfx10(m_gfxIpLevel)))
     {
         spiVsOutConfig.bits.VS_EXPORT_COUNT =
             Max(m_spiVsOutConfig.bits.VS_EXPORT_COUNT, spiVsOutConfig.bits.VS_EXPORT_COUNT);
@@ -1167,26 +1168,32 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
         m_spiPsInControl = spiPsInControl;
     }
 
-    const bool usesMultiViewports = pCurrPipeline->UsesMultipleViewports();
-    if (usesMultiViewports != (m_graphicsState.enableMultiViewport != 0))
+    const bool usesMultiViewports       = pCurrPipeline->UsesMultipleViewports();
+    const DepthClampMode depthClampMode = pCurrPipeline->GetDepthClampMode();
+    const bool mvDirty                  = (usesMultiViewports != (m_graphicsState.enableMultiViewport != 0));
+    const bool depthClampDirty          =
+        (depthClampMode != static_cast<DepthClampMode>(m_graphicsState.depthClampMode));
+    if (mvDirty || depthClampDirty)
     {
         // If the previously bound pipeline differed in its use of multiple viewports we will need to rewrite the
         // viewport and scissor state on draw.
         if (m_graphicsState.viewportState.count != 0)
         {
             // If viewport is never set, no need to rewrite viewport, this happens in D3D12 nested command list.
-            m_graphicsState.dirtyFlags.validationBits.viewports    = 1;
-            m_nggState.flags.dirty                                 = 1;
+            m_graphicsState.dirtyFlags.validationBits.viewports    |=
+                mvDirty ||
+                (depthClampDirty && (depthClampMode != DepthClampMode::_None));
+            m_nggState.flags.dirty                                 |= mvDirty;
         }
 
         if (m_graphicsState.scissorRectState.count != 0)
         {
             // If scissor is never set, no need to rewrite scissor, this happens in D3D12 nested command list.
-            m_graphicsState.dirtyFlags.validationBits.scissorRects = 1;
+            m_graphicsState.dirtyFlags.validationBits.scissorRects |= mvDirty;
         }
 
-        m_graphicsState.enableMultiViewport    = usesMultiViewports;
-        m_graphicsState.everUsedMultiViewport |= usesMultiViewports;
+        m_graphicsState.enableMultiViewport = usesMultiViewports;
+        m_graphicsState.depthClampMode      = static_cast<uint32>(depthClampMode);
     }
 
     if (m_vertexOffsetReg != m_pSignatureGfx->vertexOffsetRegAddr)
@@ -1240,12 +1247,34 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
     m_pipelineState.flags.isNgg     = isNgg;
     m_pipelineState.flags.usesTess  = tessEnabled;
     m_pipelineState.flags.usesGs    = gsEnabled;
-    m_pipelineState.flags.noRaster  = isRasterKilled;
     m_pipelineState.flags.gsCutMode = pCurrPipeline->VgtGsMode().bits.CUT_MODE;
+
+    if (m_pipelineState.flags.noRaster != static_cast<uint32>(isRasterKilled))
+    {
+        m_pipelineState.flags.noRaster = isRasterKilled;
+        UpdateRasterKillDrawsTrackedState();
+    }
 
     m_state.flags.cbTargetMaskChanged = false;
 
     return pDeCmdSpace;
+}
+
+// =====================================================================================================================
+void UniversalCmdBuffer::UpdateRasterKillDrawsTrackedState()
+{
+    if (IsRasterizationKilled())
+    {
+        SetGfxCmdBufRasterKillDrawsState(true);
+        UpdateGfxCmdBufRasterKillDrawsExecEopFence(true);
+    }
+    else
+    {
+        if (GetGfxCmdBufState().fences.rasterKillDrawsExecFenceVal == UINT32_MAX)
+        {
+            UpdateGfxCmdBufRasterKillDrawsExecEopFence(false);
+        }
+    }
 }
 
 // =====================================================================================================================
@@ -1373,6 +1402,30 @@ void UniversalCmdBuffer::CmdBindMsaaState(
 }
 
 // =====================================================================================================================
+void UniversalCmdBuffer::CmdSaveGraphicsState()
+{
+    Pal::UniversalCmdBuffer::CmdSaveGraphicsState();
+
+    // We reset the rbplusRegHash in this cmdBuffer to 0, so that we'll definitely set the context roll state true
+    // and update the values of rb+ registers through pm4 commands.
+    m_rbplusRegHash        = 0;
+}
+
+// =====================================================================================================================
+void UniversalCmdBuffer::CmdRestoreGraphicsState()
+{
+    Pal::UniversalCmdBuffer::CmdRestoreGraphicsState();
+
+    // We reset the rbplusRegHash in this cmdBuffer to 0, so that we'll definitely set the context roll state true
+    // and update the values of rb+ registers through pm4 commands.
+    // Switching the pipeline during a pop operation will already cause a context roll, so forcing a re - write of the
+    // RB + registers won't cause extra rolls.
+    m_rbplusRegHash        = 0;
+
+    UpdateGfxCmdBufGfxBltExecEopFence();
+}
+
+// =====================================================================================================================
 void UniversalCmdBuffer::CmdBindColorBlendState(
     const IColorBlendState* pColorBlendState)
 {
@@ -1460,7 +1513,7 @@ void UniversalCmdBuffer::CmdSetInputAssemblyState(
     // If a mesh shader pipeline is active, we cannot write VGT_PRIMITIVE_TYPE because mesh shaders require us to
     // always use the POINTLIST topology.  VGT_PRIMITIVE_TYPE is written in CmdBindPipeline() when either enabling
     // or disabling mesh shader pipelines.
-    if (m_state.flags.meshShaderEnabled == 0)
+    if ((m_state.flags.meshShaderEnabled == 0) || (IsGfx10(m_gfxIpLevel) == false))
     {
         pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(mmVGT_PRIMITIVE_TYPE,
                                                          vgtPrimitiveType.u32All,
@@ -4262,7 +4315,7 @@ uint32* UniversalCmdBuffer::WriteNullDepthTarget(
         regDB_STENCIL_INFO  dbStencilInfo;
     } regs2 = { };
 
-    const regDB_RENDER_CONTROL dbRenderControl = { };
+    regDB_RENDER_CONTROL dbRenderControl = { };
 
     if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
     {
@@ -4298,6 +4351,7 @@ uint32* UniversalCmdBuffer::WriteNullDepthTarget(
                 regs1.dbRenderOverride2.gfx103Plus.CENTROID_COMPUTATION_MODE = 2;
             }
         }
+
     }
 
     pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmDB_RENDER_OVERRIDE2, mmDB_HTILE_DATA_BASE, &regs1, pCmdSpace);
@@ -6090,7 +6144,8 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         }
     }
 
-    if (PipelineDirty || lineStippleStateDirty)
+    if (PipelineDirty || lineStippleStateDirty
+       )
     {
         regPA_SU_LINE_STIPPLE_CNTL paSuLineStippleCntl = {};
 
@@ -6140,6 +6195,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_CL_CLIP_CNTL,
                                                           paClClipCntl.u32All,
                                                           pDeCmdSpace);
+        UpdateRasterKillDrawsTrackedState();
     }
 
     // Validate primitive restart enable.  Primitive restart should only apply for indexed draws, but on gfx9,
@@ -6795,9 +6851,7 @@ uint32* UniversalCmdBuffer::ValidateViewports(
                (params.vertClipRatio    >= 1.0f) &&
                (params.vertDiscardRatio >= 1.0f));
 
-    guardbandImg.paClGbHorzClipAdj.f32All = params.horzClipRatio;
     guardbandImg.paClGbHorzDiscAdj.f32All = params.horzDiscardRatio;
-    guardbandImg.paClGbVertClipAdj.f32All = params.vertClipRatio;
     guardbandImg.paClGbVertDiscAdj.f32All = params.vertDiscardRatio;
 
     VportScaleOffsetPm4Img scaleOffsetImg[MaxViewports];
@@ -6836,8 +6890,10 @@ uint32* UniversalCmdBuffer::ValidateViewports(
 
     const VportCenterRect vpCenterRect = GetViewportsCenterAndScale();
 
-    guardbandImg.paClGbHorzClipAdj.f32All = vpCenterRect.xClipFactor;
-    guardbandImg.paClGbVertClipAdj.f32All = vpCenterRect.yClipFactor;
+    // Clients may pass specific clip ratios for perf/quality that *must* be used over our calculated clip factors as
+    // long as they are < our clip factors
+    guardbandImg.paClGbHorzClipAdj.f32All = Min(vpCenterRect.xClipFactor, params.horzClipRatio);
+    guardbandImg.paClGbVertClipAdj.f32All = Min(vpCenterRect.yClipFactor, params.vertClipRatio);
 
     m_state.primShaderCullingCb.paClGbHorzClipAdj = guardbandImg.paClGbHorzClipAdj.u32All;
     m_state.primShaderCullingCb.paClGbHorzDiscAdj = guardbandImg.paClGbHorzDiscAdj.u32All;
@@ -6858,11 +6914,8 @@ uint32* UniversalCmdBuffer::ValidateViewports(
     // Without doing this, there is fewer potential guardband region below and to the right of the viewport than
     // above and to the left.
     regPA_SU_HARDWARE_SCREEN_OFFSET hwScreenOffset = {};
-    hwScreenOffset.bits.HW_SCREEN_OFFSET_X = RoundUpToMultiple(uint32(vpCenterRect.centerX), 32u) / 16u;
-    hwScreenOffset.bits.HW_SCREEN_OFFSET_Y = RoundUpToMultiple(uint32(vpCenterRect.centerY), 32u) / 16u;
-
-    PAL_ASSERT(((hwScreenOffset.bits.HW_SCREEN_OFFSET_X & 0x1) == 0) &&
-               ((hwScreenOffset.bits.HW_SCREEN_OFFSET_Y & 0x1) == 0));
+    hwScreenOffset.bits.HW_SCREEN_OFFSET_X = static_cast<uint32>(vpCenterRect.centerX / 16.0f);
+    hwScreenOffset.bits.HW_SCREEN_OFFSET_Y = static_cast<uint32>(vpCenterRect.centerY / 16.0f);
 
     pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg<pm4OptImmediate>(mmPA_SU_HARDWARE_SCREEN_OFFSET,
                                                                        hwScreenOffset.u32All,
@@ -6874,9 +6927,7 @@ uint32* UniversalCmdBuffer::ValidateViewports(
         const auto&         viewport    = params.viewports[i];
         VportZMinMaxPm4Img* pZMinMaxImg = reinterpret_cast<VportZMinMaxPm4Img*>(&zMinMaxImg[i]);
 
-        const auto* const pPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
-
-        if (pPipeline->GetDepthClampMode() == DepthClampMode::ZeroToOne)
+        if (static_cast<DepthClampMode>(m_graphicsState.depthClampMode) == DepthClampMode::ZeroToOne)
         {
             pZMinMaxImg->zMin.f32All = 0.0f;
             pZMinMaxImg->zMax.f32All = 1.0f;
@@ -7556,6 +7607,13 @@ void UniversalCmdBuffer::ValidateDispatchPalAbi(
 
             pNewSignature  = &pNewPipeline->GetTaskSignature();
             pUserDataTable = &m_spillTable.stateGfx;
+
+            const uint16 taskDispatchIdxReg = pNewSignature->dispatchIndexRegAddr;
+            if (taskDispatchIdxReg != UserDataNotMapped)
+            {
+                // Initialize the taskDispatchIdx to 0, especially for direct dispatch
+                pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(taskDispatchIdxReg, 0, pCmdSpace);
+            }
         }
         else
         {
@@ -8589,77 +8647,6 @@ void UniversalCmdBuffer::CmdEndWhile()
 }
 
 // =====================================================================================================================
-void UniversalCmdBuffer::CmdFlglEnable()
-{
-    SendFlglSyncCommands(FlglRegSeqSwapreadyReset);
-}
-
-// =====================================================================================================================
-void UniversalCmdBuffer::CmdFlglDisable()
-{
-    SendFlglSyncCommands(FlglRegSeqSwapreadySet);
-}
-
-// =====================================================================================================================
-void UniversalCmdBuffer::CmdFlglSync()
-{
-    // make sure (wait that) the swap req line is low
-    SendFlglSyncCommands(FlglRegSeqSwaprequestReadLow);
-    // pull the swap grant line low as we are done rendering
-    SendFlglSyncCommands(FlglRegSeqSwapreadySet);
-    // wait for rising edge of SWAPREQUEST (or timeout)
-    SendFlglSyncCommands(FlglRegSeqSwaprequestRead);
-    // pull the swap grant line high marking the beginning of the next frame
-    SendFlglSyncCommands(FlglRegSeqSwapreadyReset);
-}
-
-// =====================================================================================================================
-void UniversalCmdBuffer::SendFlglSyncCommands(
-    FlglRegSeqType syncSequence)
-{
-    PAL_ASSERT((syncSequence >= 0) && (syncSequence < FlglRegSeqMax));
-
-    const FlglRegSeq* pSeq        = m_device.GetFlglRegisterSequence(syncSequence);
-    const uint32      totalNumber = pSeq->regSequenceCount;
-
-    // if there's no GLsync board, num should be 0
-    if (totalNumber > 0)
-    {
-        const bool isReadSequence = (syncSequence == FlglRegSeqSwapreadyRead) ||
-                                    (syncSequence == FlglRegSeqSwaprequestRead) ||
-                                    (syncSequence == FlglRegSeqSwaprequestReadLow);
-
-        const FlglRegCmd* seq = pSeq->regSequence;
-
-        uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
-
-        for (uint32 i = 0; i < totalNumber; i++)
-        {
-            // all sequence steps are write operations apart from the last
-            // step of the SWAPREADY_READ or SWAPREQUEST_READ sequences
-            if ((i == totalNumber - 1) && isReadSequence)
-            {
-                pCmdSpace += m_device.CmdUtil().BuildWaitRegMem(EngineTypeUniversal,
-                                                                mem_space__me_wait_reg_mem__register_space,
-                                                                CmdUtil::WaitRegMemFunc(CompareFunc::Equal),
-                                                                engine_sel__me_wait_reg_mem__micro_engine,
-                                                                seq[i].offset,
-                                                                seq[i].orMask ? seq[i].andMask : 0,
-                                                                seq[i].andMask,
-                                                                pCmdSpace);
-            }
-            else
-            {
-                pCmdSpace += m_device.CmdUtil().BuildRegRmw(seq[i].offset, seq[i].orMask, seq[i].andMask, pCmdSpace);
-                pCmdSpace += m_device.CmdUtil().BuildRegRmw(seq[i].offset, seq[i].orMask, seq[i].andMask, pCmdSpace);
-                pCmdSpace += m_device.CmdUtil().BuildRegRmw(seq[i].offset, seq[i].orMask, seq[i].andMask, pCmdSpace);
-            }
-        }
-        m_deCmdStream.CommitCommands(pCmdSpace);
-    }
-}
-
-// =====================================================================================================================
 void UniversalCmdBuffer::CmdWaitRegisterValue(
     uint32      registerOffset,
     uint32      data,
@@ -8934,8 +8921,7 @@ gpusize UniversalCmdBuffer::ConstructExecuteIndirectIb2(
     if (vertexBufTableDwords > 0)
     {
         *pVbTableSize = vertexBufTableDwords * sizeof(uint32);
-        *pVbTableRegOffset = ((signature.vertexBufTableRegAddr != 0) && (vertexBufTableDwords != 0)) ?
-            signature.vertexBufTableRegAddr : 0;
+        *pVbTableRegOffset = signature.vertexBufTableRegAddr;
     }
 
     // UserData that spills over the assigned SGPRs is also modified by this generator and we will need to create and
@@ -8952,7 +8938,7 @@ gpusize UniversalCmdBuffer::ConstructExecuteIndirectIb2(
         // Allocate and populate Spill+VBTable Buffer with UserData. Each instance of the SpillTable and VertexBuffer
         // needs to be initialized with UserDataEntries of current context.
         uint32* pUserDataSpace = CmdAllocateEmbeddedData(((vertexBufTableDwords + spillDwords) * (*pSpillTableInstCnt)),
-                                                         1,
+                                                         CacheLineDwords,
                                                          pSpillTableAddress);
         for (uint32 i = 0; i < *pSpillTableInstCnt; i++)
         {
@@ -8987,13 +8973,16 @@ gpusize UniversalCmdBuffer::ConstructExecuteIndirectIb2(
             const uint16 vtxOffsetReg = GetVertexOffsetRegAddr();
             const uint16 instOffsetReg = GetInstanceOffsetRegAddr();
 
+            m_deCmdStream.NotifyIndirectShRegWrite(vtxOffsetReg);
+            m_deCmdStream.NotifyIndirectShRegWrite(instOffsetReg);
+
             if (pParamData[cmdIndex].type == IndirectOpType::DrawIndexAuto)
             {
                 pDeCmdIb2Space += static_cast<uint32>(m_cmdUtil.BuildDrawIndirect(
                     pParamData[cmdIndex].argBufOffset,
                     vtxOffsetReg,
                     instOffsetReg,
-                    PredDisable,
+                    PacketPredicate(),
                     pDeCmdIb2Space));
             }
             else if (pParamData[cmdIndex].type == IndirectOpType::DrawIndex2)
@@ -9010,7 +8999,7 @@ gpusize UniversalCmdBuffer::ConstructExecuteIndirectIb2(
                     pParamData[cmdIndex].argBufOffset,
                     vtxOffsetReg,
                     instOffsetReg,
-                    PredDisable,
+                    PacketPredicate(),
                     pDeCmdIb2Space));
             }
             else
@@ -9019,7 +9008,7 @@ gpusize UniversalCmdBuffer::ConstructExecuteIndirectIb2(
                     pParamData[cmdIndex].argBufOffset,
                     vtxOffsetReg,
                     instOffsetReg,
-                    PredDisable,
+                    PacketPredicate(),
                     pDeCmdIb2Space));
             }
             break;
@@ -9099,30 +9088,33 @@ gpusize UniversalCmdBuffer::ConstructExecuteIndirectIb2(
             srdInfo.srcGpuVirtAddressOffset = argBufOffset;
             srdInfo.dstGpuVirtAddressOffset = pParamData[cmdIndex].data[0] * sizeof(uint32);
 
-            if (IsGfx10Plus(*m_device.Parent()))
+            if (IsGfx10Plus(m_gfxIpLevel))
             {
-                // Always set oob_select = 2 (allow transaction unless numRecords == 0)
-                constexpr uint32 OobSelect = 0x2;
                 // Always set resource_level = 1 because we're in GEN_TWO  mode
-                constexpr uint32 ResourceLevel = 0x1;
+                const uint32 resourceLevel = m_device.BufferSrdResourceLevel();
+                // Always set oob_select = 2 (allow transaction unless numRecords == 0)
+                constexpr uint32 OobSelect = SQ_OOB_NUM_RECORDS_0;
+                // Use the LLC for read/write if enabled in Mtype
+                constexpr uint32 LlcNoalloc = 0x0;
 
-                srdInfo.srdDword3 = ((SQ_SEL_X << SqBufRsrcTWord3DstSelXShift) |
-                                     (SQ_SEL_Y << SqBufRsrcTWord3DstSelYShift) |
-                                     (SQ_SEL_Z << SqBufRsrcTWord3DstSelZShift) |
-                                     (SQ_SEL_W << SqBufRsrcTWord3DstSelWShift) |
-                                     (BUF_FMT_32_UINT << Gfx10CoreSqBufRsrcTWord3FormatShift) |
-                                     (ResourceLevel << Gfx10CoreSqBufRsrcTWord3ResourceLevelShift) |
-                                     (OobSelect << SqBufRsrcTWord3OobSelectShift) |
-                                     (SQ_RSRC_BUF << SqBufRsrcTWord3TypeShift));
+                srdInfo.srdDword3 = ((SQ_SEL_X        << SqBufRsrcTWord3DstSelXShift)                       |
+                                     (SQ_SEL_Y        << SqBufRsrcTWord3DstSelYShift)                       |
+                                     (SQ_SEL_Z        << SqBufRsrcTWord3DstSelZShift)                       |
+                                     (SQ_SEL_W        << SqBufRsrcTWord3DstSelWShift)                       |
+                                     (BUF_FMT_32_UINT << Gfx10CoreSqBufRsrcTWord3FormatShift)               |
+                                     (resourceLevel   << Gfx10CoreSqBufRsrcTWord3ResourceLevelShift)        |
+                                     (OobSelect       << SqBufRsrcTWord3OobSelectShift)                     |
+                                     (LlcNoalloc      << Gfx103PlusExclusiveSqBufRsrcTWord3LlcNoallocShift) |
+                                     (SQ_RSRC_BUF     << SqBufRsrcTWord3TypeShift));
             }
             else
             {
-                srdInfo.srdDword3 = ((SQ_RSRC_BUF << Gfx09::SQ_BUF_RSRC_WORD3__TYPE__SHIFT) |
-                                     (SQ_SEL_X << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_X__SHIFT) |
-                                     (SQ_SEL_Y << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_Y__SHIFT) |
-                                     (SQ_SEL_Z << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_Z__SHIFT) |
-                                     (SQ_SEL_W << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_W__SHIFT) |
-                                     (BUF_DATA_FORMAT_32 << Gfx09::SQ_BUF_RSRC_WORD3__DATA_FORMAT__SHIFT) |
+                srdInfo.srdDword3 = ((SQ_RSRC_BUF         << Gfx09::SQ_BUF_RSRC_WORD3__TYPE__SHIFT)        |
+                                     (SQ_SEL_X            << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_X__SHIFT)   |
+                                     (SQ_SEL_Y            << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_Y__SHIFT)   |
+                                     (SQ_SEL_Z            << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_Z__SHIFT)   |
+                                     (SQ_SEL_W            << Gfx09::SQ_BUF_RSRC_WORD3__DST_SEL_W__SHIFT)   |
+                                     (BUF_DATA_FORMAT_32  << Gfx09::SQ_BUF_RSRC_WORD3__DATA_FORMAT__SHIFT) |
                                      (BUF_NUM_FORMAT_UINT << Gfx09::SQ_BUF_RSRC_WORD3__NUM_FORMAT__SHIFT));
             }
 
@@ -9198,11 +9190,6 @@ void UniversalCmdBuffer::ExecuteIndirectPacket(
 
         if (isGfx)
         {
-            const auto& viewInstancingDesc = pGfxPipeline->GetViewInstancingDesc();
-            uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-            pDeCmdSpace = BuildWriteViewId(viewInstancingDesc.viewId[i], pDeCmdSpace);
-            m_deCmdStream.CommitCommands(pDeCmdSpace);
-
             ValidateDrawInfo drawInfo;
             drawInfo.vtxIdxCount   = 0;
             drawInfo.instanceCount = 0;
@@ -9226,12 +9213,6 @@ void UniversalCmdBuffer::ExecuteIndirectPacket(
             ValidateDispatchPalAbi(&m_computeState, &m_deCmdStream, 0uLL, 0uLL, 0, 0, 0);
             CommandGeneratorTouchedUserData(m_computeState.csUserDataEntries.touched, gfx9Generator, *m_pSignatureCs);
         }
-
-        const uint16 vtxOffsetReg = GetVertexOffsetRegAddr();
-        const uint16 instOffsetReg = GetInstanceOffsetRegAddr();
-
-        m_deCmdStream.NotifyIndirectShRegWrite(vtxOffsetReg);
-        m_deCmdStream.NotifyIndirectShRegWrite(instOffsetReg);
 
         gpusize ib2GpuSize          = 0;
         gpusize spillTableAddress   = 0;
@@ -9269,9 +9250,12 @@ void UniversalCmdBuffer::ExecuteIndirectPacket(
         packetInfo.maxCount                  = maximumCount;
         packetInfo.commandBufferSizeDwords   = static_cast<uint32>(ib2GpuSize) / sizeof(uint32);
         packetInfo.argumentBufferStrideBytes = gfx9Generator.Properties().argBufStride;
+
         if (isGfx)
         {
             packetInfo.pipelineSignature.pSignatureGfx = m_pSignatureGfx;
+            const auto& viewInstancingDesc = pGfxPipeline->GetViewInstancingDesc();
+            pDeCmdSpace = BuildWriteViewId(viewInstancingDesc.viewId[i], pDeCmdSpace);
         }
         else
         {
@@ -9318,14 +9302,6 @@ void UniversalCmdBuffer::ExecuteIndirectShader(
 
     const auto& gfx9Generator = static_cast<const IndirectCmdGenerator&>(generator);
 
-    if (countGpuAddr == 0uLL)
-    {
-        // If the count GPU address is zero, then we are expected to use the maximumCount value as the actual number
-        // of indirect commands to generate and execute.
-        uint32* pMemory = CmdAllocateEmbeddedData(1, 1, &countGpuAddr);
-        *pMemory = maximumCount;
-    }
-
     // The generation of indirect commands is determined by the currently-bound pipeline.
     const PipelineBindPoint bindPoint     = ((gfx9Generator.Type() == GeneratorType::Dispatch) ?
                                              PipelineBindPoint::Compute : PipelineBindPoint::Graphics);
@@ -9354,7 +9330,7 @@ void UniversalCmdBuffer::ExecuteIndirectShader(
     const bool isTaskEnabled = ((gfx9Generator.Type() == GeneratorType::DispatchMesh) &&
                                 pGfxPipeline->HasTaskShader());
 
-    const bool cmdGenUseAce = (m_cachedSettings.supportsAceOffload &&
+    const bool cmdGenUseAce = (m_cachedSettings.supportAceOffload &&
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 691
                               (m_device.Parent()->GetPublicSettings()->disableExecuteIndirectAceOffload != true) &&
 #endif
@@ -9568,6 +9544,14 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
     uint32 spillThreshold = m_pSignatureGfx->spillThreshold;
     const uint32 spillDwords = (spillThreshold <= properties.userDataWatermark) ? properties.maxUserDataEntries : 0;
 
+    if (countGpuAddr == 0uLL)
+    {
+        // If the count GPU address is zero, then we are expected to use the maximumCount value as the actual number
+        // of indirect commands to generate and execute.
+        uint32* pMemory = CmdAllocateEmbeddedData(1, 1, &countGpuAddr);
+        *pMemory = maximumCount;
+    }
+
     if ((m_device.Parent()->Settings().useExecuteIndirectPacket < UseExecuteIndirectPacketForDrawSpillTable) &&
         (spillDwords > 0))
     {
@@ -9594,7 +9578,7 @@ void UniversalCmdBuffer::CmdDispatchAce(
     // function was called. The callee should ensure that it's never called when not supported as that case is not
     // handled. We only do an assert here.
 #if PAL_ENABLE_PRINT_ASSERTS
-    PAL_ASSERT(m_cachedSettings.supportsAceOffload);
+    PAL_ASSERT(m_cachedSettings.supportAceOffload);
 #endif
     auto* pAceCmdStream = GetAceCmdStream();
 
@@ -9937,6 +9921,7 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     m_gfxCmdBufState.flags.csWriteCachesDirty        = cmdBuffer.m_gfxCmdBufState.flags.csWriteCachesDirty;
     m_gfxCmdBufState.flags.cpWriteCachesDirty        = cmdBuffer.m_gfxCmdBufState.flags.cpWriteCachesDirty;
     m_gfxCmdBufState.flags.cpMemoryWriteL2CacheStale = cmdBuffer.m_gfxCmdBufState.flags.cpMemoryWriteL2CacheStale;
+    m_gfxCmdBufState.flags.rasterKillDrawsActive     = cmdBuffer.m_gfxCmdBufState.flags.rasterKillDrawsActive;
 
     // Invalidate PM4 optimizer state on post-execute since the current command buffer state does not reflect
     // state changes from the nested command buffer. We will need to resolve the nested PM4 state onto the
@@ -10362,8 +10347,10 @@ void UniversalCmdBuffer::SwitchDrawFunctionsInternal(
     else
     {
         // Mesh shader only pipeline.
-        m_funcTable.pfnCmdDispatchMesh =
-            CmdDispatchMesh<IssueSqtt, HasUavExport, ViewInstancing, DescribeDrawDispatch>;
+        {
+            m_funcTable.pfnCmdDispatchMesh =
+                CmdDispatchMesh<IssueSqtt, HasUavExport, ViewInstancing, DescribeDrawDispatch>;
+        }
         m_funcTable.pfnCmdDispatchMeshIndirectMulti =
             CmdDispatchMeshIndirectMulti<IssueSqtt, ViewInstancing, DescribeDrawDispatch>;
     }
@@ -10451,30 +10438,6 @@ void UniversalCmdBuffer::CpCopyMemory(
 
     SetGfxCmdBufCpBltState(true);
     SetGfxCmdBufCpBltWriteCacheState(true);
-}
-
-// =====================================================================================================================
-void UniversalCmdBuffer::PushGraphicsState()
-{
-    Pal::UniversalCmdBuffer::PushGraphicsState();
-
-    // We reset the rbplusRegHash in this cmdBuffer to 0, so that we'll definitely set the context roll state true
-    // and update the values of rb+ registers through pm4 commands.
-    m_rbplusRegHash        = 0;
-}
-
-// =====================================================================================================================
-void UniversalCmdBuffer::PopGraphicsState()
-{
-    Pal::UniversalCmdBuffer::PopGraphicsState();
-
-    // We reset the rbplusRegHash in this cmdBuffer to 0, so that we'll definitely set the context roll state true
-    // and update the values of rb+ registers through pm4 commands.
-    // Switching the pipeline during a pop operation will already cause a context roll, so forcing a re - write of the
-    // RB + registers won't cause extra rolls.
-    m_rbplusRegHash        = 0;
-
-    UpdateGfxCmdBufGfxBltExecEopFence();
 }
 
 // =====================================================================================================================

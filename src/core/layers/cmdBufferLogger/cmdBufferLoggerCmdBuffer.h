@@ -32,7 +32,7 @@
 #include "palLinearAllocator.h"
 #include "core/layers/decorators.h"
 #include "core/layers/functionIds.h"
-#include "core/g_palPlatformSettings.h"
+#include "g_platformSettings.h"
 
 namespace Pal
 {
@@ -101,6 +101,8 @@ public:
         const PipelineBindParams& params) override;
     virtual void CmdBindMsaaState(
         const IMsaaState* pMsaaState) override;
+    virtual void CmdSaveGraphicsState() override;
+    virtual void CmdRestoreGraphicsState() override;
     virtual void CmdBindColorBlendState(
         const IColorBlendState* pColorBlendState) override;
     virtual void CmdBindDepthStencilState(
@@ -458,9 +460,6 @@ public:
         uint64            mask,
         CompareFunc       compareFunc) override;
     virtual void CmdEndWhile() override;
-    virtual void CmdFlglSync() override;
-    virtual void CmdFlglEnable() override;
-    virtual void CmdFlglDisable() override;
     virtual void CmdBeginPerfExperiment(
         IPerfExperiment* pPerfExperiment) override;
     virtual void CmdUpdatePerfExperimentSqttTokenMask(

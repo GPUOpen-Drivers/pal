@@ -28,7 +28,7 @@
 #include "core/hw/gfxip/gfx6/gfx6Image.h"
 #include "core/hw/gfxip/gfx6/gfx6Device.h"
 #include "core/hw/gfxip/gfx6/gfx6FormatInfo.h"
-#include "core/hw/gfxip/gfx6/g_gfx6PalSettings.h"
+#include "g_gfx6Settings.h"
 #include "core/hw/gfxip/gfx6/gfx6DepthStencilState.h"
 #include "core/platform.h"
 #include "palHasher.h"

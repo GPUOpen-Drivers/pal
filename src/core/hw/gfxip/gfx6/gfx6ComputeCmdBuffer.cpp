@@ -31,7 +31,7 @@
 #include "core/hw/gfxip/gfx6/gfx6PerfExperiment.h"
 #include "core/hw/gfxip/queryPool.h"
 #include "core/cmdAllocator.h"
-#include "core/g_palPlatformSettings.h"
+#include "g_platformSettings.h"
 #include "marker_payload.h"
 #include "palInlineFuncs.h"
 #include "palVectorImpl.h"

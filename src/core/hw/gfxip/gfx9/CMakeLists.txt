@@ -28,8 +28,6 @@ add_subdirectory(chip)
 target_sources(pal PRIVATE
     CMakeLists.txt
     g_gfx9MergedDataFormats.h
-    g_gfx9PalSettings.cpp
-    g_gfx9PalSettings.h
     g_gfx9ShadowedRegistersInit.h
     gfx9AcquireReleaseBarrier.cpp
     gfx9Barrier.cpp

@@ -27,7 +27,7 @@
 
 #include "core/fence.h"
 #include "core/gpuMemory.h"
-#include "core/g_palSettings.h"
+#include "g_coreSettings.h"
 
 #include "palIntrusiveList.h"
 #include "palMutex.h"
@@ -129,7 +129,7 @@ class CmdStreamChunk
     typedef Util::IntrusiveList<CmdStreamChunk> ChunkList;
 
 public:
-    CmdStreamChunk(const CmdStreamAllocation& allocation, uint32* pCpuAddr, uint32* pWriteAddr, gpusize byteOffset);
+    CmdStreamChunk(CmdStreamAllocation* pAllocation, uint32* pCpuAddr, uint32* pWriteAddr, gpusize byteOffset);
 
     void Destroy() { this->~CmdStreamChunk(); }
 
@@ -144,23 +144,21 @@ public:
 
     void EndCommandBlock(uint32 postambleDwords);
     void FinalizeCommands();
-    void Reset(bool resetRefCount);
+    void Reset();
 
     Result InitRootBusyTracker(CmdAllocator* pAllocator);
     void UpdateRootInfo(CmdStreamChunk* pRootChunk);
 
-    void AddCommandStreamReference();
-    void RemoveCommandStreamReference();
-
     void IncrementSubmitCount(uint32 count = 1) { Util::AtomicAdd(&m_busyTracker.submitCount, count); }
 
+    CmdStreamAllocation* Allocation() const { return m_pAllocation; }
     ChunkList::Node* ListNode() { return &m_parentNode; }
 
     const uint32* PeekNextCommandAddr() const { return &m_pWriteAddr[m_usedDataSizeDwords]; }
 
-    GpuMemory* GpuMemory() const { return m_allocation.GpuMemory(); }
+    GpuMemory* GpuMemory() const { return m_pAllocation->GpuMemory(); }
     gpusize GpuMemoryOffset() const { return m_offset; }
-    gpusize GpuVirtAddr() const { return m_allocation.GpuMemory()->Desc().gpuVirtAddr + m_offset; }
+    gpusize GpuVirtAddr() const { return m_pAllocation->GpuMemory()->Desc().gpuVirtAddr + m_offset; }
 
     // Gets a read-only pointer and a read-write pointer to this chunk's mapped buffer. If staging buffers are enabled
     // these won't point to valid data until Finalize is called.
@@ -172,8 +170,8 @@ public:
     const uint32* WriteAddr() const { return m_pWriteAddr; }
 
     // These return the total size of the command chunk memory allocation.
-    uint32 Size()       const { return m_allocation.ChunkSize(); }
-    uint32 SizeDwords() const { return m_allocation.ChunkSize() / sizeof(uint32); }
+    uint32 Size()       const { return m_pAllocation->ChunkSize(); }
+    uint32 SizeDwords() const { return m_pAllocation->ChunkSize() / sizeof(uint32); }
 
     // Returns the total ammount of chunk space that can still be allocated.
     uint32 DwordsRemaining() const { return m_reservedDataOffset - m_usedDataSizeDwords; }
@@ -189,11 +187,7 @@ public:
     // NOTE: Outside of this class, this can only be called by the thread-safe logic within a command allocator.
     bool IsIdleOnGpu() const;
 
-    // Returns true if the chunk is idle on the GPU and is not referenced by any command streams.
-    // NOTE: Outside of this class, this can only be called by the thread-safe logic within a command allocator.
-    bool IsIdle() const { return (m_referenceCount == 0) && IsIdleOnGpu(); }
-
-    bool UsesSystemMemory() const { return m_allocation.UsesSystemMemory(); }
+    bool UsesSystemMemory() const { return m_pAllocation->UsesSystemMemory(); }
 
     uint32 GetGeneration() const { return m_generation; }
 
@@ -216,20 +210,13 @@ private:
 
     void ResetBusyTracker();
 
-    const CmdStreamAllocation& m_allocation; // This chunk is a section of this allocation.
+    CmdStreamAllocation*const m_pAllocation; // This chunk is a section of this allocation.
 
     ChunkList::Node m_parentNode;  // This chunk should always be owned by exactly one list using this node.
     uint32*const    m_pCpuAddr;    // CPU virtual address of the allocation.
     uint32*const    m_pWriteAddr;  // All commands and embedded data must be written to this buffer. If this pointer
                                    // isn't equal to m_pCpuAddr then it points to a system memory staging buffer.
     const gpusize   m_offset;      // Byte offset within the parent allocation's GpuMemory where this chunk starts.
-
-    // Counts the number of active references on this chunk: each command stream which references this chunk adds one
-    // to this count, as do any command buffers which execute a nested command buffer containing this chunk. All of
-    // the non-master chunks in this chunk's command buffer also add one to this count. A chunk is considered "free"
-    // from the CPU's perspective if this count is zero. The reference count should always be zero if our command
-    // allocator has auto-reuse disabled.
-    volatile uint32 m_referenceCount;
 
     // Each time a chunk is reset its generation is incremented. The busy tracker looks at its root chunk's generation
     // to determine if it has been reset, implying that the root (and thus the local chunk) was idle on the GPU. This

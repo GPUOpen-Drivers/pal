@@ -342,5 +342,23 @@ DD_RESULT DeserializeTerminatorResponse(RpcTerminatorResponse* pResponse, const 
     return result;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+DDApiVersion RpcServicesQueryVersion()
+{
+    DDApiVersion version = {};
+
+    version.major = DD_RPC_SERVICES_QUERY_MAJOR_VERSION;
+    version.minor = DD_RPC_SERVICES_QUERY_MINOR_VERSION;
+    version.patch = DD_RPC_SERVICES_QUERY_PATCH_VERSION;
+
+    return version;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+const char* RpcServicesQueryVersionString()
+{
+    return DD_RPC_SERVICES_QUERY_VERSION_STRING;
+}
+
 } // namespace Rpc
 

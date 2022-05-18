@@ -391,6 +391,7 @@ enum class ApiType : Pal::uint32
     Vulkan    = 1,    ///< Represents Vulkan API type.
     Generic   = 2,    ///< Represents Generic API type.
     OpenCl    = 3,    ///< Represents OpenCL API type.
+    Hip       = 5,    ///< Represents HIP API type.
 };
 
 /**

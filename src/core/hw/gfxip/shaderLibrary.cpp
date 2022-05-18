@@ -47,6 +47,7 @@ ShaderLibrary::ShaderLibrary(
     m_gpuMem(),
     m_gpuMemSize(0),
     m_maxStackSizeInBytes(0),
+    m_maxIrStackSizeInBytes(0),
     m_uploadFenceToken(0),
     m_pagingFenceVal(0),
     m_perfDataMem(),
@@ -177,6 +178,12 @@ Result ShaderLibrary::ExtractShaderFunctions(
                     {
                         result = pReader->UnpackNext(&stats.stackFrameSizeInBytes);
                         m_maxStackSizeInBytes = Max(m_maxStackSizeInBytes, stats.stackFrameSizeInBytes);
+                        break;
+                    }
+                    case HashLiteralString(".ir_stack_frame_size_in_bytes"):
+                    {
+                        result = pReader->UnpackNext(&stats.irStackFrameSizeInBytes);
+                        m_maxIrStackSizeInBytes = Max(m_maxIrStackSizeInBytes, stats.irStackFrameSizeInBytes);
                         break;
                     }
                     case HashLiteralString(".shader_subtype"):

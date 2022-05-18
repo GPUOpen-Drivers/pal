@@ -31,7 +31,7 @@
 namespace Util
 {
 // A global DbgLogMgr object available for use by any driver component
-// from start to end of the apllication.
+// from start to end of the application.
 DbgLogMgr g_dbgLogMgr;
 
 // Dummy variable used to set thread local pointer to point to this in
@@ -67,7 +67,8 @@ void DbgLog(
 
 // =====================================================================================================================
 // Constructor that initializes all the data memebers with memory allocation for the pointer types.
-DbgLogMgr::DbgLogMgr() :
+DbgLogMgr::DbgLogMgr()
+    :
     m_logEnabled(true),
     m_reentryGuardKey{},
     m_dbgLoggersLock(),

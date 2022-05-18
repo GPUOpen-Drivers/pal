@@ -28,8 +28,6 @@ add_subdirectory(chip)
 target_sources(pal PRIVATE
     CMakeLists.txt
     g_gfx6MergedDataFormats.h
-    g_gfx6PalSettings.cpp
-    g_gfx6PalSettings.h
     g_gfx6ShadowedRegistersInit.h
     gfx6Barrier.cpp
     gfx6BorderColorPalette.cpp

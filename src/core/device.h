@@ -207,7 +207,8 @@ union HwIpLevelFlags
 {
     struct {
         uint32 reserved0  : 1;
-        uint32 reserved   : 31;
+        uint32 isSpoofed  : 1; // GPU is spoofed and OS props should be ignored.
+        uint32 reserved   : 30;
     };
     uint32 u32All;
 };
@@ -745,7 +746,8 @@ struct GpuChipProperties
             uint32 reserved3                   :  1;
             uint32 supportCaptureReplay        :  1; // Indicates support for Capture Replay
             uint32 supportHsaAbi               :  1;
-            uint32 reserved                    : 26;
+            uint32 supportAceOffload           :  1;
+            uint32 reserved                    : 24;
         };
     } gfxip;
 #endif
@@ -967,14 +969,13 @@ struct GpuChipProperties
                 uint64 supportSingleChannelMinMaxFilter   :  1; // HW supports any min/max filter.
                 uint64 supportSortAgnosticBarycentrics    :  1; // HW provides provoking vertex for custom interp
                 uint64 supportMeshTaskShader              :  1;
-                uint64 supportAceOffload                  :  1;
                 uint64 placeholder5                       :  2;
                 uint64 supportTextureGatherBiasLod        :  1; // HW supports SQ_IMAGE_GATHER4_L_O
                 uint64 supportInt8Dot                     :  1; // HW supports a dot product 8bit.
                 uint64 supportInt4Dot                     :  1; // HW supports a dot product 4bit.
                 uint64 support2DRectList                  :  1; // HW supports PrimitiveTopology::TwoDRectList.
                 uint64 supportImageViewMinLod             :  1; // Indicates image srd supports min_lod.
-                uint64 reserved                           : 14;
+                uint64 reserved                           : 15;
             };
 
             RayTracingIpLevel rayTracingIp;      //< HW RayTracing IP version
@@ -1921,6 +1922,7 @@ public:
         IGpuMemory*const* ppGpuMemory,
         bool              forceSubtract);
 
+    bool    IsSpoofed() const { return m_chipProperties.hwIpFlags.isSpoofed != 0; }
     IfhMode GetIfhMode() const;
 
     // Helper for creating DmaUploadRing for PAL internal use.
@@ -1950,6 +1952,8 @@ public:
 
     bool IssueSqttMarkerEvents() const;
 
+    const FlglState& GetFlglState() const { return m_flglState; }
+
 protected:
     Device(
         Platform*              pPlatform,
@@ -1960,10 +1964,11 @@ protected:
         uint32                 maxSemaphoreCount);
 
     static bool DetermineGpuIpLevels(
-        uint32      familyId,       // AMDGPU Family ID.
-        uint32      eRevId,         // AMDGPU Revision ID.
-        uint32      cpMicrocodeVersion,
-        HwIpLevels* pIpLevels);
+        uint32            familyId,       // AMDGPU Family ID.
+        uint32            eRevId,         // AMDGPU Revision ID.
+        uint32            cpMicrocodeVersion,
+        const Platform*   pPlatform,
+        HwIpLevels*       pIpLevels);
 
     static void GetHwIpDeviceSizes(
         const HwIpLevels& ipLevels,

@@ -25,7 +25,7 @@
 
 #if PAL_DEVELOPER_BUILD
 
-#include "core/g_palPlatformSettings.h"
+#include "g_platformSettings.h"
 #include "core/layers/pm4Instrumentor/pm4InstrumentorCmdBuffer.h"
 #include "core/layers/pm4Instrumentor/pm4InstrumentorDevice.h"
 #include "core/layers/pm4Instrumentor/pm4InstrumentorPlatform.h"

@@ -29,7 +29,7 @@
 #include "palAssert.h"
 #include "palDbgPrint.h"
 #include "core/platform.h"
-#include "core/g_palPlatformSettings.h"
+#include "g_platformSettings.h"
 
 namespace Pal
 {
@@ -51,6 +51,7 @@ public:
     PalPlatformSettings* GetSettingsPtr() { return &m_settings; }
 
     void OverrideDefaults();
+    void ValidateSettings();
 
     // auto-generated function
     void ReadSettings(Pal::Device* pDevice);
@@ -59,8 +60,6 @@ protected:
     virtual DevDriver::Result PerformSetValue(
         SettingNameHash     hash,
         const SettingValue& settingValue) override;
-
-    void ValidateSettings();
 
 private:
     PAL_DISALLOW_COPY_AND_ASSIGN(PlatformSettingsLoader);

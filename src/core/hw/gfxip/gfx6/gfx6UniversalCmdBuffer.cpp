@@ -40,7 +40,7 @@
 #include "core/hw/gfxip/gfx6/gfx6UniversalCmdBuffer.h"
 #include "core/hw/gfxip/queryPool.h"
 #include "core/cmdAllocator.h"
-#include "core/g_palPlatformSettings.h"
+#include "g_platformSettings.h"
 #include "marker_payload.h"
 #include "palMath.h"
 #include "palIntervalTreeImpl.h"
@@ -655,24 +655,30 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
         m_spiPsInControl = spiPsInControl;
     }
 
-    const bool usesViewportArrayIdx = pCurrPipeline->UsesViewportArrayIndex();
-    if (usesViewportArrayIdx != (m_graphicsState.enableMultiViewport != 0))
+    const bool usesViewportArrayIdx     = pCurrPipeline->UsesViewportArrayIndex();
+    const DepthClampMode depthClampMode = pCurrPipeline->GetDepthClampMode();
+    const bool mvDirty                  = (usesViewportArrayIdx != (m_graphicsState.enableMultiViewport != 0));
+    const bool depthClampDirty          =
+        (depthClampMode != static_cast<DepthClampMode>(m_graphicsState.depthClampMode));
+    if (mvDirty || depthClampDirty)
     {
         // If the previously bound pipeline differed in its use of multiple viewports we will need to rewrite the
         // viewport and scissor state on draw.
         if (m_graphicsState.viewportState.count != 0)
         {
             // If viewport is never set, no need to rewrite viewport, this happens in D3D12 nested command list.
-            m_graphicsState.dirtyFlags.validationBits.viewports    = 1;
+            m_graphicsState.dirtyFlags.validationBits.viewports    |=
+                mvDirty ||
+                (depthClampDirty && (depthClampMode != DepthClampMode::_None));
         }
         if (m_graphicsState.scissorRectState.count != 0)
         {
             // If scissor is never set, no need to rewrite scissor, this happens in D3D12 nested command list.
-            m_graphicsState.dirtyFlags.validationBits.scissorRects = 1;
+            m_graphicsState.dirtyFlags.validationBits.scissorRects |= mvDirty;
         }
 
-        m_graphicsState.enableMultiViewport    = usesViewportArrayIdx;
-        m_graphicsState.everUsedMultiViewport |= usesViewportArrayIdx;
+        m_graphicsState.enableMultiViewport = usesViewportArrayIdx;
+        m_graphicsState.depthClampMode      = static_cast<uint32>(depthClampMode);
     }
 
     if (m_vertexOffsetReg != m_pSignatureGfx->vertexOffsetRegAddr)
@@ -777,6 +783,18 @@ void UniversalCmdBuffer::CmdBindMsaaState(
 
     m_graphicsState.pMsaaState                          = pNewState;
     m_graphicsState.dirtyFlags.validationBits.msaaState = 1;
+}
+
+// =====================================================================================================================
+void UniversalCmdBuffer::CmdSaveGraphicsState()
+{
+    Pal::UniversalCmdBuffer::CmdSaveGraphicsState();
+}
+
+// =====================================================================================================================
+void UniversalCmdBuffer::CmdRestoreGraphicsState()
+{
+    Pal::UniversalCmdBuffer::CmdRestoreGraphicsState();
 }
 
 // =====================================================================================================================
@@ -3799,9 +3817,7 @@ uint32* UniversalCmdBuffer::ValidateViewports(
         const auto&         viewport    = params.viewports[i];
         VportZMinMaxPm4Img* pZMinMaxImg = reinterpret_cast<VportZMinMaxPm4Img*>(&zMinMaxImg[i]);
 
-        const auto* const pPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
-
-        if (pPipeline->GetDepthClampMode() == DepthClampMode::ZeroToOne)
+        if (static_cast<DepthClampMode>(m_graphicsState.depthClampMode) == DepthClampMode::ZeroToOne)
         {
             pZMinMaxImg->zMin.f32All = 0.0f;
             pZMinMaxImg->zMax.f32All = 1.0f;
@@ -4921,78 +4937,6 @@ void UniversalCmdBuffer::CmdEndWhile()
     PAL_ASSERT(m_ceCmdStream.IsEmpty() && (IsNested() == false));
 
     m_deCmdStream.EndWhile();
-}
-
-// =====================================================================================================================
-void UniversalCmdBuffer::CmdFlglEnable()
-{
-    SendFlglSyncCommands(FlglRegSeqSwapreadyReset);
-}
-
-// =====================================================================================================================
-void UniversalCmdBuffer::CmdFlglDisable()
-{
-    SendFlglSyncCommands(FlglRegSeqSwapreadySet);
-}
-
-// =====================================================================================================================
-void UniversalCmdBuffer::CmdFlglSync()
-{
-    // make sure (wait that) the swap req line is low
-    SendFlglSyncCommands(FlglRegSeqSwaprequestReadLow);
-    // pull the swap grant line low as we are done rendering
-    SendFlglSyncCommands(FlglRegSeqSwapreadySet);
-    // wait for rising edge of SWAPREQUEST (or timeout)
-    SendFlglSyncCommands(FlglRegSeqSwaprequestRead);
-    // pull the swap grant line high marking the beginning of the next frame
-    SendFlglSyncCommands(FlglRegSeqSwapreadyReset);
-}
-
-// =====================================================================================================================
-void UniversalCmdBuffer::SendFlglSyncCommands(
-    FlglRegSeqType syncSequence)
-{
-    PAL_ASSERT((syncSequence >= 0) && (syncSequence < FlglRegSeqMax));
-
-    const FlglRegSeq* pSeq = m_device.GetFlglRegisterSequence(syncSequence);
-    const uint32 totalNumber = pSeq->regSequenceCount;
-
-    // if there's no GLsync board, num should be 0
-    if (totalNumber > 0)
-    {
-        const bool isReadSequence = (syncSequence == FlglRegSeqSwapreadyRead) ||
-                                    (syncSequence == FlglRegSeqSwaprequestRead) ||
-                                    (syncSequence == FlglRegSeqSwaprequestReadLow);
-
-        const FlglRegCmd* seq = pSeq->regSequence;
-
-        uint32* pCmdSpace = m_deCmdStream.ReserveCommands();
-
-        for (uint32 i = 0; i < totalNumber; i++)
-        {
-            // all sequence steps are write operations apart from the last
-            // step of the SWAPREADY_READ or SWAPREQUEST_READ sequences
-            if ((i == totalNumber - 1) && isReadSequence)
-            {
-                pCmdSpace += m_device.CmdUtil().BuildWaitRegMem(WAIT_REG_MEM_SPACE_REGISTER,
-                                                                WAIT_REG_MEM_FUNC_EQUAL,
-                                                                WAIT_REG_MEM_ENGINE_ME,
-                                                                seq[i].offset,
-                                                                seq[i].orMask ? seq[i].andMask : 0,
-                                                                seq[i].andMask,
-                                                                false,
-                                                                pCmdSpace);
-            }
-            else
-            {
-                // repeat 3 times to prevent dropping of command
-                pCmdSpace += m_device.CmdUtil().BuildRegRmw(seq[i].offset, seq[i].orMask, seq[i].andMask, pCmdSpace);
-                pCmdSpace += m_device.CmdUtil().BuildRegRmw(seq[i].offset, seq[i].orMask, seq[i].andMask, pCmdSpace);
-                pCmdSpace += m_device.CmdUtil().BuildRegRmw(seq[i].offset, seq[i].orMask, seq[i].andMask, pCmdSpace);
-            }
-        }
-        m_deCmdStream.CommitCommands(pCmdSpace);
-    }
 }
 
 // =====================================================================================================================

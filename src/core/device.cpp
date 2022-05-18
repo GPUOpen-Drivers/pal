@@ -130,10 +130,11 @@ uint32 MemoryOpsPerClock(
 // Looks at the ATI family and revision ID's to determine the IP levels of each of the GPU's HWIP blocks. Return whether
 // or not the GPU is actually supported by PAL.
 bool Device::DetermineGpuIpLevels(
-    uint32      familyId,       // Hardware family ID.  See GpuChipProperties::familyId.
-    uint32      eRevId,         // Hardware revision ID.  See GpuChipProperties::eRevId.
-    uint32      cpMicrocodeVersion,
-    HwIpLevels* pIpLevels)
+    uint32            familyId,       // Hardware family ID.  See GpuChipProperties::familyId.
+    uint32            eRevId,         // Hardware revision ID.  See GpuChipProperties::eRevId.
+    uint32            cpMicrocodeVersion,
+    const Platform*   pPlatform,
+    HwIpLevels*       pIpLevels)
 {
     pIpLevels->gfx = GfxIpLevel::None;
     pIpLevels->oss = OssIpLevel::None;
@@ -141,6 +142,11 @@ bool Device::DetermineGpuIpLevels(
     pIpLevels->uvd = UvdIpLevel::None;
     pIpLevels->vcn = VcnIpLevel::None;
     pIpLevels->flags.u32All = 0;
+
+    pIpLevels->flags.isSpoofed = pPlatform->GpuIsSpoofed();
+    bool emulationEnabled = (pPlatform->IsEmulationEnabled() ||
+                             pPlatform->NullDeviceEnabled()  ||
+                             pPlatform->GpuIsSpoofed());
 
     switch (familyId)
     {
@@ -181,6 +187,8 @@ bool Device::DetermineGpuIpLevels(
         break;
     }
 #endif
+
+    PAL_ALERT_MSG(pIpLevels->gfx == GfxIpLevel::None, "Unknown Gfx familyId:0x%x eRevId:0x%x", familyId, eRevId);
 
     // A GPU is considered supported by PAL if at least one of its hardware IP blocks is recognized.
     return ((pIpLevels->gfx != GfxIpLevel::None) || (pIpLevels->oss != OssIpLevel::None) ||
@@ -488,7 +496,9 @@ Result Device::SetupPublicSettingDefaults()
         m_memoryProperties.largePageSupport.minSurfaceSizeForAlignmentInBytes;
     m_publicSettings.miscellaneousDebugString[0] = '\0';
     m_publicSettings.renderedByString[0] = '\0';
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 727
     m_publicSettings.useAcqRelInterface = false;
+#endif
     m_publicSettings.zeroUnboundDescDebugSrd = false;
     m_publicSettings.pipelinePreferredHeap = HasLargeLocalHeap() ? GpuHeap::GpuHeapLocal : GpuHeap::GpuHeapInvisible;
     m_publicSettings.depthClampBasedOnZExport = true;

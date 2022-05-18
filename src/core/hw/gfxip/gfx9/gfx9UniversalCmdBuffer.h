@@ -30,7 +30,7 @@
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9ComputeCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/gfx9WorkaroundState.h"
-#include "core/hw/gfxip/gfx9/g_gfx9PalSettings.h"
+#include "g_gfx9Settings.h"
 #include "palAutoBuffer.h"
 #include "palIntervalTree.h"
 #include "palPipelineAbi.h"
@@ -194,22 +194,6 @@ struct PaScBinnerCntlRegs
     regPA_SC_BINNER_CNTL_1 paScBinnerCntl1;
 };
 
-// PM4 image for loading context registers from memory
-struct LoadDataIndexPm4Img
-{
-    // PM4 load context regs packet to load the register data from memory
-    union
-    {
-        PM4_PFP_LOAD_CONTEXT_REG       loadData;
-        PM4_PFP_LOAD_CONTEXT_REG_INDEX loadDataIndex;
-    };
-
-    // Command space needed, in DWORDs. This field must always be last in the structure to not
-    // interfere w/ the actual commands contained within.
-    size_t                            spaceNeeded;
-
-};
-
 // All NGG related state tracking.
 struct NggState
 {
@@ -273,13 +257,14 @@ union CachedSettings
         uint64 supportsVrs                               :  1;
         uint64 vrsForceRateFine                          :  1;
         uint64 reserved7                                 :  1;
-        uint64 supportsAceOffload                        :  1;
+        uint64 supportAceOffload                         :  1;
         uint64 useExecuteIndirectPacket                  :  2;
-        uint64 reserved8                  :  9;
+        uint64 reserved8                  : 12;
         uint64 reserved10                 :  1;
+
         uint64 optimizeDepthOnlyFmt       :  1;
         uint64 has32bPred                 :  1;
-        uint64 reserved                   :  6;
+        uint64 reserved                   :  3;
     };
     uint64 u64All;
 };
@@ -317,6 +302,8 @@ public:
 
     virtual void CmdBindIndexData(gpusize gpuAddr, uint32 indexCount, IndexType indexType) override;
     virtual void CmdBindMsaaState(const IMsaaState* pMsaaState) override;
+    virtual void CmdSaveGraphicsState() override;
+    virtual void CmdRestoreGraphicsState() override;
     virtual void CmdBindColorBlendState(const IColorBlendState* pColorBlendState) override;
     virtual void CmdBindDepthStencilState(const IDepthStencilState* pDepthStencilState) override;
 
@@ -340,9 +327,6 @@ public:
     virtual void CmdSetClipRects(uint16      clipRule,
                                  uint32      rectCount,
                                  const Rect* pRectList) override;
-    virtual void CmdFlglSync() override;
-    virtual void CmdFlglEnable() override;
-    virtual void CmdFlglDisable() override;
 
     void CmdAceWaitDe();
     void CmdDeWaitAce();
@@ -630,9 +614,6 @@ public:
 
     virtual void CpCopyMemory(gpusize dstAddr, gpusize srcAddr, gpusize numBytes) override;
 
-    virtual void PushGraphicsState() override;
-    virtual void PopGraphicsState() override;
-
     virtual void CmdSetPerDrawVrsRate(const VrsRateParams&  rateParams) override;
     virtual void CmdSetVrsCenterState(const VrsCenterState&  centerState) override;
     virtual void CmdBindSampleRateImage(const IImage*  pImage) override;
@@ -640,7 +621,8 @@ public:
     // See gfxCmdBuffer.h for a full description of this function.
     virtual void DirtyVrsDepthImage(const IImage* pDepthImage) override;
 
-    bool IsRasterizationKilled() const { return (m_pipelineState.flags.noRaster != 0); }
+    bool IsRasterizationKilled() const
+        { return (m_pipelineState.flags.noRaster != 0) || m_graphicsState.rasterizerDiscardEnable; }
 
     regDB_DFSM_CONTROL* GetDbDfsmControl() { return &m_dbDfsmControl; }
     bool HasWaMiscPopsMissedOverlapBeenApplied() const { return m_hasWaMiscPopsMissedOverlapBeenApplied; }
@@ -974,8 +956,6 @@ private:
     bool SetPaScBinnerCntl01(
                              const Extent2d* pBinSize);
 
-    void SendFlglSyncCommands(FlglRegSeqType type);
-
     void DescribeDraw(Developer::DrawDispatchType cmdType, bool includedGangedAce = false);
 
     void P2pBltWaSync();
@@ -1045,6 +1025,8 @@ private:
 #endif
         return (m_pipelineState.flags.isNgg != 0);
     }
+
+    void UpdateRasterKillDrawsTrackedState();
 
     const Device&   m_device;
     const CmdUtil&  m_cmdUtil;
@@ -1161,7 +1143,7 @@ private:
             uint64 maxAllocCountNgg       : 16;
             uint64 maxAllocCountLegacy    : 16;
             uint64 persistentStatesPerBin : 16;
-            uint64 reserved               : 16;
+            uint64 maxPrimsPerBatch       : 16;
         };
         uint64 u64All;
     } m_cachedPbbSettings;

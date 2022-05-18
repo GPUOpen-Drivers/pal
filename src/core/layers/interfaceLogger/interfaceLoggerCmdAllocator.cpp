@@ -47,18 +47,23 @@ CmdAllocator::CmdAllocator(
 }
 
 // =====================================================================================================================
-Result CmdAllocator::Reset()
+Result CmdAllocator::Reset(
+    bool freeMemory)
 {
     BeginFuncInfo funcInfo;
     funcInfo.funcId       = InterfaceFunc::CmdAllocatorReset;
     funcInfo.objectId     = m_objectId;
     funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const Result result   = CmdAllocatorDecorator::Reset();
+    const Result result   = CmdAllocatorDecorator::Reset(freeMemory);
     funcInfo.postCallTime = m_pPlatform->GetTime();
 
     LogContext* pLogContext = nullptr;
     if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
     {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndValue("freeMemory", freeMemory);
+        pLogContext->EndInput();
+
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
         pLogContext->EndOutput();

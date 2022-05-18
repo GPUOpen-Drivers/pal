@@ -18,14 +18,14 @@
 
 using namespace DevDriver::SettingsURIService;
 
-{% macro prep_cond_begin(conds) %}
-{% if conds %}
-#if {{ conds|macros_concat }}
+{% macro prep_cond_begin(prep_cond) %}
+{% if prep_cond %}
+{{prep_cond}}
 {% endif %}
 {% endmacro %}
 {# ======================================== #}
-{% macro prep_cond_end(conds) %}
-{% if conds %}
+{% macro prep_cond_end(prep_cond) %}
+{% if prep_cond %}
 #endif
 {% endif %}
 {% endmacro %}
@@ -38,14 +38,14 @@ namespace {{ComponentName}}
 {% for setting in Settings %}
 {% if setting.GroupName %}
 {% for subs in setting.Subsettings %}
-{{ prep_cond_begin(subs.PreprocessorConditions) -}}
+{{ prep_cond_begin(subs.BuildFilters) -}}
 const char* p{{setting.GroupName}}_{{subs.Name}} = "{{setting.GroupName}}_{{subs.Name}}";
-{{ prep_cond_end(subs.PreprocessorConditions) -}}
+{{ prep_cond_end(subs.BuildFilters) -}}
 {% endfor %}
 {% else %}
-{{ prep_cond_begin(setting.PreprocessorConditions) -}}
+{{ prep_cond_begin(setting.BuildFilters) -}}
 const char* p{{setting.Name}} = "{{setting.Name}}";
-{{ prep_cond_end(setting.PreprocessorConditions) -}}
+{{ prep_cond_end(setting.BuildFilters) -}}
 {% endif %}
 {% endfor %}
 
@@ -57,14 +57,14 @@ void {{ComponentName}}Settings::SetupDefaults()
 {% if setting.GroupName %}
 
 {% for subs in setting.Subsettings %}
-{{ prep_cond_begin(subs.PreprocessorConditions) -}}
+{{ prep_cond_begin(subs.BuildFilters) -}}
 {{ subs|setup_default(setting.GroupVariableName) -}}
-{{ prep_cond_end(subs.PreprocessorConditions) -}}
+{{ prep_cond_end(subs.BuildFilters) -}}
 {% endfor %}
 {% else %}
-{{ prep_cond_begin(setting.PreprocessorConditions) -}}
+{{ prep_cond_begin(setting.BuildFilters) -}}
 {{ setting|setup_default('') -}}
-{{ prep_cond_end(setting.PreprocessorConditions) -}}
+{{ prep_cond_end(setting.BuildFilters) -}}
 {% endif %}
 {% endfor %}
 }
@@ -78,20 +78,20 @@ void {{ComponentName}}Settings::InitSettingsInfo()
 {% if setting.GroupName %}
 
 {% for subs in setting.Subsettings %}
-{{ prep_cond_begin(subs.PreprocessorConditions) }}
+{{ prep_cond_begin(subs.BuildFilters) }}
     valueRef.type = {{ subs.Defaults.Type|setting_type_cpp2 }};
     valueRef.pValue = &m_settings.{{setting.GroupVariableName}}.{{subs.VariableName}};
     valueRef.size = sizeof(m_settings.{{setting.GroupVariableName}}.{{subs.VariableName}});
     m_settingValueRefsMap.Insert({{subs.NameHash}}, valueRef);
-{{ prep_cond_end(subs.PreprocessorConditions) -}}
+{{ prep_cond_end(subs.BuildFilters) -}}
 {% endfor %}
 {% else %}
-{{ prep_cond_begin(setting.PreprocessorConditions) }}
+{{ prep_cond_begin(setting.BuildFilters) }}
     valueRef.type = {{ setting.Defaults.Type|setting_type_cpp2 }};
     valueRef.pValue = &m_settings.{{setting.VariableName}};
     valueRef.size = sizeof(m_settings.{{setting.VariableName}});
     m_settingValueRefsMap.Insert({{setting.NameHash}}, valueRef);
-{{ prep_cond_end(setting.PreprocessorConditions) -}}
+{{ prep_cond_end(setting.BuildFilters) -}}
 {% endif %}
 {% endfor %}
 }
@@ -160,14 +160,14 @@ const SettingNameHash SettingsNameHashList_Legacy[] = {
 {% for setting in Settings %}
 {% if setting.GroupName %}
 {% for subs in setting.Subsettings %}
-{{ prep_cond_begin(subs.PreprocessorConditions) -}}
+{{ prep_cond_begin(subs.BuildFilters) -}}
 {{'    '}}{{subs.NameHash}},
-{{ prep_cond_end(subs.PreprocessorConditions) -}}
+{{ prep_cond_end(subs.BuildFilters) -}}
 {% endfor %}
 {% else %}
-{{ prep_cond_begin(setting.PreprocessorConditions) -}}
+{{ prep_cond_begin(setting.BuildFilters) -}}
 {{'    '}}{{setting.NameHash}},
-{{ prep_cond_end(setting.PreprocessorConditions) -}}
+{{ prep_cond_end(setting.BuildFilters) -}}
 {% endif %}
 {% endfor %}
 };

@@ -64,7 +64,7 @@ public:
 
     virtual ~SettingsBase() {}
 
-    virtual DD_RESULT Init(const char* pUserValuesFilePath) = 0;
+    virtual DD_RESULT Init(const char* pUserOverridesFilePath) = 0;
 
     MetroHash::Hash GetSettingsHash() const { return m_settingsHash; }
 
@@ -96,15 +96,21 @@ protected:
         return DevDriver::Result::NotReady;
     }
 
-    DD_RESULT LoadSettingsUserValuesFile(const char* pFilepath)
+    DD_RESULT LoadUserOverridesFile(const char* pFilepath)
     {
-        return m_uservalues.Load(pFilepath);
+        return m_useroverrides.Load(pFilepath);
     }
 
-    DD_RESULT ApplySettingsUserValuesByComponent(const char* pComponentName)
-    {
-        return m_uservalues.ApplyUserValuesByComponent(pComponentName, this);
-    }
+    /// Apply user-overrides of a specific component.
+    /// Return SUCCESS:
+    ///     1) The specified component is not found.
+    ///     2) The specified component found but doesn't contain any user-overrides.
+    ///     3) All user-overrides in the specified component are applied.
+    /// Return SUCCESS_WITH_ERROR:
+    ///     Some but not all user-overrides fail to be applied.
+    /// Return other errors:
+    ///     All other cases.
+    DD_RESULT ApplyUserOverridesByComponent(const char* pComponentName);
 
     // auto-generated functions
     virtual void InitSettingsInfo() = 0;
@@ -116,7 +122,7 @@ protected:
 private:
     SettingsData* m_pSettingsData;
     MetroHash::Hash m_settingsHash;
-    SettingsConfig m_uservalues;
+    SettingsConfig m_useroverrides;
 protected:
     HashMap<uint32_t, SettingsValueRef> m_settingValueRefsMap;
 

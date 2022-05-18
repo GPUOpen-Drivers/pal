@@ -48,6 +48,8 @@ string(REPLACE " /W3" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 if (DEVDRIVER_IS_TOP_LEVEL)
     set(DD_BRANCH_STRING "dev")
 
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
     if (MSVC_IDE)
         # Build with Multiple Processes, this is a nice quality of life for VS users
         # This is the preferred way of speeding up vs builds.
@@ -56,6 +58,10 @@ if (DEVDRIVER_IS_TOP_LEVEL)
         # Put ZERO_CHECK, INSTALL, etc default targets in a separate folder in VS solutions
         set_property(GLOBAL PROPERTY USE_FOLDERS ON)
     endif()
+endif()
+
+if (NOT DEFINED CMAKE_POSITION_INDEPENDENT_CODE)
+    message(AUTHOR_WARNING "CMAKE_POSITION_INDEPENDENT_CODE not set!")
 endif()
 
 option(DD_ENABLE_WARNINGS "Enforce a warning-clean build" ${DEVDRIVER_IS_TOP_LEVEL})

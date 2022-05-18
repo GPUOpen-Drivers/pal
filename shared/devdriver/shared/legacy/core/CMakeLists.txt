@@ -23,18 +23,12 @@
  #
  #######################################################################################################################
 
-# Put ZERO_CHECK, INSTALL, etc default targets in a separate folder in VS solutions
-set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../cmake")
 include(DevDriver)
 
 ### Create ddCore Library #############################################################################################
 devdriver_library(ddCore STATIC)
 
 ### Cached Project Options #############################################################################################
-option(DD_OPT_SHOW_DEBUG_LABELS "Show debug labels in various log outputs?" ON)
-
 set(DD_OPT_LOG_LEVEL ${DD_OPT_LOG_LEVEL} CACHE STRING "Developer driver mode log level? [0-4]")
 
 if(UNIX)
@@ -75,11 +69,6 @@ endif()
 
 if(DD_OPT_LOG_LEVEL)
     target_compile_definitions(ddCore PUBLIC DD_OPT_LOG_LEVEL=${DD_OPT_LOG_LEVEL})
-endif()
-
-if(DD_OPT_SHOW_DEBUG_LABELS)
-    target_compile_definitions(ddCore PRIVATE $<$<CONFIG:Debug>:         DD_OPT_SHOW_DEBUG_LABELS>
-                                              $<$<CONFIG:RelWithDebInfo>:DD_OPT_SHOW_DEBUG_LABELS>)
 endif()
 
 ### Include Directories ################################################################################################

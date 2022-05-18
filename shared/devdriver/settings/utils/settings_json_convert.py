@@ -27,7 +27,11 @@ import argparse
 import json
 import sys
 
-def extract_preprocessor_conditions(parent):
+def extract_build_filters(parent):
+    """Extract and convert BuiltTypes macros.
+
+    `parent` is a dict that contains a "BuildTypes" or "OrBuildTypes" field.
+    """
     build_types = parent.get('BuildTypes', None)
     if build_types:
         cond = { 'Macros': build_types }
@@ -53,6 +57,23 @@ def convert_to_settings2_type(type):
         return 'uint8'
     else:
         return type
+
+def convert_to_settings2_tags(old_tags):
+    new_tags_list = []
+    for tag_i, tag in enumerate(old_tags):
+        if isinstance(tag, str):
+            new_tags_list.append(tag)
+        elif isinstance(tag, dict):
+            cond = extract_build_filters(tag)
+            new_tag = {
+                'Name': tag['Name'],
+                'BuildFilters': cond
+            }
+            new_tags_list.append(new_tag)
+        else:
+            raise ValueError(f'The tag at index {tag_i} in top-level Tags list is neither a string nor an object.')
+
+    return new_tags_list
 
 def convert_to_settings2_defaults(defaults, type):
     def fix(default):
@@ -157,9 +178,9 @@ def convert_to_settings2_setting(setting: dict, group_name: str) -> dict:
         else:
             new_setting['Bitmask'] = name
 
-    preprocessor_cond = extract_preprocessor_conditions(setting)
-    if preprocessor_cond:
-        new_setting['PreprocessorConditions'] = preprocessor_cond
+    build_filters = extract_build_filters(setting)
+    if build_filters:
+        new_setting['BuildFilters'] = build_filters
 
     return new_setting
 
@@ -193,6 +214,8 @@ def convert_to_settings2(old_settings: dict) -> dict:
 
     settingItems = []
     settings2['Settings'] = settingItems
+
+    settings2['Tags'] = convert_to_settings2_tags(old_settings['Tags'])
 
     for setting in old_settings['Settings']:
         flags = setting.get('Flags', None)
@@ -229,9 +252,9 @@ def convert_to_settings2(old_settings: dict) -> dict:
                 else:
                     variant['Description'] = desc
 
-                preprocessor_cond = extract_preprocessor_conditions(val)
-                if preprocessor_cond:
-                    variant['PreprocessorConditions'] = preprocessor_cond
+                build_filters = extract_build_filters(val)
+                if build_filters:
+                    variant['BuildFilters'] = build_filters
                 variants.append(variant)
             enum['Variants'] = variants
             enums.append(enum)
@@ -250,9 +273,9 @@ def convert_to_settings2(old_settings: dict) -> dict:
                     'Value': val['Value'],
                     'Description': val['Description']
                 }
-                preprocessor_cond = extract_preprocessor_conditions(val)
-                if preprocessor_cond:
-                    bit['PreprocessorConditions'] = preprocessor_cond
+                build_filters = extract_build_filters(val)
+                if build_filters:
+                    bit['BuildFilters'] = build_filters
                 bits.append(bit)
             bitmask['Bits'] = bits
             bitmasks.append(bitmask)

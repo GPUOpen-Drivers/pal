@@ -446,11 +446,36 @@ Result ComputePipeline::LinkWithLibraries(
                 Max(computePgmRsrc3.bits.SHARED_VGPR_CNT, libObjRegInfo.libRegs.computePgmRsrc3.bits.SHARED_VGPR_CNT);
         }
 
-        const uint32 stackSizeNeededInBytes = pLibObj->GetMaxStackSizeInBytes() * m_maxFunctionCallDepth;
+        const uint32 stackSizeNeededInBytes =
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 728
+            // 1 call deep on CPS because functions tail calls other functions.
+            pLibObj->GetMaxStackSizeInBytes() * (m_useCps ? 1 : m_maxFunctionCallDepth);
+#else
+            pLibObj->GetMaxStackSizeInBytes() * m_maxFunctionCallDepth;
+#endif
+
+        bool update = false;
         if (stackSizeNeededInBytes > m_stackSizeInBytes)
         {
+            update = true;
             m_stackSizeInBytes = stackSizeNeededInBytes;
-            UpdateRingSizes(stackSizeNeededInBytes / sizeof(uint32));
+        }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 728
+        if (m_useCps)
+        {
+            const uint32 irStackSizeNeededInBytes = pLibObj->GetMaxIrStackSizeInBytes() * m_maxFunctionCallDepth;
+            if (irStackSizeNeededInBytes > m_irStackSizeInBytes)
+            {
+                update = true;
+                m_irStackSizeInBytes = irStackSizeNeededInBytes;
+            }
+        }
+#endif
+
+        if (update)
+        {
+            UpdateRingSizes((m_irStackSizeInBytes + m_stackSizeInBytes) / sizeof(uint32));
         }
     }
 
@@ -518,12 +543,19 @@ Result ComputePipeline::GetShaderStats(
 }
 
 // =====================================================================================================================
-// Sets the total stack frame size for indirect shaders in the pipeline
+// Set the stack frame size for indirect shaders in the pipeline
 void ComputePipeline::SetStackSizeInBytes(
     uint32 stackSizeInBytes)
 {
     m_stackSizeInBytes = stackSizeInBytes;
     UpdateRingSizes(stackSizeInBytes / sizeof(uint32));
+}
+
+// =====================================================================================================================
+// Get the size of the stack managed by the compiler backend.
+uint32 ComputePipeline::GetStackSizeInBytes() const
+{
+    return m_stackSizeInBytes;
 }
 
 // =====================================================================================================================

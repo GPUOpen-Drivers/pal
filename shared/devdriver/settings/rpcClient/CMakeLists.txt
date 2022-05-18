@@ -27,7 +27,9 @@
 # This file is auto generated, see the source for details on updating this
 ####################################################################################
 
-devdriver_library(SettingsRpcClient
+add_library(SettingsRpcClient STATIC)
+
+target_sources(SettingsRpcClient PRIVATE
     inc/g_SettingsRpcClient.h
     src/g_SettingsRpcClient.cpp
 )

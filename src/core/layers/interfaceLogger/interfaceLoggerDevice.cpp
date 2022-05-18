@@ -48,7 +48,7 @@
 #include "core/layers/interfaceLogger/interfaceLoggerScreen.h"
 #include "core/layers/interfaceLogger/interfaceLoggerShaderLibrary.h"
 #include "core/layers/interfaceLogger/interfaceLoggerSwapChain.h"
-#include "core/g_palPlatformSettings.h"
+#include "g_platformSettings.h"
 #include "palSysUtil.h"
 
 using namespace Util;
@@ -2706,6 +2706,70 @@ Result Device::FlglQueryState(
 }
 
 // =====================================================================================================================
+Result Device::FlglSetSyncConfiguration(
+    const GlSyncConfig& glSyncConfig)
+{
+    auto* const  pPlatform = static_cast<Platform*>(m_pPlatform);
+
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId = InterfaceFunc::DeviceFlglSetSyncConfiguration;
+    funcInfo.objectId = m_objectId;
+    funcInfo.preCallTime = pPlatform->GetTime();
+    Result result = m_pNextLayer->FlglSetSyncConfiguration(glSyncConfig);
+    funcInfo.postCallTime = pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndStruct("glSyncConfig", glSyncConfig);
+        pLogContext->EndInput();
+
+        pLogContext->BeginOutput();
+        pLogContext->KeyAndEnum("result", result);
+        pLogContext->EndOutput();
+
+        pPlatform->LogEndFunc(pLogContext);
+    }
+    return result;
+}
+
+// =====================================================================================================================
+Result Device::FlglGetSyncConfiguration(
+    GlSyncConfig* pGlSyncConfig
+    ) const
+{
+    auto* const  pPlatform = static_cast<Platform*>(m_pPlatform);
+
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId = InterfaceFunc::DeviceFlglGetSyncConfiguration;
+    funcInfo.objectId = m_objectId;
+    funcInfo.preCallTime = pPlatform->GetTime();
+    Result result = m_pNextLayer->FlglGetSyncConfiguration(pGlSyncConfig);
+    funcInfo.postCallTime = pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginOutput();
+        pLogContext->KeyAndEnum("result", result);
+
+        if (pGlSyncConfig != nullptr)
+        {
+            pLogContext->KeyAndStruct("pGlSyncConfig", *pGlSyncConfig);
+        }
+        else
+        {
+            pLogContext->KeyAndNullValue("pGlSyncConfig");
+        }
+        pLogContext->EndOutput();
+
+        pPlatform->LogEndFunc(pLogContext);
+    }
+    return result;
+}
+
+// =====================================================================================================================
 Result Device::FlglSetFrameLock(
     bool enable)
 {
@@ -2715,6 +2779,34 @@ Result Device::FlglSetFrameLock(
     funcInfo.objectId     = m_objectId;
     funcInfo.preCallTime  = pPlatform->GetTime();
     Result result         = m_pNextLayer->FlglSetFrameLock(enable);
+    funcInfo.postCallTime = pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndValue("enable", enable);
+        pLogContext->EndInput();
+
+        pLogContext->BeginOutput();
+        pLogContext->KeyAndEnum("result", result);
+        pLogContext->EndOutput();
+
+        pPlatform->LogEndFunc(pLogContext);
+    }
+    return result;
+}
+
+// =====================================================================================================================
+Result Device::FlglSetGenLock(
+    bool enable)
+{
+    auto* const  pPlatform = static_cast<Platform*>(m_pPlatform);
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId = InterfaceFunc::DeviceFlglSetGenLock;
+    funcInfo.objectId = m_objectId;
+    funcInfo.preCallTime = pPlatform->GetTime();
+    Result result = m_pNextLayer->FlglSetGenLock(enable);
     funcInfo.postCallTime = pPlatform->GetTime();
 
     LogContext* pLogContext = nullptr;
@@ -2759,7 +2851,8 @@ Result Device::FlglResetFrameCounter() const
 
 // =====================================================================================================================
 Result Device::FlglGetFrameCounter(
-    uint64* pValue
+    uint64* pValue,
+    bool*   pReset
     ) const
 {
     auto*const  pPlatform = static_cast<Platform*>(m_pPlatform);
@@ -2768,7 +2861,7 @@ Result Device::FlglGetFrameCounter(
     funcInfo.funcId       = InterfaceFunc::DeviceFlglGetFrameCounter;
     funcInfo.objectId     = m_objectId;
     funcInfo.preCallTime  = pPlatform->GetTime();
-    Result result         = m_pNextLayer->FlglGetFrameCounter(pValue);
+    Result result         = m_pNextLayer->FlglGetFrameCounter(pValue, pReset);
     funcInfo.postCallTime = pPlatform->GetTime();
 
     LogContext* pLogContext = nullptr;
@@ -2784,6 +2877,15 @@ Result Device::FlglGetFrameCounter(
         else
         {
             pLogContext->KeyAndNullValue("value");
+        }
+
+        if (pReset != nullptr)
+        {
+            pLogContext->KeyAndValue("reset", *pReset);
+        }
+        else
+        {
+            pLogContext->KeyAndNullValue("reset");
         }
         pLogContext->EndOutput();
 

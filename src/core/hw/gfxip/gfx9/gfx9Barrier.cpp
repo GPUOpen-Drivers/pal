@@ -132,7 +132,7 @@ bool Device::NeedGlobalFlushAndInvL2(
 void Device::TransitionDepthStencil(
     GfxCmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
-    GfxCmdBufferState             cmdBufState,
+    GfxCmdBufferStateFlags        cmdBufStateFlags,
     const BarrierInfo&            barrier,
     uint32                        transitionId,
     bool                          earlyPhase,
@@ -305,8 +305,8 @@ void Device::TransitionDepthStencil(
         {
             srcCacheMask &= ~CoherClear;
 
-            srcCacheMask |= cmdBufState.flags.gfxWriteCachesDirty ? CoherDepthStencilTarget : 0;
-            srcCacheMask |= cmdBufState.flags.csWriteCachesDirty  ? CoherShader             : 0;
+            srcCacheMask |= cmdBufStateFlags.gfxWriteCachesDirty ? CoherDepthStencilTarget : 0;
+            srcCacheMask |= cmdBufStateFlags.csWriteCachesDirty  ? CoherShader             : 0;
         }
 
         if (isGfxSupported &&
@@ -851,7 +851,8 @@ void Device::IssueSyncs(
 
     // We can't flush or invalidate CB metadata using an ACQUIRE_MEM so we must use an event. By now we would have
     // rolled this event into an EOP stall if one was required.
-    if (TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushAndInvCbMd))
+    if (TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushAndInvCbMd)
+        )
     {
         // We need to use at least one RELEASE_MEM because it gives us the ability to flush or invalidate the GL2
         // after the CB cache(s) without using a full wait for idle. If we don't roll the GL2 flush into the CB flush
@@ -1015,8 +1016,9 @@ void Device::Barrier(
     SyncReqs globalSyncReqs = {};
     Developer::BarrierOperations barrierOps = {};
 
-    const GfxCmdBufferState cmdBufState    = pCmdBuf->GetGfxCmdBufState();
-    const bool              isGfxSupported = pCmdBuf->IsGraphicsSupported();
+    // Keep a copy of original CmdBufferState flag as TransitionDepthStencil() or ExpandColor() may change it.
+    const GfxCmdBufferStateFlags origCmdBufStateFlags = pCmdBuf->GetGfxCmdBufState().flags;
+    const bool                   isGfxSupported       = pCmdBuf->IsGraphicsSupported();
 
     // -----------------------------------------------------------------------------------------------------------------
     // -- Early image layout transitions.
@@ -1050,7 +1052,7 @@ void Device::Barrier(
                     {
                         TransitionDepthStencil(pCmdBuf,
                                                pCmdStream,
-                                               cmdBufState,
+                                               origCmdBufStateFlags,
                                                barrier,
                                                i,
                                                true,
@@ -1091,7 +1093,7 @@ void Device::Barrier(
 
         pCmdBuf->OptimizePipePoint(&pipePoint);
 
-        if (cmdBufState.flags.cpBltActive)
+        if (origCmdBufStateFlags.cpBltActive)
         {
             // CP blts use asynchronous CP DMA operations which are executed in parallel to our usual pipeline. This
             // means that we must sync CP DMA in any case that might expect the results of the CP blt to be available.
@@ -1503,7 +1505,7 @@ void Device::Barrier(
                         // Issue a late-phase DB decompress, if necessary.
                         TransitionDepthStencil(pCmdBuf,
                                                pCmdStream,
-                                               cmdBufState,
+                                               origCmdBufStateFlags,
                                                barrier,
                                                i,
                                                false,

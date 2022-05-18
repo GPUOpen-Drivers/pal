@@ -797,6 +797,37 @@ namespace DevDriver
                         DD_ASSERT(keyType == REG_SZ);
 
                         Strncpy(pInfo->name, textBuffer);
+
+                        res = RegQueryValueExA(
+                            hKey,
+                            "CurrentBuildNumber",
+                            nullptr,
+                            &keyType,
+                            (LPBYTE)&textBuffer[0],
+                            &valueSize);
+
+                        if (res == ERROR_SUCCESS)
+                        {
+
+                            static constexpr int kWindows11BuildNumberStart = 22000;
+
+                            // Builds higher than 22000 will have a productName of Windows 10, so the 10 needs to be
+                            // replaced with 11. Checking the build number is Microsoft's recommendation
+
+                            ULONG buildNumber = strtoul(&textBuffer[0], nullptr, 10);
+                            if (buildNumber >= kWindows11BuildNumberStart)
+                            {
+                                char* zero = strchr(pInfo->name, '0');
+                                if (zero != nullptr)
+                                {
+                                    *zero = '1';
+                                }
+                            }
+                        }
+                        else
+                        {
+                            result = Result::Error;
+                        }
                     }
                     else
                     {

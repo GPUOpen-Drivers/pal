@@ -10,14 +10,14 @@
 
 #include <settingsBase.h>
 
-{% macro prep_cond_begin(conds) %}
-{% if conds %}
-#if {{ conds|macros_concat }}
+{% macro prep_cond_begin(prep_cond) %}
+{% if prep_cond %}
+{{prep_cond}}
 {% endif %}
 {% endmacro %}
 
-{% macro prep_cond_end(conds) %}
-{% if conds %}
+{% macro prep_cond_end(prep_cond) %}
+{% if prep_cond %}
 #endif
 {% endif %}
 {% endmacro %}
@@ -29,9 +29,9 @@ namespace {{ComponentName}}
 enum {{enum.Name}} : uint8_t
 {
 {% for variant in enum.Variants %}
-{{ prep_cond_begin(variant.PreprocessorConditions) -}}
+{{ prep_cond_begin(variant.BuildFilters) -}}
 {{'    '}}{{variant.Name}} = {{variant.Value}}, {% if variant.Description %}// {{variant.Description}}{% endif +%}
-{{ prep_cond_end(variant.PreprocessorConditions) -}}
+{{ prep_cond_end(variant.BuildFilters) -}}
 {% endfor %}
 };
 
@@ -42,9 +42,9 @@ enum {{enum.Name}} : uint8_t
 enum {{bitmask.Name}} : uint32_t
 {
 {% for bit in bitmask.Bits %}
-{{ prep_cond_begin(bit.PreprocessorConditions) -}}
+{{ prep_cond_begin(bit.BuildFilters) -}}
 {{'    '}}{{bit.Name}} = {{bit.Value}}, {%if bit.Description%}// {{bit.Description}}{% endif +%}
-{{ prep_cond_end(bit.PreprocessorConditions) -}}
+{{ prep_cond_end(bit.BuildFilters) -}}
 {% endfor %}
 };
 
@@ -57,15 +57,15 @@ struct {{ComponentName}}SettingsData : public DevDriver::SettingsData
 
     struct {
 {% for subs in setting.Subsettings %}
-{{ prep_cond_begin(subs.PreprocessorConditions) -}}
+{{ prep_cond_begin(subs.BuildFilters) -}}
 {{'        '}}{{subs.VariableType}} {{subs.VariableName}}{% if subs.StringLength %}[{{subs.StringLength}}]{% endif %};
-{{ prep_cond_end(subs.PreprocessorConditions) -}}
+{{ prep_cond_end(subs.BuildFilters) -}}
 {% endfor %}
     } {{setting.GroupVariableName}};
 {% else %}
-{{ prep_cond_begin(setting.PreprocessorConditions) -}}
+{{ prep_cond_begin(setting.BuildFilters) -}}
 {{'    '}}{{setting.VariableType}} {{setting.VariableName}}{% if setting.StringLength %}[{{setting.StringLength}}]{% endif %};
-{{ prep_cond_end(setting.PreprocessorConditions) -}}
+{{ prep_cond_end(setting.BuildFilters) -}}
 {% endif %}
 {% endfor %}
 };

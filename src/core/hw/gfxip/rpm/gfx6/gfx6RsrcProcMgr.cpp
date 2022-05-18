@@ -24,7 +24,7 @@
  **********************************************************************************************************************/
 
 #include "core/platform.h"
-#include "core/g_palSettings.h"
+#include "g_coreSettings.h"
 #include "core/hw/gfxip/computePipeline.h"
 #include "core/hw/gfxip/depthStencilState.h"
 #include "core/hw/gfxip/gfxCmdBuffer.h"
@@ -926,13 +926,15 @@ bool RsrcProcMgr::ExpandDepthStencil(
                                             viewRange,
                                             createInfo.swizzledFormat,
                                             RpmUtil::DefaultRpmLayoutRead,
-                                            device.TexOptLevel()); // src
+                                            device.TexOptLevel(),
+                                            false); // src
                 RpmUtil::BuildImageViewInfo(&imageView[1],
                                             image,
                                             viewRange,
                                             createInfo.swizzledFormat,
                                             RpmUtil::DefaultRpmLayoutShaderWriteRaw,
-                                            device.TexOptLevel());  // dst
+                                            device.TexOptLevel(),
+                                            true);  // dst
                 device.CreateImageViewSrds(2, &imageView[0], pSrdTable);
 
                 pSrdTable += 2 * SrdDwordAlignment();
@@ -2513,7 +2515,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     bindTargetsInfo.depthTarget.stencilLayout = stencilLayout;
 
     // Save current command buffer state and bind graphics state which is common for all mipmap levels.
-    pCmdBuffer->PushGraphicsState();
+    pCmdBuffer->CmdSaveGraphicsState();
 
     // Bind the depth expand state because it's just a full image quad and a zero PS (with no internal flags) which
     // is also what we need for the clear.
@@ -2641,7 +2643,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     } // End for each mip.
 
     // Restore original command buffer state and destroy the depth/stencil state.
-    pCmdBuffer->PopGraphicsState();
+    pCmdBuffer->CmdRestoreGraphicsState();
 }
 
 // =====================================================================================================================
@@ -3304,13 +3306,15 @@ void RsrcProcMgr::DccDecompressOnCompute(
                                         viewRange,
                                         createInfo.swizzledFormat,
                                         RpmUtil::DefaultRpmLayoutRead,
-                                        device.TexOptLevel()); // src
+                                        device.TexOptLevel(),
+                                        false); // src
             RpmUtil::BuildImageViewInfo(&imageView[1],
                                         parentImg,
                                         viewRange,
                                         createInfo.swizzledFormat,
                                         RpmUtil::DefaultRpmLayoutShaderWriteRaw,
-                                        device.TexOptLevel());  // dst
+                                        device.TexOptLevel(),
+                                        true);  // dst
             device.CreateImageViewSrds(2, &imageView[0], pSrdTable);
 
             pSrdTable += 2 * SrdDwordAlignment();
@@ -3533,7 +3537,8 @@ void RsrcProcMgr::FmaskColorExpand(
                                         viewRange,
                                         format,
                                         RpmUtil::DefaultRpmLayoutShaderWriteRaw,
-                                        device.TexOptLevel());
+                                        device.TexOptLevel(),
+                                        true);
             imageView.viewType = ImageViewType::Tex2d;
 
             device.CreateImageViewSrds(1, &imageView, pSrdTable);

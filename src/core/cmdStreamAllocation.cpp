@@ -154,7 +154,7 @@ Result CmdStreamAllocation::Init(
 
     for (uint32 idx = 0; idx < m_createInfo.numChunks; ++idx)
     {
-        PAL_PLACEMENT_NEW(m_pChunks + idx) CmdStreamChunk(*this, pChunkCpuAddr, pChunkWriteAddr, byteOffset);
+        PAL_PLACEMENT_NEW(m_pChunks + idx) CmdStreamChunk(this, pChunkCpuAddr, pChunkWriteAddr, byteOffset);
 
         if (CpuAccessible())
         {
@@ -211,23 +211,24 @@ void CmdStreamAllocation::Destroy(
 
 // =====================================================================================================================
 CmdStreamChunk::CmdStreamChunk(
-    const CmdStreamAllocation& allocation,
-    uint32*                    pCpuAddr,
-    uint32*                    pWriteAddr,
-    gpusize                    byteOffset)
+    CmdStreamAllocation* pAllocation,
+    uint32*              pCpuAddr,
+    uint32*              pWriteAddr,
+    gpusize              byteOffset)
     :
-    m_allocation(allocation),
+    m_pAllocation(pAllocation),
     m_parentNode(this),
     m_pCpuAddr(pCpuAddr),
     m_pWriteAddr(pWriteAddr),
     m_offset(byteOffset),
-    m_referenceCount(0),
     m_generation(0),
     m_usedDataSizeDwords(0),
     m_cmdDwordsToExecute(0),
     m_cmdDwordsToExecuteNoPostamble(0),
     m_reservedDataOffset(SizeDwords())
 {
+    PAL_ASSERT(m_pAllocation != nullptr);
+
     ResetBusyTracker();
 }
 
@@ -253,7 +254,7 @@ uint32* CmdStreamChunk::GetSpace(
 {
     // It is impossible to retrieve the GPU virtual address of the allocated space when the chunk is located in system
     // memory!
-    PAL_ASSERT(m_allocation.UsesSystemMemory() == false);
+    PAL_ASSERT(m_pAllocation->UsesSystemMemory() == false);
 
     uint32*const pSpace = (m_pWriteAddr + m_usedDataSizeDwords);
 
@@ -275,7 +276,7 @@ uint32* CmdStreamChunk::GetSpace(
 {
     // It is impossible to retrieve the GPU virtual address of the allocated space when the chunk is located in system
     // memory!
-    PAL_ASSERT(m_allocation.UsesSystemMemory() == false);
+    PAL_ASSERT(m_pAllocation->UsesSystemMemory() == false);
 
     uint32*const pSpace = (m_pWriteAddr + m_usedDataSizeDwords);
 
@@ -320,7 +321,7 @@ uint32* CmdStreamChunk::ValidateCmdGenerationDataSpace(
     uint32   sizeInDwords,
     gpusize* pGpuVirtAddr)
 {
-    PAL_ASSERT(m_allocation.UsesSystemMemory() == false);
+    PAL_ASSERT(m_pAllocation->UsesSystemMemory() == false);
 
     PAL_ASSERT(sizeInDwords <= DwordsRemaining());
     (*pGpuVirtAddr) = GpuVirtAddr() + (m_usedDataSizeDwords * sizeof(uint32));
@@ -372,20 +373,10 @@ void CmdStreamChunk::FinalizeCommands()
 }
 
 // =====================================================================================================================
-// Reset the chunk so that we can use it again as part of a new command stream. This validates the chunk's reference
-// count, increments its generation, and resets its busy tracker.
-void CmdStreamChunk::Reset(
-    bool resetRefCount)
+// Reset the chunk so that we can use it again as part of a new command stream. This increments the chunk's generation
+// and resets its busy tracker.
+void CmdStreamChunk::Reset()
 {
-    if (resetRefCount)
-    {
-        // The chunk must not have any outstanding references if we're resetting it. The reference count should always
-        // be zero if our command allocator has auto-reuse disabled.
-        PAL_ASSERT(m_referenceCount == 0);
-
-        m_referenceCount = 0;
-    }
-
     m_usedDataSizeDwords = 0;
     m_cmdDwordsToExecute = 0;
     m_cmdDwordsToExecuteNoPostamble = 0;
@@ -416,12 +407,12 @@ Result CmdStreamChunk::InitRootBusyTracker(
 )
 {
     Result result = Result::Success;
-    if (m_allocation.UsesSystemMemory() == false)
+    if (m_pAllocation->UsesSystemMemory() == false)
     {
         constexpr uint32 TrackerAlignDwords = 2;
         constexpr uint32 TrackerAlignBytes  = TrackerAlignDwords * sizeof(uint32);
         uint32* pWriteAddr = nullptr;
-        if (m_allocation.GpuMemory()->GetDevice()->Settings().cmdStreamReadOnly == false)
+        if (m_pAllocation->GpuMemory()->GetDevice()->Settings().cmdStreamReadOnly == false)
         {
             // This chunk will become the root chunk for a CmdStream. Allocate a busy tracker for this and future chunks
             // to share. Note that we allocate a 64-bit tracker but access it as a 32-bit counter because some engines
@@ -471,24 +462,6 @@ void CmdStreamChunk::UpdateRootInfo(
 
     m_busyTracker.pRootChunk     = pRootChunk;
     m_busyTracker.rootGeneration = pRootChunk->m_generation;
-}
-
-// =====================================================================================================================
-// Notifies this command chunk that it is being added to a command stream. This should only be called if our command
-// allocator has auto-reuse enabled.
-void CmdStreamChunk::AddCommandStreamReference()
-{
-    AtomicIncrement(&m_referenceCount);
-}
-
-// =====================================================================================================================
-// Notifies this command chunk that it is being removed from a command stream (because that stream is being reset), and
-// returned to its parent allocator. This should only be called if our command allocator has auto-reuse enabled.
-void CmdStreamChunk::RemoveCommandStreamReference()
-{
-    PAL_ASSERT(m_referenceCount != 0);
-
-    AtomicDecrement(&m_referenceCount);
 }
 
 // =====================================================================================================================

@@ -212,6 +212,46 @@ void CmdBuffer::CmdBindMsaaState(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdSaveGraphicsState()
+{
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdSaveGraphicsState;
+    funcInfo.objectId     = m_objectId;
+    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    m_pNextLayer->CmdSaveGraphicsState();
+    funcInfo.postCallTime = m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->EndInput();
+
+        m_pPlatform->LogEndFunc(pLogContext);
+    }
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdRestoreGraphicsState()
+{
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdRestoreGraphicsState;
+    funcInfo.objectId     = m_objectId;
+    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    m_pNextLayer->CmdRestoreGraphicsState();
+    funcInfo.postCallTime = m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->EndInput();
+
+        m_pPlatform->LogEndFunc(pLogContext);
+    }
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdPrimeGpuCaches(
     uint32                    rangeCount,
     const PrimeGpuCacheRange* pRanges)
@@ -2882,57 +2922,6 @@ void CmdBuffer::CmdUpdateHiSPretests(
 
         pLogContext->EndInput();
 
-        m_pPlatform->LogEndFunc(pLogContext);
-    }
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdFlglSync()
-{
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdFlglSync;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdFlglSync();
-    funcInfo.postCallTime = m_pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
-    {
-        m_pPlatform->LogEndFunc(pLogContext);
-    }
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdFlglEnable()
-{
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdFlglEnable;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdFlglEnable();
-    funcInfo.postCallTime = m_pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
-    {
-        m_pPlatform->LogEndFunc(pLogContext);
-    }
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdFlglDisable()
-{
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdFlglDisable;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    m_pNextLayer->CmdFlglDisable();
-    funcInfo.postCallTime = m_pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
-    {
         m_pPlatform->LogEndFunc(pLogContext);
     }
 }

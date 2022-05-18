@@ -34,7 +34,7 @@
 #include "core/hw/gfxip/gfx6/gfx6QueueContexts.h"
 #include "core/hw/gfxip/gfx6/gfx6ShaderRingSet.h"
 #include "core/hw/gfxip/gfx6/gfx6UniversalEngine.h"
-#include "core/hw/gfxip/gfx6/g_gfx6PalSettings.h"
+#include "g_gfx6Settings.h"
 #include "core/hw/gfxip/gfx6/g_gfx6ShadowedRegistersInit.h"
 #include "core/hw/gfxip/universalCmdBuffer.h"
 #include "palAssert.h"

@@ -266,7 +266,8 @@ void PipelineChunkGs::LateInit(
 uint32* PipelineChunkGs::WriteShCommands(
     CmdStream*              pCmdStream,
     uint32*                 pCmdSpace,
-    const DynamicStageInfo& gsStageInfo
+    const DynamicStageInfo& gsStageInfo,
+    const bool              hasMeshShader
     ) const
 {
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();

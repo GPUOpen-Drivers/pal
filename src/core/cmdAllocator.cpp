@@ -27,6 +27,8 @@
 #include "core/device.h"
 #include "core/platform.h"
 #include "palFile.h"
+#include "palHashMap.h"
+#include "palHashMapImpl.h"
 #include "palIntrusiveListImpl.h"
 #include "palMutex.h"
 #include "palVectorImpl.h"
@@ -273,26 +275,24 @@ CmdAllocator::~CmdAllocator()
 }
 
 // =====================================================================================================================
-// Transfers all chunks from the src list to the dst list after resetting the chunks in the src list.
+// Transfers all chunks from the src list to the dst list.
 void CmdAllocator::TransferChunks(
-    ChunkList* pFreeList,
+    ChunkList* pDstList,
     ChunkList* pSrcList)
 {
     if (pSrcList->IsEmpty() == false)
     {
-        // Reset the allocator by moving all chunks from src list into the dst list. The chunks are reset prior to the
-        // move
+#if PAL_ENABLE_PRINTS_ASSERTS
         for (auto iter = pSrcList->Begin(); iter.IsValid(); iter.Next())
         {
             // The caller must guarantee that all of these chunks have expired so we should never have to check
             // the busy trackers. That being said, we should protect ourselves and validate the chunk busy
             // trackers in builds with asserts enabled.
             PAL_ASSERT((TrackBusyChunks() == false) || iter.Get()->IsIdleOnGpu());
-
-            iter.Get()->Reset(true);
         }
+#endif
 
-        pFreeList->PushFrontList(pSrcList);
+        pDstList->PushFrontList(pSrcList);
     }
 }
 
@@ -433,16 +433,15 @@ void CmdAllocator::DestroyInternal()
 
 // =====================================================================================================================
 // Informs the command allocator that all of its CmdStreamChunks are no longer being referenced by the GPU.
-Result CmdAllocator::Reset()
+Result CmdAllocator::Reset(
+    bool freeMemory)
 {
-    const bool freeOnReset = m_pDevice->Settings().cmdAllocatorFreeOnReset;
-
     if (m_pChunkLock != nullptr)
     {
         m_pChunkLock->Lock();
     }
 
-    if (freeOnReset)
+    if (freeMemory)
     {
         // We've been asked to simply destroy all of our allocations on each reset.
         FreeAllChunks();
@@ -470,7 +469,7 @@ Result CmdAllocator::Reset()
         m_pLinearAllocLock->Lock();
     }
 
-    if (freeOnReset)
+    if (freeMemory)
     {
         FreeAllLinearAllocators();
     }
@@ -493,6 +492,8 @@ Result CmdAllocator::Trim(
     uint32 allocTypeMask,
     uint32 dynamicThreshold)
 {
+    Result result = Result::Success;
+
     if (m_pChunkLock != nullptr)
     {
         m_pChunkLock->Lock();
@@ -508,7 +509,12 @@ Result CmdAllocator::Trim(
             // Avoid trim overhead when there are not enough free chunks
             if (pAllocInfo->freeList.NumElements() > threshold * pAllocInfo->allocCreateInfo.numChunks)
             {
-                TrimMemory(pAllocInfo, threshold);
+                result = TrimMemory(pAllocInfo, threshold);
+
+                if (result != Result::Success)
+                {
+                    break;
+                }
             }
         }
     }
@@ -518,68 +524,98 @@ Result CmdAllocator::Trim(
         m_pChunkLock->Unlock();
     }
 
-    return Result::Success;
+    return result;
 }
 
 // =====================================================================================================================
 // Helper function to destroy allocations of the given type where its chunks are all idle.
 // A minimum of allocFreeThreshold free allocation will be kept around for fast reuse.
-void CmdAllocator::TrimMemory(
+Result CmdAllocator::TrimMemory(
     CmdAllocInfo* const pAllocInfo,
     uint32              allocFreeThreshold)
 {
     // m_pChunkLock should be handled by the caller
 
-    // Destroy all but allocFreeThreshold allocations where their chunks are all idle.
-    // New allocations get added at the end of the list; so the oldest ones are at the beginning.
-    auto iter = pAllocInfo->allocList.Begin();
-    uint32 numFreeAllocations = 0;
+    // First, build a hash map of command allocations with at least one free chunk to their number of free chunks.
+    // Keep track of how many allocations we see that only have free chunks.
+    //
+    // We use a temporary hash map for this because the trim code is the only place in PAL where we need to correlate
+    // free chunks with their parent allocations. If we didn't build this state on demand we'd need to do something
+    // like persistently track which chunks are free in each allocation and update the tracking state each time we
+    // move chunks between the freeList and the reuseList and busyList. That would unnecessary overhead to clients/apps
+    // that never trim their allocations. The trim code is expected to be somewhat expensive so we went with a solution
+    // that offloads all free allocation overhead to the trim function.
+    const uint32 chunksPerAlloc = pAllocInfo->allocCreateInfo.numChunks;
+    uint32       numFreeAllocs  = 0;
 
-    while (iter.IsValid())
+    // The PAL hash map is really hard to use... 4 entries per bucket should roughly work out right on 64-bit builds.
+    const uint32 numBuckets = RoundUpQuotient(static_cast<uint32>(pAllocInfo->allocList.NumElements()), 4u);
+    HashMap<CmdStreamAllocation*, uint32, Platform> allocMap(numBuckets, m_pDevice->GetPlatform());
+
+    Result result = allocMap.Init();
+
+    if (result == Result::Success)
     {
-        CmdStreamAllocation* pAlloc = iter.Get();
-        CmdStreamChunk* pChunks = pAlloc->Chunks();
-
-        bool allIdle = true;
-        for (uint32 idx = 0; idx < pAllocInfo->allocCreateInfo.numChunks; ++idx)
+        for (auto iter = pAllocInfo->freeList.Begin(); iter.IsValid(); iter.Next())
         {
-            if (pChunks[idx].IsIdle() == false)
+            CmdStreamAllocation*const pAlloc     = iter.Get()->Allocation();
+            bool                      existed    = false;
+            uint32*                   pFreeCount = nullptr;
+
+            result = allocMap.FindAllocate(pAlloc, &existed, &pFreeCount);
+
+            if (result != Result::Success)
             {
-                allIdle = false;
                 break;
             }
-        }
 
-        if (allIdle)
-        {
-            numFreeAllocations++;
+            const uint32 newCount = existed ? (*pFreeCount + 1) : 1;
 
-            if (numFreeAllocations > allocFreeThreshold)
+            // It should be impossible to count more chunks than exist in an allocation.
+            PAL_ASSERT(newCount <= chunksPerAlloc);
+
+            *pFreeCount = newCount;
+
+            if (newCount == chunksPerAlloc)
             {
-                // make sure the chunks are removed from all the lists (freeList)
-                for (uint32 idx = 0; idx < pAllocInfo->allocCreateInfo.numChunks; ++idx)
-                {
-                    auto* const pNode = pChunks[idx].ListNode();
-                    pAllocInfo->freeList.Erase(pNode);
-                }
-
-                // Remove the allocation from the list and destroy it.
-                // this will already move iter to the next item
-                pAllocInfo->allocList.Erase(&iter);
-
-                pAlloc->Destroy(m_pDevice);
-                PAL_SAFE_FREE(pAlloc, m_pDevice->GetPlatform());
+                numFreeAllocs++;
             }
-            else
-            {
-                iter.Next();
-            }
-        }
-        else
-        {
-            iter.Next();
         }
     }
+
+    if ((result == Result::Success) && (numFreeAllocs > allocFreeThreshold))
+    {
+        // Destroy free allocations until we have no more than allocFreeThreshold remaining.
+        for (auto iter = allocMap.Begin(); iter.Get() != nullptr; iter.Next())
+        {
+            if (iter.Get()->value == chunksPerAlloc)
+            {
+                CmdStreamAllocation*const pAlloc = iter.Get()->key;
+
+                // Make sure the chunks are removed from all the lists. Because we know all chunks are free we only
+                // need to look at the free list.
+                for (uint32 idx = 0; idx < chunksPerAlloc; ++idx)
+                {
+                    pAllocInfo->freeList.Erase(pAlloc->Chunks()[idx].ListNode());
+                }
+
+                // Remove the allocation from the list and destroy it. We don't bother to remove the now invalid key
+                // from the hash map because we'll never iterate over it again.
+                pAllocInfo->allocList.Erase(pAlloc->ListNode());
+
+                pAlloc->Destroy(m_pDevice);
+                PAL_FREE(pAlloc, m_pDevice->GetPlatform());
+
+                // Bail out once we've freed enough allocations to fit in the threshold.
+                if (--numFreeAllocs <= allocFreeThreshold)
+                {
+                    break;
+                }
+            }
+        }
+    }
+
+    return result;
 }
 
 // =====================================================================================================================
@@ -636,8 +672,8 @@ void CmdAllocator::ReuseChunks(
 
         auto*const pAllocInfo = (systemMemory ? &m_sysAllocInfo : &m_gpuAllocInfo[allocType]);
 
-        // If the root chunk is idle, we can reset and push all the chunks to the free list.
-        if (iter.Get()->IsIdle())
+        // If the root chunk is idle, we can push all the chunks to the free list.
+        if (iter.Get()->IsIdleOnGpu())
         {
             while (iter.IsValid())
             {
@@ -646,8 +682,6 @@ void CmdAllocator::ReuseChunks(
                 pAllocInfo->busyList.Erase(pNode);
                 pAllocInfo->freeList.PushFront(pNode);
 
-                // Remember that items on the free list must be reset.
-                iter.Get()->Reset(true);
                 iter.Next();
             }
 
@@ -657,7 +691,12 @@ void CmdAllocator::ReuseChunks(
             if (AutoTrimMemory() && (pAllocInfo->freeList.NumElements() >
                 pAllocInfo->allocFreeThreshold * pAllocInfo->allocCreateInfo.numChunks))
             {
-                TrimMemory(pAllocInfo, pAllocInfo->allocFreeThreshold);
+                // The core functionality of ReuseChunks always succeeds even if trimming fails. If we followed the
+                // usual requirement of passing this result up to the caller it will quickly turn into a cascade of
+                // failure throughout our command stream/buffer code. A trimming failure won't actually break anything,
+                // it just won't fully trim unused memory, so it seems better to just assert and hide the failure.
+                const Result result = TrimMemory(pAllocInfo, pAllocInfo->allocFreeThreshold);
+                PAL_ASSERT(result == Result::Success);
             }
         }
         else
@@ -698,11 +737,6 @@ Result CmdAllocator::GetNewChunk(
 
     Result result = FindFreeChunk(systemMemory ? &m_sysAllocInfo : &m_gpuAllocInfo[allocType], ppChunk);
 
-    if ((result == Result::Success) && AutomaticMemoryReuse())
-    {
-        (*ppChunk)->AddCommandStreamReference();
-    }
-
     if (m_pChunkLock != nullptr)
     {
         m_pChunkLock->Unlock();
@@ -723,11 +757,11 @@ Result CmdAllocator::FindFreeChunk(
     // Search the free-list first.
     if (pAllocInfo->freeList.IsEmpty() == false)
     {
-        // Pop a chunk off of the free list because free chunks, by definition, are no longer in use by the CPU or GPU.
-        // Checking for IsIdle with automatic memory reuse disabled is undefined. The best we can do is check if it is
-        // idle on the GPU.
+        // Pop a chunk off of the free list because free chunks, by definition, are no longer in use by the GPU.
         pChunk = pAllocInfo->freeList.Back();
-        PAL_ASSERT((AutomaticMemoryReuse() && pChunk->IsIdle()) || pChunk->IsIdleOnGpu());
+        PAL_ASSERT(pChunk->IsIdleOnGpu());
+
+        pChunk->Reset();
 
         // Move the chunk from the free list to the front of the busy list.
         auto*const pNode = pChunk->ListNode();
@@ -742,10 +776,10 @@ Result CmdAllocator::FindFreeChunk(
             // those chunks have been on the list the longest and are most likely to be idle.
             for (auto reuseIter = pAllocInfo->reuseList.End(); reuseIter.IsValid(); reuseIter.Prev())
             {
-                if (reuseIter.Get()->IsIdle())
+                if (reuseIter.Get()->IsIdleOnGpu())
                 {
                     pChunk = reuseIter.Get();
-                    pChunk->Reset(true);
+                    pChunk->Reset();
 
                     // Move this chunk from the reuse list to the front of the busy list.
                     auto*const pNode = pChunk->ListNode();

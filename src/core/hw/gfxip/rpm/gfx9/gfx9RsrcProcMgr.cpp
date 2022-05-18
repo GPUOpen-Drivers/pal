@@ -32,7 +32,7 @@
 #include "core/hw/gfxip/graphicsPipeline.h"
 #include "core/hw/gfxip/queryPool.h"
 #include "core/hw/gfxip/msaaState.h"
-#include "core/hw/gfxip/gfx9/g_gfx9PalSettings.h"
+#include "g_gfx9Settings.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9ColorTargetView.h"
 #include "core/hw/gfxip/gfx9/gfx9DepthStencilView.h"
@@ -1380,13 +1380,15 @@ bool RsrcProcMgr::ExpandDepthStencil(
                                             viewRange,
                                             createInfo.swizzledFormat,
                                             RpmUtil::DefaultRpmLayoutRead,
-                                            device.TexOptLevel()); // src
+                                            device.TexOptLevel(),
+                                            false); // src
                 RpmUtil::BuildImageViewInfo(&imageView[1],
                                             image,
                                             viewRange,
                                             createInfo.swizzledFormat,
                                             RpmUtil::DefaultRpmLayoutShaderWriteRaw,
-                                            device.TexOptLevel());  // dst
+                                            device.TexOptLevel(),
+                                            true);  // dst
                 device.CreateImageViewSrds(2, &imageView[0], pSrdTable);
 
                 pSrdTable += 2 * SrdDwordAlignment();
@@ -2668,7 +2670,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     bindTargetsInfo.depthTarget.depthLayout   = depthLayout;
     bindTargetsInfo.depthTarget.stencilLayout = stencilLayout;
 
-    pCmdBuffer->PushGraphicsState();
+    pCmdBuffer->CmdSaveGraphicsState();
 
     // Bind the depth expand state because it's just a full image quad and a zero PS (with no internal flags) which
     // is also what we need for the clear.
@@ -2795,7 +2797,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     } // End for each mip.
 
     // Restore original command buffer state and destroy the depth/stencil state.
-    pCmdBuffer->PopGraphicsState();
+    pCmdBuffer->CmdRestoreGraphicsState();
 }
 
 // =====================================================================================================================
@@ -2928,14 +2930,16 @@ void RsrcProcMgr::DccDecompressOnCompute(
                                         viewRange,
                                         createInfo.swizzledFormat,
                                         RpmUtil::DefaultRpmLayoutRead,
-                                        device.TexOptLevel()); // src
+                                        device.TexOptLevel(),
+                                        false); // src
 
             RpmUtil::BuildImageViewInfo(&imageView[1],
                                         parentImg,
                                         viewRange,
                                         createInfo.swizzledFormat,
                                         RpmUtil::DefaultRpmLayoutShaderWriteRaw,
-                                        device.TexOptLevel());  // dst
+                                        device.TexOptLevel(),
+                                        true);  // dst
 
             device.CreateImageViewSrds(2, &imageView[0], pSrdTable);
 
@@ -3116,7 +3120,7 @@ void RsrcProcMgr::ClearFmask(
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
 
     // The shader will saturate the fmask value to the fmask view format's size. so we mask-off clearValue to fit it.
-    const uint64 validBitsMask    = (1ULL << fMaskAddrOutput.bpp) - 1ULL;
+    const uint64 validBitsMask    = fMaskAddrOutput.bpp < 64 ? (1ULL << fMaskAddrOutput.bpp) - 1ULL : UINT64_MAX;
     const uint64 maskedClearValue = clearValue & validBitsMask;
 
     const uint32  userData[] =
@@ -3261,7 +3265,8 @@ void RsrcProcMgr::FmaskColorExpand(
                                         viewRange,
                                         format,
                                         RpmUtil::DefaultRpmLayoutShaderWriteRaw,
-                                        device.TexOptLevel());
+                                        device.TexOptLevel(),
+                                        true);
             imageView.viewType = ImageViewType::Tex2d;
 
             device.CreateImageViewSrds(1, &imageView, pSrdTable);
@@ -6121,7 +6126,8 @@ void Gfx10RsrcProcMgr::ClearDccComputeSetFirstPixelOfBlock(
                                 viewRange,
                                 planeFormat,
                                 RpmUtil::DefaultRpmLayoutShaderWriteRaw,
-                                pPalImage->GetDevice()->TexOptLevel());
+                                pPalImage->GetDevice()->TexOptLevel(),
+                                true);
 
     sq_img_rsrc_t srd = {};
 
@@ -7302,7 +7308,7 @@ void Gfx10RsrcProcMgr::CopyVrsIntoHtile(
     userData.metaBlkWidthLog2   = RpmUtil::PackBits<5>(metaBlkExtentLog2.width);
     userData.metaBlkHeightLog2  = RpmUtil::PackBits<5>(metaBlkExtentLog2.height);
     userData.bankXor            = RpmUtil::PackBits<4>(bankXor);
-    userData.pitchInMetaBlks    = RpmUtil::PackBits<6>(hTileAddrOutput.pitch >> metaBlkExtentLog2.width);
+    userData.pitchInMetaBlks    = RpmUtil::PackBits<7>(hTileAddrOutput.pitch >> metaBlkExtentLog2.width);
     userData.lastHtileX         = RpmUtil::PackBits<11>(copyWidth - 1);
     userData.lastHtileY         = RpmUtil::PackBits<11>(copyHeight - 1);
     userData.fourBitVrs         = (m_pDevice->Settings().vrsHtileEncoding ==
@@ -7334,7 +7340,8 @@ void Gfx10RsrcProcMgr::CopyVrsIntoHtile(
                                     viewRange,
                                     pSrcVrsImg->GetImageCreateInfo().swizzledFormat,
                                     RpmUtil::DefaultRpmLayoutRead,
-                                    pPalDevice->TexOptLevel());
+                                    pPalDevice->TexOptLevel(),
+                                    false);
         pPalDevice->CreateImageViewSrds(1, &imageView, rateImageSrd);
     }
     else
@@ -7349,7 +7356,7 @@ void Gfx10RsrcProcMgr::CopyVrsIntoHtile(
     {
         // Update the slice user-data. No assert this time because we're purposely cutting off high slice bits.
         const uint32 slice = pDsView->BaseArraySlice() + sliceOffset;
-        userData.sliceBits = slice & BitfieldGenMask<uint32>(10);
+        userData.sliceBits = slice & BitfieldGenMask<uint32>(6);
 
         pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, 2, userData.u32All);
 
@@ -7681,14 +7688,16 @@ void Gfx10RsrcProcMgr::CmdResolvePrtPlusImage(
                                     srcRange,
                                     srcFormat,
                                     srcImageLayout,
-                                    pPalDevice->TexOptLevel());
+                                    pPalDevice->TexOptLevel(),
+                                    false);
 
         RpmUtil::BuildImageViewInfo(&imageView[1],
                                     dstPalImage,
                                     dstRange,
                                     dstFormat,
                                     dstImageLayout,
-                                    pPalDevice->TexOptLevel());
+                                    pPalDevice->TexOptLevel(),
+                                    true);
 
         pPalDevice->CreateImageViewSrds(2, &imageView[0], pSrdTable);
         pSrdTable += Util::NumBytesToNumDwords(2 * sizeof(ImageSrd));

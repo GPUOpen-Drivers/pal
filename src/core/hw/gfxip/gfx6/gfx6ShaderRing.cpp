@@ -24,7 +24,7 @@
  **********************************************************************************************************************/
 
 #include "core/internalMemMgr.h"
-#include "core/hw/gfxip/gfx6/g_gfx6PalSettings.h"
+#include "g_gfx6Settings.h"
 #include "core/hw/gfxip/gfx6/gfx6Device.h"
 #include "core/hw/gfxip/gfx6/gfx6ShaderRing.h"
 #include "core/hw/gfxip/gfx6/gfx6ShaderRingSet.h"

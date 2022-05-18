@@ -34,7 +34,7 @@
 #include "core/imported/hsa/AMDHSAKernelDescriptor.h"
 #include "core/imported/hsa/amd_hsa_kernel_code.h"
 #include "core/cmdAllocator.h"
-#include "core/g_palPlatformSettings.h"
+#include "g_platformSettings.h"
 #include "core/settingsLoader.h"
 #include "marker_payload.h"
 #include "palHsaAbiMetadata.h"
@@ -2203,7 +2203,7 @@ void ComputeCmdBuffer::CmdRestoreComputeState(
     uint32 stateFlags)
 {
     Pal::GfxCmdBuffer::CmdRestoreComputeState(stateFlags);
-    UpdateGfxCmdBufCsBltExecEopFence();
+    UpdateGfxCmdBufCsBltExecFence();
 }
 
 } // Gfx9

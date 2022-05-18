@@ -98,12 +98,12 @@ enum class OriginationType : uint32
 /// and pass this mask in the constructor of the debug logger.
 enum OriginationTypeFlags : uint32
 {
-    OriginationTypeFlagUnknown        = (1ul << uint32(OriginationType::Unknown)),
-    OriginationTypeFlagDebugPrint     = (1ul << uint32(OriginationType::DebugPrint)),
-    OriginationTypeFlagAlert          = (1ul << uint32(OriginationType::Alert)),
-    OriginationTypeFlagAssert         = (1ul << uint32(OriginationType::Assert)),
-    OriginationTypeFlagTelemetry      = (1ul << uint32(OriginationType::Telemetry)),
-    OriginationTypeFlagShaderCompiler = (1ul << uint32(OriginationType::PipelineCompiler))
+    OriginationTypeFlagUnknown          = (1ul << uint32(OriginationType::Unknown)),
+    OriginationTypeFlagDebugPrint       = (1ul << uint32(OriginationType::DebugPrint)),
+    OriginationTypeFlagAlert            = (1ul << uint32(OriginationType::Alert)),
+    OriginationTypeFlagAssert           = (1ul << uint32(OriginationType::Assert)),
+    OriginationTypeFlagTelemetry        = (1ul << uint32(OriginationType::Telemetry)),
+    OriginationTypeFlagPipelineCompiler = (1ul << uint32(OriginationType::PipelineCompiler))
 };
 
 constexpr uint32 AllOriginationTypes = uint32(OriginationTypeFlags::OriginationTypeFlagUnknown)    |
@@ -111,7 +111,7 @@ constexpr uint32 AllOriginationTypes = uint32(OriginationTypeFlags::OriginationT
                                        uint32(OriginationTypeFlags::OriginationTypeFlagAlert)      |
                                        uint32(OriginationTypeFlags::OriginationTypeFlagAssert)     |
                                        uint32(OriginationTypeFlags::OriginationTypeFlagTelemetry)  |
-                                       uint32(OriginationTypeFlags::OriginationTypeFlagShaderCompiler);
+                                       uint32(OriginationTypeFlags::OriginationTypeFlagPipelineCompiler);
 
 /// Expected maximum number of characters in the client tag.
 /// A client tag indicates the client that logs a message.

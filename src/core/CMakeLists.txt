@@ -29,10 +29,12 @@ add_subdirectory(imported)
 add_subdirectory(layers)
 add_subdirectory(os)
 add_subdirectory(g_service)
+add_subdirectory(rpcDriverUtilsService)
 
 # Add required rpc modules from DevDriver
 target_link_libraries(pal PRIVATE
     UberTraceService
+    DriverUtilsService
     ddNet
 )
 
@@ -67,10 +69,6 @@ target_sources(pal PRIVATE
     fence.h
     formatInfo.cpp
     g_mergedFormatInfo.h
-    g_palPlatformSettings.cpp
-    g_palPlatformSettings.h
-    g_palSettings.cpp
-    g_palSettings.h
     gpuEvent.cpp
     gpuEvent.h
     gpuMemory.cpp
@@ -113,4 +111,6 @@ target_sources(pal PRIVATE
     swapChain.h
     vamMgr.cpp
     vamMgr.h
+    driverUtilsService.h
+    driverUtilsService.cpp
 )

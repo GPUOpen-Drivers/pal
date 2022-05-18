@@ -47,7 +47,7 @@ public:
     uint32 ObjectId() const { return m_objectId; }
 
     // Public ICmdAllocator interface methods:
-    virtual Result Reset() override;
+    virtual Result Reset(bool freeMemory) override;
     virtual Result Trim(uint32 allocTypeMask, uint32 dynamicThreshold) override;
 
     // Public IDestroyable interface methods:

@@ -596,6 +596,7 @@ UniversalQueueContext::UniversalQueueContext(
     m_shadowGpuMem(),
     m_shadowGpuMemSizeInBytes(0),
     m_shadowedRegCount(0),
+    m_supportsAceGang(pDevice->Parent()->EngineProperties().perEngine[EngineTypeCompute].numAvailable != 0),
     m_deCmdStream(*pDevice,
                   pDevice->Parent()->InternalUntrackedCmdAllocator(),
                   EngineTypeUniversal,
@@ -632,12 +633,7 @@ UniversalQueueContext::UniversalQueueContext(
                            SubEngineType::Primary,
                            CmdStreamUsage::Postamble,
                            false),
-    m_acePreambleCmdStream(*pDevice,
-                           pDevice->Parent()->InternalUntrackedCmdAllocator(),
-                           EngineTypeCompute,
-                           SubEngineType::AsyncCompute,
-                           CmdStreamUsage::Preamble,
-                           false),
+    m_pAcePreambleCmdStream(nullptr),
     m_deferCmdStreamChunks(pDevice->GetPlatform())
 {
 }
@@ -649,6 +645,11 @@ UniversalQueueContext::~UniversalQueueContext()
     {
         m_pDevice->Parent()->MemMgr()->FreeGpuMem(m_shadowGpuMem.Memory(), m_shadowGpuMem.Offset());
         m_shadowGpuMem.Update(nullptr, 0);
+    }
+
+    if (m_pAcePreambleCmdStream != nullptr)
+    {
+        PAL_SAFE_DELETE(m_pAcePreambleCmdStream, m_pDevice->GetPlatform());
     }
 }
 
@@ -691,11 +692,6 @@ Result UniversalQueueContext::Init()
     if (result == Result::Success)
     {
         m_dePostambleCmdStream.Init();
-    }
-
-    if (result == Result::Success)
-    {
-        result = m_acePreambleCmdStream.Init();
     }
 
     if (result == Result::Success)
@@ -958,7 +954,7 @@ void UniversalQueueContext::WritePerSubmitPreamble(
 
 // =====================================================================================================================
 // Checks if the queue context preamble needs to be rebuilt, possibly due to the client creating new pipelines that
-// require a bigger scratch ring, or due the client binding a new trap handler/buffer.  If so, the the compute shader
+// require a bigger scratch ring, or due the client binding a new trap handler/buffer.  If so, the compute shader
 // rings are re-validated and our context command stream is rebuilt.
 // When MCBP is enabled, we'll force the command stream to be rebuilt when we submit the command for the first time,
 // because we need to build set commands to initialize the context register and shadow memory. The sets only need to be
@@ -1006,9 +1002,13 @@ Result UniversalQueueContext::PreProcessSubmit(
             ++preambleCount;
         }
 
-        if ((m_acePreambleCmdStream.IsEmpty() == false) && (pSubmitInfo->implicitGangedSubQueues > 0))
+        CmdStream* pAcePreambleCmdStream = nullptr;
+        result = GetAcePreambleCmdStream(&pAcePreambleCmdStream);
+        if ((pAcePreambleCmdStream != nullptr) &&
+            (pSubmitInfo->implicitGangedSubQueues > 0) &&
+            (result == Result::Success))
         {
-            pSubmitInfo->pPreambleCmdStream[preambleCount] = &m_acePreambleCmdStream;
+            pSubmitInfo->pPreambleCmdStream[preambleCount] = pAcePreambleCmdStream;
             ++preambleCount;
         }
 
@@ -1257,23 +1257,28 @@ Result UniversalQueueContext::RebuildCommandStreams(
 
     // The per-submit ACE preamble.
     //==================================================================================================================
+    CmdStream* pAcePreambleCmdStream = nullptr;
     if (result == Result::Success)
     {
-        ResetCommandStream(&m_acePreambleCmdStream, &deferFreeChunkList, &deferChunkIndex, lastTimeStamp);
-        result = m_acePreambleCmdStream.Begin({}, nullptr);
+        result = GetAcePreambleCmdStream(&pAcePreambleCmdStream);
     }
 
-    if (result == Result::Success)
+    if ((pAcePreambleCmdStream != nullptr) && (result == Result::Success))
     {
+        ResetCommandStream(pAcePreambleCmdStream, &deferFreeChunkList, &deferChunkIndex, lastTimeStamp);
+        result = pAcePreambleCmdStream->Begin({}, nullptr);
 
-        uint32* pCmdSpace = m_acePreambleCmdStream.ReserveCommands();
+        if (result == Result::Success)
+        {
+            uint32* pCmdSpace = pAcePreambleCmdStream->ReserveCommands();
 
-        pCmdSpace = m_ringSet.WriteComputeCommands(&m_acePreambleCmdStream, pCmdSpace);
+            pCmdSpace = m_ringSet.WriteComputeCommands(pAcePreambleCmdStream, pCmdSpace);
 
-        pCmdSpace += cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
-        m_acePreambleCmdStream.CommitCommands(pCmdSpace);
+            pCmdSpace += cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
+            pAcePreambleCmdStream->CommitCommands(pCmdSpace);
 
-        result = m_acePreambleCmdStream.End();
+            result = pAcePreambleCmdStream->End();
+        }
     }
 
     // The per-submit CE premable and CE postamble.
@@ -1819,6 +1824,41 @@ Result UniversalQueueContext::UpdateRingSet(
         (*pHasChanged) = false;
     }
 
+    return result;
+}
+
+// =====================================================================================================================
+// Returns the ACE Preamble CmdStream. Creates and initializes the ACE CmdStream if it is the first time this is called.
+Result UniversalQueueContext::GetAcePreambleCmdStream(
+    CmdStream** ppAcePreambleCmdStream)
+{
+    Result result = Result::Success;
+    if (m_supportsAceGang && (m_pAcePreambleCmdStream == nullptr))
+    {
+        // This is the first time the ACE preamble CmdStream is being used. So create and initialize the ACE CmdStream
+        // and the associated GpuEvent object additionally.
+        m_pAcePreambleCmdStream = PAL_NEW(CmdStream, m_pDevice->GetPlatform(), AllocInternal)(
+            *m_pDevice,
+            m_pDevice->Parent()->InternalUntrackedCmdAllocator(),
+            EngineTypeCompute,
+            SubEngineType::AsyncCompute,
+            CmdStreamUsage::Preamble,
+            false);
+
+        if (m_pAcePreambleCmdStream != nullptr)
+        {
+            result = m_pAcePreambleCmdStream->Init();
+        }
+        else
+        {
+            result = Result::ErrorOutOfMemory;
+        }
+
+        // Creation of the Ace CmdStream failed.
+        PAL_ASSERT(result == Result::Success);
+    }
+
+    *ppAcePreambleCmdStream = m_pAcePreambleCmdStream;
     return result;
 }
 

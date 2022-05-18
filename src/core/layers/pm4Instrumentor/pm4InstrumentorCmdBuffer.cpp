@@ -1534,30 +1534,6 @@ void CmdBuffer::CmdSetClipRects(
 }
 
 // =====================================================================================================================
-void CmdBuffer::CmdFlglSync()
-{
-    PreCall();
-    CmdBufferFwdDecorator::CmdFlglSync();
-    PostCall(CmdBufCallId::CmdFlglSync);
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdFlglEnable()
-{
-    PreCall();
-    CmdBufferFwdDecorator::CmdFlglEnable();
-    PostCall(CmdBufCallId::CmdFlglEnable);
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdFlglDisable()
-{
-    PreCall();
-    CmdBufferFwdDecorator::CmdFlglDisable();
-    PostCall(CmdBufCallId::CmdFlglDisable);
-}
-
-// =====================================================================================================================
 void CmdBuffer::CmdXdmaWaitFlipPending()
 {
     PreCall();

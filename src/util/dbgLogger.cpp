@@ -80,45 +80,19 @@ Result DbgLoggerFile::Init(
 }
 
 // =====================================================================================================================
-/// Cleanup any data structures used by the file logger.
-void DbgLoggerFile::Cleanup()
-{
-    m_file.Close();
-}
-
-// =====================================================================================================================
-/// Formatted writes - Write the incoming message to the file if it passes through this logger's filter.
-void DbgLoggerFile::LogMessage(
-    SeverityLevel   severity,
-    OriginationType source,
-    const char*     pClientTag,
-    const char*     pFormat,
-    va_list         args)
-{
-    if (FilterMessage(severity, source))
-    {
-        char outputMsg[DefaultFinalMsgSize];
-        outputMsg[0] = '\0';
-        FormatMessageSimple(outputMsg, DefaultFinalMsgSize, severity, pFormat, args);
-        // If the msg was truncated, just accept it as is. We are not going to format
-        // again with a bigger buffer at this time.
-        m_file.Write(outputMsg, (strlen(outputMsg) * sizeof(char)));
-    }
-}
-
-// =====================================================================================================================
-/// Unformatted writes - Write the incoming raw data to the file if it passes through this logger's filter.
-void DbgLoggerFile::LogMessage(
+/// Prints the log message to output window.
+void DbgLoggerPrint::WriteMessage(
     SeverityLevel   severity,
     OriginationType source,
     const char*     pClientTag,
     size_t          dataSize,
     const void*     pData)
 {
-    if (FilterMessage(severity, source))
-    {
-        m_file.Write(pData, dataSize);
-    }
+    PAL_ASSERT(pData != nullptr);
+    const char* pString = static_cast<const char*>(pData);
+
+    // Otherwise, send the string to stderr.
+    fputs(pString, stderr);
 }
 } //namespace Util
 #endif

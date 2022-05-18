@@ -77,7 +77,6 @@ static uint32 FindConsecutiveOps(
 // pSyncReqs will be updated to reflect synchronization that must be performed after the BLT.
 void Device::TransitionDepthStencil(
     GfxCmdBuffer*                 pCmdBuf,
-    GfxCmdBufferState             cmdBufState,
     const BarrierInfo&            barrier,
     uint32                        transitionId,
     bool                          earlyPhase,
@@ -935,9 +934,11 @@ void Device::Barrier(
     const BarrierInfo& barrier
     ) const
 {
-    SyncReqs globalSyncReqs = {};
-    Developer::BarrierOperations barrierOps = {};
-    GfxCmdBufferState cmdBufState = pCmdBuf->GetGfxCmdBufState();
+    SyncReqs                     globalSyncReqs     = {};
+    Developer::BarrierOperations barrierOps         = {};
+
+    // Keep a copy of original CmdBufferState flag as TransitionDepthStencil() or ExpandColor() may change it.
+    const GfxCmdBufferStateFlags origCmdBufStateFlags = pCmdBuf->GetGfxCmdBufState().flags;
 
     // -----------------------------------------------------------------------------------------------------------------
     // -- Early image layout transitions.
@@ -970,7 +971,7 @@ void Device::Barrier(
 
                     if (image.IsDepthStencilTarget())
                     {
-                        TransitionDepthStencil(pCmdBuf, cmdBufState, barrier, i, true, &globalSyncReqs, &barrierOps);
+                        TransitionDepthStencil(pCmdBuf, barrier, i, true, &globalSyncReqs, &barrierOps);
                     }
                     else
                     {
@@ -1006,7 +1007,7 @@ void Device::Barrier(
 
         pCmdBuf->OptimizePipePoint(&pipePoint);
 
-        if (cmdBufState.flags.cpBltActive)
+        if (origCmdBufStateFlags.cpBltActive)
         {
             // CP blts use asynchronous CP DMA operations which are executed in parallel to our usual pipeline. This
             // means that we must sync CP DMA in any case that might expect the results of the CP blt to be available.
@@ -1372,7 +1373,7 @@ void Device::Barrier(
                     if (image.IsDepthStencilTarget())
                     {
                         // Issue a late-phase DB decompress, if necessary.
-                        TransitionDepthStencil(pCmdBuf, cmdBufState, barrier, i, false, &imageSyncReqs, &barrierOps);
+                        TransitionDepthStencil(pCmdBuf, barrier, i, false, &imageSyncReqs, &barrierOps);
 
                         uint32       srcCacheMask = (barrier.globalSrcCacheMask | transition.srcCacheMask);
                         const uint32 dstCacheMask = (barrier.globalDstCacheMask | transition.dstCacheMask);
@@ -1386,8 +1387,8 @@ void Device::Barrier(
                         {
                             srcCacheMask &= ~CoherClear;
 
-                            srcCacheMask |= cmdBufState.flags.gfxWriteCachesDirty ? CoherDepthStencilTarget : 0;
-                            srcCacheMask |= cmdBufState.flags.csWriteCachesDirty  ? CoherShader             : 0;
+                            srcCacheMask |= origCmdBufStateFlags.gfxWriteCachesDirty ? CoherDepthStencilTarget : 0;
+                            srcCacheMask |= origCmdBufStateFlags.csWriteCachesDirty  ? CoherShader             : 0;
                         }
 
                         if (TestAnyFlagSet(srcCacheMask, CoherDepthStencilTarget) &&

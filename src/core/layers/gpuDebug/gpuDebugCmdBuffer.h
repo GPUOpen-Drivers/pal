@@ -78,6 +78,8 @@ public:
         const PipelineBindParams& params) override;
     virtual void CmdBindMsaaState(
         const IMsaaState* pMsaaState) override;
+    virtual void CmdSaveGraphicsState() override;
+    virtual void CmdRestoreGraphicsState() override;
     virtual void CmdBindColorBlendState(
         const IColorBlendState* pColorBlendState) override;
     virtual void CmdBindDepthStencilState(
@@ -437,9 +439,6 @@ public:
         uint64            mask,
         CompareFunc       compareFunc) override;
     virtual void CmdEndWhile() override;
-    virtual void CmdFlglSync() override;
-    virtual void CmdFlglEnable() override;
-    virtual void CmdFlglDisable() override;
     virtual void CmdBeginPerfExperiment(
         IPerfExperiment* pPerfExperiment) override;
     virtual void CmdUpdatePerfExperimentSqttTokenMask(
@@ -691,6 +690,8 @@ private:
     void ReplayEnd(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdBindPipeline(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdBindMsaaState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdSaveGraphicsState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdRestoreGraphicsState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdBindColorBlendState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdBindDepthStencilState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdBindIndexData(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
@@ -806,9 +807,6 @@ private:
     void ReplayCmdXdmaWaitFlipPending(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdCopyImageToPackedPixelImage(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdUpdateHiSPretests(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-    void ReplayCmdFlglSync(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-    void ReplayCmdFlglEnable(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-    void ReplayCmdFlglDisable(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdStartGpuProfilerLogging(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdStopGpuProfilerLogging(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetViewInstanceMask(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);

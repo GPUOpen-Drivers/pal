@@ -26,27 +26,24 @@
 extern "C" {
 #endif
 
+// Exporting logic relies on __attribute__((visibility("default"))) which isn't supported by all version of gcc/clang
+#if defined __GNUC__ && __GNUC__ < 4
+    #error "Unsupported version of __GNUC__!"
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Per compiler definitions to control library function import/export and calling convention.
-#ifndef DD_API
+/// NOTE: Symbols can be mangled if the calling convention isn't __cdecl!
+#if !defined DD_API && defined DDLIB_EXPORTS
     #if defined(_MSC_VER)
-        #if DDLIB_EXPORTS
-            #define DD_API_CALL __cdecl
-            #define DD_API __declspec(dllexport)
-        #endif
-    #elif __GNUC__ >= 4
-        #if DDLIB_EXPORTS
-            #define DD_API __attribute__((visibility("default")))
-        #endif
+        #define DD_API __declspec(dllexport)
+    #else
+        #define DD_API __attribute__((visibility("default")))
     #endif
 #endif
 
 #ifndef DD_API
     #define DD_API
-#endif
-
-#ifndef DD_API_CALL
-    #define DD_API_CALL
 #endif
 
 /// Macro utility functions

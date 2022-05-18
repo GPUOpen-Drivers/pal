@@ -24,7 +24,7 @@
  **********************************************************************************************************************/
 
 #include "core/hw/gfxip/gfx9/gfx9ShaderLibrary.h"
-#include "core/hw/gfxip/gfx9/g_gfx9PalSettings.h"
+#include "g_gfx9Settings.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "palMsgPack.h"

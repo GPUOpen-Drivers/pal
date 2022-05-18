@@ -82,6 +82,8 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdBindPipeline,
     CmdBufferCmdPrimeGpuCaches,
     CmdBufferCmdBindMsaaState,
+    CmdBufferCmdSaveGraphicsState,
+    CmdBufferCmdRestoreGraphicsState,
     CmdBufferCmdBindColorBlendState,
     CmdBufferCmdBindDepthStencilState,
     CmdBufferCmdSetDepthBounds,
@@ -174,9 +176,6 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdWaitRegisterValue,
     CmdBufferCmdWaitMemoryValue,
     CmdBufferCmdWaitBusAddressableMemoryMarker,
-    CmdBufferCmdFlglSync,
-    CmdBufferCmdFlglEnable,
-    CmdBufferCmdFlglDisable,
     CmdBufferCmdLoadCeRam,
     CmdBufferCmdDumpCeRam,
     CmdBufferCmdWriteCeRam,
@@ -260,7 +259,10 @@ enum class InterfaceFunc : uint32
     DeviceCreateSwapChain,
     DeviceSetPowerProfile,
     DeviceFlglQueryState,
+    DeviceFlglSetSyncConfiguration,
+    DeviceFlglGetSyncConfiguration,
     DeviceFlglSetFrameLock,
+    DeviceFlglSetGenLock,
     DeviceFlglResetFrameCounter,
     DeviceFlglGetFrameCounter,
     DeviceFlglGetFrameCounterResetStatus,
@@ -499,6 +501,7 @@ public:
     void Struct(const ExternalQueueSemaphoreOpenInfo& value);
     void Struct(const ExternalResourceOpenInfo& value);
     void Struct(const FlglState& value);
+    void Struct(const GlSyncConfig& value);
     void Struct(const FmaskViewInfo& value);
     void Struct(const FullScreenFrameMetadataControlFlags& value);
     void Struct(const GammaRamp& value);

@@ -46,6 +46,9 @@ pal_bp(PAL_BUILD_GPUUTIL ON)
 pal_bp(PAL_DEVELOPER_BUILD OFF)
 #endif
 
+# Allows RPC in settings. The default is to use the URI path
+pal_bp(PAL_ENABLE_RPC_SETTINGS OFF)
+
 if (PAL_CLIENT_INTERFACE_MAJOR_VERSION GREATER 698 AND (PAL_BUILD_OSS1 OR PAL_BUILD_OSS2))
     message(FATAL_ERROR "PAL_BUILD_OSS1 / PAL_BUILD_OSS2 have been deprecated")
 endif()

@@ -25,6 +25,7 @@
 
 #pragma once
 
+#include <ddPlatform.h>
 #include "protocols/ddSettingsServiceTypes.h"
 
 namespace DevDriver

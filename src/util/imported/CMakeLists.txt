@@ -82,4 +82,8 @@ enable_language(C)
 
 # DevDriver needs to be a public dependency.
 # Clients include "gpuopen.h"
-target_link_libraries(pal PUBLIC devdriver)
+target_link_libraries(pal
+    PUBLIC
+        ddSettings
+        devdriver
+)

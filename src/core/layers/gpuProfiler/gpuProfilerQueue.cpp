@@ -1358,8 +1358,8 @@ void Queue::LogQueueCall(
         m_pDevice->LoggingEnabled(GpuProfilerGranularityCmdBuf))
     {
         LogItem logItem = { };
-        logItem.type             = QueueCall;
-        logItem.frameId          = static_cast<Platform*>(m_pDevice->GetPlatform())->FrameId();
+        logItem.type = QueueCall;
+        logItem.frameId = static_cast<Platform*>(m_pDevice->GetPlatform())->FrameId();
         logItem.queueCall.callId = callId;
         AddLogItem(logItem);
     }

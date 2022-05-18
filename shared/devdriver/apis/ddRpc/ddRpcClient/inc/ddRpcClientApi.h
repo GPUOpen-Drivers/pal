@@ -14,8 +14,8 @@ extern "C" {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /// Compile time version information
-#define DD_RPC_CLIENT_API_MAJOR_VERSION 0
-#define DD_RPC_CLIENT_API_MINOR_VERSION 2
+#define DD_RPC_CLIENT_API_MAJOR_VERSION 1
+#define DD_RPC_CLIENT_API_MINOR_VERSION 0
 #define DD_RPC_CLIENT_API_PATCH_VERSION 0
 
 #define DD_RPC_CLIENT_API_VERSION_STRING DD_API_STRINGIFY_VERSION(DD_RPC_CLIENT_API_MAJOR_VERSION, \
@@ -91,6 +91,13 @@ typedef DD_RESULT (*PFN_ddRpcClientCall)(
     const DDRpcClientCallInfo* pInfo
 );
 
+/// Checks if a service ID is currently registered to the server
+typedef DD_RESULT (*PFN_ddRpcClientGetServiceInfo)(
+    DDRpcClient          hClient,   /// [in] Handle to the client object
+    const DDRpcServiceId serviceId, /// [in] Service ID to check
+    DDApiVersion*        pVersion   /// [out] The service version
+);
+
 /// API structure
 typedef struct DDRpcClientApi
 {
@@ -99,6 +106,7 @@ typedef struct DDRpcClientApi
     PFN_ddRpcClientCreate             pfnCreate;
     PFN_ddRpcClientDestroy            pfnDestroy;
     PFN_ddRpcClientCall               pfnCall;
+    PFN_ddRpcClientGetServiceInfo     pfnGetServiceInfo;
 } DDRpcClientApi;
 
 #ifdef __cplusplus

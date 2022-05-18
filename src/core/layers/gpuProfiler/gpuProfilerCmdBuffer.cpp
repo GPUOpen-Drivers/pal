@@ -26,7 +26,7 @@
 #include "core/layers/gpuProfiler/gpuProfilerCmdBuffer.h"
 #include "core/layers/gpuProfiler/gpuProfilerDevice.h"
 #include "core/layers/gpuProfiler/gpuProfilerQueue.h"
-#include "core/g_palPlatformSettings.h"
+#include "g_platformSettings.h"
 #include "palAutoBuffer.h"
 #include "palGpaSession.h"
 #include "palHsaAbiMetadata.h"
@@ -411,11 +411,39 @@ void CmdBuffer::CmdBindMsaaState(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdSaveGraphicsState()
+{
+    InsertToken(CmdBufCallId::CmdSaveGraphicsState);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdRestoreGraphicsState()
+{
+    InsertToken(CmdBufCallId::CmdRestoreGraphicsState);
+}
+
+// =====================================================================================================================
 void CmdBuffer::ReplayCmdBindMsaaState(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
     pTgtCmdBuffer->CmdBindMsaaState(ReadTokenVal<IMsaaState*>());
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdSaveGraphicsState(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    pTgtCmdBuffer->CmdSaveGraphicsState();
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdRestoreGraphicsState(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    pTgtCmdBuffer->CmdRestoreGraphicsState();
 }
 
 // =====================================================================================================================
@@ -3604,48 +3632,6 @@ void CmdBuffer::ReplayCmdUpdateHiSPretests(
 }
 
 // =====================================================================================================================
-void CmdBuffer::CmdFlglSync()
-{
-    InsertToken(CmdBufCallId::CmdFlglSync);
-}
-
-// =====================================================================================================================
-void CmdBuffer::ReplayCmdFlglSync(
-    Queue*           pQueue,
-    TargetCmdBuffer* pTgtCmdBuffer)
-{
-    pTgtCmdBuffer->CmdFlglSync();
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdFlglEnable()
-{
-    InsertToken(CmdBufCallId::CmdFlglEnable);
-}
-
-// =====================================================================================================================
-void CmdBuffer::ReplayCmdFlglEnable(
-    Queue*           pQueue,
-    TargetCmdBuffer* pTgtCmdBuffer)
-{
-     pTgtCmdBuffer->CmdFlglEnable();
-}
-
-// =====================================================================================================================
-void  CmdBuffer::CmdFlglDisable()
-{
-    InsertToken(CmdBufCallId::CmdFlglDisable);
-}
-
-// =====================================================================================================================
-void CmdBuffer::ReplayCmdFlglDisable(
-    Queue*           pQueue,
-    TargetCmdBuffer* pTgtCmdBuffer)
-{
-    pTgtCmdBuffer->CmdFlglDisable();
-}
-
-// =====================================================================================================================
 void CmdBuffer::CmdBeginPerfExperiment(
     IPerfExperiment* pPerfExperiment)
 {
@@ -4020,6 +4006,8 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdBindPipeline,
         &CmdBuffer::ReplayCmdPrimeGpuCaches,
         &CmdBuffer::ReplayCmdBindMsaaState,
+        &CmdBuffer::ReplayCmdSaveGraphicsState,
+        &CmdBuffer::ReplayCmdRestoreGraphicsState,
         &CmdBuffer::ReplayCmdBindColorBlendState,
         &CmdBuffer::ReplayCmdBindDepthStencilState,
         &CmdBuffer::ReplayCmdBindIndexData,
@@ -4110,9 +4098,6 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdEndIf,
         &CmdBuffer::ReplayCmdWhile,
         &CmdBuffer::ReplayCmdEndWhile,
-        &CmdBuffer::ReplayCmdFlglSync,
-        &CmdBuffer::ReplayCmdFlglEnable,
-        &CmdBuffer::ReplayCmdFlglDisable,
         &CmdBuffer::ReplayCmdBeginPerfExperiment,
         &CmdBuffer::ReplayCmdUpdatePerfExperimentSqttTokenMask,
         &CmdBuffer::ReplayCmdUpdateSqttTokenMask,

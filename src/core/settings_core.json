@@ -1296,19 +1296,6 @@
       "Description": "If true, nested command buffers will not be launched using an IB2 packet. This setting forces the Pal::CmdBufferBuildFlags::disallowNestedLaunchViaIb2 flag on. (Useful for logging nested command buffers at submit time)"
     },
     {
-      "Name": "CmdAllocatorFreeOnReset",
-      "Tags": [
-        "Command Buffer"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalKey",
-      "Type": "bool",
-      "VariableName": "cmdAllocatorFreeOnReset",
-      "Description": "If true, each command allocator will free its command chunk allocations when the client calls ICmdAllocator::Reset() even though this behavior is against the rules of the DX12 specification."
-    },
-    {
       "ValidValues": {
         "IsEnum": true,
         "Values": [

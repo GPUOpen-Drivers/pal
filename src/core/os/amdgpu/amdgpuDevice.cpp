@@ -23,7 +23,7 @@
  *
  **********************************************************************************************************************/
 
-#include "core/g_palSettings.h"
+#include "g_coreSettings.h"
 #include "core/os/amdgpu/amdgpuDevice.h"
 #include "core/os/amdgpu/amdgpuImage.h"
 #include "core/os/amdgpu/amdgpuQueue.h"
@@ -205,6 +205,7 @@ Result Device::Create(
         if (Device::DetermineGpuIpLevels(gpuInfo.family_id,
                                          gpuInfo.chip_external_rev,
                                          cpVersion,
+                                         pPlatform,
                                          &ipLevels) == false)
         {
             result = Result::ErrorInitializationFailed;
@@ -273,7 +274,7 @@ Result Device::Create(
 // =====================================================================================================================
 // Helper function which overrides certain GPU properties for experiment purposes.
 static void ValidateGpuInfo(
-    const Platform&         platform,
+    Platform*               pPlatform,
     struct amdgpu_gpu_info* pGpuInfo) // in,out: GPU info to (optionally) override
 {
     GpuId gpuId = { };
@@ -281,7 +282,7 @@ static void ValidateGpuInfo(
     gpuId.eRevId     = pGpuInfo->chip_external_rev;
     gpuId.revisionId = pGpuInfo->pci_rev_id;
     gpuId.deviceId   = pGpuInfo->asic_id;
-    if (platform.OverrideGpuId(&gpuId))
+    if (pPlatform->OverrideGpuId(&gpuId))
     {
         pGpuInfo->family_id         = gpuId.familyId;
         pGpuInfo->asic_id           = gpuId.deviceId;
@@ -349,7 +350,7 @@ static Result OpenAndInitializeDrmDevice(
     {
         // amdgpu_query_gpu_info will never fail only if it is initialized.
         procs.pfnAmdgpuQueryGpuInfo(deviceHandle, pGpuInfo);
-        ValidateGpuInfo(*pPlatform, pGpuInfo);
+        ValidateGpuInfo(pPlatform, pGpuInfo);
 
         uint32 version = 0;
         if (procs.pfnAmdgpuQueryFirmwareVersion(deviceHandle,
@@ -1722,8 +1723,11 @@ Result Device::InitQueueInfo()
             }
         }
 
-        m_chipProperties.gfx9.supportMeshTaskShader = 0;
-        m_chipProperties.gfx9.supportAceOffload     = 0;
+        if (IsGfx103PlusExclusive(m_chipProperties.gfxLevel))
+        {
+            m_chipProperties.gfx9.supportMeshTaskShader = 0;
+        }
+        m_chipProperties.gfxip.supportAceOffload = 0;
     }
 
     return result;
@@ -5409,7 +5413,11 @@ Result Device::CreateGpuMemoryFromExternalShare(
         pCreateInfo->pImage              = pImage;
         pCreateInfo->flags.flippable     = pImage->IsFlippable();
         pCreateInfo->flags.presentable   = pImage->IsPresentable();
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 723
+        pCreateInfo->flags.privateScreen = (pImage->GetPrivateScreen() != nullptr);
+#else
         internalInfo.flags.privateScreen = (pImage->GetPrivateScreen() != nullptr);
+#endif
     }
 
     GpuMemory* pGpuMemory = static_cast<GpuMemory*>(ConstructGpuMemoryObject(pPlacementAddr));

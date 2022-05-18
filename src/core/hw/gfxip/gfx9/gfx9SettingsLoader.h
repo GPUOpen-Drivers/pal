@@ -26,7 +26,7 @@
 #pragma once
 
 #include "palSettingsLoader.h"
-#include "core/hw/gfxip/gfx9/g_gfx9PalSettings.h"
+#include "g_gfx9Settings.h"
 #include "palAssert.h"
 
 namespace Pal

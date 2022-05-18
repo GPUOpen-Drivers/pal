@@ -32,6 +32,7 @@
 
 #include "devDriverServer.h"
 #include "protocols/ddSettingsService.h"
+#include "settingsService.h"
 
 using namespace DevDriver::SettingsURIService;
 
@@ -58,6 +59,12 @@ PlatformSettingsLoader::PlatformSettingsLoader(
 // =====================================================================================================================
 PlatformSettingsLoader::~PlatformSettingsLoader()
 {
+    auto* pRpcSettingsService = m_pPlatform->GetSettingsService();
+    if (pRpcSettingsService != nullptr)
+    {
+        pRpcSettingsService->UnregisterComponent(m_pComponentName);
+    }
+
     auto* pDevDriverServer = m_pPlatform->GetDevDriverServer();
     if (pDevDriverServer != nullptr)
     {
@@ -281,6 +288,24 @@ void PlatformSettingsLoader::OverrideDefaults()
 void PlatformSettingsLoader::ValidateSettings()
 {
     m_state = SettingsLoaderState::Final;
+
+#if PAL_ENABLE_LOGGING
+    // Overrides debug log directory path to expected value.
+    // Now those directories in setting are all *relative*:
+    // Relative to the path in the AMD_DEBUG_DIR environment variable, and if that env var isn't set, the location is
+    // platform dependent. So we need to query the root path from device and then concatenate two strings (of the root
+    // path and relative path of specific file) to the final usable absolute path.
+    PAL_ASSERT(m_pPlatform != nullptr);
+    Device* pDevice = m_pPlatform->GetDevice(0);
+    PAL_ASSERT(pDevice != nullptr);
+
+    const char* pRootPath = pDevice->GetDebugFilePath();
+    char subDir[MaxPathStrLen];
+
+    Strncpy(subDir, m_settings.dbgLoggerFileConfig.logDirectory, sizeof(subDir));
+    Snprintf(m_settings.dbgLoggerFileConfig.logDirectory, sizeof(m_settings.dbgLoggerFileConfig.logDirectory),
+             "%s/%s", pRootPath, subDir);
+#endif
 }
 
 } // Pal

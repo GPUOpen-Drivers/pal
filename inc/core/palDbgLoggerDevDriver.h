@@ -78,20 +78,6 @@ public:
     /// Closes the connection to the DevDriver event server by unregistering itself.
     void Destroy();
 
-    /// Logs the incoming debug log message with the DevDriver.
-    ///
-    /// @param [in] eventId      Bit position of debug log message's OriginationType. The DevDriver maintains a bit
-    ///                          mask of OriginationType and SeverityLevel packed into one uint32 word. It checks
-    ///                          the bit at eventId in this word and if set logs the incoming message out to the
-    ///                          connected tool.
-    /// @param [in] pMsg         Pointer to the debug log message.
-    void LogMessage(
-        uint32      eventId,
-        const char* pMsg)
-    {
-        WriteEvent(eventId, pMsg, strlen(pMsg));
-    }
-
     /// Logs the incoming raw data with the DevDriver.
     ///
     /// @param [in] eventId      Bit position of debug log message's OriginationType. The DevDriver maintains a bit
@@ -196,7 +182,8 @@ public:
         m_originationTypeMask = origTypeMask;
     }
 
-    /// Logs a buffer to a destination if this logger is interested in the input message.
+protected:
+    /// Writes the message to the log event provider
     ///
     /// @param [in] severity     Specifies the severity level of the log message
     /// @param [in] source       Specifies the origination type (source) of the log message
@@ -204,27 +191,15 @@ public:
     ///                          number of characters will be used to identify the client.
     /// @param [in] dataSize     Size of raw data.
     /// @param [in] pData        Pointer to raw data.
-    virtual void LogMessage(
+    virtual void WriteMessage(
         Util::SeverityLevel   severity,
         Util::OriginationType source,
         const char*           pClientTag,
         size_t                dataSize,
-        const void*           pData) override;
-
-    /// Logs a text string to a destination if this logger is interested in the input message.
-    ///
-    /// @param [in] severity     Specifies the severity level of the log message
-    /// @param [in] source       Specifies the origination type (source) of the log message
-    /// @param [in] pClientTag   Indicates the client that logs a message. Only the first 'ClientTagSize'
-    ///                          number of characters will be used to identify the client.
-    /// @param [in] pFormat      Format string for the log message.
-    /// @param [in] args         Variable arguments list
-    virtual void LogMessage(
-        Util::SeverityLevel   severity,
-        Util::OriginationType source,
-        const char*           pClientTag,
-        const char*           pFormat,
-        va_list               args) override;
+        const void*           pData)
+    {
+        m_logEventProvider.LogMessage(uint32(source), dataSize, pData);
+    }
 
 private:
     LogEventProvider m_logEventProvider; ///< LogEventProvider object used to communicate with the DevDriver.

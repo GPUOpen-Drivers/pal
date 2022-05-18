@@ -1,0 +1,239 @@
+$id: ./settings_schema.yaml
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Settings Schema
+description: This schema defines the structure of Settings 2.0 JSON data.
+type: object
+properties:
+  Version:
+    type: integer
+    description: The version of the Settings schema against which this JSON file is
+      written.
+    minimum: 1
+  ComponentName:
+    type: string
+  DriverStates:
+    $ref: '#/$defs/DriverStates'
+    description: Driver states during which the settings can be overridden. Applies
+      to all settings in this file unless overridden by an individual setting.
+  Tags:
+    type: array
+    items:
+      oneOf:
+        - type: string
+          maxLength: 40
+          description: A tag name.
+        - type: object
+          properties:
+            Name:
+              type: string
+              maxLength: 40
+              description: A tag name
+            BuildFilters:
+              $ref: '#/$defs/BuildFilters'
+          description: A tag guarded behind build-filters and could be stripped out
+            by code sanitization. Only ASCII is supported.
+    uniqueItems: true
+    description: A top-level list of all tags that could appear in each individual
+      setting's tag list.
+  Enums:
+    type: array
+    items:
+      type: object
+      properties:
+        Name:
+          type: string
+          description: The name of the enum.
+        Variants:
+          type: array
+          items:
+            type: object
+            properties:
+              Name:
+                type: string
+                description: The name of the variant.
+              Value:
+                type: integer
+                description: The value of the variant. Should be unique from other
+                  variants.
+              BuildFilters:
+                $ref: '#/$defs/BuildFilters'
+              Description:
+                type: string
+                description: The description of the variant.
+            required:
+              - Name
+              - Value
+          description: Different fields in an enum struct.
+        Description:
+          type: string
+      required:
+        - Name
+        - Variants
+        - Description
+    description: Enums to be referenced by individual settings.
+  Bitmasks:
+    type: array
+    items:
+      type: object
+      properties:
+        Name:
+          type: string
+        Bits:
+          type: array
+          items:
+            type: object
+            properties:
+              Name:
+                type: string
+              Value:
+                type: integer
+                description: The integer value with a bit set. Must be power of 2,
+                  and unique from other bit values.
+              BuildFilters:
+                $ref: '#/$defs/BuildFilters'
+              Description:
+                type: string
+            required:
+              - Name
+              - Value
+              - Description
+        Description:
+          type: string
+      required:
+        - Name
+        - Bits
+        - Description
+    description: Enums who values are bitmasks. To be referenced by individual settings.
+  Settings:
+    type: array
+    items:
+      $ref: '#/$defs/Setting'
+required:
+  - Version
+  - ComponentName
+  - DriverStates
+  - Settings
+$defs:
+  Setting:
+    type: object
+    properties:
+      Name:
+        type: string
+        description: Name is used for generating setting variable name in C++ (by lowercasing
+          the first character). It must start with an alphabetic letter, and only contain
+          alphnumeric characters, plus underscore.
+      Defaults:
+        type: object
+        properties:
+          Type:
+            enum:
+              - bool
+              - int8
+              - uint8
+              - int16
+              - uint16
+              - int32
+              - uint32
+              - int64
+              - uint64
+              - float
+              - string
+            description: The type of the default value.
+          Default:
+            type:
+              - string
+              - number
+              - boolean
+            description: Default value for Windows and all other platforms. Can be
+              overridden for non-Windows platforms.
+          Linux:
+            type:
+              - string
+              - number
+              - boolean
+            description: Default value for Linux.
+        required:
+          - Type
+          - Default
+      Visibility:
+        enum:
+          - Public
+          - NDA
+          - Private
+        description: Used by code-gen to separate settings into different part based
+          on who can set/modify this setting. Default to private.
+      Description:
+        type: string
+      BuildFilters:
+        $ref: '#/$defs/BuildFilters'
+      DriverStates:
+        $ref: '#/$defs/DriverStates'
+        description: Driver states for this setting, overriding the top-level DriverStates
+          list.
+      Tags:
+        type: array
+        items:
+          type: string
+          maxLength: 40
+        uniqueItems: true
+        description: Tags help GUI tools with grouping and search. Only ASCII is supported.
+      Flags:
+        type: object
+        properties:
+          IsHex:
+            type: boolean
+            description: Should this setting be displayed in Hexadecimal. Default
+              to false.
+          IsDir:
+            type: boolean
+            description: Indicate this is a path to a directory. Default to false.
+          IsFile:
+            type: boolean
+            description: Indicate this is a path to a file. Default to false.
+        description: The flags describing various attributes of this setting.
+      Enum:
+        type: string
+        description: One of the names in the top-level Enums list.
+      Bitmask:
+        type: string
+        description: One of the names in the top-level Bitmasks list.
+    required:
+      - Name
+      - Defaults
+      - Description
+    not:
+      required:
+        - Enum
+        - Bitmask
+      $comment: This contraint states that Enum and Bitmask cannot be present at the
+        same time.
+  DriverStates:
+    type: array
+    items:
+      enum:
+        - HaltedOnPlatformInit
+        - HaltedOnDeviceInit
+        - HaltedPostDeviceInit
+        - Running
+        - Paused
+    uniqueItems: true
+    description: During which driver states this setting can be set/modified.
+  BuildFilters:
+    type: object
+    properties:
+      Relation:
+        enum:
+          - AND
+          - OR
+        description: How to treat multiple conditions.
+      Macros:
+        type: array
+        items:
+          type: string
+          description: Name of predefined macros in drivers.
+        uniqueItems: true
+    required:
+      - Macros
+    description: Used by code-gen to determine under what build-filters its parent
+      field should be included. Default to always include. Also used by code sanitization
+      to strip out non-public objects.

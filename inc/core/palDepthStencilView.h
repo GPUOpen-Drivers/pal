@@ -66,7 +66,12 @@ struct DepthStencilViewCreateInfo
             uint32 resummarizeHiZ    :  1;  ///< Enables resummarizing Hi-Z for touched DB tiles touched by drawing with
                                             ///  This view. This has no effect if the source Image does not have depth
                                             ///  compression or if the @ref readOnlyDepth flag is set.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 730
+            uint32 lowZplanePolyOffsetBits : 1; ///< If set, use decreased precision for Z_16/Z_24 formats.
+            uint32 reserved          : 23;  ///< Reserved for future use.
+#else
             uint32 reserved          : 24;  ///< Reserved for future use.
+#endif
         };
         uint32 u32All;                    ///< Flags packed as 32-bit uint.
     } flags;                              ///< Depth/stencil view creation flags.

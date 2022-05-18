@@ -27,7 +27,7 @@
 
 #include "core/cmdStreamAllocation.h"
 #include "core/platform.h"
-#include "core/g_palSettings.h"
+#include "g_coreSettings.h"
 
 #include "palHashMap.h"
 #include "palIntrusiveList.h"

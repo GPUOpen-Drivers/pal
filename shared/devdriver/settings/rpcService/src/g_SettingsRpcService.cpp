@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2021-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -31,11 +31,11 @@ namespace SettingsRpc
 const DDRpcServerRegisterServiceInfo ISettingsRpcService::kServiceInfo = []() -> DDRpcServerRegisterServiceInfo {
     DDRpcServerRegisterServiceInfo info = {};
     info.id                             = 0x15375127;
-    info.version.major                  = 0;
-    info.version.minor                  = 1;
+    info.version.major                  = 1;
+    info.version.minor                  = 0;
     info.version.patch                  = 0;
     info.pName                          = "SettingsRpc";
-    info.pDescription                   = "A service that provides driver settings";
+    info.pDescription                   = "A service that provides functionalities for querying and modifying driver settings.";
 
     return info;
 }();

@@ -27,7 +27,7 @@
 
 #include "core/layers/decorators.h"
 #include "core/layers/gpuProfiler/gpuProfilerPlatform.h"
-#include "core/g_palPlatformSettings.h"
+#include "g_platformSettings.h"
 #include "palMutex.h"
 
 namespace Util { class File; }

@@ -31,7 +31,7 @@
 #include "core/layers/dbgOverlay/dbgOverlayQueue.h"
 #include "core/layers/dbgOverlay/dbgOverlayTextWriter.h"
 #include "core/layers/dbgOverlay/dbgOverlayTimeGraph.h"
-#include "core/g_palPlatformSettings.h"
+#include "g_platformSettings.h"
 #include "palAutoBuffer.h"
 #include "palDequeImpl.h"
 

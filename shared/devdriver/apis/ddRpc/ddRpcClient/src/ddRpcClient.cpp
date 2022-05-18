@@ -86,3 +86,33 @@ DD_RESULT ddRpcClientCall(DDRpcClient hClient, const DDRpcClientCallInfo* pInfo)
 
     return result;
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+DD_RESULT ddRpcClientGetServiceInfo(DDRpcClient hClient, const DDRpcServiceId serviceId, DDApiVersion* pVersion)
+{
+    DD_RESULT result = DD_RESULT_COMMON_INVALID_PARAMETER;
+    DynamicBufferByteWriter writer;
+    DDRpcClientCallInfo info = {};
+
+    info.pParamBuffer    = &serviceId;
+    info.paramBufferSize = sizeof(serviceId);
+    info.function        = DD_RPC_INVALID_FUNC_ID;
+    info.service         = kServicesQueryRpcServiceId;
+    info.serviceVersion  = RpcServicesQueryVersion();
+    info.pResponseWriter = writer.Writer();
+
+    if ((hClient != DD_API_INVALID_HANDLE) &&
+        ValidateOptionalBuffer(info.pParamBuffer, info.paramBufferSize))
+    {
+        auto* pClient = RpcClient::FromHandle(hClient);
+        result        = pClient->Call(info);
+
+        if (result == DD_RESULT_SUCCESS)
+        {
+            DD_ASSERT(writer.Size() == sizeof(DDApiVersion));
+            memcpy(pVersion, writer.Buffer(), sizeof(DDApiVersion));
+        }
+    }
+
+    return result;
+}

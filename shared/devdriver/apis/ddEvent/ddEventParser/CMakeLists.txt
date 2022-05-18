@@ -11,8 +11,8 @@ target_link_libraries(ddEventParser
 )
 
 if (DD_BP_INSTALL)
-	install(FILES   inc/ddEventParserApi.h DESTINATION inc)
-	install(TARGETS ddEventParser          DESTINATION lib)
+    install(FILES   inc/ddEventParserApi.h DESTINATION inc)
+    install(TARGETS ddEventParser          DESTINATION lib)
 endif()
 
 target_include_directories(ddEventParser PUBLIC  inc)

@@ -499,7 +499,7 @@ HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::Hash
     m_hashFunc(),
     m_equalFunc(),
     m_allocator(GroupSize, alignof(Entry), pAllocator),
-    m_numBuckets(Pow2Pad(numBuckets)),
+    m_numBuckets((numBuckets > 0) ? Pow2Pad(numBuckets) : 1), // We always need at least one bucket.
     m_numEntries(0),
     m_memorySize(m_numBuckets * GroupSize),
     m_pMemory(nullptr)

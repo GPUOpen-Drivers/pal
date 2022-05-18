@@ -2082,7 +2082,7 @@ Result GpaSession::Reset()
     {
         m_queueEvents.Clear();
         m_timestampCalibrations.Clear();
-        result = m_pCmdAllocator->Reset();
+        result = m_pCmdAllocator->Reset(false);
     }
 
     if (result == Pal::Result::Success)
@@ -3829,7 +3829,8 @@ Result GpaSession::DumpRgpData(
     static_assert((static_cast<uint32>(ApiType::DirectX12) == SQTT_API_TYPE_DIRECTX_12) &&
                   (static_cast<uint32>(ApiType::Vulkan)    == SQTT_API_TYPE_VULKAN)     &&
                   (static_cast<uint32>(ApiType::Generic)   == SQTT_API_TYPE_GENERIC)    &&
-                  (static_cast<uint32>(ApiType::OpenCl)    == SQTT_API_TYPE_OPENCL),
+                  (static_cast<uint32>(ApiType::OpenCl)    == SQTT_API_TYPE_OPENCL)     &&
+                  (static_cast<uint32>(ApiType::Hip)       == SQTT_API_TYPE_HIP),
                   "Unexpected mismatch between PAL and SQTT ApiType enums!");
 
     Result result = Result::Success;

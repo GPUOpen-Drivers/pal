@@ -637,8 +637,10 @@ struct PalPublicSettings
     /// PAL automatically pad allocation sizes to fill an integral number of large pages. By default, PAL will
     /// use the KMD-reported limit.
     gpusize largePageMinSizeForSizeAlignmentInBytes;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 727
     /// The acquire/release-based barrier interface is enabled.
     bool useAcqRelInterface;
+#endif
     /// Makes the unbound descriptor debug srd 0 so the hardware drops the load and ignores it instead of pagefaulting.
     /// Used to workaround incorrect app behavior.
     bool zeroUnboundDescDebugSrd;
@@ -2470,8 +2472,8 @@ struct FlglState
         {
             uint32 genLockEnabled    : 1;   ///< True if genlock is currently enabled. Genlock is a system-wide setting
                                             ///< in CCC. Genlock provides a singal source (which is used in framelock)
-            uint32 frameLockEnabled  : 1;   ///< True if framelock is currently enabled. Framelock is the mechanism to
-                                            ///< sync all presents in multiple adapters.
+            uint32 frameLockEnabled  : 1;   ///< True if (KMD) framelock is currently enabled.
+                                            ///< Framelock is the mechanism to sync all presents in multiple adapters.
             uint32 isTimingMaster    : 1;   ///< True if the display being driven by the current adapter is the timing
                                             ///< master in a genlock configuration
             uint32 reserved          : 29;  ///< Reserved for future use.
@@ -2480,6 +2482,88 @@ struct FlglState
     };
     FlglSupport support;         ///< The state of the FLGL support in current adapter
     uint32      firmwareVersion; ///< Firmware version number of the GLSync hardware (S400 board), if available
+};
+
+/// GlSync setting mask definition, used with GlSyncConfig
+enum GlSyncConfigMask : uint32
+{
+    GlSyncConfigMaskSignalSource    = 0x00000001,
+    GlSyncConfigMaskSyncField       = 0x00000002,
+    GlSyncConfigMaskSampleRate      = 0x00000004,
+    GlSyncConfigMaskSyncDelay       = 0x00000008,
+    GlSyncConfigMaskTriggerEdge     = 0x00000010,
+    GlSyncConfigMaskScanRateCoeff   = 0x00000020,
+    GlSyncConfigMaskFrameLockCntl   = 0x00000040,
+    GlSyncConfigMaskSigGenFrequency = 0x00000080
+};
+
+/// specify GLSYNC framelock control state
+enum GlSyncFrameLockCtrl : uint32
+{
+    GlSyncFrameLockCntlNone                 = 0x00000000,
+    GlSyncFrameLockCntlEnable               = 0x00000001,
+    GlSyncFrameLockCntlDisable              = 0x00000002,
+    GlSyncFrameLockCntlResetSwapCounter     = 0x00000004,
+    GlSyncFrameLockCntlAckSwapCounter       = 0x00000008,
+    GlSyncFrameLockCntlVersionKmd           = 0x00000010
+};
+
+/// Specifies GlSync Signal Source
+enum GlSyncSignalSource : uint32
+{
+    GlSyncSignalSourceGpuMask   = 0x0FF,
+    GlSyncSignalSourceUndefined = 0x100,
+    GlSyncSignalSourceFreerun   = 0x101,
+    GlSyncSignalSourceBncPort   = 0x102,
+    GlSyncSignalSourceRj45Port1 = 0x103,
+    GlSyncSignalSourceRj45Port2 = 0x104
+};
+
+/// Specifies GlSync Sync Field
+enum GlSyncSyncField : uint8
+{
+    GlSyncSyncFieldUndefined    = 0,
+    GlSyncSyncFieldBoth         = 1,
+    GlSyncSyncField1            = 2
+};
+
+/// Specifies GlSync Sync Trigger Edge
+enum GlSyncTriggerEdge : uint8
+{
+    GlSyncTriggerEdgeUndefined  = 0,
+    GlSyncTriggerEdgeRising     = 1,
+    GlSyncTriggerEdgeFalling    = 2,
+    GlSyncTriggerEdgeBoth       = 3
+};
+
+/// Specifies GlSync scan rate coefficient/multiplier options
+enum GlSyncScanRateCoeff : uint8
+{
+    GlSyncScanRateCoeffUndefined    = 0,
+    GlSyncScanRateCoeffx5           = 1,
+    GlSyncScanRateCoeffx4           = 2,
+    GlSyncScanRateCoeffx3           = 3,
+    GlSyncScanRateCoeffx5Div2       = 4,
+    GlSyncScanRateCoeffx2           = 5,
+    GlSyncScanRateCoeffx3Div2       = 6,
+    GlSyncScanRateCoeffx5Div4       = 7
+};
+
+/// Container structure for FrameLock/GenLock config.
+struct GlSyncConfig
+{
+    uint32 validMask;           ///< Mask that specifies which settings are actually referred in the structure.
+                                ///  GlSyncConfigMask*
+    uint32 syncDelay;           ///< Delay of sync signal in microseconds
+    uint32 framelockCntlVector; ///< Vector of Framelock control bits. GlSyncFrameLockCntl*
+    uint32 signalSource;        ///< Source of sync signal. Can be House Sync, RJ45 Port or GPUPort.
+                                ///  GlSyncSignalSource* or GPUPort Index
+    uint8  sampleRate;          ///< Number of VSyncs per sample. 0 - no sampling, syncronized by singal VSync.
+    uint8  syncField;           ///< Sync to Field 1 or to both Fields when input signal is interlaced.
+                                ///  GlSyncSyncField*
+    uint8  triggerEdge;         ///< Which edge should be used as trigger. GlSyncTriggerEdge*
+    uint8  scanRateCoeff;       ///< Scan Rate Multiplier applied to original sync signal. GlSyncScanRateCoeff*
+    uint32 sigGenFrequency;     ///< Frequency in mHz of internal signal generator
 };
 
 /// Reclaim allocation result enumeration.
@@ -4645,10 +4729,31 @@ public:
     virtual Result FlglQueryState(
        FlglState* pState) = 0;
 
-    /// Set the Framelock to disable or enable. Client should call this interface first to enable/disable Flgl,
-    /// then submit CmdFlglEnable()/CmdFlglDisable() to corresponding queue
+    /// Set the Flgl config of the device.
     ///
-    /// @param [in]    enable           If true enables the framelock, otherwise disables framelock.
+    /// @param [in]    glSyncConfig  const reference to the config struct.
+    ///
+    /// @returns Success if setting returns with success. Otherwise, one of the following errors may returned:
+    ///          + ErrorUnknown if an unexpected internal error occurs.
+    ///          + ErrorUnsuppported if the this GenLock function is not available.
+    virtual Result FlglSetSyncConfiguration(
+        const GlSyncConfig& glSyncConfig) = 0;
+
+    /// Get the Flgl config of the device.
+    /// This function cannot be called if FlglState's support value is FlglSupport::NotAvailable.
+    ///
+    /// @param [out]    pGlSyncConfig  Pointer to the location that PAL should write the config back.
+    ///
+    /// @returns Success if query returns with success. Otherwise, one of the following errors may returned:
+    ///          + ErrorUnknown if an unexpected internal error occurs.
+    ///          + ErrorInvalidPointer if pGlSyncConfig is null poiter.
+    virtual Result FlglGetSyncConfiguration(
+        GlSyncConfig* pGlSyncConfig) const  = 0;
+
+    /// Set the Framelock to disable or enable. Client should call this interface first to enable/disable Flgl.
+    /// This function cannot be called if FlglState's support value is FlglSupport::NotAvailable.
+    ///
+    /// @param [in]    enable           If true enables KMD framelock, otherwise disables framelock.
     ///
     /// @returns Success if framelock enable/disable successfully. Otherwise, one of the following errors may be
     ///          returned:
@@ -4656,6 +4761,18 @@ public:
     ///          + ErrorUnknown if an unexpected internal error occurs.
     virtual Result FlglSetFrameLock(
        bool enable) = 0;
+
+    /// Set the Genlock to disable or enable.
+    /// This function cannot be called if FlglState's support value is FlglSupport::NotAvailable.
+    ///
+    /// @param [in]    enable           If true enables the genlock, otherwise disables genlock.
+    ///
+    /// @returns Success if genlock enable/disable successfully. Otherwise, one of the following errors may be
+    ///          returned:
+    ///          + ErrorUnavailable if this function is not supported on this Asic.
+    ///          + ErrorUnknown if an unexpected internal error occurs.
+    virtual Result FlglSetGenLock(
+        bool enable) = 0;
 
     /// Reset the framelock HW counter. The following counter operations are directly submit to hardware via I2C
     /// interface Pal doesn't store the counter internally. Client should manage the counter
@@ -4681,12 +4798,14 @@ public:
     /// Get the framelock HW counter.
     ///
     /// @param [out]    pValue   Pointer to the location that PAL should write the frame counter value back.
+    /// @param [out]    pReset   Pointer to the location that PAL should write the frame counter reset state.
     ///
     /// @returns Success if the frame counter is returned.  Otherwise, one of the following errors may be returned:
     ///          + ErrorUnavailable if this function is not available on this Asic.
     ///          + ErrorUnknown if an unexpected internal error occurs.
     virtual Result FlglGetFrameCounter(
-        uint64* pValue) const = 0;
+        uint64* pValue,
+        bool*   pReset) const = 0;
 
     /// Checks if the specified externally-controlled feature settings have changed since the last time the function was
     /// called.

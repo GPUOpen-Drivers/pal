@@ -59,7 +59,7 @@ public:
     virtual void Destroy() override { this->~CmdAllocator(); }
     void DestroyInternal();
 
-    virtual Result Reset() override;
+    virtual Result Reset(bool freeMemory) override;
     virtual Result Trim(uint32 allocTypeMask, uint32 dynamicThreshold) override;
 
     // CmdBuffers and CmdStreams will use these public functions to interact with the CmdAllocator.
@@ -108,7 +108,7 @@ private:
     struct CmdAllocInfo
     {
         AllocList allocList; // Unordered list of allocations owned by the allocator.
-        ChunkList freeList;  // Unordered list of chunks that are reset and not in use (busy-tracker indicates idle).
+        ChunkList freeList;  // Unordered list of chunks that are not in use (busy-tracker indicates idle).
         ChunkList busyList;  // Unordered list of chunks that might be waiting for their busy-tracker to indicate
                              // that the GPU has finished processing them.
         ChunkList reuseList; // Unordered list of chunks that have been 'returned' to the allocator for reuse.
@@ -129,7 +129,7 @@ private:
     void FreeAllLinearAllocators();
 
     // Free allocations where all chunks are idle. Keep at least allocFreeThreshold allocations.
-    void TrimMemory(CmdAllocInfo* const pAllocInfo, uint32 allocFreeThreshold);
+    Result TrimMemory(CmdAllocInfo* const pAllocInfo, uint32 allocFreeThreshold);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     void PrintCommitLog() const;

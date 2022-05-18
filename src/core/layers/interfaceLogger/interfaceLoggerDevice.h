@@ -344,10 +344,16 @@ public:
         CustomPowerProfile* pInfo) override;
     virtual Result FlglQueryState(
         Pal::FlglState* pState) override;
+    virtual Result FlglSetSyncConfiguration(
+        const Pal::GlSyncConfig& glSyncConfig) override;
+    virtual Result FlglGetSyncConfiguration(
+        Pal::GlSyncConfig* pGlSyncConfig) const override;
     virtual Result FlglSetFrameLock(
         bool enable) override;
+    virtual Result FlglSetGenLock(
+        bool enable) override;
     virtual Result FlglResetFrameCounter() const override;
-    virtual Result FlglGetFrameCounter(uint64* pValue) const override;
+    virtual Result FlglGetFrameCounter(uint64* pValue, bool* pReset) const override;
     virtual Result FlglGetFrameCounterResetStatus(bool* pReset) const override;
 
     virtual Result CreateVirtualDisplay(

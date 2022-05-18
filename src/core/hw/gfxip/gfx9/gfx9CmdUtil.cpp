@@ -27,7 +27,7 @@
 #include "core/hw/gfxip/pipeline.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
-#include "core/hw/gfxip/gfx9/g_gfx9PalSettings.h"
+#include "g_gfx9Settings.h"
 #include "marker_payload.h"
 #include "palMath.h"
 
@@ -631,23 +631,10 @@ uint32 CmdUtil::Gfx10CalcAcquireMemGcrCntl(
     //                    Typically only needed when doing WB of L0 K$, M$, or RB w/ WB of GL2
     //      2: REVERSE    L2 -> L1 -> L0
     //                    Typically only used for post-unaligned-DMA operation (invalidate only)
-    switch (acquireMemInfo.tcCacheOp)
-    {
-    case TcCacheOp::WbInvL1L2:
-    case TcCacheOp::WbInvL2Nc:
-    case TcCacheOp::WbL2Nc:
-    case TcCacheOp::WbL2Wc:
-        // CbMd flush only happens with CACHE_FLUSH_AND_INV_XX event, in this case we expect the hardware to
-        // take care of the flush sequence.
-        if (acquireMemInfo.flags.flushSqK$ || acquireMemInfo.flags.wbInvCbData || acquireMemInfo.flags.wbInvDb)
-        {
-            gcrCntl.bits.seq = 1;
-        }
-        break;
-
-    default:
-        break;
-    }
+    //
+    // CbMd (or known as M$/MDC/TCC Metadata cache) is write-through, no need care the flush sequence for it.
+    gcrCntl.bits.seq = gcrCntl.bits.gl2Wb &&
+                       (gcrCntl.bits.glkWb || acquireMemInfo.flags.wbInvCbData || acquireMemInfo.flags.wbInvDb) ? 1 : 0;
 
     return gcrCntl.u32All;
 }
@@ -693,7 +680,7 @@ size_t CmdUtil::BuildAcquireMem(
 
         explicitAcquireMemInfo.coherCntl = cpCoherCntl.u32All | acquireMemInfo.cpMeCoherCntl.u32All;
     }
-    else if (IsGfx10Plus(m_gfxIpLevel))
+    else if (IsGfx10(m_gfxIpLevel))
     {
         if (Pal::Device::EngineSupportsGraphics(acquireMemInfo.engineType))
         {
@@ -1338,7 +1325,7 @@ size_t CmdUtil::BuildExecuteIndirect(
     packet.ordinal3.cmd_base_hi                          = HighPart(packetInfo.commandBufferAddr);
     packet.ordinal4.bitfields.core.count_indirect_enable = (packetInfo.countBufferAddr != 0);
     packet.ordinal4.bitfields.core.ib_size               = packetInfo.commandBufferSizeDwords;
-    packet.ordinal5.count                                = packetInfo.maxCount;
+    packet.ordinal5.max_count                            = packetInfo.maxCount;
     packet.ordinal6.bitfields.core.count_addr_lo         = LowPart(packetInfo.countBufferAddr) >> 2;
     packet.ordinal7.count_addr_hi                        = HighPart(packetInfo.countBufferAddr);
     packet.ordinal8.stride                               = packetInfo.argumentBufferStrideBytes;
@@ -1353,10 +1340,10 @@ size_t CmdUtil::BuildExecuteIndirect(
         packet.ordinal13.bitfields.core.spill_table_reg_offset1 = ShRegOffset(pSignature->stage[1].spillTableRegAddr);
         packet.ordinal13.bitfields.core.spill_table_reg_offset2 = ShRegOffset(pSignature->stage[2].spillTableRegAddr);
         packet.ordinal14.bitfields.core.spill_table_reg_offset3 = ShRegOffset(pSignature->stage[3].spillTableRegAddr);
-        packet.ordinal14.bitfields.hasCe.spill_table_instance_count = packetInfo.spillTableInstanceCnt;
+        packet.ordinal14.bitfields.core.spill_table_instance_count = packetInfo.spillTableInstanceCnt;
     }
-    packet.ordinal15.bitfields.hasCe.vb_table_reg_offset = ShRegOffset(packetInfo.vbTableRegOffset);
-    packet.ordinal15.bitfields.hasCe.vb_table_size       = packetInfo.vbTableSize;
+    packet.ordinal15.bitfields.core.vb_table_reg_offset = ShRegOffset(packetInfo.vbTableRegOffset);
+    packet.ordinal15.bitfields.core.vb_table_size       = packetInfo.vbTableSize;
 
     memcpy(pBuffer, &packet, PacketSize * sizeof(uint32));
     return PacketSize;
@@ -2042,19 +2029,19 @@ size_t CmdUtil::BuildUntypedSrd(
     Pm4ShaderType              shaderType,
     void*                      pBuffer)
 {
-    const uint32 PacketSize = PM4_PFP_BUILD_UNTYPED_SRD_SIZEDW__HASCE;
+    const uint32 PacketSize = PM4_PFP_BUILD_UNTYPED_SRD_SIZEDW__CORE;
     auto* const  pPacket = static_cast<PM4_PFP_BUILD_UNTYPED_SRD*>(pBuffer);
 
     pPacket->ordinal1.header.u32All =
         (Type3Header(IT_BUILD_UNTYPED_SRD__GFX101, PacketSize, predicate, shaderType)).u32All;
     pPacket->ordinal2.u32All                      = 0;
     // For ExecuteIndirect CP will fetch the Vertex Data from ArgumentBuffer which has index data, set index = 1.
-    pPacket->ordinal2.bitfields.hasCe.index       = 1;
-    pPacket->ordinal2.bitfields.hasCe.src_addr_lo = LowPart(pSrdInfo->srcGpuVirtAddress);
+    pPacket->ordinal2.bitfields.core.index       = 1;
+    pPacket->ordinal2.bitfields.core.src_addr_lo = LowPart(pSrdInfo->srcGpuVirtAddress);
     pPacket->ordinal3.src_addr_hi                 = HighPart(pSrdInfo->srcGpuVirtAddress);
     pPacket->ordinal4.src_offset                  = pSrdInfo->srcGpuVirtAddressOffset;
     pPacket->ordinal5.u32All                      = 0;
-    pPacket->ordinal5.bitfields.hasCe.dst_addr_lo = LowPart(pSrdInfo->dstGpuVirtAddress);
+    pPacket->ordinal5.bitfields.core.dst_addr_lo = LowPart(pSrdInfo->dstGpuVirtAddress);
     pPacket->ordinal6.dst_addr_hi                 = HighPart(pSrdInfo->dstGpuVirtAddress);
     pPacket->ordinal7.dst_offset                  = pSrdInfo->dstGpuVirtAddressOffset;
     pPacket->ordinal8.dword3                      = pSrdInfo->srdDword3;

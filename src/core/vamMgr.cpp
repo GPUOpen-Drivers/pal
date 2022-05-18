@@ -24,7 +24,7 @@
  **********************************************************************************************************************/
 
 #include "core/device.h"
-#include "core/g_palSettings.h"
+#include "g_coreSettings.h"
 #include "core/gpuMemory.h"
 #include "core/image.h"
 #include "core/internalMemMgr.h"

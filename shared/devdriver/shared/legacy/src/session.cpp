@@ -46,7 +46,7 @@ namespace DevDriver
 
     DD_STATIC_CONST const char* kStateName[static_cast<uint32>(SessionState::Count)] =
     {
-#if defined(DD_OPT_SHOW_DEBUG_LABELS)
+#ifndef NDEBUG
         "Closed",           // Closed
         "Listening",        // Listening
         "SynSent",          // SynSent

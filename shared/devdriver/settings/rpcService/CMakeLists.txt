@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2021-2022 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -27,7 +27,9 @@
 # This file is auto generated, see the source for details on updating this
 ####################################################################################
 
-devdriver_library(SettingsRpcService STATIC
+add_library(SettingsRpcService STATIC)
+
+target_sources(SettingsRpcService PRIVATE
     inc/g_SettingsRpcService.h
     src/g_SettingsRpcService.cpp
 )
@@ -42,7 +44,6 @@ target_include_directories(SettingsRpcService
 target_link_libraries(SettingsRpcService
     PRIVATE
         ddCommon
-        ddApi
     PUBLIC
         ddRpcServer
 )

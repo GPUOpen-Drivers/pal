@@ -173,6 +173,14 @@ public:
         m_logEnabled = enabled;
     }
 
+    /// Get debug logging state. Clients can use this info to decide whether to
+    /// create debug loggers or not.
+    /// @returns debug logging state.
+    bool GetLoggingEnabled()
+    {
+        return m_logEnabled;
+    }
+
     /// DbgLogMgr may have internal errors that can be queried through this method.
     /// For example: m_error = true when CreateThreadLocalKey() returns error.
     /// Clients can query for this error and decide whether to use the DbgLogMgr object

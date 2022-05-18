@@ -23,13 +23,14 @@
  #
  #######################################################################################################################
 
-cmake_minimum_required(VERSION 3.13...3.21)
+cmake_minimum_required(VERSION 3.15...3.21)
 include(cmake/PalVersionHelper.cmake)
 project(PAL LANGUAGES CXX)
 
 message(STATUS "PAL_SOURCE_DIR = ${PAL_SOURCE_DIR}")
 
 include(PalBuildParameters)
+include(PalCodegen)
 include(PalOptions)
 include(PalOverrides)
 
@@ -45,8 +46,6 @@ add_subdirectory(tools)
 
 pal_compile_definitions(pal)
 pal_compiler_options(pal)
+pal_setup_generated_code()
 
-get_target_property(pal_sources pal SOURCES)
-source_group(TREE ${PAL_SOURCE_DIR}/
-             FILES ${pal_sources}
-)
+nongen_source_groups(${PAL_SOURCE_DIR} pal)

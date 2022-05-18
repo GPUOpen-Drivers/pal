@@ -200,36 +200,6 @@ struct RegisterValuePair
     uint32 value;    // Register data to write
 };
 
-// Structure describing a single FLGL register command
-struct FlglRegCmd
-{
-    uint32 offset;  // Register offset
-    uint32 andMask; // AND mask
-    uint32 orMask;  // OR mask
-};
-
-// Structure describing FLGL register sequence
-constexpr uint32 FlglMaxRegseqCount = 6; // Magic number 6 from UGL
-
-struct FlglRegSeq
-{
-    uint32     regSequenceCount;                // number of commands in sequence
-    FlglRegCmd regSequence[FlglMaxRegseqCount]; // actual register commands
-};
-
-// Enumeration defining FLGL register sequence types
-enum FlglRegSeqType
-{
-    FlglRegSeqSwapreadySet        = 0,
-    FlglRegSeqSwapreadyReset      = 1,
-    FlglRegSeqSwapreadyRead       = 2,
-    FlglRegSeqSwaprequestSet      = 3,
-    FlglRegSeqSwaprequestReset    = 4,
-    FlglRegSeqSwaprequestRead     = 5,
-    FlglRegSeqSwaprequestReadLow  = 6,
-    FlglRegSeqMax
-};
-
 enum LateAllocVsMode : uint32
 {
     LateAllocVsDisable = 0x00000000,
@@ -319,6 +289,32 @@ constexpr uint32 CacheCoherencyGraphicsOnly = CoherColorTarget        |
 // There are various BLTs(Copy, Clear, and Resolve) that can involve different caches based on what engine
 // does the BLT.
 constexpr uint32 CacheCoherencyBlt = CoherCopy | CoherClear | CoherResolve;
+
+// =====================================================================================================================
+// A helper function to check that a series of addresses and struct-offsets are sequential.
+// This is intended for use with static_asserts to ensure register layouts don't go out-of-sync.
+struct CheckedRegPair {
+    uint32 regOffset;
+    size_t structOffset;
+};
+template <size_t N>
+constexpr bool CheckSequentialRegs(
+    const CheckedRegPair (&args)[N])
+{
+#if PAL_CPLUSPLUS_AT_LEAST(PAL_CPLUSPLUS_14) || (defined(__cpp_constexpr) && (__cpp_constexpr >= 201304))
+    uint32 regOffsets[N]    = {};
+    size_t structOffsets[N] = {};
+    for (int i = 0; i < N; i++)
+    {
+        regOffsets[i]    = args[i].regOffset;
+        structOffsets[i] = args[i].structOffset;
+    }
+    return (Util::CheckSequential(regOffsets) && Util::CheckSequential(structOffsets, sizeof(uint32)));
+#else
+    // C++11 lacks support for doing anything useful with constexpr
+    return true;
+#endif
+}
 
 // =====================================================================================================================
 // Abstract class for accessing a Device's hardware-specific functionality common to all GFXIP hardware layers.
@@ -564,10 +560,6 @@ public:
     // Init and get the cmd buffer that increment memory of frame count and write to register.
     Result InitAndGetFrameCountCmdBuffer(QueueType queueType, EngineType engineType, GfxCmdBuffer** ppBuffer);
 
-    void SetFlglRegisterSequence(const FlglRegSeq& regSeq, uint32 index) { m_flglRegSeq[index] = regSeq; }
-
-    const FlglRegSeq* GetFlglRegisterSequence(uint32 index) const { return &m_flglRegSeq[index]; }
-
     // Helper to check if this Device can support launching a CE preamble command stream with every Universal Queue
     // submission.
     bool SupportsCePreamblePerSubmit() const;
@@ -717,7 +709,6 @@ protected:
 
     Device*const       m_pParent;
     Pal::RsrcProcMgr*  m_pRsrcProcMgr;
-    FlglRegSeq         m_flglRegSeq[FlglRegSeqMax]; // Holder for FLGL sync register sequences
 
 #if DEBUG
     // Sometimes it is useful to temporarily hang the GPU during debugging to dump command buffers, etc.  This piece of

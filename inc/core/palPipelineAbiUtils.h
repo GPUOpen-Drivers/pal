@@ -205,6 +205,133 @@ inline void MachineTypeToGfxIpVersion(
     }
 }
 
+/// Helper function to get the machine type when given a GFXIP version.
+///
+/// @param [in] gfxIpMajorVer The major version.
+/// @param [in] gfxIpMinorVer The minor version.
+/// @param [in] gfxIpStepping The stepping.
+/// @param [out] pMachineType The machine type.
+inline void GfxIpVersionToMachineType(
+    uint32             gfxIpMajorVer,
+    uint32             gfxIpMinorVer,
+    uint32             gfxIpStepping,
+    AmdGpuMachineType* pMachineType)
+{
+    switch (gfxIpMajorVer)
+    {
+    case 6:
+        switch (gfxIpStepping)
+        {
+        case GfxIpSteppingOland:
+            *pMachineType = AmdGpuMachineType::Gfx602;
+            break;
+        default:
+            *pMachineType = static_cast<AmdGpuMachineType>(static_cast<uint32>(AmdGpuMachineType::Gfx600) +
+                                                                 gfxIpStepping);
+            break;
+        }
+        break;
+    case 7:
+        switch (gfxIpStepping)
+        {
+        case GfxIpSteppingGodavari:
+            *pMachineType = AmdGpuMachineType::Gfx705;
+            break;
+        default:
+            *pMachineType = static_cast<AmdGpuMachineType>(static_cast<uint32>(AmdGpuMachineType::Gfx700) +
+                                                                 gfxIpStepping);
+            break;
+        }
+        break;
+    case 8:
+        switch (gfxIpMinorVer)
+        {
+        case 0:
+            switch (gfxIpStepping)
+            {
+            case GfxIpSteppingTongaPro:
+                *pMachineType = AmdGpuMachineType::Gfx805;
+                break;
+            default:
+                *pMachineType =
+                    static_cast<AmdGpuMachineType>(static_cast<uint32>(AmdGpuMachineType::Gfx801) + gfxIpStepping - 1);
+                break;
+            }
+            break;
+        case 1:
+            *pMachineType = AmdGpuMachineType::Gfx810;
+            break;
+        default:
+            PAL_ASSERT_ALWAYS();
+        }
+        break;
+    case 9:
+        switch (gfxIpStepping)
+        {
+        case GfxIpSteppingVega10:
+            *pMachineType = AmdGpuMachineType::Gfx900;
+            break;
+        case GfxIpSteppingRaven:
+            *pMachineType = AmdGpuMachineType::Gfx902;
+            break;
+        case GfxIpSteppingVega12:
+            *pMachineType = AmdGpuMachineType::Gfx904;
+            break;
+        case GfxIpSteppingVega20:
+            *pMachineType = AmdGpuMachineType::Gfx906;
+            break;
+        case GfxIpSteppingRaven2:
+            *pMachineType = AmdGpuMachineType::Gfx909;
+            break;
+        case GfxIpSteppingRenoir:
+            *pMachineType = AmdGpuMachineType::Gfx90C;
+            break;
+        }
+        break;
+    case 10:
+        switch (gfxIpMinorVer)
+        {
+        case 1:
+            switch (gfxIpStepping)
+            {
+            case GfxIpSteppingNavi10:
+                *pMachineType = AmdGpuMachineType::Gfx1010;
+                break;
+            case GfxIpSteppingNavi12:
+                *pMachineType = AmdGpuMachineType::Gfx1011;
+                break;
+            case GfxIpSteppingNavi14:
+                *pMachineType = AmdGpuMachineType::Gfx1012;
+                break;
+            }
+            break;
+        case 3:
+            switch (gfxIpStepping)
+            {
+            case GfxIpSteppingNavi21:
+                *pMachineType = AmdGpuMachineType::Gfx1030;
+                break;
+            case GfxIpSteppingNavi22:
+                *pMachineType = AmdGpuMachineType::Gfx1031;
+                break;
+            case GfxIpSteppingNavi23:
+                *pMachineType = AmdGpuMachineType::Gfx1032;
+                break;
+            case GfxIpSteppingNavi24:
+                *pMachineType = AmdGpuMachineType::Gfx1034;
+                break;
+            default:
+                PAL_ASSERT_ALWAYS();
+            }
+            break;
+        }
+        break;
+    default:
+        PAL_ASSERT_ALWAYS();
+        break;
+    }
+}
+
 /// Helper function to parse the Metadata section of a pipeline ELF.
 ///
 /// @param [in] pReader            The message pack reader.

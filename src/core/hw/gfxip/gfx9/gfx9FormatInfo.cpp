@@ -25,7 +25,7 @@
 
 #include "core/hw/gfxip/gfx9/gfx9FormatInfo.h"
 #include "core/hw/gfxip/gfx9/g_gfx9MergedDataFormats.h"
-#include "core/hw/gfxip/gfx9/g_gfx9PalSettings.h"
+#include "g_gfx9Settings.h"
 #include "palDevice.h"
 
 using namespace Util;

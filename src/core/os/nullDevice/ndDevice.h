@@ -66,6 +66,7 @@ public:
     static inline bool IsValid(NullGpuId nullGpuId) { return GetDeviceById(nullGpuId).nullId == nullGpuId; }
 
     static NullIdLookup GetDeviceById(NullGpuId nullGpuId);
+    static NullIdLookup GetDeviceByName(const char* gpuName);
 
     virtual Result AddEmulatedPrivateScreen(
         const PrivateScreenCreateInfo& createInfo,
@@ -254,13 +255,23 @@ public:
     virtual Result FlglQueryState(
         Pal::FlglState* pState) override { return Result::Success; }
 
+    virtual Result FlglSetSyncConfiguration(
+        const GlSyncConfig& glSyncConfig) override { return Result::Success; }
+
+    virtual Result FlglGetSyncConfiguration(
+        GlSyncConfig* pGlSyncConfig) const override { return Result::Success; }
+
     virtual Result FlglSetFrameLock(
+        bool enable) override { return Result::Success; }
+
+    virtual Result FlglSetGenLock(
         bool enable) override { return Result::Success; }
 
     virtual Result FlglResetFrameCounter() const override { return Result::Success; }
 
     virtual Result FlglGetFrameCounter(
-        uint64* pValue) const  override { return Result::Success; }
+        uint64* pValue,
+        bool*   pReset) const override { return Result::Success; }
 
     virtual Result FlglGetFrameCounterResetStatus(
         bool* pReset) const override { return Result::Success; }

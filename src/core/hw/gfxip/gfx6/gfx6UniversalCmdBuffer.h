@@ -157,21 +157,6 @@ struct ScissorRectPm4Img
     regPA_SC_VPORT_SCISSOR_0_BR br;
 };
 
-// PM4 image for loading context registers from memory
-struct LoadDataIndexPm4Img
-{
-    // PM4 load context regs packet to load the register data from memory
-    union
-    {
-        PM4CMDLOADDATA      loadData;
-        PM4CMDLOADDATAINDEX loadDataIndex;
-    };
-
-    // Command space needed, in DWORDs. This field must always be last in the structure to not
-    // interfere w/ the actual commands contained within.
-    size_t                  spaceNeeded;
-};
-
 // =====================================================================================================================
 // GFX6 universal command buffer class: implements GFX6 specific functionality for the UniversalCmdBuffer class.
 class UniversalCmdBuffer final : public Pal::UniversalCmdBuffer
@@ -191,6 +176,8 @@ public:
 
     virtual void CmdBindIndexData(gpusize gpuAddr, uint32 indexCount, IndexType indexType) override;
     virtual void CmdBindMsaaState(const IMsaaState* pMsaaState) override;
+    virtual void CmdSaveGraphicsState() override;
+    virtual void CmdRestoreGraphicsState() override;
     virtual void CmdBindColorBlendState(const IColorBlendState* pColorBlendState) override;
     virtual void CmdBindDepthStencilState(const IDepthStencilState* pDepthStencilState) override;
 
@@ -213,9 +200,6 @@ public:
     virtual void CmdSetClipRects(uint16      clipRule,
                                  uint32      rectCount,
                                  const Rect* pRectList) override;
-    virtual void CmdFlglSync() override;
-    virtual void CmdFlglEnable() override;
-    virtual void CmdFlglDisable() override;
 
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
 
@@ -631,8 +615,6 @@ private:
         const UniversalCmdBuffer& cmdBuffer);
 
     uint8 CheckStreamOutBufferStridesOnPipelineSwitch();
-
-    void SendFlglSyncCommands(FlglRegSeqType type);
 
     void DescribeDraw(Developer::DrawDispatchType cmdType);
 

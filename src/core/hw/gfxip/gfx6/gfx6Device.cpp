@@ -2289,7 +2289,7 @@ void PAL_STDCALL Device::CreateImageViewSrds(
                 {
                     if ((TestAnyFlagSet(settingsCheckFromStartMip, Gfx8CheckMetaDataFetchFromStartMipDepthStencil) ||
                          (startSubresInfo.flags.supportMetaDataTexFetch == true)) &&
-                        (TestAnyFlagSet(viewInfo.possibleLayouts.usages, LayoutShaderWrite | LayoutCopyDst) == false))
+                        (TestAnyFlagSet(viewInfo.possibleLayouts.usages, LayoutShaderWrite) == false))
                     {
                         // Theoretically, the htile address here should have the tile-swizzle OR'd in, but in
                         // SetTileSwizzle, the tile swizzle for texture-fetchable depth images is always set to zero,
@@ -2301,7 +2301,7 @@ void PAL_STDCALL Device::CreateImageViewSrds(
                 }
                 else if ((TestAnyFlagSet(settingsCheckFromStartMip, Gfx8CheckMetaDataFetchFromStartMipColorTarget) ||
                           (startSubresInfo.flags.supportMetaDataTexFetch == true)) &&
-                         (TestAnyFlagSet(viewInfo.possibleLayouts.usages, LayoutShaderWrite | LayoutCopyDst) == false))
+                         (TestAnyFlagSet(viewInfo.possibleLayouts.usages, LayoutShaderWrite) == false))
                 {
                     PAL_ASSERT(pParent->IsRenderTarget());
                     // The color image's meta-data always points at the DCC surface.  Any existing cMask or fMask
@@ -2381,7 +2381,7 @@ void Device::CreateFmaskViewSrds(
         srd.word3.bits.BASE_LEVEL   = 0;
         srd.word3.bits.LAST_LEVEL   = 0;
 
-        srd.word4.bits.DEPTH = (viewInfo.arraySize - 1);
+        srd.word4.bits.DEPTH = (viewInfo.baseArraySlice + viewInfo.arraySize - 1);
         srd.word4.bits.PITCH = (pSubresInfo->actualExtentTexels.width - 1);
 
         srd.word5.bits.BASE_ARRAY = viewInfo.baseArraySlice;

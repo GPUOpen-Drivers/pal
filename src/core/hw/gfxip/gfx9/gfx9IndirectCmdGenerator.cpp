@@ -30,7 +30,7 @@
 #include "core/hw/gfxip/gfx9/gfx9GraphicsPipeline.h"
 #include "core/hw/gfxip/gfx9/gfx9HybridGraphicsPipeline.h"
 #include "core/hw/gfxip/gfx9/gfx9IndirectCmdGenerator.h"
-#include "core/g_palPlatformSettings.h"
+#include "g_platformSettings.h"
 #include "palInlineFuncs.h"
 #include "palFormatInfo.h"
 
@@ -153,7 +153,7 @@ IndirectCmdGenerator::IndirectCmdGenerator(
 
     if (m_usingExecuteIndirectPacket)
     {
-        // We use the generator binding memory to store the PM4 in IB2
+        // We use this to calculate the maximum required size for IB2.
         uint32 cmdSize         = 0;
         uint32 sizeAlignDwords = device.Parent()->EngineProperties().perEngine[EngineTypeUniversal].sizeAlignInDwords;
         uint32 cmdCount        = ParameterCount();

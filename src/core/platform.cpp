@@ -26,8 +26,13 @@
 #include "core/device.h"
 #include "core/platform.h"
 #include "core/settingsLoader.h"
+#include "core/os/nullDevice/ndDevice.h"
 #include "core/os/nullDevice/ndPlatform.h"
 #include "palAssert.h"
+#if PAL_ENABLE_LOGGING
+#include "palDbgLogger.h"
+#include "palDbgLogMgr.h"
+#endif
 #include "palDbgPrint.h"
 #include "palSysUtil.h"
 #include "palSysMemory.h"
@@ -52,6 +57,8 @@
 #include "protocols/driverControlServer.h"
 #include "protocols/rgpServer.h"
 #include "protocols/ddInfoService.h"
+#include "settingsService.h"
+#include "driverUtilsService.h"
 
 using namespace Util;
 
@@ -102,6 +109,8 @@ Platform::Platform(
     Pal::IPlatform(allocCb),
     m_deviceCount(0),
     m_pDevDriverServer(nullptr),
+    m_pSettingsService(nullptr),
+    m_pDriverUtilsService(nullptr),
     m_pEventServer(nullptr),
     m_settingsLoader(this),
     m_pRgpServer(nullptr),
@@ -111,8 +120,8 @@ Platform::Platform(
     m_pAsicInfoTraceSource(nullptr),
     m_pApiInfoTraceSource(nullptr),
     m_pUberTraceService(nullptr),
-    m_rpcServer(DD_API_INVALID_HANDLE),
 #endif
+    m_rpcServer(DD_API_INVALID_HANDLE),
     m_pfnDeveloperCb(DefaultDeveloperCb),
     m_pClientPrivateData(nullptr),
     m_svmRangeStart(0),
@@ -414,14 +423,39 @@ Result Platform::Init()
 // Optionally overrides the GPU ID for a single device.  This can be initiated through the panel settings for some build
 // configurations.  This MUST BE called after EarlyInitDevDriver() !!
 bool Platform::OverrideGpuId(
-    GpuId* pGpuId   // in,out: GPU ID information to potentially override.
-    ) const
+    GpuId* pGpuId) // in,out: GPU ID information to potentially override.
 {
     bool overridden = false;
 
     const PalPlatformSettings& settings = PlatformSettings();
 
-     return overridden;
+#if PAL_BUILD_NULL_DEVICE
+    if (strcmp(settings.spoofNullGpuIfh, "") != 0)
+    {
+        NullDevice::NullIdLookup foundGpu = NullDevice::Device::GetDeviceByName(settings.spoofNullGpuIfh);
+        if (foundGpu.nullId != NullGpuId::Max)
+        {
+            pGpuId->gfxEngineId = foundGpu.gfxEngineId;
+            pGpuId->familyId    = foundGpu.familyId;
+            pGpuId->revisionId  = foundGpu.revisionId;
+            pGpuId->eRevId      = foundGpu.eRevId;
+            pGpuId->deviceId    = foundGpu.deviceId;
+
+            overridden = true;
+        }
+        else
+        {
+            PAL_ALERT_ALWAYS_MSG("NullGpu name '%s' not found!", settings.spoofNullGpuIfh);
+        }
+    }
+#endif
+
+    if (overridden)
+    {
+        m_flags.gpuIsSpoofed = 1;
+    }
+
+    return overridden;
 }
 
 // =====================================================================================================================
@@ -493,9 +527,21 @@ Result Platform::EarlyInitDevDriver()
             {
                 PAL_SAFE_DELETE(m_pDevDriverServer, this);
             }
-            else // Initialize the event server if we have a valid DevDriver server.
+            else // Initialize the event server and our services if we have a valid DevDriver server.
             {
                 m_pEventServer = m_pDevDriverServer->GetEventServer();
+
+#if PAL_ENABLE_RPC_SETTINGS
+                DevDriver::AllocCb allocCb = {};
+                allocCb.pUserdata = this;
+                allocCb.pfnAlloc = &DevDriverAlloc;
+                allocCb.pfnFree = &DevDriverFree;
+
+                m_pSettingsService = PAL_NEW(SettingsRpcService::SettingsService, this, AllocInternal)(allocCb);
+                PAL_ASSERT(m_pSettingsService != nullptr);
+#endif
+
+                m_pDriverUtilsService = PAL_NEW(DriverUtilsService::DriverUtilsService, this, AllocInternal)();
             }
         }
         else
@@ -525,12 +571,8 @@ Result Platform::EarlyInitDevDriver()
 
 #if PAL_BUILD_RDF
             CreateUberTraceService();
-            // For now, UberTraceService is the only rpc service. This will likely change to CreateRpcServices.
-            if (CreateUberTraceService() == Result::Success)
-            {
-                RegisterRpcServices();
-            }
 #endif
+            RegisterRpcServices();
 
             pDriverControlServer->StartEarlyDeviceInit();
 #endif
@@ -616,6 +658,12 @@ void Platform::LateInitDevDriver()
     // And then before finishing init we have an opportunity to override the settings default values based on
     // runtime info
     m_settingsLoader.OverrideDefaults();
+    m_settingsLoader.ValidateSettings(); // Also, validate them.
+
+#if PAL_ENABLE_LOGGING
+    // Configure debug log manager as soon as settings are overridden.
+    g_dbgLogMgr.SetLoggingEnabled(PlatformSettings().dbgLogEnabled);
+#endif
 
     // Late init only needs to be performed if we actually set up the developer driver object earlier.
 #if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION >= GPUOPEN_DRIVER_CONTROL_CLEANUP_VERSION
@@ -649,9 +697,8 @@ void Platform::DestroyDevDriver()
 {
     if (m_pDevDriverServer != nullptr)
     {
-#if PAL_BUILD_RDF
         DestroyRpcServices();
-#endif
+
         m_eventProvider.Destroy();
 
         // Null out cached pointers
@@ -785,6 +832,7 @@ Result Platform::CreateUberTraceService()
 
     return result;
 }
+#endif
 
 // =====================================================================================================================
 void Platform::RegisterRpcServices()
@@ -801,21 +849,47 @@ void Platform::RegisterRpcServices()
 
     if (devDriverResult == DD_RESULT_SUCCESS)
     {
-        devDriverResult = UberTrace::RegisterService(m_rpcServer, m_pUberTraceService);
-
-        if (devDriverResult == DD_RESULT_SUCCESS)
+#if PAL_BUILD_RDF
+        if (m_pUberTraceService != nullptr)
         {
-            pMsgChannel->RegisterProtocolServer(m_pDevDriverServer->GetDriverControlServer());
+            devDriverResult = UberTrace::RegisterService(m_rpcServer, m_pUberTraceService);
+            PAL_ASSERT(devDriverResult == DD_RESULT_SUCCESS);
         }
+#endif
+
+        if (m_pSettingsService != nullptr)
+        {
+            devDriverResult = SettingsRpc::RegisterService(m_rpcServer, m_pSettingsService);
+            PAL_ASSERT(devDriverResult == DD_RESULT_SUCCESS);
+        }
+
+        if (m_pDriverUtilsService != nullptr)
+        {
+            devDriverResult = DriverUtils::RegisterService(m_rpcServer, m_pDriverUtilsService);
+            PAL_ASSERT(devDriverResult == DD_RESULT_SUCCESS);
+        }
+
+        pMsgChannel->RegisterProtocolServer(m_pDevDriverServer->GetDriverControlServer());
     }
 }
 
 // =====================================================================================================================
 void Platform::DestroyRpcServices()
 {
+#if PAL_BUILD_RDF
     if (m_pUberTraceService != nullptr)
     {
         PAL_SAFE_DELETE(m_pUberTraceService, this);
+    }
+#endif
+    if (m_pSettingsService != nullptr)
+    {
+        PAL_SAFE_DELETE(m_pSettingsService, this);
+    }
+
+    if (m_pDriverUtilsService != nullptr)
+    {
+        PAL_SAFE_DELETE(m_pDriverUtilsService, this);
     }
 
     if (m_rpcServer != DD_API_INVALID_HANDLE)
@@ -824,7 +898,6 @@ void Platform::DestroyRpcServices()
         m_rpcServer = DD_API_INVALID_HANDLE;
     }
 }
-#endif
 
 // =====================================================================================================================
 // Forwards event logging calls to the event provider.
@@ -881,6 +954,21 @@ void Platform::LogEvent(
     }
 }
 
+#if PAL_ENABLE_LOGGING
+// =====================================================================================================================
+// Copy PalPlatformSettings.dbgLoggerFileConfig fields into 'settings'
+void Platform::GetDbgLoggerFileSettings(
+    Util::DbgLoggerFileSettings* pSettings)
+{
+    const PalPlatformSettings& platformSettings = PlatformSettings();
+    pSettings->pLogDirectory     = platformSettings.dbgLoggerFileConfig.logDirectory;
+    pSettings->fileSettingsFlags = platformSettings.dbgLoggerFileConfig.fileSettingsFlags;
+    pSettings->fileAccessFlags   = platformSettings.dbgLoggerFileConfig.fileAccessFlags;
+    pSettings->origTypeMask      = platformSettings.dbgLoggerFileConfig.origTypeMask;
+    pSettings->severityLevel     = static_cast<Util::SeverityLevel>(platformSettings.dbgLoggerFileConfig.severityLevel);
+}
+#endif
+
 // =====================================================================================================================
 // Initializes the platform's properties structure. Assume that the constructor zeroed the properties and fill out all
 // os-independent properties.
@@ -923,6 +1011,22 @@ bool Platform::IsDevDriverProfilingEnabled() const
     }
 
     return isProfilingEnabled;
+}
+
+// =====================================================================================================================
+bool Platform::IsTracingEnabled() const
+{
+    bool isTracingEnabled = false;
+
+    if (m_pDriverUtilsService != nullptr)
+    {
+        isTracingEnabled = m_pDriverUtilsService->IsTracingEnabled();
+    }
+
+    // To support legacy behavior, check if RGP tracing is enabled:
+    isTracingEnabled |= IsDevDriverProfilingEnabled();
+
+    return isTracingEnabled;
 }
 
 // =====================================================================================================================

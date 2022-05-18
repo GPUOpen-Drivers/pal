@@ -110,6 +110,7 @@ Result Device::Create(
     if (Pal::Device::DetermineGpuIpLevels(nullIdLookup.familyId,
                                           nullIdLookup.eRevId,
                                           UINT_MAX, // microcode version, we just want to be over the min-supported ver
+                                          pPlatform,
                                           &ipLevels))
     {
         const size_t deviceSize = sizeof(Device);
@@ -155,6 +156,39 @@ NullIdLookup Device::GetDeviceById(
     for (const NullIdLookup& entry : NullIdLookupTable)
     {
         if (entry.nullId == nullGpuId)
+        {
+            deviceInfo = entry;
+            break;
+        }
+    }
+    return deviceInfo;
+}
+
+// =====================================================================================================================
+// Finds the device info for a given NullGpuId
+NullIdLookup Device::GetDeviceByName(
+    const char* pGpuName)
+{
+    NullIdLookup deviceInfo = SentinelNullGpu;
+    char localGpuName[64] = {};
+    for (const NullIdLookup& entry : NullIdLookupTable)
+    {
+        if (entry.pName == nullptr)
+        {
+            continue;
+        }
+
+        // The lookup entries are in the form "gpuname:gfx###". We only want the first part.
+        Strncpy(localGpuName, entry.pName, sizeof(localGpuName));
+        char* pColon = strchr(localGpuName, ':');
+        if (pColon == nullptr)
+        {
+            PAL_ASSERT_ALWAYS_MSG("NullGpuName %s is too long!", entry.pName);
+            continue;
+        }
+        *pColon = '\0';
+
+        if (Strcasecmp(pGpuName, localGpuName) == 0)
         {
             deviceInfo = entry;
             break;

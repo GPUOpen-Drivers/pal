@@ -151,6 +151,8 @@ public:
     virtual void SetStackSizeInBytes(
         uint32 stackSizeInBytes) override;
 
+    virtual uint32 GetStackSizeInBytes() const override;
+
     virtual Util::Abi::ApiHwShaderMapping ApiHwShaderMapping() const override
         { return m_apiHwMapping; }
 

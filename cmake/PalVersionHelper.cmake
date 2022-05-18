@@ -73,9 +73,29 @@ function(pal_bp AMD_VAR AMD_DFLT)
         set(AMD_MSG "")
     endif()
 
+    # If the user has requested that we force BUILD settings on, and
+    # the variable has not already been defined, and
+    # we've met the dependencies required, then
+    # force the setting on.
+    if ((DEFINED PAL_BUILD_FORCE_ON) AND
+        (${PAL_BUILD_FORCE_ON})      AND
+        (NOT DEFINED ${AMD_VAR})     AND
+        ((NOT DEFINED AMD_DEPENDS_ON) OR (${AMD_DEPENDS_ON})))
+        # We only want to match BuildParameters (PAL_BUILD*).
+        string(REGEX MATCH "(PAL_BUILD).*" _MATCHED ${AMD_VAR})
+        if (_MATCHED)
+            set(${AMD_VAR} ON PARENT_SCOPE)
+
+            message(STATUS "${AMD_VAR} forced ON. ${AMD_MSG}")
+
+            return()
+        endif()
+    endif()
+
     # If the user specified a dependency. And that depedency is false.
     # Then we shouldn't define the build parameter
     if (DEFINED AMD_DEPENDS_ON AND (NOT ${AMD_DEPENDS_ON}))
+        message(${AMD_MODE} "${AMD_VAR} dependency not met. (${AMD_DEPENDS_ON})")
         return()
     endif()
 
@@ -176,3 +196,4 @@ function(pal_get_system_architecture_bits bits)
     math(EXPR ${bits} "8 * ${CMAKE_SIZEOF_VOID_P}")
     set(${bits} ${${bits}} PARENT_SCOPE)
 endfunction()
+

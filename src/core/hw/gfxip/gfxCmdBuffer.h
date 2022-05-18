@@ -115,44 +115,50 @@ struct ComputeState
     uint8*                   pKernelArguments;
 };
 
+union GfxCmdBufferStateFlags
+{
+    struct
+    {
+        uint32 perfCounterStarted        :  1;  // Track if perfExperiment has started with perfCounter or spmTrace
+        uint32 perfCounterStopped        :  1;  // Track if perfExperiment has stopped with perfCounter or spmTrace
+        uint32 sqttStarted               :  1;  // Track if perfExperiment has started with SQ Thread Trace enabled
+        uint32 sqttStopped               :  1;  // Track if perfExperiment has stopped with SQ Thread Trace enabled
+        uint32 clientPredicate           :  1;  // Track if client is currently using predication functionality.
+        uint32 packetPredicate           :  1;  // Track if command buffer packets are currently using predication.
+        uint32 gfxBltActive              :  1;  // Track if there are potentially any GFX Blt in flight.
+        uint32 gfxWriteCachesDirty       :  1;  // Track if any of the GFX Blt write caches may be dirty.
+        uint32 csBltActive               :  1;  // Track if there are potentially any CS Blt in flight.
+        uint32 csWriteCachesDirty        :  1;  // Track if any of the CS Blt write caches may be dirty.
+        uint32 cpBltActive               :  1;  // Track if there are potentially any CP Blt in flight. A CP Blt is
+                                                // an asynchronous CP DMA operation acting as a PAL Blt.
+        uint32 cpWriteCachesDirty        :  1;  // Track if any of the CP Blt write caches may be dirty.
+        uint32 cpMemoryWriteL2CacheStale :  1;  // Track if a CP memory write has occurred and the L2 cache could be
+                                                // stale.
+        uint32 prevCmdBufActive          :  1;  // Set if it's possible work from a previous command buffer
+                                                // submitted on this queue may still be active.  This flag starts
+                                                // set and will be cleared if/when an EOP wait is inserted in this
+                                                // command buffer.
+        uint32 reserved1                 :  1;
+        uint32 rasterKillDrawsActive     :  1;  // Track if there are any rasterization kill draws in flight.
+        uint32 reserved                  : 16;
+    };
+
+    uint32 u32All;
+};
+
 struct GfxCmdBufferState
 {
-    union
-    {
-        struct
-        {
-            uint32 perfCounterStarted        :  1;  // Track if perfExperiment has started with perfCounter or spmTrace
-            uint32 perfCounterStopped        :  1;  // Track if perfExperiment has stopped with perfCounter or spmTrace
-            uint32 sqttStarted               :  1;  // Track if perfExperiment has started with SQ Thread Trace enabled
-            uint32 sqttStopped               :  1;  // Track if perfExperiment has stopped with SQ Thread Trace enabled
-            uint32 clientPredicate           :  1;  // Track if client is currently using predication functionality.
-            uint32 packetPredicate           :  1;  // Track if command buffer packets are currently using predication.
-            uint32 gfxBltActive              :  1;  // Track if there are potentially any GFX Blt in flight.
-            uint32 gfxWriteCachesDirty       :  1;  // Track if any of the GFX Blt write caches may be dirty.
-            uint32 csBltActive               :  1;  // Track if there are potentially any CS Blt in flight.
-            uint32 csWriteCachesDirty        :  1;  // Track if any of the CS Blt write caches may be dirty.
-            uint32 cpBltActive               :  1;  // Track if there are potentially any CP Blt in flight. A CP Blt is
-                                                    // an asynchronous CP DMA operation acting as a PAL Blt.
-            uint32 cpWriteCachesDirty        :  1;  // Track if any of the CP Blt write caches may be dirty.
-            uint32 cpMemoryWriteL2CacheStale :  1;  // Track if a CP memory write has occurred and the L2 cache could be
-                                                    // stale.
-            uint32 prevCmdBufActive          :  1;  // Set if it's possible work from a previous command buffer
-                                                    // submitted on this queue may still be active.  This flag starts
-                                                    // set and will be cleared if/when an EOP wait is inserted in this
-                                                    // command buffer.
-            uint32 reserved1                 :  1;
-            uint32 reserved                  : 17;
-        };
-
-        uint32 u32All;
-    } flags;
+    GfxCmdBufferStateFlags flags;
 
     struct
     {
-        uint32 gfxBltExecEopFenceVal; // Earliest EOP fence value that can confirm all GFX BLTs are complete.
-        uint32 gfxBltWbEopFenceVal;   // Earliest EOP fence value that can confirm all GFX BLT destination data is
-                                      // written back to L2.
-        uint32 csBltExecEopFenceVal;  // Earliest EOP fence value that can confirm all CS BLTs are complete.
+        uint32 gfxBltExecEopFenceVal;       // Earliest EOP fence value that can confirm all GFX BLTs are complete.
+        uint32 gfxBltWbEopFenceVal;         // Earliest EOP fence value that can confirm all GFX BLT destination data is
+                                            // written back to L2.
+        uint32 csBltExecEopFenceVal;        // Earliest EOP fence value that can confirm all CS BLTs are complete.
+        uint32 csBltExecCsDoneFenceVal;     // Earliest CS_DONE fence value that can confirm all CS BLTs are complete.
+        uint32 rasterKillDrawsExecFenceVal; // Earliest EOP fence value that can confirm all rasterization kill
+                                            // draws are complete.
     } fences;
 };
 
@@ -424,23 +430,22 @@ public:
 
     GpuEvent* GetInternalEvent() { return m_pInternalEvent; }
 
-    virtual void PushGraphicsState() = 0;
-    virtual void PopGraphicsState()  = 0;
-
     const ComputeState& GetComputeState() const { return m_computeState; }
 
     // Returns a pointer to the command stream associated with the specified engine type
     virtual CmdStream* GetCmdStreamByEngine(uint32 engineType) = 0;
 
-    GfxCmdBufferState GetGfxCmdBufState() const { return m_gfxCmdBufState; }
+    const GfxCmdBufferState& GetGfxCmdBufState() const { return m_gfxCmdBufState; }
 
     // Helper functions
     void OptimizePipePoint(HwPipePoint* pPipePoint) const;
     void OptimizeSrcCacheMask(uint32* pCacheMask) const;
     virtual void OptimizePipeAndCacheMaskForRelease(uint32* pStageMask, uint32* pAccessMask) const;
-    void SetGfxCmdBufGfxBltState(bool gfxBltActive);
-    void SetGfxCmdBufCsBltState(bool csBltActive);
+    void SetGfxCmdBufGfxBltState(bool gfxBltActive) { m_gfxCmdBufState.flags.gfxBltActive = gfxBltActive; }
+    void SetGfxCmdBufCsBltState(bool csBltActive) { m_gfxCmdBufState.flags.csBltActive = csBltActive; }
     void SetGfxCmdBufCpBltState(bool cpBltActive) { m_gfxCmdBufState.flags.cpBltActive = cpBltActive; }
+    void SetGfxCmdBufRasterKillDrawsState(bool rasterKillDrawsActive)
+        { m_gfxCmdBufState.flags.rasterKillDrawsActive = rasterKillDrawsActive; }
     void SetGfxCmdBufGfxBltWriteCacheState(bool gfxWriteCacheDirty)
         { m_gfxCmdBufState.flags.gfxWriteCachesDirty = gfxWriteCacheDirty; }
     void SetGfxCmdBufCsBltWriteCacheState(bool csWriteCacheDirty)
@@ -458,9 +463,19 @@ public:
     {
         m_gfxCmdBufState.fences.gfxBltExecEopFenceVal = GetCurAcqRelFenceVal(AcqRelEventType::Eop) + 1;
     }
-    void UpdateGfxCmdBufCsBltExecEopFence()
+    void UpdateGfxCmdBufCsBltExecFence()
     {
-        m_gfxCmdBufState.fences.csBltExecEopFenceVal = GetCurAcqRelFenceVal(AcqRelEventType::Eop) + 1;
+        m_gfxCmdBufState.fences.csBltExecEopFenceVal    = GetCurAcqRelFenceVal(AcqRelEventType::Eop) + 1;
+        m_gfxCmdBufState.fences.csBltExecCsDoneFenceVal = GetCurAcqRelFenceVal(AcqRelEventType::CsDone) + 1;
+    }
+    // Execution fence value is updated at every draw when rasterization kill state is dirtied.
+    // - If rasterization kill is enabled, set it UINT32_MAX to make rasterKillDrawsActive never to be cleared.
+    // - If rasterization kill is disabled, set it to the next EOP event because its completion indicates all
+    //   prior rasterization kill draws have completed.
+    void UpdateGfxCmdBufRasterKillDrawsExecEopFence(bool setMaxFenceVal)
+    {
+        m_gfxCmdBufState.fences.rasterKillDrawsExecFenceVal =
+            setMaxFenceVal ? UINT32_MAX : GetCurAcqRelFenceVal(AcqRelEventType::Eop) + 1;
     }
     // Cache write-back fence value is updated at every release event. Completion of current event indicates the cache
     // synchronization has completed too, so set it to current event fence value.

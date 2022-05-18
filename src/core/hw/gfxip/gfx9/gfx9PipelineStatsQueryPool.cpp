@@ -591,12 +591,11 @@ uint32* PipelineStatsQueryPool::CopyMeshPipeStatsToQuerySlots(
 
         const gpusize meshPipeStatsStartAddr = pCmdBuffer->GetMeshPipeStatsGpuAddr();
 
-        static_assert((offsetof(Gfx9PipelineStatsData, msInvocations) + sizeof(uint64)) ==
-                      offsetof(Gfx9PipelineStatsData, msPrimitives),
-                      "Make sure the three QWORDs are next to each other so it's safe to do 3-QWORD copy.");
-        static_assert((offsetof(Gfx9PipelineStatsData, msPrimitives) + sizeof(uint64)) ==
-                      offsetof(Gfx9PipelineStatsData, tsInvocations),
-                      "Make sure the three QWORDs are next to each other so it's safe to do 3-QWORD copy.");
+        static_assert(CheckSequential({
+            offsetof(Gfx9PipelineStatsData, msInvocations),
+            offsetof(Gfx9PipelineStatsData, msPrimitives),
+            offsetof(Gfx9PipelineStatsData, tsInvocations),
+        }, sizeof(uint64)), "Make sure the three QWORDs are next to each other so it's safe to do 3-QWORD copy.");
 
         // Issue a DmaData packet to zero out the memory associated with all the mesh/task-slots we're going to reset.
         // Both the source (scratch buffer that SC writes to) and destination (internal query slots) follow CP-defined

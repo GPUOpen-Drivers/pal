@@ -123,6 +123,54 @@ DD_RESULT RpcServer::ExecuteRequest(
                 serviceVersion.patch);
         }
     }
+    else if (kServicesQueryRpcServiceId == serviceId)
+    {
+        // Handle the special case where the client is checking
+        // if the service is connected or not:
+        DD_ASSERT(parameterDataSize == sizeof(DDRpcServiceId));
+        DD_ASSERT(pParameterData != nullptr);
+
+        // Note: the services query has a separate versioning system from the RPC service itself:
+        DDApiVersion servicesQueryVersion = RpcServicesQueryVersion();
+
+        if (ddIsVersionCompatible(servicesQueryVersion, serviceVersion))
+        {
+            pService = m_services.FindPointer(*reinterpret_cast<const DDRpcServiceId*>(pParameterData));
+
+            if (pService != nullptr)
+            {
+                result = writer.pfnBegin(writer.pUserdata, nullptr);
+
+                if (result == DD_RESULT_SUCCESS)
+                {
+                    result = writer.pfnWriteBytes(writer.pUserdata, &pService->version, sizeof(DDApiVersion));
+                    DD_ASSERT(result == DD_RESULT_SUCCESS);
+
+                    writer.pfnEnd(writer.pUserdata, result);
+                }
+            }
+            else
+            {
+                result = DD_RESULT_DD_RPC_SERVICE_NOT_REGISTERED;
+            }
+        }
+        else
+        {
+            result = DD_RESULT_COMMON_VERSION_MISMATCH;
+
+            DD_PRINT(
+                LogLevel::Warn,
+                "RPC call to reserved service 0x%x routed to service query version %u.%u.%u which is "
+                "incompatible with requested version %u.%u.%u",
+                serviceId,
+                servicesQueryVersion.major,
+                servicesQueryVersion.minor,
+                servicesQueryVersion.patch,
+                serviceVersion.major,
+                serviceVersion.minor,
+                serviceVersion.patch);
+        }
+    }
     else
     {
         result = DD_RESULT_DD_RPC_SERVICE_NOT_REGISTERED;

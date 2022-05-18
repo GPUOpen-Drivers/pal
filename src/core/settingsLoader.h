@@ -26,7 +26,7 @@
 #pragma once
 
 #include "palSettingsLoader.h"
-#include "core/g_palSettings.h"
+#include "g_coreSettings.h"
 
 namespace Pal
 {

@@ -25,7 +25,7 @@
 
 #include "core/cmdStream.h"
 #include "core/platform.h"
-#include "core/g_palPlatformSettings.h"
+#include "g_platformSettings.h"
 #include "core/hw/gfxip/colorBlendState.h"
 #include "core/hw/gfxip/computePipeline.h"
 #include "core/hw/gfxip/depthStencilState.h"
@@ -622,7 +622,7 @@ void RsrcProcMgr::CopyColorImageGraphics(
     bindTargetsInfo.colorTargets[0].pColorTargetView = nullptr;
 
     // Save current command buffer state.
-    pCmdBuffer->PushGraphicsState();
+    pCmdBuffer->CmdSaveGraphicsState();
     BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
     pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
@@ -690,7 +690,8 @@ void RsrcProcMgr::CopyColorImageGraphics(
                                         viewRange,
                                         srcFormat,
                                         srcImageLayout,
-                                        device.TexOptLevel());
+                                        device.TexOptLevel(),
+                                        false);
 
             // Create an embedded SRD table and bind it to user data 4 for pixel work.
             uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
@@ -794,7 +795,8 @@ void RsrcProcMgr::CopyColorImageGraphics(
                                             viewRange,
                                             srcFormat,
                                             srcImageLayout,
-                                            device.TexOptLevel());
+                                            device.TexOptLevel(),
+                                            false);
 
                 if (singlezRangeAccess)
                 {
@@ -883,7 +885,7 @@ void RsrcProcMgr::CopyColorImageGraphics(
     HwlEndGraphicsCopy(pStream, restoreMask);
 
     // Restore original command buffer state.
-    pCmdBuffer->PopGraphicsState();
+    pCmdBuffer->CmdRestoreGraphicsState();
 }
 
 // =====================================================================================================================
@@ -933,59 +935,12 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
     depthViewInfo.arraySize = 1;
 
     // Save current command buffer state and bind graphics state which is common for all regions.
-    pCmdBuffer->PushGraphicsState();
+    pCmdBuffer->CmdSaveGraphicsState();
     BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdBindMsaaState(GetMsaaState(dstCreateInfo.samples, dstCreateInfo.fragments));
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
-
-    // Setup the viewport and scissor to restrict rendering to the destination region being copied.
-    viewportInfo.viewports[0].originX = static_cast<float>(pRegions[0].dstOffset.x);
-    viewportInfo.viewports[0].originY = static_cast<float>(pRegions[0].dstOffset.y);
-    viewportInfo.viewports[0].width   = static_cast<float>(pRegions[0].extent.width);
-    viewportInfo.viewports[0].height  = static_cast<float>(pRegions[0].extent.height);
-
-    if (TestAnyFlagSet(flags, CopyEnableScissorTest))
-    {
-        scissorInfo.scissors[0].offset.x      = pScissorRect->offset.x;
-        scissorInfo.scissors[0].offset.y      = pScissorRect->offset.y;
-        scissorInfo.scissors[0].extent.width  = pScissorRect->extent.width;
-        scissorInfo.scissors[0].extent.height = pScissorRect->extent.height;
-    }
-    else
-    {
-        scissorInfo.scissors[0].offset.x      = pRegions[0].dstOffset.x;
-        scissorInfo.scissors[0].offset.y      = pRegions[0].dstOffset.y;
-        scissorInfo.scissors[0].extent.width  = pRegions[0].extent.width;
-        scissorInfo.scissors[0].extent.height = pRegions[0].extent.height;
-    }
-
-    // The shader will calculate src coordinates by adding a delta to the dst coordinates. The user data should
-    // contain those deltas which are (srcOffset-dstOffset) for X & Y.
-    const int32  xOffset = (pRegions[0].srcOffset.x - pRegions[0].dstOffset.x);
-    const int32  yOffset = (pRegions[0].srcOffset.y - pRegions[0].dstOffset.y);
-    const uint32 userData[2] =
-    {
-        reinterpret_cast<const uint32&>(xOffset),
-        reinterpret_cast<const uint32&>(yOffset)
-    };
-
-    pCmdBuffer->CmdSetViewports(viewportInfo);
-    pCmdBuffer->CmdSetScissorRects(scissorInfo);
-    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 2, 2, userData);
-
-    // To improve performance, input src coordinates to VS, avoid using screen position in PS.
-    const float texcoordVs[4] =
-    {
-        static_cast<float>(pRegions[0].srcOffset.x),
-        static_cast<float>(pRegions[0].srcOffset.y),
-        static_cast<float>(pRegions[0].srcOffset.x + pRegions[0].extent.width),
-        static_cast<float>(pRegions[0].srcOffset.y + pRegions[0].extent.height)
-    };
-
-    const uint32* pUserDataVs = reinterpret_cast<const uint32*>(&texcoordVs);
-    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 6, 4, pUserDataVs);
 
     AutoBuffer<bool, 16, Platform> isRangeProcessed(regionCount, m_pDevice->GetPlatform());
     PAL_ASSERT(isRangeProcessed.Capacity() >= regionCount);
@@ -1002,6 +957,53 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
         // Now issue fast or slow clears to all ranges, grouping identical depth/stencil pairs if possible.
         for (uint32 idx = 0; idx < regionCount; idx++)
         {
+            // Setup the viewport and scissor to restrict rendering to the destination region being copied.
+            viewportInfo.viewports[0].originX = static_cast<float>(pRegions[idx].dstOffset.x);
+            viewportInfo.viewports[0].originY = static_cast<float>(pRegions[idx].dstOffset.y);
+            viewportInfo.viewports[0].width   = static_cast<float>(pRegions[idx].extent.width);
+            viewportInfo.viewports[0].height  = static_cast<float>(pRegions[idx].extent.height);
+
+            if (TestAnyFlagSet(flags, CopyEnableScissorTest))
+            {
+                scissorInfo.scissors[0].offset.x      = pScissorRect->offset.x;
+                scissorInfo.scissors[0].offset.y      = pScissorRect->offset.y;
+                scissorInfo.scissors[0].extent.width  = pScissorRect->extent.width;
+                scissorInfo.scissors[0].extent.height = pScissorRect->extent.height;
+            }
+            else
+            {
+                scissorInfo.scissors[0].offset.x      = pRegions[idx].dstOffset.x;
+                scissorInfo.scissors[0].offset.y      = pRegions[idx].dstOffset.y;
+                scissorInfo.scissors[0].extent.width  = pRegions[idx].extent.width;
+                scissorInfo.scissors[0].extent.height = pRegions[idx].extent.height;
+            }
+
+            // The shader will calculate src coordinates by adding a delta to the dst coordinates. The user data should
+            // contain those deltas which are (srcOffset-dstOffset) for X & Y.
+            const int32  xOffset = (pRegions[idx].srcOffset.x - pRegions[idx].dstOffset.x);
+            const int32  yOffset = (pRegions[idx].srcOffset.y - pRegions[idx].dstOffset.y);
+            const uint32 userData[2] =
+            {
+                reinterpret_cast<const uint32&>(xOffset),
+                reinterpret_cast<const uint32&>(yOffset)
+            };
+
+            pCmdBuffer->CmdSetViewports(viewportInfo);
+            pCmdBuffer->CmdSetScissorRects(scissorInfo);
+            pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 2, 2, userData);
+
+            // To improve performance, input src coordinates to VS, avoid using screen position in PS.
+            const float texcoordVs[4] =
+            {
+                static_cast<float>(pRegions[idx].srcOffset.x),
+                static_cast<float>(pRegions[idx].srcOffset.y),
+                static_cast<float>(pRegions[idx].srcOffset.x + pRegions[idx].extent.width),
+                static_cast<float>(pRegions[idx].srcOffset.y + pRegions[idx].extent.height)
+            };
+
+            const uint32* pUserDataVs = reinterpret_cast<const uint32*>(&texcoordVs);
+            pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 6, 4, pUserDataVs);
+
             // Same sanity checks of the region planes.
             const bool isDepth = dstImage.IsDepthPlane(pRegions[idx].dstSubres.plane);
             bool isDepthStencil = false;
@@ -1012,7 +1014,15 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
             // R32_TYPELESS, use DST's format to setup SRC format correctly.
             const ChNumFormat depthFormat = dstImage.GetImageCreateInfo().swizzledFormat.format;
 
-            bindTargetsInfo.depthTarget.depthLayout = dstImageLayout;
+            if (isDepth)
+            {
+                bindTargetsInfo.depthTarget.depthLayout = dstImageLayout;
+            }
+
+            if (dstImage.IsStencilPlane(pRegions[idx].dstSubres.plane))
+            {
+                bindTargetsInfo.depthTarget.stencilLayout = dstImageLayout;
+            }
 
             // No need to clear a range twice.
             if (isRangeProcessed[idx])
@@ -1043,6 +1053,7 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
                     isDepthStencil = true;
                     isRangeProcessed[forwardIdx] = true;
                     secondSurface = forwardIdx;
+                    bindTargetsInfo.depthTarget.stencilLayout = dstImageLayout;
                     break;
                 }
             }
@@ -1118,7 +1129,8 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
                                                 viewRange,
                                                 srcFormat,
                                                 srcImageLayout,
-                                                texOptLevel);
+                                                texOptLevel,
+                                                false);
 
                     constexpr SwizzledFormat StencilSrcFormat =
                     {
@@ -1135,7 +1147,8 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
                                                 viewRange,
                                                 StencilSrcFormat,
                                                 srcImageLayout,
-                                                texOptLevel);
+                                                texOptLevel,
+                                                false);
                     device.CreateImageViewSrds(2, &imageView[0], pSrdTable);
                 }
                 else
@@ -1151,7 +1164,8 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
                                                 viewRange,
                                                 srcFormat,
                                                 srcImageLayout,
-                                                texOptLevel);
+                                                texOptLevel,
+                                                false);
                     device.CreateImageViewSrds(1, &imageView, pSrdTable);
                 }
 
@@ -1191,7 +1205,7 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
         } // End for each region
     }
     // Restore original command buffer state.
-    pCmdBuffer->PopGraphicsState();
+    pCmdBuffer->CmdRestoreGraphicsState();
 }
 
 // =====================================================================================================================
@@ -1225,15 +1239,7 @@ void RsrcProcMgr::CopyImageCompute(
     // Get the appropriate pipeline object.
     const ComputePipeline* pPipeline = nullptr;
 
-    // The Fmask accelerated copy should be used in all non-EQAA cases where Fmask is enabled. There is no use case
-    // Fmask accelerated EQAA copy and it would require several new shaders. It can be implemented at a future
-    // point if required.
-    if (pSrcGfxImage->HasFmaskData() && isEqaaSrc)
-    {
-        PAL_NOT_IMPLEMENTED();
-    }
-
-    if (pSrcGfxImage->HasFmaskData() && (isEqaaSrc == false))
+    if (pSrcGfxImage->HasFmaskData())
     {
         PAL_ASSERT(srcCreateInfo.fragments > 1);
         PAL_ASSERT((srcImage.IsDepthStencilTarget() == false) && (dstImage.IsDepthStencilTarget() == false));
@@ -1247,6 +1253,14 @@ void RsrcProcMgr::CopyImageCompute(
         }
         else
         {
+            if (isEqaaSrc)
+            {
+                // The normal (non-optimized) Image Copy path does not support EQAA.
+                // It would require a separate fixup pass on the Fmask surface.
+                // This has not been implemented yet, but can be if required later.
+                PAL_NOT_IMPLEMENTED();
+            }
+
             pPipeline = GetPipeline(RpmComputePipeline::MsaaFmaskCopyImage);
         }
 
@@ -1423,13 +1437,14 @@ void RsrcProcMgr::CopyImageCompute(
         ImageViewInfo imageView[2] = {};
         SubresRange   viewRange    = { copyRegion.dstSubres, 1, 1, numSlices };
 
-        PAL_ASSERT(TestAnyFlagSet(dstImageLayout.usages, LayoutShaderWrite | LayoutCopyDst) == true);
+        PAL_ASSERT(TestAnyFlagSet(dstImageLayout.usages, LayoutCopyDst));
         RpmUtil::BuildImageViewInfo(&imageView[0],
                                     dstImage,
                                     viewRange,
                                     dstFormat,
                                     dstImageLayout,
-                                    device.TexOptLevel());
+                                    device.TexOptLevel(),
+                                    true);
 
         viewRange.startSubres = copyRegion.srcSubres;
         RpmUtil::BuildImageViewInfo(&imageView[1],
@@ -1437,7 +1452,8 @@ void RsrcProcMgr::CopyImageCompute(
                                     viewRange,
                                     srcFormat,
                                     srcImageLayout,
-                                    device.TexOptLevel());
+                                    device.TexOptLevel(),
+                                    false);
 
         // The shader treats all images as 2D arrays which means we need to override the view type to 2D. We also used
         // to do this for 3D images but that caused test failures when the images used mipmaps because the HW expected
@@ -2063,7 +2079,7 @@ void RsrcProcMgr::CopyBetweenMemoryAndImage(
 
         if (isImageDst)
         {
-            PAL_ASSERT(TestAnyFlagSet(imageLayout.usages, LayoutShaderWrite | LayoutCopyDst) == true);
+            PAL_ASSERT(TestAnyFlagSet(imageLayout.usages, LayoutCopyDst));
         }
 
         const Extent3d bufferBox =
@@ -2112,7 +2128,8 @@ void RsrcProcMgr::CopyBetweenMemoryAndImage(
                                         viewRange,
                                         viewFormat,
                                         imageLayout,
-                                        device.TexOptLevel());
+                                        device.TexOptLevel(),
+                                        isImageDst);
             imageView.flags.includePadding = includePadding;
 
             device.CreateImageViewSrds(1, &imageView, pUserData);
@@ -2342,10 +2359,10 @@ void RsrcProcMgr::CmdScaledCopyImage(
     if (useGraphicsCopy)
     {
         // Save current command buffer state.
-        pCmdBuffer->PushGraphicsState();
+        pCmdBuffer->CmdSaveGraphicsState();
         ScaledCopyImageGraphics(pCmdBuffer, copyInfo);
         // Restore original command buffer state.
-        pCmdBuffer->PopGraphicsState();
+        pCmdBuffer->CmdRestoreGraphicsState();
     }
     else
     {
@@ -2557,7 +2574,8 @@ void RsrcProcMgr::GenerateMipmapsFast(
                                             viewRange,
                                             srcFormat,
                                             genInfo.baseMipLayout,
-                                            device.TexOptLevel());
+                                            device.TexOptLevel(),
+                                            false);
 
                 device.CreateImageViewSrds(1, &srcImageView, pUserData);
                 pUserData += SrdDwordAlignment();
@@ -2584,7 +2602,8 @@ void RsrcProcMgr::GenerateMipmapsFast(
                                                 viewRange,
                                                 dstFormat,
                                                 genInfo.genMipLayout,
-                                                device.TexOptLevel());
+                                                device.TexOptLevel(),
+                                                true);
                 }
 
                 device.CreateImageViewSrds(MaxNumMips, &dstImageView[0], pUserData);
@@ -2685,7 +2704,7 @@ void RsrcProcMgr::GenerateMipmapsSlow(
     // Save current command buffer state.
     if (useGraphicsCopy)
     {
-        pCmdBuffer->PushGraphicsState();
+        pCmdBuffer->CmdSaveGraphicsState();
     }
     else
     {
@@ -2747,7 +2766,7 @@ void RsrcProcMgr::GenerateMipmapsSlow(
     // Restore original command buffer state.
     if (useGraphicsCopy)
     {
-        pCmdBuffer->PopGraphicsState();
+        pCmdBuffer->CmdRestoreGraphicsState();
     }
     else
     {
@@ -3160,7 +3179,15 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
         }
         else
         {
-            bindTargetsInfo.depthTarget.depthLayout = dstImageLayout;
+            if (isDepth)
+            {
+                bindTargetsInfo.depthTarget.depthLayout = dstImageLayout;
+            }
+
+            if (pDstImage->IsStencilPlane(copyRegion.dstSubres.plane))
+            {
+                bindTargetsInfo.depthTarget.stencilLayout = dstImageLayout;
+            }
 
             // No need to copy a range twice.
             if (BitfieldIsSet(rangeMask, region))
@@ -3311,7 +3338,8 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
                                     viewRange,
                                     srcFormat,
                                     srcImageLayout,
-                                    device.TexOptLevel());
+                                    device.TexOptLevel(),
+                                    false);
 
         if (!depthStencilCopy)
         {
@@ -3324,7 +3352,8 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
                                             viewRange,
                                             dstFormat,
                                             dstImageLayout,
-                                            device.TexOptLevel());
+                                            device.TexOptLevel(),
+                                            true);
                 PAL_ASSERT(imageView[1].viewType == ImageViewType::Tex2d);
             }
 
@@ -3378,7 +3407,8 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
                                             viewRange,
                                             StencilSrcFormat,
                                             srcImageLayout,
-                                            device.TexOptLevel());
+                                            device.TexOptLevel(),
+                                            false);
                 device.CreateImageViewSrds(2, &imageView[0], pSrdTable);
                 pSrdTable += SrdDwordAlignment() * 2;
             }
@@ -3880,20 +3910,22 @@ void RsrcProcMgr::ScaledCopyImageCompute(
             ImageViewInfo imageView[2] = {};
             SubresRange   viewRange    = { copyRegion.dstSubres, 1, 1, copyRegion.numSlices };
 
-            PAL_ASSERT(TestAnyFlagSet(copyInfo.dstImageLayout.usages, LayoutShaderWrite | LayoutCopyDst) == true);
+            PAL_ASSERT(TestAnyFlagSet(copyInfo.dstImageLayout.usages, LayoutCopyDst) == true);
             RpmUtil::BuildImageViewInfo(&imageView[0],
                                         *pDstImage,
                                         viewRange,
                                         dstFormat,
                                         copyInfo.dstImageLayout,
-                                        device.TexOptLevel());
+                                        device.TexOptLevel(),
+                                        true);
             viewRange.startSubres = copyRegion.srcSubres;
             RpmUtil::BuildImageViewInfo(&imageView[1],
                                         *pSrcImage,
                                         viewRange,
                                         srcFormat,
                                         copyInfo.srcImageLayout,
-                                        device.TexOptLevel());
+                                        device.TexOptLevel(),
+                                        false);
 
             if (is3d == false)
             {
@@ -4079,7 +4111,8 @@ void RsrcProcMgr::ConvertYuvToRgb(
                                     dstRange,
                                     dstFormat,
                                     RpmUtil::DefaultRpmLayoutShaderWrite,
-                                    device.TexOptLevel());
+                                    device.TexOptLevel(),
+                                    true);
 
         for (uint32 view = 1; view < viewCount; ++view)
         {
@@ -4094,7 +4127,8 @@ void RsrcProcMgr::ConvertYuvToRgb(
                                         srcRange,
                                         imageViewInfoFormat,
                                         RpmUtil::DefaultRpmLayoutRead,
-                                        device.TexOptLevel());
+                                        device.TexOptLevel(),
+                                        false);
         }
 
         // Calculate the absolute value of dstExtent, which will get fed to the shader.
@@ -4228,7 +4262,8 @@ void RsrcProcMgr::ConvertRgbToYuv(
                                     srcRange,
                                     srcFormat,
                                     RpmUtil::DefaultRpmLayoutRead,
-                                    device.TexOptLevel());
+                                    device.TexOptLevel(),
+                                    false);
 
         RpmUtil::RgbYuvConversionInfo copyInfo = { };
 
@@ -4292,7 +4327,8 @@ void RsrcProcMgr::ConvertRgbToYuv(
                                         dstRange,
                                         imageViewInfoFormat,
                                         RpmUtil::DefaultRpmLayoutShaderWrite,
-                                        device.TexOptLevel());
+                                        device.TexOptLevel(),
+                                        true);
 
             // Build RGB to YUV color-space-conversion table constant buffer.
             RpmUtil::SetupRgbToYuvCscTable(dstImageInfo.swizzledFormat.format, pass, cscTable, &copyInfo);
@@ -4487,7 +4523,7 @@ void RsrcProcMgr::CmdClearBoundDepthStencilTargets(
     scissorInfo.scissors[0].offset.y = 0;
 
     // Save current command buffer state and bind graphics state which is common for all mipmap levels.
-    pCmdBuffer->PushGraphicsState();
+    pCmdBuffer->CmdSaveGraphicsState();
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(DepthSlowDraw), InternalApiPsoHash, });
     BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdBindMsaaState(GetMsaaState(samples, fragments));
@@ -4534,7 +4570,7 @@ void RsrcProcMgr::CmdClearBoundDepthStencilTargets(
     }
 
     // Restore original command buffer state and destroy the depth/stencil state.
-    pCmdBuffer->PopGraphicsState();
+    pCmdBuffer->CmdRestoreGraphicsState();
 }
 
 // =====================================================================================================================
@@ -4675,7 +4711,7 @@ void RsrcProcMgr::CmdClearBoundColorTargets(
     scissorInfo.count = 1;
 
     // Save current command buffer state and bind graphics state which is common for all mipmap levels.
-    pCmdBuffer->PushGraphicsState();
+    pCmdBuffer->CmdSaveGraphicsState();
     BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
     pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
@@ -4740,7 +4776,7 @@ void RsrcProcMgr::CmdClearBoundColorTargets(
     }
 
     // Restore original command buffer state.
-    pCmdBuffer->PopGraphicsState();
+    pCmdBuffer->CmdRestoreGraphicsState();
 }
 
 // =====================================================================================================================
@@ -4983,7 +5019,7 @@ void RsrcProcMgr::SlowClearGraphics(
         bindTargetsInfo.colorTargets[0].pColorTargetView = nullptr;
 
         // Save current command buffer state and bind graphics state which is common for all mipmap levels.
-        pCmdBuffer->PushGraphicsState();
+        pCmdBuffer->CmdSaveGraphicsState();
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics,
                                       GetGfxPipelineByTargetIndexAndFormat(SlowColorClear0_32ABGR, 0, viewFormat),
                                       InternalApiPsoHash, });
@@ -5079,7 +5115,7 @@ void RsrcProcMgr::SlowClearGraphics(
         }
 
         // Restore original command buffer state.
-        pCmdBuffer->PopGraphicsState();
+        pCmdBuffer->CmdRestoreGraphicsState();
     }
 }
 
@@ -5391,13 +5427,15 @@ void RsrcProcMgr::SlowClearCompute(
             // mip's clear range and use a raw format.
             const uint32 DataDwords = NumBytesToNumDwords(sizeof(userData));
             ImageViewInfo imageView = {};
-            PAL_ASSERT(TestAnyFlagSet(dstImageLayout.usages, LayoutShaderWrite | LayoutCopyDst) == true);
+            PAL_ASSERT(dstImage.GetGfxImage()->ShaderWriteIncompatibleWithLayout(
+                       singleMipRange.startSubres, dstImageLayout) == false);
             RpmUtil::BuildImageViewInfo(&imageView,
                                         dstImage,
                                         singleMipRange,
                                         viewFormat,
                                         dstImageLayout,
-                                        device.TexOptLevel());
+                                        device.TexOptLevel(),
+                                        true);
 
             // The default clear box is the entire subresource. This will be changed per-dispatch if boxes are enabled.
             Extent3d clearExtent = subResInfo.extentTexels;
@@ -5979,6 +6017,7 @@ void RsrcProcMgr::CmdResolveImage(
         }
         else if ((srcMethod.depthStencilCopy == 1) && (dstMethod.depthStencilCopy == 1) &&
                  (resolveMode == ResolveMode::Average) &&
+                 (TestAnyFlagSet(flags, ImageResolveInvertY) == false) &&
                   HwlCanDoDepthStencilCopyResolve(srcImage, dstImage, regionCount, pRegions))
         {
             ResolveImageDepthStencilCopy(pCmdBuffer,
@@ -6287,15 +6326,10 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
             m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &viewInfo, pTableMem);
         }
 
-        // We can use the Ganged ACE here only if MultiQueue submission is supported on both Gfx and Compute Queues.
-        const bool canOffloadCmdGenToGangedAce = (chipProps.gfxLevel >= GfxIpLevel::GfxIp9) ?
-                                                  chipProps.gfx9.supportAceOffload          :
-                                                  false;
-
         // We use the ACE for IndirectCmdGeneration only for this very special case. It has to be a UniversalCmdBuffer,
         // ganged ACE is supported, and we are not using the ACE for Task Shader work.
         bool cmdGenUseAce = pCmdBuffer->IsGraphicsSupported() &&
-                            canOffloadCmdGenToGangedAce       &&
+                            (chipProps.gfxip.supportAceOffload != 0) &&
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 691
                             (publicSettings->disableExecuteIndirectAceOffload != true) &&
 #endif
@@ -6409,13 +6443,10 @@ void RsrcProcMgr::ResolveImageDepthStencilGraphics(
     depthViewInfo.arraySize = 1;
 
     // Save current command buffer state and bind graphics state which is common for all regions.
-    pCmdBuffer->PushGraphicsState();
+    pCmdBuffer->CmdSaveGraphicsState();
     BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdBindMsaaState(GetMsaaState(dstCreateInfo.samples, dstCreateInfo.fragments));
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
-
-    // Put ImageResolveInvertY value in user data 0 used by VS.
-    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 0, 1, &flags);
 
     // Determine which format we should use to view the source image. The initial value is the stencil format.
     SwizzledFormat srcFormat =
@@ -6486,17 +6517,26 @@ void RsrcProcMgr::ResolveImageDepthStencilGraphics(
 
         // The shader will calculate src coordinates by adding a delta to the dst coordinates. The user data should
         // contain those deltas which are (srcOffset-dstOffset) for X & Y.
+        // The shader also needs data for y inverting - a boolean flag and height of the image, so the integer
+        // coords in texture-space can be inverted.
         const int32  xOffset     = (pRegions[idx].srcOffset.x - pRegions[idx].dstOffset.x);
-        const int32  yOffset     = (pRegions[idx].srcOffset.y - pRegions[idx].dstOffset.y);
-        const uint32 userData[3] =
+        int32_t yOffset = pRegions[idx].srcOffset.y;
+        if (TestAnyFlagSet(flags, ImageResolveInvertY))
+        {
+            yOffset = srcCreateInfo.extent.height - yOffset - pRegions[idx].extent.height;
+        }
+        yOffset = (yOffset - pRegions[idx].dstOffset.y);
+        const uint32 userData[5] =
         {
             reinterpret_cast<const uint32&>(xOffset),
             reinterpret_cast<const uint32&>(yOffset),
+            TestAnyFlagSet(flags, ImageResolveInvertY) ? 1u : 0u,
+            srcCreateInfo.extent.height - 1,
         };
 
         pCmdBuffer->CmdSetViewports(viewportInfo);
         pCmdBuffer->CmdSetScissorRects(scissorInfo);
-        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 2, 2, userData);
+        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 1, 4, userData);
 
         for (uint32 slice = 0; slice < pRegions[idx].numSlices; ++slice)
         {
@@ -6515,7 +6555,7 @@ void RsrcProcMgr::ResolveImageDepthStencilGraphics(
                                                                        SrdDwordAlignment(),
                                                                        SrdDwordAlignment(),
                                                                        PipelineBindPoint::Graphics,
-                                                                       1);
+                                                                       0);
 
             // Populate the table with an image view of the source image.
             ImageViewInfo     imageView = { };
@@ -6525,7 +6565,8 @@ void RsrcProcMgr::ResolveImageDepthStencilGraphics(
                                         viewRange,
                                         srcFormat,
                                         srcImageLayout,
-                                        device.TexOptLevel());
+                                        device.TexOptLevel(),
+                                        false);
             device.CreateImageViewSrds(1, &imageView, pSrdTable);
 
             // Create and bind a depth stencil view of the destination region.
@@ -6564,7 +6605,7 @@ void RsrcProcMgr::ResolveImageDepthStencilGraphics(
     } // End for each region.
 
     // Restore original command buffer state.
-    pCmdBuffer->PopGraphicsState();
+    pCmdBuffer->CmdRestoreGraphicsState();
 
     FixupLateExpandShaderResolveSrc(pCmdBuffer,
                                     srcImage,
@@ -6706,7 +6747,8 @@ void RsrcProcMgr::ResolveImageCompute(
                                     viewRange,
                                     dstFormat,
                                     dstLayoutCompute,
-                                    device.TexOptLevel());
+                                    device.TexOptLevel(),
+                                    true);
 
         viewRange.startSubres = srcSubres;
         RpmUtil::BuildImageViewInfo(&imageView[1],
@@ -6714,7 +6756,8 @@ void RsrcProcMgr::ResolveImageCompute(
                                     viewRange,
                                     srcFormat,
                                     srcImageLayout,
-                                    device.TexOptLevel());
+                                    device.TexOptLevel(),
+                                    false);
 
         device.CreateImageViewSrds(2, &imageView[0], pUserData);
         pUserData += SrdDwordAlignment() * 2;
@@ -7074,7 +7117,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
     bindTargetsInfo.depthTarget.stencilLayout.engines = LayoutUniversalEngine;
 
     // Save current command buffer state and bind graphics state which is common for all subresources.
-    pCmdBuffer->PushGraphicsState();
+    pCmdBuffer->CmdSaveGraphicsState();
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(DepthExpand), InternalApiPsoHash, });
     BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdBindDepthStencilState(m_pDepthExpandState);
@@ -7154,7 +7197,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
     }
 
     // Restore command buffer state.
-    pCmdBuffer->PopGraphicsState();
+    pCmdBuffer->CmdRestoreGraphicsState();
 
     // Compute path was not used
     return false;
@@ -7220,7 +7263,7 @@ void RsrcProcMgr::ResummarizeDepthStencil(
     bindTargetsInfo.depthTarget.stencilLayout     = imageLayout;
 
     // Save current command buffer state and bind graphics state which is common for all subresources.
-    pCmdBuffer->PushGraphicsState();
+    pCmdBuffer->CmdSaveGraphicsState();
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(DepthResummarize), InternalApiPsoHash, });
     BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdBindDepthStencilState(m_pDepthResummarizeState);
@@ -7300,7 +7343,7 @@ void RsrcProcMgr::ResummarizeDepthStencil(
     }
 
     // Restore command buffer state.
-    pCmdBuffer->PopGraphicsState();
+    pCmdBuffer->CmdRestoreGraphicsState();
 }
 
 // =====================================================================================================================
@@ -7378,7 +7421,7 @@ void RsrcProcMgr::GenericColorBlit(
     const StencilRefMaskParams       stencilRefMasks      = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF };
 
     // Save current command buffer state and bind graphics state which is common for all mipmap levels.
-    pCmdBuffer->PushGraphicsState();
+    pCmdBuffer->CmdSaveGraphicsState();
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(pipeline), InternalApiPsoHash, });
 
     BindCommonGraphicsState(pCmdBuffer);
@@ -7514,7 +7557,7 @@ void RsrcProcMgr::GenericColorBlit(
     }
 
     // Restore original command buffer state.
-    pCmdBuffer->PopGraphicsState();
+    pCmdBuffer->CmdRestoreGraphicsState();
 }
 
 // =====================================================================================================================
@@ -7572,7 +7615,7 @@ void RsrcProcMgr::ResolveImageFixedFunc(
     bindTargetsInfo.colorTargets[1].imageLayout.engines = LayoutUniversalEngine;
 
     // Save current command buffer state and bind graphics state which is common for all regions.
-    pCmdBuffer->PushGraphicsState();
+    pCmdBuffer->CmdSaveGraphicsState();
     BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdBindMsaaState(GetMsaaState(srcCreateInfo.samples, srcCreateInfo.fragments));
     pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
@@ -7703,7 +7746,7 @@ void RsrcProcMgr::ResolveImageFixedFunc(
     } // End for each region.
 
     // Restore original command buffer state.
-    pCmdBuffer->PopGraphicsState();
+    pCmdBuffer->CmdRestoreGraphicsState();
 }
 
 // =====================================================================================================================
@@ -7764,7 +7807,7 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
     bindTargetsInfo.depthTarget.stencilLayout.engines = LayoutUniversalEngine;
 
     // Save current command buffer state and bind graphics state which is common for all regions.
-    pCmdBuffer->PushGraphicsState();
+    pCmdBuffer->CmdSaveGraphicsState();
     BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdBindMsaaState(GetMsaaState(1u, 1u));
     pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
@@ -7906,7 +7949,7 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
     } // End for each region.
 
       // Restore original command buffer state.
-    pCmdBuffer->PopGraphicsState();
+    pCmdBuffer->CmdRestoreGraphicsState();
 }
 
 // =====================================================================================================================
@@ -8846,7 +8889,8 @@ void RsrcProcMgr::CopyImageToPackedPixelImage(
                                     viewRange,
                                     dstFormat,
                                     RpmUtil::DefaultRpmLayoutShaderWrite,
-                                    Pal::ImageTexOptLevel::Default);
+                                    Pal::ImageTexOptLevel::Default,
+                                    true);
 
         viewRange.startSubres = region.srcSubres;
         RpmUtil::BuildImageViewInfo(&imageView[1],
@@ -8854,7 +8898,8 @@ void RsrcProcMgr::CopyImageToPackedPixelImage(
                                     viewRange,
                                     srcFormat,
                                     RpmUtil::DefaultRpmLayoutRead,
-                                    Pal::ImageTexOptLevel::Default);
+                                    Pal::ImageTexOptLevel::Default,
+                                    false);
 
         if (useMipInSrd == false)
         {

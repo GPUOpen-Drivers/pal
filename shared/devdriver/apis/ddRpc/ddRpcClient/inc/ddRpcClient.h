@@ -20,6 +20,12 @@ DD_RESULT ddRpcClientCreate(
     const DDRpcClientCreateInfo* pInfo,     /// [in]  Create info
     DDRpcClient*                 phClient); /// [out] Handle to the new client object
 
+/// Checks if a service ID is currently registered to the server and returns the version it is using
+DD_RESULT ddRpcClientGetServiceInfo(
+    DDRpcClient          hClient,   /// [in]  Handle to the client object
+    const DDRpcServiceId serviceId, /// [in]  Service ID to check
+    DDApiVersion*        pVersion); /// [out] The service version
+
 /// Destroys an existing client object
 void ddRpcClientDestroy(
     DDRpcClient hClient); /// [in] Handle to the existing client object

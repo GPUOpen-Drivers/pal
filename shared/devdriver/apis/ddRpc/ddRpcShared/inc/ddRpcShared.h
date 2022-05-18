@@ -7,6 +7,16 @@
 #define DD_RPC_INVALID_FUNC_ID    0
 #define DD_RPC_INVALID_SERVICE_ID 0
 
+/// Compile time version information for keeping track of the services query interface:
+#define DD_RPC_SERVICES_QUERY_MAJOR_VERSION 0
+#define DD_RPC_SERVICES_QUERY_MINOR_VERSION 1
+#define DD_RPC_SERVICES_QUERY_PATCH_VERSION 0
+
+#define DD_RPC_SERVICES_QUERY_VERSION_STRING DD_API_STRINGIFY_VERSION(DD_RPC_SERVICES_QUERY_MAJOR_VERSION, \
+                                                                      DD_RPC_SERVICES_QUERY_MINOR_VERSION, \
+                                                                      DD_RPC_SERVICES_QUERY_PATCH_VERSION)
+
+
 namespace Rpc
 {
 
@@ -15,6 +25,9 @@ namespace Rpc
 ///
 /// This is the ASCII code for 'A' for AMD.
 constexpr DDProtocolId kDefaultRpcProtocolId = 65;
+
+/// To note special handling for some RPC calls, create a reserved RPC Service ID.
+constexpr DDRpcServiceId kServicesQueryRpcServiceId = 0xFFFFFFFF;
 
 /// Intermediate structures for RPC network logic
 ///
@@ -105,6 +118,10 @@ DD_RESULT DeserializeDataResponse(RpcDataResponse* pResponse, const void* pBuffe
 
 DD_RESULT SerializeTerminatorResponse(const RpcTerminatorResponse& response, void* pBuffer, size_t bufferSize, size_t* pBytesWritten);
 DD_RESULT DeserializeTerminatorResponse(RpcTerminatorResponse* pResponse, const void* pBuffer, size_t bufferSize);
+
+// Functions to track the services query interface. These are only used internally by the client/server code:
+DDApiVersion RpcServicesQueryVersion();
+const char*  RpcServicesQueryVersionString();
 
 } // namespace Rpc
 

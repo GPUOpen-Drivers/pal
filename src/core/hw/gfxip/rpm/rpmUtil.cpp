@@ -694,7 +694,8 @@ void BuildImageViewInfo(
     const SubresRange& subresRange,
     SwizzledFormat     swizzledFormat,
     ImageLayout        imgLayout,
-    ImageTexOptLevel   texOptLevel)
+    ImageTexOptLevel   texOptLevel,
+    bool               isShaderWriteable)
 {
     // We will static cast ImageType to ImageViewType so verify that it will work as expected.
     static_assert(static_cast<uint32>(ImageType::Tex1d) == static_cast<uint32>(ImageViewType::Tex1d),
@@ -718,6 +719,8 @@ void BuildImageViewInfo(
 
     pInfo->flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnRead);
     pInfo->flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnWrite);
+
+    pInfo->possibleLayouts.usages |= (isShaderWriteable ? LayoutShaderWrite : 0u);
 }
 
 // =====================================================================================================================

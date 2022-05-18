@@ -37,6 +37,30 @@ DD_RESULT SettingsRpcClient::Connect(const DDRpcClientCreateInfo& info)
     return ddRpcClientCreate(&info, &m_hClient);
 }
 
+DD_RESULT SettingsRpcClient::IsServiceAvailable()
+{
+    DDApiVersion version = {};
+    DD_RESULT result = ddRpcClientGetServiceInfo(m_hClient, 0x15375127, &version);
+
+    if (result == DD_RESULT_SUCCESS)
+    {
+        DDApiVersion serviceVersion = {};
+        serviceVersion.major        = 1;
+        serviceVersion.minor        = 0;
+        serviceVersion.patch        = 0;
+
+        result = ddIsVersionCompatible(version, serviceVersion) ?
+            DD_RESULT_SUCCESS : DD_RESULT_COMMON_VERSION_MISMATCH;
+    }
+
+    return result;
+}
+
+DD_RESULT SettingsRpcClient::GetServiceInfo(DDApiVersion* pVersion)
+{
+    return ddRpcClientGetServiceInfo(m_hClient, 0x15375127, pVersion);
+}
+
 SettingsRpcClient::~SettingsRpcClient() { ddRpcClientDestroy(m_hClient); }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -52,8 +76,8 @@ DD_RESULT SettingsRpcClient::GetComponents(
 
     DDRpcClientCallInfo info  = {};
     info.service              = 0x15375127;
-    info.serviceVersion.major = 0;
-    info.serviceVersion.minor = 1;
+    info.serviceVersion.major = 1;
+    info.serviceVersion.minor = 0;
     info.serviceVersion.patch = 0;
     info.function             = 0x1;
     info.pParamBuffer         = pParamBuffer;
@@ -76,8 +100,8 @@ DD_RESULT SettingsRpcClient::QueryComponentSettings(
 
     DDRpcClientCallInfo info  = {};
     info.service              = 0x15375127;
-    info.serviceVersion.major = 0;
-    info.serviceVersion.minor = 1;
+    info.serviceVersion.major = 1;
+    info.serviceVersion.minor = 0;
     info.serviceVersion.patch = 0;
     info.function             = 0x2;
     info.pParamBuffer         = pParamBuffer;
@@ -100,8 +124,8 @@ DD_RESULT SettingsRpcClient::QueryCurrentValues(
 
     DDRpcClientCallInfo info  = {};
     info.service              = 0x15375127;
-    info.serviceVersion.major = 0;
-    info.serviceVersion.minor = 1;
+    info.serviceVersion.major = 1;
+    info.serviceVersion.minor = 0;
     info.serviceVersion.patch = 0;
     info.function             = 0x3;
     info.pParamBuffer         = pParamBuffer;
@@ -124,8 +148,8 @@ DD_RESULT SettingsRpcClient::QuerySettingsDataHash(
 
     DDRpcClientCallInfo info  = {};
     info.service              = 0x15375127;
-    info.serviceVersion.major = 0;
-    info.serviceVersion.minor = 1;
+    info.serviceVersion.major = 1;
+    info.serviceVersion.minor = 0;
     info.serviceVersion.patch = 0;
     info.function             = 0x4;
     info.pParamBuffer         = pParamBuffer;
@@ -149,8 +173,8 @@ DD_RESULT SettingsRpcClient::SetData(
 
     DDRpcClientCallInfo info  = {};
     info.service              = 0x15375127;
-    info.serviceVersion.major = 0;
-    info.serviceVersion.minor = 1;
+    info.serviceVersion.major = 1;
+    info.serviceVersion.minor = 0;
     info.serviceVersion.patch = 0;
     info.function             = 0x5;
     info.pParamBuffer         = pParamBuffer;

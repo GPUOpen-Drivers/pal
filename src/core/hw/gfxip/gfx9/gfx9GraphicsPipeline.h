@@ -64,7 +64,7 @@ struct DynamicStageInfos
 };
 
 // =====================================================================================================================
-// GFX9 graphics pipeline class: implements common GFX9-specific funcionality for the GraphicsPipeline class.  Details
+// GFX9 graphics pipeline class: implements common GFX9-specific functionality for the GraphicsPipeline class.  Details
 // specific to a particular pipeline configuration (GS-enabled, tessellation-enabled, etc) are offloaded to appropriate
 // subclasses.
 class GraphicsPipeline : public Pal::GraphicsPipeline

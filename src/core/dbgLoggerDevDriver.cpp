@@ -152,41 +152,5 @@ DbgLoggerDevDriver::DbgLoggerDevDriver(
     m_logEventProvider(pPlatform)
 {
 }
-
-// =====================================================================================================================
-/// Formatted writes - Format and send the log msg to the DevDriver for output to the connected tool.
-void DbgLoggerDevDriver::LogMessage(
-    SeverityLevel   severity,
-    OriginationType source,
-    const char*     pClientTag,
-    const char*     pFormat,
-    va_list         args)
-{
-    if (FilterMessage(severity, source))
-    {
-        char outputMsg[DefaultFinalMsgSize];
-        outputMsg[0] = '\0';
-        FormatMessageSimple(outputMsg, DefaultFinalMsgSize, severity, pFormat, args);
-        // If the msg was truncated, just accept it as is. We are not going to format
-        // again with a bigger buffer at this time.
-        m_logEventProvider.LogMessage(uint32(source), outputMsg);
-    }
-}
-
-// =====================================================================================================================
-/// Unformatted writes - Send the raw log msg to the DevDriver for output to the connected tool.
-void DbgLoggerDevDriver::LogMessage(
-    SeverityLevel   severity,
-    OriginationType source,
-    const char*     pClientTag,
-    size_t          dataSize,
-    const void*     pData)
-{
-    if (FilterMessage(severity, source))
-    {
-        m_logEventProvider.LogMessage(uint32(source), dataSize, pData);
-    }
-}
-
 } //namespace Util
 #endif

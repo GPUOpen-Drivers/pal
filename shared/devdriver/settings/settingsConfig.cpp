@@ -25,459 +25,324 @@
 
 #include "settingsConfig.h"
 #include "settingsBase.h"
-#include <ddCommon.h>
+#include "settingsParsingUtils.h"
+#include "libyamlUtils.h"
 #include <stdio.h>
-#include <rapidjson/document.h>
-
-using namespace DevDriver;
-using RjValue = rapidjson::Value;
-using RjDocument = rapidjson::Document;
+#include <ddCommon.h>
+#include <ddPlatform.h>
+#include <protocols/ddSettingsServiceTypes.h>
+#include <yaml.h>
 
 namespace
 {
 
-using SettingNameHash = SettingsURIService::SettingNameHash;
-using SettingValue = SettingsURIService::SettingValue;
-using SettingType = SettingsURIService::SettingType;
+using SettingValue = DevDriver::SettingsURIService::SettingValue;
+using SettingsType = DevDriver::SettingsURIService::SettingType;
 
-// ============================================================================
-/// A helper union for storing setting values. We need an intermeidate place to
-/// hold a non-string value copied from a JSON Value.
-union SettingValueHelper
+template<typename T>
+SettingsType SettingsTypeSelector();
+
+template<>
+SettingsType SettingsTypeSelector<bool>()
 {
-    bool        bVal;
-    int8_t      i8Val;
-    uint8_t     u8Val;
-    int16_t     i16Val;
-    uint16_t    u16Val;
-    int32_t     i32Val;
-    uint32_t    u32Val;
-    int64_t     i64Val;
-    uint64_t    u64Val;
-    float       fVal;
-    const char* sVal;
-};
+    return SettingsType::Boolean;
+}
 
-// ============================================================================
-/// Generate 32-bit hash from the provided string.
-///
-/// The hash must match exactly what settings codegen script produces, because
-/// that's what's used as key in settings map.
-///
-/// FNV1a hashing (http://www.isthe.com/chongo/tech/comp/fnv/) algorithm.
-uint32_t HashString(const char* pStr, size_t strSize)
+template<>
+SettingsType SettingsTypeSelector<int8_t>()
 {
-    DD_ASSERT((pStr != nullptr) && (strSize > 0));
+    return SettingsType::Int8;
+}
 
-    static constexpr uint32_t FnvPrime  = 16777619u;
-    static constexpr uint32_t FnvOffset = 2166136261u;
+template<>
+SettingsType SettingsTypeSelector<uint8_t>()
+{
+    return SettingsType::Uint8;
+}
 
-    uint32_t hash = FnvOffset;
+template<>
+SettingsType SettingsTypeSelector<int16_t>()
+{
+    return SettingsType::Int16;
+}
 
-    for (uint32_t i = 0; i < strSize; i++)
-    {
-        hash ^= static_cast<uint32_t>(pStr[i]);
-        hash *= FnvPrime;
-    }
+template<>
+SettingsType SettingsTypeSelector<uint16_t>()
+{
+    return SettingsType::Uint16;
+}
 
-    return hash;
+template<>
+SettingsType SettingsTypeSelector<int32_t>()
+{
+    return SettingsType::Int;
+}
+
+template<>
+SettingsType SettingsTypeSelector<uint32_t>()
+{
+    return SettingsType::Uint;
+}
+
+template<>
+SettingsType SettingsTypeSelector<int64_t>()
+{
+    return SettingsType::Int64;
+}
+
+template<>
+SettingsType SettingsTypeSelector<uint64_t>()
+{
+    return SettingsType::Uint64;
+}
+
+template<>
+SettingsType SettingsTypeSelector<float>()
+{
+    return SettingsType::Float;
 }
 
 // ============================================================================
-/// Get the JSON Value of the component by name.
-const RjValue* GetComponentByName(
-    const RjValue* pRoot,
-    const char* pComponentName)
+/// Fill `pOutUserOverride` based on a YAML node.
+template<typename T>
+bool SetUserOverrideValueFromYamlNode(
+    yaml_node_t* pValNode,
+    DevDriver::SettingsUserOverride* pOutUserOverride)
 {
-    const RjValue* pComponent = nullptr;
+    using namespace DevDriver;
 
-    const RjValue& components = (*pRoot)["Data"]["Components"];
-    if (components.IsArray())
+    pOutUserOverride->type = SettingsTypeSelector<T>();
+    pOutUserOverride->size = sizeof(T);
+
+    bool result = false;
+    T value = 0;
+    if (YamlNodeGetScalar(pValNode, &value))
     {
-        for (RjValue::ConstValueIterator compoItr = components.Begin();
-             compoItr != components.End();
-             ++compoItr)
-        {
-            if (!compoItr->IsObject())
-            {
-                // log error
-                continue;
-            }
-            RjValue::ConstMemberIterator nameItr = compoItr->FindMember("Name");
-            if (nameItr != compoItr->MemberEnd())
-            {
-                // log error
-                continue;
-            }
-            if (!nameItr->value.IsString())
-            {
-                // log error
-                continue;
-            }
-            if (nameItr->value.GetString() == nullptr)
-            {
-                // log error
-                continue;
-            }
-            if (strcmp(pComponentName, nameItr->value.GetString()) == 0)
-            {
-                pComponent = compoItr;
-                break;
-            }
-        }
+        pOutUserOverride->SetVal(value);
+        result = true;
     }
     else
     {
-        // log error
-    }
-
-    return pComponent;
-}
-
-// ============================================================================
-/// Get the name of a setting JSON Value.
-const char* GetSettingName(const RjValue* pUserValue)
-{
-    const char* name = nullptr;
-
-    RjValue::ConstMemberIterator itr = pUserValue->FindMember("Name");
-    if (itr != pUserValue->MemberEnd())
-    {
-        if (itr->value.IsString())
-        {
-            name = itr->value.GetString();
-        }
-        else
-        {
-            // log error
-        }
-    }
-    else
-    {
-        // log error
-    }
-
-    return name;
-}
-
-// ============================================================================
-/// Get the value field of a setting JSON Value.
-const RjValue* GetSettingValue(const RjValue* pUserValue)
-{
-    const RjValue* pValue = nullptr;
-
-    RjValue::ConstMemberIterator itr = pUserValue->FindMember("Value");
-    if (itr != pUserValue->MemberEnd())
-    {
-        pValue = &itr->value;
-    }
-    else
-    {
-        // log error
-    }
-
-    return pValue;
-}
-
-// ============================================================================
-DD_RESULT GetSetting(
-    const RjValue*      pUserValue,
-    SettingType*        pOutType,
-    uint32_t*           pOutSize,
-    SettingValueHelper* pOutValue)
-{
-    DD_RESULT result = DD_RESULT_SUCCESS;
-
-    RjValue::ConstMemberIterator itr = pUserValue->FindMember("Type");
-    if (itr != pUserValue->MemberEnd())
-    {
-        if (itr->value.IsString())
-        {
-            const char* pJsonField_Type = itr->value.GetString();
-            if (pJsonField_Type != nullptr)
-            {
-                if (strcmp("Bool", pJsonField_Type) == 0)
-                {
-                    *pOutType = SettingType::Boolean;
-                    *pOutSize = sizeof(bool);
-                    const RjValue* pValue = GetSettingValue(pUserValue);
-                    if (pValue && pValue->IsBool())
-                    {
-                        pOutValue->bVal = pValue->GetBool();
-                    }
-                    else
-                    {
-                        // log error
-                        result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
-                    }
-                }
-                else if (strcmp("Int8", pJsonField_Type) == 0)
-                {
-                    *pOutType = SettingType::Int8;
-                    *pOutSize = sizeof(int8_t);
-                    const RjValue* pValue = GetSettingValue(pUserValue);
-                    if (pValue && pValue->IsInt())
-                    {
-                        int val = pValue->GetInt();
-                        if ((val < INT8_MIN) || (val > INT8_MAX))
-                        {
-                            // log warning
-                        }
-                        pOutValue->i8Val = (int8_t)val;
-                    }
-                    else
-                    {
-                        // log error
-                        result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
-                    }
-                }
-                else if (strcmp("Uint8", pJsonField_Type) == 0)
-                {
-                    *pOutType = SettingType::Uint8;
-                    *pOutSize = sizeof(uint8_t);
-                    const RjValue* pValue = GetSettingValue(pUserValue);
-                    if (pValue && pValue->IsUint())
-                    {
-                        unsigned int val = pValue->GetUint();
-                        if (val > UINT8_MAX)
-                        {
-                            // log warning
-                        }
-                        pOutValue->u8Val = (uint8)val;
-                    }
-                    else
-                    {
-                        // log error
-                        result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
-                    }
-                }
-                else if (strcmp("Int16", pJsonField_Type) == 0)
-                {
-                    *pOutType = SettingType::Int16;
-                    *pOutSize = sizeof(int16_t);
-                    const RjValue* pValue = GetSettingValue(pUserValue);
-                    if (pValue && pValue->IsInt())
-                    {
-                        int val = pValue->GetInt();
-                        if ((val < INT16_MIN) || (val > INT16_MAX))
-                        {
-                            // log warning
-                        }
-                        pOutValue->i16Val = (int16_t)val;
-                    }
-                    else
-                    {
-                        // log error
-                        result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
-                    }
-                }
-                else if (strcmp("Uint16", pJsonField_Type) == 0)
-                {
-                    *pOutType = SettingType::Uint16;
-                    *pOutSize = sizeof(uint16_t);
-                    const RjValue* pValue = GetSettingValue(pUserValue);
-                    if (pValue && pValue->IsUint())
-                    {
-                        unsigned int val = pValue->GetUint();
-                        if (val > UINT16_MAX)
-                        {
-                            // log warning
-                        }
-                        pOutValue->u16Val = (uint16_t)val;
-                    }
-                    else
-                    {
-                        // log error
-                        result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
-                    }
-                }
-                else if (strcmp("Int32", pJsonField_Type) == 0)
-                {
-                    *pOutType = SettingType::Int;
-                    *pOutSize = sizeof(int32_t);
-                    const RjValue* pValue = GetSettingValue(pUserValue);
-                    if (pValue && pValue->IsInt())
-                    {
-                        pOutValue->i32Val = pValue->GetInt();
-                    }
-                    else
-                    {
-                        // log error
-                        result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
-                    }
-                }
-                else if (strcmp("Uint32", pJsonField_Type) == 0)
-                {
-                    *pOutType = SettingType::Uint;
-                    *pOutSize = sizeof(uint32_t);
-                    const RjValue* pValue = GetSettingValue(pUserValue);
-                    if (pValue && pValue->IsUint())
-                    {
-                        pOutValue->u32Val = pValue->GetUint();
-                    }
-                    else
-                    {
-                        // log error
-                        result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
-                    }
-                }
-                else if (strcmp("Int64", pJsonField_Type) == 0)
-                {
-                    *pOutType = SettingType::Int64;
-                    *pOutSize = sizeof(int64_t);
-                    const RjValue* pValue = GetSettingValue(pUserValue);
-                    if (pValue && pValue->IsInt64())
-                    {
-                        pOutValue->i64Val = pValue->GetInt64();
-                    }
-                    else
-                    {
-                        // log error
-                        result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
-                    }
-                }
-                else if (strcmp("Uint64", pJsonField_Type) == 0)
-                {
-                    *pOutType = SettingType::Uint64;
-                    *pOutSize = sizeof(uint64_t);
-                    const RjValue* pValue = GetSettingValue(pUserValue);
-                    if (pValue && pValue->IsUint64())
-                    {
-                        pOutValue->u64Val = pValue->GetUint64();
-                    }
-                    else
-                    {
-                        // log error
-                        result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
-                    }
-                }
-                else if (strcmp("Float", pJsonField_Type) == 0)
-                {
-                    *pOutType = SettingType::Float;
-                    *pOutSize = sizeof(float);
-                    const RjValue* pValue = GetSettingValue(pUserValue);
-                    if (pValue && pValue->IsFloat())
-                    {
-                        pOutValue->fVal = pValue->GetFloat();
-                    }
-                    else
-                    {
-                        // log error
-                        result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
-                    }
-                }
-                else if (strcmp("String", pJsonField_Type) == 0)
-                {
-                    *pOutType = SettingType::String;
-                    // String length isn't known for now.
-                    const RjValue* pValue = GetSettingValue(pUserValue);
-                    if (pValue && pValue->IsString())
-                    {
-                        pOutValue->sVal = pValue->GetString();
-                    }
-                    size_t len = strlen(pOutValue->sVal) + 1; // plus one for null-terminator
-                    DD_ASSERT(len <= UINT32_MAX);
-                    *pOutSize = (uint32_t)len;
-                }
-                else
-                {
-                    // log error
-                    result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
-                }
-            }
-            else
-            {
-                // log error
-                result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
-            }
-        }
-        else
-        {
-            // log error
-            result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
-        }
-    }
-    else
-    {
-        // log error
-        result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
+        result = false;
+        // TODO: log error
     }
 
     return result;
 }
 
 // ============================================================================
-DD_RESULT SetSettingValue(
-    const char*    pSettingName,
-    const RjValue* pJsonValue,
-    void*          pSettingsBase)
+/// Get the YAML node that represents a sequence of user-overrides by component name.
+yaml_node_t* GetUserOverridesNodeByComponentName(
+    yaml_document_t* pDoc,
+    const char* pComponentName)
 {
+    using namespace DevDriver;
+
+    yaml_node_t* pUserOverridesNode = nullptr;
+
+    yaml_node_t* pRoot = yaml_document_get_root_node(pDoc);
+    if (pRoot)
+    {
+        yaml_node_t* pComponentsNode = YamlDocumentFindNodeByKey(pDoc, pRoot, "Components");
+        if (pComponentsNode && (pComponentsNode->type == YAML_SEQUENCE_NODE))
+        {
+            for (yaml_node_item_t* pItem = pComponentsNode->data.sequence.items.start;
+                pItem < pComponentsNode->data.sequence.items.top;
+                pItem++)
+            {
+                yaml_node_t* pCompNode = yaml_document_get_node(pDoc, *pItem);
+                DD_ASSERT(pCompNode != nullptr);
+
+                if (pCompNode->type != YAML_MAPPING_NODE)
+                {
+                    // log error
+                    continue;
+                }
+
+                yaml_node_t* pNameNode = YamlDocumentFindNodeByKey(pDoc, pCompNode, "Name");
+                if (!pNameNode || (pNameNode->type == YAML_SCALAR_NODE))
+                {
+                    // log error
+                    continue;
+                }
+
+                if (strncmp((const char*)pNameNode->data.scalar.value,
+                    pComponentName, pNameNode->data.scalar.length) != 0)
+                {
+                    continue;
+                }
+
+                pUserOverridesNode =
+                    YamlDocumentFindNodeByKey(pDoc, pCompNode, "UserOverrides");
+            }
+        }
+    }
+
+    return pUserOverridesNode;
+}
+
+// ============================================================================
+DD_RESULT GetUserOverride(
+    yaml_document_t* pDoc,
+    yaml_node_t* pUserOverrideNode,
+    DevDriver::SettingsUserOverride* pOutUserOverride)
+{
+    using namespace DevDriver;
+
     DD_RESULT result = DD_RESULT_SUCCESS;
 
-    uint32_t hash = HashString(pSettingName, strlen(pSettingName));
-
-    SettingType type = SettingType::Boolean;
-    uint32_t size = 0;
-    SettingValueHelper value = {0};
-    DD_RESULT found = GetSetting(pJsonValue, &type, &size, &value);
-    if (found != DD_RESULT_SUCCESS)
+    yaml_node_t* pNameNode = YamlDocumentFindNodeByKey(pDoc, pUserOverrideNode, "Name");
+    if (pNameNode)
     {
-        SettingValue valueRef = { type, nullptr, size };
-        switch (type)
+        if (pNameNode->type == YAML_SCALAR_NODE)
         {
-        case SettingType::Boolean:
-        {
-            valueRef.pValuePtr = &value.bVal;
-        } break;
-        case SettingType::Int8:
-        {
-            valueRef.pValuePtr = &value.i8Val;
-        } break;
-        case SettingType::Uint8:
-        {
-            valueRef.pValuePtr = &value.u8Val;
-        } break;
-        case SettingType::Int16:
-        {
-            valueRef.pValuePtr = &value.i16Val;
-        } break;
-        case SettingType::Uint16:
-        {
-            valueRef.pValuePtr = &value.u16Val;
-        } break;
-        case SettingType::Int:
-        {
-            valueRef.pValuePtr = &value.i32Val;
-        } break;
-        case SettingType::Uint:
-        {
-            valueRef.pValuePtr = &value.u32Val;
-        } break;
-        case SettingType::Int64:
-        {
-            valueRef.pValuePtr = &value.i64Val;
-        } break;
-        case SettingType::Uint64:
-        {
-            valueRef.pValuePtr = &value.u64Val;
-        } break;
-        case SettingType::Float:
-        {
-            valueRef.pValuePtr = &value.fVal;
-        } break;
-        case SettingType::String:
-        {
-            valueRef.pValuePtr = (void*)value.sVal;
-        } break;
+            if (pNameNode->data.scalar.length > 0)
+            {
+                pOutUserOverride->pName = (const char*)pNameNode->data.scalar.value;
+                pOutUserOverride->nameLength = pNameNode->data.scalar.length;
+            }
+            else
+            {
+                result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
+            }
         }
-
-        result = DevDriverToDDResult(SettingsBase::SetValue(hash, valueRef, pSettingsBase));
+        else
+        {
+            result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
+        }
     }
     else
     {
-        // log error
         result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
     }
+
+    const char* pTypeStr = nullptr;
+    size_t typeStrLen = 0;
+    if (result == DD_RESULT_SUCCESS)
+    {
+        yaml_node_t* pTypeNode = YamlDocumentFindNodeByKey(pDoc, pUserOverrideNode, "Type");
+        if (pTypeNode && (pTypeNode->type == YAML_SCALAR_NODE))
+        {
+            pTypeStr = (const char*)pTypeNode->data.scalar.value;
+            typeStrLen = pTypeNode->data.scalar.length;
+        }
+        else
+        {
+            result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
+        }
+    }
+
+    yaml_node_t* pValueNode = nullptr;
+    if (result == DD_RESULT_SUCCESS)
+    {
+        pValueNode = YamlDocumentFindNodeByKey(pDoc, pUserOverrideNode, "Value");
+        if (!pValueNode || pValueNode->type != YAML_SCALAR_NODE)
+        {
+            result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
+        }
+    }
+
+    if (result == DD_RESULT_SUCCESS)
+    {
+        if (strncmp(pTypeStr, "Bool", typeStrLen) == 0)
+        {
+            if (!SetUserOverrideValueFromYamlNode<bool>(pValueNode, pOutUserOverride))
+            {
+                // TODO: log error
+                result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
+            }
+        }
+        else if (strncmp(pTypeStr, "Int8", typeStrLen) == 0)
+        {
+            if (!SetUserOverrideValueFromYamlNode<int8_t>(pValueNode, pOutUserOverride))
+            {
+                // TODO: log error
+                result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
+            }
+        }
+        else if (strncmp(pTypeStr, "Uint8", typeStrLen) == 0)
+        {
+            if (!SetUserOverrideValueFromYamlNode<uint8_t>(pValueNode, pOutUserOverride))
+            {
+                // TODO: log error
+                result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
+            }
+        }
+        else if (strncmp(pTypeStr, "Int16", typeStrLen) == 0)
+        {
+            if (!SetUserOverrideValueFromYamlNode<int16_t>(pValueNode, pOutUserOverride))
+            {
+                // TODO: log error
+                result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
+            }
+        }
+        else if (strncmp(pTypeStr, "Uint16", typeStrLen) == 0)
+        {
+            if (!SetUserOverrideValueFromYamlNode<uint16_t>(pValueNode, pOutUserOverride))
+            {
+                // TODO: log error
+                result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
+            }
+        }
+        else if (strncmp(pTypeStr, "Int32", typeStrLen) == 0)
+        {
+            if (!SetUserOverrideValueFromYamlNode<int32_t>(pValueNode, pOutUserOverride))
+            {
+                // TODO: log error
+                result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
+            }
+        }
+        else if (strncmp(pTypeStr, "Uint32", typeStrLen) == 0)
+        {
+            if (!SetUserOverrideValueFromYamlNode<uint32_t>(pValueNode, pOutUserOverride))
+            {
+                // TODO: log error
+                result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
+            }
+        }
+        else if (strncmp(pTypeStr, "Int64", typeStrLen) == 0)
+        {
+            if (!SetUserOverrideValueFromYamlNode<int64_t>(pValueNode, pOutUserOverride))
+            {
+                // TODO: log error
+                result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
+            }
+        }
+        else if (strncmp(pTypeStr, "Uint64", typeStrLen) == 0)
+        {
+            if (!SetUserOverrideValueFromYamlNode<uint64_t>(pValueNode, pOutUserOverride))
+            {
+                // TODO: log error
+                result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
+            }
+        }
+        else if (strncmp(pTypeStr, "Float", typeStrLen) == 0)
+        {
+            if (!SetUserOverrideValueFromYamlNode<float>(pValueNode, pOutUserOverride))
+            {
+                // TODO: log error
+                result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
+            }
+        }
+        else if (strncmp(pTypeStr, "String", typeStrLen) == 0)
+        {
+            pOutUserOverride->type = SettingsType::String;
+            pOutUserOverride->size = pValueNode->data.scalar.length;
+            pOutUserOverride->val.s = (const char*)pValueNode->data.scalar.value;
+        }
+        else
+        {
+            // TODO: log error
+            result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
+        }
+    }
+    else
+    {
+        // TODO: log error
+        result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
+    }
+
+    pOutUserOverride->isValid = (result == DD_RESULT_SUCCESS);
 
     return result;
 }
@@ -485,28 +350,69 @@ DD_RESULT SetSettingValue(
 } // unnamed namespace
 
 // ============================================================================
+namespace DevDriver
+{
+
+// ============================================================================
+SettingsUserOverride SettingsUserOverrideIter::Next()
+{
+    SettingsUserOverride useroverride = {};
+    useroverride.isValid = false;
+
+    if (IsValid())
+    {
+        yaml_document_t* pDoc = (yaml_document_t*)m_pDoc;
+        yaml_node_t* pUserOverridesNode = (yaml_node_t*)m_pUserOverridesNode;
+        yaml_node_item_t* pUserOverrideNodeIndex = (yaml_node_item_t*)m_pUserOverrideNodeIndex;
+
+        if (pUserOverrideNodeIndex < pUserOverridesNode->data.sequence.items.top)
+        {
+            yaml_node_t* pUserOverrideNode =
+                yaml_document_get_node(pDoc, *pUserOverrideNodeIndex);
+
+            if (pUserOverrideNode && pUserOverrideNode->type == YAML_MAPPING_NODE)
+            {
+                DD_RESULT result =
+                    GetUserOverride(pDoc, pUserOverrideNode, &useroverride);
+                if (result == DD_RESULT_SUCCESS)
+                {
+                    useroverride.isValid = true;
+                    pUserOverrideNodeIndex++;
+                }
+            }
+        }
+    }
+
+    return useroverride;
+}
+
+// ============================================================================
 SettingsConfig::SettingsConfig()
     : m_buffer(Platform::GenericAllocCb)
-    , m_validData(false)
+    , m_pParser(nullptr)
+    , m_pDocument(nullptr)
+    , m_valid(false)
 {
-    m_pJson = new RjDocument();
+    m_pParser = new yaml_parser_t({});
+    m_pDocument = new yaml_document_t({});
 }
 
 // ============================================================================
 SettingsConfig::~SettingsConfig()
 {
-    delete (RjDocument*)m_pJson;
+    yaml_document_delete((yaml_document_t*)m_pDocument);
+    yaml_parser_delete((yaml_parser_t*)m_pParser);
+
+    delete (yaml_document_t*)m_pDocument;
+    delete (yaml_parser_t*)m_pParser;
 }
 
 // ============================================================================
-/// Load and store the content of a Settings config file. The Settings
-/// config file must conform to the second version of "Settings User Values
-/// Export/Import Schema" described in settings_uservalues_schema.json.
-DD_RESULT SettingsConfig::Load(const char* pJsonPath)
+DD_RESULT SettingsConfig::Load(const char* pUseroverridesFilePath)
 {
     DD_RESULT result = DD_RESULT_SUCCESS;
 
-    FILE* pConfigFile = fopen(pJsonPath, "rb");
+    FILE* pConfigFile = fopen(pUseroverridesFilePath, "rb");
     if (pConfigFile)
     {
         if (fseek(pConfigFile, 0L, SEEK_END) == 0)
@@ -518,33 +424,29 @@ DD_RESULT SettingsConfig::Load(const char* pJsonPath)
             }
             else
             {
-                m_buffer.Resize(fileSize + 1); // +1 for null-terminator
+                m_buffer.Resize(fileSize);
             }
 
             if (result == DD_RESULT_SUCCESS)
             {
                 if (fseek(pConfigFile, 0L, SEEK_SET) == 0)
                 {
-                    size_t readLen = fread(
+                    fread(
                         m_buffer.Data(),
                         sizeof(char),
                         m_buffer.Size(),
                         pConfigFile
                     );
 
-                    if (ferror(pConfigFile) == 0)
+                    if (ferror(pConfigFile) != 0)
                     {
-                        m_buffer[readLen] = '\0';
-                    }
-                    else
-                    {
-                        // log error
+                        // TODO: log error
                         result = DD_RESULT_FS_UNKNOWN;
                     }
                 }
                 else
                 {
-                    // log error
+                    // TODO: log error
                     result = DD_RESULT_FS_UNKNOWN;
                 }
             }
@@ -556,59 +458,40 @@ DD_RESULT SettingsConfig::Load(const char* pJsonPath)
 
         fclose(pConfigFile);
 
-        RjDocument* pJsonDoc = (RjDocument*)m_pJson;
-
         if (result == DD_RESULT_SUCCESS)
         {
-            pJsonDoc->ParseInsitu(m_buffer.Data());
-            if (pJsonDoc->HasParseError())
-            {
-                // log error
-                result = DD_RESULT_PARSING_INVALID_JSON;
-            }
+            yaml_parser_t* pParser = (yaml_parser_t*)m_pParser;
+            yaml_document_t* pDoc = (yaml_document_t*)m_pDocument;
 
-            // Check basic validity against Settings user-value export JSON schema.
-
-            if (!pJsonDoc->IsObject())
+            if (yaml_parser_initialize(pParser))
             {
-                // The root must be an object.
-                // log error
-                result = DD_RESULT_FS_INVALID_DATA;
-            }
-            else
-            {
-                RjValue::MemberIterator data = pJsonDoc->FindMember("Data");
-                if (data == pJsonDoc->MemberEnd())
+                yaml_parser_set_input_string(pParser, (const unsigned char*)m_buffer.Data(), m_buffer.Size());
+                if (yaml_parser_load(pParser, pDoc))
                 {
-                    // log error
-                    result = DD_RESULT_FS_INVALID_DATA;
-                }
-                else
-                {
-                    if (!data->value.IsObject())
+                    yaml_node_t* pRoot = yaml_document_get_root_node(pDoc);
+                    if (pRoot && pRoot->type == YAML_MAPPING_NODE)
                     {
-                        // log error
-                        result = DD_RESULT_FS_INVALID_DATA;
+                        yaml_node_t* pVersionNode = YamlDocumentFindNodeByKey(pDoc, pRoot, "Version");
+                        if (!pVersionNode)
+                        {
+                            result = DD_RESULT_PARSING_INVALID_JSON;
+                        }
                     }
                     else
                     {
-                        RjValue::MemberIterator components = data->value.FindMember("Components");
-                        if (components == pJsonDoc->MemberEnd())
-                        {
-                            // log error
-                            result = DD_RESULT_FS_INVALID_DATA;
-                        }
-                        else
-                        {
-                            if (!components->value.IsArray())
-                            {
-                                // log error
-                                result = DD_RESULT_FS_INVALID_DATA;
-                            }
-                        }
+                        result = DD_RESULT_PARSING_INVALID_JSON;
                     }
                 }
+                else
+                {
+                    result = DD_RESULT_PARSING_INVALID_JSON;
+                }
             }
+            else
+            {
+                result = DD_RESULT_PARSING_INVALID_JSON;
+            }
+
         }
     }
     else
@@ -616,145 +499,31 @@ DD_RESULT SettingsConfig::Load(const char* pJsonPath)
         result = DD_RESULT_FS_NOT_FOUND;
     }
 
-    m_validData = (result == DD_RESULT_SUCCESS);
+    m_valid = (result == DD_RESULT_SUCCESS);
 
     return result;
 }
 
-// ============================================================================
-/// Apply user-values of a specific component designated by name.
-/// Return SUCCESS:
-///     1) The specified component is not found.
-///     2) The specified component found but doesn't contain any user-values.
-///     3) All user-values in the specified component are applied.
-/// Return SUCCESS_WITH_ERROR:
-///     Some but not all user-values fail to be applied.
-/// Return other errors:
-///     All other cases.
-DD_RESULT SettingsConfig::ApplyUserValuesByComponent(
-    const char* pComponentName,
-    void*       pSettingsBase)
+SettingsUserOverrideIter SettingsConfig::GetUserOverridesIter(const char* pComponentName)
 {
-    DD_RESULT result = DD_RESULT_SUCCESS;
-    int64_t uservalueAppliedCount = 0;
-    int64_t uservalueCount = 0;
+    SettingsUserOverrideIter iter = {};
 
-    if (m_validData)
+    if (m_valid)
     {
-        const RjValue* component =
-            GetComponentByName((RjDocument*)m_pJson, pComponentName);
+        yaml_document_t* pDoc = (yaml_document_t*)m_pDocument;
 
-        if (component != nullptr)
+        yaml_node_t* pUserOverridesNode =
+            GetUserOverridesNodeByComponentName(pDoc, pComponentName);
+
+        if (pUserOverridesNode && pUserOverridesNode->type == YAML_SEQUENCE_NODE)
         {
-            if (component->IsArray())
-            {
-                for (RjValue::ConstValueIterator userValueItr = component->Begin();
-                    userValueItr != component->End();
-                    ++userValueItr)
-                {
-                    const char* pName = GetSettingName(userValueItr);
-                    if (pName != nullptr)
-                    {
-                        uservalueCount += 1;
-                        result = SetSettingValue(pName, userValueItr, pSettingsBase);
-                        if (result == DD_RESULT_SUCCESS)
-                        {
-                            uservalueAppliedCount += 1;
-                        }
-                        else
-                        {
-                            // log error
-                            result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
-                        }
-                    }
-                    else
-                    {
-                        // log error
-                        result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
-                    }
-                }
-            }
-            else
-            {
-                // log error
-                result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
-            }
-        }
-        else
-        {
-            // log info
+            iter.m_pDoc = pDoc;
+            iter.m_pUserOverridesNode = pUserOverridesNode;
+            iter.m_pUserOverrideNodeIndex = pUserOverridesNode->data.sequence.items.start;
         }
     }
-    else
-    {
-        // log error
-        result = DD_RESULT_UNKNOWN;
-    }
 
-    DD_ASSERT(uservalueAppliedCount <= uservalueCount);
-
-    if ((uservalueAppliedCount > 0) && (uservalueAppliedCount < uservalueCount))
-    {
-        result = DD_RESULT_COMMON_SUCCESS_WITH_ERRORS;
-    }
-
-    return result;
+    return iter;
 }
 
-// ============================================================================
-/// Apply a single user-value by its setting name.
-/// Return SUCCESS:
-///     1) The specified user-value is not found.
-///     2) The specified user-value is applied.
-/// Otherwise return errors.
-DD_RESULT SettingsConfig::ApplyUserValueByName(
-    const char*   pSettingName,
-    const char*   pComponentName,
-    void*         pSettingsBase)
-{
-    DD_RESULT result = DD_RESULT_SUCCESS;
-
-    if (m_validData)
-    {
-        const RjValue* component =
-            GetComponentByName((RjDocument*)m_pJson, pComponentName);
-        if (component->IsArray())
-        {
-            for (RjValue::ConstValueIterator userValueItr = component->Begin();
-                 userValueItr != component->End();
-                 ++userValueItr)
-            {
-                const char* pJsonField_Name = GetSettingName(userValueItr);
-                if (pJsonField_Name == nullptr)
-                {
-                    // log error
-
-                    // Something is wrong with the Settings config file. This
-                    // uservalue might not be the one we're interested in. So
-                    // don't set error result.
-                }
-                else
-                {
-                    if (strcmp(pJsonField_Name, pSettingName) == 0)
-                    {
-                        result = SetSettingValue(pSettingName, userValueItr, pSettingsBase);
-                        if (result == DD_RESULT_SUCCESS)
-                        {
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-        else
-        {
-            result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
-        }
-    }
-    else
-    {
-        result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
-    }
-
-    return result;
-}
+} // namespace DevDriver

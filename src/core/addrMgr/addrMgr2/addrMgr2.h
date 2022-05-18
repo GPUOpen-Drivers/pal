@@ -111,10 +111,11 @@ constexpr bool IsSwizzleModeComputeOnly(
 constexpr bool IsPrtSwizzle(
     AddrSwizzleMode  swizzleMode)
 {
-    return ((swizzleMode == ADDR_SW_64KB_Z_T) ||
-            (swizzleMode == ADDR_SW_64KB_S_T) ||
-            (swizzleMode == ADDR_SW_64KB_D_T) ||
-            (swizzleMode == ADDR_SW_64KB_R_T));
+    return ((swizzleMode == ADDR_SW_64KB_Z_T)
+            || (swizzleMode == ADDR_SW_64KB_S_T)
+            || (swizzleMode == ADDR_SW_64KB_D_T)
+            || (swizzleMode == ADDR_SW_64KB_R_T)
+           );
 }
 
 // =====================================================================================================================
@@ -122,12 +123,13 @@ constexpr bool IsPrtSwizzle(
 constexpr bool IsStandardSwzzle(
     AddrSwizzleMode  swizzleMode)
 {
-    return ((swizzleMode == ADDR_SW_256B_S)    ||
-            (swizzleMode == ADDR_SW_4KB_S)     ||
-            (swizzleMode == ADDR_SW_64KB_S)    ||
-            (swizzleMode == ADDR_SW_64KB_S_T)  ||
-            (swizzleMode == ADDR_SW_4KB_S_X)   ||
-            (swizzleMode == ADDR_SW_64KB_S_X));
+    return ((swizzleMode == ADDR_SW_256B_S)
+            || (swizzleMode == ADDR_SW_4KB_S)
+            || (swizzleMode == ADDR_SW_64KB_S)
+            || (swizzleMode == ADDR_SW_64KB_S_T)
+            || (swizzleMode == ADDR_SW_4KB_S_X)
+            || (swizzleMode == ADDR_SW_64KB_S_X)
+           );
 }
 
 // =====================================================================================================================
@@ -146,12 +148,13 @@ constexpr bool Is256BSwizzle(
 constexpr bool IsZSwizzle(
     AddrSwizzleMode  swizzleMode)
 {
-    return ((swizzleMode == ADDR_SW_4KB_Z)    ||
-            (swizzleMode == ADDR_SW_64KB_Z)   ||
-            (swizzleMode == ADDR_SW_64KB_Z_T) ||
-            (swizzleMode == ADDR_SW_4KB_Z_X)  ||
-            (swizzleMode == ADDR_SW_64KB_Z_X) ||
-            (swizzleMode == ADDR_SW_VAR_Z_X));
+    return ((swizzleMode == ADDR_SW_4KB_Z)
+            || (swizzleMode == ADDR_SW_64KB_Z)
+            || (swizzleMode == ADDR_SW_64KB_Z_T)
+            || (swizzleMode == ADDR_SW_4KB_Z_X)
+            || (swizzleMode == ADDR_SW_64KB_Z_X)
+            || (swizzleMode == ADDR_SW_VAR_Z_X)
+           );
 }
 
 // =====================================================================================================================
@@ -159,25 +162,27 @@ constexpr bool IsZSwizzle(
 constexpr bool IsDisplayableSwizzle(
     AddrSwizzleMode  swizzleMode)
 {
-    return ((swizzleMode == ADDR_SW_256B_D)   ||
-            (swizzleMode == ADDR_SW_4KB_D)    ||
-            (swizzleMode == ADDR_SW_4KB_D_X)  ||
-            (swizzleMode == ADDR_SW_64KB_D)   ||
-            (swizzleMode == ADDR_SW_64KB_D_T) ||
-            (swizzleMode == ADDR_SW_64KB_D_X));
+    return ((swizzleMode == ADDR_SW_256B_D)
+            || (swizzleMode == ADDR_SW_4KB_D)
+            || (swizzleMode == ADDR_SW_4KB_D_X)
+            || (swizzleMode == ADDR_SW_64KB_D)
+            || (swizzleMode == ADDR_SW_64KB_D_T)
+            || (swizzleMode == ADDR_SW_64KB_D_X)
+           );
 }
 
 // =====================================================================================================================
 constexpr bool IsRotatedSwizzle(
     AddrSwizzleMode  swizzleMode)
 {
-    return ((swizzleMode == ADDR_SW_256B_R)   ||
-            (swizzleMode == ADDR_SW_4KB_R)    ||
-            (swizzleMode == ADDR_SW_4KB_R_X)  ||
-            (swizzleMode == ADDR_SW_64KB_R)   ||
-            (swizzleMode == ADDR_SW_64KB_R_T) ||
-            (swizzleMode == ADDR_SW_64KB_R_X) ||
-            (swizzleMode == ADDR_SW_VAR_R_X));
+    return ((swizzleMode == ADDR_SW_256B_R)
+            || (swizzleMode == ADDR_SW_4KB_R)
+            || (swizzleMode == ADDR_SW_4KB_R_X)
+            || (swizzleMode == ADDR_SW_64KB_R)
+            || (swizzleMode == ADDR_SW_64KB_R_T)
+            || (swizzleMode == ADDR_SW_64KB_R_X)
+            || (swizzleMode == ADDR_SW_VAR_R_X)
+           );
 }
 
 // =====================================================================================================================
@@ -185,16 +190,17 @@ constexpr bool IsRotatedSwizzle(
 constexpr bool IsXorSwizzle(
     AddrSwizzleMode  swizzleMode)
 {
-    return ((swizzleMode == ADDR_SW_4KB_Z_X)  ||
-            (swizzleMode == ADDR_SW_4KB_S_X)  ||
-            (swizzleMode == ADDR_SW_4KB_D_X)  ||
-            (swizzleMode == ADDR_SW_4KB_R_X)  ||
-            (swizzleMode == ADDR_SW_64KB_Z_X) ||
-            (swizzleMode == ADDR_SW_64KB_S_X) ||
-            (swizzleMode == ADDR_SW_64KB_D_X) ||
-            (swizzleMode == ADDR_SW_64KB_R_X) ||
-            (swizzleMode == ADDR_SW_VAR_Z_X)  ||
-            (swizzleMode == ADDR_SW_VAR_R_X));
+    return ((swizzleMode == ADDR_SW_4KB_Z_X)
+            || (swizzleMode == ADDR_SW_4KB_S_X)
+            || (swizzleMode == ADDR_SW_4KB_D_X)
+            || (swizzleMode == ADDR_SW_4KB_R_X)
+            || (swizzleMode == ADDR_SW_64KB_Z_X)
+            || (swizzleMode == ADDR_SW_64KB_S_X)
+            || (swizzleMode == ADDR_SW_64KB_D_X)
+            || (swizzleMode == ADDR_SW_64KB_R_X)
+            || (swizzleMode == ADDR_SW_VAR_Z_X)
+            || (swizzleMode == ADDR_SW_VAR_R_X)
+           );
 }
 
 // =====================================================================================================================

@@ -333,7 +333,7 @@ public:
     static constexpr uint32 DrawIndirectMultiSize         = PM4_PFP_DRAW_INDEX_INDIRECT_MULTI_SIZEDW__CORE;
     static constexpr uint32 SetIndexAttributesSize        = PM4_PFP_INDEX_ATTRIBUTES_INDIRECT_SIZEDW__CORE;
     static constexpr uint32 SetUserDataIndirectSize       = PM4_PFP_LOAD_SH_REG_INDEX_SIZEDW__CORE;
-    static constexpr uint32 BuildUntypedSrdSize           = PM4_PFP_BUILD_UNTYPED_SRD_SIZEDW__HASCE;
+    static constexpr uint32 BuildUntypedSrdSize           = PM4_PFP_BUILD_UNTYPED_SRD_SIZEDW__CORE;
     static constexpr uint32 DrawIndexAutoSize             = PM4_PFP_DRAW_INDEX_AUTO_SIZEDW__CORE;
     static constexpr uint32 DrawIndex2Size                = PM4_PFP_DRAW_INDEX_2_SIZEDW__CORE;
     static constexpr uint32 DrawIndexOffset2Size          = PM4_PFP_DRAW_INDEX_OFFSET_2_SIZEDW__CORE;

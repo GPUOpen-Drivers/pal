@@ -1,4 +1,4 @@
-### Copyright (c) 2021 Advanced Micro Devices, Inc. All rights reserved. ###
+### Copyright (c) 2022 Advanced Micro Devices, Inc. All rights reserved. ###
 
 ### Parser ############################################################################################################
 add_subdirectory(ddEventParser)
@@ -8,3 +8,6 @@ add_subdirectory(ddEventServer)
 
 ### Client ############################################################################################################
 add_subdirectory(ddEventClient)
+
+### Streamer ##########################################################################################################
+add_subdirectory(ddEventStreamer)

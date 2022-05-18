@@ -29,8 +29,6 @@ project(DevDriver LANGUAGES CXX)
 
 include(cmake/DevDriver.cmake)
 
-option(DD_OPT_ENABLE_TESTS "Configure whether tests are built" ${DEVDRIVER_IS_TOP_LEVEL})
-
 ### DevDriver Component Options ################################################
 
 # Configure whether tool related libraries are built
@@ -44,6 +42,7 @@ dd_bp(DD_BP_ENABLE_DD_MODULE_APIS ${DEVDRIVER_IS_TOP_LEVEL})
 # If we are building for tools we want to enable install logic.
 dd_bp(DD_BP_INSTALL ${DEVDRIVER_IS_TOP_LEVEL})
 
+add_subdirectory(third_party)
 add_subdirectory(shared)
 add_subdirectory(apis)
 add_subdirectory(settings)
@@ -57,12 +56,8 @@ if (DD_OPT_ENABLE_RUST)
     add_subdirectory(rust)
 endif()
 
-if (DD_OPT_ENABLE_TESTS)
+if (DEVDRIVER_IS_TOP_LEVEL)
     enable_testing()
     add_subdirectory(tests)
-endif()
-
-option(DD_OPT_ENABLE_EXAMPLES "Configure whether examples are built"  ${DEVDRIVER_IS_TOP_LEVEL})
-if (DD_OPT_ENABLE_EXAMPLES)
     add_subdirectory(examples)
 endif()

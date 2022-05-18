@@ -25,7 +25,7 @@
 
 #include "palFile.h"
 #include "core/device.h"
-#include "core/g_palSettings.h"
+#include "g_coreSettings.h"
 #include "core/platform.h"
 #include "core/hw/gfxip/colorBlendState.h"
 #include "core/hw/gfxip/depthStencilState.h"
@@ -85,7 +85,6 @@ GfxDevice::GfxDevice(
     {
         m_pFrameCountCmdBuffer[i] = nullptr;
     }
-    memset(m_flglRegSeq, 0, sizeof(m_flglRegSeq));
 
     memset(m_fastClearImageRefs, 0, sizeof(m_fastClearImageRefs));
 }

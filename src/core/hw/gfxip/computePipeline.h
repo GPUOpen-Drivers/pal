@@ -90,8 +90,11 @@ protected:
     uint32  m_threadsPerTgY;
     uint32  m_threadsPerTgZ;
 
+    bool    m_useCps;                // Use continuation passing shader
     uint32  m_maxFunctionCallDepth;  // Maximum depth for indirect function calls
-    uint32  m_stackSizeInBytes;      // Total stack size for indirect functions
+    uint32  m_stackSizeInBytes;      // Stack managed by the compiler backend.
+    uint32  m_irStackSizeInBytes;    // Stack managed by IR (Intermediate Representation),
+                                     // transparent to the compiler backend.
 
     ShaderStageInfo  m_stageInfo;
 

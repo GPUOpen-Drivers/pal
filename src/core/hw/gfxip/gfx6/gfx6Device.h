@@ -26,7 +26,7 @@
 #pragma once
 
 #include "core/device.h"
-#include "core/hw/gfxip/gfx6/g_gfx6PalSettings.h"
+#include "g_gfx6Settings.h"
 #include "core/hw/gfxip/gfx6/gfx6Chip.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdUtil.h"
 #include "core/hw/gfxip/gfx6/gfx6SettingsLoader.h"
@@ -347,7 +347,6 @@ public:
         Developer::BarrierOperations* pOperations) const;
     void TransitionDepthStencil(
         GfxCmdBuffer*                 pCmdBuf,
-        GfxCmdBufferState             cmdBufState,
         const BarrierInfo&            barrier,
         uint32                        transitionId,
         bool                          earlyPhase,

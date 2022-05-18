@@ -457,10 +457,6 @@ public:
         uint32      rectCount,
         const Rect* pRectList) override;
 
-    virtual void CmdFlglSync() override;
-    virtual void CmdFlglEnable() override;
-    virtual void CmdFlglDisable() override;
-
     virtual void CmdXdmaWaitFlipPending() override;
 
     virtual void CmdStartGpuProfilerLogging() override;

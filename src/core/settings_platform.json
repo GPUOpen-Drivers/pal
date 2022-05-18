@@ -71,6 +71,208 @@
       "Description": "Controls debug print category enable/disable."
     },
     {
+      "Name": "DbgLogEnabled",
+      "Tags": [
+        "Debug Log"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "dbgLogEnabled",
+      "Description": "Flag to turn debug message logging on/off globally."
+    },
+    {
+      "Name": "DbgLoggerFileConfig",
+      "Tags": [
+        "Debug Log"
+      ],
+      "Scope": "PrivatePalKey",
+      "Type": "struct",
+      "VariableName": "dbgLoggerFileConfig",
+      "Structure": [
+        {
+          "Description": "Relative directory where debug log file will be placed. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
+          "Flags": {
+            "IsPath": true
+          },
+          "Tags": [
+            "Debug Log"
+          ],
+          "Defaults": {
+            "Default": "amdpal/",
+            "WinDefault": "PalLog\\",
+            "LnxDefault": "amdpal/"
+          },
+          "Size": "MaxPathStrLen",
+          "Type": "string",
+          "VariableName": "logDirectory",
+          "Name": "LogDirectory"
+        },
+        {
+          "ValidValues": {
+            "Values": [
+              {
+                "Name": "LogToDisk",
+                "Value": 1,
+                "Description": "Log debug messages to disk."
+              },
+              {
+                "Name": "LogToTerminal",
+                "Value": 2,
+                "Description": "Log debug messages to terminal."
+              },
+              {
+                "Name": "AddPid",
+                "Value": 4,
+                "Description": "Add PID to debug log file name."
+              },
+              {
+                "Name": "AddPname",
+                "Value": 8,
+                "Description": "Add process name to debug log file name"
+              },
+              {
+                "Name": "AddLibName",
+                "Value": 16,
+                "Description": "Add Library name to debug log file name."
+              }
+            ]
+          },
+          "Name": "FileSettingsFlags",
+          "Defaults": {
+            "Default": 0
+          },
+          "Flags": {
+            "IsBitmask": true,
+            "IsHex": true
+          },
+          "Type": "uint32",
+          "VariableName": "fileSettingsFlags",
+          "Description": "Mask indicating various file settings as defined in Util::FileSettings."
+        },
+        {
+          "ValidValues": {
+            "Values": [
+              {
+                "Name": "FileAccessWrite",
+                "Value": 2,
+                "Description": "File Access Write."
+              },
+              {
+                "Name": "FileAccessAppend",
+                "Value": 4,
+                "Description": "File Access Append"
+              },
+              {
+                "Name": "FileAccessBinary",
+                "Value": 8,
+                "Description": "File Access Binary"
+              },
+              {
+                "Name": "FileAccessNoDiscard",
+                "Value": 16,
+                "Description": "Don't discard existing file"
+              }
+            ]
+          },
+          "Name": "FileAccessFlags",
+          "Defaults": {
+            "Default": 2
+          },
+          "Flags": {
+            "IsBitmask": true,
+            "IsHex": true
+          },
+          "Type": "uint32",
+          "VariableName": "fileAccessFlags",
+          "Description": "Mask indicating various file access modes as defined in Util::FileAccessMode."
+        },
+        {
+          "ValidValues": {
+            "Values": [
+              {
+                "Name": "Debug",
+                "Value": 0
+              },
+              {
+                "Name": "Info",
+                "Value": 1
+              },
+              {
+                "Name": "Warning",
+                "Value": 2
+              },
+              {
+                "Name": "Error",
+                "Value": 3
+              },
+              {
+                "Name": "Critical",
+                "Value": 4
+              }
+            ]
+          },
+          "Name": "SeverityLevel",
+          "Defaults": {
+            "Default": 4
+          },
+          "Type": "uint32",
+          "VariableName": "severityLevel",
+          "Description": "Specifies the severity level for each log message as defined in Util::SeverityLevel."
+        },
+        {
+          "ValidValues": {
+            "Values": [
+              {
+                "Name": "OriginationTypeFlagUnknown",
+                "Value": 1,
+                "Description": "Originating from an unknown source"
+              },
+              {
+                "Name": "OriginationTypeFlagDebugPrint",
+                "Value": 2,
+                "Description": "Originating from PAL_DPINFO, PAL_DPERROR, etc. ."
+              },
+              {
+                "Name": "OriginationTypeFlagAlert",
+                "Value": 4,
+                "Description": "Originating from PAL_ALERT* macros"
+              },
+              {
+                "Name": "OriginationTypeFlagAssert",
+                "Value": 8,
+                "Description": "Originating from PAL_ASSERT* macros"
+              },
+              {
+                "Name": "OriginationTypeFlagTelemetry",
+                "Value": 16,
+                "Description": "Used for msgs regarding crash dump and offline analysis"
+              },
+              {
+                "Name": "OriginationTypeFlagPipelineCompiler",
+                "Value": 32,
+                "Description": "Originating from pipeline compiler"
+              }
+            ]
+          },
+          "Name": "OrigTypeMask",
+          "Defaults": {
+            "Default": 0
+          },
+          "Flags": {
+            "IsBitmask": true,
+            "IsHex": true
+          },
+          "Type": "uint32",
+          "VariableName": "origTypeMask",
+          "Description": "Mask indicating the sources for each log message as defined in Util::OriginationTypeFlags."
+        }
+      ],
+      "Description": "Controls debug message logging options."
+    },
+    {
       "Name": "AssertsEnabled",
       "Tags": [
         "Asserts and Alerts"
@@ -146,6 +348,20 @@
       "Type": "string",
       "VariableName": "eventLogFilename",
       "Name": "EventLogFilename"
+    },
+    {
+      "Tags": [
+        "GPU ID Masquerade"
+      ],
+      "Scope": "PrivatePalKey",
+      "Type": "string",
+      "Size": "MaxMiscStrLen",
+      "Description": "Spoofs the current GPU into the given model and enables IFH. See NullIdLookupTable in ndDevice.cpp for options (eg 'RAVEN' from 'RAVEN:gfx902').",
+      "Defaults": {
+        "Default": ""
+      },
+      "VariableName": "spoofNullGpuIfh",
+      "Name": "SpoofNullGpuIfh"
     },
     {
       "Name": "DebugOverlayEnabled",

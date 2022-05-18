@@ -30,7 +30,7 @@
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9FormatInfo.h"
 #include "core/hw/gfxip/gfx9/gfx9MaskRam.h"
-#include "core/hw/gfxip/gfx9/g_gfx9PalSettings.h"
+#include "g_gfx9Settings.h"
 #include "core/hw/gfxip/gfx9/gfx9DepthStencilState.h"
 #include "core/addrMgr/addrMgr2/addrMgr2.h"
 #include "palHasher.h"

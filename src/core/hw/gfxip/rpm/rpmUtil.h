@@ -85,7 +85,8 @@ extern void BuildImageViewInfo(
     const SubresRange& subresRange,
     SwizzledFormat     swizzledFormat,
     ImageLayout        imageLayout,
-    ImageTexOptLevel   texOptLevel);
+    ImageTexOptLevel   texOptLevel,
+    bool               isShaderWriteable);
 
 extern SwizzledFormat GetRawFormat(ChNumFormat format, uint32* pTexelScale, bool* pSingleSubres);
 

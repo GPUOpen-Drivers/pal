@@ -169,8 +169,7 @@ struct GraphicsState
     struct
     {
         uint32  enableMultiViewport    : 1;  // Is the current pipeline using viewport-array-index?
-        uint32  everUsedMultiViewport  : 1;  // Did this command buffer ever draw with a pipeline which used
-                                             // viewport-array-index?
+        uint32  depthClampMode         : 2;  // The current pipeline's depth clamp mode. The is of type DepthClampMode
         uint32  useCustomSamplePattern : 1;  // If use custom sample pattern instead of default sample pattern
         uint32  rasterizerDiscardEnable: 1;  // (CmdSetRasterizerDiscardEnable)
     };
@@ -258,8 +257,8 @@ public:
     // Universal command buffers support every type of query
     virtual bool IsQueryAllowed(QueryPoolType queryPoolType) const override { return true; }
 
-    virtual void PushGraphicsState() override;
-    virtual void PopGraphicsState() override;
+    virtual void CmdSaveGraphicsState() override;
+    virtual void CmdRestoreGraphicsState() override;
 
     // Increments the submit-count of the command stream(s) contained in this command buffer.
     virtual void IncrementSubmitCount() override
@@ -329,7 +328,7 @@ protected:
     virtual void SetGraphicsState(const GraphicsState& newGraphicsState);
 
     GraphicsState  m_graphicsState;        // Currently bound graphics command buffer state.
-    GraphicsState  m_graphicsRestoreState; // State pushed by the previous call to PushGraphicsState.
+    GraphicsState  m_graphicsRestoreState; // State pushed by the previous call to CmdSaveGraphicsState.
 
     GfxBlendOptimizer::BlendOpts  m_blendOpts[MaxColorTargets]; // Current blend optimization state
 
@@ -356,7 +355,7 @@ private:
     const bool         m_blendOptEnable;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-    bool  m_graphicsStateIsPushed; // If PushGraphicsState was called without a matching PopGraphicsState.
+    bool  m_graphicsStateIsPushed; // If CmdSaveGraphicsState was called without a matching CmdRestoreGraphicsState.
 #endif
 
     PAL_DISALLOW_COPY_AND_ASSIGN(UniversalCmdBuffer);

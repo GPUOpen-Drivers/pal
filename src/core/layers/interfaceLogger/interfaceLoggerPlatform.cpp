@@ -28,7 +28,7 @@
 #include "core/layers/interfaceLogger/interfaceLoggerDevice.h"
 #include "core/layers/interfaceLogger/interfaceLoggerPlatform.h"
 #include "core/layers/interfaceLogger/interfaceLoggerScreen.h"
-#include "core/g_palPlatformSettings.h"
+#include "g_platformSettings.h"
 #include "palSysUtil.h"
 #include "palVectorImpl.h"
 #include <ctime>
@@ -67,6 +67,8 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::CmdBufferCmdBindPipeline,                      (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdPrimeGpuCaches,                    (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdBindMsaaState,                     (CmdBuild)            },
+    { InterfaceFunc::CmdBufferCmdSaveGraphicsState,                 (CmdBuild)            },
+    { InterfaceFunc::CmdBufferCmdRestoreGraphicsState,              (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdBindColorBlendState,               (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdBindDepthStencilState,             (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetDepthBounds,                    (CmdBuild)            },
@@ -159,9 +161,6 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::CmdBufferCmdWaitRegisterValue,                 (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdWaitMemoryValue,                   (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdWaitBusAddressableMemoryMarker,    (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdFlglSync,                          (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdFlglEnable,                        (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdFlglDisable,                       (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdLoadCeRam,                         (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdDumpCeRam,                         (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdWriteCeRam,                        (CmdBuild)            },
@@ -245,7 +244,10 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::DeviceCreateSwapChain,                         (CrtDstry)            },
     { InterfaceFunc::DeviceSetPowerProfile,                         (GenCalls)            },
     { InterfaceFunc::DeviceFlglQueryState,                          (GenCalls)            },
+    { InterfaceFunc::DeviceFlglSetSyncConfiguration,                (GenCalls)            },
+    { InterfaceFunc::DeviceFlglGetSyncConfiguration,                (GenCalls)            },
     { InterfaceFunc::DeviceFlglSetFrameLock,                        (GenCalls)            },
+    { InterfaceFunc::DeviceFlglSetGenLock,                          (GenCalls)            },
     { InterfaceFunc::DeviceFlglResetFrameCounter,                   (GenCalls)            },
     { InterfaceFunc::DeviceFlglGetFrameCounter,                     (GenCalls)            },
     { InterfaceFunc::DeviceFlglGetFrameCounterResetStatus,          (GenCalls)            },

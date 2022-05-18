@@ -67,9 +67,6 @@ if(NOT TARGET ddCore)
 endif()
 target_link_libraries(devdriver PUBLIC ddCore)
 
-### Third Party Components #############################################################################################
-add_subdirectory(third_party)
-
 target_link_libraries(devdriver PRIVATE mpack)
 target_link_libraries(devdriver PUBLIC  metrohash)
 

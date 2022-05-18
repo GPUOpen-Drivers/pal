@@ -26,7 +26,7 @@
 #include "core/devDriverUtil.h"
 #include "core/device.h"
 #include "core/dmaUploadRing.h"
-#include "core/g_palSettings.h"
+#include "g_coreSettings.h"
 #include "core/platform.h"
 #include "core/hw/gfxip/gfxDevice.h"
 #include "core/hw/gfxip/pipeline.h"
@@ -403,6 +403,14 @@ void Pipeline::SetStackSizeInBytes(
 {
     // To be Implemented in needed Pipeline classes
     PAL_ASSERT_ALWAYS();
+}
+
+// =====================================================================================================================
+// Get the size of the stack managed by compiler backend
+uint32 Pipeline::GetStackSizeInBytes() const
+{
+    // To be Implemented in needed Pipeline classes
+    return 0;
 }
 
 // =====================================================================================================================

@@ -182,12 +182,10 @@ static BarrierTransition AcqRelBuildTransition(
             pBarrierOps->layoutTransitions.initMaskRam = 1;
         }
         break;
-    case DccMetadataStateCompressed:
-        pBarrierOps->layoutTransitions.updateDccStateMetadata = 1;
-        break;
     case None:
     default:
         PAL_NEVER_CALLED();
+        break;
     }
 
     if (transitionInfo.blt[1] != None)
@@ -207,6 +205,33 @@ static BarrierTransition AcqRelBuildTransition(
     out.imageInfo.pQuadSamplePattern = pBarrier->pQuadSamplePattern;
 
     return out;
+}
+
+// =====================================================================================================================
+// Check to see if need update DCC state metadata
+static void UpdateDccStateMetaDataIfNeeded(
+    GfxCmdBuffer*                 pCmdBuf,
+    CmdStream*                    pCmdStream,
+    const ImgBarrier*             pBarrier,
+    Developer::BarrierOperations* pBarrierOps)
+{
+    const auto& palImage      = static_cast<const Pal::Image&>(*pBarrier->pImage);
+    const auto& gfx9Image     = static_cast<const Image&>(*palImage.GetGfxImage());
+    const auto& layoutToState = gfx9Image.LayoutToColorCompressionState();
+    const auto& subresRange   = pBarrier->subresRange;
+
+    if (gfx9Image.HasDccStateMetaData(subresRange) &&
+        (ImageLayoutCanCompressColorData(layoutToState, pBarrier->oldLayout) == false) &&
+        (ImageLayoutCanCompressColorData(layoutToState, pBarrier->newLayout)))
+    {
+        pBarrierOps->layoutTransitions.updateDccStateMetadata = 1;
+
+        gfx9Image.UpdateDccStateMetaData(pCmdStream,
+                                         subresRange,
+                                         true,
+                                         pCmdBuf->GetEngineType(),
+                                         Pm4Predicate::PredDisable);
+    }
 }
 
 // =====================================================================================================================
@@ -272,10 +297,6 @@ static void GetBltStageAccessInfo(
             *pStageMask  = PipelineStageColorTarget;
             *pAccessMask = CoherColorTarget;
         }
-        break;
-
-    case HwLayoutTransition::DccMetadataStateCompressed:
-        // Do nothing.
         break;
 
     case HwLayoutTransition::None:
@@ -417,14 +438,6 @@ void Device::AcqRelColorTransition(
                                           imgBarrier.pQuadSamplePattern,
                                           imgBarrier.subresRange);
         }
-        else if (layoutTransInfo.blt[0] == HwLayoutTransition::DccMetadataStateCompressed)
-        {
-            gfx9Image.UpdateDccStateMetaData(pCmdStream,
-                                             imgBarrier.subresRange,
-                                             true,
-                                             engineType,
-                                             Pm4Predicate::PredDisable);
-        }
         else if (layoutTransInfo.blt[0] == HwLayoutTransition::FastClearEliminate)
         {
             if (layoutTransInfo.flags.skipFce != 0)
@@ -525,7 +538,10 @@ AcqRelSyncToken Device::IssueReleaseSync(
     }
 
     // Converts PipelineStageBlt stage to specific internal pipeline stage, and optimize cache flags for BLTs.
-    pCmdBuf->OptimizePipeAndCacheMaskForRelease(&stageMask, &accessMask);
+    if (TestAnyFlagSet(stageMask, PipelineStageBlt) || TestAnyFlagSet(accessMask, CacheCoherencyBlt))
+    {
+        pCmdBuf->OptimizePipeAndCacheMaskForRelease(&stageMask, &accessMask);
+    }
 
     // OptimizePipeAndCacheMaskForRelease() has converted these BLT coherency flags to more specific ones.
     PAL_ASSERT(TestAnyFlagSet(accessMask, CacheCoherencyBlt) == false);
@@ -535,17 +551,19 @@ AcqRelSyncToken Device::IssueReleaseSync(
     bool            issueRbCacheSyncEvent = false; // If set, this EOP event is CACHE_FLUSH_AND_INV_TS, not
                                                    // the pipeline stall-only version BOTTOM_OF_PIPE.
 
+    constexpr uint32 StageVsDoneMask = PipelineStageVs | PipelineStageHs | PipelineStageDs | PipelineStageGs;
+    const bool       hasRasterKill   = pCmdBuf->GetGfxCmdBufState().flags.rasterKillDrawsActive;
+
     const bool requiresEop    = TestAnyFlagSet(stageMask, PipelineStageEarlyDsTarget |
                                                           PipelineStageLateDsTarget  |
                                                           PipelineStageColorTarget   |
                                                           PipelineStageBottomOfPipe);
-    const bool requiresPsDone = TestAnyFlagSet(stageMask, PipelineStagePs);
-    // If no ps wave, PS_DONE doesn't safely ensures the completion of VS and prior stage waves.
-    const bool requiresVsDone = (requiresPsDone == false) &&
-                                TestAnyFlagSet(stageMask, PipelineStageVs |
-                                                          PipelineStageHs |
-                                                          PipelineStageDs |
-                                                          PipelineStageGs);
+    // No VS_DONE event support from HW yet, and EOP event will be used instead. Optimize to use PS_DONE instead of
+    // heavy VS_DONE (EOP) if there is ps wave. If no ps wave, PS_DONE doesn't safely ensures the completion of VS
+    // and prior stage waves.
+    const bool requiresPsDone = TestAnyFlagSet(stageMask, PipelineStagePs) ||
+                                (TestAnyFlagSet(stageMask, StageVsDoneMask) && (hasRasterKill == false));
+    const bool requiresVsDone = TestAnyFlagSet(stageMask, StageVsDoneMask) && hasRasterKill;
     const bool requiresCsDone = TestAnyFlagSet(stageMask, PipelineStageCs);
 
     // If any of the access mask bits that could result in RB sync are set, use CACHE_FLUSH_AND_INV_TS.
@@ -607,19 +625,19 @@ AcqRelSyncToken Device::IssueReleaseSync(
         PAL_ASSERT(cacheSyncFlags == 0);
 
         coherCntl = Gfx9TcCacheOpConversionTable[tcCacheOp];
+
+        // If we have cache sync request yet don't assign any VGT event, we need to issue a dummy one.
+        if ((issueSyncEvent == false) && (coherCntl != 0))
+        {
+            // Flush at earliest supported pipe point for RELEASE_MEM (CS_DONE always works).
+            syncToken.type = static_cast<uint32>(AcqRelEventType::CsDone);
+            issueSyncEvent = true;
+        }
     }
     else
     {
         PAL_ASSERT(IsGfx10Plus(m_gfxIpLevel));
         gcrCntl = Gfx10BuildReleaseGcrCntl(accessMask, flushLlc, pBarrierOps);
-    }
-
-    // If we have cache sync request yet don't assign any VGT event, we need to issue a dummy one.
-    if ((issueSyncEvent == false) && ((coherCntl != 0) || (gcrCntl != 0)))
-    {
-        // Flush at earliest supported pipe point for RELEASE_MEM (CS_DONE always works).
-        syncToken.type = static_cast<uint32>(AcqRelEventType::CsDone);
-        issueSyncEvent = true;
     }
 
     // Pick EOP event if GCR cache sync is requested, EOS event is not supported.
@@ -662,6 +680,39 @@ AcqRelSyncToken Device::IssueReleaseSync(
         }
 
         pCmdSpace += m_cmdUtil.ExplicitBuildReleaseMem(releaseMemInfo, pCmdSpace, 0, 0);
+    }
+    else if (gcrCntl != 0)
+    {
+        // This is an optimization path to use AcquireMem for GcrCntl only (issueSyncEvent = false) case as
+        // ReleaseMem requires an EOP or EOS event.
+        Gfx10ReleaseMemGcrCntl relMemGcrCntl;
+        relMemGcrCntl.u32All = gcrCntl;
+
+        PAL_ASSERT(IsGfx10Plus(m_gfxIpLevel));
+
+        // Create info for ACQUIRE_MEM. Initialize common part at here.
+        ExplicitAcquireMemInfo acquireMemInfo = {};
+        acquireMemInfo.engineType   = engineType;
+        acquireMemInfo.baseAddress  = FullSyncBaseAddr;
+        acquireMemInfo.sizeBytes    = FullSyncSize;
+        acquireMemInfo.flags.usePfp = 0;
+
+        Gfx10AcquireMemGcrCntl acqMemGcrCntl = {};
+        acqMemGcrCntl.bits.glmWb      = relMemGcrCntl.bits.glmWb;
+        acqMemGcrCntl.bits.glmInv     = relMemGcrCntl.bits.glmInv;
+        acqMemGcrCntl.bits.glvInv     = relMemGcrCntl.bits.glvInv;
+        acqMemGcrCntl.bits.gl1Inv     = relMemGcrCntl.bits.gl1Inv;
+        acqMemGcrCntl.bits.gl2Us      = relMemGcrCntl.bits.gl2Us;
+        acqMemGcrCntl.bits.gl2Range   = relMemGcrCntl.bits.gl2Range;
+        acqMemGcrCntl.bits.gl2Discard = relMemGcrCntl.bits.gl2Discard;
+        acqMemGcrCntl.bits.gl2Inv     = relMemGcrCntl.bits.gl2Inv;
+        acqMemGcrCntl.bits.gl2Wb      = relMemGcrCntl.bits.gl2Wb;
+        acqMemGcrCntl.bits.seq        = relMemGcrCntl.bits.seq;
+
+        acquireMemInfo.gcrCntl = acqMemGcrCntl.u32All;
+
+        // Build ACQUIRE_MEM packet.
+        pCmdSpace += m_cmdUtil.ExplicitBuildAcquireMem(acquireMemInfo, pCmdSpace);
     }
     else
     {
@@ -732,6 +783,7 @@ void Device::IssueAcquireSync(
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
     uint32 syncTokenToWait[static_cast<uint32>(AcqRelEventType::Count)] = {};
+    bool hasValidSyncToken = false;
 
     // Merge synchronization timestamp entries in the list.
     for (uint32 i = 0; i < syncTokenCount; i++)
@@ -740,9 +792,10 @@ void Device::IssueAcquireSync(
 
         PAL_ASSERT(curSyncToken.type < static_cast<uint32>(AcqRelEventType::Count));
 
-        if (curSyncToken.fenceVal > syncTokenToWait[curSyncToken.type])
+        if (curSyncToken.fenceVal != AcqRelFenceResetVal)
         {
-            syncTokenToWait[curSyncToken.type] = curSyncToken.fenceVal;
+            syncTokenToWait[curSyncToken.type] = Max(curSyncToken.fenceVal, syncTokenToWait[curSyncToken.type]);
+            hasValidSyncToken = true;
         }
     }
 
@@ -802,9 +855,7 @@ void Device::IssueAcquireSync(
             acquireMemInfo.engineType   = engineType;
             acquireMemInfo.baseAddress  = rangeStartAddr;
             acquireMemInfo.sizeBytes    = rangeSize;
-            acquireMemInfo.flags.usePfp = TestAnyFlagSet(stageMask, PipelineStageTopOfPipe         |
-                                                                    PipelineStageFetchIndirectArgs |
-                                                                    PipelineStageFetchIndices);
+            acquireMemInfo.flags.usePfp = pfpSyncMe ? 1 : 0;
 
             if (IsGfx9(m_gfxIpLevel))
             {
@@ -890,6 +941,22 @@ void Device::IssueAcquireSync(
             // An EOP release sync that is issued after the latest CS BLT must have completed, so mark CS BLT idle.
             pCmdBuf->SetGfxCmdBufCsBltState(false);
         }
+
+        if (waitedEopFenceVal >= cmdBufState.fences.rasterKillDrawsExecFenceVal)
+        {
+            // An EOP release sync that is issued after the latest rasterization kill draws must have completed, so
+            // mark rasterization kill draws inactive.
+            pCmdBuf->SetGfxCmdBufRasterKillDrawsState(false);
+        }
+    }
+
+    const uint32 waitedCsDoneFenceVal = syncTokenToWait[static_cast<uint32>(AcqRelEventType::CsDone)];
+
+    if ((waitedCsDoneFenceVal != AcqRelFenceResetVal) &&
+        (waitedCsDoneFenceVal >= cmdBufState.fences.csBltExecCsDoneFenceVal))
+    {
+        // An CS_DONE release sync that is issued after the latest CS BLT must have completed, so mark CS BLT idle.
+        pCmdBuf->SetGfxCmdBufCsBltState(false);
     }
 
     pCmdStream->CommitCommands(pCmdSpace);
@@ -1028,14 +1095,6 @@ LayoutTransitionInfo Device::PrepareColorBlt(
                 transitionInfo.flags.skipFce = 1;
             }
         }
-    }
-
-    if (gfx9Image.HasDccStateMetaData(subresRange) &&
-        (ImageLayoutCanCompressColorData(layoutToState, oldLayout) == false) &&
-        (ImageLayoutCanCompressColorData(layoutToState, newLayout)))
-    {
-        PAL_ASSERT(bltIndex < 2);
-        transitionInfo.blt[bltIndex++] = HwLayoutTransition::DccMetadataStateCompressed;
     }
 
     return transitionInfo;
@@ -1307,8 +1366,10 @@ AcqRelSyncToken Device::BarrierRelease(
                                             bltAccessMask))
             {
                 transitionList[i].waMetaMisalignNeedRefreshLlc = true;
-                globallyAvailable |= true;
+                globallyAvailable = true;
             }
+
+            UpdateDccStateMetaDataIfNeeded(pCmdBuf, pCmdStream, &imageBarrier, pBarrierOps);
         }
 
         // Perform an all-in-one release prior to the potential BLT(s).
@@ -1481,6 +1542,8 @@ void Device::BarrierAcquire(
                 transitionList[i].bltStageMask  = 0;
                 transitionList[i].bltAccessMask = 0;
             }
+
+            UpdateDccStateMetaDataIfNeeded(pCmdBuf, pCmdStream, &imgBarrier, pBarrierOps);
         }
 
         const AcqRelSyncToken* pCurSyncTokens = pSyncTokens;
@@ -1563,17 +1626,56 @@ void Device::BarrierAcquire(
             pCurSyncTokens = &bltSyncToken;
         }
 
-        // Issue acquire for client requested global cache sync.
-        IssueAcquireSync(pCmdBuf,
-                         pCmdStream,
-                         barrierAcquireInfo.dstStageMask,
-                         barrierAcquireInfo.dstGlobalAccessMask,
-                         false,
-                         FullSyncBaseAddr,
-                         FullSyncSize,
-                         syncTokenCount,
-                         pCurSyncTokens,
-                         pBarrierOps);
+        uint32 dstGlobalAccessMask = barrierAcquireInfo.dstGlobalAccessMask;
+        bool   issueGlobalSync     = (dstGlobalAccessMask > 0) ||
+                                     ((barrierAcquireInfo.memoryBarrierCount == 0) &&
+                                      (barrierAcquireInfo.imageBarrierCount == 0));
+        bool   invalidateLlc       = false;
+
+        // Loop through memory transitions to check if can group non-ranged acquire sync into global sync
+        for (uint32 i = 0; i < barrierAcquireInfo.memoryBarrierCount; i++)
+        {
+            const MemBarrier& barrier    = barrierAcquireInfo.pMemoryBarriers[i];
+            const gpusize rangedSyncSize = barrier.memory.size;
+
+            if (rangedSyncSize > CmdUtil::Gfx10AcquireMemGl1Gl2RangedCheckMaxSurfaceSizeBytes)
+            {
+                dstGlobalAccessMask |= barrier.dstAccessMask;
+                issueGlobalSync      = true;
+            }
+        }
+
+        // Loop through image transitions to check if can group non-ranged acquire sync into global sync
+        for (uint32 i = 0; i < barrierAcquireInfo.imageBarrierCount; i++)
+        {
+            const ImgBarrier& imgBarrier = barrierAcquireInfo.pImageBarriers[i];
+            const Pal::Image& image      = static_cast<const Pal::Image&>(*imgBarrier.pImage);
+
+            if (image.GetGpuMemSize() > CmdUtil::Gfx10AcquireMemGl1Gl2RangedCheckMaxSurfaceSizeBytes)
+            {
+                dstGlobalAccessMask |= imgBarrier.dstAccessMask;
+                invalidateLlc       |= transitionList[i].waMetaMisalignNeedRefreshLlc;
+                issueGlobalSync      = true;
+            }
+        }
+
+        // Issue acquire for global cache sync.
+        bool syncTokenWaited = false;
+        if (issueGlobalSync)
+        {
+            IssueAcquireSync(pCmdBuf,
+                             pCmdStream,
+                             barrierAcquireInfo.dstStageMask,
+                             dstGlobalAccessMask,
+                             invalidateLlc,
+                             FullSyncBaseAddr,
+                             FullSyncSize,
+                             syncTokenCount,
+                             pCurSyncTokens,
+                             pBarrierOps);
+
+            syncTokenWaited = true;
+        }
 
         // Loop through memory transitions to issue client-requested acquires for ranged memory syncs.
         for (uint32 i = 0; i < barrierAcquireInfo.memoryBarrierCount; i++)
@@ -1581,39 +1683,50 @@ void Device::BarrierAcquire(
             const MemBarrier& barrier              = barrierAcquireInfo.pMemoryBarriers[i];
             const GpuMemSubAllocInfo& memAllocInfo = barrier.memory;
 
-            const uint32  acquireAccessMask  = barrier.dstAccessMask;
             const gpusize rangedSyncBaseAddr = memAllocInfo.pGpuMemory->Desc().gpuVirtAddr + memAllocInfo.offset;
             const gpusize rangedSyncSize     = memAllocInfo.size;
 
-            IssueAcquireSync(pCmdBuf,
-                             pCmdStream,
-                             barrierAcquireInfo.dstStageMask,
-                             acquireAccessMask,
-                             false,
-                             rangedSyncBaseAddr,
-                             rangedSyncSize,
-                             syncTokenCount,
-                             pCurSyncTokens,
-                             pBarrierOps);
+            if ((rangedSyncSize <= CmdUtil::Gfx10AcquireMemGl1Gl2RangedCheckMaxSurfaceSizeBytes) &&
+                ((barrier.dstAccessMask & ~dstGlobalAccessMask) != 0))
+            {
+                IssueAcquireSync(pCmdBuf,
+                                 pCmdStream,
+                                 barrierAcquireInfo.dstStageMask,
+                                 barrier.dstAccessMask,
+                                 false,
+                                 rangedSyncBaseAddr,
+                                 rangedSyncSize,
+                                 syncTokenWaited ? 0 : syncTokenCount,
+                                 syncTokenWaited ? nullptr : pCurSyncTokens,
+                                 pBarrierOps);
+
+                syncTokenWaited = true;
+            }
         }
 
-        // Loop through memory transitions to issue client-requested acquires for image syncs.
+        // Loop through image transitions to issue client-requested acquires for image syncs.
         for (uint32 i = 0; i < barrierAcquireInfo.imageBarrierCount; i++)
         {
             const ImgBarrier& imgBarrier = barrierAcquireInfo.pImageBarriers[i];
             PAL_ASSERT(imgBarrier.subresRange.numPlanes == 1);
             const Pal::Image& image      = static_cast<const Pal::Image&>(*imgBarrier.pImage);
 
-            IssueAcquireSync(pCmdBuf,
-                             pCmdStream,
-                             barrierAcquireInfo.dstStageMask,
-                             imgBarrier.dstAccessMask,
-                             transitionList[i].waMetaMisalignNeedRefreshLlc,
-                             image.GetGpuVirtualAddr(),
-                             image.GetGpuMemSize(),
-                             syncTokenCount,
-                             pCurSyncTokens,
-                             pBarrierOps);
+            if ((image.GetGpuMemSize() <= CmdUtil::Gfx10AcquireMemGl1Gl2RangedCheckMaxSurfaceSizeBytes) &&
+                ((imgBarrier.dstAccessMask & ~dstGlobalAccessMask) != 0))
+            {
+                IssueAcquireSync(pCmdBuf,
+                                 pCmdStream,
+                                 barrierAcquireInfo.dstStageMask,
+                                 imgBarrier.dstAccessMask,
+                                 transitionList[i].waMetaMisalignNeedRefreshLlc,
+                                 image.GetGpuVirtualAddr(),
+                                 image.GetGpuMemSize(),
+                                 syncTokenWaited ? 0 : syncTokenCount,
+                                 syncTokenWaited ? nullptr : pCurSyncTokens,
+                                 pBarrierOps);
+
+                syncTokenWaited = true;
+            }
         }
     }
 }
@@ -1964,14 +2077,6 @@ void Device::AcqRelColorTransitionEvent(
                                         imgBarrier.pQuadSamplePattern,
                                         imgBarrier.subresRange);
         }
-        else if (layoutTransInfo.blt[0] == HwLayoutTransition::DccMetadataStateCompressed)
-        {
-            gfx9Image.UpdateDccStateMetaData(pCmdStream,
-                                             imgBarrier.subresRange,
-                                             true,
-                                             engineType,
-                                             Pm4Predicate::PredDisable);
-        }
         else if (layoutTransInfo.blt[0] == HwLayoutTransition::FmaskDecompress)
         {
             RsrcProcMgr().FmaskDecompress(pCmdBuf,
@@ -2079,7 +2184,10 @@ void Device::IssueReleaseSyncEvent(
         pCmdBuf->SetGfxCmdBufCpBltState(false);
     }
 
-    pCmdBuf->OptimizePipeAndCacheMaskForRelease(&stageMask, &accessMask);
+    if (TestAnyFlagSet(stageMask, PipelineStageBlt) || TestAnyFlagSet(accessMask, CacheCoherencyBlt))
+    {
+        pCmdBuf->OptimizePipeAndCacheMaskForRelease(&stageMask, &accessMask);
+    }
 
     // OptimizePipeAndCacheMaskForRelease() has converted these BLT coherency flags to more specific ones.
     PAL_ASSERT(TestAnyFlagSet(accessMask, CacheCoherencyBlt) == false);
@@ -2493,8 +2601,10 @@ void Device::BarrierReleaseEvent(
                                             bltAccessMask))
             {
                 transitionList[i].waMetaMisalignNeedRefreshLlc = true;
-                globallyAvailable |= true;
+                globallyAvailable = true;
             }
+
+            UpdateDccStateMetaDataIfNeeded(pCmdBuf, pCmdStream, &imageBarrier, pBarrierOps);
         }
 
         // Initialize an IGpuEvent* pEvent pointing at the client provided event.
@@ -2665,6 +2775,8 @@ void Device::BarrierAcquireEvent(
                 transitionList[i].bltStageMask  = 0;
                 transitionList[i].bltAccessMask = 0;
             }
+
+            UpdateDccStateMetaDataIfNeeded(pCmdBuf, pCmdStream, &imgBarrier, pBarrierOps);
         }
 
         const IGpuEvent* const* ppActiveEvents = ppGpuEvents;
@@ -2754,41 +2866,26 @@ void Device::BarrierAcquireEvent(
             activeEventCount = 1;
         }
 
-        // Issue acquire for client requested global cache sync.
-        IssueAcquireSyncEvent(pCmdBuf,
-                              pCmdStream,
-                              barrierAcquireInfo.dstStageMask,
-                              barrierAcquireInfo.dstGlobalAccessMask,
-                              false,
-                              FullSyncBaseAddr,
-                              FullSyncSize,
-                              activeEventCount,
-                              ppActiveEvents,
-                              pBarrierOps);
+        uint32 dstGlobalAccessMask = barrierAcquireInfo.dstGlobalAccessMask;
+        bool   issueGlobalSync     = (dstGlobalAccessMask > 0) ||
+                                     ((barrierAcquireInfo.memoryBarrierCount == 0) &&
+                                      (barrierAcquireInfo.imageBarrierCount == 0));
+        bool   invalidateLlc       = false;
 
-        // Loop through memory transitions to issue client-requested acquires for ranged memory syncs.
+        // Loop through memory transitions to check if can group non-ranged acquire sync into global sync
         for (uint32 i = 0; i < barrierAcquireInfo.memoryBarrierCount; i++)
         {
-            const MemBarrier&         barrier            = barrierAcquireInfo.pMemoryBarriers[i];
-            const GpuMemSubAllocInfo& memAllocInfo       = barrier.memory;
+            const MemBarrier& barrier        = barrierAcquireInfo.pMemoryBarriers[i];
+            const gpusize     rangedSyncSize = barrier.memory.size;
 
-            const uint32              acquireAccessMask  = barrier.dstAccessMask;
-            const gpusize             rangedSyncBaseAddr = memAllocInfo.pGpuMemory->Desc().gpuVirtAddr + memAllocInfo.offset;
-            const gpusize             rangedSyncSize     = memAllocInfo.size;
-
-            IssueAcquireSyncEvent(pCmdBuf,
-                                  pCmdStream,
-                                  barrierAcquireInfo.dstStageMask,
-                                  acquireAccessMask,
-                                  false,
-                                  rangedSyncBaseAddr,
-                                  rangedSyncSize,
-                                  0,
-                                  nullptr,
-                                  pBarrierOps);
+            if (rangedSyncSize > CmdUtil::Gfx10AcquireMemGl1Gl2RangedCheckMaxSurfaceSizeBytes)
+            {
+                dstGlobalAccessMask |= barrier.dstAccessMask;
+                issueGlobalSync      = true;
+            }
         }
 
-        // Loop through memory transitions to issue client-requested acquires for image syncs.
+        // Loop through image transitions to check if can group non-ranged acquire sync into global sync
         for (uint32 i = 0; i < barrierAcquireInfo.imageBarrierCount; i++)
         {
             const ImgBarrier& imgBarrier = barrierAcquireInfo.pImageBarriers[i];
@@ -2796,16 +2893,83 @@ void Device::BarrierAcquireEvent(
             PAL_ASSERT(imgBarrier.subresRange.numPlanes == 1);
             const Pal::Image& image = static_cast<const Pal::Image&>(*imgBarrier.pImage);
 
+            if (image.GetGpuMemSize() > CmdUtil::Gfx10AcquireMemGl1Gl2RangedCheckMaxSurfaceSizeBytes)
+            {
+                dstGlobalAccessMask |= imgBarrier.dstAccessMask;
+                invalidateLlc       |= transitionList[i].waMetaMisalignNeedRefreshLlc;
+                issueGlobalSync      = true;
+            }
+        }
+
+        // Issue acquire for global cache sync.
+        bool syncEventWaited = false;
+        if (issueGlobalSync)
+        {
             IssueAcquireSyncEvent(pCmdBuf,
                                   pCmdStream,
                                   barrierAcquireInfo.dstStageMask,
-                                  imgBarrier.dstAccessMask,
-                                  transitionList[i].waMetaMisalignNeedRefreshLlc,
-                                  image.GetGpuVirtualAddr(),
-                                  image.GetGpuMemSize(),
-                                  0,
-                                  nullptr,
+                                  dstGlobalAccessMask,
+                                  invalidateLlc,
+                                  FullSyncBaseAddr,
+                                  FullSyncSize,
+                                  activeEventCount,
+                                  ppActiveEvents,
                                   pBarrierOps);
+
+            syncEventWaited = true;
+        }
+
+        // Loop through memory transitions to issue client-requested acquires for ranged memory syncs.
+        for (uint32 i = 0; i < barrierAcquireInfo.memoryBarrierCount; i++)
+        {
+            const MemBarrier&         barrier            = barrierAcquireInfo.pMemoryBarriers[i];
+            const GpuMemSubAllocInfo& memAllocInfo       = barrier.memory;
+
+            const gpusize rangedSyncBaseAddr = memAllocInfo.pGpuMemory->Desc().gpuVirtAddr + memAllocInfo.offset;
+            const gpusize rangedSyncSize     = memAllocInfo.size;
+
+            if ((rangedSyncSize <= CmdUtil::Gfx10AcquireMemGl1Gl2RangedCheckMaxSurfaceSizeBytes) &&
+                ((barrier.dstAccessMask & ~dstGlobalAccessMask) != 0))
+            {
+                IssueAcquireSyncEvent(pCmdBuf,
+                                      pCmdStream,
+                                      barrierAcquireInfo.dstStageMask,
+                                      barrier.dstAccessMask,
+                                      false,
+                                      rangedSyncBaseAddr,
+                                      rangedSyncSize,
+                                      syncEventWaited ? 0 : activeEventCount,
+                                      syncEventWaited ? nullptr : ppActiveEvents,
+                                      pBarrierOps);
+
+                syncEventWaited = true;
+            }
+        }
+
+        // Loop through image transitions to issue client-requested acquires for image syncs.
+        for (uint32 i = 0; i < barrierAcquireInfo.imageBarrierCount; i++)
+        {
+            const ImgBarrier& imgBarrier = barrierAcquireInfo.pImageBarriers[i];
+
+            PAL_ASSERT(imgBarrier.subresRange.numPlanes == 1);
+            const Pal::Image& image = static_cast<const Pal::Image&>(*imgBarrier.pImage);
+
+            if ((image.GetGpuMemSize() <= CmdUtil::Gfx10AcquireMemGl1Gl2RangedCheckMaxSurfaceSizeBytes) &&
+                ((imgBarrier.dstAccessMask & ~dstGlobalAccessMask) != 0))
+            {
+                IssueAcquireSyncEvent(pCmdBuf,
+                                      pCmdStream,
+                                      barrierAcquireInfo.dstStageMask,
+                                      imgBarrier.dstAccessMask,
+                                      transitionList[i].waMetaMisalignNeedRefreshLlc,
+                                      image.GetGpuVirtualAddr(),
+                                      image.GetGpuMemSize(),
+                                      syncEventWaited ? 0 : activeEventCount,
+                                      syncEventWaited ? nullptr : ppActiveEvents,
+                                      pBarrierOps);
+
+                syncEventWaited = true;
+            }
         }
     }
 }

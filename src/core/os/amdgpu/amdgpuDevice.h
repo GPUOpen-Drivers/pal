@@ -356,11 +356,32 @@ public:
         return Result::ErrorUnavailable;
     }
 
+    virtual Result FlglSetSyncConfiguration(
+        const Pal::GlSyncConfig& glSyncConfig) override
+    {
+        PAL_NOT_IMPLEMENTED();
+        return Result::ErrorUnavailable;
+    }
+
+    virtual Result FlglGetSyncConfiguration(
+        Pal::GlSyncConfig* pGlSyncConfig) const override
+    {
+        PAL_NOT_IMPLEMENTED();
+        return Result::ErrorUnavailable;
+    }
+
     virtual Result FlglSetFrameLock(
         bool enable) override
     {
        PAL_NOT_IMPLEMENTED();
        return Result::ErrorUnavailable;
+    }
+
+    virtual Result FlglSetGenLock(
+        bool enable) override
+    {
+        PAL_NOT_IMPLEMENTED();
+        return Result::ErrorUnavailable;
     }
 
     virtual Result FlglResetFrameCounter() const override
@@ -377,7 +398,8 @@ public:
     }
 
     virtual Result FlglGetFrameCounter(
-        uint64* pValue) const override
+        uint64* pValue,
+        bool*   pReset) const override
     {
        PAL_NOT_IMPLEMENTED();
        return Result::ErrorUnavailable;

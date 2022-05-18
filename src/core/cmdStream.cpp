@@ -27,7 +27,7 @@
 #include "core/cmdStream.h"
 #include "core/device.h"
 #include "core/fence.h"
-#include "core/g_palSettings.h"
+#include "g_coreSettings.h"
 #include "core/queue.h"
 #include "palFile.h"
 #include "palHashMapImpl.h"
@@ -361,24 +361,12 @@ CmdStreamChunk* CmdStream::GetNextChunk(
     {
         // Always pop up and use dummy chunk in error status.
         pChunk = m_pCmdAllocator->GetDummyChunk();
+        pChunk->Reset();
 
-        // Make sure there is only one reference of dummy chunk at back of chunk list
+        // Make sure there is only one pointer to the dummy chunk. (The code below pushes it again.)
         if (m_chunkList.Back() == pChunk)
         {
-            pChunk->Reset(false);
-
             m_chunkList.PopBack(nullptr);
-        }
-        else
-        {
-            pChunk->Reset(true);
-
-            if (IsAutoMemoryReuse())
-            {
-                // Other chunk's reference has already been added in GetNewChunk.
-                // DummyChunk's reference should be added as well, otherwise Assertion would be triggered in Reset().
-                pChunk->AddCommandStreamReference();
-            }
         }
     }
 
@@ -439,11 +427,7 @@ void CmdStream::Reset(
         m_nestedChunks.Reset();
     }
 
-    if (m_pDevice->Settings().cmdAllocatorFreeOnReset)
-    {
-        m_retainedChunkList.Clear();
-    }
-    else if (returnGpuMemory)
+    if (returnGpuMemory)
     {
         // The client requested that we return all chunks, add any remaining retained chunks to the chunk list so they
         // can be returned to the allocator with the rest.
@@ -454,26 +438,20 @@ void CmdStream::Reset(
             m_chunkList.PushBack(pChunk);
         }
 
-        // Return all remaining chunks to the command allocator.
-        if ((m_chunkList.IsEmpty() == false) && IsAutoMemoryReuse())
+        // Return all remaining chunks to the command allocator. If any error occurs, the memory allocated before might
+        // be useless and need to be freed.
+        if (IsAutoMemoryReuse() && (m_chunkList.IsEmpty() == false) && (m_status == Result::Success))
         {
-            for (auto iter = m_chunkList.Begin(); iter.IsValid(); iter.Next())
-            {
-                iter.Get()->RemoveCommandStreamReference();
-            }
-            // if any error occurs, the memory allocated before might be useless and need to be free.
-            if (m_status == Result::Success)
-            {
-                m_pCmdAllocator->ReuseChunks(CommandDataAlloc, (m_flags.buildInSysMem != 0), m_chunkList.Begin());
-            }
+            m_pCmdAllocator->ReuseChunks(CommandDataAlloc, (m_flags.buildInSysMem != 0), m_chunkList.Begin());
         }
     }
     else
     {
-        // Reset the chunks to be retained and add them to the retained list.
+        // Reset the chunks to be retained and add them to the retained list. We can only reset them here because
+        // of the interface requirement that the client guarantee that no one is using this command stream anymore.
         for (auto iter = m_chunkList.Begin(); iter.IsValid(); iter.Next())
         {
-            iter.Get()->Reset(false);
+            iter.Get()->Reset();
             m_retainedChunkList.PushBack(iter.Get());
         }
     }
@@ -769,16 +747,11 @@ Result CmdStream::TransferRetainedChunks(
     ChunkRefList* pDest)
 {
     Result result = Result::Success;
+
     while ((m_retainedChunkList.IsEmpty() == false) && (result == Result::Success))
     {
         CmdStreamChunk* pChunk = nullptr;
         m_retainedChunkList.PopBack(&pChunk);
-
-        if (IsAutoMemoryReuse())
-        {
-            pChunk->RemoveCommandStreamReference();
-        }
-
         result = pDest->PushBack(pChunk);
 
         // PushBack can fail if there's not enough space,

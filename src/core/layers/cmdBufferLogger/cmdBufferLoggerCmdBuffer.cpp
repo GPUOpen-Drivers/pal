@@ -1098,6 +1098,32 @@ void CmdBuffer::CmdBindMsaaState(
 }
 
 // =====================================================================================================================
+void CmdBuffer::CmdSaveGraphicsState()
+{
+    if (m_annotations.logCmdBinds)
+    {
+        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdSaveGraphicsState));
+
+        // TODO: Add comment string.
+    }
+
+    GetNextLayer()->CmdSaveGraphicsState();
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdRestoreGraphicsState()
+{
+    if (m_annotations.logCmdBinds)
+    {
+        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdRestoreGraphicsState));
+
+        // TODO: Add comment string.
+    }
+
+    GetNextLayer()->CmdRestoreGraphicsState();
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdBindColorBlendState(
     const IColorBlendState* pColorBlendState)
 {
@@ -5420,45 +5446,6 @@ void CmdBuffer::CmdUpdateHiSPretests(
         CmdUpdateHiSPretestsToString(this, pretests, firstMip, numMips);
     }
     GetNextLayer()->CmdUpdateHiSPretests(NextImage(pImage), pretests, firstMip, numMips);
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdFlglSync()
-{
-    if (m_annotations.logMiscellaneous)
-    {
-        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdFlglSync));
-
-        // TODO: Add comment string.
-    }
-
-    GetNextLayer()->CmdFlglSync();
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdFlglEnable()
-{
-    if (m_annotations.logMiscellaneous)
-    {
-        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdFlglEnable));
-
-        // TODO: Add comment string.
-    }
-
-    GetNextLayer()->CmdFlglEnable();
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdFlglDisable()
-{
-    if (m_annotations.logMiscellaneous)
-    {
-        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdFlglDisable));
-
-        // TODO: Add comment string.
-    }
-
-    GetNextLayer()->CmdFlglDisable();
 }
 
 // =====================================================================================================================

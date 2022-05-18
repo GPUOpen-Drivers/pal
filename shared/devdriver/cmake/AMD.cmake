@@ -107,7 +107,6 @@ function(amd_library name type)
         add_library(${name} ${type} ${ARGN})
     else()
         add_library(${name} ${type} ${ARGN} "")
-        set_target_properties(${name} PROPERTIES POSITION_INDEPENDENT_CODE ON)
     endif()
 
     amd_target (${name})

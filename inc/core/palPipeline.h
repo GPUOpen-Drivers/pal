@@ -181,7 +181,12 @@ union PipelineCreateFlags
 #else
         uint32 placeHolder0           : 1;
 #endif
-        uint32 reserved               : 30; ///< Reserved for future use.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 728
+        uint32 useCps                 : 1;  ///< Uses CPS (Continuation Passing Shader).
+#else
+        uint32 placeHolder728         : 1;
+#endif
+        uint32 reserved               : 29; ///< Reserved for future use.
     };
     uint32 u32All;                  ///< Flags packed as 32-bit uint.
 };
@@ -645,6 +650,11 @@ public:
     /// @param [in] stackSizeInBytes  Client-specified stack size, in bytes.
     virtual void SetStackSizeInBytes(
         uint32 stackSizeInBytes) = 0;
+
+    /// Get the size of the stack managed by the compiler backend.
+    ///
+    /// @returns The stack size, in bytes.
+    virtual uint32 GetStackSizeInBytes() const = 0;
 
     /// Returns the API shader type to hardware stage mapping for the pipeline.
     ///

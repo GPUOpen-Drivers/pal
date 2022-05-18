@@ -26,7 +26,7 @@
 #pragma once
 
 #include "core/device.h"
-#include "core/hw/gfxip/gfx9/g_gfx9PalSettings.h"
+#include "g_gfx9Settings.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9MetaEq.h"
 #include "core/hw/gfxip/gfx9/gfx9SettingsLoader.h"
@@ -136,9 +136,6 @@ enum HwLayoutTransition : uint32
 
     // Initialize Color metadata or Depth/stencil Htile.
     InitMaskRam                  = 0x8,
-
-    // Update Dcc metadate state to compressed.
-    DccMetadataStateCompressed   = 0x9,
 };
 
 // Information for layout transition BLT
@@ -546,7 +543,7 @@ public:
     void TransitionDepthStencil(
         GfxCmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
-        GfxCmdBufferState             cmdBufState,
+        GfxCmdBufferStateFlags        cmdBufStateFlags,
         const BarrierInfo&            barrier,
         uint32                        transitionId,
         bool                          earlyPhase,
@@ -689,6 +686,8 @@ public:
     void AssertUserAccumRegsDisabled(const RegisterVector& registers, uint32 firstRegAddr) const;
 #endif
 
+    uint32 BufferSrdResourceLevel() const;
+
 private:
     void Gfx10SetImageSrdDims(sq_img_rsrc_t*  pSrd, uint32 width, uint32  height) const;
 
@@ -699,8 +698,6 @@ private:
         uint32          borderColorPtr) const;
 
     Result InitOcclusionResetMem();
-
-    uint32 BufferSrdResourceLevel() const;
 
     void Gfx9CreateFmaskViewSrdsInternal(
         const FmaskViewInfo&         viewInfo,

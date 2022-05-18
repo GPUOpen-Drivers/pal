@@ -42,6 +42,7 @@ struct ShaderFuncStats
     const char*    pSymbolName;
     uint32         symbolNameLength;
     uint32         stackFrameSizeInBytes;
+    uint32         irStackFrameSizeInBytes;
     ShaderSubType  shaderSubType;
 };
 
@@ -86,6 +87,7 @@ public:
         uint32                     funcCount);
 
     uint32 GetMaxStackSizeInBytes() const { return m_maxStackSizeInBytes; }
+    uint32 GetMaxIrStackSizeInBytes() const { return m_maxIrStackSizeInBytes; }
     UploadFenceToken GetUploadFenceToken() const { return m_uploadFenceToken; }
     uint64 GetPagingFenceVal() const { return m_pagingFenceVal; }
 
@@ -125,6 +127,7 @@ protected:
     BoundGpuMemory  m_gpuMem;
     gpusize         m_gpuMemSize;
     uint32          m_maxStackSizeInBytes;
+    uint32          m_maxIrStackSizeInBytes;
 
     UploadFenceToken  m_uploadFenceToken;
     uint64            m_pagingFenceVal;

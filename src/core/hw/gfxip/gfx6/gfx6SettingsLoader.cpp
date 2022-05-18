@@ -33,6 +33,7 @@
 #include "core/hw/amdgpu_asic.h"
 #include "devDriverServer.h"
 #include "protocols/ddSettingsService.h"
+#include "settingsService.h"
 
 using namespace Util;
 
@@ -61,6 +62,13 @@ SettingsLoader::SettingsLoader(
 // =====================================================================================================================
 SettingsLoader::~SettingsLoader()
 {
+    SettingsRpcService::SettingsService* pRpcSettingsService = m_pDevice->GetPlatform()->GetSettingsService();
+
+    if (pRpcSettingsService != nullptr)
+    {
+        pRpcSettingsService->UnregisterComponent(m_pComponentName);
+    }
+
     auto* pDevDriverServer = m_pDevice->GetPlatform()->GetDevDriverServer();
     if (pDevDriverServer != nullptr)
     {

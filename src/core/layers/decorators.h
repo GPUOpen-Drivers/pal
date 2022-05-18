@@ -322,12 +322,22 @@ public:
         return m_pNextLayer->GetDevDriverServer();
     }
 
+    virtual SettingsRpcService::SettingsService* GetSettingsService() override
+    {
+        return m_pNextLayer->GetSettingsService();
+    }
+
 #if PAL_BUILD_RDF
     virtual GpuUtil::TraceSession* GetTraceSession() override
     {
         return m_pNextLayer->GetTraceSession();
     }
 #endif
+
+    virtual bool IsTracingEnabled() const override
+    {
+        return m_pNextLayer->IsTracingEnabled();
+    }
 
     virtual DevDriver::EventProtocol::EventServer* GetEventServer() override
     {
@@ -356,6 +366,12 @@ public:
         const void* pEventData,
         uint32      eventDataSize) override
     { m_pNextLayer->LogEvent(eventId, pEventData, eventDataSize); }
+
+#if PAL_ENABLE_LOGGING
+    virtual void GetDbgLoggerFileSettings(
+        Util::DbgLoggerFileSettings* pSettings) override
+    { m_pNextLayer->GetDbgLoggerFileSettings(pSettings); }
+#endif
 
 protected:
     virtual ~PlatformDecorator();
@@ -1073,15 +1089,29 @@ public:
        Pal::FlglState* pState) override
        { return m_pNextLayer->FlglQueryState(pState); }
 
+    virtual Result FlglSetSyncConfiguration(
+       const GlSyncConfig& glSyncConfig) override
+       { return m_pNextLayer->FlglSetSyncConfiguration(glSyncConfig); }
+
+    virtual Result FlglGetSyncConfiguration(
+       GlSyncConfig* pGlSyncConfig) const override
+       { return m_pNextLayer->FlglGetSyncConfiguration(pGlSyncConfig); }
+
     virtual Result FlglSetFrameLock(
        bool enable) override
        { return m_pNextLayer->FlglSetFrameLock(enable); }
 
+    virtual Result FlglSetGenLock(
+       bool enable) override
+       { return m_pNextLayer->FlglSetGenLock(enable); }
+
     virtual Result FlglResetFrameCounter() const override
        { return m_pNextLayer->FlglResetFrameCounter(); }
 
-    virtual Result FlglGetFrameCounter(uint64* pValue) const override
-       { return m_pNextLayer->FlglGetFrameCounter(pValue); }
+    virtual Result FlglGetFrameCounter(
+        uint64* pValue,
+        bool*   pReset) const override
+       { return m_pNextLayer->FlglGetFrameCounter(pValue, pReset); }
 
     virtual Result FlglGetFrameCounterResetStatus(bool* pReset) const override
        { return m_pNextLayer->FlglGetFrameCounterResetStatus(pReset); }
@@ -1221,7 +1251,7 @@ public:
         m_pNextLayer(pNextCmdAllocator)
     {}
 
-    virtual Result Reset() override { return m_pNextLayer->Reset(); }
+    virtual Result Reset(bool freeMemory) override { return m_pNextLayer->Reset(freeMemory); }
     virtual Result Trim(
         uint32 allocTypeMask,
         uint32 dynamicThreshold) override
@@ -1322,6 +1352,12 @@ public:
     virtual void CmdBindMsaaState(
         const IMsaaState* pMsaaState) override
         { m_pNextLayer->CmdBindMsaaState(NextMsaaState(pMsaaState)); }
+
+    virtual void CmdSaveGraphicsState() override
+        { m_pNextLayer->CmdSaveGraphicsState(); }
+
+    virtual void CmdRestoreGraphicsState() override
+        { m_pNextLayer->CmdRestoreGraphicsState(); }
 
     virtual void CmdBindColorBlendState(
         const IColorBlendState* pColorBlendState) override
@@ -2056,15 +2092,6 @@ public:
         const Rect* pRectList) override
         { m_pNextLayer->CmdSetClipRects(clipRule, rectCount, pRectList); }
 
-    virtual void CmdFlglSync() override
-        { m_pNextLayer->CmdFlglSync(); }
-
-    virtual void CmdFlglEnable() override
-        { m_pNextLayer->CmdFlglEnable(); }
-
-    virtual void CmdFlglDisable() override
-        { m_pNextLayer->CmdFlglDisable(); }
-
     virtual void CmdXdmaWaitFlipPending() override
         { m_pNextLayer->CmdXdmaWaitFlipPending(); }
 
@@ -2775,6 +2802,9 @@ public:
 
     virtual void SetStackSizeInBytes(uint32 stackSizeInBytes) override
         { m_pNextLayer->SetStackSizeInBytes(stackSizeInBytes); }
+
+    virtual uint32 GetStackSizeInBytes() const override
+        { return m_pNextLayer->GetStackSizeInBytes(); }
 
     virtual Result QueryAllocationInfo(size_t* pNumEntries, GpuMemSubAllocInfo* const pAllocInfoList) const override
         { return m_pNextLayer->QueryAllocationInfo(pNumEntries, pAllocInfoList); }

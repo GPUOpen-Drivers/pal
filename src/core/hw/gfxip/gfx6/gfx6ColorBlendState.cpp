@@ -23,7 +23,7 @@
  *
  **********************************************************************************************************************/
 
-#include "core/hw/gfxip/gfx6/g_gfx6PalSettings.h"
+#include "g_gfx6Settings.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdStream.h"
 #include "core/hw/gfxip/gfx6/gfx6ColorBlendState.h"
 #include "core/hw/gfxip/gfx6/gfx6Device.h"

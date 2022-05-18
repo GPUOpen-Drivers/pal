@@ -621,7 +621,7 @@ uint32* GraphicsPipeline::WriteShCommands(
     }
     if (IsGsEnabled() || IsNgg())
     {
-        pCmdSpace = m_chunkGs.WriteShCommands(pCmdStream, pCmdSpace, stageInfos.gs);
+        pCmdSpace = m_chunkGs.WriteShCommands(pCmdStream, pCmdSpace, stageInfos.gs, HasMeshShader());
     }
     pCmdSpace = m_chunkVsPs.WriteShCommands(pCmdStream, pCmdSpace, IsNgg(), stageInfos.vs, stageInfos.ps);
 

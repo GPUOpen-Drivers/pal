@@ -70,7 +70,8 @@ public:
     uint32* WriteShCommands(
         CmdStream*              pCmdStream,
         uint32*                 pCmdSpace,
-        const DynamicStageInfo& gsStageInfo) const;
+        const DynamicStageInfo& gsStageInfo,
+        const bool              hasMeshShader) const;
 
     uint32* WriteContextCommands(
         CmdStream* pCmdStream,
@@ -94,12 +95,12 @@ private:
     {
         struct
         {
-            regSPI_SHADER_PGM_LO_ES       spiShaderPgmLoEs;
-            regSPI_SHADER_PGM_RSRC1_GS    spiShaderPgmRsrc1Gs;
-            regSPI_SHADER_PGM_RSRC2_GS    spiShaderPgmRsrc2Gs;
-            regSPI_SHADER_PGM_CHKSUM_GS   spiShaderPgmChksumGs;
-            regSPI_SHADER_USER_DATA_GS_0  userDataInternalTable;
-            regSPI_SHADER_USER_DATA_GS_0  userDataLdsEsGsSize;
+            regSPI_SHADER_PGM_LO_ES            spiShaderPgmLoEs;
+            regSPI_SHADER_PGM_RSRC1_GS         spiShaderPgmRsrc1Gs;
+            regSPI_SHADER_PGM_RSRC2_GS         spiShaderPgmRsrc2Gs;
+            regSPI_SHADER_PGM_CHKSUM_GS        spiShaderPgmChksumGs;
+            regSPI_SHADER_USER_DATA_GS_0       userDataInternalTable;
+            regSPI_SHADER_USER_DATA_GS_0       userDataLdsEsGsSize;
             uint16  ldsEsGsSizeRegAddrGs;
             uint16  ldsEsGsSizeRegAddrVs;
         } sh;

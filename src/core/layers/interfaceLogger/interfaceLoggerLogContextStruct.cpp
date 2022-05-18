@@ -943,6 +943,18 @@ void LogContext::Struct(
         Value("stencilOnlyView");
     }
 
+    if (value.flags.resummarizeHiZ)
+    {
+        Value("resummarizeHiZ");
+    }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 730
+    if (value.flags.lowZplanePolyOffsetBits)
+    {
+        Value("lowZplanePolyOffsetBits");
+    }
+#endif
+
     EndList();
     KeyAndObject("image", value.pImage);
     KeyAndValue("mipLevel", value.mipLevel);
@@ -1284,6 +1296,23 @@ void LogContext::Struct(
 
     KeyAndValue("firmwareVersion", value.firmwareVersion);
     KeyAndEnum("support", value.support);
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
+    const GlSyncConfig& value)
+{
+    BeginMap(false);
+    KeyAndValue("validMask", value.validMask);
+    KeyAndValue("syncDelay", value.syncDelay);
+    KeyAndValue("framelockCntlVector", value.framelockCntlVector);
+    KeyAndValue("signalSource", value.signalSource);
+    KeyAndValue("sampleRate", value.sampleRate);
+    KeyAndValue("syncField", value.syncField);
+    KeyAndValue("triggerEdge", value.triggerEdge);
+    KeyAndValue("scanRateCoeff", value.scanRateCoeff);
+    KeyAndValue("sigGenFrequency", value.sigGenFrequency);
     EndMap();
 }
 

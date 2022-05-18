@@ -61,10 +61,6 @@ public:
     virtual bool IsQueryAllowed(QueryPoolType queryPoolType) const override
         { return (queryPoolType == QueryPoolType::PipelineStats); }
 
-    // Push/Pop Graphics is never called for compute command buffers.
-    virtual void PushGraphicsState() override { PAL_NEVER_CALLED(); }
-    virtual void PopGraphicsState()  override { PAL_NEVER_CALLED(); }
-
     virtual void CmdOverwriteRbPlusFormatForBlits(
         SwizzledFormat format,
         uint32         targetIndex) override { PAL_NEVER_CALLED(); }

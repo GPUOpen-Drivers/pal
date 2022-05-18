@@ -136,6 +136,8 @@ private:
 
     Result UpdateRingSet(bool* pHasChanged, bool isTmz, uint32 overrideStackSize, uint64 lastTimeStamp);
 
+    Result GetAcePreambleCmdStream(CmdStream** ppAcePreambleCmdStream);
+
     Device*const          m_pDevice;
     const uint32          m_persistentCeRamOffset;
     const uint32          m_persistentCeRamSize;
@@ -168,8 +170,10 @@ private:
     CmdStream  m_cePostambleCmdStream;
     CmdStream  m_dePostambleCmdStream;
 
-    // Command stream used for setting up state on the ACE queue for the DispatchDraw mechanism.
-    CmdStream  m_acePreambleCmdStream;
+    // Late-initialized ACE command buffer stream.
+    // This is used for setting up state on the ACE queue for the DispatchDraw mechanism.
+    bool       m_supportsAceGang;
+    CmdStream* m_pAcePreambleCmdStream;
 
     Util::Deque<UniversalQueueDeferFreeList, Platform> m_deferCmdStreamChunks;
 

@@ -95,6 +95,8 @@ public:
         const PipelineBindParams& params) override;
     virtual void CmdBindMsaaState(
         const IMsaaState* pMsaaState) override;
+    virtual void CmdSaveGraphicsState() override;
+    virtual void CmdRestoreGraphicsState() override;
     virtual void CmdBindColorBlendState(
         const IColorBlendState* pColorBlendState) override;
     virtual void CmdBindDepthStencilState(
@@ -482,9 +484,6 @@ public:
         const HiSPretests& pretests,
         uint32             firstMip,
         uint32             numMips) override;
-    virtual void CmdFlglSync() override;
-    virtual void CmdFlglEnable() override;
-    virtual void CmdFlglDisable() override;
     virtual void CmdCommentString(
         const char* pComment) override;
     virtual void CmdNop(
@@ -692,6 +691,8 @@ private:
     void ReplayEnd(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdBindPipeline(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdBindMsaaState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdSaveGraphicsState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdRestoreGraphicsState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdBindColorBlendState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdBindDepthStencilState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdBindIndexData(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
@@ -807,19 +808,11 @@ private:
     void ReplayCmdXdmaWaitFlipPending(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdCopyImageToPackedPixelImage(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdUpdateHiSPretests(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-    void ReplayCmdFlglSync(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-    void ReplayCmdFlglEnable(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-    void ReplayCmdFlglDisable(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdStartGpuProfilerLogging(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdStopGpuProfilerLogging(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetViewInstanceMask(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
 
-    void LogPreTimedCall(
-        Queue*           pQueue,
-        TargetCmdBuffer* pTgtCmdBuffer,
-        LogItem*         pLogItem,
-        CmdBufCallId     callId);
-
+    void LogPreTimedCall(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer, LogItem* pLogItem, CmdBufCallId callId);
     void LogPostTimedCall(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer, LogItem* pLogItem);
 
     Device*const     m_pDevice;
@@ -874,7 +867,6 @@ private:
     bool m_forceDrawGranularityLogging;
 
     uint32 m_curLogFrame;
-
     // List of release tokens that are used to handle acquire/release interface through this layer's replay mechanism.
     uint32                             m_numReleaseTokens;
     Util::Vector<uint32, 16, Platform> m_releaseTokenList;

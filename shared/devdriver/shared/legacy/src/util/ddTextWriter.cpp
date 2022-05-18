@@ -124,7 +124,6 @@ void TextWriter::WriteText(const char* pString, uint32 length)
                 if (!(isprint(c) || isspace(c)))
                 {
                     DD_PRINT(LogLevel::Debug, "Attempting to write non-writable character \"%c\" (0x%x)\n", c, c);
-                    m_lastResult = Result::UriInvalidChar;
                     break;
                 }
             }

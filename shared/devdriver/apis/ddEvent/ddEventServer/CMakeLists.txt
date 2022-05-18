@@ -11,8 +11,8 @@ target_link_libraries(ddEventServer
 )
 
 if (DD_BP_INSTALL)
-	install(FILES   inc/ddEventServerApi.h DESTINATION inc)
-	install(TARGETS ddEventServer          DESTINATION lib)
+    install(FILES   inc/ddEventServerApi.h DESTINATION inc)
+    install(TARGETS ddEventServer          DESTINATION lib)
 endif()
 
 target_include_directories(ddEventServer PUBLIC  inc)

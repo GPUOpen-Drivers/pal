@@ -26,7 +26,7 @@
 #include "core/addrMgr/addrMgr.h"
 #include "core/device.h"
 #include "core/eventDefs.h"
-#include "core/g_palSettings.h"
+#include "g_coreSettings.h"
 #include "core/image.h"
 #include "core/platform.h"
 #include "addrinterface.h"

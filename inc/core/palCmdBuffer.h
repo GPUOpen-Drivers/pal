@@ -2061,6 +2061,28 @@ public:
     virtual void CmdBindMsaaState(
         const IMsaaState* pMsaaState) = 0;
 
+    /// Saves a copy of all of the current command buffer state that is used by graphics workloads. This feature is
+    /// intended to give PAL clients a convenient way to issue their own internal graphics workloads without modifying
+    /// the application-facing state.
+    ///
+    /// PAL cannot save multiple layers of state, each call to CmdSaveGraphicsState must be followed by a call to
+    /// CmdRestoreGraphicsState before the next call to CmdSaveGraphicsState. Any barriers, resolves, blits, etc are not
+    /// allowed while the state is pushed.
+    ///
+    /// This function can only be called on command buffers that support graphics workloads. All query counters will be
+    /// disabled until CmdRestoreGraphicsState is called.
+    virtual void CmdSaveGraphicsState() = 0;
+
+    /// Restores all of the command buffer state that is used by graphics workloads. This feature is intended to
+    /// give PAL clients a convenient way to issue their own internal graphics workloads without modifying the
+    /// application-facing state.
+    ///
+    /// A call to this function must be preceded by a call to CmdSaveGraphicsState
+    ///
+    /// This function can only be called on command buffers that support graphics workloads. All previously disabled
+    /// query counters will be reactivated.
+    virtual void CmdRestoreGraphicsState() = 0;
+
     /// Sets the shading rate in the command buffer along with the state of the various combiners.
     ///
     /// @param [in] rateParams     Nwe VRS shading rate parameters to be bound.
@@ -3089,6 +3111,9 @@ public:
     /// For cache coherency purposes, CmdUpdateMemory counts as a @ref CoherCopy operation on the specified destination
     /// GPU memory.
     ///
+    /// The client is responsible for choosing the proper method for optimal performance. If updating data size is less
+    /// equal than 8 bytes, CmdWriteImmediate() is preferred.
+    ///
     /// @param [in] dstGpuMemory  GPU memory object to be updated.
     /// @param [in] dstOffset     Byte offset into the GPU memory object to be udpated.  Must be a multiple of 4.
     /// @param [in] dataSize      Amount of data to write, in bytes.  Must be a multiple of 4.
@@ -3645,24 +3670,6 @@ public:
         uint32            data,
         uint32            mask,
         CompareFunc       compareFunc) = 0;
-
-    /// Inserts a frame-lock/gen-lock(FLGL) sync command. This command will wait S400 sync board to poll swap_request
-    /// low and then will poll swap_ready low to indicate S400 that we finish a frame. Then it will wait S400 to poll
-    /// swap_request high to ensure a synced swap. Finally it will poll swap_ready high to start a new frame. This
-    /// command should be submit to universal queue only.
-    /// Please refer palDdnFLGL.doc for more information.
-    virtual void CmdFlglSync() = 0;
-
-    /// Inserts a FLGL enable command. This command will poll swap_ready signal high, indicating S400 sync board that we
-    /// are starting a new frame. S400 will wait for CmdFlglSync() which poll swap_ready low to finish the synced swap.
-    /// This command should be submit to universal queue only.
-    /// Please refer palDdnFLGL.doc for more information.
-    virtual void CmdFlglEnable() = 0;
-
-    /// Inserts a FLGL disable command. This command will poll swap_ready signal low, indicating S400 that to ignore the
-    /// swap_ready signal of this queue. This command should be submit to universal queue only.
-    /// Please refer palDdnFLGL.doc for more information.
-    virtual void CmdFlglDisable() = 0;
 
     /// Begins the specified performance experiment.
     ///

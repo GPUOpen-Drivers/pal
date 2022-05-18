@@ -689,7 +689,7 @@ void EventProvider::LogResourceCreateEvent(
         imgCreateInfo.dimensions.dimension_Z = static_cast<uint16>(pImageData->pCreateInfo->extent.depth);
         imgCreateInfo.format = PalToRmtImageFormat(pImageData->pCreateInfo->swizzledFormat);
         imgCreateInfo.mips = static_cast<uint8>(pImageData->pCreateInfo->mipLevels);
-        imgCreateInfo.slices = static_cast<uint8>(pImageData->pCreateInfo->arraySize);
+        imgCreateInfo.slices = static_cast<uint16>(pImageData->pCreateInfo->arraySize);
         imgCreateInfo.samples = static_cast<uint8>(pImageData->pCreateInfo->samples);
         imgCreateInfo.fragments = static_cast<uint8>(pImageData->pCreateInfo->fragments);
         imgCreateInfo.tilingType = PalToRmtTilingType(pImageData->pCreateInfo->tiling);

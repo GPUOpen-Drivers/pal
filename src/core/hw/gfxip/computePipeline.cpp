@@ -44,8 +44,10 @@ ComputePipeline::ComputePipeline(
     m_threadsPerTgX(0),
     m_threadsPerTgY(0),
     m_threadsPerTgZ(0),
+    m_useCps(false),
     m_maxFunctionCallDepth(0),
-    m_stackSizeInBytes(0)
+    m_stackSizeInBytes(0),
+    m_irStackSizeInBytes(0)
 {
     memset(&m_stageInfo, 0, sizeof(m_stageInfo));
     m_stageInfo.stageId = Abi::HardwareStage::Cs;
@@ -65,6 +67,9 @@ Result ComputePipeline::Init(
     Result result = Result::Success;
 
     m_maxFunctionCallDepth = createInfo.maxFunctionCallDepth;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 728
+    m_useCps = createInfo.flags.useCps;
+#endif
 
     if ((createInfo.pPipelineBinary != nullptr) && (createInfo.pipelineBinarySize != 0))
     {

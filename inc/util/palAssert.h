@@ -97,6 +97,38 @@ constexpr bool CheckReservedBits(
 #endif
 }
 
+/// A helper function to check that a series of static numeric values are sequential.
+/// This is intended for use with static_asserts to ensure things don't go out-of-sync.
+///
+/// @param [in] args     Array of numeric values to check
+/// @param [in] interval Expected interval between each (default 1, 4 is also common for field offsets)
+///
+/// @return true if all the values are sequential
+///         true if the compiler lacks support to do this at compile time.
+///
+/// @note This may not work properly with old compilers, but this is meant for linting anyhow.
+template <typename T, size_t N>
+constexpr bool CheckSequential(
+    const T (&args)[N],
+    T       interval = 1)
+{
+#if PAL_CPLUSPLUS_AT_LEAST(PAL_CPLUSPLUS_14) || (defined(__cpp_constexpr) && (__cpp_constexpr >= 201304))
+    bool isSequential = true;
+    for (int i = 0; i < (N - 1); i++)
+    {
+        if ((args[i] + interval) != args[i+1])
+        {
+            isSequential = false;
+            break;
+        }
+    }
+    return isSequential;
+#else
+    // C++11 lacks support for doing anything useful with constexpr
+    return true;
+#endif
+}
+
 #if (PAL_ENABLE_PRINTS_ASSERTS || PAL_ENABLE_LOGGING)
 
 /// Specifies how severe an triggered assert (or alert) is.

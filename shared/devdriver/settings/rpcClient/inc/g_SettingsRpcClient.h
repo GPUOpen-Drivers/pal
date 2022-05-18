@@ -37,6 +37,8 @@ public:
     ~SettingsRpcClient();
 
     DD_RESULT Connect(const DDRpcClientCreateInfo& info);
+    DD_RESULT IsServiceAvailable();
+    DD_RESULT GetServiceInfo(DDApiVersion* pVersion);
 
     /// Queries the settings components
     DD_RESULT GetComponents(

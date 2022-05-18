@@ -27,7 +27,7 @@
 
 #include "core/cmdAllocator.h"
 #include "core/device.h"
-#include "core/g_palSettings.h"
+#include "g_coreSettings.h"
 #include "core/gpuEvent.h"
 #include "palAssert.h"
 #include "palCmdBuffer.h"
@@ -210,6 +210,13 @@ public:
 
     virtual void CmdBindMsaaState(const IMsaaState* pMsaaState) override
         { PAL_NEVER_CALLED(); }
+
+    virtual void CmdSaveGraphicsState() override
+        {PAL_NEVER_CALLED();}
+
+    virtual void CmdRestoreGraphicsState() override
+        {PAL_NEVER_CALLED();}
+
     virtual void CmdBindColorBlendState(const IColorBlendState* pColorBlendState) override
         { PAL_NEVER_CALLED(); }
 
@@ -746,12 +753,6 @@ public:
     virtual void CmdStopGpuProfilerLogging() override  { PAL_NEVER_CALLED(); }
 
     virtual void CmdSetViewInstanceMask(uint32 mask) override { PAL_NEVER_CALLED(); }
-
-    virtual void CmdFlglSync() override { PAL_NEVER_CALLED(); }
-
-    virtual void CmdFlglDisable() override { PAL_NEVER_CALLED(); }
-
-    virtual void CmdFlglEnable() override { PAL_NEVER_CALLED(); }
 
     virtual void CmdCommentString(
         const char* pComment) override { PAL_NEVER_CALLED(); }

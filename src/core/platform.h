@@ -29,8 +29,8 @@
 #include "palPlatform.h"
 #include "platformSettingsLoader.h"
 #include "core/eventProvider.h"
-#include "core/g_palSettings.h"
-#include "core/g_palPlatformSettings.h"
+#include "g_coreSettings.h"
+#include "g_platformSettings.h"
 #include "ver.h"
 #include "ddApi.h"
 
@@ -45,6 +45,11 @@ class UberTraceService;
 class FrameTraceController;
 }
 #endif
+
+namespace DriverUtilsService
+{
+class DriverUtilsService;
+}
 
 // DevDriver forward declarations.
 namespace DevDriver
@@ -159,14 +164,19 @@ public:
     virtual DevDriver::DevDriverServer* GetDevDriverServer() override { return m_pDevDriverServer; }
     virtual DevDriver::EventProtocol::EventServer* GetEventServer() override { return m_pEventServer; }
 
+    virtual SettingsRpcService::SettingsService* GetSettingsService() override { return m_pSettingsService; }
+
     bool IsDeveloperModeEnabled() const { return (m_pDevDriverServer != nullptr); }
     bool IsDevDriverProfilingEnabled() const;
+    bool IsTracingEnabled() const;
     bool ShowDevDriverOverlay() const;
     bool Force32BitVaSpace() const { return m_flags.force32BitVaSpace; }
 
     bool SvmModeEnabled()                const { return m_flags.enableSvmMode; }
     bool RequestShadowDescVaRange()      const { return m_flags.requestShadowDescVaRange; }
     bool InternalResidencyOptsDisabled() const { return m_flags.disableInternalResidencyOpts; }
+    bool NullDeviceEnabled()             const { return m_flags.createNullDevice; }
+    bool GpuIsSpoofed()                  const { return m_flags.gpuIsSpoofed; }
 
     gpusize GetSvmRangeStart() const { return m_svmRangeStart; }
     void SetSvmRangeStart(gpusize svmRangeStart) { m_svmRangeStart = svmRangeStart; }
@@ -184,10 +194,15 @@ public:
         const void* pEventData,
         uint32      eventDataSize) override;
 
-    bool OverrideGpuId(GpuId* pGpuId) const;
+    bool OverrideGpuId(GpuId* pGpuId);
 
     const uint16 GetClientApiMajorVer() const { return m_clientApiMajorVer; }
     const uint16 GetClientApiMinorVer() const { return m_clientApiMinorVer; }
+
+#if PAL_ENABLE_LOGGING
+    virtual void GetDbgLoggerFileSettings(
+        Util::DbgLoggerFileSettings* pSettings) override;
+#endif
 
 protected:
     Platform(const PlatformCreateInfo& createInfo, const Util::AllocCallbacks& allocCb);
@@ -246,7 +261,9 @@ protected:
             uint32 supportRgpTraces             : 1; // Indicates that the client supports RGP tracing. PAL will use
                                                      // this flag and the hardware support flag to setup the
                                                      // DevDriver RgpServer.
-            uint32 reserved                     : 25; // Reserved for future use.
+            uint32 gpuIsSpoofed                 : 1; // If set, ignores device properties reported by OS and pretends
+                                                     // to be a given GPU instead.
+            uint32 reserved                     : 24; // Reserved for future use.
         };
         uint32 u32All;
     } m_flags;
@@ -274,6 +291,9 @@ private:
     void LateInitDevDriver();
     void DestroyDevDriver();
 
+    void RegisterRpcServices();
+    void DestroyRpcServices();
+
     // "Server" object provided by the DevDriver software component which exposes the main interface for the developer
     // driver functionality. The server object handles all developer driver protocol management internally and exposes
     // interfaces to each protocol through explicit objects which can be retrieved through the main interface.
@@ -283,6 +303,11 @@ private:
 
     // Locally cached pointers to protocol servers.
     DevDriver::RGPProtocol::RGPServer* m_pRgpServer;
+    // Settings RPC Service for DevDriver tool connection
+    SettingsRpcService::SettingsService* m_pSettingsService;
+
+    // Service for misc driver utils
+    DriverUtilsService::DriverUtilsService* m_pDriverUtilsService;
 
 #if PAL_BUILD_RDF
     // TraceSession Initialization and Destruction functions
@@ -302,8 +327,6 @@ private:
 
     // Starts the UberTraceService on the driver side
     Result CreateUberTraceService();
-    void RegisterRpcServices();
-    void DestroyRpcServices();
 
     // TraceSession that is centrally owned and managed by PAL
     GpuUtil::TraceSession* m_pTraceSession;
@@ -316,9 +339,9 @@ private:
 
     // UberTraceService that communicates with Tools
     GpuUtil::UberTraceService* m_pUberTraceService;
-    DDRpcServer m_rpcServer;
 #endif
 
+    DDRpcServer            m_rpcServer;
     Developer::Callback    m_pfnDeveloperCb;
     void*                  m_pClientPrivateData;
     gpusize                m_svmRangeStart;

@@ -1373,10 +1373,13 @@ Result PerfExperiment::AddThreadTrace(
             }
 
             // Enable all stalling in "always" mode, "lose detail" mode only disables register stalls.
-            m_sqtt[traceInfo.instance].ctrl.gfx10.REG_STALL_EN      = (stallMode == GpuProfilerStallAlways);
-            m_sqtt[traceInfo.instance].ctrl.gfx10.SPI_STALL_EN      = (stallMode != GpuProfilerStallNever);
-            m_sqtt[traceInfo.instance].ctrl.gfx10.SQ_STALL_EN       = (stallMode != GpuProfilerStallNever);
-            m_sqtt[traceInfo.instance].ctrl.gfx10.REG_DROP_ON_STALL = (stallMode != GpuProfilerStallAlways);
+            if (IsGfx10(*m_pDevice))
+            {
+                m_sqtt[traceInfo.instance].ctrl.gfx10.REG_STALL_EN      = (stallMode == GpuProfilerStallAlways);
+                m_sqtt[traceInfo.instance].ctrl.gfx10.SPI_STALL_EN      = (stallMode != GpuProfilerStallNever);
+                m_sqtt[traceInfo.instance].ctrl.gfx10.SQ_STALL_EN       = (stallMode != GpuProfilerStallNever);
+                m_sqtt[traceInfo.instance].ctrl.gfx10.REG_DROP_ON_STALL = (stallMode != GpuProfilerStallAlways);
+            }
 
             static_assert((static_cast<uint32>(PerfShaderMaskPs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_PS_BIT) &&
                            static_cast<uint32>(PerfShaderMaskGs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_GS_BIT) &&
@@ -3601,6 +3604,7 @@ uint32* PerfExperiment::WriteStopAndSampleGlobalCounters(
     pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(PERFCOUNTER_SAMPLE, pCmdStream->GetEngineType(), pCmdSpace);
     pCmdSpace = WriteWaitIdle(false, pCmdBuffer, pCmdStream, pCmdSpace);
     pCmdSpace = WriteGrbmGfxIndexBroadcastGlobal(pCmdStream, pCmdSpace);
+
     pCmdSpace = WriteUpdateWindowedCounters(false, pCmdStream, pCmdSpace);
 
     // Trigger a counter sample using CP_PERFMON_CNTL. Ideally we'd also set global counters and SPM counters to
@@ -3986,9 +3990,18 @@ uint32* PerfExperiment::WriteUpdateWindowedCounters(
     // As with thread traces, we must use an event on universal queues but set a register on compute queues.
     if (m_pDevice->EngineSupportsGraphics(pCmdStream->GetEngineType()))
     {
-        pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(enable ? PERFCOUNTER_START : PERFCOUNTER_STOP,
-                                                        pCmdStream->GetEngineType(),
-                                                        pCmdSpace);
+        if (enable)
+        {
+            pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(PERFCOUNTER_START,
+                                                            pCmdStream->GetEngineType(),
+                                                            pCmdSpace);
+        }
+        else
+        {
+            pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(PERFCOUNTER_STOP,
+                                                            pCmdStream->GetEngineType(),
+                                                            pCmdSpace);
+        }
     }
 
     regCOMPUTE_PERFCOUNT_ENABLE computeEnable = {};

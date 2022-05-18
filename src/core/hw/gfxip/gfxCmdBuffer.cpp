@@ -261,6 +261,9 @@ void GfxCmdBuffer::ResetState()
     m_gfxCmdBufState.flags.csBltActive         = IsComputeSupported();
     m_gfxCmdBufState.flags.csWriteCachesDirty  = IsComputeSupported();
 
+    // It's possible that another of our command buffers still has rasterization kill draws in flight.
+    m_gfxCmdBufState.flags.rasterKillDrawsActive = IsGraphicsSupported();
+
     // A previous, chained command buffer could have used a CP blt which may have accessed L2 or the memory directly.
     // By convention, our CP blts will only use L2 if the HW supports it so we only need to set one bit here.
     if (m_device.Parent()->ChipProperties().gfxLevel > GfxIpLevel::GfxIp6)
@@ -276,6 +279,12 @@ void GfxCmdBuffer::ResetState()
     {
         m_acqRelFenceVals[i] = AcqRelFenceResetVal;
     }
+
+    UpdateGfxCmdBufGfxBltExecEopFence();
+
+    UpdateGfxCmdBufCsBltExecFence();
+
+    UpdateGfxCmdBufRasterKillDrawsExecEopFence(true);
 
 }
 
@@ -465,11 +474,7 @@ Result GfxCmdBuffer::BeginCommandStreams(
 void GfxCmdBuffer::ReturnGeneratedCommandChunks(
     bool returnGpuMemory)
 {
-    if (m_device.CoreSettings().cmdAllocatorFreeOnReset)
-    {
-        m_retainedGeneratedChunkList.Clear();
-    }
-    else if (returnGpuMemory)
+    if (returnGpuMemory)
     {
         // The client requested that we return all chunks, add any remaining retained chunks to the chunk list so they
         // can be returned to the allocator with the rest.
@@ -483,20 +488,16 @@ void GfxCmdBuffer::ReturnGeneratedCommandChunks(
         // Return all chunks containing GPU-generated commands to the allocator.
         if ((m_generatedChunkList.IsEmpty() == false) && (m_flags.autoMemoryReuse == true))
         {
-            for (auto iter = m_generatedChunkList.Begin(); iter.IsValid(); iter.Next())
-            {
-                iter.Get()->RemoveCommandStreamReference();
-            }
-
             m_pCmdAllocator->ReuseChunks(EmbeddedDataAlloc, false, m_generatedChunkList.Begin());
         }
     }
     else
     {
-        // Reset the chunks to be retained and add them to the retained list.
+        // Reset the chunks to be retained and add them to the retained list. We can only reset them here because
+        // of the interface requirement that the client guarantee that no one is using this command stream anymore.
         for (auto iter = m_generatedChunkList.Begin(); iter.IsValid(); iter.Next())
         {
-            iter.Get()->Reset(false);
+            iter.Get()->Reset();
             m_retainedGeneratedChunkList.PushBack(iter.Get());
         }
     }
@@ -518,16 +519,16 @@ void GfxCmdBuffer::OptimizePipePoint(
         if (*pPipePoint == HwPipePostBlt)
         {
             // Check xxxBltActive states in order
-            const GfxCmdBufferState cmdBufState = GetGfxCmdBufState();
-            if (cmdBufState.flags.gfxBltActive)
+            const GfxCmdBufferStateFlags cmdBufStateFlags = GetGfxCmdBufState().flags;
+            if (cmdBufStateFlags.gfxBltActive)
             {
                 *pPipePoint = HwPipeBottom;
             }
-            else if (cmdBufState.flags.csBltActive)
+            else if (cmdBufStateFlags.csBltActive)
             {
                 *pPipePoint = HwPipePostCs;
             }
-            else if (cmdBufState.flags.cpBltActive)
+            else if (cmdBufStateFlags.cpBltActive)
             {
                 // Leave it as HwPipePostBlt because CP DMA BLTs cannot be expressed as more specific HwPipePoint.
             }
@@ -565,12 +566,14 @@ void GfxCmdBuffer::OptimizeSrcCacheMask(
         // Clear the original srcCaches from the srcCache mask for the rest of this scope.
         if (TestAnyFlagSet(*pCacheMask, CacheCoherencyBlt))
         {
+            const GfxCmdBufferStateFlags cmdBufStateFlags = GetGfxCmdBufState().flags;
+
             *pCacheMask &= ~CacheCoherencyBlt;
 
-            *pCacheMask |= m_gfxCmdBufState.flags.gfxWriteCachesDirty       ? CoherColorTarget : 0;
-            *pCacheMask |= m_gfxCmdBufState.flags.csWriteCachesDirty        ? CoherShader      : 0;
-            *pCacheMask |= m_gfxCmdBufState.flags.cpWriteCachesDirty        ? CoherCp          : 0;
-            *pCacheMask |= m_gfxCmdBufState.flags.cpMemoryWriteL2CacheStale ? CoherMemory      : 0;
+            *pCacheMask |= cmdBufStateFlags.gfxWriteCachesDirty       ? CoherColorTarget : 0;
+            *pCacheMask |= cmdBufStateFlags.csWriteCachesDirty        ? CoherShader      : 0;
+            *pCacheMask |= cmdBufStateFlags.cpWriteCachesDirty        ? CoherCp          : 0;
+            *pCacheMask |= cmdBufStateFlags.cpMemoryWriteL2CacheStale ? CoherMemory      : 0;
         }
     }
 }
@@ -585,6 +588,8 @@ void GfxCmdBuffer::OptimizePipeAndCacheMaskForRelease(
     uint32* pAccessMask // [in/out] A representation of CacheCoherencyUsageFlags
     ) const
 {
+    const GfxCmdBufferStateFlags cmdBufStateFlags = GetGfxCmdBufState().flags;
+
     // Update pipeline stages if valid input stage mask is provided.
     if (pStageMask != nullptr)
     {
@@ -595,16 +600,15 @@ void GfxCmdBuffer::OptimizePipeAndCacheMaskForRelease(
             localStageMask &= ~PipelineStageBlt;
 
             // Check xxxBltActive states in order.
-            const GfxCmdBufferState cmdBufState = GetGfxCmdBufState();
-            if (cmdBufState.flags.gfxBltActive)
+            if (cmdBufStateFlags.gfxBltActive)
             {
                 localStageMask |= PipelineStageEarlyDsTarget | PipelineStageLateDsTarget | PipelineStageColorTarget;
             }
-            if (cmdBufState.flags.csBltActive)
+            if (cmdBufStateFlags.csBltActive)
             {
                 localStageMask |= PipelineStageCs;
             }
-            if (cmdBufState.flags.cpBltActive)
+            if (cmdBufStateFlags.cpBltActive)
             {
                 // Add back PipelineStageBlt because we cannot express it with a more accurate stage.
                 localStageMask |= PipelineStageBlt;
@@ -628,31 +632,16 @@ void GfxCmdBuffer::OptimizePipeAndCacheMaskForRelease(
             // - If a CP L2 BLT occured, alias these srcCaches to CoherCp.
             // - If a CP direct-to-memory write occured, alias these srcCaches to CoherMemory.
             // Clear the original srcCaches from the srcCache mask for the rest of this scope.
-            const GfxCmdBufferState cmdBufState = GetGfxCmdBufState();
             localAccessMask &= ~CacheCoherencyBlt;
 
-            localAccessMask |= cmdBufState.flags.gfxWriteCachesDirty       ? CoherColorTarget : 0;
-            localAccessMask |= cmdBufState.flags.csWriteCachesDirty        ? CoherShader      : 0;
-            localAccessMask |= cmdBufState.flags.cpWriteCachesDirty        ? CoherCp          : 0;
-            localAccessMask |= cmdBufState.flags.cpMemoryWriteL2CacheStale ? CoherMemory      : 0;
+            localAccessMask |= cmdBufStateFlags.gfxWriteCachesDirty       ? CoherColorTarget : 0;
+            localAccessMask |= cmdBufStateFlags.csWriteCachesDirty        ? CoherShader      : 0;
+            localAccessMask |= cmdBufStateFlags.cpWriteCachesDirty        ? CoherCp          : 0;
+            localAccessMask |= cmdBufStateFlags.cpMemoryWriteL2CacheStale ? CoherMemory      : 0;
         }
 
         *pAccessMask = localAccessMask;
     }
-}
-
-// =====================================================================================================================
-void GfxCmdBuffer::SetGfxCmdBufGfxBltState(
-    bool gfxBltActive)
-{
-    m_gfxCmdBufState.flags.gfxBltActive = gfxBltActive;
-}
-
-// =====================================================================================================================
-void GfxCmdBuffer::SetGfxCmdBufCsBltState(
-    bool csBltActive)
-{
-    m_gfxCmdBufState.flags.csBltActive = csBltActive;
 }
 
 // =====================================================================================================================
@@ -1601,14 +1590,13 @@ CmdStreamChunk* GfxCmdBuffer::GetNextGeneratedChunk()
     if (m_status != Result::Success)
     {
         pChunk = m_pCmdAllocator->GetDummyChunk();
+        pChunk->Reset();
 
         // Make sure there is only one reference of dummy chunk at back of chunk list
         if (m_generatedChunkList.Back() == pChunk)
         {
             m_generatedChunkList.PopBack(nullptr);
         }
-
-        pChunk->Reset(true);
     }
 
     PAL_ASSERT(pChunk != nullptr);

@@ -136,10 +136,15 @@ public:
     /// The client is responsible for guaranteeing that all command buffers associated with this allocator have finished
     /// GPU execution and have been explicitly reset before calling this function.
     ///
+    /// @param [in] freeMemory If the all GPU and CPU memory allocations should be returned to the OS.
+    ///
     /// @returns Success if the command allocator was successfully reset.  Otherwise, one of the following errors may be
     ///          returned:
     ///          + ErrorUnknown if an internal PAL error occurs.
-    virtual Result Reset() = 0;
+    virtual Result Reset(bool freeMemory) = 0;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 725
+    inline Result Reset() { return Reset(false); }
+#endif
 
     /// Explicitly trims a command allocator, deleting as many unused internal GPU memory allocations as possible.
     ///

@@ -93,6 +93,8 @@ public:
     virtual void SetStackSizeInBytes(
         uint32 stackSizeInBytes) override;
 
+    virtual uint32 GetStackSizeInBytes() const override;
+
     bool DisablePartialPreempt() const { return m_disablePartialPreempt; }
 
     // Returns the scratch memory size in dwords
