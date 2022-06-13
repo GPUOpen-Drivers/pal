@@ -36,9 +36,6 @@ namespace Pal
 namespace AddrMgr2
 {
 
-// Maximum number of mipmap levels we expect to see in an Image.
-constexpr uint32 MaxImageMipLevels = 15;
-
 // =====================================================================================================================
 AddrMgr2::AddrMgr2(
     const Device* pDevice)

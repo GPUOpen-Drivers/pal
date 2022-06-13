@@ -400,7 +400,7 @@ Result Image::ValidateCreateInfo(
         // Verify the size of the mip-chain is valid for the given image type and format.
         if (ret == Result::Success)
         {
-            if (imageInfo.mipLevels == 0)
+            if ((imageInfo.mipLevels == 0) || (imageInfo.mipLevels > MaxImageMipLevels))
             {
                 ret = Result::ErrorInvalidMipCount;
             }

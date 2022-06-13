@@ -1174,6 +1174,7 @@ ADDR_E_RETURNCODE Lib::ComputeSurfaceAddrFromCoordLinear(
         ADDR2_COMPUTE_SURFACE_INFO_INPUT  localIn  = {0};
         ADDR2_COMPUTE_SURFACE_INFO_OUTPUT localOut = {0};
         ADDR2_MIP_INFO                    mipInfo[MaxMipLevels];
+        ADDR_ASSERT(pIn->numMipLevels <= MaxMipLevels);
 
         localIn.bpp          = pIn->bpp;
         localIn.flags        = pIn->flags;
