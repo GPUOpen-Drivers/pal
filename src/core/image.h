@@ -41,6 +41,9 @@ struct     PrivateScreenCreateInfo;
 struct     SubresId;
 enum class ImageAspect : uint32;
 
+// Maximum number of mipmap levels we expect to see in an Image.
+constexpr uint32 MaxImageMipLevels = 15;
+
 // Shift the 64-bit wide address by 8 to get 256 byte-aligned address, and return the low DWORD of that shifted
 // address.
 //
