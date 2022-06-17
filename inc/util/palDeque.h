@@ -131,6 +131,22 @@ public:
     /// @returns An iterator pointing at the back end of the deque.
     DequeIterator<T, Allocator> End() const { return DequeIterator<T, Allocator>(this, m_pBackHeader, m_pBack); }
 
+    ///@{
+    /// Returns the element at the location specified.
+    ///
+    /// @warning Calling this function with an out-of-bounds index will cause an access violation!
+    ///
+    /// @param [in] index Integer location of the element needed.
+    ///
+    /// @returns The element at location specified by index by reference
+    T& At(uint32 index);
+
+    const T& At(uint32 index) const;
+
+    T& operator[](uint32 index);
+    const T& operator[](uint32 index) const;
+    ///@}
+
     /// Returns the object at the front of the deque.
     ///
     /// @warning This will cause an access violation if called on an empty deque!

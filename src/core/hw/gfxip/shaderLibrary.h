@@ -26,8 +26,11 @@
 #pragma once
 
 #include "core/device.h"
-#include "palShaderLibrary.h"
 #include "core/hw/gfxip/pipeline.h"
+#include "palMsgPack.h"
+#include "palPipelineAbi.h"
+#include "palShaderLibrary.h"
+#include "palVector.h"
 
 namespace Pal
 {
@@ -91,6 +94,8 @@ public:
     UploadFenceToken GetUploadFenceToken() const { return m_uploadFenceToken; }
     uint64 GetPagingFenceVal() const { return m_pagingFenceVal; }
 
+    const void* GetCodeObject() const { return m_pCodeObjectBinary; }
+
 protected:
     // internal Constructor.
     explicit ShaderLibrary(Device* pDevice);
@@ -120,7 +125,7 @@ protected:
 
     Device*const    m_pDevice;
 
-    LibraryInfo     m_info;                  // Public info structure available to the client.
+    LibraryInfo     m_info;                 // Public info structure available to the client.
     void*           m_pCodeObjectBinary;    // Buffer containing the code object binary data (Pipeline ELF ABI).
     size_t          m_codeObjectBinaryLen;  // Size of code object binary data, in bytes.
 
@@ -136,8 +141,6 @@ private:
     Result InitFromCodeObjectBinary(
         const ShaderLibraryCreateInfo& createInfo);
 
-     /// @internal Client data pointer.
-    void*           m_pClientData;
     BoundGpuMemory  m_perfDataMem;
     gpusize         m_perfDataGpuMemSize;
 

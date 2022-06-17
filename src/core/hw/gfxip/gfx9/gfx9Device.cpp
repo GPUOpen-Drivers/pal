@@ -61,8 +61,10 @@
 #include "palAutoBuffer.h"
 #include "palDequeImpl.h"
 #include "palFormatInfo.h"
+#include "palLiterals.h"
 
 using namespace Util;
+using namespace Util::Literals;
 using namespace Pal::Formats::Gfx9;
 
 namespace Pal
@@ -4753,11 +4755,15 @@ void InitializeGpuChipProperties(
     //        the GFX6 implementation for the time being.
     pInfo->gfx9.numSimdPerCu = 4;
 
+    // All Gfx9+ GPUs have 16 SQC barrier resources per CU.  One barrier is allocated to every compute threadgroup
+    // which has >1 wavefront per group.
+    pInfo->gfx9.numSqcBarriersPerCu = 16;
+
     // The maximum amount of LDS space that can be shared by a group of threads (wave/ threadgroup) in bytes.
-    pInfo->gfxip.ldsSizePerThreadGroup = 64 * 1024;
+    pInfo->gfxip.ldsSizePerThreadGroup = 64_KiB;
     pInfo->gfxip.ldsSizePerCu          = 65536;
     pInfo->gfxip.ldsGranularity        = Gfx9LdsDwGranularity * sizeof(uint32);
-    pInfo->gfxip.tccSizeInBytes        = 4096 * 1024;
+    pInfo->gfxip.tccSizeInBytes        = 4_MiB;
     pInfo->gfxip.tcpSizeInBytes        = 16384;
     pInfo->gfxip.maxLateAllocVsLimit   = 64;
 
@@ -4771,8 +4777,8 @@ void InitializeGpuChipProperties(
     pInfo->gfxip.maxUserDataEntries      = MaxUserDataEntries;
     pInfo->gfxip.supportsHwVs            = 1;
 
-    pInfo->gfxip.maxGsOutputVert            = 1023;
-    pInfo->gfxip.maxGsTotalOutputComponents = 4095;
+    pInfo->gfxip.maxGsOutputVert            = 1023; // power of two minus one
+    pInfo->gfxip.maxGsTotalOutputComponents = 4095; // power of two minus one
 
     if (IsGfx103Plus(pInfo->gfxLevel))
     {
@@ -4846,7 +4852,8 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.supportAddrOffsetSetSh256Pkt     = (cpUcodeVersion >= Gfx10UcodeVersionSetShRegOffset256B);
         pInfo->gfx9.supportPostDepthCoverage         = 1;
         pInfo->gfx9.supportTextureGatherBiasLod      = 1;
-        pInfo->gfx9.supportFloat32Atomics            = 1;
+        pInfo->gfxip.supportFloat32BufferAtomics     = 1;
+        pInfo->gfxip.supportFloat32ImageAtomics      = 1;
         pInfo->gfx9.supportFloat64Atomics            = 1;
 
         pInfo->gfx9.numShaderArrays         = 2;
@@ -4863,13 +4870,15 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.vgprAllocGranularity    = IsGfx103Plus(pInfo->gfxLevel) ? 16: 8;
         pInfo->gfx9.minVgprAlloc            = pInfo->gfx9.vgprAllocGranularity;
         pInfo->gfxip.shaderPrefetchBytes    = 3 * ShaderICacheLineSize;
+
     }
     else if (pInfo->gfxLevel == GfxIpLevel::GfxIp9)
     {
         pInfo->gfx9.supportAddrOffsetDumpAndSetShPkt = (cpUcodeVersion >= UcodeVersionWithDumpOffsetSupport);
         pInfo->gfx9.supportAddrOffsetSetSh256Pkt     = (cpUcodeVersion >= Gfx9UcodeVersionSetShRegOffset256B);
         pInfo->gfx9.supportTextureGatherBiasLod      = 1;
-        pInfo->gfx9.supportFloat32Atomics            = 1;
+        pInfo->gfxip.supportFloat32BufferAtomics     = 1;
+        pInfo->gfxip.supportFloat32ImageAtomics      = 1;
         pInfo->gfx9.supportFloat64Atomics            = 1;
 
         pInfo->gfx9.numShaderArrays         = 1;
@@ -5145,6 +5154,8 @@ void InitializeGpuChipProperties(
         break;
     }
 
+    pInfo->gfx9.numActiveShaderEngines = pInfo->gfx9.numShaderEngines;
+
     pInfo->srdSizes.bufferView = sizeof(BufferSrd);
     pInfo->srdSizes.imageView  = sizeof(ImageSrd);
     pInfo->srdSizes.fmaskView  = sizeof(ImageSrd);
@@ -5206,6 +5217,7 @@ void InitializeGpuChipProperties(
     }
 
     pInfo->gfxip.numSlotsPerEvent = 1;
+
 }
 
 // =====================================================================================================================
@@ -5238,9 +5250,10 @@ void FinalizeGpuChipProperties(
     // Loop over each shader array and shader engine to determine actual number of active CU's (total and per SA/SE).
     uint32 numActiveCus   = 0;
     uint32 numAlwaysOnCus = 0;
-    for (uint32 sa = 0; sa < pInfo->gfx9.numShaderArrays; ++sa)
+    for (uint32 se = 0; se < pInfo->gfx9.numShaderEngines; ++se)
     {
-        for (uint32 se = 0; se < pInfo->gfx9.numShaderEngines; ++se)
+        bool seActive = false;
+        for (uint32 sa = 0; sa < pInfo->gfx9.numShaderArrays; ++sa)
         {
             const uint32 cuActiveMask    = pInfo->gfx9.activeCuMask[se][sa];
             const uint32 cuActiveCount   = CountSetBits(cuActiveMask);
@@ -5255,8 +5268,18 @@ void FinalizeGpuChipProperties(
                        (pInfo->gfx9.numCuPerSh == 0)           ||
                        (pInfo->gfx9.numCuPerSh == cuActiveCount));
             pInfo->gfx9.numCuPerSh = Max(pInfo->gfx9.numCuPerSh, cuActiveCount);
+
+            if (cuActiveCount != 0)
+            {
+                seActive = true;
+            }
+        }
+        if (seActive)
+        {
+            pInfo->gfx9.activeSeMask |= (1 << se);
         }
     }
+    pInfo->gfx9.numActiveShaderEngines = CountSetBits(pInfo->gfx9.activeSeMask);
     PAL_ASSERT((pInfo->gfx9.numCuPerSh > 0) && (pInfo->gfx9.numCuPerSh <= pInfo->gfx9.maxNumCuPerSh));
     pInfo->gfx9.numActiveCus   = numActiveCus;
     pInfo->gfx9.numAlwaysOnCus = numAlwaysOnCus;

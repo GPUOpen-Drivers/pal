@@ -1,4 +1,27 @@
-/* Copyright (c) 2021 Advanced Micro Devices, Inc. All rights reserved. */
+/*
+ ***********************************************************************************************************************
+ *
+ *  Copyright (c) 2021-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
+ *
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
+ *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ *
+ **********************************************************************************************************************/
 
 // DevDriver includes
 #include <ddAmdGpuInfo.h>
@@ -17,9 +40,22 @@
     #define AMDGPU_VRAM_TYPE_GDDR6 9
 #endif
 
+// WA: We need to build on CentOS 7, which uses an older libdrm that does not define this.
 // WA: We need to build on Ubuntu 16.04, which uses an older libdrm that does not define this.
 #ifndef AMDGPU_VRAM_TYPE_DDR4
     #define AMDGPU_VRAM_TYPE_DDR4 8
+#endif
+
+// WA: We need to build on CentOS 7, which uses an older libdrm that does not define this.
+// WA: We need to build on Ubuntu 16.04, which uses an older libdrm that does not define this.
+#ifndef AMDGPU_VRAM_TYPE_DDR5
+    #define AMDGPU_VRAM_TYPE_DDR5 10
+#endif
+
+// WA: We need to build on CentOS 7, which uses an older libdrm that does not define this.
+// WA: We need to build on Ubuntu 16.04, which uses an older libdrm that does not define this.
+#ifndef AMDGPU_VRAM_TYPE_LPDDR5
+   #define AMDGPU_VRAM_TYPE_LPDDR5 12
 #endif
 
 namespace DevDriver
@@ -125,9 +161,11 @@ static LocalMemoryType TranslateMemoryType(uint32 memType)
         case AMDGPU_VRAM_TYPE_DDR2: return LocalMemoryType::Ddr2; break;
         case AMDGPU_VRAM_TYPE_DDR3: return LocalMemoryType::Ddr3; break;
         case AMDGPU_VRAM_TYPE_DDR4: return LocalMemoryType::Ddr4; break;
-        case AMDGPU_VRAM_TYPE_GDDR5: return LocalMemoryType::Gddr5; break;
+	    case AMDGPU_VRAM_TYPE_DDR5: return LocalMemoryType::Ddr5; break;
+	    case AMDGPU_VRAM_TYPE_GDDR5: return LocalMemoryType::Gddr5; break;
         case AMDGPU_VRAM_TYPE_GDDR6: return LocalMemoryType::Gddr6; break;
         case AMDGPU_VRAM_TYPE_HBM: return LocalMemoryType::Hbm; break;
+        case AMDGPU_VRAM_TYPE_LPDDR5: return LocalMemoryType::Lpddr5; break;
 
         default: DD_ASSERT_REASON("Unrecognized memory type"); break;
     }
@@ -234,6 +272,10 @@ Result QueryGpuInfo(const AllocCb& allocCb, Vector<AmdGpuInfo>* pGpus)
 
                     outGpuInfo.memory.hbccSize = 0; // Per PAL - Linux doesn't support HBCC
 
+                    // drm version info
+                    outGpuInfo.drmVersion.Major = majorVersion;
+                    outGpuInfo.drmVersion.Minor = minorVersion;
+
                     // Get the marketing name string
                     PFN_AmdgpuGetMarketingName pfnGetMarketingName;
                     if (libdrmLoader.GetFunction("amdgpu_get_marketing_name", &pfnGetMarketingName) &&
@@ -276,11 +318,11 @@ Result QueryGpuInfo(const AllocCb& allocCb, Vector<AmdGpuInfo>* pGpus)
                         else
                         {
                             outGpuInfo.memory.localHeap.size     = memInfo.cpu_accessible_vram.total_heap_size;
-                            outGpuInfo.memory.invisibleHeap.size = 
+                            outGpuInfo.memory.invisibleHeap.size =
                                 memInfo.vram.total_heap_size - outGpuInfo.memory.localHeap.size;
 
                             // Currently libdrm doesn't provide base physical addresses. We just assume that
-                            // the base address of the local visible memory region starts at 0, and the invisible 
+                            // the base address of the local visible memory region starts at 0, and the invisible
                             // memory region follows immediately after, and set their base addresses accordingly.
                             // See issue #361.
                             outGpuInfo.memory.localHeap.physAddr = 0;

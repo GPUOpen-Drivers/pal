@@ -876,19 +876,23 @@ void ComputeCmdBuffer::CmdBindBorderColorPalette(
     //       which may involve getting KMD support.
     if (m_device.Settings().disableBorderColorPaletteBinds == false)
     {
-        auto*const       pPipelineState = PipelineState(pipelineBindPoint);
-        const auto*const pNewPalette    = static_cast<const BorderColorPalette*>(pPalette);
+        const auto*const pNewPalette = static_cast<const BorderColorPalette*>(pPalette);
 
-        if (pNewPalette != nullptr)
         {
-            uint32* pCmdSpace = m_cmdStream.ReserveCommands();
-            pCmdSpace = pNewPalette->WriteCommands(pipelineBindPoint, TimestampGpuVirtAddr(), &m_cmdStream, pCmdSpace);
-            m_cmdStream.CommitCommands(pCmdSpace);
-        }
+            PAL_ASSERT(pipelineBindPoint == PipelineBindPoint::Compute);
+            if (pNewPalette != nullptr)
+            {
+                uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+                pCmdSpace = pNewPalette->WriteCommands(pipelineBindPoint,
+                                                       TimestampGpuVirtAddr(),
+                                                       &m_cmdStream,
+                                                       pCmdSpace);
+                m_cmdStream.CommitCommands(pCmdSpace);
+            }
 
-        // Update the border-color palette state.
-        pPipelineState->pBorderColorPalette                = pNewPalette;
-        pPipelineState->dirtyFlags.borderColorPaletteDirty = 1;
+            m_computeState.pipelineState.pBorderColorPalette = pNewPalette;
+            m_computeState.pipelineState.dirtyFlags.borderColorPaletteDirty = 1;
+        }
     }
 }
 
@@ -900,6 +904,8 @@ template <bool HasPipelineChanged>
 uint32* ComputeCmdBuffer::ValidateUserData(
     const ComputePipelineSignature* pPrevSignature, // In: Signature of pipeline bound for previous Dispatch. Will be
                                                     // nullptr if the pipeline is not changing.
+    UserDataEntries*                pUserData,
+    UserDataTableState*             pSpillTable,
     uint32*                         pCmdSpace)
 {
     PAL_ASSERT((HasPipelineChanged  && (pPrevSignature != nullptr)) ||
@@ -913,13 +919,13 @@ uint32* ComputeCmdBuffer::ValidateUserData(
     bool alreadyWritten = false;
     if (HasPipelineChanged)
     {
-        alreadyWritten = FixupUserSgprsOnPipelineSwitch(pPrevSignature, &pCmdSpace);
+        alreadyWritten = FixupUserSgprsOnPipelineSwitch(*pUserData, pPrevSignature, &pCmdSpace);
     }
 
     if (alreadyWritten == false)
     {
         pCmdSpace = m_cmdStream.WriteUserDataEntriesToSgprs<false, ShaderCompute>(m_pSignatureCs->stage,
-                                                                                  m_computeState.csUserDataEntries,
+                                                                                  *pUserData,
                                                                                   pCmdSpace);
     }
 
@@ -933,7 +939,7 @@ uint32* ComputeCmdBuffer::ValidateUserData(
         // Step #2:
         // Because the spill table is managed using CPU writes to embedded data, it must be fully re-uploaded for any
         // Dispatch whenever *any* contents have changed.
-        bool reUpload = (m_spillTableCs.dirty != 0);
+        bool reUpload = (pSpillTable->dirty != 0);
         if (HasPipelineChanged &&
             ((spillThreshold < pPrevSignature->spillThreshold) || (userDataLimit > pPrevSignature->userDataLimit)))
         {
@@ -948,18 +954,18 @@ uint32* ComputeCmdBuffer::ValidateUserData(
             const uint32 lastMaskId = (lastUserData / UserDataEntriesPerMask);
             for (uint32 maskId = firstMaskId; maskId <= lastMaskId; ++maskId)
             {
-                size_t dirtyMask = m_computeState.csUserDataEntries.dirty[maskId];
+                size_t dirtyMask = pUserData->dirty[maskId];
                 if (maskId == firstMaskId)
                 {
                     // Ignore the dirty bits for any entries below the spill threshold.
                     const uint32 firstEntryInMask = (spillThreshold & (UserDataEntriesPerMask - 1));
-                    dirtyMask &= ~BitfieldGenMask(static_cast<size_t>(firstEntryInMask));
+                    dirtyMask &= ~BitfieldGenMask(size_t(firstEntryInMask));
                 }
                 if (maskId == lastMaskId)
                 {
                     // Ignore the dirty bits for any entries beyond the user-data limit.
                     const uint32 lastEntryInMask = (lastUserData & (UserDataEntriesPerMask - 1));
-                    dirtyMask &= BitfieldGenMask(static_cast<size_t>(lastEntryInMask + 1));
+                    dirtyMask &= BitfieldGenMask(size_t(lastEntryInMask + 1));
                 }
 
                 if (dirtyMask != 0)
@@ -974,10 +980,10 @@ uint32* ComputeCmdBuffer::ValidateUserData(
         // Re-upload spill table contents if necessary, and write the new GPU virtual address to the user-SGPR(s).
         if (reUpload)
         {
-            UpdateUserDataTableCpu(&m_spillTableCs,
+            UpdateUserDataTableCpu(pSpillTable,
                                    (userDataLimit - spillThreshold),
                                    spillThreshold,
-                                   &m_computeState.csUserDataEntries.entries[0]);
+                                   &pUserData->entries[0]);
         }
 
         if (reUpload || HasPipelineChanged)
@@ -985,7 +991,7 @@ uint32* ComputeCmdBuffer::ValidateUserData(
             if (m_pSignatureCs->stage.spillTableRegAddr != UserDataNotMapped)
             {
                 pCmdSpace = m_cmdStream.WriteSetOneShReg<ShaderCompute>(m_pSignatureCs->stage.spillTableRegAddr,
-                                                                        LowPart(m_spillTableCs.gpuVirtAddr),
+                                                                        LowPart(pSpillTable->gpuVirtAddr),
                                                                         pCmdSpace);
             }
         }
@@ -993,8 +999,7 @@ uint32* ComputeCmdBuffer::ValidateUserData(
 
     // All dirtied user-data entries have been written to user-SGPR's or to the spill table somewhere in this method,
     // so it is safe to clear these bits.
-    memset(&m_computeState.csUserDataEntries.dirty[0], 0, sizeof(m_computeState.csUserDataEntries.dirty));
-    // if current pipeline spills user-data
+    memset(&pUserData->dirty[0], 0, sizeof(UserDataEntries::dirty));
 
     return pCmdSpace;
 }
@@ -1042,7 +1047,10 @@ uint32* ComputeCmdBuffer::ValidateDispatchPalAbi(
         const auto*const pPrevSignature = m_pSignatureCs;
         m_pSignatureCs                  = &pNewPipeline->Signature();
 
-        pCmdSpace = ValidateUserData<true>(pPrevSignature, pCmdSpace);
+        pCmdSpace = ValidateUserData<true>(pPrevSignature,
+                                           &m_computeState.csUserDataEntries,
+                                           &m_spillTable.stateCs,
+                                           pCmdSpace);
     }
     else
     {
@@ -1063,7 +1071,10 @@ uint32* ComputeCmdBuffer::ValidateDispatchPalAbi(
 #endif
         } // if Launch Descriptor is changing
 
-        pCmdSpace = ValidateUserData<false>(nullptr, pCmdSpace);
+        pCmdSpace = ValidateUserData<false>(nullptr,
+                                            &m_computeState.csUserDataEntries,
+                                            &m_spillTable.stateCs,
+                                            pCmdSpace);
     }
 
 #if PAL_DEVELOPER_BUILD
@@ -1282,6 +1293,7 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
 // has changed since the previous Dispathc operation.  It is expected that this will be called only when the pipeline
 // is changing and immediately before a call to WriteUserDataEntriesToSgprs<false, ..>().
 bool ComputeCmdBuffer::FixupUserSgprsOnPipelineSwitch(
+    const UserDataEntries&          userData,
     const ComputePipelineSignature* pPrevSignature,
     uint32**                        ppCmdSpace)
 {
@@ -1299,7 +1311,7 @@ bool ComputeCmdBuffer::FixupUserSgprsOnPipelineSwitch(
     if (m_pSignatureCs->userDataHash != pPrevSignature->userDataHash)
     {
         pCmdSpace = m_cmdStream.WriteUserDataEntriesToSgprs<true, ShaderCompute>(m_pSignatureCs->stage,
-                                                                                 m_computeState.csUserDataEntries,
+                                                                                 userData,
                                                                                  pCmdSpace);
         written = true;
         (*ppCmdSpace) = pCmdSpace;

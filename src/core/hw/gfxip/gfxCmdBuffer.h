@@ -46,8 +46,6 @@ class GfxDevice;
 class GpuMemory;
 class IndirectCmdGenerator;
 class Pipeline;
-class PerfExperiment;
-class IPerfExperiment;
 
 // Which engines are supported by this command buffer's CmdStreams.
 enum CmdBufferEngineSupport : uint32
@@ -196,22 +194,21 @@ enum class AcqRelEventType : uint32
     Eop    = 0x0,
     PsDone = 0x1,
     CsDone = 0x2,
-    Count
+    Count,
+
+    Invalid = Count
 };
 
 // Acquire/release synchronization token structure.
-struct AcqRelSyncToken
+union AcqRelSyncToken
 {
-    union
+    struct
     {
-        struct
-        {
-            uint32 fenceVal : 30;
-            uint32 type     :  2;
-        };
-
-        uint32 u32All;
+        uint32 fenceVal : 30;
+        uint32 type     :  2;
     };
+
+    uint32 u32All;
 };
 
 // =====================================================================================================================
@@ -235,6 +232,10 @@ public:
 
     virtual void CmdBindPipeline(
         const PipelineBindParams& params) override;
+
+    virtual void CmdDuplicateUserData(
+        PipelineBindPoint source,
+        PipelineBindPoint dest) override;
 
     virtual void CmdCopyMemoryByGpuVa(
         gpusize                 srcGpuVirtAddr,
@@ -586,8 +587,6 @@ protected:
     virtual Result BeginCommandStreams(CmdStreamBeginFlags cmdStreamFlags, bool doReset) override;
 
     virtual void ResetState() override;
-
-    virtual Pal::PipelineState* PipelineState(PipelineBindPoint bindPoint) = 0;
 
     void DescribeDispatch(Developer::DrawDispatchType cmdType, uint32 xDim, uint32 yDim, uint32 zDim);
     void DescribeDispatchOffset(uint32 xOffset, uint32 yOffset, uint32 zOffset, uint32 xDim, uint32 yDim, uint32 zDim);

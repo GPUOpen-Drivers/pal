@@ -85,12 +85,6 @@ protected:
 
     virtual ~ComputeCmdBuffer() {}
 
-    virtual Pal::PipelineState* PipelineState(PipelineBindPoint bindPoint) override
-    {
-        PAL_ASSERT(bindPoint == PipelineBindPoint::Compute);
-        return &m_computeState.pipelineState;
-    }
-
     virtual Result BeginCommandStreams(CmdStreamBeginFlags cmdStreamFlags, bool doReset) override;
 
     virtual void ResetState() override;
@@ -103,7 +97,10 @@ protected:
     virtual uint32* WriteNops(uint32* pCmdSpace, uint32 numDwords) const override
         { return pCmdSpace + m_pCmdStream->BuildNop(numDwords, pCmdSpace); }
 
-    UserDataTableState  m_spillTableCs; // Tracks the state of the compute user-data spill table.
+    struct
+    {
+        UserDataTableState  stateCs;  // Tracks the state of the compute spill table
+    }  m_spillTable;
 
 private:
     const GfxDevice&    m_device;

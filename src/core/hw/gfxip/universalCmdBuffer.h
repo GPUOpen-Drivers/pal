@@ -218,6 +218,10 @@ public:
     virtual void CmdBindPipeline(
         const PipelineBindParams& params) override;
 
+    virtual void CmdDuplicateUserData(
+        PipelineBindPoint source,
+        PipelineBindPoint dest) override;
+
     virtual void CmdBindIndexData(
         gpusize   gpuAddr,
         uint32    indexCount,
@@ -304,8 +308,6 @@ protected:
         bool                       blendOptEnable);
 
     virtual ~UniversalCmdBuffer() {}
-
-    virtual Pal::PipelineState* PipelineState(PipelineBindPoint bindPoint) override;
 
     virtual Result BeginCommandStreams(CmdStreamBeginFlags cmdStreamFlags, bool doReset) override;
 

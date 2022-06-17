@@ -35,6 +35,7 @@
 #include "core/hw/gfxip/rpm/gfx9/gfx9RsrcProcMgr.h"
 
 #include "palPipelineAbi.h"
+#include "palAutoBuffer.h"
 
 namespace Pal
 {
@@ -156,6 +157,18 @@ struct LayoutTransitionInfo
 
     HwLayoutTransition blt[2];            // Color target may need a second decompress pass to do MSAA color decompress.
 };
+
+// A structure that helps cache and reuse the calculated BLT transition and sync requests for an image barrier in
+// acquire-release based barrier.
+struct AcqRelTransitionInfo
+{
+    const ImgBarrier*    pImgBarrier;
+    LayoutTransitionInfo layoutTransInfo;
+    uint32               bltStageMask;
+    uint32               bltAccessMask;
+};
+
+using AcqRelAutoBuffer = Util::AutoBuffer<AcqRelTransitionInfo, 8, Platform>;
 
 // Forward decl
 static const Gfx9PalSettings& GetGfx9Settings(const Pal::Device& device);
@@ -481,8 +494,7 @@ public:
         GfxCmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         const AcquireReleaseInfo&     barrierReleaseInfo,
-        Developer::BarrierOperations* pBarrierOps,
-        bool                          waMetaMisalignNeedRefreshLlc = false) const;
+        Developer::BarrierOperations* pBarrierOps) const;
 
     void BarrierAcquire(
         GfxCmdBuffer*                 pCmdBuf,
@@ -490,16 +502,14 @@ public:
         const AcquireReleaseInfo&     barrierAcquireInfo,
         uint32                        syncTokenCount,
         const AcqRelSyncToken*        pSyncTokens,
-        Developer::BarrierOperations* pBarrierOps,
-        bool                          waMetaMisalignNeedRefreshLlc = false) const;
+        Developer::BarrierOperations* pBarrierOps) const;
 
     void BarrierReleaseEvent(
         GfxCmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         const AcquireReleaseInfo&     barrierReleaseInfo,
         const IGpuEvent*              pClientEvent,
-        Developer::BarrierOperations* pBarrierOps,
-        bool                          waMetaMisalignNeedRefreshLlc = false) const;
+        Developer::BarrierOperations* pBarrierOps) const;
 
     void BarrierAcquireEvent(
         GfxCmdBuffer*                 pCmdBuf,
@@ -507,8 +517,7 @@ public:
         const AcquireReleaseInfo&     barrierAcquireInfo,
         uint32                        gpuEventCount,
         const IGpuEvent* const*       ppGpuEvents,
-        Developer::BarrierOperations* pBarrierOps,
-        bool                          waMetaMisalignNeedRefreshLlc = false) const;
+        Developer::BarrierOperations* pBarrierOps) const;
 
     void BarrierReleaseThenAcquire(
         GfxCmdBuffer*                 pCmdBuf,
@@ -731,6 +740,26 @@ private:
         LayoutTransitionInfo          transition,
         Developer::BarrierOperations* pBarrierOps) const;
 
+    bool GetAcqRelLayoutTransitionBltInfo(
+        GfxCmdBuffer*                 pCmdBuf,
+        CmdStream*                    pCmdStream,
+        const AcquireReleaseInfo&     barrierInfo,
+        AcqRelAutoBuffer*             pTransitionList,
+        Developer::BarrierOperations* pBarrierOps,
+        uint32*                       pBltCount,
+        uint32*                       pBltStageMask,
+        uint32*                       pBltAccessMask,
+        uint32*                       pSrcAccessMask) const;
+
+    bool IssueAcqRelLayoutTransitionBlt(
+        GfxCmdBuffer*                 pCmdBuf,
+        CmdStream*                    pCmdStream,
+        uint32                        imageBarrierCount,
+        const AcqRelAutoBuffer&       transitionList,
+        Developer::BarrierOperations* pBarrierOps,
+        uint32*                       pPostBltStageMask,
+        uint32*                       pPostBltAccessMask) const;
+
     bool AcqRelInitMaskRam(
         GfxCmdBuffer*      pCmdBuf,
         CmdStream*         pCmdStream,
@@ -741,7 +770,7 @@ private:
         CmdStream*                    pCmdStream,
         uint32                        stageMask,
         uint32                        accessMask,
-        bool                          flushLlc,
+        bool                          refreshTcc,
         Developer::BarrierOperations* pBarrierOps) const;
 
     void IssueAcquireSync(
@@ -749,7 +778,7 @@ private:
         CmdStream*                    pCmdStream,
         uint32                        stageMask,
         uint32                        accessMask,
-        bool                          invalidateLlc,
+        bool                          refreshTcc,
         gpusize                       rangeStartAddr,
         gpusize                       rangeSize,
         uint32                        syncTokenCount,
@@ -761,7 +790,7 @@ private:
         CmdStream*                    pCmdStream,
         uint32                        stageMask,
         uint32                        accessMask,
-        bool                          flushLlc,
+        bool                          refreshTcc,
         const IGpuEvent*              pGpuEvent,
         Developer::BarrierOperations* pBarrierOps) const;
 
@@ -770,24 +799,11 @@ private:
         CmdStream*                    pCmdStream,
         uint32                        stageMask,
         uint32                        accessMask,
-        bool                          invalidateLlc,
+        bool                          refreshTcc,
         gpusize                       rangeStartAddr,
         gpusize                       rangeSize,
         uint32                        gpuEventCount,
         const IGpuEvent* const*       ppGpuEvents,
-        Developer::BarrierOperations* pBarrierOps) const;
-
-    uint32 Gfx10BuildReleaseGcrCntl(
-        uint32                        accessMask,
-        bool                          flushGl2,
-        Developer::BarrierOperations* pBarrierOps) const;
-
-    uint32 Gfx10BuildAcquireGcrCntl(
-        uint32                        accessMask,
-        bool                          invalidateGl2,
-        gpusize                       baseAddress,
-        gpusize                       sizeBytes,
-        bool                          isFlushing,
         Developer::BarrierOperations* pBarrierOps) const;
 
     Gfx9::CmdUtil  m_cmdUtil;

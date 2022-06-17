@@ -53,7 +53,6 @@ struct KernelArgument;
 
 namespace Pal
 {
-// Forward declarations.
 struct GpuMemSubAllocInfo;
 enum class PrimitiveTopology : uint32;
 
@@ -295,7 +294,20 @@ struct RasterizerState
         bool depthClampDisable;                ///< Disable depth clamping to viewport min/max depth
     };
 #endif
-    uint8           clipDistMask;              ///< Mask to indicate the clipDistance.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 733
+    union
+    {
+        struct
+        {
+            uint8 clipDistMaskValid : 1; ///< Whether or not @ref clipDiskMask, below, is valid.
+            uint8 cullDistMaskValid : 1; ///< Whether or not @ref cullDistMask, below, is valid.
+            uint8 reserved : 6;
+        };
+        uint8 u8All;                    ///< All the flags as a single value.
+    } flags;
+    uint8           cullDistMask;              ///< Mask of which cullDistance exports to leave enabled.
+#endif
+    uint8           clipDistMask;              ///< Mask of which clipDistance exports to leave enabled.
     PsShadingRate   forcedShadingRate;         ///< Forced PS shading rate
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 665
@@ -499,18 +511,17 @@ struct ShaderStats
     CommonShaderStats  copyShader;            ///< This data is valid only when the copyShaderPresent flag above is set.
 };
 
-/**
- ***********************************************************************************************************************
- * @interface IPipeline
- * @brief     Monolithic object containing all shaders and a large amount of "shader adjacent" state.  Separate concrete
- *            implementations will support compute or graphics pipelines.
- *
- * @see IDevice::CreateComputePipeline()
- * @see IDevice::CreateGraphicsPipeline()
- * @see IDevice::LoadPipeline()
- ***********************************************************************************************************************
- */
-
+ /**
+  ***********************************************************************************************************************
+  * @interface IPipeline
+  * @brief     Monolithic object containing all shaders and a large amount of "shader adjacent" state.  Separate concrete
+  *            implementations will support compute or graphics pipelines.
+  *
+  * @see IDevice::CreateComputePipeline()
+  * @see IDevice::CreateGraphicsPipeline()
+  * @see IDevice::LoadPipeline()
+  ***********************************************************************************************************************
+  */
 class IPipeline : public IDestroyable
 {
 public:

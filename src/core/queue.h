@@ -26,6 +26,7 @@
 #pragma once
 
 #include "core/platform.h"
+#include "core/queueSemaphore.h"
 #include "palQueue.h"
 #include "palDeque.h"
 #include "palIntrusiveList.h"
@@ -301,7 +302,9 @@ public:
     // requires a fully initialized queue.
     virtual Result LateInit();
 
-    Result ReleaseFromStalledState();
+    Result ReleaseFromStalledState(
+        QueueSemaphore* pWaitingSemaphore,
+        uint64          value);
 
     virtual uint32 EngineId() const { return m_pQueueInfos[0].createInfo.engineIndex; }
     virtual QueuePriority Priority() const { return m_pQueueInfos[0].createInfo.priority; }
@@ -315,9 +318,6 @@ public:
 
     virtual uint32 PersistentCeRamOffset() const { return m_pQueueInfos[0].createInfo.persistentCeRamOffset; }
     virtual uint32 PersistentCeRamSize()   const { return m_pQueueInfos[0].createInfo.persistentCeRamSize; }
-
-    IQueueSemaphore* WaitingSemaphore() const { return m_pWaitingSemaphore; }
-    void SetWaitingSemaphore(IQueueSemaphore* pQueueSemaphore) { m_pWaitingSemaphore = pQueueSemaphore; }
 
     Util::IntrusiveListNode<Queue>* DeviceMembershipNode() { return &m_deviceMembershipNode; }
 
@@ -433,7 +433,6 @@ private:
     // Tracks whether or not this Queue is stalled by a Queue Semaphore, and if so, the Semaphore which is blocking
     // this Queue.
     volatile bool     m_stalled;
-    IQueueSemaphore*  m_pWaitingSemaphore;
 
     volatile uint32   m_batchedSubmissionCount; // How many batched submissions will be sent to OS layer later on.
 

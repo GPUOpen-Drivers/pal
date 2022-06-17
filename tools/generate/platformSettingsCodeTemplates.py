@@ -66,6 +66,7 @@ NamespaceEnd   = """
 
 HeaderIncludes = """
 #include \"pal.h\"
+#include \"palFile.h\"
 #include \"palSettingsLoader.h\"
 """
 

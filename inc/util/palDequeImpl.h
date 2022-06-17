@@ -39,6 +39,64 @@ namespace Util
 {
 
 // =====================================================================================================================
+// Retrieves the element at position index.
+template<typename T, typename Allocator>
+T& Deque<T, Allocator>::At(
+    uint32 index)
+{
+    PAL_ASSERT(index < m_numElements);
+
+    // find the block
+    DequeBlockHeader* pCurrentHeader = m_pFrontHeader;
+    for (uint32 blockIndex = index / uint32(m_numElementsPerBlock); blockIndex > 0; --blockIndex)
+    {
+        pCurrentHeader = pCurrentHeader->pNext;
+    }
+
+    // find the element in the block
+    const uint32 elementIndex = index % m_numElementsPerBlock;
+    return *(static_cast<T*>(pCurrentHeader->pStart) + elementIndex);
+}
+
+// =====================================================================================================================
+// Retrieves the element at position index.
+template<typename T, typename Allocator>
+const T& Deque<T, Allocator>::At(
+    uint32 index) const
+{
+    PAL_ASSERT(index < m_numElements);
+
+    // find the block
+    const DequeBlockHeader* pCurrentHeader = m_pFrontHeader;
+    for (uint32 blockIndex = index / uint32(m_numElementsPerBlock); blockIndex > 0; --blockIndex)
+    {
+        pCurrentHeader = pCurrentHeader->pNext;
+    }
+
+    // find the element in the block
+    const uint32 elementIndex = index % m_numElementsPerBlock;
+    return *(static_cast<const T*>(pCurrentHeader->pStart) + elementIndex);
+}
+
+// =====================================================================================================================
+// Retrieves the element at position index.
+template<typename T, typename Allocator>
+T& Deque<T, Allocator>::operator[](
+    uint32 index)
+{
+    return At(index);
+}
+
+// =====================================================================================================================
+// Retrieves the element at position index.
+template<typename T, typename Allocator>
+const T& Deque<T, Allocator>::operator[](
+    uint32 index) const
+{
+    return At(index);
+}
+
+// =====================================================================================================================
 // Allocates a new block for storing additional data elements.  If the lazy-free block is present, just use that instead
 // of allocating more memory.
 template<typename T, typename Allocator>

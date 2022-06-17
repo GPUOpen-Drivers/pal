@@ -35,6 +35,7 @@
 #include "core/addrMgr/addrMgr2/addrMgr2.h"
 #include "palHasher.h"
 #include "palMath.h"
+#include "palLiterals.h"
 
 #include <atomic>
 #include <limits.h>
@@ -42,6 +43,7 @@
 
 using namespace Pal::AddrMgr2;
 using namespace Util;
+using namespace Util::Literals;
 using namespace Pal::Formats;
 using namespace Pal::Formats::Gfx9;
 
@@ -467,7 +469,9 @@ Result Image::Finalize(
         useCmask              = (sharedMetadata.cmaskOffset  != 0) && (sharedMetadata.fmaskOffset != 0);
 
         // Fast-clear metadata is a must for shared DCC and HTILE. Sharing is disabled if it is not provided.
-        if (useDcc && (sharedMetadata.fastClearMetaDataOffset[0] == 0))
+        if (useDcc &&
+            (sharedMetadata.fastClearMetaDataOffset[0] == 0)
+            )
         {
             useDcc = false;
             result = Result::ErrorNotShareable;

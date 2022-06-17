@@ -53,10 +53,12 @@ template<typename T, typename Allocator> class StringBagIterator;
 template<typename T>
 class StringBagHandle
 {
+    static constexpr uint32 InvalidInternalValue = uint32(-1);
+
 public:
     constexpr StringBagHandle()
         :
-        m_value(0)
+        m_value(InvalidInternalValue)
     {}
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -72,6 +74,8 @@ public:
         m_value(v)
     {}
 #endif
+
+    constexpr bool IsValid() const { return m_value != InvalidInternalValue; }
 
     constexpr uint32 InternalValue() const { return m_value; }
 

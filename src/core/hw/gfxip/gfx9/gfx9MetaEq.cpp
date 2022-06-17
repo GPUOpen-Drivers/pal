@@ -490,7 +490,7 @@ void MetaDataAddrEquation::Mort2d(
             pChosen->compPos++;
         }
     }
-    else if (IsGfx10(palDevice))
+    else if (IsGfx10Plus(palDevice))
     {
         const bool reverse = (end < start);
 
@@ -1110,6 +1110,22 @@ void MetaDataAddrEquation::Rotate(
         {
             SetMask(dstBitPos, compType, rotCopy.Get(src, compType));
         }
+    }
+}
+
+// =====================================================================================================================
+// Swap the equation data located in "pos1" and "pos2"
+void MetaDataAddrEquation::Swap(
+    uint32  pos1,
+    uint32  pos2)
+{
+    for (uint32  compType = 0; compType < MetaDataAddrCompNumTypes; compType++)
+    {
+        const uint32  newPos2Data = m_equation[pos1][compType];
+        const uint32  newPos1Data = m_equation[pos2][compType];
+
+        m_equation[pos2][compType] = newPos2Data;
+        m_equation[pos1][compType] = newPos1Data;
     }
 }
 

@@ -50,25 +50,25 @@ namespace Pal
 {
 
 // Forward declarations.
-class      IBorderColorPalette;
-class      ICmdAllocator;
-class      ICmdBuffer;
-class      IColorBlendState;
-class      IColorTargetView;
-class      IDepthStencilState;
-class      IDepthStencilView;
-class      IGpuEvent;
-class      IGpuMemory;
-class      IIndirectCmdGenerator;
-class      IMsaaState;
-class      IPerfExperiment;
-class      IQueue;
-class      IQueryPool;
+class IBorderColorPalette;
+class ICmdAllocator;
+class ICmdBuffer;
+class IColorBlendState;
+class IColorTargetView;
+class IDepthStencilState;
+class IDepthStencilView;
+class IGpuEvent;
+class IGpuMemory;
+class IIndirectCmdGenerator;
+class IMsaaState;
+class IPerfExperiment;
+class IQueue;
+class IQueryPool;
 enum class PerfTraceMarkerType : uint32;
 enum class PointOrigin : uint32;
 
-struct     VideoCodecInfo;
-struct     VideoCodecAuxInfo;
+struct VideoCodecInfo;
+struct VideoCodecAuxInfo;
 
 /// Specifies a pipeline bind point (i.e., compute or graphics).
 enum class PipelineBindPoint : uint32
@@ -297,6 +297,7 @@ enum ImageLayoutEngineFlags : uint32
 /// GPU memory in a ICmdBuffer::CmdBarrier() call to ensure cache coherency between those usages.
 enum CacheCoherencyUsageFlags : uint32
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 740
     CoherCpu                = 0x00000001,     ///< Data read or written by CPU.
     CoherShader             = 0x00000002,     ///< Data read or written by a GPU shader.
     CoherCopy               = 0x00000004,     ///< Data read or written by a ICmdBuffer::CmdCopy*() call.
@@ -316,7 +317,43 @@ enum CacheCoherencyUsageFlags : uint32
     CoherPresent            = 0x00010000,     ///< Source of present.
     CoherCp                 = CoherTimestamp, ///< HW Command Processor (CP) encompassing the front - end command
                                               ///  processing of any queue, including SDMA.
-    CoherAllUsages          = 0x0001FFFF
+    CoherShaderRead         = CoherShader,
+    CoherShaderWrite        = CoherShader,
+    CoherCopySrc            = CoherCopy,
+    CoherCopyDst            = CoherCopy,
+    CoherResolveSrc         = CoherResolve,
+    CoherResolveDst         = CoherResolve,
+
+    CoherAllUsages          = 0x0001FFFF,
+#else
+    CoherCpu                = 0x00000001,     ///< Data read or written by CPU.
+    CoherShaderRead         = 0x00000002,     ///< Data read by a GPU shader.
+    CoherShaderWrite        = 0x00000004,     ///< Data written by a GPU shader.
+    CoherCopySrc            = 0x00000008,     ///< Source of a ICmdBuffer::CmdCopy*() call.
+    CoherCopyDst            = 0x00000010,     ///< Destination of a ICmdBuffer::CmdCopy*() call.
+    CoherColorTarget        = 0x00000020,     ///< Color target.
+    CoherDepthStencilTarget = 0x00000040,     ///< Depth stencil target.
+    CoherResolveSrc         = 0x00000080,     ///< Source of a CmdResolveImage() call.
+    CoherResolveDst         = 0x00000100,     ///< Destination of a CmdResolveImage() call.
+    CoherClear              = 0x00000200,     ///< Destination of a CmdClear() call.
+    CoherIndirectArgs       = 0x00000400,     ///< Source argument data read by CmdDrawIndirect() and similar functions.
+    CoherIndexData          = 0x00000800,     ///< Index buffer data.
+    CoherQueueAtomic        = 0x00001000,     ///< Destination of a CmdMemoryAtomic() call.
+    CoherTimestamp          = 0x00002000,     ///< Destination of a CmdWriteTimestamp() call.
+    CoherCeLoad             = 0x00004000,     ///< Source of a CmdLoadCeRam() call.
+    CoherCeDump             = 0x00008000,     ///< Destination of CmdDumpCeRam() call.
+    CoherStreamOut          = 0x00010000,     ///< Data written as stream output.
+    CoherMemory             = 0x00020000,     ///< Data read or written directly from/to memory
+    CoherSampleRate         = 0x00040000,     ///< CmdBindSampleRateImage() source.
+    CoherPresent            = 0x00080000,     ///< Source of present.
+    CoherCp                 = CoherTimestamp, ///< HW Command Processor (CP) encompassing the front - end command
+                                              ///  processing of any queue, including SDMA.
+    CoherShader             = CoherShaderRead | CoherShaderWrite,
+    CoherCopy               = CoherCopySrc    | CoherCopyDst,
+    CoherResolve            = CoherResolveSrc | CoherResolveDst,
+
+    CoherAllUsages          = 0x000FFFFF,
+#endif
 };
 
 /// Bitmask values for the flags parameter of ICmdBuffer::CmdClearColorImage().
@@ -342,8 +379,12 @@ enum ClearDepthStencilFlags : uint32
 /// Bitmask values for the flags parameter of ICmdBuffer::CmdResolveImage().
 enum ResolveImageFlags : uint32
 {
-    ImageResolveInvertY = 0x00000001,   ///< PAL will invert the y-axis (flip upside down) of the resolved region to
-                                        ///  the destination image.
+    ImageResolveInvertY     = 0x00000001,   ///< PAL will invert the y-axis (flip upside down) of the resolved region to
+                                            ///  the destination image.
+    ImageResolveDstAsSrgb   = 0x00000002,   ///< If set, a non-srgb destination image will be treated as srgb format.
+                                            ///  The flag cannot be set when @ref ImageResolveDstAsNorm is set.
+    ImageResolveDstAsNorm   = 0x00000004,   ///< If set, a srgb destination image will be treated as non-srgb format.
+                                            ///  The flag cannot be set when @ref ImageResolveDstAsSrgb is set.
 };
 
 /// Specifies properties for creation of an ICmdBuffer object.  Input structure to IDevice::CreateCmdBuffer().
@@ -1181,6 +1222,28 @@ struct DispatchIndirectArgs
 /// Specifies layout of GPU memory used as an input to CmdDispatchMeshIndirect.
 using DispatchMeshIndirectArgs = DispatchIndirectArgs;
 
+/// Specifies the GPU virtual address of an array and the stride in bytes between array elements.
+struct CpuVirtAddrAndStride
+{
+    const void*  pCpuVirtAddr;  ///< CPU virtual address of the 0th array element.
+    struct
+    {
+        uint64  stride : 32;    ///< Distance between array elements in bytes.
+        uint64  _pad   : 32;    ///< Padding for structure alignment.
+    };
+};
+
+/// Specifies the GPU virtual address of an array and the stride in bytes between array elements.
+struct GpuVirtAddrAndStride
+{
+    gpusize  gpuVirtAddr;       ///< GPU virtual address of the 0th array element.
+    struct
+    {
+        uint64  stride : 32;    ///< Distance between array elements in bytes.
+        uint64  _pad   : 32;    ///< Padding for structure alignment.
+    };
+};
+
 /// Specifies the different stages at which a combiner can choose between different shading rates.
 enum class VrsCombinerStage : uint32
 {
@@ -1769,15 +1832,20 @@ struct CmdBufInfo
             uint32 preflip            : 1;  ///< This command buffer has pre-flip access to DirectCapture resource
             uint32 postflip           : 1;  ///< This command buffer has post-flip access to DirectCapture resource
             uint32 privateFlip        : 1;  ///< Need to flip to a private primary surface for DirectCapture feature
+#else
+            uint32 reserved677        : 3;  ///< Reserved for future usage.
+#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 698
             uint32 vpBltExecuted      : 1;  ///< This command buffer comtains VP Blt work.
-            uint32 reserved           : 19; ///< Reserved for future usage.
 #else
-            uint32 reserved           : 20;
+            uint32 reserved698        : 1;  ///< Reserved for future usage.
 #endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 741
+            uint32 disableDccRejected : 1;  ///< Reject KMD's DisableDcc request to avoid writing to front buffer.
 #else
-            uint32 reserved           : 23; ///< Reserved for future usage.
+            uint32 reserved741        : 1;  ///< Reserved for future usage.
 #endif
+            uint32 reserved           : 18; ///< Reserved for future usage.
         };
         uint32 u32All;                  ///< Flags packed as uint32.
     };
@@ -1858,9 +1926,16 @@ union ScaledCopyFlags
         uint32 srcAlpha       : 1;  ///< If set, use alpha channel in source surface as blend factor.
                                     ///  color = src alpha * src color + (1.0 - src alpha) * dst color.
         uint32 dstAsSrgb      : 1;  ///< If set, a non-srgb destination image will be treated as srgb format.
+                                    ///  Cannot be set if @ref dstAsNorm is set.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 742
+        uint32 dstAsNorm      : 1;  ///< If set, a srgb destination image will be treated as non-srgb format.
+                                    ///  Cannot be set if @ref dstAsSrgb is set.
+#else
+        uint32 reserved741    : 1;
+#endif
         uint32 scissorTest    : 1;  ///< If set, do scissor test using the specified scissor rectangle.
         uint32 coordsInFloat  : 1;  ///< If set, copy regions are represented in floating point type.
-        uint32 reserved       : 26; ///< reserved for future useage.
+        uint32 reserved       : 25; ///< reserved for future useage.
     };
     uint32 u32All;                  ///< Flags packed as uint32.
 };
@@ -2162,6 +2237,17 @@ public:
         uint32            entryCount,
         const uint32*     pEntryValues)
     { (m_funcTable.pfnCmdSetUserData[static_cast<uint32>(bindPoint)])(this, firstEntry, entryCount, pEntryValues); }
+
+    /// Copies all pipeline-accessible user-data from one bind point to another.  It is invalid if the source and
+    /// dest parameters refer to the same bind point.
+    ///
+    /// @see CmdSetUserData for how the user-date entries will be interpreted by the pipeline.
+    ///
+    /// @param [in] source  Specifies which bind point to copy from.
+    /// @param [in] dest    Specifies which bind point to copy into.
+    virtual void CmdDuplicateUserData(
+        PipelineBindPoint source,
+        PipelineBindPoint dest) = 0;
 
     /// Sets one or more HSA code object kernel argument values.
     ///
@@ -3095,8 +3181,8 @@ public:
     /// Both resoruces can be in any layout before the clone operation.  After the clone, the source image state is left
     /// intact and the destination image layout becomes the same as the source.
     ///
-    /// The client is responsible for ensuring the source and destination images are available for @ref CoherCopy
-    /// operations before performing a clone.
+    /// The client is responsible for ensuring the source and destination images are available for @ref CoherCopySrc
+    /// and CoherCopyDst operations before performing a clone.
     ///
     /// The clone operation clones all subresources.
     ///
@@ -3108,8 +3194,8 @@ public:
 
     /// Directly updates a range of GPU memory with a small amount of host data.
     ///
-    /// For cache coherency purposes, CmdUpdateMemory counts as a @ref CoherCopy operation on the specified destination
-    /// GPU memory.
+    /// For cache coherency purposes, CmdUpdateMemory counts as a @ref CoherCopyDst operation on the specified
+    /// destination GPU memory.
     ///
     /// The client is responsible for choosing the proper method for optimal performance. If updating data size is less
     /// equal than 8 bytes, CmdWriteImmediate() is preferred.
@@ -3136,8 +3222,8 @@ public:
 
     /// Fills a range of GPU memory with the provided 32-bit data.
     ///
-    /// For cache coherency purposes, CmdFillMemory counts as a @ref CoherCopy operation on the specified destination
-    /// GPU memory.
+    /// For cache coherency purposes, CmdFillMemory counts as a @ref CoherCopyDst operation on the specified
+    /// destination GPU memory.
     ///
     /// @param [in] dstGpuMemory  GPU memory object to be filled.
     /// @param [in] dstOffset     Byte offset into the GPU memory object to be filled.  Must be a multiple of 4.
@@ -3433,8 +3519,8 @@ public:
 
     /// Resolves the results of a range of queries to the specified query type into the specified GPU memory location.
     ///
-    /// For synchronization purposes, CmdResolveQuery counts as a @ref CoherCopy operation on the specified destination
-    /// GPU memory that occurs between the @ref HwPipePreBlt and @ref HwPipePostBlt pipe points.
+    /// For synchronization purposes, CmdResolveQuery counts as a @ref CoherCopyDst operation on the specified
+    /// destination GPU memory that occurs between the @ref HwPipePreBlt and @ref HwPipePostBlt pipe points.
     ///
     /// This operation does not honor the command buffer's predication state, if active.
     ///
@@ -3504,8 +3590,8 @@ public:
     /// Loads the current stream-out buffer-filled-sizes stored on the GPU from memory, typically from a target of a
     /// prior CmdSaveBufferFilledSizes() call.
     ///
-    /// For cache coherency purposes, CmdLoadBufferFilledSizes counts as a @ref CoherCopy operation from the specified
-    /// GPU memory location(s).
+    /// For cache coherency purposes, CmdLoadBufferFilledSizes counts as a @ref CoherCopySrc operation from the
+    /// specified GPU memory location(s).
     ///
     /// @param [in] gpuVirtAddr Array of GPU virtual addresses to load each counter from.  If any of these are zero,
     ///                         the corresponding filled-size counter is not loaed.
@@ -3514,8 +3600,8 @@ public:
 
     /// Saves the current stream-out buffer-filled-sizes into GPU memory.
     ///
-    /// For cache coherency purposes, CmdSaveBufferFilledSizes counts as a @ref CoherCopy operation from the specified
-    /// GPU memory location(s).
+    /// For cache coherency purposes, CmdSaveBufferFilledSizes counts as a @ref CoherCopyDst operation from the
+    /// specified GPU memory location(s).
     ///
     /// @param [in] gpuVirtAddr Array of GPU virtual addresses to save each counter into.  If any of these are zero,
     ///                         the corresponding filled-size counter is not saved.

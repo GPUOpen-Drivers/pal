@@ -349,6 +349,23 @@ extern Result GetExecutableName(
     wchar_t** ppWcFilename,
     size_t    bufferLength);
 
+/// Gets the current library name. ie: the name of the library containing the function
+/// 'GetCurrentLibraryName'. Optionally, it will also return the extension if the input
+/// buffer for extension is valid.
+///
+/// @param [out] pLibBuffer      Character buffer where the library name will be stored.
+/// @param [in]  libBufferLength Length of the output buffer that will hold the library name, in bytes.
+/// @param [out] pExtBuffer      Character buffer where the extension will be stored.
+/// @param [in]  extBufferLength Length of the output buffer that will hold the extension, in bytes.
+/// @returns Result::Success if no error. Otherwise, returns one of the following codes:
+///          Result::ErrorInvalidMemorySize - if incoming buffer is too small.
+///          Result::ErrorUnknown - for all other types of errors.
+extern Result GetCurrentLibraryName(
+    char*  pLibBuffer,
+    size_t libBufferLength,
+    char*  pExtBuffer,
+    size_t extBufferLength);
+
 /// Splits a filename into its path and file components.
 ///
 /// @param [in]  pFullPath  Buffer containing the full path & file name.

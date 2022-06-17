@@ -88,6 +88,7 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdBindDepthStencilState,
     CmdBufferCmdSetDepthBounds,
     CmdBufferCmdSetUserData,
+    CmdBufferCmdDuplicateUserData,
     CmdBufferCmdSetKernelArguments,
     CmdBufferCmdSetVertexBuffers,
     CmdBufferCmdBindIndexData,
@@ -513,6 +514,8 @@ public:
     void Struct(const GpuMemoryOpenInfo& value);
     void Struct(const GpuMemoryRef& value);
     void Struct(const GraphicsPipelineCreateInfo& value);
+    void Struct(const CpuVirtAddrAndStride& value);
+    void Struct(const GpuVirtAddrAndStride& value);
     void Struct(const HiSPretests& value);
     void Struct(const ImageCopyRegion& value);
     void Struct(ImageCreateFlags value);

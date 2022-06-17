@@ -133,10 +133,11 @@ Result MemoryCacheLayer::QueryInternal(
 // =====================================================================================================================
 // Add data passed in to the cache
 Result MemoryCacheLayer::StoreInternal(
-    const Hash128*  pHashId,
-    const void*     pData,
-    size_t          dataSize,
-    size_t          storeSize)
+    Util::StoreFlags    storeFlags,
+    const Hash128*      pHashId,
+    const void*         pData,
+    size_t              dataSize,
+    size_t              storeSize)
 {
     Result result = Result::Success;
 

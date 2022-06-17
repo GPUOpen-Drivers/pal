@@ -26,8 +26,11 @@
 set(CMAKE_FOLDER "${CMAKE_FOLDER}/shared")
 
 add_subdirectory(ddApi)
-
 add_subdirectory(ddCommon)
+
+if (DD_BP_ENABLE_DD_TEST_UTIL)
+    add_subdirectory(ddTestUtil)
+endif()
 
 if (DD_BP_ENABLE_DD_MODULE_APIS)
     add_subdirectory(ddModule)

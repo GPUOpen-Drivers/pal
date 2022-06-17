@@ -108,6 +108,13 @@ Platform::Platform(
     :
     Pal::IPlatform(allocCb),
     m_deviceCount(0),
+#if  (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 734)
+    m_clientApiId(createInfo.clientApiId),
+#else
+    m_clientApiId(ClientApi::Vulkan),
+#endif
+    m_clientApiMajorVer(createInfo.apiMajorVer),
+    m_clientApiMinorVer(createInfo.apiMinorVer),
     m_pDevDriverServer(nullptr),
     m_pSettingsService(nullptr),
     m_pDriverUtilsService(nullptr),
@@ -127,9 +134,7 @@ Platform::Platform(
     m_svmRangeStart(0),
     m_maxSvmSize(createInfo.maxSvmSize),
     m_logCb(),
-    m_eventProvider(this),
-    m_clientApiMajorVer(createInfo.apiMajorVer),
-    m_clientApiMinorVer(createInfo.apiMinorVer)
+    m_eventProvider(this)
 {
     memset(&m_pDevice[0], 0, sizeof(m_pDevice));
     memset(&m_properties, 0, sizeof(m_properties));
@@ -470,7 +475,7 @@ Result Platform::EarlyInitDevDriver()
     DevDriver::Result devDriverResult = DevDriver::Result::Success;
     if (isConnectionAvailable)
     {
-        constexpr const char* pClientStr = "AMD Vulkan Driver";
+        const char*const pClientStr = GetClientApiStr();
 
         // Configure the developer driver server for driver usage
         DevDriver::ServerCreateInfo  createInfo = {};
@@ -760,7 +765,7 @@ Result Platform::RegisterTraceControllers()
 
 // =====================================================================================================================
 void Platform::UpdateFrameTraceController(
-    ICmdBuffer* pCmdBuffer)
+    CmdBuffer* pCmdBuffer)
 {
     m_pFrameTraceController->UpdateFrame(pCmdBuffer);
 }
@@ -1056,6 +1061,39 @@ void Platform::LogMessage(
                          pFormat,
                          args);
     }
+}
+
+// =====================================================================================================================
+const char* Platform::GetClientApiStr() const
+{
+    const char* pStr = "Invalid Driver";
+
+    switch(m_clientApiId)
+    {
+    case ClientApi::Pal:
+        pStr = "AMD PAL";
+        break;
+    case ClientApi::Dx9:
+        pStr = "AMD DirectX9 Driver";
+        break;
+    case ClientApi::Dx12:
+        pStr = "AMD DirectX12 Driver";
+        break;
+    case ClientApi::Vulkan:
+        pStr = "AMD Vulkan Driver";
+        break;
+    case ClientApi::Mantle:
+        pStr = "AMD Mantle Driver";
+        break;
+    case ClientApi::OpenCl:
+        pStr = "AMD OpenCL Driver";
+        break;
+    case ClientApi::Hip:
+        pStr = "AMD HIP Driver";
+        break;
+    }
+
+    return pStr;
 }
 
 } // Pal

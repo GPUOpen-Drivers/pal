@@ -253,6 +253,28 @@ void CmdStream::CommitCommands(
 }
 
 // =====================================================================================================================
+// Commits and reserves new command space if the space remaining since the last call to ReserveCommands() is
+// insufficient for the specified amount of command DWORDs to fit.  Otherwise, does nothing.  The amount of DWORDs
+// **must** be less than or equal to the reserve limit.
+uint32* CmdStream::ReReserveCommands(
+    uint32* pCurrentBufferPos,
+    uint32  numDwords)
+{
+    const uint32 dwordsUsed = uint32(pCurrentBufferPos - m_pReserveBuffer);
+    PAL_ASSERT(dwordsUsed <= m_reserveLimit);
+    PAL_ASSERT(numDwords <= m_reserveLimit);
+
+    uint32* pBuffer = pCurrentBufferPos;
+    if ((dwordsUsed + numDwords) > m_reserveLimit)
+    {
+        CommitCommands(pBuffer);
+        pBuffer = ReserveCommands();
+    }
+
+    return pBuffer;
+}
+
+// =====================================================================================================================
 // Returns a pointer to chunk command space that can hold commands of the given size. This may cause the command stream
 // to switch to a new chunk if the current chunk does not have enough free space.
 uint32* CmdStream::AllocCommandSpace(

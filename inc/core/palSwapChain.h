@@ -177,7 +177,14 @@ struct SwapChainCreateInfo
                                                    ///  swapchain backbuffer which is then copied into the DXGI
                                                    ///  backbuffer. Use in the event of any unforseen compataibility
                                                    ///  issues with writing directly to the DXGI backbuffer.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 739
+            uint32 isDxgiStereo              :  1; ///< DXGI only, if Stereo is On, an intermediate render target is used
+                                                   ///< as the swapchain backbuffer which is then copied into the DXGI
+                                                   ///  backbuffer. (left and right slice)
+            uint32 reserved                  : 25; ///< Reserved for future use.
+#else
             uint32 reserved                  : 26; ///< Reserved for future use.
+#endif
         };
         uint32 u32All;                         ///< Flags packed as 32-bit uint.
     } flags;                                   ///< Swap chain flags.

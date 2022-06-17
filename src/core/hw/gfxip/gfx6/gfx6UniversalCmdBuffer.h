@@ -549,6 +549,7 @@ private:
     template <bool pm4OptImmediate>
     uint32* ValidateScissorRects(uint32* pDeCmdSpace);
     uint32* ValidateScissorRects(uint32* pDeCmdSpace);
+    uint32* ValidateTriangleRasterState(uint32* pDeCmdSpace);
 
     uint32* WriteNullColorTargets(
         uint32* pCmdSpace,
@@ -680,6 +681,9 @@ private:
                                                         // DB_RENDER_OVERRIDE register.
     regPA_SU_LINE_STIPPLE_CNTL  m_paSuLineStippleCntl;  // Last written value of PA_SU_LINE_STIPPLE_CNTL
     regPA_SC_LINE_STIPPLE       m_paScLineStipple;      // Last written value of PA_SC_LINE_STIPPLE
+
+    static constexpr uint32     InvalidPaSuScModeCntlVal = (7 << PA_SU_SC_MODE_CNTL__POLYMODE_BACK_PTYPE__SHIFT);
+    regPA_SU_SC_MODE_CNTL       m_paSuScModeCntl;      // Current written value of PA_SU_SC_MODE_CNTL
 
     WorkaroundState  m_workaroundState;  // Manages several hardware workarounds whose states change between draws.
     DrawTimeHwState  m_drawTimeHwState;  // Tracks certain bits of HW-state that might need to be updated per draw.

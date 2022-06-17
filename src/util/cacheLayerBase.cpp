@@ -117,10 +117,11 @@ Result CacheLayerBase::Query(
 // =====================================================================================================================
 // Validate inputs, then store data to our layer. Propagate data down to children if needed.
 Result CacheLayerBase::Store(
-    const Hash128* pHashId,
-    const void*    pData,
-    size_t         dataSize,
-    size_t         storeSize)
+    Util::StoreFlags    storeFlags,
+    const Hash128*      pHashId,
+    const void*         pData,
+    size_t              dataSize,
+    size_t              storeSize)
 {
     Result result = Result::Success;
 
@@ -142,7 +143,12 @@ Result CacheLayerBase::Store(
     {
         if (TestAnyFlagSet(m_storePolicy, LinkPolicy::Skip) == false)
         {
-            result = StoreInternal(pHashId, pData, dataSize, storeSize);
+            result = StoreInternal(
+                storeFlags,
+                pHashId,
+                pData,
+                dataSize,
+                storeSize);
         }
 
         // Pass data to children on success
@@ -160,7 +166,12 @@ Result CacheLayerBase::Store(
 
             if (batchResult == Result::Unsupported)
             {
-                Result childResult = m_pNextLayer->Store(pHashId, pData, dataSize, storeSize);
+                Result childResult = m_pNextLayer->Store(
+                    storeFlags,
+                    pHashId,
+                    pData,
+                    dataSize,
+                    storeSize);
                 PAL_ALERT(IsErrorResult(childResult));
             }
         }

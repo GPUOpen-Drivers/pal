@@ -26,25 +26,12 @@ namespace {{ComponentName}}
 {
 /// Enums /////////////////////////////////////////////////////////////////////
 {% for enum in Enums %}
-enum {{enum.Name}} : uint8_t
+enum {{enum.Name}} : uint32_t
 {
 {% for variant in enum.Variants %}
 {{ prep_cond_begin(variant.BuildFilters) -}}
 {{'    '}}{{variant.Name}} = {{variant.Value}}, {% if variant.Description %}// {{variant.Description}}{% endif +%}
 {{ prep_cond_end(variant.BuildFilters) -}}
-{% endfor %}
-};
-
-{% endfor %}
-
-/// Bitmasks ///////////////////////////////////////////////////////////////////
-{% for bitmask in Bitmasks %}
-enum {{bitmask.Name}} : uint32_t
-{
-{% for bit in bitmask.Bits %}
-{{ prep_cond_begin(bit.BuildFilters) -}}
-{{'    '}}{{bit.Name}} = {{bit.Value}}, {%if bit.Description%}// {{bit.Description}}{% endif +%}
-{{ prep_cond_end(bit.BuildFilters) -}}
 {% endfor %}
 };
 

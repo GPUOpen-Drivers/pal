@@ -266,15 +266,15 @@ void SettingsLoader::ValidateSettings()
 {
     m_pDevice->GetGfxDevice()->HwlValidateSettings(&m_settings);
 
-    // If developer driver profiling is enabled, we should always request the debug vm id and disable mid command
-    // buffer preemption support.
+    // If developer driver profiling is enabled, we should always request the debug-vmid/static-vmid and disable mid
+    // command buffer preemption support.
     if (m_pDevice->GetPlatform()->IsDevDriverProfilingEnabled())
     {
-        m_settings.requestDebugVmid = true;
+        m_settings.requestDebugVmid     = true;
         m_settings.cmdBufPreemptionMode = CmdBufPreemptModeDisable;
     }
 
-    // When tracing is enabled, we need to request debug VMID. This can be enabled via the DriverUtilsService.
+    // When tracing is enabled, we need to request debug/static VMID. This can be enabled via the DriverUtilsService.
     if (m_pDevice->GetPlatform()->IsTracingEnabled())
     {
         m_settings.requestDebugVmid = true;
@@ -342,6 +342,7 @@ void SettingsLoader::ValidateSettings()
                  sizeof(pPlatformSettings->gpuDebugConfig.surfaceCaptureLogDirectory),
                  "%s/%s", pRootPath, subDir);
 #endif
+
     }
 
     m_state = SettingsLoaderState::Final;

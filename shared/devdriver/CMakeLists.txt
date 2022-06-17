@@ -25,6 +25,9 @@
 
 cmake_minimum_required(VERSION 3.13..3.21)
 
+# Force the new CMP0091 policy: use the CMAKE_MSVC_RUNTIME_LIBRARY abstraction instead of placing MSVC runtime library flags in the default cache entries
+cmake_policy(SET CMP0091 NEW)
+
 project(DevDriver LANGUAGES CXX)
 
 include(cmake/DevDriver.cmake)
@@ -38,16 +41,35 @@ dd_bp(DD_BP_ENABLE_TOOL_LIBRARIES ${DEVDRIVER_IS_TOP_LEVEL})
 # building a DevDriver module.
 dd_bp(DD_BP_ENABLE_DD_MODULE_APIS ${DEVDRIVER_IS_TOP_LEVEL})
 
+# Enable building existing modules.
+dd_bp(DD_BP_BUILD_MODULES ${DEVDRIVER_IS_TOP_LEVEL})
+
 # Configure whether CMake install commands are run.
 # If we are building for tools we want to enable install logic.
 dd_bp(DD_BP_INSTALL ${DEVDRIVER_IS_TOP_LEVEL})
 
+# ddTestUtil contains utilities for tests that rely on network, RPC, router,
+# and etc.
+dd_bp(DD_BP_ENABLE_DD_TEST_UTIL ${DEVDRIVER_IS_TOP_LEVEL})
+
+# Configure whether to build ddSettings.
+dd_bp(DD_BP_ENABLE_DD_SETTINGS ${DEVDRIVER_IS_TOP_LEVEL})
+
+# Configure whether to build tests and examples.
+dd_bp(DD_BP_BUILD_TESTS_EXAMPLES ${DEVDRIVER_IS_TOP_LEVEL})
+
+# Configure whether documentation is built
+dd_bp(DD_BP_BUILD_DOCS OFF)
+
 add_subdirectory(third_party)
 add_subdirectory(shared)
 add_subdirectory(apis)
-add_subdirectory(settings)
 
-if (DD_BP_ENABLE_TOOL_LIBRARIES)
+if (DD_BP_ENABLE_DD_SETTINGS)
+    add_subdirectory(settings)
+endif()
+
+if (DD_BP_BUILD_MODULES)
     add_subdirectory(modules)
 endif()
 
@@ -56,8 +78,6 @@ if (DD_OPT_ENABLE_RUST)
     add_subdirectory(rust)
 endif()
 
-if (DEVDRIVER_IS_TOP_LEVEL)
-    enable_testing()
-    add_subdirectory(tests)
-    add_subdirectory(examples)
+if (DD_BP_BUILD_DOCS)
+    add_subdirectory(doc)
 endif()

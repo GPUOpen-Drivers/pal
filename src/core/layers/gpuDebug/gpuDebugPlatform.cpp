@@ -47,7 +47,8 @@ Platform::Platform(
     bool                        enabled)
     :
     // GpuDebug doesn't install callback
-    PlatformDecorator(createInfo, allocCb, GpuDebugCb, enabled, enabled, pNextPlatform)
+    PlatformDecorator(createInfo, allocCb, GpuDebugCb, enabled, enabled, pNextPlatform),
+    m_frameCount(0)
 {
 }
 
@@ -177,7 +178,10 @@ void PAL_STDCALL Platform::GpuDebugCb(
     {
     case Developer::CallbackType::AllocGpuMemory:
     case Developer::CallbackType::FreeGpuMemory:
+        break;
     case Developer::CallbackType::PresentConcluded:
+        pPlatform->NotifyPresentOccurred();
+        break;
     case Developer::CallbackType::CreateImage:
     case Developer::CallbackType::SurfRegData:
         break;

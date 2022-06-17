@@ -23,6 +23,21 @@
  #
  #######################################################################################################################
 
+#
+# In cmake nomenclature, a compile definition (ifdef) or similar setting is considered 'PUBLIC' if it needs to be seen
+# by clients using PAL's headers and 'PRIVATE' if it does not. Keeping more ifdefs PRIVATE generally helps to do dirty
+# builds faster and makes the compile command lines easier to debug. PUBLIC defines will automatically be propogated to
+# things that depend on PAL (with `target_link_libraries`) and requires no additional action on the clients' part. In
+# fact, the client should *never* explicitly add any PAL ifdefs because they may not match what PAL was built with.
+#
+# The gist for all of the following: if it's used anywhere in inc/*, it should be PUBLIC, otherwise make it PRIVATE.
+#
+# NOTE:
+#   PAL's coding standard prefers the use of "#if" construct instead of the "#ifdef" construct
+#   This means when making a new compile definition you should assign it a value
+#
+# EX:
+#   target_compile_definitions(pal PRIVATE PAL_FOO=1)
 include_guard()
 
 function(pal_compile_definitions_gfx6 TARGET)

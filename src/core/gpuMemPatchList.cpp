@@ -126,10 +126,6 @@ Result GpuMemoryPatchList::AddWidePatchEntry(
     entry.chunkOffset            = chunkOffsetLo;
     entry.patchOp                = patchOpLo;
     entry.patchOpNum             = patchOpNumLo;
-#if PAL_BUILD_SMIBS
-    entry.resourceType           = resourceType;
-    entry.resourceDataSize       = resourceSize;
-#endif
 
     if (pGpuMem != nullptr)
     {

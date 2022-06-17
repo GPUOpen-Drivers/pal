@@ -106,6 +106,7 @@ struct LibraryInfo
 /// due to HW support. The same information will be repeated for both the constituent shaders in this case.
 struct ShaderLibStats
 {
+    ShaderHash         shaderHash;             ///< Shader hash.
     CommonShaderStats  common;                 ///< The shader compilation parameters for this shader.
     /// Maximum number of VGPRs the compiler was allowed to use for this shader.  This limit will be the minimum
     /// of any architectural restriction and any client-requested limit intended to increase the number of waves in

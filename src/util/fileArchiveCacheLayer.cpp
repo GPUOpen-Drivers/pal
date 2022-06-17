@@ -181,86 +181,91 @@ Result FileArchiveCacheLayer::QueryInternal(
 // =====================================================================================================================
 // Add data passed in to the cache
 Result FileArchiveCacheLayer::StoreInternal(
-    const Hash128* pHashId,
-    const void*    pData,
-    size_t         dataSize,
-    size_t         storeSize)
+    Util::StoreFlags    storeFlags,
+    const Hash128*      pHashId,
+    const void*         pData,
+    size_t              dataSize,
+    size_t              storeSize)
 {
-    PAL_ASSERT(pHashId != nullptr);
-    PAL_ASSERT(pData != nullptr);
-    PAL_ASSERT(dataSize > 0);
-    PAL_ASSERT(storeSize > 0);
-
-    Result   result = Result::NotFound;
-    EntryKey key;
-
-    if ((pHashId == nullptr) ||
-        (pData == nullptr))
+    Result result = Result::Success;
+    if (storeFlags.enableFileCache == true)
     {
-        result = Result::ErrorInvalidPointer;
-    }
-    else
-    {
-        ConvertToEntryKey(pHashId, &key);
+        result = Result::NotFound;
 
+        PAL_ASSERT(pHashId != nullptr);
+        PAL_ASSERT(pData != nullptr);
+        PAL_ASSERT(dataSize > 0);
+        PAL_ASSERT(storeSize > 0);
+
+        EntryKey key;
+
+        if ((pHashId == nullptr) ||
+            (pData == nullptr))
         {
-            RWLockAuto<RWLock::ReadOnly> entryMapLock { &m_entryMapLock };
-
-            if (m_entries.FindKey(key) != nullptr)
-            {
-                result = Result::AlreadyExists;
-            }
-        }
-    }
-
-    if (result == Result::NotFound)
-    {
-        ArchiveEntryHeader header         = {};
-        const size_t       writeDataSize  = storeSize;
-        void* const        pMem           = PAL_MALLOC(writeDataSize, Allocator(), AllocInternalTemp);
-
-        PAL_ALERT(pMem == nullptr);
-
-        if (pMem != nullptr)
-        {
-            result = Result::Success;
+            result = Result::ErrorInvalidPointer;
         }
         else
         {
-            result = Result::ErrorOutOfMemory;
+            ConvertToEntryKey(pHashId, &key);
+
+            {
+                RWLockAuto<RWLock::ReadOnly> entryMapLock { &m_entryMapLock };
+
+                if (m_entries.FindKey(key) != nullptr)
+                {
+                    result = Result::AlreadyExists;
+                }
+            }
         }
 
-        // Write the scratch buffer to the file
-        if (result == Result::Success)
+        if (result == Result::NotFound)
         {
-            MutexAuto archiveFileLock { &m_archiveFileMutex };
+            ArchiveEntryHeader header         = {};
+            const size_t       writeDataSize  = storeSize;
+            void* const        pMem           = PAL_MALLOC(writeDataSize, Allocator(), AllocInternalTemp);
 
-            void* const pDataMem = pMem;
-            header.dataSize      = static_cast<uint32>(writeDataSize);
-            header.metaValue     = static_cast<uint32>(dataSize);
+            PAL_ALERT(pMem == nullptr);
 
-            memcpy(pDataMem, pData, storeSize);
-            memcpy(header.entryKey, key.value, sizeof(header.entryKey));
+            if (pMem != nullptr)
+            {
+                result = Result::Success;
+            }
+            else
+            {
+                result = Result::ErrorOutOfMemory;
+            }
 
-            result = m_pArchivefile->Write(&header, pMem);
+            // Write the scratch buffer to the file
+            if (result == Result::Success)
+            {
+                MutexAuto archiveFileLock { &m_archiveFileMutex };
+
+                void* const pDataMem = pMem;
+                header.dataSize      = uint32(writeDataSize);
+                header.metaValue     = uint32(dataSize);
+
+                memcpy(pDataMem, pData, storeSize);
+                memcpy(header.entryKey, key.value, sizeof(header.entryKey));
+
+                result = m_pArchivefile->Write(&header, pMem);
+            }
+
+            // Only insert this entry into our lookup table if everything succeeded
+            if (result == Result::Success)
+            {
+                RWLockAuto<RWLock::ReadWrite> entryMapLock { &m_entryMapLock };
+
+                result = AddHeaderToTable(header);
+            }
+
+            if (pMem != nullptr)
+            {
+                PAL_FREE(pMem, Allocator());
+            }
         }
 
-        // Only insert this entry into our lookup table if everything succeeded
-        if (result == Result::Success)
-        {
-            RWLockAuto<RWLock::ReadWrite> entryMapLock { &m_entryMapLock };
-
-            result = AddHeaderToTable(header);
-        }
-
-        if (pMem != nullptr)
-        {
-            PAL_FREE(pMem, Allocator());
-        }
+        PAL_ALERT(IsErrorResult(result));
     }
-
-    PAL_ALERT(IsErrorResult(result));
-
     return result;
 }
 

@@ -56,7 +56,7 @@ endfunction()
 
 function(target_pal_settings TARGET)
     set(options NO_REGISTRY)
-    set(singleValArgs MAGIC_BUF CLASS_NAME CODE_TEMPLATE OUT_DIR OUT_BASENAME)
+    set(singleValArgs MAGIC_BUF CLASS_NAME CODE_TEMPLATE OUT_DIR OUT_BASENAME ROOT_BINARY_DIR)
     set(multiValArgs SETTINGS ENSURE_DELETED)
     cmake_parse_arguments(PARSE_ARGV 1 SETGEN "${options}" "${singleValArgs}" "${multiValArgs}")
 
@@ -136,6 +136,17 @@ function(target_pal_settings TARGET)
                        PROPERTIES GENERATED ON
         )
 
+        if ((NOT EXISTS ${SETGEN_OUT_DIR}/${OUT_BASENAME}.h) OR
+            (NOT EXISTS ${SETGEN_OUT_DIR}/${OUT_BASENAME}.cpp))
+            # Generate these during configuration so that they are guaranteed to exist.
+            execute_process(
+                COMMAND ${Python3_EXECUTABLE} ${PAL_GEN_DIR}/genSettingsCode.py
+                        --settingsFile ${SETTINGS_FILE}
+                        --outFilename ${OUT_BASENAME}
+                        ${ADDL_ARGS}
+            )
+        endif()
+
         # Note this doesn't track imported python libs/exe (mostly system deps).
         add_custom_command(
             OUTPUT ${SETGEN_OUT_DIR}/${OUT_BASENAME}.cpp
@@ -148,20 +159,32 @@ function(target_pal_settings TARGET)
             DEPENDS ${SETTINGS_FILE}
                     ${ADDL_DEPS}
         )
-        source_group("Generated/Settings" FILES
-                     ${SETGEN_OUT_DIR}/${OUT_BASENAME}.h
-                     ${SETGEN_OUT_DIR}/${OUT_BASENAME}.cpp
-        )
+        if (SETGEN_ROOT_BINARY_DIR)
+            source_group(
+                TREE ${PAL_BINARY_DIR}
+                FILES
+                    ${SETGEN_OUT_DIR}/${OUT_BASENAME}.h
+                    ${SETGEN_OUT_DIR}/${OUT_BASENAME}.cpp
+            )
+        else()
+            source_group("Generated/Settings"
+                FILES
+                    ${SETGEN_OUT_DIR}/${OUT_BASENAME}.h
+                    ${SETGEN_OUT_DIR}/${OUT_BASENAME}.cpp
+            )
+        endif()
     endforeach()
 endfunction()
 
 function(pal_setup_generated_code)
-    set(COMMON_ARGS "")
+    set(COMMON_ARGS "ROOT_BINARY_DIR" ${PAL_BINARY_DIR})
     target_pal_settings(pal SETTINGS src/core/settings_core.json
+                            OUT_DIR  ${PAL_BINARY_DIR}/src/core
                             ${COMMON_ARGS}
                             ENSURE_DELETED src/core/g_palSettings.h
                                            src/core/g_palSettings.cpp)
     target_pal_settings(pal SETTINGS src/core/settings_platform.json
+                            OUT_DIR  ${PAL_BINARY_DIR}/src/core
                             ${COMMON_ARGS}
                             CODE_TEMPLATE ${PAL_GEN_DIR}/platformSettingsCodeTemplates.py
                             CLASS_NAME PlatformSettingsLoader
@@ -169,12 +192,14 @@ function(pal_setup_generated_code)
                                            src/core/g_palPlatformSettings.cpp)
     if (PAL_BUILD_GFX6)
         target_pal_settings(pal SETTINGS src/core/hw/gfxip/gfx6/settings_gfx6.json
+                                OUT_DIR  ${PAL_BINARY_DIR}/src/core/hw/gfxip/gfx6
                                 ${COMMON_ARGS}
                                 ENSURE_DELETED src/core/hw/gfxip/gfx6/g_gfx6PalSettings.h
                                                src/core/hw/gfxip/gfx6/g_gfx6PalSettings.cpp)
     endif()
     if (PAL_BUILD_GFX9)
         target_pal_settings(pal SETTINGS src/core/hw/gfxip/gfx9/settings_gfx9.json
+                                OUT_DIR  ${PAL_BINARY_DIR}/src/core/hw/gfxip/gfx9
                                 ${COMMON_ARGS}
                                 ENSURE_DELETED src/core/hw/gfxip/gfx9/g_gfx9PalSettings.h
                                                src/core/hw/gfxip/gfx9/g_gfx9PalSettings.cpp)
@@ -183,6 +208,8 @@ function(pal_setup_generated_code)
 endfunction()
 
 function(nongen_source_groups DIR TGT)
+    # All generated files should have an explicit source_group where they are generated.
+
     get_target_property(_sources ${TGT} SOURCES)
     set(_nongen_sources "")
     foreach(SOURCE ${_sources})

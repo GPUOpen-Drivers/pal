@@ -93,6 +93,7 @@ struct UniversalCmdBufferState
 
     // Copy of what will be written into CE RAM for NGG culling pipelines.
     Util::Abi::PrimShaderCullingCb primShaderCullingCb;
+
 };
 
 // Structure used by UniversalCmdBuffer to track particular bits of hardware state that might need to be updated
@@ -264,7 +265,8 @@ union CachedSettings
 
         uint64 optimizeDepthOnlyFmt       :  1;
         uint64 has32bPred                 :  1;
-        uint64 reserved                   :  3;
+        uint64 optimizeNullSourceImage    :  1;
+        uint64 reserved                   :  2;
     };
     uint64 u64All;
 };
@@ -816,12 +818,14 @@ private:
         uint32            stride,
         uint32            maximumCount,
         gpusize           countGpuAddr);
+
     template <bool IsNgg>
     uint32 CalcGeCntl(
         bool                  usesLineStipple,
         regIA_MULTI_VGT_PARAM iaMultiVgtParam) const;
 
-    uint32* Gfx10ValidateTriangleRasterState(
+    template <bool PipelineDirty, bool StateDirty>
+    uint32* ValidateTriangleRasterState(
         const GraphicsPipeline*  pPipeline,
         uint32*                  pDeCmdSpace);
 
@@ -919,8 +923,8 @@ private:
     template <bool HasPipelineChanged>
     uint32* ValidateComputeUserData(
         ICmdBuffer*                     pCmdBuffer,
-        UserDataTableState*             pCsUserData,
-        ComputeState*                   pComputeState,
+        UserDataTableState*             pSpillTable,
+        UserDataEntries*                pUserData,
         CmdStream*                      pCmdStream,
         const ComputePipelineSignature* pPrevSignature,
         const ComputePipelineSignature* pCurrSignature,
@@ -938,7 +942,7 @@ private:
         uint32**                         ppDeCmdSpace);
 
     bool FixupUserSgprsOnPipelineSwitchCs(
-        ComputeState*                   pComputeState,
+        const UserDataEntries&          userData,
         const ComputePipelineSignature* pCurrSignature,
         const ComputePipelineSignature* pPrevSignature,
         uint32**                        ppDeCmdSpace);
@@ -1027,6 +1031,8 @@ private:
     }
 
     void UpdateRasterKillDrawsTrackedState();
+
+    void WritePerDrawVrsRate(const VrsRateParams&  rateParams);
 
     const Device&   m_device;
     const CmdUtil&  m_cmdUtil;
@@ -1160,6 +1166,9 @@ private:
 
     regPA_SU_LINE_STIPPLE_CNTL  m_paSuLineStippleCntl; // Last written value of PA_SU_LINE_STIPPLE_CNTL
     regPA_SC_LINE_STIPPLE       m_paScLineStipple;     // Last written value of PA_SC_LINE_STIPPLE
+
+    static constexpr uint32     InvalidPaSuScModeCntlVal = (7 << PA_SU_SC_MODE_CNTL__POLYMODE_BACK_PTYPE__SHIFT);
+    regPA_SU_SC_MODE_CNTL       m_paSuScModeCntl;      // Current written value of PA_SU_SC_MODE_CNTL
 
     bool             m_hasWaMiscPopsMissedOverlapBeenApplied;
     bool             m_enabledPbb;       // PBB is currently enabled or disabled.

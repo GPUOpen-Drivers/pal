@@ -34,22 +34,6 @@ namespace {{ComponentName}}
 {
 
 // ============================================================================
-// Setting name strings.
-{% for setting in Settings %}
-{% if setting.GroupName %}
-{% for subs in setting.Subsettings %}
-{{ prep_cond_begin(subs.BuildFilters) -}}
-const char* p{{setting.GroupName}}_{{subs.Name}} = "{{setting.GroupName}}_{{subs.Name}}";
-{{ prep_cond_end(subs.BuildFilters) -}}
-{% endfor %}
-{% else %}
-{{ prep_cond_begin(setting.BuildFilters) -}}
-const char* p{{setting.Name}} = "{{setting.Name}}";
-{{ prep_cond_end(setting.BuildFilters) -}}
-{% endif %}
-{% endfor %}
-
-// ============================================================================
 // Initializes the settings structure to default values.
 void {{ComponentName}}Settings::SetupDefaults()
 {

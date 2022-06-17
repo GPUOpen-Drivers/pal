@@ -71,6 +71,7 @@ target_sources(pal PRIVATE
     palLinearAllocator.h
     palList.h
     palListImpl.h
+    palLiterals.h
     palMath.h
     palMemMapFile.h
     palMemTracker.h
@@ -96,6 +97,7 @@ target_sources(pal PRIVATE
     palSystemEvent.h
     palSysUtil.h
     palThread.h
+    palTime.h
     palTypeTraits.h
     palUtil.h
     palUuid.h

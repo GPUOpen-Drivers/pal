@@ -368,9 +368,10 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.supportAceOffload        = chipProps.gfxip.supportAceOffload;
     m_cachedSettings.useExecuteIndirectPacket = coreSettings.useExecuteIndirectPacket;
 
-    m_cachedSettings.optimizeDepthOnlyFmt = settings.rbPlusOptimizeDepthOnlyExportRate;
+    m_cachedSettings.optimizeDepthOnlyFmt    = settings.rbPlusOptimizeDepthOnlyExportRate;
     PAL_ASSERT(m_cachedSettings.optimizeDepthOnlyFmt ? m_cachedSettings.rbPlusSupported : true);
-    m_cachedSettings.has32bPred = curEngineProps.flags.memory32bPredicationSupport;
+    m_cachedSettings.has32bPred              = curEngineProps.flags.memory32bPredicationSupport;
+    m_cachedSettings.optimizeNullSourceImage = settings.optimizeNullSourceImage;
 
     // Here we pre-calculate constants used in gfx10 PBB bin sizing calculations.
     // The logic is based on formulas that account for the number of RBs and Channels on the ASIC.
@@ -476,6 +477,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_paScAaConfigLast.u32All     = 0;
     m_paSuLineStippleCntl.u32All  = 0;
     m_paScLineStipple.u32All      = 0;
+    m_paSuScModeCntl.u32All       = InvalidPaSuScModeCntlVal;
 
     // GFX10 moves the RESET_EN functionality to a new register called GE_MULTI_PRIM_IB_RESET_EN.  Verify that
     // the GFX10 register has the exact same layout as the GFX9 register to eliminate the need for run-time "if"
@@ -509,7 +511,7 @@ Result UniversalCmdBuffer::Init(
     const Gfx9PalSettings&   settings  = m_device.Settings();
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
 
-    m_spillTable.stateCs.sizeInDwords = chipProps.gfxip.maxUserDataEntries;
+    m_spillTable.stateCs.sizeInDwords  = chipProps.gfxip.maxUserDataEntries;
     m_spillTable.stateGfx.sizeInDwords = chipProps.gfxip.maxUserDataEntries;
     m_streamOut.state.sizeInDwords = (sizeof(m_streamOut.srd) / sizeof(uint32));
     m_uavExportTable.state.sizeInDwords = (sizeof(m_uavExportTable.srd) / sizeof(uint32));
@@ -736,15 +738,17 @@ void UniversalCmdBuffer::ResetState()
         m_vgtDmaIndexType.gfx09.RDREQ_POLICY = VGT_POLICY_STREAM;
     }
 
-    m_spiVsOutConfig.u32All   = 0;
-    m_spiPsInControl.u32All   = 0;
-    m_vgtLsHsConfig.u32All    = 0;
-    m_geCntl.u32All           = 0;
-    m_dbDfsmControl.u32All    = ((m_cmdUtil.GetRegInfo().mmDbDfsmControl != 0) ? m_device.GetDbDfsmControl() : 0);
-    m_paScAaConfigNew.u32All  = 0;
-    m_paScAaConfigLast.u32All = 0;
-    m_paSuLineStippleCntl.u32All = 0;
-    m_paScLineStipple.u32All = 0;
+    m_spiVsOutConfig.u32All         = 0;
+    m_spiPsInControl.u32All         = 0;
+    m_vgtLsHsConfig.u32All          = 0;
+    m_geCntl.u32All                 = 0;
+    m_dbDfsmControl.u32All          =
+        ((m_cmdUtil.GetRegInfo().mmDbDfsmControl != 0) ? m_device.GetDbDfsmControl() : 0);
+    m_paScAaConfigNew.u32All        = 0;
+    m_paScAaConfigLast.u32All       = 0;
+    m_paSuLineStippleCntl.u32All    = 0;
+    m_paScLineStipple.u32All        = 0;
+    m_paSuScModeCntl.u32All         = InvalidPaSuScModeCntlVal;
 
     // Disable PBB at the start of each command buffer unconditionally. Each draw can set the appropriate
     // PBB state at validate time.
@@ -2467,83 +2471,16 @@ void UniversalCmdBuffer::CmdSetTriangleRasterStateInternal(
     m_graphicsState.dirtyFlags.validationBits.triangleRasterState    = 1;
     m_nggState.flags.dirty                                           = 1;
 
-    regPA_SU_SC_MODE_CNTL paSuScModeCntl = { };
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 721
-    paSuScModeCntl.bits.POLY_OFFSET_FRONT_ENABLE = params.flags.frontDepthBiasEnable;
-    paSuScModeCntl.bits.POLY_OFFSET_BACK_ENABLE  = params.flags.backDepthBiasEnable;
-#else
-    paSuScModeCntl.bits.POLY_OFFSET_FRONT_ENABLE = params.flags.depthBiasEnable;
-    paSuScModeCntl.bits.POLY_OFFSET_BACK_ENABLE  = params.flags.depthBiasEnable;
-#endif
-    paSuScModeCntl.bits.MULTI_PRIM_IB_ENA        = 1;
-
-    static_assert(
-        static_cast<uint32>(FillMode::Points)    == 0 &&
-        static_cast<uint32>(FillMode::Wireframe) == 1 &&
-        static_cast<uint32>(FillMode::Solid)     == 2,
-        "FillMode vs. PA_SU_SC_MODE_CNTL.POLY_MODE mismatch");
-
     if (static_cast<TossPointMode>(m_cachedSettings.tossPointMode) == TossPointWireframe)
     {
         m_graphicsState.triangleRasterState.frontFillMode = FillMode::Wireframe;
         m_graphicsState.triangleRasterState.backFillMode  = FillMode::Wireframe;
-
-        paSuScModeCntl.bits.POLY_MODE            = 1;
-        paSuScModeCntl.bits.POLYMODE_BACK_PTYPE  = static_cast<uint32>(FillMode::Wireframe);
-        paSuScModeCntl.bits.POLYMODE_FRONT_PTYPE = static_cast<uint32>(FillMode::Wireframe);
     }
-    else
-    {
-        paSuScModeCntl.bits.POLY_MODE            = ((params.frontFillMode != FillMode::Solid) ||
-                                                    (params.backFillMode  != FillMode::Solid));
-        paSuScModeCntl.bits.POLYMODE_BACK_PTYPE  = static_cast<uint32>(params.backFillMode);
-        paSuScModeCntl.bits.POLYMODE_FRONT_PTYPE = static_cast<uint32>(params.frontFillMode);
-    }
-
-    // See comment in Gfx10ValidateTriangleRasterState.
-    if (IsGfx10Plus(m_gfxIpLevel) && paSuScModeCntl.bits.POLY_MODE)
-    {
-        paSuScModeCntl.gfx10Plus.KEEP_TOGETHER_ENABLE = 1;
-    }
-
-    constexpr uint32 FrontCull = static_cast<uint32>(CullMode::Front);
-    constexpr uint32 BackCull  = static_cast<uint32>(CullMode::Back);
-
-    static_assert((FrontCull | BackCull) == static_cast<uint32>(CullMode::FrontAndBack),
-        "CullMode::FrontAndBack not a strict union of CullMode::Front and CullMode::Back");
 
     if (static_cast<TossPointMode>(m_cachedSettings.tossPointMode) == TossPointBackFrontFaceCull)
     {
         m_graphicsState.triangleRasterState.cullMode = CullMode::FrontAndBack;
-
-        paSuScModeCntl.bits.CULL_FRONT = 1;
-        paSuScModeCntl.bits.CULL_BACK  = 1;
     }
-    else
-    {
-        paSuScModeCntl.bits.CULL_FRONT = ((static_cast<uint32>(params.cullMode) & FrontCull) != 0);
-        paSuScModeCntl.bits.CULL_BACK  = ((static_cast<uint32>(params.cullMode) & BackCull)  != 0);
-    }
-
-    static_assert(
-        static_cast<uint32>(FaceOrientation::Ccw) == 0 &&
-        static_cast<uint32>(FaceOrientation::Cw)  == 1,
-        "FaceOrientation vs. PA_SU_SC_MODE_CNTL.FACE mismatch");
-
-    paSuScModeCntl.bits.FACE = static_cast<uint32>(params.frontFace);
-
-    static_assert(
-        static_cast<uint32>(ProvokingVertex::First) == 0 &&
-        static_cast<uint32>(ProvokingVertex::Last)  == 1,
-        "ProvokingVertex vs. PA_SU_SC_MODE_CNTL.PROVOKING_VTX_LAST mismatch");
-
-    paSuScModeCntl.bits.PROVOKING_VTX_LAST = static_cast<uint32>(params.provokingVertex);
-
-    m_state.primShaderCullingCb.paSuScModeCntl = paSuScModeCntl.u32All;
-
-    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-    pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SU_SC_MODE_CNTL, paSuScModeCntl.u32All, pDeCmdSpace);
-    m_deCmdStream.CommitCommands(pDeCmdSpace);
 }
 
 // =====================================================================================================================
@@ -2950,10 +2887,10 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
 
     if (ViewInstancingEnable)
     {
-        const Pal::PipelineState* pPipelineState     = pThis->PipelineState(PipelineBindPoint::Graphics);
-        const GraphicsPipeline*   pPipeline          = static_cast<const GraphicsPipeline*>(pPipelineState->pPipeline);
-        const auto&               viewInstancingDesc = pPipeline->GetViewInstancingDesc();
-        uint32                    mask               = (1 << viewInstancingDesc.viewInstanceCount) - 1;
+        const GraphicsPipeline* pPipeline =
+            static_cast<const GraphicsPipeline*>(pThis->m_graphicsState.pipelineState.pPipeline);
+        const auto& viewInstancingDesc = pPipeline->GetViewInstancingDesc();
+        uint32      mask               = (1 << viewInstancingDesc.viewInstanceCount) - 1;
 
         if (viewInstancingDesc.enableMasking)
         {
@@ -4199,23 +4136,25 @@ void UniversalCmdBuffer::CmdBindBorderColorPalette(
     //       which may involve getting KMD support.
     if ((m_cachedSettings.ignoreCsBorderColorPalette == 0) || (pipelineBindPoint == PipelineBindPoint::Graphics))
     {
-        auto*const       pPipelineState = PipelineState(pipelineBindPoint);
-        const auto*const pNewPalette    = static_cast<const BorderColorPalette*>(pPalette);
-        const auto*const pOldPalette    = static_cast<const BorderColorPalette*>(pPipelineState->pBorderColorPalette);
+        const auto*const pNewPalette = static_cast<const BorderColorPalette*>(pPalette);
 
-        if (pNewPalette != nullptr)
         {
-            uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-            pDeCmdSpace = pNewPalette->WriteCommands(pipelineBindPoint,
-                                                     TimestampGpuVirtAddr(),
-                                                     &m_deCmdStream,
-                                                     pDeCmdSpace);
-            m_deCmdStream.CommitCommands(pDeCmdSpace);
-        }
+            if (pNewPalette != nullptr)
+            {
+                uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+                pDeCmdSpace = pNewPalette->WriteCommands(pipelineBindPoint,
+                                                         TimestampGpuVirtAddr(),
+                                                         &m_deCmdStream,
+                                                         pDeCmdSpace);
+                m_deCmdStream.CommitCommands(pDeCmdSpace);
+            }
 
-        // Update the border-color palette state.
-        pPipelineState->pBorderColorPalette                = pNewPalette;
-        pPipelineState->dirtyFlags.borderColorPaletteDirty = 1;
+            auto*const pPipelineState = (pipelineBindPoint == PipelineBindPoint::Compute)
+                    ? &m_computeState.pipelineState
+                    : &m_graphicsState.pipelineState;
+            pPipelineState->pBorderColorPalette = pNewPalette;
+            pPipelineState->dirtyFlags.borderColorPaletteDirty = 1;
+        }
     }
 }
 
@@ -4563,7 +4502,7 @@ Result UniversalCmdBuffer::AddPostamble()
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-    if ((IsOneTimeSubmit() == false) && (m_gangedCmdStreamSemAddr != 0))
+    if (IsOneTimeSubmit() == false)
     {
         // If the memory contains any value, it is possible that with the ACE running ahead, it could get a value
         // for this semaphore which is >= the number it is waiting for and then just continue ahead before GFX has
@@ -4572,15 +4511,20 @@ Result UniversalCmdBuffer::AddPostamble()
         // memory in the postamble.
         constexpr uint32 SemZero = 0;
 
-        WriteDataInfo writeData = {};
+        WriteDataInfo writeData { };
         writeData.engineType    = GetEngineType();
-        writeData.dstAddr       = m_gangedCmdStreamSemAddr;
         writeData.engineSel     = engine_sel__me_write_data__micro_engine;
         writeData.dstSel        = dst_sel__pfp_write_data__memory;
-        pDeCmdSpace            += CmdUtil::BuildWriteData(writeData, 1, &SemZero, pDeCmdSpace);
 
-        writeData.dstAddr       = m_gangedCmdStreamSemAddr + sizeof(uint32);
-        pDeCmdSpace            += CmdUtil::BuildWriteData(writeData, 1, &SemZero, pDeCmdSpace);
+        if (m_gangedCmdStreamSemAddr != 0)
+        {
+            writeData.dstAddr = m_gangedCmdStreamSemAddr;
+            pDeCmdSpace      += CmdUtil::BuildWriteData(writeData, 1, &SemZero, pDeCmdSpace);
+
+            writeData.dstAddr = m_gangedCmdStreamSemAddr + sizeof(uint32);
+            pDeCmdSpace      += CmdUtil::BuildWriteData(writeData, 1, &SemZero, pDeCmdSpace);
+        }
+
     }
 
     if (m_gfxCmdBufState.flags.cpBltActive)
@@ -4592,6 +4536,21 @@ Result UniversalCmdBuffer::AddPostamble()
     }
 
     bool didWaitForIdle = false;
+
+    if ((m_pAceCmdStream != nullptr) &&
+        (m_pAceCmdStream->GetNumChunks() > 0) &&
+        (m_pAceCmdStream->GetFirstChunk()->BusyTrackerGpuAddr() != 0))
+    {
+        // The following ATOMIC_MEM packet increments the done-count for the ACE command streams, so that we can probe
+        // when the command buffer has completed execution on the GPU.
+        // NOTE: Normally, we would need to flush the L2 cache to guarantee that this memory operation makes it out
+        // to memory.  However, since we're at the end of the command buffer, we can rely on the fact that the KMD
+        // inserts an EOP event which flushes and invalidates the caches in between command buffers.
+        pDeCmdSpace += CmdUtil::BuildAtomicMem(AtomicOp::AddInt32,
+                                               m_pAceCmdStream->GetFirstChunk()->BusyTrackerGpuAddr(),
+                                               1,
+                                               pDeCmdSpace);
+    }
 
     if ((m_ceCmdStream.GetNumChunks() > 0) &&
         (m_ceCmdStream.GetFirstChunk()->BusyTrackerGpuAddr() != 0))
@@ -4957,7 +4916,7 @@ uint32* UniversalCmdBuffer::WriteDirtyUserDataEntriesToSgprsGfx(
 // has changed since the previous Dispatch operation.  It is expected that this will be called only when the pipeline
 // is changing and immediately before a call to WriteUserDataEntriesToSgprs<false, ...>().
 bool UniversalCmdBuffer::FixupUserSgprsOnPipelineSwitchCs(
-    ComputeState*                   pComputeState,
+    const UserDataEntries&          userData,
     const ComputePipelineSignature* pCurrSignature,
     const ComputePipelineSignature* pPrevSignature,
     uint32**                        ppDeCmdSpace)
@@ -4976,7 +4935,7 @@ bool UniversalCmdBuffer::FixupUserSgprsOnPipelineSwitchCs(
     if (pCurrSignature->userDataHash != pPrevSignature->userDataHash)
     {
         pDeCmdSpace = m_deCmdStream.WriteUserDataEntriesToSgprs<true, ShaderCompute>(pCurrSignature->stage,
-                                                                                     pComputeState->csUserDataEntries,
+                                                                                     userData,
                                                                                      pDeCmdSpace);
         written = true;
         (*ppDeCmdSpace) = pDeCmdSpace;
@@ -5233,8 +5192,8 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
 template <bool HasPipelineChanged>
 uint32* UniversalCmdBuffer::ValidateComputeUserData(
     ICmdBuffer*                     pCmdBuffer,
-    UserDataTableState*             pUserDataState,
-    ComputeState*                   pComputeState,
+    UserDataTableState*             pSpillTable,
+    UserDataEntries*                pUserData,
     CmdStream*                      pCmdStream,
     const ComputePipelineSignature* pPrevSignature,
     const ComputePipelineSignature* pCurrSignature,
@@ -5252,14 +5211,14 @@ uint32* UniversalCmdBuffer::ValidateComputeUserData(
     bool alreadyWritten = false;
     if (HasPipelineChanged)
     {
-        alreadyWritten = pThis->FixupUserSgprsOnPipelineSwitchCs(
-            pComputeState, pCurrSignature, pPrevSignature, &pCmdSpace);
+        alreadyWritten =
+            pThis->FixupUserSgprsOnPipelineSwitchCs(*pUserData, pCurrSignature, pPrevSignature, &pCmdSpace);
     }
 
     if (alreadyWritten == false)
     {
         pCmdSpace = pCmdStream->WriteUserDataEntriesToSgprs<false, ShaderCompute>(pCurrSignature->stage,
-                                                                                  pComputeState->csUserDataEntries,
+                                                                                  *pUserData,
                                                                                   pCmdSpace);
     }
 
@@ -5273,7 +5232,7 @@ uint32* UniversalCmdBuffer::ValidateComputeUserData(
         // Step #2:
         // Because the spill table is managed using CPU writes to embedded data, it must be fully re-uploaded for any
         // Dispatch whenever *any* contents have changed.
-        bool reUpload = (pUserDataState->dirty != 0);
+        bool reUpload = (pSpillTable->dirty != 0);
         if (HasPipelineChanged &&
             ((spillThreshold < pPrevSignature->spillThreshold) || (userDataLimit > pPrevSignature->userDataLimit)))
         {
@@ -5288,7 +5247,7 @@ uint32* UniversalCmdBuffer::ValidateComputeUserData(
             const uint32 lastMaskId  = (lastUserData   / UserDataEntriesPerMask);
             for (uint32 maskId = firstMaskId; maskId <= lastMaskId; ++maskId)
             {
-                size_t dirtyMask = pComputeState->csUserDataEntries.dirty[maskId];
+                size_t dirtyMask = pUserData->dirty[maskId];
                 if (maskId == firstMaskId)
                 {
                     // Ignore the dirty bits for any entries below the spill threshold.
@@ -5314,10 +5273,10 @@ uint32* UniversalCmdBuffer::ValidateComputeUserData(
         // Re-upload spill table contents if necessary.
         if (reUpload)
         {
-            pThis->UpdateUserDataTableCpu(pUserDataState,
+            pThis->UpdateUserDataTableCpu(pSpillTable,
                                           (userDataLimit - spillThreshold),
                                           spillThreshold,
-                                          &pComputeState->csUserDataEntries.entries[0]);
+                                          &pUserData->entries[0]);
         }
 
         // Step #4:
@@ -5330,7 +5289,7 @@ uint32* UniversalCmdBuffer::ValidateComputeUserData(
               (pPrevSignature->stage.spillTableRegAddr != pCurrSignature->stage.spillTableRegAddr))))
         {
             pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(pCurrSignature->stage.spillTableRegAddr,
-                                                                    LowPart(pUserDataState->gpuVirtAddr),
+                                                                    LowPart(pSpillTable->gpuVirtAddr),
                                                                     pCmdSpace);
         }
     } // if current pipeline spills user-data
@@ -5351,10 +5310,9 @@ uint32* UniversalCmdBuffer::ValidateComputeUserData(
 
     // All dirtied user-data entries have been written to user-SGPR's or to the spill table somewhere in this method,
     // so it is safe to clear these bits.
-    size_t* pDirtyMask = &pComputeState->csUserDataEntries.dirty[0];
     for (uint32 i = 0; i < NumUserDataFlagsParts; i++)
     {
-        pDirtyMask[i] = 0;
+        pUserData->dirty[i] = 0;
     }
 
     return pCmdSpace;
@@ -5654,24 +5612,82 @@ uint32* UniversalCmdBuffer::UpdateNggCullingDataBufferWithCpu(
 }
 
 // =====================================================================================================================
-uint32* UniversalCmdBuffer::Gfx10ValidateTriangleRasterState(
+template <bool PipelineDirty, bool StateDirty>
+uint32* UniversalCmdBuffer::ValidateTriangleRasterState(
     const GraphicsPipeline*  pPipeline,
     uint32*                  pDeCmdSpace)
 {
-    //  The field was added for both polymode and perpendicular endcap lines.
-    //  The SC reuses some information from the first primitive for other primitives within a polymode group. The
-    //  whole group needs to make it to the SC in the same order it was produced by the PA. When the field is enabled,
-    //  the PA will set a keep_together bit on the first and last primitive of each group. This tells the PBB that the
-    //  primitives must be kept in order
-    //
-    //  it should be enabled when POLY_MODE is enabled.  Also, if the driver ever sets PERPENDICULAR_ENDCAP_ENA, that
-    //  should follow the same rules. POLY_MODE is handled @ set-time as it is known then.
-    if (pPipeline->IsPerpEndCapsEnabled())
+    regPA_SU_SC_MODE_CNTL paSuScModeCntl;
+    paSuScModeCntl.u32All  = m_paSuScModeCntl.u32All;
+    const auto& params     = m_graphicsState.triangleRasterState;
+    const auto& dirtyFlags = m_graphicsState.dirtyFlags.validationBits;
+
+    if (StateDirty && dirtyFlags.triangleRasterState)
     {
-        pDeCmdSpace = m_deCmdStream.WriteContextRegRmw(mmPA_SU_SC_MODE_CNTL,
-                                                       Gfx10Plus::PA_SU_SC_MODE_CNTL__KEEP_TOGETHER_ENABLE_MASK,
-                                                       Gfx10Plus::PA_SU_SC_MODE_CNTL__KEEP_TOGETHER_ENABLE_MASK,
-                                                       pDeCmdSpace);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 721
+        paSuScModeCntl.bits.POLY_OFFSET_FRONT_ENABLE = params.flags.frontDepthBiasEnable;
+        paSuScModeCntl.bits.POLY_OFFSET_BACK_ENABLE  = params.flags.backDepthBiasEnable;
+#else
+        paSuScModeCntl.bits.POLY_OFFSET_FRONT_ENABLE = params.flags.depthBiasEnable;
+        paSuScModeCntl.bits.POLY_OFFSET_BACK_ENABLE  = params.flags.depthBiasEnable;
+#endif
+        paSuScModeCntl.bits.MULTI_PRIM_IB_ENA        = 1;
+
+        static_assert((static_cast<uint32>(FillMode::Points)    == 0) &&
+                      (static_cast<uint32>(FillMode::Wireframe) == 1) &&
+                      (static_cast<uint32>(FillMode::Solid)     == 2),
+                      "FillMode vs. PA_SU_SC_MODE_CNTL.POLY_MODE mismatch");
+
+        paSuScModeCntl.bits.POLY_MODE            = ((params.frontFillMode != FillMode::Solid) ||
+                                                    (params.backFillMode  != FillMode::Solid));
+        paSuScModeCntl.bits.POLYMODE_BACK_PTYPE  = static_cast<uint32>(params.backFillMode);
+        paSuScModeCntl.bits.POLYMODE_FRONT_PTYPE = static_cast<uint32>(params.frontFillMode);
+
+        constexpr uint32 FrontCull = static_cast<uint32>(CullMode::Front);
+        constexpr uint32 BackCull  = static_cast<uint32>(CullMode::Back);
+
+        static_assert(((FrontCull | BackCull) == static_cast<uint32>(CullMode::FrontAndBack)),
+                      "CullMode::FrontAndBack not a strict union of CullMode::Front and CullMode::Back");
+
+        paSuScModeCntl.bits.CULL_FRONT = ((static_cast<uint32>(params.cullMode) & FrontCull) != 0);
+        paSuScModeCntl.bits.CULL_BACK  = ((static_cast<uint32>(params.cullMode) & BackCull)  != 0);
+
+        static_assert((static_cast<uint32>(FaceOrientation::Ccw) == 0) &&
+                      (static_cast<uint32>(FaceOrientation::Cw)  == 1),
+                      "FaceOrientation vs. PA_SU_SC_MODE_CNTL.FACE mismatch");
+
+        paSuScModeCntl.bits.FACE = static_cast<uint32>(params.frontFace);
+
+        static_assert((static_cast<uint32>(ProvokingVertex::First) == 0) &&
+                      (static_cast<uint32>(ProvokingVertex::Last)  == 1),
+                      "ProvokingVertex vs. PA_SU_SC_MODE_CNTL.PROVOKING_VTX_LAST mismatch");
+
+        paSuScModeCntl.bits.PROVOKING_VTX_LAST = static_cast<uint32>(params.provokingVertex);
+    }
+
+    if (IsGfx10Plus(m_gfxIpLevel))
+    {
+        //  The field was added for both polymode and perpendicular endcap lines.
+        //  The SC reuses some information from the first primitive for other primitives within a polymode group. The
+        //  whole group needs to make it to the SC in the same order it was produced by the PA. When the field is enabled,
+        //  the PA will set a keep_together bit on the first and last primitive of each group. This tells the PBB that the
+        //  primitives must be kept in order
+        //
+        //  it should be enabled when POLY_MODE is enabled.  Also, if the driver ever sets PERPENDICULAR_ENDCAP_ENA, that
+        //  should follow the same rules. POLY_MODE is handled @ set-time as it is known then.
+        paSuScModeCntl.gfx10Plus.KEEP_TOGETHER_ENABLE =
+            ((m_pbbCntlRegs.paScBinnerCntl0.bits.BINNING_MODE != DISABLE_BINNING_USE_LEGACY_SC__GFX09_10) &&
+             (paSuScModeCntl.bits.POLY_MODE || pPipeline->IsPerpEndCapsEnabled()));
+    }
+
+    PAL_ASSERT(paSuScModeCntl.u32All != InvalidPaSuScModeCntlVal);
+
+    if (paSuScModeCntl.u32All != m_paSuScModeCntl.u32All)
+    {
+        m_paSuScModeCntl.u32All                    = paSuScModeCntl.u32All;
+        m_state.primShaderCullingCb.paSuScModeCntl = paSuScModeCntl.u32All;
+
+        pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(mmPA_SU_SC_MODE_CNTL, paSuScModeCntl.u32All, pDeCmdSpace);
     }
 
     return pDeCmdSpace;
@@ -5730,11 +5746,12 @@ void UniversalCmdBuffer::ValidateVrsState()
     const VrsCombiner      imageCombiner          = vrsRate.combinerState[ImageCombinerStage];
     const VrsCombiner      vtxCombiner            = vrsRate.combinerState[VertexCombinerStage];
     const Gfx9PalSettings& settings               = m_device.Settings();
-    bool                   bindNewRateParams      = false;
     VrsRateParams          newRateParams          = vrsRate;
+    bool                   bindNewRateParams      =
+        m_cachedSettings.optimizeNullSourceImage && dirtyFlags.vrsRateParams;
 
     // Make sure the panel is requesting the optimized path.
-    if (settings.optimizeNullSourceImage &&
+    if (m_cachedSettings.optimizeNullSourceImage &&
         // A null source image corresponds to a 1x1 input into the image combiner.  Unless the combiner state is
         // "sum", we can fake a 1x1 input by messing around with the combiner states. Do some relatively easy fixup
         // checks first.
@@ -5873,7 +5890,8 @@ void UniversalCmdBuffer::ValidateVrsState()
     // If the new rate params haven't been bound and they need to be, then bind them now.
     if (bindNewRateParams)
     {
-        CmdSetPerDrawVrsRate(newRateParams);
+        WritePerDrawVrsRate(newRateParams);
+        m_graphicsState.dirtyFlags.validationBits.vrsRateParams = 1;
     }
 }
 
@@ -6116,9 +6134,9 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         pDeCmdSpace = m_deCmdStream.ReserveCommands();
     }
 
-    if ((PipelineDirty || (StateDirty && dirtyFlags.triangleRasterState)) && IsGfx10Plus(m_gfxIpLevel))
+    if (PipelineDirty || (StateDirty && dirtyFlags.triangleRasterState))
     {
-        pDeCmdSpace = Gfx10ValidateTriangleRasterState(pPipeline, pDeCmdSpace);
+        pDeCmdSpace = ValidateTriangleRasterState<PipelineDirty, StateDirty>(pPipeline, pDeCmdSpace);
     }
 
     const bool lineStippleStateDirty = StateDirty && (dirtyFlags.lineStippleState || dirtyFlags.inputAssemblyState);
@@ -7336,7 +7354,8 @@ uint32 UniversalCmdBuffer::CalcGeCntl(
                                                           vgtGsOnchipCntl.bits.ES_VERTS_PER_SUBGRP;
 
         // Zero is a legal value for VERT_GRP_SIZE. Other low values are illegal.
-        if (vertsPerSubgroup != 0)
+        if (vertsPerSubgroup != 0
+                                 )
         {
             //  These numbers below come from the hardware restrictions.
             if (IsGfx103Plus(m_gfxIpLevel))
@@ -7346,8 +7365,7 @@ uint32 UniversalCmdBuffer::CalcGeCntl(
                     vertsPerSubgroup = 29;
                 }
             }
-            else
-            if (IsGfx101(m_gfxIpLevel))
+            else if (IsGfx101(m_gfxIpLevel))
             {
                 if (vertsPerSubgroup < 24)
                 {
@@ -7642,7 +7660,7 @@ void UniversalCmdBuffer::ValidateDispatchPalAbi(
 #endif
         pCmdSpace = ValidateComputeUserData<true>(this,
                                                   pUserDataTable,
-                                                  pComputeState,
+                                                  &pComputeState->csUserDataEntries,
                                                   pCmdStream,
                                                   pPrevSignature,
                                                   pNewSignature,
@@ -7672,7 +7690,7 @@ void UniversalCmdBuffer::ValidateDispatchPalAbi(
 
         pCmdSpace = ValidateComputeUserData<false>(this,
                                                    pUserDataTable,
-                                                   pComputeState,
+                                                   &pComputeState->csUserDataEntries,
                                                    pCmdStream,
                                                    nullptr,
                                                    pNewSignature,
@@ -9376,7 +9394,9 @@ void UniversalCmdBuffer::ExecuteIndirectShader(
             const GenerateInfo genInfo =
             {
                 this,
-                PipelineState(bindPoint)->pPipeline,
+                (bindPoint == PipelineBindPoint::Graphics)
+                    ? pGfxPipeline
+                    : m_computeState.pipelineState.pPipeline,
                 gfx9Generator,
                 m_graphicsState.iaState.indexCount,
                 maximumCount,
@@ -10148,6 +10168,16 @@ void UniversalCmdBuffer::CmdExecuteNestedCmdBuffers(
 
         m_deCmdStream.TrackNestedEmbeddedData(pCallee->m_embeddedData.chunkList);
         m_deCmdStream.TrackNestedEmbeddedData(pCallee->m_gpuScratchMem.chunkList);
+
+        if ((pCallee->m_pAceCmdStream != nullptr) && (pCallee->m_pAceCmdStream->IsEmpty() == false))
+        {
+            CmdStream* pAceCmdStream = GetAceCmdStream();
+            pAceCmdStream->TrackNestedCommands(*(pCallee->m_pAceCmdStream));
+            pAceCmdStream->Call(*(pCallee->m_pAceCmdStream), exclusiveSubmit, false);
+
+            EnableImplicitGangedSubQueueCount(1);
+        }
+
         m_deCmdStream.TrackNestedCommands(pCallee->m_deCmdStream);
         m_ceCmdStream.TrackNestedCommands(pCallee->m_ceCmdStream);
 
@@ -10194,8 +10224,7 @@ void UniversalCmdBuffer::CmdOverwriteRbPlusFormatForBlits(
     SwizzledFormat format,
     uint32         targetIndex)
 {
-    const auto*const pPipeline =
-        static_cast<const GraphicsPipeline*>(PipelineState(PipelineBindPoint::Graphics)->pPipeline);
+    const auto*const pPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
     PAL_ASSERT(pPipeline != nullptr);
 
     // Just update our PM4 image for RB+.  It will be written at draw-time along with the other pipeline registers.
@@ -10579,6 +10608,44 @@ uint32 UniversalCmdBuffer::GetHwVrsCombinerState(
 }
 
 // =====================================================================================================================
+void UniversalCmdBuffer::WritePerDrawVrsRate(
+    const VrsRateParams&  rateParams)
+{
+    regGE_VRS_RATE geVrsRate = {};
+
+    // GE_VRS_RATE has an enable bit located in VGT_DRAW__PAYLOAD_CNTL.EN_VRS_RATE.  That register is owned
+    // by the pipeline, but the pipeline should be permanently enabling that bit.
+    const Offset2d  hwShadingRate = GetHwShadingRate(rateParams.shadingRate);
+
+    geVrsRate.bits.RATE_X = hwShadingRate.x;
+    geVrsRate.bits.RATE_Y = hwShadingRate.y;
+
+    regPA_CL_VRS_CNTL paClVrsCntl = {};
+
+    paClVrsCntl.bits.VERTEX_RATE_COMBINER_MODE    = GetHwVrsCombinerState(rateParams,
+                                                                          VrsCombinerStage::ProvokingVertex);
+    paClVrsCntl.bits.PRIMITIVE_RATE_COMBINER_MODE = GetHwVrsCombinerState(rateParams, VrsCombinerStage::Primitive);
+    paClVrsCntl.bits.HTILE_RATE_COMBINER_MODE     = GetHwVrsCombinerState(rateParams, VrsCombinerStage::Image);
+    paClVrsCntl.bits.SAMPLE_ITER_COMBINER_MODE    = GetHwVrsCombinerState(rateParams,
+                                                                          VrsCombinerStage::PsIterSamples);
+    paClVrsCntl.bits.EXPOSE_VRS_PIXELS_MASK       = rateParams.flags.exposeVrsPixelsMask;
+
+    // This field is related to exposing VRS info into cMask buffer as an output.  Not sure if any client is
+    // going to require this functionality at this time, so leave this off.
+    paClVrsCntl.bits.CMASK_RATE_HINT_FORCE_ZERO   = 0;
+
+    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
+    pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(Gfx103Plus::mmGE_VRS_RATE,
+                                                     geVrsRate.u32All,
+                                                     pDeCmdSpace);
+    pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx103Plus::mmPA_CL_VRS_CNTL,
+                                                      paClVrsCntl.u32All,
+                                                      pDeCmdSpace);
+
+    m_deCmdStream.CommitCommands(pDeCmdSpace);
+}
+
+// =====================================================================================================================
 // Setup registers affected by the VrsRateParams struct
 void UniversalCmdBuffer::CmdSetPerDrawVrsRate(
     const VrsRateParams&  rateParams)
@@ -10587,45 +10654,18 @@ void UniversalCmdBuffer::CmdSetPerDrawVrsRate(
 
     if (m_cachedSettings.supportsVrs)
     {
-        regGE_VRS_RATE     geVrsRate;
-        regPA_CL_VRS_CNTL  paClVrsCntl;
-
-        // GE_VRS_RATE has an enable bit located in VGT_DRAW__PAYLOAD_CNTL.EN_VRS_RATE.  That register is owned
-        // by the pipeline, but the pipeline should be permanently enabling that bit.
-        const Offset2d  hwShadingRate = GetHwShadingRate(rateParams.shadingRate);
-
-        geVrsRate.u32All      = 0;
-        geVrsRate.bits.RATE_X = hwShadingRate.x;
-        geVrsRate.bits.RATE_Y = hwShadingRate.y;
-
-        paClVrsCntl.u32All                            = 0;
-        paClVrsCntl.bits.VERTEX_RATE_COMBINER_MODE    = GetHwVrsCombinerState(rateParams,
-                                                                              VrsCombinerStage::ProvokingVertex);
-        paClVrsCntl.bits.PRIMITIVE_RATE_COMBINER_MODE = GetHwVrsCombinerState(rateParams, VrsCombinerStage::Primitive);
-        paClVrsCntl.bits.HTILE_RATE_COMBINER_MODE     = GetHwVrsCombinerState(rateParams, VrsCombinerStage::Image);
-        paClVrsCntl.bits.SAMPLE_ITER_COMBINER_MODE    = GetHwVrsCombinerState(rateParams,
-                                                                              VrsCombinerStage::PsIterSamples);
-        paClVrsCntl.bits.EXPOSE_VRS_PIXELS_MASK       = rateParams.flags.exposeVrsPixelsMask;
-
-        // This field is related to exposing VRS info into cMask buffer as an output.  Not sure if any client is
-        // going to require this functionality at this time, so leave this off.
-        paClVrsCntl.bits.CMASK_RATE_HINT_FORCE_ZERO   = 0;
-
-        uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-        pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(Gfx103Plus::mmGE_VRS_RATE,
-                                                         geVrsRate.u32All,
-                                                         pDeCmdSpace);
-        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx103Plus::mmPA_CL_VRS_CNTL,
-                                                          paClVrsCntl.u32All,
-                                                          pDeCmdSpace);
+        // The optimizeNullSourceImage setting requires us to cross-validate the vrs rate with the vrs image.
+        // So, when that optimization is enabled, this state is moved to draw time validation instead of write-thru.
+        if (m_cachedSettings.optimizeNullSourceImage == false)
+        {
+            WritePerDrawVrsRate(rateParams);
+        }
 
         if (IsGfx103Plus(m_gfxIpLevel))
         {
             // The VRS rate params own SAMPLE_COVERAGE_ENCODING
             m_paScAaConfigNew.gfx103Plus.SAMPLE_COVERAGE_ENCODING = rateParams.flags.exposeVrsPixelsMask;
         }
-
-        m_deCmdStream.CommitCommands(pDeCmdSpace);
     }
 }
 
@@ -10694,6 +10734,12 @@ void UniversalCmdBuffer::CmdBindSampleRateImage(
         PAL_ASSERT(createInfo.samples   == 1);
         PAL_ASSERT(createInfo.imageType == ImageType::Tex2d);
     }
+
+    // The optimizeNullSourceImage setings requires us to re-validate the vrs rate params when transitioning
+    // between a null and non-null vrsImage
+    m_graphicsState.dirtyFlags.validationBits.vrsRateParams |=
+        (m_cachedSettings.optimizeNullSourceImage) &&
+        ((pImage == nullptr) != (m_graphicsState.pVrsImage == nullptr));
 
     // Independent layer records the source image and marks our command buffer state as dirty.
     Pal::UniversalCmdBuffer::CmdBindSampleRateImage(pImage);

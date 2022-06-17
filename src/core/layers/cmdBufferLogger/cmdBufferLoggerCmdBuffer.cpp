@@ -31,12 +31,14 @@
 #include "core/layers/cmdBufferLogger/cmdBufferLoggerPlatform.h"
 #include "palHsaAbiMetadata.h"
 #include "palStringUtil.h"
+#include "palLiterals.h"
 #include <cinttypes>
 
 // This is required because we need the definition of the D3D12DDI_PRESENT_0003 struct in order to make a copy of the
 // data in it for the tokenization.
 
 using namespace Util;
+using namespace Util::Literals;
 
 namespace Pal
 {
@@ -943,7 +945,7 @@ CmdBuffer::CmdBuffer(
     :
     CmdBufferDecorator(pNextCmdBuffer, static_cast<DeviceDecorator*>(pDevice->GetNextLayer())),
     m_pDevice(pDevice),
-    m_allocator(1 * 1024 * 1024),
+    m_allocator(1_MiB),
     m_drawDispatchCount(0),
     m_drawDispatchInfo(),
     m_pBoundPipelines{}
@@ -957,8 +959,8 @@ CmdBuffer::CmdBuffer(
         m_annotations.u32All = 0;
     }
 
-    m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Compute)]  = &CmdBuffer::CmdSetUserDataCs;
-    m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Graphics)] = &CmdBuffer::CmdSetUserDataGfx;
+    m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Compute)]   = &CmdBuffer::CmdSetUserDataCs;
+    m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Graphics)]  = &CmdBuffer::CmdSetUserDataGfx;
 
     m_funcTable.pfnCmdDraw                      = CmdDraw;
     m_funcTable.pfnCmdDrawOpaque                = CmdDrawOpaque;
@@ -1427,11 +1429,19 @@ static void CmdSetUserDataToString(
     uint32            entryCount,
     const uint32*     pEntryValues)
 {
+    const char*const StringTable[] =
+    {
+        "Compute",      // PipelineBindPoint::Compute
+        "Graphics",     // PipelineBindPoint::Graphics
+    };
+
+    static_assert(ArrayLen32(StringTable) == static_cast<uint32>(PipelineBindPoint::Count),
+        "The CmdSetUserDataToString string table needs to be updated.");
+
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
-    Snprintf(pString, StringLength, "User Data Type = %s",
-             (userDataType == PipelineBindPoint::Compute) ? "Compute" : "Graphics");
+    Snprintf(pString, StringLength, "User Data Type = %s", StringTable[static_cast<uint32>(userDataType)]);
     pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
 
     Snprintf(pString, StringLength, "First Entry    = %u", firstEntry);
@@ -1481,6 +1491,39 @@ void PAL_STDCALL CmdBuffer::CmdSetUserDataGfx(
     }
 
     pCmdBuf->GetNextLayer()->CmdSetUserData(PipelineBindPoint::Graphics, firstEntry, entryCount, pEntryValues);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdDuplicateUserData(
+    PipelineBindPoint source,
+    PipelineBindPoint dest)
+{
+    if (m_annotations.logCmdSets)
+    {
+        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdDuplicateUserData));
+
+        const char*const StringTable[] =
+        {
+            "Compute",      // PipelineBindPoint::Compute
+            "Graphics",     // PipelineBindPoint::Graphics
+        };
+
+        static_assert(ArrayLen32(StringTable) == uint32(PipelineBindPoint::Count),
+                      "The CmdSetUserDataToString string table needs to be updated.");
+
+        LinearAllocatorAuto<VirtualLinearAllocator> allocator(Allocator(), false);
+        char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+
+        Snprintf(pString, StringLength, "Source Bind Point = %s", StringTable[uint32(source)]);
+        GetNextLayer()->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "Destination Bind Point = %s", StringTable[uint32(dest)]);
+        GetNextLayer()->CmdCommentString(pString);
+
+        PAL_SAFE_DELETE_ARRAY(pString, &allocator);
+    }
+
+    GetNextLayer()->CmdDuplicateUserData(source, dest);
 }
 
 // =====================================================================================================================
@@ -2077,11 +2120,22 @@ static const void AppendCacheCoherencyUsageToString(
     const char* CacheCoherUsageNames[] =
     {
         "CoherCpu",
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 740
         "CoherShader",
         "CoherCopy",
         "CoherColorTarget",
         "CoherDepthStencilTarget",
         "CoherResolve",
+#else
+        "CoherShaderRead",
+        "CoherShaderWrite",
+        "CoherCopySrc",
+        "CoherCopyDst",
+        "CoherColorTarget",
+        "CoherDepthStencilTarget",
+        "CoherResolveSrc",
+        "CoherResolveDst",
+#endif
         "CoherClear",
         "CoherIndirectArgs",
         "CoherIndexData",
@@ -2093,6 +2147,7 @@ static const void AppendCacheCoherencyUsageToString(
         "CoherMemory",
         "CoherSampleRate",
         "CoherPresent",
+        "CoherCp",
     };
 
     bool firstOneDumped = false;
@@ -2824,11 +2879,15 @@ static void MemoryBarrierTransitionToString(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
     DumpGpuMemoryInfo(pCmdBuffer, transition.memory.pGpuMemory, "Bound GpuMemory", "\t\t");
+#endif
 
-    Snprintf(pString, StringLength, "\t\t%s offset = 0x%016llX", "Bound GpuMemory", transition.memory.offset);
+    Snprintf(pString, StringLength, "\t\t%s address = 0x%016llX", "Bound GpuMemory", transition.memory.address);
     pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
-    Snprintf(pString, StringLength, "\t\t%s Size   = 0x%016llX", "Bound GpuMemory", transition.memory.size);
+    Snprintf(pString, StringLength, "\t\t%s offset  = 0x%016llX", "Bound GpuMemory", transition.memory.offset);
+    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+    Snprintf(pString, StringLength, "\t\t%s Size    = 0x%016llX", "Bound GpuMemory", transition.memory.size);
     pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
 
     pCmdBuffer->CmdCommentString("\t] // GpuMemSubAllocInfo");
@@ -3094,9 +3153,10 @@ uint32 CmdBuffer::CmdRelease(
 
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(&m_allocator, false);
     AcquireReleaseInfo nextReleaseInfo = releaseInfo;
-    MemBarrier*        pMemoryBarriers = nullptr;
     ImgBarrier*        pImageBarriers  = nullptr;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
+    MemBarrier* pMemoryBarriers = nullptr;
     if (releaseInfo.memoryBarrierCount > 0)
     {
         pMemoryBarriers = PAL_NEW_ARRAY(MemBarrier, releaseInfo.memoryBarrierCount, &allocator, AllocInternalTemp);
@@ -3109,6 +3169,7 @@ uint32 CmdBuffer::CmdRelease(
 
         nextReleaseInfo.pMemoryBarriers = pMemoryBarriers;
     }
+#endif
 
     if (releaseInfo.imageBarrierCount > 0)
     {
@@ -3131,7 +3192,9 @@ uint32 CmdBuffer::CmdRelease(
     GetNextLayer()->CmdCommentString(pString);
     PAL_SAFE_DELETE_ARRAY(pString, &allocator);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
     PAL_SAFE_DELETE_ARRAY(pMemoryBarriers, &allocator);
+#endif
     PAL_SAFE_DELETE_ARRAY(pImageBarriers, &allocator);
 
     return syncToken;
@@ -3152,10 +3215,11 @@ void CmdBuffer::CmdAcquire(
 
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(&m_allocator, false);
     AcquireReleaseInfo     nextAcquireInfo = acquireInfo;
-    MemBarrier*            pMemoryBarriers = nullptr;
     ImgBarrier*            pImageBarriers  = nullptr;
     const IGpuEvent** ppNextGpuEvents = nullptr;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
+    MemBarrier* pMemoryBarriers = nullptr;
     if (acquireInfo.memoryBarrierCount > 0)
     {
         pMemoryBarriers = PAL_NEW_ARRAY(MemBarrier, acquireInfo.memoryBarrierCount, &allocator, AllocInternalTemp);
@@ -3168,6 +3232,7 @@ void CmdBuffer::CmdAcquire(
 
         nextAcquireInfo.pMemoryBarriers = pMemoryBarriers;
     }
+#endif
 
     if (acquireInfo.imageBarrierCount > 0)
     {
@@ -3184,7 +3249,9 @@ void CmdBuffer::CmdAcquire(
 
     GetNextLayer()->CmdAcquire(nextAcquireInfo, syncTokenCount, pSyncTokens);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
     PAL_SAFE_DELETE_ARRAY(pMemoryBarriers, &allocator);
+#endif
     PAL_SAFE_DELETE_ARRAY(pImageBarriers, &allocator);
     PAL_SAFE_DELETE_ARRAY(ppNextGpuEvents, &allocator);
 }
@@ -3259,11 +3326,12 @@ void CmdBuffer::CmdReleaseEvent(
 
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(&m_allocator, false);
     AcquireReleaseInfo nextReleaseInfo = releaseInfo;
-    MemBarrier*        pMemoryBarriers = nullptr;
     ImgBarrier*        pImageBarriers  = nullptr;
 
     const IGpuEvent*   pNextGpuEvent = NextGpuEvent(pGpuEvent);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
+    MemBarrier* pMemoryBarriers = nullptr;
     if (releaseInfo.memoryBarrierCount > 0)
     {
         pMemoryBarriers = PAL_NEW_ARRAY(MemBarrier, releaseInfo.memoryBarrierCount, &allocator, AllocInternalTemp);
@@ -3276,6 +3344,7 @@ void CmdBuffer::CmdReleaseEvent(
 
         nextReleaseInfo.pMemoryBarriers = pMemoryBarriers;
     }
+#endif
 
     if (releaseInfo.imageBarrierCount > 0)
     {
@@ -3292,7 +3361,9 @@ void CmdBuffer::CmdReleaseEvent(
 
     GetNextLayer()->CmdReleaseEvent(nextReleaseInfo, pNextGpuEvent);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
     PAL_SAFE_DELETE_ARRAY(pMemoryBarriers, &allocator);
+#endif
     PAL_SAFE_DELETE_ARRAY(pImageBarriers, &allocator);
 }
 
@@ -3374,10 +3445,11 @@ void CmdBuffer::CmdAcquireEvent(
 
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(&m_allocator, false);
     AcquireReleaseInfo     nextAcquireInfo = acquireInfo;
-    MemBarrier*            pMemoryBarriers = nullptr;
     ImgBarrier*            pImageBarriers  = nullptr;
     const IGpuEvent**      ppNextGpuEvents = nullptr;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
+    MemBarrier* pMemoryBarriers = nullptr;
     if (acquireInfo.memoryBarrierCount > 0)
     {
         pMemoryBarriers = PAL_NEW_ARRAY(MemBarrier, acquireInfo.memoryBarrierCount, &allocator, AllocInternalTemp);
@@ -3390,6 +3462,7 @@ void CmdBuffer::CmdAcquireEvent(
 
         nextAcquireInfo.pMemoryBarriers = pMemoryBarriers;
     }
+#endif
 
     if (acquireInfo.imageBarrierCount > 0)
     {
@@ -3416,7 +3489,9 @@ void CmdBuffer::CmdAcquireEvent(
 
     GetNextLayer()->CmdAcquireEvent(nextAcquireInfo, gpuEventCount, ppNextGpuEvents);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
     PAL_SAFE_DELETE_ARRAY(pMemoryBarriers, &allocator);
+#endif
     PAL_SAFE_DELETE_ARRAY(pImageBarriers, &allocator);
     PAL_SAFE_DELETE_ARRAY(ppNextGpuEvents, &allocator);
 }
@@ -3434,9 +3509,10 @@ void CmdBuffer::CmdReleaseThenAcquire(
 
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(&m_allocator, false);
     AcquireReleaseInfo nextBarrierInfo = barrierInfo;
-    MemBarrier*        pMemoryBarriers = nullptr;
     ImgBarrier*        pImageBarriers  = nullptr;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
+    MemBarrier* pMemoryBarriers = nullptr;
     if (barrierInfo.memoryBarrierCount > 0)
     {
         pMemoryBarriers = PAL_NEW_ARRAY(MemBarrier, barrierInfo.memoryBarrierCount, &allocator, AllocInternalTemp);
@@ -3449,6 +3525,7 @@ void CmdBuffer::CmdReleaseThenAcquire(
 
         nextBarrierInfo.pMemoryBarriers = pMemoryBarriers;
     }
+#endif
 
     if (barrierInfo.imageBarrierCount > 0)
     {
@@ -3465,7 +3542,9 @@ void CmdBuffer::CmdReleaseThenAcquire(
 
     GetNextLayer()->CmdReleaseThenAcquire(nextBarrierInfo);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
     PAL_SAFE_DELETE_ARRAY(pMemoryBarriers, &allocator);
+#endif
     PAL_SAFE_DELETE_ARRAY(pImageBarriers, &allocator);
 }
 

@@ -526,9 +526,8 @@ void ComputeCmdBuffer::CmdBindBorderColorPalette(
     //       which may involve getting KMD support.
     if (m_device.Settings().disableBorderColorPaletteBinds == false)
     {
-        auto*const       pPipelineState = PipelineState(pipelineBindPoint);
-        const auto*const pNewPalette    = static_cast<const BorderColorPalette*>(pPalette);
-
+        PAL_ASSERT(pipelineBindPoint == PipelineBindPoint::Compute);
+        const auto*const pNewPalette = static_cast<const BorderColorPalette*>(pPalette);
         if (pNewPalette != nullptr)
         {
             uint32* pCmdSpace = m_cmdStream.ReserveCommands();
@@ -536,9 +535,8 @@ void ComputeCmdBuffer::CmdBindBorderColorPalette(
             m_cmdStream.CommitCommands(pCmdSpace);
         }
 
-        // Update the border-color palette state.
-        pPipelineState->pBorderColorPalette                = pNewPalette;
-        pPipelineState->dirtyFlags.borderColorPaletteDirty = 1;
+        m_computeState.pipelineState.pBorderColorPalette = pNewPalette;
+        m_computeState.pipelineState.dirtyFlags.borderColorPaletteDirty = 1;
     }
 }
 
@@ -583,7 +581,7 @@ uint32* ComputeCmdBuffer::ValidateUserData(
         // Step #2:
         // Because the spill table is managed using CPU writes to embedded data, it must be fully re-uploaded for any
         // Dispatch whenever *any* contents have changed.
-        bool reUpload = (m_spillTableCs.dirty != 0);
+        bool reUpload = (m_spillTable.stateCs.dirty != 0);
         if (HasPipelineChanged &&
             ((spillThreshold < pPrevSignature->spillThreshold) || (userDataLimit > pPrevSignature->userDataLimit)))
         {
@@ -624,7 +622,7 @@ uint32* ComputeCmdBuffer::ValidateUserData(
         // Re-upload spill table contents if necessary, and write the new GPU virtual address to the user-SGPR(s).
         if (reUpload)
         {
-            UpdateUserDataTableCpu(&m_spillTableCs,
+            UpdateUserDataTableCpu(&m_spillTable.stateCs,
                                    (userDataLimit - spillThreshold),
                                    spillThreshold,
                                    &m_computeState.csUserDataEntries.entries[0]);
@@ -635,7 +633,7 @@ uint32* ComputeCmdBuffer::ValidateUserData(
             if (m_pSignatureCs->stage.spillTableRegAddr != UserDataNotMapped)
             {
                 pCmdSpace = m_cmdStream.WriteSetOneShReg<ShaderCompute>(m_pSignatureCs->stage.spillTableRegAddr,
-                                                                        LowPart(m_spillTableCs.gpuVirtAddr),
+                                                                        LowPart(m_spillTable.stateCs.gpuVirtAddr),
                                                                         pCmdSpace);
             }
         }

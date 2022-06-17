@@ -127,7 +127,22 @@
       "Scope": "PrivatePalKey",
       "Type": "bool",
       "VariableName": "requestDebugVmid",
-      "Description": "Requests that contexts be created with a debug VMID. This allows for better shader debugging by keeping the page tables valid after the context has been switched out.  This is also useful for SQTT profiling as it ensures both compute and graphics queue work will share the same VMID allowing the thread trace to be filtered to a single VMID (to avoid capturing other processes work) while still capturing all work by the target process. NOTE: RGP tracing automatically requests the Debug VMID during setup so there is no need to change this setting when capturing RGP traces."
+      "Description": "Requests that contexts be created with a debug VMID. This allows for better shader debugging by keeping the page tables valid after the context has been switched out.  This is also useful for SQTT profiling as it ensures both compute and graphics queue work will share the same VMID allowing the thread trace to be filtered to a single VMID (to avoid capturing other processes work) while still capturing all work by the target process. NOTE: RGP tracing automatically requests the Debug VMID during setup so there is no need to change this setting when capturing RGP traces. A static VMID is requested instead if the supportStaticVmid flag is set in GpuChipProperties."
+    },
+    {
+      "Name": "DefaultSqttDetailedCuIndex",
+      "Tags": [
+        "General",
+        "Debug",
+        "Profiling"
+      ],
+      "Defaults": {
+        "Default": -1
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "int32",
+      "VariableName": "defaultSqttDetailedCuIndex",
+      "Description": "Value to override the default SQTT CU within each SE to profile with which is otherwise the first always-on/active CU. Note that this setting is ignored if a custom thread trace target CU is provided. Also note that this is the CU index - for setting a custom WGP to profile with (i.e. on GFX10+ with 2 CUs per WGP), you must set this value to 2x the intended WGP eg. for WGP3, set this to 6."
     },
     {
       "Name": "DisableVmPageFaultReporting",
@@ -728,6 +743,9 @@
           "dev"
         ]
       },
+      "BuildTypes": [
+        "PAL_DEVELOPER_BUILD"
+      ],
       "Scope": "PrivatePalKey",
       "Type": "bool",
       "VariableName": "insertGuardPageBetweenWddm2VAs",
@@ -1028,7 +1046,7 @@
       "Name": "CmdBufDumpDirectory",
       "Type": "string",
       "VariableName": "cmdBufDumpDirectory",
-      "Size": "MaxPathStrLen"
+      "Size": "Util::MaxPathStrLen"
     },
     {
       "Name": "SubmitTimeCmdBufDumpStartFrame",
@@ -1206,7 +1224,7 @@
             "WinDefault": "PalPipelines\\",
             "LnxDefault": "amdpal/"
           },
-          "Size": "MaxPathStrLen",
+          "Size": "Util::MaxPathStrLen",
           "Type": "string",
           "VariableName": "logDirectory",
           "Name": "LogDirectory"
@@ -1969,6 +1987,9 @@
       "Defaults": {
         "Default": 0
       },
+      "BuildTypes": [
+        "PAL_DEVELOPER_BUILD"
+      ],
       "Scope": "PrivatePalKey",
       "Type": "uint64",
       "VariableName": "dbgHelperBits",
@@ -2127,12 +2148,12 @@
   ],
   "DefinedConstants": [
     {
-      "Name": "MaxPathStrLen",
+      "Name": "Util::MaxPathStrLen",
       "Value": 512,
       "Description": "Maximum string length for a directory/path setting"
     },
     {
-      "Name": "MaxFileNameStrLen",
+      "Name": "Util::MaxFileNameStrLen",
       "Value": 256,
       "Description": "Maximum string length for a filename setting"
     },

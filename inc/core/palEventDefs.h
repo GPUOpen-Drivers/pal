@@ -101,7 +101,7 @@ enum class ResourceType : uint32
     CmdAllocator = 15,
     MiscInternal = 16,
 
-    Count = 17
+    Count,
 };
 
 /// Enumeration of miscellaneous events, used for GPU memory event logging

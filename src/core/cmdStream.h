@@ -177,6 +177,11 @@ public:
     uint32* ReserveCommands();
     void CommitCommands(const uint32* pEndOfBuffer);
 
+    // Commits and reserves new command space if the space remaining since the last call to ReserveCommands() is
+    // insufficient for the specified amount of command DWORDs to fit.  Otherwise, does nothing.  The amount of DWORDs
+    // **must** be less than or equal to the reserve limit.
+    uint32* ReReserveCommands(uint32* pCurrentBufferPos, uint32 numDwords);
+
     // Similar to ReserveCommands, but this call guarantees the command buffer is allocated in a new chunk.
     uint32* ReserveCommandsInNewChunk();
 

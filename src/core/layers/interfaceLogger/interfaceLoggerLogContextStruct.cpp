@@ -170,13 +170,12 @@ void LogContext::Struct(
 
         EndList();
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
         KeyAndObject("pGpuMemory", memoryBarrier.memory.pGpuMemory);
-
-        if (memoryBarrier.memory.pGpuMemory != nullptr)
-        {
-            KeyAndValue("offset", memoryBarrier.memory.offset);
-            KeyAndValue("size", memoryBarrier.memory.size);
-        }
+#endif
+        KeyAndValue("address",     memoryBarrier.memory.address);
+        KeyAndValue("offset",      memoryBarrier.memory.offset);
+        KeyAndValue("size",        memoryBarrier.memory.size);
 
         KeyAndCacheCoherencyUsageFlags("srcAccessMask", memoryBarrier.srcAccessMask);
         KeyAndCacheCoherencyUsageFlags("dstAccessMask", memoryBarrier.dstAccessMask);
@@ -786,6 +785,14 @@ void LogContext::Struct(
         Value("privateFlip");
     }
 #endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 741
+    if (value.disableDccRejected)
+    {
+        Value("disableDccRejected");
+    }
+#endif
+
     EndList();
     KeyAndObject("primaryMemory", value.pPrimaryMemory);
 
@@ -1665,6 +1672,20 @@ void LogContext::Struct(
         KeyAndValue("outOfOrderPrimsEnable", value.rsState.outOfOrderPrimsEnable);
         KeyAndValue("perpLineEndCapsEnable", value.rsState.perpLineEndCapsEnable);
         KeyAndEnum("binningOverride", value.rsState.binningOverride);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 733
+        KeyAndBeginList("flags", true);
+        if (value.rsState.flags.clipDistMaskValid != 0)
+        {
+            Value("clipDistMaskValid");
+        }
+        if (value.rsState.flags.cullDistMaskValid != 0)
+        {
+            Value("cullDistMaskValid");
+        }
+        EndList();
+        KeyAndValue("cullDistMask", value.rsState.cullDistMask);
+#endif
+        KeyAndValue("clipDistMask", value.rsState.clipDistMask);
     }
     EndMap();
 
@@ -1728,6 +1749,26 @@ void LogContext::Struct(
     }
     EndMap();
 
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
+    const CpuVirtAddrAndStride& value)
+{
+    BeginMap(false);
+    KeyAndValue("cpuVirtAddr", value.pCpuVirtAddr);
+    KeyAndValue("stride", value.stride);
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
+    const GpuVirtAddrAndStride& value)
+{
+    BeginMap(false);
+    KeyAndValue("gpuVirtAddr", value.gpuVirtAddr);
+    KeyAndValue("stride", value.stride);
     EndMap();
 }
 
@@ -2963,6 +3004,18 @@ void LogContext::Struct(
     {
         Value("srcAlpha");
     }
+
+    if (value.dstAsSrgb)
+    {
+        Value("dstAsSrgb");
+    }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 742
+    if (value.dstAsNorm)
+    {
+        Value("dstAsNorm");
+    }
+#endif
 
     EndList();
 }

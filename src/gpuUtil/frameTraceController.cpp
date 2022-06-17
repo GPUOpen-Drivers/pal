@@ -27,6 +27,8 @@
 
 #include "frameTraceController.h"
 #include "palHashMapImpl.h"
+#include "core/cmdBuffer.h"
+#include "core/engine.h"
 
 using namespace Pal;
 
@@ -35,7 +37,7 @@ namespace GpuUtil
 
 // =====================================================================================================================
 FrameTraceController::FrameTraceController(
-    IPlatform* pPlatform)
+    Platform* pPlatform)
     :
     m_pPlatform(pPlatform),
     m_captureStartIndex(0),
@@ -43,7 +45,7 @@ FrameTraceController::FrameTraceController(
     m_captureFrameCount(1),
     m_supportedGpuMask(1),
     m_frameCount(0),
-    m_currentCmdBuffer(nullptr)
+    m_pCurrentCmdBuffer(nullptr)
 {
     m_pTraceSession = m_pPlatform->GetTraceSession();
 }
@@ -58,40 +60,27 @@ void FrameTraceController::OnFrameUpdated()
 {
     TraceSessionState traceSessionState = m_pTraceSession->GetTraceSessionState();
 
-    switch (traceSessionState)
+    if (traceSessionState == TraceSessionState::Requested)
     {
-        case TraceSessionState::Requested:
+        if ((m_captureStartIndex == 0 || m_frameCount == m_captureStartIndex) &&
+            (m_pTraceSession->AcceptTrace(this, m_supportedGpuMask) == Result::Success))
         {
-            if ((m_captureStartIndex == 0 || m_frameCount == m_captureStartIndex) &&
-                (m_pTraceSession->AcceptTrace(this, m_supportedGpuMask) == Result::Success))
+            m_currentTraceStartIndex = m_frameCount;
+
+            if (m_pTraceSession->BeginTrace() == Result::Success)
             {
-                m_currentTraceStartIndex = m_frameCount;
-
-                if (m_pTraceSession->BeginTrace() == Result::Success)
-                {
-                    m_pTraceSession->SetTraceSessionState(TraceSessionState::Running);
-                }
+                m_pTraceSession->SetTraceSessionState(TraceSessionState::Running);
             }
-            break;
         }
-
-        case TraceSessionState::Running:
+    }
+    else if (traceSessionState == TraceSessionState::Running)
+    {
+        if (m_frameCount == m_currentTraceStartIndex + m_captureFrameCount)
         {
-            if (m_frameCount == m_currentTraceStartIndex + m_captureFrameCount)
+            if (m_pTraceSession->EndTrace() == Result::Success)
             {
-                if (m_pTraceSession->EndTrace() == Result::Success)
-                {
-                    m_pTraceSession->SetTraceSessionState(TraceSessionState::Waiting);
-                }
+                m_pTraceSession->SetTraceSessionState(TraceSessionState::Waiting);
             }
-            break;
-        }
-
-        case TraceSessionState::Waiting:
-        {
-            m_pTraceSession->FinishTrace();
-            m_pTraceSession->SetTraceSessionState(TraceSessionState::Completed);
-            break;
         }
     }
 }
@@ -101,11 +90,12 @@ Result FrameTraceController::OnBeginGpuWork(
     uint32       gpuIndex,
     ICmdBuffer** ppCmdBuf)
 {
+    m_pCurrentDevice = m_pPlatform->GetDevice(gpuIndex);
     Result result = Result::Success;
 
-    if (m_currentCmdBuffer != nullptr)
+    if (m_pCurrentCmdBuffer != nullptr)
     {
-        *ppCmdBuf = m_currentCmdBuffer;
+        *ppCmdBuf = m_pCurrentCmdBuffer;
     }
     else
     {
@@ -120,11 +110,13 @@ Result FrameTraceController::OnEndGpuWork(
     uint32       gpuIndex,
     ICmdBuffer** ppCmdBuf)
 {
+    m_pCurrentDevice = m_pPlatform->GetDevice(gpuIndex);
     Result result = Result::Success;
 
-    if (m_currentCmdBuffer != nullptr)
+    if (m_pCurrentCmdBuffer != nullptr)
     {
-        *ppCmdBuf = m_currentCmdBuffer;
+        m_pCurrentCmdBuffer->SetEndTraceFlag(1);
+        *ppCmdBuf = m_pCurrentCmdBuffer;
     }
     else
     {
@@ -136,15 +128,22 @@ Result FrameTraceController::OnEndGpuWork(
 
 // =====================================================================================================================
 void FrameTraceController::UpdateFrame(
-    Pal::ICmdBuffer* pCmdBuffer)
+    CmdBuffer* pCmdBuffer)
 {
     Util::MutexAuto lock(&m_framePresentLock);
 
-    m_currentCmdBuffer = pCmdBuffer;
+    m_pCurrentCmdBuffer = pCmdBuffer;
     Util::AtomicIncrement(&m_frameCount);
     OnFrameUpdated();
 
-    m_currentCmdBuffer = nullptr;
+    m_pCurrentCmdBuffer = nullptr;
+}
+
+// =====================================================================================================================
+void FrameTraceController::FinishTrace()
+{
+    m_pTraceSession->FinishTrace();
+    m_pTraceSession->SetTraceSessionState(TraceSessionState::Completed);
 }
 }
 #endif

@@ -42,7 +42,7 @@ namespace DevDriver
 enum RMT_TOKEN_TYPE
 {
     RMT_TOKEN_TIMESTAMP          = 0,
-    RMT_TOKEN_RESERVED_0         = 1,
+    RMT_TOKEN_RESOURCE_UPDATE    = 1,
     RMT_TOKEN_RESERVED_1         = 2,
     RMT_TOKEN_PAGE_TABLE_UPDATE  = 3,
     RMT_TOKEN_USERDATA           = 4,
@@ -818,6 +818,53 @@ struct RMT_MSG_RESOURCE_CREATE : RMT_TOKEN_DATA
 
         // RESERVED [55:54] Reserved for future expansion. Should be set to 0.
         SetBits(0, 55, 54);
+    }
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// RMT_MSG_RESOURCE_UPDATE
+static const size_t RMT_MSG_RESOURCE_UPDATE_TOKEN_BYTES_SIZE = 112 / 8; // 112-bits
+struct RMT_MSG_RESOURCE_UPDATE : RMT_TOKEN_DATA
+{
+    uint8 bytes[RMT_MSG_RESOURCE_UPDATE_TOKEN_BYTES_SIZE];
+
+    // Initializes the token fields
+    RMT_MSG_RESOURCE_UPDATE(
+        uint8             delta,
+        uint32            resourceId,
+        uint32            subResourceId,
+        RMT_RESOURCE_TYPE resourceType,
+        uint16            beforeUsageFlags, // Encoded using RMT_IMAGE/BUFFER_USAGE_FLAGS bit values
+        uint16            afterUsageFlags)  // Encoded using RMT_IMAGE/BUFFER_USAGE_FLAGS bit values
+    {
+        sizeInBytes = sizeof(bytes);
+        pByteData   = &bytes[0];
+
+        // RMT_TOKEN_TYPE [3:0] Token type (see Table 2). Encoded to RMT_TOKEN_TYPE_ALLOCATE.
+        // DELTA          [7:4] The delta from the last token. In increments of 32-time units.
+        RMT_TOKEN_HEADER header(RMT_TOKEN_RESOURCE_UPDATE, delta);
+        SetBits(header.byteVal, 7, 0);
+
+        // RESOURCE_IDENTIFIER [39:8] A unique identifier for the resource. This allows this token to be correlated with
+        //                            other tokens later in the RMT stream.
+        SetBits(resourceId, 39, 8);
+
+        // SUBRESOURCE ID [71:40] The subresource ID that is being transitioned
+        SetBits(subResourceId, 71, 40);
+
+        // RESOURCE TYPE [77:72] The type of resource (image/buffer)
+        SetBits(resourceType, 77, 72);
+
+        // BEFORE USAGE FLAGS [92:78] Usage flags describing how the image is used by the application before the update.
+        //                     See RMT_IMAGE/BUFFER_USAGE_FLAGS.
+        SetBits(beforeUsageFlags, 92, 78);
+
+        // AFTER USAGE FLAGS [107:93] Usage flags describing how the image is used by the application after the update.
+        //                     See RMT_IMAGE/BUFFER_USAGE_FLAGS.
+        SetBits(afterUsageFlags, 107, 93);
+
+        // RESERVED [111:108] Reserved for future expansion. Should be set to 0.
+        SetBits(0, 111, 108);
     }
 };
 

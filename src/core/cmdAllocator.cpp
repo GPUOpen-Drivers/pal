@@ -32,11 +32,13 @@
 #include "palIntrusiveListImpl.h"
 #include "palMutex.h"
 #include "palVectorImpl.h"
+#include "palLiterals.h"
 #include "eventDefs.h"
 
 #include <limits.h>
 
 using namespace Util;
+using namespace Util::Literals;
 
 namespace Pal
 {
@@ -116,6 +118,8 @@ CmdAllocator::CmdAllocator(
     }
 
     const uint32 residencyFlags = m_pDevice->GetPublicSettings()->cmdAllocResidency;
+    const bool   noInvisibleMem = (m_pDevice->MemoryProperties().invisibleHeapSize == 0);
+
     for (uint32 i = 0; i < CmdAllocatorTypeCount; ++i)
     {
         // It's legal to use the local heap but it might not work as expected. We keep all chunk allocations mapped
@@ -150,9 +154,18 @@ CmdAllocator::CmdAllocator(
             }
             else
             {
-                m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.heapCount = 2;
-                m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.heaps[0]  = GpuHeapInvisible;
-                m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.heaps[1]  = GpuHeapLocal;
+                if (noInvisibleMem)
+                {
+                    m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.heapCount = 1;
+                    m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.heaps[0] = GpuHeapLocal;
+                }
+                else
+                {
+                    m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.heapCount = 2;
+                    m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.heaps[0] = GpuHeapInvisible;
+                    m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.heaps[1] = GpuHeapLocal;
+
+                }
             }
         }
 
@@ -955,8 +968,7 @@ VirtualLinearAllocator* CmdAllocator::GetNewLinearAllocator()
     else
     {
         // Try to create a new linear allocator, we will return null if this fails.
-        constexpr uint32 MaxAllocSize = 64 * 1024;
-        pAllocator = PAL_NEW(VirtualLinearAllocatorWithNode, m_pDevice->GetPlatform(), AllocInternal) (MaxAllocSize);
+        pAllocator = PAL_NEW(VirtualLinearAllocatorWithNode, m_pDevice->GetPlatform(), AllocInternal) (64_KiB);
 
         if (pAllocator != nullptr)
         {

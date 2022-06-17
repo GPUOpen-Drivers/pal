@@ -74,10 +74,11 @@ protected:
         QueryResult*    pQuery) override;
 
     virtual Result StoreInternal(
-        const Hash128*  pHashId,
-        const void*     pData,
-        size_t          dataSize,
-        size_t          storeSize) override;
+        Util::StoreFlags    storeFlags,
+        const Hash128*      pHashId,
+        const void*         pData,
+        size_t              dataSize,
+        size_t              storeSize) override;
 
     virtual Result LoadInternal(
         const QueryResult* pQuery,

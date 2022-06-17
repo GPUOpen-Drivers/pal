@@ -119,6 +119,9 @@ public:
     virtual void CmdPrimeGpuCaches(
         uint32                    rangeCount,
         const PrimeGpuCacheRange* pRanges) override;
+    virtual void CmdDuplicateUserData(
+        PipelineBindPoint source,
+        PipelineBindPoint dest) override;
     virtual void CmdSetKernelArguments(
         uint32            firstArg,
         uint32            argCount,

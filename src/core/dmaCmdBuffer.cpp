@@ -44,7 +44,7 @@ static void PAL_STDCALL DummyCmdSetUserData(
     uint32,
     const uint32*)
 {
-    PAL_ASSERT_ALWAYS();
+    PAL_NEVER_CALLED_MSG("CmdSetUserData not supported for this bind point on this command buffer!");
 }
 
 // =====================================================================================================================
@@ -73,8 +73,8 @@ DmaCmdBuffer::DmaCmdBuffer(
 {
     PAL_ASSERT(createInfo.queueType == QueueTypeDma);
 
-    SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute,  &DummyCmdSetUserData);
-    SwitchCmdSetUserDataFunc(PipelineBindPoint::Graphics, &DummyCmdSetUserData);
+    SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute,   &DummyCmdSetUserData);
+    SwitchCmdSetUserDataFunc(PipelineBindPoint::Graphics,  &DummyCmdSetUserData);
 }
 
 // =====================================================================================================================

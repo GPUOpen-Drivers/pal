@@ -1193,8 +1193,8 @@ void RsrcProcMgr::HwlFixupResolveDstImage(
                 PAL_ASSERT(pRegions[i].pQuadSamplePattern == nullptr);
             }
             transition[regionId].imageInfo.pQuadSamplePattern = pRegions[i].pQuadSamplePattern;
-            transition[regionId].srcCacheMask                 = Pal::CoherResolve;
-            transition[regionId].dstCacheMask                 = Pal::CoherResolve;
+            transition[regionId].srcCacheMask                 = Pal::CoherResolveDst;
+            transition[regionId].dstCacheMask                 = Pal::CoherResolveDst;
 
             regionId++;
         }

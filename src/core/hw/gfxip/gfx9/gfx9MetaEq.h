@@ -204,6 +204,9 @@ public:
     void Shift(
         int32  amount,
         int32  start = 0);
+    void Swap(
+        uint32  pos1,
+        uint32  pos2);
     void Upload(
         const Pal::Device*  pDevice,
         CmdBuffer*          pCmdBuffer,

@@ -31,14 +31,15 @@
 
 #pragma once
 
+#include "palCmdAllocator.h"
 #include "palDestroyable.h"
+#include "palFence.h"
+#include "palFile.h"
 #include "palImage.h"
 #include "palInlineFuncs.h"
 #include "palPerfExperiment.h"
 #include "palPipeline.h"
 #include "palQueue.h"
-#include "palFence.h"
-#include "palCmdAllocator.h"
 
 namespace Util
 {
@@ -49,28 +50,28 @@ namespace Pal
 {
 
 // Forward declarations.
-class  IBorderColorPalette;
-class  ICmdAllocator;
-class  ICmdBuffer;
-class  IColorBlendState;
-class  IColorTargetView;
-class  IDepthStencilState;
-class  IDepthStencilView;
-class  IDevice;
-class  IFence;
-class  IGpuEvent;
-class  IGpuMemory;
-class  IImage;
-class  IIndirectCmdGenerator;
-class  IMsaaState;
-class  IPerfExperiment;
-class  IPipeline;
-class  IPrivateScreen;
-class  IQueryPool;
-class  IQueue;
-class  IQueueSemaphore;
-class  IShaderLibrary;
-class  ISwapChain;
+class IBorderColorPalette;
+class ICmdAllocator;
+class ICmdBuffer;
+class IColorBlendState;
+class IColorTargetView;
+class IDepthStencilState;
+class IDepthStencilView;
+class IDevice;
+class IFence;
+class IGpuEvent;
+class IGpuMemory;
+class IImage;
+class IIndirectCmdGenerator;
+class IMsaaState;
+class IPerfExperiment;
+class IPipeline;
+class IPrivateScreen;
+class IQueryPool;
+class IQueue;
+class IQueueSemaphore;
+class IShaderLibrary;
+class ISwapChain;
 struct BorderColorPaletteCreateInfo;
 struct CmdAllocatorCreateInfo;
 struct CmdBufferCreateInfo;
@@ -522,8 +523,10 @@ enum class HdrDisplayMode : uint32
     FreeSync2 = 3,  ///< FreeSync2 HDR10 Gamma 2.2.  Requires 10:10:10:2 swap chain.
 };
 
-static constexpr uint32 MaxPathStrLen = 512;
-static constexpr uint32 MaxFileNameStrLen = 256;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 732
+static constexpr uint32 MaxPathStrLen = Util::MaxPathStrLen;
+static constexpr uint32 MaxFileNameStrLen = Util::MaxFileNameStrLen;
+#endif
 static constexpr uint32 MaxMiscStrLen = 61;
 
 /// Whether to use graphics or compute for performing fast clears on depth stencil views.
@@ -1164,7 +1167,7 @@ struct DeviceProperties
         uint32 dynamicLaunchDescSize;   ///< Dynamic launch descriptor size. Zero indicates this feature is not
                                         ///  supported. @ref IPipeline::CreateLaunchDescriptor()
 
-        RayTracingIpLevel rayTracingIp;     ///< HW RayTracing IP version
+        RayTracingIpLevel       rayTracingIp;       ///< HW RayTracing IP version
 
         union
         {
@@ -1228,11 +1231,18 @@ struct DeviceProperties
 
                 uint64 supportIntersectRayBarycentrics    :  1; ///< HW supports the ray intersection mode which
                                                                 ///  returns triangle barycentrics.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 720
-                uint64 supportFloat32Atomics              :  1; ///< Hardware supports float32 atomics
+                uint64 supportFloat32BufferAtomics        :  1; ///< Hardware supports float32 buffer atomics
+                uint64 supportFloat32ImageAtomics         :  1; ///< Hardware supports float32 image atomics
                 uint64 supportFloat64Atomics              :  1; ///< Hardware supports float64 atomics
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 735
+                uint64 supportFloat32Atomics              :  1; ///< Hardware supports float32 atomics
 #else
+                uint64 reserved735                        :  1;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 720
                 uint64 supportFloatAtomics                :  1; ///< Hardware supports float atomics
+#else
+                uint64 reserved720                        :  1;
 #endif
                 uint64 support64BitInstructions           :  1; ///< Hardware supports 64b instructions
                 uint64 supportShaderSubgroupClock         :  1; ///< HW supports clock functions across subgroup.
@@ -1249,7 +1259,8 @@ struct DeviceProperties
                 uint64 support2DRectList                  :  1; ///< HW supports PrimitiveTopology::TwoDRectList.
                 uint64 supportHsaAbi                      :  1; ///< PAL supports HSA ABI compute pipelines.
                 uint64 supportImageViewMinLod             :  1; ///< Indicates image srd supports min_lod.
-                uint64 reserved                           : 16; ///< Reserved for future use.
+                uint64 supportStaticVmid                  :  1; ///< Indicates support for static-VMID
+                uint64 reserved                           : 11; ///< Reserved for future use.
             };
             uint64 u64All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.
@@ -1309,6 +1320,7 @@ struct DeviceProperties
                                             ///< harvesting CUs for yield in certain variants of ASICs (ex: Fiji PRO).
             uint32 numSimdsPerCu;           ///< Number of SIMDs per compute unit.
             uint32 numWavefrontsPerSimd;    ///< Number of wavefront slots in each SIMD.
+            uint32 numActiveRbs;            ///< Number of active Renderbackends
             uint32 nativeWavefrontSize;     ///< The native wavefront size.
             uint32 minWavefrontSize;        ///< The smallest supported wavefront size.
             uint32 maxWavefrontSize;        ///< All powers of two between the min size and max size are supported.
@@ -1367,7 +1379,10 @@ struct DeviceProperties
                                                            ///  the frameEnd flag set.
                 uint32 supportDirectCapture       :  1;    ///< Whether Direct Capture is supported by KMD
                 uint32 supportNativeHdrWindowing  :  1;    ///< Support HDR presentation that does not require FSE.
-                uint32 reserved                   : 23;    ///< Reserved for future use.
+                uint32 supportRSync               :  1;    ///< Whether RSync is supported by KMD, RSync is a feature
+                                                           ///  to sync the fullscreen app rendering frame rate with
+                                                           ///  the capture frame rate in the Streaming SDK project.
+                uint32 reserved                   : 22;    ///< Reserved for future use.
             };
             uint32 u32All;                        ///< Flags packed as 32-bit uint.
         } flags;                                  ///< OS-specific property flags.
@@ -1412,6 +1427,7 @@ struct DeviceProperties
             };
             uint32 u32All;
         } timeDomains;
+
     } osProperties;                 ///< OS-specific properties of this device.
 
     struct
@@ -2014,23 +2030,25 @@ struct BvhInfo
         struct
         {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 668
-            uint32    findNearest        :  1; ///< Enable sorting the box intersect results
+            uint32    findNearest           :  1; ///< Enable sorting the box intersect results
 #endif
-            uint32    useZeroOffset      :  1; ///< If set, SRD address is programmed to zero
-            uint32    returnBarycentrics :  1; ///< When enabled, ray intersection will return triangle barycentrics.
-                                               ///< Note: Only valid if @see supportIntersectRayBarycentrics is true.
+            uint32    useZeroOffset         :  1; ///< If set, SRD address is programmed to zero
+            uint32    returnBarycentrics    :  1; ///< When enabled, ray intersection will return triangle barycentrics.
+                                                  ///< Note: Only valid if @see supportIntersectRayBarycentrics is true.
 
             /// Set to have this surface independently bypass the MALL for read and / or write operations.
             /// If set, this overrides the GpuMemMallPolicy specified at memory allocation time.  Meaningful
             /// only on GPUs that have supportsMall set in DeviceProperties.
-            uint32    bypassMallRead     :  1;
-            uint32    bypassMallWrite    :  1;
-            uint32    placeholder2       :  1; ///< Reserved for future HW
+            uint32    bypassMallRead        :  1;
+            uint32    bypassMallWrite       :  1;
+            uint32    placeholder           :  1; ///< Reserved for future HW
+
+            uint32    placeholder2          :  3;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 668
-            uint32    reserved           : 26; ///< Reserved for future HW
+            uint32    reserved              :  23; ///< Reserved for future HW
 #else
-            uint32    reserved           : 27; ///< Reserved for future HW
+            uint32    reserved              :  24; ///< Reserved for future HW
 #endif
         };
 
@@ -2211,6 +2229,22 @@ enum StereoMode : uint32
     StereoModeNotSupported   = 2,  ///< Not support stereo mode
     StereoModeSideBySide     = 3,  ///< The two stereo views are put side by side on the display.
     StereoModeTopBottom      = 4   ///< One stereo view is on the top of the display, and the other is on the bottom.
+};
+
+/// Enumerates the supported workstation stereo modes.
+enum class WorkstationStereoMode : uint32
+{
+    Disabled,
+    ViaConnector,             ///< Active Stereo for 3 Pin VESA connector.
+    ViaBlueLine,              ///< Blue line Active Stereo for laptops.
+    Passive,                  ///< Passive Stereo (Dual head).
+    PassiveInvertRightHoriz,  ///< Passive Stereo with Horizontal Invert (Dual Head).
+    PassiveInvertRightVert,   ///< Passive Stereo with Vertical Invert (Dual Head).
+    Auto,                     ///< Auto Stereo Vertical Interleaved.
+    AutoHoriz,                ///< Auto Stereo Horizontal Interleaved.
+    AutoCheckerboard,         ///< Auto Stereo Checkerboard Interleaved.
+    AutoTsl,                  ///< Tridelity SL Auto Stereo.
+    Count,
 };
 
 /// Specifies output arguments for IDevice::GetPrimaryInfo(), returning capabilitiy information for a display in
@@ -2873,6 +2907,14 @@ public:
         uint32*                   pStereoModeCount,
         StereoDisplayModeOutput*  pStereoModeList) const = 0;
 
+    /// Returns the currently selected Workstation stereo mode on Windows OS.
+    ///
+    /// @param [out]    pWsStereoMode    Output currently selected Workstation Stereo mode.
+    ///
+    /// @returns Success if the currently selected Workstation stereo mode  were successfully queried
+    ///          and the results were reported in pWsStereoMode.
+    virtual Result GetWsStereoMode(WorkstationStereoMode* pWsStereoMode) const = 0;
+
     /// Return information about active workstation support for 10-bit (potentially packed pixel) displays.
     ///
     /// @param [out]    pMode  Output reports if the workstation 10-bit display feature is enabled, and if so,
@@ -2909,6 +2951,19 @@ public:
     virtual Result SetClockMode(
         const SetClockModeInput& setClockModeInput,
         SetClockModeOutput*      pSetClockModeOutput) = 0;
+
+    /// Request to enable/disable static VMID for the device.
+    ///
+    /// The function must be called with enable = true before a profiling session starts and enable = false after a
+    /// profiling session ends. It may be called any time, though it is illegal to disable without a prior corresponding
+    //  enable/acquire. Only after this returns success (when enabling) can the driver make submissions targeting the
+    /// static VMID.
+    ///
+    /// @param [in] enable Specifies whether acquiring or releasing the static VMID
+    ///
+    /// @returns Success if the static VMID acquire/release request was successful.
+    virtual Result SetStaticVmidMode(
+        bool enable) = 0;
 
     /// Set up MGPU compositing mode of a display provided by client.
     ///

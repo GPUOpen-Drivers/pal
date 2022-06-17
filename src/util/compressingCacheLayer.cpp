@@ -91,17 +91,25 @@ Result CompressingCacheLayer::Query(
 // =====================================================================================================================
 // Validate inputs, then compress and store to the next layer.
 Result CompressingCacheLayer::Store(
-    const Hash128* pHashId,
-    const void*    pData,
-    size_t         dataSize,
-    size_t         storeSize)
+    Util::StoreFlags    storeFlags,
+    const Hash128*      pHashId,
+    const void*         pData,
+    size_t              dataSize,
+    size_t              storeSize)
 {
     Result result = Result::ErrorUnknown;
 
-    if (m_decompressOnly == true)
+    if ((m_decompressOnly == true)
+        || (storeFlags.enableCompression == false)
+        )
     {
         // Just pass the store through to the next layer.
-        result = m_pNextLayer->Store(pHashId, pData, dataSize, storeSize);
+        result = m_pNextLayer->Store(
+            storeFlags,
+            pHashId,
+            pData,
+            dataSize,
+            storeSize);
     }
     else
     {
@@ -126,7 +134,7 @@ Result CompressingCacheLayer::Store(
         else
         {
             PAL_ASSERT(storeSize <= INT_MAX);
-            int neededSize = m_compressor.GetCompressBound(static_cast<int>(storeSize));
+            int neededSize = m_compressor.GetCompressBound(int(storeSize));
             void* compressedBuffer = PAL_MALLOC(neededSize, &m_allocator, AllocInternalTemp);
             if (compressedBuffer == nullptr)
             {
@@ -138,20 +146,30 @@ Result CompressingCacheLayer::Store(
                 m_compressMutex.Lock();
                 result = m_compressor.Compress(static_cast<const char*>(pData),
                                                static_cast<char*>(compressedBuffer),
-                                               static_cast<int>(storeSize),
+                                               int(storeSize),
                                                neededSize,
                                                &bytesWritten);
                 m_compressMutex.Unlock();
 
-                if((result == Result::Success) && (bytesWritten > 0) && (static_cast<size_t>(bytesWritten) < dataSize))
+                if((result == Result::Success) && (bytesWritten > 0) && (size_t(bytesWritten) < dataSize))
                 {
                     // Store the compressed version.
-                    result = m_pNextLayer->Store(pHashId, compressedBuffer, storeSize, bytesWritten);
+                    result = m_pNextLayer->Store(
+                        storeFlags,
+                        pHashId,
+                        compressedBuffer,
+                        storeSize,
+                        bytesWritten);
                 }
                 else
                 {
                     // There was some sort of problem during compression... just store the uncompressed version.
-                    result = m_pNextLayer->Store(pHashId, pData, dataSize, storeSize);
+                    result = m_pNextLayer->Store(
+                        storeFlags,
+                        pHashId,
+                        pData,
+                        dataSize,
+                        storeSize);
                 }
 
                 PAL_SAFE_FREE(compressedBuffer, &m_allocator);

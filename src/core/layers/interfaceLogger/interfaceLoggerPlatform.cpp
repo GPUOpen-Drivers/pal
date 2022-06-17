@@ -73,6 +73,7 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::CmdBufferCmdBindDepthStencilState,             (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetDepthBounds,                    (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetUserData,                       (CmdBuild)            },
+    { InterfaceFunc::CmdBufferCmdDuplicateUserData,                 (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetKernelArguments,                (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetVertexBuffers,                  (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdBindIndexData,                     (CmdBuild)            },
@@ -458,8 +459,7 @@ Result Platform::Init()
             // Write an entry to the main log with some general platform information.
             m_pMainLog->BeginMap(false);
             m_pMainLog->KeyAndValue("_type", "Platform");
-
-            m_pMainLog->KeyAndValue("api", "Vulkan");
+            m_pMainLog->KeyAndValue("api", GetClientApiStr());
 
 #if   defined(__unix__)
             m_pMainLog->KeyAndValue("os", "Linux");

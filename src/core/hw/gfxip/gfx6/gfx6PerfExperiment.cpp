@@ -1073,15 +1073,33 @@ Result PerfExperiment::AddThreadTrace(
                 traceableCuMask &= m_chipProps.gfx6.activeCuMaskGfx7[traceInfo.instance];
             }
 
-            // Select the first available CU from the mask
-            uint32 firstActiveCu = 0;
-            if (BitMaskScanForward(&firstActiveCu, traceableCuMask) == false)
+            const int32 customDefaultSqttDetailedCuIndex = m_pDevice->Settings().defaultSqttDetailedCuIndex;
+
+            if (customDefaultSqttDetailedCuIndex >= 0)
             {
-                // We should always have at least one non-realtime CU.
-                PAL_ASSERT_ALWAYS();
+                if (BitfieldIsSet(traceableCuMask, customDefaultSqttDetailedCuIndex))
+                {
+                    m_sqtt[traceInfo.instance].mask.bits.CU_SEL = customDefaultSqttDetailedCuIndex;
+                }
+                else
+                {
+                    // We can't select a non-traceable CU!
+                    result = Result::ErrorInvalidValue;
+                }
+            }
+            else
+            {
+                // Default to the first active CU
+                uint32 firstActiveCu = 0;
+                if (BitMaskScanForward(&firstActiveCu, traceableCuMask) == false)
+                {
+                    // We should always have at least one non-realtime CU.
+                    PAL_ASSERT_ALWAYS();
+                }
+
+                m_sqtt[traceInfo.instance].mask.bits.CU_SEL = firstActiveCu;
             }
 
-            m_sqtt[traceInfo.instance].mask.bits.CU_SEL = firstActiveCu;
         }
 
         m_sqtt[traceInfo.instance].mask.bits.SH_SEL = shIndex;

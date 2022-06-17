@@ -162,15 +162,11 @@ Result MasterQueueSemaphore::TimelineReleaseBlockedQueues(
         if ((result == Result::Success) && (value >= info.value))
         {
             PAL_ASSERT(info.pQueue != nullptr);
-            result = OsWait(info.pQueue, info.value);
-
             // ...it is also safe to submit any batched-up commands to the OS.
             if (result == Result::Success)
             {
-                PAL_ASSERT(info.pQueue->WaitingSemaphore() == this);
-                info.pQueue->SetWaitingSemaphore(nullptr);
                 m_queuesLock.Unlock();
-                result = info.pQueue->ReleaseFromStalledState();
+                result = info.pQueue->ReleaseFromStalledState(this, info.value);
                 // During unlock, there could be more waits added to m_blockedQueues.
                 m_queuesLock.Lock();
                 numToRelease = m_blockedQueues.NumElements();
@@ -235,18 +231,13 @@ Result MasterQueueSemaphore::SignalHelper(
                     // If this Queue should be released, ask it to execute all of its batched-up commands.
                     if ((m_signalCount >= info.waitCount) && (result == Result::Success))
                     {
-                        // The Semaphore has been signaled already by some other Queue, so it is safe to submit the Wait request
-                        // from the OS' perspective.
                         PAL_ASSERT(info.pQueue != nullptr);
-                        result = OsWait(info.pQueue, info.value);
 
                         // ...it is also safe to submit any batched-up commands to the OS.
                         if (result == Result::Success)
                         {
-                            PAL_ASSERT(info.pQueue->WaitingSemaphore() == this);
-                            info.pQueue->SetWaitingSemaphore(nullptr);
                             m_queuesLock.Unlock();
-                            result = info.pQueue->ReleaseFromStalledState();
+                            result = info.pQueue->ReleaseFromStalledState(this, info.value);
                             m_queuesLock.Lock();
                         }
                     }
@@ -371,10 +362,6 @@ Result MasterQueueSemaphore::WaitInternal(
             result = AddBlockedQueue(pQueue, pSemaphore, value);
             if (result == Result::Success)
             {
-                // NOTE: This assertion could trip if the application or client waited on the same Queue with two
-                // separate Semaphores from multiple threads simultaneously.
-                PAL_ASSERT(pQueue->WaitingSemaphore() == nullptr);
-                pQueue->SetWaitingSemaphore(this);
                 if (blockedOnThread)
                 {
                     if (m_waitThread.IsCreated() == false)

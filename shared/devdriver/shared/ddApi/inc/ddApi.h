@@ -1,17 +1,27 @@
-/*****************************************************************************\
-*  Module Name    ddApiDefs.h
-*  Project        Developer Driver
-*
-*  Description    Developer Driver Apis Definitions Header
-*
-*  Copyright (c) 2019 Advanced Micro Devices, Inc. (unpublished)
-*
-*  All rights reserved.  This notice is intended as a precaution against
-*  inadvertent publication and does not imply publication or any waiver
-*  of confidentiality.  The year included in the foregoing notice is the
-*  year of creation of the work.
-*
-\*****************************************************************************/
+/*
+ ***********************************************************************************************************************
+ *
+ *  Copyright (c) 2019-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
+ *
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
+ *
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ *
+ **********************************************************************************************************************/
 
 #ifndef DD_API_DEFS_HEADER
 #define DD_API_DEFS_HEADER
@@ -35,11 +45,7 @@ extern "C" {
 /// Per compiler definitions to control library function import/export and calling convention.
 /// NOTE: Symbols can be mangled if the calling convention isn't __cdecl!
 #if !defined DD_API && defined DDLIB_EXPORTS
-    #if defined(_MSC_VER)
-        #define DD_API __declspec(dllexport)
-    #else
         #define DD_API __attribute__((visibility("default")))
-    #endif
 #endif
 
 #ifndef DD_API
@@ -884,4 +890,4 @@ typedef uint32_t DDRpcFunctionId;
 } // extern "C"
 #endif
 
-#endif // DD_API_DEFS_HEADER
+#endif

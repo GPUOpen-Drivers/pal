@@ -33,7 +33,6 @@
 #include "core/platform.h"
 #include "core/queue.h"
 #include "core/queueContext.h"
-#include "core/queueSemaphore.h"
 #include "core/swapChain.h"
 #include "core/hw/ossip/ossDevice.h"
 #include "core/hw/gfxip/gfxDevice.h"
@@ -241,7 +240,6 @@ Queue::Queue(
     m_pQueueInfos(nullptr),
     m_queueCount(queueCount),
     m_stalled(false),
-    m_pWaitingSemaphore(nullptr),
     m_batchedSubmissionCount(0),
     m_batchedCmds(pDevice->GetPlatform()),
     m_deviceMembershipNode(this),
@@ -1655,13 +1653,15 @@ Result Queue::LateInit()
 // "wake up" the blocked Queue. Since the blocking Semaphore can be signaled on a separate thread from threads which
 // are batching-up more Queue commands, a race condition can exist while accessing the list of batched-up commands.
 // (which is why we need m_batchedCmdsLock).
-Result Queue::ReleaseFromStalledState()
+Result Queue::ReleaseFromStalledState(
+    QueueSemaphore* pWaitingSemaphore,
+    uint64          value)
 {
     Result result = Result::Success;
 
     bool stalledAgain = false; // It is possible for one of the batched-up commands to be a Semaphore wait which
                                // may cause this Queue to become stalled once more.
-
+    bool hasSubmit = false;
     MutexAuto lock(&m_batchedCmdsLock);
 
     // Execute all of the batched-up commands as long as we don't become stalled again and don't encounter an error.
@@ -1675,8 +1675,14 @@ Result Queue::ReleaseFromStalledState()
         switch (cmdData.command)
         {
         case BatchedQueueCmd::Submit:
+            if ((pWaitingSemaphore != nullptr) && (hasSubmit == false))
+            {
+                // The Semaphore has been signaled already by some other Queue or client, so it is safe to submit the Wait request
+                // from the OS' perspective.
+                pWaitingSemaphore->WaitNoBatching(this, value);
+                hasSubmit = true;
+            }
             result = OsSubmit(cmdData.submit.submitInfo, cmdData.submit.pInternalSubmitInfo);
-
             // Once we've executed the submission, we need to free the submission's dynamic arrays. They are all stored
             // in the same memory allocation which was saved in pDynamicMem for convenience.
             PAL_SAFE_FREE(cmdData.submit.pDynamicMem, m_pDevice->GetPlatform());

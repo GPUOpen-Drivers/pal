@@ -53,14 +53,14 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     GfxCmdStream*              pCmdStream)
     :
     GfxCmdBuffer(device, createInfo),
-    m_spillTableCs{},
+    m_spillTable{},
     m_device(device),
     m_pCmdStream(pCmdStream)
 {
     PAL_ASSERT(createInfo.queueType == QueueTypeCompute);
 
-    SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute,  &GfxCmdBuffer::CmdSetUserDataCs);
-    SwitchCmdSetUserDataFunc(PipelineBindPoint::Graphics, &DummyCmdSetUserDataGfx);
+    SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute,   &GfxCmdBuffer::CmdSetUserDataCs);
+    SwitchCmdSetUserDataFunc(PipelineBindPoint::Graphics,  &DummyCmdSetUserDataGfx);
 }
 
 // =====================================================================================================================
@@ -74,7 +74,7 @@ Result ComputeCmdBuffer::Init(
     {
         const auto& chipProps = m_device.Parent()->ChipProperties();
 
-        m_spillTableCs.sizeInDwords = chipProps.gfxip.maxUserDataEntries;
+        m_spillTable.stateCs.sizeInDwords = chipProps.gfxip.maxUserDataEntries;
     }
 
     return result;
@@ -198,7 +198,7 @@ void ComputeCmdBuffer::ResetState()
 {
     GfxCmdBuffer::ResetState();
 
-    ResetUserDataTable(&m_spillTableCs);
+    ResetUserDataTable(&m_spillTable.stateCs);
 }
 
 #if PAL_ENABLE_PRINTS_ASSERTS

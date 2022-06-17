@@ -97,9 +97,12 @@ public:
     bool   GetSqttAddTtvHashes() const { return m_sqttAddTtvHashes; }
 
     bool LoggingEnabled() const;
-    bool LoggingEnabled(GpuProfilerGranularity granularity) const;
+    bool LoggingEnabled(
+        GpuProfilerGranularity granularity) const;
 
-    bool SqttEnabledForPipeline(const PipelineState& state, PipelineBindPoint bindPoint) const;
+    bool SqttEnabledForPipeline(
+        const PipelineState& state,
+        PipelineBindPoint bindPoint) const;
 
     // Public IDevice interface methods:
     virtual Result CommitSettingsAndInit() override;

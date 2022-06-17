@@ -65,9 +65,10 @@ Device::Device(
     IDevice*           pNextDevice)
     :
     DeviceDecorator(pPlatform, pNextDevice),
-    m_pPublicSettings(nullptr)
+    m_pPublicSettings(nullptr),
+    m_deviceProperties{},
+    m_initialized(false)
 {
-    memset(&m_deviceProperties, 0, sizeof(m_deviceProperties));
 }
 
 // =====================================================================================================================
@@ -96,7 +97,22 @@ Result Device::Finalize(
         result = GetProperties(&m_deviceProperties);
     }
 
+    if (result == Result::Success)
+    {
+        m_initialized = true;
+    }
+
     return result;
+}
+
+// =====================================================================================================================
+Result Device::Cleanup()
+{
+    if (m_initialized)
+    {
+    }
+
+    return DeviceDecorator::Cleanup();
 }
 
 // =====================================================================================================================

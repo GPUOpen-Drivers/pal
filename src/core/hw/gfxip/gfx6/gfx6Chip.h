@@ -29,6 +29,7 @@
 #include "palAssert.h"
 #include "palDevice.h"
 #include "palSparseVector.h"
+#include "palLiterals.h"
 
 #include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/gfx6/chip/si_ci_vi_merged_enum.h"
@@ -212,7 +213,7 @@ constexpr uint32 MaxImageArraySlices = 2048;
 constexpr uint32 MaxNumRbs = 16;
 
 // Tile size is fixed at 64kb on all hardware
-constexpr uint32 PrtTileSize = (64 * 1024);
+constexpr uint32 PrtTileSize = (64 * Util::OneKibibyte);
 
 // GFX6 supports the following PRT features:
 constexpr PrtFeatureFlags Gfx6PrtFeatures = static_cast<PrtFeatureFlags>(

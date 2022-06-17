@@ -254,6 +254,8 @@ void GfxCmdBuffer::ResetState()
     m_gfxCmdBufState.flags.u32All           = 0;
     m_gfxCmdBufState.flags.prevCmdBufActive = 1;
 
+    m_computeState   = { };
+
     // It's possible that another of our command buffers still has blts in flight, except for CP blts which must be
     // flushed in each command buffer postamble.
     m_gfxCmdBufState.flags.gfxBltActive        = IsGraphicsSupported();
@@ -396,6 +398,19 @@ void GfxCmdBuffer::CmdBindPipeline(
         m_maxUploadFenceToken = Max(m_maxUploadFenceToken, pPipeline->GetUploadFenceToken());
         m_lastPagingFence     = Max(m_lastPagingFence,     pPipeline->GetPagingFenceVal());
     }
+}
+
+// =====================================================================================================================
+void GfxCmdBuffer::CmdDuplicateUserData(
+    PipelineBindPoint source,
+    PipelineBindPoint dest)
+{
+    PAL_ASSERT(source != PipelineBindPoint::Graphics);
+    PAL_ASSERT(source != dest);
+
+    const UserDataEntries& sourceEntries = m_computeState.csUserDataEntries;
+
+    CmdSetUserData(dest, 0, MaxUserDataEntries, sourceEntries.entries);
 }
 
 // =====================================================================================================================
@@ -567,13 +582,28 @@ void GfxCmdBuffer::OptimizeSrcCacheMask(
         if (TestAnyFlagSet(*pCacheMask, CacheCoherencyBlt))
         {
             const GfxCmdBufferStateFlags cmdBufStateFlags = GetGfxCmdBufState().flags;
+            const bool                   isCopySrcOnly    = (*pCacheMask == CoherCopySrc);
 
             *pCacheMask &= ~CacheCoherencyBlt;
 
-            *pCacheMask |= cmdBufStateFlags.gfxWriteCachesDirty       ? CoherColorTarget : 0;
-            *pCacheMask |= cmdBufStateFlags.csWriteCachesDirty        ? CoherShader      : 0;
             *pCacheMask |= cmdBufStateFlags.cpWriteCachesDirty        ? CoherCp          : 0;
             *pCacheMask |= cmdBufStateFlags.cpMemoryWriteL2CacheStale ? CoherMemory      : 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 740
+            *pCacheMask |= cmdBufStateFlags.gfxWriteCachesDirty       ? CoherColorTarget : 0;
+            *pCacheMask |= cmdBufStateFlags.csWriteCachesDirty        ? CoherShader      : 0;
+#else
+            if (isCopySrcOnly)
+            {
+                *pCacheMask |= cmdBufStateFlags.gfxWriteCachesDirty ? CoherShaderRead : 0;
+                *pCacheMask |= cmdBufStateFlags.csWriteCachesDirty  ? CoherShaderRead : 0;
+            }
+            else
+            {
+                *pCacheMask |= cmdBufStateFlags.gfxWriteCachesDirty ? CoherColorTarget : 0;
+                *pCacheMask |= cmdBufStateFlags.csWriteCachesDirty  ? CoherShader      : 0;
+            }
+#endif
         }
     }
 }
@@ -625,6 +655,8 @@ void GfxCmdBuffer::OptimizePipeAndCacheMaskForRelease(
 
         if (TestAnyFlagSet(localAccessMask, CacheCoherencyBlt))
         {
+            const bool isCopySrcOnly = (localAccessMask == CoherCopySrc);
+
             // There are various srcCache BLTs (Copy, Clear, and Resolve) which we can further optimize if we know
             // which write caches have been dirtied:
             // - If a graphics BLT occurred, alias these srcCaches to CoherColorTarget.
@@ -634,10 +666,24 @@ void GfxCmdBuffer::OptimizePipeAndCacheMaskForRelease(
             // Clear the original srcCaches from the srcCache mask for the rest of this scope.
             localAccessMask &= ~CacheCoherencyBlt;
 
-            localAccessMask |= cmdBufStateFlags.gfxWriteCachesDirty       ? CoherColorTarget : 0;
-            localAccessMask |= cmdBufStateFlags.csWriteCachesDirty        ? CoherShader      : 0;
-            localAccessMask |= cmdBufStateFlags.cpWriteCachesDirty        ? CoherCp          : 0;
-            localAccessMask |= cmdBufStateFlags.cpMemoryWriteL2CacheStale ? CoherMemory      : 0;
+            localAccessMask |= cmdBufStateFlags.cpWriteCachesDirty        ? CoherCp     : 0;
+            localAccessMask |= cmdBufStateFlags.cpMemoryWriteL2CacheStale ? CoherMemory : 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 740
+            localAccessMask |= cmdBufStateFlags.gfxWriteCachesDirty ? CoherColorTarget : 0;
+            localAccessMask |= cmdBufStateFlags.csWriteCachesDirty  ? CoherShader      : 0;
+#else
+            if (isCopySrcOnly)
+            {
+                localAccessMask |= cmdBufStateFlags.gfxWriteCachesDirty ? CoherShaderRead : 0;
+                localAccessMask |= cmdBufStateFlags.csWriteCachesDirty  ? CoherShaderRead : 0;
+            }
+            else
+            {
+                localAccessMask |= cmdBufStateFlags.gfxWriteCachesDirty ? CoherColorTarget : 0;
+                localAccessMask |= cmdBufStateFlags.csWriteCachesDirty  ? CoherShader      : 0;
+            }
+#endif
         }
 
         *pAccessMask = localAccessMask;

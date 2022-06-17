@@ -112,8 +112,8 @@ const RegisterRange Gfx9ContextShadowRange[] =
         (Gfx09::mmCB_MRT7_EPITCH - mmSX_PS_DOWNCONVERT + 1),
     },
     {
-        (mmDB_DEPTH_CONTROL - CONTEXT_SPACE_START),                             // 0xA200 - 0xA20A
-        (mmPA_SU_LINE_STIPPLE_SCALE - mmDB_DEPTH_CONTROL + 1),
+        (mmDB_DEPTH_CONTROL - CONTEXT_SPACE_START),                             // 0xA200 - 0xA20B
+        (mmPA_SU_PRIM_FILTER_CNTL - mmDB_DEPTH_CONTROL + 1),
     },
     {
         (mmPA_SU_SMALL_PRIM_FILTER_CNTL - CONTEXT_SPACE_START),

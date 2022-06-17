@@ -109,7 +109,7 @@ yaml_node_t* YamlDocumentFindNodeByKey(
 // ============================================================================
 bool YamlNodeGetScalar(yaml_node_t* pValNode, bool* pOutValue)
 {
-    bool success = false;
+    bool success = true;
 
     if (pValNode->type == YAML_SCALAR_NODE)
     {
@@ -117,13 +117,15 @@ bool YamlNodeGetScalar(yaml_node_t* pValNode, bool* pOutValue)
             "false", pValNode->data.scalar.length) == 0)
         {
             *pOutValue = false;
-            success = true;
         }
         else if (strncmp((const char*)pValNode->data.scalar.value,
-            "false", pValNode->data.scalar.length) == 0)
+            "true", pValNode->data.scalar.length) == 0)
         {
             *pOutValue = true;
-            success = true;
+        }
+        else
+        {
+            success = false;
         }
     }
 

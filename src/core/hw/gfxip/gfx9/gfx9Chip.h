@@ -30,6 +30,7 @@
 #include "palInlineFuncs.h"
 #include "palCmdBuffer.h"
 #include "palSparseVector.h"
+#include "palLiterals.h"
 
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_offset.h"
 #include "core/hw/gfxip/gfxCmdBuffer.h"
@@ -277,8 +278,8 @@ static constexpr gpusize CpDmaMemAlignment      = 256;
 // Highest index of the SET_BASE packet
 constexpr uint32 MaxSetBaseIndex = base_index__pfp_set_base__indirect_data_base;
 
-// Tile size is fixed at 64kb on all hardware
-constexpr uint32 PrtTileSize = (64 * 1024);
+// Tile size is fixed on all hardware
+constexpr uint32 PrtTileSize = 64 * Util::OneKibibyte;
 
 // GFX9 supports the following PRT features:
 constexpr PrtFeatureFlags Gfx9PrtFeatures = static_cast<PrtFeatureFlags>(

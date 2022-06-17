@@ -1728,6 +1728,16 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
     pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(mmSpiShaderPgmHiEs, 0, pCmdSpace);
     pCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(mmSpiShaderPgmHiLs, 0, pCmdSpace);
 
+    regPA_SU_PRIM_FILTER_CNTL paSuPrimFilterCntl = { };
+
+    if (settings.disablePaBroadcast)
+    {
+        paSuPrimFilterCntl.bits.XMAX_RIGHT_EXCLUSION  = 1;
+        paSuPrimFilterCntl.bits.YMAX_BOTTOM_EXCLUSION = 1;
+    }
+
+    pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SU_PRIM_FILTER_CNTL, paSuPrimFilterCntl.u32All, pCmdSpace);
+
     if (settings.useClearStateToInitialize == false)
     {
         constexpr struct
@@ -1753,7 +1763,6 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                          pCmdSpace);
 
         pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SU_HARDWARE_SCREEN_OFFSET,  0x00000000, pCmdSpace);
-        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SU_PRIM_FILTER_CNTL,        0x00000000, pCmdSpace);
         pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SU_OVER_RASTERIZATION_CNTL, 0x00000000, pCmdSpace);
         pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmVGT_PRIMITIVEID_RESET,         0x00000000, pCmdSpace);
         pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SC_CLIPRECT_RULE,           0x0000ffff, pCmdSpace);

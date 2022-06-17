@@ -66,6 +66,7 @@ target_sources(pal PRIVATE
     stringUtil.cpp
     sysMemory.cpp
     sysUtil.cpp
+    time.cpp
     trackingCacheLayer.cpp
     trackingCacheLayer.h
     uuid.cpp

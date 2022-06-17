@@ -38,6 +38,18 @@ DbgLogMgr g_dbgLogMgr;
 // order to distinguish between nullptr and some non-null address.
 static bool g_reentryGuard = true;
 
+/// Checks to see if incoming severity and source can be accepted based on the incoming base settings.
+/// Messages will only get logged if they pass through this check.
+bool AcceptMessage(
+    SeverityLevel   severity,
+    OriginationType source,
+    SeverityLevel   severityBase,
+    uint32          sourceBase)
+{
+    const uint32 sourceFlag = (1ul << uint32(source));
+    return ((severity >= severityBase) && (TestAnyFlagSet(sourceBase, sourceFlag)));
+}
+
 // =====================================================================================================================
 // Generic debug log function for debug prints - va_list version
 void DbgVLog(
@@ -59,10 +71,14 @@ void DbgLog(
     const char*     pFormat,  // Printf-style format string.
     ...)                      // Printf-style argument list.
 {
-    va_list argList;
-    va_start(argList, pFormat);
-    DbgVLog(severity, source, pClientTag, pFormat, argList);
-    va_end(argList);
+    // Proceed only if logging is enabled and message is acceptable
+    if (g_dbgLogMgr.GetLoggingEnabled() && (g_dbgLogMgr.AcceptMessage(severity, source)))
+    {
+        va_list argList;
+        va_start(argList, pFormat);
+        DbgVLog(severity, source, pClientTag, pFormat, argList);
+        va_end(argList);
+    }
 }
 
 // =====================================================================================================================
@@ -72,8 +88,13 @@ DbgLogMgr::DbgLogMgr()
     m_logEnabled(true),
     m_reentryGuardKey{},
     m_dbgLoggersLock(),
-    m_dbgLoggersList()
+    m_dbgLoggersList(),
+    m_dbgLogBaseSettings{}
 {
+    // Initialize settings with default values
+    m_dbgLogBaseSettings.severityLevel = SeverityLevel::Critical;
+    m_dbgLogBaseSettings.origTypeMask  = 0;
+
     Result result = Util::CreateThreadLocalKey(&m_reentryGuardKey);
 
     // Set an internal error as the result of data member initialization results. Clients can
@@ -124,6 +145,15 @@ Result DbgLogMgr::AttachDbgLogger(
         {
             RWLockAuto<RWLock::ReadWrite> lock(&m_dbgLoggersLock);
             m_dbgLoggersList.PushBack(pDbgLogger->ListNode());
+
+            // Add logger's base settings to the manager.
+            SeverityLevel loggerSeverityLevel = pDbgLogger->GetCutoffSeverityLevel();
+            if (loggerSeverityLevel < m_dbgLogBaseSettings.severityLevel)
+            {
+                m_dbgLogBaseSettings.severityLevel = loggerSeverityLevel;
+            }
+            m_dbgLogBaseSettings.origTypeMask |= pDbgLogger->GetOriginationTypeMask();
+
             result = Result::Success;
         }
         Util::SetThreadLocalValue(m_reentryGuardKey, nullptr);

@@ -279,6 +279,13 @@ struct Extent3d
     uint32 depth;   ///< Depth of region.
 };
 
+constexpr bool operator==(const Extent3d& x, const Extent3d& y)
+{
+    return (x.width == y.width) && (x.height == y.height) && (x.depth == y.depth);
+}
+
+constexpr bool operator!=(const Extent3d& x, const Extent3d& y) { return (x == y) == false; }
+
 /// Defines a signed width, height, and depth for a 3D image region. The dimensions could be pixels, blocks, or bytes
 /// depending on context, so be sure to check documentation for the PAL interface of interest to be sure you
 /// get it right.

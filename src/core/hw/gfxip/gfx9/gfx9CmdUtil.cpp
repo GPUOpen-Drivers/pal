@@ -435,6 +435,24 @@ bool CmdUtil::CanUseCsPartialFlush(
     return useCspf;
 }
 
+// ====================================================================================================================
+// If AcquireMem packet supports flush or invalidate requested cache sync flags.
+bool CmdUtil::CanUseAcquireMem(
+    uint32 cacheSyncFlags
+    ) const
+{
+    bool canUse = true;
+
+    // Can't flush or invalidate CB metadata using an ACQUIRE_MEM as not supported.
+    if (TestAnyFlagSet(cacheSyncFlags, CacheSyncFlushAndInvCbMd)
+        )
+    {
+        canUse = false;
+    }
+
+    return canUse;
+}
+
 // =====================================================================================================================
 // If we have support for the indirect_addr index and compute engines.
 bool CmdUtil::HasEnhancedLoadShRegIndex() const
@@ -640,7 +658,7 @@ uint32 CmdUtil::Gfx10CalcAcquireMemGcrCntl(
 }
 
 // =====================================================================================================================
-// Builds the the ACQUIRE_MEM command.  Returns the size, in DWORDs, of the assembled PM4 command
+// Builds the ACQUIRE_MEM command.  Returns the size, in DWORDs, of the assembled PM4 command
 size_t CmdUtil::BuildAcquireMem(
     const AcquireMemInfo& acquireMemInfo,
     void*                 pBuffer         // [out] Build the PM4 packet in this buffer.
@@ -716,12 +734,12 @@ size_t CmdUtil::ExplicitBuildAcquireMem(
     PM4_ME_ACQUIRE_MEM packet = {};
     packet.ordinal1.header    = Type3Header(IT_ACQUIRE_MEM, packetSize);
 
-    const ME_ACQUIRE_MEM_engine_sel_enum  engineSel =
-                static_cast<ME_ACQUIRE_MEM_engine_sel_enum>(acquireMemInfo.flags.usePfp
-                    ? static_cast<uint32>(engine_sel__pfp_acquire_mem__prefetch_parser)
-                    : static_cast<uint32>(engine_sel__me_acquire_mem__micro_engine));
-
     {
+        const ME_ACQUIRE_MEM_engine_sel_enum  engineSel =
+                    static_cast<ME_ACQUIRE_MEM_engine_sel_enum>(acquireMemInfo.flags.usePfp
+                        ? static_cast<uint32>(engine_sel__pfp_acquire_mem__prefetch_parser)
+                        : static_cast<uint32>(engine_sel__me_acquire_mem__micro_engine));
+
         packet.ordinal2.bitfieldsA.coher_cntl = acquireMemInfo.coherCntl;
 
         if (Pal::Device::EngineSupportsGraphics(acquireMemInfo.engineType))
@@ -3202,9 +3220,10 @@ uint32 CmdUtil::Gfx10CalcReleaseMemGcrCntl(
     //                    Typically only needed when doing WB of L0 K$, M$, or RB w/ WB of GL2
     //      2: REVERSE    L2 -> L1 -> L0
     //                    Typically only used for post-unaligned-DMA operation (invalidate only)
-    // For RELEASE_MEM, the only case when WB of L0 K$, RbMd and/or RB happens w/ WB of GL2 is when a
-    // CACHE_FLUSH_AND_INV_XX event is issued, in this case we expect the hardware to take care of the flush sequence.
-    gcrCntl.bits.seq = 0;
+    gcrCntl.bits.seq = gcrCntl.bits.gl2Wb &&
+                       ((releaseMemInfo.vgtEvent == FLUSH_AND_INV_CB_DATA_TS) ||
+                        (releaseMemInfo.vgtEvent == FLUSH_AND_INV_DB_DATA_TS) ||
+                        (releaseMemInfo.vgtEvent == CACHE_FLUSH_AND_INV_TS_EVENT));
 
     return gcrCntl.u32All;
 }

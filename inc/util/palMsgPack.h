@@ -408,6 +408,18 @@ public:
                                                                                       : Result::ErrorInvalidValue;
     }
 
+    /// Advances the reader to the next item token, and sanity checks that it is an array with the given size.
+    ///
+    /// @param [in] expectedSize  The size the next array is supposed to be.
+    ///
+    /// @returns - Success if successful, ErrorInvalidValue if the next item is not an array of the given size,
+    /// the end of the buffer has been reached, or the input is not valid MsgPack.
+    Result NextArray(uint32 expectedSize)
+    {
+        return (Next(CWP_ITEM_ARRAY) == Result::Success) &&
+               (m_context.item.as.array.size == expectedSize) ? Result::Success : Result::ErrorInvalidValue;
+    }
+
     /// Skips ahead by the specified number of elements. Skipping a container also skips all of its elements.
     ///
     /// @param [in] numElements  Number of elements to be skipped.

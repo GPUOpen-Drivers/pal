@@ -26,6 +26,9 @@
 #include "palMemMapFile.h"
 #include "palFile.h"
 #include "palFileMap.h"
+#include "palLiterals.h"
+
+using namespace Util::Literals;
 
 namespace Util
 {
@@ -274,8 +277,8 @@ Result MemMapFile::ExpandStorage(
         minimumNewSize = curCapacity + 1;
     }
 
-    constexpr size_t DoubleThreshold   = 64 * (1024 * 1024);
-    constexpr size_t BlockIncreaseSize = 32 * (1024 * 1024);
+    constexpr size_t DoubleThreshold   = 64_MiB;
+    constexpr size_t BlockIncreaseSize = 32_MiB;
 
     while(nextCapacity < minimumNewSize)
     {

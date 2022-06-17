@@ -32,11 +32,13 @@
 #include "palHsaAbiMetadata.h"
 #include "palIterator.h"
 #include "palVectorImpl.h"
+#include "palLiterals.h"
 
 // This is required because we need the definition of the D3D12DDI_PRESENT_0003 struct in order to make a copy of the
 // data in it for the tokenization.
 
 using namespace Util;
+using namespace Util::Literals;
 
 namespace Pal
 {
@@ -69,8 +71,8 @@ CmdBuffer::CmdBuffer(
 {
     PAL_ASSERT(NextLayer() == pNextCmdBuffer);
 
-    m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Compute)]  = &CmdBuffer::CmdSetUserDataCs;
-    m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Graphics)] = &CmdBuffer::CmdSetUserDataGfx;
+    m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Compute)]   = &CmdBuffer::CmdSetUserDataCs;
+    m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Graphics)]  = &CmdBuffer::CmdSetUserDataGfx;
 
     m_funcTable.pfnCmdDraw                      = CmdDraw;
     m_funcTable.pfnCmdDrawOpaque                = CmdDrawOpaque;
@@ -590,12 +592,33 @@ void CmdBuffer::ReplayCmdSetUserData(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
-    auto          pipelineBindPoint = ReadTokenVal<PipelineBindPoint>();
-    auto          firstEntry        = ReadTokenVal<uint32>();
+    const auto    pipelineBindPoint = ReadTokenVal<PipelineBindPoint>();
+    const auto    firstEntry        = ReadTokenVal<uint32>();
     const uint32* pEntryValues      = nullptr;
-    auto          entryCount        = ReadTokenArray(&pEntryValues);
+    const auto    entryCount        = ReadTokenArray(&pEntryValues);
 
     pTgtCmdBuffer->CmdSetUserData(pipelineBindPoint, firstEntry, entryCount, pEntryValues);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdDuplicateUserData(
+    PipelineBindPoint source,
+    PipelineBindPoint dest)
+{
+    InsertToken(CmdBufCallId::CmdDuplicateUserData);
+    InsertToken(source);
+    InsertToken(dest);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdDuplicateUserData(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    const auto sourceBindPoint = ReadTokenVal<PipelineBindPoint>();
+    const auto destBindPoint   = ReadTokenVal<PipelineBindPoint>();
+
+    pTgtCmdBuffer->CmdDuplicateUserData(sourceBindPoint, destBindPoint);
 }
 
 // =====================================================================================================================
@@ -4015,6 +4038,7 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdBindStreamOutTargets,
         &CmdBuffer::ReplayCmdBindBorderColorPalette,
         &CmdBuffer::ReplayCmdSetUserData,
+        &CmdBuffer::ReplayCmdDuplicateUserData,
         &CmdBuffer::ReplayCmdSetKernelArguments,
         &CmdBuffer::ReplayCmdSetVertexBuffers,
         &CmdBuffer::ReplayCmdSetBlendConst,
@@ -4322,9 +4346,9 @@ TargetCmdBuffer::TargetCmdBuffer(
     :
     CmdBufferFwdDecorator(pNextCmdBuffer, pNextDevice),
 #if (PAL_COMPILE_TYPE == 32)
-    m_allocator(2 * 1024 * 1024),
+    m_allocator(2_MiB),
 #else
-    m_allocator(8 * 1024 * 1024),
+    m_allocator(8_MiB),
 #endif
     m_pAllocatorStream(nullptr),
     m_queueType(createInfo.queueType),

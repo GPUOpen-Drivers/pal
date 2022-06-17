@@ -66,8 +66,8 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 {
     PAL_ASSERT(createInfo.queueType == QueueTypeUniversal);
 
-    SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute,  &GfxCmdBuffer::CmdSetUserDataCs);
-    SwitchCmdSetUserDataFunc(PipelineBindPoint::Graphics, &CmdSetUserDataGfx<true>);
+    SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute,   &GfxCmdBuffer::CmdSetUserDataCs);
+    SwitchCmdSetUserDataFunc(PipelineBindPoint::Graphics,  &CmdSetUserDataGfx<true>);
 }
 
 // =====================================================================================================================
@@ -427,6 +427,20 @@ bool UniversalCmdBuffer::IsAnyGfxUserDataDirty() const
 }
 
 // =====================================================================================================================
+void UniversalCmdBuffer::CmdDuplicateUserData(
+    PipelineBindPoint source,
+    PipelineBindPoint dest)
+{
+    PAL_ASSERT(source != dest);
+
+    const UserDataEntries& sourceEntries = (source == PipelineBindPoint::Compute)
+        ? m_computeState.csUserDataEntries
+        : m_graphicsState.gfxUserDataEntries;
+
+    CmdSetUserData(dest, 0, MaxUserDataEntries, sourceEntries.entries);
+}
+
+// =====================================================================================================================
 // Updates the given stencil state ref and masks params based on the flags set in StencilRefMaskParams
 void UniversalCmdBuffer::SetStencilRefMasksState(
     const StencilRefMaskParams& updatedRefMaskState,    // [in]  Updated state
@@ -680,14 +694,6 @@ void UniversalCmdBuffer::SetGraphicsState(
 
     m_graphicsState.colorWriteMask = newGraphicsState.colorWriteMask;
     m_graphicsState.rasterizerDiscardEnable = newGraphicsState.rasterizerDiscardEnable;
-}
-
-// =====================================================================================================================
-Pal::PipelineState* UniversalCmdBuffer::PipelineState(
-    PipelineBindPoint bindPoint)
-{
-    PAL_ASSERT((bindPoint == PipelineBindPoint::Compute) || (bindPoint == PipelineBindPoint::Graphics));
-    return (bindPoint == PipelineBindPoint::Compute) ? &m_computeState.pipelineState : &m_graphicsState.pipelineState;
 }
 
 // =====================================================================================================================

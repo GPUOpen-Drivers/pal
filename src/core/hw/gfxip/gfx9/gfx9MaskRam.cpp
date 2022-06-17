@@ -208,9 +208,11 @@ uint32 Gfx9MaskRam::GetMetaBlockSize(
     const uint32           metaCachelineSize     = GetMetaCachelineSize();
     const uint32           pipeRotateAmount      = m_pEqGenerator->GetPipeRotateAmount();
     const uint32           compBlockSize         = IsColor() ? 8 : (6 + numSamplesLog2 + bppLog2);
-    const uint32           samplesInMetaBlock    = IsZSwizzle(swizzleMode) ? numSamplesLog2 : maxCompFragsLog2;
+    const uint32           samplesInMetaBlock    = m_pEqGenerator->IsZSwizzle(swizzleMode)
+                                                    ? numSamplesLog2
+                                                    : maxCompFragsLog2;
 
-    if (IsGfx103(*(m_pGfxDevice->Parent()))         &&
+    if (IsGfx103Plus(*pPalDevice)                   &&
         pPalDevice->ChipProperties().gfx9.rbPlus    &&
         (numPipesLog2 == (numShaderArraysLog2 + 1)) &&
         (numPipesLog2 > 1))
@@ -1261,9 +1263,9 @@ void Gfx9MetaEqGenerator::CalcMetaEquation()
     {
         CalcMetaEquationGfx9();
     }
-    else if (IsGfx10(palDevice))
+    else if (IsGfx10Plus(palDevice))
     {
-        CalcMetaEquationGfx10();
+        CalcMetaEquationGfx10Plus();
     }
 }
 
@@ -1444,11 +1446,11 @@ void Gfx9MetaEqGenerator::AddMetaPipeBits(
                 }
             }
 
-            if (IsGfx103(*(m_pParent->GetGfxDevice()->Parent())) &&
-                (numSamplesLog2 == 3)                            &&
-                (i < blockSizeLog2)                              &&
-                (subTileXyBits == 3)                             &&
-                (numPipesLog2 == (numShaderArraysLog2 + 1))      &&
+            if (IsGfx103Plus(*pPalDevice)                   &&
+                (numSamplesLog2 == 3)                       &&
+                (i < blockSizeLog2)                         &&
+                (subTileXyBits == 3)                        &&
+                (numPipesLog2 == (numShaderArraysLog2 + 1)) &&
                 (params.restart < (8 + numPipesLog2 - 1)))
             {
                 if (pos == params.restart)
@@ -2187,10 +2189,12 @@ void Gfx9MetaEqGenerator::GetData2DParamsNew(
     GetPipeAnchorSize(&pipeAnchorLog2);
 
     const AddrSwizzleMode swizzleMode = m_pParent->GetSwizzleMode();
-    const uint32 blockSizeLog2  = Log2(m_pParent->GetGfxDevice()->Parent()->GetAddrMgr()->GetBlockSize(swizzleMode));
-    const uint32 bppLog2        = m_pParent->GetBytesPerPixelLog2();
-    const uint32 numPipesLog2   = GetEffectiveNumPipes();
-    const uint32 numSamplesLog2 = m_pParent->GetNumSamplesLog2();
+    const auto*  pGfxDevice           = m_pParent->GetGfxDevice();
+    const auto*  pPalDevice           = pGfxDevice->Parent();
+    const uint32 blockSizeLog2        = Log2(pPalDevice->GetAddrMgr()->GetBlockSize(swizzleMode));
+    const uint32 bppLog2              = m_pParent->GetBytesPerPixelLog2();
+    const uint32 numPipesLog2         = GetEffectiveNumPipes();
+    const uint32 numSamplesLog2       = m_pParent->GetNumSamplesLog2();
 
     if (pipeAnchorLog2.width != pipeAnchorLog2.height)
     {
@@ -2244,9 +2248,9 @@ void Gfx9MetaEqGenerator::GetData2DParamsNew(
 
     pParams->upperSampleBits = 0;
 
-    const int32 tempTileSplitBits = (3 - static_cast<int32>(microBlockLog2.width))  +
-                                    (3 - static_cast<int32>(microBlockLog2.height)) -
-                                    overlap;
+    int32 tempTileSplitBits = (3 - static_cast<int32>(microBlockLog2.width))  +
+                              (3 - static_cast<int32>(microBlockLog2.height)) -
+                              overlap;
 
     pParams->tileSplitBits   = static_cast<uint32>(Max(0, tempTileSplitBits));
     pParams->tileSplitBits   = Min(numSamplesLog2, pParams->tileSplitBits);
@@ -2338,6 +2342,7 @@ void Gfx9MetaEqGenerator::GetData2DParamsNew(
             {
                pParams->pipeRotateBit1--;
             }
+
         }
 
         // This makes sure that the msb sample bits get into the pipe if any sample bits are needed in SW_R
@@ -2430,8 +2435,11 @@ uint32 Gfx9MetaEqGenerator::GetEffectiveNumPipes() const
 // =====================================================================================================================
 int32 Gfx9MetaEqGenerator::GetMetaOverlap() const
 {
-    const uint32 bppLog2        = m_pParent->GetBytesPerPixelLog2();
-    const uint32 numSamplesLog2 = m_pParent->GetNumSamplesLog2();
+    const auto*            pPalDevice     = m_pParent->GetGfxDevice()->Parent();
+    const uint32           bppLog2        = m_pParent->GetBytesPerPixelLog2();
+    const uint32           numSamplesLog2 = m_pParent->GetNumSamplesLog2();
+    const AddrSwizzleMode  swizzleMode    = m_pParent->GetSwizzleMode();
+    const uint32           blockSizeLog2  = Log2(pPalDevice->GetAddrMgr()->GetBlockSize(swizzleMode));
 
     Gfx9MaskRamBlockSize compBlockLog2  = {};
     m_pParent->CalcCompBlkSizeLog2(&compBlockLog2);
@@ -2451,9 +2459,11 @@ int32 Gfx9MetaEqGenerator::GetMetaOverlap() const
     }
 
     // In 16Bpp 8xaa, we lose 1 overlap bit because the block size reduction eats into a pipe anchor bit (y4)
-    if ((bppLog2 == 4) && (numSamplesLog2 == 3))
     {
-        overlap--;
+        if ((bppLog2 == 4) && (numSamplesLog2 == 3))
+        {
+            overlap--;
+        }
     }
 
     return Max(0, overlap);
@@ -2560,7 +2570,7 @@ uint32 Gfx9MetaEqGenerator::GetPipeRotateAmount() const
     const uint32        numSaLog2    = IsGfx103PlusExclusive(*pPalDevice) ? GetNumShaderArrayLog2() : 0;
     uint32  pipeRotateAmount = 0;
 
-    if (IsGfx103(*pPalDevice))
+    if (IsGfx103Plus(*pPalDevice))
     {
         if ((numPipesLog2 >= (numSaLog2 + 1)) && (numPipesLog2 > 1))
         {
@@ -2590,7 +2600,7 @@ uint32 Gfx9MetaEqGenerator::GetPipeRotateAmount() const
 }
 
 // =====================================================================================================================
-void Gfx9MetaEqGenerator::CalcMetaEquationGfx10()
+void Gfx9MetaEqGenerator::CalcMetaEquationGfx10Plus()
 {
     Gfx9MaskRamBlockSize   metaBlockSizeLog2 = {};
 
@@ -2693,7 +2703,7 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10()
 
             AddMetaPipeBits(&pipe, nibbleOffset);
 
-            if (IsGfx103(*pPalDevice)                       &&
+            if (IsGfx103Plus(*pPalDevice)                   &&
                 (numPipesLog2 == (numShaderArraysLog2 + 1)) &&
                 (numPipesLog2 > 1))
             {
@@ -2768,12 +2778,12 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10()
             // This is the only case where we have "gap" in the overlap which requires two y bits, instead of
             // interleaving y and x.  Other cases that have a gap end in y3/x4 which naturally works out with
             // interleaved x/y's
-            swapOverlapEnd = swapOverlapEnd           ||
-                             (IsZSwizzle(swizzleMode) &&
-                             (bppLog2 == 3)           &&
-                             (numSamplesLog2 == 2)    &&
-                             m_pParent->IsColor()     &&
-                             (effectiveNumPipesLog2 == 5));
+            swapOverlapEnd = swapOverlapEnd            ||
+                             (IsZSwizzle(swizzleMode)  &&
+                              (bppLog2 == 3)           &&
+                              (numSamplesLog2 == 2)    &&
+                              m_pParent->IsColor()     &&
+                              (effectiveNumPipesLog2 == 5));
 
             // Note: this section of flipY1Y2 only affects SW_Z DCC MSAA addressing (which is not needed in gfx10)
             int32 posY1 = 3 - compBlockLog2.width - compBlockLog2.height;
@@ -2787,9 +2797,11 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10()
                              (metaOverlap          >  posY1) &&
                              (metaOverlap          <= posY2));
 
+            int32 tileSplitBits = 0;
             if (m_pipeDist == PipeDist16x16)
             {
                 flipY1Y2 = false;
+
                 if (IsGfx103Plus(*pPalDevice))
                 {
                     int32 subTileXYBits = 6 - compBlockLog2.width - compBlockLog2.height;
@@ -2798,13 +2810,15 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10()
                         subTileXYBits = 0;
                     }
 
-                    int32 tileSplitBits = (3 - compBlockLog2.width ) +
-                                          (3 - compBlockLog2.height) -
-                                          metaOverlap;
+                    {
+                        tileSplitBits = (3 - compBlockLog2.width ) +
+                                        (3 - compBlockLog2.height) -
+                                        metaOverlap;
 
-                    tileSplitBits = Max(0, tileSplitBits);
+                        tileSplitBits = Max(0, tileSplitBits);
 
-                    tileSplitBits = Min((int32)numSamplesLog2, tileSplitBits);
+                        tileSplitBits = Min((int32)numSamplesLog2, tileSplitBits);
+                    }
 
                     if ((numSamplesLog2  == 3)             &&
                         (subTileXYBits   == 3)             &&
@@ -2814,10 +2828,10 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10()
                     {
                         flipY1Y2 = true;
                     }
+
                 }
             }
 
-            uint32 tileSplitBits = 0;
             uint32 tileOrd = (m_pipeDist == PipeDist8x8) ? 3 : 4;
 
             for (uint32 i = start; i < end; i++)
@@ -2894,7 +2908,7 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10()
 
             if (IsGfx103Plus(*pPalDevice))
             {
-                if (IsGfx103(*pPalDevice)                                  &&
+                if (IsGfx103Plus(*pPalDevice)                              &&
                     (blockSizeLog2 == (pipeInterleaveLog2 + numPipesLog2)) &&
                     ((modNumPipesLog2 - numPipesLog2) == 1))
                 {
@@ -2976,7 +2990,7 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10()
                             start++;
                         }
 
-                        if (IsGfx103(*pPalDevice)                   &&
+                        if (IsGfx103Plus(*pPalDevice)               &&
                             ((modNumPipesLog2 - numPipesLog2) == 1) &&
                             (cx.compPos < cy.compPos))
                         {
@@ -3129,7 +3143,7 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10()
                                       pipeInterleaveLog2 + nibbleOffset);
                 }
 
-                if (m_pParent->IsDepth() && IsGfx103(*pPalDevice))
+                if (m_pParent->IsDepth() && IsGfx103Plus(*pPalDevice))
                 {
                     // for htile, move the top RB bit outside the 2KB cacheline region
                     m_meta.Rotate(numPipesLog2 - modNumPipesLog2,
@@ -4693,12 +4707,14 @@ void Gfx9Dcc::GetState(
     DccState* pState
     ) const
 {
-    PAL_ASSERT(IsGfx9(*(m_pGfxDevice->Parent())) || IsGfx10(*(m_pGfxDevice->Parent())));
-
     pState->maxCompressedBlockSize   = m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE;
     pState->maxUncompressedBlockSize = m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE;
     pState->independentBlk64B        = m_dccControl.bits.INDEPENDENT_64B_BLOCKS;
-    pState->independentBlk128B       = m_dccControl.gfx10.INDEPENDENT_128B_BLOCKS;
+
+    {
+        pState->independentBlk128B   = m_dccControl.gfx10.INDEPENDENT_128B_BLOCKS;
+    }
+
     pState->primaryOffset            = m_offset;
     pState->secondaryOffset          = 0;
     pState->pitch                    = m_addrOutput.pitch;
@@ -5163,6 +5179,26 @@ Result Gfx9Fmask::ComputeFmaskInfo(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+bool Gfx9MetaEqGenerator::IsZSwizzle(
+    AddrSwizzleMode  swizzleMode
+    ) const
+{
+    bool  isZ = AddrMgr2::IsZSwizzle(swizzleMode);
+
+    return isZ;
+}
+
+// =====================================================================================================================
+bool Gfx9MetaEqGenerator::IsRotatedSwizzle(
+    AddrSwizzleMode  swizzleMode
+    ) const
+{
+    bool  isR = AddrMgr2::IsRotatedSwizzle(swizzleMode);
+
+    return isR;
 }
 
 } // Gfx9

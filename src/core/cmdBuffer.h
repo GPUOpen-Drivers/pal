@@ -236,6 +236,11 @@ public:
     virtual void CmdSetStencilRefMasks(const StencilRefMaskParams& params) override
         { PAL_NEVER_CALLED(); }
 
+    virtual void CmdDuplicateUserData(
+        PipelineBindPoint source,
+        PipelineBindPoint dest) override
+        { PAL_NEVER_CALLED(); }
+
     virtual void CmdSetKernelArguments(
         uint32            firstArg,
         uint32            argCount,
@@ -876,6 +881,8 @@ public:
     // invoked.
     bool HasHybridPipeline() const { return (m_flags.hasHybridPipeline == 1); }
     void ReportHybridPipelineBind() { m_flags.hasHybridPipeline = 1; }
+    bool IsUsedInEndTrace() const { return (m_flags.usedInEndTrace == 1); }
+    void SetEndTraceFlag(uint32 value) { m_flags.usedInEndTrace = value; }
 
     uint32 ImplicitGangedSubQueueCount() const { return m_implicitGangSubQueueCount; }
     void EnableImplicitGangedSubQueueCount(uint32 count)
@@ -1036,7 +1043,13 @@ protected:
             uint32 internalMemAllocator     : 1;  // True if m_pMemAllocator is owned internally by PAL.
             uint32 hasHybridPipeline        : 1;  // True if this command buffer has a hybrid pipeline bound.
             uint32 autoMemoryReuse          : 1;  // True if the command buffer uses autoMemoryReuse.
-            uint32 reserved                 : 29;
+#if PAL_BUILD_RDF
+            uint32 usedInEndTrace           : 1;  // True if this is a cmdBuffer used during ending a PAL trace. Clients
+                                                  // might submit their own GPU work as part of this cmdBuffer
+#else
+            uint32 placeholder3             : 1;
+#endif
+            uint32 reserved                 : 28;
         };
 
         uint32     u32All;

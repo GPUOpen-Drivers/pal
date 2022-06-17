@@ -43,7 +43,7 @@
 ///            compatible, it is not assumed that the client will initialize all input structs to 0.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 730
+#define PAL_INTERFACE_MAJOR_VERSION 742
 
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
 /// in @ref Pal::PlatformProperties.
@@ -53,7 +53,7 @@
 /// of the existing enum values will change.  This number will be reset to 0 when the major version is incremented.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MINOR_VERSION 1
+#define PAL_INTERFACE_MINOR_VERSION 0
 
 /// Minimum major interface version. This is the minimum interface version PAL supports in order to support backward
 /// compatibility. When it is equal to PAL_INTERFACE_MAJOR_VERSION, only the latest interface version is supported.
@@ -153,8 +153,8 @@ enum class NullGpuId : uint32
     Navi23           = 0x24,
     Navi24           = 0x25,
 
-    Max = 0x33,
-    All = 0x34,
+    Max = 0x34,
+    All = 0x35,
 #endif
 };
 
@@ -163,6 +163,21 @@ struct NullGpuInfo
 {
     NullGpuId   nullGpuId;  ///< ID of an ASIC that PAL supports for override purposes
     const char* pGpuName;   ///< Text name of the ASIC specified by nullGpuId
+};
+
+/// PAL client APIs.
+enum class ClientApi : uint32
+{
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 734
+    Invalid = 0,
+#endif
+    Pal     = 0,
+    Dx9     = 1,
+    Dx12    = 3,
+    Vulkan  = 4,
+    Mantle  = 5,
+    OpenCl  = 7,
+    Hip     = 8,
 };
 
 /// Specifies properties for @ref IPlatform creation. Input structure to Pal::CreatePlatform().
@@ -209,6 +224,11 @@ struct PlatformCreateInfo
         };
         uint32 u32All;                                  ///< Flags packed as 32-bit uint.
     } flags;                                            ///< Platform-wide creation flags.
+
+    union
+    {
+        ClientApi                clientApiId;           ///< Client API ID.
+    };
 
     NullGpuId                    nullGpuId;             ///< ID for the null device.  Ignored unless the above
                                                         ///  flags.createNullDevice bit is set.

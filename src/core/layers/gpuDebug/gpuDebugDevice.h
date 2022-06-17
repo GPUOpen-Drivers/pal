@@ -181,6 +181,7 @@ public:
 
     virtual Result CommitSettingsAndInit() override;
     virtual Result Finalize(const DeviceFinalizeInfo& finalizeInfo) override;
+    virtual Result Cleanup() override;
 
     const PalPublicSettings* PublicSettings() const { return m_pPublicSettings; }
     const DeviceProperties&  DeviceProps() const { return m_deviceProperties; }
@@ -190,6 +191,8 @@ private:
 
     const PalPublicSettings* m_pPublicSettings;
     DeviceProperties         m_deviceProperties;
+
+    bool m_initialized;
 
     PAL_DISALLOW_DEFAULT_CTOR(Device);
     PAL_DISALLOW_COPY_AND_ASSIGN(Device);

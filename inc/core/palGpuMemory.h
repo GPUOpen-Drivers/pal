@@ -369,8 +369,11 @@ struct GpuMemoryDesc
 /// shows where is the sub allocated memory.
 struct GpuMemSubAllocInfo
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
     const IGpuMemory* pGpuMemory; ///< Handle to the GPU memory allocated.
-    gpusize           offset;     ///< Start address of the memory.
+#endif
+    gpusize           address;    ///< Start address of the memory, not including the offset.
+    gpusize           offset;     ///< Offset from the start address of the memory.
     gpusize           size;       ///< Size of the memory.
 };
 

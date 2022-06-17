@@ -36,7 +36,6 @@
 #include "palFence.h"
 #include "palGpuEvent.h"
 #include "palGpuMemory.h"
-#include "palHashMap.h"
 #include "palImage.h"
 #include "palIndirectCmdGenerator.h"
 #include "palMsaaState.h"
@@ -52,6 +51,7 @@
 #include "palScreen.h"
 #include "palShaderLibrary.h"
 #include "palSwapChain.h"
+#include "palHashMap.h"
 #include "palSysMemory.h"
 
 #if PAL_BUILD_RDF
@@ -373,6 +373,9 @@ public:
     { m_pNextLayer->GetDbgLoggerFileSettings(pSettings); }
 #endif
 
+    ClientApi   GetClientApiId()  const { return m_clientApiId; }
+    const char* GetClientApiStr() const;
+
 protected:
     virtual ~PlatformDecorator();
 
@@ -393,6 +396,8 @@ protected:
     void*                  m_pClientPrivateData;
     bool                   m_installDeveloperCb;
     const bool             m_layerEnabled;
+    const ClientApi        m_clientApiId;
+
 private:
     bool                   m_logDirCreated;        // The log dir can only be created once.
     Util::Mutex            m_logDirMutex;          // Grants access to CreateLogDir.
@@ -1057,10 +1062,18 @@ public:
         SetClockModeOutput*      pClockModeOutput) override
         { return m_pNextLayer->SetClockMode(clockModeInput, pClockModeOutput); }
 
+    virtual Result SetStaticVmidMode(
+        bool enable) override
+        { return m_pNextLayer->SetStaticVmidMode(enable); }
+
     virtual Result GetStereoDisplayModes(
         uint32*                   pStereoModeCount,
         StereoDisplayModeOutput*  pStereoModeList) const override
         { return m_pNextLayer->GetStereoDisplayModes(pStereoModeCount, pStereoModeList); }
+
+    virtual Result GetWsStereoMode(
+        WorkstationStereoMode* pWsStereoMode) const override
+        { return m_pNextLayer->GetWsStereoMode(pWsStereoMode); }
 
     virtual Result GetActive10BitPackedPixelMode(
         Active10BitPackedPixelModeOutput*  pMode) const override
@@ -1366,6 +1379,11 @@ public:
     virtual void CmdBindDepthStencilState(
         const IDepthStencilState* pDepthStencilState) override
         { m_pNextLayer->CmdBindDepthStencilState(NextDepthStencilState(pDepthStencilState)); }
+
+    virtual void CmdDuplicateUserData(
+        PipelineBindPoint source,
+        PipelineBindPoint dest) override
+        { m_pNextLayer->CmdDuplicateUserData(source, dest); }
 
     virtual void CmdSetKernelArguments(
         uint32            firstArg,

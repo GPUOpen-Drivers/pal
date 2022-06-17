@@ -27,7 +27,6 @@
 #include "g_gfx9Settings.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
-#include "palMsgPack.h"
 #include "palMsgPackImpl.h"
 
 using namespace Util;
@@ -36,12 +35,26 @@ namespace Pal
 {
 namespace Gfx9
 {
+
+static_assert(
+    ShaderSubType(Abi::ApiShaderSubType::Unknown)              == ShaderSubType::Unknown              &&
+    ShaderSubType(Abi::ApiShaderSubType::Traversal)            == ShaderSubType::Traversal            &&
+    ShaderSubType(Abi::ApiShaderSubType::RayGeneration)        == ShaderSubType::RayGeneration        &&
+    ShaderSubType(Abi::ApiShaderSubType::Intersection)         == ShaderSubType::Intersection         &&
+    ShaderSubType(Abi::ApiShaderSubType::AnyHit)               == ShaderSubType::AnyHit               &&
+    ShaderSubType(Abi::ApiShaderSubType::ClosestHit)           == ShaderSubType::ClosestHit           &&
+    ShaderSubType(Abi::ApiShaderSubType::Miss)                 == ShaderSubType::Miss                 &&
+    ShaderSubType(Abi::ApiShaderSubType::Callable)             == ShaderSubType::Callable             &&
+    ShaderSubType(Abi::ApiShaderSubType::Count)                == ShaderSubType::Count,
+    "Mismatch in member/s between Abi::ApiShaderSubType and Pal::ShaderSubType!");
+
 // =====================================================================================================================
-ShaderLibrary::ShaderLibrary(Device* pDevice)
+ShaderLibrary::ShaderLibrary(
+    Device* pDevice)
     :
     Pal::ShaderLibrary(pDevice->Parent()),
-    m_pClientData(nullptr),
     m_pDevice(pDevice),
+    m_signature(NullCsSignature),
     m_chunkCs(*pDevice),
     m_pFunctionList(nullptr),
     m_funcCount(0)
@@ -58,25 +71,6 @@ ShaderLibrary::~ShaderLibrary()
             PAL_FREE(m_pFunctionList[i].pSymbolName, m_pDevice->GetPlatform());
         }
         PAL_SAFE_DELETE_ARRAY(m_pFunctionList, m_pDevice->GetPlatform());
-    }
-}
-
-// =====================================================================================================================
-// Check wavefront size and set the m_hwInfo.flags.isWave32 flag
-void ShaderLibrary::SetIsWave32(
-    const PalAbi::CodeObjectMetadata& metadata)
-{
-    // We don't bother checking the wavefront size for pre-Gfx10 GPU's since it is implicitly 64 before Gfx10. Any ELF
-    // which doesn't specify a wavefront size is assumed to use 64, even on Gfx10 and newer.
-    const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
-    if (IsGfx10Plus(chipProps.gfxLevel))
-    {
-        const auto& csMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
-        if (csMetadata.hasEntry.wavefrontSize != 0)
-        {
-            PAL_ASSERT((csMetadata.wavefrontSize == 64) || (csMetadata.wavefrontSize == 32));
-            m_hwInfo.flags.isWave32 = (csMetadata.wavefrontSize == 32);
-        }
     }
 }
 
@@ -111,11 +105,13 @@ Result ShaderLibrary::HwlInit(
             metadata,
             m_pDevice->Parent()->GetPublicSettings()->pipelinePreferredHeap, // ShaderLibrary is never internal
             &uploader);
-        SetIsWave32(metadata);
     }
 
     if (result == Result::Success)
     {
+        // Update the pipeline signature with user-mapping data contained in the ELF:
+        m_chunkCs.SetupSignatureFromElf(&m_signature, metadata, registers);
+
         const uint32 wavefrontSize = IsWave32() ? 32 : 64;
         m_chunkCs.LateInit(abiReader, registers, wavefrontSize, createInfo.pFuncList, createInfo.funcCount, &uploader);
 
@@ -334,14 +330,14 @@ Result ShaderLibrary::UnpackShaderFunctionStats(
                         case HashLiteralString(".stack_frame_size_in_bytes"):
                         {
                             result = pMetadataReader->UnpackNext(&stats.stackFrameSizeInBytes);
-                                pShaderStats->stackFrameSizeInBytes = stats.stackFrameSizeInBytes;
+                            pShaderStats->stackFrameSizeInBytes = stats.stackFrameSizeInBytes;
                         }
                         break;
-                        case HashLiteralString(".shader_subtype"):
+                        case HashLiteralString(PalAbi::ShaderMetadataKey::ShaderSubtype):
                         {
                             Abi::ApiShaderSubType shaderSubType;
-                            PalAbi::Metadata::DeserializeEnum(pMetadataReader, &shaderSubType);
-                            stats.shaderSubType = Pal::ShaderSubType(shaderSubType);
+                            result = PalAbi::Metadata::DeserializeEnum(pMetadataReader, &shaderSubType);
+                            pShaderStats->shaderSubType = ShaderSubType(shaderSubType);
                         }
                         break;
                         case HashLiteralString(PalAbi::HardwareStageMetadataKey::VgprCount):
@@ -357,6 +353,13 @@ Result ShaderLibrary::UnpackShaderFunctionStats(
                         case HashLiteralString(PalAbi::HardwareStageMetadataKey::LdsSize):
                         {
                             result = pMetadataReader->UnpackNext(&pShaderStats->common.ldsUsageSizeInBytes);
+                        }
+                        break;
+                        case HashLiteralString(PalAbi::ShaderMetadataKey::ApiShaderHash):
+                        {
+                            uint64 shaderHash[2] = {};
+                            result = pMetadataReader->UnpackNext(&shaderHash);
+                            pShaderStats->shaderHash = { shaderHash[0], shaderHash[1] };
                         }
                         break;
                         default:
@@ -378,5 +381,4 @@ Result ShaderLibrary::UnpackShaderFunctionStats(
 }
 
 } // namespace Gfx9
-
 } // namespace Pal

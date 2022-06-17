@@ -95,16 +95,6 @@ struct DbgPrintCallback
     void*                pUserdata;
 };
 
-/// Sets the debug print mode (output to debugger, write to file, or disabled) for the specified category of messages.
-///
-/// Probably controlled by a setting and set during initialization.
-///
-/// @param [in] category Message category to control (e.g., CS dumps, SC output, etc.).
-/// @param [in] mode     New mode to be used for this message category (print to file, etc.).
-extern void SetDbgPrintMode(
-    DbgPrintCategory category,
-    DbgPrintMode     mode);
-
 /// Generic debug printf function to be used when the caller wishes to specify the output category and style.  Clients
 /// should use the PAL_DPF macro instead of calling this function directly.
 ///
@@ -129,6 +119,19 @@ extern void DbgVPrintf(
     DbgPrintStyle    style,
     const char*      pFormat,
     va_list          argList);
+
+#endif
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+/// Sets the debug print mode (output to debugger, write to file, or disabled) for the specified category of messages.
+///
+/// Probably controlled by a setting and set during initialization.
+///
+/// @param [in] category Message category to control (e.g., CS dumps, SC output, etc.).
+/// @param [in] mode     New mode to be used for this message category (print to file, etc.).
+extern void SetDbgPrintMode(
+    DbgPrintCategory category,
+    DbgPrintMode     mode);
 
 /// Opens a file that resides in the selected log directory.
 ///

@@ -70,8 +70,14 @@ public:
         Developer::CallbackType type,
         void*                   pCbData);
 
+    void NotifyPresentOccurred() { Util::AtomicIncrement(&m_frameCount); }
+
+    uint32 FrameCount() const { return m_frameCount; }
+
 private:
     virtual ~Platform() { }
+
+    uint32  m_frameCount;
 
     PAL_DISALLOW_DEFAULT_CTOR(Platform);
     PAL_DISALLOW_COPY_AND_ASSIGN(Platform);

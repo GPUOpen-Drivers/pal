@@ -27,6 +27,7 @@
 
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "palDevice.h"
+#include "palLiterals.h"
 
 namespace Pal
 {
@@ -372,7 +373,7 @@ public:
     ///@note GFX10 added the ability to do ranged checks when for Flush/INV ops to GL1/GL2 (so that you can just
     ///      Flush/INV necessary lines instead of the entire cache). Since these caches are physically tagged, this
     ///      can invoke a high penalty for large surfaces so limit the surface size allowed.
-    static constexpr uint64 Gfx10AcquireMemGl1Gl2RangedCheckMaxSurfaceSizeBytes = (64 * 1024);
+    static constexpr uint64 Gfx10AcquireMemGl1Gl2RangedCheckMaxSurfaceSizeBytes = (64 * Util::OneKibibyte);
 
     static bool IsContextReg(uint32 regAddr);
     static bool IsUserConfigReg(uint32 regAddr);
@@ -384,6 +385,8 @@ public:
     static bool CanUseCopyDataRegOffset(uint32 regOffset) { return (((~MaxCopyDataRegOffset) & regOffset) == 0); }
 
     bool CanUseCsPartialFlush(EngineType engineType) const;
+
+    bool CanUseAcquireMem(uint32 cacheSyncFlags) const;
 
     // If we have support for the indirect_addr index and compute engines.
     bool HasEnhancedLoadShRegIndex() const;
@@ -560,6 +563,7 @@ public:
         Pm4Predicate    predicate,
         bool            isWave32,
         void*           pBuffer);
+
     template<bool indirectAddress>
     static size_t BuildDmaData(
         DmaDataInfo&  dmaDataInfo,

@@ -39,7 +39,6 @@ namespace Gfx9
 class  CmdStream;
 class  CmdUtil;
 class  Device;
-struct Gfx9PalSettings;
 class  GraphicsPipeline;
 class  UniversalCmdBuffer;
 struct UniversalCmdBufferState;

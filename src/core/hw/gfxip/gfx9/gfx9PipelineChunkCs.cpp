@@ -71,9 +71,7 @@ void PipelineChunkCs::LateInit(
     uint32*                pThreadsPerTgZ,
     PipelineUploader*      pUploader)
 {
-    const auto&              cmdUtil   = m_device.CmdUtil();
-    const auto&              regInfo   = cmdUtil.GetRegInfo();
-    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
+    InitRegisters(registers, wavefrontSize);
 
     GpuSymbol symbol = { };
     if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::CsMainEntry, &symbol) == Result::Success)
@@ -88,6 +86,22 @@ void PipelineChunkCs::LateInit(
     {
         m_regs.userDataInternalTable.bits.DATA = LowPart(symbol.gpuVirtAddr);
     }
+
+    *pThreadsPerTgX = m_regs.computeNumThreadX.bits.NUM_THREAD_FULL;
+    *pThreadsPerTgY = m_regs.computeNumThreadY.bits.NUM_THREAD_FULL;
+    *pThreadsPerTgZ = m_regs.computeNumThreadZ.bits.NUM_THREAD_FULL;
+
+    m_device.CmdUtil().BuildPipelinePrefetchPm4(*pUploader, &m_prefetch);
+}
+
+// =====================================================================================================================
+// Helper method which initializes registers from the register vector extraced from an ELF metadata blob.
+void PipelineChunkCs::InitRegisters(
+    const RegisterVector&  registers,
+    uint32                  wavefrontSize)
+{
+    const RegisterInfo&      regInfo   = m_device.CmdUtil().GetRegInfo();
+    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
 
     m_regs.computePgmRsrc1.u32All         = registers.At(mmCOMPUTE_PGM_RSRC1);
     m_regs.dynamic.computePgmRsrc2.u32All = registers.At(mmCOMPUTE_PGM_RSRC2);
@@ -110,13 +124,11 @@ void PipelineChunkCs::LateInit(
         registers.HasEntry(regInfo.mmComputeShaderChksum, &m_regs.computeShaderChksum.u32All);
     }
 
-    *pThreadsPerTgX = m_regs.computeNumThreadX.bits.NUM_THREAD_FULL;
-    *pThreadsPerTgY = m_regs.computeNumThreadY.bits.NUM_THREAD_FULL;
-    *pThreadsPerTgZ = m_regs.computeNumThreadZ.bits.NUM_THREAD_FULL;
-
     registers.HasEntry(mmCOMPUTE_RESOURCE_LIMITS, &m_regs.dynamic.computeResourceLimits.u32All);
 
-    const uint32 threadsPerGroup = (*pThreadsPerTgX) * (*pThreadsPerTgY) * (*pThreadsPerTgZ);
+    const uint32 threadsPerGroup = (m_regs.computeNumThreadX.bits.NUM_THREAD_FULL *
+                                    m_regs.computeNumThreadY.bits.NUM_THREAD_FULL *
+                                    m_regs.computeNumThreadZ.bits.NUM_THREAD_FULL);
     const uint32 wavesPerGroup   = RoundUpQuotient(threadsPerGroup, wavefrontSize);
 
     // SIMD_DEST_CNTL: Controls which SIMDs thread groups get scheduled on.  If the number of
@@ -169,7 +181,6 @@ void PipelineChunkCs::LateInit(
         break;
     }
 
-    cmdUtil.BuildPipelinePrefetchPm4(*pUploader, &m_prefetch);
 }
 
 // =====================================================================================================================

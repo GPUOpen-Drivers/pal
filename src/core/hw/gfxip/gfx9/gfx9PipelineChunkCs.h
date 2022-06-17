@@ -125,7 +125,7 @@ public:
     gpusize CsProgramGpuVa() const
         { return GetOriginalAddress(m_regs.computePgmLo.bits.DATA, 0); }
 
-    HwRegInfo HwInfo() const { return m_regs; }
+    const HwRegInfo& HwInfo() const { return m_regs; }
 
     void UpdateComputePgmRsrsAfterLibraryLink(
         regCOMPUTE_PGM_RSRC1 Rsrc1,
@@ -135,6 +135,9 @@ public:
     Result CreateLaunchDescriptor(void* pOut, bool resolve);
 
 private:
+    void InitRegisters(
+        const RegisterVector&  registers,
+        uint32                 wavefrontSize);
 
     void SetupSignatureFromRegisters(
         ComputeShaderSignature* pSignature,
@@ -144,12 +147,12 @@ private:
 
     const Device&  m_device;
 
-    HwRegInfo m_regs;
+    HwRegInfo  m_regs;
 
     PipelinePrefetchPm4  m_prefetch;
 
-    PerfDataInfo*const m_pCsPerfDataInfo;   // CS performance data information.
-    ShaderStageInfo*   m_pStageInfo;
+    PerfDataInfo*const  m_pCsPerfDataInfo;   // CS performance data information.
+    ShaderStageInfo*    m_pStageInfo;
 
     PAL_DISALLOW_DEFAULT_CTOR(PipelineChunkCs);
     PAL_DISALLOW_COPY_AND_ASSIGN(PipelineChunkCs);
@@ -160,7 +163,7 @@ private:
 // which setup the hardware library stage.
 // This is sort of a PM4 "image" of the commands which write these registers, but with some intelligence so that the
 // code used to setup the commands can be reused.
-class LibraryChunkCs final : PipelineChunkCs
+class LibraryChunkCs final : public PipelineChunkCs
 {
 public:
     explicit LibraryChunkCs(const Device& device);
@@ -176,12 +179,12 @@ public:
         uint32                      funcCount,
         PipelineUploader*           pUploader);
 
-    const LibHwRegInfo LibHWInfo() const { return m_regs; }
+    const LibHwRegInfo& LibHWInfo() const { return m_regs; }
 
 private:
     const Device&  m_device;
 
-    LibHwRegInfo m_regs;
+    LibHwRegInfo  m_regs;
 
     PAL_DISALLOW_DEFAULT_CTOR(LibraryChunkCs);
     PAL_DISALLOW_COPY_AND_ASSIGN(LibraryChunkCs);

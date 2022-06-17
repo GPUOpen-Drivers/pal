@@ -69,6 +69,9 @@ public:
         const IDepthStencilState* pDepthStencilState) override;
     virtual void CmdSetDepthBounds(
         const DepthBoundsParams& params) override;
+    virtual void CmdDuplicateUserData(
+        PipelineBindPoint source,
+        PipelineBindPoint dest) override;
     virtual void CmdSetKernelArguments(
         uint32            firstArg,
         uint32            argCount,

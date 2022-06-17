@@ -114,6 +114,7 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferCmdBindDepthStencilState,                         InterfaceObject::CmdBuffer,            "CmdBindDepthStencilState"                },
     { InterfaceFunc::CmdBufferCmdSetDepthBounds,                                InterfaceObject::CmdBuffer,            "CmdSetDepthBounds"                       },
     { InterfaceFunc::CmdBufferCmdSetUserData,                                   InterfaceObject::CmdBuffer,            "CmdSetUserData"                          },
+    { InterfaceFunc::CmdBufferCmdDuplicateUserData,                             InterfaceObject::CmdBuffer,            "CmdDuplicateUserData"                    },
     { InterfaceFunc::CmdBufferCmdSetKernelArguments,                            InterfaceObject::CmdBuffer,            "CmdSetKernelArguments"                   },
     { InterfaceFunc::CmdBufferCmdSetVertexBuffers,                              InterfaceObject::CmdBuffer,            "CmdSetVertexBuffers"                     },
     { InterfaceFunc::CmdBufferCmdBindIndexData,                                 InterfaceObject::CmdBuffer,            "CmdBindIndexData"                        },
@@ -841,6 +842,7 @@ void LogContext::CacheCoherencyUsageFlags(
     const char*const StringTable[] =
     {
         "CoherCpu",                // 0x00000001,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 740
         "CoherShader",             // 0x00000002,
         "CoherCopy",               // 0x00000004,
         "CoherColorTarget",        // 0x00000008,
@@ -857,6 +859,27 @@ void LogContext::CacheCoherencyUsageFlags(
         "CoherMemory",             // 0x00004000,
         "CoherSampleRate",         // 0x00008000,
         "CoherPresent",            // 0x00010000,
+#else
+        "CoherShaderRead",         // 0x00000002,
+        "CoherShaderWrite",        // 0x00000004,
+        "CoherCopySrc",            // 0x00000008,
+        "CoherCopyDst",            // 0x00000010,
+        "CoherColorTarget",        // 0x00000020,
+        "CoherDepthStencilTarget", // 0x00000040,
+        "CoherResolveSrc",         // 0x00000080,
+        "CoherResolveDst",         // 0x00000100,
+        "CoherClear",              // 0x00000200,
+        "CoherIndirectArgs",       // 0x00000400,
+        "CoherIndexData",          // 0x00000800,
+        "CoherQueueAtomic",        // 0x00001000,
+        "CoherTimestamp",          // 0x00002000,
+        "CoherCeLoad",             // 0x00004000,
+        "CoherCeDump",             // 0x00008000,
+        "CoherStreamOut",          // 0x00010000,
+        "CoherMemory",             // 0x00020000,
+        "CoherSampleRate",         // 0x00040000,
+        "CoherPresent",            // 0x00080000,
+#endif
     };
 
     BeginList(false);

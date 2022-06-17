@@ -51,10 +51,11 @@ public:
         QueryResult*    pQuery) final;
 
     virtual Result Store(
-        const Hash128*  pHashId,
-        const void*     pData,
-        size_t          dataSize,
-        size_t          storeSize) final;
+        Util::StoreFlags storeFlags,
+        const Hash128*   pHashId,
+        const void*      pData,
+        size_t           dataSize,
+        size_t           storeSize) final;
 
     virtual Result WaitForEntry(
         const Hash128* pHashId) final

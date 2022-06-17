@@ -25,12 +25,81 @@
 
 #if PAL_ENABLE_LOGGING
 #include "palDbgLogger.h"
+#include "palDbgLogMgr.h"
 #include "palSysUtil.h"
 #include "palSysMemory.h"
 
 namespace Util
 {
 static constexpr char LineEnd[] = "\n";
+
+// =====================================================================================================================
+// Creates a complete file name for debug logging by adding library name, process name, and pid to the base name.
+// Returns a truncated file name if incoming file name string size is not enough.
+Result CreateLogFileName(
+    char*                        pFileName,
+    uint32                       fileNameSize,
+    const DbgLoggerFileSettings& settings,
+    const char*                  pBaseFileName)
+{
+    PAL_ASSERT((pFileName != nullptr) && (fileNameSize != 0));
+
+    Result result                           = Result::Success;
+    char processNameBuff[MaxFileNameStrLen] = {};
+    char libNameBuff[MaxFileNameStrLen]     = {};
+    pFileName[0]                            = '\0';
+
+    // Add library name to file name if enabled
+    if (TestAnyFlagSet(settings.fileSettingsFlags, FileSettings::AddLibName))
+    {
+        libNameBuff[0] = '_'; // Start the library name with '_'
+        result = GetCurrentLibraryName(libNameBuff + 1, sizeof(libNameBuff) - 1, nullptr, 0);
+    }
+
+    // Add process name to file name if enabled
+    if ((result == Result::Success) && (TestAnyFlagSet(settings.fileSettingsFlags, FileSettings::AddPname)))
+    {
+        char  executableNameBuffer[MaxPathStrLen] = {};
+        char* pExecutableName = '\0';
+        result = GetExecutableName(executableNameBuffer, &pExecutableName, sizeof(executableNameBuffer));
+        if (result == Result::Success)
+        {
+            processNameBuff[0] = '_'; // Start the process name with '_'
+            SplitFilePath(executableNameBuffer, nullptr, 0, processNameBuff + 1, sizeof(processNameBuff) - 1);
+        }
+    }
+
+    // Create log directory if it doesn't already exists.
+    if ((result == Result::Success) && (File::Exists(settings.pLogDirectory) == false))
+    {
+        result = MkDirRecursively(settings.pLogDirectory);
+    }
+
+    if (result == Result::Success)
+    {
+        int32 len = 0;
+        PAL_ASSERT(pBaseFileName != nullptr);
+        if (TestAnyFlagSet(settings.fileSettingsFlags, FileSettings::AddPid))
+        {
+            len = Snprintf(pFileName, fileNameSize, "%s%s%s%s_%d.txt", settings.pLogDirectory,
+                           pBaseFileName, libNameBuff, processNameBuff, GetIdOfCurrentProcess());
+        }
+        else
+        {
+            len = Snprintf(pFileName, fileNameSize, "%s%s%s%s.txt", settings.pLogDirectory,
+                           pBaseFileName, libNameBuff, processNameBuff);
+        }
+        // Snprintf (see vsnprintf/vsnprintf_s doc) returns a negative number in case of encoding
+        // error. Also, only when this returned value is non-negative and less than input buffer
+        // size, the string has been completely written. Hence, check for this condition and set result.
+        if ((len < 0) || (len >= fileNameSize))
+        {
+            // buffer too small, hence make it larger
+            result = Result::ErrorInvalidMemorySize;
+        }
+    }
+    return result;
+}
 
 // =====================================================================================================================
 // Provides simple formatting of the log message of the form: "<severity level>:<main msg>\r\n".
@@ -71,7 +140,10 @@ Result DbgLoggerFile::Init(
     Result result = Result::ErrorInvalidFlags;
 
     // This logger always writes to a file, so a FileAccessRead mode is invalid.
-    if (TestAnyFlagSet(fileAccessMask, FileAccessMode::FileAccessRead) == false)
+    // Also, don't open file if logging is disabled. Otherwise, the log directory
+    // gets littered with useless and empty log files.
+    if ((g_dbgLogMgr.GetLoggingEnabled()) &&
+        (TestAnyFlagSet(fileAccessMask, FileAccessMode::FileAccessRead) == false))
     {
         result = m_file.Open(pFileName, fileAccessMask);
     }

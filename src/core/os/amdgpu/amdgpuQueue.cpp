@@ -42,6 +42,10 @@
 #include "palHashMapImpl.h"
 #include "palVectorImpl.h"
 
+#if PAL_BUILD_RDF
+#include "gpuUtil/frameTraceController.h"
+#endif
+
 #include <climits>
 
 using namespace Util;
@@ -718,6 +722,29 @@ Result Queue::OsSubmit(
     m_sqttWaRequired     = (sqttClosed == false);
     m_perfCtrWaRequired  = (perfCtrClosed == false);
 
+#if PAL_BUILD_RDF
+    // In order to avoid RRA sync issues, we need to idle the queue when the end-trace command buffer is submitted,
+    // and then finish the trace.
+    if (result == Result::Success)
+    {
+        for (uint32 idxQueue = 0; idxQueue < submitInfo.perSubQueueInfoCount; ++idxQueue)
+        {
+            for (uint32 idxCmdBuf = 0; idxCmdBuf < submitInfo.pPerSubQueueInfo[idxQueue].cmdBufferCount; ++idxCmdBuf)
+            {
+                CmdBuffer* const pCmdBuffer =
+                    static_cast<CmdBuffer*>(submitInfo.pPerSubQueueInfo[idxQueue].ppCmdBuffers[idxCmdBuf]);
+                if (pCmdBuffer->IsUsedInEndTrace())
+                {
+                    this->WaitIdle();
+                    GpuUtil::FrameTraceController* frameController = m_device.GetPlatform()->GetFrameTraceController();
+                    frameController->FinishTrace();
+                    pCmdBuffer->SetEndTraceFlag(0);
+                }
+            }
+        }
+    }
+#endif
+
     return result;
 }
 
@@ -789,7 +816,7 @@ Result Queue::SubmitPm4(
         auto pCmdBuf = static_cast<GfxCmdBuffer*>(ppNextCmdBuffers[idx]);
         if (pCmdBuf->PerfTracesEnabled().spmTraceEnabled)
         {
-            result = static_cast<Device*>(m_pDevice)->ReserveVmid();
+            result = static_cast<Device*>(m_pDevice)->SetStaticVmidMode(true);
             break;
         }
     }

@@ -277,6 +277,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_dbRenderOverride.u32All    = 0;
     m_paSuLineStippleCntl.u32All = 0;
     m_paScLineStipple.u32All     = 0;
+    m_paSuScModeCntl.u32All      = InvalidPaSuScModeCntlVal;
 
     SwitchDrawFunctions(false);
 }
@@ -451,10 +452,11 @@ void UniversalCmdBuffer::ResetState()
         m_vgtDmaIndexType.bits.RDREQ_POLICY = VGT_POLICY_STREAM;
     }
 
-    m_spiVsOutConfig.u32All = 0;
-    m_spiPsInControl.u32All = 0;
+    m_spiVsOutConfig.u32All      = 0;
+    m_spiPsInControl.u32All      = 0;
     m_paSuLineStippleCntl.u32All = 0;
-    m_paScLineStipple.u32All = 0;
+    m_paScLineStipple.u32All     = 0;
+    m_paSuScModeCntl.u32All      = InvalidPaSuScModeCntlVal;
 
     // Reset the command buffer's HWL state tracking
     m_state.flags.u32All   = 0;
@@ -1270,75 +1272,16 @@ void UniversalCmdBuffer::CmdSetTriangleRasterStateInternal(
     m_graphicsState.triangleRasterState                           = params;
     m_graphicsState.dirtyFlags.validationBits.triangleRasterState = 1;
 
-    regPA_SU_SC_MODE_CNTL paSuScModeCntl = { };
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 721
-    paSuScModeCntl.bits.POLY_OFFSET_FRONT_ENABLE = params.flags.frontDepthBiasEnable;
-    paSuScModeCntl.bits.POLY_OFFSET_BACK_ENABLE  = params.flags.backDepthBiasEnable;
-#else
-    paSuScModeCntl.bits.POLY_OFFSET_FRONT_ENABLE = params.flags.depthBiasEnable;
-    paSuScModeCntl.bits.POLY_OFFSET_BACK_ENABLE  = params.flags.depthBiasEnable;
-#endif
-    paSuScModeCntl.bits.MULTI_PRIM_IB_ENA        = 1;
-
-    static_assert(
-        static_cast<uint32>(FillMode::Points)    == 0 &&
-        static_cast<uint32>(FillMode::Wireframe) == 1 &&
-        static_cast<uint32>(FillMode::Solid)     == 2,
-        "FillMode vs. PA_SU_SC_MODE_CNTL.POLY_MODE mismatch");
-
     if (static_cast<TossPointMode>(m_cachedSettings.tossPointMode) == TossPointWireframe)
     {
         m_graphicsState.triangleRasterState.frontFillMode = FillMode::Wireframe;
         m_graphicsState.triangleRasterState.backFillMode  = FillMode::Wireframe;
-
-        paSuScModeCntl.bits.POLY_MODE            = 1;
-        paSuScModeCntl.bits.POLYMODE_BACK_PTYPE  = static_cast<uint32>(FillMode::Wireframe);
-        paSuScModeCntl.bits.POLYMODE_FRONT_PTYPE = static_cast<uint32>(FillMode::Wireframe);
     }
-    else
-    {
-        paSuScModeCntl.bits.POLY_MODE            = ((params.frontFillMode != FillMode::Solid) ||
-                                                    (params.backFillMode  != FillMode::Solid));
-        paSuScModeCntl.bits.POLYMODE_BACK_PTYPE  = static_cast<uint32>(params.backFillMode);
-        paSuScModeCntl.bits.POLYMODE_FRONT_PTYPE = static_cast<uint32>(params.frontFillMode);
-    }
-
-    constexpr uint32 FrontCull = static_cast<uint32>(CullMode::Front);
-    constexpr uint32 BackCull  = static_cast<uint32>(CullMode::Back);
-
-    static_assert((FrontCull | BackCull) == static_cast<uint32>(CullMode::FrontAndBack),
-        "CullMode::FrontAndBack not a strict union of CullMode::Front and CullMode::Back");
 
     if (static_cast<TossPointMode>(m_cachedSettings.tossPointMode) == TossPointBackFrontFaceCull)
     {
         m_graphicsState.triangleRasterState.cullMode = CullMode::FrontAndBack;
-
-        paSuScModeCntl.bits.CULL_FRONT = 1;
-        paSuScModeCntl.bits.CULL_BACK  = 1;
     }
-    else
-    {
-        paSuScModeCntl.bits.CULL_FRONT = ((static_cast<uint32>(params.cullMode) & FrontCull) != 0);
-        paSuScModeCntl.bits.CULL_BACK  = ((static_cast<uint32>(params.cullMode) & BackCull)  != 0);
-    }
-
-    static_assert(
-        static_cast<uint32>(FaceOrientation::Ccw) == 0 &&
-        static_cast<uint32>(FaceOrientation::Cw)  == 1,
-        "FaceOrientation vs. PA_SU_SC_MODE_CNTL.FACE mismatch");
-
-    paSuScModeCntl.bits.FACE = static_cast<uint32>(params.frontFace);
-
-    static_assert(
-        static_cast<uint32>(ProvokingVertex::First) == 0 &&
-        static_cast<uint32>(ProvokingVertex::Last)  == 1,
-        "ProvokingVertex vs. PA_SU_SC_MODE_CNTL.PROVOKING_VTX_LAST mismatch");
-
-    paSuScModeCntl.bits.PROVOKING_VTX_LAST = static_cast<uint32>(params.provokingVertex);
-
-    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-    pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SU_SC_MODE_CNTL, paSuScModeCntl.u32All, pDeCmdSpace);
-    m_deCmdStream.CommitCommands(pDeCmdSpace);
 }
 
 // =====================================================================================================================
@@ -2389,9 +2332,10 @@ void UniversalCmdBuffer::CmdBindBorderColorPalette(
     //       which may involve getting KMD support.
     if ((m_cachedSettings.ignoreCsBorderColorPalette == 0) || (pipelineBindPoint == PipelineBindPoint::Graphics))
     {
-        auto*const       pPipelineState = PipelineState(pipelineBindPoint);
-        const auto*const pNewPalette    = static_cast<const BorderColorPalette*>(pPalette);
+        PAL_ASSERT((pipelineBindPoint == PipelineBindPoint::Compute) ||
+                   (pipelineBindPoint == PipelineBindPoint::Graphics));
 
+        const auto*const pNewPalette = static_cast<const BorderColorPalette*>(pPalette);
         if (pNewPalette != nullptr)
         {
             uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
@@ -2402,8 +2346,9 @@ void UniversalCmdBuffer::CmdBindBorderColorPalette(
             m_deCmdStream.CommitCommands(pDeCmdSpace);
         }
 
-        // Update the border-color palette state.
-        pPipelineState->pBorderColorPalette                = pNewPalette;
+        auto*const pPipelineState = (pipelineBindPoint == PipelineBindPoint::Compute) ? &m_computeState.pipelineState
+                                                                                      : &m_graphicsState.pipelineState;
+        pPipelineState->pBorderColorPalette = pNewPalette;
         pPipelineState->dirtyFlags.borderColorPaletteDirty = 1;
     }
 }
@@ -3555,6 +3500,11 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         pDeCmdSpace = ValidateScissorRects<pm4OptImmediate>(pDeCmdSpace);
     }
 
+    if (stateDirty && dirtyFlags.triangleRasterState)
+    {
+        pDeCmdSpace = ValidateTriangleRasterState(pDeCmdSpace);
+    }
+
     regPA_SC_MODE_CNTL_1 paScModeCntl1 = m_drawTimeHwState.paScModeCntl1;
 
     // Re-calculate paScModeCntl1 value if state constributing to the register has changed.
@@ -3946,6 +3896,66 @@ uint32* UniversalCmdBuffer::ValidateScissorRects(
     else
     {
         pDeCmdSpace = ValidateScissorRects<false>(pDeCmdSpace);
+    }
+
+    return pDeCmdSpace;
+}
+
+// =====================================================================================================================
+uint32* UniversalCmdBuffer::ValidateTriangleRasterState(
+    uint32* pDeCmdSpace)
+{
+    regPA_SU_SC_MODE_CNTL paSuScModeCntl;
+    paSuScModeCntl.u32All = m_paSuScModeCntl.u32All;
+    const auto& params    = m_graphicsState.triangleRasterState;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 721
+    paSuScModeCntl.bits.POLY_OFFSET_FRONT_ENABLE = params.flags.frontDepthBiasEnable;
+    paSuScModeCntl.bits.POLY_OFFSET_BACK_ENABLE  = params.flags.backDepthBiasEnable;
+#else
+    paSuScModeCntl.bits.POLY_OFFSET_FRONT_ENABLE = params.flags.depthBiasEnable;
+    paSuScModeCntl.bits.POLY_OFFSET_BACK_ENABLE  = params.flags.depthBiasEnable;
+#endif
+    paSuScModeCntl.bits.MULTI_PRIM_IB_ENA        = 1;
+
+    static_assert((static_cast<uint32>(FillMode::Points)    == 0) &&
+                  (static_cast<uint32>(FillMode::Wireframe) == 1) &&
+                  (static_cast<uint32>(FillMode::Solid)     == 2),
+                  "FillMode vs. PA_SU_SC_MODE_CNTL.POLY_MODE mismatch");
+
+    paSuScModeCntl.bits.POLY_MODE            = ((params.frontFillMode != FillMode::Solid) ||
+                                                (params.backFillMode  != FillMode::Solid));
+    paSuScModeCntl.bits.POLYMODE_BACK_PTYPE  = static_cast<uint32>(params.backFillMode);
+    paSuScModeCntl.bits.POLYMODE_FRONT_PTYPE = static_cast<uint32>(params.frontFillMode);
+
+    constexpr uint32 FrontCull = static_cast<uint32>(CullMode::Front);
+    constexpr uint32 BackCull  = static_cast<uint32>(CullMode::Back);
+
+    static_assert(((FrontCull | BackCull) == static_cast<uint32>(CullMode::FrontAndBack)),
+                  "CullMode::FrontAndBack not a strict union of CullMode::Front and CullMode::Back");
+
+    paSuScModeCntl.bits.CULL_FRONT = ((static_cast<uint32>(params.cullMode) & FrontCull) != 0);
+    paSuScModeCntl.bits.CULL_BACK  = ((static_cast<uint32>(params.cullMode) & BackCull)  != 0);
+
+    static_assert((static_cast<uint32>(FaceOrientation::Ccw) == 0) &&
+                  (static_cast<uint32>(FaceOrientation::Cw)  == 1),
+                  "FaceOrientation vs. PA_SU_SC_MODE_CNTL.FACE mismatch");
+
+    paSuScModeCntl.bits.FACE       = static_cast<uint32>(params.frontFace);
+
+    static_assert((static_cast<uint32>(ProvokingVertex::First) == 0) &&
+                  (static_cast<uint32>(ProvokingVertex::Last)  == 1),
+                  "ProvokingVertex vs. PA_SU_SC_MODE_CNTL.PROVOKING_VTX_LAST mismatch");
+
+    paSuScModeCntl.bits.PROVOKING_VTX_LAST = static_cast<uint32>(params.provokingVertex);
+
+    PAL_ASSERT(paSuScModeCntl.u32All != InvalidPaSuScModeCntlVal);
+
+    if (paSuScModeCntl.u32All != m_paSuScModeCntl.u32All)
+    {
+        m_paSuScModeCntl.u32All = paSuScModeCntl.u32All;
+
+        pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(mmPA_SU_SC_MODE_CNTL, paSuScModeCntl.u32All, pDeCmdSpace);
     }
 
     return pDeCmdSpace;
@@ -5223,7 +5233,9 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
             const GenerateInfo genInfo =
             {
                 this,
-                PipelineState(bindPoint)->pPipeline,
+                (bindPoint == PipelineBindPoint::Graphics)
+                    ? pGfxPipeline
+                    : m_computeState.pipelineState.pPipeline,
                 gfx6Generator,
                 m_graphicsState.iaState.indexCount,
                 maximumCount,
@@ -5683,8 +5695,7 @@ void UniversalCmdBuffer::CmdOverwriteRbPlusFormatForBlits(
     SwizzledFormat format,
     uint32         targetIndex)
 {
-    const auto*const pPipeline =
-        static_cast<const GraphicsPipeline*>(PipelineState(PipelineBindPoint::Graphics)->pPipeline);
+    const auto*const pPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
     PAL_ASSERT(pPipeline != nullptr);
 
     // Just update our PM4 image for RB+.  It will be written at draw-time along with the other pipeline registers.

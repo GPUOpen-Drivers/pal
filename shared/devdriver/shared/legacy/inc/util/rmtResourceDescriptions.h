@@ -67,7 +67,7 @@ struct RMT_IMAGE_USAGE_FLAGS
             uint16 DEPTH_AS_Z24              : 1;
             uint16 FIRST_SHADER_WRITABLE_MIP : 3;
             uint16 CORNER_SAMPLING           : 1;
-            uint16 RESERVED                  : 2;
+            uint16 RESERVED                  : 3;
         };
 
        uint16 u16Val;
@@ -150,30 +150,48 @@ enum RMT_IMAGE_METADATA_MODE
 // Bitfield defining the Buffer resource usage flags.
 struct RMT_BUFFER_USAGE_FLAGS
 {
-    uint32 TRANSFER_SOURCE                   : 1;
-    uint32 TRANSFER_DESTINATION              : 1;
-    uint32 UNIFORM_TEXEL_BUFFER              : 1;
-    uint32 STORAGE_TEXEL_BUFFER              : 1;
-    uint32 UNIFORM_BUFFER                    : 1;
-    uint32 STORAGE_BUFFER                    : 1;
-    uint32 INDEX_BUFFER                      : 1;
-    uint32 VERTEX_BUFFER                     : 1;
-    uint32 INDIRECT_BUFFER                   : 1;
-    uint32 TRANSFORM_FEEDBACK_BUFFER         : 1;
-    uint32 TRANSFORM_FEEDBACK_COUNTER_BUFFER : 1;
-    uint32 CONDITIONAL_RENDERING             : 1;
-    uint32 RAY_TRACING                       : 1;
-    uint32 SHADER_DEVICE_ADDRESS             : 1;
+    union
+    {
+        struct
+        {
+            uint16 TRANSFER_SOURCE                   : 1;
+            uint16 TRANSFER_DESTINATION              : 1;
+            uint16 UNIFORM_TEXEL_BUFFER              : 1;
+            uint16 STORAGE_TEXEL_BUFFER              : 1;
+            uint16 UNIFORM_BUFFER                    : 1;
+            uint16 STORAGE_BUFFER                    : 1;
+            uint16 INDEX_BUFFER                      : 1;
+            uint16 VERTEX_BUFFER                     : 1;
+            uint16 INDIRECT_BUFFER                   : 1;
+            uint16 TRANSFORM_FEEDBACK_BUFFER         : 1;
+            uint16 TRANSFORM_FEEDBACK_COUNTER_BUFFER : 1;
+            uint16 CONDITIONAL_RENDERING             : 1;
+            uint16 RAY_TRACING                       : 1;
+            uint16 SHADER_DEVICE_ADDRESS             : 1;
+            uint16 RESERVED                          : 2;
+        };
+
+        uint16 u16Val;
+    };
 };
 
 // Bitfield defining the Buffer resource create flags.
 struct RMT_BUFFER_CREATE_FLAGS
 {
-    uint32 SPARSE_BINDING                 : 1;
-    uint32 SPARSE_RESIDENCY               : 1;
-    uint32 SPARSE_ALIASING                : 1;
-    uint32 PROTECTED                      : 1;
-    uint32 DEVICE_ADDRESS_CAPTURE_REPLAY  : 1;
+    union
+    {
+        struct
+        {
+            uint8 SPARSE_BINDING                 : 1;
+            uint8 SPARSE_RESIDENCY               : 1;
+            uint8 SPARSE_ALIASING                : 1;
+            uint8 PROTECTED                      : 1;
+            uint8 DEVICE_ADDRESS_CAPTURE_REPLAY  : 1;
+            uint8 RESERVED                       : 3;
+        };
+
+        uint8 byteVal;
+    };
 };
 
 // Enumeration of swizzle types
@@ -461,7 +479,7 @@ struct RMT_HEAP_FLAGS
             uint8 PRIMARY              : 1;
             uint8 RT_DS_TEXTURES       : 1;
             uint8 DENY_L0_PROMOTION    : 1;
-            uint8 reserved             : 3;
+            uint8 reserved             : 2;
         };
 
         uint8 byteVal;

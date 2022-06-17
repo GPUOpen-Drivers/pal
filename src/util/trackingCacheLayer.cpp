@@ -98,10 +98,11 @@ Result TrackingCacheLayer::Query(
 // =====================================================================================================================
 // Validate inputs, then store data to our layer. Propagate data down to children if needed.
 Result TrackingCacheLayer::Store(
-    const Hash128* pHashId,
-    const void*    pData,
-    size_t         dataSize,
-    size_t         storeSize)
+    Util::StoreFlags    storeFlags,
+    const Hash128*      pHashId,
+    const void*         pData,
+    size_t              dataSize,
+    size_t              storeSize)
 {
     Result result = Result::ErrorUnknown;
 
@@ -113,7 +114,12 @@ Result TrackingCacheLayer::Store(
     }
     else
     {
-        result = m_pNextLayer->Store(pHashId, pData, dataSize, storeSize);
+        result = m_pNextLayer->Store(
+            storeFlags,
+            pHashId,
+            pData,
+            dataSize,
+            storeSize);
     }
 
     if (pHashId != nullptr)

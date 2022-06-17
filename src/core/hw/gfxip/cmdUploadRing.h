@@ -27,6 +27,7 @@
 
 #include "core/queue.h"
 #include "palVector.h"
+#include "palLiterals.h"
 
 namespace Pal
 {
@@ -177,7 +178,7 @@ private:
         gpusize launchBytes;           // The size of the first uploaded IB (the size of the IB the KMD will launch).
     };
 
-    static constexpr gpusize RaftMemBytes = 256 * 1024; // The size of each raft's GPU memory object.
+    static constexpr gpusize RaftMemBytes = 256 * Util::OneKibibyte; // The size of each raft's GPU memory object.
     static constexpr uint32  RaftRingSize = 2;
     static constexpr uint32  CopyRingSize = 4;
 

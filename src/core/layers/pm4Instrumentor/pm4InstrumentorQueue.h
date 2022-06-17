@@ -30,6 +30,7 @@
 #include "g_platformSettings.h"
 #include "core/layers/decorators.h"
 #include "core/layers/functionIds.h"
+#include "palFile.h"
 #include "palVector.h"
 
 namespace Pal
@@ -124,7 +125,7 @@ private:
     int64                    m_dumpInterval;
     int64                    m_lastCpuPerfCounter;
 
-    char  m_fileName[MaxPathStrLen << 1];
+    char  m_fileName[Util::MaxPathStrLen << 1];
 
     PAL_DISALLOW_DEFAULT_CTOR(Queue);
     PAL_DISALLOW_COPY_AND_ASSIGN(Queue);

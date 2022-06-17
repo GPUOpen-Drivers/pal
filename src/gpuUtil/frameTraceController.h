@@ -28,6 +28,13 @@
 #include "palHashMap.h"
 #include "palTraceSession.h"
 
+namespace Pal
+{
+class Platform;
+class Device;
+class CmdBuffer;
+}
+
 namespace GpuUtil
 {
 
@@ -39,7 +46,7 @@ constexpr Pal::uint32 FrameTraceControllerVersion = 1;
 class FrameTraceController : public ITraceController
 {
 public:
-    FrameTraceController(Pal::IPlatform* pPlatform);
+    FrameTraceController(Pal::Platform* pPlatform);
     virtual ~FrameTraceController();
 
     Pal::Result Init();
@@ -54,16 +61,19 @@ public:
 #endif
 
     virtual Pal::Result OnBeginGpuWork(Pal::uint32 gpuIndex, Pal::ICmdBuffer** ppCmdBuffer);
-
     virtual Pal::Result OnEndGpuWork(Pal::uint32 gpuIndex, Pal::ICmdBuffer** ppCmdBuffer);
 
-    void UpdateFrame(Pal::ICmdBuffer* pCmdBuffer);
+    void FinishTrace();
+
+    void UpdateFrame(Pal::CmdBuffer* pCmdBuffer);
     void OnFrameUpdated();
 
     Pal::uint32 FrameCount() const { return m_frameCount; }
 
 private:
-    Pal::IPlatform* const m_pPlatform;   // Platform associated with this TraceController
+    Pal::Platform* const m_pPlatform;   // Platform associated with this TraceController
+    Pal::Device* m_pCurrentDevice;
+
     Pal::uint64 m_supportedGpuMask;      // Bit mask of GPU indices that are capable of participating in the trace
 
     Pal::uint32 m_frameCount;
@@ -71,7 +81,7 @@ private:
     Pal::uint32 m_currentTraceStartIndex; // Starting frame index of current running trace
     Pal::uint32 m_captureFrameCount;      // Number of frames to wait before ending the trace
 
-    Pal::ICmdBuffer* m_currentCmdBuffer;  // GPU CmdBuffers for TraceSources to submit gpu-work at trace start/end
+    Pal::CmdBuffer* m_pCurrentCmdBuffer;  // GPU CmdBuffers for TraceSources to submit gpu-work at trace start/end
     Util::Mutex m_framePresentLock;
 
     TraceSession* m_pTraceSession;

@@ -664,12 +664,12 @@ namespace DevDriver
             TRACEHANDLE sessionHandle;
 
             // Create the trace session.
-            ULONG startStatus = StartTrace(&sessionHandle, sessionProperties.name, &sessionProperties.properties);
+            ULONG startStatus = StartTraceA(&sessionHandle, sessionProperties.name, &sessionProperties.properties);
 
             if (startStatus == ERROR_ALREADY_EXISTS)
             {
                 // Handle the case where the session was previously left open.  Try closing then starting again.
-                ULONG stopStatus = ControlTrace(
+                ULONG stopStatus = ControlTraceA(
                     sessionHandle,
                     sessionProperties.name,
                     &sessionProperties.properties,
@@ -677,7 +677,7 @@ namespace DevDriver
 
                 if (stopStatus == ERROR_SUCCESS)
                 {
-                    startStatus = StartTrace(&sessionHandle, sessionProperties.name, &sessionProperties.properties);
+                    startStatus = StartTraceA(&sessionHandle, sessionProperties.name, &sessionProperties.properties);
                 }
                 else
                 {
@@ -692,7 +692,7 @@ namespace DevDriver
 
             if (startStatus == ERROR_SUCCESS)
             {
-                ULONG stopStatus = ControlTrace(
+                ULONG stopStatus = ControlTraceA(
                     sessionHandle,
                     sessionProperties.name,
                     &sessionProperties.properties,
@@ -719,7 +719,7 @@ namespace DevDriver
                     startStatus);
             }
 
-            FormatMessage(
+            FormatMessageA(
                 FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
                 NULL,
                 statusCode,

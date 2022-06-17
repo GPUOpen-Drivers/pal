@@ -600,6 +600,20 @@ Result GetExecutableName(
 }
 
 // =====================================================================================================================
+// Gets the current library name. ie: the name of the library containing the function'GetCurrentLibraryName'.
+// Optionally, it will also return the extension if the input buffer for extension is valid.
+Result GetCurrentLibraryName(
+    char*  pLibBuffer,
+    size_t libBufferLength,
+    char*  pExtBuffer,
+    size_t extBufferLength)
+{
+    Result result = Result::Success;
+    PAL_NOT_IMPLEMENTED();
+    return result;
+}
+
+// =====================================================================================================================
 // Splits a filename into its path and file components.
 void SplitFilePath(
     const char* pFullPath,

@@ -81,6 +81,9 @@ public:
     bool IsExternalOpened() const { return m_flags.externalOpened; }
     bool IsTimeline()       const { return m_flags.timeline;       }
 
+    // A public helper method which calls OsWait
+    Result WaitNoBatching(Queue* pQueue, uint64 value) { return OsWait(pQueue, value); }
+
 protected:
     explicit QueueSemaphore(Device* pDevice);
 

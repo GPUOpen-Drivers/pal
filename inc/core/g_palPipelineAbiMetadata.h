@@ -221,6 +221,7 @@ struct PipelineMetadata
             uint32 internalPipelineHash   : 1;
             uint32 shaderFunctions        : 1;
             uint32 registers              : 1;
+            uint32 placeholder0           : 1;
             uint32 userDataLimit          : 1;
             uint32 spillThreshold         : 1;
             uint32 usesViewportArrayIndex : 1;
@@ -228,14 +229,14 @@ struct PipelineMetadata
             uint32 nggSubgroupSize        : 1;
             uint32 numInterpolants        : 1;
             uint32 meshScratchMemorySize  : 1;
-            uint32 placeholder0           : 1;
             uint32 placeholder1           : 1;
+            uint32 placeholder2           : 1;
             uint32 api                    : 1;
             uint32 apiCreateInfo          : 1;
             uint32 gsOutputsLines         : 1;
             uint32 psDummyExport          : 1;
             uint32 psSampleMask           : 1;
-            uint32 reserved               : 13;
+            uint32 reserved               : 12;
         };
         uint32 uAll;
     } hasEntry;

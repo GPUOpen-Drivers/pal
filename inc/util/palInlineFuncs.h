@@ -144,6 +144,16 @@ constexpr uint32 LowPart(
     return (value & 0x00000000FFFFFFFF);
 }
 
+/// Combines the low and high 32 bits of a 64-bit integer.
+///
+/// @returns Returns the 64-bit integer.
+constexpr uint64 Uint64CombineParts(
+    uint32 lowPart,
+    uint32 highPart)
+{
+    return (uint64(highPart) << 32) | uint64(lowPart);
+}
+
 /// Returns a larger value from repeating a single byte
 constexpr uint32 ReplicateByteAcrossDword(
     uint8 value)  ///< 8-bit input value.

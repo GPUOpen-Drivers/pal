@@ -38,7 +38,8 @@ namespace Pal
 {
 
 // Forward declarations.
-class IGpuMemory;
+struct GpuMemSubAllocInfo;
+class  IGpuMemory;
 
 /// Flags controlling the creation of ICmdAllocator objects.
 union CmdAllocatorCreateFlags

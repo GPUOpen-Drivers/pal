@@ -56,6 +56,34 @@ enum JsonScope : uint8
 };
 
 // =====================================================================================================================
+void JsonFileStream::WriteString(
+    const char* pString,
+    uint32      length)
+{
+    if ((m_writeResult == Result::Success) && (length != 0))
+    {
+        m_writeResult = m_file.Write(pString, length * sizeof(char));
+    }
+}
+
+// =====================================================================================================================
+void JsonFileStream::WriteCharacter(
+    char character)
+{
+    if (m_writeResult == Result::Success)
+    {
+        m_writeResult = m_file.Write(&character, sizeof(character));
+    }
+}
+
+// =====================================================================================================================
+Result JsonFileStream::OpenFile(
+    const char* pFilename)
+{
+    return m_file.Open(pFilename, Util::FileAccessWrite);
+}
+
+// =====================================================================================================================
 JsonWriter::JsonWriter(
     JsonStream* pStream)
     :
@@ -149,6 +177,17 @@ void JsonWriter::Value(
 }
 
 // =====================================================================================================================
+void JsonWriter::Value(
+    Util::StringView<char> value)
+{
+    MaybeNextListEntry();
+    TransitionToToken(TokenValue, false);
+    m_pStream->WriteCharacter('"');
+    m_pStream->WriteString(value.Data(), value.Length());
+    m_pStream->WriteCharacter('"');
+}
+
+// =====================================================================================================================
 template <typename T>
 void JsonWriter::FormattedValue(
     const char* pFormat,
@@ -167,10 +206,10 @@ void JsonWriter::FormattedValue(
 }
 
 // =====================================================================================================================
-void JsonWriter::HexValue(uint64 value) { FormattedValue("\"0x%016\"" PRIx64, value); }
-void JsonWriter::HexValue(uint32 value) { FormattedValue("\"0x%08\""  PRIx32, value); }
-void JsonWriter::HexValue(uint16 value) { FormattedValue("\"0x%04\""  PRIx16, value); }
-void JsonWriter::HexValue(uint8  value) { FormattedValue("\"0x%02\""  PRIx8, value); }
+void JsonWriter::HexValue(uint64 value) { FormattedValue("\"0x%016" PRIx64 "\"", value); }
+void JsonWriter::HexValue(uint32 value) { FormattedValue("\"0x%08"  PRIx32 "\"", value); }
+void JsonWriter::HexValue(uint16 value) { FormattedValue("\"0x%04"  PRIx16 "\"", value); }
+void JsonWriter::HexValue(uint8  value) { FormattedValue("\"0x%02"  PRIx8  "\"", value); }
 
 // =====================================================================================================================
 void JsonWriter::Value(uint64 value) { FormattedValue("%" PRIu64, value); }

@@ -2445,8 +2445,8 @@ void RsrcProcMgr::HwlFixupResolveDstImage(
                 PAL_ASSERT(pRegions[i].pQuadSamplePattern == nullptr);
             }
             transition[i].imageInfo.pQuadSamplePattern = pRegions[i].pQuadSamplePattern;
-            transition[i].srcCacheMask                 = Pal::CoherResolve;
-            transition[i].dstCacheMask                 = Pal::CoherResolve;
+            transition[i].srcCacheMask                 = Pal::CoherResolveDst;
+            transition[i].dstCacheMask                 = Pal::CoherResolveDst;
         }
 
         barrierInfo.pTransitions    = transition.Data();
@@ -2637,20 +2637,24 @@ void RsrcProcMgr::DepthStencilClearGraphics(
         auto*const pCmdStream  = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics);
         PAL_ASSERT(pCmdStream != nullptr);
 
-        // We should not use DB_CACHE_FLUSH_AND_INV here. Because it is a non-TimeStamp/Fence event.
-        // ACQUIRE_MEM cp is a synchronous operation.
-        // It will do a cache flush,and ensure the DB cache is all clean before the next draw.
-        AcquireMemInfo acquireInfo = {};
-        // Setting wbInvDb =1 is to tell DB to flush the cache manually.
-        acquireInfo.flags.wbInvDb        = 1;
-        acquireInfo.engineType           = pCmdBuffer->GetEngineType();
-        // We should wait for both depth and stencil to be safe.
-        acquireInfo.cpMeCoherCntl.u32All = CpMeCoherCntlStallDbMask;
-        acquireInfo.baseAddress          = dstImage.Parent()->GetGpuVirtualAddr();
-        acquireInfo.sizeBytes            = dstImage.GetGpuMemSyncSize();
-
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
-        pCmdSpace += m_cmdUtil.BuildAcquireMem(acquireInfo, pCmdSpace);
+
+        {
+            // We should not use DB_CACHE_FLUSH_AND_INV here. Because it is a non-TimeStamp/Fence event.
+            // ACQUIRE_MEM cp is a synchronous operation.
+            // It will do a cache flush,and ensure the DB cache is all clean before the next draw.
+            AcquireMemInfo acquireInfo = {};
+            acquireInfo.engineType           = pCmdBuffer->GetEngineType();
+            // Setting wbInvDb =1 is to tell DB to flush the cache manually.
+            acquireInfo.flags.wbInvDb        = 1;
+            // We should wait for both depth and stencil to be safe.
+            acquireInfo.cpMeCoherCntl.u32All = CpMeCoherCntlStallDbMask;
+            acquireInfo.baseAddress          = dstImage.Parent()->GetGpuVirtualAddr();
+            acquireInfo.sizeBytes            = dstImage.GetGpuMemSyncSize();
+
+            pCmdSpace += m_cmdUtil.BuildAcquireMem(acquireInfo, pCmdSpace);
+        }
+
         pCmdStream->CommitCommands(pCmdSpace);
     }
 
@@ -7157,51 +7161,16 @@ bool Gfx10RsrcProcMgr::PreferComputeForNonLocalDestCopy(
 }
 
 // =====================================================================================================================
-// Updates hTile memory to reflect the VRS data supplied in the source image.
-//
-// Assumptions:  It is the callers responsibility to have bound a depth view that points to the supplied depth image!
-//               This copy will work just fine if the depth image isn't bound, but the upcoming draw won't actually
-//               utilize the newly copied VRS data if depth isn't bound.
-void Gfx10RsrcProcMgr::CopyVrsIntoHtile(
+void Gfx10RsrcProcMgr::LaunchOptimizedVrsCopyShader(
     GfxCmdBuffer*                 pCmdBuffer,
     const Gfx10DepthStencilView*  pDsView,
     const Extent3d&               depthExtent,
-    const Pal::Image*             pSrcVrsImg
+    const Pal::Image*             pSrcVrsImg,
+    const Gfx9Htile*const         pHtile
     ) const
 {
-    // What are we even doing here?
-    PAL_ASSERT(m_pDevice->Parent()->ChipProperties().gfxip.supportsVrs);
-
-    // If the client didn't bind a depth buffer how do they expect to use the results of this copy?
-    PAL_ASSERT((pDsView != nullptr) && (pDsView->GetImage() != nullptr));
-
-    // This function assumes it is only called on graphics command buffers.
-    PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
-
-    // This means that we either don't have hTile (so we don't have a destination for our copy) or this hTile
-    // buffer wasn't created to receive VRS data.  Both of which would be bad.
-    const Image*const          pDepthImg    = pDsView->GetImage();
-    const Gfx9Htile*const      pHtile       = pDepthImg->GetHtile();
-    PAL_ASSERT(pHtile->HasMetaEqGenerator());
-    const Gfx9MetaEqGenerator* pEqGenerator = pHtile->GetMetaEqGenerator();
-
-    PAL_ASSERT((pHtile != nullptr) && (pHtile->GetHtileUsage().vrs != 0));
-
     const Pal::Device*const pPalDevice = m_pDevice->Parent();
-    Pal::CmdStream*const    pCmdStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics);
-
-    // Step 1: The internal pre-CS barrier. The depth image is already bound as a depth view so if we just launch the
-    // shader right away we risk corrupting HTile. We need to be sure that any prior draws that reference the depth
-    // image are idle, HTile writes have been flushed down from the DB, and all stale HTile data has been invalidated
-    // in the shader caches.
-    uint32* pCmdSpace = pCmdStream->ReserveCommands();
-    pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(FLUSH_AND_INV_DB_META, pCmdBuffer->GetEngineType(), pCmdSpace);
-    pCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEventTs(pCmdBuffer->GetEngineType(),
-                                                        BOTTOM_OF_PIPE_TS,
-                                                        TcCacheOp::InvL1,
-                                                        pCmdBuffer->TimestampGpuVirtAddr(),
-                                                        pCmdSpace);
-    pCmdStream->CommitCommands(pCmdSpace);
+    const Gfx9MetaEqGenerator* pEqGenerator = pHtile->GetMetaEqGenerator();
 
     // The shader we're about to execute makes these assumptions in its source. If these trip we can add more support.
     PAL_ASSERT(pHtile->PipeAligned() != 0);
@@ -7381,6 +7350,58 @@ void Gfx10RsrcProcMgr::CopyVrsIntoHtile(
     }
 
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+}
+
+// =====================================================================================================================
+// Updates hTile memory to reflect the VRS data supplied in the source image.
+//
+// Assumptions:  It is the callers responsibility to have bound a depth view that points to the supplied depth image!
+//               This copy will work just fine if the depth image isn't bound, but the upcoming draw won't actually
+//               utilize the newly copied VRS data if depth isn't bound.
+void Gfx10RsrcProcMgr::CopyVrsIntoHtile(
+    GfxCmdBuffer*                 pCmdBuffer,
+    const Gfx10DepthStencilView*  pDsView,
+    const Extent3d&               depthExtent,
+    const Pal::Image*             pSrcVrsImg
+    ) const
+{
+    // What are we even doing here?
+    PAL_ASSERT(m_pDevice->Parent()->ChipProperties().gfxip.supportsVrs);
+
+    // If the client didn't bind a depth buffer how do they expect to use the results of this copy?
+    PAL_ASSERT((pDsView != nullptr) && (pDsView->GetImage() != nullptr));
+
+    // This function assumes it is only called on graphics command buffers.
+    PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
+
+    // This means that we either don't have hTile (so we don't have a destination for our copy) or this hTile
+    // buffer wasn't created to receive VRS data.  Both of which would be bad.
+    const Image*const          pDepthImg    = pDsView->GetImage();
+    const Gfx9Htile*const      pHtile       = pDepthImg->GetHtile();
+    PAL_ASSERT(pHtile->HasMetaEqGenerator());
+    const Gfx9MetaEqGenerator* pEqGenerator = pHtile->GetMetaEqGenerator();
+
+    PAL_ASSERT((pHtile != nullptr) && (pHtile->GetHtileUsage().vrs != 0));
+
+    const Pal::Device*const pPalDevice = m_pDevice->Parent();
+    Pal::CmdStream*const    pCmdStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics);
+
+    // Step 1: The internal pre-CS barrier. The depth image is already bound as a depth view so if we just launch the
+    // shader right away we risk corrupting HTile. We need to be sure that any prior draws that reference the depth
+    // image are idle, HTile writes have been flushed down from the DB, and all stale HTile data has been invalidated
+    // in the shader caches.
+    uint32* pCmdSpace = pCmdStream->ReserveCommands();
+    pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(FLUSH_AND_INV_DB_META, pCmdBuffer->GetEngineType(), pCmdSpace);
+    pCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEventTs(pCmdBuffer->GetEngineType(),
+                                                        BOTTOM_OF_PIPE_TS,
+                                                        TcCacheOp::InvL1,
+                                                        pCmdBuffer->TimestampGpuVirtAddr(),
+                                                        pCmdSpace);
+    pCmdStream->CommitCommands(pCmdSpace);
+
+    {
+        LaunchOptimizedVrsCopyShader(pCmdBuffer, pDsView, depthExtent, pSrcVrsImg, pHtile);
+    }
 
     // Step 3: The internal post-CS barrier. We must wait for the copy shader to finish. We invalidated the DB's
     // HTile cache in step 1 so we shouldn't need to touch the caches a second time.

@@ -367,7 +367,12 @@ struct PresentSwapChainInfo
         struct
         {
             uint32 notifyOnly           :  1;   ///< True if it is a notify-only present
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 739
+            uint32 isTemporaryMono      :  1;   ///< True if WS Stereo is enabled, but 3D display mode turned off.
+            uint32 reserved             : 30;   ///< Reserved for future use.
+#else
             uint32 reserved             : 31;   ///< Reserved for future use.
+#endif
         };
         uint32 u32All;                          ///< Flags packed as 32-bit uint.
     } flags;                                    ///< PresentSwapChainInfo flags.

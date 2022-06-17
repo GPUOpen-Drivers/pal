@@ -48,10 +48,11 @@ public:
         QueryResult*    pQuery) final;
 
     virtual Result Store(
-        const Hash128*  pHashId,
-        const void*     pData,
-        size_t          dataSize,
-        size_t          storeSize = 0) final;
+        Util::StoreFlags    storeFlags,
+        const Hash128*      pHashId,
+        const void*         pData,
+        size_t              dataSize,
+        size_t              storeSize = 0) final;
 
     virtual Result Load(
         const QueryResult* pQuery,
@@ -89,10 +90,11 @@ protected:
         const Hash128*  pHashId,
         QueryResult*    pQuery) = 0;
     virtual Result StoreInternal(
-        const Hash128*  pHashId,
-        const void*     pData,
-        size_t          dataSize,
-        size_t          storeSize) = 0;
+        Util::StoreFlags    storeFlags,
+        const Hash128*      pHashId,
+        const void*         pData,
+        size_t              dataSize,
+        size_t              storeSize) = 0;
     virtual Result LoadInternal(
         const QueryResult* pQuery,
         void*              pBuffer) = 0;

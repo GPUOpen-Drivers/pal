@@ -26,6 +26,7 @@
 #pragma once
 
 #include "palMutex.h"
+#include "palLiterals.h"
 #include "core/device.h"
 #include "vaminterface.h"
 
@@ -101,7 +102,7 @@ protected:
     gpusize CalcPtbSize(Device* pDevice) const;
 
     // One page table entry maps one page's worth of video memory.
-    static constexpr size_t SpaceMappedPerPte = 4 * 1024;
+    static constexpr size_t SpaceMappedPerPte = 4 * Util::OneKibibyte;
 
     VAM_HANDLE  m_hVamInstance;
     // VAM section corresponding to each usable virtual address range on the GPU.

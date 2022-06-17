@@ -97,6 +97,17 @@ extern uint32* CreateAndBindEmbeddedUserData(
     PipelineBindPoint bindPoint,
     uint32            entryToBind);
 
+template <typename T>
+T* AllocateEmbeddedArray(
+    GfxCmdBuffer* pCmdBuffer,
+    uint32        count,
+    gpusize*      pGpuVirtAddr)
+{
+    constexpr uint32 AlignDw = static_cast<uint32>(alignof(T) / sizeof(uint32));
+    const uint32     sizeDw  = Util::NumBytesToNumDwords(sizeof(T) * count);
+    return reinterpret_cast<T*>(pCmdBuffer->CmdAllocateEmbeddedData(sizeDw, AlignDw, pGpuVirtAddr));
+}
+
 extern void ConvertClearColorToNativeFormat(
     SwizzledFormat baseFormat,
     SwizzledFormat clearFormat,

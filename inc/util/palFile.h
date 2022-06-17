@@ -37,6 +37,9 @@
 
 namespace Util
 {
+static constexpr uint32 MaxPathStrLen = 512;
+static constexpr uint32 MaxFileNameStrLen = 256;
+
 /// Enumerates access modes that may be required on an opened file.
 /// Can be bitwise ORed together to specify multiple simultaneous modes.
 enum FileAccessMode : uint32

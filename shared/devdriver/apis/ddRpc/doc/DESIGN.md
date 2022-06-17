@@ -9,12 +9,12 @@ This document is intended for DevDriver engineers and engineers with an interest
 ### Move towards industry standard communication models
 
 One of the largest barriers to entry with the existing driver communications solutions is the fact that they use proprietary interfaces. This discourages engineers from other teams from attempting to use the code since its yet another API that they need to learn. Similar to ddNet (which exposes a low-level socket-like interface), ddRpc exposes a remote procedural call interface that potential users of the library may already be familiar with.
- 
+
 ### Reduce DevDriver library maintenance and protocol iteration time
 
 Many of the production tools supported by the driver are based on rigid hand-written interfaces that live inside the DevDriver library. These interfaces cover both the tool side, and the driver side of the interaction. This unfortunately means that any time a tool needs to change the information sent across the wire, they need to ask the DevDriver team to make a library change. While this process can be relatively quick, it can be error prone and it balloons the number of people that need to be involved in order to implement a simple change.
 
-ddRpc hopes to address these issues by moving the protocol specification outside of the library code so it can be modified without involving the DevDriver team. The library is also paired with a generator tool which automatically creates the error-prone/boilerplate code for the tool side interface, the driver side interface, and the serialization/deserialization layer that goes in between them. If everything is working as designed, adding a new field to an existing protocol should be as simple as adding a line to a protocol file and regenerating both sides of the interface. 
+ddRpc hopes to address these issues by moving the protocol specification outside of the library code so it can be modified without involving the DevDriver team. The library is also paired with a generator tool which automatically creates the error-prone/boilerplate code for the tool side interface, the driver side interface, and the serialization/deserialization layer that goes in between them. If everything is working as designed, adding a new field to an existing protocol should be as simple as adding a line to a protocol file and regenerating both sides of the interface.
 
 ### Shrink the breadth of the interfaces exposed by the DevDriver team
 

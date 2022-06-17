@@ -499,6 +499,10 @@ enum class Result : int32
 
     /// The operation failed because the disk is full.
     ErrorDiskFull                           = -(0x00000067),
+
+    /// The static VMID acquire/release operation failed.
+    ErrorStaticVmidOpFailed                 = -(0x00000068),
+
 };
 
 /// Length of date field used in BuildUniqueId
@@ -520,6 +524,21 @@ struct Rational
 {
     uint32 numerator;   ///< Numerator
     uint32 denominator; ///< Denominator
+};
+
+// Flags to be passed to store operations.
+struct StoreFlags
+{
+    union
+    {
+        struct
+        {
+            uint32 enableFileCache      : 1;    ///< If we should skip the file cache layer when we get to it.
+            uint32 enableCompression    : 1;    ///< If we should skip the compression layer when we get to it.
+            uint32 reserved             : 30;
+        };
+        uint32 all;
+    };
 };
 
 /// Inline function to determine if a Result enum is considered an error.

@@ -94,6 +94,8 @@ Result OpenSslLib::Init()
         {
             "libssl.so",
             "libssl.so.1.1", // SONAME for OpenSSL v1.1.1
+            "libssl.so.3",   // SONAME for OpenSSL v3.0.2
+                             // Default version installed on Ubuntu 22.04
             "libssl.so.10",  // SONAME for Fedora/Redhat/CentOS OpenSSL v1.0.x
         };
 

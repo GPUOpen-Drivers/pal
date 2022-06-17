@@ -23,6 +23,9 @@
  *
  **********************************************************************************************************************/
 
+#if PAL_ENABLE_LOGGING
+#include "palDbgLogMgr.h"
+#endif
 #include "palDbgPrint.h"
 #include "palFile.h"
 #include "palSysMemory.h"
@@ -108,6 +111,7 @@ static void OutputString(
     }
 
     case DbgPrintMode::File:
+#if PAL_ENABLE_PRINTS_ASSERTS
         PAL_ASSERT(target.pFileName != nullptr);
         result = OpenLogFile(&logFile, target.pFileName, FileAccessAppend);
         if (result == Result::Success)
@@ -115,6 +119,7 @@ static void OutputString(
             logFile.Write(pString, strlen(pString));
         }
         break;
+#endif
 
     case DbgPrintMode::Disable:
     default:
@@ -255,10 +260,14 @@ void DbgVPrintf(
 #elif PAL_ENABLE_LOGGING
     SeverityLevel severityLevel = DefaultSeverityLevel;
     OriginationType origType    = DefaultOriginationType;
-
     // Map DbgPrintCategory to the new logging system. DbgPrintStyle is currently ignored.
     MapDbgPrintCategory(category, &severityLevel, &origType);
-    Util::DbgVLog(severityLevel, origType, "AMD-PAL", pFormat, argList);
+
+    // Proceed only if logging is enabled and message is acceptable
+    if (g_dbgLogMgr.GetLoggingEnabled() && (g_dbgLogMgr.AcceptMessage(severityLevel, origType)))
+    {
+        Util::DbgVLog(severityLevel, origType, "AMD-PAL", pFormat, argList);
+    }
 #endif
 }
 
@@ -286,19 +295,25 @@ void DbgPrintf(
         va_end(argList);
     }
 #elif PAL_ENABLE_LOGGING
-    va_list argList;
-    va_start(argList, pFormat);
-
     SeverityLevel severityLevel = DefaultSeverityLevel;
     OriginationType origType    = DefaultOriginationType;
     // Map DbgPrintCategory to the new logging system. DbgPrintStyle is currently ignored.
     MapDbgPrintCategory(category, &severityLevel, &origType);
-    Util::DbgVLog(severityLevel, origType, "AMD-PAL", pFormat, argList);
 
-    va_end(argList);
+    // Proceed only if logging is enabled and message is acceptable
+    if (g_dbgLogMgr.GetLoggingEnabled() && (g_dbgLogMgr.AcceptMessage(severityLevel, origType)))
+    {
+        va_list argList;
+        va_start(argList, pFormat);
+        Util::DbgVLog(severityLevel, origType, "AMD-PAL", pFormat, argList);
+        va_end(argList);
+    }
 #endif
 }
 
+#endif
+
+#if PAL_ENABLE_PRINTS_ASSERTS
 // =====================================================================================================================
 // Sets the debug print mode (output to debugger, write to file, disabled) for the specified category of messages.
 // Probably controlled by setting and set during initialization.
@@ -417,7 +432,7 @@ size_t EncodeAsFilename(
             ((ch == ' ') && (allowSpace == false)) ||
             (((ch == '\\') || (ch == '/')) && (allowDirSeparator == false)) ||
             (ch == '<') || (ch == '>') || (ch == ':') || (ch == '"') || (ch == '|') ||
-            (ch == '?') || (ch == '?') || (ch == 0x7f))
+            (ch == '?') || (ch == 0x7f))
         {
             // Illegal character needs encoding.
             pFormat = "%%%2.2X";

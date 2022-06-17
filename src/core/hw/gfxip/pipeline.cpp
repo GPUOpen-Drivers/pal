@@ -265,9 +265,12 @@ Result Pipeline::QueryAllocationInfo(
 
         if (pGpuMemList != nullptr)
         {
-            pGpuMemList[0].offset     = m_gpuMem.Offset();
-            pGpuMemList[0].pGpuMemory = m_gpuMem.Memory();
-            pGpuMemList[0].size       = m_gpuMemSize;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
+            pGpuMemList[0].pGpuMemory  = m_gpuMem.Memory();
+#endif
+            pGpuMemList[0].address     = m_gpuMem.Memory()->Desc().gpuVirtAddr;
+            pGpuMemList[0].offset      = m_gpuMem.Offset();
+            pGpuMemList[0].size        = m_gpuMemSize;
         }
 
         result = Result::Success;

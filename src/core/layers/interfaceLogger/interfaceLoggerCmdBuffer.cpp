@@ -54,8 +54,8 @@ CmdBuffer::CmdBuffer(
     m_objectId(objectId),
     m_pBoundPipelines{}
 {
-    m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Compute)]  = CmdSetUserDataCs;
-    m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Graphics)] = CmdSetUserDataGfx;
+    m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Compute)]   = CmdSetUserDataCs;
+    m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Graphics)]  = CmdSetUserDataGfx;
 
     m_funcTable.pfnCmdDraw                      = CmdDraw;
     m_funcTable.pfnCmdDrawOpaque                = CmdDrawOpaque;
@@ -345,6 +345,28 @@ void CmdBuffer::CmdSetDepthBounds(
         pLogContext->EndInput();
 
         m_pPlatform->LogEndFunc(pLogContext);
+    }
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdDuplicateUserData(
+    PipelineBindPoint source,
+    PipelineBindPoint dest)
+{
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdDuplicateUserData;
+    funcInfo.objectId     = m_objectId;
+    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    m_pNextLayer->CmdDuplicateUserData(source, dest);
+    funcInfo.postCallTime = m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndEnum("source", source);
+        pLogContext->KeyAndEnum("dest",   dest);
+        pLogContext->EndInput();
     }
 }
 
@@ -1040,13 +1062,20 @@ void CmdBuffer::CmdBarrier(
 uint32 CmdBuffer::CmdRelease(
     const AcquireReleaseInfo& releaseInfo)
 {
-    AutoBuffer<MemBarrier, 32, Platform> memoryBarriers(releaseInfo.memoryBarrierCount, m_pPlatform);
     AutoBuffer<ImgBarrier, 32, Platform> imageBarriers(releaseInfo.imageBarrierCount, m_pPlatform);
 
     uint32 syncToken = 0;
 
-    if ((memoryBarriers.Capacity() < releaseInfo.memoryBarrierCount) ||
-        (imageBarriers.Capacity() < releaseInfo.imageBarrierCount))
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
+    AutoBuffer<MemBarrier, 32, Platform> memoryBarriers(releaseInfo.memoryBarrierCount, m_pPlatform);
+    if (memoryBarriers.Capacity() < releaseInfo.memoryBarrierCount)
+    {
+        // If the layers become production code, we must set a flag here and return out of memory on End().
+        PAL_ASSERT_ALWAYS();
+    }
+    else
+#endif
+    if (imageBarriers.Capacity() < releaseInfo.imageBarrierCount)
     {
         // If the layers become production code, we must set a flag here and return out of memory on End().
         PAL_ASSERT_ALWAYS();
@@ -1055,12 +1084,14 @@ uint32 CmdBuffer::CmdRelease(
     {
         AcquireReleaseInfo nextReleaseInfo = releaseInfo;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
         for (uint32 i = 0; i < releaseInfo.memoryBarrierCount; i++)
         {
             memoryBarriers[i]                   = releaseInfo.pMemoryBarriers[i];
             memoryBarriers[i].memory.pGpuMemory = NextGpuMemory(releaseInfo.pMemoryBarriers[i].memory.pGpuMemory);
         }
         nextReleaseInfo.pMemoryBarriers = &memoryBarriers[0];
+#endif
 
         for (uint32 i = 0; i < releaseInfo.imageBarrierCount; i++)
         {
@@ -1097,11 +1128,18 @@ void CmdBuffer::CmdAcquire(
     uint32                    syncTokenCount,
     const uint32*             pSyncTokens)
 {
-    AutoBuffer<MemBarrier, 32, Platform> memoryBarriers(acquireInfo.memoryBarrierCount, m_pPlatform);
     AutoBuffer<ImgBarrier, 32, Platform> imageBarriers(acquireInfo.imageBarrierCount, m_pPlatform);
 
-    if ((memoryBarriers.Capacity() < acquireInfo.memoryBarrierCount) ||
-        (imageBarriers.Capacity() < acquireInfo.imageBarrierCount))
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
+    AutoBuffer<MemBarrier, 32, Platform> memoryBarriers(acquireInfo.memoryBarrierCount, m_pPlatform);
+    if (memoryBarriers.Capacity() < acquireInfo.memoryBarrierCount)
+    {
+        // If the layers become production code, we must set a flag here and return out of memory on End().
+        PAL_ASSERT_ALWAYS();
+    }
+    else
+#endif
+    if (imageBarriers.Capacity() < acquireInfo.imageBarrierCount)
     {
         // If the layers become production code, we must set a flag here and return out of memory on End().
         PAL_ASSERT_ALWAYS();
@@ -1110,12 +1148,14 @@ void CmdBuffer::CmdAcquire(
     {
         AcquireReleaseInfo nextAcquireInfo = acquireInfo;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
         for (uint32 i = 0; i < acquireInfo.memoryBarrierCount; i++)
         {
             memoryBarriers[i]                   = acquireInfo.pMemoryBarriers[i];
             memoryBarriers[i].memory.pGpuMemory = NextGpuMemory(acquireInfo.pMemoryBarriers[i].memory.pGpuMemory);
         }
         nextAcquireInfo.pMemoryBarriers = &memoryBarriers[0];
+#endif
 
         for (uint32 i = 0; i < acquireInfo.imageBarrierCount; i++)
         {
@@ -1156,11 +1196,18 @@ void CmdBuffer::CmdReleaseEvent(
     const AcquireReleaseInfo& releaseInfo,
     const IGpuEvent*          pGpuEvent)
 {
-    AutoBuffer<MemBarrier, 32, Platform> memoryBarriers(releaseInfo.memoryBarrierCount, m_pPlatform);
     AutoBuffer<ImgBarrier, 32, Platform> imageBarriers(releaseInfo.imageBarrierCount, m_pPlatform);
 
-    if ((memoryBarriers.Capacity() < releaseInfo.memoryBarrierCount) ||
-        (imageBarriers.Capacity() < releaseInfo.imageBarrierCount))
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
+    AutoBuffer<MemBarrier, 32, Platform> memoryBarriers(releaseInfo.memoryBarrierCount, m_pPlatform);
+    if (memoryBarriers.Capacity() < releaseInfo.memoryBarrierCount)
+    {
+        // If the layers become production code, we must set a flag here and return out of memory on End().
+        PAL_ASSERT_ALWAYS();
+    }
+    else
+#endif
+    if (imageBarriers.Capacity() < releaseInfo.imageBarrierCount)
     {
         // If the layers become production code, we must set a flag here and return out of memory on End().
         PAL_ASSERT_ALWAYS();
@@ -1169,12 +1216,14 @@ void CmdBuffer::CmdReleaseEvent(
     {
         AcquireReleaseInfo nextReleaseInfo = releaseInfo;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
         for (uint32 i = 0; i < releaseInfo.memoryBarrierCount; i++)
         {
             memoryBarriers[i]                   = releaseInfo.pMemoryBarriers[i];
             memoryBarriers[i].memory.pGpuMemory = NextGpuMemory(releaseInfo.pMemoryBarriers[i].memory.pGpuMemory);
         }
         nextReleaseInfo.pMemoryBarriers = &memoryBarriers[0];
+#endif
 
         for (uint32 i = 0; i < releaseInfo.imageBarrierCount; i++)
         {
@@ -1209,12 +1258,19 @@ void CmdBuffer::CmdAcquireEvent(
     uint32                    gpuEventCount,
     const IGpuEvent*const*    ppGpuEvents)
 {
-    AutoBuffer<MemBarrier, 32, Platform> memoryBarriers(acquireInfo.memoryBarrierCount, m_pPlatform);
     AutoBuffer<ImgBarrier, 32, Platform> imageBarriers(acquireInfo.imageBarrierCount, m_pPlatform);
     AutoBuffer<IGpuEvent*, 16, Platform> nextGpuEvents(gpuEventCount, m_pPlatform);
 
-    if ((memoryBarriers.Capacity() < acquireInfo.memoryBarrierCount) ||
-        (imageBarriers.Capacity() < acquireInfo.imageBarrierCount)   ||
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
+    AutoBuffer<MemBarrier, 32, Platform> memoryBarriers(acquireInfo.memoryBarrierCount, m_pPlatform);
+    if (memoryBarriers.Capacity() < acquireInfo.memoryBarrierCount)
+    {
+        // If the layers become production code, we must set a flag here and return out of memory on End().
+        PAL_ASSERT_ALWAYS();
+    }
+    else
+#endif
+    if ((imageBarriers.Capacity() < acquireInfo.imageBarrierCount)   ||
         (nextGpuEvents.Capacity() < gpuEventCount))
     {
         // If the layers become production code, we must set a flag here and return out of memory on End().
@@ -1224,12 +1280,14 @@ void CmdBuffer::CmdAcquireEvent(
     {
         AcquireReleaseInfo nextAcquireInfo = acquireInfo;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
         for (uint32 i = 0; i < acquireInfo.memoryBarrierCount; i++)
         {
             memoryBarriers[i]                   = acquireInfo.pMemoryBarriers[i];
             memoryBarriers[i].memory.pGpuMemory = NextGpuMemory(acquireInfo.pMemoryBarriers[i].memory.pGpuMemory);
         }
         nextAcquireInfo.pMemoryBarriers = &memoryBarriers[0];
+#endif
 
         for (uint32 i = 0; i < acquireInfo.imageBarrierCount; i++)
         {
@@ -1274,25 +1332,32 @@ void CmdBuffer::CmdAcquireEvent(
 void CmdBuffer::CmdReleaseThenAcquire(
     const AcquireReleaseInfo& barrierInfo)
 {
-    AutoBuffer<MemBarrier, 32, Platform> memoryBarriers(barrierInfo.memoryBarrierCount, m_pPlatform);
     AutoBuffer<ImgBarrier, 32, Platform> imageBarriers(barrierInfo.imageBarrierCount, m_pPlatform);
 
-    if ((memoryBarriers.Capacity() < barrierInfo.memoryBarrierCount) ||
-        (imageBarriers.Capacity() < barrierInfo.imageBarrierCount))
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
+    AutoBuffer<MemBarrier, 32, Platform> memoryBarriers(barrierInfo.memoryBarrierCount, m_pPlatform);
+    if (memoryBarriers.Capacity() < barrierInfo.memoryBarrierCount)
     {
         // If the layers become production code, we must set a flag here and return out of memory on End().
         PAL_ASSERT_ALWAYS();
     }
     else
+#endif
+    if (imageBarriers.Capacity() < barrierInfo.imageBarrierCount)
+    {
+    }
+    else
     {
         AcquireReleaseInfo nextBarrierInfo = barrierInfo;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
         for (uint32 i = 0; i < barrierInfo.memoryBarrierCount; i++)
         {
             memoryBarriers[i]                   = barrierInfo.pMemoryBarriers[i];
             memoryBarriers[i].memory.pGpuMemory = NextGpuMemory(barrierInfo.pMemoryBarriers[i].memory.pGpuMemory);
         }
         nextBarrierInfo.pMemoryBarriers = &memoryBarriers[0];
+#endif
 
         for (uint32 i = 0; i < barrierInfo.imageBarrierCount; i++)
         {

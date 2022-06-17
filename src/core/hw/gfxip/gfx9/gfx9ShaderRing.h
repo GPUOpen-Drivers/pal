@@ -27,6 +27,7 @@
 
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "core/gpuMemory.h"
+#include "palLiterals.h"
 
 namespace Pal
 {
@@ -222,7 +223,7 @@ protected:
     virtual void UpdateSrds() const override;
 
 private:
-    static constexpr uint32 PayloadDataEntrySize = 16 * 1024;  // This is the expected maximum size by the APIs.
+    static constexpr uint32 PayloadDataEntrySize = 16 * Util::OneKibibyte;  // This is the expected maximum size by the APIs.
     const uint32 m_maxNumEntries;
 
     PAL_DISALLOW_DEFAULT_CTOR(PayloadDataRing);

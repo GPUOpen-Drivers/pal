@@ -140,7 +140,8 @@ public:
 
 #if PAL_BUILD_RDF
     virtual GpuUtil::TraceSession* GetTraceSession() override { return m_pTraceSession; }
-    void UpdateFrameTraceController(ICmdBuffer* pCmdBuffer);
+    GpuUtil::FrameTraceController* GetFrameTraceController() { return m_pFrameTraceController; }
+    void UpdateFrameTraceController(CmdBuffer* pCmdBuffer);
 #endif
 
     uint32       GetDeviceCount()  const { return m_deviceCount; }
@@ -168,9 +169,12 @@ public:
 
     bool IsDeveloperModeEnabled() const { return (m_pDevDriverServer != nullptr); }
     bool IsDevDriverProfilingEnabled() const;
-    bool IsTracingEnabled() const;
+    virtual bool IsTracingEnabled() const override;
     bool ShowDevDriverOverlay() const;
     bool Force32BitVaSpace() const { return m_flags.force32BitVaSpace; }
+
+    const char* GetClientApiStr() const;
+    ClientApi   GetClientApiId()  const { return m_clientApiId; }
 
     bool SvmModeEnabled()                const { return m_flags.enableSvmMode; }
     bool RequestShadowDescVaRange()      const { return m_flags.requestShadowDescVaRange; }
@@ -240,8 +244,9 @@ protected:
     uint32             m_deviceCount;
     PlatformProperties m_properties;
 
-    uint16 m_clientApiMajorVer;
-    uint16 m_clientApiMinorVer;
+    const ClientApi m_clientApiId;
+    const uint16    m_clientApiMajorVer;
+    const uint16    m_clientApiMinorVer;
 
     static constexpr uint32 MaxSettingsPathLength = 256;
     char m_settingsPath[MaxSettingsPathLength];

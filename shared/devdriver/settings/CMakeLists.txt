@@ -27,6 +27,7 @@ devdriver_library(ddSettings STATIC)
 
 add_subdirectory(rpcService)
 add_subdirectory(rpcClient)
+add_subdirectory(settingsblob)
 
 target_link_libraries(ddSettings
     PUBLIC

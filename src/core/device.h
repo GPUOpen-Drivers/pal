@@ -36,6 +36,7 @@
 #include "palDevice.h"
 #include "palDeque.h"
 #include "palEvent.h"
+#include "palFile.h"
 #include "palHashMap.h"
 #include "palInlineFuncs.h"
 #include "palIntrusiveList.h"
@@ -47,6 +48,7 @@
 #include "palSysMemory.h"
 #include "palTextWriter.h"
 #include "palShaderLibrary.h"
+#include "palLiterals.h"
 
 #include "core/hw/amdgpu_asic.h"
 
@@ -747,7 +749,10 @@ struct GpuChipProperties
             uint32 supportCaptureReplay        :  1; // Indicates support for Capture Replay
             uint32 supportHsaAbi               :  1;
             uint32 supportAceOffload           :  1;
-            uint32 reserved                    : 24;
+            uint32 supportStaticVmid           :  1; // Indicates support for static-VMID.
+            uint32 supportFloat32BufferAtomics :  1; // Indicates support for float32 buffer atomics
+            uint32 supportFloat32ImageAtomics  :  1; // Indicates support for float32 image atomics
+            uint32 reserved                    : 21;
         };
     } gfxip;
 #endif
@@ -821,7 +826,6 @@ struct GpuChipProperties
                 uint32 support16BitInstructions                 :  1;
                 uint32 support64BitInstructions                 :  1;
                 uint32 supportBorderColorSwizzle                :  1;
-                uint64 supportFloat32Atomics                    :  1;
                 uint64 supportFloat64Atomics                    :  1;
                 uint32 supportIndexAttribIndirectPkt            :  1;  // Indicates support for INDEX_ATTRIB_INDIRECT
                 uint32 supportSetShIndexPkt                     :  1;  // Indicates support for packet SET_SH_REG_INDEX
@@ -856,6 +860,8 @@ struct GpuChipProperties
             uint32 spiConfigCntl;
             uint32 paScTileSteeringOverride;
             uint32 numShaderEngines;
+            uint32 activeSeMask;
+            uint32 numActiveShaderEngines;
             uint32 numShaderArrays;
             uint32 maxNumRbPerSe;
             uint32 activeNumRbPerSe;
@@ -878,6 +884,7 @@ struct GpuChipProperties
             uint32 numTccBlocks;
             uint32 numSimdPerCu;
             uint32 numWavesPerSimd;
+            uint32 numSqcBarriersPerCu;
             uint32 numActiveRbs;
             uint32 numTotalRbs;
             uint32 gsVgtTableDepth;
@@ -920,7 +927,6 @@ struct GpuChipProperties
                 uint64 support16BitInstructions           :  1;
                 uint64 support64BitInstructions           :  1;
                 uint64 supportBorderColorSwizzle          :  1;
-                uint64 supportFloat32Atomics              :  1;
                 uint64 supportFloat64Atomics              :  1;
                 uint64 supportDoubleRate16BitInstructions :  1;
                 uint64 rbPlus                             :  1;
@@ -1067,11 +1073,11 @@ public:
                   "Internal PfnTable does not match the version in IDevice.");
 
     static constexpr GpuHeap CmdBufInternalAllocHeap      = GpuHeap::GpuHeapGartCacheable;
-    static constexpr uint32  CmdBufInternalAllocSize      = 128*1024;
-    static constexpr uint32  CmdBufInternalSuballocSize   = 8 * 1024;
+    static constexpr uint32  CmdBufInternalAllocSize      = 128 * Util::OneKibibyte;
+    static constexpr uint32  CmdBufInternalSuballocSize   = 8 * Util::OneKibibyte;
     static constexpr uint32  CmdBufMemReferenceLimit      = 16384;
     static constexpr uint32  InternalMemMgrAllocLimit     = 128;
-    static constexpr uint32  GpuMemoryChunkGranularity    = 128 * 1024 * 1024;
+    static constexpr uint32  GpuMemoryChunkGranularity    = 128 * Util::OneMebibyte;
     static constexpr uint32  MaxMemoryViewStride          = (1UL << 14) - 1;
     static constexpr uint32  CmdStreamReserveLimit        = 256;
     static constexpr uint32  PollInterval                 = 10;
@@ -1649,6 +1655,10 @@ public:
     virtual const char* GetDebugFilePath() const override
         { return m_debugFilePath; }
 
+    // NOTE: Part of the public IDevice interface.
+    virtual Result SetStaticVmidMode(
+        bool enable) override;
+
     virtual Result InitBusAddressableGpuMemory(
         IQueue*           pQueue,
         uint32            gpuMemCount,
@@ -1704,7 +1714,7 @@ public:
     const GpuMemoryProperties& MemoryProperties() const { return m_memoryProperties; }
     const GpuEngineProperties& EngineProperties() const { return m_engineProperties; }
     const GpuQueueProperties&  QueueProperties()  const { return m_queueProperties;  }
-    const GpuChipProperties& ChipProperties() const { return m_chipProperties; }
+    const GpuChipProperties&   ChipProperties()   const { return m_chipProperties;   }
     const HwsInfo& GetHwsInfo() const { return m_hwsInfo; }
     const PerfExperimentProperties& PerfProperties() const { return m_perfExperimentProperties; }
 
@@ -1731,6 +1741,9 @@ public:
     {
         return m_pFormatPropertiesTable->features[static_cast<uint32>(format)][tiling != ImageTiling::Linear];
     }
+
+    bool SupportsStaticVmid() const
+        { return m_chipProperties.gfxip.supportStaticVmid; }
 
     // Checks if a format/tiling-type pairing supports shader image-read operations.
     bool SupportsImageRead(ChNumFormat format, ImageTiling tiling) const
@@ -1982,6 +1995,9 @@ protected:
     virtual Result OsEarlyInit() { return Result::Success; }
     virtual Result OsLateInit()  { return Result::Success; }
 
+    virtual Result OsSetStaticVmidMode(
+        bool enable) = 0;
+
     virtual void OsFinalizeSettings() { }
 
     // Responsible for setting up some of this GPU's queue properties which are based on settings.
@@ -2047,7 +2063,8 @@ protected:
     virtual GpuMemory* ConstructGpuMemoryObject(
         void* pPlacementAddr) = 0;
 
-    virtual Result EnumPrivateScreensInfo(uint32* pNumScreens) = 0;
+    virtual Result EnumPrivateScreensInfo(
+        uint32* pNumScreens) = 0;
 
     uint32 GetDeviceIndex() const
         { return m_deviceIndex; }
@@ -2097,9 +2114,10 @@ protected:
 
     char  m_gpuName[MaxDeviceName];
 
+    bool  m_deviceFinalized;    // Set if the client has ever call Finalize().
+
 #if PAL_ENABLE_PRINTS_ASSERTS
     bool  m_settingsCommitted;  // Set if the client has ever called CommitSettingsAndInit().
-    bool  m_deviceFinalized;    // Set if the client has ever call Finalize().
     bool  m_cmdBufDumpEnabled;  // Command buffer dumping is enabled on the next frame
 #endif
 
@@ -2137,11 +2155,13 @@ protected:
 #endif
 
     // Get*FilePath need to return a persistent storage
-    char m_cacheFilePath[MaxPathStrLen];
-    char m_debugFilePath[MaxPathStrLen];
+    char m_cacheFilePath[Util::MaxPathStrLen];
+    char m_debugFilePath[Util::MaxPathStrLen];
 
-    Util::Mutex m_dmaUploadRingLock;
+    Util::Mutex    m_dmaUploadRingLock;
     DmaUploadRing* m_pDmaUploadRing;
+
+    uint32         m_staticVmidRefCount;
 
 private:
     Result HwlEarlyInit();

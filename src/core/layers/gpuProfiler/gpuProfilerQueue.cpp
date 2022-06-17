@@ -28,8 +28,10 @@
 #include "core/layers/gpuProfiler/gpuProfilerQueue.h"
 #include "palDequeImpl.h"
 #include "palSysUtil.h"
+#include "palLiterals.h"
 
 using namespace Util;
+using namespace Util::Literals;
 
 namespace Pal
 {
@@ -50,7 +52,7 @@ Queue::Queue(
     m_shaderEngineCount(0),
     m_pCmdAllocator(nullptr),
     m_pNestedCmdAllocator(nullptr),
-    m_replayAllocator(64 * 1024),
+    m_replayAllocator(64_KiB),
     m_availableGpaSessions(static_cast<Platform*>(pDevice->GetPlatform())),
     m_busyGpaSessions(static_cast<Platform*>(pDevice->GetPlatform())),
     m_availPerfExpMem(static_cast<Platform*>(pDevice->GetPlatform())),
@@ -234,14 +236,14 @@ Result Queue::Init(
         createInfo.flags.autoMemoryReuse                      = 1;
         createInfo.flags.disableBusyChunkTracking             = 1;
         createInfo.allocInfo[CommandDataAlloc].allocHeap      = GpuHeapGartUswc;
-        createInfo.allocInfo[CommandDataAlloc].allocSize      = 2 * 1024 * 1024;
-        createInfo.allocInfo[CommandDataAlloc].suballocSize   = 64 * 1024;
+        createInfo.allocInfo[CommandDataAlloc].allocSize      = 2_MiB;
+        createInfo.allocInfo[CommandDataAlloc].suballocSize   = 64_KiB;
         createInfo.allocInfo[EmbeddedDataAlloc].allocHeap     = GpuHeapGartUswc;
-        createInfo.allocInfo[EmbeddedDataAlloc].allocSize     = 2 * 1024 * 1024;
-        createInfo.allocInfo[EmbeddedDataAlloc].suballocSize  = 64 * 1024;
+        createInfo.allocInfo[EmbeddedDataAlloc].allocSize     = 2_MiB;
+        createInfo.allocInfo[EmbeddedDataAlloc].suballocSize  = 64_KiB;
         createInfo.allocInfo[GpuScratchMemAlloc].allocHeap    = GpuHeapGartUswc;
-        createInfo.allocInfo[GpuScratchMemAlloc].allocSize    = 2 * 1024 * 1024;
-        createInfo.allocInfo[GpuScratchMemAlloc].suballocSize = 64 * 1024;
+        createInfo.allocInfo[GpuScratchMemAlloc].allocSize    = 2_MiB;
+        createInfo.allocInfo[GpuScratchMemAlloc].suballocSize = 64_KiB;
 
         void* pMemory = PAL_MALLOC(m_pDevice->GetCmdAllocatorSize(createInfo, &result),
                                    m_pDevice->GetPlatform(),
@@ -274,14 +276,14 @@ Result Queue::Init(
         // command buffers can potentially exhaust the GPU VA range by simply playing back too many nested command buffers.
         // This will have a small performance impact on large nested command buffers but we have little choice for now.
         createInfo.allocInfo[CommandDataAlloc].allocHeap      = GpuHeapGartUswc;
-        createInfo.allocInfo[CommandDataAlloc].allocSize      = 4 * 1024;
-        createInfo.allocInfo[CommandDataAlloc].suballocSize   = 4 * 1024;
+        createInfo.allocInfo[CommandDataAlloc].allocSize      = 4_KiB;
+        createInfo.allocInfo[CommandDataAlloc].suballocSize   = 4_KiB;
         createInfo.allocInfo[EmbeddedDataAlloc].allocHeap     = GpuHeapGartUswc;
-        createInfo.allocInfo[EmbeddedDataAlloc].allocSize     = 4 * 1024;
-        createInfo.allocInfo[EmbeddedDataAlloc].suballocSize  = 4 * 1024;
+        createInfo.allocInfo[EmbeddedDataAlloc].allocSize     = 4_KiB;
+        createInfo.allocInfo[EmbeddedDataAlloc].suballocSize  = 4_KiB;
         createInfo.allocInfo[GpuScratchMemAlloc].allocHeap    = GpuHeapGartUswc;
-        createInfo.allocInfo[GpuScratchMemAlloc].allocSize    = 4 * 1024;
-        createInfo.allocInfo[GpuScratchMemAlloc].suballocSize = 4 * 1024;
+        createInfo.allocInfo[GpuScratchMemAlloc].allocSize    = 4_KiB;
+        createInfo.allocInfo[GpuScratchMemAlloc].suballocSize = 4_KiB;
 
         void* pMemory = PAL_MALLOC(m_pDevice->GetCmdAllocatorSize(createInfo, &result),
                                    m_pDevice->GetPlatform(),
@@ -1536,13 +1538,13 @@ Result Queue::FillOutSpmGpaSessionSampleConfig(
         switch (settings.gpuProfilerConfig.granularity)
         {
         case GpuProfilerGranularityDraw:
-            ringSizeInBytes = 1024 * 1024; // 1 MB
+            ringSizeInBytes = 1_MiB;
             break;
         case GpuProfilerGranularityCmdBuf:
-            ringSizeInBytes = 32 * 1024 * 1024; // 32 MB
+            ringSizeInBytes = 32_MiB;
             break;
         case GpuProfilerGranularityFrame:
-            ringSizeInBytes = 128 * 1024 * 1024; // 128 MB
+            ringSizeInBytes = 128_MiB;
             break;
         default:
             break;

@@ -196,7 +196,7 @@ protected:
         Util::OriginationType source,
         const char*           pClientTag,
         size_t                dataSize,
-        const void*           pData)
+        const void*           pData) override
     {
         m_logEventProvider.LogMessage(uint32(source), dataSize, pData);
     }

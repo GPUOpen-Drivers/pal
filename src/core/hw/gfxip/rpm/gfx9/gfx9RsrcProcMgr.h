@@ -617,6 +617,13 @@ public:
         uint32                           regionCount,
         const PrtPlusImageResolveRegion* pRegions) const override;
 
+    void LaunchOptimizedVrsCopyShader(
+        GfxCmdBuffer*                  pCmdBuffer,
+        const Gfx10DepthStencilView*   pDsView,
+        const Extent3d&                depthExtent,
+        const Pal::Image*              pSrcVrsImg,
+        const Gfx9Htile*const          pHtile) const;
+
     void CopyVrsIntoHtile(
         GfxCmdBuffer*                pCmdBuffer,        // cmd buffer to receive copy commands, must support compute
         const Gfx10DepthStencilView* pDsView,           // depth view that contains image that owns dest hTile buffer

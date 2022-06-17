@@ -93,10 +93,6 @@ struct GpuMemoryPatchEntry
         uint32 u32All;
     } flags;
 
-#if PAL_BUILD_SMIBS
-    gpusize     resourceDataSize;
-    PatchType   resourceType;
-#endif
 };
 
 // =====================================================================================================================

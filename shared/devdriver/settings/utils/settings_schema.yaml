@@ -71,39 +71,6 @@ properties:
         - Variants
         - Description
     description: Enums to be referenced by individual settings.
-  Bitmasks:
-    type: array
-    items:
-      type: object
-      properties:
-        Name:
-          type: string
-        Bits:
-          type: array
-          items:
-            type: object
-            properties:
-              Name:
-                type: string
-              Value:
-                type: integer
-                description: The integer value with a bit set. Must be power of 2,
-                  and unique from other bit values.
-              BuildFilters:
-                $ref: '#/$defs/BuildFilters'
-              Description:
-                type: string
-            required:
-              - Name
-              - Value
-              - Description
-        Description:
-          type: string
-      required:
-        - Name
-        - Bits
-        - Description
-    description: Enums who values are bitmasks. To be referenced by individual settings.
   Settings:
     type: array
     items:

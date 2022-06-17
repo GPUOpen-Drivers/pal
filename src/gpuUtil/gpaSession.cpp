@@ -38,10 +38,12 @@
 #include "palSysUtil.h"
 #include "palVectorImpl.h"
 #include "palMetroHash.h"
+#include "palLiterals.h"
 #include "sqtt_file_format.h"
 #include <ctime>
 
 using namespace Pal;
+using namespace Util::Literals;
 
 namespace GpuUtil
 {
@@ -633,8 +635,8 @@ Result GpaSession::Init()
         createInfo.flags.threadSafe       = 1;
 
         // Reasonable constants for allocation and suballocation sizes
-        constexpr size_t CmdAllocSize = 2 * 1024 * 1024;
-        constexpr size_t CmdSubAllocSize = 64 * 1024;
+        constexpr size_t CmdAllocSize = 2_MiB;
+        constexpr size_t CmdSubAllocSize = 64_KiB;
 
         createInfo.allocInfo[CommandDataAlloc].allocHeap      = GpuHeapGartUswc;
         createInfo.allocInfo[CommandDataAlloc].allocSize      = CmdAllocSize;
@@ -2947,10 +2949,9 @@ Result GpaSession::AddCodeObjectLoadEvent(
 
     if (result == Result::Success)
     {
-        PAL_ASSERT(gpuSubAlloc.pGpuMemory != nullptr);
         CodeObjectLoadEventRecord record = { };
         record.eventType      = eventType;
-        record.baseAddress    = (gpuSubAlloc.pGpuMemory->Desc().gpuVirtAddr + gpuSubAlloc.offset);
+        record.baseAddress    = (gpuSubAlloc.address + gpuSubAlloc.offset);
         record.codeObjectHash = { info.internalPipelineHash.stable, info.internalPipelineHash.unique };
         record.timestamp      = static_cast<uint64>(Util::GetPerfCpuTime());
 
@@ -2985,10 +2986,9 @@ Result GpaSession::AddCodeObjectLoadEvent(
 
     if (result == Result::Success)
     {
-        PAL_ASSERT(gpuSubAlloc.pGpuMemory != nullptr);
         CodeObjectLoadEventRecord record = { };
         record.eventType      = eventType;
-        record.baseAddress    = (gpuSubAlloc.pGpuMemory->Desc().gpuVirtAddr + gpuSubAlloc.offset);
+        record.baseAddress    = (gpuSubAlloc.address + gpuSubAlloc.offset);
         record.codeObjectHash = { info.internalLibraryHash.stable, info.internalLibraryHash.unique };
         record.timestamp      = static_cast<uint64>(Util::GetPerfCpuTime());
 
@@ -3259,9 +3259,8 @@ Result GpaSession::AcquireGpuMem(
 
     *pCurGpuMemOffset = Util::Pow2Align(*pCurGpuMemOffset, alignment);
 
-    constexpr gpusize MinRaftSize = 4 * 1024 * 1024; // 4MB
     const gpusize pageSize = m_deviceProps.gpuMemoryProperties.fragmentSize;
-    const gpusize gpuMemoryRaftSize = Util::Max<gpusize>(MinRaftSize, Util::Pow2Align(size, pageSize));
+    const gpusize gpuMemoryRaftSize = Util::Max<gpusize>(4_MiB, Util::Pow2Align(size, pageSize));
 
     Result result = Result::Success;
 
@@ -3515,8 +3514,8 @@ Result GpaSession::AcquirePerfExperiment(
             // Add SQ thread trace to the experiment.
             if (sampleConfig.sqtt.flags.enable)
             {
-                // Set a default size for SQTT buffers to 128MB.
-                constexpr size_t DefaultSqttSeBufferSize = 128 * 1024 * 1024;
+                // Set a default size for SQTT buffers.
+                constexpr size_t DefaultSqttSeBufferSize = 128_MiB;
 
                 // Use default SQTT size if client doesn't request specific size.
                 const size_t userSeMemoryLimit = static_cast<size_t>(sampleConfig.sqtt.gpuMemoryLimit);

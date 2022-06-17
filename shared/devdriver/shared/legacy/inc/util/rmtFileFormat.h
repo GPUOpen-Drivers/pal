@@ -141,7 +141,7 @@ typedef struct RmtFileChunkHeader
 
     // This version number matches the spec revision version
     #define RMT_FILE_DATA_CHUNK_MAJOR_VERSION 1
-    #define RMT_FILE_DATA_CHUNK_MINOR_VERSION 6
+    #define RMT_FILE_DATA_CHUNK_MINOR_VERSION 7
 
 /// A structure encapsulating information about the location of the RMT data within the RMT file itself.
 typedef struct RmtFileChunkRmtData

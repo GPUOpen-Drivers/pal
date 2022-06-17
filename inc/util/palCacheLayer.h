@@ -126,6 +126,7 @@ public:
 
     /// Store data with corresponding hash key
     ///
+    /// @param [in] storeFlags  Options for this store operation
     /// @param [in] pHashId     128-bit precomputed hash used as a reference id for the cache entry
     /// @param [in] pData       Data to be stored in the cache
     /// @param [in] dataSize    Size of data to be stored
@@ -144,10 +145,26 @@ public:
     ///       ready, call `Store` again with the same hash ID but with valid pData and datasize. The expected return
     ///       code in this situation is expected to be Success and not AlreadyExists.
     virtual Result Store(
+        Util::StoreFlags storeFlags,
+        const Hash128*   pHashId,
+        const void*      pData,
+        size_t           dataSize,
+        size_t           storeSize = 0
+    ) = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 738
+    Result Store(
         const Hash128*  pHashId,
         const void*     pData,
         size_t          dataSize,
-        size_t          storeSize = 0) = 0;
+        size_t          storeSize = 0)
+    {
+        Util::StoreFlags storeFlags{};
+        storeFlags.enableFileCache      = true;
+        storeFlags.enableCompression    = true;
+        return Store(storeFlags, pHashId, pData, dataSize, storeSize);
+    }
+#endif
 
     /// Accquire a long-lived reference to a cache object
     ///

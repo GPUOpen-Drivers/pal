@@ -36,6 +36,7 @@ namespace Gfx9
 {
 
 class Device;
+class WorkGraph;
 
 // =====================================================================================================================
 // GFX9 compute command buffer class: implements GFX9 specific functionality for the ComputeCmdBuffer class.
@@ -289,9 +290,12 @@ private:
     template <bool HasPipelineChanged>
     uint32* ValidateUserData(
         const ComputePipelineSignature* pPrevSignature,
+        UserDataEntries*                pUserData,
+        UserDataTableState*             pSpillTable,
         uint32*                         pCmdSpace);
 
     bool FixupUserSgprsOnPipelineSwitch(
+        const UserDataEntries&          userData,
         const ComputePipelineSignature* pPrevSignature,
         uint32**                        ppCmdSpace);
 

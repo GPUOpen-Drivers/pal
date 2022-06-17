@@ -158,7 +158,23 @@ void PipelineChunkVsPs::LateInit(
 
     m_regs.context.paClVsOutCntl.u32All = registers.At(mmPA_CL_VS_OUT_CNTL);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 733
+    if (createInfo.rsState.flags.cullDistMaskValid != 0)
+    {
+        m_regs.context.paClVsOutCntl.bitfields.CULL_DIST_ENA_0 &= (createInfo.rsState.cullDistMask & 0x1) != 0;
+        m_regs.context.paClVsOutCntl.bitfields.CULL_DIST_ENA_1 &= (createInfo.rsState.cullDistMask & 0x2) != 0;
+        m_regs.context.paClVsOutCntl.bitfields.CULL_DIST_ENA_2 &= (createInfo.rsState.cullDistMask & 0x4) != 0;
+        m_regs.context.paClVsOutCntl.bitfields.CULL_DIST_ENA_3 &= (createInfo.rsState.cullDistMask & 0x8) != 0;
+        m_regs.context.paClVsOutCntl.bitfields.CULL_DIST_ENA_4 &= (createInfo.rsState.cullDistMask & 0x10) != 0;
+        m_regs.context.paClVsOutCntl.bitfields.CULL_DIST_ENA_5 &= (createInfo.rsState.cullDistMask & 0x20) != 0;
+        m_regs.context.paClVsOutCntl.bitfields.CULL_DIST_ENA_6 &= (createInfo.rsState.cullDistMask & 0x40) != 0;
+        m_regs.context.paClVsOutCntl.bitfields.CULL_DIST_ENA_7 &= (createInfo.rsState.cullDistMask & 0x80) != 0;
+    }
+
+    if (createInfo.rsState.flags.clipDistMaskValid != 0)
+#else
     if (createInfo.rsState.clipDistMask != 0)
+#endif
     {
         m_regs.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_0 &= (createInfo.rsState.clipDistMask & 0x1) != 0;
         m_regs.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_1 &= (createInfo.rsState.clipDistMask & 0x2) != 0;

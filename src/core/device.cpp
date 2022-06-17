@@ -61,6 +61,7 @@
 #include "protocols/rgpServer.h"
 
 using namespace Util;
+using namespace Util::Literals;
 
 namespace Pal
 {
@@ -219,9 +220,9 @@ Device::Device(
     m_pTextWriter(nullptr),
     m_devDriverClientId(0),
     m_pFormatPropertiesTable(nullptr),
+    m_deviceFinalized(false),
 #if PAL_ENABLE_PRINTS_ASSERTS
     m_settingsCommitted(false),
-    m_deviceFinalized(false),
     m_cmdBufDumpEnabled(false),
 #endif
     m_force32BitVaSpace(pPlatform->Force32BitVaSpace()),
@@ -233,6 +234,7 @@ Device::Device(
     m_dmaUploadRingLock(),
     m_pDmaUploadRing(nullptr),
     m_referencedGpuMem(ReferencedMemoryMapElements, pPlatform),
+    m_staticVmidRefCount(0),
     m_referencedGpuMemLock(),
     m_pAddrMgr(nullptr),
     m_pTrackedCmdAllocator(nullptr),
@@ -282,6 +284,8 @@ Device::~Device()
 
     PAL_ASSERT(m_pTrackedCmdAllocator == nullptr);
     PAL_ASSERT(m_pUntrackedCmdAllocator == nullptr);
+
+    PAL_ASSERT(m_staticVmidRefCount == 0);
 
     if (m_pGfxDevice != nullptr)
     {
@@ -368,6 +372,15 @@ Result Device::Cleanup()
         m_pUntrackedCmdAllocator = nullptr;
     }
 
+    if ((m_staticVmidRefCount > 0) && SupportsStaticVmid())
+    {
+        result = OsSetStaticVmidMode(false);
+        if (result == Result::Success)
+        {
+            m_staticVmidRefCount = 0;
+        }
+    }
+
     if (m_pageFaultDebugSrdMem.IsBound() && (result == Result::Success))
     {
         GpuMemory* gpuMemory = m_pageFaultDebugSrdMem.Memory();
@@ -416,9 +429,9 @@ Result Device::Cleanup()
     // down before this!
     m_memMgr.FreeAllocations();
 
+    m_deviceFinalized   = false;
 #if PAL_ENABLE_PRINTS_ASSERTS
     m_settingsCommitted = false;
-    m_deviceFinalized   = false;
 #endif
 
     if (m_pPlatform->SvmModeEnabled() && (m_pPlatform->GetSvmRangeStart() != 0) &&
@@ -477,7 +490,7 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.unboundDescriptorDebugSrdCount = 1;
     m_publicSettings.disableResourceProcessingManager = false;
     m_publicSettings.tcCompatibleMetaData = 0x7F;
-    m_publicSettings.cpDmaCmdCopyMemoryMaxBytes = 64 * 1024;
+    m_publicSettings.cpDmaCmdCopyMemoryMaxBytes = 64_KiB;
     m_publicSettings.forceHighClocks = false;
     m_publicSettings.cmdBufBatchedSubmitChainLimit = 128;
     m_publicSettings.cmdAllocResidency = 0xF;
@@ -845,6 +858,42 @@ void Device::GetHwIpDeviceSizes(
     PAL_ASSERT ((ossAddrMgrSize == 0) || (ossAddrMgrSize == maxAddrMgrSize));
 
     *pAddrMgrSize = maxAddrMgrSize;
+}
+
+// =====================================================================================================================
+// Acquire or release a static VMID. It is illegal to disable/release a static VMID without a corresponding prior
+// enable/acquire.
+Result Device::SetStaticVmidMode(
+    bool enable)
+{
+    Result result = Result::Unsupported;
+
+    if (SupportsStaticVmid())
+    {
+        bool enabledCurrently = m_staticVmidRefCount > 0;
+        if ((enabledCurrently == false) && (enable == false))
+        {
+            // Prevent an underflow and erroneous release
+            result = Result::ErrorInvalidValue;
+        }
+        else
+        {
+            m_staticVmidRefCount += enable ? 1 : -1;
+
+            const bool enabledAfter = m_staticVmidRefCount > 0;
+            if (enabledCurrently == enabledAfter)
+            {
+                // We already have a static VMID active/disabled
+                result = Result::Success;
+            }
+            else
+            {
+                result = OsSetStaticVmidMode(enable);
+            }
+        }
+    }
+
+    return result;
 }
 
 // =====================================================================================================================
@@ -1262,6 +1311,12 @@ Result Device::LateInit()
 {
     Result result = OsLateInit();
 
+    // if we need to require dedicated per-process VMID, do so now
+    if ((result == Result::Success) && Settings().requestDebugVmid && SupportsStaticVmid())
+    {
+        result = SetStaticVmidMode(true);
+    }
+
 #if PAL_BUILD_GFX
     if ((m_pGfxDevice != nullptr) && (result == Result::Success))
     {
@@ -1581,11 +1636,8 @@ Result Device::Finalize(
         result        = (m_pTextWriter != nullptr) ? m_pTextWriter->Init() : Result::ErrorOutOfMemory;
     }
 
-    m_texOptLevel = finalizeInfo.internalTexOptLevel;
-
-#if PAL_ENABLE_PRINTS_ASSERTS
+    m_texOptLevel     = finalizeInfo.internalTexOptLevel;
     m_deviceFinalized = true;
-#endif
 
     return result;
 }
@@ -2181,6 +2233,7 @@ Result Device::GetProperties(
 
 #if PAL_BUILD_GFX
         pInfo->gfxipProperties.maxUserDataEntries = m_chipProperties.gfxip.maxUserDataEntries;
+
 #endif
 
         switch (m_chipProperties.gfxLevel)
@@ -2198,12 +2251,12 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.support16BitInstructions       = gfx6Props.support16BitInstructions;
             pInfo->gfxipProperties.flags.support64BitInstructions       = gfx6Props.support64BitInstructions;
             pInfo->gfxipProperties.flags.supportBorderColorSwizzle      = gfx6Props.supportBorderColorSwizzle;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 720
-            pInfo->gfxipProperties.flags.supportFloat32Atomics          = gfx6Props.supportFloat32Atomics;
             pInfo->gfxipProperties.flags.supportFloat64Atomics          = gfx6Props.supportFloat64Atomics;
-#else
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 720
             pInfo->gfxipProperties.flags.supportFloatAtomics            =
-                gfx6Props.supportFloat32Atomics | gfx6Props.supportFloat64Atomics;
+                m_chipProperties.gfxip.supportFloat32BufferAtomics |
+                m_chipProperties.gfxip.supportFloat32ImageAtomics  |
+                gfx6Props.supportFloat64Atomics;
 #endif
             pInfo->gfxipProperties.flags.supportShaderSubgroupClock     = gfx6Props.supportShaderSubgroupClock;
             pInfo->gfxipProperties.flags.supportShaderDeviceClock       = gfx6Props.supportShaderDeviceClock;
@@ -2227,6 +2280,7 @@ Result Device::GetProperties(
                                                                      gfx6Props.maxNumCuPerSh;
             pInfo->gfxipProperties.shaderCore.numSimdsPerCu        = gfx6Props.numSimdPerCu;
             pInfo->gfxipProperties.shaderCore.numWavefrontsPerSimd = gfx6Props.numWavesPerSimd;
+            pInfo->gfxipProperties.shaderCore.numActiveRbs         = gfx6Props.numActiveRbs;
             pInfo->gfxipProperties.shaderCore.nativeWavefrontSize  = gfx6Props.nativeWavefrontSize;
             pInfo->gfxipProperties.shaderCore.minWavefrontSize     = gfx6Props.nativeWavefrontSize;
             pInfo->gfxipProperties.shaderCore.maxWavefrontSize     = gfx6Props.nativeWavefrontSize;
@@ -2288,12 +2342,12 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.support64BitInstructions           = gfx9Props.support64BitInstructions;
             pInfo->gfxipProperties.flags.supportBorderColorSwizzle          = gfx9Props.supportBorderColorSwizzle;
             pInfo->gfxipProperties.flags.supportImageViewMinLod             = gfx9Props.supportImageViewMinLod;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 720
-            pInfo->gfxipProperties.flags.supportFloat32Atomics              = gfx9Props.supportFloat32Atomics;
             pInfo->gfxipProperties.flags.supportFloat64Atomics              = gfx9Props.supportFloat64Atomics;
-#else
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 720
             pInfo->gfxipProperties.flags.supportFloatAtomics                =
-                gfx9Props.supportFloat32Atomics | gfx9Props.supportFloat64Atomics;
+                m_chipProperties.gfxip.supportFloat32BufferAtomics |
+                m_chipProperties.gfxip.supportFloat32ImageAtomics  |
+                gfx9Props.supportFloat64Atomics;
 #endif
             pInfo->gfxipProperties.flags.supportShaderSubgroupClock         = gfx9Props.supportShaderSubgroupClock;
             pInfo->gfxipProperties.flags.supportShaderDeviceClock           = gfx9Props.supportShaderDeviceClock;
@@ -2322,6 +2376,7 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.shaderCore.numPhysicalCus       = gfx9Props.numPhysicalCus;
             pInfo->gfxipProperties.shaderCore.numSimdsPerCu        = gfx9Props.numSimdPerCu;
             pInfo->gfxipProperties.shaderCore.numWavefrontsPerSimd = gfx9Props.numWavesPerSimd;
+            pInfo->gfxipProperties.shaderCore.numActiveRbs         = gfx9Props.numActiveRbs;
             pInfo->gfxipProperties.shaderCore.nativeWavefrontSize  = gfx9Props.nativeWavefrontSize;
             pInfo->gfxipProperties.shaderCore.minWavefrontSize     = gfx9Props.minWavefrontSize;
             pInfo->gfxipProperties.shaderCore.maxWavefrontSize     = gfx9Props.maxWavefrontSize;
@@ -2358,7 +2413,8 @@ Result Device::GetProperties(
 
             pInfo->gfxipProperties.supportedVrsRates                     = gfx9Props.gfx10.supportedVrsRates;
             pInfo->gfxipProperties.flags.supportVrsWithDsExports         = gfx9Props.gfx10.supportVrsWithDsExports ? 1 : 0;
-            pInfo->gfxipProperties.rayTracingIp = gfx9Props.rayTracingIp;
+
+            pInfo->gfxipProperties.rayTracingIp    = gfx9Props.rayTracingIp;
 
             pInfo->gfxipProperties.flags.supportSortAgnosticBarycentrics = gfx9Props.supportSortAgnosticBarycentrics;
 
@@ -2418,6 +2474,13 @@ Result Device::GetProperties(
         pInfo->gfxipProperties.flags.supportGl2Uncached          = m_chipProperties.gfxip.supportGl2Uncached;
         pInfo->gfxipProperties.flags.supportCaptureReplay        = m_chipProperties.gfxip.supportCaptureReplay;
         pInfo->gfxipProperties.flags.supportHsaAbi               = m_chipProperties.gfxip.supportHsaAbi;
+        pInfo->gfxipProperties.flags.supportStaticVmid           = m_chipProperties.gfxip.supportStaticVmid;
+        pInfo->gfxipProperties.flags.supportFloat32BufferAtomics = m_chipProperties.gfxip.supportFloat32BufferAtomics;
+        pInfo->gfxipProperties.flags.supportFloat32ImageAtomics  = m_chipProperties.gfxip.supportFloat32ImageAtomics;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 735
+        pInfo->gfxipProperties.flags.supportFloat32Atomics       = m_chipProperties.gfxip.supportFloat32BufferAtomics |
+                                                                   m_chipProperties.gfxip.supportFloat32ImageAtomics;
+#endif
 
         pInfo->gfxipProperties.srdSizes.bufferView = m_chipProperties.srdSizes.bufferView;
         pInfo->gfxipProperties.srdSizes.imageView  = m_chipProperties.srdSizes.imageView;
@@ -2532,9 +2595,7 @@ size_t Device::UploadUsingEmbeddedData(
 /// Determine when a large local heap is available.  A large local heap is any size above 256MB.
 bool Device::HasLargeLocalHeap() const
 {
-    static constexpr uint32 RegularLocalHeapSize = 256 * 1024 * 1024; // 256 MB
-
-    return m_heapProperties[GpuHeapLocal].heapSize > RegularLocalHeapSize;
+    return m_heapProperties[GpuHeapLocal].heapSize > 256_MiB;
 }
 
 // =====================================================================================================================
@@ -4901,11 +4962,10 @@ void Device::ApplyDevOverlay(
         letterHeight += GpuUtil::TextWriterFont::LetterHeight;
 
         // Print the client string and Client Id on screen
-        constexpr const char* pClientStr = "AMD Vulkan Driver";
         Util::Snprintf(overlayTextBuffer,
             OverlayTextBufferSize,
             "Client: %s",
-            pClientStr);
+            m_pPlatform->GetClientApiStr());
         m_pTextWriter->DrawDebugText(dstImage,
             pCmdBuffer,
             overlayTextBuffer,

@@ -189,6 +189,8 @@ public:
         uint32*                   pStereoModeCount,
         StereoDisplayModeOutput*  pStereoModeList) const override;
 
+    virtual Result GetWsStereoMode(WorkstationStereoMode* pWsStereoMode) const override { return Result::ErrorUnavailable; }
+
     virtual Result GetActive10BitPackedPixelMode(
         Active10BitPackedPixelModeOutput* pMode) const override;
 
@@ -241,6 +243,9 @@ public:
     virtual Result SetClockMode(
         const SetClockModeInput& setClockModeInput,
         SetClockModeOutput*      pSetClockModeOutput) override { return Result::Success; }
+
+    virtual Result OsSetStaticVmidMode(
+        bool enable) override { return Result::ErrorUnavailable; }
 
     virtual Result SetMaxQueuedFrames(
         uint32 maxFrames) override;

@@ -424,7 +424,6 @@ Device::Device(
     m_hTmzContext(nullptr),
     m_drmMajorVer(constructorParams.drmMajorVer),
     m_drmMinorVer(constructorParams.drmMinorVer),
-    m_useDedicatedVmid(false),
     m_pSettingsPath(constructorParams.pSettingsPath),
     m_pSvmMgr(nullptr),
     m_mapAllocator(),
@@ -467,11 +466,6 @@ Device::~Device()
     {
         m_drmProcs.pfnAmdgpuCsCtxFree(m_hTmzContext);
         m_hTmzContext = nullptr;
-    }
-
-    if (m_useDedicatedVmid)
-    {
-        UnReserveVmid();
     }
 
     if (m_pVamMgr != nullptr)
@@ -542,11 +536,6 @@ Result Device::OsEarlyInit()
 Result Device::OsLateInit()
 {
     Result result = Result::Success;
-    // if we need to require dedicated per-process VMID, do so now
-    if (Settings().requestDebugVmid)
-    {
-        result = ReserveVmid();
-    }
 
     if (static_cast<Platform*>(m_pPlatform)->IsProSemaphoreSupported())
     {
@@ -842,9 +831,9 @@ Result Device::GetProperties(
         pInfo->osProperties.supportDynamicQueuePriority = false;
 
         // Expose available time domains for calibrated timestamps
-        pInfo->osProperties.timeDomains.supportDevice = true;
-        pInfo->osProperties.timeDomains.supportClockMonotonic = true;
-        pInfo->osProperties.timeDomains.supportClockMonotonicRaw = true;
+        pInfo->osProperties.timeDomains.supportDevice                  = true;
+        pInfo->osProperties.timeDomains.supportClockMonotonic          = true;
+        pInfo->osProperties.timeDomains.supportClockMonotonicRaw       = true;
         pInfo->osProperties.timeDomains.supportQueryPerformanceCounter = false;
 
         pInfo->gpuMemoryProperties.flags.supportHostMappedForeignMemory =
@@ -1227,6 +1216,12 @@ void Device::InitGfx9ChipProperties()
     else
     {
         PAL_ASSERT_ALWAYS();
+    }
+
+    if ((m_drmProcs.pfnAmdgpuVmReserveVmidisValid() || m_drmProcs.pfnAmdgpuCsReservedVmidisValid()) &&
+        (m_drmProcs.pfnAmdgpuVmUnreserveVmidisValid() || m_drmProcs.pfnAmdgpuCsUnreservedVmidisValid()))
+    {
+        m_chipProperties.gfxip.supportStaticVmid = 1;
     }
 
     if (IsGfx10(m_chipProperties.gfxLevel))
@@ -1728,6 +1723,7 @@ Result Device::InitQueueInfo()
             m_chipProperties.gfx9.supportMeshTaskShader = 0;
         }
         m_chipProperties.gfxip.supportAceOffload = 0;
+
     }
 
     return result;
@@ -2377,67 +2373,36 @@ Result Device::FreeBuffer(
 }
 
 // =====================================================================================================================
-// Call amdgpu to reserve vmid. The SPM_VMID will be updated right before any job is submitted to GPU if there is any
-// VMID reserved.
-Result Device::ReserveVmid()
+// Call amdgpu to reserve/unreserve a vmid. The SPM_VMID will be updated right before any job is submitted to GPU if
+// there is any VMID reserved.
+Result Device::OsSetStaticVmidMode(
+    bool enable)
 {
-    Result result = Result::Unsupported;
+    Result result = Result::Success;
 
-    if (m_useDedicatedVmid)
+    if (enable)
     {
-        result = Result::Success;
-    }
-    else if (m_drmProcs.pfnAmdgpuVmReserveVmidisValid())
-    {
-        result = CheckResult(m_drmProcs.pfnAmdgpuVmReserveVmid(m_hDevice, /* flags = */ 0),
-                             Result::ErrorOutOfMemory);
-    }
-    else if (m_drmProcs.pfnAmdgpuCsReservedVmidisValid())
-    {
-        result = CheckResult(m_drmProcs.pfnAmdgpuCsReservedVmid(m_hDevice),
-                             Result::ErrorOutOfMemory);
+        // Reserve a VMID
+        if (m_drmProcs.pfnAmdgpuVmReserveVmidisValid())
+        {
+            result = CheckResult(m_drmProcs.pfnAmdgpuVmReserveVmid(m_hDevice, 0), Result::ErrorOutOfMemory);
+        }
+        else if (m_drmProcs.pfnAmdgpuCsReservedVmidisValid())
+        {
+            result = CheckResult(m_drmProcs.pfnAmdgpuCsReservedVmid(m_hDevice), Result::ErrorOutOfMemory);
+        }
     }
     else
     {
-        PAL_ASSERT_ALWAYS_MSG("No method to reserve vmid");
-    }
-
-    if (result == Result::Success)
-    {
-        m_useDedicatedVmid = true;
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-// Call amdgpu to unreserve vmid.
-Result Device::UnReserveVmid()
-{
-    Result result = Result::Unsupported;
-
-    if (m_useDedicatedVmid == false)
-    {
-        result = Result::Success;
-    }
-    else if (m_drmProcs.pfnAmdgpuVmUnreserveVmidisValid())
-    {
-        result = CheckResult(m_drmProcs.pfnAmdgpuVmUnreserveVmid(m_hDevice, /* flags = */ 0),
-                             Result::ErrorOutOfMemory);
-    }
-    else if (m_drmProcs.pfnAmdgpuCsUnreservedVmidisValid())
-    {
-        result = CheckResult(m_drmProcs.pfnAmdgpuCsUnreservedVmid(m_hDevice),
-                             Result::ErrorOutOfMemory);
-    }
-    else
-    {
-        PAL_ASSERT_ALWAYS_MSG("No method to unreserve vmid");
-    }
-
-    if (result == Result::Success)
-    {
-        m_useDedicatedVmid = false;
+        // Unreserve a VMID
+        if (m_drmProcs.pfnAmdgpuVmUnreserveVmidisValid())
+        {
+            result = CheckResult(m_drmProcs.pfnAmdgpuVmUnreserveVmid(m_hDevice, 0), Result::ErrorOutOfMemory);
+        }
+        else if (m_drmProcs.pfnAmdgpuCsUnreservedVmidisValid())
+        {
+            result = CheckResult(m_drmProcs.pfnAmdgpuCsUnreservedVmid(m_hDevice), Result::ErrorOutOfMemory);
+        }
     }
 
     return result;

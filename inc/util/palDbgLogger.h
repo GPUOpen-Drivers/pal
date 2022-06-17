@@ -64,15 +64,8 @@ constexpr uint32 AllFileSettings = FileSettings::LogToDisk     |
                                    FileSettings::AddPname      |
                                    FileSettings::AddLibName;
 
-/// Base structure for debug log settings
-struct DbgLoggerSettings
-{
-    SeverityLevel severityLevel;  ///< All messages below this SeverityLevel get filtered out.
-    uint32        origTypeMask;   ///< A mask of acceptable origination types
-};
-
 /// Structure of file debug logger settings
-struct DbgLoggerFileSettings : public DbgLoggerSettings
+struct DbgLoggerFileSettings : public DbgLogBaseSettings
 {
     uint32       fileSettingsFlags; ///< Mask of file settings as defined above in FileSettings
     uint32       fileAccessFlags;   ///< Mask of file access modes as defined in Util::FileAccessMode
@@ -100,6 +93,22 @@ extern Result FormatMessageSimple(
     SeverityLevel   severity,
     const char*     pFormat,
     va_list         args);
+
+/// Creates a complete file name for debug logging by adding library name, process name,
+/// and pid to the base name if needed. Returns a truncated file name if incoming file
+/// name string size is not enough.
+///
+/// @param [in] pFileName      String to hold the final name.
+/// @param [in] fileNameSize   Size of the file name string.
+/// @param [in] settings       File settings used to configure the file name.
+/// @param [in] pBaseFileName  Base file name to which process name, library name, etc. will be added.
+/// @returns Success if log file name creation succeeded.
+///          Otherwise, returns the error code from 'GetExecutableName' or 'MkDirRecursively'
+extern Result CreateLogFileName(
+    char*                        pFileName,
+    uint32                       fileNameSize,
+    const DbgLoggerFileSettings& settings,
+    const char*                  pBaseFileName);
 
 /**
 ************************************************************************************************************************
@@ -191,6 +200,18 @@ public:
         return &m_listNode;
     }
 
+    /// Returns cutoff severity level.
+    SeverityLevel GetCutoffSeverityLevel()
+    {
+        return m_cutoffSeverityLevel;
+    }
+
+    ///  Returns origination type mask.
+    uint32 GetOriginationTypeMask()
+    {
+        return m_originationTypeMask;
+    }
+
 protected:
     /// Constructor that sets the cutoff severity and origination mask to the incoming values.
     ///
@@ -219,8 +240,7 @@ protected:
         SeverityLevel   severity,
         OriginationType source)
     {
-        const uint32 sourceFlag = (1ul << uint32(source));
-        return ((severity >= m_cutoffSeverityLevel) && (TestAnyFlagSet(m_originationTypeMask, sourceFlag)));
+        return Util::AcceptMessage(severity, source, m_cutoffSeverityLevel, m_originationTypeMask);
     }
 
     /// Writes the message to a destination. Each derived class implements this method
@@ -289,6 +309,66 @@ public:
     void Cleanup()
     {
         m_file.Close();
+    }
+
+    /// Create a file logger that clients can use.
+    ///
+    /// @param [in]  settings          File settings used to configure the file logger
+    /// @param [in]  pBaseFileName     Base file name to which process name, lib. name, etc. may get added
+    /// @param [in]  pAllocator        Memory allocator
+    /// @param [out] ppDbgLoggerFile   Pointer to hold the newly created file logger
+    /// @returns Success if file logger got created. Otherwise, returns one of the following:
+    ///          ErrorOutOfMemory - if memory allocation failed
+    ///          Error code as returned by CreateLogFileName() or logger initialization.
+    template <typename Allocator>
+    static Result CreateFileLogger(
+        const DbgLoggerFileSettings& settings,
+        const char*                  pBaseFileName,
+        Allocator*                   pAllocator,
+        DbgLoggerFile**              ppDbgLoggerFile)
+    {
+        char fileName[MaxFileNameStrLen];
+        Result result = CreateLogFileName(fileName, MaxFileNameStrLen, settings, pBaseFileName);
+        if (result == Result::Success)
+        {
+            result = Result::ErrorOutOfMemory;
+            DbgLoggerFile* pDbgLogger = PAL_NEW(DbgLoggerFile, pAllocator, AllocInternal)
+                                               (settings.severityLevel, settings.origTypeMask);
+            if (pDbgLogger != nullptr)
+            {
+                result = pDbgLogger->Init(fileName, settings.fileAccessFlags);
+
+                if (result == Result::Success)
+                {
+                    g_dbgLogMgr.AttachDbgLogger(pDbgLogger);
+                    *ppDbgLoggerFile = pDbgLogger;
+                }
+                else
+                {
+                    // Initialization failed. So no point trying to use this logger.
+                    // Delete and set it to nullptr.
+                    PAL_SAFE_DELETE(pDbgLogger, pAllocator);
+                }
+            }
+        }
+        return result;
+    }
+
+    /// Destroy the file logger.
+    ///
+    /// @param [in]  pDbgLoggerFile  File logger to destroy
+    /// @param [in]  pAllocator      Memory allocator with which it was allocated
+    template <typename Allocator>
+    static void DestroyFileLogger(
+        DbgLoggerFile* pDbgLoggerFile,
+        Allocator*     pAllocator)
+    {
+        if (pDbgLoggerFile)
+        {
+            g_dbgLogMgr.DetachDbgLogger(pDbgLoggerFile);
+            pDbgLoggerFile->Cleanup();
+            PAL_SAFE_DELETE(pDbgLoggerFile, pAllocator);
+        }
     }
 
 protected:

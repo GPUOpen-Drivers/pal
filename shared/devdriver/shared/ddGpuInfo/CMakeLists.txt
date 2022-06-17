@@ -1,3 +1,28 @@
+##
+ #######################################################################################################################
+ #
+ #  Copyright (c) 2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ #
+ #  Permission is hereby granted, free of charge, to any person obtaining a copy
+ #  of this software and associated documentation files (the "Software"), to deal
+ #  in the Software without restriction, including without limitation the rights
+ #  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ #  copies of the Software, and to permit persons to whom the Software is
+ #  furnished to do so, subject to the following conditions:
+ #
+ #  The above copyright notice and this permission notice shall be included in all
+ #  copies or substantial portions of the Software.
+ #
+ #  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ #  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ #  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ #  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ #  SOFTWARE.
+ #
+ #######################################################################################################################
+
 devdriver_library(ddGpuInfo STATIC)
 
 target_link_libraries(ddGpuInfo
@@ -22,19 +47,6 @@ if (CMAKE_SYSTEM_NAME MATCHES "Linux|Android")
 
     target_sources(ddGpuInfo PRIVATE src/ddLinuxAmdGpuInfo.cpp)
     target_include_directories(ddGpuInfo PRIVATE ${Libdrm_INCLUDE_DIRS})
-#if DD_ACCESS_INTERNAL
-# messagelib provides a Windows implementation of QueryGpuInfo.
-# This is only available when messagelib is.
-elseif (WIN32)
-    if (TARGET devdriver_message)
-        target_link_libraries(ddGpuInfo PRIVATE devdriver_message)
-        target_sources(ddGpuInfo PRIVATE src/ddWinFillerAmdGpuInfo.cpp)
-    else()
-        # When messagelib is not available, fall back to an empty implementation and print a unique warning message about this.
-        message(WARNING "No QueryGpuInfo() implementation available on Windows with GPUOPEN_BUILD_MESSAGEBUS_TRANSPORT=OFF")
-        target_sources(ddGpuInfo PRIVATE src/ddEmptyAmdGpuInfo.cpp)
-    endif()
-#endif // DD_ACCESS_INTERNAL
 elseif (CMAKE_SYSTEM_NAME MATCHES "Darwin")
     target_sources(ddGpuInfo PRIVATE src/ddMacAmdGpuInfo.mm)
     target_link_libraries(ddGpuInfo PUBLIC "-framework Cocoa -framework Metal")

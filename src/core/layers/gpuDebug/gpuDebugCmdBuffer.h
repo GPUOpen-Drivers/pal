@@ -33,6 +33,7 @@
 #include "palCmdBuffer.h"
 #include "palLinearAllocator.h"
 #include "palPipeline.h"
+#include "palTime.h"
 #include "palVector.h"
 
 namespace Pal
@@ -96,6 +97,9 @@ public:
     virtual void CmdBindBorderColorPalette(
         PipelineBindPoint          pipelineBindPoint,
         const IBorderColorPalette* pPalette) override;
+    virtual void CmdDuplicateUserData(
+        PipelineBindPoint source,
+        PipelineBindPoint dest) override;
     virtual void CmdSetKernelArguments(
         uint32            firstArg,
         uint32            argCount,
@@ -641,10 +645,28 @@ private:
         }
     }
 
+    // Insert a copy of an arbitrary buffer into the token stream.
+    const void* InsertTokenBuffer(const void* token, gpusize size)
+    {
+        InsertToken(size);
+        const void* pRet = nullptr;
+        if (size > 0)
+        {
+            void*const pDst = AllocTokenSpace(size, 1);
+            if (pDst != nullptr)
+            {
+                memcpy(pDst, token, size);
+            }
+            pRet = pDst;
+        }
+        return pRet;
+    }
+
     // Insert a copy of an array of values into the token stream.
-    template <typename T> void InsertTokenArray(const T* pData, uint32 count)
+    template <typename T> const T* InsertTokenArray(const T* pData, uint32 count)
     {
         InsertToken(count);
+        const T* pRet = nullptr;
         if (count > 0)
         {
             void*const pDst = AllocTokenSpace(sizeof(T) * count, __alignof(T));
@@ -652,7 +674,9 @@ private:
             {
                 memcpy(pDst, pData, sizeof(T) * count);
             }
+            pRet = static_cast<const T*>(pDst);
         }
+        return pRet;
     }
 
     // Retrieves the value of the next item in the token stream then advances the read pointer.  Complement of
@@ -664,6 +688,24 @@ private:
         const T& val = *static_cast<T*>(Util::VoidPtrInc(m_pTokenStream, m_tokenReadOffset));
         m_tokenReadOffset += sizeof(T);
         return val;
+    }
+
+    // Retrieves a pointer to an abitrary buffer in the token stream then advances the read pointer.  Returns
+    // the number size of the buffer stored in the array.  Complement of InsertTokenBuffer().
+    gpusize ReadTokenBuffer(const void** ppToken)
+    {
+        auto size = ReadTokenVal<gpusize>();
+        if (size != 0)
+        {
+            m_tokenReadOffset = Util::Pow2Align(m_tokenReadOffset, 1);
+            *ppToken = static_cast<void*>(Util::VoidPtrInc(m_pTokenStream, m_tokenReadOffset));
+            m_tokenReadOffset += size;
+        }
+        else
+        {
+            *ppToken = nullptr;
+        }
+        return size;
     }
 
     // Retrieves a pointer to the next array of value(s) in the token stream then advances the read pointer.  Returns
@@ -700,6 +742,7 @@ private:
     void ReplayCmdBindBorderColorPalette(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdPrimeGpuCaches(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetUserData(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+    void ReplayCmdDuplicateUserData(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetKernelArguments(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetVertexBuffers(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetPerDrawVrsRate(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);

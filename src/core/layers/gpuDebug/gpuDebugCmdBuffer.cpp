@@ -40,6 +40,7 @@
 #include "palHsaAbiMetadata.h"
 #include "palSysUtil.h"
 #include "palVectorImpl.h"
+#include "palLiterals.h"
 #include "util/directDrawSurface.h"
 #include <cinttypes>
 
@@ -47,6 +48,7 @@
 // data in it for the tokenization.
 
 using namespace Util;
+using namespace Util::Literals;
 
 namespace Pal
 {
@@ -63,7 +65,7 @@ CmdBuffer::CmdBuffer(
     :
     CmdBufferDecorator(pNextCmdBuffer, static_cast<DeviceDecorator*>(pDevice->GetNextLayer())),
     m_pDevice(pDevice),
-    m_allocator(1 * 1024 * 1024),
+    m_allocator(1_MiB),
     m_supportsComments(Device::SupportsCommentString(createInfo.queueType)),
     m_singleStep(pDevice->GetPlatform()->PlatformSettings().gpuDebugConfig.singleStep),
     m_cacheFlushInvOnAction(pDevice->GetPlatform()->PlatformSettings().gpuDebugConfig.cacheFlushInvOnAction),
@@ -86,8 +88,8 @@ CmdBuffer::CmdBuffer(
     m_numReleaseTokens(0),
     m_releaseTokenList(static_cast<Platform*>(m_pDevice->GetPlatform()))
 {
-    m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Compute)]  = &CmdBuffer::CmdSetUserDataCs;
-    m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Graphics)] = &CmdBuffer::CmdSetUserDataGfx;
+    m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Compute)]   = &CmdBuffer::CmdSetUserDataCs;
+    m_funcTable.pfnCmdSetUserData[static_cast<uint32>(PipelineBindPoint::Graphics)]  = &CmdBuffer::CmdSetUserDataGfx;
 
     m_funcTable.pfnCmdDraw                      = CmdDraw;
     m_funcTable.pfnCmdDrawOpaque                = CmdDrawOpaque;
@@ -625,7 +627,7 @@ Result CmdBuffer::CaptureImageSurface(
 
         BarrierTransition preCopyTransitions[2]                 = {0};
         preCopyTransitions[0].srcCacheMask                      = srcCoher;
-        preCopyTransitions[0].dstCacheMask                      = CoherCopy;
+        preCopyTransitions[0].dstCacheMask                      = CoherCopySrc;
         preCopyTransitions[0].imageInfo.pImage                  = pSrcImage;
         preCopyTransitions[0].imageInfo.subresRange.startSubres = baseSubres;
         preCopyTransitions[0].imageInfo.subresRange.numPlanes   = 1;
@@ -637,7 +639,7 @@ Result CmdBuffer::CaptureImageSurface(
         preCopyTransitions[0].imageInfo.newLayout.engines       = LayoutUniversalEngine;
 
         preCopyTransitions[1].srcCacheMask                      = 0;
-        preCopyTransitions[1].dstCacheMask                      = CoherCopy;
+        preCopyTransitions[1].dstCacheMask                      = CoherCopyDst;
         preCopyTransitions[1].imageInfo.pImage                  = pDstImage;
         preCopyTransitions[1].imageInfo.subresRange.startSubres = baseSubres;
         preCopyTransitions[1].imageInfo.subresRange.startSubres.plane = 0;
@@ -695,7 +697,7 @@ Result CmdBuffer::CaptureImageSurface(
         BarrierInfo postCopyBarrier = {0};
 
         BarrierTransition postCopyTransition                 = {0};
-        postCopyTransition.srcCacheMask                      = CoherCopy;
+        postCopyTransition.srcCacheMask                      = CoherCopySrc;
         postCopyTransition.dstCacheMask                      = srcCoher;
         postCopyTransition.imageInfo.pImage                  = pSrcImage;
         postCopyTransition.imageInfo.subresRange.startSubres = baseSubres;
@@ -773,7 +775,7 @@ void CmdBuffer::SyncSurfaceCapture()
     BarrierInfo barrierInfo      = {0};
     BarrierTransition transition = {0};
 
-    transition.srcCacheMask                                 = CoherCopy;
+    transition.srcCacheMask                                 = CoherCopyDst;
     transition.dstCacheMask                                 = CoherCpu;
     transition.imageInfo.subresRange.startSubres.plane      = 0;
     transition.imageInfo.subresRange.startSubres.mipLevel   = 0;
@@ -1447,6 +1449,27 @@ void CmdBuffer::ReplayCmdSetUserData(
     auto          entryCount        = ReadTokenArray(&pEntryValues);
 
     pTgtCmdBuffer->CmdSetUserData(pipelineBindPoint, firstEntry, entryCount, pEntryValues);
+}
+
+// =====================================================================================================================
+void CmdBuffer::CmdDuplicateUserData(
+    PipelineBindPoint source,
+    PipelineBindPoint dest)
+{
+    InsertToken(CmdBufCallId::CmdDuplicateUserData);
+    InsertToken(source);
+    InsertToken(dest);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdDuplicateUserData(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    const auto sourceBindPoint = ReadTokenVal<PipelineBindPoint>();
+    const auto destBindPoint   = ReadTokenVal<PipelineBindPoint>();
+
+    pTgtCmdBuffer->CmdDuplicateUserData(sourceBindPoint, destBindPoint);
 }
 
 // =====================================================================================================================
@@ -4788,6 +4811,7 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdBindStreamOutTargets,
         &CmdBuffer::ReplayCmdBindBorderColorPalette,
         &CmdBuffer::ReplayCmdSetUserData,
+        &CmdBuffer::ReplayCmdDuplicateUserData,
         &CmdBuffer::ReplayCmdSetKernelArguments,
         &CmdBuffer::ReplayCmdSetVertexBuffers,
         &CmdBuffer::ReplayCmdSetBlendConst,
@@ -4948,9 +4972,9 @@ TargetCmdBuffer::TargetCmdBuffer(
     :
     CmdBufferFwdDecorator(pNextCmdBuffer, pNextDevice),
 #if (PAL_COMPILE_TYPE == 32)
-    m_allocator(2 * 1024 * 1024),
+    m_allocator(2_MiB),
 #else
-    m_allocator(8 * 1024 * 1024),
+    m_allocator(8_MiB),
 #endif
     m_pAllocatorStream(nullptr),
     m_queueType(createInfo.queueType),

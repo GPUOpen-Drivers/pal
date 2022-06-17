@@ -29,6 +29,7 @@
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9PipelineChunkCs.h"
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
+#include "palMsgPack.h"
 
 namespace Pal
 {
@@ -36,7 +37,6 @@ namespace Pal
 namespace Gfx9
 {
 class Device;
-class MsgPackWriter;
 
 // Structure describing the HW-specific information about a compute shader library.
 struct LibraryHwInfo
@@ -44,20 +44,10 @@ struct LibraryHwInfo
     struct
     {
         // Persistent-state register values. These are the only HW regs needed for a shader library.
-        regCOMPUTE_PGM_RSRC1     computePgmRsrc1;
-        regCOMPUTE_PGM_RSRC2     computePgmRsrc2;
-        regCOMPUTE_PGM_RSRC3     computePgmRsrc3;
+        regCOMPUTE_PGM_RSRC1  computePgmRsrc1;
+        regCOMPUTE_PGM_RSRC2  computePgmRsrc2;
+        regCOMPUTE_PGM_RSRC3  computePgmRsrc3;
     } libRegs;
-
-    union
-    {
-        struct
-        {
-            uint32  isWave32  :  1;  // GFX10 setting; indicates wave32 vs. wave64
-            uint32  reserved  : 31;
-        };
-        uint32  value;
-    }flags;
 };
 
 // =====================================================================================================================
@@ -66,13 +56,12 @@ class ShaderLibrary final : public Pal::ShaderLibrary
 {
 public:
     explicit ShaderLibrary(Device* pDevice);
-
     virtual ~ShaderLibrary();
 
-    void SetIsWave32(const Util::PalAbi::CodeObjectMetadata& metadata);
-    bool IsWave32() const { return m_hwInfo.flags.isWave32; }
+    const ComputePipelineSignature& Signature() const { return m_signature; }
+    bool IsWave32() const { return m_signature.flags.isWave32; }
 
-    const LibraryHwInfo& HwInfo() const {  return m_hwInfo; }
+    const LibraryHwInfo& HwInfo() const { return m_hwInfo; }
 
     virtual Result GetShaderFunctionCode(
         const char*  pShaderExportName,
@@ -84,10 +73,9 @@ public:
         ShaderLibStats*  pShaderStats) const override;
 
     virtual const ShaderLibraryFunctionInfo* GetShaderLibFunctionList() const override { return m_pFunctionList; }
-
     virtual uint32 GetShaderLibFunctionCount() const override { return m_funcCount; }
-protected:
 
+protected:
     virtual Result HwlInit(
         const ShaderLibraryCreateInfo&          createInfo,
         const AbiReader&                        abiReader,
@@ -104,21 +92,19 @@ protected:
     void UpdateHwInfo();
 
 private:
-    /// @internal Client data pointer.
-    void*  m_pClientData;
+    Device*const  m_pDevice;
 
-    Device*const       m_pDevice;
-    LibraryChunkCs     m_chunkCs;
-    LibraryHwInfo      m_hwInfo;
+    ComputePipelineSignature  m_signature;
+    LibraryChunkCs            m_chunkCs;
+    LibraryHwInfo             m_hwInfo;
 
     ShaderLibraryFunctionInfo*  m_pFunctionList;
     uint32                      m_funcCount;
 
-    // disable the default constructor and assignment operator
+    // Disable the default constructor and assignment operator
     PAL_DISALLOW_DEFAULT_CTOR(ShaderLibrary);
     PAL_DISALLOW_COPY_AND_ASSIGN(ShaderLibrary);
 };
 
 } // namespace Gfx9
-
 } // namespace Pal

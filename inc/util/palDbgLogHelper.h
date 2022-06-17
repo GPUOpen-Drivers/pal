@@ -34,6 +34,10 @@
 #if PAL_ENABLE_LOGGING
 #include "palUtil.h"
 
+#if defined(__unix__)
+#include <stdarg.h>
+#endif
+
 namespace Util
 {
 /// The SeverityLevel and OriginationType are used by the debug loggers to filter
@@ -116,6 +120,29 @@ constexpr uint32 AllOriginationTypes = uint32(OriginationTypeFlags::OriginationT
 /// Expected maximum number of characters in the client tag.
 /// A client tag indicates the client that logs a message.
 constexpr uint32 ClientTagSize = 8;
+
+/// Base structure for debug log settings. Loggers specific settings
+/// structure can be found in their headers.
+struct DbgLogBaseSettings
+{
+    SeverityLevel severityLevel;  ///< All messages below this SeverityLevel get filtered out.
+    uint32        origTypeMask;   ///< A mask of acceptable origination types
+};
+
+/// Checks to see if incoming severity and source can be accepted based on the incoming base settings.
+/// Messages will only get logged if they pass through this check.
+///
+/// @param [in] severity       Specifies the log message's severity level.
+/// @param [in] source         Specifies the log message's origination type (source).
+/// @param [in] severityBase   Specifies the receiving object's base severity level.
+/// @param [in] sourceBase     Specifies the receiving object's base origination type (source) mask.
+/// @returns true if log message's severity is above the base cutoff level and source is in the base mask.
+///          Otherwise, returns false.
+extern bool AcceptMessage(
+    SeverityLevel   severity,
+    OriginationType source,
+    SeverityLevel   severityBase,
+    uint32          sourceBase);
 
 /// Generic debug log function called by PAL_DPF macros - variable args version.
 /// Clients should use the PAL_DPF macros instead of calling this function directly.

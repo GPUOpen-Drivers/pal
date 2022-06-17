@@ -613,6 +613,7 @@ void Device::ExpandColor(
 
         pOperations->layoutTransitions.fmaskColorExpand = 1;
         DescribeBarrier(pCmdBuf, &transition, pOperations);
+
         RsrcProcMgr().FmaskColorExpand(pCmdBuf, gfx9Image, subresRange);
     }
 
@@ -758,13 +759,11 @@ void Device::IssueSyncs(
     // because PAL is being told to wait at the bottom, meaning no waiting at all of any kind. If the wait point is
     // anything higher than bottom-of-pipe we have to wait for our cache flush/inv events to finish to be safe.
     //
-    // To make matters worse we can't flush or invalidate CB metadata using an ACQUIRE_MEM so we must force a
-    // wait-on-eop-ts. With this set the wait-on-eop-ts path will roll in our cache flushes and we'll skip over
-    // the pipelined cache flush logic below which does no waiting.
-    //
-    // Note that if we're executing a barrier that must only wait on a non-CB cache flush this all still works because
-    // the pipelined cache flush path only triggers if we're doing a CB metadata cache flush/inv.
-    if (TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushAndInvCbMd) && (waitPoint < HwPipePoint::HwPipeBottom))
+    // To make matters worse we can't flush or invalidate some caches (e.g. CB metadata) using an ACQUIRE_MEM, so we
+    // must use event flush instead. If waitPoint < HwPipePoint::HwPipeBottom, we must force a wait-on-eop-ts. With
+    // this set, the wait-on-eop-ts path will roll in our cache flushes and we'll skip over the pipelined cache flush
+    // logic below which does no waiting.
+    if ((m_cmdUtil.CanUseAcquireMem(syncReqs.cacheFlags) == false) && (waitPoint < HwPipePoint::HwPipeBottom))
     {
         syncReqs.waitOnEopTs = 1;
     }
@@ -791,8 +790,8 @@ void Device::IssueSyncs(
             syncReqs.cacheFlags &= ~CacheSyncFlushAndInvRb;
             eopEvent             = CACHE_FLUSH_AND_INV_TS_EVENT;
         }
-        pOperations->pipelineStalls.eopTsBottomOfPipe       = 1;
-        pOperations->pipelineStalls.waitOnTs                = 1;
+        pOperations->pipelineStalls.eopTsBottomOfPipe = 1;
+        pOperations->pipelineStalls.waitOnTs          = 1;
 
         {
             pCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEventTs(engineType,
@@ -830,9 +829,7 @@ void Device::IssueSyncs(
             if (syncReqs.psPartialFlush)
             {
                 // Waits in the CP ME for all previously issued PS waves to complete.
-                {
-                    pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, engineType, pCmdSpace);
-                }
+                pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, engineType, pCmdSpace);
 
                 pOperations->pipelineStalls.psPartialFlush = 1;
             }
@@ -841,22 +838,24 @@ void Device::IssueSyncs(
         if (syncReqs.csPartialFlush)
         {
             // Waits in the CP ME for all previously issued CS waves to complete.
-            {
-                pCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuf->TimestampGpuVirtAddr(), pCmdSpace);
-            }
+            pCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuf->TimestampGpuVirtAddr(), pCmdSpace);
 
             pOperations->pipelineStalls.csPartialFlush = 1;
         }
     }
 
-    // We can't flush or invalidate CB metadata using an ACQUIRE_MEM so we must use an event. By now we would have
-    // rolled this event into an EOP stall if one was required.
-    if (TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushAndInvCbMd)
-        )
+    // We can't flush or invalidate some caches using an ACQUIRE_MEM so we must use an event.
+    if (m_cmdUtil.CanUseAcquireMem(syncReqs.cacheFlags) == false)
     {
+        // If waitPoint < HwPipePoint::HwPipeBottom, we must force a wait-on-eop-ts to flush and wait which has already
+        // been handled in this function; and for waitPoint == HwPipePoint::HwPipeBottom, we could optimize to use an
+        // async event to flush these caches without wait here.
+        PAL_ASSERT(waitPoint == HwPipePoint::HwPipeBottom);
+
         // We need to use at least one RELEASE_MEM because it gives us the ability to flush or invalidate the GL2
         // after the CB cache(s) without using a full wait for idle. If we don't roll the GL2 flush into the CB flush
-        // then the ACQUIRE_MEM path below will do it before the CB flush is done and the CB data won't go to memory.
+        // then the ACQUIRE_MEM path below may flush GL2 before the CB flush is done. The racing issue here may make
+        // the CB data not go to memory.
         ReleaseMemInfo releaseInfo = {};
         releaseInfo.engineType     = engineType;
         releaseInfo.tcCacheOp      = SelectTcCacheOp(&syncReqs.cacheFlags);
@@ -1154,8 +1153,8 @@ void Device::Barrier(
     {
         const auto& transition = barrier.pTransitions[i];
 
-        uint32       srcCacheMask = (barrier.globalSrcCacheMask | transition.srcCacheMask);
-        const uint32 dstCacheMask = (barrier.globalDstCacheMask | transition.dstCacheMask);
+        uint32 srcCacheMask = (barrier.globalSrcCacheMask | transition.srcCacheMask);
+        uint32 dstCacheMask = (barrier.globalDstCacheMask | transition.dstCacheMask);
 
         pCmdBuf->OptimizeSrcCacheMask(&srcCacheMask);
 

@@ -64,7 +64,10 @@ if (NOT DEFINED CMAKE_POSITION_INDEPENDENT_CODE)
     message(AUTHOR_WARNING "CMAKE_POSITION_INDEPENDENT_CODE not set!")
 endif()
 
-option(DD_ENABLE_WARNINGS "Enforce a warning-clean build" ${DEVDRIVER_IS_TOP_LEVEL})
+option(
+    DD_ENABLE_WARNINGS
+    "Enforce devdriver specific warning configuration (some warings are suppressed)."
+    ${DEVDRIVER_IS_TOP_LEVEL})
 
 # DevDriver.cmake adds project-specific options and warnings.
 # It does this while depending on the base AMD-wide configurations defined here.
@@ -103,29 +106,18 @@ macro(apply_devdriver_build_flags _target)
     endif()
 endmacro()
 
-function(apply_devdriver_warnings ${name})
-    if (NOT DD_ENABLE_WARNINGS)
-        return()
-    endif()
-
+function(apply_devdriver_warnings name)
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
         target_compile_options(${name} PRIVATE
-            # Enable warnings about questionable language constructs.
-            -Wall
-            # Enable extra warnings that are not enabled by -Wall.
-            -Wextra
+            -Wall # Enable all warnings.
+            -Wextra # Enable extra warnings that are not enabled by -Wall.
+            -Werror # warning as error
         )
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         target_compile_options(${name} PRIVATE
-            # https://github.com/MicrosoftDocs/cpp-docs/blob/master/docs/build/reference/compiler-option-warning-level.md
-            /W4
+            /W4 # highest level of warnings
+            /WX # warning as error
         )
-    endif()
-
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        target_compile_options(${name} PRIVATE /WX)
-    else()
-        target_compile_options(${name} PRIVATE -Werror)
     endif()
 
     if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
@@ -194,8 +186,9 @@ function(devdriver_target name)
         apply_devdriver_build_configs(${name})
 
         # Apply this last, since it may override previous options
-        apply_devdriver_warnings(${name})
-
+        if (DD_ENABLE_WARNINGS)
+            apply_devdriver_warnings(${name})
+        endif()
     endif()
 
 endfunction()

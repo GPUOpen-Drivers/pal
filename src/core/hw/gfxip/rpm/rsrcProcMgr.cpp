@@ -46,11 +46,13 @@
 #include "palFormatInfo.h"
 #include "palMsaaState.h"
 #include "palInlineFuncs.h"
+#include "palLiterals.h"
 
 #include <float.h>
 #include <math.h>
 
 using namespace Util;
+using namespace Util::Literals;
 
 namespace Pal
 {
@@ -2465,7 +2467,7 @@ void RsrcProcMgr::GenerateMipmapsFast(
     // Note that we don't need any barriers between per-array slice dispatches.
     BarrierTransition transition = { };
     transition.srcCacheMask = CoherShader;
-    transition.dstCacheMask = CoherShader;
+    transition.dstCacheMask = CoherShaderRead;
 
     // We will specify the base subresource later on.
     transition.imageInfo.pImage                = genInfo.pImage;
@@ -2682,7 +2684,7 @@ void RsrcProcMgr::GenerateMipmapsSlow(
     // we use implementation dependent cache masks.
     BarrierTransition transition = {};
     transition.srcCacheMask = useGraphicsCopy ? CoherColorTarget : CoherShader;
-    transition.dstCacheMask = CoherShader;
+    transition.dstCacheMask = CoherShaderRead;
 
     // We will specify the base subresource later on.
     transition.imageInfo.pImage                = pImage;
@@ -3130,6 +3132,14 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
             dstFormat.format = Formats::ConvertToSrgb(dstFormat.format);
             PAL_ASSERT(Formats::IsUndefined(dstFormat.format) == false);
         }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 742
+        // srgb can be treated as non-srgb when copying to srgb image
+        else if (copyInfo.flags.dstAsNorm)
+        {
+            dstFormat.format = Formats::ConvertToUnorm(dstFormat.format);
+            PAL_ASSERT(Formats::IsUndefined(dstFormat.format) == false);
+        }
+#endif
 
         uint32 sizeInDwords                 = 0;
         constexpr uint32 ColorKeyDataDwords = 7;
@@ -4413,7 +4423,7 @@ void RsrcProcMgr::CmdFillMemory(
     PAL_ASSERT(IsPow2Aligned(dstGpuVirtAddr, sizeof(uint32)));
     PAL_ASSERT(IsPow2Aligned(fillSize, sizeof(uint32)));
 
-    constexpr gpusize FillSizeLimit = 256 * 1024 * 1024; // 256MB
+    constexpr gpusize FillSizeLimit = 256_MiB;
 
     const Device*const pDevice  = m_pDevice->Parent();
     const PalSettings& settings = pDevice->Settings();
@@ -5748,8 +5758,8 @@ void RsrcProcMgr::LateExpandShaderResolveSrc(
         transition.imageInfo.oldLayout.engines = srcImageLayout.engines;
         transition.imageInfo.newLayout.usages  = srcImageLayout.usages | shaderUsage;
         transition.imageInfo.newLayout.engines = srcImageLayout.engines;
-        transition.srcCacheMask                = Pal::CoherResolve;
-        transition.dstCacheMask                = Pal::CoherShader;
+        transition.srcCacheMask                = Pal::CoherResolveSrc;
+        transition.dstCacheMask                = Pal::CoherShaderRead;
 
         // The destination operation for the image expand is either a CS read or PS read for the upcoming resolve.
         const HwPipePoint waitPoint = isCsResolve ? HwPipePreCs : HwPipePreRasterization;
@@ -5785,8 +5795,8 @@ void RsrcProcMgr::FixupLateExpandShaderResolveSrc(
         transition.imageInfo.newLayout.usages   = srcImageLayout.usages;
         transition.imageInfo.newLayout.engines  = srcImageLayout.engines;
 
-        transition.srcCacheMask = Pal::CoherShader;
-        transition.dstCacheMask = Pal::CoherResolve;
+        transition.srcCacheMask = Pal::CoherShaderRead;
+        transition.dstCacheMask = Pal::CoherResolveSrc;
 
         // The source operation for the image expand is either a CS read or PS read for the past resolve.
         const HwPipePoint pipePoint = isCsResolve ? HwPipePostCs : HwPipePostPs;
@@ -5920,14 +5930,14 @@ void RsrcProcMgr::FixupMetadataForComputeDst(
                         }
 
                         transitions[i].imageInfo.newLayout.usages |= shaderWriteLayout;
-                        transitions[i].srcCacheMask                = CoherCopy;
+                        transitions[i].srcCacheMask                = CoherCopyDst;
                         transitions[i].dstCacheMask                = CoherShader;
                     }
                     else // After copy
                     {
                         transitions[i].imageInfo.oldLayout.usages |= shaderWriteLayout;
                         transitions[i].srcCacheMask                = CoherShader;
-                        transitions[i].dstCacheMask                = CoherCopy;
+                        transitions[i].dstCacheMask                = CoherCopyDst;
                     }
                 }
 
@@ -6681,6 +6691,19 @@ void RsrcProcMgr::ResolveImageCompute(
 
             srcFormat.format = pRegions[idx].swizzledFormat.format;
             dstFormat.format = pRegions[idx].swizzledFormat.format;
+        }
+
+        // Non-SRGB can be treated as SRGB when copying to non-srgb image
+        if (TestAnyFlagSet(flags, ImageResolveDstAsSrgb))
+        {
+            dstFormat.format = Formats::ConvertToSrgb(dstFormat.format);
+            PAL_ASSERT(Formats::IsUndefined(dstFormat.format) == false);
+        }
+        // SRGB can be treated as Non-SRGB when copying to srgb image
+        else if (TestAnyFlagSet(flags, ImageResolveDstAsNorm))
+        {
+            dstFormat.format = Formats::ConvertToUnorm(dstFormat.format);
+            PAL_ASSERT(Formats::IsUndefined(dstFormat.format) == false);
         }
 
         // Store the necessary region independent user data values in slots 1-4. Shader expects the following layout:

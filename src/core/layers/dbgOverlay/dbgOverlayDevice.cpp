@@ -30,8 +30,10 @@
 #include "core/layers/dbgOverlay/dbgOverlayTextWriter.h"
 #include "core/layers/dbgOverlay/dbgOverlayTimeGraph.h"
 #include "palFormatInfo.h"
+#include "palLiterals.h"
 
 using namespace Util;
+using namespace Util::Literals;
 
 namespace Pal
 {
@@ -90,9 +92,9 @@ Result Device::Finalize(
         // We use about 4KB of embedded data for each present so 8KB suballocations are in order. If we ever switch to
         // byte-sized characters we could scale back to 4KB suballocations. 8 suballocations per allocation seems
         // reasonable; in almost all cases we wouldn't need more than one allocation for the whole overlay.
-        constexpr uint32 CommandDataSuballocSize   = (1024 * 8);
-        constexpr uint32 EmbeddedDataSuballocSize  = (1024 * 4);
-        constexpr uint32 GpuScratchMemSuballocSize = (1024 * 4);
+        constexpr uint32 CommandDataSuballocSize   = 8_KiB;
+        constexpr uint32 EmbeddedDataSuballocSize  = 4_KiB;
+        constexpr uint32 GpuScratchMemSuballocSize = 4_KiB;
 
         CmdAllocatorCreateInfo createInfo = { };
         createInfo.flags.threadSafe      = 1;

@@ -122,7 +122,8 @@ void TextWriter::WriteVisualConfirm(
     }
     else
     {
-        Util::Snprintf(&overlayText[textLines++][0], BufSize, "Rendered by Vulkan");
+        const char* pClientApiStr = m_pDevice->GetPlatform()->GetClientApiStr();
+        Util::Snprintf(&overlayText[textLines++][0], BufSize, "Rendered by %s", pClientApiStr);
     }
 
     Platform* pPlatform = static_cast<Platform*>(m_pDevice->GetPlatform());

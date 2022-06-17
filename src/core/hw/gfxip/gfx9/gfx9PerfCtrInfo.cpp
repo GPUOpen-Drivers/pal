@@ -1969,11 +1969,11 @@ void InitPerfCtrInfo(
             if (pBlock->distribution == PerfCounterDistribution::PerShaderArray)
             {
                 pBlock->numGlobalInstances =
-                    pBlock->numInstances * pProps->gfx9.numShaderEngines * pProps->gfx9.numShaderArrays;
+                    pBlock->numInstances * pProps->gfx9.numActiveShaderEngines * pProps->gfx9.numShaderArrays;
             }
             else if (pBlock->distribution == PerfCounterDistribution::PerShaderEngine)
             {
-                pBlock->numGlobalInstances = pBlock->numInstances * pProps->gfx9.numShaderEngines;
+                pBlock->numGlobalInstances = pBlock->numInstances * pProps->gfx9.numActiveShaderEngines;
             }
             else
             {

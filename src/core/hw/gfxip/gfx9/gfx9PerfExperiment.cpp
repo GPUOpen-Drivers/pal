@@ -1146,7 +1146,7 @@ Result PerfExperiment::AddThreadTrace(
         result = Result::ErrorUnavailable;
     }
     // Validate the trace info.
-    else if (traceInfo.instance >= m_chipProps.gfx9.numShaderEngines)
+    else if (traceInfo.instance >= m_chipProps.gfx9.numActiveShaderEngines)
     {
         // There's one thread trace instance per SQG.
         result = Result::ErrorInvalidValue;
@@ -1274,6 +1274,45 @@ Result PerfExperiment::AddThreadTrace(
             m_settings.waNoSqttRegStall                           ? GpuProfilerStallLoseDetail                      :
             (traceInfo.optionFlags.threadTraceStallBehavior != 0) ? traceInfo.optionValues.threadTraceStallBehavior :
                                                                     GpuProfilerStallAlways;
+
+        uint32 cuIndex = 0;
+        if (traceInfo.optionFlags.threadTraceTargetCu != 0)
+        {
+            cuIndex = traceInfo.optionValues.threadTraceTargetCu;
+        }
+        else
+        {
+            // Pick a default detailed token WGP/CU within our shader array. Default to only selecting WGPs/CUs that are
+            // active and not reserved for realtime use. Note that there is no real time WGP mask, but all of the
+            // CU masks are still populated with two adjacent bits set for each WGP.
+            const uint32 traceableCuMask =
+                m_chipProps.gfx9.activeCuMask[traceInfo.instance][shIndex] & ~m_chipProps.gfxip.realTimeCuMask;
+
+            const int32 customDefaultSqttDetailedCuIndex = m_pDevice->Settings().defaultSqttDetailedCuIndex;
+
+            if (customDefaultSqttDetailedCuIndex >= 0)
+            {
+                if (BitfieldIsSet(traceableCuMask, customDefaultSqttDetailedCuIndex))
+                {
+                    cuIndex = customDefaultSqttDetailedCuIndex;
+                }
+                else
+                {
+                    // We can't select a non-traceable CU!
+                    result = Result::ErrorInvalidValue;
+                }
+            }
+            else
+            {
+                // Default to the first active CU
+                if (BitMaskScanForward(&cuIndex, traceableCuMask) == false)
+                {
+                    // We should always have at least one non-realtime CU.
+                    PAL_ASSERT_ALWAYS();
+                }
+            }
+        }
+
         if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp9)
         {
             m_sqtt[traceInfo.instance].mode.bits.MASK_PS      = ((shaderMask & PerfShaderMaskPs) != 0);
@@ -1296,29 +1335,9 @@ Result PerfExperiment::AddThreadTrace(
             m_sqtt[traceInfo.instance].mode.bits.WRAP =
                 ((traceInfo.optionFlags.threadTraceWrapBuffer != 0) && traceInfo.optionValues.threadTraceWrapBuffer);
 
-            if (traceInfo.optionFlags.threadTraceTargetCu != 0)
-            {
-                m_sqtt[traceInfo.instance].mask.gfx09.CU_SEL = traceInfo.optionValues.threadTraceTargetCu;
-            }
-            else
-            {
-                // Pick a default detailed token CU within our shader array.
-                // Default to only selecting CUs that are active and not reserved for realtime use.
-                const uint32 traceableCuMask =
-                    m_chipProps.gfx9.activeCuMask[traceInfo.instance][shIndex] & ~m_chipProps.gfxip.realTimeCuMask;
-
-                // Select the first available CU from the mask
-                uint32 firstActiveCu = 0;
-                if (BitMaskScanForward(&firstActiveCu, traceableCuMask) == false)
-                {
-                    // We should always have at least one non-realtime CU.
-                    PAL_ASSERT_ALWAYS();
-                }
-
-                m_sqtt[traceInfo.instance].mask.gfx09.CU_SEL = firstActiveCu;
-            }
-
             m_sqtt[traceInfo.instance].mask.gfx09.SH_SEL = shIndex;
+
+            m_sqtt[traceInfo.instance].mask.gfx09.CU_SEL = cuIndex;
 
             // Default to getting detailed tokens from all SIMDs.
             m_sqtt[traceInfo.instance].mask.gfx09.SIMD_EN = (traceInfo.optionFlags.threadTraceSimdMask != 0)
@@ -1397,32 +1416,10 @@ Result PerfExperiment::AddThreadTrace(
                 m_sqtt[traceInfo.instance].mask.gfx10Plus.WTYPE_INCLUDE = shaderMask;
             }
 
-            m_sqtt[traceInfo.instance].mask.gfx10Plus.SA_SEL        = shIndex;
+            m_sqtt[traceInfo.instance].mask.gfx10Plus.SA_SEL = shIndex;
 
-            if (traceInfo.optionFlags.threadTraceTargetCu != 0)
-            {
-                // Divide by two to convert to a WGP index.
-                m_sqtt[traceInfo.instance].mask.gfx10Plus.WGP_SEL = traceInfo.optionValues.threadTraceTargetCu / 2;
-            }
-            else
-            {
-                // Pick a default detailed token WGP within our shader array. Default to only selecting WGPs that are
-                // active and not reserved for realtime use. Note that there is no real time WGP mask, but all of the
-                // CU masks are still populated with two adjacent bits set for each WGP.
-                const uint32 traceableCuMask =
-                    m_chipProps.gfx9.activeCuMask[traceInfo.instance][shIndex] & ~m_chipProps.gfxip.realTimeCuMask;
-
-                // Select the first available CU from the mask
-                uint32 firstActiveCu = 0;
-                if (BitMaskScanForward(&firstActiveCu, traceableCuMask) == false)
-                {
-                    // We should always have at least one non-realtime CU.
-                    PAL_ASSERT_ALWAYS();
-                }
-
-                // Divide by two to convert from CUs to WGPs.
-                m_sqtt[traceInfo.instance].mask.gfx10Plus.WGP_SEL = firstActiveCu / 2;
-            }
+            // Divide by two to convert from CUs to WGPs.
+            m_sqtt[traceInfo.instance].mask.gfx10Plus.WGP_SEL = cuIndex / 2;
 
             // Default to getting detailed tokens from SIMD 0.
             m_sqtt[traceInfo.instance].mask.gfx10Plus.SIMD_SEL = (traceInfo.optionFlags.threadTraceSimdMask != 0)
@@ -2623,8 +2620,20 @@ regGRBM_GFX_INDEX PerfExperiment::BuildGrbmGfxIndex(
     GpuBlock               block
     ) const
 {
+    // Determine the real SE mapping for GPUs that have harvested SE
+    uint32 seCount = 0;
+    uint32 seIndex = 0;
+    for (; seIndex < m_chipProps.gfx9.numShaderEngines; seIndex++)
+    {
+        if( (m_chipProps.gfx9.activeSeMask & (1 << seIndex)) &&
+            (mapping.seIndex == seCount++))
+        {
+            break;
+        }
+    }
+
     regGRBM_GFX_INDEX grbmGfxIndex = {};
-    grbmGfxIndex.bits.SE_INDEX  = mapping.seIndex;
+    grbmGfxIndex.bits.SE_INDEX  = seIndex;
     grbmGfxIndex.gfx09.SH_INDEX = mapping.saIndex;
 
     switch (m_counterInfo.block[static_cast<uint32>(block)].distribution)
@@ -4023,36 +4032,44 @@ uint32* PerfExperiment::WriteWaitIdle(
     uint32*       pCmdSpace
     ) const
 {
-    if (m_pDevice->EngineSupportsGraphics(pCmdStream->GetEngineType()))
+    const EngineType engineType        = pCmdStream->GetEngineType();
+    bool             postRefreshL0L1L2 = flushCaches;
+
+    if (m_pDevice->EngineSupportsGraphics(engineType))
     {
-        // Use a CS_PARTIAL_FLUSH and ACQUIRE_MEM to wait for CS and graphics work to complete. Use the acquire mem
-        // to flush caches if requested.
-        //
-        // Note that this isn't a true wait-idle for the graphics engine. In order to wait for the very bottom of
-        // the pipeline we would have to wait for a EOP TS event. Doing that inflates the perf experiment overhead
-        // by a not-insignificant margin (~150ns or ~4K clocks on Vega10). Thus we go with this much faster waiting
-        // method which covers almost all of the same cases as the wait for EOP TS. If we run into issues with counters
-        // at the end of the graphics pipeline or counters that monitor the event pipeline we might need to change this.
-        pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, pCmdStream->GetEngineType(), pCmdSpace);
-
-        AcquireMemInfo acquireInfo = {};
-        acquireInfo.engineType           = pCmdStream->GetEngineType();
-        acquireInfo.cpMeCoherCntl.u32All = CpMeCoherCntlStallMask;
-        acquireInfo.baseAddress          = FullSyncBaseAddr;
-        acquireInfo.sizeBytes            = FullSyncSize;
-        acquireInfo.tcCacheOp            = TcCacheOp::Nop;
-
-        if (flushCaches)
         {
-            acquireInfo.tcCacheOp         = TcCacheOp::WbInvL1L2;
-            acquireInfo.flags.invSqI$     = 1;
-            acquireInfo.flags.invSqK$     = 1;
-            acquireInfo.flags.flushSqK$   = 1;
-            acquireInfo.flags.wbInvCbData = 1;
-            acquireInfo.flags.wbInvDb     = 1;
-        }
+            // Use a CS_PARTIAL_FLUSH and ACQUIRE_MEM to wait for CS and graphics work to complete. Use the acquire mem
+            // to flush caches if requested.
+            //
+            // Note that this isn't a true wait-idle for the graphics engine. In order to wait for the very bottom of
+            // the pipeline we would have to wait for a EOP TS event. Doing that inflates the perf experiment overhead
+            // by a not-insignificant margin (~150ns or ~4K clocks on Vega10). Thus we go with this much faster waiting
+            // method which covers almost all of the same cases as the wait for EOP TS. If we run into issues with
+            // counters at the end of the graphics pipeline or counters that monitor the event pipeline we might need
+            // to change this.
+            pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, pCmdStream->GetEngineType(), pCmdSpace);
 
-        pCmdSpace += m_cmdUtil.BuildAcquireMem(acquireInfo, pCmdSpace);
+            AcquireMemInfo acquireInfo = {};
+            acquireInfo.engineType           = pCmdStream->GetEngineType();
+            acquireInfo.cpMeCoherCntl.u32All = CpMeCoherCntlStallMask;
+            acquireInfo.baseAddress          = FullSyncBaseAddr;
+            acquireInfo.sizeBytes            = FullSyncSize;
+            acquireInfo.tcCacheOp            = TcCacheOp::Nop;
+
+            if (flushCaches)
+            {
+                acquireInfo.tcCacheOp         = TcCacheOp::WbInvL1L2;
+                acquireInfo.flags.invSqI$     = 1;
+                acquireInfo.flags.invSqK$     = 1;
+                acquireInfo.flags.flushSqK$   = 1;
+                acquireInfo.flags.wbInvCbData = 1;
+                acquireInfo.flags.wbInvDb     = 1;
+
+                postRefreshL0L1L2 = false;
+            }
+
+            pCmdSpace += m_cmdUtil.BuildAcquireMem(acquireInfo, pCmdSpace);
+        }
 
         // NOTE: ACQUIRE_MEM has an implicit context roll if the current context is busy. Since we won't be aware
         //       of a busy context, we must assume all ACQUIRE_MEM's come with a context roll.
@@ -4064,20 +4081,20 @@ uint32* PerfExperiment::WriteWaitIdle(
     {
         // Wait for all work to be idle and use an ACQUIRE_MEM to flush any caches.
         pCmdSpace += m_cmdUtil.BuildWaitCsIdle(EngineTypeCompute, pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
+    }
 
-        if (flushCaches)
-        {
-            AcquireMemInfo acquireInfo = {};
-            acquireInfo.engineType        = pCmdStream->GetEngineType();
-            acquireInfo.baseAddress       = FullSyncBaseAddr;
-            acquireInfo.sizeBytes         = FullSyncSize;
-            acquireInfo.tcCacheOp         = TcCacheOp::WbInvL1L2;
-            acquireInfo.flags.invSqI$     = 1;
-            acquireInfo.flags.invSqK$     = 1;
-            acquireInfo.flags.flushSqK$   = 1;
+    if (postRefreshL0L1L2)
+    {
+        AcquireMemInfo acquireInfo = {};
+        acquireInfo.engineType        = pCmdStream->GetEngineType();
+        acquireInfo.baseAddress       = FullSyncBaseAddr;
+        acquireInfo.sizeBytes         = FullSyncSize;
+        acquireInfo.tcCacheOp         = TcCacheOp::WbInvL1L2;
+        acquireInfo.flags.invSqI$     = 1;
+        acquireInfo.flags.invSqK$     = 1;
+        acquireInfo.flags.flushSqK$   = 1;
 
-            pCmdSpace += m_cmdUtil.BuildAcquireMem(acquireInfo, pCmdSpace);
-        }
+        pCmdSpace += m_cmdUtil.BuildAcquireMem(acquireInfo, pCmdSpace);
     }
 
     return pCmdSpace;

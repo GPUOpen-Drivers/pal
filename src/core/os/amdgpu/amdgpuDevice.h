@@ -326,6 +326,8 @@ public:
         uint32*                   pStereoModeCount,
         StereoDisplayModeOutput*  pStereoModeList) const override { return Result::ErrorUnavailable; }
 
+    virtual Result GetWsStereoMode(WorkstationStereoMode* pWsStereoMode) const override { return Result::ErrorUnavailable;}
+
     virtual Result GetActive10BitPackedPixelMode(
         Active10BitPackedPixelModeOutput* pMode) const override { return Result::ErrorUnavailable; }
 
@@ -868,9 +870,6 @@ public:
         char* pDeviceName,
         bool* pIsSame) const;
 
-    Result ReserveVmid();
-    Result UnReserveVmid();
-
     void GetDisplayDccInfo(DisplayDccCaps& displayDcc) const;
 
     bool SupportDisplayDcc() const
@@ -921,6 +920,9 @@ protected:
         uint32* pNumScreen) override { return Result::ErrorUnavailable; }
 
     virtual Result OsLateInit() override;
+
+    virtual Result OsSetStaticVmidMode(
+        bool enable) override;
 
     virtual Pal::Queue* ConstructMultiQueueObject(
         uint32                 queueCount,
@@ -1023,8 +1025,7 @@ private:
     amdgpu_gpu_info  m_gpuInfo;                              // Gpu info queried from kernel
     bool             m_supportsPresent[QueueTypeCount];      // Indicates if each queue type supports presents.
 
-    bool  m_useDedicatedVmid;         // Indicate if use per-process VMID.
-    bool  m_supportExternalSemaphore; // Indicate if external semaphore is supported.
+    bool   m_supportExternalSemaphore; // Indicate if external semaphore is supported.
 
     const char*  m_pSettingsPath;
 

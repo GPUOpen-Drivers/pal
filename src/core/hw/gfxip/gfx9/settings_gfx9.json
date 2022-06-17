@@ -979,6 +979,20 @@
       "Name": "DisableGeCntlVtxGrouping"
     },
     {
+      "Description": "If true, disables the PA broadcast of prims that touch adjacent screen tiles to help check PA output rate.",
+      "Tags": [
+        "Graphics Pipelines",
+        "Gfx9"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "disablePaBroadcast",
+      "Name": "DisablePaBroadcast"
+    },
+    {
       "Description": "If true, the HW-GS stage will prefer to send a wave to each SIMD in a CU before moving to the next enabled CU. If false, HW-GS prefers to send only one wave to each CU before moving to the next enabled CU.",
       "Tags": [
         "Graphics Pipelines",
@@ -3065,6 +3079,22 @@
       "Type": "bool",
       "VariableName": "waNeverStopSqCounters",
       "Name": "WaNeverStopSqCounters"
+    },
+    {
+      "Description": "If the workaround is enabled, then Depth Buffer EQAA Interpolate Comp Z will be disabled to prevent depth buffer corruption.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waDisableDbEqaaInterpolateCompZ",
+      "Name": "WaDisableDbEqaaInterpolateCompZ"
     }
   ]
 }

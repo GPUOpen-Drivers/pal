@@ -27,6 +27,8 @@
 
 #include "palUtil.h"
 #include "palAssert.h"
+#include "palFile.h"
+#include "palStringView.h"
 
 namespace Util
 {
@@ -40,6 +42,8 @@ namespace Util
 class JsonStream
 {
 public:
+    JsonStream() {}
+
     /// Destructor.
     virtual ~JsonStream() {}
 
@@ -53,6 +57,33 @@ public:
     ///
     /// @param [in] character The character being written to the stream.
     virtual void WriteCharacter(char character) = 0;
+
+private:
+    PAL_DISALLOW_COPY_AND_ASSIGN(JsonStream);
+};
+
+/**
+ ***********************************************************************************************************************
+ * @brief Implementation of @ref JsonStream that outputs JSON to a file.
+ ***********************************************************************************************************************
+ */
+class JsonFileStream final : public JsonStream
+{
+public:
+    virtual void WriteString(const char* pString, uint32 length) override;
+    virtual void WriteCharacter(char character) override;
+
+    bool IsFileOpen() const { return m_file.IsOpen(); }
+    Result FlushFile() { return m_file.Flush(); }
+    void CloseFile() { return m_file.Close(); }
+    Result OpenFile(const char* pFilename);
+
+    Result FileWriteResult() const { return m_writeResult; }
+    void ClearWriteResult() { m_writeResult = Result::Success; }
+
+private:
+    File   m_file;                          // JSON text is being written here.
+    Result m_writeResult{Result::Success};  // Result of write operations.
 };
 
 /**
@@ -105,6 +136,11 @@ public:
     /// @param [in] pValue The null-terminated string to write.
     void Value(const char* pValue);
 
+    /// Instructs the JsonWriter to write a string value.
+    ///
+    /// @param [in] value The string to write.
+    void Value(Util::StringView<char> value);
+
     ///@{
     /// Instructs the JsonWriter to write a value.
     ///
@@ -152,6 +188,12 @@ public:
     /// @param [in] pValue The null-terminated string value.
     void KeyAndValue(const char* pKey, const char* pValue) { Key(pKey); Value(pValue); }
 
+    /// Instructs the JsonWriter to write a key-value pair.
+    ///
+    /// @param [in] pKey  A null-terminated string naming the key.
+    /// @param [in] value The string value.
+    void KeyAndValue(const char* pKey, Util::StringView<char> value) { Key(pKey); Value(value); }
+
     ///@{
     /// Instructs the JsonWriter to write a key-value pair.
     ///
@@ -167,6 +209,17 @@ public:
     void KeyAndValue(const char* pKey, int8 value)   { Key(pKey); Value(value); }
     void KeyAndValue(const char* pKey, float value)  { Key(pKey); Value(value); }
     void KeyAndValue(const char* pKey, bool value)   { Key(pKey); Value(value); }
+    ///@}
+
+    ///@{
+    /// Instructs the JsonWriter to write a key-value pair, where the value is written in base 16.
+    ///
+    /// @param [in] pKey  A null-terminated string naming the key.
+    /// @param [in] value The value to write.
+    void KeyAndHexValue(const char* pKey, uint64 value) { Key(pKey); HexValue(value); }
+    void KeyAndHexValue(const char* pKey, uint32 value) { Key(pKey); HexValue(value); }
+    void KeyAndHexValue(const char* pKey, uint16 value) { Key(pKey); HexValue(value); }
+    void KeyAndHexValue(const char* pKey, uint8 value)  { Key(pKey); HexValue(value); }
     ///@}
 
     /// Instructs the JsonWriter to write a key-value pair where the value is a JSON "null" value.

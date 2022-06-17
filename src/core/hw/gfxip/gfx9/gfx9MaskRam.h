@@ -241,6 +241,8 @@ public:
 
     PipeDist GetPipeDist()             const { return m_pipeDist; }
     int32    GetMetaDataWordSizeLog2() const { return m_metaDataWordSizeLog2; }
+    bool IsZSwizzle(AddrSwizzleMode  swizzleMode) const;
+    bool IsRotatedSwizzle(AddrSwizzleMode  swizzleMode) const;
 
 protected:
     bool   IsThick() const;
@@ -264,7 +266,7 @@ protected:
 
 private:
     void   CalcMetaEquationGfx9();
-    void   CalcMetaEquationGfx10();
+    void   CalcMetaEquationGfx10Plus();
     void   CalcDataOffsetEquation(MetaDataAddrEquation* pDataOffset);
     void   CalcPipeEquation(MetaDataAddrEquation* pPipe, MetaDataAddrEquation* pDataOffset, uint32  numPipesLog2);
     void   CalcRbEquation(MetaDataAddrEquation* pRb, uint32  numSesLog2, uint32  numRbsPerSeLog2);

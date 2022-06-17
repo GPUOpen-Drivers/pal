@@ -69,6 +69,9 @@ target_link_libraries(pal PRIVATE pal_lz4)
 
 ### DevDriver ####################################################################
 
+# Enable the DevDriver Settings service
+set(DD_BP_ENABLE_DD_SETTINGS ON)
+
 set(PAL_DEVDRIVER_PATH "default" CACHE PATH "Specify the path to the devdriver project.")
 
 if (${PAL_DEVDRIVER_PATH} STREQUAL "default")

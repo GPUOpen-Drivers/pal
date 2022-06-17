@@ -34,8 +34,10 @@
 #include "palCmdAllocator.h"
 #include "palDequeImpl.h"
 #include "palSysUtil.h"
+#include "palLiterals.h"
 
 using namespace Util;
+using namespace Util::Literals;
 
 namespace Pal
 {
@@ -62,7 +64,7 @@ Queue::Queue(
     m_ppTimestamp(nullptr),
     m_pendingSubmits(static_cast<Platform*>(pDevice->GetPlatform())),
     m_availableFences(static_cast<Platform*>(pDevice->GetPlatform())),
-    m_replayAllocator(64 * 1024),
+    m_replayAllocator(64_KiB),
     m_submitOnActionCount(pDevice->GetPlatform()->PlatformSettings().gpuDebugConfig.submitOnActionCount),
     m_waitIdleSleepMs(pDevice->GetPlatform()->PlatformSettings().gpuDebugConfig.waitIdleSleepMs)
 {
@@ -197,8 +199,8 @@ Result Queue::InitCmdAllocator()
     // We need a command allocator for the per-queue command buffer which contains information as to
     // where the timestamp data lives. This command buffer will be used for comments so we can get away
     // with small allocations and suballocations.
-    constexpr uint32 AllocSize      = (2 * 1024 * 1024);
-    constexpr uint32 SuballocSize   = (64 * 1024);
+    constexpr uint32 AllocSize      = 2_MiB;
+    constexpr uint32 SuballocSize   = 64_KiB;
 
     CmdAllocatorCreateInfo createInfo = { };
     createInfo.flags.threadSafe               = 1;
@@ -247,14 +249,14 @@ Result Queue::InitNestedCmdAllocator()
     // command buffers can potentially exhaust the GPU VA range by simply playing back too many nested command buffers.
     // This will have a small performance impact on large nested command buffers but we have little choice for now.
     createInfo.allocInfo[CommandDataAlloc].allocHeap      = GpuHeapGartUswc;
-    createInfo.allocInfo[CommandDataAlloc].allocSize      = 4 * 1024;
-    createInfo.allocInfo[CommandDataAlloc].suballocSize   = 4 * 1024;
+    createInfo.allocInfo[CommandDataAlloc].allocSize      = 4_KiB;
+    createInfo.allocInfo[CommandDataAlloc].suballocSize   = 4_KiB;
     createInfo.allocInfo[EmbeddedDataAlloc].allocHeap     = GpuHeapGartUswc;
-    createInfo.allocInfo[EmbeddedDataAlloc].allocSize     = 4 * 1024;
-    createInfo.allocInfo[EmbeddedDataAlloc].suballocSize  = 4 * 1024;
+    createInfo.allocInfo[EmbeddedDataAlloc].allocSize     = 4_KiB;
+    createInfo.allocInfo[EmbeddedDataAlloc].suballocSize  = 4_KiB;
     createInfo.allocInfo[GpuScratchMemAlloc].allocHeap    = GpuHeapGartUswc;
-    createInfo.allocInfo[GpuScratchMemAlloc].allocSize    = 4 * 1024;
-    createInfo.allocInfo[GpuScratchMemAlloc].suballocSize = 4 * 1024;
+    createInfo.allocInfo[GpuScratchMemAlloc].allocSize    = 4_KiB;
+    createInfo.allocInfo[GpuScratchMemAlloc].suballocSize = 4_KiB;
 
     Result result = Result::Success;
 
@@ -586,28 +588,29 @@ Result Queue::Submit(
                  (result == Result::Success) && (cmdBufIdx < subQueueInfo.cmdBufferCount);
                  cmdBufIdx++)
             {
-                CmdBuffer*        pCmdBuffer  = static_cast<CmdBuffer*>(subQueueInfo.ppCmdBuffers[cmdBufIdx]);
+                auto* pCmdBuffer              = static_cast<CmdBuffer*>(subQueueInfo.ppCmdBuffers[cmdBufIdx]);
                 const CmdBufInfo* pCmdBufInfo =
                     (subQueueInfo.pCmdBufInfoList != nullptr) ? &subQueueInfo.pCmdBufInfoList[cmdBufIdx] : nullptr;
                 result = pCmdBuffer->Replay(this, pCmdBufInfo, subQueueIdx, nullptr);
 
-                const uint32 sufaceCaptureMemCount = pCmdBuffer->GetSurfaceCaptureGpuMemCount();
-                if (sufaceCaptureMemCount > 0)
+                const uint32 surfaceCaptureMemCount = pCmdBuffer->GetSurfaceCaptureGpuMemCount();
+                if ((result == Result::Success) && (surfaceCaptureMemCount > 0))
                 {
-                    AutoBuffer<GpuMemoryRef, 32, Platform> memRefs(sufaceCaptureMemCount, pPlatform);
+                    AutoBuffer<GpuMemoryRef, 32, Platform> memRefs(surfaceCaptureMemCount, pPlatform);
 
-                    for(uint32 i = 0; i < sufaceCaptureMemCount; i++)
+                    for(uint32 i = 0; i < surfaceCaptureMemCount; i++)
                     {
                         memRefs[i].pGpuMemory   = pCmdBuffer->GetSurfaceCaptureGpuMems()[i];
                         memRefs[i].flags.u32All = 0;
                     }
 
-                    m_pDevice->AddGpuMemoryReferences(
-                        sufaceCaptureMemCount,
+                    result = m_pDevice->AddGpuMemoryReferences(
+                        surfaceCaptureMemCount,
                         memRefs.Data(),
                         this,
                         0);
                 }
+
             }
 
             totalCmdBufferCount += m_pQueueInfos[subQueueIdx].pNextSubmitCmdBufs->NumElements();
@@ -665,31 +668,38 @@ Result Queue::Submit(
         {
             bool idle = false;
 
-            for (uint32 subQueueIdx = 0; subQueueIdx < submitInfo.perSubQueueInfoCount; subQueueIdx++)
+            for (uint32 subQueueIdx = 0;
+                 (result == Result::Success) && (subQueueIdx < submitInfo.perSubQueueInfoCount);
+                 ++subQueueIdx)
             {
-                const auto& subQueueInfo = submitInfo.pPerSubQueueInfo[subQueueIdx];
-                for (uint32 cmdBufIdx = 0; cmdBufIdx < subQueueInfo.cmdBufferCount; cmdBufIdx++)
+                const PerSubQueueSubmitInfo& subQueueInfo = submitInfo.pPerSubQueueInfo[subQueueIdx];
+                for (uint32 cmdBufIdx = 0;
+                     (result == Result::Success) && (cmdBufIdx < subQueueInfo.cmdBufferCount);
+                     ++cmdBufIdx)
                 {
-                    CmdBuffer* pCmdBuffer = static_cast<CmdBuffer*>(subQueueInfo.ppCmdBuffers[cmdBufIdx]);
+                    auto* pCmdBuffer = static_cast<CmdBuffer*>(subQueueInfo.ppCmdBuffers[cmdBufIdx]);
 
-                    const uint32 sufaceCaptureMemCount = pCmdBuffer->GetSurfaceCaptureGpuMemCount();
-                    if (sufaceCaptureMemCount > 0)
+                    // Check if any outstanding work requires a stall.
+                    const bool outputSurfaceCapture = (pCmdBuffer->GetSurfaceCaptureGpuMemCount() > 0);
+
+                    if ((idle == false) &&
+                        (outputSurfaceCapture
+                        ))
                     {
-                        if (idle == false)
-                        {
-                            WaitIdle();
-                            idle = true;
-                        }
+                        WaitIdle();
+                        idle = true;
+                    }
+
+                    if (outputSurfaceCapture)
+                    {
                         pCmdBuffer->OutputSurfaceCapture();
 
-                        if (sufaceCaptureMemCount > 0)
-                        {
-                            m_pDevice->RemoveGpuMemoryReferences(
-                                pCmdBuffer->GetSurfaceCaptureGpuMemCount(),
-                                pCmdBuffer->GetSurfaceCaptureGpuMems(),
-                                this);
-                        }
+                        result = m_pDevice->RemoveGpuMemoryReferences(
+                            pCmdBuffer->GetSurfaceCaptureGpuMemCount(),
+                            pCmdBuffer->GetSurfaceCaptureGpuMems(),
+                            this);
                     }
+
                 }
             }
         }

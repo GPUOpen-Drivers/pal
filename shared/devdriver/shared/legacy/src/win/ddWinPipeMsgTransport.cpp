@@ -123,7 +123,7 @@ namespace DevDriver
 
         if (IsValidPipeName(m_pipeName))
         {
-            if (m_pipeHandle == INVALID_HANDLE_VALUE && WaitNamedPipe(m_pipeName, timeoutInMs))
+            if (m_pipeHandle == INVALID_HANDLE_VALUE && WaitNamedPipeA(m_pipeName, timeoutInMs))
             {
                 m_pipeHandle = CreateFileA(m_pipeName,                   // Pipe name
                                            GENERIC_READ | GENERIC_WRITE, // Read and write access
@@ -312,7 +312,7 @@ namespace DevDriver
         {
             // Use CallNamedPipe to connect, send, receive, and disconnect to the named pipe
             DWORD bytesRead = 0;
-            const BOOL success = CallNamedPipe(fullPipeName,
+            const BOOL success = CallNamedPipeA(fullPipeName,
                                                &message,
                                                sizeof(message.header),
                                                &responseMessage,

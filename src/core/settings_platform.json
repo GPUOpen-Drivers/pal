@@ -68,7 +68,10 @@
           "Name": "EventPrintCbEnabled"
         }
       ],
-      "Description": "Controls debug print category enable/disable."
+      "Description": "Controls debug print category enable/disable.",
+      "BuildTypes": [
+        "PAL_ENABLE_PRINTS_ASSERTS"
+      ]
     },
     {
       "Name": "DbgLogEnabled",
@@ -81,7 +84,10 @@
       "Scope": "PrivatePalKey",
       "Type": "bool",
       "VariableName": "dbgLogEnabled",
-      "Description": "Flag to turn debug message logging on/off globally."
+      "Description": "Flag to turn debug message logging on/off globally.",
+      "BuildTypes": [
+        "PAL_ENABLE_LOGGING"
+      ]
     },
     {
       "Name": "DbgLoggerFileConfig",
@@ -105,7 +111,7 @@
             "WinDefault": "PalLog\\",
             "LnxDefault": "amdpal/"
           },
-          "Size": "MaxPathStrLen",
+          "Size": "Util::MaxPathStrLen",
           "Type": "string",
           "VariableName": "logDirectory",
           "Name": "LogDirectory"
@@ -270,7 +276,10 @@
           "Description": "Mask indicating the sources for each log message as defined in Util::OriginationTypeFlags."
         }
       ],
-      "Description": "Controls debug message logging options."
+      "Description": "Controls debug message logging options.",
+      "BuildTypes": [
+        "PAL_ENABLE_LOGGING"
+      ]
     },
     {
       "Name": "AssertsEnabled",
@@ -283,7 +292,10 @@
       "Scope": "PrivatePalKey",
       "Type": "bool",
       "VariableName": "assertsEnabled",
-      "Description": "Enables driver asserts."
+      "Description": "Enables driver asserts.",
+      "BuildTypes": [
+        "PAL_ENABLE_PRINTS_ASSERTS"
+      ]
     },
     {
       "Name": "AlertsEnabled",
@@ -296,7 +308,10 @@
       "Scope": "PrivatePalKey",
       "Type": "bool",
       "VariableName": "alertsEnabled",
-      "Description": "Enables driver alerts."
+      "Description": "Enables driver alerts.",
+      "BuildTypes": [
+        "PAL_ENABLE_PRINTS_ASSERTS"
+      ]
     },
     {
       "Name": "EnableEventLogFile",
@@ -331,7 +346,7 @@
         "WinDefault": "C:\\PalLog\\",
         "LnxDefault": "amdpal/"
       },
-      "Size": "MaxPathStrLen",
+      "Size": "Util::MaxPathStrLen",
       "Type": "string",
       "VariableName": "eventLogDirectory",
       "Name": "EventLogDirectory"
@@ -344,7 +359,7 @@
       "Tags": [
         "Event Logging"
       ],
-      "Size": "MaxPathStrLen",
+      "Size": "Util::MaxPathStrLen",
       "Type": "string",
       "VariableName": "eventLogFilename",
       "Name": "EventLogFilename"
@@ -730,7 +745,7 @@
             "WinDefault": "PalLog\\",
             "LnxDefault": "amdpal/"
           },
-          "Size": "MaxPathStrLen",
+          "Size": "Util::MaxPathStrLen",
           "Type": "string",
           "VariableName": "usageLogDirectory",
           "Name": "UsageLogDirectory"
@@ -740,7 +755,7 @@
           "Defaults": {
             "Default": "PalUsageLog.txt"
           },
-          "Size": "MaxPathStrLen",
+          "Size": "Util::MaxPathStrLen",
           "Type": "string",
           "VariableName": "usageLogFilename",
           "Name": "UsageLogFilename"
@@ -764,7 +779,7 @@
             "WinDefault": "PalLog\\",
             "LnxDefault": "amdpal/"
           },
-          "Size": "MaxPathStrLen",
+          "Size": "Util::MaxPathStrLen",
           "Type": "string",
           "VariableName": "frameStatsLogDirectory",
           "Name": "FrameStatsLogDirectory"
@@ -983,7 +998,7 @@
             "WinDefault": "PalLog\\",
             "LnxDefault": "amdpal/"
           },
-          "Size": "MaxPathStrLen",
+          "Size": "Util::MaxPathStrLen",
           "Type": "string",
           "VariableName": "logDirectory",
           "Name": "LogDirectory"
@@ -993,7 +1008,7 @@
           "Defaults": {
             "Default": ""
           },
-          "Size": "MaxFileNameStrLen",
+          "Size": "Util::MaxFileNameStrLen",
           "Type": "string",
           "VariableName": "targetApplication",
           "Name": "TargetApplication"
@@ -1186,7 +1201,7 @@
           "Defaults": {
             "Default": ""
           },
-          "Size": "MaxFileNameStrLen",
+          "Size": "Util::MaxFileNameStrLen",
           "Type": "string",
           "VariableName": "globalPerfCounterConfigFile",
           "Name": "GlobalPerfCounterConfigFile"
@@ -1507,7 +1522,7 @@
           "Description": "Whether to inject the pipeline hash and client shader hases into the thread trace for Thread Trace Viewer analysis."
         },
         {
-          "Description": "Maximum amount of data in bytes to capture per trace.  A trace will cover a span of commands based on the GpuProfilerGranularity setting.  Defaults to 1MB.  Current HW requires the size be aligned to 0x1000 bytes.",
+          "Description": "Maximum amount of data in bytes to capture per trace.  A trace will cover a span of commands based on the GpuProfilerGranularity setting.  Defaults to 1MB.  Current HW requires the size be aligned to 0x1000 bytes.  The maximum recommended size is 128MB (0x7FFF000).",
           "Defaults": {
             "Default": 1048576
           },
@@ -1575,7 +1590,7 @@
           "Defaults": {
             "Default": ""
           },
-          "Size": "MaxFileNameStrLen",
+          "Size": "Util::MaxFileNameStrLen",
           "Type": "string",
           "VariableName": "spmPerfCounterConfigFile",
           "Name": "SpmPerfCounterConfigFile"
@@ -1830,7 +1845,7 @@
             "WinDefault": "PalLog\\",
             "LnxDefault": "amdpal/"
           },
-          "Size": "MaxPathStrLen",
+          "Size": "Util::MaxPathStrLen",
           "Type": "string",
           "VariableName": "logDirectory",
           "Name": "LogDirectory"
@@ -1840,7 +1855,7 @@
           "Defaults": {
             "Default": "pm4-stats.log"
           },
-          "Size": "MaxPathStrLen",
+          "Size": "Util::MaxPathStrLen",
           "Type": "string",
           "VariableName": "filenameSuffix",
           "Name": "FilenameSuffix"
@@ -1924,7 +1939,7 @@
             "WinDefault": "PalLog\\",
             "LnxDefault": "amdpal/"
           },
-          "Size": "MaxPathStrLen",
+          "Size": "Util::MaxPathStrLen",
           "Type": "string",
           "VariableName": "logDirectory",
           "Name": "LogDirectory"
@@ -2278,7 +2293,7 @@
           "Type": "string",
           "VariableName": "surfaceCaptureLogDirectory",
           "Description": "Relative directory where the captured surfaces will be written. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
-          "Size": "MaxPathStrLen"
+          "Size": "Util::MaxPathStrLen"
         }
       ],
       "Description": "Controls what debugging options are selected in the GPU Debug layer."
@@ -2286,12 +2301,12 @@
   ],
   "DefinedConstants": [
     {
-      "Name": "MaxPathStrLen",
+      "Name": "Util::MaxPathStrLen",
       "Value": 512,
       "Description": "Maximum string length for a directory/path setting"
     },
     {
-      "Name": "MaxFileNameStrLen",
+      "Name": "Util::MaxFileNameStrLen",
       "Value": 256,
       "Description": "Maximum string length for a filename setting"
     },

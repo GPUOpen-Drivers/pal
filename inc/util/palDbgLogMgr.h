@@ -191,6 +191,39 @@ public:
         return m_error;
     }
 
+    /// Checks to see if an incoming message should be accepted according to its severity and source.
+    /// Messages will reach the loggers only if they pass through this check.
+    ///
+    /// @param [in] severity     Specifies the log message's severity level.
+    /// @param [in] source       Specifies the log message's origination type (source).
+    /// @returns true if log message's severity is above acceptable severity level and source
+    ///          is in its mask. Otherwise, returns false.
+    bool AcceptMessage(
+        SeverityLevel   severity,
+        OriginationType source)
+    {
+        return Util::AcceptMessage(severity,
+                                   source,
+                                   m_dbgLogBaseSettings.severityLevel,
+                                   m_dbgLogBaseSettings.origTypeMask);
+    }
+
+    /// Return debug log manager's base settings.
+    const DbgLogBaseSettings& GetDbgLogBaseSettings()
+    {
+        return m_dbgLogBaseSettings;
+    }
+
+    /// Set debug log manager's base settings to the incoming values.
+    ///
+    /// @param [in] dbgLogBaseSettings     Base settings that will replace current values.
+    void SetDbgLogBaseSettings(
+        const DbgLogBaseSettings& dbgLogBaseSettings)
+    {
+        m_dbgLogBaseSettings.severityLevel = dbgLogBaseSettings.severityLevel;
+        m_dbgLogBaseSettings.origTypeMask  = dbgLogBaseSettings.origTypeMask;
+    }
+
 private:
     /// A variadic template function having common code to check for thread safety (reentry guard and RWLock)
     /// before calling each logger's LogMessage(). All public LogMessage() variants will call this internal
@@ -205,10 +238,11 @@ private:
     bool m_logEnabled;  ///< Indicates whether or not logging is enabled globally. Defaults to true.
     bool m_error;       ///< Keeps track of internal errors. Clients can query for this
                         ///< and decide whether to use the DbgLogMgr object or not.
-    ThreadLocalKey  m_reentryGuardKey; ///< Thread-local key for reentry guard to protect
-                                       ///< LogMessage() from re-entry by same thread.
-    RWLock          m_dbgLoggersLock;  ///< Serialize access to DbgLoggers list.
-    DbgLoggersList  m_dbgLoggersList;  ///< List of debug loggers.
+    ThreadLocalKey     m_reentryGuardKey;    ///< Thread-local key for reentry guard to protect
+                                             ///< LogMessage() from re-entry by same thread.
+    RWLock             m_dbgLoggersLock;     ///< Serialize access to DbgLoggers list.
+    DbgLoggersList     m_dbgLoggersList;     ///< List of debug loggers.
+    DbgLogBaseSettings m_dbgLogBaseSettings; ///< struct containing base severity level and orig type mask
 
     PAL_DISALLOW_COPY_AND_ASSIGN(DbgLogMgr);
 };

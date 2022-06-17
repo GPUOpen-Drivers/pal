@@ -194,6 +194,13 @@ struct AmdGpuInfo
     };
     BigSwVersion bigSwVersion;
 
+    struct LibDrmVersion
+    {
+        uint32_t Major; // drm major version
+        uint32_t Minor; // drm minor version
+    };
+    LibDrmVersion drmVersion;
+
     AmdGpuInfo() { memset(this, 0, sizeof(*this)); }
 };
 
