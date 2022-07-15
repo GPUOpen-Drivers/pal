@@ -52,6 +52,8 @@ Device::Device(
     DeviceDecorator(pPlatform, pNextDevice),
     m_id(id),
     m_fragmentSize(0),
+    m_nextColorViewSize(0),
+    m_nextDepthViewSize(0),
     m_bufferSrdDwords(0),
     m_imageSrdDwords(0),
     m_timestampFreq(0),
@@ -196,6 +198,16 @@ Result Device::CommitSettingsAndInit()
         {
             m_minTimestampAlignment[i] = info.engineProperties[i].minTimestampAlignment;
         }
+    }
+
+    if (result == Result::Success)
+    {
+        m_nextColorViewSize = m_pNextLayer->GetColorTargetViewSize(&result);
+    }
+
+    if (result == Result::Success)
+    {
+        m_nextDepthViewSize = m_pNextLayer->GetDepthStencilViewSize(&result);
     }
 
     if (result == Result::Success)

@@ -147,14 +147,12 @@ Result GfxDevice::InitHwlSettings(
     {
         switch (m_pParent->ChipProperties().gfxLevel)
         {
-#if PAL_BUILD_GFX6
         case GfxIpLevel::GfxIp6:
         case GfxIpLevel::GfxIp7:
         case GfxIpLevel::GfxIp8:
         case GfxIpLevel::GfxIp8_1:
             m_pSettingsLoader = Gfx6::CreateSettingsLoader(m_pParent);
             break;
-#endif
         case GfxIpLevel::GfxIp10_1:
         case GfxIpLevel::GfxIp9:
         case GfxIpLevel::GfxIp10_3:
@@ -817,6 +815,37 @@ uint32 GfxDevice::VertsPerPrimitive(
     }
 
     return vertsPerPrimitive;
+}
+
+// =====================================================================================================================
+bool GfxDevice::IsValidTypedBufferView(
+    const BufferViewInfo& view)
+{
+    bool isValid = true;
+
+    const uint32 bpp = Pal::Formats::BytesPerPixel(view.swizzledFormat.format);
+
+    // Typed buffer loads require element size alignment. 96 bit is a special case because the element size is 32 bits.
+    const gpusize requiredAlignment = (bpp == 12) ? sizeof(uint32) : bpp;
+
+    if (view.gpuAddr == 0)
+    {
+        isValid = false;
+    }
+    if (Formats::IsUndefined(view.swizzledFormat.format))
+    {
+        isValid = false;
+    }
+    if ((view.gpuAddr % requiredAlignment) != 0)
+    {
+        isValid = false;
+    }
+    if ((view.stride % requiredAlignment) != 0)
+    {
+        isValid = false;
+    }
+
+    return isValid;
 }
 
 // Default sample positions, indexed via Log2(numSamples).

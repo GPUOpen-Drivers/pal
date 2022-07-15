@@ -63,7 +63,7 @@ Result HybridGraphicsPipeline::HwlInit(
     if (result == Result::Success)
     {
         GraphicsPipelineLoadInfo loadInfo = {};
-        GraphicsPipeline::EarlyInit(metadata, registers, &loadInfo);
+        GraphicsPipeline::EarlyInit(metadata, &loadInfo);
 
         PipelineUploader uploader(m_pDevice->Parent(), abiReader);
 
@@ -74,7 +74,7 @@ Result HybridGraphicsPipeline::HwlInit(
 
         if (result == Result::Success)
         {
-            LateInit(createInfo, abiReader, metadata, registers, loadInfo, &uploader);
+            LateInit(createInfo, abiReader, metadata, loadInfo, &uploader);
 
             m_task.SetupSignatureFromElf(&m_taskSignature, metadata, registers);
 

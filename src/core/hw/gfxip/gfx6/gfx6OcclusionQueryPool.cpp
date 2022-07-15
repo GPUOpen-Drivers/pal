@@ -24,12 +24,12 @@
  **********************************************************************************************************************/
 
 #include "core/cmdStream.h"
-#include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/gfx6/gfx6Chip.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdUtil.h"
 #include "core/hw/gfxip/gfx6/gfx6Device.h"
 #include "core/hw/gfxip/gfx6/gfx6OcclusionQueryPool.h"
 #include "core/hw/gfxip/gfx6/gfx6UniversalCmdBuffer.h"
+#include "core/hw/gfxip/pm4CmdBuffer.h"
 #include "palCmdBuffer.h"
 #include "palIntervalTreeImpl.h"
 #include "palSysUtil.h"
@@ -341,13 +341,15 @@ void OcclusionQueryPool::OptimizedReset(
 
             const Interval<gpusize, bool> interval = { gpuAddr, gpuAddr + GetGpuResultSizeInBytes(queryCount) - 1 };
 
-            if (pCmdBuffer->GetGfxCmdBufState().flags.prevCmdBufActive || pActiveRanges->Overlap(&interval))
+            Pm4CmdBuffer* pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+
+            if (pPm4CmdBuf->GetPm4CmdBufState().flags.prevCmdBufActive || pActiveRanges->Overlap(&interval))
             {
                 pCmdSpace += cmdUtil.BuildWaitOnEopEvent(BOTTOM_OF_PIPE_TS, pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
 
                 // The previous EOP event and wait mean that anything prior to this point, including previous command
                 // buffers on this queue, have completed.
-                pCmdBuffer->SetPrevCmdBufInactive();
+                pPm4CmdBuf->SetPrevCmdBufInactive();
 
                 // The global wait guaranteed all work has completed, including any outstanding End() calls.
                 pActiveRanges->Clear();

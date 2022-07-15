@@ -328,9 +328,9 @@ public:
         const BvhInfo*  pBvhInfo,
         void*           pOut);
 
-    void Barrier(GfxCmdBuffer* pCmdBuf, CmdStream* pCmdStream, const BarrierInfo& barrier) const;
+    void Barrier(Pm4CmdBuffer* pCmdBuf, CmdStream* pCmdStream, const BarrierInfo& barrier) const;
     void IssueSyncs(
-        GfxCmdBuffer*                 pCmdBuf,
+        Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         SyncReqs                      syncReqs,
         HwPipePoint                   waitPoint,
@@ -338,7 +338,7 @@ public:
         gpusize                       rangeSize,
         Developer::BarrierOperations* pOperations) const;
     void ExpandColor(
-        GfxCmdBuffer*                 pCmdBuf,
+        Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         const BarrierInfo&            barrier,
         uint32                        transitionId,
@@ -346,18 +346,18 @@ public:
         SyncReqs*                     pSyncReqs,
         Developer::BarrierOperations* pOperations) const;
     void TransitionDepthStencil(
-        GfxCmdBuffer*                 pCmdBuf,
+        Pm4CmdBuffer*                 pCmdBuf,
         const BarrierInfo&            barrier,
         uint32                        transitionId,
         bool                          earlyPhase,
         SyncReqs*                     pSyncReqs,
         Developer::BarrierOperations* pOperations) const;
     void DescribeBarrier(
-        GfxCmdBuffer*                 pCmdBuf,
+        Pm4CmdBuffer*                 pCmdBuf,
         Developer::BarrierOperations* pOperations,
         const BarrierTransition*      pTransition) const;
-   void DescribeBarrierStart(GfxCmdBuffer* pCmdBuf, uint32 reason) const;
-   void DescribeBarrierEnd(GfxCmdBuffer* pCmdBuf, Developer::BarrierOperations* pOperations) const;
+   void DescribeBarrierStart(Pm4CmdBuffer* pCmdBuf, uint32 reason) const;
+   void DescribeBarrierEnd(Pm4CmdBuffer* pCmdBuf, Developer::BarrierOperations* pOperations) const;
 
     const BoundGpuMemory& TrapHandler(PipelineBindPoint pipelineType) const override
         { return (pipelineType == PipelineBindPoint::Graphics) ? m_graphicsTrapHandler : m_computeTrapHandler; }
@@ -411,58 +411,58 @@ public:
 
 private:
     bool GetDepthStencilBltPerSubres(
-        GfxCmdBuffer*            pCmdBuf,
+        Pm4CmdBuffer*            pCmdBuf,
         uint32*                  pBlt,
         const BarrierTransition& transition,
         bool                     earlyPhase) const;
     void DepthStencilExpand(
-        GfxCmdBuffer*                 pCmdBuf,
+        Pm4CmdBuffer*                 pCmdBuf,
         const BarrierTransition&      transition,
         const Image&                  gfx6Image,
         const SubresRange&            subresRange,
         Developer::BarrierOperations* pOperations) const;
     void DepthStencilExpandHiZRange(
-        GfxCmdBuffer*                 pCmdBuf,
+        Pm4CmdBuffer*                 pCmdBuf,
         const BarrierTransition&      transition,
         const Image&                  gfx6Image,
         const SubresRange&            subresRange,
         SyncReqs*                     pSyncReqs,
         Developer::BarrierOperations* pOperations) const;
     void DepthStencilResummarize(
-        GfxCmdBuffer*                 pCmdBuf,
+        Pm4CmdBuffer*                 pCmdBuf,
         const BarrierTransition&      transition,
         const Image&                  gfx6Image,
         const SubresRange&            subresRange,
         Developer::BarrierOperations* pOperations) const;
 
     uint32 GetColorBltPerSubres(
-        GfxCmdBuffer*            pCmdBuf,
+        Pm4CmdBuffer*            pCmdBuf,
         uint32*                  pBlt,
         const BarrierTransition& transition,
         bool                     earlyPhase) const;
     void DccDecompress(
-        GfxCmdBuffer*                 pCmdBuf,
+        Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         const BarrierTransition&      transition,
         const Image&                  gfx6Image,
         const SubresRange&            subresRange,
         Developer::BarrierOperations* pOperations) const;
     void FmaskDecompress(
-        GfxCmdBuffer*                 pCmdBuf,
+        Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         const BarrierTransition&      transition,
         const Image&                  gfx6Image,
         const SubresRange&            subresRange,
         Developer::BarrierOperations* pOperations) const;
     void FastClearEliminate(
-        GfxCmdBuffer*                 pCmdBuf,
+        Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         const BarrierTransition&      transition,
         const Image&                  gfx6Image,
         const SubresRange&            subresRange,
         Developer::BarrierOperations* pOperations) const;
     void MsaaDecompress(
-        GfxCmdBuffer*                 pCmdBuf,
+        Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         const BarrierTransition&      transition,
         const Image&                  gfx6Image,

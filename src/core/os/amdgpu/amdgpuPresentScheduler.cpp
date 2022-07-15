@@ -355,7 +355,7 @@ Result PresentScheduler::DoCpuPresentBlit(
         BarrierInfo barrier   = {};
         HwPipePoint pipePoint = HwPipePoint::HwPipePostBlt;
 
-        barrier.waitPoint          = HwPipePoint::HwPipePostIndexFetch;
+        barrier.waitPoint          = HwPipePoint::HwPipePostPrefetch;
         barrier.pipePointWaitCount = 1;
         barrier.pPipePoints        = &pipePoint;
         barrier.globalSrcCacheMask = CoherCopy;

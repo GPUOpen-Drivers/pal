@@ -27,11 +27,11 @@
 #include "palInlineFuncs.h"
 #include "palHashMapImpl.h"
 #include "core/device.h"
-#include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9SettingsLoader.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
+#include "core/hw/gfxip/pm4CmdBuffer.h"
 #include "core/hw/amdgpu_asic.h"
 #include "devDriverServer.h"
 #include "protocols/ddSettingsService.h"
@@ -254,6 +254,33 @@ void SettingsLoader::ValidateSettings(
     {
         m_settings.enableOutOfOrderPrimitives = OutOfOrderPrimDisable;
     }
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 744)
+    {
+        if (pPalSettings->binningContextStatesPerBin == 0)
+        {
+            pPalSettings->binningContextStatesPerBin = 1;
+        }
+        if (pPalSettings->binningPersistentStatesPerBin == 0)
+        {
+            pPalSettings->binningPersistentStatesPerBin = 1;
+        }
+    }
+#endif
+
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 749)
+    if (pPalSettings->disableBinningPsKill == DisableBinningPsKill::Default)
+    {
+        if (
+            false)
+        {
+            pPalSettings->disableBinningPsKill = DisableBinningPsKill::False;
+        }
+        else
+        {
+            pPalSettings->disableBinningPsKill = DisableBinningPsKill::True;
+        }
+    }
+#endif
 
     if (IsGfx10(*m_pDevice))
     {
@@ -364,6 +391,15 @@ void SettingsLoader::ValidateSettings(
     {
         pSettings->nonlocalDestGraphicsCopyRbs = UINT_MAX;
     }
+
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 744)
+    // if we allow > 1 Ctx or Persistent state / batch then the driver should BREAK_BATCH on new PS.
+    if ((pPalSettings->binningContextStatesPerBin > 1) || (pPalSettings->binningPersistentStatesPerBin > 1))
+    {
+        m_settings.batchBreakOnNewPixelShader = true;
+    }
+#else
+#endif
 
     m_state = SettingsLoaderState::Final;
 }
@@ -706,15 +742,6 @@ void SettingsLoader::OverrideDefaults(
             SetupNavi24Workarounds(device, &m_settings);
         }
 
-        //  DISABLE_BINNING_USE_LEGACY_SC: reverts binning completely and uses the old scan converter (along with
-        //                                 serpentine walking pattern). It doesn't support FSR in GFX10.
-        //  DISABLE_BINNING_USE_NEW_SC   : disables binning but still uses the binner rasterizer (typewriter walking
-        //                                 pattern). Supports FSR.
-        //
-        //  Because we want to maintain the same performance characteristics, we want to use the
-        //  second setting on GFX10: DISABLE_BINNING_USE_NEW_SC
-        m_settings.disableBinningMode = DISABLE_BINNING_USE_NEW_SC__GFX09_10;
-
         if (IsGfx103(device))
         {
             m_settings.gfx103DisableAsymmetricWgpForPs = true;
@@ -730,12 +757,6 @@ void SettingsLoader::OverrideDefaults(
     if (m_settings.minBatchBinSize.height == 0)
     {
         m_settings.minBatchBinSize.height = minBatchBinSizeHeight;
-    }
-
-    // If we allow > 1 Ctx or Persistent state / batch then the driver should BREAK_BATCH on new PS.
-    if ((m_settings.binningContextStatesPerBin > 1) || (m_settings.binningPersistentStatesPerBin > 1))
-    {
-        m_settings.batchBreakOnNewPixelShader = true;
     }
 
     m_state = SettingsLoaderState::LateInit;

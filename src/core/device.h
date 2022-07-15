@@ -475,7 +475,8 @@ struct GpuQueueProperties
             struct
             {
                 uint32 supportsSwapChainPresents :  1;
-                uint32 reserved                  : 31;
+                uint32 reserved744               :  1;
+                uint32 reserved                  : 30;
             };
             uint32 u32All;
         } flags;
@@ -565,7 +566,6 @@ struct PerfCounterBlockInfo
                                                      // "RSLT_CNTL" register, and can optionally use generic SPM.
 };
 
-#if PAL_BUILD_GFX6
 // SDMA is a global block with unique registers for each instance; this requires special handling.
 constexpr uint32 Gfx7MaxSdmaInstances   = 2;
 constexpr uint32 Gfx7MaxSdmaPerfModules = 2;
@@ -586,7 +586,6 @@ struct Gfx6PerfCounterInfo
     // SDMA addresses are handled specially
     PerfCounterRegAddrPerModule      sdmaRegAddr[Gfx7MaxSdmaInstances][Gfx7MaxSdmaPerfModules];
 };
-#endif
 
 // SDMA is a global block with unique registers for each instance; this requires special handling.
 constexpr uint32 Gfx9MaxSdmaInstances   = 2;
@@ -721,8 +720,13 @@ struct GpuChipProperties
         uint32 tessFactorBufferSizePerSe;            // Size of the tessellation-factor buffer per SE, in bytes.
         uint32 ceRamSize;                            // Maximum on-chip CE RAM size in bytes.
         uint32 maxPrimgroupSize;
+        uint32 mallSizeInBytes;                      // Total size in bytes of MALL (Memory Attached Last Level - L3)
+                                                     // cache in the device.
         uint32 tccSizeInBytes;                       // Total size in bytes of TCC (L2) in the device.
         uint32 tcpSizeInBytes;                       // Size in bytes of one TCP (L1). There is one TCP per CU.
+        uint32 gl1cSizePerSa;                        // Size in bytes of GL1 cache per SA.
+        uint32 instCacheSizePerCu;                   // Size in bytes of instruction cache per CU/WGP.
+        uint32 scalarCacheSizePerCu;                 // Size in bytes of scalar cache per CU/WGP.
         uint32 maxLateAllocVsLimit;                  // Maximum number of VS waves that can be in flight without
                                                      // having param cache and position buffer space.
         uint32 numSlotsPerEvent;                     // Number of slots allocated for a GPU event. One slot is
@@ -737,6 +741,9 @@ struct GpuChipProperties
         uint32 maxGsOutputVert;                      // Maximum number of GS vertices output.
         uint32 maxGsTotalOutputComponents;           // Maximum number of GS output components totally.
         uint32 dynamicLaunchDescSize;                // Dynamic compute pipeline launch descriptor size in bytes
+        // Mask of active pixel packers. The mask is 128 bits wide, assuming a max of 32 SEs and a max of 4 pixel
+        // packers (indicated by a single bit each) per SE.
+        uint32 activePixelPackerMask[ActivePixelPackerMaskDwords];
 
         struct
         {
@@ -760,7 +767,6 @@ struct GpuChipProperties
     // GFX family specific data which may differ based on graphics IP level.
     union
     {
-#if PAL_BUILD_GFX6
         // Hardware-specific information for GFXIP 6/7/8 hardware.
         struct
         {
@@ -807,6 +813,8 @@ struct GpuChipProperties
             uint32 nativeWavefrontSize;
             uint32 numShaderEngines;
             uint32 numShaderArrays;
+            uint32 numScPerSe;              // Num Shader Complex per Shader Engine
+            uint32 numPackerPerSc;
             uint32 maxNumCuPerSh;
             uint32 maxNumRbPerSe;
             uint32 numMcdTiles;
@@ -851,7 +859,6 @@ struct GpuChipProperties
 
             Gfx6PerfCounterInfo perfCounterInfo; // Contains information for perf counters for a specific hardware block
         } gfx6;
-#endif
         // Hardware-specific information for GFXIP 9+ hardware.
         struct
         {
@@ -865,6 +872,8 @@ struct GpuChipProperties
             uint32 numShaderArrays;
             uint32 maxNumRbPerSe;
             uint32 activeNumRbPerSe;
+            uint32 numScPerSe;              // Num Shader Complex per Shader Engine
+            uint32 numPackerPerSc;
             uint32 nativeWavefrontSize;
             uint32 minWavefrontSize;        // The smallest supported wavefront size.
             uint32 maxWavefrontSize;        // All powers of two between the min size and max size are supported.
@@ -2228,7 +2237,6 @@ private:
 // * This function is used to setup default values for the fields in the PerfExperimentProperties structure for
 //   certain GFXIP levels.
 
-#if PAL_BUILD_GFX6
 namespace Gfx6
 {
 // Determines the GFXIP level of an GFXIP 6/7/8 GPU.
@@ -2263,7 +2271,6 @@ extern void InitializeGpuEngineProperties(
     GpuEngineProperties* pInfo);
 
 } // Gfx6
-#endif
 
 namespace Gfx9
 {

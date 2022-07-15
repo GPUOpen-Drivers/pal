@@ -55,10 +55,10 @@ public:
     ~PipelineChunkHs() { }
 
     void LateInit(
-        const AbiReader&        abiReader,
-        const RegisterVector&   registers,
-        PipelineUploader*       pUploader,
-        Util::MetroHash64*      pHasher);
+        const AbiReader&                        abiReader,
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        PipelineUploader*                       pUploader,
+        Util::MetroHash64*                      pHasher);
 
     uint32* WriteShCommands(
         CmdStream*              pCmdStream,

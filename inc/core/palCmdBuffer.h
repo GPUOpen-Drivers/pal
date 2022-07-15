@@ -193,10 +193,12 @@ enum class AtomicOp : uint32
 /// @see ICmdBuffer::CmdWriteImmediate()
 enum HwPipePoint : uint32
 {
-    HwPipeTop              = 0x0,                   ///< Earliest possible point in the GPU pipeline (CP PFP).
-    HwPipePostIndexFetch   = 0x1,                   ///< Indirect arguments and index buffer data have been fetched for
-                                                    ///  all prior draws/dispatches (CP ME).
-    HwPipePreRasterization = 0x2,                   ///< All prior generated VS/HS/DS/GS waves have completed.
+    HwPipeTop              = 0x0,                   ///< Earliest possible point in the GPU pipeline (CP PFP), can be
+                                                    ///  used as wait point for indirect args and index buffer fetch.
+    HwPipePostPrefetch     = 0x1,                   ///< Indirect arguments have been fetched for all prior
+                                                    ///  draws/dispatches (CP ME).
+    HwPipePreRasterization = 0x2,                   ///< All prior generated VS/HS/DS/GS waves have completed, can be
+                                                    ///  used as release point for VB/IB fetch and streamout target.
     HwPipePostPs           = 0x3,                   ///< All prior generated PS waves have completed.
                                                     ///  Only valid as a pipe point to wait on (release point).
     HwPipePreColorTarget   = 0x4,                   ///< Represents the same point in pipe to HwPipePostPs, but provides
@@ -206,12 +208,19 @@ enum HwPipePoint : uint32
                                                     ///  Only valid as a wait point (acquire point).
     HwPipeBottom           = 0x7,                   ///< All prior GPU work (graphics, compute, or BLT) has completed.
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 743
+    HwPipePostIndexFetch   = HwPipePostPrefetch,
+#else
+    HwPipePreIndexBuffer   = HwPipeTop,             ///< As late as possible before index buffer fetches (CP PFP).
+    HwPipePostIndexBuffer  = HwPipePreRasterization,///< All prior index buffer fetches have completed.
+#endif
+
     // The following points apply to compute-specific work:
-    HwPipePreCs            = HwPipePostIndexFetch,  ///< As late as possible before CS waves are launched (CP ME).
+    HwPipePreCs            = HwPipePostPrefetch,    ///< As late as possible before CS waves are launched (CP ME).
     HwPipePostCs           = 0x5,                   ///< All prior generated CS waves have completed.
 
     // The following points apply to BLT-specific work:
-    HwPipePreBlt           = HwPipePostIndexFetch,  ///< As late as possible before BLT operations are launched.
+    HwPipePreBlt           = HwPipePostPrefetch,    ///< As late as possible before BLT operations are launched.
     HwPipePostBlt          = 0x6                    ///< All prior requested BLTs have completed.
 };
 
@@ -1472,16 +1481,26 @@ typedef void (PAL_STDCALL *CmdDispatchMeshIndirectMultiFunc)(
 /// @see ICmdBuffer::CmdSetInputAssemblyState
 struct InputAssemblyStateParams
 {
-    PrimitiveTopology topology;                ///< Defines how vertices should be interpretted and rendered by the
-                                               ///  graphics pipeline.
+    PrimitiveTopology topology;                     ///< Defines how vertices should be interpretted and rendered by
+                                                    ///  the graphics pipeline.
 
-    uint32            primitiveRestartIndex;   ///< When primitiveRestartEnable is true, this is the index value that
-                                               ///  will restart a primitive.  When using a 16-bit index buffer, the
-                                               ///  upper 16 bits of this value will be ignored.
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 747)
+    uint32            patchControlPoints;           ///< Number of control points per patch.  Only required if topology
+                                                    ///  is PrimitiveTopology::Patch.
+#endif
 
-    bool              primitiveRestartEnable;  ///< Enables the index specified by primitiveRestartIndex to _cut_ a
-                                               ///  primitive (i.e., triangle strip) and begin a new primitive with
-                                               ///  the next index.
+    uint32            primitiveRestartIndex;        ///< When primitiveRestartEnable is true, this is the index value
+                                                    ///  that will restart a primitive.  When using a 16-bit index
+                                                    ///  buffer, the upper 16 bits of this value will be ignored.
+
+    bool              primitiveRestartEnable;       ///< Enables the index specified by primitiveRestartIndex to _cut_
+                                                    ///  a primitive (i.e., triangle strip) and begin a new primitive
+                                                    ///  with the next index.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 745
+    bool              primitiveRestartMatchAllBits; ///< Specifies which bits from primitiveRestartIndex to use.
+                                                    ///  false - only check relevant bits based on index type
+                                                    ///  true  - check all 32 bits irrespective of index type
+#endif
 };
 
 /// Specifies parameters for controlling triangle rasterization.
@@ -3553,7 +3572,7 @@ public:
         uint32            startQuery,
         uint32            queryCount) = 0;
 
-    /// Writes a HwPipePostIndexFetch or HwPipeBottom timestamp to the specified memory location.
+    /// Writes a HwPipePostPrefetch or HwPipeBottom timestamp to the specified memory location.
     ///
     /// The timestamp data is a 64-bit value that increments once per clock.  timestampFrequency in DeviceProperties
     /// reports the frequency the timestamps are clocked at.
@@ -3561,7 +3580,7 @@ public:
     /// Timestamps are only supported by engines that report supportsTimestamps in DeviceProperties.
     ///
     /// @param [in] pipePoint    Specifies where in the pipeline the timestamp should be sampled and written. The only
-    ///                          valid choices are HwPipePostIndexFetch and HwPipeBottom. HwPipePostIndexFetch timestamps
+    ///                          valid choices are HwPipePostPrefetch and HwPipeBottom. HwPipePostPrefetch timestamps
     ///                          are not supported on the SDMA engine, so all timestamps will be executed as
     ///                          bottom-of-pipe.
     /// @param [in] dstGpuMemory GPU memory object where timestamp should be written.
@@ -3575,7 +3594,7 @@ public:
     /// Writes a top-of-pipe or bottom-of-pipe immediate value to the specified memory location.
     ///
     /// @param [in] pipePoint          Specifies where in the pipeline the timestamp should be sampled and written.
-    ///                                The only valid choices are HwPipeTop, HwPipePostIndexFetch and HwPipeBottom.
+    ///                                The only valid choices are HwPipeTop, HwPipePostPrefetch and HwPipeBottom.
     ///                                Top-of-pipe timestamps are not supported on the SDMA engine, so all timestamps
     ///                                will be executed as bottom-of-pipe.
     /// @param [in] data               Value to be written to gpu address.

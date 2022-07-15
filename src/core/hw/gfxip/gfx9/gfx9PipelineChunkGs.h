@@ -61,7 +61,6 @@ public:
     void LateInit(
         const AbiReader&                        abiReader,
         const Util::PalAbi::CodeObjectMetadata& metadata,
-        const RegisterVector&                   registers,
         const GraphicsPipelineLoadInfo&         loadInfo,
         const GraphicsPipelineCreateInfo&       createInfo,
         PipelineUploader*                       pUploader,
@@ -140,6 +139,7 @@ private:
 
     const PerfDataInfo*const  m_pPerfDataInfo;   // GS performance data information.
     ShaderStageInfo           m_stageInfo;
+    GsFastLaunchMode          m_fastLaunchMode;
 
     PAL_DISALLOW_DEFAULT_CTOR(PipelineChunkGs);
     PAL_DISALLOW_COPY_AND_ASSIGN(PipelineChunkGs);

@@ -102,6 +102,8 @@ public:
 
     void LogResourceCorrelationEvent(const ResourceCorrelationEventData& eventData);
 
+    void LogResourceUpdateEvent(const ResourceUpdateEventData& eventData);
+
     // End of Event Log Functions
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -111,6 +113,7 @@ public:
     static constexpr DevDriver::EventProtocol::EventProviderId kProviderId = 0x50616C45; // 'PalE'
     DevDriver::EventProtocol::EventProviderId GetId() const override { return kProviderId; }
 
+    const char* GetName() const override { return "PalEventProvider"; }
     const void* GetEventDescriptionData()     const override;
     uint32      GetEventDescriptionDataSize() const override;
 

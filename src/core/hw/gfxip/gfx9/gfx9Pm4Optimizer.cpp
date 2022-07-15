@@ -23,10 +23,10 @@
  *
  **********************************************************************************************************************/
 
-#include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "g_gfx9Settings.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9Pm4Optimizer.h"
+#include "core/hw/gfxip/pm4CmdBuffer.h"
 #include "palAutoBuffer.h"
 
 using namespace Util;
@@ -511,7 +511,7 @@ uint32 Pm4Optimizer::GetPm4PacketSize(
 // Calls the PAL developer callback to issue a report on how many times SET packets to each SH and context register were
 // seen by the optimizer and kept after redundancy checking.
 void Pm4Optimizer::IssueHotRegisterReport(
-    GfxCmdBuffer* pCmdBuf
+    Pm4CmdBuffer* pCmdBuf
     ) const
 {
     m_device.DescribeHotRegisters(pCmdBuf,

@@ -936,6 +936,1537 @@ Result Device::CreateShaderLibrary(
 }
 
 // =====================================================================================================================
+static Result ConvertAbiRegistersToMetadata(
+    Device*                     pDevice,
+    PalAbi::CodeObjectMetadata* pMetadata,
+    MsgPackReader*              pMetadataReader)
+{
+    const Pal::Device& palDevice = *(pDevice->Parent());
+
+    RegisterVector registers(pDevice->GetPlatform());
+    Result result = pMetadataReader->Seek(pMetadata->pipeline.registers);
+
+    if (result == Result::Success)
+    {
+        result = pMetadataReader->Unpack(&registers);
+    }
+
+    if ((result == Result::Success) && (registers.NumElements() > 0))
+    {
+        const GpuChipProperties& chipProps  = palDevice.ChipProperties();
+        const RegisterInfo&      regInfo    = pDevice->CmdUtil().GetRegInfo();
+        const bool               hasHwVs    = chipProps.gfxip.supportsHwVs;
+        const bool               supportSpp = chipProps.gfx9.supportSpp;
+
+        // If there are any registers, we need to convert them into the metadata.
+        PalAbi::PipelineMetadata*         pPipeline         = &pMetadata->pipeline;
+        PalAbi::ComputeRegisterMetadata*  pComputeRegisters = &pPipeline->computeRegister;
+        PalAbi::GraphicsRegisterMetadata* pGfxRegisters     = &pPipeline->graphicsRegister;
+
+        // Temporary macros to make some of this nightmare easier to read/more compact.
+        #define PAL_SET_ABI_FIELD(reg, field, value) \
+            reg->field          = value;             \
+            reg->hasEntry.field = 1;
+
+        #define PAL_SET_ABI_FIELD_IDX(reg, field, idx, value) \
+            reg->field[idx]     = value;                      \
+            reg->hasEntry.field = 1;
+
+        #define PAL_SET_ABI_FLAG(reg, field, value) \
+            reg->flags.field    = value;            \
+            reg->hasEntry.field = 1;
+
+        // All graphics pipelines have VGT_SHADER_STAGES_EN.
+        if (registers.HasEntry(mmVGT_SHADER_STAGES_EN))
+        {
+            // VGT_SHADER_STAGES_EN
+            {
+                PalAbi::VgtShaderStagesEnMetadata* pVgtShaderStagesEn = &pGfxRegisters->vgtShaderStagesEn;
+
+                VGT_SHADER_STAGES_EN vgtShaderStagesEn;
+                vgtShaderStagesEn.u32All = registers.At(mmVGT_SHADER_STAGES_EN);
+
+                PAL_SET_ABI_FIELD(pVgtShaderStagesEn, esStageEn,          vgtShaderStagesEn.bits.ES_EN);
+                PAL_SET_ABI_FIELD(pVgtShaderStagesEn, vsStageEn,          vgtShaderStagesEn.bits.VS_EN);
+                PAL_SET_ABI_FIELD(pVgtShaderStagesEn, maxPrimgroupInWave, vgtShaderStagesEn.bits.MAX_PRIMGRP_IN_WAVE);
+
+                PAL_SET_ABI_FLAG(pVgtShaderStagesEn, lsStageEn,     vgtShaderStagesEn.bits.LS_EN);
+                PAL_SET_ABI_FLAG(pVgtShaderStagesEn, hsStageEn,     vgtShaderStagesEn.bits.HS_EN);
+                PAL_SET_ABI_FLAG(pVgtShaderStagesEn, gsStageEn,     vgtShaderStagesEn.bits.GS_EN);
+                PAL_SET_ABI_FLAG(pVgtShaderStagesEn, primgenEn,     vgtShaderStagesEn.bits.PRIMGEN_EN);
+                PAL_SET_ABI_FLAG(pVgtShaderStagesEn, orderedIdMode, vgtShaderStagesEn.bits.ORDERED_ID_MODE);
+
+                if (IsGfx10Plus(palDevice))
+                {
+                    PAL_SET_ABI_FIELD(pVgtShaderStagesEn, gsFastLaunch, vgtShaderStagesEn.gfx09_1xPlus.GS_FAST_LAUNCH);
+
+                    PAL_SET_ABI_FLAG(pVgtShaderStagesEn,  dynamicHs,    vgtShaderStagesEn.gfx10Plus.DYNAMIC_HS);
+                    PAL_SET_ABI_FLAG(pVgtShaderStagesEn,  nggWaveIdEn,  vgtShaderStagesEn.gfx10Plus.NGG_WAVE_ID_EN);
+                    PAL_SET_ABI_FLAG(pVgtShaderStagesEn,
+                                     primgenPassthruEn,
+                                     vgtShaderStagesEn.gfx10Plus.PRIMGEN_PASSTHRU_EN);
+
+                    auto* pHsHwStage = &pMetadata->pipeline.hardwareStage[uint32(Abi::HardwareStage::Hs)];
+                    if (pHsHwStage->hasEntry.wavefrontSize == 0)
+                    {
+                        PAL_SET_ABI_FIELD(pHsHwStage, wavefrontSize, (vgtShaderStagesEn.gfx10Plus.HS_W32_EN) ? 32 : 64);
+                    }
+
+                    auto* pGsHwStage = &pMetadata->pipeline.hardwareStage[uint32(Abi::HardwareStage::Gs)];
+                    if (pGsHwStage->hasEntry.wavefrontSize == 0)
+                    {
+                        PAL_SET_ABI_FIELD(pGsHwStage, wavefrontSize, (vgtShaderStagesEn.gfx10Plus.GS_W32_EN) ? 32 : 64);
+                    }
+
+                    auto* pVsHwStage = &pMetadata->pipeline.hardwareStage[uint32(Abi::HardwareStage::Vs)];
+                    if (pVsHwStage->hasEntry.wavefrontSize == 0)
+                    {
+                        PAL_SET_ABI_FIELD(pVsHwStage, wavefrontSize, (vgtShaderStagesEn.gfx10Plus.VS_W32_EN) ? 32 : 64);
+                    }
+                }
+
+            }
+
+            // VGT_GS_MODE
+            {
+                VGT_GS_MODE vgtGsMode;
+                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_GS_MODE, &vgtGsMode.u32All))
+                {
+                    PalAbi::VgtGsModeMetadata* pVgtGsMode = &pGfxRegisters->vgtGsMode;
+
+                    PAL_SET_ABI_FIELD(pVgtGsMode, mode,    vgtGsMode.bits.MODE);
+                    PAL_SET_ABI_FIELD(pVgtGsMode, onchip,  vgtGsMode.bits.ONCHIP);
+                    PAL_SET_ABI_FIELD(pVgtGsMode, cutMode, vgtGsMode.bits.CUT_MODE);
+
+                    PAL_SET_ABI_FLAG(pVgtGsMode, esWriteOptimize, vgtGsMode.bits.ES_WRITE_OPTIMIZE);
+                    PAL_SET_ABI_FLAG(pVgtGsMode, gsWriteOptimize, vgtGsMode.bits.GS_WRITE_OPTIMIZE);
+                }
+            }
+
+            // PA_CL_CLIP_CNTL
+            {
+                PalAbi::PaClClipCntlMetadata* pPaClClipCntl = &pGfxRegisters->paClClipCntl;
+
+                PA_CL_CLIP_CNTL paClClipCntl;
+                paClClipCntl.u32All = registers.At(mmPA_CL_CLIP_CNTL);
+
+                PAL_SET_ABI_FLAG(pPaClClipCntl, userClipPlane0Ena,   paClClipCntl.bits.UCP_ENA_0);
+                PAL_SET_ABI_FLAG(pPaClClipCntl, userClipPlane1Ena,   paClClipCntl.bits.UCP_ENA_1);
+                PAL_SET_ABI_FLAG(pPaClClipCntl, userClipPlane2Ena,   paClClipCntl.bits.UCP_ENA_2);
+                PAL_SET_ABI_FLAG(pPaClClipCntl, userClipPlane3Ena,   paClClipCntl.bits.UCP_ENA_3);
+                PAL_SET_ABI_FLAG(pPaClClipCntl, userClipPlane4Ena,   paClClipCntl.bits.UCP_ENA_4);
+                PAL_SET_ABI_FLAG(pPaClClipCntl, userClipPlane5Ena,   paClClipCntl.bits.UCP_ENA_5);
+                PAL_SET_ABI_FLAG(pPaClClipCntl, dxLinearAttrClipEna, paClClipCntl.bits.DX_LINEAR_ATTR_CLIP_ENA);
+                PAL_SET_ABI_FLAG(pPaClClipCntl, zclipNearDisable,    paClClipCntl.bits.ZCLIP_NEAR_DISABLE);
+                PAL_SET_ABI_FLAG(pPaClClipCntl, zclipFarDisable,     paClClipCntl.bits.ZCLIP_FAR_DISABLE);
+                PAL_SET_ABI_FLAG(pPaClClipCntl, rasterizationKill,   paClClipCntl.bits.DX_RASTERIZATION_KILL);
+                PAL_SET_ABI_FLAG(pPaClClipCntl, clipDisable,         paClClipCntl.bits.CLIP_DISABLE);
+            }
+
+            // PA_CL_VTE_CNTL
+            {
+                PalAbi::PaClVteCntlMetadata* pPaClVteCntl = &pGfxRegisters->paClVteCntl;
+
+                PA_CL_VTE_CNTL paClVteCntl;
+                paClVteCntl.u32All = registers.At(mmPA_CL_VTE_CNTL);
+
+                PAL_SET_ABI_FLAG(pPaClVteCntl, vtxXyFmt,   paClVteCntl.bits.VTX_XY_FMT);
+                PAL_SET_ABI_FLAG(pPaClVteCntl, vtxZFmt,    paClVteCntl.bits.VTX_Z_FMT);
+                PAL_SET_ABI_FLAG(pPaClVteCntl, xScaleEna,  paClVteCntl.bits.VPORT_X_SCALE_ENA);
+                PAL_SET_ABI_FLAG(pPaClVteCntl, xOffsetEna, paClVteCntl.bits.VPORT_X_OFFSET_ENA);
+                PAL_SET_ABI_FLAG(pPaClVteCntl, yScaleEna,  paClVteCntl.bits.VPORT_Y_SCALE_ENA);
+                PAL_SET_ABI_FLAG(pPaClVteCntl, yOffsetEna, paClVteCntl.bits.VPORT_Y_OFFSET_ENA);
+                PAL_SET_ABI_FLAG(pPaClVteCntl, zScaleEna,  paClVteCntl.bits.VPORT_Z_SCALE_ENA);
+                PAL_SET_ABI_FLAG(pPaClVteCntl, zOffsetEna, paClVteCntl.bits.VPORT_Z_OFFSET_ENA);
+                PAL_SET_ABI_FLAG(pPaClVteCntl, vtxW0Fmt,   paClVteCntl.bits.VTX_W0_FMT);
+            }
+
+            // PA_SU_VTX_CNTL
+            {
+                PalAbi::PaSuVtxCntlMetadata* pPaSuVtxCntl = &pGfxRegisters->paSuVtxCntl;
+
+                PA_SU_VTX_CNTL paSuVtxCntl;
+                paSuVtxCntl.u32All = registers.At(mmPA_SU_VTX_CNTL);
+
+                PAL_SET_ABI_FIELD(pPaSuVtxCntl, roundMode, paSuVtxCntl.bits.ROUND_MODE);
+                PAL_SET_ABI_FIELD(pPaSuVtxCntl, quantMode, paSuVtxCntl.bits.QUANT_MODE);
+
+                PAL_SET_ABI_FLAG(pPaSuVtxCntl, pixCenter, paSuVtxCntl.bits.PIX_CENTER);
+            }
+
+            // PA_SC_MODE_CNTL_1
+            {
+                PA_SC_MODE_CNTL_1 paScModeCntl1;
+                paScModeCntl1.u32All = registers.At(mmPA_SC_MODE_CNTL_1);
+
+                PAL_SET_ABI_FLAG(pGfxRegisters, psIterSample, paScModeCntl1.bits.PS_ITER_SAMPLE);
+            }
+
+            // SPI_SHADER_IDX_FORMAT
+            {
+                SPI_SHADER_IDX_FORMAT spiShaderIdxFormat;
+                if (registers.HasEntry(Gfx10Plus::mmSPI_SHADER_IDX_FORMAT, &spiShaderIdxFormat.u32All))
+                {
+                    PAL_SET_ABI_FIELD(pGfxRegisters, spiShaderIdxFormat, spiShaderIdxFormat.bits.IDX0_EXPORT_FORMAT);
+                }
+            }
+
+            // SPI_SHADER_COL_FORMAT
+            {
+                PalAbi::SpiShaderColFormatMetadata* pSpiShaderColFormat = &pGfxRegisters->spiShaderColFormat;
+
+                SPI_SHADER_COL_FORMAT spiShaderColFormat;
+                spiShaderColFormat.u32All = registers.At(mmSPI_SHADER_COL_FORMAT);
+
+                PAL_SET_ABI_FIELD(pSpiShaderColFormat, col_0ExportFormat, spiShaderColFormat.bits.COL0_EXPORT_FORMAT);
+                PAL_SET_ABI_FIELD(pSpiShaderColFormat, col_1ExportFormat, spiShaderColFormat.bits.COL1_EXPORT_FORMAT);
+                PAL_SET_ABI_FIELD(pSpiShaderColFormat, col_2ExportFormat, spiShaderColFormat.bits.COL2_EXPORT_FORMAT);
+                PAL_SET_ABI_FIELD(pSpiShaderColFormat, col_3ExportFormat, spiShaderColFormat.bits.COL3_EXPORT_FORMAT);
+                PAL_SET_ABI_FIELD(pSpiShaderColFormat, col_4ExportFormat, spiShaderColFormat.bits.COL4_EXPORT_FORMAT);
+                PAL_SET_ABI_FIELD(pSpiShaderColFormat, col_5ExportFormat, spiShaderColFormat.bits.COL5_EXPORT_FORMAT);
+                PAL_SET_ABI_FIELD(pSpiShaderColFormat, col_6ExportFormat, spiShaderColFormat.bits.COL6_EXPORT_FORMAT);
+                PAL_SET_ABI_FIELD(pSpiShaderColFormat, col_7ExportFormat, spiShaderColFormat.bits.COL7_EXPORT_FORMAT);
+            }
+
+            // SPI_SHADER_POS_FORMAT
+            {
+                SPI_SHADER_POS_FORMAT spiShaderPosFormat;
+                spiShaderPosFormat.u32All = registers.At(mmSPI_SHADER_POS_FORMAT);
+
+                PAL_SET_ABI_FIELD_IDX(pGfxRegisters, spiShaderPosFormat, 0, spiShaderPosFormat.bits.POS0_EXPORT_FORMAT);
+                PAL_SET_ABI_FIELD_IDX(pGfxRegisters, spiShaderPosFormat, 1, spiShaderPosFormat.bits.POS1_EXPORT_FORMAT);
+                PAL_SET_ABI_FIELD_IDX(pGfxRegisters, spiShaderPosFormat, 2, spiShaderPosFormat.bits.POS2_EXPORT_FORMAT);
+                PAL_SET_ABI_FIELD_IDX(pGfxRegisters, spiShaderPosFormat, 3, spiShaderPosFormat.bits.POS3_EXPORT_FORMAT);
+
+                if (IsGfx10Plus(palDevice))
+                {
+                    PAL_SET_ABI_FIELD_IDX(pGfxRegisters,
+                                          spiShaderPosFormat,
+                                          4,
+                                          spiShaderPosFormat.gfx10Plus.POS4_EXPORT_FORMAT);
+                }
+            }
+
+            // SPI_SHADER_Z_FORMAT
+            {
+                SPI_SHADER_Z_FORMAT spiShaderZFormat;
+                spiShaderZFormat.u32All = registers.At(mmSPI_SHADER_Z_FORMAT);
+
+                PAL_SET_ABI_FIELD(pGfxRegisters, spiShaderZFormat, spiShaderZFormat.bits.Z_EXPORT_FORMAT);
+            }
+
+            // VGT_GS_ONCHIP_CNTL
+            {
+                PalAbi::VgtGsOnchipCntlMetadata* pVgtGsOnchipCntl = &pGfxRegisters->vgtGsOnchipCntl;
+
+                VGT_GS_ONCHIP_CNTL vgtGsOnchipCntl;
+                if (registers.HasEntry(Gfx09_10::mmVGT_GS_ONCHIP_CNTL, &vgtGsOnchipCntl.u32All))
+                {
+                    PAL_SET_ABI_FIELD(pVgtGsOnchipCntl, esVertsPerSubgroup,   vgtGsOnchipCntl.bits.ES_VERTS_PER_SUBGRP);
+                    PAL_SET_ABI_FIELD(pVgtGsOnchipCntl, gsPrimsPerSubgroup,   vgtGsOnchipCntl.bits.GS_PRIMS_PER_SUBGRP);
+                    PAL_SET_ABI_FIELD(pVgtGsOnchipCntl,
+                                      gsInstPrimsPerSubgrp,
+                                      vgtGsOnchipCntl.bits.GS_INST_PRIMS_IN_SUBGRP);
+                }
+            }
+
+            // VGT_GS_OUT_PRIM_TYPE
+            {
+                PalAbi::VgtGsOutPrimTypeMetadata* pVgtGsOutPrimType = &pGfxRegisters->vgtGsOutPrimType;
+
+                bool foundReg = false;
+                VGT_GS_OUT_PRIM_TYPE vgtGsOutPrimType;
+                {
+                    foundReg = registers.HasEntry(Gfx09_10::mmVGT_GS_OUT_PRIM_TYPE, &vgtGsOutPrimType.u32All);
+                }
+
+                if (foundReg)
+                {
+                    if (IsGfx9(palDevice))
+                    {
+                        // Gfx9 has a different value from the ABI for RectList.
+                        // Hack it into the register for the translation logic below.
+                        if (vgtGsOutPrimType.bits.OUTPRIM_TYPE == VGT_GS_OUTPRIM_TYPE::RECTLIST__GFX09)
+                        {
+                            vgtGsOutPrimType.bits.OUTPRIM_TYPE = VGT_GS_OUTPRIM_TYPE::RECTLIST__GFX10PLUS;
+                        }
+                        if (vgtGsOutPrimType.gfx09_10.OUTPRIM_TYPE_1 == VGT_GS_OUTPRIM_TYPE::RECTLIST__GFX09)
+                        {
+                            vgtGsOutPrimType.gfx09_10.OUTPRIM_TYPE_1 = VGT_GS_OUTPRIM_TYPE::RECTLIST__GFX10PLUS;
+                        }
+                        if (vgtGsOutPrimType.gfx09_10.OUTPRIM_TYPE_2 == VGT_GS_OUTPRIM_TYPE::RECTLIST__GFX09)
+                        {
+                            vgtGsOutPrimType.gfx09_10.OUTPRIM_TYPE_2 = VGT_GS_OUTPRIM_TYPE::RECTLIST__GFX10PLUS;
+                        }
+                        if (vgtGsOutPrimType.gfx09_10.OUTPRIM_TYPE_3 == VGT_GS_OUTPRIM_TYPE::RECTLIST__GFX09)
+                        {
+                            vgtGsOutPrimType.gfx09_10.OUTPRIM_TYPE_3 = VGT_GS_OUTPRIM_TYPE::RECTLIST__GFX10PLUS;
+                        }
+                    }
+                    PAL_SET_ABI_FIELD(pVgtGsOutPrimType,
+                                      outprimType,
+                                      Abi::GsOutPrimType(vgtGsOutPrimType.bits.OUTPRIM_TYPE));
+
+                    if (IsGfx9(palDevice) || IsGfx10(palDevice))
+                    {
+                        PAL_SET_ABI_FIELD(pVgtGsOutPrimType,
+                                          outprimType_1,
+                                          Abi::GsOutPrimType(vgtGsOutPrimType.gfx09_10.OUTPRIM_TYPE_1));
+                        PAL_SET_ABI_FIELD(pVgtGsOutPrimType,
+                                          outprimType_2,
+                                          Abi::GsOutPrimType(vgtGsOutPrimType.gfx09_10.OUTPRIM_TYPE_2));
+                        PAL_SET_ABI_FIELD(pVgtGsOutPrimType,
+                                          outprimType_3,
+                                          Abi::GsOutPrimType(vgtGsOutPrimType.gfx09_10.OUTPRIM_TYPE_3));
+
+                        PAL_SET_ABI_FLAG(pVgtGsOutPrimType,
+                                         uniqueTypePerStream,
+                                         vgtGsOutPrimType.gfx09_10.UNIQUE_TYPE_PER_STREAM);
+                    }
+                }
+            }
+
+            // VGT_REUSE_OFF
+            {
+                VGT_REUSE_OFF vgtReuseOff;
+                vgtReuseOff.u32All = registers.At(mmVGT_REUSE_OFF);
+
+                PAL_SET_ABI_FLAG(pGfxRegisters, vgtReuseOff, vgtReuseOff.bits.REUSE_OFF);
+            }
+
+            // SPI_PS_IN_CONTROL
+            {
+                PalAbi::SpiPsInControlMetadata* pSpiPsInControl = &pGfxRegisters->spiPsInControl;
+
+                SPI_PS_IN_CONTROL spiPsInControl;
+                spiPsInControl.u32All = registers.At(mmSPI_PS_IN_CONTROL);
+
+                PAL_SET_ABI_FIELD(pSpiPsInControl, numInterps, spiPsInControl.bits.NUM_INTERP);
+
+                PAL_SET_ABI_FLAG(pSpiPsInControl, paramGen,          spiPsInControl.bits.PARAM_GEN);
+                PAL_SET_ABI_FLAG(pSpiPsInControl, offchipParamEn,    spiPsInControl.bits.OFFCHIP_PARAM_EN);
+                PAL_SET_ABI_FLAG(pSpiPsInControl, latePcDealloc,     spiPsInControl.bits.LATE_PC_DEALLOC);
+                PAL_SET_ABI_FLAG(pSpiPsInControl, bcOptimizeDisable, spiPsInControl.bits.BC_OPTIMIZE_DISABLE);
+
+                auto* pPsHwStage = &pMetadata->pipeline.hardwareStage[uint32(Abi::HardwareStage::Ps)];
+
+                if (IsGfx10Plus(palDevice) && (pPsHwStage->hasEntry.wavefrontSize == 0))
+                {
+                    PAL_SET_ABI_FIELD(pPsHwStage, wavefrontSize, (spiPsInControl.gfx10Plus.PS_W32_EN) ? 32 : 64);
+                }
+
+                if (IsGfx103PlusExclusive(palDevice))
+                {
+                    PAL_SET_ABI_FIELD(pSpiPsInControl,
+                                      numPrimInterp,
+                                      spiPsInControl.gfx103PlusExclusive.NUM_PRIM_INTERP);
+                }
+            }
+
+            // SPI_VS_OUT_CONFIG
+            {
+                PalAbi::SpiVsOutConfigMetadata* pSpiVsOutConfig = &pGfxRegisters->spiVsOutConfig;
+
+                SPI_VS_OUT_CONFIG spiVsOutConfig;
+                spiVsOutConfig.u32All = registers.At(mmSPI_VS_OUT_CONFIG);
+
+                PAL_SET_ABI_FIELD(pSpiVsOutConfig, vsExportCount, spiVsOutConfig.bits.VS_EXPORT_COUNT);
+
+                if (IsGfx10Plus(palDevice))
+                {
+                    PAL_SET_ABI_FLAG(pSpiVsOutConfig, noPcExport, spiVsOutConfig.gfx10Plus.NO_PC_EXPORT);
+                }
+
+                if (IsGfx103PlusExclusive(palDevice))
+                {
+                    PAL_SET_ABI_FIELD(pSpiVsOutConfig,
+                                      primExportCount,
+                                      spiVsOutConfig.gfx103PlusExclusive.PRIM_EXPORT_COUNT);
+                }
+            }
+
+            // VGT_TF_PARAM
+            {
+                PalAbi::VgtTfParamMetadata* pVgtTfParam = &pGfxRegisters->vgtTfParam;
+
+                VGT_TF_PARAM vgtTfParam;
+                if (registers.HasEntry(mmVGT_TF_PARAM, &vgtTfParam.u32All))
+                {
+                    PAL_SET_ABI_FIELD(pVgtTfParam, type,              vgtTfParam.bits.TYPE);
+                    PAL_SET_ABI_FIELD(pVgtTfParam, partitioning,      vgtTfParam.bits.PARTITIONING);
+                    PAL_SET_ABI_FIELD(pVgtTfParam, topology,          vgtTfParam.bits.TOPOLOGY);
+                    PAL_SET_ABI_FIELD(pVgtTfParam, distributionMode,  vgtTfParam.bits.DISTRIBUTION_MODE);
+
+                    PAL_SET_ABI_FLAG(pVgtTfParam, disableDonuts, vgtTfParam.bits.DISABLE_DONUTS);
+
+                    if (IsGfx10Plus(palDevice))
+                    {
+                        PAL_SET_ABI_FIELD(pVgtTfParam, numDsWavesPerSimd, vgtTfParam.gfx10Plus.NUM_DS_WAVES_PER_SIMD);
+                    }
+                }
+            }
+
+            // VGT_LS_HS_CONFIG
+            {
+                PalAbi::VgtLsHsConfigMetadata* pVgtLsHsConfig = &pGfxRegisters->vgtLsHsConfig;
+
+                VGT_LS_HS_CONFIG vgtLsHsConfig;
+                if (registers.HasEntry(mmVGT_LS_HS_CONFIG, &vgtLsHsConfig.u32All))
+                {
+                    PAL_SET_ABI_FIELD(pVgtLsHsConfig, numPatches,    vgtLsHsConfig.bits.NUM_PATCHES);
+                    PAL_SET_ABI_FIELD(pVgtLsHsConfig, hsNumInputCp,  vgtLsHsConfig.bits.HS_NUM_INPUT_CP);
+                    PAL_SET_ABI_FIELD(pVgtLsHsConfig, hsNumOutputCp, vgtLsHsConfig.bits.HS_NUM_OUTPUT_CP);
+                }
+            }
+
+            // SPI_INTERP_CONTROL_0
+            {
+                PalAbi::SpiInterpControlMetadata* pSpiInterpControl = &pGfxRegisters->spiInterpControl;
+
+                SPI_INTERP_CONTROL_0 spiInterpControl;
+                if (registers.HasEntry(mmSPI_INTERP_CONTROL_0, &spiInterpControl.u32All))
+                {
+                    PAL_SET_ABI_FIELD(pSpiInterpControl,
+                                      pointSpriteOverrideX,
+                                      Abi::PointSpriteSelect(spiInterpControl.bits.PNT_SPRITE_OVRD_X));
+                    PAL_SET_ABI_FIELD(pSpiInterpControl,
+                                      pointSpriteOverrideY,
+                                      Abi::PointSpriteSelect(spiInterpControl.bits.PNT_SPRITE_OVRD_Y));
+                    PAL_SET_ABI_FIELD(pSpiInterpControl,
+                                      pointSpriteOverrideZ,
+                                      Abi::PointSpriteSelect(spiInterpControl.bits.PNT_SPRITE_OVRD_Z));
+                    PAL_SET_ABI_FIELD(pSpiInterpControl,
+                                      pointSpriteOverrideW,
+                                      Abi::PointSpriteSelect(spiInterpControl.bits.PNT_SPRITE_OVRD_W));
+
+                    PAL_SET_ABI_FLAG(pSpiInterpControl, pointSpriteEna, spiInterpControl.bits.PNT_SPRITE_ENA);
+                }
+            }
+
+            // VGT_DRAW_PAYLOAD_CNTL
+            {
+                VGT_DRAW_PAYLOAD_CNTL vgtDrawPayloadCntl;
+                if (IsGfx10Plus(palDevice) && registers.HasEntry(mmVGT_DRAW_PAYLOAD_CNTL, &vgtDrawPayloadCntl.u32All))
+                {
+                    PAL_SET_ABI_FLAG(pGfxRegisters, vgtDrawPrimPayloadEn, vgtDrawPayloadCntl.gfx10Plus.EN_PRIM_PAYLOAD);
+                }
+            }
+
+            // IA_MULTI_VGT_PARAM
+            {
+                PalAbi::IaMultiVgtParamMetadata* pIaMultiVgtParam = &pGfxRegisters->iaMultiVgtParam;
+
+                regIA_MULTI_VGT_PARAM iaMultiVgtParam;
+                if (registers.HasEntry(Gfx09::mmIA_MULTI_VGT_PARAM, &iaMultiVgtParam.u32All))
+                {
+                    PAL_SET_ABI_FIELD(pIaMultiVgtParam, primgroupSize, iaMultiVgtParam.bits.PRIMGROUP_SIZE);
+
+                    PAL_SET_ABI_FLAG(pIaMultiVgtParam, partialVsWaveOn, iaMultiVgtParam.bits.PARTIAL_VS_WAVE_ON);
+                    PAL_SET_ABI_FLAG(pIaMultiVgtParam, partialEsWaveOn, iaMultiVgtParam.bits.PARTIAL_ES_WAVE_ON);
+                    PAL_SET_ABI_FLAG(pIaMultiVgtParam, switchOnEop,     iaMultiVgtParam.bits.SWITCH_ON_EOP);
+                    PAL_SET_ABI_FLAG(pIaMultiVgtParam, switchOnEoi,     iaMultiVgtParam.bits.SWITCH_ON_EOI);
+                }
+            }
+
+            // CB_SHADER_MASK
+            {
+                PalAbi::CbShaderMaskMetadata* pCbShaderMask = &pGfxRegisters->cbShaderMask;
+
+                CB_SHADER_MASK cbShaderMask;
+                cbShaderMask.u32All = registers.At(mmCB_SHADER_MASK);
+
+                PAL_SET_ABI_FIELD(pCbShaderMask, output0Enable, cbShaderMask.bits.OUTPUT0_ENABLE);
+                PAL_SET_ABI_FIELD(pCbShaderMask, output1Enable, cbShaderMask.bits.OUTPUT1_ENABLE);
+                PAL_SET_ABI_FIELD(pCbShaderMask, output2Enable, cbShaderMask.bits.OUTPUT2_ENABLE);
+                PAL_SET_ABI_FIELD(pCbShaderMask, output3Enable, cbShaderMask.bits.OUTPUT3_ENABLE);
+                PAL_SET_ABI_FIELD(pCbShaderMask, output4Enable, cbShaderMask.bits.OUTPUT4_ENABLE);
+                PAL_SET_ABI_FIELD(pCbShaderMask, output5Enable, cbShaderMask.bits.OUTPUT5_ENABLE);
+                PAL_SET_ABI_FIELD(pCbShaderMask, output6Enable, cbShaderMask.bits.OUTPUT6_ENABLE);
+                PAL_SET_ABI_FIELD(pCbShaderMask, output7Enable, cbShaderMask.bits.OUTPUT7_ENABLE);
+            }
+
+            // SPI_SHADER_PGM_LO_GS
+            {
+                uint32 value = 0;
+                if (registers.HasEntry(mmSPI_SHADER_PGM_LO_GS, &value))
+                {
+                    // This register is only used for the NGG culling data buffer register.
+                    PAL_SET_ABI_FIELD(pGfxRegisters, nggCullingDataReg, mmSPI_SHADER_PGM_LO_GS);
+                }
+            }
+
+            // VGT_GS_INSTANCE_CNT
+            {
+                PalAbi::VgtGsInstanceCntMetadata* pVgtGsInstanceCnt = &pGfxRegisters->vgtGsInstanceCnt;
+
+                VGT_GS_INSTANCE_CNT vgtGsInstanceCnt;
+                if (registers.HasEntry(mmVGT_GS_INSTANCE_CNT, &vgtGsInstanceCnt.u32All))
+                {
+                    PAL_SET_ABI_FIELD(pVgtGsInstanceCnt, count, vgtGsInstanceCnt.bits.CNT);
+
+                    PAL_SET_ABI_FLAG(pVgtGsInstanceCnt, enable, vgtGsInstanceCnt.bits.ENABLE);
+
+                    if (IsGfx10Plus(palDevice))
+                    {
+                        PAL_SET_ABI_FLAG(pVgtGsInstanceCnt,
+                                         enMaxVertOutPerGsInstance,
+                                         vgtGsInstanceCnt.gfx10Plus.EN_MAX_VERT_OUT_PER_GS_INSTANCE);
+                    }
+                }
+            }
+
+            // VGT_GS_PER_VS
+            {
+                VGT_GS_PER_VS vgtGsPerVs;
+                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_GS_PER_VS, &vgtGsPerVs.u32All))
+                {
+                    PAL_SET_ABI_FIELD(pGfxRegisters, vgtGsPerVs, vgtGsPerVs.bits.GS_PER_VS);
+                }
+            }
+
+            // VGT_GS_VERT_ITEMSIZE .. _3
+            {
+                VGT_GS_VERT_ITEMSIZE vgtGsVertItemsize;
+                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_GS_VERT_ITEMSIZE, &vgtGsVertItemsize.u32All))
+                {
+                    PAL_SET_ABI_FIELD_IDX(pGfxRegisters, vgtGsVertItemsize, 0, vgtGsVertItemsize.bits.ITEMSIZE);
+                }
+                VGT_GS_VERT_ITEMSIZE_1 vgtGsVertItemsize1;
+                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_GS_VERT_ITEMSIZE_1, &vgtGsVertItemsize1.u32All))
+                {
+                    PAL_SET_ABI_FIELD_IDX(pGfxRegisters, vgtGsVertItemsize, 1, vgtGsVertItemsize1.bits.ITEMSIZE);
+                }
+                VGT_GS_VERT_ITEMSIZE_2 vgtGsVertItemsize2;
+                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_GS_VERT_ITEMSIZE_2, &vgtGsVertItemsize2.u32All))
+                {
+                    PAL_SET_ABI_FIELD_IDX(pGfxRegisters, vgtGsVertItemsize, 2, vgtGsVertItemsize2.bits.ITEMSIZE);
+                }
+                VGT_GS_VERT_ITEMSIZE_3 vgtGsVertItemsize3;
+                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_GS_VERT_ITEMSIZE_3, &vgtGsVertItemsize3.u32All))
+                {
+                    PAL_SET_ABI_FIELD_IDX(pGfxRegisters, vgtGsVertItemsize, 3, vgtGsVertItemsize3.bits.ITEMSIZE);
+                }
+            }
+
+            // VGT_GSVS_RING_ITEMSIZE
+            {
+                VGT_GSVS_RING_ITEMSIZE vgtGsVsRingItemsize;
+                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_GSVS_RING_ITEMSIZE, &vgtGsVsRingItemsize.u32All))
+                {
+                    PAL_SET_ABI_FIELD(pGfxRegisters, vgtGsvsRingItemsize, vgtGsVsRingItemsize.bits.ITEMSIZE);
+                }
+            }
+
+            // VGT_GSVS_RING_OFFSET_1 .. _3
+            {
+                VGT_GSVS_RING_OFFSET_1 vgtGsVsRingOffset1;
+                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_GSVS_RING_OFFSET_1, &vgtGsVsRingOffset1.u32All))
+                {
+                    PAL_SET_ABI_FIELD_IDX(pGfxRegisters, vgtGsvsRingOffset, 0, vgtGsVsRingOffset1.bits.OFFSET);
+                }
+                VGT_GSVS_RING_OFFSET_2 vgtGsVsRingOffset2;
+                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_GSVS_RING_OFFSET_2, &vgtGsVsRingOffset2.u32All))
+                {
+                    PAL_SET_ABI_FIELD_IDX(pGfxRegisters, vgtGsvsRingOffset, 1, vgtGsVsRingOffset2.bits.OFFSET);
+                }
+                VGT_GSVS_RING_OFFSET_3 vgtGsVsRingOffset3;
+                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_GSVS_RING_OFFSET_3, &vgtGsVsRingOffset3.u32All))
+                {
+                    PAL_SET_ABI_FIELD_IDX(pGfxRegisters, vgtGsvsRingOffset, 2, vgtGsVsRingOffset3.bits.OFFSET);
+                }
+            }
+
+            // VGT_ESGS_RING_ITEMSIZE
+            {
+                VGT_ESGS_RING_ITEMSIZE vgtEsGsRingItemsize;
+                if (registers.HasEntry(mmVGT_ESGS_RING_ITEMSIZE, &vgtEsGsRingItemsize.u32All))
+                {
+                    PAL_SET_ABI_FIELD(pGfxRegisters, vgtEsgsRingItemsize, vgtEsGsRingItemsize.bits.ITEMSIZE);
+                }
+            }
+
+            // VGT_GS_MAX_VERT_OUT
+            {
+                VGT_GS_MAX_VERT_OUT vgtGsMaxVertOut;
+                if (registers.HasEntry(mmVGT_GS_MAX_VERT_OUT, &vgtGsMaxVertOut.u32All))
+                {
+                    PAL_SET_ABI_FIELD(pGfxRegisters, vgtGsMaxVertOut, vgtGsMaxVertOut.bits.MAX_VERT_OUT);
+                }
+            }
+
+            // VGT_GS_MAX_PRIMS_PER_SUBGROUP
+            {
+                VGT_GS_MAX_PRIMS_PER_SUBGROUP vgtGsMaxPrimsPerSubgroup;
+                if (IsGfx9(palDevice) &&
+                    registers.HasEntry(Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP, &vgtGsMaxPrimsPerSubgroup.u32All))
+                {
+                    PAL_SET_ABI_FIELD(pGfxRegisters,
+                                      maxVertsPerSubgroup,
+                                      vgtGsMaxPrimsPerSubgroup.bits.MAX_PRIMS_PER_SUBGROUP);
+                }
+            }
+
+            // GE_MAX_OUTPUT_PER_SUBGROUP
+            {
+                GE_MAX_OUTPUT_PER_SUBGROUP geMaxOutputPerSubgroup;
+                if (IsGfx10Plus(palDevice) &&
+                    registers.HasEntry(Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP, &geMaxOutputPerSubgroup.u32All))
+                {
+                    PAL_SET_ABI_FIELD(pGfxRegisters,
+                                      maxVertsPerSubgroup,
+                                      geMaxOutputPerSubgroup.bits.MAX_VERTS_PER_SUBGROUP);
+                }
+            }
+
+            // GE_NGG_SUBGRP_CNTL
+            {
+                PalAbi::GeNggSubgrpCntlMetadata* pGeNggSubgrpCntl = &pGfxRegisters->geNggSubgrpCntl;
+
+                GE_NGG_SUBGRP_CNTL geNggSubgrpCntl;
+                if (IsGfx10Plus(palDevice) &&
+                    registers.HasEntry(Gfx10Plus::mmGE_NGG_SUBGRP_CNTL, &geNggSubgrpCntl.u32All))
+                {
+                    PAL_SET_ABI_FIELD(pGeNggSubgrpCntl, primAmpFactor,      geNggSubgrpCntl.bits.PRIM_AMP_FACTOR);
+                    PAL_SET_ABI_FIELD(pGeNggSubgrpCntl, threadsPerSubgroup, geNggSubgrpCntl.bits.THDS_PER_SUBGRP);
+                }
+            }
+
+            // VGT_HOS_MIN_TESS_LEVEL
+            {
+                VGT_HOS_MIN_TESS_LEVEL vgtHosMinTessLevel;
+                if (registers.HasEntry(mmVGT_HOS_MIN_TESS_LEVEL, &vgtHosMinTessLevel.u32All))
+                {
+                    PAL_SET_ABI_FIELD(pGfxRegisters, vgtHosMinTessLevel, vgtHosMinTessLevel.f32All);
+                }
+            }
+
+            // VGT_HOS_MAX_TESS_LEVEL
+            {
+                VGT_HOS_MAX_TESS_LEVEL vgtHosMaxTessLevel;
+                if (registers.HasEntry(mmVGT_HOS_MAX_TESS_LEVEL, &vgtHosMaxTessLevel.u32All))
+                {
+                    PAL_SET_ABI_FIELD(pGfxRegisters, vgtHosMaxTessLevel, vgtHosMaxTessLevel.f32All);
+                }
+            }
+
+            // VGT_STRMOUT_CONFIG
+            {
+                PalAbi::VgtStrmoutConfigMetadata* pVgtStrmoutConfig = &pGfxRegisters->vgtStrmoutConfig;
+
+                VGT_STRMOUT_CONFIG vgtStrmoutConfig;
+                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_STRMOUT_CONFIG, &vgtStrmoutConfig.u32All))
+                {
+                    PAL_SET_ABI_FIELD(pVgtStrmoutConfig, rastStream,     vgtStrmoutConfig.bits.RAST_STREAM);
+                    PAL_SET_ABI_FIELD(pVgtStrmoutConfig, rastStreamMask, vgtStrmoutConfig.bits.RAST_STREAM_MASK);
+
+                    PAL_SET_ABI_FLAG(pVgtStrmoutConfig, streamout_0En,     vgtStrmoutConfig.bits.STREAMOUT_0_EN);
+                    PAL_SET_ABI_FLAG(pVgtStrmoutConfig, streamout_1En,     vgtStrmoutConfig.bits.STREAMOUT_1_EN);
+                    PAL_SET_ABI_FLAG(pVgtStrmoutConfig, streamout_2En,     vgtStrmoutConfig.bits.STREAMOUT_2_EN);
+                    PAL_SET_ABI_FLAG(pVgtStrmoutConfig, streamout_3En,     vgtStrmoutConfig.bits.STREAMOUT_3_EN);
+                    PAL_SET_ABI_FLAG(pVgtStrmoutConfig, primsNeededCntEn,  vgtStrmoutConfig.bits.EN_PRIMS_NEEDED_CNT);
+                    PAL_SET_ABI_FLAG(pVgtStrmoutConfig, useRastStreamMask, vgtStrmoutConfig.bits.USE_RAST_STREAM_MASK);
+                }
+            }
+
+            // VGT_STRMOUT_BUFFER_CONFIG
+            {
+                PalAbi::VgtStrmoutBufferConfigMetadata* pVgtStrmoutBufferConfig =
+                    &pGfxRegisters->vgtStrmoutBufferConfig;
+
+                VGT_STRMOUT_BUFFER_CONFIG vgtStrmoutBufferConfig;
+                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_STRMOUT_BUFFER_CONFIG, &vgtStrmoutBufferConfig.u32All))
+                {
+                    PAL_SET_ABI_FIELD(pVgtStrmoutBufferConfig,
+                                      stream_0BufferEn,
+                                      vgtStrmoutBufferConfig.bits.STREAM_0_BUFFER_EN);
+                    PAL_SET_ABI_FIELD(pVgtStrmoutBufferConfig,
+                                      stream_1BufferEn,
+                                      vgtStrmoutBufferConfig.bits.STREAM_1_BUFFER_EN);
+                    PAL_SET_ABI_FIELD(pVgtStrmoutBufferConfig,
+                                      stream_2BufferEn,
+                                      vgtStrmoutBufferConfig.bits.STREAM_2_BUFFER_EN);
+                    PAL_SET_ABI_FIELD(pVgtStrmoutBufferConfig,
+                                      stream_3BufferEn,
+                                      vgtStrmoutBufferConfig.bits.STREAM_3_BUFFER_EN);
+                }
+            }
+
+            // VGT_STRMOUT_VTX_STRIDE_0
+            {
+                VGT_STRMOUT_VTX_STRIDE_0 vgtStrmoutVtxStride;
+                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_STRMOUT_VTX_STRIDE_0, &vgtStrmoutVtxStride.u32All))
+                {
+                    PAL_SET_ABI_FIELD_IDX(pPipeline, streamoutVertexStrides, 0, vgtStrmoutVtxStride.bits.STRIDE);
+                }
+            }
+
+            // VGT_STRMOUT_VTX_STRIDE_1
+            {
+                VGT_STRMOUT_VTX_STRIDE_1 vgtStrmoutVtxStride;
+                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_STRMOUT_VTX_STRIDE_1, &vgtStrmoutVtxStride.u32All))
+                {
+                    PAL_SET_ABI_FIELD_IDX(pPipeline, streamoutVertexStrides, 1, vgtStrmoutVtxStride.bits.STRIDE);
+                }
+            }
+
+            // VGT_STRMOUT_VTX_STRIDE_2
+            {
+                VGT_STRMOUT_VTX_STRIDE_2 vgtStrmoutVtxStride;
+                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_STRMOUT_VTX_STRIDE_2, &vgtStrmoutVtxStride.u32All))
+                {
+                    PAL_SET_ABI_FIELD_IDX(pPipeline, streamoutVertexStrides, 2, vgtStrmoutVtxStride.bits.STRIDE);
+                }
+            }
+
+            // VGT_STRMOUT_VTX_STRIDE_3
+            {
+                VGT_STRMOUT_VTX_STRIDE_3 vgtStrmoutVtxStride;
+                if (hasHwVs && registers.HasEntry(HasHwVs::mmVGT_STRMOUT_VTX_STRIDE_3, &vgtStrmoutVtxStride.u32All))
+                {
+                    PAL_SET_ABI_FIELD_IDX(pPipeline, streamoutVertexStrides, 3, vgtStrmoutVtxStride.bits.STRIDE);
+                }
+            }
+
+            // DB_SHADER_CONTROL
+            {
+                PalAbi::DbShaderControlMetadata* pDbShaderControl = &pGfxRegisters->dbShaderControl;
+
+                DB_SHADER_CONTROL dbShaderControl;
+                dbShaderControl.u32All = registers.At(mmDB_SHADER_CONTROL);
+
+                PAL_SET_ABI_FIELD(pDbShaderControl, zOrder,              dbShaderControl.bits.Z_ORDER);
+                PAL_SET_ABI_FIELD(pDbShaderControl, conservativeZExport, dbShaderControl.bits.CONSERVATIVE_Z_EXPORT);
+
+                PAL_SET_ABI_FLAG(pDbShaderControl, zExportEnable, dbShaderControl.bits.Z_EXPORT_ENABLE);
+                PAL_SET_ABI_FLAG(pDbShaderControl,
+                                 stencilTestValExportEnable,
+                                 dbShaderControl.bits.STENCIL_TEST_VAL_EXPORT_ENABLE);
+                PAL_SET_ABI_FLAG(pDbShaderControl,
+                                 stencilOpValExportEnable,
+                                 dbShaderControl.bits.STENCIL_OP_VAL_EXPORT_ENABLE);
+                PAL_SET_ABI_FLAG(pDbShaderControl, killEnable,          dbShaderControl.bits.KILL_ENABLE);
+                PAL_SET_ABI_FLAG(pDbShaderControl, coverageToMaskEn,    dbShaderControl.bits.COVERAGE_TO_MASK_ENABLE);
+                PAL_SET_ABI_FLAG(pDbShaderControl, maskExportEnable,    dbShaderControl.bits.MASK_EXPORT_ENABLE);
+                PAL_SET_ABI_FLAG(pDbShaderControl, execOnHierFail,      dbShaderControl.bits.EXEC_ON_HIER_FAIL);
+                PAL_SET_ABI_FLAG(pDbShaderControl, execOnNoop,          dbShaderControl.bits.EXEC_ON_NOOP);
+                PAL_SET_ABI_FLAG(pDbShaderControl, alphaToMaskDisable,  dbShaderControl.bits.ALPHA_TO_MASK_DISABLE);
+                PAL_SET_ABI_FLAG(pDbShaderControl, depthBeforeShader,   dbShaderControl.bits.DEPTH_BEFORE_SHADER);
+                PAL_SET_ABI_FLAG(pDbShaderControl,
+                                 primitiveOrderedPixelShader,
+                                 dbShaderControl.bits.PRIMITIVE_ORDERED_PIXEL_SHADER);
+
+                if (IsGfx10Plus(palDevice))
+                {
+                    PAL_SET_ABI_FLAG(pDbShaderControl,
+                                     preShaderDepthCoverageEnable,
+                                     dbShaderControl.gfx10Plus.PRE_SHADER_DEPTH_COVERAGE_ENABLE);
+                }
+            }
+
+            // SPI_BARYC_CNTL
+            {
+                PalAbi::SpiBarycCntlMetadata* pSpiBarycCntl = &pGfxRegisters->spiBarycCntl;
+
+                SPI_BARYC_CNTL spiBarycCntl;
+                spiBarycCntl.u32All = registers.At(mmSPI_BARYC_CNTL);
+
+                PAL_SET_ABI_FIELD(pSpiBarycCntl, posFloatLocation, spiBarycCntl.bits.POS_FLOAT_LOCATION);
+
+                PAL_SET_ABI_FLAG(pSpiBarycCntl, frontFaceAllBits, spiBarycCntl.bits.FRONT_FACE_ALL_BITS);
+
+            }
+
+            // SPI_PS_INPUT_ADDR
+            {
+                PalAbi::SpiPsInputAddrMetadata* pSpiPsInput = &pGfxRegisters->spiPsInputAddr;
+
+                SPI_PS_INPUT_ADDR spiPsInputAddr;
+                spiPsInputAddr.u32All = registers.At(mmSPI_PS_INPUT_ADDR);
+
+                PAL_SET_ABI_FLAG(pSpiPsInput, perspSampleEna,    spiPsInputAddr.bits.PERSP_SAMPLE_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, perspCenterEna,    spiPsInputAddr.bits.PERSP_CENTER_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, perspCentroidEna,  spiPsInputAddr.bits.PERSP_CENTROID_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, perspPullModelEna, spiPsInputAddr.bits.PERSP_PULL_MODEL_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, linearSampleEna,   spiPsInputAddr.bits.LINEAR_SAMPLE_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, linearCenterEna,   spiPsInputAddr.bits.LINEAR_CENTER_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, linearCentroidEna, spiPsInputAddr.bits.LINEAR_CENTROID_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, lineStippleTexEna, spiPsInputAddr.bits.LINE_STIPPLE_TEX_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, posXFloatEna,      spiPsInputAddr.bits.POS_X_FLOAT_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, posYFloatEna,      spiPsInputAddr.bits.POS_Y_FLOAT_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, posZFloatEna,      spiPsInputAddr.bits.POS_Z_FLOAT_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, posWFloatEna,      spiPsInputAddr.bits.POS_W_FLOAT_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, frontFaceEna,      spiPsInputAddr.bits.FRONT_FACE_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, ancillaryEna,      spiPsInputAddr.bits.ANCILLARY_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, sampleCoverageEna, spiPsInputAddr.bits.SAMPLE_COVERAGE_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, posFixedPtEna,     spiPsInputAddr.bits.POS_FIXED_PT_ENA);
+            }
+
+            // SPI_PS_INPUT_ENA
+            {
+                PalAbi::SpiPsInputEnaMetadata* pSpiPsInput = &pGfxRegisters->spiPsInputEna;
+
+                SPI_PS_INPUT_ENA spiPsInputEna;
+                spiPsInputEna.u32All = registers.At(mmSPI_PS_INPUT_ENA);
+
+                PAL_SET_ABI_FLAG(pSpiPsInput, perspSampleEna,    spiPsInputEna.bits.PERSP_SAMPLE_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, perspCenterEna,    spiPsInputEna.bits.PERSP_CENTER_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, perspCentroidEna,  spiPsInputEna.bits.PERSP_CENTROID_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, perspPullModelEna, spiPsInputEna.bits.PERSP_PULL_MODEL_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, linearSampleEna,   spiPsInputEna.bits.LINEAR_SAMPLE_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, linearCenterEna,   spiPsInputEna.bits.LINEAR_CENTER_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, linearCentroidEna, spiPsInputEna.bits.LINEAR_CENTROID_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, lineStippleTexEna, spiPsInputEna.bits.LINE_STIPPLE_TEX_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, posXFloatEna,      spiPsInputEna.bits.POS_X_FLOAT_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, posYFloatEna,      spiPsInputEna.bits.POS_Y_FLOAT_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, posZFloatEna,      spiPsInputEna.bits.POS_Z_FLOAT_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, posWFloatEna,      spiPsInputEna.bits.POS_W_FLOAT_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, frontFaceEna,      spiPsInputEna.bits.FRONT_FACE_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, ancillaryEna,      spiPsInputEna.bits.ANCILLARY_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, sampleCoverageEna, spiPsInputEna.bits.SAMPLE_COVERAGE_ENA);
+                PAL_SET_ABI_FLAG(pSpiPsInput, posFixedPtEna,     spiPsInputEna.bits.POS_FIXED_PT_ENA);
+            }
+
+            // PA_CL_VS_OUT_CNTL
+            {
+                PalAbi::PaClVsOutCntlMetadata* pPaClVsOutCntl = &pGfxRegisters->paClVsOutCntl;
+
+                PA_CL_VS_OUT_CNTL paClVsOutCntl;
+                paClVsOutCntl.u32All = registers.At(mmPA_CL_VS_OUT_CNTL);
+
+                PAL_SET_ABI_FLAG(pPaClVsOutCntl, clipDistEna_0,          paClVsOutCntl.bits.CLIP_DIST_ENA_0);
+                PAL_SET_ABI_FLAG(pPaClVsOutCntl, clipDistEna_1,          paClVsOutCntl.bits.CLIP_DIST_ENA_1);
+                PAL_SET_ABI_FLAG(pPaClVsOutCntl, clipDistEna_2,          paClVsOutCntl.bits.CLIP_DIST_ENA_2);
+                PAL_SET_ABI_FLAG(pPaClVsOutCntl, clipDistEna_3,          paClVsOutCntl.bits.CLIP_DIST_ENA_3);
+                PAL_SET_ABI_FLAG(pPaClVsOutCntl, clipDistEna_4,          paClVsOutCntl.bits.CLIP_DIST_ENA_4);
+                PAL_SET_ABI_FLAG(pPaClVsOutCntl, clipDistEna_5,          paClVsOutCntl.bits.CLIP_DIST_ENA_5);
+                PAL_SET_ABI_FLAG(pPaClVsOutCntl, clipDistEna_6,          paClVsOutCntl.bits.CLIP_DIST_ENA_6);
+                PAL_SET_ABI_FLAG(pPaClVsOutCntl, clipDistEna_7,          paClVsOutCntl.bits.CLIP_DIST_ENA_7);
+                PAL_SET_ABI_FLAG(pPaClVsOutCntl, cullDistEna_0,          paClVsOutCntl.bits.CULL_DIST_ENA_0);
+                PAL_SET_ABI_FLAG(pPaClVsOutCntl, cullDistEna_1,          paClVsOutCntl.bits.CULL_DIST_ENA_1);
+                PAL_SET_ABI_FLAG(pPaClVsOutCntl, cullDistEna_2,          paClVsOutCntl.bits.CULL_DIST_ENA_2);
+                PAL_SET_ABI_FLAG(pPaClVsOutCntl, cullDistEna_3,          paClVsOutCntl.bits.CULL_DIST_ENA_3);
+                PAL_SET_ABI_FLAG(pPaClVsOutCntl, cullDistEna_4,          paClVsOutCntl.bits.CULL_DIST_ENA_4);
+                PAL_SET_ABI_FLAG(pPaClVsOutCntl, cullDistEna_5,          paClVsOutCntl.bits.CULL_DIST_ENA_5);
+                PAL_SET_ABI_FLAG(pPaClVsOutCntl, cullDistEna_6,          paClVsOutCntl.bits.CULL_DIST_ENA_6);
+                PAL_SET_ABI_FLAG(pPaClVsOutCntl, cullDistEna_7,          paClVsOutCntl.bits.CULL_DIST_ENA_7);
+                PAL_SET_ABI_FLAG(pPaClVsOutCntl, useVtxPointSize,        paClVsOutCntl.bits.USE_VTX_POINT_SIZE);
+                PAL_SET_ABI_FLAG(pPaClVsOutCntl, useVtxEdgeFlag,         paClVsOutCntl.bits.USE_VTX_EDGE_FLAG);
+                PAL_SET_ABI_FLAG(pPaClVsOutCntl, useVtxRenderTargetIndx, paClVsOutCntl.bits.USE_VTX_RENDER_TARGET_INDX);
+                PAL_SET_ABI_FLAG(pPaClVsOutCntl, useVtxViewportIndx,     paClVsOutCntl.bits.USE_VTX_VIEWPORT_INDX);
+                PAL_SET_ABI_FLAG(pPaClVsOutCntl, useVtxKillFlag,         paClVsOutCntl.bits.USE_VTX_KILL_FLAG);
+                PAL_SET_ABI_FLAG(pPaClVsOutCntl, vsOutMiscVecEna,        paClVsOutCntl.bits.VS_OUT_MISC_VEC_ENA);
+                PAL_SET_ABI_FLAG(pPaClVsOutCntl, vsOutCcDist0VecEna,     paClVsOutCntl.bits.VS_OUT_CCDIST0_VEC_ENA);
+                PAL_SET_ABI_FLAG(pPaClVsOutCntl, vsOutCcDist1VecEna,     paClVsOutCntl.bits.VS_OUT_CCDIST1_VEC_ENA);
+                PAL_SET_ABI_FLAG(pPaClVsOutCntl, vsOutMiscSideBusEna,    paClVsOutCntl.bits.VS_OUT_MISC_SIDE_BUS_ENA);
+
+                if (IsGfx9(palDevice))
+                {
+                    PAL_SET_ABI_FLAG(pPaClVsOutCntl, useVtxLineWidth, paClVsOutCntl.gfx09.USE_VTX_LINE_WIDTH);
+                }
+
+                if (IsGfx9(palDevice) || IsGfx10(palDevice))
+                {
+                    PAL_SET_ABI_FLAG(pPaClVsOutCntl, useVtxGsCutFlag, paClVsOutCntl.gfx09_10.USE_VTX_GS_CUT_FLAG);
+                }
+
+                if (IsGfx10Plus(palDevice))
+                {
+                    PAL_SET_ABI_FLAG(pPaClVsOutCntl, useVtxLineWidth, paClVsOutCntl.gfx10Plus.USE_VTX_LINE_WIDTH);
+                }
+
+                if (IsGfx103Plus(palDevice))
+                {
+                    PAL_SET_ABI_FLAG(pPaClVsOutCntl, useVtxVrsRate, paClVsOutCntl.gfx103Plus.USE_VTX_VRS_RATE);
+                    PAL_SET_ABI_FLAG(pPaClVsOutCntl,
+                                     bypassVtxRateCombiner,
+                                     paClVsOutCntl.gfx103Plus.BYPASS_VTX_RATE_COMBINER);
+                    PAL_SET_ABI_FLAG(pPaClVsOutCntl,
+                                     bypassPrimRateCombiner,
+                                     paClVsOutCntl.gfx103Plus.BYPASS_PRIM_RATE_COMBINER);
+                }
+
+            }
+
+            // VGT_PRIMITIVEID_EN
+            {
+                VGT_PRIMITIVEID_EN vgtPrimitiveIdEn;
+                vgtPrimitiveIdEn.u32All = registers.At(mmVGT_PRIMITIVEID_EN);
+
+                PAL_SET_ABI_FLAG(pGfxRegisters, vgtPrimitiveIdEn,      vgtPrimitiveIdEn.bits.PRIMITIVEID_EN);
+                PAL_SET_ABI_FLAG(pGfxRegisters, nggDisableProvokReuse, vgtPrimitiveIdEn.bits.NGG_DISABLE_PROVOK_REUSE);
+            }
+
+            // PA_SC_SHADER_CONTROL
+            {
+                PalAbi::PaScShaderControlMetadata* pPaScShaderControl = &pGfxRegisters->paScShaderControl;
+
+                PA_SC_SHADER_CONTROL paScShaderControl;
+                paScShaderControl.u32All = registers.At(mmPA_SC_SHADER_CONTROL);
+
+                {
+                    PAL_SET_ABI_FLAG(pPaScShaderControl,
+                                     loadCollisionWaveid,
+                                     paScShaderControl.core.LOAD_COLLISION_WAVEID);
+                    PAL_SET_ABI_FLAG(pPaScShaderControl,
+                                     loadIntrawaveCollision,
+                                     paScShaderControl.core.LOAD_INTRAWAVE_COLLISION);
+                }
+
+                if (IsGfx10Plus(palDevice))
+                {
+                    PAL_SET_ABI_FIELD(pPaScShaderControl,
+                                      waveBreakRegionSize,
+                                      paScShaderControl.gfx10Plus.WAVE_BREAK_REGION_SIZE);
+                }
+            }
+
+            // PA_SC_AA_CONFIG
+            {
+                PA_SC_AA_CONFIG paScAaConfig;
+                paScAaConfig.u32All = registers.At(mmPA_SC_AA_CONFIG);
+
+                static_assert((uint32(Abi::CoverageToShaderSel::InputCoverage)      == INPUT_COVERAGE)       &&
+                              (uint32(Abi::CoverageToShaderSel::InputInnerCoverage) == INPUT_INNER_COVERAGE) &&
+                              (uint32(Abi::CoverageToShaderSel::InputDepthCoverage) == INPUT_DEPTH_COVERAGE),
+                              "ABI and HW enum values do not match!");
+
+                PAL_SET_ABI_FIELD(pGfxRegisters,
+                                  aaCoverageToShaderSelect,
+                                  Abi::CoverageToShaderSel(paScAaConfig.bits.COVERAGE_TO_SHADER_SELECT));
+            }
+
+            // SPI_PS_INPUT_CNTL[0..32]
+            {
+                uint32 numInterpolants = 0;
+                for (uint32 i = 0; i < MaxPsInputSemantics; i++)
+                {
+                    PalAbi::SpiPsInputCntlMetadata* pSpiPsInputCntl = &pGfxRegisters->spiPsInputCntl[i];
+
+                    SPI_PS_INPUT_CNTL_0 spiPsInputCntl;
+                    if (registers.HasEntry(mmSPI_PS_INPUT_CNTL_0 + i, &spiPsInputCntl.u32All))
+                    {
+                        ++numInterpolants;
+
+                        PAL_SET_ABI_FIELD(pSpiPsInputCntl, offset,     spiPsInputCntl.bits.OFFSET);
+                        PAL_SET_ABI_FIELD(pSpiPsInputCntl, defaultVal, spiPsInputCntl.bits.DEFAULT_VAL);
+
+                        PAL_SET_ABI_FLAG(pSpiPsInputCntl, flatShade,      spiPsInputCntl.bits.FLAT_SHADE);
+                        PAL_SET_ABI_FLAG(pSpiPsInputCntl, ptSpriteTex,    spiPsInputCntl.bits.PT_SPRITE_TEX);
+                        PAL_SET_ABI_FLAG(pSpiPsInputCntl, fp16InterpMode, spiPsInputCntl.bits.FP16_INTERP_MODE);
+                        PAL_SET_ABI_FLAG(pSpiPsInputCntl, attr0Valid,     spiPsInputCntl.bits.ATTR0_VALID);
+                        PAL_SET_ABI_FLAG(pSpiPsInputCntl, attr1Valid,     spiPsInputCntl.bits.ATTR1_VALID);
+
+                        if (IsGfx9(palDevice) || IsGfx10(palDevice))
+                        {
+                            PAL_SET_ABI_FIELD(pSpiPsInputCntl, cylWrap, spiPsInputCntl.gfx09_10.CYL_WRAP);
+                        }
+
+                        if (IsGfx103PlusExclusive(palDevice))
+                        {
+                            PAL_SET_ABI_FLAG(pSpiPsInputCntl,
+                                             rotatePcPtr,
+                                             spiPsInputCntl.gfx103PlusExclusive.ROTATE_PC_PTR);
+                        }
+
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+
+                PAL_ASSERT(pPipeline->hasEntry.numInterpolants &&
+                           (pPipeline->numInterpolants == numInterpolants));
+
+                // Some compilers don't provide numInterpolants, so lets just set it directly.
+                PAL_SET_ABI_FIELD(pPipeline, numInterpolants, numInterpolants);
+            }
+
+            // HwHs - Rsrc1..3 and Checksum
+            {
+                PalAbi::HardwareStageMetadata* pHwHs = &pPipeline->hardwareStage[uint32(Abi::HardwareStage::Hs)];
+
+                SPI_SHADER_PGM_RSRC1_HS rsrc1;
+                if (registers.HasEntry(mmSPI_SHADER_PGM_RSRC1_HS, &rsrc1.u32All))
+                {
+                    const bool isWave32 = pHwHs->hasEntry.wavefrontSize && (pHwHs->wavefrontSize == 32);
+                    const uint32 allocVgprs = (rsrc1.bits.VGPRS + 1) * ((isWave32) ? 8 : 4);
+                    const uint32 calcVgprs  = (pHwHs->vgprCount == 0)
+                                              ? 0
+                                              : ((pHwHs->vgprCount - 1) / ((isWave32) ? 8 : 4));
+
+                    PAL_ASSERT(pHwHs->hasEntry.vgprCount        &&
+                               (pHwHs->vgprCount <= allocVgprs) &&
+                               (rsrc1.bits.VGPRS == calcVgprs));
+
+                    const uint32 calcSgprs  = (pHwHs->sgprCount == 0) ? 0 : ((pHwHs->sgprCount - 1) / 8);
+                    PAL_ASSERT(pHwHs->hasEntry.sgprCount && (rsrc1.bits.SGPRS == calcSgprs));
+
+                    PAL_SET_ABI_FIELD(pHwHs, floatMode, rsrc1.bits.FLOAT_MODE);
+
+                    PAL_SET_ABI_FLAG(pHwHs, fp16Overflow, rsrc1.bits.FP16_OVFL);
+                    PAL_SET_ABI_FLAG(pHwHs, ieeeMode,     rsrc1.bits.IEEE_MODE);
+                    PAL_SET_ABI_FLAG(pHwHs, debugMode,    rsrc1.bits.DEBUG_MODE);
+
+                    if (IsGfx10Plus(palDevice))
+                    {
+                        PAL_SET_ABI_FLAG(pHwHs, wgpMode,         rsrc1.gfx10Plus.WGP_MODE);
+                        PAL_SET_ABI_FLAG(pHwHs, memOrdered,      rsrc1.gfx10Plus.MEM_ORDERED);
+                        PAL_SET_ABI_FLAG(pHwHs, forwardProgress, rsrc1.gfx10Plus.FWD_PROGRESS);
+                    }
+
+                    PAL_SET_ABI_FIELD(pGfxRegisters, lsVgprCompCnt, rsrc1.bits.LS_VGPR_COMP_CNT);
+                }
+
+                SPI_SHADER_PGM_RSRC2_HS rsrc2;
+                if (registers.HasEntry(mmSPI_SHADER_PGM_RSRC2_HS, &rsrc2.u32All))
+                {
+                    uint32 regLdsSize = 0;
+
+                    uint32 userSgprCount = rsrc2.bits.USER_SGPR;
+                    if (IsGfx9(palDevice))
+                    {
+                        regLdsSize     = rsrc2.gfx09.LDS_SIZE;
+                        userSgprCount |= (rsrc2.gfx09.USER_SGPR_MSB << 5);
+
+                        PAL_SET_ABI_FIELD(pHwHs, excpEn, rsrc2.gfx09.EXCP_EN);
+                    }
+                    if (IsGfx10Plus(palDevice))
+                    {
+                        regLdsSize     = rsrc2.gfx10Plus.LDS_SIZE;
+                        userSgprCount |= (rsrc2.gfx10Plus.USER_SGPR_MSB << 5);
+
+                        PAL_SET_ABI_FIELD(pHwHs, excpEn,        rsrc2.gfx10Plus.EXCP_EN);
+                        PAL_SET_ABI_FIELD(pHwHs, sharedVgprCnt, rsrc2.gfx10Plus.SHARED_VGPR_CNT);
+
+                        PAL_SET_ABI_FLAG(pHwHs,         offchipLdsEn, rsrc2.gfx10Plus.OC_LDS_EN);
+                        PAL_SET_ABI_FLAG(pGfxRegisters, hsTgSizeEn,   rsrc2.gfx10Plus.TG_SIZE_EN);
+                    }
+
+                    PAL_SET_ABI_FIELD(pHwHs, userSgprs, userSgprCount);
+
+                    PAL_SET_ABI_FLAG(pHwHs, scratchEn,   rsrc2.bits.SCRATCH_EN);
+                    PAL_SET_ABI_FLAG(pHwHs, trapPresent, rsrc2.bits.TRAP_PRESENT);
+
+                    const uint32 allocLdsSize = regLdsSize * Gfx9LdsDwGranularity * sizeof(uint32);
+                    if (pHwHs->hasEntry.ldsSize)
+                    {
+                        const uint32 calcLdsSize = Pow2Align(pHwHs->ldsSize / uint32(sizeof(uint32)),
+                                                             Gfx9LdsDwGranularity) >> Gfx9LdsDwGranularityShift;
+                        PAL_DPF(DbgPrintCatInfoMsg, DbgPrintStyleDefault,
+                            "LDS_SIZE: 0x%0x, Calc: 0x%08x, Alloc: 0x%08x",
+                            regLdsSize,
+                            calcLdsSize,
+                            allocLdsSize);
+                        PAL_ASSERT(pHwHs->ldsSize <= allocLdsSize);
+                        PAL_ASSERT(regLdsSize == calcLdsSize);
+                    }
+
+                    // We forcibly overwrite this because some compilers don't put the proper LDS size
+                    // into the metadata, if it is there at all.
+                    PAL_SET_ABI_FIELD(pHwHs, ldsSize, allocLdsSize);
+                }
+
+                SPI_SHADER_PGM_RSRC3_HS rsrc3;
+                if (registers.HasEntry(mmSPI_SHADER_PGM_RSRC3_HS, &rsrc3.u32All))
+                {
+                    if (IsGfx10Plus(palDevice))
+                    {
+                        PAL_SET_ABI_FIELD(pHwHs, wavesPerSe, rsrc3.bits.WAVE_LIMIT);
+                    }
+                    else
+                    {
+                        const uint32 numSaPerSe = chipProps.gfx9.numShaderArrays;
+                        PAL_SET_ABI_FIELD(pHwHs, wavesPerSe, rsrc3.bits.WAVE_LIMIT * numSaPerSe);
+                    }
+                }
+
+                SPI_SHADER_PGM_CHKSUM_HS chksum;
+                if (supportSpp && registers.HasEntry(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_HS, &chksum.u32All))
+                {
+                    PAL_SET_ABI_FIELD(pHwHs, checksumValue, chksum.bits.CHECKSUM);
+                }
+            }
+
+            // HwGs - Rsrc1..3 and Checksum
+            {
+                PalAbi::HardwareStageMetadata* pHwGs = &pPipeline->hardwareStage[uint32(Abi::HardwareStage::Gs)];
+
+                SPI_SHADER_PGM_RSRC1_GS rsrc1;
+                if (registers.HasEntry(mmSPI_SHADER_PGM_RSRC1_GS, &rsrc1.u32All))
+                {
+                    const bool isWave32 = pHwGs->hasEntry.wavefrontSize && (pHwGs->wavefrontSize == 32);
+                    const uint32 allocVgprs = (rsrc1.bits.VGPRS + 1) * ((isWave32) ? 8 : 4);
+                    const uint32 calcVgprs  = (pHwGs->vgprCount == 0)
+                                              ? 0
+                                              : ((pHwGs->vgprCount - 1) / ((isWave32) ? 8 : 4));
+
+                    PAL_ASSERT(pHwGs->hasEntry.vgprCount        &&
+                               (pHwGs->vgprCount <= allocVgprs) &&
+                               (rsrc1.bits.VGPRS == calcVgprs));
+
+                    const uint32 calcSgprs  = (pHwGs->sgprCount == 0) ? 0 : ((pHwGs->sgprCount - 1) / 8);
+                    PAL_ASSERT(pHwGs->hasEntry.sgprCount && (rsrc1.bits.SGPRS == calcSgprs));
+
+                    PAL_SET_ABI_FIELD(pHwGs, floatMode, rsrc1.bits.FLOAT_MODE);
+
+                    PAL_SET_ABI_FLAG(pHwGs, fp16Overflow, rsrc1.bits.FP16_OVFL);
+                    PAL_SET_ABI_FLAG(pHwGs, ieeeMode,     rsrc1.bits.IEEE_MODE);
+                    PAL_SET_ABI_FLAG(pHwGs, debugMode,    rsrc1.bits.DEBUG_MODE);
+
+                    if (IsGfx10Plus(palDevice))
+                    {
+                        PAL_SET_ABI_FLAG(pHwGs, wgpMode,         rsrc1.gfx10Plus.WGP_MODE);
+                        PAL_SET_ABI_FLAG(pHwGs, memOrdered,      rsrc1.gfx10Plus.MEM_ORDERED);
+                        PAL_SET_ABI_FLAG(pHwGs, forwardProgress, rsrc1.gfx10Plus.FWD_PROGRESS);
+                    }
+
+                    PAL_SET_ABI_FIELD(pGfxRegisters, gsVgprCompCnt, rsrc1.bits.GS_VGPR_COMP_CNT);
+                }
+
+                SPI_SHADER_PGM_RSRC2_GS rsrc2;
+                if (registers.HasEntry(mmSPI_SHADER_PGM_RSRC2_GS, &rsrc2.u32All))
+                {
+                    uint32 userSgprCount = rsrc2.bits.USER_SGPR;
+                    if (IsGfx9(palDevice))
+                    {
+                        userSgprCount |= (rsrc2.gfx09.USER_SGPR_MSB << 5);
+                    }
+                    if (IsGfx10Plus(palDevice))
+                    {
+                        userSgprCount |= (rsrc2.gfx10Plus.USER_SGPR_MSB << 5);
+
+                        PAL_SET_ABI_FIELD(pHwGs, sharedVgprCnt, rsrc2.gfx10Plus.SHARED_VGPR_CNT);
+                    }
+
+                    PAL_SET_ABI_FIELD(pGfxRegisters, esVgprCompCnt, rsrc2.bits.ES_VGPR_COMP_CNT);
+
+                    PAL_SET_ABI_FIELD(pHwGs, userSgprs, userSgprCount);
+                    PAL_SET_ABI_FIELD(pHwGs, excpEn,    rsrc2.bits.EXCP_EN);
+
+                    PAL_SET_ABI_FLAG(pHwGs, scratchEn,    rsrc2.bits.SCRATCH_EN);
+                    PAL_SET_ABI_FLAG(pHwGs, trapPresent,  rsrc2.bits.TRAP_PRESENT);
+                    PAL_SET_ABI_FLAG(pHwGs, offchipLdsEn, rsrc2.bits.OC_LDS_EN);
+
+                    const uint32 allocLdsSize = rsrc2.bits.LDS_SIZE * Gfx9LdsDwGranularity * sizeof(uint32);
+                    if (pHwGs->hasEntry.ldsSize)
+                    {
+                        const uint32 calcLdsSize = Pow2Align(pHwGs->ldsSize / uint32(sizeof(uint32)),
+                                                             Gfx9LdsDwGranularity) >> Gfx9LdsDwGranularityShift;
+                        PAL_ASSERT(pHwGs->ldsSize <= allocLdsSize);
+                        PAL_ASSERT(rsrc2.bits.LDS_SIZE == calcLdsSize);
+                    }
+
+                    // We forcibly overwrite this because some compilers don't put the proper LDS size
+                    // into the metadata, if it is there at all.
+                    PAL_SET_ABI_FIELD(pHwGs, ldsSize, allocLdsSize);
+                }
+
+                SPI_SHADER_PGM_RSRC3_GS rsrc3;
+                if (registers.HasEntry(mmSPI_SHADER_PGM_RSRC3_GS, &rsrc3.u32All))
+                {
+                    if (IsGfx10Plus(palDevice))
+                    {
+                        PAL_SET_ABI_FIELD(pHwGs, wavesPerSe, rsrc3.bits.WAVE_LIMIT);
+                    }
+                    else
+                    {
+                        const uint32 numSaPerSe = chipProps.gfx9.numShaderArrays;
+                        PAL_SET_ABI_FIELD(pHwGs, wavesPerSe, rsrc3.bits.WAVE_LIMIT * numSaPerSe);
+                    }
+                }
+
+                SPI_SHADER_PGM_CHKSUM_GS chksum;
+                if (supportSpp && registers.HasEntry(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_GS, &chksum.u32All))
+                {
+                    PAL_SET_ABI_FIELD(pHwGs, checksumValue, chksum.bits.CHECKSUM);
+                }
+            }
+
+            // HwVs - Rsrc1..3 and Checksum
+            {
+                PalAbi::HardwareStageMetadata* pHwVs = &pPipeline->hardwareStage[uint32(Abi::HardwareStage::Vs)];
+
+                SPI_SHADER_PGM_RSRC1_VS rsrc1;
+                if (hasHwVs && registers.HasEntry(HasHwVs::mmSPI_SHADER_PGM_RSRC1_VS, &rsrc1.u32All))
+                {
+                    const bool isWave32 = pHwVs->hasEntry.wavefrontSize && (pHwVs->wavefrontSize == 32);
+                    const uint32 allocVgprs = (rsrc1.bits.VGPRS + 1) * ((isWave32) ? 8 : 4);
+                    const uint32 calcVgprs  = (pHwVs->vgprCount == 0)
+                                              ? 0
+                                              : ((pHwVs->vgprCount - 1) / ((isWave32) ? 8 : 4));
+
+                    PAL_ASSERT(pHwVs->hasEntry.vgprCount        &&
+                               (pHwVs->vgprCount <= allocVgprs) &&
+                               (rsrc1.bits.VGPRS == calcVgprs));
+
+                    const uint32 calcSgprs  = (pHwVs->sgprCount == 0) ? 0 : ((pHwVs->sgprCount - 1) / 8);
+                    PAL_ASSERT(pHwVs->hasEntry.sgprCount && (rsrc1.bits.SGPRS == calcSgprs));
+
+                    PAL_SET_ABI_FIELD(pHwVs, floatMode, rsrc1.bits.FLOAT_MODE);
+
+                    PAL_SET_ABI_FLAG(pHwVs, fp16Overflow, rsrc1.bits.FP16_OVFL);
+                    PAL_SET_ABI_FLAG(pHwVs, ieeeMode,     rsrc1.bits.IEEE_MODE);
+                    PAL_SET_ABI_FLAG(pHwVs, debugMode,    rsrc1.bits.DEBUG_MODE);
+
+                    if (IsGfx10(palDevice))
+                    {
+                        PAL_SET_ABI_FLAG(pHwVs, memOrdered,      rsrc1.gfx10.MEM_ORDERED);
+                        PAL_SET_ABI_FLAG(pHwVs, forwardProgress, rsrc1.gfx10.FWD_PROGRESS);
+                    }
+
+                    PAL_SET_ABI_FIELD(pGfxRegisters, vsVgprCompCnt, rsrc1.bits.VGPR_COMP_CNT);
+                }
+
+                SPI_SHADER_PGM_RSRC2_VS rsrc2;
+                if (hasHwVs && registers.HasEntry(HasHwVs::mmSPI_SHADER_PGM_RSRC2_VS, &rsrc2.u32All))
+                {
+                    uint32 userSgprCount = rsrc2.bits.USER_SGPR;
+                    if (IsGfx9(palDevice))
+                    {
+                        userSgprCount |= (rsrc2.gfx09.USER_SGPR_MSB << 5);
+                    }
+                    if (IsGfx10(palDevice))
+                    {
+                        userSgprCount |= (rsrc2.gfx10.USER_SGPR_MSB << 5);
+
+                        PAL_SET_ABI_FIELD(pHwVs, sharedVgprCnt, rsrc2.gfx10.SHARED_VGPR_CNT);
+                    }
+
+                    PAL_SET_ABI_FIELD(pHwVs, userSgprs, userSgprCount);
+                    PAL_SET_ABI_FIELD(pHwVs, excpEn,    rsrc2.bits.EXCP_EN);
+
+                    PAL_SET_ABI_FLAG(pHwVs, scratchEn,    rsrc2.bits.SCRATCH_EN);
+                    PAL_SET_ABI_FLAG(pHwVs, trapPresent,  rsrc2.bits.TRAP_PRESENT);
+                    PAL_SET_ABI_FLAG(pHwVs, offchipLdsEn, rsrc2.bits.OC_LDS_EN);
+
+                    PAL_SET_ABI_FLAG(pGfxRegisters, vsSoBase0En,   rsrc2.bits.SO_BASE0_EN);
+                    PAL_SET_ABI_FLAG(pGfxRegisters, vsSoBase1En,   rsrc2.bits.SO_BASE1_EN);
+                    PAL_SET_ABI_FLAG(pGfxRegisters, vsSoBase2En,   rsrc2.bits.SO_BASE2_EN);
+                    PAL_SET_ABI_FLAG(pGfxRegisters, vsSoBase3En,   rsrc2.bits.SO_BASE3_EN);
+                    PAL_SET_ABI_FLAG(pGfxRegisters, vsStreamoutEn, rsrc2.bits.SO_EN);
+                    PAL_SET_ABI_FLAG(pGfxRegisters, vsPcBaseEn,    rsrc2.bits.PC_BASE_EN);
+                }
+
+                SPI_SHADER_PGM_RSRC3_VS rsrc3;
+                if (hasHwVs && registers.HasEntry(HasHwVs::mmSPI_SHADER_PGM_RSRC3_VS, &rsrc3.u32All))
+                {
+                    if (IsGfx10(palDevice))
+                    {
+                        PAL_SET_ABI_FIELD(pHwVs, wavesPerSe, rsrc3.bits.WAVE_LIMIT);
+                    }
+                    else
+                    {
+                        const uint32 numSaPerSe = chipProps.gfx9.numShaderArrays;
+                        PAL_SET_ABI_FIELD(pHwVs, wavesPerSe, rsrc3.bits.WAVE_LIMIT * numSaPerSe);
+                    }
+                }
+
+                SPI_SHADER_PGM_CHKSUM_VS chksum;
+                if (supportSpp         &&
+                    IsGfx10(palDevice) &&
+                    registers.HasEntry(Gfx10::mmSPI_SHADER_PGM_CHKSUM_VS, &chksum.u32All))
+                {
+                    PAL_SET_ABI_FIELD(pHwVs, checksumValue, chksum.most.CHECKSUM);
+                }
+            }
+
+            // HwPs - Rsrc1..3 and Checksum
+            {
+                PalAbi::HardwareStageMetadata* pHwPs = &pPipeline->hardwareStage[uint32(Abi::HardwareStage::Ps)];
+
+                SPI_SHADER_PGM_RSRC1_PS rsrc1;
+                if (registers.HasEntry(mmSPI_SHADER_PGM_RSRC1_PS, &rsrc1.u32All))
+                {
+                    const bool isWave32 = pHwPs->hasEntry.wavefrontSize && (pHwPs->wavefrontSize == 32);
+                    const uint32 allocVgprs = (rsrc1.bits.VGPRS + 1) * ((isWave32) ? 8 : 4);
+                    const uint32 calcVgprs  = (pHwPs->vgprCount == 0)
+                                              ? 0
+                                              : ((pHwPs->vgprCount - 1) / ((isWave32) ? 8 : 4));
+
+                    PAL_ASSERT(pHwPs->hasEntry.vgprCount        &&
+                               (pHwPs->vgprCount <= allocVgprs) &&
+                               (rsrc1.bits.VGPRS == calcVgprs));
+
+                    const uint32 calcSgprs  = (pHwPs->sgprCount == 0) ? 0 : ((pHwPs->sgprCount - 1) / 8);
+                    PAL_ASSERT(pHwPs->hasEntry.sgprCount && (rsrc1.bits.SGPRS == calcSgprs));
+
+                    PAL_SET_ABI_FIELD(pHwPs, floatMode, rsrc1.bits.FLOAT_MODE);
+
+                    PAL_SET_ABI_FLAG(pHwPs, fp16Overflow, rsrc1.bits.FP16_OVFL);
+                    PAL_SET_ABI_FLAG(pHwPs, ieeeMode,     rsrc1.bits.IEEE_MODE);
+                    PAL_SET_ABI_FLAG(pHwPs, debugMode,    rsrc1.bits.DEBUG_MODE);
+
+                    if (IsGfx10Plus(palDevice))
+                    {
+                        PAL_SET_ABI_FLAG(pHwPs, memOrdered,      rsrc1.gfx10Plus.MEM_ORDERED);
+                        PAL_SET_ABI_FLAG(pHwPs, forwardProgress, rsrc1.gfx10Plus.FWD_PROGRESS);
+                    }
+
+                    if (IsGfx103PlusExclusive(palDevice))
+                    {
+                        PAL_SET_ABI_FLAG(pGfxRegisters,
+                                         psLoadProvokingVtx,
+                                         rsrc1.gfx103PlusExclusive.LOAD_PROVOKING_VTX);
+                    }
+                }
+
+                SPI_SHADER_PGM_RSRC2_PS rsrc2;
+                if (registers.HasEntry(mmSPI_SHADER_PGM_RSRC2_PS, &rsrc2.u32All))
+                {
+                    uint32 userSgprCount = rsrc2.bits.USER_SGPR;
+                    if (IsGfx9(palDevice))
+                    {
+                        userSgprCount |= (rsrc2.gfx09.USER_SGPR_MSB << 5);
+                    }
+                    if (IsGfx10Plus(palDevice))
+                    {
+                        userSgprCount |= (rsrc2.gfx10Plus.USER_SGPR_MSB << 5);
+
+                        PAL_SET_ABI_FIELD(pHwPs, sharedVgprCnt, rsrc2.gfx10Plus.SHARED_VGPR_CNT);
+                    }
+
+                    PAL_SET_ABI_FIELD(pHwPs, userSgprs, userSgprCount);
+                    PAL_SET_ABI_FIELD(pHwPs, excpEn,    rsrc2.bits.EXCP_EN);
+
+                    PAL_SET_ABI_FLAG(pHwPs, scratchEn,    rsrc2.bits.SCRATCH_EN);
+                    PAL_SET_ABI_FLAG(pHwPs, trapPresent,  rsrc2.bits.TRAP_PRESENT);
+
+                    PAL_SET_ABI_FIELD(pGfxRegisters,
+                                      psExtraLdsSize,
+                                      rsrc2.bits.EXTRA_LDS_SIZE * Gfx9PsExtraLdsDwGranularity * sizeof(uint32));
+
+                    PAL_SET_ABI_FLAG(pGfxRegisters, psWaveCntEn, rsrc2.bits.WAVE_CNT_EN);
+
+                    // These two bits are duplicated in RSRC2 and PA_SC_SHADER_CONTROL.
+                    // We'll write them only if they don't already exist.
+                    PalAbi::PaScShaderControlMetadata* pPaScShaderControl = &pGfxRegisters->paScShaderControl;
+                    if (pPaScShaderControl->hasEntry.loadCollisionWaveid == 0)
+                    {
+                        PAL_SET_ABI_FLAG(pPaScShaderControl, loadCollisionWaveid, rsrc2.bits.LOAD_COLLISION_WAVEID);
+                    }
+                    if (pPaScShaderControl->hasEntry.loadIntrawaveCollision == 0)
+                    {
+                        PAL_SET_ABI_FLAG(pPaScShaderControl,
+                                         loadIntrawaveCollision,
+                                         rsrc2.bits.LOAD_INTRAWAVE_COLLISION);
+                    }
+                }
+
+                SPI_SHADER_PGM_RSRC3_PS rsrc3;
+                if (registers.HasEntry(mmSPI_SHADER_PGM_RSRC3_PS, &rsrc3.u32All))
+                {
+                    if (IsGfx10Plus(palDevice))
+                    {
+                        PAL_SET_ABI_FIELD(pHwPs, wavesPerSe, rsrc3.bits.WAVE_LIMIT);
+                    }
+                    else
+                    {
+                        const uint32 numSaPerSe = chipProps.gfx9.numShaderArrays;
+                        PAL_SET_ABI_FIELD(pHwPs, wavesPerSe, rsrc3.bits.WAVE_LIMIT * numSaPerSe);
+                    }
+                }
+
+                SPI_SHADER_PGM_CHKSUM_PS chksum;
+                if (supportSpp && registers.HasEntry(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_PS, &chksum.u32All))
+                {
+                    PAL_SET_ABI_FIELD(pHwPs, checksumValue, chksum.bits.CHECKSUM);
+                }
+            }
+        }
+
+        // Compute pipelines (or hybrid graphics pipelines) will have a COMPUTE_PGM_RSRC1
+        if (registers.HasEntry(mmCOMPUTE_PGM_RSRC1))
+        {
+            PalAbi::HardwareStageMetadata* pHwCs = &pPipeline->hardwareStage[uint32(Abi::HardwareStage::Cs)];
+
+            // COMPUTE_NUM_THREAD_X
+            {
+                COMPUTE_NUM_THREAD_X computeNumThreadX;
+                if (registers.HasEntry(mmCOMPUTE_NUM_THREAD_X, &computeNumThreadX.u32All))
+                {
+                    PAL_ASSERT((pHwCs->hasEntry.threadgroupDimensions == 0) ||
+                               (pHwCs->threadgroupDimensions[0] == computeNumThreadX.bits.NUM_THREAD_FULL));
+
+                    PAL_SET_ABI_FIELD_IDX(pHwCs, threadgroupDimensions, 0, computeNumThreadX.bits.NUM_THREAD_FULL);
+                }
+            }
+
+            // COMPUTE_NUM_THREAD_Y
+            {
+                COMPUTE_NUM_THREAD_Y computeNumThreadY;
+                if (registers.HasEntry(mmCOMPUTE_NUM_THREAD_Y, &computeNumThreadY.u32All))
+                {
+                    PAL_ASSERT((pHwCs->hasEntry.threadgroupDimensions == 0) ||
+                               (pHwCs->threadgroupDimensions[1] == computeNumThreadY.bits.NUM_THREAD_FULL));
+
+                    PAL_SET_ABI_FIELD_IDX(pHwCs, threadgroupDimensions, 1, computeNumThreadY.bits.NUM_THREAD_FULL);
+                }
+            }
+
+            // COMPUTE_NUM_THREAD_Z
+            {
+                COMPUTE_NUM_THREAD_Z computeNumThreadZ;
+                if (registers.HasEntry(mmCOMPUTE_NUM_THREAD_Z, &computeNumThreadZ.u32All))
+                {
+                    PAL_ASSERT((pHwCs->hasEntry.threadgroupDimensions == 0) ||
+                               (pHwCs->threadgroupDimensions[2] == computeNumThreadZ.bits.NUM_THREAD_FULL));
+
+                    PAL_SET_ABI_FIELD_IDX(pHwCs, threadgroupDimensions, 2, computeNumThreadZ.bits.NUM_THREAD_FULL);
+                }
+            }
+
+            // COMPUTE_RESOURCE_LIMITS
+            {
+                COMPUTE_RESOURCE_LIMITS computeResourceLimits;
+                if (registers.HasEntry(mmCOMPUTE_RESOURCE_LIMITS, &computeResourceLimits.u32All))
+                {
+                    if (IsGfx10Plus(palDevice))
+                    {
+                        PAL_SET_ABI_FIELD(pHwCs, wavesPerSe, computeResourceLimits.bits.WAVES_PER_SH);
+                    }
+                    else
+                    {
+                        const uint32 numSaPerSe = chipProps.gfx9.numShaderArrays;
+                        PAL_SET_ABI_FIELD(pHwCs, wavesPerSe, computeResourceLimits.bits.WAVES_PER_SH * numSaPerSe);
+                    }
+                }
+            }
+
+            // HwCs - Rsrc1..3 and Checksum
+            {
+                COMPUTE_PGM_RSRC1 rsrc1;
+                if (registers.HasEntry(mmCOMPUTE_PGM_RSRC1, &rsrc1.u32All))
+                {
+                    const bool isWave32 = pHwCs->hasEntry.wavefrontSize && (pHwCs->wavefrontSize == 32);
+                    const uint32 allocVgprs = (rsrc1.bits.VGPRS + 1) * ((isWave32) ? 8 : 4);
+                    const uint32 calcVgprs  = (pHwCs->vgprCount == 0)
+                                              ? 0
+                                              : ((pHwCs->vgprCount - 1) / ((isWave32) ? 8 : 4));
+
+                    PAL_ASSERT(pHwCs->hasEntry.vgprCount        &&
+                               (pHwCs->vgprCount <= allocVgprs) &&
+                               (rsrc1.bits.VGPRS == calcVgprs));
+
+                    const uint32 calcSgprs  = (pHwCs->sgprCount == 0) ? 0 : ((pHwCs->sgprCount - 1) / 8);
+                    PAL_ASSERT(pHwCs->hasEntry.sgprCount && (rsrc1.bits.SGPRS == calcSgprs));
+
+                    PAL_SET_ABI_FIELD(pHwCs, floatMode, rsrc1.bits.FLOAT_MODE);
+
+                    PAL_SET_ABI_FLAG(pHwCs, fp16Overflow, rsrc1.bits.FP16_OVFL);
+                    PAL_SET_ABI_FLAG(pHwCs, ieeeMode,     rsrc1.bits.IEEE_MODE);
+                    PAL_SET_ABI_FLAG(pHwCs, debugMode,    rsrc1.bits.DEBUG_MODE);
+
+                    if (IsGfx10Plus(palDevice))
+                    {
+                        PAL_SET_ABI_FLAG(pHwCs, wgpMode,         rsrc1.gfx10Plus.WGP_MODE);
+                        PAL_SET_ABI_FLAG(pHwCs, memOrdered,      rsrc1.gfx10Plus.MEM_ORDERED);
+                        PAL_SET_ABI_FLAG(pHwCs, forwardProgress, rsrc1.gfx10Plus.FWD_PROGRESS);
+                    }
+                }
+
+                COMPUTE_PGM_RSRC2 rsrc2;
+                if (registers.HasEntry(mmCOMPUTE_PGM_RSRC2, &rsrc2.u32All))
+                {
+                    PAL_SET_ABI_FIELD(pHwCs, userSgprs, rsrc2.bits.USER_SGPR);
+
+                    const uint32 excpEn = rsrc2.bits.EXCP_EN |
+                                         (rsrc2.bits.EXCP_EN_MSB << CountSetBits(COMPUTE_PGM_RSRC2__EXCP_EN_MASK));
+                    PAL_SET_ABI_FIELD(pHwCs, excpEn, excpEn);
+
+                    PAL_SET_ABI_FLAG(pHwCs, scratchEn,    rsrc2.bits.SCRATCH_EN);
+                    PAL_SET_ABI_FLAG(pHwCs, trapPresent,  rsrc2.bits.TRAP_PRESENT);
+
+                    PAL_SET_ABI_FIELD(pComputeRegisters, tidigCompCnt, rsrc2.bits.TIDIG_COMP_CNT);
+
+                    PAL_SET_ABI_FLAG(pComputeRegisters, tgidXEn,  rsrc2.bits.TGID_X_EN);
+                    PAL_SET_ABI_FLAG(pComputeRegisters, tgidYEn,  rsrc2.bits.TGID_Y_EN);
+                    PAL_SET_ABI_FLAG(pComputeRegisters, tgidZEn,  rsrc2.bits.TGID_Z_EN);
+
+                    //PAL_SET_ABI_FLAG(pComputeRegisters, tgSizeEn, rsrc2.bits.TG_SIZE_EN);
+
+                    const uint32 allocLdsSize = rsrc2.bits.LDS_SIZE * Gfx9LdsDwGranularity * sizeof(uint32);
+                    if (pHwCs->hasEntry.ldsSize)
+                    {
+                        const uint32 calcLdsSize = Pow2Align(pHwCs->ldsSize / uint32(sizeof(uint32)),
+                                                             Gfx9LdsDwGranularity) >> Gfx9LdsDwGranularityShift;
+                        PAL_ASSERT(pHwCs->ldsSize <= allocLdsSize);
+                        PAL_ASSERT(rsrc2.bits.LDS_SIZE == calcLdsSize);
+                    }
+
+                    // We forcibly overwrite this because some compilers don't put the proper LDS size
+                    // into the metadata, if it is there at all.
+                    PAL_SET_ABI_FIELD(pHwCs, ldsSize, allocLdsSize);
+                }
+
+                COMPUTE_PGM_RSRC3 rsrc3;
+                if (registers.HasEntry(Gfx10Plus::mmCOMPUTE_PGM_RSRC3, &rsrc3.u32All))
+                {
+                    if (IsGfx10Plus(palDevice))
+                    {
+                        PAL_SET_ABI_FIELD(pHwCs, sharedVgprCnt, rsrc3.bits.SHARED_VGPR_CNT * 8);
+                    }
+                }
+
+                COMPUTE_SHADER_CHKSUM chksum;
+                if (supportSpp)
+                {
+                    // We appear to write this register into the ELF actually based on the ASIC support for it.
+                    if (IsGfx9(palDevice) && registers.HasEntry(Gfx09_1x::mmCOMPUTE_SHADER_CHKSUM, &chksum.u32All))
+                    {
+                        PAL_SET_ABI_FIELD(pHwCs, checksumValue, chksum.bits.CHECKSUM);
+                    }
+                    else if (IsGfx10Plus(palDevice) &&
+                             registers.HasEntry(Gfx10Plus::mmCOMPUTE_SHADER_CHKSUM, &chksum.u32All))
+                    {
+                        PAL_SET_ABI_FIELD(pHwCs, checksumValue, chksum.bits.CHECKSUM);
+                    }
+                }
+            }
+        }
+
+        // Setup the userDataRegMap
+        {
+            for (uint32 hwStageIdx = 0; hwStageIdx < uint32(HwShaderStage::Last); hwStageIdx++)
+            {
+                const HwShaderStage hwStage       = HwShaderStage(hwStageIdx);
+                const uint32        abiHwStageIdx = uint32(PalToAbiHwShaderStage[hwStageIdx]);
+
+                PalAbi::HardwareStageMetadata* pHwStage = &pMetadata->pipeline.hardwareStage[abiHwStageIdx];
+
+                const uint16 baseRegAddr = pDevice->GetBaseUserDataReg(hwStage);
+                const uint16 lastRegAddr = baseRegAddr + ((hwStage != HwShaderStage::Cs) ? 32 : 16);
+
+                for (uint16 offset = baseRegAddr; offset < lastRegAddr; ++offset)
+                {
+                    uint32 value = 0;
+                    if (registers.HasEntry(offset, &value))
+                    {
+                        PAL_SET_ABI_FIELD_IDX(pHwStage, userDataRegMap, offset - baseRegAddr, value);
+                    }
+                    else
+                    {
+                        PAL_SET_ABI_FIELD_IDX(pHwStage,
+                                              userDataRegMap,
+                                              offset - baseRegAddr,
+                                              uint32(Abi::UserDataMapping::NotMapped));
+                    }
+                }
+            }
+
+            // For compute, just mark the extra 16 entries as not mapped.
+            PalAbi::HardwareStageMetadata* pHwCs = &pMetadata->pipeline.hardwareStage[uint32(Abi::HardwareStage::Cs)];
+            for (uint32 userDataReg = 16; userDataReg < 32; userDataReg++)
+            {
+                pHwCs->userDataRegMap[userDataReg] = uint32(Abi::UserDataMapping::NotMapped);
+            }
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 size_t Device::GetGraphicsPipelineSize(
     const GraphicsPipelineCreateInfo& createInfo,
     bool                              isInternal,
@@ -965,12 +2496,17 @@ Result Device::CreateGraphicsPipeline(
     AbiReader abiReader(GetPlatform(), createInfo.pPipelineBinary);
     Result result = abiReader.Init();
 
+    MsgPackReader metadataReader;
     PalAbi::CodeObjectMetadata metadata = {};
 
     if (result == Result::Success)
     {
-        MsgPackReader metadataReader;
         result = abiReader.GetMetadata(&metadataReader, &metadata);
+    }
+
+    if (result == Result::Success)
+    {
+        result = ConvertAbiRegistersToMetadata(this, &metadata, &metadataReader);
     }
 
     if (result == Result::Success)
@@ -989,7 +2525,7 @@ Result Device::CreateGraphicsPipeline(
     if (result == Result::Success)
     {
         auto* pPipeline = static_cast<GraphicsPipeline*>(pPlacementAddr);
-        result = pPipeline->Init(createInfo, internalInfo, abiReader);
+        result = pPipeline->Init(createInfo, internalInfo, abiReader, metadata, &metadataReader);
 
         if (result != Result::Success)
         {
@@ -1950,9 +3486,7 @@ void PAL_STDCALL Device::Gfx9CreateTypedBufferViewSrds(
 
     for (uint32 idx = 0; idx < count; ++idx)
     {
-        PAL_ASSERT(pBufferViewInfo->gpuAddr != 0);
-        PAL_ASSERT((pBufferViewInfo->stride == 0) ||
-                   ((pBufferViewInfo->gpuAddr % Min<gpusize>(sizeof(uint32), pBufferViewInfo->stride)) == 0));
+        PAL_ASSERT(IsValidTypedBufferView(*pBufferViewInfo));
 
         pOutSrd->word0.bits.BASE_ADDRESS = LowPart(pBufferViewInfo->gpuAddr);
         pOutSrd->word1.u32All =
@@ -1961,9 +3495,6 @@ void PAL_STDCALL Device::Gfx9CreateTypedBufferViewSrds(
 
         pOutSrd->word2.bits.NUM_RECORDS = pGfxDevice->CalcNumRecords(static_cast<size_t>(pBufferViewInfo->range),
                                                                      static_cast<uint32>(pBufferViewInfo->stride));
-
-        PAL_ASSERT(Formats::IsUndefined(pBufferViewInfo->swizzledFormat.format) == false);
-        PAL_ASSERT(Formats::BytesPerPixel(pBufferViewInfo->swizzledFormat.format) == pBufferViewInfo->stride);
 
         const SQ_SEL_XYZW01 SqSelX = Formats::Gfx9::HwSwizzle(pBufferViewInfo->swizzledFormat.swizzle.r);
         const SQ_SEL_XYZW01 SqSelY = Formats::Gfx9::HwSwizzle(pBufferViewInfo->swizzledFormat.swizzle.g);
@@ -2024,9 +3555,7 @@ void PAL_STDCALL Device::Gfx10CreateTypedBufferViewSrds(
 
     for (uint32 idx = 0; idx < count; ++idx)
     {
-        PAL_ASSERT(pBufferViewInfo->gpuAddr != 0);
-        PAL_ASSERT((pBufferViewInfo->stride == 0) ||
-                   ((pBufferViewInfo->gpuAddr % Min<gpusize>(sizeof(uint32), pBufferViewInfo->stride)) == 0));
+        PAL_ASSERT(IsValidTypedBufferView(*pBufferViewInfo));
 
         pOutSrd->u32All[0] = LowPart(pBufferViewInfo->gpuAddr);
         pOutSrd->u32All[1] =
@@ -2045,9 +3574,6 @@ void PAL_STDCALL Device::Gfx10CreateTypedBufferViewSrds(
             llcNoalloc = CalcLlcNoalloc(pBufferViewInfo->flags.bypassMallRead,
                                         pBufferViewInfo->flags.bypassMallWrite);
         }
-
-        PAL_ASSERT(Formats::IsUndefined(pBufferViewInfo->swizzledFormat.format) == false);
-        PAL_ASSERT(Formats::BytesPerPixel(pBufferViewInfo->swizzledFormat.format) == pBufferViewInfo->stride);
 
         const SQ_SEL_XYZW01 SqSelX = Formats::Gfx9::HwSwizzle(pBufferViewInfo->swizzledFormat.swizzle.r);
         const SQ_SEL_XYZW01 SqSelY = Formats::Gfx9::HwSwizzle(pBufferViewInfo->swizzledFormat.swizzle.g);
@@ -4751,6 +6277,9 @@ void InitializeGpuChipProperties(
         pInfo->imageProperties.tilingSupported[static_cast<uint32>(ImageTiling::Standard64Kb)] = true;
     }
 
+    pInfo->gfx9.numScPerSe     = 1;
+    pInfo->gfx9.numPackerPerSc = 2; // unless overridden below
+
     // TODO:  Should find a way to get this info from the ADAPTERINFOEX structure.  Steal these values from
     //        the GFX6 implementation for the time being.
     pInfo->gfx9.numSimdPerCu = 4;
@@ -4762,10 +6291,19 @@ void InitializeGpuChipProperties(
     // The maximum amount of LDS space that can be shared by a group of threads (wave/ threadgroup) in bytes.
     pInfo->gfxip.ldsSizePerThreadGroup = 64_KiB;
     pInfo->gfxip.ldsSizePerCu          = 65536;
-    pInfo->gfxip.ldsGranularity        = Gfx9LdsDwGranularity * sizeof(uint32);
+    pInfo->gfxip.mallSizeInBytes       = 0_MiB; // overridden if device supports MALL.
     pInfo->gfxip.tccSizeInBytes        = 4_MiB;
-    pInfo->gfxip.tcpSizeInBytes        = 16384;
+    pInfo->gfxip.tcpSizeInBytes        = 16_KiB;
     pInfo->gfxip.maxLateAllocVsLimit   = 64;
+
+    pInfo->gfxip.gl1cSizePerSa         = 0_KiB;  // overwritten if device includes GL1 cache.
+    pInfo->gfxip.instCacheSizePerCu    = 32_KiB; // INST_CACHE_BANK_SIZE_KBYTES * GC__NUM_BANK or INST_NUM_BANKS
+    pInfo->gfxip.scalarCacheSizePerCu  = 16_KiB; // DATA_CACHE_BANK_SIZE_KBYTES * GC__NUM_BANK or DATA_NUM_BANKS
+
+    // The LDS_SIZE registers are programmed in granularity of 128DW, but on 10.3+ HW, allocating 128DW
+    // actually allocates 256 DW.  i.e., HW allocates in units of 256.  So let the client know what the
+    // actual allocating size is.
+    pInfo->gfxip.ldsGranularity        = (IsGfx103Plus(pInfo->gfxLevel) ? 256 : 128) * sizeof(uint32);
 
     pInfo->gfxip.supportGl2Uncached      = 1;
     pInfo->gfxip.gl2UncachedCpuCoherency = (CoherCpu | CoherShader | CoherIndirectArgs | CoherIndexData |
@@ -4867,9 +6405,10 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.sgprAllocGranularity    = Gfx10NumSgprsPerWave;
         pInfo->gfx9.minSgprAlloc            = pInfo->gfx9.sgprAllocGranularity;
         pInfo->gfx9.numPhysicalVgprs        = 1024;
-        pInfo->gfx9.vgprAllocGranularity    = IsGfx103Plus(pInfo->gfxLevel) ? 16: 8;
+        pInfo->gfx9.vgprAllocGranularity    = IsGfx103Plus(pInfo->gfxLevel) ? 16 : 8;
         pInfo->gfx9.minVgprAlloc            = pInfo->gfx9.vgprAllocGranularity;
         pInfo->gfxip.shaderPrefetchBytes    = 3 * ShaderICacheLineSize;
+        pInfo->gfxip.gl1cSizePerSa          = 128_KiB;
 
     }
     else if (pInfo->gfxLevel == GfxIpLevel::GfxIp9)
@@ -5079,11 +6618,13 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.numSdpInterfaces         = 16;
             pInfo->gfx9.maxNumCuPerSh            = 10;
             pInfo->gfx9.maxNumRbPerSe            = 4;
+            pInfo->gfx9.numPackerPerSc           = 4;
             pInfo->gfx9.supportFp16Dot2          = 1;
             pInfo->gfx9.gfx10.numWgpAboveSpi     = 5; // GPU__GC__NUM_WGP0_PER_SA
             pInfo->gfx9.gfx10.numWgpBelowSpi     = 0; // GPU__GC__NUM_WGP1_PER_SA
             pInfo->gfx9.supportInt8Dot           = 1;
             pInfo->gfx9.supportInt4Dot           = 1;
+            pInfo->gfxip.mallSizeInBytes         = 128_MiB;
         }
         else if (AMDGPU_IS_NAVI22(pInfo->familyId, pInfo->eRevId))
         {
@@ -5095,6 +6636,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.numSdpInterfaces         = 16;
             pInfo->gfx9.maxNumCuPerSh            = 10;
             pInfo->gfx9.maxNumRbPerSe            = 4;
+            pInfo->gfx9.numPackerPerSc           = 4;
             pInfo->gfx9.supportFp16Dot2          = 1;
             pInfo->gfx9.gfx10.numGl2a            = 2;
             pInfo->gfx9.gfx10.numGl2c            = 12;
@@ -5102,6 +6644,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.gfx10.numWgpBelowSpi     = 0; // GPU__GC__NUM_WGP1_PER_SA
             pInfo->gfx9.supportInt8Dot           = 1;
             pInfo->gfx9.supportInt4Dot           = 1;
+            pInfo->gfxip.mallSizeInBytes         = 96_MiB;
         }
         else if (AMDGPU_IS_NAVI23(pInfo->familyId, pInfo->eRevId))
         {
@@ -5113,6 +6656,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.numSdpInterfaces         = 8;
             pInfo->gfx9.maxNumCuPerSh            = 8;
             pInfo->gfx9.maxNumRbPerSe            = 4;
+            pInfo->gfx9.numPackerPerSc           = 4;
             pInfo->gfx9.supportFp16Dot2          = 1;
             pInfo->gfx9.gfx10.numGl2a            = 2;
             pInfo->gfx9.gfx10.numGl2c            = 8;
@@ -5120,6 +6664,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.gfx10.numWgpBelowSpi     = 0; // GPU__GC__NUM_WGP1_PER_SA
             pInfo->gfx9.supportInt8Dot           = 1;
             pInfo->gfx9.supportInt4Dot           = 1;
+            pInfo->gfxip.mallSizeInBytes         = 32_MiB;
         }
         else if (AMDGPU_IS_NAVI24(pInfo->familyId, pInfo->eRevId))
         {
@@ -5131,6 +6676,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.numSdpInterfaces         = 8;
             pInfo->gfx9.maxNumCuPerSh            = 8;
             pInfo->gfx9.maxNumRbPerSe            = 2;
+            pInfo->gfx9.numPackerPerSc           = 4;
             pInfo->gfx9.supportFp16Dot2          = 1;
             pInfo->gfx9.parameterCacheLines      = 512; //Navi24 differs from the rest of Navi2x family
             pInfo->gfx9.gfx10.numGl2a            = 2;
@@ -5139,6 +6685,7 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.gfx10.numWgpBelowSpi     = 0; // GPU__GC__NUM_WGP1_PER_SA
             pInfo->gfx9.supportInt8Dot           = 1;
             pInfo->gfx9.supportInt4Dot           = 1;
+            pInfo->gfxip.mallSizeInBytes         = 16_MiB;
         }
         else
         {
@@ -5290,6 +6837,19 @@ void FinalizeGpuChipProperties(
         pInfo->gfx9.nativeWavefrontSize = 32;
     }
 
+    memset(pInfo->gfxip.activePixelPackerMask, 0, sizeof(pInfo->gfxip.activePixelPackerMask));
+    const uint32 numPixelPackersPerSe = pInfo->gfx9.numScPerSe * pInfo->gfx9.numPackerPerSc;
+    PAL_ASSERT(numPixelPackersPerSe <= MaxPixelPackerPerSe);
+    // By default, set all pixel packers to active based on the number of packers in a SE on a particular ASIC.
+    // eg. if an ASIC has 2 pixel packers per SE with 4 shader engines, then packerMask = ... 0011 0011 0011 0011
+    for (uint32 se = 0; se < pInfo->gfx9.numShaderEngines; ++se)
+    {
+        for (uint32 packer = 0; packer < numPixelPackersPerSe; ++packer)
+        {
+            WideBitfieldSetBit(pInfo->gfxip.activePixelPackerMask, packer + (MaxPixelPackerPerSe * se));
+        }
+    }
+
     // Initialize the performance counter info.  Perf counter info is reliant on a finalized GpuChipProperties
     // structure, so wait until the pInfo->gfx9 structure is "good to go".
     InitPerfCtrInfo(device, pInfo);
@@ -5306,7 +6866,7 @@ void InitializePerfExperimentProperties(
     pProperties->features.u32All       = perfCounterInfo.features.u32All;
     pProperties->maxSqttSeBufferSize   = static_cast<size_t>(SqttMaximumBufferSize);
     pProperties->sqttSeBufferAlignment = static_cast<size_t>(SqttBufferAlignment);
-    pProperties->shaderEngineCount     = chipProps.gfx9.numShaderEngines;
+    pProperties->shaderEngineCount     = chipProps.gfx9.numActiveShaderEngines;
 
     for (uint32 blockIdx = 0; blockIdx < static_cast<uint32>(GpuBlock::Count); blockIdx++)
     {
@@ -7378,49 +8938,6 @@ Result Device::P2pBltWaModifyRegionListMemoryToImage(
 }
 
 // =====================================================================================================================
-// Returns the TcCacheOp that can satisfy the most cacheFlags without over-syncing. Note that the flags for the
-// selected cache op are set to zero.
-TcCacheOp Device::SelectTcCacheOp(
-    uint32* pCacheFlags // [in/out]
-    ) const
-{
-    TcCacheOp cacheOp = TcCacheOp::Nop;
-
-    if (TestAllFlagsSet(*pCacheFlags, CacheSyncInvTcp | CacheSyncInvTcc | CacheSyncFlushTcc))
-    {
-        *pCacheFlags &= ~(CacheSyncInvTcp | CacheSyncInvTcc | CacheSyncFlushTcc | CacheSyncInvTccMd);
-        cacheOp      = TcCacheOp::WbInvL1L2;
-    }
-    else if (TestAllFlagsSet(*pCacheFlags , CacheSyncInvTcc | CacheSyncFlushTcc))
-    {
-        *pCacheFlags &= ~(CacheSyncInvTcc | CacheSyncFlushTcc | CacheSyncInvTccMd);
-        cacheOp      = TcCacheOp::WbInvL2Nc;
-    }
-    else if (TestAnyFlagSet(*pCacheFlags , CacheSyncFlushTcc))
-    {
-        *pCacheFlags &= ~CacheSyncFlushTcc;
-        cacheOp      = TcCacheOp::WbL2Nc;
-    }
-    else if (TestAnyFlagSet(*pCacheFlags , CacheSyncInvTcc))
-    {
-        *pCacheFlags &= ~(CacheSyncInvTcc | CacheSyncInvTccMd);
-        cacheOp      = TcCacheOp::InvL2Nc;
-    }
-    else if (TestAnyFlagSet(*pCacheFlags , CacheSyncInvTcp))
-    {
-        *pCacheFlags &= ~CacheSyncInvTcp;
-        cacheOp      = TcCacheOp::InvL1;
-    }
-    else if (TestAnyFlagSet(*pCacheFlags , CacheSyncInvTccMd))
-    {
-        *pCacheFlags &= ~CacheSyncInvTccMd;
-        cacheOp      = TcCacheOp::InvL2Md;
-    }
-
-    return cacheOp;
-}
-
-// =====================================================================================================================
 // Reports if the specified buffer (or GpuMemory range) should enable the CB, DB, and/or TCP BIG_PAGE feature.  This
 // feature will reduce traffic between those blocks and their UTCL0s, but can only be enabled if the UMD can guarantee
 // that the memory is backed by pages that are >= 64KiB (e.g., not 4KiB pages in system memory).  Further, there is a
@@ -7711,33 +9228,6 @@ Result Device::CreateVrsDepthView()
 
     return result;
 }
-
-#if PAL_ENABLE_PRINTS_ASSERTS
-// =====================================================================================================================
-// A helper function that asserts if the user accumulator registers in some ELF aren't in a disabled state.
-// We always write these registers to the disabled state in our queue context preambles.
-void Device::AssertUserAccumRegsDisabled(
-    const RegisterVector& registers,
-    uint32                firstRegAddr
-    ) const
-{
-    if (Parent()->ChipProperties().gfx9.supportSpiPrefPriority)
-    {
-        // These registers all have the same layout across all shader stages and accumulators.
-        regSPI_SHADER_USER_ACCUM_PS_0 regValues[4] = {};
-
-        registers.HasEntry(firstRegAddr,     &regValues[0].u32All);
-        registers.HasEntry(firstRegAddr + 1, &regValues[1].u32All);
-        registers.HasEntry(firstRegAddr + 2, &regValues[2].u32All);
-        registers.HasEntry(firstRegAddr + 3, &regValues[3].u32All);
-
-        // Contributions of 0 and 1 are both valid "disabled" states. If someone builds an ELF that uses a higher
-        // contribution we should take note and figure out if we need to implement this feature.
-        PAL_ASSERT((regValues[0].bits.CONTRIBUTION <= 1) && (regValues[1].bits.CONTRIBUTION <= 1) &&
-                   (regValues[2].bits.CONTRIBUTION <= 1) && (regValues[3].bits.CONTRIBUTION <= 1));
-    }
-}
-#endif
 
 } // Gfx9
 } // Pal

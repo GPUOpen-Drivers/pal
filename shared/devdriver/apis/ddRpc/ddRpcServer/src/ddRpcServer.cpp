@@ -184,3 +184,20 @@ DDClientId ddRpcServerQueryClientId(
 
     return clientId;
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+DD_RESULT ddRpcServerIsServiceRegistered(
+    DDRpcServer    hServer,
+    DDRpcServiceId serviceId)
+{
+    DD_RESULT result = DD_RESULT_DD_RPC_SERVICE_NOT_REGISTERED;
+
+    if (hServer != nullptr)
+    {
+        RpcServer* pServer = reinterpret_cast<RpcServer*>(hServer);
+
+        result = pServer->IsServiceRegistered(serviceId);
+    }
+
+    return result;
+}

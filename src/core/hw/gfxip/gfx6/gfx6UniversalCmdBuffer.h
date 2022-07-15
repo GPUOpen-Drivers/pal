@@ -433,7 +433,7 @@ protected:
 
     virtual void SetGraphicsState(const GraphicsState& graphicsState) override;
 
-    virtual void InheritStateFromCmdBuf(const GfxCmdBuffer* pCmdBuffer) override;
+    virtual void InheritStateFromCmdBuf(const Pm4CmdBuffer* pCmdBuffer) override;
 
     template <bool indexed, bool indirect>
     void ValidateDraw(const ValidateDrawInfo& drawInfo);
@@ -566,7 +566,7 @@ private:
     uint32* WaitOnCeCounter(uint32* pDeCmdSpace);
     uint32* IncrementDeCounter(uint32* pDeCmdSpace);
 
-    PM4Predicate PacketPredicate() const { return static_cast<PM4Predicate>(m_gfxCmdBufState.flags.packetPredicate); }
+    PM4Predicate PacketPredicate() const { return static_cast<PM4Predicate>(m_pm4CmdBufState.flags.packetPredicate); }
 
     template <bool IssueSqttMarkerEventt, bool DescribeDrawDispatch>
     void SetDispatchFunctions();

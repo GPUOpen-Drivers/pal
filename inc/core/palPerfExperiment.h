@@ -392,13 +392,15 @@ struct SpmCounterData
 /// enough memory for storing (numCounters-1) * sizeof(SpmCounterData), following this structure.
 struct SpmTraceLayout
 {
-    gpusize        offset;            ///< Offset into the buffer where the spm trace data begins.
-    gpusize        wptrOffset;        ///< Offset of the dword that has the size of spm data written by the HW.
-    gpusize        sampleOffset;      ///< Offset into the buffer where the first sample data begins.
-    uint32         sampleSizeInBytes; ///< Size of all segments in one sample.
+    gpusize        offset;              ///< Offset into the buffer where the spm trace data begins.
+    gpusize        wptrOffset;          ///< Offset of the dword that has the size of spm data written by the HW.
+    uint32         wptrGranularity;     ///< The wptr's granularity, indicating the number of bytes in each wptr
+                                        ///< increment.
+    gpusize        sampleOffset;        ///< Offset into the buffer where the first sample data begins.
+    uint32         sampleSizeInBytes;   ///< Size of all segments in one sample.
     uint32         segmentSizeInBytes[static_cast<uint32>(SpmDataSegmentType::Count)]; ///< Individual segment sizes.
-    uint32         numCounters;       ///< Number of counters for which spm trace was requested by the client.
-    SpmCounterData counterData[1];    ///< Contains numCounters - 1 CounterInfo
+    uint32         numCounters;         ///< Number of counters for which spm trace was requested by the client.
+    SpmCounterData counterData[1];      ///< Contains numCounters - 1 CounterInfo
 };
 
 /// Represents the information that is stored in the DF SPM trace metadata buffer.

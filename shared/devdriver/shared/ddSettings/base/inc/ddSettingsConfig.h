@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include <settingsTypes.h>
+#include "ddSettingsTypes.h"
 #include <ddApi.h>
 #include <util/vector.h>
 

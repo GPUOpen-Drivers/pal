@@ -64,7 +64,6 @@ void PopulateTraceGfxIpLevel(
     switch (gfxIpLevel)
     {
 #if PAL_BUILD_GFX
-#if PAL_BUILD_GFX6
     case GfxIpLevel::GfxIp6:
         *pTraceGfxIpLevel = { 6, 0, 0 };
         break;
@@ -77,7 +76,6 @@ void PopulateTraceGfxIpLevel(
     case GfxIpLevel::GfxIp8_1:
         *pTraceGfxIpLevel = { 8, 1, 0 };
         break;
-#endif
     case GfxIpLevel::GfxIp10_1:
         *pTraceGfxIpLevel = { 10, 1, 0 };
         break;

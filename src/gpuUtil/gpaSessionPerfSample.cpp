@@ -381,8 +381,8 @@ void GpaSession::TraceSample::GetDfSpmResultsSize(
 {
     if (m_numDfSpmSamples < 0)
     {
-        // m_gcSampleDataOffset and m_pGcSampleDataBufferSize refer to the normal Counter/SQTT buffer. DF SPM data is stored
-        // after that.
+        // m_gcSampleDataOffset and m_pGcSampleDataBufferSize refer to the normal Counter/SQTT buffer. DF SPM data is
+        // stored after that.
         gpusize location = m_gcSampleDataOffset + m_pGcSampleDataBufferSize;
         // Cache the number of samples if not computed before.
         m_numDfSpmSamples = CountNumDfSamples(Util::VoidPtrInc(m_pPerfExpResults,
@@ -421,7 +421,7 @@ void GpaSession::TraceSample::GetSpmResultsSize(
     // This is calculated according to the spm data layout in the RGP spec, excluding the header, num timestamps
     // and the timestampOffset fields.
     (*pSizeInBytes) = CounterInfoSizeInBytes +                             // SpmCounterInfo for each counter.
-                      m_numSpmSamples * sizeof(gpusize) +                  // Timestamp data.
+                      m_numSpmSamples  * sizeof(gpusize) +                 // Timestamp data.
                       m_numSpmCounters * m_numSpmSamples * sizeof(uint16); // Counter data.
 }
 
@@ -605,18 +605,18 @@ Result GpaSession::TraceSample::GetSpmTraceResults(
 
     Result result = Result::Success;
 
-    const size_t NumMetadataBytes         = 32;
-    const gpusize SampleSizeInQWords      = m_pSpmTraceLayout->sampleSizeInBytes / sizeof(uint64);
-    const gpusize SampleSizeInWords       = m_pSpmTraceLayout->sampleSizeInBytes / sizeof(uint16);
-    const size_t TimestampDataSizeInBytes = m_numSpmSamples * sizeof(gpusize);
-    const gpusize CounterDataSizeInBytes  = m_numSpmSamples * sizeof(uint16); // Size of data written for one counter.
+    const size_t  NumMetadataBytes         = 32;
+    const gpusize SampleSizeInQWords       = m_pSpmTraceLayout->sampleSizeInBytes / sizeof(uint64);
+    const gpusize SampleSizeInWords        = m_pSpmTraceLayout->sampleSizeInBytes / sizeof(uint16);
+    const size_t  TimestampDataSizeInBytes = m_numSpmSamples * sizeof(gpusize);
+    const gpusize CounterDataSizeInBytes   = m_numSpmSamples * sizeof(uint16); // Size of data written for one counter.
 #if USE_SPM_DB_V2
-    const size_t CounterInfoSizeInBytes   = m_numSpmCounters * sizeof(SpmCounterInfo);
+    const size_t  CounterInfoSizeInBytes   = m_numSpmCounters * sizeof(SpmCounterInfo);
 #else
-    const size_t CounterInfoSizeInBytes   = m_numSpmCounters * sizeof(SpmCounterInfoV1);
+    const size_t  CounterInfoSizeInBytes   = m_numSpmCounters * sizeof(SpmCounterInfoV1);
 #endif
-    const uint32  SegmentSizeInWords      = m_pSpmTraceLayout->sampleSizeInBytes / sizeof(uint16);
-    const size_t CounterDataOffset        = TimestampDataSizeInBytes + CounterInfoSizeInBytes;
+    const uint32  SegmentSizeInWords       = m_pSpmTraceLayout->sampleSizeInBytes / sizeof(uint16);
+    const size_t  CounterDataOffset        = TimestampDataSizeInBytes + CounterInfoSizeInBytes;
 
     // A valid destination buffer size is expected.
     PAL_ASSERT((bufferSize > 0) && (pDstBuffer != nullptr));
@@ -624,9 +624,6 @@ Result GpaSession::TraceSample::GetSpmTraceResults(
     // Start of the spm results section.
     void* pSrcBufferStart = Util::VoidPtrInc(m_pPerfExpResults,
                                              static_cast<size_t>(m_pSpmTraceLayout->offset));
-
-    // Extract timestamps from m_perfExpResults
-    uint32 numSpmDwords = static_cast<uint32*>(pSrcBufferStart)[0];
 
     // Move to the actual start of the Spm data. The first dword is the wptr. There are 32 bytes of
     // reserved fields after which the data begins.
@@ -674,7 +671,7 @@ Result GpaSession::TraceSample::GetSpmTraceResults(
     gpusize index = 0;
     gpusize offset = 0;
 
-    // Write pointer points to the beginning ofthe first counter data.
+    // Write pointer points to the beginning of the first counter data.
     uint16* pDstCounterData = static_cast<uint16*>(Util::VoidPtrInc(pDstBuffer, CounterDataOffset));
 
     for (uint32 counter = 0; counter < m_numSpmCounters; counter++)
@@ -722,20 +719,21 @@ uint32 GpaSession::TraceSample::CountNumDfSamples(
 
 // =====================================================================================================================
 // Parses the SPM ring buffer to find the number of samples of data written in the buffer.
-uint32 GpaSession::TraceSample::CountNumSamples(void* pBufferStart)
+uint32 GpaSession::TraceSample::CountNumSamples(
+    void* pBufferStart)
 {
     // We actually have to read the ring buffer here and use the layout to figure out the number of samples that have
     // been written.
     uint32 numSamples = 0;
 
-    uint32 segmentSizeInDwords = m_pSpmTraceLayout->sampleSizeInBytes / 4;
+    uint32 segmentSizeInDwords   = m_pSpmTraceLayout->sampleSizeInBytes / 4;
     uint32 segmentSizeInBitlines = m_pSpmTraceLayout->sampleSizeInBytes / 32;
 
     if (segmentSizeInDwords > 0)
     {
         //! Not sure if this is in bytes or dwords. Assume this is a dword based size since it is a wptr and not size!
         // The first dword is the buffer size followed by 7 reserved dwords
-        uint32 dataSizeInDwords = static_cast<uint32*>(pBufferStart)[0];
+        uint32 dataSizeInDwords = static_cast<uint32*>(pBufferStart)[0] * m_pSpmTraceLayout->wptrGranularity;
 
         // Number of 256 bit lines written by the
         uint32 numLinesWritten = dataSizeInDwords / 2 / MaxNumCountersPerBitline;

@@ -48,7 +48,7 @@ public:
     static Result WritePreambleCommands(const CmdUtil& cmdUtil, CmdStream* pCmdStream);
     static Result WritePostambleCommands(
         const CmdUtil&     cmdUtil,
-        GfxCmdBuffer*const pCmdBuffer,
+        Pm4CmdBuffer*const pCmdBuffer,
         CmdStream*         pCmdStream);
 
     virtual Result Init(const CmdBufferInternalCreateInfo& internalInfo) override;
@@ -217,8 +217,6 @@ public:
 
     virtual void CpCopyMemory(gpusize dstAddr, gpusize srcAddr, gpusize numBytes) override;
 
-    virtual void CmdRestoreComputeState(uint32 stateFlags) override;
-
 protected:
     virtual ~ComputeCmdBuffer() {}
 
@@ -232,7 +230,7 @@ protected:
 
     virtual void WriteEventCmd(const BoundGpuMemory& boundMemObj, HwPipePoint pipePoint, uint32 data) override;
 
-    virtual void InheritStateFromCmdBuf(const GfxCmdBuffer* pCmdBuffer) override;
+    virtual void InheritStateFromCmdBuf(const Pm4CmdBuffer* pCmdBuffer) override;
 
 private:
     template <bool HsaAbi, bool IssueSqttMarkerEvent>

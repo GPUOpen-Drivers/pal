@@ -54,6 +54,7 @@ public:
 
     virtual EventProviderId GetId() const = 0;
 
+    virtual const char* GetName() const                     = 0;
     virtual const void* GetEventDescriptionData() const     = 0;
     virtual uint32      GetEventDescriptionDataSize() const = 0;
 

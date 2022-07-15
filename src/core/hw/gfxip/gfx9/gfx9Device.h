@@ -40,7 +40,7 @@
 namespace Pal
 {
 
-class  GfxCmdBuffer;
+class  Pm4CmdBuffer;
 struct BarrierInfo;
 
 namespace Gfx9
@@ -51,48 +51,6 @@ class Gfx10DepthStencilView;
 
 // This value is the result Log2(MaxMsaaRasterizerSamples) + 1.
 constexpr uint32 MsaaLevelCount = 5;
-
-// These types are used by CmdBarrier and its helpers to track which type of synchronization operations should be
-// issued during the next call to IssueSyncs().
-enum CacheSyncFlags : uint32
-{
-    CacheSyncInvSqI$     = 0x0001, // Invalidate the SQ instruction cache.
-    CacheSyncInvSqK$     = 0x0002, // Invalidate the SQ scalar cache.
-    CacheSyncFlushSqK$   = 0x0004, // Flush the SQ scalar cache.
-    CacheSyncInvTcp      = 0x0008, // Invalidate L1 vector cache.
-    CacheSyncInvTcc      = 0x0010, // Invalidate L2 cache.
-    CacheSyncFlushTcc    = 0x0020, // Flush L2 cache.
-    CacheSyncInvTccMd    = 0x0040, // Invalid TCC's meta-data cache.
-    CacheSyncInvCbData   = 0x0080, // Invalidate CB data cache.
-    CacheSyncInvCbMd     = 0x0100, // Invalidate CB meta-data cache.
-    CacheSyncFlushCbData = 0x0200, // Flush CB data cache.
-    CacheSyncFlushCbMd   = 0x0400, // Flush CB meta-data cache.
-    CacheSyncInvDbData   = 0x0800, // Invalidate DB data cache.
-    CacheSyncInvDbMd     = 0x1000, // Invalidate DB meta-data cache.
-    CacheSyncFlushDbData = 0x2000, // Flush DB data cache.
-    CacheSyncFlushDbMd   = 0x4000, // Flush DB meta-data cache.
-    CacheSyncAll         = 0x7fff, // All of the above flags.
-
-    // Some helper masks to flush and invalidate various combinations of the back-end caches.
-    CacheSyncFlushAndInvCbData = CacheSyncInvCbData         | CacheSyncFlushCbData,
-    CacheSyncFlushAndInvCbMd   = CacheSyncInvCbMd           | CacheSyncFlushCbMd,
-    CacheSyncFlushAndInvCb     = CacheSyncFlushAndInvCbData | CacheSyncFlushAndInvCbMd,
-    CacheSyncFlushAndInvDbData = CacheSyncInvDbData         | CacheSyncFlushDbData,
-    CacheSyncFlushAndInvDbMd   = CacheSyncInvDbMd           | CacheSyncFlushDbMd,
-    CacheSyncFlushAndInvDb     = CacheSyncFlushAndInvDbData | CacheSyncFlushAndInvDbMd,
-    CacheSyncFlushAndInvRb     = CacheSyncFlushAndInvCb     | CacheSyncFlushAndInvDb,
-
-    // Some helper masks for combinations of separate flush/invalidation and Cb/Db/whole Rb.
-    CacheSyncFlushCb = CacheSyncFlushCbData | CacheSyncFlushCbMd,
-    CacheSyncInvCb   = CacheSyncInvCbData   | CacheSyncInvCbMd,
-    CacheSyncFlushDb = CacheSyncFlushDbData | CacheSyncFlushDbMd,
-    CacheSyncInvDb   = CacheSyncInvDbData   | CacheSyncInvDbMd,
-    CacheSyncFlushRb = CacheSyncFlushCb     | CacheSyncFlushDb,
-    CacheSyncInvRb   = CacheSyncInvCb       | CacheSyncInvDb,
-
-    // The ACE queues can't flush or invalidate the RB caches. (And why would they need to?)
-    CacheSyncAllCompute = CacheSyncAll & ~CacheSyncFlushAndInvRb,
-};
 
 enum RegisterRangeType : uint32
 {
@@ -105,18 +63,21 @@ enum RegisterRangeType : uint32
 
 struct SyncReqs
 {
-    uint32              cacheFlags;    // The set of CacheSyncFlags which must be done.
-    regCP_ME_COHER_CNTL cpMeCoherCntl; // The cache operations only need to wait for these back-end resources.
+    // These flags describe which caches must be flushed and/or invalidated.
+    SyncGlxFlags glxCaches;
+    SyncRbFlags  rbCaches;
 
+    // These flags describe which syncronization operations are required.
     struct
     {
-        uint32 waitOnEopTs    :  1;
-        uint32 vsPartialFlush :  1;
-        uint32 psPartialFlush :  1;
-        uint32 csPartialFlush :  1;
-        uint32 pfpSyncMe      :  1;
-        uint32 syncCpDma      :  1;
-        uint32 reserved       : 26;
+        uint8 waitOnEopTs    : 1;
+        uint8 cbTargetStall  : 1; // Gfx-only: Do a range-checked stall on the active color targets.
+        uint8 dbTargetStall  : 1; // Gfx-only: Do a range-checked stall on the active depth and stencil targets.
+        uint8 vsPartialFlush : 1; // Gfx-only
+        uint8 psPartialFlush : 1; // Gfx-only
+        uint8 csPartialFlush : 1;
+        uint8 pfpSyncMe      : 1; // Gfx-only
+        uint8 syncCpDma      : 1;
     };
 };
 
@@ -488,39 +449,39 @@ public:
         const SamplerInfo*  pSamplerInfo,
         void*               pOut);
 
-    void Barrier(GfxCmdBuffer* pCmdBuf, CmdStream* pCmdStream, const BarrierInfo& barrier) const;
+    void Barrier(Pm4CmdBuffer* pCmdBuf, CmdStream* pCmdStream, const BarrierInfo& barrier) const;
 
-    AcqRelSyncToken BarrierRelease(
-        GfxCmdBuffer*                 pCmdBuf,
+    AcqRelSyncToken Release(
+        Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
-        const AcquireReleaseInfo&     barrierReleaseInfo,
+        const AcquireReleaseInfo&     releaseInfo,
         Developer::BarrierOperations* pBarrierOps) const;
 
-    void BarrierAcquire(
-        GfxCmdBuffer*                 pCmdBuf,
+    void Acquire(
+        Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
-        const AcquireReleaseInfo&     barrierAcquireInfo,
+        const AcquireReleaseInfo&     acquireInfo,
         uint32                        syncTokenCount,
         const AcqRelSyncToken*        pSyncTokens,
         Developer::BarrierOperations* pBarrierOps) const;
 
-    void BarrierReleaseEvent(
-        GfxCmdBuffer*                 pCmdBuf,
+    void ReleaseEvent(
+        Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
-        const AcquireReleaseInfo&     barrierReleaseInfo,
+        const AcquireReleaseInfo&     releaseInfo,
         const IGpuEvent*              pClientEvent,
         Developer::BarrierOperations* pBarrierOps) const;
 
-    void BarrierAcquireEvent(
-        GfxCmdBuffer*                 pCmdBuf,
+    void AcquireEvent(
+        Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
-        const AcquireReleaseInfo&     barrierAcquireInfo,
+        const AcquireReleaseInfo&     acquireInfo,
         uint32                        gpuEventCount,
         const IGpuEvent* const*       ppGpuEvents,
         Developer::BarrierOperations* pBarrierOps) const;
 
-    void BarrierReleaseThenAcquire(
-        GfxCmdBuffer*                 pCmdBuf,
+    void ReleaseThenAcquire(
+        Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         const AcquireReleaseInfo&     barrierInfo,
         Developer::BarrierOperations* pBarrierOps) const;
@@ -528,21 +489,21 @@ public:
     void FillCacheOperations(const SyncReqs& syncReqs, Developer::BarrierOperations* pOperations) const;
 
     void IssueSyncs(
-        GfxCmdBuffer*                 pCmdBuf,
+        Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         SyncReqs                      syncReqs,
         HwPipePoint                   waitPoint,
-        gpusize                       rangeStartAddr,
+        gpusize                       rangeBase,
         gpusize                       rangeSize,
         Developer::BarrierOperations* pOperations) const;
     void FlushAndInvL2IfNeeded(
-        GfxCmdBuffer*                 pCmdBuf,
+        Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         const BarrierInfo&            barrier,
         uint32                        transitionId,
         Developer::BarrierOperations* pOperations) const;
     void ExpandColor(
-        GfxCmdBuffer*                 pCmdBuf,
+        Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         const BarrierInfo&            barrier,
         uint32                        transitionId,
@@ -550,41 +511,41 @@ public:
         SyncReqs*                     pSyncReqs,
         Developer::BarrierOperations* pOperations) const;
     void TransitionDepthStencil(
-        GfxCmdBuffer*                 pCmdBuf,
+        Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
-        GfxCmdBufferStateFlags        cmdBufStateFlags,
+        Pm4CmdBufferStateFlags        cmdBufStateFlags,
         const BarrierInfo&            barrier,
         uint32                        transitionId,
         bool                          earlyPhase,
         SyncReqs*                     pSyncReqs,
         Developer::BarrierOperations* pOperations) const;
     void AcqRelColorTransition(
-        GfxCmdBuffer*                 pCmdBuf,
+        Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         const ImgBarrier&             imgBarrier,
         LayoutTransitionInfo          layoutTransInfo,
         Developer::BarrierOperations* pBarrierOps) const;
 
     void AcqRelColorTransitionEvent(
-        GfxCmdBuffer*                 pCmdBuf,
+        Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         const ImgBarrier&             imgBarrier,
         LayoutTransitionInfo          layoutTransInfo,
         Developer::BarrierOperations* pBarrierOps) const;
 
     void AcqRelDepthStencilTransition(
-        GfxCmdBuffer*                 pCmdBuf,
+        Pm4CmdBuffer*                 pCmdBuf,
         const ImgBarrier&             imgBarrier,
         LayoutTransitionInfo          layoutTransInfo) const;
     void DescribeBarrier(
-        GfxCmdBuffer*                 pCmdBuf,
+        Pm4CmdBuffer*                 pCmdBuf,
         const BarrierTransition*      pTransition,
         Developer::BarrierOperations* pOperations) const;
     void DescribeBarrierStart(
-        GfxCmdBuffer*                 pCmdBuf,
+        Pm4CmdBuffer*                 pCmdBuf,
         uint32                        reason,
         Developer::BarrierType        type) const;
-    void DescribeBarrierEnd(GfxCmdBuffer* pCmdBuf, Developer::BarrierOperations* pOperations) const;
+    void DescribeBarrierEnd(Pm4CmdBuffer* pCmdBuf, Developer::BarrierOperations* pOperations) const;
 
     const regGB_ADDR_CONFIG& GetGbAddrConfig() const;
 
@@ -596,6 +557,9 @@ public:
     uint32 GetPipeInterleaveLog2() const;
 
     uint32 GetDbDfsmControl() const;
+
+    // This is the granularity that LDS is actually allocated in in terms of bytes
+    uint32 GetHwAllocLdsGranularityBytes() const { return Parent()->ChipProperties().gfxip.ldsGranularity; }
 
     static uint32 GetMaxWavesPerSh(const GpuChipProperties& chipProps, bool isCompute);
 
@@ -689,18 +653,10 @@ public:
 
     virtual uint32 GetVarBlockSize() const override { return m_varBlockSize; }
 
-#if PAL_ENABLE_PRINTS_ASSERTS
-    // A helper function that asserts if the user accumulator registers in some ELF aren't in a disabled state.
-    // We always write these registers to the disabled state in our queue context preambles.
-    void AssertUserAccumRegsDisabled(const RegisterVector& registers, uint32 firstRegAddr) const;
-#endif
-
     uint32 BufferSrdResourceLevel() const;
 
 private:
     void Gfx10SetImageSrdDims(sq_img_rsrc_t*  pSrd, uint32 width, uint32  height) const;
-
-    uint32* AddCacheFlushAndInvEvent(const GfxCmdBuffer*  pCmdBuffer, uint32* pCmdSpace) const;
 
     void SetSrdBorderColorPtr(
         sq_img_samp_t*  pSrd,
@@ -715,33 +671,42 @@ private:
 
     void SetupWorkarounds();
 
-    TcCacheOp SelectTcCacheOp(uint32* pCacheFlags) const;
-
     LayoutTransitionInfo PrepareColorBlt(
-        const GfxCmdBuffer* pCmdBuf,
+        const Pm4CmdBuffer* pCmdBuf,
         const Pal::Image&   image,
         const SubresRange&  subresRange,
         ImageLayout         oldLayout,
         ImageLayout         newLayout) const;
     LayoutTransitionInfo PrepareDepthStencilBlt(
-        const GfxCmdBuffer* pCmdBuf,
+        const Pm4CmdBuffer* pCmdBuf,
         const Pal::Image&   image,
         const SubresRange&  subresRange,
         ImageLayout         oldLayout,
         ImageLayout         newLayout) const;
     LayoutTransitionInfo PrepareBltInfo(
-        GfxCmdBuffer*       pCmdBuf,
+        Pm4CmdBuffer*       pCmdBuf,
         const ImgBarrier&   imageBarrier) const;
 
-    void IssueBlt(
-        GfxCmdBuffer*                 pCmdBuf,
+    ReleaseMemCaches ConvertReleaseCacheFlags(
+        uint32                        accessMask,
+        bool                          refreshTcc,
+        Developer::BarrierOperations* pBarrierOps) const;
+
+    SyncGlxFlags ConvertAcquireCacheFlags(
+        uint32                        accessMask,
+        bool                          refreshTcc,
+        Developer::BarrierOperations* pBarrierOps) const;
+
+    bool IssueBlt(
+        Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         const ImgBarrier*             pImgBarrier,
         LayoutTransitionInfo          transition,
+        bool                          preInitHtileSynced,
         Developer::BarrierOperations* pBarrierOps) const;
 
     bool GetAcqRelLayoutTransitionBltInfo(
-        GfxCmdBuffer*                 pCmdBuf,
+        Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         const AcquireReleaseInfo&     barrierInfo,
         AcqRelAutoBuffer*             pTransitionList,
@@ -752,7 +717,7 @@ private:
         uint32*                       pSrcAccessMask) const;
 
     bool IssueAcqRelLayoutTransitionBlt(
-        GfxCmdBuffer*                 pCmdBuf,
+        Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         uint32                        imageBarrierCount,
         const AcqRelAutoBuffer&       transitionList,
@@ -761,12 +726,12 @@ private:
         uint32*                       pPostBltAccessMask) const;
 
     bool AcqRelInitMaskRam(
-        GfxCmdBuffer*      pCmdBuf,
+        Pm4CmdBuffer*      pCmdBuf,
         CmdStream*         pCmdStream,
         const ImgBarrier&  imgBarrier) const;
 
     AcqRelSyncToken IssueReleaseSync(
-        GfxCmdBuffer*                 pCmdBuf,
+        Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         uint32                        stageMask,
         uint32                        accessMask,
@@ -774,19 +739,17 @@ private:
         Developer::BarrierOperations* pBarrierOps) const;
 
     void IssueAcquireSync(
-        GfxCmdBuffer*                 pCmdBuf,
+        Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         uint32                        stageMask,
         uint32                        accessMask,
         bool                          refreshTcc,
-        gpusize                       rangeStartAddr,
-        gpusize                       rangeSize,
         uint32                        syncTokenCount,
         const AcqRelSyncToken*        pSyncTokens,
         Developer::BarrierOperations* pBarrierOps) const;
 
     void IssueReleaseSyncEvent(
-        GfxCmdBuffer*                 pCmdBuf,
+        Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         uint32                        stageMask,
         uint32                        accessMask,
@@ -795,13 +758,11 @@ private:
         Developer::BarrierOperations* pBarrierOps) const;
 
     void IssueAcquireSyncEvent(
-        GfxCmdBuffer*                 pCmdBuf,
+        Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         uint32                        stageMask,
         uint32                        accessMask,
         bool                          refreshTcc,
-        gpusize                       rangeStartAddr,
-        gpusize                       rangeSize,
         uint32                        gpuEventCount,
         const IGpuEvent* const*       ppGpuEvents,
         Developer::BarrierOperations* pBarrierOps) const;

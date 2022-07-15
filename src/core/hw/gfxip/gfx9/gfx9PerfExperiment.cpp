@@ -23,11 +23,11 @@
  *
  **********************************************************************************************************************/
 
-#include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9PerfExperiment.h"
+#include "core/hw/gfxip/pm4CmdBuffer.h"
 #include "core/platform.h"
 #include "palVectorImpl.h"
 
@@ -1998,9 +1998,10 @@ Result PerfExperiment::GetSpmTraceLayout(
     {
         constexpr uint32 LineSizeInBytes = MuxselLineSizeInDwords * sizeof(uint32);
 
-        pLayout->offset       = m_spmRingOffset;
-        pLayout->wptrOffset   = m_spmRingOffset; // The write pointer is the first thing written to the ring buffer.
-        pLayout->sampleOffset = LineSizeInBytes; // The samples start one line in.
+        pLayout->offset          = m_spmRingOffset;
+        pLayout->wptrOffset      = m_spmRingOffset; // The write pointer is the first thing written to the ring buffer
+        pLayout->wptrGranularity = 1;
+        pLayout->sampleOffset    = LineSizeInBytes; // The samples start one line in.
 
         pLayout->sampleSizeInBytes = 0;
 
@@ -4032,14 +4033,20 @@ uint32* PerfExperiment::WriteWaitIdle(
     uint32*       pCmdSpace
     ) const
 {
-    const EngineType engineType        = pCmdStream->GetEngineType();
-    bool             postRefreshL0L1L2 = flushCaches;
+    const EngineType engineType = pCmdStream->GetEngineType();
 
     if (m_pDevice->EngineSupportsGraphics(engineType))
     {
+        if (flushCaches)
         {
-            // Use a CS_PARTIAL_FLUSH and ACQUIRE_MEM to wait for CS and graphics work to complete. Use the acquire mem
-            // to flush caches if requested.
+            // We need to use a pipelined event to flush and invalidate all of the RB caches. This may require the
+            // CP to spin-loop on a timestamp in memory so it may be much slower than the non-flushing path.
+            pCmdSpace = pCmdStream->WriteWaitEopGfx(HwPipeTop, SyncGlxWbInvAll, SyncRbWbInv,
+                                                    pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
+        }
+        else
+        {
+            // Use a CS_PARTIAL_FLUSH and ACQUIRE_MEM to wait for CS and graphics work to complete.
             //
             // Note that this isn't a true wait-idle for the graphics engine. In order to wait for the very bottom of
             // the pipeline we would have to wait for a EOP TS event. Doing that inflates the perf experiment overhead
@@ -4047,54 +4054,40 @@ uint32* PerfExperiment::WriteWaitIdle(
             // method which covers almost all of the same cases as the wait for EOP TS. If we run into issues with
             // counters at the end of the graphics pipeline or counters that monitor the event pipeline we might need
             // to change this.
-            pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, pCmdStream->GetEngineType(), pCmdSpace);
+            pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, engineType, pCmdSpace);
 
-            AcquireMemInfo acquireInfo = {};
-            acquireInfo.engineType           = pCmdStream->GetEngineType();
-            acquireInfo.cpMeCoherCntl.u32All = CpMeCoherCntlStallMask;
-            acquireInfo.baseAddress          = FullSyncBaseAddr;
-            acquireInfo.sizeBytes            = FullSyncSize;
-            acquireInfo.tcCacheOp            = TcCacheOp::Nop;
+            AcquireMemGfxSurfSync acquireInfo = {};
+            acquireInfo.flags.pfpWait       = 1;
+            acquireInfo.flags.cbTargetStall = 1;
+            acquireInfo.flags.dbTargetStall = 1;
 
-            if (flushCaches)
-            {
-                acquireInfo.tcCacheOp         = TcCacheOp::WbInvL1L2;
-                acquireInfo.flags.invSqI$     = 1;
-                acquireInfo.flags.invSqK$     = 1;
-                acquireInfo.flags.flushSqK$   = 1;
-                acquireInfo.flags.wbInvCbData = 1;
-                acquireInfo.flags.wbInvDb     = 1;
+            pCmdSpace += m_cmdUtil.BuildAcquireMemGfxSurfSync(acquireInfo, pCmdSpace);
 
-                postRefreshL0L1L2 = false;
-            }
-
-            pCmdSpace += m_cmdUtil.BuildAcquireMem(acquireInfo, pCmdSpace);
+            // NOTE: ACQUIRE_MEM has an implicit context roll if the current context is busy. Since we won't be aware
+            //       of a busy context, we must assume all ACQUIRE_MEM's come with a context roll.
+            pCmdStream->SetContextRollDetected<false>();
         }
-
-        // NOTE: ACQUIRE_MEM has an implicit context roll if the current context is busy. Since we won't be aware
-        //       of a busy context, we must assume all ACQUIRE_MEM's come with a context roll.
-        pCmdStream->SetContextRollDetected<false>();
-
-        pCmdSpace += m_cmdUtil.BuildPfpSyncMe(pCmdSpace);
     }
     else
     {
-        // Wait for all work to be idle and use an ACQUIRE_MEM to flush any caches.
-        pCmdSpace += m_cmdUtil.BuildWaitCsIdle(EngineTypeCompute, pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
-    }
-
-    if (postRefreshL0L1L2)
-    {
-        AcquireMemInfo acquireInfo = {};
-        acquireInfo.engineType        = pCmdStream->GetEngineType();
-        acquireInfo.baseAddress       = FullSyncBaseAddr;
-        acquireInfo.sizeBytes         = FullSyncSize;
-        acquireInfo.tcCacheOp         = TcCacheOp::WbInvL1L2;
-        acquireInfo.flags.invSqI$     = 1;
-        acquireInfo.flags.invSqK$     = 1;
-        acquireInfo.flags.flushSqK$   = 1;
-
-        pCmdSpace += m_cmdUtil.BuildAcquireMem(acquireInfo, pCmdSpace);
+        if (flushCaches)
+        {
+            // Wait for all work to be idle and use an ACQUIRE_MEM to flush any caches. This will require the
+            // CP to spin-loop on a timestamp in memory so it will be much slower than the non-flushing path.
+            pCmdSpace = pCmdStream->WriteWaitEopGeneric(SyncGlxWbInvAll, pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
+        }
+        else
+        {
+            // Use a CS_PARTIAL_FLUSH to wait for CS work to complete.
+            //
+            // Note that this isn't a true wait-idle for the compute engine. In order to wait for the very bottom of
+            // the pipeline we would have to wait for a EOP TS event. Doing that inflates the perf experiment overhead
+            // by a not-insignificant margin (~150ns or ~4K clocks on Vega10). Thus we go with this much faster waiting
+            // method which covers almost all of the same cases as the wait for EOP TS. If we run into issues with
+            // counters at the end of the graphics pipeline or counters that monitor the event pipeline we might need
+            // to change this.
+            pCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
+        }
     }
 
     return pCmdSpace;

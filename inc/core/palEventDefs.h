@@ -72,8 +72,9 @@ enum class PalEvent : uint32
     RmtVersion               = 14,
 
     ResourceCorrelation      = 15,
+    ResourceInfoUpdate       = 16,
 
-    Count                    = 16
+    Count                    = 17
 };
 
 typedef uint64 GpuMemHandle;
@@ -133,6 +134,15 @@ struct ResourceCreateEventData
     ResourceType        type;              ///< Type of resource being described
     const void*         pResourceDescData; ///< Pointer to memory containing the resource type-specific description data
     uint32              resourceDescSize;  ///< Size of the memory pointed to by pEventData
+};
+
+struct ResourceUpdateEventData
+{
+    const void*  pObj;             ///< Opaque pointer to the object that was created
+    ResourceType type;             ///< Type of resource being described
+    uint32       subresourceId;    ///< SubresourceId being updated
+    uint32       beforeUsageFlags; ///< Usage flags before
+    uint32       afterUsageFlags;  ///< Usage flags after
 };
 
 // Event data related to the destruction of an object relevant to GpuMemory event logging

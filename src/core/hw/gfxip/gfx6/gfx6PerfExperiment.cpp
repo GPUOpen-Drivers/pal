@@ -23,11 +23,11 @@
  *
  **********************************************************************************************************************/
 
-#include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdStream.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdUtil.h"
 #include "core/hw/gfxip/gfx6/gfx6Device.h"
 #include "core/hw/gfxip/gfx6/gfx6PerfExperiment.h"
+#include "core/hw/gfxip/pm4CmdBuffer.h"
 #include "core/platform.h"
 #include "palVectorImpl.h"
 
@@ -1600,9 +1600,10 @@ Result PerfExperiment::GetSpmTraceLayout(
     {
         constexpr uint32 LineSizeInBytes = MuxselLineSizeInDwords * sizeof(uint32);
 
-        pLayout->offset       = m_spmRingOffset;
-        pLayout->wptrOffset   = m_spmRingOffset; // The write pointer is the first thing written to the ring buffer.
-        pLayout->sampleOffset = LineSizeInBytes; // The samples start one line in.
+        pLayout->offset          = m_spmRingOffset;
+        pLayout->wptrOffset      = m_spmRingOffset; // The write pointer is the first thing written to the ring buffer.
+        pLayout->wptrGranularity = 1;
+        pLayout->sampleOffset    = LineSizeInBytes; // The samples start one line in.
 
         pLayout->sampleSizeInBytes = 0;
 

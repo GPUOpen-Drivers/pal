@@ -77,6 +77,8 @@ public:
     uint32 Id() const { return m_id; }
 
     gpusize FragmentSize() const { return m_fragmentSize; }
+    size_t ColorViewSize() const { return m_nextColorViewSize; }
+    size_t DepthViewSize() const { return m_nextDepthViewSize; }
     uint32 BufferSrdDwords() const { return m_bufferSrdDwords; }
     uint32 ImageSrdDwords() const { return m_imageSrdDwords; }
     uint64 TimestampFreq() const { return m_timestampFreq; }
@@ -199,6 +201,8 @@ private:
     // Properties captured from the core's DeviceProperties or PalPublicSettings structure.  These are cached here to
     // avoid calling the overly expensive IDevice::GetProperties() in high frequency code paths.
     gpusize                m_fragmentSize;
+    size_t                 m_nextColorViewSize;
+    size_t                 m_nextDepthViewSize;
     uint32                 m_bufferSrdDwords;
     uint32                 m_imageSrdDwords;
     uint64                 m_timestampFreq;

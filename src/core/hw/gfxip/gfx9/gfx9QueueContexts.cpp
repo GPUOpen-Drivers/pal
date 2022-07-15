@@ -431,15 +431,11 @@ Result ComputeQueueContext::RebuildCommandStreams(
         // mode submission, but the SQC caches are not invalidated. We waited for that event just above this packet so
         // the L1 and L2 cannot contain stale data. However, a well behaving app could read stale SQC data unless we
         // invalidate those caches here.
-        AcquireMemInfo acquireInfo = {};
-        acquireInfo.flags.invSqI$ = 1;
-        acquireInfo.flags.invSqK$ = 1;
-        acquireInfo.tcCacheOp     = TcCacheOp::Nop;
-        acquireInfo.engineType    = EngineTypeCompute;
-        acquireInfo.baseAddress   = FullSyncBaseAddr;
-        acquireInfo.sizeBytes     = FullSyncSize;
+        AcquireMemGeneric acquireInfo = {};
+        acquireInfo.engineType = EngineTypeCompute;
+        acquireInfo.cacheSync  = SyncGlkInv | SyncGliInv;
 
-        pCmdSpace += cmdUtil.BuildAcquireMem(acquireInfo, pCmdSpace);
+        pCmdSpace += cmdUtil.BuildAcquireMemGeneric(acquireInfo, pCmdSpace);
 
         m_perSubmitCmdStream.CommitCommands(pCmdSpace);
         result = m_perSubmitCmdStream.End();
@@ -473,15 +469,19 @@ Result ComputeQueueContext::RebuildCommandStreams(
 
         // When the pipeline has emptied, write the timestamp back to zero so that the next submission can execute.
         // We also use this pipelined event to flush and invalidate the shader L1 and L2 caches as described above.
-        ReleaseMemInfo releaseInfo = {};
-        releaseInfo.engineType     = EngineTypeCompute;
-        releaseInfo.vgtEvent       = BOTTOM_OF_PIPE_TS;
-        releaseInfo.tcCacheOp      = TcCacheOp::WbInvL1L2;
-        releaseInfo.dstAddr        = m_exclusiveExecTs.GpuVirtAddr();
-        releaseInfo.dataSel        = data_sel__mec_release_mem__send_32_bit_low;
-        releaseInfo.data           = 0;
+        ReleaseMemGeneric releaseInfo = {};
+        releaseInfo.engineType = EngineTypeCompute;
+        releaseInfo.dstAddr    = m_exclusiveExecTs.GpuVirtAddr();
+        releaseInfo.dataSel    = data_sel__mec_release_mem__send_32_bit_low;
+        releaseInfo.data       = 0;
 
-        pCmdSpace += cmdUtil.BuildReleaseMem(releaseInfo, pCmdSpace);
+        releaseInfo.cacheSync.gl2Inv = 1;
+        releaseInfo.cacheSync.gl2Wb  = 1;
+        releaseInfo.cacheSync.glmInv = 1;
+        releaseInfo.cacheSync.gl1Inv = 1;
+        releaseInfo.cacheSync.glvInv = 1;
+
+        pCmdSpace += cmdUtil.BuildReleaseMemGeneric(releaseInfo, pCmdSpace);
 
         m_postambleCmdStream.CommitCommands(pCmdSpace);
         result = m_postambleCmdStream.End();
@@ -825,15 +825,10 @@ void UniversalQueueContext::WritePerSubmitPreamble(
     // each user mode submission, but the SQC caches are not invalidated. We waited for that event just above this
     // packet so the L1 and L2 cannot contain stale data. However, a well behaving app could read stale SQC data unless
     // we invalidate those caches here.
-    AcquireMemInfo acquireInfo = {};
-    acquireInfo.flags.invSqI$ = 1;
-    acquireInfo.flags.invSqK$ = 1;
-    acquireInfo.tcCacheOp     = TcCacheOp::Nop;
-    acquireInfo.engineType    = EngineTypeUniversal;
-    acquireInfo.baseAddress   = FullSyncBaseAddr;
-    acquireInfo.sizeBytes     = FullSyncSize;
+    AcquireMemGfxSurfSync acquireInfo = {};
+    acquireInfo.cacheSync = SyncGlkInv | SyncGliInv;
 
-    pCmdSpace += cmdUtil.BuildAcquireMem(acquireInfo, pCmdSpace);
+    pCmdSpace += cmdUtil.BuildAcquireMemGfxSurfSync(acquireInfo, pCmdSpace);
 
     if (m_useShadowing)
     {
@@ -1368,15 +1363,19 @@ Result UniversalQueueContext::RebuildCommandStreams(
 
         // When the pipeline has emptied, write the timestamp back to zero so that the next submission can execute.
         // We also use this pipelined event to flush and invalidate the L1, L2, and RB caches as described above.
-        ReleaseMemInfo releaseInfo = {};
-        releaseInfo.engineType     = EngineTypeUniversal;
-        releaseInfo.vgtEvent       = CACHE_FLUSH_AND_INV_TS_EVENT;
-        releaseInfo.tcCacheOp      = TcCacheOp::WbInvL1L2;
-        releaseInfo.dstAddr        = m_exclusiveExecTs.GpuVirtAddr();
-        releaseInfo.dataSel        = data_sel__me_release_mem__send_32_bit_low;
-        releaseInfo.data           = 0;
+        ReleaseMemGfx releaseInfo = {};
+        releaseInfo.vgtEvent = CACHE_FLUSH_AND_INV_TS_EVENT;
+        releaseInfo.dstAddr  = m_exclusiveExecTs.GpuVirtAddr();
+        releaseInfo.dataSel  = data_sel__me_release_mem__send_32_bit_low;
+        releaseInfo.data     = 0;
 
-        pCmdSpace += cmdUtil.BuildReleaseMem(releaseInfo, pCmdSpace);
+        releaseInfo.cacheSync.gl2Inv = 1;
+        releaseInfo.cacheSync.gl2Wb  = 1;
+        releaseInfo.cacheSync.glmInv = 1;
+        releaseInfo.cacheSync.gl1Inv = 1;
+        releaseInfo.cacheSync.glvInv = 1;
+
+        pCmdSpace += cmdUtil.BuildReleaseMemGfx(releaseInfo, pCmdSpace);
 
         m_dePostambleCmdStream.CommitCommands(pCmdSpace);
         result = m_dePostambleCmdStream.End();
@@ -1488,43 +1487,6 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                    paScLineStippleState.u32All,
                                                    pCmdSpace);
 
-    // Set-and-forget DCC register:
-    //  This will stop compression to one of the four "magic" clear colors.
-    regCB_DCC_CONTROL cbDccControl = { };
-    if (IsGfx091xPlus(device) && settings.forceRegularClearCode)
-    {
-        cbDccControl.most.DISABLE_CONSTANT_ENCODE_AC01 = 1;
-    }
-
-    if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
-    {
-        cbDccControl.gfx09.OVERWRITE_COMBINER_MRT_SHARING_DISABLE = 1;
-        cbDccControl.bits.OVERWRITE_COMBINER_WATERMARK            = 4;
-    }
-    else
-    {
-        // ELIMFC = EliMinate Fast Clear, i.e., Fast Clear Eliminate.
-        // So, DISABLE_ELIMFC_SKIP means disable the skipping of the fast-clear elimination.  Got that?
-        //
-        // Without the double negative, leaving this bit at zero means that if a comp-to-single clear was done, any
-        // FCE operation on that image will leave the comp-to-single in place.  Setting this bit to one will mean
-        // that the FCE operation on that image will actually "eliminate the fast clear".  We want to leave this
-        // at zero because the texture pipe can understand comp-to-single, so there's no need to fce those pixels.
-        cbDccControl.most.DISABLE_ELIMFC_SKIP_OF_SINGLE = 0;
-
-        // This register also contains various "DISABLE_CONSTANT_ENCODE" bits.  Those are the master switches
-        // for CB-based rendering.  i.e., setting DISABLE_CONSTANT_ENCODE_REG will disable all compToReg
-        // rendering.  The same bit(s) exist in the CB_COLORx_DCC_CONTROL register for enabling / disabling the
-        // various encoding modes on a per MRT basis.
-        //
-        // Note that the CB registers only control DCC compression occurring through rendering (i.e., through the
-        // CB).  The GL2C_CM_CTRL1 register controls DCC compression occurring through shader writes.  I'd write
-        // it here, but it's privileged, and I can't.  GACK.  By default, both compToReg and compToSingle are
-        // enabled for shader write operations.
-
-        cbDccControl.bits.OVERWRITE_COMBINER_WATERMARK = 6;
-    }
-
     regPA_SU_SMALL_PRIM_FILTER_CNTL paSuSmallPrimFilterCntl = { };
     if (IsGfx091xPlus(device))
     {
@@ -1572,6 +1534,43 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
     }
 
     {
+        // Set-and-forget DCC register:
+        //  This will stop compression to one of the four "magic" clear colors.
+        regCB_DCC_CONTROL cbDccControl = { };
+        if (IsGfx091xPlus(device) && settings.forceRegularClearCode)
+        {
+            cbDccControl.most.DISABLE_CONSTANT_ENCODE_AC01 = 1;
+        }
+
+        if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
+        {
+            cbDccControl.gfx09.OVERWRITE_COMBINER_MRT_SHARING_DISABLE = 1;
+            cbDccControl.bits.OVERWRITE_COMBINER_WATERMARK            = 4;
+        }
+        else
+        {
+            // ELIMFC = EliMinate Fast Clear, i.e., Fast Clear Eliminate.
+            // So, DISABLE_ELIMFC_SKIP means disable the skipping of the fast-clear elimination.  Got that?
+            //
+            // Without the double negative, leaving this bit at zero means that if a comp-to-single clear was done, any
+            // FCE operation on that image will leave the comp-to-single in place.  Setting this bit to one will mean
+            // that the FCE operation on that image will actually "eliminate the fast clear".  We want to leave this
+            // at zero because the texture pipe can understand comp-to-single, so there's no need to fce those pixels.
+            cbDccControl.most.DISABLE_ELIMFC_SKIP_OF_SINGLE = 0;
+
+            // This register also contains various "DISABLE_CONSTANT_ENCODE" bits.  Those are the master switches
+            // for CB-based rendering.  i.e., setting DISABLE_CONSTANT_ENCODE_REG will disable all compToReg
+            // rendering.  The same bit(s) exist in the CB_COLORx_DCC_CONTROL register for enabling / disabling the
+            // various encoding modes on a per MRT basis.
+            //
+            // Note that the CB registers only control DCC compression occurring through rendering (i.e., through the
+            // CB).  The GL2C_CM_CTRL1 register controls DCC compression occurring through shader writes.  I'd write
+            // it here, but it's privileged, and I can't.  GACK.  By default, both compToReg and compToSingle are
+            // enabled for shader write operations.
+
+            cbDccControl.bits.OVERWRITE_COMBINER_WATERMARK = 6;
+        }
+
         pCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx09_10::mmCB_DCC_CONTROL,
                                                         cbDccControl.u32All,
                                                         pCmdSpace);

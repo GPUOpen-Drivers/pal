@@ -511,6 +511,9 @@ Result GpuMemory::Init(
     m_flags.isTimestamp          = internalInfo.flags.timestamp;
     m_flags.accessedPhysically   = internalInfo.flags.accessedPhysically;
     m_flags.gpuReadOnly          = internalInfo.flags.gpuReadOnly;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 746
+    m_flags.kmdShareUmdSysMem       = createInfo.flags.kmdShareUmdSysMem;
+#endif
 
     if (IsClient() == false)
     {
@@ -629,6 +632,10 @@ Result GpuMemory::Init(
             OsFinalizeHeaps();
         }
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 746
+    m_flags.deferCpuVaReservation = (m_flags.cpuVisible != false) && createInfo.flags.deferCpuVaReservation;
+#endif
 
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 667)
     m_desc.preferredHeap = m_heaps[0];

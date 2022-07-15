@@ -25,14 +25,14 @@
 
 devdriver_library(ddSettings STATIC)
 
-add_subdirectory(rpcService)
 add_subdirectory(rpcClient)
+add_subdirectory(rpcService)
 add_subdirectory(settingsblob)
 
 target_link_libraries(ddSettings
     PUBLIC
         ddApi
-        SettingsRpcService
+        ddSettingsRpcService
     PRIVATE
         devdriver
         ddCommon
@@ -41,19 +41,16 @@ target_link_libraries(ddSettings
 )
 
 target_include_directories(ddSettings
-    PUBLIC .
+    PUBLIC base/inc
 )
 
 target_sources(ddSettings PRIVATE
-    libyamlUtils.cpp
-    libyamlUtils.h
-    settingsBase.cpp
-    settingsBase.h
-    settingsService.h
-    settingsService.cpp
-    settingsTypes.h
-    settingsConfig.cpp
-    settingsConfig.h
-    settingsParsingUtils.cpp
-    settingsParsingUtils.h
+    base/inc/ddSettingsTypes.h
+    base/inc/ddSettingsBase.h
+    base/inc/ddSettingsConfig.h
+    base/inc/ddSettingsUtils.h
+    base/src/libyamlUtils.cpp
+    base/src/libyamlUtils.h
+    base/src/ddSettingsBase.cpp
+    base/src/ddSettingsConfig.cpp
 )

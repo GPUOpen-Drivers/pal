@@ -167,7 +167,10 @@ union GpuMemoryFlags
         uint32 dfSpmTraceBuffer         :  1; // GPU memory will be used by KMD for DF SPM trace.
         uint32 explicitSync             :  1;
         uint32 privPrimary              :  1; // GPU memory is a private primary
-        uint32 reserved                 : 20;
+        uint32 kmdShareUmdSysMem        :  1; // GPU memory is shared with KMD
+        uint32 deferCpuVaReservation    :  1; // GPU memory can be locked for read on CPU, but will not reserve CPU VA.
+        uint32 placeholder1             : 1; // Placeholder.
+        uint32 reserved                 : 17;
     };
     uint64  u64All;
 };
@@ -284,6 +287,8 @@ public:
     bool IsDfSpmTraceBuffer()    const { return (m_flags.dfSpmTraceBuffer         != 0); }
     bool IsExplicitSync()        const { return (m_flags.explicitSync             != 0); }
     bool IsPrivPrimary()         const { return (m_flags.privPrimary              != 0); }
+    bool IsKmdShareUmdSysMem()   const { return (m_flags.kmdShareUmdSysMem        != 0); }
+    bool IsLockableOnDemand()    const { return (m_flags.deferCpuVaReservation    != 0); }
     void SetAccessedPhysically() { m_flags.accessedPhysically = 1; }
     void SetSurfaceBusAddr(gpusize surfaceBusAddr) { m_desc.surfaceBusAddr = surfaceBusAddr; }
     void SetMarkerBusAddr(gpusize markerBusAddr)   { m_desc.markerBusAddr  = markerBusAddr;  }
@@ -372,6 +377,8 @@ protected:
         // objects. One virtual memory object could legally map to multiple peer physical memory objects.  Currently
         // only support one peer physical memory object.
         GpuMemory*   m_pMapDestPeerMem;
+        // System memory shared between KMD and UMD.
+        void* m_pBackingStoreMemory;
     };
 
     // The pointer to an Image object the memory object is bound to. It is only necessary in special cases where an

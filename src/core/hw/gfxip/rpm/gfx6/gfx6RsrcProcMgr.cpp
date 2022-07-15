@@ -388,6 +388,7 @@ void RsrcProcMgr::CmdCloneImageData(
 {
     const Pal::Image& srcParent = *srcImage.Parent();
     const Pal::Image& dstParent = *dstImage.Parent();
+    Pm4CmdBuffer* pPm4CmdBuf    = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
 
     // Check our assumptions:
     // 1. Since the source image can be in any state we need a universal command buffer.
@@ -426,15 +427,15 @@ void RsrcProcMgr::CmdCloneImageData(
 
     pCmdStream->CommitCommands(pCmdSpace);
 
-    pCmdBuffer->SetGfxCmdBufCpBltState(true);
+    pPm4CmdBuf->SetPm4CmdBufCpBltState(true);
 
     if (supportsL2)
     {
-        pCmdBuffer->SetGfxCmdBufCpBltWriteCacheState(true);
+        pPm4CmdBuf->SetPm4CmdBufCpBltWriteCacheState(true);
     }
     else
     {
-        pCmdBuffer->SetGfxCmdBufCpMemoryWriteL2CacheStaleState(true);
+        pPm4CmdBuf->SetPm4CmdBufCpMemoryWriteL2CacheStaleState(true);
     }
 }
 
@@ -524,6 +525,8 @@ void RsrcProcMgr::CmdUpdateMemory(
     auto*const pStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::CpDma);
     PAL_ASSERT(pStream != nullptr);
 
+    Pm4CmdBuffer* pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+
     // Prepare to issue one or more DMA_DATA packets. Start the dstAddr at the beginning of the dst buffer.
     // The srcAddr and numBytes will be set in the loop.
     //
@@ -566,15 +569,15 @@ void RsrcProcMgr::CmdUpdateMemory(
         dmaDataInfo.dstAddr += dmaDataInfo.numBytes;
     }
 
-    pCmdBuffer->SetGfxCmdBufCpBltState(true);
+    pPm4CmdBuf->SetPm4CmdBufCpBltState(true);
 
     if (supportsL2)
     {
-        pCmdBuffer->SetGfxCmdBufCpBltWriteCacheState(true);
+        pPm4CmdBuf->SetPm4CmdBufCpBltWriteCacheState(true);
     }
     else
     {
-        pCmdBuffer->SetGfxCmdBufCpMemoryWriteL2CacheStaleState(true);
+        pPm4CmdBuf->SetPm4CmdBufCpMemoryWriteL2CacheStaleState(true);
     }
 }
 
@@ -856,10 +859,10 @@ bool RsrcProcMgr::ExpandDepthStencil(
 {
     PAL_ASSERT(range.numPlanes == 1);
 
-    const auto&  device              = *m_pDevice->Parent();
-    const auto&  settings            = m_pDevice->Settings();
-    const auto*  pGfxImage           = reinterpret_cast<const Image*>(image.GetGfxImage());
-    const bool   supportsComputePath = pGfxImage->SupportsComputeDecompress(range);
+    const auto&   device              = *m_pDevice->Parent();
+    const auto&   settings            = m_pDevice->Settings();
+    const auto*   pGfxImage           = reinterpret_cast<const Image*>(image.GetGfxImage());
+    const bool    supportsComputePath = pGfxImage->SupportsComputeDecompress(range);
 
     bool  usedCompute = false;
 
@@ -1007,7 +1010,7 @@ void RsrcProcMgr::HwlFastColorClear(
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
 
     const PM4Predicate packetPredicate = static_cast<PM4Predicate>(
-        pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
+        static_cast<Pm4CmdBuffer*>(pCmdBuffer)->GetPm4CmdBufState().flags.packetPredicate);
 
     if (gfx6Image.HasCmaskData())
     {
@@ -1604,7 +1607,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
                     metaDataClearFlags |= currentClearFlag;
 
                     const PM4Predicate packetPredicate = static_cast<PM4Predicate>(
-                        pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
+                        static_cast<Pm4CmdBuffer*>(pCmdBuffer)->GetPm4CmdBufState().flags.packetPredicate);
 
                     uint32* pCmdSpace = pCmdStream->ReserveCommands();
                     pCmdSpace = gfx6Image.UpdateDepthClearMetaData(pRanges[idx],
@@ -2399,7 +2402,8 @@ void RsrcProcMgr::FastDepthStencilClearCompute(
         regCP_COHER_CNTL cpCoherCntl;
         cpCoherCntl.u32All = CpCoherCntlTexCacheMask;
 
-        uint32* pCmdSpace = pCmdStream->ReserveCommands();
+        uint32*       pCmdSpace  = pCmdStream->ReserveCommands();
+
         pCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
         pCmdSpace += m_cmdUtil.BuildGenericSync(cpCoherCntl,
                                                 SURFACE_SYNC_ENGINE_ME,
@@ -2530,7 +2534,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     {
         // Enable viewport clamping if depth values are in the [0, 1] range. This avoids writing expanded depth
         // when using a float depth format. DepthExpand pipeline disables clamping by default.
-        pCmdBuffer->CmdOverwriteDisableViewportClampForBlits(false);
+        static_cast<Pm4CmdBuffer*>(pCmdBuffer)->CmdOverwriteDisableViewportClampForBlits(false);
     }
 
     // Select a depth/stencil state object for this clear:
@@ -2657,6 +2661,8 @@ void RsrcProcMgr::InitMaskRam(
     SyncReqs*          pSyncReqs
     ) const
 {
+    Pm4CmdBuffer* pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+
     // Save the command buffer's state.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
 
@@ -2747,7 +2753,7 @@ void RsrcProcMgr::InitMaskRam(
     {
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
         const PM4Predicate packetPredicate = static_cast<PM4Predicate>(
-                        pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
+                        pPm4CmdBuf->GetPm4CmdBufState().flags.packetPredicate);
 
         pCmdSpace = dstImage.UpdateWaTcCompatZRangeMetaData(range, 1.0f, packetPredicate, pCmdSpace);
 
@@ -2759,7 +2765,7 @@ void RsrcProcMgr::InitMaskRam(
     if (dstImage.HasFastClearEliminateMetaData())
     {
         const PM4Predicate packetPredicate = static_cast<PM4Predicate>(
-            pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
+            pPm4CmdBuf->GetPm4CmdBufState().flags.packetPredicate);
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
         pCmdSpace = dstImage.UpdateFastClearEliminateMetaData(range, 0, packetPredicate, pCmdSpace);
         pCmdStream->CommitCommands(pCmdSpace);
@@ -2895,7 +2901,7 @@ void RsrcProcMgr::ClearDcc(
     }
 
     const PM4Predicate packetPredicate = static_cast<PM4Predicate>(
-        pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
+        static_cast<Pm4CmdBuffer*>(pCmdBuffer)->GetPm4CmdBufState().flags.packetPredicate);
 
     // Since we're using a compute shader we have to update the DCC state metadata manually.
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
@@ -2963,7 +2969,7 @@ void RsrcProcMgr::ClearHiSPretestsMetaData(
     metaDataRange.numSlices              = createInfo.arraySize;
 
     const PM4Predicate packetPredicate = static_cast<PM4Predicate>(
-                                        pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
+                                    static_cast<Pm4CmdBuffer*>(pCmdBuffer)->GetPm4CmdBufState().flags.packetPredicate);
 
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
@@ -3011,7 +3017,7 @@ void RsrcProcMgr::InitDepthClearMetaData(
                                      HtilePlaneDepth : HtilePlaneStencil;
 
     const PM4Predicate packetPredicate =
-        static_cast<PM4Predicate>(pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
+        static_cast<PM4Predicate>(static_cast<Pm4CmdBuffer*>(pCmdBuffer)->GetPm4CmdBufState().flags.packetPredicate);
 
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
     pCmdSpace = dstImage.UpdateDepthClearMetaData(metaDataRange,
@@ -3045,7 +3051,7 @@ void RsrcProcMgr::InitColorClearMetaData(
     const uint32 packedColor[4] = {0, 0, 0, 0};
 
     const PM4Predicate packetPredicate =
-        static_cast<PM4Predicate>(pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
+        static_cast<PM4Predicate>(static_cast<Pm4CmdBuffer*>(pCmdBuffer)->GetPm4CmdBufState().flags.packetPredicate);
 
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
     pCmdSpace = dstImage.UpdateColorClearMetaData(range,
@@ -3152,7 +3158,8 @@ void RsrcProcMgr::ClearHtilePlane(
         cpCoherCntl.u32All = CpCoherCntlTexCacheMask;
 
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
-        pCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
+        pCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType,
+                                               pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
         pCmdSpace += m_cmdUtil.BuildGenericSync(cpCoherCntl,
                                                 SURFACE_SYNC_ENGINE_ME,
                                                 FullSyncBaseAddr,
@@ -3186,14 +3193,14 @@ void RsrcProcMgr::FastClearEliminate(
     }
 
     // Execute a generic CB blit using the fast-clear Eliminate pipeline.
-    GenericColorBlit(pCmdBuffer, *image.Parent(), range,
+    GenericColorBlit(static_cast<Pm4CmdBuffer*>(pCmdBuffer), *image.Parent(), range,
                      pQuadSamplePattern, RpmGfxPipeline::FastClearElim, pGpuMem, metaDataOffset);
 
     // Clear the FCE meta data over the given range because those mips must now be FCEd.
     if (image.GetFastClearEliminateMetaDataAddr(0) != 0)
     {
         const PM4Predicate packetPredicate = static_cast<PM4Predicate>(
-            pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
+            static_cast<Pm4CmdBuffer*>(pCmdBuffer)->GetPm4CmdBufState().flags.packetPredicate);
 
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
         pCmdSpace = image.UpdateFastClearEliminateMetaData(range, 0, packetPredicate, pCmdSpace);
@@ -3216,14 +3223,14 @@ void RsrcProcMgr::FmaskDecompress(
     PAL_ASSERT((range.startSubres.mipLevel == 0) && (range.numMips == 1));
 
     // Execute a generic CB blit using the appropriate FMask Decompress pipeline.
-    GenericColorBlit(pCmdBuffer, *image.Parent(), range,
+    GenericColorBlit(static_cast<Pm4CmdBuffer*>(pCmdBuffer), *image.Parent(), range,
                      pQuadSamplePattern, RpmGfxPipeline::FmaskDecompress, nullptr, 0);
 
     // Clear the FCE meta data over the given range because an FMask decompress implies a FCE.
     if (image.GetFastClearEliminateMetaDataAddr(0) != 0)
     {
         const PM4Predicate packetPredicate = static_cast<PM4Predicate>(
-            pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
+            static_cast<Pm4CmdBuffer*>(pCmdBuffer)->GetPm4CmdBufState().flags.packetPredicate);
 
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
         pCmdSpace = image.UpdateFastClearEliminateMetaData(range, 0, packetPredicate, pCmdSpace);
@@ -3414,7 +3421,7 @@ void RsrcProcMgr::DccDecompress(
             }
 
             // Execute a generic CB blit using the appropriate DCC decompress pipeline.
-            GenericColorBlit(pCmdBuffer, *pParentImg, decompressRange,
+            GenericColorBlit(static_cast<Pm4CmdBuffer*>(pCmdBuffer), *pParentImg, decompressRange,
                              pQuadSamplePattern, RpmGfxPipeline::DccDecompress, pGpuMem, metaDataOffset);
 
             // Clear the FCE meta data over the given range because a DCC decompress implies a FCE. Note that it doesn't
@@ -3423,7 +3430,7 @@ void RsrcProcMgr::DccDecompress(
             if (image.GetFastClearEliminateMetaDataAddr(0) != 0)
             {
                 const PM4Predicate packetPredicate = static_cast<PM4Predicate>(
-                    pCmdBuffer->GetGfxCmdBufState().flags.packetPredicate);
+                    static_cast<Pm4CmdBuffer*>(pCmdBuffer)->GetPm4CmdBufState().flags.packetPredicate);
 
                 uint32* pCmdSpace = pCmdStream->ReserveCommands();
                 pCmdSpace = image.UpdateFastClearEliminateMetaData(decompressRange, 0, packetPredicate, pCmdSpace);

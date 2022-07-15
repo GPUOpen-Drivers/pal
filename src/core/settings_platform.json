@@ -143,12 +143,17 @@
                 "Name": "AddLibName",
                 "Value": 16,
                 "Description": "Add Library name to debug log file name."
+              },
+              {
+                "Name": "ForceFlush",
+                "Value": 32,
+                "Description": "Force a flush after every write to file."
               }
             ]
           },
           "Name": "FileSettingsFlags",
           "Defaults": {
-            "Default": 0
+            "Default": 32
           },
           "Flags": {
             "IsBitmask": true,

@@ -102,72 +102,99 @@ union GpuMemoryCreateFlags
 {
     struct
     {
-        uint32 virtualAlloc     :  1; ///< Create a _virtual_ as opposed to _real_ GPU memory allocation.  Only VA space
-                                      ///  will be allocated, and pages must be mapped via
-                                      ///  IQueue::RemapVirtualMemoryPages().
-        uint32 shareable        :  1; ///< Memory can be shared between devices in the same process that report the
-                                      ///  sharedMemory flag from IDevice::GetMultiGpuCompatibility().
-        uint32 interprocess     :  1; ///< Memory will be visible to other processes (they may choose to open it).
-        uint32 presentable      :  1; ///< Memory can be bound to an image that will be used by presents.
-        uint32 flippable        :  1; ///< Memory can be bound to an image that will be used by flip presents.
-        uint32 stereo           :  1; ///< Memory will be used for stereo (DXGI or AQBS stereo).
-        uint32 globallyCoherent :  1; ///< Memory needs to be globally coherent, indicating the driver must manage both
-                                      ///  CPU caches and GPU caches that are not flushed on command buffer boundaries.
-        uint32 xdmaBuffer       :  1; ///< GPU memory will be used for an XDMA cache buffer for transferring data
-                                      ///  between GPUs in a multi-GPU configuration.
-        uint32 turboSyncSurface :  1; ///< The memory will be used for TurboSync private swapchain primary.
-        uint32 typedBuffer      :  1; ///< GPU memory will be permanently considered a single typed buffer pseudo-object
-                                      ///  with the properties given in typedBufferInfo.
-        uint32 globalGpuVa      :  1; ///< The GPU virtual address must be visible to all devices.
-        uint32 useReservedGpuVa :  1; ///< Use GPU virtual address previously reserved by another memory object. It
-                                      ///  is invalid when using the shadow descriptor table VA range.
-        uint32 autoPriority     :  1; ///< Allow the platform to automatically determine the priority of this GPU
-                                      ///  memory allocation. Flag is only valid if the device reports that it supports
-                                      ///  this feature, and will result in an error otherwise.
-        uint32 busAddressable   :  1; ///< Create Bus Addressable memory. Allow memory to be used by other device on
-                                      ///   the PCIe bus by exposing a write-only bus address.
-        uint32 sdiExternal      :  1; ///< Create External Physical memory from an already allocated memory on remote
-                                      ///  device. Similar to virtual allocations (no physical backing) but have an
-                                      ///  immutable page mapping set at creation time. Must specify surfBusAddr and
-                                      ///  markerBusAddr in GpuMemoryCreateInfo. The page mappings for an allocation
-                                      ///  with this flag set must be initialized by including a reference to it in
-                                      ///  the ppExternPhysMem list for the first submission that references it.
-        uint32 sharedViaNtHandle :  1; ///< Memory will be shared by using Nt handle.
-        uint32 peerWritable      :  1; ///< The memory can be open as peer memory and be writable.
-        uint32 tmzProtected      :  1; ///< The memory is protected using TMZ (Trusted Memory Zone) or HSFB (Hybrid
-                                       ///  Secure Framebuffer). It is not CPU accessible, and GPU access is restricted
-                                       ///  by the hardware such that data cannot be copied from protected memory into
-                                       ///  unprotected memory.
-
-        uint32 placeholder0      :  1; ///< Placeholder.
-        uint32 externalOpened    :  1; ///< Specifies the GPUMemory is opened.
-        uint32 restrictedContent :  1; ///< Specifies the GPUMemory is protected content.
-        uint32 restrictedAccess  :  1; ///< Specifies the GPUMemory is restricted shared access resource.
-        uint32 crossAdapter      :  1; ///< Specifies the GPUMemory is shared cross-adapter resource.
-        uint32 cpuInvisible      :  1; ///< By default, PAL makes every allocation CPU visible if all of its preferred
-                                       ///< heaps are CPU visible. This flag can be used to override this behavior when
-                                       ///< the client knows the memory will never be mapped for CPU access. If this
-                                       ///< flag is set, calls to IGpuMemory::Map() on this object will fail.
-        uint32 gl2Uncached       :  1; ///< Specifies the GPU Memory is un-cached on GPU L2 cache. But the memory still
-                                       ///  would be cached by other cache hierarchy like L0, RB caches, L1, and L3.
-        uint32 mallRangeActive   :  1; ///< If set, then this allocation will be partially allocated in the MALL.  If
-                                       ///  this is set, then the mallPolicy enumeration must be set to either "always"
-                                       ///  or "never".
-        uint32 explicitSync      :  1; ///< If set, shared memory will skip syncs in the kernel and all drivers
-                                       ///  that use this memory must handle syncs explicitly.
+        uint64 virtualAlloc                 :  1; ///< Create a _virtual_ as opposed to _real_ GPU memory allocation.
+                                                  ///  Only VA space will be allocated, and pages must be mapped via
+                                                  ///  IQueue::RemapVirtualMemoryPages().
+        uint64 shareable                    :  1; ///< Memory can be shared between devices in the same process that
+                                                  ///  report the sharedMemory flag from
+                                                  /// IDevice::GetMultiGpuCompatibility().
+        uint64 interprocess                 :  1; ///< Memory will be visible to other processes
+                                                  ///  (they may choose to open it).
+        uint64 presentable                  :  1; ///< Memory can be bound to an image that will be used by presents.
+        uint64 flippable                    :  1; ///< Memory can be bound to an image that will be used by flip
+                                                  ///  presents.
+        uint64 stereo                       :  1; ///< Memory will be used for stereo (DXGI or AQBS stereo).
+        uint64 globallyCoherent             :  1; ///< Memory needs to be globally coherent,
+                                                  ///  indicating the driver must manage both
+                                                  ///  CPU caches and GPU caches that are not flushed on
+                                                  ///  command buffer boundaries.
+        uint64 xdmaBuffer                   :  1; ///< GPU memory will be used for an XDMA cache buffer for
+                                                  ///  transferring data
+                                                  ///  between GPUs in a multi-GPU configuration.
+        uint64 turboSyncSurface             :  1; ///< The memory will be used for TurboSync private swapchain primary.
+        uint64 typedBuffer                  :  1; ///< GPU memory will be permanently considered a single
+                                                  ///  typed buffer pseudo-object
+                                                  ///  with the properties given in typedBufferInfo.
+        uint64 globalGpuVa                  :  1; ///< The GPU virtual address must be visible to all devices.
+        uint64 useReservedGpuVa             :  1; ///< Use GPU virtual address previously reserved by another
+                                                  ///  memory object. It is invalid when using the shadow descriptor
+                                                  ///  table VA range.
+        uint64 autoPriority                 :  1; ///< Allow the platform to automatically determine the priority of
+                                                  ///  this GPU memory allocation. Flag is only valid if the device
+                                                  ///  reports that it supports this feature, and will result in an
+                                                  ///  error otherwise.
+        uint64 busAddressable               :  1; ///< Create Bus Addressable memory. Allow memory to be used by other
+                                                  ///  device on the PCIe bus by exposing a write-only bus address.
+        uint64 sdiExternal                  :  1; ///< Create External Physical memory from an already allocated memory
+                                                  ///  on remote device. Similar to virtual allocations
+                                                  ///  (no physical backing) but have an immutable page mapping set at
+                                                  ///  creation time. Must specify surfBusAddr and markerBusAddr in
+                                                  ///  GpuMemoryCreateInfo. The page mappings for an allocation
+                                                  ///  with this flag set must be initialized by including a reference
+                                                  ///  to it in the ppExternPhysMem list for the first submission that
+                                                  ///  references it.
+        uint64 sharedViaNtHandle            :  1; ///< Memory will be shared by using Nt handle.
+        uint64 peerWritable                 :  1; ///< The memory can be open as peer memory and be writable.
+        uint64 tmzProtected                 :  1; ///< The memory is protected using TMZ (Trusted Memory Zone) or HSFB
+                                                  ///  (Hybrid Secure Framebuffer). It is not CPU accessible,
+                                                  ///  and GPU access is restricted by the hardware such that data
+                                                  ///  cannot be copied from protected memory into unprotected memory.
+        uint64 placeholder0                 :  1; ///< Placeholder.
+        uint64 externalOpened               :  1; ///< Specifies the GPUMemory is opened.
+        uint64 restrictedContent            :  1; ///< Specifies the GPUMemory is protected content.
+        uint64 restrictedAccess             :  1; ///< Specifies the GPUMemory is restricted shared access resource.
+        uint64 crossAdapter                 :  1; ///< Specifies the GPUMemory is shared cross-adapter resource.
+        uint64 cpuInvisible                 :  1; ///< By default, PAL makes every allocation CPU visible if all of its
+                                                  ///  preferred
+                                                  ///< heaps are CPU visible. This flag can be used to override this
+                                                  ///  behavior when the client knows the memory will never be mapped
+                                                  ///  for CPU access. If this flag is set, calls to IGpuMemory::Map()
+                                                  ///  on this object will fail.
+        uint64 gl2Uncached                  :  1; ///< Specifies the GPU Memory is un-cached on GPU L2 cache.
+                                                  ///  But the memory still would be cached by other cache hierarchy
+                                                  ///  like L0, RB caches, L1, and L3.
+        uint64 mallRangeActive              :  1; ///< If set, then this allocation will be partially allocated in the
+                                                  ///  MALL. If this is set, then the mallPolicy enumeration must be set
+                                                  ///  to either "always" or "never".
+        uint64 explicitSync                 :  1; ///< If set, shared memory will skip syncs in the kernel and all
+                                                  ///  drivers that use this memory must handle syncs explicitly.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 677
-        uint32 privPrimary       :  1; ///< This is a private primary surface gpu memory.
+        uint64 privPrimary                  :  1; ///< This is a private primary surface gpu memory.
 #else
-        uint32 placeholder677    :  1;
+        uint64 placeholder677               :  1;
 #endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 723
-        uint32 privateScreen     :  1; // GPU memory will be used for a private screen image.
+        uint64 privateScreen                :  1; // GPU memory will be used for a private screen image.
 #else
-        uint32 placeHolder723    :  1;
+        uint64 placeholder723               :  1;
 #endif
-        uint32 reserved          :  3; ///< Reserved for future use.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 746
+        uint64 kmdShareUmdSysMem            :  1; ///< UMD will allocate/free a memory buffer to be shared with KMD.
+        uint64 deferCpuVaReservation        :  1; ///< KMD will allocate with the "CpuVisibleOnDemand" alloc flag.
+                                                  ///  Ignored for non-CPU-visible allocations.
+#else
+        uint64 placeholder745               :  2;
+#endif
+        uint64 placeholder1                 :  1;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 746
+        uint64 reserved                     : 32; ///< Reserved for future use.
+#endif
     };
-    uint32     u32All;                 ///< Flags packed as 32-bit uint.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 746
+    uint64     u64All;                            ///< Flags packed as 64-bit uint.
+#else
+    uint32     u32All;                            ///< Flags packed as 32-bit uint.
+#endif
 };
 
 /// Specifies properties of a typed buffer pseudo-object. When this is specified in GpuMemoryCreateInfo along with the

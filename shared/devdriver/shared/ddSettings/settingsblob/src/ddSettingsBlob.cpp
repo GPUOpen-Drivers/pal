@@ -23,7 +23,7 @@
  *
  **********************************************************************************************************************/
 
-#include "../inc/settingsBlob.h"
+#include "../inc/ddSettingsBlob.h"
 
 namespace DevDriver
 {
@@ -47,15 +47,15 @@ SettingsBlobNode::SettingsBlobNode()
 
 }
 
-uint32_t SettingsBlobNode::GetAllSettingsBlobs(char* pBuffer, uint32_t bufferSize)
+uint32_t SettingsBlobNode::GetAllSettingsBlobs(uint8_t* pBuffer, uint32_t bufferSize)
 {
     uint32_t totalSizeRequired = 0;
 
     const uint32_t blobsAllHeaderSize = sizeof(SettingsBlobsAll);
     totalSizeRequired += blobsAllHeaderSize;
 
-    char* pBlobBufCurrPos = nullptr;
-    char* pBlobBufEnd = nullptr;
+    uint8_t* pBlobBufCurrPos = nullptr;
+    uint8_t* pBlobBufEnd = nullptr;
     if (pBuffer != nullptr)
     {
         pBlobBufEnd = pBuffer + bufferSize;
@@ -68,7 +68,7 @@ uint32_t SettingsBlobNode::GetAllSettingsBlobs(char* pBuffer, uint32_t bufferSiz
     while (pCurr != nullptr)
     {
         uint32_t blobSize = 0;
-        const char* pBlobData = pCurr->GetBlob(&blobSize);
+        const uint8_t* pBlobData = pCurr->GetBlob(&blobSize);
         if (blobSize > 0)
         {
             uint32_t blobSizeAligned = CalcSettingsBlobSizeAligned(blobSize);
@@ -78,13 +78,14 @@ uint32_t SettingsBlobNode::GetAllSettingsBlobs(char* pBuffer, uint32_t bufferSiz
 
             if (pBlobBufCurrPos)
             {
-                char* pBlobBufNextPos = pBlobBufCurrPos + blobSizeAligned;
+                uint8_t* pBlobBufNextPos = pBlobBufCurrPos + blobSizeAligned;
 
                 if (pBlobBufNextPos <= pBlobBufEnd)
                 {
                     SettingsBlob* pBlob = reinterpret_cast<SettingsBlob*>(pBlobBufCurrPos);
                     pBlob->size = blobSizeAligned;
                     pBlob->blobSize = blobSize;
+                    pBlob->blobHash = pCurr->GetBlobHash();
 
                     memcpy(pBlob->blob, pBlobData, blobSize);
 

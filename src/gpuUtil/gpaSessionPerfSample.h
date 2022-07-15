@@ -195,25 +195,41 @@ public:
     Pal::uint32             GetSpmSampleInterval()   const { return m_spmSampleInterval; }
     Pal::uint32             GetDfSpmSampleInterval() const { return m_dfSpmSampleInterval; }
 
-    Pal::Result             GetSpmTraceResults(void* pDstBuffer, size_t bufferSize);
-    Pal::Result             GetDfSpmTraceResults(void* pDstBuffer, size_t bufferSize);
-    void                    GetSpmResultsSize(Pal::gpusize* pSizeInBytes, Pal::gpusize* pNumSamples);
-    void                    GetDfSpmResultsSize(Pal::gpusize* pSizeInBytes, Pal::gpusize* pNumSamples);
+    Pal::Result GetSpmTraceResults(
+        void*  pDstBuffer,
+        size_t bufferSize);
+    Pal::Result GetDfSpmTraceResults(
+        void*  pDstBuffer,
+        size_t bufferSize);
+    void GetSpmResultsSize(
+        Pal::gpusize* pSizeInBytes,
+        Pal::gpusize* pNumSamples);
+    void GetDfSpmResultsSize(
+        Pal::gpusize* pSizeInBytes,
+        Pal::gpusize* pNumSamples);
 
-    Pal::Result SetThreadTraceLayout(Pal::ThreadTraceLayout* pLayout);
-    void SetTraceMemory(const GpuMemoryInfo& gpuMemoryInfo, Pal::gpusize offset, Pal::gpusize size);
-    void WriteCopyTraceData(Pal::ICmdBuffer* pCmdBuffer);
-    void WriteCopyDfSpmTraceData(Pal::ICmdBuffer* pCmdBuffer);
+    Pal::Result SetThreadTraceLayout(
+        Pal::ThreadTraceLayout* pLayout);
+    void SetTraceMemory(
+        const GpuMemoryInfo& gpuMemoryInfo,
+        Pal::gpusize         offset,
+        Pal::gpusize         size);
+    void WriteCopyTraceData(
+        Pal::ICmdBuffer* pCmdBuffer);
+    void WriteCopyDfSpmTraceData(
+        Pal::ICmdBuffer* pCmdBuffer);
 
     bool IsThreadTraceEnabled() const { return m_flags.threadTraceEnabled; }
-    bool IsSpmTraceEnabled() const { return m_flags.spmTraceEnabled; }
-    bool IsDfSpmTraceEnabled() const { return m_flags.dfSpmTraceEnabled; }
+    bool IsSpmTraceEnabled()    const { return m_flags.spmTraceEnabled; }
+    bool IsDfSpmTraceEnabled()  const { return m_flags.dfSpmTraceEnabled; }
 
 private:
     static const Pal::uint32 MaxNumCountersPerBitline = 16;
 
-    Pal::uint32 CountNumSamples(void* pBufferStart);
-    Pal::uint32 CountNumDfSamples(void* pBufferStart);
+    Pal::uint32 CountNumSamples(
+        void* pBufferStart);
+    Pal::uint32 CountNumDfSamples(
+        void* pBufferStart);
 
     // Common trace specific memory properties.
     GpuMemoryInfo m_traceGpuMemoryInfo; // CPU invisible memory used as thread trace buffer.

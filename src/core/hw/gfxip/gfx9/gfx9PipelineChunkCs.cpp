@@ -113,9 +113,6 @@ void PipelineChunkCs::InitRegisters(
     {
         m_regs.computePgmRsrc3.u32All = registers.At(Gfx10Plus::mmCOMPUTE_PGM_RSRC3);
 
-#if PAL_ENABLE_PRINTS_ASSERTS
-        m_device.AssertUserAccumRegsDisabled(registers, Gfx10Plus::mmCOMPUTE_USER_ACCUM_0);
-#endif
     }
 
     if (chipProps.gfx9.supportSpp == 1)

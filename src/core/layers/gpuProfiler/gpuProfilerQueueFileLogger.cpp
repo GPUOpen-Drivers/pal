@@ -49,7 +49,6 @@ constexpr const char* EngineTypeStrings[] =
     "Ace",
     "Dma",
     "Timer",
-
 };
 
 static_assert(ArrayLen(EngineTypeStrings) == EngineTypeCount, "Missing entry in EngineTypeStrings.");

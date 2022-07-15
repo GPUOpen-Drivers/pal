@@ -52,22 +52,22 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     const CmdBufferCreateInfo& createInfo,
     GfxCmdStream*              pCmdStream)
     :
-    GfxCmdBuffer(device, createInfo),
+    Pm4CmdBuffer(device, createInfo),
     m_spillTable{},
     m_device(device),
     m_pCmdStream(pCmdStream)
 {
     PAL_ASSERT(createInfo.queueType == QueueTypeCompute);
 
-    SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute,   &GfxCmdBuffer::CmdSetUserDataCs);
-    SwitchCmdSetUserDataFunc(PipelineBindPoint::Graphics,  &DummyCmdSetUserDataGfx);
+    SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute,  &Pm4CmdBuffer::CmdSetUserDataCs);
+    SwitchCmdSetUserDataFunc(PipelineBindPoint::Graphics, &DummyCmdSetUserDataGfx);
 }
 
 // =====================================================================================================================
 Result ComputeCmdBuffer::Init(
     const CmdBufferInternalCreateInfo& internalInfo)
 {
-    Result result = GfxCmdBuffer::Init(internalInfo);
+    Result result = Pm4CmdBuffer::Init(internalInfo);
 
     // Initialize the states for the embedded-data GPU memory table for spilling.
     if (result == Result::Success)
@@ -87,7 +87,7 @@ Result ComputeCmdBuffer::Init(
 Result ComputeCmdBuffer::Begin(
     const CmdBufferBuildInfo& info)
 {
-    const Result result = GfxCmdBuffer::Begin(info);
+    const Result result = Pm4CmdBuffer::Begin(info);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     if ((result == Result::Success) && (IsDumpingEnabled()))
@@ -113,7 +113,7 @@ Result ComputeCmdBuffer::BeginCommandStreams(
     CmdStreamBeginFlags cmdStreamFlags,
     bool                doReset)
 {
-    Result result = GfxCmdBuffer::BeginCommandStreams(cmdStreamFlags, doReset);
+    Result result = Pm4CmdBuffer::BeginCommandStreams(cmdStreamFlags, doReset);
 
     if (doReset)
     {
@@ -133,7 +133,7 @@ Result ComputeCmdBuffer::BeginCommandStreams(
 // Also ends command buffer dumping, if it is enabled.
 Result ComputeCmdBuffer::End()
 {
-    Result result = GfxCmdBuffer::End();
+    Result result = Pm4CmdBuffer::End();
 
     if (result == Result::Success)
     {
@@ -185,7 +185,7 @@ Result ComputeCmdBuffer::Reset(
     ICmdAllocator* pCmdAllocator,
     bool           returnGpuMemory)
 {
-    Result result = GfxCmdBuffer::Reset(pCmdAllocator, returnGpuMemory);
+    Result result = Pm4CmdBuffer::Reset(pCmdAllocator, returnGpuMemory);
 
     m_pCmdStream->Reset(static_cast<CmdAllocator*>(pCmdAllocator), returnGpuMemory);
 
@@ -196,7 +196,7 @@ Result ComputeCmdBuffer::Reset(
 // Resets all of the command buffer state tracked. After a reset there should be no state bound.
 void ComputeCmdBuffer::ResetState()
 {
-    GfxCmdBuffer::ResetState();
+    Pm4CmdBuffer::ResetState();
 
     ResetUserDataTable(&m_spillTable.stateCs);
 }

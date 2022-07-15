@@ -31,7 +31,6 @@
 #include "palSparseVector.h"
 #include "palLiterals.h"
 
-#include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/gfx6/chip/si_ci_vi_merged_enum.h"
 #include "core/hw/gfxip/gfx6/chip/si_ci_vi_merged_mask.h"
 #include "core/hw/gfxip/gfx6/chip/si_ci_vi_merged_shift.h"
@@ -40,6 +39,7 @@
 #include "core/hw/gfxip/gfx6/chip/si_ci_vi_merged_typedef.h"
 #include "core/hw/gfxip/gfx6/chip/si_ci_vi_merged_pm4_it_opcodes.h"
 #include "core/hw/gfxip/gfx6/chip/si_ci_vi_merged_pm4defs.h"
+#include "core/hw/gfxip/pm4CmdBuffer.h"
 
 // Put newly added registers definitions here to avoid getting lost when HW chip headers get regenerated,
 // Registers here can be simply removed once they are in place in HW chip header files over the time

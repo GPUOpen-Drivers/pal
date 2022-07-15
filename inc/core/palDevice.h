@@ -127,6 +127,12 @@ constexpr uint32 MaxShaderEngines       = 32;
 /// Maximum number of supported subunits each Shader Engine splits into (SH or SA, depending on generation)
 constexpr uint32 MaxShaderArraysPerSe   = 2;
 
+/// Size of the Active Pixel Packer Mask in DWORDs
+constexpr uint32 ActivePixelPackerMaskDwords = 4;
+
+/// Maximum number of pixel packers per SE expected by PAL
+constexpr uint32 MaxPixelPackerPerSe = 4;
+
 /// Defines host flags for Semaphore/Fence Array wait
 enum HostWaitFlags : uint32
 {
@@ -230,7 +236,9 @@ enum class OssIpLevel : uint32
     OssIp1 = 0x1,
     OssIp2 = 0x2,
 #endif
+#if PAL_BUILD_OSS2_4
     OssIp2_4 = 0x3,
+#endif
     OssIp4   = 0x4,
 };
 
@@ -654,9 +662,13 @@ struct PalPublicSettings
     bool depthClampBasedOnZExport;
     /// Force the PreColorTarget to an earlier PreRasterization point if used as a wait point. This is to prevent a
     /// write-after-read hazard for a corner case: shader exports from distinct packers are not ordered. Advancing
-    /// wait point from PreColorTarget to PostIndexFetch could cause over-sync due to extra  VS/PS_PARTIAL_FLUSH
+    /// wait point from PreColorTarget to PostPrefetch could cause over-sync due to extra  VS/PS_PARTIAL_FLUSH
     /// inserted. It is default to false, but client drivers may choose to app-detect to enable if see corruption.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 743
     bool forceWaitPointPreColorToPostIndexFetch;
+#else
+    bool forceWaitPointPreColorToPostPrefetch;
+#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 662
     /// Allows the client to disable debug overlay visual confirm after DebugOverlay::Platform is created when the
     /// panel setting DebugOverlayEnabled is globally set but a certain application might need to turn off visual
@@ -689,6 +701,17 @@ struct PalPublicSettings
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 716) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 719)
     /// Allows the client to control internalMemMgr::PoolAllocationSize. 0 is use pal default value.
     gpusize memMgrPoolAllocationSizeInBytes;
+#endif
+
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 744)
+    /// Allows the client to control binning persistent and context states per bin.
+    /// A value of 0 tells PAL to pick the number of states per bin.
+    uint32 binningPersistentStatesPerBin;
+    uint32 binningContextStatesPerBin;
+#endif
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 749)
+    /// This key controls if binning will be disabled when the PS may kill pixels.
+    DisableBinningPsKill disableBinningPsKill;
 #endif
 };
 
@@ -990,9 +1013,10 @@ struct DeviceProperties
                 /// presents even if the supportedDirectPresentModes flags below indicate no support for direct
                 /// presents; instead swap chain PresentMode support is queried via GetSwapChainInfo.
                 uint32 supportsSwapChainPresents :  1;
+                uint32 reserved744               :  1;
 
                 /// Reserved for future use.
-                uint32 reserved                  : 31;
+                uint32 reserved                  : 30;
             };
             uint32 u32All;                    ///< Flags packed as 32-bit uint.
         } flags;                              ///< Queue property flags.
@@ -1154,6 +1178,8 @@ struct DeviceProperties
         uint32 ceRamSize;           ///< Maximum on-chip CE RAM size in bytes.
         uint32 maxPrimgroupSize;    ///< Maximum primitive group size.
         uint32 supportedVrsRates;   ///< Bitmask of VrsShadingRate enumerations indicating which modes are supported.
+
+        uint32 mallSizeInBytes;     ///< Size of total MALL (Memory Attached Last Level - L3) cache in bytes.
 
         uint32 gl2UncachedCpuCoherency; ///< If supportGl2Uncached is set, then this is a bitmask of all
                                         ///  CacheCoherencyUsageFlags that will be coherent with CPU reads/writes.
@@ -1354,10 +1380,16 @@ struct DeviceProperties
             uint32 maxLateAllocVsLimit;     ///< Maximum number of VS waves that can be in flight without
                                             ///  having param cache and position buffer space.
             uint32 shaderPrefetchBytes;     ///< Number of bytes the SQ will prefetch, if any.
+            uint32 gl1cSizePerSa;           ///< Size in bytes of GL1 cache per SA.
+            uint32 instCacheSizePerCu;      ///< Size in bytes of instruction cache per CU/WGP.
+            uint32 scalarCacheSizePerCu;    ///< Size in bytes of scalar cache per CU/WGP.
             uint32 numAvailableCus;         ///< Total number of CUs that are actually usable.
             uint32 numPhysicalCus;          ///< Count of physical CUs prior to harvesting.
+            /// Mask of active pixel packers. The mask is 128 bits wide, assuming a max of 32 SEs and a max of 4 pixel
+            /// packers (indicated by a single bit each) per SE.
+            uint32 activePixelPackerMask[ActivePixelPackerMaskDwords];
+            /// Mask of present, non-harvested CUs (physical layout)
             uint32 activeCuMask[MaxShaderEngines][MaxShaderArraysPerSe];
-                                            ///< Mask of present, non-harvested CUs (physical layout)
         } shaderCore;                       ///< Properties of computational power of the shader engine.
 
     } gfxipProperties;
@@ -1804,8 +1836,7 @@ enum class PrtMapAccessType : uint32
 /// including read-only shader resources, UAVs, vertex buffers, etc.  The usage of stride and format depends on the
 /// expected shader instruction access:
 ///
-/// + _Typed buffer_ access must set a valid format and channel mapping, and the value of stride must be equal
-///   to the format's element size.
+/// + _Typed buffer_ access must set a valid format and channel mapping.
 /// + _Raw buffer_ access is indicated by setting an invalid format and setting stride to 1.
 /// + _Structured buffer_ access is indicated by setting an invalid format and setting stride to any value except 1.  A
 ///   stride of 0 maps all view accesses to the first structure stored in memory.
@@ -1820,10 +1851,10 @@ enum class PrtMapAccessType : uint32
 struct BufferViewInfo
 {
     gpusize         gpuAddr;        ///< GPU memory virtual address where the buffer view starts, in bytes.
+                                    ///  Must be aligned to bytes-per-element for typed access.
     gpusize         range;          ///< Restrict the buffer view to this many bytes.  Will be rounded down to a
                                     ///< multiple of the stride.
-    gpusize         stride;         ///< Stride in bytes. Must match the bytes-per-element of the view format for typed
-                                    ///  access.
+    gpusize         stride;         ///< Stride in bytes.  Must be aligned to bytes-per-element for typed access.
     SwizzledFormat  swizzledFormat; ///< Format and channel swizzle for typed access. Must be Undefined for structured
                                     ///  or raw access.
     union

@@ -1007,9 +1007,17 @@ Result Device::CreateGraphicsPipeline(
 
     auto* pPipeline = PAL_PLACEMENT_NEW(pPlacementAddr) GraphicsPipeline(this, isInternal);
 
+    MsgPackReader metadataReader;
+    PalAbi::CodeObjectMetadata metadata = {};
+
     if (result == Result::Success)
     {
-        result = pPipeline->Init(createInfo, internalInfo, abiReader);
+        result = abiReader.GetMetadata(&metadataReader, &metadata);
+    }
+
+    if (result == Result::Success)
+    {
+        result = pPipeline->Init(createInfo, internalInfo, abiReader, metadata, &metadataReader);
 
         if (result != Result::Success)
         {
@@ -1861,8 +1869,7 @@ void PAL_STDCALL Device::CreateTypedBufferViewSrds(
     {
         const auto& view = pBufferViewInfo[idx];
 
-        PAL_ASSERT(view.gpuAddr != 0);
-        PAL_ASSERT((view.stride == 0) || ((view.gpuAddr % Min<gpusize>(sizeof(uint32), view.stride)) == 0));
+        PAL_ASSERT(IsValidTypedBufferView(view));
 
         BufferSrd srd = { };
         srd.word0.bits.BASE_ADDRESS    = LowPart(view.gpuAddr);
@@ -1875,8 +1882,6 @@ void PAL_STDCALL Device::CreateTypedBufferViewSrds(
             srd.word3.bits.ATC__CI__VI = ((HighPart(view.gpuAddr) >> 0x10) != 0)
                 ? 0 : ((LowPart(view.gpuAddr) != 0) || ((HighPart(view.gpuAddr) & 0xFFFF) != 0));
         }
-        PAL_ASSERT(Formats::IsUndefined(view.swizzledFormat.format) == false);
-        PAL_ASSERT(Formats::BytesPerPixel(view.swizzledFormat.format) == view.stride);
 
         srd.word3.bits.DST_SEL_X   = Formats::Gfx6::HwSwizzle(view.swizzledFormat.swizzle.r);
         srd.word3.bits.DST_SEL_Y   = Formats::Gfx6::HwSwizzle(view.swizzledFormat.swizzle.g);
@@ -2702,6 +2707,9 @@ void InitializeGpuChipProperties(
     pInfo->imageProperties.tilingSupported[static_cast<uint32>(ImageTiling::Optimal)]      = true;
     pInfo->imageProperties.tilingSupported[static_cast<uint32>(ImageTiling::Standard64Kb)] = false;
 
+    pInfo->gfx6.numScPerSe              = 1;
+    pInfo->gfx6.numPackerPerSc          = 2;
+
     // NOTE: GFXIP 6+ hardware has the same wavefront size, VGPR count, TCA block count, SRD sizes and number of
     // user-data entries.
     pInfo->gfxip.hardwareContexts       = 8;
@@ -2732,6 +2740,14 @@ void InitializeGpuChipProperties(
         pInfo->gfxip.ldsSizePerThreadGroup = 64_KiB;
         pInfo->gfxip.ldsGranularity        = Gfx7LdsDwGranularity * sizeof(uint32);
     }
+
+    // GFXIP 6-8 do not support MALL
+    pInfo->gfxip.mallSizeInBytes  = 0_MiB;
+
+    // Overwritten if the device supports the following
+    pInfo->gfxip.gl1cSizePerSa         =  0_KiB;
+    pInfo->gfxip.instCacheSizePerCu    =  0_KiB;
+    pInfo->gfxip.scalarCacheSizePerCu  =  0_KiB;
 
     // All GFXIP 6-8 hardware share the same SRD sizes.
     pInfo->srdSizes.bufferView = sizeof(BufferSrd);
@@ -3012,6 +3028,9 @@ void InitializeGpuChipProperties(
         pInfo->gfxip.vaRangeNumBits = 40;
         pInfo->gfxip.tcpSizeInBytes = 16384;
 
+        pInfo->gfxip.instCacheSizePerCu   = 32_KiB;
+        pInfo->gfxip.scalarCacheSizePerCu = 16_KiB;
+
         pInfo->imageProperties.prtFeatures = Gfx8PrtFeatures;
 
         pInfo->gfx6.supportPatchTessDistribution = 1;
@@ -3155,6 +3174,9 @@ void InitializeGpuChipProperties(
         pInfo->gfxip.tcpSizeInBytes      = 16384;
         pInfo->gfxip.maxLateAllocVsLimit = 64;
 
+        pInfo->gfxip.instCacheSizePerCu   = 32_KiB;
+        pInfo->gfxip.scalarCacheSizePerCu = 16_KiB;
+
         pInfo->gfxip.supportGl2Uncached      = 0;
         pInfo->gfxip.gl2UncachedCpuCoherency = 0;
         pInfo->gfxip.supportCaptureReplay    = 0;
@@ -3266,6 +3288,19 @@ void FinalizeGpuChipProperties(
 
     PAL_ASSERT((pInfo->gfx6.numCuPerSh > 0) && (pInfo->gfx6.numCuPerSh <= pInfo->gfx6.maxNumCuPerSh));
     PAL_ASSERT((pInfo->gfx6.numCuAlwaysOnPerSh > 0) && (pInfo->gfx6.numCuAlwaysOnPerSh <= pInfo->gfx6.maxNumCuPerSh));
+
+    memset(pInfo->gfxip.activePixelPackerMask, 0, sizeof(pInfo->gfxip.activePixelPackerMask));
+    const uint32 numPixelPackersPerSe = pInfo->gfx6.numScPerSe * pInfo->gfx6.numPackerPerSc;
+    PAL_ASSERT(numPixelPackersPerSe <= MaxPixelPackerPerSe);
+    // By default, set all pixel packers to active based on the number of packers in a SE on a particular ASIC.
+    // eg. if an ASIC has 2 pixel packers per SE with 4 shader engines, then packerMask = ... 0011 0011 0011 0011
+    for (uint32 se = 0; se < pInfo->gfx6.numShaderEngines; ++se)
+    {
+        for (uint32 packer = 0; packer < numPixelPackersPerSe; ++packer)
+        {
+            WideBitfieldSetBit(pInfo->gfxip.activePixelPackerMask, packer + (MaxPixelPackerPerSe * se));
+        }
+    }
 
     // Initialize the performance counter info.  Perf counter info is reliant on a finalized GpuChipProperties
     // structure, so wait until the pInfo->gfx6 structure is "good to go".

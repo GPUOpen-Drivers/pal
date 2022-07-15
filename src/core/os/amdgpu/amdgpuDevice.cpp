@@ -24,6 +24,7 @@
  **********************************************************************************************************************/
 
 #include "g_coreSettings.h"
+#include "core/os/nullDevice/ndDevice.h"
 #include "core/os/amdgpu/amdgpuDevice.h"
 #include "core/os/amdgpu/amdgpuImage.h"
 #include "core/os/amdgpu/amdgpuQueue.h"
@@ -47,10 +48,8 @@
 #include "palIntrusiveListImpl.h"
 #include "core/addrMgr/addrMgr1/addrMgr1.h"
 #include "core/addrMgr/addrMgr2/addrMgr2.h"
-#if PAL_BUILD_GFX6
 //  NOTE: We need this for address pipe config.
 #include "core/hw/gfxip/gfx6/chip/si_ci_vi_merged_enum.h"
-#endif
 // NOTE: We need this chip header for reading registers.
 #include "core/hw/gfxip/gfx6/chip/si_ci_vi_merged_offset.h"
 #include "core/hw/gfxip/gfx6/chip/si_ci_vi_merged_mask.h"
@@ -879,7 +878,7 @@ Result Device::InitGpuProperties()
 
     const char* pMarketingName = m_drmProcs.pfnAmdgpuGetMarketingNameisValid() ?
                                  m_drmProcs.pfnAmdgpuGetMarketingName(m_hDevice) : nullptr;
-    if (pMarketingName != nullptr)
+    if ((pMarketingName != nullptr) && (IsSpoofed() == false))
     {
         Strncpy(&m_gpuName[0], pMarketingName, sizeof(m_gpuName));
     }
@@ -913,7 +912,6 @@ Result Device::InitGpuProperties()
     // ToDo: Retrieve ceram size of gfx engine from kmd, but the functionality is not supported yet.
     switch (m_chipProperties.gfxLevel)
     {
-#if PAL_BUILD_GFX6
     case GfxIpLevel::GfxIp6:
     case GfxIpLevel::GfxIp7:
     case GfxIpLevel::GfxIp8:
@@ -926,7 +924,6 @@ Result Device::InitGpuProperties()
                                             m_chipProperties.eRevId,
                                             &m_engineProperties);
         break;
-#endif
     case GfxIpLevel::GfxIp10_1:
     case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_3:
@@ -1058,7 +1055,6 @@ static bool TestCuAlwaysOnBitmap(
     return result;
 }
 
-#if PAL_BUILD_GFX6
 // =====================================================================================================================
 // Helper method which initializes the GPU chip properties for all hardware families using the GFX6 hardware layer.
 void Device::InitGfx6ChipProperties()
@@ -1071,52 +1067,64 @@ void Device::InitGfx6ChipProperties()
 
     Gfx6::InitializeGpuChipProperties(m_engineProperties.cpUcodeVersion, &m_chipProperties);
 
-    if (!m_drmProcs.pfnAmdgpuBoVaOpRawisValid())
+    // Any chip info from the KMD does not apply to a spoofed chip and should be ignored
+    if (IsSpoofed() == false)
     {
-        m_chipProperties.imageProperties.prtFeatures = static_cast<PrtFeatureFlags>(0);
-    }
+        if (!m_drmProcs.pfnAmdgpuBoVaOpRawisValid())
+        {
+            m_chipProperties.imageProperties.prtFeatures = static_cast<PrtFeatureFlags>(0);
+        }
 
-    // It should be per engine, but PAL does not. So just use the first one.
-    pChipInfo->backendDisableMask = m_gpuInfo.backend_disable[0];
-    pChipInfo->paScRasterCfg      = m_gpuInfo.pa_sc_raster_cfg[0];
-    pChipInfo->paScRasterCfg1     = m_gpuInfo.pa_sc_raster_cfg1[0];
+        // It should be per engine, but PAL does not. So just use the first one.
+        pChipInfo->backendDisableMask = m_gpuInfo.backend_disable[0];
+        pChipInfo->paScRasterCfg      = m_gpuInfo.pa_sc_raster_cfg[0];
+        pChipInfo->paScRasterCfg1     = m_gpuInfo.pa_sc_raster_cfg1[0];
 
-    uint32 spiConfigCntl = 0;
-    ReadRegisters(Gfx6::mmSPI_CONFIG_CNTL, 1, 0xffffffff, 0, &spiConfigCntl);
-    pChipInfo->sqgEventsEnabled = ((spiConfigCntl & Gfx6::SPI_CONFIG_CNTL__ENABLE_SQG_TOP_EVENTS_MASK) &&
-                                   (spiConfigCntl & Gfx6::SPI_CONFIG_CNTL__ENABLE_SQG_BOP_EVENTS_MASK));
+        uint32 spiConfigCntl = 0;
+        ReadRegisters(Gfx6::mmSPI_CONFIG_CNTL, 1, 0xffffffff, 0, &spiConfigCntl);
+        pChipInfo->sqgEventsEnabled = ((spiConfigCntl & Gfx6::SPI_CONFIG_CNTL__ENABLE_SQG_TOP_EVENTS_MASK) &&
+                                    (spiConfigCntl & Gfx6::SPI_CONFIG_CNTL__ENABLE_SQG_BOP_EVENTS_MASK));
 
-    pChipInfo->gbAddrConfig             = m_gpuInfo.gb_addr_cfg;
-    pChipInfo->mcArbRamcfg              = m_gpuInfo.mc_arb_ramcfg;
+        pChipInfo->gbAddrConfig             = m_gpuInfo.gb_addr_cfg;
+        pChipInfo->mcArbRamcfg              = m_gpuInfo.mc_arb_ramcfg;
 
-    pChipInfo->numShaderEngines = m_gpuInfo.num_shader_engines;
-    pChipInfo->numShaderArrays  = m_gpuInfo.num_shader_arrays_per_engine;
+        pChipInfo->numShaderEngines = m_gpuInfo.num_shader_engines;
+        pChipInfo->numShaderArrays  = m_gpuInfo.num_shader_arrays_per_engine;
 
-    switch (m_chipProperties.gfxLevel)
-    {
-    case GfxIpLevel::GfxIp6:
-    case GfxIpLevel::GfxIp7:
-        ReadRegisters(Gfx6::mmSQ_THREAD_TRACE_MASK__SI__CI, 1,  0xffffffff, 0, &pChipInfo->sqThreadTraceMask);
-        break;
-    case GfxIpLevel::GfxIp8:
-    case GfxIpLevel::GfxIp8_1:
-        ReadRegisters(Gfx6::mmSQ_THREAD_TRACE_MASK__VI, 1, 0xffffffff, 0, &pChipInfo->sqThreadTraceMask);
-        break;
-    default:
-        PAL_ASSERT_ALWAYS();
-        break;
-    }
+        switch (m_chipProperties.gfxLevel)
+        {
+        case GfxIpLevel::GfxIp6:
+        case GfxIpLevel::GfxIp7:
+            ReadRegisters(Gfx6::mmSQ_THREAD_TRACE_MASK__SI__CI, 1,  0xffffffff, 0, &pChipInfo->sqThreadTraceMask);
+            break;
+        case GfxIpLevel::GfxIp8:
+        case GfxIpLevel::GfxIp8_1:
+            ReadRegisters(Gfx6::mmSQ_THREAD_TRACE_MASK__VI, 1, 0xffffffff, 0, &pChipInfo->sqThreadTraceMask);
+            break;
+        default:
+            PAL_ASSERT_ALWAYS();
+            break;
+        }
 
-    if (m_drmProcs.pfnAmdgpuQueryInfo(m_hDevice, AMDGPU_INFO_DEV_INFO, sizeof(deviceInfo), &deviceInfo) == 0)
-    {
-        pChipInfo->doubleOffchipLdsBuffers = deviceInfo.gc_double_offchip_lds_buf;
+        if (m_drmProcs.pfnAmdgpuQueryInfo(m_hDevice, AMDGPU_INFO_DEV_INFO, sizeof(deviceInfo), &deviceInfo) == 0)
+        {
+            pChipInfo->doubleOffchipLdsBuffers = deviceInfo.gc_double_offchip_lds_buf;
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS();
+        }
+
+        InitGfx6CuMask(&deviceInfo);
     }
     else
     {
-        PAL_ASSERT_ALWAYS();
+#if PAL_BUILD_NULL_DEVICE
+        NullDevice::Device::FillGfx6ChipProperties(&m_chipProperties);
+#else
+        PAL_ASSERT_ALWAYS_MSG("NullDevice spoofing requested but not compiled in!");
+#endif
     }
-
-    InitGfx6CuMask(&deviceInfo);
 
     Gfx6::FinalizeGpuChipProperties(*this, &m_chipProperties);
     Gfx6::InitializePerfExperimentProperties(m_chipProperties, &m_perfExperimentProperties);
@@ -1172,7 +1180,6 @@ void Device::InitGfx6CuMask(
         }
     }
 }
-#endif
 
 // =====================================================================================================================
 // Helper method which initializes the GPU chip properties for all hardware families using the GFX9 hardware layer.
@@ -1184,67 +1191,82 @@ void Device::InitGfx9ChipProperties()
     // Call into the HWL to initialize the default values for many properties of the hardware (based on chip ID).
     Gfx9::InitializeGpuChipProperties(GetPlatform(), m_engineProperties.cpUcodeVersion, &m_chipProperties);
 
-    if (!m_drmProcs.pfnAmdgpuBoVaOpRawisValid())
+    // Any chip info from the KMD does not apply to a spoofed chip and should be ignored
+    if (IsSpoofed() == false)
     {
-        m_chipProperties.imageProperties.prtFeatures = static_cast<PrtFeatureFlags>(0);
-    }
+        if (!m_drmProcs.pfnAmdgpuBoVaOpRawisValid())
+        {
+            m_chipProperties.imageProperties.prtFeatures = static_cast<PrtFeatureFlags>(0);
+        }
 
-    if (((m_chipProperties.imageProperties.flags.supportDisplayDcc == 1) &&
-        (IsDrmVersionOrGreater(3, 34) == false))
-        )
-    {
-        m_chipProperties.imageProperties.flags.supportDisplayDcc = 0;
-    }
-    pChipInfo->gbAddrConfig = m_gpuInfo.gb_addr_cfg;
+        if (((m_chipProperties.imageProperties.flags.supportDisplayDcc == 1) &&
+            (IsDrmVersionOrGreater(3, 34) == false))
+            )
+        {
+            m_chipProperties.imageProperties.flags.supportDisplayDcc = 0;
+        }
+        pChipInfo->gbAddrConfig = m_gpuInfo.gb_addr_cfg;
 
-    if (m_drmProcs.pfnAmdgpuQueryInfo(m_hDevice, AMDGPU_INFO_DEV_INFO, sizeof(deviceInfo), &deviceInfo) == 0)
-    {
-        pChipInfo->numShaderEngines         = deviceInfo.num_shader_engines;
-        pChipInfo->numShaderArrays          = deviceInfo.num_shader_arrays_per_engine;
-        pChipInfo->maxNumRbPerSe            = deviceInfo.num_rb_pipes / deviceInfo.num_shader_engines;
-        pChipInfo->nativeWavefrontSize      = deviceInfo.wave_front_size;
-        pChipInfo->numPhysicalVgprsPerSimd  = deviceInfo.num_shader_visible_vgprs;
-        pChipInfo->maxNumCuPerSh            = deviceInfo.num_cu_per_sh;
-        pChipInfo->numTccBlocks             = deviceInfo.num_tcc_blocks;
-        pChipInfo->gsVgtTableDepth          = deviceInfo.gs_vgt_table_depth;
-        pChipInfo->gsPrimBufferDepth        = deviceInfo.gs_prim_buffer_depth;
-        pChipInfo->maxGsWavesPerVgt         = deviceInfo.max_gs_waves_per_vgt;
-        pChipInfo->doubleOffchipLdsBuffers  = deviceInfo.gc_double_offchip_lds_buf;
-        pChipInfo->paScTileSteeringOverride = 0;
-        pChipInfo->sdmaL2PolicyValid        = false;
+        if (m_drmProcs.pfnAmdgpuQueryInfo(m_hDevice, AMDGPU_INFO_DEV_INFO, sizeof(deviceInfo), &deviceInfo) == 0)
+        {
+            pChipInfo->numShaderEngines         = deviceInfo.num_shader_engines;
+            pChipInfo->numShaderArrays          = deviceInfo.num_shader_arrays_per_engine;
+            pChipInfo->maxNumRbPerSe            = deviceInfo.num_rb_pipes / deviceInfo.num_shader_engines;
+            pChipInfo->nativeWavefrontSize      = deviceInfo.wave_front_size;
+            pChipInfo->numPhysicalVgprsPerSimd  = deviceInfo.num_shader_visible_vgprs;
+            pChipInfo->maxNumCuPerSh            = deviceInfo.num_cu_per_sh;
+            pChipInfo->numTccBlocks             = deviceInfo.num_tcc_blocks;
+            pChipInfo->gsVgtTableDepth          = deviceInfo.gs_vgt_table_depth;
+            pChipInfo->gsPrimBufferDepth        = deviceInfo.gs_prim_buffer_depth;
+            pChipInfo->maxGsWavesPerVgt         = deviceInfo.max_gs_waves_per_vgt;
+            pChipInfo->doubleOffchipLdsBuffers  = deviceInfo.gc_double_offchip_lds_buf;
+            pChipInfo->paScTileSteeringOverride = 0;
+            pChipInfo->sdmaL2PolicyValid        = false;
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS();
+        }
+
+        if ((m_drmProcs.pfnAmdgpuVmReserveVmidisValid() || m_drmProcs.pfnAmdgpuCsReservedVmidisValid()) &&
+            (m_drmProcs.pfnAmdgpuVmUnreserveVmidisValid() || m_drmProcs.pfnAmdgpuCsUnreservedVmidisValid()))
+        {
+            m_chipProperties.gfxip.supportStaticVmid = 1;
+        }
+
+        if (IsGfx10(m_chipProperties.gfxLevel))
+        {
+            // We should probably ask that GPU__GC__NUM_TCP_PER_SA, GPU__GC__NUM_WGP0_PER_SA, and GPU__GC__NUM_WGP1_PER_SA
+            // be added to drm_amdgpu_info_device. For now use the hard-coded WGP defaults and assume 2 TCPs per WGP.
+            const uint32 wgpPerSa = pChipInfo->gfx10.numWgpAboveSpi + pChipInfo->gfx10.numWgpBelowSpi;
+
+            // If this triggers we probably didn't give this ASIC a hard-coded default WGP count.
+            PAL_ASSERT(wgpPerSa > 0);
+
+            pChipInfo->gfx10.numTcpPerSa = 2 * wgpPerSa;
+        }
+
+        InitGfx9CuMask(&deviceInfo);
     }
     else
     {
-        PAL_ASSERT_ALWAYS();
+#if PAL_BUILD_NULL_DEVICE
+        NullDevice::Device::FillGfx9ChipProperties(&m_chipProperties);
+#else
+        PAL_ASSERT_ALWAYS_MSG("NullDevice spoofing requested but not compiled in!");
+#endif
     }
-
-    if ((m_drmProcs.pfnAmdgpuVmReserveVmidisValid() || m_drmProcs.pfnAmdgpuCsReservedVmidisValid()) &&
-        (m_drmProcs.pfnAmdgpuVmUnreserveVmidisValid() || m_drmProcs.pfnAmdgpuCsUnreservedVmidisValid()))
-    {
-        m_chipProperties.gfxip.supportStaticVmid = 1;
-    }
-
-    if (IsGfx10(m_chipProperties.gfxLevel))
-    {
-        // We should probably ask that GPU__GC__NUM_TCP_PER_SA, GPU__GC__NUM_WGP0_PER_SA, and GPU__GC__NUM_WGP1_PER_SA
-        // be added to drm_amdgpu_info_device. For now use the hard-coded WGP defaults and assume 2 TCPs per WGP.
-        const uint32 wgpPerSa = pChipInfo->gfx10.numWgpAboveSpi + pChipInfo->gfx10.numWgpBelowSpi;
-
-        // If this triggers we probably didn't give this ASIC a hard-coded default WGP count.
-        PAL_ASSERT(wgpPerSa > 0);
-
-        pChipInfo->gfx10.numTcpPerSa = 2 * wgpPerSa;
-    }
-
-    InitGfx9CuMask(&deviceInfo);
 
     // Call into the HWL to finish initializing some GPU properties which can be derived from the ones which we
     // overrode above.
     Gfx9::FinalizeGpuChipProperties(*this, &m_chipProperties);
 
-    pChipInfo->numActiveRbs = CountSetBits(m_gpuInfo.enabled_rb_pipes_mask);
+    if (IsSpoofed() == false)
+    {
+        pChipInfo->numActiveRbs = CountSetBits(m_gpuInfo.enabled_rb_pipes_mask);
 
-    pChipInfo->backendDisableMask = (~m_gpuInfo.enabled_rb_pipes_mask) & ((1 << pChipInfo->numTotalRbs) - 1);
+        pChipInfo->backendDisableMask = (~m_gpuInfo.enabled_rb_pipes_mask) & ((1 << pChipInfo->numTotalRbs) - 1);
+    }
 
     Gfx9::InitializePerfExperimentProperties(m_chipProperties, &m_perfExperimentProperties);
 
@@ -2066,7 +2088,14 @@ Result Device::CreateImage(
     // Not impact AMDVLK import external image.
     if (createInfo.flags.optimalShareable)
     {
-        if (ChipProperties().gfxLevel < GfxIpLevel::GfxIp9)
+        if (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9)
+        {
+            internalInfo.flags.useSharedTilingOverrides = 1;
+            // PipeBankXor is zero initialized by internalInfo declaration
+            // Do not override the swizzle mode value
+            internalInfo.gfx9.sharedSwizzleMode = ADDR_SW_MAX_TYPE;
+        }
+        else
         {
             internalInfo.flags.useSharedTilingOverrides = 1;
             // Tile swizzle is zero initialized by internalInfo declaration
@@ -2074,13 +2103,6 @@ Result Device::CreateImage(
             internalInfo.gfx6.sharedTileMode = ADDR_TM_COUNT;
             internalInfo.gfx6.sharedTileType = TileTypeInvalid;
             internalInfo.gfx6.sharedTileIndex = TileIndexUnused;
-        }
-        else if (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9)
-        {
-            internalInfo.flags.useSharedTilingOverrides = 1;
-            // PipeBankXor is zero initialized by internalInfo declaration
-            // Do not override the swizzle mode value
-            internalInfo.gfx9.sharedSwizzleMode = ADDR_SW_MAX_TYPE;
         }
     }
 
@@ -3300,7 +3322,6 @@ static uint32 AmdGpuToPalPipeConfigConversion(
             break;
     }
 
-#if PAL_BUILD_GFX6
     namespace Gfx6 = Pal::Gfx6::Chip;
     namespace Gfx9 = Pal::Gfx9::Chip;
 
@@ -3321,7 +3342,6 @@ static uint32 AmdGpuToPalPipeConfigConversion(
     static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P16_32x32_8x16__CI__VI)  == static_cast<uint32>(Gfx9::ADDR_SURF_P16_32x32_8x16),  "Enums need updating!");
     static_assert(static_cast<uint32>(Gfx6::ADDR_SURF_P16_32x32_16x16__CI__VI) == static_cast<uint32>(Gfx9::ADDR_SURF_P16_32x32_16x16), "Enums need updating!");
     // clang-format on
-#endif
 
     return palPipeConfig;
 }
@@ -3393,7 +3413,22 @@ void Device::UpdateImageInfo(
     {
         if (info.metadata.size_metadata >= PRO_UMD_METADATA_SIZE)
         {
-            if (ChipProperties().gfxLevel < GfxIpLevel::GfxIp9)
+            if (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9)
+            {
+                AddrMgr2::TileInfo *const pTileInfo = static_cast<AddrMgr2::TileInfo*>
+                                                           (pImage->GetSubresourceTileInfo(0));
+                auto*const pUmdMetaData             = reinterpret_cast<amdgpu_bo_umd_metadata*>
+                                                           (&info.metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
+                pTileInfo->pipeBankXor              = pUmdMetaData->pipeBankXor;
+
+                for (uint32 plane = 1; plane < numPlanes; plane++)
+                {
+                    AddrMgr2::TileInfo *const pPlaneTileInfo = static_cast<AddrMgr2::TileInfo*>
+                                                               (pImage->GetSubresourceTileInfo(subResPerPlane * plane));
+                    pPlaneTileInfo->pipeBankXor              = pUmdMetaData->additionalPipeBankXor[plane - 1];
+                }
+            }
+            else
             {
                 AddrMgr1::TileInfo *const pTileInfo = static_cast<AddrMgr1::TileInfo*>
                                                         (pImage->GetSubresourceTileInfo(0));
@@ -3423,25 +3458,6 @@ void Device::UpdateImageInfo(
                                                                (pImage->GetSubresourceTileInfo(subResPerPlane * plane));
                     pPlaneTileInfo->tileSwizzle              = pUmdMetaData->additionalPipeBankXor[plane - 1];
                 }
-            }
-            else if (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9)
-            {
-                AddrMgr2::TileInfo *const pTileInfo = static_cast<AddrMgr2::TileInfo*>
-                                                           (pImage->GetSubresourceTileInfo(0));
-                auto*const pUmdMetaData             = reinterpret_cast<amdgpu_bo_umd_metadata*>
-                                                           (&info.metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
-                pTileInfo->pipeBankXor              = pUmdMetaData->pipeBankXor;
-
-                for (uint32 plane = 1; plane < numPlanes; plane++)
-                {
-                    AddrMgr2::TileInfo *const pPlaneTileInfo = static_cast<AddrMgr2::TileInfo*>
-                                                               (pImage->GetSubresourceTileInfo(subResPerPlane * plane));
-                    pPlaneTileInfo->pipeBankXor              = pUmdMetaData->additionalPipeBankXor[plane - 1];
-                }
-            }
-            else
-            {
-                PAL_NOT_IMPLEMENTED();
             }
         }
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 681
@@ -3512,61 +3528,7 @@ void Device::UpdateMetaData(
     auto*const pUmdMetaData = reinterpret_cast<amdgpu_bo_umd_metadata*>
                               (&metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
 
-    if (ChipProperties().gfxLevel < GfxIpLevel::GfxIp9)
-    {
-        metadata.tiling_info   = AMDGPU_TILE_MODE__2D_TILED_THIN1;
-        metadata.size_metadata = PRO_UMD_METADATA_SIZE;
-
-        const SubResourceInfo*const    pSubResInfo = image.SubresourceInfo(0);
-        const AddrMgr1::TileInfo*const pTileInfo   = AddrMgr1::GetTileInfo(&image, 0);
-
-        memset(&metadata.umd_metadata[0], 0, PRO_UMD_METADATA_OFFSET_DWORD * sizeof(metadata.umd_metadata[0]));
-        pUmdMetaData->width_in_pixels        = pSubResInfo->extentTexels.width;
-        pUmdMetaData->height                 = pSubResInfo->extentTexels.height;
-        pUmdMetaData->depth                  = pSubResInfo->extentTexels.depth;
-        pUmdMetaData->aligned_pitch_in_bytes = pSubResInfo->rowPitch;
-        pUmdMetaData->aligned_height         = pSubResInfo->actualExtentTexels.height;
-        pUmdMetaData->tile_index             = pTileInfo->tileIndex;
-        pUmdMetaData->format                 = PalToAmdGpuFormatConversion(pSubResInfo->format);
-        pUmdMetaData->tile_mode              = AddrToAmdGpuTileModeConversion(pTileInfo->tileMode);
-        pUmdMetaData->micro_tile_mode        = static_cast<AMDGPU_MICRO_TILE_MODE>(pTileInfo->tileType);
-
-        pUmdMetaData->pipeBankXor            = pTileInfo->tileSwizzle;
-
-        for (uint32 plane = 1; plane < (image.GetImageInfo().numPlanes); plane++)
-        {
-            const AddrMgr1::TileInfo*const pPlaneTileInfo  = AddrMgr1::GetTileInfo(&image, (subResPerPlane * plane));
-            pUmdMetaData->additionalPipeBankXor[plane - 1] = pPlaneTileInfo->tileSwizzle;
-        }
-
-        pUmdMetaData->tile_config.pipe_config        = PalToAmdGpuPipeConfigConversion(pTileInfo->pipeConfig);
-        pUmdMetaData->tile_config.banks              = pTileInfo->banks;
-        pUmdMetaData->tile_config.bank_width         = pTileInfo->bankWidth;
-        pUmdMetaData->tile_config.bank_height        = pTileInfo->bankHeight;
-        pUmdMetaData->tile_config.macro_aspect_ratio = pTileInfo->macroAspectRatio;
-        pUmdMetaData->tile_config.tile_split_bytes   = pTileInfo->tileSplitBytes;
-
-        // set the tiling_info according to mesa's definition.
-        AmdGpuTilingFlags tilingFlags;
-        // the tilingFlags uses ADDRLIB definition but not AMDGPU.
-        tilingFlags.u64All          = 0;
-        tilingFlags.arrayMode       = pTileInfo->tileMode;
-        tilingFlags.pipeConfig      = pTileInfo->pipeConfig;
-        tilingFlags.tileSplit       = pTileInfo->tileSplitBytes;
-        tilingFlags.bankWidth       = pTileInfo->bankWidth;
-        tilingFlags.bankHeight      = pTileInfo->bankHeight;
-        tilingFlags.macroTileAspect = pTileInfo->macroAspectRatio;
-        tilingFlags.numBanks        = pTileInfo->banks;
-
-        // in order to sharing resource metadata with Mesa3D, the definition have to follow Mesa's way.
-        // the micro tile mode is used in Mesa to indicate whether the surface is displyable.
-        // it is bool typed, 0 for displayable and 1 for not displayable in current version.
-        // forcing it to be 0 for presentable image,
-        tilingFlags.microTileMode   = 0;
-
-        metadata.tiling_info = tilingFlags.u64All;
-    }
-    else if (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9)
+    if (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9)
     {
         const SubResourceInfo*const    pSubResInfo = image.SubresourceInfo(0);
         const AddrMgr2::TileInfo*const pTileInfo   = AddrMgr2::GetTileInfo(&image, 0);
@@ -3627,7 +3589,57 @@ void Device::UpdateMetaData(
     }
     else
     {
-        PAL_NOT_IMPLEMENTED();
+        metadata.tiling_info   = AMDGPU_TILE_MODE__2D_TILED_THIN1;
+        metadata.size_metadata = PRO_UMD_METADATA_SIZE;
+
+        const SubResourceInfo*const    pSubResInfo = image.SubresourceInfo(0);
+        const AddrMgr1::TileInfo*const pTileInfo   = AddrMgr1::GetTileInfo(&image, 0);
+
+        memset(&metadata.umd_metadata[0], 0, PRO_UMD_METADATA_OFFSET_DWORD * sizeof(metadata.umd_metadata[0]));
+        pUmdMetaData->width_in_pixels        = pSubResInfo->extentTexels.width;
+        pUmdMetaData->height                 = pSubResInfo->extentTexels.height;
+        pUmdMetaData->depth                  = pSubResInfo->extentTexels.depth;
+        pUmdMetaData->aligned_pitch_in_bytes = pSubResInfo->rowPitch;
+        pUmdMetaData->aligned_height         = pSubResInfo->actualExtentTexels.height;
+        pUmdMetaData->tile_index             = pTileInfo->tileIndex;
+        pUmdMetaData->format                 = PalToAmdGpuFormatConversion(pSubResInfo->format);
+        pUmdMetaData->tile_mode              = AddrToAmdGpuTileModeConversion(pTileInfo->tileMode);
+        pUmdMetaData->micro_tile_mode        = static_cast<AMDGPU_MICRO_TILE_MODE>(pTileInfo->tileType);
+
+        pUmdMetaData->pipeBankXor            = pTileInfo->tileSwizzle;
+
+        for (uint32 plane = 1; plane < (image.GetImageInfo().numPlanes); plane++)
+        {
+            const AddrMgr1::TileInfo*const pPlaneTileInfo  = AddrMgr1::GetTileInfo(&image, (subResPerPlane * plane));
+            pUmdMetaData->additionalPipeBankXor[plane - 1] = pPlaneTileInfo->tileSwizzle;
+        }
+
+        pUmdMetaData->tile_config.pipe_config        = PalToAmdGpuPipeConfigConversion(pTileInfo->pipeConfig);
+        pUmdMetaData->tile_config.banks              = pTileInfo->banks;
+        pUmdMetaData->tile_config.bank_width         = pTileInfo->bankWidth;
+        pUmdMetaData->tile_config.bank_height        = pTileInfo->bankHeight;
+        pUmdMetaData->tile_config.macro_aspect_ratio = pTileInfo->macroAspectRatio;
+        pUmdMetaData->tile_config.tile_split_bytes   = pTileInfo->tileSplitBytes;
+
+        // set the tiling_info according to mesa's definition.
+        AmdGpuTilingFlags tilingFlags;
+        // the tilingFlags uses ADDRLIB definition but not AMDGPU.
+        tilingFlags.u64All          = 0;
+        tilingFlags.arrayMode       = pTileInfo->tileMode;
+        tilingFlags.pipeConfig      = pTileInfo->pipeConfig;
+        tilingFlags.tileSplit       = pTileInfo->tileSplitBytes;
+        tilingFlags.bankWidth       = pTileInfo->bankWidth;
+        tilingFlags.bankHeight      = pTileInfo->bankHeight;
+        tilingFlags.macroTileAspect = pTileInfo->macroAspectRatio;
+        tilingFlags.numBanks        = pTileInfo->banks;
+
+        // in order to sharing resource metadata with Mesa3D, the definition have to follow Mesa's way.
+        // the micro tile mode is used in Mesa to indicate whether the surface is displyable.
+        // it is bool typed, 0 for displayable and 1 for not displayable in current version.
+        // forcing it to be 0 for presentable image,
+        tilingFlags.microTileMode   = 0;
+
+        metadata.tiling_info = tilingFlags.u64All;
     }
 
     pUmdMetaData->array_size              = imageCreateInfo.arraySize;

@@ -25,6 +25,7 @@
 
 #include "core/device.h"
 #include "core/platform.h"
+#include "core/hw/gfxip/gfx9/gfx9AbiToPipelineRegisters.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9ColorBlendState.h"
 #include "core/hw/gfxip/gfx9/gfx9ComputePipeline.h"
@@ -183,7 +184,7 @@ GraphicsPipeline::GraphicsPipeline(
     m_contextRegHash(0),
     m_rbplusRegHash(0),
     m_configRegHash(0),
-    m_isNggFastLaunch(false),
+    m_fastLaunchMode(GsFastLaunchMode::Disabled),
     m_nggSubgroupSize(0),
     m_uavExportRequiresFlush(false),
     m_binningAllowed(false),
@@ -208,30 +209,37 @@ GraphicsPipeline::GraphicsPipeline(
 // active.
 void GraphicsPipeline::EarlyInit(
     const PalAbi::CodeObjectMetadata& metadata,
-    const RegisterVector&             registers,
     GraphicsPipelineLoadInfo*         pInfo)
 {
-    const RegisterInfo& regInfo = m_pDevice->CmdUtil().GetRegInfo();
+    const RegisterInfo&      regInfo   = m_pDevice->CmdUtil().GetRegInfo();
+    const Pal::Device&       palDevice = *m_pDevice->Parent();
+    const GpuChipProperties& chipProps = palDevice.ChipProperties();
+    const GfxIpLevel         gfxLevel  = chipProps.gfxLevel;
 
-    // VGT_SHADER_STAGES_EN and must be read first, since it determines which HW stages are active!
-    m_regs.context.vgtShaderStagesEn.u32All = registers.At(mmVGT_SHADER_STAGES_EN);
+    // We must set up which stages are enabled first!
+    {
+        m_regs.context.vgtShaderStagesEn.u32All = AbiRegisters::VgtShaderStagesEn(metadata, *m_pDevice, gfxLevel);
+        m_fastLaunchMode  =
+            (IsGfx10Plus(m_gfxLevel)) ?
+            static_cast<GsFastLaunchMode>(metadata.pipeline.graphicsRegister.vgtShaderStagesEn.gsFastLaunch) :
+            GsFastLaunchMode::Disabled;
+    }
 
-    m_isNggFastLaunch = (IsGfx091xPlus(*(m_pDevice->Parent())) ?
-                         (m_regs.context.vgtShaderStagesEn.gfx09_1xPlus.GS_FAST_LAUNCH != 0) :
-                         (m_regs.context.vgtShaderStagesEn.gfx09_0.GS_FAST_LAUNCH != 0));
     m_nggSubgroupSize = (metadata.pipeline.hasEntry.nggSubgroupSize) ? metadata.pipeline.nggSubgroupSize : 0;
 
-    // Similarly, VGT_GS_MODE should also be read early, since it determines if on-chip GS is enabled.
+    // Determine whether or not GS is onchip or not.
+    if (chipProps.gfxip.supportsHwVs == false)
     {
-        registers.HasEntry(HasHwVs::mmVGT_GS_MODE, &m_regs.context.vgtGsMode.u32All);
-        if (IsGsEnabled() && (m_regs.context.vgtGsMode.bits.ONCHIP == VgtGsModeOnchip))
-        {
-            SetIsGsOnChip(true);
-        }
+        // GS is always on chip.
+        SetIsGsOnChip(IsGsEnabled());
+    }
+    else if (IsGsEnabled() && (metadata.pipeline.graphicsRegister.vgtGsMode.onchip != 0))
+    {
+        SetIsGsOnChip(true);
     }
 
     // Must be called *after* determining active HW stages!
-    SetupSignatureFromElf(metadata, registers, &pInfo->esGsLdsSizeRegGs, &pInfo->esGsLdsSizeRegVs);
+    SetupSignatureFromElf(metadata, &pInfo->esGsLdsSizeRegGs, &pInfo->esGsLdsSizeRegVs);
 
     pInfo->enableNgg    = IsNgg();
     pInfo->usesOnChipGs = IsGsOnChip();
@@ -240,7 +248,7 @@ void GraphicsPipeline::EarlyInit(
     {
         m_chunkGs.EarlyInit(pInfo);
     }
-    m_chunkVsPs.EarlyInit(registers, pInfo);
+    m_chunkVsPs.EarlyInit(metadata, pInfo);
 }
 
 // =====================================================================================================================
@@ -252,32 +260,21 @@ Result GraphicsPipeline::HwlInit(
     const PalAbi::CodeObjectMetadata& metadata,
     MsgPackReader*                    pMetadataReader)
 {
-    RegisterVector registers(m_pDevice->GetPlatform());
-    Result result = pMetadataReader->Seek(metadata.pipeline.registers);
+    GraphicsPipelineLoadInfo loadInfo = { };
+    EarlyInit(metadata, &loadInfo);
+
+    // Next, handle relocations and upload the pipeline code & data to GPU memory.
+    PipelineUploader uploader(m_pDevice->Parent(), abiReader);
+    Result result = PerformRelocationsAndUploadToGpuMemory(
+        metadata,
+        IsInternal() ? GpuHeapLocal : m_pDevice->Parent()->GetPublicSettings()->pipelinePreferredHeap,
+        &uploader);
 
     if (result == Result::Success)
     {
-        result = pMetadataReader->Unpack(&registers);
-    }
-
-    if (result == Result::Success)
-    {
-        GraphicsPipelineLoadInfo loadInfo = { };
-        EarlyInit(metadata, registers, &loadInfo);
-
-        // Next, handle relocations and upload the pipeline code & data to GPU memory.
-        PipelineUploader uploader(m_pDevice->Parent(), abiReader);
-        result = PerformRelocationsAndUploadToGpuMemory(
-            metadata,
-            IsInternal() ? GpuHeapLocal : m_pDevice->Parent()->GetPublicSettings()->pipelinePreferredHeap,
-            &uploader);
-
-        if (result == Result::Success)
-        {
-            LateInit(createInfo, abiReader, metadata, registers, loadInfo, &uploader);
-            PAL_ASSERT(m_uploadFenceToken == 0);
-            result = uploader.End(&m_uploadFenceToken);
-        }
+        LateInit(createInfo, abiReader, metadata, loadInfo, &uploader);
+        PAL_ASSERT(m_uploadFenceToken == 0);
+        result = uploader.End(&m_uploadFenceToken);
     }
 
     return result;
@@ -288,7 +285,6 @@ void GraphicsPipeline::LateInit(
     const GraphicsPipelineCreateInfo& createInfo,
     const AbiReader&                  abiReader,
     const PalAbi::CodeObjectMetadata& metadata,
-    const RegisterVector&             registers,
     const GraphicsPipelineLoadInfo&   loadInfo,
     PipelineUploader*                 pUploader)
 {
@@ -297,16 +293,16 @@ void GraphicsPipeline::LateInit(
 
     if (IsTessEnabled())
     {
-        m_chunkHs.LateInit(abiReader, registers, pUploader, &hasher);
+        m_chunkHs.LateInit(abiReader, metadata, pUploader, &hasher);
     }
     if (IsGsEnabled() || IsNgg())
     {
-        m_chunkGs.LateInit(abiReader, metadata, registers, loadInfo, createInfo, pUploader, &hasher);
+        m_chunkGs.LateInit(abiReader, metadata, loadInfo, createInfo, pUploader, &hasher);
     }
-    m_chunkVsPs.LateInit(abiReader, metadata, registers, loadInfo, createInfo, pUploader, &hasher);
+    m_chunkVsPs.LateInit(abiReader, metadata, loadInfo, createInfo, pUploader, &hasher);
 
-    SetupCommonRegisters(createInfo, registers);
-    SetupNonShaderRegisters(createInfo, registers);
+    SetupCommonRegisters(createInfo, metadata);
+    SetupNonShaderRegisters(createInfo, metadata);
     SetupStereoRegisters();
     SetupFetchShaderInfo(pUploader);
 
@@ -369,12 +365,17 @@ void GraphicsPipeline::DetermineBinningOnOff()
     const bool canReject =
         (dbShaderControl.bits.Z_EXPORT_ENABLE == 0) ||
         (dbShaderControl.bits.CONSERVATIVE_Z_EXPORT > 0);
-
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 749)
     // Disable binning when the pixels can be rejected before the PS and the PS can kill the pixel.
     // This is an optimization for cases where early Z accepts are not allowed (because the shader may kill) and early
     // Z rejects are allowed (PS does not output depth).
     // In such cases the binner orders pixel traffic in a suboptimal way.
-    disableBinning |= canKill && canReject && settings.disableBinningPsKill;
+    disableBinning |= canKill && canReject && (m_pDevice->Parent()->GetPublicSettings()->disableBinningPsKill
+                                               == DisableBinningPsKill::True);
+#else
+    disableBinning |=
+        canKill && canReject;
+#endif
 
     // Disable binning when the PS uses append/consume.
     // In such cases, binning changes the ordering of append/consume opeartions. This re-ordering can be suboptimal.
@@ -808,230 +809,197 @@ void GraphicsPipeline::SetupRbPlusRegistersForSlot(
 // Initializes render-state registers which are associated with multiple hardware shader stages.
 void GraphicsPipeline::SetupCommonRegisters(
     const GraphicsPipelineCreateInfo& createInfo,
-    const RegisterVector&             registers)
+    const PalAbi::CodeObjectMetadata& metadata)
 {
-    const auto&              palDevice = *(m_pDevice->Parent());
-    const GpuChipProperties& chipProps = palDevice.ChipProperties();
-    const RegisterInfo&      regInfo   = m_pDevice->CmdUtil().GetRegInfo();
-    const Gfx9PalSettings&   settings  = m_pDevice->Settings();
+    const auto&              palDevice    = *(m_pDevice->Parent());
+    const GpuChipProperties& chipProps    = palDevice.ChipProperties();
+    const RegisterInfo&      regInfo      = m_pDevice->CmdUtil().GetRegInfo();
+    const Gfx9PalSettings&   settings     = m_pDevice->Settings();
     const PalPublicSettings* pPalSettings = m_pDevice->Parent()->GetPublicSettings();
 
-    m_regs.context.paClClipCntl.u32All = registers.At(mmPA_CL_CLIP_CNTL);
-    m_regs.context.paClVteCntl.u32All  = registers.At(mmPA_CL_VTE_CNTL);
-    m_regs.context.paSuVtxCntl.u32All  = registers.At(mmPA_SU_VTX_CNTL);
-    m_regs.other.paScModeCntl1.u32All  = registers.At(mmPA_SC_MODE_CNTL_1);
+    m_regs.context.paClClipCntl.u32All       = AbiRegisters::PaClClipCntl(metadata, *m_pDevice, createInfo);
+    m_regs.context.paClVteCntl.u32All        = AbiRegisters::PaClVteCntl(metadata);
+    m_regs.context.paSuVtxCntl.u32All        = AbiRegisters::PaSuVtxCntl(metadata);
+    m_regs.context.spiShaderIdxFormat.u32All = AbiRegisters::SpiShaderIdxFormat(metadata);
+    m_regs.context.spiShaderColFormat.u32All = AbiRegisters::SpiShaderColFormat(metadata);
+    m_regs.context.spiShaderPosFormat.u32All = AbiRegisters::SpiShaderPosFormat(metadata, m_gfxLevel);
+    m_regs.context.spiShaderZFormat.u32All   = AbiRegisters::SpiShaderZFormat(metadata);
+    m_regs.context.spiInterpControl0.u32All  = AbiRegisters::SpiInterpControl0(metadata, createInfo);
+    m_regs.context.vgtGsMode.u32All          = AbiRegisters::VgtGsMode(metadata);
+    m_regs.context.vgtGsOnchipCntl.u32All    = AbiRegisters::VgtGsOnchipCntl(metadata);
+    m_regs.context.vgtReuseOff.u32All        = AbiRegisters::VgtReuseOff(metadata);
+    m_regs.context.vgtTfParam.u32All         = AbiRegisters::VgtTfParam(metadata, m_gfxLevel);
+    m_regs.context.vgtDrawPayloadCntl.u32All = AbiRegisters::VgtDrawPayloadCntl(metadata, *m_pDevice, m_gfxLevel);
 
-    if (IsGfx10Plus(m_gfxLevel) && (IsGsEnabled() || IsNgg()))
+    m_regs.other.spiPsInControl.u32All = AbiRegisters::SpiPsInControl(metadata, m_gfxLevel);
+    m_regs.other.spiVsOutConfig.u32All = AbiRegisters::SpiVsOutConfig(metadata, *m_pDevice, m_gfxLevel);
+    m_regs.other.vgtLsHsConfig.u32All  = AbiRegisters::VgtLsHsConfig(metadata);
+    m_regs.other.paScModeCntl1.u32All  = AbiRegisters::PaScModeCntl1(metadata, createInfo, *m_pDevice);
+    m_info.ps.flags.perSampleShading   = m_regs.other.paScModeCntl1.bits.PS_ITER_SAMPLE;
+
+    // DB_RENDER_OVERRIDE
     {
-        m_regs.context.spiShaderIdxFormat.u32All = registers.At(Gfx10Plus::mmSPI_SHADER_IDX_FORMAT);
-    }
-    m_regs.context.spiShaderColFormat.u32All = registers.At(mmSPI_SHADER_COL_FORMAT);
-    m_regs.context.spiShaderPosFormat.u32All = registers.At(mmSPI_SHADER_POS_FORMAT);
-    m_regs.context.spiShaderZFormat.u32All   = registers.At(mmSPI_SHADER_Z_FORMAT);
+        // NOTE: On recommendation from h/ware team FORCE_SHADER_Z_ORDER will be set whenever Re-Z is being used.
+        m_regs.other.dbRenderOverride.bits.FORCE_SHADER_Z_ORDER = (m_chunkVsPs.DbShaderControl().bits.Z_ORDER == RE_Z);
 
-    m_regs.context.paClClipCntl.bits.DX_CLIP_SPACE_DEF = (createInfo.viewportInfo.depthRange == DepthRange::ZeroToOne);
-    if (createInfo.viewportInfo.depthClipNearEnable == false)
-    {
-        m_regs.context.paClClipCntl.bits.ZCLIP_NEAR_DISABLE = 1;
-    }
-    if (createInfo.viewportInfo.depthClipFarEnable == false)
-    {
-        m_regs.context.paClClipCntl.bits.ZCLIP_FAR_DISABLE = 1;
-    }
+        // Configure depth clamping
+        // Register specification does not specify dependence of DISABLE_VIEWPORT_CLAMP on Z_EXPORT_ENABLE, but
+        // removing the dependence leads to perf regressions in some applications for Vulkan, DX and OGL.
+        // The reason for perf drop can be narrowed down to the DepthExpand RPM pipeline. Disabling viewport clamping
+        // (DISABLE_VIEWPORT_CLAMP = 1) for this pipeline results in heavy perf drops.
+        // It's also important to note that this issue is caused by the graphics depth fast clear not the depth expand
+        // itself.  It simply reuses the same RPM pipeline from the depth expand.
 
-    registers.HasEntry(Gfx09_10::mmVGT_GS_ONCHIP_CNTL, &m_regs.context.vgtGsOnchipCntl.u32All);
-
-    // Overrides some of the fields in PA_SC_MODE_CNTL1 to account for GPU pipe config and features like out-of-order
-    // rasterization.
-
-    // The maximum value for OUT_OF_ORDER_WATER_MARK is 7
-    constexpr uint32 MaxOutOfOrderWatermark = 7;
-    m_regs.other.paScModeCntl1.bits.OUT_OF_ORDER_WATER_MARK = Min(MaxOutOfOrderWatermark,
-                                                                  settings.outOfOrderWatermark);
-
-    if (createInfo.rsState.outOfOrderPrimsEnable &&
-        (settings.enableOutOfOrderPrimitives != OutOfOrderPrimDisable))
-    {
-        m_regs.other.paScModeCntl1.bits.OUT_OF_ORDER_PRIMITIVE_ENABLE = 1;
-    }
-
-    // Hardware team recommendation is to set WALK_FENCE_SIZE to 512 pixels for 4/8/16 pipes and 256 pixels
-    // for 2 pipes.
-    m_regs.other.paScModeCntl1.bits.WALK_FENCE_SIZE = ((m_pDevice->GetNumPipesLog2() <= 1) ? 2 : 3);
-
-    switch (createInfo.rsState.forcedShadingRate)
-    {
-    case PsShadingRate::SampleRate:
-        m_regs.other.paScModeCntl1.bits.PS_ITER_SAMPLE = 1;
-        break;
-    case PsShadingRate::PixelRate:
-        m_regs.other.paScModeCntl1.bits.PS_ITER_SAMPLE = 0;
-        break;
-    default:
-        break;
-    }
-
-    m_info.ps.flags.perSampleShading = m_regs.other.paScModeCntl1.bits.PS_ITER_SAMPLE;
-
-    // NOTE: On recommendation from h/ware team FORCE_SHADER_Z_ORDER will be set whenever Re-Z is being used.
-    m_regs.other.dbRenderOverride.bits.FORCE_SHADER_Z_ORDER = (m_chunkVsPs.DbShaderControl().bits.Z_ORDER == RE_Z);
-
-    // Configure depth clamping
-    // Register specification does not specify dependence of DISABLE_VIEWPORT_CLAMP on Z_EXPORT_ENABLE, but
-    // removing the dependence leads to perf regressions in some applications for Vulkan, DX and OGL.
-    // The reason for perf drop can be narrowed down to the DepthExpand RPM pipeline. Disabling viewport clamping
-    // (DISABLE_VIEWPORT_CLAMP = 1) for this pipeline results in heavy perf drops.
-    // It's also important to note that this issue is caused by the graphics depth fast clear not the depth expand
-    // itself.  It simply reuses the same RPM pipeline from the depth expand.
-
-    if (pPalSettings->depthClampBasedOnZExport == true)
-    {
-        m_regs.other.dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP =
-            ((createInfo.rsState.depthClampMode == DepthClampMode::_None) &&
-             (m_chunkVsPs.DbShaderControl().bits.Z_EXPORT_ENABLE != 0));
-    }
-    else
-    {
-        // Vulkan (only) will take this path by default, unless an app-detect forces the other way.
-        m_regs.other.dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = (createInfo.rsState.depthClampMode == DepthClampMode::_None);
-    }
-
-    if (regInfo.mmPaStereoCntl != 0)
-    {
-        registers.HasEntry(regInfo.mmPaStereoCntl, &m_regs.context.paStereoCntl.u32All);
-    }
-
-    if (IsGfx10Plus(m_gfxLevel))
-    {
-        registers.HasEntry(Gfx10Plus::mmGE_STEREO_CNTL,  &m_regs.uconfig.geStereoCntl.u32All);
-        registers.HasEntry(Gfx10Plus::mmGE_USER_VGPR_EN, &m_regs.uconfig.geUserVgprEn.u32All);
-
-        if ((IsNgg() == false) || (m_regs.context.vgtShaderStagesEn.gfx10Plus.PRIMGEN_PASSTHRU_EN == 1))
+        if (pPalSettings->depthClampBasedOnZExport == true)
         {
-            if (settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru > 0)
-            {
-                m_regs.uconfig.gePcAlloc.bits.OVERSUB_EN   = 1;
-                m_regs.uconfig.gePcAlloc.bits.NUM_PC_LINES =
-                    ((settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru * chipProps.gfx9.numShaderEngines) - 1);
-            }
+            m_regs.other.dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP =
+                ((createInfo.rsState.depthClampMode == DepthClampMode::_None) &&
+                 (m_chunkVsPs.DbShaderControl().bits.Z_EXPORT_ENABLE != 0));
         }
         else
         {
-            PAL_ASSERT(m_regs.context.vgtShaderStagesEn.bits.PRIMGEN_EN == 1);
-            if (settings.gfx10GePcAllocNumLinesPerSeNggCulling > 0)
+            // Vulkan (only) will take this path by default, unless an app-detect forces the other way.
+            m_regs.other.dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP =
+                (createInfo.rsState.depthClampMode == DepthClampMode::_None);
+        }
+    }
+
+    // PA_STEREO_CNTL/GE_STEREO_CNTL
+    {
+        // These are really HW enumerations that don't show up in the official HW header files.  Define them
+        // here for convenience.
+        enum StereoMode
+        {
+            SHADER_STEREO_X    = 0x00000000,
+            STATE_STEREO_X     = 0x00000001,
+            SHADER_STEREO_XYZW = 0x00000002,
+        };
+
+        if (IsGfx10Plus(m_gfxLevel))
+        {
+            m_regs.uconfig.geStereoCntl.u32All           = 0;
+            m_regs.context.paStereoCntl.most.STEREO_MODE = STATE_STEREO_X;
+        }
+        else if (IsVega12(palDevice) || IsVega20(palDevice))
+        {
+            m_regs.context.paStereoCntl.most.STEREO_MODE = STATE_STEREO_X;
+        }
+    }
+
+    // GE_USER_VGPR_EN
+    {
+        // We do not support this feature.
+        m_regs.uconfig.geUserVgprEn.u32All = 0;
+    }
+
+    // GE_PC_ALLOC
+    {
+        if (IsGfx10Plus(m_gfxLevel))
+        {
+            if ((IsNgg() == false) || (m_regs.context.vgtShaderStagesEn.gfx10Plus.PRIMGEN_PASSTHRU_EN == 1))
             {
-                m_regs.uconfig.gePcAlloc.bits.OVERSUB_EN   = 1;
-                m_regs.uconfig.gePcAlloc.bits.NUM_PC_LINES =
-                    ((settings.gfx10GePcAllocNumLinesPerSeNggCulling * chipProps.gfx9.numShaderEngines) - 1);
-            }
-        }
-    }
-
-    m_regs.context.vgtReuseOff.u32All  = registers.At(mmVGT_REUSE_OFF);
-    m_regs.other.spiPsInControl.u32All = registers.At(mmSPI_PS_IN_CONTROL);
-    m_regs.other.spiVsOutConfig.u32All = registers.At(mmSPI_VS_OUT_CONFIG);
-
-    // NOTE: The following registers are assumed to have the value zero if the pipeline ELF does not specify values.
-    registers.HasEntry(mmVGT_TF_PARAM,     &m_regs.context.vgtTfParam.u32All);
-    registers.HasEntry(mmVGT_LS_HS_CONFIG, &m_regs.other.vgtLsHsConfig.u32All);
-
-    // If the number of VS output semantics exceeds the half-pack threshold, then enable VS half-pack mode.  Keep in
-    // mind that the number of VS exports are represented by a -1 field in the HW register!
-    if ((m_regs.other.spiVsOutConfig.bits.VS_EXPORT_COUNT + 1u) > settings.vsHalfPackThreshold)
-    {
-        m_regs.other.spiVsOutConfig.gfx09_10.VS_HALF_PACK = 1;
-    }
-
-    // For Gfx9+, default VTX_REUSE_DEPTH to 14
-    m_regs.context.vgtVertexReuseBlockCntl.bits.VTX_REUSE_DEPTH = 14;
-
-    if ((settings.vsHalfPackThreshold >= MaxVsExportSemantics) &&
-        (m_gfxLevel == GfxIpLevel::GfxIp9))
-    {
-        // Degenerate primitive filtering with fractional odd tessellation requires a VTX_REUSE_DEPTH of 14. Only
-        // override to 30 if we aren't using that feature.
-        //
-        // VGT_TF_PARAM depends solely on the compiled HS when on-chip GS is disabled, in the future when Tess with
-        // on-chip GS is supported, the 2nd condition may need to be revisited.
-        if ((m_pDevice->DegeneratePrimFilter() == false) ||
-            (IsTessEnabled() && (m_regs.context.vgtTfParam.bits.PARTITIONING != PART_FRAC_ODD)))
-        {
-            m_regs.context.vgtVertexReuseBlockCntl.bits.VTX_REUSE_DEPTH = 30;
-        }
-    }
-
-    registers.HasEntry(mmSPI_INTERP_CONTROL_0, &m_regs.context.spiInterpControl0.u32All);
-
-    m_regs.context.spiInterpControl0.bits.FLAT_SHADE_ENA = (createInfo.rsState.shadeMode == ShadeMode::Flat);
-    if (m_regs.context.spiInterpControl0.bits.PNT_SPRITE_ENA != 0) // Point sprite mode is enabled.
-    {
-        m_regs.context.spiInterpControl0.bits.PNT_SPRITE_TOP_1  =
-            (createInfo.rsState.pointCoordOrigin != PointOrigin::UpperLeft);
-    }
-
-    registers.HasEntry(mmVGT_DRAW_PAYLOAD_CNTL, &m_regs.context.vgtDrawPayloadCntl.u32All);
-
-    if (palDevice.ChipProperties().gfxip.supportsVrs)
-    {
-        // Enable draw call VRS rate from GE_VRS_RATE.
-        //    00 - Suppress draw VRS rates
-        //    01 - Send draw VRS rates to the PA
-        m_regs.context.vgtDrawPayloadCntl.gfx103Plus.EN_VRS_RATE = 1;
-    }
-
-    // If NGG is enabled, there is no hardware-VS, so there is no need to compute the late-alloc VS limit.
-    if (IsNgg() == false)
-    {
-        // Target late-alloc limit uses PAL settings by default. The lateAllocVsLimit member from graphicsPipeline
-        // can override this setting if corresponding flag is set. Did the pipeline request to use the pipeline
-        // specified late-alloc limit 4 * (gfx9Props.numCuPerSh - 1).
-        const uint32 targetLateAllocLimit = IsLateAllocVsLimit()
-                                            ? GetLateAllocVsLimit()
-                                            : m_pDevice->LateAllocVsLimit() + 1;
-
-        regSPI_SHADER_PGM_RSRC1_VS spiShaderPgmRsrc1Vs = { };
-        spiShaderPgmRsrc1Vs.u32All = registers.At(HasHwVs::mmSPI_SHADER_PGM_RSRC1_VS);
-
-        regSPI_SHADER_PGM_RSRC2_VS spiShaderPgmRsrc2Vs = { };
-        spiShaderPgmRsrc2Vs.u32All = registers.At(HasHwVs::mmSPI_SHADER_PGM_RSRC2_VS);
-        const uint32 programmedLimit = CalcMaxLateAllocLimit(*m_pDevice,
-                                                             registers,
-                                                             spiShaderPgmRsrc1Vs.bits.VGPRS,
-                                                             spiShaderPgmRsrc1Vs.bits.SGPRS,
-                                                             spiShaderPgmRsrc2Vs.bits.SCRATCH_EN,
-                                                             targetLateAllocLimit);
-
-        if (m_gfxLevel == GfxIpLevel::GfxIp9)
-        {
-            m_regs.sh.spiShaderLateAllocVs.bits.LIMIT = programmedLimit;
-        }
-        else if (IsGfx10Plus(m_gfxLevel))
-        {
-            // Always use the (forced) experimental setting if specified, or use a fixed limit if
-            // enabled, otherwise check the VS/PS resource usage to compute the limit.
-            if (settings.gfx10SpiShaderLateAllocVsNumLines < 64)
-            {
-                m_regs.sh.spiShaderLateAllocVs.bits.LIMIT = settings.gfx10SpiShaderLateAllocVsNumLines;
+                if (settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru > 0)
+                {
+                    m_regs.uconfig.gePcAlloc.bits.OVERSUB_EN   = 1;
+                    m_regs.uconfig.gePcAlloc.bits.NUM_PC_LINES =
+                        ((settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru * chipProps.gfx9.numShaderEngines) - 1);
+                }
             }
             else
             {
-                m_regs.sh.spiShaderLateAllocVs.bits.LIMIT = programmedLimit;
+                PAL_ASSERT(m_regs.context.vgtShaderStagesEn.bits.PRIMGEN_EN == 1);
+                if (settings.gfx10GePcAllocNumLinesPerSeNggCulling > 0)
+                {
+                    m_regs.uconfig.gePcAlloc.bits.OVERSUB_EN   = 1;
+                    m_regs.uconfig.gePcAlloc.bits.NUM_PC_LINES =
+                        ((settings.gfx10GePcAllocNumLinesPerSeNggCulling * chipProps.gfx9.numShaderEngines) - 1);
+                }
             }
         }
     }
-    SetupIaMultiVgtParam(registers);
+
+    // VGT_VERTEX_REUSE_BLOCK_CNTL
+    {
+        // For Gfx9+, default VTX_REUSE_DEPTH to 14
+        m_regs.context.vgtVertexReuseBlockCntl.bits.VTX_REUSE_DEPTH = 14;
+
+        if ((settings.vsHalfPackThreshold >= MaxVsExportSemantics) &&
+            (m_gfxLevel == GfxIpLevel::GfxIp9))
+        {
+            // Degenerate primitive filtering with fractional odd tessellation requires a VTX_REUSE_DEPTH of 14. Only
+            // override to 30 if we aren't using that feature.
+            //
+            // VGT_TF_PARAM depends solely on the compiled HS when on-chip GS is disabled, in the future when Tess with
+            // on-chip GS is supported, the 2nd condition may need to be revisited.
+            if ((m_pDevice->DegeneratePrimFilter() == false) ||
+                (IsTessEnabled() && (m_regs.context.vgtTfParam.bits.PARTITIONING != PART_FRAC_ODD)))
+            {
+                m_regs.context.vgtVertexReuseBlockCntl.bits.VTX_REUSE_DEPTH = 30;
+            }
+        }
+    }
+
+    // SPI_SHADER_LATE_ALLOC_VS
+    {
+        // If NGG is enabled, there is no hardware-VS, so there is no need to compute the late-alloc VS limit.
+        if (IsNgg() == false)
+        {
+            // Target late-alloc limit uses PAL settings by default. The lateAllocVsLimit member from graphicsPipeline
+            // can override this setting if corresponding flag is set. Did the pipeline request to use the pipeline
+            // specified late-alloc limit 4 * (gfx9Props.numCuPerSh - 1).
+            const uint32 targetLateAllocLimit = IsLateAllocVsLimit()
+                                                ? GetLateAllocVsLimit()
+                                                : m_pDevice->LateAllocVsLimit() + 1;
+
+            const auto& hwVs = metadata.pipeline.hardwareStage[uint32(Abi::HardwareStage::Vs)];
+            const auto& hwPs = metadata.pipeline.hardwareStage[uint32(Abi::HardwareStage::Ps)];
+
+            const uint32 programmedLimit = CalcMaxLateAllocLimit(*m_pDevice,
+                                                                 hwVs.vgprCount,
+                                                                 hwVs.sgprCount,
+                                                                 hwVs.wavefrontSize,
+                                                                 hwVs.flags.scratchEn,
+                                                                 hwPs.flags.scratchEn,
+                                                                 targetLateAllocLimit);
+
+            if (m_gfxLevel == GfxIpLevel::GfxIp9)
+            {
+                m_regs.sh.spiShaderLateAllocVs.bits.LIMIT = programmedLimit;
+            }
+            else if (IsGfx10Plus(m_gfxLevel))
+            {
+                // Always use the (forced) experimental setting if specified, or use a fixed limit if
+                // enabled, otherwise check the VS/PS resource usage to compute the limit.
+                if (settings.gfx10SpiShaderLateAllocVsNumLines < 64)
+                {
+                    m_regs.sh.spiShaderLateAllocVs.bits.LIMIT = settings.gfx10SpiShaderLateAllocVsNumLines;
+                }
+                else
+                {
+                    m_regs.sh.spiShaderLateAllocVs.bits.LIMIT = programmedLimit;
+                }
+            }
+        }
+    }
+    SetupIaMultiVgtParam(metadata);
 }
 
 // =====================================================================================================================
 // The pipeline binary is allowed to partially specify the value for IA_MULTI_VGT_PARAM.  PAL will finish initializing
 // this register based on GPU properties, pipeline create info, and the values of other registers.
 void GraphicsPipeline::SetupIaMultiVgtParam(
-    const RegisterVector& registers)
+    const PalAbi::CodeObjectMetadata& metadata)
 {
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
 
+    const PalAbi::IaMultiVgtParamMetadata& iaMultiVgtParamMetadata = metadata.pipeline.graphicsRegister.iaMultiVgtParam;
+
     regIA_MULTI_VGT_PARAM iaMultiVgtParam = { };
-    registers.HasEntry(Gfx09::mmIA_MULTI_VGT_PARAM, &iaMultiVgtParam.u32All);
+    iaMultiVgtParam.bits.PRIMGROUP_SIZE     = iaMultiVgtParamMetadata.primgroupSize;
+    iaMultiVgtParam.bits.PARTIAL_VS_WAVE_ON = iaMultiVgtParamMetadata.flags.partialVsWaveOn;
+    iaMultiVgtParam.bits.PARTIAL_ES_WAVE_ON = iaMultiVgtParamMetadata.flags.partialEsWaveOn;
+    iaMultiVgtParam.bits.SWITCH_ON_EOP      = iaMultiVgtParamMetadata.flags.switchOnEop;
+    iaMultiVgtParam.bits.SWITCH_ON_EOI      = iaMultiVgtParamMetadata.flags.switchOnEoi;
 
     if (IsTessEnabled())
     {
@@ -1238,7 +1206,7 @@ void GraphicsPipeline::FixupIaMultiVgtParam(
     //          IA_MULTI_VGT_PARAM.SWITCH_ON_EOI    = 1;
     //      }
     //  }
-    if (IsNggFastLaunch() == false)
+    if (m_fastLaunchMode == GsFastLaunchMode::Disabled)
     {
         // Advanced optimization enables basic optimization and additional sub-draw call distribution algorithm
         // which splits batch into smaller instanced draws.
@@ -1251,10 +1219,12 @@ void GraphicsPipeline::FixupIaMultiVgtParam(
 // Initializes render-state registers which aren't part of any hardware shader stage.
 void GraphicsPipeline::SetupNonShaderRegisters(
     const GraphicsPipelineCreateInfo& createInfo,
-    const RegisterVector&             registers)
+    const PalAbi::CodeObjectMetadata& metadata)
 {
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
     const Gfx9PalSettings&   settings  = m_pDevice->Settings();
+
+    m_regs.context.cbShaderMask.u32All = AbiRegisters::CbShaderMask(metadata);
 
     m_regs.context.paScLineCntl.bits.EXPAND_LINE_WIDTH        = createInfo.rsState.expandLineWidth;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 665
@@ -1285,8 +1255,6 @@ void GraphicsPipeline::SetupNonShaderRegisters(
         m_regs.context.paScEdgerule.bits.ER_LINE_TB = 0xa;
         m_regs.context.paScEdgerule.bits.ER_LINE_BT = 0xa;
     }
-
-    m_regs.context.cbShaderMask.u32All = registers.At(mmCB_SHADER_MASK);
 
     // CB_TARGET_MASK comes from the RT write masks in the pipeline CB state structure.
     for (uint32 rt = 0; rt < MaxColorTargets; ++rt)
@@ -1454,31 +1422,35 @@ void GraphicsPipeline::SetupNonShaderRegisters(
 // =====================================================================================================================
 // Sets-up the late alloc limit. VS and GS will both use this function.
 uint32 GraphicsPipeline::CalcMaxLateAllocLimit(
-    const Device&          device,
-    const RegisterVector&  registers,
-    uint32                 numVgprs,
-    uint32                 numSgprs,
-    uint32                 scratchEn,
-    uint32                 targetLateAllocLimit)
+    const Device& device,
+    uint32        vsNumVgpr,
+    uint32        vsNumSgpr,
+    uint32        vsWaveSize,
+    bool          vsScratchEn,
+    bool          psScratchEn,
+    uint32        targetLateAllocLimit)
 {
     const auto* pPalSettings = device.Parent()->GetPublicSettings();
     const auto& gfx9Settings = device.Settings();
 
-    regSPI_SHADER_PGM_RSRC2_PS spiShaderPgmRsrc2Ps = { };
-    spiShaderPgmRsrc2Ps.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_PS);
-
     // Default to a late-alloc limit of zero.  This will nearly mimic the GFX6 behavior where VS waves don't launch
     // without allocating export space.
     uint32 lateAllocLimit = 0;
+
+    // To keep this code equivalent to the previous code, we first transform these values into their
+    // register counterparts, then perform the multiplication.
+
+    vsNumVgpr = AbiRegisters::CalcNumVgprs(vsNumVgpr, (vsWaveSize == 32));
+    vsNumSgpr = AbiRegisters::CalcNumSgprs(vsNumSgpr);
+
+    vsNumVgpr *= 4;
+    vsNumSgpr *= 8;
 
     const GpuChipProperties& chipProps = device.Parent()->ChipProperties();
 
     // Maximum value of the LIMIT field of the SPI_SHADER_LATE_ALLOC_VS register
     // It is the number of wavefronts minus one.
     const uint32 maxLateAllocLimit = chipProps.gfxip.maxLateAllocVsLimit - 1;
-
-    const uint32 vsNumSgpr = (numSgprs * 8);
-    const uint32 vsNumVgpr = (numVgprs * 4);
 
     if (gfx9Settings.lateAllocVs == LateAllocVsBehaviorDisabled)
     {
@@ -1514,7 +1486,7 @@ uint32 GraphicsPipeline::CalcMaxLateAllocLimit(
 
         // Find the maximum number of VS waves that can be launched based on scratch usage if both the PS and VS use
         // scratch.
-        if ((scratchEn != 0) && (spiShaderPgmRsrc2Ps.bits.SCRATCH_EN != 0))
+        if (vsScratchEn && psScratchEn)
         {
             // The maximum number of waves per SH that can launch using scratch is the number of CUs per SH times
             // the hardware limit on scratch waves per CU.
@@ -1720,20 +1692,20 @@ uint32 GraphicsPipeline::GetVsUserDataBaseOffset() const
 // Initializes the signature for a single stage within a graphics pipeline using a pipeline ELF.
 void GraphicsPipeline::SetupSignatureForStageFromElf(
     const PalAbi::CodeObjectMetadata& metadata,
-    const RegisterVector&             registers,
     HwShaderStage                     stage,
     uint16*                           pEsGsLdsSizeReg)
 {
     const uint16 baseRegAddr = m_pDevice->GetBaseUserDataReg(stage);
-    const uint16 lastRegAddr = (baseRegAddr + 31);
 
     const uint32 stageId = static_cast<uint32>(stage);
     auto*const   pStage  = &m_signature.stage[stageId];
+    auto* const  pRegMap = &metadata.pipeline.hardwareStage[uint32(PalToAbiHwShaderStage[stageId])].userDataRegMap[0];
 
-    for (uint16 offset = baseRegAddr; offset <= lastRegAddr; ++offset)
+    for (uint16 idx = 0; idx < 32; idx++)
     {
-        uint32 value = 0;
-        if (registers.HasEntry(offset, &value))
+        const uint16 offset = baseRegAddr + idx;
+        const uint32 value  = pRegMap[idx];
+        if (value != uint32(Abi::UserDataMapping::NotMapped))
         {
             if (value < MaxUserDataEntries)
             {
@@ -1871,18 +1843,14 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
                 // This appears to be an illegally-specified user-data register!
                 PAL_NEVER_CALLED();
             }
-        } // If HasEntry()
+        } // If value is mapped
     } // For each user-SGPR
 
     if ((stage == HwShaderStage::Gs) && (m_signature.nggCullingDataAddr == UserDataNotMapped))
     {
-        // It is also supported to use the LO/HI GS program registers as the NGG culling data constant buffer. Check
-        // that register if we haven't seen an address for the culling data buffer yet.
-        uint32 value = 0;
-        if (registers.HasEntry(mmSPI_SHADER_PGM_LO_GS, &value) &&
-            (value == static_cast<uint32>(Abi::UserDataMapping::NggCullingData)))
+        if (metadata.pipeline.graphicsRegister.hasEntry.nggCullingDataReg)
         {
-            m_signature.nggCullingDataAddr = mmSPI_SHADER_PGM_LO_GS;
+            m_signature.nggCullingDataAddr = metadata.pipeline.graphicsRegister.nggCullingDataReg;
         }
     }
 
@@ -1897,7 +1865,6 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
 // Initializes the signature of a graphics pipeline using a pipeline ELF.
 void GraphicsPipeline::SetupSignatureFromElf(
     const PalAbi::CodeObjectMetadata& metadata,
-    const RegisterVector&             registers,
     uint16*                           pEsGsLdsSizeRegGs,
     uint16*                           pEsGsLdsSizeRegVs)
 {
@@ -1913,17 +1880,17 @@ void GraphicsPipeline::SetupSignatureFromElf(
 
     if (IsTessEnabled())
     {
-        SetupSignatureForStageFromElf(metadata, registers, HwShaderStage::Hs, nullptr);
+        SetupSignatureForStageFromElf(metadata, HwShaderStage::Hs, nullptr);
     }
     if (IsGsEnabled() || IsNgg())
     {
-        SetupSignatureForStageFromElf(metadata, registers, HwShaderStage::Gs, pEsGsLdsSizeRegGs);
+        SetupSignatureForStageFromElf(metadata, HwShaderStage::Gs, pEsGsLdsSizeRegGs);
     }
     if (IsNgg() == false)
     {
-        SetupSignatureForStageFromElf(metadata, registers, HwShaderStage::Vs, pEsGsLdsSizeRegVs);
+        SetupSignatureForStageFromElf(metadata, HwShaderStage::Vs, pEsGsLdsSizeRegVs);
     }
-    SetupSignatureForStageFromElf(metadata, registers, HwShaderStage::Ps, nullptr);
+    SetupSignatureForStageFromElf(metadata, HwShaderStage::Ps, nullptr);
 
     // Finally, compact the array of view ID register addresses
     // so that all of the mapped ones are at the front of the array.

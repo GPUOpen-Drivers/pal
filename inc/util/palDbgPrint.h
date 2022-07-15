@@ -187,7 +187,7 @@ struct LogCallbackInfo
 /// @param [in]  pFormat Printf-style format string.
 ///
 /// @returns The resultant length of the formatted string.
-extern int Snprintf(
+extern int32 Snprintf(
     char*       pOutput,
     size_t      bufSize,
     const char* pFormat,
@@ -202,7 +202,7 @@ extern int Snprintf(
 /// @param [in]  argList variable argument list.
 ///
 /// @returns The resultant length of the formatted string.
-extern int Vsnprintf(
+extern int32 Vsnprintf(
     char*       pOutput,
     size_t      bufSize,
     const char* pFormat,

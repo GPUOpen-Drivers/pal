@@ -28,6 +28,10 @@ set(CMAKE_FOLDER "${CMAKE_FOLDER}/shared")
 add_subdirectory(ddApi)
 add_subdirectory(ddCommon)
 
+if (DD_BP_ENABLE_DD_SETTINGS)
+    add_subdirectory(ddSettings)
+endif()
+
 if (DD_BP_ENABLE_DD_TEST_UTIL)
     add_subdirectory(ddTestUtil)
 endif()

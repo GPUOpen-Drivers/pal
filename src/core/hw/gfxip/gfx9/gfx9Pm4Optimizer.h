@@ -30,7 +30,7 @@
 namespace Pal
 {
 
-class GfxCmdBuffer;
+class Pm4CmdBuffer;
 
 namespace Gfx9
 {
@@ -117,7 +117,7 @@ public:
     void HandleDynamicLaunchDesc();
 
 #if PAL_DEVELOPER_BUILD
-    void IssueHotRegisterReport(GfxCmdBuffer* pCmdBuf) const;
+    void IssueHotRegisterReport(Pm4CmdBuffer* pCmdBuf) const;
 #endif
 
     // Allows caller to disable/re-enable PM4 optimizer dynamically.

@@ -59,7 +59,9 @@ GraphicsPipeline::GraphicsPipeline(
 Result GraphicsPipeline::Init(
     const GraphicsPipelineCreateInfo&         createInfo,
     const GraphicsPipelineInternalCreateInfo& internalInfo,
-    const AbiReader&                          abiReader)
+    const AbiReader&                          abiReader,
+    const PalAbi::CodeObjectMetadata&         metadata,
+    MsgPackReader*                            pMetadataReader)
 {
     Result result = Result::Success;
 
@@ -92,7 +94,7 @@ Result GraphicsPipeline::Init(
     if (result == Result::Success)
     {
         PAL_ASSERT(m_pPipelineBinary != nullptr);
-        result = InitFromPipelineBinary(createInfo, internalInfo, abiReader);
+        result = InitFromPipelineBinary(createInfo, internalInfo, abiReader, metadata, pMetadataReader);
     }
 
     if (result == Result::Success)
@@ -127,7 +129,9 @@ Result GraphicsPipeline::Init(
 Result GraphicsPipeline::InitFromPipelineBinary(
     const GraphicsPipelineCreateInfo&         createInfo,
     const GraphicsPipelineInternalCreateInfo& internalInfo,
-    const AbiReader&                          abiReader)
+    const AbiReader&                          abiReader,
+    const PalAbi::CodeObjectMetadata&         metadata,
+    MsgPackReader*                            pMetadataReader)
 {
     // Store the ROP code this pipeline was created with
     m_logicOp = createInfo.cbState.logicOp;
@@ -160,78 +164,71 @@ Result GraphicsPipeline::InitFromPipelineBinary(
     m_viewInstancingDesc                   = createInfo.viewInstancingDesc;
     m_viewInstancingDesc.viewInstanceCount = Max(m_viewInstancingDesc.viewInstanceCount, 1u);
 
-    MsgPackReader              metadataReader;
-    PalAbi::CodeObjectMetadata metadata;
-    Result result = abiReader.GetMetadata(&metadataReader, &metadata);
+    ExtractPipelineInfo(metadata, ShaderType::Task, ShaderType::Pixel);
 
-    if (result == Result::Success)
+    DumpPipelineElf("PipelineGfx",
+                    ((metadata.pipeline.hasEntry.name != 0) ? &metadata.pipeline.name[0] : nullptr));
+
+    if (ShaderHashIsNonzero(m_info.shader[static_cast<uint32>(ShaderType::Geometry)].hash))
     {
-        ExtractPipelineInfo(metadata, ShaderType::Task, ShaderType::Pixel);
-
-        DumpPipelineElf("PipelineGfx",
-                        ((metadata.pipeline.hasEntry.name != 0) ? &metadata.pipeline.name[0] : nullptr));
-
-        if (ShaderHashIsNonzero(m_info.shader[static_cast<uint32>(ShaderType::Geometry)].hash))
-        {
-            m_flags.gsEnabled = 1;
-        }
-        if (ShaderHashIsNonzero(m_info.shader[static_cast<uint32>(ShaderType::Hull)].hash) &&
-            ShaderHashIsNonzero(m_info.shader[static_cast<uint32>(ShaderType::Domain)].hash))
-        {
-            m_flags.tessEnabled = 1;
-        }
-
-        if (ShaderHashIsNonzero(m_info.shader[static_cast<uint32>(ShaderType::Mesh)].hash))
-        {
-            m_flags.meshShader = 1;
-        }
-
-        if (ShaderHashIsNonzero(m_info.shader[static_cast<uint32>(ShaderType::Task)].hash))
-        {
-            SetTaskShaderEnabled();
-            m_flags.taskShader = 1;
-        }
-        // A task shader is not allowed unless a mesh shader is also present, but a mesh shader can be present
-        // without requiring a task shader.
-        PAL_ASSERT(HasMeshShader() || (HasTaskShader() == false));
-
-        m_flags.vportArrayIdx = (metadata.pipeline.flags.usesViewportArrayIndex != 0);
-
-        const auto& psStageMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Ps)];
-
-        m_flags.psUsesUavs          = (psStageMetadata.flags.usesUavs          != 0);
-        m_flags.psUsesRovs          = (psStageMetadata.flags.usesRovs          != 0);
-        m_flags.psWritesUavs        = (psStageMetadata.flags.writesUavs        != 0);
-        m_flags.psWritesDepth       = (psStageMetadata.flags.writesDepth       != 0);
-        m_flags.psUsesAppendConsume = (psStageMetadata.flags.usesAppendConsume != 0);
-
-        if ((metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Ls)].flags.usesUavs) ||
-            (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Hs)].flags.usesUavs) ||
-            (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Es)].flags.usesUavs) ||
-            (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Gs)].flags.usesUavs) ||
-            (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Vs)].flags.usesUavs))
-        {
-            m_flags.nonPsShaderUsesUavs = true;
-        }
-
-        if (((metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Ls)].hasEntry.usesPrimId) &&
-             (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Ls)].flags.usesPrimId)) ||
-            ((metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Hs)].hasEntry.usesPrimId) &&
-             (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Hs)].flags.usesPrimId)) ||
-            ((metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Es)].hasEntry.usesPrimId) &&
-             (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Es)].flags.usesPrimId)) ||
-            ((metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Gs)].hasEntry.usesPrimId) &&
-             (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Gs)].flags.usesPrimId)) ||
-            ((metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Vs)].hasEntry.usesPrimId) &&
-             (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Vs)].flags.usesPrimId)) ||
-            ((metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Ps)].hasEntry.usesPrimId) &&
-             (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Ps)].flags.usesPrimId)))
-        {
-            m_flags.primIdUsed = true;
-        }
-
-        result = HwlInit(createInfo, abiReader, metadata, &metadataReader);
+        m_flags.gsEnabled = 1;
     }
+    if (ShaderHashIsNonzero(m_info.shader[static_cast<uint32>(ShaderType::Hull)].hash) &&
+        ShaderHashIsNonzero(m_info.shader[static_cast<uint32>(ShaderType::Domain)].hash))
+    {
+        m_flags.tessEnabled = 1;
+    }
+
+    if (ShaderHashIsNonzero(m_info.shader[static_cast<uint32>(ShaderType::Mesh)].hash))
+    {
+        m_flags.meshShader = 1;
+    }
+
+    if (ShaderHashIsNonzero(m_info.shader[static_cast<uint32>(ShaderType::Task)].hash))
+    {
+        SetTaskShaderEnabled();
+        m_flags.taskShader = 1;
+    }
+    // A task shader is not allowed unless a mesh shader is also present, but a mesh shader can be present
+    // without requiring a task shader.
+    PAL_ASSERT(HasMeshShader() || (HasTaskShader() == false));
+
+    m_flags.vportArrayIdx = (metadata.pipeline.flags.usesViewportArrayIndex != 0);
+
+    const auto& psStageMetadata = metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Ps)];
+
+    m_flags.psUsesUavs          = (psStageMetadata.flags.usesUavs          != 0);
+    m_flags.psUsesRovs          = (psStageMetadata.flags.usesRovs          != 0);
+    m_flags.psWritesUavs        = (psStageMetadata.flags.writesUavs        != 0);
+    m_flags.psWritesDepth       = (psStageMetadata.flags.writesDepth       != 0);
+    m_flags.psUsesAppendConsume = (psStageMetadata.flags.usesAppendConsume != 0);
+
+    if ((metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Ls)].flags.usesUavs) ||
+        (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Hs)].flags.usesUavs) ||
+        (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Es)].flags.usesUavs) ||
+        (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Gs)].flags.usesUavs) ||
+        (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Vs)].flags.usesUavs))
+    {
+        m_flags.nonPsShaderUsesUavs = true;
+    }
+
+    if (((metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Ls)].hasEntry.usesPrimId) &&
+            (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Ls)].flags.usesPrimId)) ||
+        ((metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Hs)].hasEntry.usesPrimId) &&
+            (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Hs)].flags.usesPrimId)) ||
+        ((metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Es)].hasEntry.usesPrimId) &&
+            (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Es)].flags.usesPrimId)) ||
+        ((metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Gs)].hasEntry.usesPrimId) &&
+            (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Gs)].flags.usesPrimId)) ||
+        ((metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Vs)].hasEntry.usesPrimId) &&
+            (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Vs)].flags.usesPrimId)) ||
+        ((metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Ps)].hasEntry.usesPrimId) &&
+            (metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Ps)].flags.usesPrimId)))
+    {
+        m_flags.primIdUsed = true;
+    }
+
+    Result result = HwlInit(createInfo, abiReader, metadata, pMetadataReader);
 
     return result;
 }

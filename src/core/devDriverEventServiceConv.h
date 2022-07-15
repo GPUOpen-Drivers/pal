@@ -88,6 +88,120 @@ static uint16 PalToRmtImgUsageFlags(
 }
 
 // =====================================================================================================================
+static uint16 PalToRmtBufferUsageFlags(
+    uint32 palUsageFlags)
+{
+    DevDriver::RMT_BUFFER_USAGE_FLAGS rmtUsageFlags = {};
+
+    if (Util::TestAnyFlagSet(palUsageFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::TransferSrc)))
+    {
+        rmtUsageFlags.TRANSFER_SOURCE = 1;
+    }
+
+    if (Util::TestAnyFlagSet(palUsageFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::TransferDst)))
+    {
+        rmtUsageFlags.TRANSFER_DESTINATION = 1;
+    }
+
+    if (Util::TestAnyFlagSet(palUsageFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::UniformTexelBuffer)))
+    {
+        rmtUsageFlags.UNIFORM_TEXEL_BUFFER = 1;
+    }
+
+    if (Util::TestAnyFlagSet(palUsageFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::StorageTexelBuffer)))
+    {
+        rmtUsageFlags.STORAGE_TEXEL_BUFFER = 1;
+    }
+
+    if (Util::TestAnyFlagSet(palUsageFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::UniformBuffer)))
+    {
+        rmtUsageFlags.UNIFORM_BUFFER = 1;
+    }
+
+    if (Util::TestAnyFlagSet(palUsageFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::StorageBuffer)))
+    {
+        rmtUsageFlags.STORAGE_BUFFER = 1;
+    }
+
+    if (Util::TestAnyFlagSet(palUsageFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::IndexBuffer)))
+    {
+        rmtUsageFlags.INDEX_BUFFER = 1;
+    }
+
+    if (Util::TestAnyFlagSet(palUsageFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::VertexBuffer)))
+    {
+        rmtUsageFlags.VERTEX_BUFFER = 1;
+    }
+
+    if (Util::TestAnyFlagSet(palUsageFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::IndirectBuffer)))
+    {
+        rmtUsageFlags.INDIRECT_BUFFER = 1;
+    }
+
+    if (Util::TestAnyFlagSet(palUsageFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::ConditionalRendering)))
+    {
+        rmtUsageFlags.CONDITIONAL_RENDERING = 1;
+    }
+
+    if (Util::TestAnyFlagSet(palUsageFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::RayTracing)))
+    {
+        rmtUsageFlags.RAY_TRACING = 1;
+    }
+
+    if (Util::TestAnyFlagSet(palUsageFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::TransformFeedbackBuffer)))
+    {
+        rmtUsageFlags.TRANSFORM_FEEDBACK_BUFFER = 1;
+    }
+
+    if (Util::TestAnyFlagSet(palUsageFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::TransformFeedbackCounterBuffer)))
+    {
+        rmtUsageFlags.TRANSFORM_FEEDBACK_COUNTER_BUFFER = 1;
+    }
+
+    if (Util::TestAnyFlagSet(palUsageFlags, static_cast<uint32>(ResourceDescriptionBufferUsageFlags::ShaderDeviceAddress)))
+    {
+        rmtUsageFlags.SHADER_DEVICE_ADDRESS = 1;
+    }
+
+    return rmtUsageFlags.u16Val;
+}
+
+// =====================================================================================================================
+static uint8 PalToRmtBufferCreateFlags(
+    uint32 palFlags
+)
+{
+    DevDriver::RMT_BUFFER_CREATE_FLAGS rmtCreateFlags = {};
+
+    if (Util::TestAnyFlagSet(palFlags, static_cast<uint32>(ResourceDescriptionBufferCreateFlags::SparseBinding)))
+    {
+        rmtCreateFlags.SPARSE_BINDING = 1;
+    }
+
+    if (Util::TestAnyFlagSet(palFlags, static_cast<uint32>(ResourceDescriptionBufferCreateFlags::SparseResidency)))
+    {
+        rmtCreateFlags.SPARSE_RESIDENCY = 1;
+    }
+
+    if (Util::TestAnyFlagSet(palFlags, static_cast<uint32>(ResourceDescriptionBufferCreateFlags::SparseAliased)))
+    {
+        rmtCreateFlags.SPARSE_ALIASING = 1;
+    }
+
+    if (Util::TestAnyFlagSet(palFlags, static_cast<uint32>(ResourceDescriptionBufferCreateFlags::Protected)))
+    {
+        rmtCreateFlags.PROTECTED = 1;
+    }
+
+    if (Util::TestAnyFlagSet(palFlags, static_cast<uint32>(ResourceDescriptionBufferCreateFlags::DeviceAddressCaptureReplay)))
+    {
+        rmtCreateFlags.DEVICE_ADDRESS_CAPTURE_REPLAY = 1;
+    }
+
+    return rmtCreateFlags.byteVal;
+}
+
+// =====================================================================================================================
 static DevDriver::RMT_IMAGE_TYPE PalToRmtImageType(
     ImageType palType)
 {

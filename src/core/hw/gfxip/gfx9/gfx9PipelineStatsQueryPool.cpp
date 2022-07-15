@@ -24,11 +24,12 @@
  **********************************************************************************************************************/
 
 #include "core/cmdStream.h"
-#include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
+#include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9PipelineStatsQueryPool.h"
+#include "core/hw/gfxip/pm4CmdBuffer.h"
 #include "palCmdBuffer.h"
 #include "palSysUtil.h"
 
@@ -249,15 +250,13 @@ void PipelineStatsQueryPool::End(
             pCmdSpace = CopyMeshPipeStatsToQuerySlots(pCmdBuffer, gpuAddr, pCmdSpace);
         }
 
-        ReleaseMemInfo releaseInfo = {};
-        releaseInfo.engineType     = engineType;
-        releaseInfo.vgtEvent       = BOTTOM_OF_PIPE_TS;
-        releaseInfo.tcCacheOp      = TcCacheOp::Nop;
-        releaseInfo.dstAddr        = timeStampAddr;
-        releaseInfo.dataSel        = data_sel__me_release_mem__send_32_bit_low;
-        releaseInfo.data           = QueryTimestampEnd;
+        ReleaseMemGeneric releaseInfo = {};
+        releaseInfo.engineType = engineType;
+        releaseInfo.dstAddr    = timeStampAddr;
+        releaseInfo.dataSel    = data_sel__me_release_mem__send_32_bit_low;
+        releaseInfo.data       = QueryTimestampEnd;
 
-        pCmdSpace += m_device.CmdUtil().BuildReleaseMem(releaseInfo, pCmdSpace);
+        pCmdSpace += cmdUtil.BuildReleaseMemGeneric(releaseInfo, pCmdSpace);
         pCmdStream->CommitCommands(pCmdSpace);
     }
 }
@@ -374,11 +373,8 @@ void PipelineStatsQueryPool::OptimizedReset(
         // because the caller must use semaphores to make sure all queries are complete.
         //
         // TODO: Investigate if we can optimize this, we might just need a VS/PS/CS_PARTIAL_FLUSH on universal queue.
-        pCmdSpace += cmdUtil.BuildWaitOnReleaseMemEventTs(pCmdBuffer->GetEngineType(),
-                                                          BOTTOM_OF_PIPE_TS,
-                                                          TcCacheOp::Nop,
-                                                          pCmdBuffer->TimestampGpuVirtAddr(),
-                                                          pCmdSpace);
+        auto*const  pGfx9Stream = static_cast<CmdStream*>(pCmdStream);
+        pCmdSpace = pGfx9Stream->WriteWaitEopGeneric(SyncGlxNone, pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
     }
 
     gpusize gpuAddr          = 0;

@@ -406,25 +406,41 @@ Result Image::GetExternalSharedImageCreateInfo(
     const auto* pMetadata = reinterpret_cast<const amdgpu_bo_umd_metadata*>(
         &sharedInfo.info.metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
 
+    bool changeFormat = false;
+    SwizzledFormat formatInMetadata = UndefinedSwizzledFormat;
+    if (hasMetadata)
+    {
+        bool depthStencilUsage = false;
+        formatInMetadata = AmdgpuFormatToPalFormat(pMetadata->format, &changeFormat, &depthStencilUsage);
+        pCreateInfo->usageFlags.depthStencil = depthStencilUsage;
+    }
     if (Formats::IsUndefined(openInfo.swizzledFormat.format))
     {
-        bool changeFormat      = false;
-        bool depthStencilUsage = false;
-        pCreateInfo->swizzledFormat = AmdgpuFormatToPalFormat(pMetadata->format, &changeFormat, &depthStencilUsage);
-
-        if (changeFormat)
+        if (hasMetadata)
         {
-            pCreateInfo->viewFormatCount = AllCompatibleFormats;
+            pCreateInfo->swizzledFormat = formatInMetadata;
         }
-        pCreateInfo->usageFlags.depthStencil = depthStencilUsage;
+        else
+        {
+            result = Result::ErrorFormatIncompatibleWithImageFormat;
+        }
     }
     else
     {
         pCreateInfo->swizzledFormat = openInfo.swizzledFormat;
+        if (hasMetadata && (formatInMetadata.format != openInfo.swizzledFormat.format))
+        {
+            changeFormat = true;
+        }
+    }
+
+    if ((result == Result::Success) && changeFormat)
+    {
+        pCreateInfo->viewFormatCount = AllCompatibleFormats;
     }
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 681
-    if (IsMesaMetadata(sharedInfo.info.metadata))
+    if ((result == Result::Success) && IsMesaMetadata(sharedInfo.info.metadata))
     {
         pCreateInfo->flags.sharedWithMesa = 1;
     }
@@ -434,7 +450,8 @@ Result Image::GetExternalSharedImageCreateInfo(
     //      figure out the width and height settled in Metadata points to which plane or maybe it just means the
     //      whole image size. A more robost method is to use the dedicated image's extent from client side as
     //      createinfo to initialize the subresources for each plane.
-    if ((openInfo.extent.width != 0) && (openInfo.extent.height != 0) && (openInfo.extent.depth != 0) &&
+    if ((result == Result::Success) &&
+        (openInfo.extent.width != 0) && (openInfo.extent.height != 0) && (openInfo.extent.depth != 0) &&
         ((openInfo.extent.width != pMetadata->width_in_pixels) || (openInfo.extent.height != pMetadata->height)))
     {
         if (Formats::IsYuv(pCreateInfo->swizzledFormat.format)
@@ -443,6 +460,9 @@ Result Image::GetExternalSharedImageCreateInfo(
             // which were acquired from vdpau handle and passed by openInfo.extent
             || pCreateInfo->flags.sharedWithMesa
 #endif
+            // If the bo has different importing format than the format in Metadata, width/height are taken from
+            // openInfo to match the new format view.
+            || changeFormat
             // If the bo is shared from another device, it would not have metadata. Width/height/depth are passed
             // from application.
             || (hasMetadata == false))
@@ -483,22 +503,7 @@ Result Image::GetExternalSharedImageCreateInfo(
         if (hasMetadata)
         {
             bool isLinearTiled = false;
-            if (device.ChipProperties().gfxLevel < GfxIpLevel::GfxIp9)
-            {
-                const uint32 tileMode =
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 681
-                    (pCreateInfo->flags.sharedWithMesa
-                        ? static_cast<uint32>(AddrMgr1::AddrTileModeFromHwArrayMode(
-                          AMDGPU_TILING_GET(sharedInfo.info.metadata.tiling_info, ARRAY_MODE)))
-                        : pMetadata->tile_mode);
-#else
-                    pMetadata->tile_mode;
-#endif
-
-                isLinearTiled = (tileMode == AMDGPU_TILE_MODE__LINEAR_GENERAL) ||
-                                (tileMode == AMDGPU_TILE_MODE__LINEAR_ALIGNED);
-            }
-            else
+            if (device.ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9)
             {
                 const AMDGPU_SWIZZLE_MODE swizzleMode =
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 681
@@ -512,6 +517,21 @@ Result Image::GetExternalSharedImageCreateInfo(
 
                 isLinearTiled = (swizzleMode == AMDGPU_SWIZZLE_MODE_LINEAR) ||
                                 (swizzleMode == AMDGPU_SWIZZLE_MODE_LINEAR_GENERAL);
+            }
+            else
+            {
+                const uint32 tileMode =
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 681
+                    (pCreateInfo->flags.sharedWithMesa
+                        ? static_cast<uint32>(AddrMgr1::AddrTileModeFromHwArrayMode(
+                          AMDGPU_TILING_GET(sharedInfo.info.metadata.tiling_info, ARRAY_MODE)))
+                        : pMetadata->tile_mode);
+#else
+                    pMetadata->tile_mode;
+#endif
+
+                isLinearTiled = (tileMode == AMDGPU_TILE_MODE__LINEAR_GENERAL) ||
+                                (tileMode == AMDGPU_TILE_MODE__LINEAR_ALIGNED);
             }
             pCreateInfo->tiling = isLinearTiled ? ImageTiling::Linear : ImageTiling::Optimal;
         }
@@ -577,42 +597,7 @@ Result Image::CreateExternalSharedImage(
         &sharedInfo.info.metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
 
     ImageInternalCreateInfo internalCreateInfo = {};
-    if (chipProps.gfxLevel < GfxIpLevel::GfxIp9)
-    {
-        if (hasMetadata == false)
-        {
-            internalCreateInfo.gfx6.sharedTileMode  = ADDR_TM_LINEAR_GENERAL;
-            internalCreateInfo.gfx6.sharedTileType  = ADDR_DISPLAYABLE;
-            internalCreateInfo.gfx6.sharedTileIndex = TILEINDEX_LINEAR_ALIGNED;
-        }
-        else if (IsMesaMetadata(sharedInfo.info.metadata))
-        {
-            auto*const pBoMetaData  = reinterpret_cast<const amdgpu_bo_umd_metadata*>
-                                                        (&sharedInfo.info.metadata.umd_metadata);
-            auto*const pRawMetaData = reinterpret_cast<const uint32*>(pBoMetaData);
-
-            internalCreateInfo.gfx6.sharedTileIndex = (pRawMetaData[5] >> 20) & 0x1F;
-            internalCreateInfo.gfx6.sharedTileMode  = AddrMgr1::AddrTileModeFromHwArrayMode(
-                                                   AMDGPU_TILING_GET(sharedInfo.info.metadata.tiling_info, ARRAY_MODE));
-            internalCreateInfo.gfx6.sharedTileType  = static_cast<AddrTileType>
-                                             (AMDGPU_TILING_GET(sharedInfo.info.metadata.tiling_info, MICRO_TILE_MODE));
-        }
-        else
-        {
-            internalCreateInfo.gfx6.sharedTileMode       = static_cast<AddrTileMode>
-                                                           (AmdGpuToAddrTileModeConversion(pMetadata->tile_mode));
-            internalCreateInfo.gfx6.sharedTileType       = static_cast<AddrTileType>(pMetadata->micro_tile_mode);
-            internalCreateInfo.gfx6.sharedTileSwizzle[0] = pMetadata->pipeBankXor;
-
-            for (uint32 plane = 1; plane < MaxNumPlanes; plane++)
-            {
-                internalCreateInfo.gfx6.sharedTileSwizzle[plane] = pMetadata->additionalPipeBankXor[plane - 1];
-            }
-
-            internalCreateInfo.gfx6.sharedTileIndex = pMetadata->tile_index;
-        }
-    }
-    else if (chipProps.gfxLevel >= GfxIpLevel::GfxIp9)
+    if (chipProps.gfxLevel >= GfxIpLevel::GfxIp9)
     {
         if (hasMetadata == false)
         {
@@ -659,8 +644,38 @@ Result Image::CreateExternalSharedImage(
     }
     else
     {
-        // Which ASIC is this?
-        PAL_ASSERT_ALWAYS();
+        if (hasMetadata == false)
+        {
+            internalCreateInfo.gfx6.sharedTileMode  = ADDR_TM_LINEAR_GENERAL;
+            internalCreateInfo.gfx6.sharedTileType  = ADDR_DISPLAYABLE;
+            internalCreateInfo.gfx6.sharedTileIndex = TILEINDEX_LINEAR_ALIGNED;
+        }
+        else if (IsMesaMetadata(sharedInfo.info.metadata))
+        {
+            auto*const pBoMetaData  = reinterpret_cast<const amdgpu_bo_umd_metadata*>
+                                                        (&sharedInfo.info.metadata.umd_metadata);
+            auto*const pRawMetaData = reinterpret_cast<const uint32*>(pBoMetaData);
+
+            internalCreateInfo.gfx6.sharedTileIndex = (pRawMetaData[5] >> 20) & 0x1F;
+            internalCreateInfo.gfx6.sharedTileMode  = AddrMgr1::AddrTileModeFromHwArrayMode(
+                                                   AMDGPU_TILING_GET(sharedInfo.info.metadata.tiling_info, ARRAY_MODE));
+            internalCreateInfo.gfx6.sharedTileType  = static_cast<AddrTileType>
+                                             (AMDGPU_TILING_GET(sharedInfo.info.metadata.tiling_info, MICRO_TILE_MODE));
+        }
+        else
+        {
+            internalCreateInfo.gfx6.sharedTileMode       = static_cast<AddrTileMode>
+                                                           (AmdGpuToAddrTileModeConversion(pMetadata->tile_mode));
+            internalCreateInfo.gfx6.sharedTileType       = static_cast<AddrTileType>(pMetadata->micro_tile_mode);
+            internalCreateInfo.gfx6.sharedTileSwizzle[0] = pMetadata->pipeBankXor;
+
+            for (uint32 plane = 1; plane < MaxNumPlanes; plane++)
+            {
+                internalCreateInfo.gfx6.sharedTileSwizzle[plane] = pMetadata->additionalPipeBankXor[plane - 1];
+            }
+
+            internalCreateInfo.gfx6.sharedTileIndex = pMetadata->tile_index;
+        }
     }
 
     internalCreateInfo.flags.privateScreenPresent     = (pPrivateScreen != nullptr);

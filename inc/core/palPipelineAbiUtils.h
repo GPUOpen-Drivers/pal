@@ -441,7 +441,10 @@ inline Result DeserializeCodeObjectMetadata(
     uint32                 metadataMinorVer)
 {
     Result result = Result::ErrorUnsupportedPipelineElfAbiVersion;
-    if (metadataMajorVer == PalAbi::PipelineMetadataMajorVersion)
+    if ((metadataMajorVer == PalAbi::PipelineMetadataMajorVersion) ||
+        // Metadata version 3 is backwards compatible, although a new paradigm for our metadata
+        // (hence the major increment).
+        (metadataMajorVer == 2))
     {
         result = pReader->InitFromBuffer(pRawMetadata, metadataSize);
         uint32 registersOffset = UINT_MAX;

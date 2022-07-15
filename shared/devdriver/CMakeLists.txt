@@ -65,10 +65,6 @@ add_subdirectory(third_party)
 add_subdirectory(shared)
 add_subdirectory(apis)
 
-if (DD_BP_ENABLE_DD_SETTINGS)
-    add_subdirectory(settings)
-endif()
-
 if (DD_BP_BUILD_MODULES)
     add_subdirectory(modules)
 endif()

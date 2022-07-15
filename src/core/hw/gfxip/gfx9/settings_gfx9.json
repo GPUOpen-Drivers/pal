@@ -1189,7 +1189,10 @@
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
       "VariableName": "isolineDistributionFactor",
-      "Name": "IsolineDistributionFactor"
+      "Name": "IsolineDistributionFactor",
+      "Flags": {
+        "RereadSetting": true
+      }
     },
     {
       "Description": "Used by the hardware when distributed tessellation is active: the min tess factors for each patch processed by a VGT are accumulated. When the sum exceeds this threshold, the next patch is sent to a different VGT. Recommended to be higher than quad factor",
@@ -1203,7 +1206,10 @@
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
       "VariableName": "triDistributionFactor",
-      "Name": "TriDistributionFactor"
+      "Name": "TriDistributionFactor",
+      "Flags": {
+        "RereadSetting": true
+      }
     },
     {
       "Description": "Used by the hardware when distributed tessellation is active: the min tess factors for each patch processed by a VGT are accumulated. When the sum exceeds this threshold, the next patch is sent to a different VGT.",
@@ -1217,7 +1223,10 @@
       "Scope": "PrivatePalGfx9Key",
       "Type": "uint32",
       "VariableName": "quadDistributionFactor",
-      "Name": "QuadDistributionFactor"
+      "Name": "QuadDistributionFactor",
+      "Flags": {
+        "RereadSetting": true
+      }
     },
     {
       "Description": "Used by the hardware when distributed tessellation is in DONUT mode: the min tess factor for each patch is tested against this threshold to determine whether a patch gets split up. If the patch isn't split, it still increments the accumulator for the Patch distribution factor.",
@@ -1766,23 +1775,6 @@
       "Name": "DisableBinningMode"
     },
     {
-      "Description": "If true, binning is disabled when the PS has a discard instruction or can be trivially rejected.",
-      "Tags": [
-        "PBB and DFSM",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": true
-      },
-      "Flags": {
-        "RereadSetting": true
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "disableBinningPsKill",
-      "Name": "DisableBinningPsKill"
-    },
-    {
       "Description": "Maximum amount of parameter storage per batch when not using NGG. The maximum is value 128. Zero means calculate an optimal value based on the hardware configuration. On GFX9, this value is in units of 2 param cache lines..",
       "Tags": [
         "PBB and DFSM",
@@ -1823,40 +1815,6 @@
       "Type": "uint32",
       "VariableName": "binningMaxPrimPerBatch",
       "Name": "BinningMaxPrimPerBatch"
-    },
-    {
-      "Description": "Maximum number of context rolls before breaking a batch. The maximum value is 6.",
-      "Tags": [
-        "PBB and DFSM",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": 1
-      },
-      "Flags": {
-        "RereadSetting": true
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "uint32",
-      "VariableName": "binningContextStatesPerBin",
-      "Name": "BinningContextStatesPerBin"
-    },
-    {
-      "Description": "Maximum number of persistent states per batch. The maximum value is 31.",
-      "Tags": [
-        "PBB and DFSM",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": 1
-      },
-      "Flags": {
-        "RereadSetting": true
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "uint32",
-      "VariableName": "binningPersistentStatesPerBin",
-      "Name": "BinningPersistentStatesPerBin"
     },
     {
       "Description": "Maximum number of FPOV tokens allowed per batch. Zero means no limit.",

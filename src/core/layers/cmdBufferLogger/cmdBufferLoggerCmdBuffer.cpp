@@ -77,6 +77,15 @@ static const char* GetCmdBufCallIdString(
 }
 
 // =====================================================================================================================
+static void AppendString(
+    char        string[StringLength],
+    const char* pAppendStr)
+{
+    const size_t currentLength = strlen(string);
+    Snprintf(&string[0] + currentLength, StringLength - currentLength, "%s", pAppendStr);
+}
+
+// =====================================================================================================================
 static void SubresIdToString(
     const SubresId& subresId,
     char            string[StringLength])
@@ -664,9 +673,10 @@ static const void DumpClearColor(
 }
 
 // =====================================================================================================================
-static const void PrintImageCreateInfo(
+static void PrintImageCreateInfo(
     CmdBuffer*             pCmdBuffer,
     const ImageCreateInfo& createInfo,
+    bool                   hasMetadata,
     char*                  pString,
     const char*            pPrefix)
 {
@@ -731,7 +741,7 @@ static const void PrintImageCreateInfo(
              GetStringFromTable(PrtMapTypeStrings, static_cast<size_t>(createInfo.prtPlus.mapType), &prtFb));
     pNextCmdBuffer->CmdCommentString(pString);
 
-    Snprintf(pString, StringLength, "%s\t Extent           = ", pPrefix);
+    Snprintf(pString, StringLength, "%s\t Prt lodRegion    = ", pPrefix);
     Extent3dToString(createInfo.prtPlus.lodRegion, pString);
     pNextCmdBuffer->CmdCommentString(pString);
 
@@ -751,7 +761,32 @@ static const void PrintImageCreateInfo(
     Snprintf(pString, StringLength, "%s\t ImageCreateFlags = 0x%08x", pPrefix, createInfo.flags.u32All);
     pNextCmdBuffer->CmdCommentString(pString);
 
-    Snprintf(pString, StringLength, "%s\t ImageUsageFlags  = 0x%08x", pPrefix, createInfo.usageFlags.u32All);
+    Snprintf(pString, StringLength, "%s\t ImageUsageFlags  = 0x%08x ", pPrefix, createInfo.usageFlags.u32All);
+    const size_t currentLength = strlen(pString);
+    Snprintf(pString + currentLength, StringLength - currentLength, "{ hasMetadata=%d", hasMetadata);
+    // Log a few interested usageFlags
+    bool firstLog = true;
+    if (createInfo.usageFlags.shaderRead)
+    {
+        AppendString(pString,", ShaderRead");
+        firstLog = false;
+    }
+    if (createInfo.usageFlags.shaderWrite)
+    {
+        AppendString(pString, firstLog ? ", ShaderWrite" : "|ShaderWrite");
+        firstLog = false;
+    }
+    if (createInfo.usageFlags.colorTarget)
+    {
+        AppendString(pString, firstLog ? ", ColorTarget" : "|ColorTarget");
+        firstLog = false;
+    }
+    if (createInfo.usageFlags.depthStencil)
+    {
+        AppendString(pString, firstLog ? ", DepthStencil" : "|DepthStencil");
+        firstLog = false;
+    }
+    AppendString(pString, " }");
     pNextCmdBuffer->CmdCommentString(pString);
 
     Snprintf(pString, StringLength, "%s ] // ImageCreateInfo", pPrefix);
@@ -820,7 +855,8 @@ static void DumpImageInfo(
              pLoggerImage->GetBoundMemOffset());
     pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
 
-    PrintImageCreateInfo(pCmdBuffer, imageCreateInfo, pString, pTotalPrefix);
+    const bool hasMetadata = (pImage->GetMemoryLayout().metadataSize > 0);
+    PrintImageCreateInfo(pCmdBuffer, imageCreateInfo, hasMetadata, pString, pTotalPrefix);
 
     PAL_SAFE_DELETE_ARRAY(pTotalPrefix, &allocator);
 
@@ -2040,9 +2076,9 @@ static const char* HwPipePointToString(
         pString = "HwPipeTop";
         break;
 
-    // HwPipePostIndexFetch == HwPipePreCs == HwPipePreBlt
-    case HwPipePostIndexFetch:
-        pString = "HwPipePreCs || HwPipePreBlt || HwPipePostIndexFetch";
+    // HwPipePostPrefetch == HwPipePreCs == HwPipePreBlt
+    case HwPipePostPrefetch:
+        pString = "HwPipePostPrefetch";
         break;
     case HwPipePreRasterization:
         pString = "HwPipePreRasterization";
@@ -2064,13 +2100,13 @@ static const char* HwPipePointToString(
         break;
     }
 
-    static_assert(((HwPipePostIndexFetch == HwPipePreCs) && (HwPipePostIndexFetch == HwPipePreBlt)), "");
+    static_assert(((HwPipePostPrefetch == HwPipePreCs) && (HwPipePostPrefetch == HwPipePreBlt)), "");
 
     return pString;
 }
 
 // =====================================================================================================================
-static const void AppendPipelineStageFlagToString(
+static void PipelineStageFlagToString(
     char*  pString,
     uint32 pipeStages)
 {
@@ -2092,34 +2128,33 @@ static const void AppendPipelineStageFlagToString(
         "PipelineStageBottomOfPipe",
     };
 
-    bool firstOneDumped = false;
+    bool   firstOneDumped = false;
+    size_t offset         = strlen(pString);
 
     for (uint32 i = 0; i < ArrayLen(PipeStageNames); i++)
     {
         if ((pipeStages & (1 << i)) != 0)
         {
-            const char*  pDelimiter    = firstOneDumped ? " || " : "";
-            const size_t currentLength = strlen(pString);
-            Snprintf(pString + currentLength, StringLength - currentLength, "%s%s", pDelimiter, PipeStageNames[i]);
+            const char* pDelimiter = firstOneDumped ? "|" : "";
+            offset += Snprintf(pString + offset, StringLength - offset, "%s%s", pDelimiter, PipeStageNames[i]);
             firstOneDumped = true;
         }
     }
 
     if (firstOneDumped == false)
     {
-        const size_t currentLength = strlen(pString);
-        Snprintf(pString + currentLength, StringLength - currentLength, "None");
+        offset += Snprintf(pString + offset, StringLength - offset, "None");
     }
 }
 
 // =====================================================================================================================
-static const void AppendCacheCoherencyUsageToString(
+static void CacheCoherencyUsageToString(
     char*  pString,
     uint32 accessMask)
 {
     const char* CacheCoherUsageNames[] =
     {
-        "CoherCpu",
+        "Cpu",
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 740
         "CoherShader",
         "CoherCopy",
@@ -2147,30 +2182,24 @@ static const void AppendCacheCoherencyUsageToString(
         "CoherMemory",
         "CoherSampleRate",
         "CoherPresent",
-        "CoherCp",
     };
 
-    bool firstOneDumped = false;
+    bool   firstOneDumped = false;
+    size_t offset         = strlen(pString);
 
     for (uint32 i = 0; i < ArrayLen(CacheCoherUsageNames); i++)
     {
         if ((accessMask & (1 << i)) != 0)
         {
-            const char*  pDelimiter    = firstOneDumped ? " || " : "";
-            const size_t currentLength = strlen(pString);
-            Snprintf(pString + currentLength,
-                     StringLength - currentLength,
-                     "%s%s",
-                     pDelimiter,
-                     CacheCoherUsageNames[i]);
+            const char*  pDelimiter = firstOneDumped ? "|" : "";
+            offset += Snprintf(pString + offset, StringLength - offset, "%s%s", pDelimiter, CacheCoherUsageNames[i]);
             firstOneDumped = true;
         }
     }
 
     if (firstOneDumped == false)
     {
-        const size_t currentLength = strlen(pString);
-        Snprintf(pString + currentLength, StringLength - currentLength, "None");
+        offset += Snprintf(pString + offset, StringLength - offset, "None");
     }
 }
 
@@ -2330,37 +2359,29 @@ static void BarrierTransitionToString(
     Snprintf(&string[0], StringLength, "barrierInfo.pTransitions[%u] = {", index);
     pCmdBuffer->CmdCommentString(&string[0]);
 
-    Snprintf(&string[0], StringLength, "\tsrcCacheMask = 0x%08X", transition.srcCacheMask);
+    Snprintf(&string[0], StringLength, "\t\tsrcCacheMask->dstCacheMask = { ");
+    CacheCoherencyUsageToString(&string[0], transition.srcCacheMask);
+    AppendString(string, " } -> { ");
+    CacheCoherencyUsageToString(&string[0], transition.dstCacheMask);
+    AppendString(string, " }");
     pCmdBuffer->CmdCommentString(&string[0]);
-    Snprintf(&string[0], StringLength, "\tdstCacheMask = 0x%08X", transition.dstCacheMask);
-    pCmdBuffer->CmdCommentString(&string[0]);
-
-    pCmdBuffer->CmdCommentString("\timageInfo = [");
 
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
     if (transition.imageInfo.pImage != nullptr)
     {
+        Snprintf(&string[0], StringLength, "\t\toldLayout->newLayout = ");
+        ImageLayoutToString(transition.imageInfo.oldLayout, string);
+        AppendString(string, " -> ");
+        ImageLayoutToString(transition.imageInfo.newLayout, string);
+        pCmdBuffer->CmdCommentString(string);
+
         DumpImageInfo(pCmdBuffer, transition.imageInfo.pImage, "pImage", "\t\t");
 
         SubresRangeToString(pCmdBuffer, transition.imageInfo.subresRange, pString);
         Snprintf(&string[0], StringLength, "\t\tsubresRange = %s", pString);
         pCmdBuffer->CmdCommentString(&string[0]);
-
-        Snprintf(&string[0], StringLength, "\t\toldLayout = ");
-        ImageLayoutToString(transition.imageInfo.oldLayout, &string[0]);
-        pCmdBuffer->CmdCommentString(&string[0]);
-
-        Snprintf(&string[0], StringLength, "\t\tnewLayout = ");
-        ImageLayoutToString(transition.imageInfo.newLayout, &string[0]);
-        pCmdBuffer->CmdCommentString(&string[0]);
-
-        if (transition.imageInfo.pQuadSamplePattern != nullptr)
-        {
-            DumpMsaaQuadSamplePattern(
-                pCmdBuffer, *transition.imageInfo.pQuadSamplePattern, "pQuadSamplePattern", "\t\t");
-        }
     }
     else
     {
@@ -2368,7 +2389,6 @@ static void BarrierTransitionToString(
         pCmdBuffer->CmdCommentString(&string[0]);
     }
 
-    pCmdBuffer->CmdCommentString("\t]");
     pCmdBuffer->CmdCommentString("}");
 
     PAL_SAFE_DELETE_ARRAY(pString, &allocator);
@@ -2379,51 +2399,54 @@ static void CmdBarrierToString(
     CmdBuffer*         pCmdBuffer,
     const BarrierInfo& barrierInfo)
 {
-    pCmdBuffer->GetNextLayer()->CmdCommentString("BarrierInfo:");
+    ICmdBuffer* pNextCmdBuffer = pCmdBuffer->GetNextLayer();
+
+    pNextCmdBuffer->CmdCommentString("BarrierInfo:");
 
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
     Snprintf(pString, StringLength, "barrierInfo.flags = 0x%0X", barrierInfo.flags);
-    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
-
-    Snprintf(pString, StringLength, "barrierInfo.waitPoint = %s", HwPipePointToString(barrierInfo.waitPoint));
-    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
-
-    Snprintf(pString, StringLength, "barrierInfo.pipePointWaitCount = %u", barrierInfo.pipePointWaitCount);
-    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
-
-    for (uint32 i = 0; i < barrierInfo.pipePointWaitCount; i++)
-    {
-        Snprintf(pString, StringLength,
-                 "barrierInfo.pPipePoints[%u] = %s", i, HwPipePointToString(barrierInfo.pPipePoints[i]));
-        pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
-    }
-
-    Snprintf(pString, StringLength, "barrierInfo.gpuEventWaitCount = %u", barrierInfo.gpuEventWaitCount);
-    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+    pNextCmdBuffer->CmdCommentString(pString);
 
     Snprintf(pString, StringLength,
              "barrierInfo.rangeCheckedTargetWaitCount = %u", barrierInfo.rangeCheckedTargetWaitCount);
-    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+    pNextCmdBuffer->CmdCommentString(pString);
+
+    Snprintf(pString, StringLength, "barrierInfo.pPipePoints->waitPoint = { ");
+    for (uint32 i = 0; i < barrierInfo.pipePointWaitCount; i++)
+    {
+        if (i > 0)
+        {
+            AppendString(pString, "|");
+        }
+        AppendString(pString, HwPipePointToString(barrierInfo.pPipePoints[i]));
+    }
+    AppendString(pString, " } -> ");
+    AppendString(pString, HwPipePointToString(barrierInfo.waitPoint));
+    pNextCmdBuffer->CmdCommentString(pString);
+
+    Snprintf(pString, StringLength, "barrierInfo.globalSrcCacheMask->globalDstCacheMask = { ");
+    CacheCoherencyUsageToString(pString, barrierInfo.globalSrcCacheMask);
+    AppendString(pString, " } -> { ");
+    CacheCoherencyUsageToString(pString, barrierInfo.globalDstCacheMask);
+    AppendString(pString, " }");
+    pNextCmdBuffer->CmdCommentString(pString);
+
+    Snprintf(pString, StringLength, "barrierInfo.gpuEventWaitCount = %u", barrierInfo.gpuEventWaitCount);
+    pNextCmdBuffer->CmdCommentString(pString);
 
     Snprintf(pString, StringLength, "barrierInfo.transitionCount = %u", barrierInfo.transitionCount);
-    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+    pNextCmdBuffer->CmdCommentString(pString);
 
     for (uint32 i = 0; i < barrierInfo.transitionCount; i++)
     {
         BarrierTransitionToString(pCmdBuffer, i, barrierInfo.pTransitions[i], pString);
     }
 
-    Snprintf(pString, StringLength, "barrierInfo.globalSrcCacheMask = 0x%08X", barrierInfo.globalSrcCacheMask);
-    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
-
-    Snprintf(pString, StringLength, "barrierInfo.globalDstCacheMask = 0x%08X", barrierInfo.globalDstCacheMask);
-    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
-
     Snprintf(pString, StringLength,
              "barrierInfo.pSplitBarrierGpuEvent = 0x%016" PRIXPTR, barrierInfo.pSplitBarrierGpuEvent);
-    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+    pNextCmdBuffer->CmdCommentString(pString);
 
     const char* pReasonStr = BarrierReasonToString(barrierInfo.reason);
     if (pReasonStr != nullptr)
@@ -2434,7 +2457,7 @@ static void CmdBarrierToString(
     {
         Snprintf(pString, StringLength, "barrierInfo.reason = 0x%08X (client-defined reason)", barrierInfo.reason);
     }
-    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+    pNextCmdBuffer->CmdCommentString(pString);
 
     PAL_SAFE_DELETE_ARRAY(pString, &allocator);
 }
@@ -2530,6 +2553,7 @@ void CmdBuffer::DescribeBarrier(
             break;
         default:
             PAL_NEVER_CALLED();
+            break;
         }
 
         LinearAllocatorAuto<VirtualLinearAllocator> allocator(Allocator(), false);
@@ -2548,181 +2572,273 @@ void CmdBuffer::DescribeBarrier(
             GetNextLayer()->CmdCommentString(pString);
         }
 
-        // Pipeline events and stalls.
-        GetNextLayer()->CmdCommentString("PipelineStalls = {");
+        const auto stalls      = pData->operations.pipelineStalls;
+        const auto caches      = pData->operations.caches;
+        const auto layoutTrans = pData->operations.layoutTransitions;
 
-        if (pData->operations.pipelineStalls.eopTsBottomOfPipe)
+        int32 offset = Snprintf(&pString[0], StringLength, "BarrierOps: stall=0x%03x, cache=0x%04x, layout=0x%03x ",
+                                stalls.u16All, caches.u16All, layoutTrans.u16All);
+
+        if ((stalls.u16All | caches.u16All | layoutTrans.u16All) != 0)
         {
-            GetNextLayer()->CmdCommentString("\teopTsBottomOfPipe");
+            bool firstLog = true;
+
+            offset += Snprintf(pString + offset, StringLength - offset, "{ ");
+
+            // Pipeline events and stalls.
+            if (stalls.eopTsBottomOfPipe)
+            {
+                constexpr const char* EopStr[] = { "ReleaseEop", "EopDone" };
+                offset += Snprintf(pString + offset, StringLength - offset, "%s%s",
+                                   firstLog ? "" : "|", EopStr[stalls.waitOnTs]);
+                firstLog = false;
+            }
+
+            if (stalls.eosTsPsDone)
+            {
+                constexpr const char* PsStr[] = { "ReleasePs", "PsDone" };
+                offset += Snprintf(pString + offset, StringLength - offset, "%s%s",
+                                   firstLog ? "" : "|", PsStr[stalls.waitOnTs]);
+                firstLog = false;
+            }
+
+            if (stalls.eosTsCsDone)
+            {
+                constexpr const char* CsStr[] = { "ReleaseCs", "CsDone" };
+                offset += Snprintf(pString + offset, StringLength - offset, "%s%s",
+                                   firstLog ? "" : "|", CsStr[stalls.waitOnTs]);
+                firstLog = false;
+            }
+
+            if (stalls.vsPartialFlush)
+            {
+                offset += Snprintf(pString + offset, StringLength - offset, firstLog ? "VsFlush" : "|VsFlush");
+                firstLog = false;
+            }
+
+            if (stalls.psPartialFlush)
+            {
+                offset += Snprintf(pString + offset, StringLength - offset, firstLog ? "PsFlush" : "|PsFlush");
+                firstLog = false;
+            }
+
+            if (stalls.csPartialFlush)
+            {
+                offset += Snprintf(pString + offset, StringLength - offset, firstLog ? "CsFlush" : "|CsFlush");
+                firstLog = false;
+            }
+
+            if (stalls.pfpSyncMe)
+            {
+                offset += Snprintf(pString + offset, StringLength - offset, firstLog ? "PfpSyncMe" : "|PfpSyncMe");
+                firstLog = false;
+            }
+
+            if (stalls.syncCpDma)
+            {
+                offset += Snprintf(pString + offset, StringLength - offset, firstLog ? "SyncCpDma" : "|SyncCpDma");
+                firstLog = false;
+            }
+
+            offset += Snprintf(pString + offset, StringLength - offset, ", ");
+
+            // Cache operations
+            firstLog = true;
+            if (caches.invalTcp)
+            {
+                offset += Snprintf(pString + offset, StringLength - offset, firstLog ? "InvV$" : "|InvV$");
+                firstLog = false;
+            }
+
+            if (caches.invalSqI$)
+            {
+                offset += Snprintf(pString + offset, StringLength - offset, firstLog ? "InvI$" : "|InvI$");
+                firstLog = false;
+            }
+
+            if (caches.invalSqK$)
+            {
+                offset += Snprintf(pString + offset, StringLength - offset, firstLog ? "InvK$" : "|InvK$");
+                firstLog = false;
+            }
+
+            if (caches.invalGl1)
+            {
+                offset += Snprintf(pString + offset, StringLength - offset, firstLog ? "InvGL1" : "|InvGL1");
+                firstLog = false;
+            }
+
+            if (caches.invalTccMetadata)
+            {
+                offset += Snprintf(pString + offset, StringLength - offset, firstLog ? "InvM$" : "|InvM$");
+                firstLog = false;
+            }
+
+            if (caches.flushTcc && caches.invalTcc)
+            {
+                offset += Snprintf(pString + offset, StringLength - offset, firstLog ? "WbInvGL2" : "|WbInvGL2");
+                firstLog = false;
+            }
+            else if (caches.flushTcc)
+            {
+                offset += Snprintf(pString + offset, StringLength - offset, firstLog ? "WbGL2" : "|WbGL2");
+                firstLog = false;
+            }
+            else if (caches.invalTcc)
+            {
+                offset += Snprintf(pString + offset, StringLength - offset, firstLog ? "InvGL2" : "|InvGL2");
+                firstLog = false;
+            }
+
+            const bool wbInvCb = (caches.flushCb &
+                                  caches.invalCb &
+                                  caches.flushCbMetadata &
+                                  caches.invalCbMetadata) != 0;
+            const bool wbInvDb = (caches.flushDb &
+                                  caches.invalDb &
+                                  caches.flushDbMetadata &
+                                  caches.invalDbMetadata) != 0;
+
+            if (wbInvCb && wbInvDb)
+            {
+                offset += Snprintf(pString + offset, StringLength - offset, firstLog ? "WbInvRb" : "|WbInvRb");
+                firstLog = false;
+            }
+            else if (wbInvCb)
+            {
+                offset += Snprintf(pString + offset, StringLength - offset, firstLog ? "WbInvCb" : "|WbInvCb");
+                firstLog = false;
+            }
+            else if (wbInvDb)
+            {
+                offset += Snprintf(pString + offset, StringLength - offset, firstLog ? "WbInvDb" : "|WbInvDb");
+                firstLog = false;
+            }
+            else
+            {
+                if (caches.flushCb)
+                {
+                    offset += Snprintf(pString + offset, StringLength - offset, firstLog ? "WbCb" : "|WbCb");
+                    firstLog = false;
+                }
+
+                if (caches.invalCb)
+                {
+                    offset += Snprintf(pString + offset, StringLength - offset, firstLog ? "InvCb" : "|InvCb");
+                    firstLog = false;
+                }
+
+                if (caches.flushDb)
+                {
+                    offset += Snprintf(pString + offset, StringLength - offset, firstLog ? "WbDb" : "|WbDb");
+                    firstLog = false;
+                }
+
+                if (caches.invalDb)
+                {
+                    offset += Snprintf(pString + offset, StringLength - offset, firstLog ? "InvDb" : "|InvDb");
+                    firstLog = false;
+                }
+
+                if (caches.invalCbMetadata)
+                {
+                    offset += Snprintf(pString + offset, StringLength - offset, firstLog ? "InvCbM$" : "|InvCbM$");
+                    firstLog = false;
+                }
+
+                if (caches.flushCbMetadata)
+                {
+                    offset += Snprintf(pString + offset, StringLength - offset, firstLog ? "WbCbM$" : "|WbCbM$");
+                    firstLog = false;
+                }
+
+                if (caches.invalDbMetadata)
+                {
+                    offset += Snprintf(pString + offset, StringLength - offset, firstLog ? "InvDbM$" : "|InvDbM$");
+                    firstLog = false;
+                }
+
+                if (caches.flushDbMetadata)
+                {
+                    offset += Snprintf(pString + offset, StringLength - offset, firstLog ? "WbDbM$" : "|WbDbM$");
+                    firstLog = false;
+                }
+            }
+
+            offset += Snprintf(pString + offset, StringLength - offset, ", ");
+
+            // Layout transitions.
+            firstLog = true;
+
+            if (layoutTrans.depthStencilExpand)
+            {
+                offset += Snprintf(pString + offset, StringLength - offset,
+                                   firstLog ? "depthStencilExpand" : "|depthStencilExpand");
+                firstLog = false;
+            }
+
+            if (layoutTrans.htileHiZRangeExpand)
+            {
+                offset += Snprintf(pString + offset, StringLength - offset,
+                                   firstLog ? "htileHiZRangeExpand" : "|htileHiZRangeExpand");
+                firstLog = false;
+            }
+
+            if (layoutTrans.depthStencilResummarize)
+            {
+                offset += Snprintf(pString + offset, StringLength - offset,
+                                   firstLog ? "depthStencilResummarize" : "|depthStencilResummarize");
+                firstLog = false;
+            }
+
+            if (layoutTrans.dccDecompress)
+            {
+                offset += Snprintf(pString + offset, StringLength - offset,
+                                   firstLog ? "dccDecompress" : "|dccDecompress");
+                firstLog = false;
+            }
+
+            if (layoutTrans.fmaskDecompress)
+            {
+                offset += Snprintf(pString + offset, StringLength - offset,
+                                   firstLog ? "fmaskDecompress" : "|fmaskDecompress");
+                firstLog = false;
+            }
+
+            if (layoutTrans.fastClearEliminate)
+            {
+                offset += Snprintf(pString + offset, StringLength - offset,
+                                   firstLog ? "fastClearEliminate" : "|fastClearEliminate");
+                firstLog = false;
+            }
+
+            if (layoutTrans.fmaskColorExpand)
+            {
+                offset += Snprintf(pString + offset, StringLength - offset,
+                                   firstLog ? "fmaskColorExpand" : "|fmaskColorExpand");
+                firstLog = false;
+            }
+
+            if (layoutTrans.initMaskRam)
+            {
+                offset += Snprintf(pString + offset, StringLength - offset,
+                                   firstLog ? "initMaskRam" : "|initMaskRam");
+                firstLog = false;
+            }
+
+            if (layoutTrans.updateDccStateMetadata)
+            {
+                offset += Snprintf(pString + offset, StringLength - offset,
+                                   firstLog ? "updateDccState" : "|updateDccState");
+                firstLog = false;
+            }
+
+            offset += Snprintf(pString + offset, StringLength - offset, " }");
         }
 
-        if (pData->operations.pipelineStalls.vsPartialFlush)
-        {
-            GetNextLayer()->CmdCommentString("\tvsPartialFlush");
-        }
-
-        if (pData->operations.pipelineStalls.psPartialFlush)
-        {
-            GetNextLayer()->CmdCommentString("\tpsPartialFlush");
-        }
-
-        if (pData->operations.pipelineStalls.csPartialFlush)
-        {
-            GetNextLayer()->CmdCommentString("\tcsPartialFlush");
-        }
-
-        if (pData->operations.pipelineStalls.pfpSyncMe)
-        {
-            GetNextLayer()->CmdCommentString("\tpfpSyncMe");
-        }
-
-        if (pData->operations.pipelineStalls.syncCpDma)
-        {
-            GetNextLayer()->CmdCommentString("\tsyncCpDma");
-        }
-
-        if (pData->operations.pipelineStalls.eosTsPsDone)
-        {
-            GetNextLayer()->CmdCommentString("\teosTsPsDone");
-        }
-
-        if (pData->operations.pipelineStalls.eosTsCsDone)
-        {
-            GetNextLayer()->CmdCommentString("\teosTsCsDone");
-        }
-
-        if (pData->operations.pipelineStalls.waitOnTs)
-        {
-            GetNextLayer()->CmdCommentString("\twaitOnTs");
-        }
-
-        GetNextLayer()->CmdCommentString("}");
+        GetNextLayer()->CmdCommentString(pString);
 
         PAL_SAFE_DELETE_ARRAY(pString, &allocator);
-
-        // Layout transitions.
-        GetNextLayer()->CmdCommentString("LayoutTransitions = {");
-
-        if (pData->operations.layoutTransitions.depthStencilExpand)
-        {
-            GetNextLayer()->CmdCommentString("\tdepthStencilExpand");
-        }
-
-        if (pData->operations.layoutTransitions.htileHiZRangeExpand)
-        {
-            GetNextLayer()->CmdCommentString("\thtileHiZRangeExpand");
-        }
-
-        if (pData->operations.layoutTransitions.depthStencilResummarize)
-        {
-            GetNextLayer()->CmdCommentString("\tdepthStencilResummarize");
-        }
-
-        if (pData->operations.layoutTransitions.dccDecompress)
-        {
-            GetNextLayer()->CmdCommentString("\tdccDecompress");
-        }
-
-        if (pData->operations.layoutTransitions.fmaskDecompress)
-        {
-            GetNextLayer()->CmdCommentString("\tfmaskDecompress");
-        }
-
-        if (pData->operations.layoutTransitions.fastClearEliminate)
-        {
-            GetNextLayer()->CmdCommentString("\tfastClearEliminate");
-        }
-
-        if (pData->operations.layoutTransitions.fmaskColorExpand)
-        {
-            GetNextLayer()->CmdCommentString("\tfmaskColorExpand");
-        }
-
-        if (pData->operations.layoutTransitions.initMaskRam)
-        {
-            GetNextLayer()->CmdCommentString("\tinitMaskRam");
-        }
-
-        GetNextLayer()->CmdCommentString("}");
-
-        GetNextLayer()->CmdCommentString("Caches = {");
-
-        if (pData->operations.caches.invalTcp)
-        {
-            GetNextLayer()->CmdCommentString("\tinvalTcp");
-        }
-
-        if (pData->operations.caches.invalSqI$)
-        {
-            GetNextLayer()->CmdCommentString("\tinvalSqI$");
-        }
-
-        if (pData->operations.caches.invalSqK$)
-        {
-            GetNextLayer()->CmdCommentString("\tinvalSqK$");
-        }
-
-        if (pData->operations.caches.flushTcc)
-        {
-            GetNextLayer()->CmdCommentString("\tflushTcc");
-        }
-
-        if (pData->operations.caches.invalTcc)
-        {
-            GetNextLayer()->CmdCommentString("\tinvalTcc");
-        }
-
-        if (pData->operations.caches.invalTccMetadata)
-        {
-            GetNextLayer()->CmdCommentString("\tinvalTccMetadata");
-        }
-
-        if (pData->operations.caches.flushCb)
-        {
-            GetNextLayer()->CmdCommentString("\tflushCb");
-        }
-
-        if (pData->operations.caches.invalCb)
-        {
-            GetNextLayer()->CmdCommentString("\tinvalCb");
-        }
-
-        if (pData->operations.caches.flushDb)
-        {
-            GetNextLayer()->CmdCommentString("\tflushDb");
-        }
-
-        if (pData->operations.caches.invalDb)
-        {
-            GetNextLayer()->CmdCommentString("\tinvalDb");
-        }
-
-        if (pData->operations.caches.invalCbMetadata)
-        {
-            GetNextLayer()->CmdCommentString("\tinvalCbMetadata");
-        }
-
-        if (pData->operations.caches.flushCbMetadata)
-        {
-            GetNextLayer()->CmdCommentString("\tflushCbMetadata");
-        }
-
-        if (pData->operations.caches.invalDbMetadata)
-        {
-            GetNextLayer()->CmdCommentString("\tinvalDbMetadata");
-        }
-
-        if (pData->operations.caches.flushDbMetadata)
-        {
-            GetNextLayer()->CmdCommentString("\tflushDbMetadata");
-        }
-
-        if (pData->operations.caches.invalGl1)
-        {
-            GetNextLayer()->CmdCommentString("\tinvalGl1");
-        }
-
-        GetNextLayer()->CmdCommentString("}");
     }
 }
 
@@ -2892,12 +3008,11 @@ static void MemoryBarrierTransitionToString(
 
     pCmdBuffer->CmdCommentString("\t] // GpuMemSubAllocInfo");
 
-    Snprintf(pString, StringLength, "\tsrcAccessMask = ");
-    AppendCacheCoherencyUsageToString(pString, transition.srcAccessMask);
-    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
-
-    Snprintf(pString, StringLength, "\tdstAccessMask = ");
-    AppendCacheCoherencyUsageToString(pString, transition.dstAccessMask);
+    Snprintf(pString, StringLength, "\tsrcAccessMask->dstAccessMask = { ");
+    CacheCoherencyUsageToString(pString, transition.srcAccessMask);
+    AppendString(pString, " } -> { ");
+    CacheCoherencyUsageToString(pString, transition.dstAccessMask);
+    AppendString(pString, " }");
     pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
 
     pCmdBuffer->CmdCommentString("}");
@@ -2916,49 +3031,28 @@ static void ImageBarrierTransitionToString(
     Snprintf(&string[0], StringLength, "barrierInfo.pImageBarriers[%u] = {", index);
     pNextCmdBuffer->CmdCommentString(&string[0]);
 
+    Snprintf(string, StringLength, "\t\tsrcAccessMask->dstAccessMask = ");
+    CacheCoherencyUsageToString(string, transition.srcAccessMask);
+    AppendString(string, "->");
+    CacheCoherencyUsageToString(string, transition.dstAccessMask);
+    pNextCmdBuffer->CmdCommentString(string);
+
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
     if (transition.pImage != nullptr)
     {
+        Snprintf(string, StringLength, "\t\toldLayout->newLayout = ");
+        ImageLayoutToString(transition.oldLayout, string);
+        AppendString(string, " -> ");
+        ImageLayoutToString(transition.newLayout, string);
+        pNextCmdBuffer->CmdCommentString(&string[0]);
+
         DumpImageInfo(pCmdBuffer, transition.pImage, "pImage", "\t\t");
 
         SubresRangeToString(pCmdBuffer, transition.subresRange, pString);
         Snprintf(&string[0], StringLength, "\t\tsubresRange = %s", pString);
         pNextCmdBuffer->CmdCommentString(&string[0]);
-
-        pNextCmdBuffer->CmdCommentString("\t\tBox = {");
-
-        Snprintf(pString, StringLength, "\t\t\t");
-        Offset3dToString(transition.box.offset, pString);
-        pNextCmdBuffer->CmdCommentString(pString);
-        Snprintf(pString, StringLength, "\t\t\t");
-        Extent3dToString(transition.box.extent, pString);
-        pNextCmdBuffer->CmdCommentString(pString);
-
-        pNextCmdBuffer->CmdCommentString("\t\t}");
-
-        Snprintf(pString, StringLength, "\t\tsrcAccessMask = ");
-        AppendCacheCoherencyUsageToString(pString, transition.srcAccessMask);
-        pNextCmdBuffer->CmdCommentString(pString);
-
-        Snprintf(pString, StringLength, "\t\tdstAccessMask = ");
-        AppendCacheCoherencyUsageToString(pString, transition.dstAccessMask);
-        pNextCmdBuffer->CmdCommentString(pString);
-
-        Snprintf(&string[0], StringLength, "\t\toldLayout = ");
-        ImageLayoutToString(transition.oldLayout, &string[0]);
-        pNextCmdBuffer->CmdCommentString(&string[0]);
-
-        Snprintf(&string[0], StringLength, "\t\tnewLayout = ");
-        ImageLayoutToString(transition.newLayout, &string[0]);
-        pNextCmdBuffer->CmdCommentString(&string[0]);
-
-        if (transition.pQuadSamplePattern != nullptr)
-        {
-            DumpMsaaQuadSamplePattern(
-                pCmdBuffer, *transition.pQuadSamplePattern, "pQuadSamplePattern", "\t\t");
-        }
     }
     else
     {
@@ -2983,12 +3077,12 @@ static void CmdReleaseToString(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
-    Snprintf(pString, StringLength, "acquireReleaseInfo.srcStageMask = ");
-    AppendPipelineStageFlagToString(pString, barrierInfo.srcStageMask);
+    Snprintf(pString, StringLength, "releaseInfo.srcStageMask = ");
+    PipelineStageFlagToString(pString, barrierInfo.srcStageMask);
     pNextCmdBuffer->CmdCommentString(pString);
 
     Snprintf(pString, StringLength, "releaseInfo.srcGlobalAccessMask = ");
-    AppendCacheCoherencyUsageToString(pString, barrierInfo.srcGlobalAccessMask);
+    CacheCoherencyUsageToString(pString, barrierInfo.srcGlobalAccessMask);
     pNextCmdBuffer->CmdCommentString(pString);
 
     Snprintf(pString, StringLength, "releaseInfo.memoryBarrierCount = %u", barrierInfo.memoryBarrierCount);
@@ -3029,17 +3123,18 @@ static void CmdAcquireToString(
     const uint32*             pSyncTokens)
 {
     ICmdBuffer* pNextCmdBuffer = pCmdBuffer->GetNextLayer();
+
     pNextCmdBuffer->CmdCommentString("AcquireInfo:");
 
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
-    Snprintf(pString, StringLength, "acquireReleaseInfo.dstStageMask = ");
-    AppendPipelineStageFlagToString(pString, barrierInfo.dstStageMask);
+    Snprintf(pString, StringLength, "acquireInfo.dstStageMask = ");
+    PipelineStageFlagToString(pString, barrierInfo.dstStageMask);
     pNextCmdBuffer->CmdCommentString(pString);
 
     Snprintf(pString, StringLength, "acquireInfo.dstGlobalAccessMask = ");
-    AppendCacheCoherencyUsageToString(pString, barrierInfo.dstGlobalAccessMask);
+    CacheCoherencyUsageToString(pString, barrierInfo.dstGlobalAccessMask);
     pNextCmdBuffer->CmdCommentString(pString);
 
     Snprintf(pString, StringLength, "acquireInfo.memoryBarrierCount = %u", barrierInfo.memoryBarrierCount);
@@ -3078,7 +3173,7 @@ static void CmdAcquireToString(
     {
         Snprintf(pString, StringLength, "acquireInfo.reason = 0x%08X (client-defined reason)", barrierInfo.reason);
     }
-    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+    pNextCmdBuffer->CmdCommentString(pString);
 
     PAL_SAFE_DELETE_ARRAY(pString, &allocator);
 }
@@ -3089,28 +3184,27 @@ static void CmdAcquireReleaseToString(
     const AcquireReleaseInfo& barrierInfo)
 {
     ICmdBuffer* pNextCmdBuffer = pCmdBuffer->GetNextLayer();
+
     pNextCmdBuffer->CmdCommentString("AcquireReleaseInfo:");
 
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
-    Snprintf(pString, StringLength, "acquireReleaseInfo.srcStageMask = ");
-    AppendPipelineStageFlagToString(pString, barrierInfo.srcStageMask);
+    Snprintf(pString, StringLength, "acqRelInfo.srcStageMask->dstStageMask = { ");
+    PipelineStageFlagToString(pString, barrierInfo.srcStageMask);
+    AppendString(pString, " } -> { ");
+    PipelineStageFlagToString(pString, barrierInfo.dstStageMask);
+    AppendString(pString, " }");
     pNextCmdBuffer->CmdCommentString(pString);
 
-    Snprintf(pString, StringLength, "acquireReleaseInfo.dstStageMask = ");
-    AppendPipelineStageFlagToString(pString, barrierInfo.dstStageMask);
+    Snprintf(pString, StringLength, "acqRelInfo.srcGlobalAccessMask->dstGlobalAccessMask = { ");
+    CacheCoherencyUsageToString(pString, barrierInfo.srcGlobalAccessMask);
+    AppendString(pString, " } -> { ");
+    CacheCoherencyUsageToString(pString, barrierInfo.dstGlobalAccessMask);
+    AppendString(pString, " }");
     pNextCmdBuffer->CmdCommentString(pString);
 
-    Snprintf(pString, StringLength, "acquireReleaseInfo.srcGlobalAccessMask = ");
-    AppendCacheCoherencyUsageToString(pString, barrierInfo.srcGlobalAccessMask);
-    pNextCmdBuffer->CmdCommentString(pString);
-
-    Snprintf(pString, StringLength, "acquireReleaseInfo.dstGlobalAccessMask = ");
-    AppendCacheCoherencyUsageToString(pString, barrierInfo.dstGlobalAccessMask);
-    pNextCmdBuffer->CmdCommentString(pString);
-
-    Snprintf(pString, StringLength, "barrierInfo.memoryBarrierCount = %u", barrierInfo.memoryBarrierCount);
+    Snprintf(pString, StringLength, "acqRelInfo.memoryBarrierCount = %u", barrierInfo.memoryBarrierCount);
     pNextCmdBuffer->CmdCommentString(pString);
 
     for (uint32 i = 0; i < barrierInfo.memoryBarrierCount; i++)
@@ -3118,7 +3212,7 @@ static void CmdAcquireReleaseToString(
         MemoryBarrierTransitionToString(pCmdBuffer, i, barrierInfo.pMemoryBarriers[i], pString);
     }
 
-    Snprintf(pString, StringLength, "barrierInfo.imageBarrierCount = %u", barrierInfo.imageBarrierCount);
+    Snprintf(pString, StringLength, "acqRelInfo.imageBarrierCount = %u", barrierInfo.imageBarrierCount);
     pNextCmdBuffer->CmdCommentString(pString);
 
     for (uint32 i = 0; i < barrierInfo.imageBarrierCount; i++)
@@ -3129,13 +3223,13 @@ static void CmdAcquireReleaseToString(
     const char* pReasonStr = BarrierReasonToString(barrierInfo.reason);
     if (pReasonStr != nullptr)
     {
-        Snprintf(pString, StringLength, "barrierInfo.reason = %s", pReasonStr);
+        Snprintf(pString, StringLength, "acqRelInfo.reason = %s", pReasonStr);
     }
     else
     {
-        Snprintf(pString, StringLength, "barrierInfo.reason = 0x%08X (client-defined reason)", barrierInfo.reason);
+        Snprintf(pString, StringLength, "acqRelInfo.reason = 0x%08X (client-defined reason)", barrierInfo.reason);
     }
-    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+    pNextCmdBuffer->CmdCommentString(pString);
 
     PAL_SAFE_DELETE_ARRAY(pString, &allocator);
 }
@@ -3269,12 +3363,12 @@ static void CmdReleaseEventToString(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
-    Snprintf(pString, StringLength, "acquireReleaseInfo.srcStageMask = ");
-    AppendPipelineStageFlagToString(pString, barrierInfo.srcStageMask);
+    Snprintf(pString, StringLength, "releaseInfo.srcStageMask = ");
+    PipelineStageFlagToString(pString, barrierInfo.srcStageMask);
     pNextCmdBuffer->CmdCommentString(pString);
 
     Snprintf(pString, StringLength, "releaseInfo.srcGlobalAccessMask = ");
-    AppendCacheCoherencyUsageToString(pString, barrierInfo.srcGlobalAccessMask);
+    CacheCoherencyUsageToString(pString, barrierInfo.srcGlobalAccessMask);
     pNextCmdBuffer->CmdCommentString(pString);
 
     Snprintf(pString, StringLength, "releaseInfo.memoryBarrierCount = %u", barrierInfo.memoryBarrierCount);
@@ -3380,12 +3474,12 @@ static void CmdAcquireEventToString(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
-    Snprintf(pString, StringLength, "acquireReleaseInfo.dstStageMask = ");
-    AppendPipelineStageFlagToString(pString, barrierInfo.dstStageMask);
+    Snprintf(pString, StringLength, "acquireInfo.dstStageMask = ");
+    PipelineStageFlagToString(pString, barrierInfo.dstStageMask);
     pNextCmdBuffer->CmdCommentString(pString);
 
     Snprintf(pString, StringLength, "acquireInfo.dstGlobalAccessMask = ");
-    AppendCacheCoherencyUsageToString(pString, barrierInfo.dstGlobalAccessMask);
+    CacheCoherencyUsageToString(pString, barrierInfo.dstGlobalAccessMask);
     pNextCmdBuffer->CmdCommentString(pString);
 
     Snprintf(pString, StringLength, "acquireInfo.memoryBarrierCount = %u", barrierInfo.memoryBarrierCount);

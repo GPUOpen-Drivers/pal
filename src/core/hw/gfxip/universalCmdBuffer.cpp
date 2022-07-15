@@ -51,7 +51,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     GfxCmdStream*              pAceCmdStream,
     bool                       blendOptEnable)
     :
-    GfxCmdBuffer(device, createInfo),
+    Pm4CmdBuffer(device, createInfo),
     m_graphicsState{},
     m_graphicsRestoreState{},
     m_blendOpts{},
@@ -66,8 +66,8 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 {
     PAL_ASSERT(createInfo.queueType == QueueTypeUniversal);
 
-    SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute,   &GfxCmdBuffer::CmdSetUserDataCs);
-    SwitchCmdSetUserDataFunc(PipelineBindPoint::Graphics,  &CmdSetUserDataGfx<true>);
+    SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute,  &Pm4CmdBuffer::CmdSetUserDataCs);
+    SwitchCmdSetUserDataFunc(PipelineBindPoint::Graphics, &CmdSetUserDataGfx<true>);
 }
 
 // =====================================================================================================================
@@ -77,7 +77,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 Result UniversalCmdBuffer::Begin(
     const CmdBufferBuildInfo& info)
 {
-    Result result = GfxCmdBuffer::Begin(info);
+    Result result = Pm4CmdBuffer::Begin(info);
 
     if (info.pInheritedState != nullptr)
     {
@@ -108,7 +108,7 @@ Result UniversalCmdBuffer::BeginCommandStreams(
     CmdStreamBeginFlags cmdStreamFlags,
     bool                doReset)
 {
-    Result result = GfxCmdBuffer::BeginCommandStreams(cmdStreamFlags, doReset);
+    Result result = Pm4CmdBuffer::BeginCommandStreams(cmdStreamFlags, doReset);
 
     if (doReset)
     {
@@ -150,7 +150,7 @@ Result UniversalCmdBuffer::End()
 {
     // Amoung other things, this will add the postamble.  Be sure to add this before ending the command streams so that
     // they get padded correctly.
-    Result result = GfxCmdBuffer::End();
+    Result result = Pm4CmdBuffer::End();
 
     if (result == Result::Success)
     {
@@ -216,7 +216,7 @@ Result UniversalCmdBuffer::Reset(
     ICmdAllocator* pCmdAllocator,
     bool           returnGpuMemory)
 {
-    Result result = GfxCmdBuffer::Reset(pCmdAllocator, returnGpuMemory);
+    Result result = Pm4CmdBuffer::Reset(pCmdAllocator, returnGpuMemory);
 
     if (result == Result::Success)
     {
@@ -257,7 +257,7 @@ Result UniversalCmdBuffer::Reset(
 // Resets all of the state tracked by this command buffer
 void UniversalCmdBuffer::ResetState()
 {
-    GfxCmdBuffer::ResetState();
+    Pm4CmdBuffer::ResetState();
 
     memset(&m_graphicsState, 0, sizeof(m_graphicsState));
 
@@ -301,7 +301,7 @@ void UniversalCmdBuffer::CmdBindPipeline(
         m_graphicsState.rasterizerDiscardEnable  = false;
     }
 
-    // Compute state and some additional generic support is handled by the GfxCmdBuffer.
+    // Compute state and some additional generic support is handled by the Pm4CmdBuffer.
     GfxCmdBuffer::CmdBindPipeline(params);
 }
 
@@ -583,7 +583,8 @@ void UniversalCmdBuffer::CmdSetRasterizerDiscardEnable(
 
     if (pPipeline != nullptr)
     {
-        m_graphicsState.rasterizerDiscardEnable = rasterizerDiscardEnable;
+        const TossPointMode tossPointMode = static_cast<TossPointMode>(m_device.Parent()->Settings().tossPointMode);
+        m_graphicsState.rasterizerDiscardEnable = rasterizerDiscardEnable || (tossPointMode == TossPointAfterRaster);
         m_graphicsState.dirtyFlags.validationBits.rasterizerDiscardEnable = 1;
     }
 }
@@ -652,9 +653,13 @@ void UniversalCmdBuffer::CmdRestoreGraphicsState()
     m_graphicsState.depthClampOverride.disableViewportClamp = 0;
 
     // All RMP GFX Blts should push/pop command buffer's graphics state,
-    // so this is a safe opprotunity to mark that a GFX Blt is active
-    SetGfxCmdBufGfxBltState(true);
-    SetGfxCmdBufGfxBltWriteCacheState(true);
+    // so this is a safe opportunity to mark that a GFX Blt is active
+    SetPm4CmdBufGfxBltState(true);
+    SetPm4CmdBufGfxBltWriteCacheState(true);
+
+    UpdatePm4CmdBufGfxBltExecEopFence();
+    // Set a impossible waited fence until IssueReleaseSync assigns a meaningful value when sync RB cache.
+    UpdatePm4CmdBufGfxBltWbEopFence(UINT32_MAX);
 
     if (m_pCurrentExperiment != nullptr)
     {

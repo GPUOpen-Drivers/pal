@@ -68,11 +68,12 @@ struct UniversalCmdBufferState
             uint32 firstDrawExecuted     :  1;
             uint32 meshShaderEnabled     :  1;
             uint32 taskShaderEnabled     :  1;
+            uint32 fastLaunchMode        :  2;
             uint32 cbTargetMaskChanged   :  1; // Flag setup at Pipeline bind-time informing the draw-time set
                                                // that the CB_TARGET_MASK has been changed.
             uint32 occlusionQueriesActive : 1; // Indicates if the current validated cmd buf state has occulsion
                                                // queries enabled.
-            uint32 reserved0             :  5;
+            uint32 reserved0             :  3;
             uint32 cbColorInfoDirtyRtv   :  8; // Per-MRT dirty mask for CB_COLORx_INFO as a result of RTV
             uint32 reserved1             :  8;
         };
@@ -260,15 +261,14 @@ union CachedSettings
         uint64 reserved7                                 :  1;
         uint64 supportAceOffload                         :  1;
         uint64 useExecuteIndirectPacket                  :  2;
-        uint64 reserved8                  : 12;
+        uint64 reserved8                   : 15;
         uint64 reserved10                 :  1;
 
         uint64 optimizeDepthOnlyFmt       :  1;
         uint64 has32bPred                 :  1;
         uint64 optimizeNullSourceImage    :  1;
-        uint64 reserved                   :  2;
     };
-    uint64 u64All;
+    uint64 u64All[2];
 };
 
 // Tracks a prior VRS rate image to HTile copy so that we can skip redundant rate image copies.
@@ -649,7 +649,7 @@ protected:
 
     virtual void SetGraphicsState(const GraphicsState& newGraphicsState) override;
 
-    virtual void InheritStateFromCmdBuf(const GfxCmdBuffer* pCmdBuffer) override;
+    virtual void InheritStateFromCmdBuf(const Pm4CmdBuffer* pCmdBuffer) override;
 
     template <bool Pm4OptImmediate, bool IsNgg, bool Indirect>
     uint32* ValidateBinSizes(uint32* pDeCmdSpace);
@@ -784,7 +784,7 @@ private:
               bool HasUavExport,
               bool ViewInstancingEnable,
               bool DescribeDrawDispatch>
-    static void PAL_STDCALL CmdDispatchMesh(
+    static void PAL_STDCALL CmdDispatchMeshAmpFastLaunch(
         ICmdBuffer* pCmdBuffer,
         uint32      xDim,
         uint32      yDim,
@@ -881,7 +881,7 @@ private:
     uint32* WaitOnCeCounter(uint32* pDeCmdSpace);
     uint32* IncrementDeCounter(uint32* pDeCmdSpace);
 
-    Pm4Predicate PacketPredicate() const { return static_cast<Pm4Predicate>(m_gfxCmdBufState.flags.packetPredicate); }
+    Pm4Predicate PacketPredicate() const { return static_cast<Pm4Predicate>(m_pm4CmdBufState.flags.packetPredicate); }
 
     template <bool HsaAbi, bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
     void SetDispatchFunctions();
@@ -1125,6 +1125,7 @@ private:
     regPA_SC_CONSERVATIVE_RASTERIZATION_CNTL m_paScConsRastCntl;  // Register setting for PA_SC_CONSERV_RAST_CNTL
     regVGT_LS_HS_CONFIG                      m_vgtLsHsConfig;     // Register setting for VGT_LS_HS_CONFIG
     regGE_CNTL                               m_geCntl;            // Register setting for GE_CNTL
+    regDB_SHADER_CONTROL                     m_dbShaderControl;   // Register setting for DB_SHADER_CONTROL
     uint16                                   m_vertexOffsetReg;   // Register where the vertex start offset is written
     uint16                                   m_drawIndexReg;      // Register where the draw index is written
 

@@ -23,8 +23,8 @@
  *
  **********************************************************************************************************************/
 
-#include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/pipeline.h"
+#include "core/hw/gfxip/pm4CmdBuffer.h"
 #include "g_gfx6Settings.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdUtil.h"
 #include "core/hw/gfxip/gfx6/gfx6Device.h"

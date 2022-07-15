@@ -915,7 +915,7 @@ constexpr uint32 HashString(
 
     for (uint32 i = 0; i < strSize; i++)
     {
-        hash ^= static_cast<uint32>(pStr[i]);
+        hash ^= uint8(pStr[i]);
         hash *= FnvPrime;
     }
 

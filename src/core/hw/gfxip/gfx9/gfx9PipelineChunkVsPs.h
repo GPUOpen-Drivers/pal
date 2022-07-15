@@ -53,13 +53,12 @@ public:
     ~PipelineChunkVsPs() { }
 
     void EarlyInit(
-        const RegisterVector&     registers,
-        GraphicsPipelineLoadInfo* pInfo);
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        GraphicsPipelineLoadInfo*               pInfo);
 
     void LateInit(
         const AbiReader&                        abiReader,
         const Util::PalAbi::CodeObjectMetadata& metadata,
-        const RegisterVector&                   registers,
         const GraphicsPipelineLoadInfo&         loadInfo,
         const GraphicsPipelineCreateInfo&       createInfo,
         PipelineUploader*                       pUploader,

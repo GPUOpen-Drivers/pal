@@ -332,6 +332,9 @@ public:
 
     virtual Result CreateDmaUploadRing() override { return Result::Success; };
 
+    static void FillGfx6ChipProperties(GpuChipProperties* pChipProps);
+    static void FillGfx9ChipProperties(GpuChipProperties* pChipProps);
+
 protected:
     Device(
         Platform*              pPlatform,
@@ -403,11 +406,9 @@ private:
         InternalSettingScope settingType,
         size_t               bufferSz = 0) const override;
 
-#if PAL_BUILD_GFX6
     void InitGfx6ChipProperties();
 
-    void Gfx8InsertDummyTilingValues();
-#endif
+    static void Gfx8InsertDummyTilingValues(GpuChipProperties* pChipProps);
 
     void InitGfx9ChipProperties();
 

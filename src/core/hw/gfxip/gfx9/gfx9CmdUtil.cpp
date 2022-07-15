@@ -208,9 +208,51 @@ constexpr size_t AtomicOpConversionTableSize = ArrayLen(AtomicOpConversionTable)
 static_assert((AtomicOpConversionTableSize == static_cast<size_t>(AtomicOp::Count)),
               "AtomicOp conversion table has too many/few entries");
 
-constexpr size_t TcCacheOpConversionTableSize = ArrayLen(Gfx9TcCacheOpConversionTable);
-static_assert(ArrayLen(Gfx9TcCacheOpConversionTable) == static_cast<size_t>(TcCacheOp::Count),
-              "TcCacheOp conversion table has too many/few entries");
+// GCR_CNTL bit fields for ACQUIRE_MEM and RELEASE_MEM are slightly different.
+union Gfx10AcquireMemGcrCntl
+{
+    struct
+    {
+        uint32  gliInv     :  2;
+        uint32  gl1Range   :  2;
+        uint32  glmWb      :  1;
+        uint32  glmInv     :  1;
+        uint32  glkWb      :  1;
+        uint32  glkInv     :  1;
+        uint32  glvInv     :  1;
+        uint32  gl1Inv     :  1;
+        uint32  gl2Us      :  1;
+        uint32  gl2Range   :  2;
+        uint32  gl2Discard :  1;
+        uint32  gl2Inv     :  1;
+        uint32  gl2Wb      :  1;
+        uint32  seq        :  2;
+        uint32  reserved   : 14;
+    } bits;
+
+    uint32  u32All;
+};
+
+union Gfx10ReleaseMemGcrCntl
+{
+    struct
+    {
+        uint32  glmWb      :  1;
+        uint32  glmInv     :  1;
+        uint32  glvInv     :  1;
+        uint32  gl1Inv     :  1;
+        uint32  gl2Us      :  1;
+        uint32  gl2Range   :  2;
+        uint32  gl2Discard :  1;
+        uint32  gl2Inv     :  1;
+        uint32  gl2Wb      :  1;
+        uint32  seq        :  2;
+        uint32  reserved1  :  1;
+        uint32  reserved   : 19;
+    } bits;
+
+    uint32  u32All;
+};
 
 // =====================================================================================================================
 // Returns a 32-bit quantity that corresponds to a type-3 packet header.  "count" is the actual size of the packet in
@@ -435,24 +477,6 @@ bool CmdUtil::CanUseCsPartialFlush(
     return useCspf;
 }
 
-// ====================================================================================================================
-// If AcquireMem packet supports flush or invalidate requested cache sync flags.
-bool CmdUtil::CanUseAcquireMem(
-    uint32 cacheSyncFlags
-    ) const
-{
-    bool canUse = true;
-
-    // Can't flush or invalidate CB metadata using an ACQUIRE_MEM as not supported.
-    if (TestAnyFlagSet(cacheSyncFlags, CacheSyncFlushAndInvCbMd)
-        )
-    {
-        canUse = false;
-    }
-
-    return canUse;
-}
-
 // =====================================================================================================================
 // If we have support for the indirect_addr index and compute engines.
 bool CmdUtil::HasEnhancedLoadShRegIndex() const
@@ -526,15 +550,278 @@ bool CmdUtil::IsShReg(
 }
 
 // =====================================================================================================================
-// GFX10 adds a new GCR_CNTL field that takes over flush/inv control on most caches. Only CB and DB are still
-// controlled by CP_COHER_CNTL field. This function essentially converts GFX9 style cache sync info to GFX10 style one.
-uint32 CmdUtil::Gfx10CalcAcquireMemGcrCntl(
-    const AcquireMemInfo&  acquireMemInfo
+// If AcquireMem packet supports flush or invalidate requested RB cache sync flags.
+bool CmdUtil::CanUseAcquireMem(
+    SyncRbFlags rbSync
     ) const
 {
-    Gfx10AcquireMemGcrCntl gcrCntl = {};
+    bool canUse = true;
 
-    // The L1 / L2 caches are physical address based. When specify the range, the GCR will perform virtual address
+    // Can't flush or invalidate CB metadata using an ACQUIRE_MEM as not supported.
+    if (TestAnyFlagSet(rbSync, SyncCbMetaWbInv)
+        )
+    {
+        canUse = false;
+    }
+
+    return canUse;
+}
+
+// =====================================================================================================================
+// A helper function to translate some of the given CacheSyncFlags into a gfx9 TC cache op. The caller is expected
+// to call this function in a loop until the flags mask is set to zero. By studying the code below, we expect that:
+// - If you set SyncGl2WbInv, no matter what your other flags are, you only need one cache op.
+// - SyncGl2Inv | SyncGlmInv always gets rolled into one op.
+// - The worst case flag combination is SyncGl2Wb | SyncGlmInv | SyncGlvInv, which requires three cache ops.
+//   Maybe we should consider promoting that to a single SyncGl2WbInv | SyncGlmInv | SyncGlvInv cache op?
+// - The cases that require two cache ops are:
+//   1. SyncGl2Wb  | SyncGlmInv
+//   2. SyncGl2Wb  | SyncGlvInv
+//   3. SyncGl2Inv | SyncGlvInv
+//   4. SyncGlmInv | SyncGlvInv
+static regCP_COHER_CNTL SelectGfx9CacheOp(
+    SyncGlxFlags* pGlxFlags)
+{
+    regCP_COHER_CNTL   cpCoherCntl = {};
+    const SyncGlxFlags curFlags    = *pGlxFlags;
+
+    // This function can't handle any flags outside of this set. The caller needs to mask them off first.
+    // Note that SyncGl1Inv is always ignored on gfx9 so it's not really an error to pass it into this function.
+    PAL_ASSERT(TestAnyFlagSet(curFlags, ~(SyncGl2WbInv | SyncGlmInv | SyncGl1Inv | SyncGlvInv)) == false);
+
+    // Each branch in this function corresponds to one of the special "TC cache op" encodings supported by the CP.
+    //
+    // The first two cases are shortcuts for flushing and invalidating many caches in one operation. We prefer to use
+    // them whenever it wouldn't cause us to sync extra caches as this should reduce the number of releases or acquires
+    // we need to send to the CP.
+    //
+    // Also, note that any request which invalidates the GL2 also invalidates the metadata cache. That's why we
+    // ignore the SyncGlmInv flag when selecting between most GL2 cache operations.
+    if (TestAllFlagsSet(curFlags, SyncGl2WbInv | SyncGlvInv))
+    {
+        *pGlxFlags = SyncGlxNone;
+        cpCoherCntl.bits.TC_ACTION_ENA    = 1;
+        cpCoherCntl.bits.TC_WB_ACTION_ENA = 1;
+    }
+    else if (TestAllFlagsSet(curFlags, SyncGl2WbInv))
+    {
+        // We can set this to None because we would have taken the first branch if SyncGlvInv was set.
+        *pGlxFlags = SyncGlxNone;
+        cpCoherCntl.bits.TC_ACTION_ENA    = 1;
+        cpCoherCntl.bits.TC_WB_ACTION_ENA = 1;
+        cpCoherCntl.bits.TC_NC_ACTION_ENA = 1;
+    }
+    else if (TestAnyFlagSet(curFlags, SyncGl2Wb))
+    {
+        // As above, we can assume SyncGl2Inv is not set. We also need to keep SyncGlmInv as this is the only GL2
+        // cache operation that doesn't automatically invalidate it.
+        *pGlxFlags &= SyncGlmInv | SyncGlvInv;
+
+        // This assumes PAL will never use the write_confirm MTYPE.
+        cpCoherCntl.bits.TC_WB_ACTION_ENA = 1;
+        cpCoherCntl.bits.TC_NC_ACTION_ENA = 1;
+    }
+    else if (TestAnyFlagSet(curFlags, SyncGl2Inv))
+    {
+        // As above, we can assume SyncGl2Wb is not set.
+        *pGlxFlags &= SyncGlvInv;
+        cpCoherCntl.bits.TC_ACTION_ENA    = 1;
+        cpCoherCntl.bits.TC_NC_ACTION_ENA = 1;
+    }
+    else if (TestAnyFlagSet(curFlags, SyncGlmInv))
+    {
+        // If we've gotten here it means none of the other GL2 flags were set, only a SyncGlvInv could left.
+        *pGlxFlags &= SyncGlvInv;
+        cpCoherCntl.bits.TC_ACTION_ENA              = 1;
+        cpCoherCntl.bits.TC_INV_METADATA_ACTION_ENA = 1;
+    }
+    else if (TestAnyFlagSet(curFlags, SyncGlvInv))
+    {
+        // If we didn't take any of the other branches this has to be the last flag remaining.
+        *pGlxFlags = SyncGlxNone;
+        cpCoherCntl.bits.TCL1_ACTION_ENA = 1;
+    }
+
+    // We'll loop forever in the caller if this function didn't remove at least one flag from pGlxFlags.
+    PAL_ASSERT((curFlags == 0) || (*pGlxFlags != curFlags));
+
+    return cpCoherCntl;
+}
+
+// =====================================================================================================================
+size_t CmdUtil::BuildAcquireMemGeneric(
+    const AcquireMemGeneric& info,
+    void*                    pBuffer
+    ) const
+{
+    size_t totalSize;
+
+    if (IsGfx10Plus(m_gfxIpLevel))
+    {
+        totalSize = BuildAcquireMemInternalGfx10(info, info.engineType, {}, pBuffer);
+    }
+    else
+    {
+        totalSize = BuildAcquireMemInternalGfx9(info, info.engineType, {}, pBuffer);
+    }
+
+    return totalSize;
+}
+
+// =====================================================================================================================
+size_t CmdUtil::BuildAcquireMemGfxSurfSync(
+    const AcquireMemGfxSurfSync& info,
+    void*                        pBuffer
+    ) const
+{
+    size_t totalSize;
+
+    if (IsGfx10Plus(m_gfxIpLevel))
+    {
+        totalSize = BuildAcquireMemInternalGfx10(info, EngineTypeUniversal, info.flags, pBuffer);
+    }
+    else
+    {
+        totalSize = BuildAcquireMemInternalGfx9(info, EngineTypeUniversal, info.flags, pBuffer);
+    }
+
+    return totalSize;
+}
+
+static_assert(PM4_MEC_ACQUIRE_MEM_SIZEDW__CORE == PM4_ME_ACQUIRE_MEM_SIZEDW__CORE,
+              "GFX9: ACQUIRE_MEM packet size is different between ME compute and ME graphics!");
+
+// Mask of CP_ME_COHER_CNTL bits which stall based on all CB base addresses.
+static constexpr uint32 CpMeCoherCntlStallCb = CP_ME_COHER_CNTL__CB0_DEST_BASE_ENA_MASK |
+                                               CP_ME_COHER_CNTL__CB1_DEST_BASE_ENA_MASK |
+                                               CP_ME_COHER_CNTL__CB2_DEST_BASE_ENA_MASK |
+                                               CP_ME_COHER_CNTL__CB3_DEST_BASE_ENA_MASK |
+                                               CP_ME_COHER_CNTL__CB4_DEST_BASE_ENA_MASK |
+                                               CP_ME_COHER_CNTL__CB5_DEST_BASE_ENA_MASK |
+                                               CP_ME_COHER_CNTL__CB6_DEST_BASE_ENA_MASK |
+                                               CP_ME_COHER_CNTL__CB7_DEST_BASE_ENA_MASK;
+
+// Mask of CP_ME_COHER_CNTL bits which stall based on all DB base addresses (depth and stencil).
+static constexpr uint32 CpMeCoherCntlStallDb = CP_ME_COHER_CNTL__DB_DEST_BASE_ENA_MASK |
+                                               CP_ME_COHER_CNTL__DEST_BASE_0_ENA_MASK;
+
+// Mask of CP_ME_COHER_CNTL bits which stall based on all base addresses. (CB + DB + unused)
+static constexpr uint32 CpMeCoherCntlStallAll = CP_ME_COHER_CNTL__CB0_DEST_BASE_ENA_MASK |
+                                                CP_ME_COHER_CNTL__CB1_DEST_BASE_ENA_MASK |
+                                                CP_ME_COHER_CNTL__CB2_DEST_BASE_ENA_MASK |
+                                                CP_ME_COHER_CNTL__CB3_DEST_BASE_ENA_MASK |
+                                                CP_ME_COHER_CNTL__CB4_DEST_BASE_ENA_MASK |
+                                                CP_ME_COHER_CNTL__CB5_DEST_BASE_ENA_MASK |
+                                                CP_ME_COHER_CNTL__CB6_DEST_BASE_ENA_MASK |
+                                                CP_ME_COHER_CNTL__CB7_DEST_BASE_ENA_MASK |
+                                                CP_ME_COHER_CNTL__DB_DEST_BASE_ENA_MASK  |
+                                                CP_ME_COHER_CNTL__DEST_BASE_0_ENA_MASK   |
+                                                CP_ME_COHER_CNTL__DEST_BASE_1_ENA_MASK   |
+                                                CP_ME_COHER_CNTL__DEST_BASE_2_ENA_MASK   |
+                                                CP_ME_COHER_CNTL__DEST_BASE_3_ENA_MASK;
+
+// =====================================================================================================================
+size_t CmdUtil::BuildAcquireMemInternalGfx9(
+    const AcquireMemCore& info,
+    EngineType            engineType,
+    SurfSyncFlags         surfSyncFlags,
+    void*                 pBuffer
+    ) const
+{
+    // This path only works on gfx9.
+    PAL_ASSERT(IsGfx10Plus(m_gfxIpLevel) == false);
+
+    // The surf sync dest_base stalling feature is only supported on graphics engines. ACE acquires are immediate.
+    // The RB caches can only be flushed and invalidated on graphics queues as well. This assert should never fire
+    // because the public functions that call this function hard code their arguments such that it will never be false.
+    PAL_ASSERT(Pal::Device::EngineSupportsGraphics(engineType) || (surfSyncFlags.u8All == 0));
+
+    size_t totalSize = 0;
+
+    constexpr uint32   PacketSize = PM4_ME_ACQUIRE_MEM_SIZEDW__CORE;
+    PM4_ME_ACQUIRE_MEM packet     = {};
+
+    packet.ordinal1.header = Type3Header(IT_ACQUIRE_MEM, PacketSize);
+
+    // The DEST_BASE bits in CP_ME_COHER_CNTL control the surf sync context stalling feature.
+    const bool cbStall = surfSyncFlags.cbTargetStall != 0;
+    const bool dbStall = surfSyncFlags.dbTargetStall != 0;
+
+    const uint32 cpMeCoherCntl = (cbStall && dbStall) ? CpMeCoherCntlStallAll :
+                                 cbStall              ? CpMeCoherCntlStallCb  :
+                                 dbStall              ? CpMeCoherCntlStallDb  : 0;
+
+    // Gfx9 doesn't have GCR support. Instead, we have to break the input flags down into one or more supported
+    // TC cache ops. To make it easier to share code, we convert our packet-specific flags into CacheSyncFlags.
+    // Note that gfx9 has no GL1 cache so we ignore that bit.
+    SyncGlxFlags     glxFlags    = info.cacheSync & (SyncGl2WbInv | SyncGlmInv | SyncGlvInv);
+    regCP_COHER_CNTL cpCoherCntl = SelectGfx9CacheOp(&glxFlags);
+
+    // Add in the L0 flags that SelectGfx9CacheOp doesn't handle. These flags can be set independently of the TC ops.
+    cpCoherCntl.bits.CB_ACTION_ENA           = surfSyncFlags.gfx9Gfx10CbDataWbInv;
+    cpCoherCntl.bits.DB_ACTION_ENA           = surfSyncFlags.gfx9Gfx10DbWbInv;
+    cpCoherCntl.bits.SH_KCACHE_ACTION_ENA    = TestAnyFlagSet(info.cacheSync, SyncGlkInv);
+    cpCoherCntl.bits.SH_ICACHE_ACTION_ENA    = TestAnyFlagSet(info.cacheSync, SyncGliInv);
+    cpCoherCntl.bits.SH_KCACHE_WB_ACTION_ENA = TestAnyFlagSet(info.cacheSync, SyncGlkWb);
+
+    // Both COHER_CNTL registers get combined into our packet's coher_cntl field.
+    packet.ordinal2.bitfieldsA.coher_cntl = cpCoherCntl.u32All | cpMeCoherCntl;
+
+    // Note that this field isn't used on ACE.
+    if (Pal::Device::EngineSupportsGraphics(engineType))
+    {
+        packet.ordinal2.bitfieldsA.engine_sel = (surfSyncFlags.pfpWait != 0)
+                                         ? ME_ACQUIRE_MEM_engine_sel_enum(engine_sel__pfp_acquire_mem__prefetch_parser)
+                                         : ME_ACQUIRE_MEM_engine_sel_enum(engine_sel__me_acquire_mem__micro_engine);
+    }
+
+    // The coher base and size are in units of 256 bytes. Rather than require the caller to align them to 256 bytes we
+    // just expand the base and size to the next 256-byte multiple if they're not already aligned.
+    //
+    // Note that we're required to set every bit in base to '0' and every bit in size to '1' for a full range acquire.
+    // AcquireMemCore requires the caller to use base = 0 and size = 0 for a full range acquire so the math just works
+    // for coher_base, but coher_size requires us to substitute a special constant.
+    const gpusize coherBase = Pow2AlignDown(info.rangeBase, 256);
+    const gpusize padSize   = info.rangeSize + info.rangeBase % 256;
+    const gpusize coherSize = (info.rangeSize == 0) ? Pow2AlignDown(UINT64_MAX, 256) : Pow2Align(padSize, 256);
+
+    packet.ordinal3.coher_size                        = Get256BAddrLo(coherSize);
+    packet.ordinal4.bitfieldsA.gfx09_10.coher_size_hi = Get256BAddrHi(coherSize);
+    packet.ordinal5.coher_base_lo                     = Get256BAddrLo(coherBase);
+    packet.ordinal6.bitfieldsA.coher_base_hi          = Get256BAddrHi(coherBase);
+    packet.ordinal7.bitfieldsA.poll_interval          = Pal::Device::PollInterval;
+
+    // Write the first acquire_mem. Hopefully we only need this one.
+    memcpy(pBuffer, &packet, PacketSize * sizeof(uint32));
+
+    pBuffer = VoidPtrInc(pBuffer, PacketSize * sizeof(uint32));
+    totalSize += PacketSize;
+
+    // But if the first SelectGfx9CacheOp call didn't use all of the GCR flags we need more packets. The first packet
+    // will handle the I$, K$, and RB caches. These follow-up packets just need to poke the remaining TC cache ops.
+    // No more waiting is required, the first packet already did whatever surf-sync waiting was required.
+    while (glxFlags != SyncGlxNone)
+    {
+        const regCP_COHER_CNTL cntl = SelectGfx9CacheOp(&glxFlags);
+
+        packet.ordinal2.bitfieldsA.coher_cntl = cntl.u32All;
+
+        memcpy(pBuffer, &packet, PacketSize * sizeof(uint32));
+
+        pBuffer = VoidPtrInc(pBuffer, PacketSize * sizeof(uint32));
+        totalSize += PacketSize;
+    }
+
+    return totalSize;
+}
+
+// =====================================================================================================================
+// A helper heuristic used to program the "range" fields in acquire_mem packets.
+static bool UseRangeBasedGcr(
+    gpusize base,
+    gpusize size)
+{
+    // The L1 / L2 caches are physical address based. When specifying the range, the GCR will perform virtual address
     // to physical address translation before the wb / inv. If the acquired op is full sync, we must ignore the range,
     // otherwise page fault may occur because page table cannot cover full range virtual address.
     //    When the source address is virtual , the GCR block will have to perform the virtual address to physical
@@ -544,256 +831,113 @@ uint32 CmdUtil::Gfx10CalcAcquireMemGcrCntl(
     //    entire cache without it. The range based method is not meant to be used this way, it is for selective page
     //    invalidation.
     //
-    // GL1_RANGE[1:0] - range control for L0 / L1 physical caches(K$, V$, M$, GL1)
-    //  0:ALL         - wb / inv op applies to entire physical cache (ignore range)
-    //  1:reserved
-    //  2:RANGE       - wb / inv op applies to just the base / limit virtual address range
-    //  3:FIRST_LAST  - wb / inv op applies to 128B at BASE_VA and 128B at LIMIT_VA
-    //
-    // GL2_RANGE[1:0]
-    //  0:ALL         - wb / inv op applies to entire physical cache (ignore range)
-    //  1:VOL         - wb / inv op applies to all volatile tagged lines in the GL2 (ignore range)
-    //  2:RANGE       - wb / inv op applies to just the base/limit virtual address range
-    //  3:FIRST_LAST  - wb / inv op applies to 128B at BASE_VA and 128B at LIMIT_VA
-    if (((acquireMemInfo.baseAddress == FullSyncBaseAddr) && (acquireMemInfo.sizeBytes == FullSyncSize)) ||
-        (acquireMemInfo.sizeBytes > CmdUtil::Gfx10AcquireMemGl1Gl2RangedCheckMaxSurfaceSizeBytes))
-    {
-        gcrCntl.bits.gl1Range = 0;
-        gcrCntl.bits.gl2Range = 0;
-    }
-    else
-    {
-        gcrCntl.bits.gl1Range = 2;
-        gcrCntl.bits.gl2Range = 2;
-    }
-
-    // #1. Setup TC cache operations.
-    switch (acquireMemInfo.tcCacheOp)
-    {
-    case TcCacheOp::WbInvL1L2:
-        // GLM_WB[0]  - write-back control for the meta-data cache of GL2. L2MD is write-through, ignore this bit.
-        // GLM_INV[0] - invalidate enable for the meta-data cache of GL2
-        // GLV_INV[0] - invalidate enable for shader vector L0 cache
-        // GL1_INV[0] - invalidate enable for GL1
-        // GL2_INV[0] - invalidate enable for GL2
-        // GL2_WB[0]  - writeback enable for GL2
-        gcrCntl.bits.glmInv = 1;
-        gcrCntl.bits.glvInv = 1;
-        gcrCntl.bits.gl1Inv = 1;
-        gcrCntl.bits.gl2Inv = 1;
-        gcrCntl.bits.gl2Wb  = 1;
-        break;
-
-    case TcCacheOp::WbInvL2Nc:
-        // GL2_INV[0] - invalidate enable for GL2
-        // GL2_WB[0]  - writeback enable for GL2
-        gcrCntl.bits.gl2Inv = 1;
-        gcrCntl.bits.gl2Wb  = 1;
-        break;
-
-        // GFX10TODO: GCR cannot differentiate Nc(non-coherent MTYPE) and Wc(write-combined MTYPE)?
-    case TcCacheOp::WbL2Nc:
-    case TcCacheOp::WbL2Wc:
-        // GL2_WB[0] - writeback enable for GL2
-        gcrCntl.bits.gl2Wb = 1;
-        break;
-
-    case TcCacheOp::InvL2Nc:
-        // GL2_INV[0] - invalidate enable for GL2
-        gcrCntl.bits.gl2Inv = 1;
-
-    case TcCacheOp::InvL2Md:
-        // GLM_INV[0] - invalidate enable for the meta-data cache of GL2
-        gcrCntl.bits.glmInv = 1;
-        break;
-
-    case TcCacheOp::InvL1:
-        // GLV_INV[0] - invalidate enable for shader vector L0 cache
-        gcrCntl.bits.glvInv = 1;
-        gcrCntl.bits.gl1Inv = 1;
-        break;
-
-    case TcCacheOp::InvL1Vol:
-        // GL2_RANGE[1:0]
-        // GL1_INV[0] - invalidate enable for GL1
-        // GLV_INV[0] - invalidate enable for shader vector L0 cache
-        gcrCntl.bits.gl2Range = 1;
-        gcrCntl.bits.gl1Inv   = 1;
-        gcrCntl.bits.glvInv   = 1;
-        break;
-
-    default:
-        PAL_ASSERT(acquireMemInfo.tcCacheOp == TcCacheOp::Nop);
-        break;
-    }
-
-    // #2. Setup extra cache operations.
-    // GLI_INV[1:0]   control for the virtual tagged instruction cache (I$)
-    //      0:NOP          no invalidation of I$
-    //      1:ALL          entire I$ is invalidated
-    //      2:RANGE        invalidate base -> limit virtual address range of the I$.
-    //                     Overrides to NOP if RANGE_IS_PA == 1
-    //      3:FIRST_LAST   invalidate just 128B at BASE_VA and 128B at LIMIT_VA.
-    //                     Overrides to NOP if RANGE_IS_PA == 1
-    //
-    gcrCntl.bits.gliInv = acquireMemInfo.flags.invSqI$;
-
-    // GLK_WB[0]  - write-back control for shaded scalar L0 cache
-    // GLK_INV[0] - invalidate enable for shader scalar L0 cache
-    gcrCntl.bits.glkWb  = acquireMemInfo.flags.flushSqK$;
-    gcrCntl.bits.glkInv = acquireMemInfo.flags.invSqK$;
-
-    // SEQ[1:0]   controls the sequence of operations on the cache hierarchy (L0/L1/L2)
-    //      0: PARALLEL   initiate wb/inv ops on specified caches at same time
-    //      1: FORWARD    L0 then L1/L2, complete L0 ops then initiate L1/L2
-    //                    Typically only needed when doing WB of L0 K$, M$, or RB w/ WB of GL2
-    //      2: REVERSE    L2 -> L1 -> L0
-    //                    Typically only used for post-unaligned-DMA operation (invalidate only)
-    //
-    // CbMd (or known as M$/MDC/TCC Metadata cache) is write-through, no need care the flush sequence for it.
-    gcrCntl.bits.seq = gcrCntl.bits.gl2Wb &&
-                       (gcrCntl.bits.glkWb || acquireMemInfo.flags.wbInvCbData || acquireMemInfo.flags.wbInvDb) ? 1 : 0;
-
-    return gcrCntl.u32All;
+    // So that's a good reason to return false if the base or size are the special "full" values. It's also a good idea
+    // to disable range-based GCRs if the sync range is too big, as walking a large VA range has a large perf cost.
+    return ((base != 0) && (size != 0) && (size <= CmdUtil::Gfx10AcquireMemGl1Gl2RangedCheckMaxSurfaceSizeBytes));
 }
 
-// =====================================================================================================================
-// Builds the ACQUIRE_MEM command.  Returns the size, in DWORDs, of the assembled PM4 command
-size_t CmdUtil::BuildAcquireMem(
-    const AcquireMemInfo& acquireMemInfo,
-    void*                 pBuffer         // [out] Build the PM4 packet in this buffer.
-    ) const
-{
-    if (Pal::Device::EngineSupportsGraphics(acquireMemInfo.engineType) == false)
-    {
-        // If there's no graphics support on this engine then disable various gfx-specific requests
-        PAL_ASSERT(acquireMemInfo.cpMeCoherCntl.u32All == 0);
-        PAL_ASSERT(acquireMemInfo.flags.wbInvCbData == 0);
-        PAL_ASSERT(acquireMemInfo.flags.wbInvDb == 0);
-    }
-
-    // Translate AcquireMemInfo to an explicit AcquireMemInfo type.
-    ExplicitAcquireMemInfo explicitAcquireMemInfo = {};
-    explicitAcquireMemInfo.flags.usePfp = acquireMemInfo.flags.usePfp;
-    explicitAcquireMemInfo.engineType   = acquireMemInfo.engineType;
-    explicitAcquireMemInfo.baseAddress  = acquireMemInfo.baseAddress;
-    explicitAcquireMemInfo.sizeBytes    = acquireMemInfo.sizeBytes;
-
-    // The CP_COHER_CNTL bits either belong to the set of mutually exclusive TC cache ops or can be set
-    // independently.
-    if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
-    {
-        const uint32  tcCacheOp = static_cast<uint32>(acquireMemInfo.tcCacheOp);
-
-        regCP_COHER_CNTL cpCoherCntl;
-        cpCoherCntl.u32All                       = Gfx9TcCacheOpConversionTable[tcCacheOp];
-        cpCoherCntl.bits.CB_ACTION_ENA           = acquireMemInfo.flags.wbInvCbData;
-        cpCoherCntl.bits.DB_ACTION_ENA           = acquireMemInfo.flags.wbInvDb;
-        cpCoherCntl.bits.SH_KCACHE_ACTION_ENA    = acquireMemInfo.flags.invSqK$;
-        cpCoherCntl.bits.SH_ICACHE_ACTION_ENA    = acquireMemInfo.flags.invSqI$;
-        cpCoherCntl.bits.SH_KCACHE_WB_ACTION_ENA = acquireMemInfo.flags.flushSqK$;
-
-        // There shouldn't be any shared bits between CP_ME_COHER_CNTL and CP_COHER_CNTL.
-        PAL_ASSERT((cpCoherCntl.u32All & acquireMemInfo.cpMeCoherCntl.u32All) == 0);
-
-        explicitAcquireMemInfo.coherCntl = cpCoherCntl.u32All | acquireMemInfo.cpMeCoherCntl.u32All;
-    }
-    else if (IsGfx10(m_gfxIpLevel))
-    {
-        if (Pal::Device::EngineSupportsGraphics(acquireMemInfo.engineType))
-        {
-            // K$ and I$ and all previous tcCacheOp controlled caches are moved to GCR fields,
-            // set in CalcAcquireMemGcrCntl().
-            regCP_COHER_CNTL cpCoherCntl = {};
-            cpCoherCntl.bits.CB_ACTION_ENA = acquireMemInfo.flags.wbInvCbData;
-            cpCoherCntl.bits.DB_ACTION_ENA = acquireMemInfo.flags.wbInvDb;
-
-            // There shouldn't be any shared bits between CP_ME_COHER_CNTL and CP_COHER_CNTL.
-            PAL_ASSERT((cpCoherCntl.u32All & acquireMemInfo.cpMeCoherCntl.u32All) == 0);
-
-            explicitAcquireMemInfo.coherCntl = cpCoherCntl.u32All | acquireMemInfo.cpMeCoherCntl.u32All;
-        }
-
-        explicitAcquireMemInfo.gcrCntl = Gfx10CalcAcquireMemGcrCntl(acquireMemInfo);
-    }
-
-    // Call a more explicit function.
-    return ExplicitBuildAcquireMem(explicitAcquireMemInfo, pBuffer);
-}
+static_assert(PM4_MEC_ACQUIRE_MEM_SIZEDW__GFX10PLUS == PM4_ME_ACQUIRE_MEM_SIZEDW__GFX10PLUS,
+              "GFX10: ACQUIRE_MEM packet size is different between ME compute and ME graphics!");
 
 // =====================================================================================================================
-// Builds the ACQUIRE_MEM command.  Returns the size, in DWORDs, of the assembled PM4 command
-size_t CmdUtil::ExplicitBuildAcquireMem(
-    const ExplicitAcquireMemInfo& acquireMemInfo,
-    void*                         pBuffer         // [out] Build the PM4 packet in this buffer.
+size_t CmdUtil::BuildAcquireMemInternalGfx10(
+    const AcquireMemCore& info,
+    EngineType            engineType,
+    SurfSyncFlags         surfSyncFlags,
+    void*                 pBuffer
     ) const
 {
-    const uint32 packetSize = IsGfx10Plus(m_gfxIpLevel) ? PM4_ME_ACQUIRE_MEM_SIZEDW__GFX10PLUS :
-                                                          PM4_ME_ACQUIRE_MEM_SIZEDW__CORE;
+    // This function is named "BuildGfx10..." so don't call it on gfx9.
+    PAL_ASSERT(IsGfx10Plus(m_gfxIpLevel));
 
-    PM4_ME_ACQUIRE_MEM packet = {};
-    packet.ordinal1.header    = Type3Header(IT_ACQUIRE_MEM, packetSize);
+    // The surf sync dest_base stalling feature is only supported on graphics engines. ACE acquires are immediate.
+    // The RB caches can only be flushed and invalidated on graphics queues as well. This assert should never fire
+    // because the public functions that call this function hard code their arguments such that it will never be false.
+    PAL_ASSERT(Pal::Device::EngineSupportsGraphics(engineType) || (surfSyncFlags.u8All == 0));
+
+    // These are such long names... some temps will help.
+    const bool cbDataWbInv = surfSyncFlags.gfx9Gfx10CbDataWbInv != 0;
+    const bool dbWbInv     = surfSyncFlags.gfx9Gfx10DbWbInv != 0;
+
+    constexpr uint32   PacketSize = PM4_ME_ACQUIRE_MEM_SIZEDW__GFX10PLUS;
+    PM4_ME_ACQUIRE_MEM packet     = {};
+
+    packet.ordinal1.header = Type3Header(IT_ACQUIRE_MEM, PacketSize);
+
+    // The DEST_BASE bits in CP_ME_COHER_CNTL control the surf sync context stalling feature.
+    const bool cbStall = surfSyncFlags.cbTargetStall != 0;
+    const bool dbStall = surfSyncFlags.dbTargetStall != 0;
+
+    const uint32 cpMeCoherCntl = (cbStall && dbStall) ? CpMeCoherCntlStallAll :
+                                 cbStall              ? CpMeCoherCntlStallCb  :
+                                 dbStall              ? CpMeCoherCntlStallDb  : 0;
+
+    // Note that the other ACTION_ENA flags are not used on gfx10+, they go in the gcr_cntl instead.
+    regCP_COHER_CNTL cpCoherCntl = {};
+    cpCoherCntl.bits.CB_ACTION_ENA = cbDataWbInv;
+    cpCoherCntl.bits.DB_ACTION_ENA = dbWbInv;
+
+    // Both COHER_CNTL registers get combined into our packet's coher_cntl field.
+    packet.ordinal2.bitfieldsA.coher_cntl = cpCoherCntl.u32All | cpMeCoherCntl;
+
+    // Note that this field isn't used on ACE.
+    if (Pal::Device::EngineSupportsGraphics(engineType))
+    {
+        packet.ordinal2.bitfieldsA.engine_sel = (surfSyncFlags.pfpWait != 0)
+                                         ? ME_ACQUIRE_MEM_engine_sel_enum(engine_sel__pfp_acquire_mem__prefetch_parser)
+                                         : ME_ACQUIRE_MEM_engine_sel_enum(engine_sel__me_acquire_mem__micro_engine);
+    }
+
+    // The coher base and size are in units of 256 bytes. Rather than require the caller to align them to 256 bytes we
+    // just expand the base and size to the next 256-byte multiple if they're not already aligned.
+    //
+    // Note that we're required to set every bit in base to '0' and every bit in size to '1' for a full range acquire.
+    // AcquireMemCore requires the caller to use base = 0 and size = 0 for a full range acquire so the math just works
+    // for coher_base, but coher_size requires us to substitute a special constant.
+    const gpusize coherBase = Pow2AlignDown(info.rangeBase, 256);
+    const gpusize padSize   = info.rangeSize + info.rangeBase % 256;
+    const gpusize coherSize = (info.rangeSize == 0) ? Pow2AlignDown(UINT64_MAX, 256) : Pow2Align(padSize, 256);
+
+    packet.ordinal3.coher_size = Get256BAddrLo(coherSize);
 
     {
-        const ME_ACQUIRE_MEM_engine_sel_enum  engineSel =
-                    static_cast<ME_ACQUIRE_MEM_engine_sel_enum>(acquireMemInfo.flags.usePfp
-                        ? static_cast<uint32>(engine_sel__pfp_acquire_mem__prefetch_parser)
-                        : static_cast<uint32>(engine_sel__me_acquire_mem__micro_engine));
+        packet.ordinal4.bitfieldsA.gfx09_10.coher_size_hi = Get256BAddrHi(coherSize);
+    }
 
-        packet.ordinal2.bitfieldsA.coher_cntl = acquireMemInfo.coherCntl;
+    packet.ordinal5.coher_base_lo            = Get256BAddrLo(coherBase);
+    packet.ordinal6.bitfieldsA.coher_base_hi = Get256BAddrHi(coherBase);
+    packet.ordinal7.bitfieldsA.poll_interval = Pal::Device::PollInterval;
 
-        if (Pal::Device::EngineSupportsGraphics(acquireMemInfo.engineType))
+    if (info.cacheSync != 0)
+    {
+        // Note that glmWb is unimplemented in HW so we don't both setting it. Everything else we want zeroed.
+        //
+        // We always prefer parallel cache ops but must force sequential (L0->L1->L2) mode when we're writing back a
+        // non-write-through L0 before an L2 writeback.
+        Gfx10AcquireMemGcrCntl cntl = {};
+        cntl.bits.gliInv = TestAnyFlagSet(info.cacheSync, SyncGliInv);
+        cntl.bits.glmInv = TestAnyFlagSet(info.cacheSync, SyncGlmInv);
+        cntl.bits.glkWb  = TestAnyFlagSet(info.cacheSync, SyncGlkWb);
+        cntl.bits.glkInv = TestAnyFlagSet(info.cacheSync, SyncGlkInv);
+        cntl.bits.glvInv = TestAnyFlagSet(info.cacheSync, SyncGlvInv);
+        cntl.bits.gl1Inv = TestAnyFlagSet(info.cacheSync, SyncGl1Inv);
+        cntl.bits.gl2Inv = TestAnyFlagSet(info.cacheSync, SyncGl2Inv);
+        cntl.bits.gl2Wb  = TestAnyFlagSet(info.cacheSync, SyncGl2Wb);
+        cntl.bits.seq    = cntl.bits.gl2Wb & (cntl.bits.glkWb | cbDataWbInv | dbWbInv);
+
+        // We default to whole-cache operations unless this heuristic says we should do a range-based GCR.
+        if (UseRangeBasedGcr(info.rangeBase, info.rangeSize))
         {
-            packet.ordinal2.bitfieldsA.engine_sel = engineSel;
+            cntl.bits.gl1Range = 2;
+            cntl.bits.gl2Range = 2;
         }
+
+        packet.ordinal8.bitfields.gfx10Plus.gcr_cntl = cntl.u32All;
     }
 
-    // Need to align-down the given base address and then add the difference to the size, and align that new size.
-    // Note that if sizeBytes is equal to FullSyncSize we should clamp it to the max virtual address.
-    constexpr gpusize Alignment = 256;
+    memcpy(pBuffer, &packet, PacketSize * sizeof(uint32));
 
-    // For a full aperture invalidation we need to set all the bits of coher_size and coher_size_hi to 1.
-    // In total that's 32 + 8 == 40 bits.
-    constexpr gpusize CoherFullApertureSize = (1ull << 40ull) - 1ull;
-    constexpr gpusize CoherSizeShift = 8;
-
-    const gpusize alignedAddress = Pow2AlignDown(acquireMemInfo.baseAddress, Alignment);
-
-    {
-        const gpusize alignedSize = (acquireMemInfo.sizeBytes == FullSyncSize) ? CoherFullApertureSize :
-            (Pow2Align(acquireMemInfo.sizeBytes + acquireMemInfo.baseAddress - alignedAddress, Alignment)
-                >> CoherSizeShift);
-
-        packet.ordinal3.coher_size                        = LowPart(alignedSize);
-        packet.ordinal4.bitfieldsA.gfx09_10.coher_size_hi = HighPart(alignedSize);
-        packet.ordinal5.coher_base_lo                     = Get256BAddrLo(alignedAddress);
-        packet.ordinal6.bitfieldsA.coher_base_hi          = Get256BAddrHi(alignedAddress);
-        packet.ordinal7.bitfieldsA.poll_interval          = Pal::Device::PollInterval;
-
-        PAL_ASSERT(packet.ordinal4.bitfieldsA.gfx09_10.reserved1 == 0);
-        PAL_ASSERT(packet.ordinal6.bitfieldsA.reserved1 == 0);
-        PAL_ASSERT(packet.ordinal7.bitfieldsA.reserved1 == 0);
-    }
-
-    if (IsGfx10Plus(m_gfxIpLevel))
-    {
-        static_assert(PM4_MEC_ACQUIRE_MEM_SIZEDW__GFX10PLUS == PM4_ME_ACQUIRE_MEM_SIZEDW__GFX10PLUS,
-                      "GFX10: ACQUIRE_MEM packet size is different between ME compute and ME graphics!");
-
-        // Handle the GFX-specific aspects of a release-mem packet.
-        packet.ordinal8.bitfields.gfx10Plus.gcr_cntl = acquireMemInfo.gcrCntl;
-        PAL_ASSERT(packet.ordinal8.bitfields.gfx10Plus.reserved1 == 0);
-    }
-    else
-    {
-        static_assert(PM4_MEC_ACQUIRE_MEM_SIZEDW__CORE == PM4_ME_ACQUIRE_MEM_SIZEDW__CORE,
-                      "GFX9:  ACQUIRE_MEM packet size is different between ME compute and ME graphics!");
-
-    }
-
-    memcpy(pBuffer, &packet, packetSize * sizeof(uint32));
-
-    return packetSize;
+    return PacketSize;
 }
 
 // =====================================================================================================================
@@ -2133,7 +2277,6 @@ size_t CmdUtil::BuildNonSampleEventWrite(
     void*           pBuffer    // [out] Build the PM4 packet in this buffer.
     ) const
 {
-
     // Verify the event index enumerations match between the ME and MEC engines.  Note that ME (gfx) has more
     // events than MEC does.  We assert below if this packet is meant for compute and a gfx-only index is selected.
     static_assert(
@@ -2160,30 +2303,35 @@ size_t CmdUtil::BuildNonSampleEventWrite(
     // If this trips, the caller needs to use the BuildSampleEventWrite() routine instead.
     PAL_ASSERT(VgtEventIndex[vgtEvent] != event_index__me_event_write__sample_streamoutstats__GFX09_10);
 
-    // Don't use PM4_ME_EVENT_WRITE_SIZEDW__CORE here!  The official packet definition contains extra dwords
-    // for functionality that is only required for "sample" type events.
-    constexpr uint32 PacketSize = WriteNonSampleEventDwords;
-    PM4_ME_EVENT_WRITE packet;
+    // The CP team says you risk hanging the GPU if you use a TS event with event_write.
+    PAL_ASSERT(VgtEventHasTs[vgtEvent] == false);
 
-    packet.ordinal1.header        = Type3Header(IT_EVENT_WRITE, PacketSize);
-    packet.ordinal2.u32All        = 0;
+    size_t totalSize = 0;
 
-    // CS_PARTIAL_FLUSH is only allowed on engines that support compute operations
-    PAL_ASSERT((vgtEvent != CS_PARTIAL_FLUSH) || Pal::Device::EngineSupportsCompute(engineType));
-
-    // Enable offload compute queue until EOP queue goes empty to increase multi-queue concurrency
-    if ((engineType == EngineTypeCompute) && (vgtEvent == CS_PARTIAL_FLUSH))
     {
-        auto*const pPacketMec = reinterpret_cast<PM4_MEC_EVENT_WRITE*>(&packet);
+        // Don't use PM4_ME_EVENT_WRITE_SIZEDW__CORE here!  The official packet definition contains extra dwords
+        // for functionality that is only required for "sample" type events.
+        constexpr uint32   PacketSize = WriteNonSampleEventDwords;
+        PM4_ME_EVENT_WRITE packet;
+        packet.ordinal1.header                = Type3Header(IT_EVENT_WRITE, PacketSize);
+        packet.ordinal2.u32All                = 0;
+        packet.ordinal2.bitfields.event_type  = vgtEvent;
+        packet.ordinal2.bitfields.event_index = VgtEventIndex[vgtEvent];
 
-        pPacketMec->ordinal2.bitfields.offload_enable = 1;
+        // Enable offload compute queue until EOP queue goes empty to increase multi-queue concurrency
+        if ((engineType == EngineTypeCompute) && (vgtEvent == CS_PARTIAL_FLUSH))
+        {
+            auto*const pPacketMec = reinterpret_cast<PM4_MEC_EVENT_WRITE*>(&packet);
+
+            pPacketMec->ordinal2.bitfields.offload_enable = 1;
+        }
+
+        memcpy(pBuffer, &packet, PacketSize * sizeof(uint32));
+
+        totalSize = PacketSize;
     }
 
-    packet.ordinal2.bitfields.event_type  = vgtEvent;
-    packet.ordinal2.bitfields.event_index = VgtEventIndex[vgtEvent];
-
-    memcpy(pBuffer, &packet, PacketSize * sizeof(uint32));
-    return PacketSize;
+    return totalSize;
 }
 
 // =====================================================================================================================
@@ -2260,22 +2408,21 @@ size_t CmdUtil::BuildSampleEventWrite(
 
 // =====================================================================================================================
 size_t CmdUtil::BuildExecutionMarker(
-    gpusize markerAddr,
-    uint32  markerVal,
-    uint64  clientHandle,
-    uint32  markerType,
-    void*   pBuffer
+    EngineType engineType,
+    gpusize    markerAddr,
+    uint32     markerVal,
+    uint64     clientHandle,
+    uint32     markerType,
+    void*      pBuffer
     ) const
 {
-    ReleaseMemInfo releaseInfo = {};
-    releaseInfo.engineType     = EngineTypeUniversal;
-    releaseInfo.vgtEvent       = BOTTOM_OF_PIPE_TS;
-    releaseInfo.tcCacheOp      = TcCacheOp::Nop;
-    releaseInfo.dstAddr        = markerAddr;
-    releaseInfo.dataSel        = data_sel__me_release_mem__send_32_bit_low;
-    releaseInfo.data           = markerVal;
+    ReleaseMemGeneric releaseInfo = {};
+    releaseInfo.engineType = engineType;
+    releaseInfo.dstAddr    = markerAddr;
+    releaseInfo.dataSel    = data_sel__me_release_mem__send_32_bit_low;
+    releaseInfo.data       = markerVal;
 
-    size_t packetSize = BuildReleaseMem(releaseInfo, pBuffer);
+    size_t packetSize = BuildReleaseMemGeneric(releaseInfo, pBuffer);
     pBuffer = VoidPtrInc(pBuffer, packetSize * sizeof(uint32));
 
     constexpr uint32 NopSizeDwords = PM4_PFP_NOP_SIZEDW__CORE;
@@ -3140,315 +3287,367 @@ size_t CmdUtil::BuildPfpSyncMe(
 }
 
 // =====================================================================================================================
-// GFX10 adds a new GCR_CNTL field that takes over flush/inv control on most caches. Only CB and DB are still
-// controlled by CP_COHER_CNTL field. This function essentially converts GFX9 style cache sync info to GFX10 style one.
-uint32 CmdUtil::Gfx10CalcReleaseMemGcrCntl(
-    const ReleaseMemInfo&  releaseMemInfo
+// Call this to pick an appropriate graphics EOP_TS event for a release_mem.
+VGT_EVENT_TYPE CmdUtil::SelectEopEvent(
+    SyncRbFlags rbSync
     ) const
 {
-    Gfx10ReleaseMemGcrCntl gcrCntl = {};
+    VGT_EVENT_TYPE vgtEvent;
 
-    // GL2_RANGE[1:0]
-    //  0:ALL          wb/inv op applies to entire physical cache (ignore range)
-    //  1:VOL          wb/inv op applies to all volatile tagged lines in the GL2 (ignore range)
-    //  2:RANGE      - wb/inv ops applies to just the base/limit virtual address range
-    //  3:FIRST_LAST - wb/inv ops applies to 128B at BASE_VA and 128B at LIMIT_VA
-    gcrCntl.bits.gl2Range = 0;
-
-    switch(releaseMemInfo.tcCacheOp)
+    // We start with the most specific events which touch the fewest caches and walk the list until we get
+    // CACHE_FLUSH_AND_INV_TS_EVENT which hits all of them.
+    if (rbSync == SyncRbNone)
     {
-    case TcCacheOp::WbInvL1L2:
-        // GLM_WB[0]  - write-back control for the meta-data cache of GL2. L2MD is write-through, ignore this bit.
-        // GLM_INV[0] - invalidate enable for the meta-data cache of GL2
-        // GLV_INV[0] - invalidate enable for shader vector L0 cache
-        // GL1_INV[0] - invalidate enable for GL1
-        // GL2_INV[0] - invalidate enable for GL2
-        // GL2_WB[0]  - writeback enable for GL2
-        gcrCntl.bits.glmInv = 1;
-        gcrCntl.bits.glvInv = 1;
-        gcrCntl.bits.gl1Inv = 1;
-        gcrCntl.bits.gl2Inv = 1;
-        gcrCntl.bits.gl2Wb  = 1;
-        break;
-
-    case TcCacheOp::WbInvL2Nc:
-        // GL2_INV[0] - invalidate enable for GL2
-        // GL2_WB[0]  - writeback enable for GL2
-        gcrCntl.bits.gl2Inv = 1;
-        gcrCntl.bits.gl2Wb  = 1;
-        break;
-
-    // GFX10TODO: GCR cannot differentiate Nc(non-coherent MTYPE) and Wc(write-combined MTYPE)?
-    case TcCacheOp::WbL2Nc:
-    case TcCacheOp::WbL2Wc:
-        // GL2_WB[0] - writeback enable for GL2
-        gcrCntl.bits.gl2Wb  = 1;
-        break;
-
-    case TcCacheOp::InvL2Nc:
-        // GL2_INV[0] - invalidate enable for GL2
-        gcrCntl.bits.gl2Inv = 1;
-
-    case TcCacheOp::InvL2Md:
-        // GLM_INV[0] - invalidate enable for the meta-data cache of GL2
-        gcrCntl.bits.glmInv = 1;
-        break;
-
-    case TcCacheOp::InvL1:
-        // GLV_INV[0] - invalidate enable for shader vector L0 cache
-        gcrCntl.bits.glvInv = 1;
-        gcrCntl.bits.gl1Inv = 1;
-        break;
-
-    case TcCacheOp::InvL1Vol:
-        // GL2_RANGE[1:0]
-        // GL1_INV[0] - invalidate enable for GL1
-        // GLV_INV[0] - invalidate enable for shader vector L0 cache
-        gcrCntl.bits.gl2Range = 1;
-        gcrCntl.bits.gl1Inv   = 1;
-        gcrCntl.bits.glvInv   = 1;
-        break;
-
-    default:
-        PAL_ASSERT(releaseMemInfo.tcCacheOp == TcCacheOp::Nop);
-        break;
+        // No flags so don't flush or invalidate anything.
+        vgtEvent = BOTTOM_OF_PIPE_TS;
+    }
+    else if (rbSync == SyncCbDataWbInv)
+    {
+        // Just CB data caches.
+        vgtEvent = FLUSH_AND_INV_CB_DATA_TS;
+    }
+    else if (rbSync == SyncDbDataWbInv)
+    {
+        // Just DB data caches.
+        vgtEvent = FLUSH_AND_INV_DB_DATA_TS;
+    }
+    else if (TestAnyFlagSet(rbSync, SyncRbInv) == false)
+    {
+        // Flush everything, no invalidates.
+        vgtEvent = CACHE_FLUSH_TS;
+    }
+    else
+    {
+        // Flush and invalidate everything.
+        vgtEvent = CACHE_FLUSH_AND_INV_TS_EVENT;
     }
 
-    // SEQ[1:0]   controls the sequence of operations on the cache hierarchy (L0/L1/L2)
-    //      0: PARALLEL   initiate wb/inv ops on specified caches at same time
-    //      1: FORWARD    L0 then L1/L2, complete L0 ops then initiate L1/L2
-    //                    Typically only needed when doing WB of L0 K$, M$, or RB w/ WB of GL2
-    //      2: REVERSE    L2 -> L1 -> L0
-    //                    Typically only used for post-unaligned-DMA operation (invalidate only)
-    gcrCntl.bits.seq = gcrCntl.bits.gl2Wb &&
-                       ((releaseMemInfo.vgtEvent == FLUSH_AND_INV_CB_DATA_TS) ||
-                        (releaseMemInfo.vgtEvent == FLUSH_AND_INV_DB_DATA_TS) ||
-                        (releaseMemInfo.vgtEvent == CACHE_FLUSH_AND_INV_TS_EVENT));
-
-    return gcrCntl.u32All;
+    return vgtEvent;
 }
 
 // =====================================================================================================================
-// Generic function for building a RELEASE_MEM packet on either computer or graphics engines.  Return the number of
-// DWORDs taken up by this packet.
-size_t CmdUtil::BuildReleaseMem(
-    const ReleaseMemInfo& releaseMemInfo,
-    void*                 pBuffer,   // [out] Build the PM4 packet in this buffer.
-    uint32                gdsAddr,   // dword offset,
-                                     // ignored unless dataSel == release_mem__store_gds_data_to_memory
-    uint32                gdsSize    // ignored unless dataSel == release_mem__store_gds_data_to_memory
+// Returns a ReleaseMemCaches that applies as many flags from pGlxSync as it can, masking off the consumed flags.
+// The caller is expected to forward the remaining flags to an acquire_mem.
+ReleaseMemCaches CmdUtil::SelectReleaseMemCaches(
+    SyncGlxFlags* pGlxSync
     ) const
 {
-    size_t totalSize = 0;
+    // First, split the syncs into a release set and an acquire set.
+    constexpr SyncGlxFlags ReleaseMask = SyncGl2WbInv | SyncGlmInv | SyncGl1Inv | SyncGlvInv;
 
-    // Add a dummy ZPASS_DONE event before EOP timestamp events to avoid a DB hang.
-    if (VgtEventHasTs[releaseMemInfo.vgtEvent]                         &&
-        Pal::Device::EngineSupportsGraphics(releaseMemInfo.engineType) &&
-        m_device.Settings().waDummyZpassDoneBeforeTs)
+    SyncGlxFlags releaseSyncs = *pGlxSync & ReleaseMask;
+    SyncGlxFlags acquireSyncs = *pGlxSync & ~ReleaseMask;
+
+    if (IsGfx9(m_gfxIpLevel))
     {
-        const BoundGpuMemory& dummyMemory = m_device.DummyZpassDoneMem();
-        PAL_ASSERT(dummyMemory.IsBound());
+        // Gfx9 has restrictions on which combinations of flags it can issue in one cache operation. It would be
+        // legal to fill out ReleaseMemCaches with every flag on gfx9, but CmdUtil would internally unroll that into
+        // multiple release_mem packets. Given that this function assumes the caller will issue an acquire_mem after
+        // the release_mem, we can optimize gfx9 by deferring extra cache syncs to the acquire_mem. We should end
+        // up with a single release_mem, a wait, and then 0-2 acquire_mems to invalidate the remaining caches.
+        // SelectGfx9CacheOp is meant to build packets but we can reuse its SyncGlxFlags masking logic here.
+        SyncGlxFlags deferredSyncs = releaseSyncs;
+        SelectGfx9CacheOp(&deferredSyncs);
 
-        totalSize += BuildSampleEventWrite(ZPASS_DONE__GFX09_10,
-                            event_index__me_event_write__pixel_pipe_stat_control_or_dump,
-                            releaseMemInfo.engineType,
-                            dummyMemory.GpuVirtAddr(),
-                            VoidPtrInc(pBuffer, sizeof(uint32) * totalSize));
+        // SelectGfx9CacheOp clears the bits it can handle in one release_mem, so we remove the remaining bits it
+        // can't process from our release mask and move them into the acquire mask.
+        releaseSyncs &= ~deferredSyncs;
+        acquireSyncs |= deferredSyncs;
     }
 
-    // Translate ReleaseMemInfo to a new ReleaseMemInfo type that's more universal.
-    ExplicitReleaseMemInfo explicitReleaseMemInfo = {};
-    explicitReleaseMemInfo.engineType = releaseMemInfo.engineType;
-    explicitReleaseMemInfo.vgtEvent   = releaseMemInfo.vgtEvent;
-    explicitReleaseMemInfo.dstAddr    = releaseMemInfo.dstAddr;
-    explicitReleaseMemInfo.dataSel    = releaseMemInfo.dataSel;
-    explicitReleaseMemInfo.data       = releaseMemInfo.data;
+    ReleaseMemCaches caches = {};
+    caches.gl2Inv = TestAnyFlagSet(releaseSyncs, SyncGl2Inv);
+    caches.gl2Wb  = TestAnyFlagSet(releaseSyncs, SyncGl2Wb);
+    caches.glmInv = TestAnyFlagSet(releaseSyncs, SyncGlmInv);
+    caches.gl1Inv = TestAnyFlagSet(releaseSyncs, SyncGl1Inv);
+    caches.glvInv = TestAnyFlagSet(releaseSyncs, SyncGlvInv);
 
-    if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
+    // Pass the extra flags back out to the caller so they know they need to handle them in an acquire_mem.
+    *pGlxSync = acquireSyncs;
+
+    return caches;
+}
+
+// =====================================================================================================================
+// Builds a release_mem packet for compute or graphics. The feature set is restricted to what compute engines and
+// graphics engines both support.
+//
+// Note that ACE does support EOS releases using CS_DONE events but the CP treats them exactly the same as an EOP
+// release using a timestamp event. Further, none of the graphics specific timestamp events are meaningful on ACE
+// so essentially every ACE release_mem boils down to just a BOTTOM_OF_PIPE_TS event.
+//
+// On the graphics side of things, EOS releases don't support cache flushes but can issue timestamps. This makes
+// graphics EOS releases more restricted than ACE releases.
+//
+// Thus, this generic implementation only supports EOP releases using BOTTOM_OF_PIPE_TS. In theory it could also
+// support CS_DONE events with no cache syncs but we have no current use for that so it seems like a waste of time.
+size_t CmdUtil::BuildReleaseMemGeneric(
+    const ReleaseMemGeneric& info,
+    void*                    pBuffer
+    ) const
+{
+    size_t totalSize;
+
+    if (IsGfx10Plus(m_gfxIpLevel))
     {
-        regCP_COHER_CNTL cpCoherCntl = {};
-
-        switch(releaseMemInfo.tcCacheOp)
-        {
-        case TcCacheOp::WbInvL1L2:
-            cpCoherCntl.bits.TC_ACTION_ENA              = 1;
-            cpCoherCntl.bits.TC_WB_ACTION_ENA           = 1;
-            break;
-
-        case TcCacheOp::WbInvL2Nc:
-            cpCoherCntl.bits.TC_ACTION_ENA              = 1;
-            cpCoherCntl.bits.TC_WB_ACTION_ENA           = 1;
-            cpCoherCntl.bits.TC_NC_ACTION_ENA           = 1;
-            break;
-
-        case TcCacheOp::WbL2Nc:
-            cpCoherCntl.bits.TC_WB_ACTION_ENA           = 1;
-            cpCoherCntl.bits.TC_NC_ACTION_ENA           = 1;
-            break;
-
-        case TcCacheOp::WbL2Wc:
-            cpCoherCntl.bits.TC_WB_ACTION_ENA           = 1;
-            cpCoherCntl.bits.TC_WC_ACTION_ENA           = 1;
-            break;
-
-        case TcCacheOp::InvL2Nc:
-            cpCoherCntl.bits.TC_ACTION_ENA              = 1;
-            cpCoherCntl.bits.TC_NC_ACTION_ENA           = 1;
-            break;
-
-        case TcCacheOp::InvL2Md:
-            cpCoherCntl.bits.TC_ACTION_ENA              = 1;
-            cpCoherCntl.bits.TC_INV_METADATA_ACTION_ENA = 1;
-            break;
-
-        case TcCacheOp::InvL1:
-            cpCoherCntl.bits.TCL1_ACTION_ENA            = 1;
-            break;
-
-        case TcCacheOp::InvL1Vol:
-            cpCoherCntl.bits.TCL1_ACTION_ENA            = 1;
-            cpCoherCntl.bits.TCL1_VOL_ACTION_ENA        = 1;
-            break;
-
-        default:
-            PAL_ASSERT(releaseMemInfo.tcCacheOp == TcCacheOp::Nop);
-            break;
-        }
-
-        explicitReleaseMemInfo.coherCntl = cpCoherCntl.u32All;
+        totalSize = BuildReleaseMemInternalGfx10(info, BOTTOM_OF_PIPE_TS, pBuffer);
     }
-    else if (IsGfx10Plus(m_gfxIpLevel))
+    else
     {
-        explicitReleaseMemInfo.coherCntl = 0;
-        explicitReleaseMemInfo.gcrCntl   = Gfx10CalcReleaseMemGcrCntl(releaseMemInfo);
+        totalSize = BuildReleaseMemInternalGfx9(info, info.engineType, BOTTOM_OF_PIPE_TS, pBuffer);
     }
-
-    // Call a more explicit function.
-    totalSize += ExplicitBuildReleaseMem(explicitReleaseMemInfo,
-                                         VoidPtrInc(pBuffer, sizeof(uint32) * totalSize),
-                                         gdsAddr,
-                                         gdsSize);
 
     return totalSize;
 }
 
 // =====================================================================================================================
-// Generic function for building a RELEASE_MEM packet on either computer or graphics engines.  Return the number of
-// DWORDs taken up by this packet.
-size_t CmdUtil::ExplicitBuildReleaseMem(
-    const ExplicitReleaseMemInfo& releaseMemInfo,
-    void*                         pBuffer,   // [out] Build the PM4 packet in this buffer.
-    uint32                        gdsAddr,   // dword offset,
-                                             // ignored unless dataSel == release_mem__store_gds_data_to_memory
-    uint32                        gdsSize    // ignored unless dataSel == release_mem__store_gds_data_to_memory
+// Graphics engines have some extra release_mem features which BuildReleaseMemGeneric lacks.
+size_t CmdUtil::BuildReleaseMemGfx(
+    const ReleaseMemGfx& info,
+    void*                pBuffer
     ) const
 {
-    static_assert(((static_cast<uint32>(event_index__me_release_mem__end_of_pipe)   ==
-                    static_cast<uint32>(event_index__mec_release_mem__end_of_pipe)) &&
-                   (static_cast<uint32>(event_index__me_release_mem__shader_done)   ==
-                    static_cast<uint32>(event_index__mec_release_mem__shader_done))),
-                  "RELEASE_MEM event index enumerations don't match between ME and MEC!");
-    static_assert(((static_cast<uint32>(data_sel__me_release_mem__none)                           ==
-                    static_cast<uint32>(data_sel__mec_release_mem__none))                         &&
-                   (static_cast<uint32>(data_sel__me_release_mem__send_32_bit_low)                ==
-                    static_cast<uint32>(data_sel__mec_release_mem__send_32_bit_low))              &&
-                   (static_cast<uint32>(data_sel__me_release_mem__send_64_bit_data)               ==
-                    static_cast<uint32>(data_sel__mec_release_mem__send_64_bit_data))             &&
-                   (static_cast<uint32>(data_sel__me_release_mem__send_gpu_clock_counter)         ==
-                    static_cast<uint32>(data_sel__mec_release_mem__send_gpu_clock_counter))       &&
-                   (static_cast<uint32>(data_sel__me_release_mem__store_gds_data_to_memory__CORE) ==
-                    static_cast<uint32>(data_sel__mec_release_mem__store_gds_data_to_memory__CORE))),
-                  "RELEASE_MEM data sel enumerations don't match between ME and MEC!");
+    size_t totalSize;
 
-    static_assert(PM4_MEC_RELEASE_MEM_SIZEDW__CORE == PM4_ME_RELEASE_MEM_SIZEDW__CORE,
-                  "RELEASE_MEM is different sizes between ME and MEC!");
+    if (IsGfx10Plus(m_gfxIpLevel))
+    {
+        totalSize = BuildReleaseMemInternalGfx10(info, info.vgtEvent, pBuffer);
+    }
+    else
+    {
 
-    constexpr uint32 PacketSize = PM4_ME_RELEASE_MEM_SIZEDW__CORE;
+        totalSize = BuildReleaseMemInternalGfx9(info, EngineTypeUniversal, info.vgtEvent, pBuffer);
+    }
 
-    PAL_ASSERT(((releaseMemInfo.vgtEvent != PS_DONE) && (releaseMemInfo.vgtEvent != CS_DONE)) ||
-               (releaseMemInfo.gcrCntl == 0));
+    return totalSize;
+}
 
+// Common assumptions between all RELEASE_MEM packet builders.
+static_assert(((static_cast<uint32>(event_index__me_release_mem__end_of_pipe)   ==
+                static_cast<uint32>(event_index__mec_release_mem__end_of_pipe)) &&
+               (static_cast<uint32>(event_index__me_release_mem__shader_done)   ==
+                static_cast<uint32>(event_index__mec_release_mem__shader_done))),
+              "RELEASE_MEM event index enumerations don't match between ME and MEC!");
+static_assert(((static_cast<uint32>(data_sel__me_release_mem__none)                           ==
+                static_cast<uint32>(data_sel__mec_release_mem__none))                         &&
+               (static_cast<uint32>(data_sel__me_release_mem__send_32_bit_low)                ==
+                static_cast<uint32>(data_sel__mec_release_mem__send_32_bit_low))              &&
+               (static_cast<uint32>(data_sel__me_release_mem__send_64_bit_data)               ==
+                static_cast<uint32>(data_sel__mec_release_mem__send_64_bit_data))             &&
+               (static_cast<uint32>(data_sel__me_release_mem__send_gpu_clock_counter)         ==
+                static_cast<uint32>(data_sel__mec_release_mem__send_gpu_clock_counter))       &&
+               (static_cast<uint32>(data_sel__me_release_mem__store_gds_data_to_memory__CORE) ==
+                static_cast<uint32>(data_sel__mec_release_mem__store_gds_data_to_memory__CORE))),
+              "RELEASE_MEM data sel enumerations don't match between ME and MEC!");
+static_assert(dst_sel__me_release_mem__tc_l2 == dst_sel__me_release_mem__tc_l2,
+              "RELEASE_MEM dst sel enums don't match between ME and MEC!");
+static_assert((uint32(int_sel__me_release_mem__none) == uint32(int_sel__mec_release_mem__none)) &&
+              (uint32(int_sel__me_release_mem__send_data_and_write_confirm) ==
+               uint32(int_sel__mec_release_mem__send_data_and_write_confirm)),
+              "RELEASE_MEM int sel enums don't match between ME and MEC!");
+static_assert(PM4_MEC_RELEASE_MEM_SIZEDW__CORE == PM4_ME_RELEASE_MEM_SIZEDW__CORE,
+              "RELEASE_MEM is different sizes between ME and MEC!");
+
+// =====================================================================================================================
+size_t CmdUtil::BuildReleaseMemInternalGfx9(
+    const ReleaseMemCore& info,
+    EngineType            engineType,
+    VGT_EVENT_TYPE        vgtEvent,
+    void*                 pBuffer
+    ) const
+{
+    // This path only works on gfx9.
+    PAL_ASSERT(IsGfx10Plus(m_gfxIpLevel) == false);
+
+    size_t totalSize = 0;
+    const bool isEop = VgtEventHasTs[vgtEvent];
+
+    // The release_mem packet only supports EOS events or EOP TS events.
+    PAL_ASSERT(isEop || (vgtEvent == PS_DONE) || (vgtEvent == CS_DONE));
+
+    // This function only supports Glx cache syncs on EOP events. This restriction comes from the graphics engine,
+    // where EOS releases don't support cache flushes but can still issue timestamps. On compute engines we could
+    // support EOS cache syncs but it's not useful practically speaking because the ACE treats CS_DONE events exactly
+    // the same as EOP timestamp events. If we force the caller to use a BOTTOM_OF_PIPE_TS on ACE they lose nothing.
+    PAL_ASSERT(isEop || (info.cacheSync.u8All == 0));
+
+    // The EOS path also only supports constant timestamps; that's right, it doesn't support "none".
+    PAL_ASSERT(isEop || (info.dataSel == data_sel__me_release_mem__send_32_bit_low)
+                     || (info.dataSel == data_sel__me_release_mem__send_64_bit_data));
+
+    // Add a dummy ZPASS_DONE event before EOP timestamp events to avoid a DB hang.
+    if (isEop && Pal::Device::EngineSupportsGraphics(engineType) && m_device.Settings().waDummyZpassDoneBeforeTs)
+    {
+        const BoundGpuMemory& dummyMemory = m_device.DummyZpassDoneMem();
+        PAL_ASSERT(dummyMemory.IsBound());
+
+        const size_t size = BuildSampleEventWrite(ZPASS_DONE__GFX09_10,
+                                                  event_index__me_event_write__pixel_pipe_stat_control_or_dump,
+                                                  engineType,
+                                                  dummyMemory.GpuVirtAddr(),
+                                                  pBuffer);
+
+        pBuffer = VoidPtrInc(pBuffer, size * sizeof(uint32));
+        totalSize += size;
+    }
+
+    constexpr uint32   PacketSize = PM4_ME_RELEASE_MEM_SIZEDW__CORE;
     PM4_ME_RELEASE_MEM packet     = {};
-    packet.ordinal1.header        = Type3Header(IT_RELEASE_MEM, PacketSize);
 
-    // If the asserts in this switch statement trip, you will almost certainly hang the GPU
-    switch (releaseMemInfo.vgtEvent)
+    packet.ordinal1.header                = Type3Header(IT_RELEASE_MEM, PacketSize);
+    packet.ordinal2.bitfields.event_type  = vgtEvent;
+    packet.ordinal2.bitfields.event_index = isEop ? event_index__me_release_mem__end_of_pipe
+                                                  : event_index__me_release_mem__shader_done;
+    packet.ordinal3.bitfields.data_sel    = static_cast<ME_RELEASE_MEM_data_sel_enum>(info.dataSel);
+    packet.ordinal3.bitfields.dst_sel     = dst_sel__me_release_mem__tc_l2;
+    packet.ordinal4.u32All                = LowPart(info.dstAddr);
+    packet.ordinal5.address_hi            = HighPart(info.dstAddr);
+    packet.ordinal6.data_lo               = LowPart(info.data);
+    packet.ordinal7.data_hi               = HighPart(info.data);
+
+    if (info.dataSel != data_sel__me_release_mem__none)
     {
-    case FLUSH_SX_TS:
-    case FLUSH_AND_INV_DB_DATA_TS:
-    case FLUSH_AND_INV_CB_DATA_TS:
-        PAL_ASSERT(Pal::Device::EngineSupportsGraphics(releaseMemInfo.engineType));
-        // break intentionally left out!
+        // PAL doesn't support GDS.
+        PAL_ASSERT(info.dataSel != data_sel__me_release_mem__store_gds_data_to_memory__CORE);
 
-    case CACHE_FLUSH_TS:
-    case CACHE_FLUSH_AND_INV_TS_EVENT:
-    case BOTTOM_OF_PIPE_TS:
-        packet.ordinal2.bitfields.event_index = event_index__me_release_mem__end_of_pipe;
-        break;
+        // dstAddr must be properly aligned. 4 bytes for a 32-bit write or 8 bytes for a 64-bit write.
+        PAL_ASSERT((info.dstAddr != 0) &&
+                   (((info.dataSel == data_sel__me_release_mem__send_32_bit_low) && IsPow2Aligned(info.dstAddr, 4)) ||
+                    IsPow2Aligned(info.dstAddr, 8)));
 
-    case PS_DONE:
-        PAL_ASSERT(Pal::Device::EngineSupportsGraphics(releaseMemInfo.engineType));
-        packet.ordinal2.bitfields.event_index = event_index__me_release_mem__shader_done;
-        break;
-
-    case CS_DONE:
-        PAL_ASSERT(Pal::Device::EngineSupportsCompute(releaseMemInfo.engineType));
-        packet.ordinal2.bitfields.event_index = event_index__me_release_mem__shader_done;
-        break;
-
-    default:
-        // Not all VGT events are legal with release-mem packets!
-        PAL_ASSERT_ALWAYS();
-        break;
+        // This won't send an interrupt but will wait for write confirm before writing the data to memory.
+        packet.ordinal3.bitfields.int_sel = int_sel__me_release_mem__send_data_and_write_confirm;
     }
 
-    packet.ordinal2.bitfields.event_type = releaseMemInfo.vgtEvent;
-    packet.ordinal3.u32All               = 0;
-    packet.ordinal3.bitfields.data_sel   = static_cast<ME_RELEASE_MEM_data_sel_enum>(releaseMemInfo.dataSel);
-    packet.ordinal3.bitfields.dst_sel    = dst_sel__me_release_mem__tc_l2;
-    packet.ordinal4.u32All               = LowPart(releaseMemInfo.dstAddr);
-    packet.ordinal5.address_hi           = HighPart(releaseMemInfo.dstAddr);  // ordinal5
-    packet.ordinal6.data_lo              = LowPart(releaseMemInfo.data);      // ordinal6, overwritten below for gds
-    packet.ordinal7.data_hi              = HighPart(releaseMemInfo.data);     // ordinal7, overwritten below for gds
+    // Gfx9 doesn't have GCR support. Instead, we have to break the input flags down into one or more supported
+    // TC cache ops. To make it easier to share code, we convert our packet-specific flags into CacheSyncFlags.
+    // Note that gfx9 has no GL1 cache so we ignore that bit.
+    SyncGlxFlags glxFlags = (((info.cacheSync.glmInv != 0) ? SyncGlmInv : SyncGlxNone) |
+                             ((info.cacheSync.glvInv != 0) ? SyncGlvInv : SyncGlxNone) |
+                             ((info.cacheSync.gl2Inv != 0) ? SyncGl2Inv : SyncGlxNone) |
+                             ((info.cacheSync.gl2Wb  != 0) ? SyncGl2Wb  : SyncGlxNone));
 
-    // This won't send an interrupt but will wait for write confirm before writing the data to memory.
-    packet.ordinal3.bitfields.int_sel = (releaseMemInfo.dataSel == data_sel__me_release_mem__none)
-                                        ? int_sel__me_release_mem__none
-                                        : int_sel__me_release_mem__send_data_and_write_confirm;
-
-    // Make sure our dstAddr is properly aligned.  The alignment differs based on how much data is being written
-    if (releaseMemInfo.dataSel == data_sel__me_release_mem__store_gds_data_to_memory__CORE)
+    while (glxFlags != SyncGlxNone)
     {
-        packet.ordinal6.bitfieldsC.core.dw_offset  = gdsAddr;
-        packet.ordinal6.bitfieldsC.core.num_dwords = gdsSize;
-        packet.ordinal7.data_hi               = 0;
-    }
+        const regCP_COHER_CNTL cntl = SelectGfx9CacheOp(&glxFlags);
 
-    if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
-    {
-        // Handle the GFX-specific aspects of a release-mem packet.
-        regCP_COHER_CNTL cpCoherCntl;
-        cpCoherCntl.u32All = releaseMemInfo.coherCntl;
+        packet.ordinal2.bitfields.gfx09.tcl1_vol_action_ena = cntl.bits.TCL1_VOL_ACTION_ENA;
+        packet.ordinal2.bitfields.gfx09.tc_wb_action_ena    = cntl.bits.TC_WB_ACTION_ENA;
+        packet.ordinal2.bitfields.gfx09.tcl1_action_ena     = cntl.bits.TCL1_ACTION_ENA;
+        packet.ordinal2.bitfields.gfx09.tc_action_ena       = cntl.bits.TC_ACTION_ENA;
+        packet.ordinal2.bitfields.gfx09.tc_nc_action_ena    = cntl.bits.TC_NC_ACTION_ENA;
+        packet.ordinal2.bitfields.gfx09.tc_wc_action_ena    = cntl.bits.TC_WC_ACTION_ENA;
+        packet.ordinal2.bitfields.gfx09.tc_md_action_ena    = cntl.bits.TC_INV_METADATA_ACTION_ENA;
 
-        packet.ordinal2.bitfields.gfx09.tcl1_vol_action_ena = cpCoherCntl.bitfields.TCL1_VOL_ACTION_ENA;
-        packet.ordinal2.bitfields.gfx09.tc_wb_action_ena    = cpCoherCntl.bitfields.TC_WB_ACTION_ENA;
-        packet.ordinal2.bitfields.gfx09.tcl1_action_ena     = cpCoherCntl.bitfields.TCL1_ACTION_ENA;
-        packet.ordinal2.bitfields.gfx09.tc_action_ena       = cpCoherCntl.bitfields.TC_ACTION_ENA;
-        packet.ordinal2.bitfields.gfx09.tc_nc_action_ena    = cpCoherCntl.bitfields.TC_NC_ACTION_ENA;
-        packet.ordinal2.bitfields.gfx09.tc_wc_action_ena    = cpCoherCntl.bitfields.TC_WC_ACTION_ENA;
-        packet.ordinal2.bitfields.gfx09.tc_md_action_ena    = cpCoherCntl.bitfields.TC_INV_METADATA_ACTION_ENA;
-        packet.ordinal8.int_ctxid                           = 0;
-    }
-    else if (IsGfx10Plus(m_gfxIpLevel))
-    {
-        // Handle the GFX-specific aspects of a release-mem packet.
-        packet.ordinal8.bitfields.gfx10Plus.int_ctxid = 0;
-
+        // If SelectGfx9CacheOp used up all of our flags we can break out and write the final release_mem
+        // packet which will write the callers selected data and so on.
+        if (glxFlags == SyncGlxNone)
         {
-            packet.ordinal2.bitfields.gfx10.gcr_cntl = releaseMemInfo.gcrCntl;
+            break;
+        }
+
+        // If SelectGfx9CacheOp didn't clear all of our flags we need to issue multiple packets to satisfy all
+        // of our requested cache flags without over-syncing by flushing and invalidating all caches.
+        //
+        // We can break a release_mem into N sequential TC cache ops by setting data_sel = none for the first
+        // N-1 packets. Only the Nth packet will write the caller's selected data to the destination memory.
+        // Note that we only need to fill out the first two ordinals to get a piplined cache op. We want
+        // everything else to be zeroed out (e.g., data_sel = 0).
+        PM4_ME_RELEASE_MEM cachesOnly = {};
+        cachesOnly.ordinal1.u32All = packet.ordinal1.u32All;
+        cachesOnly.ordinal2.u32All = packet.ordinal2.u32All;
+
+        memcpy(pBuffer, &cachesOnly, PacketSize * sizeof(uint32));
+
+        pBuffer = VoidPtrInc(pBuffer, PacketSize * sizeof(uint32));
+        totalSize += PacketSize;
+
+        // One last thing, if the caller uses something like CACHE_FLUSH_AND_INV_TS_EVENT we only want to issue that
+        // event in the first release_mem. It has to happen first so that the RB caches flush to GL2 before we issue
+        // any GL2 syncs and we don't want it to happen again in the next release_mem to avoid wasting time. Recall
+        // that this function only supports cache syncs with EOP events so we can just force BOTTOM_OF_PIPE_TS.
+        packet.ordinal2.bitfields.event_type = BOTTOM_OF_PIPE_TS;
+    }
+
+    // Finally, we write the last release_mem packet and return the total written size in DWORDs.
+    memcpy(pBuffer, &packet, PacketSize * sizeof(uint32));
+
+    return totalSize + PacketSize;
+}
+
+// =====================================================================================================================
+size_t CmdUtil::BuildReleaseMemInternalGfx10(
+    const ReleaseMemCore& info,
+    VGT_EVENT_TYPE        vgtEvent,
+    void*                 pBuffer
+    ) const
+{
+    // This function is named "BuildGfx10..." so don't call it on gfx9.
+    PAL_ASSERT(IsGfx10Plus(m_gfxIpLevel));
+
+    const bool isEop = VgtEventHasTs[vgtEvent];
+
+    // The release_mem packet only supports EOS events or EOP TS events.
+    PAL_ASSERT(isEop || (vgtEvent == PS_DONE) || (vgtEvent == CS_DONE));
+
+    // This function only supports Glx cache syncs on EOP events. This restriction comes from the graphics engine,
+    // where EOS releases don't support cache flushes but can still issue timestamps. On compute engines we could
+    // support EOS cache syncs but it's not useful practically speaking because the ACE treats CS_DONE events exactly
+    // the same as EOP timestamp events. If we force the caller to use a BOTTOM_OF_PIPE_TS on ACE they lose nothing.
+    PAL_ASSERT(isEop || (info.cacheSync.u8All == 0));
+
+    // The EOS path also only supports constant timestamps; that's right, it doesn't support "none".
+    PAL_ASSERT(isEop || (info.dataSel == data_sel__me_release_mem__send_32_bit_low)
+                     || (info.dataSel == data_sel__me_release_mem__send_64_bit_data));
+
+    // We don't expect this workaround to be enabled on gfx10+ so it's not implemented.
+    PAL_ASSERT(m_device.Settings().waDummyZpassDoneBeforeTs == false);
+
+    constexpr uint32   PacketSize = PM4_ME_RELEASE_MEM_SIZEDW__CORE;
+    PM4_ME_RELEASE_MEM packet     = {};
+
+    packet.ordinal1.header                = Type3Header(IT_RELEASE_MEM, PacketSize);
+    packet.ordinal2.bitfields.event_type  = vgtEvent;
+    packet.ordinal2.bitfields.event_index = isEop ? event_index__me_release_mem__end_of_pipe
+                                                  : event_index__me_release_mem__shader_done;
+    packet.ordinal3.bitfields.data_sel    = static_cast<ME_RELEASE_MEM_data_sel_enum>(info.dataSel);
+    packet.ordinal3.bitfields.dst_sel     = dst_sel__me_release_mem__tc_l2;
+    packet.ordinal4.u32All                = LowPart(info.dstAddr);
+    packet.ordinal5.address_hi            = HighPart(info.dstAddr);
+    packet.ordinal6.data_lo               = LowPart(info.data);
+    packet.ordinal7.data_hi               = HighPart(info.data);
+
+    if (info.dataSel != data_sel__me_release_mem__none)
+    {
+        // PAL doesn't support GDS.
+        PAL_ASSERT(info.dataSel != data_sel__me_release_mem__store_gds_data_to_memory__CORE);
+
+        // dstAddr must be properly aligned. 4 bytes for a 32-bit write or 8 bytes for a 64-bit write.
+        PAL_ASSERT((info.dstAddr != 0) &&
+                   (((info.dataSel == data_sel__me_release_mem__send_32_bit_low) && IsPow2Aligned(info.dstAddr, 4)) ||
+                    IsPow2Aligned(info.dstAddr, 8)));
+
+        // This won't send an interrupt but will wait for write confirm before writing the data to memory.
+        packet.ordinal3.bitfields.int_sel = int_sel__me_release_mem__send_data_and_write_confirm;
+    }
+
+    {
+        if (info.cacheSync.u8All != 0)
+        {
+            // Note that glmWb is unimplemented in HW so we don't both setting it. Everything else we want zeroed.
+            // On gfx10, there are no cases where a release_mem would require seq = 1, we can always run in parallel.
+            Gfx10ReleaseMemGcrCntl cntl = {};
+            cntl.bits.glmInv = info.cacheSync.glmInv;
+            cntl.bits.glvInv = info.cacheSync.glvInv;
+            cntl.bits.gl1Inv = info.cacheSync.gl1Inv;
+            cntl.bits.gl2Inv = info.cacheSync.gl2Inv;
+            cntl.bits.gl2Wb  = info.cacheSync.gl2Wb;
+
+            packet.ordinal2.bitfields.gfx10.gcr_cntl = cntl.u32All;
         }
     }
 
+    // Write the release_mem packet and return the packet size in DWORDs.
     memcpy(pBuffer, &packet, PacketSize * sizeof(uint32));
 
     return PacketSize;
@@ -3927,10 +4126,48 @@ size_t CmdUtil::BuildWaitCsIdle(
     void*      pBuffer           // [out] Build the PM4 packet in this buffer.
     ) const
 {
+    size_t totalSize;
+
     // Fall back to a EOP TS wait-for-idle if we can't safely use a CS_PARTIAL_FLUSH.
-    return CanUseCsPartialFlush(engineType)
-            ? BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, engineType, pBuffer)
-            : BuildWaitOnReleaseMemEventTs(engineType, BOTTOM_OF_PIPE_TS, TcCacheOp::Nop, timestampGpuAddr, pBuffer);
+    if (CanUseCsPartialFlush(engineType))
+    {
+        totalSize = BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, engineType, pBuffer);
+    }
+    else
+    {
+        constexpr uint32 ClearedTimestamp   = 0x11111111;
+        constexpr uint32 CompletedTimestamp = 0x22222222;
+
+        // Write a known value to the timestamp.
+        WriteDataInfo writeData = {};
+        writeData.engineType = engineType;
+        writeData.dstAddr    = timestampGpuAddr;
+        writeData.engineSel  = engine_sel__me_write_data__micro_engine;
+        writeData.dstSel     = dst_sel__me_write_data__tc_l2;
+
+        totalSize = BuildWriteData(writeData, ClearedTimestamp, pBuffer);
+
+        // Issue an EOP timestamp event.
+        ReleaseMemGeneric releaseInfo = {};
+        releaseInfo.engineType = engineType;
+        releaseInfo.dstAddr    = timestampGpuAddr;
+        releaseInfo.dataSel    = data_sel__me_release_mem__send_32_bit_low;
+        releaseInfo.data       = CompletedTimestamp;
+
+        totalSize += BuildReleaseMemGeneric(releaseInfo, static_cast<uint32*>(pBuffer) + totalSize);
+
+        // Wait on the timestamp value.
+        totalSize += BuildWaitRegMem(engineType,
+                                     mem_space__me_wait_reg_mem__memory_space,
+                                     function__me_wait_reg_mem__equal_to_the_reference_value,
+                                     engine_sel__me_wait_reg_mem__micro_engine,
+                                     timestampGpuAddr,
+                                     CompletedTimestamp,
+                                     UINT32_MAX,
+                                     static_cast<uint32*>(pBuffer) + totalSize);
+    }
+
+    return totalSize;
 }
 
 // =====================================================================================================================
@@ -3985,57 +4222,6 @@ size_t CmdUtil::BuildWaitOnDeCounterDiff(
     pPacket->ordinal2.diff          = counterDiff;
 
     return PacketSize;
-}
-
-// =====================================================================================================================
-// Builds a set of PM4 commands that update a timestamp value to a known value, writes an EOP timestamp event with a
-// known different value then waits for the timestamp value to update. Returns the size of the PM4 command built, in
-// DWORDs.
-size_t CmdUtil::BuildWaitOnReleaseMemEventTs(
-    EngineType     engineType,
-    VGT_EVENT_TYPE vgtEvent,
-    TcCacheOp      tcCacheOp,
-    gpusize        gpuAddr,
-    void*          pBuffer
-    ) const
-{
-    constexpr uint32 ClearedTimestamp   = 0x11111111;
-    constexpr uint32 CompletedTimestamp = 0x22222222;
-
-    // These are the only event types supported by this packet sequence.
-    PAL_ASSERT((vgtEvent == PS_DONE) || (vgtEvent == CS_DONE) || VgtEventHasTs[vgtEvent]);
-
-    // Write a known value to the timestamp.
-    WriteDataInfo writeData = {};
-    writeData.engineType = engineType;
-    writeData.dstAddr    = gpuAddr;
-    writeData.engineSel  = engine_sel__me_write_data__micro_engine;
-    writeData.dstSel     = dst_sel__me_write_data__tc_l2;
-
-    size_t totalSize = BuildWriteData(writeData, ClearedTimestamp, pBuffer);
-
-    // Issue the specified timestamp event.
-    ReleaseMemInfo releaseInfo = {};
-    releaseInfo.engineType     = engineType;
-    releaseInfo.vgtEvent       = vgtEvent;
-    releaseInfo.tcCacheOp      = tcCacheOp;
-    releaseInfo.dstAddr        = gpuAddr;
-    releaseInfo.dataSel        = data_sel__me_release_mem__send_32_bit_low;
-    releaseInfo.data           = CompletedTimestamp;
-
-    totalSize += BuildReleaseMem(releaseInfo, static_cast<uint32*>(pBuffer) + totalSize);
-
-    // Wait on the timestamp value.
-    totalSize += BuildWaitRegMem(engineType,
-                                 mem_space__me_wait_reg_mem__memory_space,
-                                 function__me_wait_reg_mem__equal_to_the_reference_value,
-                                 engine_sel__me_wait_reg_mem__micro_engine,
-                                 gpuAddr,
-                                 CompletedTimestamp,
-                                 0xFFFFFFFF,
-                                 static_cast<uint32*>(pBuffer) + totalSize);
-
-    return totalSize;
 }
 
 // =====================================================================================================================
@@ -4311,9 +4497,15 @@ size_t CmdUtil::BuildWriteDataInternal(
     packet.ordinal2.bitfields.wr_confirm   = info.dontWriteConfirm
                                                ? wr_confirm__me_write_data__do_not_wait_for_write_confirmation
                                                : wr_confirm__me_write_data__wait_for_write_confirmation;
-    packet.ordinal2.bitfields.engine_sel   = static_cast<ME_WRITE_DATA_engine_sel_enum>(info.engineSel);
-    packet.ordinal3.u32All                 = LowPart(info.dstAddr);
-    packet.ordinal4.dst_mem_addr_hi        = HighPart(info.dstAddr);
+
+    if (Pal::Device::EngineSupportsGraphics(info.engineType))
+    {
+        // This field only exists on graphics engines.
+        packet.ordinal2.bitfields.engine_sel = static_cast<ME_WRITE_DATA_engine_sel_enum>(info.engineSel);
+    }
+
+    packet.ordinal3.u32All          = LowPart(info.dstAddr);
+    packet.ordinal4.dst_mem_addr_hi = HighPart(info.dstAddr);
 
     switch (info.dstSel)
     {

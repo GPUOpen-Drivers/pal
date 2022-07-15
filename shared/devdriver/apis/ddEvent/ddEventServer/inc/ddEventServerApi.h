@@ -34,7 +34,7 @@ extern "C" {
 
 /// Compile time version information
 #define DD_EVENT_SERVER_API_MAJOR_VERSION 0
-#define DD_EVENT_SERVER_API_MINOR_VERSION 2
+#define DD_EVENT_SERVER_API_MINOR_VERSION 3
 #define DD_EVENT_SERVER_API_PATCH_VERSION 0
 
 #define DD_EVENT_SERVER_API_VERSION_STRING DD_API_STRINGIFY_VERSION(DD_EVENT_SERVER_API_MAJOR_VERSION, \
@@ -76,13 +76,14 @@ typedef struct DDEventProviderStateCb
 /// Structure that contains the information required to create a provider
 typedef struct DDEventProviderCreateInfo
 {
-    DDEventServer          hServer;       /// Server associated with the provider
-    uint32_t               id;            /// Unique identifier for the provider
-    uint32_t               numEvents;     /// Number of valid events within the provider
-    DDEventProviderStateCb stateChangeCb; /// [Optional]
-                                          /// If valid functions are specified, they will be called when
-                                          /// the state of this provider changes as a result of a remote
-                                          /// client's request.
+    DDEventServer          hServer;                /// Server associated with the provider
+    uint32_t               id;                     /// Unique identifier for the provider
+    uint32_t               numEvents;              /// Number of valid events within the provider
+    DDEventProviderStateCb stateChangeCb;          /// [Optional]
+                                                   /// If valid functions are specified, they will be called when
+                                                   /// the state of this provider changes as a result of a remote
+                                                   /// client's request.
+    char                   name[DD_API_PATH_SIZE]; /// Name of the provider
 } DDEventProviderCreateInfo;
 
 /// Get version of the loaded library to check interface compatibility

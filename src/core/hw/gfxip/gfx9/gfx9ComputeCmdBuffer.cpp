@@ -173,8 +173,8 @@ void ComputeCmdBuffer::CmdBarrier(
     CmdBuffer::CmdBarrier(barrierInfo);
 
     // Barriers do not honor predication.
-    const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
-    m_gfxCmdBufState.flags.packetPredicate = 0;
+    const uint32 packetPredicate = m_pm4CmdBufState.flags.packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = 0;
 
     bool splitMemAllocated;
     BarrierInfo splitBarrierInfo = barrierInfo;
@@ -199,7 +199,7 @@ void ComputeCmdBuffer::CmdBarrier(
         PAL_SAFE_DELETE_ARRAY(splitBarrierInfo.pTransitions, m_device.GetPlatform());
     }
 
-    m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
 }
 
 // =====================================================================================================================
@@ -208,7 +208,7 @@ void ComputeCmdBuffer::OptimizePipeAndCacheMaskForRelease(
     uint32* pAccessMask
     ) const
 {
-    GfxCmdBuffer::OptimizePipeAndCacheMaskForRelease(pStageMask, pAccessMask);
+    Pm4CmdBuffer::OptimizePipeAndCacheMaskForRelease(pStageMask, pAccessMask);
 
     // Mark off all graphics path specific stages and caches if command buffer doesn't support graphics.
     if (pStageMask != nullptr)
@@ -229,8 +229,8 @@ uint32 ComputeCmdBuffer::CmdRelease(
     CmdBuffer::CmdRelease(releaseInfo);
 
     // Barriers do not honor predication.
-    const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
-    m_gfxCmdBufState.flags.packetPredicate = 0;
+    const uint32 packetPredicate = m_pm4CmdBufState.flags.packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = 0;
 
     // Mark these as traditional barriers in RGP
     m_device.DescribeBarrierStart(this, releaseInfo.reason, Developer::BarrierType::Release);
@@ -248,7 +248,7 @@ uint32 ComputeCmdBuffer::CmdRelease(
     }
     else if (result == Result::Success)
     {
-        syncToken = m_device.BarrierRelease(this, &m_cmdStream, releaseInfo, &barrierOps);
+        syncToken = m_device.Release(this, &m_cmdStream, releaseInfo, &barrierOps);
     }
     else
     {
@@ -263,7 +263,7 @@ uint32 ComputeCmdBuffer::CmdRelease(
 
     m_device.DescribeBarrierEnd(this, &barrierOps);
 
-    m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
 
     return syncToken.u32All;
 }
@@ -277,8 +277,8 @@ void ComputeCmdBuffer::CmdAcquire(
     CmdBuffer::CmdAcquire(acquireInfo, syncTokenCount, pSyncTokens);
 
     // Barriers do not honor predication.
-    const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
-    m_gfxCmdBufState.flags.packetPredicate = 0;
+    const uint32 packetPredicate = m_pm4CmdBufState.flags.packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = 0;
 
     // Mark these as traditional barriers in RGP
     m_device.DescribeBarrierStart(this, acquireInfo.reason, Developer::BarrierType::Acquire);
@@ -294,12 +294,12 @@ void ComputeCmdBuffer::CmdAcquire(
     }
     else if (result == Result::Success)
     {
-        m_device.BarrierAcquire(this,
-                                &m_cmdStream,
-                                splitAcquireInfo,
-                                syncTokenCount,
-                                reinterpret_cast<const AcqRelSyncToken*>(pSyncTokens),
-                                &barrierOps);
+        m_device.Acquire(this,
+                         &m_cmdStream,
+                         splitAcquireInfo,
+                         syncTokenCount,
+                         reinterpret_cast<const AcqRelSyncToken*>(pSyncTokens),
+                         &barrierOps);
     }
     else
     {
@@ -314,7 +314,7 @@ void ComputeCmdBuffer::CmdAcquire(
 
     m_device.DescribeBarrierEnd(this, &barrierOps);
 
-    m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
 }
 
 // =====================================================================================================================
@@ -325,8 +325,8 @@ void ComputeCmdBuffer::CmdReleaseEvent(
     CmdBuffer::CmdReleaseEvent(releaseInfo, pGpuEvent);
 
     // Barriers do not honor predication.
-    const uint32 packetPredicate           = m_gfxCmdBufState.flags.packetPredicate;
-    m_gfxCmdBufState.flags.packetPredicate = 0;
+    const uint32 packetPredicate           = m_pm4CmdBufState.flags.packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = 0;
 
     // Mark these as traditional barriers in RGP
     m_device.DescribeBarrierStart(this, releaseInfo.reason, Developer::BarrierType::Release);
@@ -342,7 +342,7 @@ void ComputeCmdBuffer::CmdReleaseEvent(
     }
     else if (result == Result::Success)
     {
-        m_device.BarrierReleaseEvent(this, &m_cmdStream, splitReleaseInfo, pGpuEvent, &barrierOps);
+        m_device.ReleaseEvent(this, &m_cmdStream, splitReleaseInfo, pGpuEvent, &barrierOps);
     }
     else
     {
@@ -357,7 +357,7 @@ void ComputeCmdBuffer::CmdReleaseEvent(
 
     m_device.DescribeBarrierEnd(this, &barrierOps);
 
-    m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
 }
 
 // =====================================================================================================================
@@ -369,8 +369,8 @@ void ComputeCmdBuffer::CmdAcquireEvent(
     CmdBuffer::CmdAcquireEvent(acquireInfo, gpuEventCount, ppGpuEvents);
 
     // Barriers do not honor predication.
-    const uint32 packetPredicate           = m_gfxCmdBufState.flags.packetPredicate;
-    m_gfxCmdBufState.flags.packetPredicate = 0;
+    const uint32 packetPredicate           = m_pm4CmdBufState.flags.packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = 0;
 
     // Mark these as traditional barriers in RGP
     m_device.DescribeBarrierStart(this, acquireInfo.reason, Developer::BarrierType::Acquire);
@@ -386,7 +386,7 @@ void ComputeCmdBuffer::CmdAcquireEvent(
     }
     else if (result == Result::Success)
     {
-        m_device.BarrierAcquireEvent(this, &m_cmdStream, splitAcquireInfo, gpuEventCount, ppGpuEvents, &barrierOps);
+        m_device.AcquireEvent(this, &m_cmdStream, splitAcquireInfo, gpuEventCount, ppGpuEvents, &barrierOps);
     }
     else
     {
@@ -401,7 +401,7 @@ void ComputeCmdBuffer::CmdAcquireEvent(
 
     m_device.DescribeBarrierEnd(this, &barrierOps);
 
-    m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
 }
 
 // =====================================================================================================================
@@ -411,8 +411,8 @@ void ComputeCmdBuffer::CmdReleaseThenAcquire(
     CmdBuffer::CmdReleaseThenAcquire(barrierInfo);
 
     // Barriers do not honor predication.
-    const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
-    m_gfxCmdBufState.flags.packetPredicate = 0;
+    const uint32 packetPredicate = m_pm4CmdBufState.flags.packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = 0;
 
     // Mark these as traditional barriers in RGP
     m_device.DescribeBarrierStart(this, barrierInfo.reason, Developer::BarrierType::Full);
@@ -428,7 +428,7 @@ void ComputeCmdBuffer::CmdReleaseThenAcquire(
     }
     else if (result == Result::Success)
     {
-        m_device.BarrierReleaseThenAcquire(this, &m_cmdStream, splitBarrierInfo, &barrierOps);
+        m_device.ReleaseThenAcquire(this, &m_cmdStream, splitBarrierInfo, &barrierOps);
     }
     else
     {
@@ -443,7 +443,7 @@ void ComputeCmdBuffer::CmdReleaseThenAcquire(
 
     m_device.DescribeBarrierEnd(this, &barrierOps);
 
-    m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
 }
 
 // =====================================================================================================================
@@ -525,7 +525,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatch(
         pCmdSpace = pThis->ValidateDispatchPalAbi(0uLL, 0uLL, x, y, z, pCmdSpace);
     }
 
-    if (pThis->m_gfxCmdBufState.flags.packetPredicate != 0)
+    if (pThis->m_pm4CmdBufState.flags.packetPredicate != 0)
     {
         pCmdSpace += pThis->m_cmdUtil.BuildCondExec(pThis->m_predGpuAddr, CmdUtil::DispatchDirectSize, pCmdSpace);
     }
@@ -570,7 +570,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchIndirect(
 
     pCmdSpace = pThis->ValidateDispatchPalAbi(gpuVirtAddr, 0uLL, 0, 0, 0, pCmdSpace);
 
-    if (pThis->m_gfxCmdBufState.flags.packetPredicate != 0)
+    if (pThis->m_pm4CmdBufState.flags.packetPredicate != 0)
     {
         pCmdSpace += pThis->m_cmdUtil.BuildCondExec(pThis->m_predGpuAddr, CmdUtil::DispatchIndirectMecSize, pCmdSpace);
     }
@@ -629,7 +629,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchOffset(
                                                      starts,
                                                      pCmdSpace);
 
-    if (pThis->m_gfxCmdBufState.flags.packetPredicate != 0)
+    if (pThis->m_pm4CmdBufState.flags.packetPredicate != 0)
     {
         pCmdSpace += pThis->m_cmdUtil.BuildCondExec(pThis->m_predGpuAddr, CmdUtil::DispatchDirectSize, pCmdSpace);
     }
@@ -673,7 +673,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchDynamic(
 
     pCmdSpace = pThis->ValidateDispatchPalAbi(0uLL, gpuVa, x, y, z, pCmdSpace);
 
-    if (pThis->m_gfxCmdBufState.flags.packetPredicate != 0)
+    if (pThis->m_pm4CmdBufState.flags.packetPredicate != 0)
     {
         pCmdSpace += pThis->m_cmdUtil.BuildCondExec(pThis->m_predGpuAddr, CmdUtil::DispatchDirectSize, pCmdSpace);
     }
@@ -802,15 +802,12 @@ void ComputeCmdBuffer::CmdWriteTimestamp(
     {
         PAL_ASSERT(pipePoint == HwPipeBottom);
 
-        ReleaseMemInfo releaseInfo = {};
-        releaseInfo.engineType     = EngineTypeCompute;
-        releaseInfo.vgtEvent       = BOTTOM_OF_PIPE_TS;
-        releaseInfo.tcCacheOp      = TcCacheOp::Nop;
-        releaseInfo.dstAddr        = address;
-        releaseInfo.dataSel        = data_sel__mec_release_mem__send_gpu_clock_counter;
-        releaseInfo.data           = 0;
+        ReleaseMemGeneric releaseInfo = {};
+        releaseInfo.engineType = EngineTypeCompute;
+        releaseInfo.dstAddr    = address;
+        releaseInfo.dataSel    = data_sel__mec_release_mem__send_gpu_clock_counter;
 
-        pCmdSpace += m_cmdUtil.BuildReleaseMem(releaseInfo, pCmdSpace);
+        pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseInfo, pCmdSpace);
     }
 
     m_cmdStream.CommitCommands(pCmdSpace);
@@ -824,6 +821,8 @@ void ComputeCmdBuffer::CmdWriteImmediate(
     ImmediateDataWidth dataSize,
     gpusize            address)
 {
+    const bool is32Bit = (dataSize == ImmediateDataWidth::ImmediateData32Bit);
+
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 697
@@ -838,9 +837,8 @@ void ComputeCmdBuffer::CmdWriteImmediate(
                                              address,
                                              src_sel__mec_copy_data__immediate_data,
                                              data,
-                                             ((dataSize == ImmediateDataWidth::ImmediateData32Bit) ?
-                                              count_sel__mec_copy_data__32_bits_of_data :
-                                              count_sel__mec_copy_data__64_bits_of_data),
+                                             is32Bit ? count_sel__mec_copy_data__32_bits_of_data
+                                                     : count_sel__mec_copy_data__64_bits_of_data,
                                              wr_confirm__mec_copy_data__wait_for_confirmation,
                                              pCmdSpace);
     }
@@ -848,17 +846,14 @@ void ComputeCmdBuffer::CmdWriteImmediate(
     {
         PAL_ASSERT(pipePoint == HwPipeBottom);
 
-        ReleaseMemInfo releaseInfo = {};
-        releaseInfo.engineType     = EngineTypeCompute;
-        releaseInfo.vgtEvent       = BOTTOM_OF_PIPE_TS;
-        releaseInfo.tcCacheOp      = TcCacheOp::Nop;
-        releaseInfo.dstAddr        = address;
-        releaseInfo.dataSel        = ((dataSize == ImmediateDataWidth::ImmediateData32Bit) ?
-                                         data_sel__mec_release_mem__send_32_bit_low :
-                                         data_sel__mec_release_mem__send_64_bit_data);
-        releaseInfo.data           = data;
+        ReleaseMemGeneric releaseInfo = {};
+        releaseInfo.engineType = EngineTypeCompute;
+        releaseInfo.dstAddr    = address;
+        releaseInfo.data       = data;
+        releaseInfo.dataSel    = is32Bit ? data_sel__mec_release_mem__send_32_bit_low
+                                         : data_sel__mec_release_mem__send_64_bit_data;
 
-        pCmdSpace += m_cmdUtil.BuildReleaseMem(releaseInfo, pCmdSpace);
+        pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseInfo, pCmdSpace);
     }
 
     m_cmdStream.CommitCommands(pCmdSpace);
@@ -1570,12 +1565,7 @@ Result ComputeCmdBuffer::AddPreamble()
     // Initialize acquire/release fence value GPU chunk.
     if (AcqRelFenceValBaseGpuVa() != 0)
     {
-        uint32 data[static_cast<uint32>(AcqRelEventType::Count)] = {};
-
-        for (uint32 i = 0; i < static_cast<uint32>(AcqRelEventType::Count); i++)
-        {
-            data[i] = AcqRelFenceResetVal;
-        }
+        const uint32 data[static_cast<uint32>(AcqRelEventType::Count)] = {};
 
         WriteDataInfo writeDataInfo = { };
         writeDataInfo.engineType = m_engineType;
@@ -1585,7 +1575,7 @@ Result ComputeCmdBuffer::AddPreamble()
         uint32* pCmdSpace = m_cmdStream.ReserveCommands();
         pCmdSpace += CmdUtil::BuildWriteData(writeDataInfo,
                                              (sizeof(data) / sizeof(uint32)),
-                                             reinterpret_cast<uint32*>(&data),
+                                             reinterpret_cast<const uint32*>(&data),
                                              pCmdSpace);
         m_cmdStream.CommitCommands(pCmdSpace);
     }
@@ -1597,12 +1587,12 @@ Result ComputeCmdBuffer::AddPreamble()
 // Adds a postamble to the end of a new command buffer.
 Result ComputeCmdBuffer::WritePostambleCommands(
     const CmdUtil&     cmdUtil,
-    GfxCmdBuffer*const pCmdBuffer,
+    Pm4CmdBuffer*const pCmdBuffer,
     CmdStream*         pCmdStream)
 {
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
-    if (pCmdBuffer->GetGfxCmdBufState().flags.cpBltActive)
+    if (pCmdBuffer->GetPm4CmdBufState().flags.cpBltActive)
     {
         // Stalls the CP MEC until the CP's DMA engine has finished all previous "CP blts" (DMA_DATA commands
         // without the sync bit set). The ring won't wait for CP DMAs to finish so we need to do this manually.
@@ -1620,7 +1610,7 @@ Result ComputeCmdBuffer::WritePostambleCommands(
         // by dispatches. If we don't wait for idle then the driver might reset and write over that memory before the
         // shaders are done executing.
         pCmdSpace += cmdUtil.BuildWaitCsIdle(pCmdBuffer->GetEngineType(),
-                                             static_cast<GfxCmdBuffer*>(pCmdBuffer)->TimestampGpuVirtAddr(),
+                                             pCmdBuffer->TimestampGpuVirtAddr(),
                                              pCmdSpace);
 
         pCmdSpace += cmdUtil.BuildAtomicMem(AtomicOp::AddInt32,
@@ -1643,7 +1633,7 @@ Result ComputeCmdBuffer::AddPostamble()
                                                              &m_cmdStream);
     if (result == Result::Success)
     {
-        SetGfxCmdBufCpBltState(false);
+        SetPm4CmdBufCpBltState(false);
 
     }
 
@@ -1658,7 +1648,8 @@ void ComputeCmdBuffer::BeginExecutionMarker(
     PAL_ASSERT(m_executionMarkerAddr != 0);
 
     uint32* pDeCmdSpace = m_cmdStream.ReserveCommands();
-    pDeCmdSpace += m_cmdUtil.BuildExecutionMarker(m_executionMarkerAddr,
+    pDeCmdSpace += m_cmdUtil.BuildExecutionMarker(EngineTypeCompute,
+                                                  m_executionMarkerAddr,
                                                   m_executionMarkerCount,
                                                   clientHandle,
                                                   RGD_EXECUTION_BEGIN_MARKER_GUARD,
@@ -1675,7 +1666,8 @@ uint32 ComputeCmdBuffer::CmdInsertExecutionMarker()
         PAL_ASSERT(m_executionMarkerAddr != 0);
 
         uint32* pCmdSpace = m_cmdStream.ReserveCommands();
-        pCmdSpace += m_cmdUtil.BuildExecutionMarker(m_executionMarkerAddr,
+        pCmdSpace += m_cmdUtil.BuildExecutionMarker(EngineTypeCompute,
+                                                    m_executionMarkerAddr,
                                                     ++m_executionMarkerCount,
                                                     0,
                                                     RGD_EXECUTION_MARKER_GUARD,
@@ -1693,7 +1685,8 @@ void ComputeCmdBuffer::EndExecutionMarker()
     PAL_ASSERT(m_executionMarkerAddr != 0);
 
     uint32* pDeCmdSpace = m_cmdStream.ReserveCommands();
-    pDeCmdSpace += m_cmdUtil.BuildExecutionMarker(m_executionMarkerAddr,
+    pDeCmdSpace += m_cmdUtil.BuildExecutionMarker(EngineTypeCompute,
+                                                  m_executionMarkerAddr,
                                                   ++m_executionMarkerCount,
                                                   0,
                                                   RGD_EXECUTION_MARKER_GUARD,
@@ -1709,7 +1702,7 @@ void ComputeCmdBuffer::ActivateQueryType(
     // Compute command buffers only support pipeline stat queries.
     PAL_ASSERT(queryPoolType == QueryPoolType::PipelineStats);
 
-    GfxCmdBuffer::ActivateQueryType(queryPoolType);
+    Pm4CmdBuffer::ActivateQueryType(queryPoolType);
 
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
     pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(PIPELINESTAT_START, EngineTypeCompute, pCmdSpace);
@@ -1724,7 +1717,7 @@ void ComputeCmdBuffer::DeactivateQueryType(
     // Compute command buffers only support pipeline stat queries.
     PAL_ASSERT(queryPoolType == QueryPoolType::PipelineStats);
 
-    GfxCmdBuffer::DeactivateQueryType(queryPoolType);
+    Pm4CmdBuffer::DeactivateQueryType(queryPoolType);
 
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
     pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(PIPELINESTAT_STOP, EngineTypeCompute, pCmdSpace);
@@ -1740,14 +1733,14 @@ void ComputeCmdBuffer::WriteEventCmd(
 {
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
 
-    if ((pipePoint >= HwPipePostBlt) && (m_gfxCmdBufState.flags.cpBltActive))
+    if ((pipePoint >= HwPipePostBlt) && (m_pm4CmdBufState.flags.cpBltActive))
     {
         // We must guarantee that all prior CP DMA accelerated blts have completed before we write this event because
         // the CmdSetEvent and CmdResetEvent functions expect that the prior blts have reached the post-blt stage by
         // the time the event is written to memory. Given that our CP DMA blts are asynchronous to the pipeline stages
         // the only way to satisfy this requirement is to force the MEC to stall until the CP DMAs are completed.
         pCmdSpace += m_cmdUtil.BuildWaitDmaData(pCmdSpace);
-        SetGfxCmdBufCpBltState(false);
+        SetPm4CmdBufCpBltState(false);
     }
 
     if ((pipePoint == HwPipeTop) || (pipePoint == HwPipePreCs))
@@ -1760,36 +1753,21 @@ void ComputeCmdBuffer::WriteEventCmd(
 
         pCmdSpace += m_cmdUtil.BuildWriteData(writeData, data, pCmdSpace);
     }
-    else if (pipePoint == HwPipePostCs)
-    {
-        // Implement set/reset with an EOS event waiting for CS waves to complete.
-        ReleaseMemInfo releaseInfo = {};
-        releaseInfo.engineType     = EngineTypeCompute;
-        releaseInfo.vgtEvent       = CS_DONE;
-        releaseInfo.tcCacheOp      = TcCacheOp::Nop;
-        releaseInfo.dstAddr        = boundMemObj.GpuVirtAddr();
-        releaseInfo.dataSel        = data_sel__mec_release_mem__send_32_bit_low;
-        releaseInfo.data           = data;
-
-        pCmdSpace += m_cmdUtil.BuildReleaseMem(releaseInfo, pCmdSpace);
-    }
     else
     {
         // Don't expect to see HwPipePreRasterization or HwPipePostPs on the compute queue...
-        PAL_ASSERT(pipePoint == HwPipeBottom);
+        PAL_ASSERT((pipePoint == HwPipePostCs) || (pipePoint == HwPipeBottom));
 
-        // Implement set/reset with an EOP event written when all prior GPU work completes.  HwPipeBottom shouldn't be
-        // much different than HwPipePostCs on a compute queue, but this command will ensure proper ordering if any
-        // other EOP events were used (e.g., CmdWriteTimestamp).
-        ReleaseMemInfo releaseInfo = {};
-        releaseInfo.engineType     = EngineTypeCompute;
-        releaseInfo.vgtEvent       = BOTTOM_OF_PIPE_TS;
-        releaseInfo.tcCacheOp      = TcCacheOp::Nop;
-        releaseInfo.dstAddr        = boundMemObj.GpuVirtAddr();
-        releaseInfo.dataSel        = data_sel__mec_release_mem__send_32_bit_low;
-        releaseInfo.data           = data;
+        // Implement set/reset with an EOP event written when all prior GPU work completes. Note that waiting on an
+        // EOS timestamp and waiting on an EOP timestamp are exactly equivalent on compute queues. There's no reason
+        // to implement a CS_DONE path for HwPipePostCs.
+        ReleaseMemGeneric releaseInfo = {};
+        releaseInfo.engineType = EngineTypeCompute;
+        releaseInfo.dstAddr    = boundMemObj.GpuVirtAddr();
+        releaseInfo.dataSel    = data_sel__mec_release_mem__send_32_bit_low;
+        releaseInfo.data       = data;
 
-        pCmdSpace += m_cmdUtil.BuildReleaseMem(releaseInfo, pCmdSpace);
+        pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseInfo, pCmdSpace);
     }
 
     // Set remaining (unused) event slots as early as possible. GFX9 and above may have supportReleaseAcquireInterface=1
@@ -1832,8 +1810,8 @@ void ComputeCmdBuffer::CmdSetPredication(
     PAL_ASSERT((predType == PredicateType::Boolean64) || (predType == PredicateType::Boolean32));
 
     // When gpuVirtAddr is 0, it means client is disabling/resetting predication
-    m_gfxCmdBufState.flags.clientPredicate = (pGpuMemory != nullptr);
-    m_gfxCmdBufState.flags.packetPredicate = m_gfxCmdBufState.flags.clientPredicate;
+    m_gfxCmdBufStateFlags.clientPredicate  = (pGpuMemory != nullptr);
+    m_pm4CmdBufState.flags.packetPredicate = m_gfxCmdBufStateFlags.clientPredicate;
 
     if (pGpuMemory != nullptr)
     {
@@ -1906,8 +1884,8 @@ void ComputeCmdBuffer::CmdExecuteIndirectCmds(
 
         // Generate the indirect command buffer chunk(s) using RPM. Since we're wrapping the command generation and
         // execution inside a CmdIf, we want to disable normal predication for this blit.
-        const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
-        m_gfxCmdBufState.flags.packetPredicate = 0;
+        const uint32 packetPredicate = m_pm4CmdBufState.flags.packetPredicate;
+        m_pm4CmdBufState.flags.packetPredicate = 0;
 
         constexpr uint32 DummyIndexBufSize = 0; // Compute doesn't care about the index buffer size.
         const GenerateInfo genInfo =
@@ -1923,21 +1901,18 @@ void ComputeCmdBuffer::CmdExecuteIndirectCmds(
 
         m_device.RsrcProcMgr().CmdGenerateIndirectCmds(genInfo, &ppChunkList[0], 1, &numGenChunks);
 
-        m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
+        m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
 
         uint32* pCmdSpace = m_cmdStream.ReserveCommands();
 
         // Insert a wait-for-idle to make sure that the generated commands are written out to L2 before we attempt to
         // execute them.
-        AcquireMemInfo acquireInfo = {};
-        acquireInfo.flags.invSqK$  = 1;
-        acquireInfo.tcCacheOp      = TcCacheOp::Nop;
-        acquireInfo.engineType     = EngineTypeCompute;
-        acquireInfo.baseAddress    = FullSyncBaseAddr;
-        acquireInfo.sizeBytes      = FullSyncSize;
+        AcquireMemGeneric acquireInfo = {};
+        acquireInfo.engineType = EngineTypeCompute;
+        acquireInfo.cacheSync  = SyncGlkInv;
 
-        pCmdSpace += m_cmdUtil.BuildWaitCsIdle(m_engineType, TimestampGpuVirtAddr(), pCmdSpace);
-        pCmdSpace += m_cmdUtil.BuildAcquireMem(acquireInfo, pCmdSpace);
+        pCmdSpace += m_cmdUtil.BuildWaitCsIdle(EngineTypeCompute, TimestampGpuVirtAddr(), pCmdSpace);
+        pCmdSpace += m_cmdUtil.BuildAcquireMemGeneric(acquireInfo, pCmdSpace);
 
         // PFP_SYNC_ME cannot be used on an async compute engine so we need to use REWIND packet instead.
         pCmdSpace += m_cmdUtil.BuildRewind(false, true, pCmdSpace);
@@ -1970,7 +1945,7 @@ void ComputeCmdBuffer::GetChunkForCmdGeneration(
     PAL_ASSERT(m_pCmdAllocator != nullptr);
     PAL_ASSERT(numChunkOutputs == 1);
 
-    CmdStreamChunk*const pChunk = Pal::GfxCmdBuffer::GetNextGeneratedChunk();
+    CmdStreamChunk*const pChunk = Pal::Pm4CmdBuffer::GetNextGeneratedChunk();
     pChunkOutputs->pChunk = pChunk;
 
     // NOTE: RPM uses a compute shader to generate indirect commands, so we need to use the saved user-data state
@@ -2175,7 +2150,7 @@ void ComputeCmdBuffer::AddPerPresentCommands(
 // =====================================================================================================================
 // Bind the last state set on the specified command buffer
 void ComputeCmdBuffer::InheritStateFromCmdBuf(
-    const GfxCmdBuffer* pCmdBuffer)
+    const Pm4CmdBuffer* pCmdBuffer)
 {
     SetComputeState(pCmdBuffer->GetComputeState(), ComputeStateAll);
 }
@@ -2199,23 +2174,15 @@ void ComputeCmdBuffer::CpCopyMemory(
     dmaDataInfo.numBytes    = static_cast<uint32>(numBytes);
 
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
-    if (m_gfxCmdBufState.flags.packetPredicate != 0)
+    if (m_pm4CmdBufState.flags.packetPredicate != 0)
     {
         pCmdSpace += m_cmdUtil.BuildCondExec(m_predGpuAddr, CmdUtil::DmaDataSizeDwords, pCmdSpace);
     }
     pCmdSpace += m_cmdUtil.BuildDmaData<false>(dmaDataInfo, pCmdSpace);
     m_cmdStream.CommitCommands(pCmdSpace);
 
-    SetGfxCmdBufCpBltState(true);
-    SetGfxCmdBufCpBltWriteCacheState(true);
-}
-
-// =====================================================================================================================
-void ComputeCmdBuffer::CmdRestoreComputeState(
-    uint32 stateFlags)
-{
-    Pal::GfxCmdBuffer::CmdRestoreComputeState(stateFlags);
-    UpdateGfxCmdBufCsBltExecFence();
+    SetPm4CmdBufCpBltState(true);
+    SetPm4CmdBufCpBltWriteCacheState(true);
 }
 
 } // Gfx9
