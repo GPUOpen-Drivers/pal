@@ -216,8 +216,7 @@ void SettingsLoader::OverrideDefaults()
             constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectGfx10_3   = 95;
 
             if (CheckGfx101CpUcodeVersion(*m_pDevice, PfpUcodeVersionVbTableSupportedExecuteIndirectGfx10_1) ||
-                CheckGfx103CpUcodeVersion(*m_pDevice, PfpUcodeVersionVbTableSupportedExecuteIndirectGfx10_3)
-                )
+                CheckGfx103CpUcodeVersion(*m_pDevice, PfpUcodeVersionVbTableSupportedExecuteIndirectGfx10_3))
             {
                 m_settings.useExecuteIndirectPacket = UseExecuteIndirectPacketForDrawSpillAndVbTable;
             }

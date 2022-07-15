@@ -337,7 +337,13 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.outOfOrderPrimsEnable      = static_cast<uint32>(settings.enableOutOfOrderPrimitives);
     m_cachedSettings.scissorChangeWa            = settings.waMiscScissorRegisterChange;
     m_cachedSettings.batchBreakOnNewPs         = settings.batchBreakOnNewPixelShader;
-    m_cachedSettings.pbbMoreThanOneCtxState    = (settings.binningContextStatesPerBin > 1);
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 744)
+    m_cachedSettings.pbbMoreThanOneCtxState = (pPublicSettings->binningContextStatesPerBin > 1);
+#else
+    {
+        m_cachedSettings.pbbMoreThanOneCtxState = false;
+    }
+#endif
     m_cachedSettings.padParamCacheSpace        =
             ((pPublicSettings->contextRollOptimizationFlags & PadParamCacheSpace) != 0);
     m_cachedSettings.disableVertGrouping       = settings.disableGeCntlVtxGrouping;
@@ -440,7 +446,13 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 
     // Initialize defaults for some of the fields in PA_SC_BINNER_CNTL_0.
     m_pbbCntlRegs.paScBinnerCntl0.u32All                         = 0;
-    m_pbbCntlRegs.paScBinnerCntl0.bits.CONTEXT_STATES_PER_BIN    = (settings.binningContextStatesPerBin - 1);
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 744)
+    m_pbbCntlRegs.paScBinnerCntl0.bits.CONTEXT_STATES_PER_BIN    = (pPublicSettings->binningContextStatesPerBin - 1);
+#else
+    {
+        m_pbbCntlRegs.paScBinnerCntl0.bits.CONTEXT_STATES_PER_BIN = 0;
+    }
+#endif
     m_pbbCntlRegs.paScBinnerCntl0.bits.FPOVS_PER_BATCH           = settings.binningFpovsPerBatch;
     m_pbbCntlRegs.paScBinnerCntl0.bits.OPTIMAL_BIN_SELECTION     = settings.binningOptimalBinSelection;
 
@@ -454,7 +466,13 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_pbbCntlRegs.paScBinnerCntl1.u32All       = 0;
     m_cachedPbbSettings.maxAllocCountNgg       = (settings.binningMaxAllocCountNggOnChip - 1);
     m_cachedPbbSettings.maxAllocCountLegacy    = (settings.binningMaxAllocCountLegacy    - 1);
-    m_cachedPbbSettings.persistentStatesPerBin = (settings.binningPersistentStatesPerBin - 1);
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 744)
+    m_cachedPbbSettings.persistentStatesPerBin = (pPublicSettings->binningPersistentStatesPerBin - 1);
+#else
+    {
+        m_cachedPbbSettings.persistentStatesPerBin = 0;
+    }
+#endif
     m_cachedPbbSettings.maxPrimsPerBatch       = (settings.binningMaxPrimPerBatch        - 1);
     PAL_ASSERT(m_cachedPbbSettings.maxAllocCountNgg    == (settings.binningMaxAllocCountNggOnChip - 1));
     PAL_ASSERT(m_cachedPbbSettings.maxAllocCountLegacy == (settings.binningMaxAllocCountLegacy    - 1));
@@ -494,7 +512,9 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     // Assume PAL ABI compute pipelines by default.
     SetDispatchFunctions(false);
 
-    SwitchDrawFunctions(false, false, false);
+    SwitchDrawFunctions(false,
+                        false,
+                        false);
 }
 
 // =====================================================================================================================
@@ -681,7 +701,9 @@ void UniversalCmdBuffer::ResetState()
     SetDispatchFunctions(false);
 
     SetUserDataValidationFunctions(false, false, false);
-    SwitchDrawFunctions(false, false, false);
+    SwitchDrawFunctions(false,
+                        false,
+                        false);
 
     m_vgtDmaIndexType.u32All = 0;
     m_vgtDmaIndexType.bits.SWAP_MODE  = VGT_DMA_SWAP_NONE;
@@ -742,6 +764,7 @@ void UniversalCmdBuffer::ResetState()
     m_spiPsInControl.u32All         = 0;
     m_vgtLsHsConfig.u32All          = 0;
     m_geCntl.u32All                 = 0;
+    m_dbShaderControl.u32All        = 0;
     m_dbDfsmControl.u32All          =
         ((m_cmdUtil.GetRegInfo().mmDbDfsmControl != 0) ? m_device.GetDbDfsmControl() : 0);
     m_paScAaConfigNew.u32All        = 0;
@@ -873,20 +896,24 @@ void UniversalCmdBuffer::CmdBindPipeline(
 
         SetUserDataValidationFunctions(tessEnabled, gsEnabled, isNgg);
 
-        const bool newUsesViewInstancing  = (pNewPipeline != nullptr) && pNewPipeline->UsesViewInstancing();
-        const bool oldUsesViewInstancing  = (pOldPipeline != nullptr) && pOldPipeline->UsesViewInstancing();
-        const bool newUsesUavExport       = (pNewPipeline != nullptr) && pNewPipeline->UsesUavExport();
-        const bool oldUsesUavExport       = (pOldPipeline != nullptr) && pOldPipeline->UsesUavExport();
-        const bool newNeedsUavExportFlush = (pNewPipeline != nullptr) && pNewPipeline->NeedsUavExportFlush();
-        const bool oldNeedsUavExportFlush = (pOldPipeline != nullptr) && pOldPipeline->NeedsUavExportFlush();
+        const bool newUsesViewInstancing         = (pNewPipeline != nullptr) && pNewPipeline->UsesViewInstancing();
+        const bool oldUsesViewInstancing         = (pOldPipeline != nullptr) && pOldPipeline->UsesViewInstancing();
+        const bool newUsesUavExport              = (pNewPipeline != nullptr) && pNewPipeline->UsesUavExport();
+        const bool oldUsesUavExport              = (pOldPipeline != nullptr) && pOldPipeline->UsesUavExport();
+        const bool newNeedsUavExportFlush        = (pNewPipeline != nullptr) && pNewPipeline->NeedsUavExportFlush();
+        const bool oldNeedsUavExportFlush        = (pOldPipeline != nullptr) && pOldPipeline->NeedsUavExportFlush();
+        const GsFastLaunchMode oldFastLaunchMode = static_cast<GsFastLaunchMode>(m_state.flags.fastLaunchMode);
+        const GsFastLaunchMode newFastLaunchMode = (pNewPipeline != nullptr) ? pNewPipeline->FastLaunchMode()
+                                                                             : GsFastLaunchMode::Disabled;
 
-        if ((static_cast<uint32>(meshEnabled) != m_state.flags.meshShaderEnabled) && (IsGfx10(m_gfxIpLevel)))
+        if (static_cast<uint32>(meshEnabled) != m_state.flags.meshShaderEnabled)
         {
             // When mesh shader is either being enabled or being disabled, we need to re-write VGT_PRIMITIVE_TYPE:
             // - Enabling mesh shader requires using the point-list VGT topology;
             // - Disabling mesh shader requires using whatever topology the client gave us.
-            const PrimitiveTopology topology = (meshEnabled ? PrimitiveTopology::PointList
-                                                            : m_graphicsState.inputAssemblyState.topology);
+            const PrimitiveTopology topology = (((newFastLaunchMode == GsFastLaunchMode::VertInLane) && meshEnabled) ?
+                                               PrimitiveTopology::PointList :
+                                               m_graphicsState.inputAssemblyState.topology);
 
             const uint32 idx = static_cast<uint32>(topology);
             PAL_ASSERT(idx < ArrayLen(TopologyToPrimTypeTable));
@@ -901,6 +928,7 @@ void UniversalCmdBuffer::CmdBindPipeline(
                                                              index__pfp_set_uconfig_reg_index__prim_type__GFX09);
             m_deCmdStream.CommitCommands(pDeCmdSpace);
             m_state.flags.meshShaderEnabled = meshEnabled;
+            m_state.flags.fastLaunchMode    = static_cast<uint32>(newFastLaunchMode);
         }
 
         m_state.flags.taskShaderEnabled = taskEnabled;
@@ -953,7 +981,9 @@ void UniversalCmdBuffer::CmdBindPipeline(
             (oldUsesViewInstancing  != newUsesViewInstancing)  ||
             (oldHasTaskShader != taskEnabled))
         {
-            SwitchDrawFunctions(newNeedsUavExportFlush, newUsesViewInstancing, taskEnabled);
+            SwitchDrawFunctions(newNeedsUavExportFlush,
+                                newUsesViewInstancing,
+                                taskEnabled);
         }
 
         // If RB+ is enabled, we must update the PM4 image of RB+ register state with the new pipelines' values.  This
@@ -990,11 +1020,8 @@ void UniversalCmdBuffer::CmdBindPipeline(
             {
                 // Invalidate color caches so upcoming uav exports don't overlap previous normal exports
                 uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-                pDeCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEventTs(EngineTypeUniversal,
-                                                                      CACHE_FLUSH_AND_INV_TS_EVENT,
-                                                                      TcCacheOp::Nop,
-                                                                      TimestampGpuVirtAddr(),
-                                                                      pDeCmdSpace);
+                pDeCmdSpace = m_deCmdStream.WriteWaitEopGfx(HwPipePostPrefetch, SyncGlxNone, SyncCbWbInv,
+                                                            TimestampGpuVirtAddr(), pDeCmdSpace);
                 m_deCmdStream.CommitCommands(pDeCmdSpace);
             }
         }
@@ -1096,6 +1123,10 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
     if (disableFiltering || (m_pipelineCtxRegHash != ctxRegHash))
     {
         pDeCmdSpace = pCurrPipeline->WriteContextCommands(&m_deCmdStream, pDeCmdSpace);
+
+        // Need the last written value of db-shader-control for a workaround.
+        m_dbShaderControl = pCurrPipeline->DbShaderControl();
+
         m_deCmdStream.SetContextRollDetected<true>();
 
         m_pipelineCtxRegHash = ctxRegHash;
@@ -1269,14 +1300,14 @@ void UniversalCmdBuffer::UpdateRasterKillDrawsTrackedState()
 {
     if (IsRasterizationKilled())
     {
-        SetGfxCmdBufRasterKillDrawsState(true);
-        UpdateGfxCmdBufRasterKillDrawsExecEopFence(true);
+        SetPm4CmdBufRasterKillDrawsState(true);
+        UpdatePm4CmdBufRasterKillDrawsExecEopFence(true);
     }
     else
     {
-        if (GetGfxCmdBufState().fences.rasterKillDrawsExecFenceVal == UINT32_MAX)
+        if (GetPm4CmdBufState().fences.rasterKillDrawsExecFenceVal == UINT32_MAX)
         {
-            UpdateGfxCmdBufRasterKillDrawsExecEopFence(false);
+            UpdatePm4CmdBufRasterKillDrawsExecEopFence(false);
         }
     }
 }
@@ -1424,9 +1455,7 @@ void UniversalCmdBuffer::CmdRestoreGraphicsState()
     // and update the values of rb+ registers through pm4 commands.
     // Switching the pipeline during a pop operation will already cause a context roll, so forcing a re - write of the
     // RB + registers won't cause extra rolls.
-    m_rbplusRegHash        = 0;
-
-    UpdateGfxCmdBufGfxBltExecEopFence();
+    m_rbplusRegHash = 0;
 }
 
 // =====================================================================================================================
@@ -1517,7 +1546,8 @@ void UniversalCmdBuffer::CmdSetInputAssemblyState(
     // If a mesh shader pipeline is active, we cannot write VGT_PRIMITIVE_TYPE because mesh shaders require us to
     // always use the POINTLIST topology.  VGT_PRIMITIVE_TYPE is written in CmdBindPipeline() when either enabling
     // or disabling mesh shader pipelines.
-    if ((m_state.flags.meshShaderEnabled == 0) || (IsGfx10(m_gfxIpLevel) == false))
+    if ((m_state.flags.meshShaderEnabled == 0)
+       )
     {
         pDeCmdSpace = m_deCmdStream.WriteSetOneConfigReg(mmVGT_PRIMITIVE_TYPE,
                                                          vgtPrimitiveType.u32All,
@@ -1530,6 +1560,11 @@ void UniversalCmdBuffer::CmdSetInputAssemblyState(
                                                       pDeCmdSpace);
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 745
+    m_vgtMultiPrimIbResetEn.bits.MATCH_ALL_BITS =
+        static_cast<uint32>(params.primitiveRestartMatchAllBits);
+#endif
 
     m_graphicsState.inputAssemblyState = params;
     m_graphicsState.dirtyFlags.validationBits.inputAssemblyState   = 1;
@@ -1678,8 +1713,8 @@ void UniversalCmdBuffer::CmdBarrier(
     CmdBuffer::CmdBarrier(barrierInfo);
 
     // Barriers do not honor predication.
-    const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
-    m_gfxCmdBufState.flags.packetPredicate = 0;
+    const uint32 packetPredicate = m_pm4CmdBufState.flags.packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = 0;
 
     bool splitMemAllocated;
     BarrierInfo splitBarrierInfo = barrierInfo;
@@ -1704,7 +1739,7 @@ void UniversalCmdBuffer::CmdBarrier(
         PAL_SAFE_DELETE_ARRAY(splitBarrierInfo.pTransitions, m_device.GetPlatform());
     }
 
-    m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
 
     for (uint32 i = 0; i < barrierInfo.transitionCount; i++)
     {
@@ -1725,7 +1760,7 @@ void UniversalCmdBuffer::OptimizePipeAndCacheMaskForRelease(
     uint32* pAccessMask
     ) const
 {
-    GfxCmdBuffer::OptimizePipeAndCacheMaskForRelease(pStageMask, pAccessMask);
+    Pm4CmdBuffer::OptimizePipeAndCacheMaskForRelease(pStageMask, pAccessMask);
 }
 
 // =====================================================================================================================
@@ -1735,8 +1770,8 @@ uint32 UniversalCmdBuffer::CmdRelease(
     CmdBuffer::CmdRelease(releaseInfo);
 
     // Barriers do not honor predication.
-    const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
-    m_gfxCmdBufState.flags.packetPredicate = 0;
+    const uint32 packetPredicate = m_pm4CmdBufState.flags.packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = 0;
 
     // Mark these as traditional barriers in RGP
     m_device.DescribeBarrierStart(this, releaseInfo.reason, Developer::BarrierType::Release);
@@ -1754,7 +1789,7 @@ uint32 UniversalCmdBuffer::CmdRelease(
     }
     else if (result == Result::Success)
     {
-        syncToken = m_device.BarrierRelease(this, &m_deCmdStream, splitReleaseInfo, &barrierOps);
+        syncToken = m_device.Release(this, &m_deCmdStream, splitReleaseInfo, &barrierOps);
     }
     else
     {
@@ -1769,7 +1804,7 @@ uint32 UniversalCmdBuffer::CmdRelease(
 
     m_device.DescribeBarrierEnd(this, &barrierOps);
 
-    m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
 
     for (uint32 i = 0; i < releaseInfo.imageBarrierCount; i++)
     {
@@ -1794,8 +1829,8 @@ void UniversalCmdBuffer::CmdAcquire(
     CmdBuffer::CmdAcquire(acquireInfo, syncTokenCount, pSyncTokens);
 
     // Barriers do not honor predication.
-    const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
-    m_gfxCmdBufState.flags.packetPredicate = 0;
+    const uint32 packetPredicate = m_pm4CmdBufState.flags.packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = 0;
 
     // Mark these as traditional barriers in RGP
     m_device.DescribeBarrierStart(this, acquireInfo.reason, Developer::BarrierType::Acquire);
@@ -1811,12 +1846,12 @@ void UniversalCmdBuffer::CmdAcquire(
     }
     else if (result == Result::Success)
     {
-        m_device.BarrierAcquire(this,
-                                &m_deCmdStream,
-                                acquireInfo,
-                                syncTokenCount,
-                                reinterpret_cast<const AcqRelSyncToken*>(pSyncTokens),
-                                &barrierOps);
+        m_device.Acquire(this,
+                         &m_deCmdStream,
+                         acquireInfo,
+                         syncTokenCount,
+                         reinterpret_cast<const AcqRelSyncToken*>(pSyncTokens),
+                         &barrierOps);
     }
     else
     {
@@ -1831,7 +1866,7 @@ void UniversalCmdBuffer::CmdAcquire(
 
     m_device.DescribeBarrierEnd(this, &barrierOps);
 
-    m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
 
     IssueGangedBarrierAceWaitDeIncr();
 }
@@ -1844,8 +1879,8 @@ void UniversalCmdBuffer::CmdReleaseEvent(
     CmdBuffer::CmdReleaseEvent(releaseInfo, pGpuEvent);
 
     // Barriers do not honor predication.
-    const uint32 packetPredicate           = m_gfxCmdBufState.flags.packetPredicate;
-    m_gfxCmdBufState.flags.packetPredicate = 0;
+    const uint32 packetPredicate           = m_pm4CmdBufState.flags.packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = 0;
 
     // Mark these as traditional barriers in RGP
     m_device.DescribeBarrierStart(this, releaseInfo.reason, Developer::BarrierType::Release);
@@ -1861,7 +1896,7 @@ void UniversalCmdBuffer::CmdReleaseEvent(
     }
     else if (result == Result::Success)
     {
-        m_device.BarrierReleaseEvent(this, &m_deCmdStream, splitReleaseInfo, pGpuEvent, &barrierOps);
+        m_device.ReleaseEvent(this, &m_deCmdStream, splitReleaseInfo, pGpuEvent, &barrierOps);
     }
     else
     {
@@ -1876,7 +1911,7 @@ void UniversalCmdBuffer::CmdReleaseEvent(
 
     m_device.DescribeBarrierEnd(this, &barrierOps);
 
-    m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
 
     for (uint32 i = 0; i < releaseInfo.imageBarrierCount; i++)
     {
@@ -1899,8 +1934,8 @@ void UniversalCmdBuffer::CmdAcquireEvent(
     CmdBuffer::CmdAcquireEvent(acquireInfo, gpuEventCount, ppGpuEvents);
 
     // Barriers do not honor predication.
-    const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
-    m_gfxCmdBufState.flags.packetPredicate = 0;
+    const uint32 packetPredicate = m_pm4CmdBufState.flags.packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = 0;
 
     // Mark these as traditional barriers in RGP
     m_device.DescribeBarrierStart(this, acquireInfo.reason, Developer::BarrierType::Acquire);
@@ -1916,7 +1951,7 @@ void UniversalCmdBuffer::CmdAcquireEvent(
     }
     else if (result == Result::Success)
     {
-        m_device.BarrierAcquireEvent(this, &m_deCmdStream, splitAcquireInfo, gpuEventCount, ppGpuEvents, &barrierOps);
+        m_device.AcquireEvent(this, &m_deCmdStream, splitAcquireInfo, gpuEventCount, ppGpuEvents, &barrierOps);
     }
     else
     {
@@ -1931,7 +1966,7 @@ void UniversalCmdBuffer::CmdAcquireEvent(
 
     m_device.DescribeBarrierEnd(this, &barrierOps);
 
-    m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
 
     IssueGangedBarrierAceWaitDeIncr();
 }
@@ -1943,8 +1978,8 @@ void UniversalCmdBuffer::CmdReleaseThenAcquire(
     CmdBuffer::CmdReleaseThenAcquire(barrierInfo);
 
     // Barriers do not honor predication.
-    const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
-    m_gfxCmdBufState.flags.packetPredicate = 0;
+    const uint32 packetPredicate = m_pm4CmdBufState.flags.packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = 0;
 
     // Mark these as traditional barriers in RGP
     m_device.DescribeBarrierStart(this, barrierInfo.reason, Developer::BarrierType::Full);
@@ -1960,7 +1995,7 @@ void UniversalCmdBuffer::CmdReleaseThenAcquire(
     }
     else if (result == Result::Success)
     {
-        m_device.BarrierReleaseThenAcquire(this, &m_deCmdStream, splitBarrierInfo, &barrierOps);
+        m_device.ReleaseThenAcquire(this, &m_deCmdStream, splitBarrierInfo, &barrierOps);
     }
     else
     {
@@ -1975,7 +2010,7 @@ void UniversalCmdBuffer::CmdReleaseThenAcquire(
 
     m_device.DescribeBarrierEnd(this, &barrierOps);
 
-    m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
 
     for (uint32 i = 0; i < barrierInfo.imageBarrierCount; i++)
     {
@@ -2004,14 +2039,13 @@ void UniversalCmdBuffer::IssueGangedBarrierAceWaitDeIncr()
     {
         uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-        ReleaseMemInfo releaseInfo = {};
-        releaseInfo.engineType = m_deCmdStream.GetEngineType();
-        releaseInfo.tcCacheOp  = TcCacheOp::Nop;
-        releaseInfo.dstAddr    = GangedCmdStreamSemAddr();
-        releaseInfo.dataSel    = data_sel__me_release_mem__send_32_bit_low;
-        releaseInfo.data       = m_semCountAceWaitDe;
-        releaseInfo.vgtEvent   = BOTTOM_OF_PIPE_TS;
-        pDeCmdSpace += m_cmdUtil.BuildReleaseMem(releaseInfo, pDeCmdSpace);
+        ReleaseMemGfx releaseInfo = {};
+        releaseInfo.vgtEvent = BOTTOM_OF_PIPE_TS;
+        releaseInfo.dstAddr  = GangedCmdStreamSemAddr();
+        releaseInfo.dataSel  = data_sel__me_release_mem__send_32_bit_low;
+        releaseInfo.data     = m_semCountAceWaitDe;
+
+        pDeCmdSpace += m_cmdUtil.BuildReleaseMemGfx(releaseInfo, pDeCmdSpace);
 
         m_deCmdStream.CommitCommands(pDeCmdSpace);
     }
@@ -2026,14 +2060,13 @@ void UniversalCmdBuffer::IssueGangedBarrierDeWaitAceIncr()
     {
         uint32* pAceCmdSpace = m_pAceCmdStream->ReserveCommands();
 
-        ReleaseMemInfo releaseInfo = {};
-        releaseInfo.engineType = m_pAceCmdStream->GetEngineType();
-        releaseInfo.tcCacheOp  = TcCacheOp::Nop;
-        releaseInfo.dstAddr    = GangedCmdStreamSemAddr() + sizeof(uint32);
-        releaseInfo.dataSel    = data_sel__mec_release_mem__send_32_bit_low;
-        releaseInfo.data       = m_semCountDeWaitAce;
-        releaseInfo.vgtEvent   = BOTTOM_OF_PIPE_TS;
-        pAceCmdSpace += m_cmdUtil.BuildReleaseMem(releaseInfo, pAceCmdSpace);
+        ReleaseMemGfx releaseInfo = {};
+        releaseInfo.vgtEvent = BOTTOM_OF_PIPE_TS;
+        releaseInfo.dstAddr  = GangedCmdStreamSemAddr() + sizeof(uint32);
+        releaseInfo.dataSel  = data_sel__mec_release_mem__send_32_bit_low;
+        releaseInfo.data     = m_semCountDeWaitAce;
+
+        pAceCmdSpace += m_cmdUtil.BuildReleaseMemGfx(releaseInfo, pAceCmdSpace);
 
         m_pAceCmdStream->CommitCommands(pAceCmdSpace);
     }
@@ -2260,11 +2293,8 @@ void UniversalCmdBuffer::CmdBindTargets(
 
     if (waitOnMetadataMipTail)
     {
-        pDeCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEventTs(EngineTypeUniversal,
-                                                              BOTTOM_OF_PIPE_TS,
-                                                              TcCacheOp::Nop,
-                                                              TimestampGpuVirtAddr(),
-                                                              pDeCmdSpace);
+        pDeCmdSpace = m_deCmdStream.WriteWaitEopGfx(HwPipePostPrefetch, SyncGlxNone, SyncRbNone,
+                                                    TimestampGpuVirtAddr(), pDeCmdSpace);
     }
 
     // If next draw(s) that only change D/S targets, don't program CB_RMI_GL2_CACHE_CONTROL and let the state remains.
@@ -2289,12 +2319,10 @@ void UniversalCmdBuffer::CmdBindTargets(
             // D. Draw to RT[0] (big_page enable)
             // For simplicity, we don't track big page setting polarity change based on MRT usage, but simply adding the
             // sync whenever a different big page setting value is going to be written into command buffer.
-            AcquireMemInfo acquireInfo = {};
-            acquireInfo.baseAddress          = FullSyncBaseAddr;
-            acquireInfo.sizeBytes            = FullSyncSize;
-            acquireInfo.engineType           = EngineTypeUniversal;
-            acquireInfo.cpMeCoherCntl.u32All = CpMeCoherCntlStallMask;
-            acquireInfo.flags.wbInvCbData    = 1;
+            AcquireMemGfxSurfSync acquireInfo = {};
+            acquireInfo.flags.cbTargetStall        = 1;
+            acquireInfo.flags.dbTargetStall        = 1; // It's not clear why the original workaround waited on DB.
+            acquireInfo.flags.gfx9Gfx10CbDataWbInv = 1;
 
             // This alert shouldn't be triggered frequently, or otherwise performance penalty will be there.
             // Consider either of following solutions to avoid the performance penalty:
@@ -2303,7 +2331,7 @@ void UniversalCmdBuffer::CmdBindTargets(
             // Check IsColorBigPage()/IsFmaskBigPage() for the details about how to enable/disable big page
             PAL_ALERT_ALWAYS();
 
-            pDeCmdSpace += m_cmdUtil.BuildAcquireMem(acquireInfo, pDeCmdSpace);
+            pDeCmdSpace += m_cmdUtil.BuildAcquireMemGfxSurfSync(acquireInfo, pDeCmdSpace);
         }
 
         m_cbRmiGl2CacheControl.bits.COLOR_BIG_PAGE = colorBigPage;
@@ -3419,8 +3447,12 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchDynamic(
 }
 
 // =====================================================================================================================
+// Generates commands required for execution of a Mesh-only pipeline. This version focuses on the use of
+// the VertInLane GsFastLaunchMode which emulates threadgroups by setting the number of verts/prims in a subgroup
+// to 1 and uses the primitive amplification factor to "grow" the subgroup to the threadgroup sizes
+// required by the shader.
 template <bool IssueSqttMarkerEvent, bool HasUavExport, bool ViewInstancingEnable, bool DescribeDrawDispatch>
-void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMesh(
+void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshAmpFastLaunch(
     ICmdBuffer* pCmdBuffer,
     uint32      xDim,
     uint32      yDim,
@@ -4029,7 +4061,7 @@ void UniversalCmdBuffer::CmdWriteTimestamp(
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 697
-    if (pipePoint == HwPipePostIndexFetch)
+    if (pipePoint == HwPipePostPrefetch)
 #else
     if (pipePoint == HwPipeTop)
 #endif
@@ -4048,15 +4080,12 @@ void UniversalCmdBuffer::CmdWriteTimestamp(
     {
         PAL_ASSERT(pipePoint == HwPipeBottom);
 
-        ReleaseMemInfo releaseInfo = {};
-        releaseInfo.engineType     = EngineTypeUniversal;
-        releaseInfo.vgtEvent       = BOTTOM_OF_PIPE_TS;
-        releaseInfo.tcCacheOp      = TcCacheOp::Nop;
-        releaseInfo.dstAddr        = address;
-        releaseInfo.dataSel        = data_sel__me_release_mem__send_gpu_clock_counter;
-        releaseInfo.data           = 0;
+        ReleaseMemGfx releaseInfo = {};
+        releaseInfo.vgtEvent = BOTTOM_OF_PIPE_TS;
+        releaseInfo.dstAddr  = address;
+        releaseInfo.dataSel  = data_sel__me_release_mem__send_gpu_clock_counter;
 
-        pDeCmdSpace += m_cmdUtil.BuildReleaseMem(releaseInfo, pDeCmdSpace);
+        pDeCmdSpace += m_cmdUtil.BuildReleaseMemGfx(releaseInfo, pDeCmdSpace);
     }
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
@@ -4071,6 +4100,8 @@ void UniversalCmdBuffer::CmdWriteImmediate(
     ImmediateDataWidth dataSize,
     gpusize            address)
 {
+    const bool is32Bit = (dataSize == ImmediateDataWidth::ImmediateData32Bit);
+
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
     if (pipePoint == HwPipeTop)
@@ -4082,13 +4113,12 @@ void UniversalCmdBuffer::CmdWriteImmediate(
                                               address,
                                               src_sel__pfp_copy_data__immediate_data,
                                               data,
-                                              ((dataSize == ImmediateDataWidth::ImmediateData32Bit) ?
-                                               count_sel__pfp_copy_data__32_bits_of_data :
-                                               count_sel__pfp_copy_data__64_bits_of_data),
+                                              is32Bit ? count_sel__pfp_copy_data__32_bits_of_data
+                                                      : count_sel__pfp_copy_data__64_bits_of_data,
                                               wr_confirm__pfp_copy_data__wait_for_confirmation,
                                               pDeCmdSpace);
     }
-    else if (pipePoint == HwPipePostIndexFetch)
+    else if (pipePoint == HwPipePostPrefetch)
 #endif
     {
         pDeCmdSpace += CmdUtil::BuildCopyData(EngineTypeUniversal,
@@ -4097,9 +4127,8 @@ void UniversalCmdBuffer::CmdWriteImmediate(
                                               address,
                                               src_sel__me_copy_data__immediate_data,
                                               data,
-                                              ((dataSize == ImmediateDataWidth::ImmediateData32Bit) ?
-                                               count_sel__me_copy_data__32_bits_of_data :
-                                               count_sel__me_copy_data__64_bits_of_data),
+                                              is32Bit ? count_sel__me_copy_data__32_bits_of_data
+                                                      : count_sel__me_copy_data__64_bits_of_data,
                                               wr_confirm__me_copy_data__wait_for_confirmation,
                                               pDeCmdSpace);
     }
@@ -4107,17 +4136,14 @@ void UniversalCmdBuffer::CmdWriteImmediate(
     {
         PAL_ASSERT(pipePoint == HwPipeBottom);
 
-        ReleaseMemInfo releaseInfo = {};
-        releaseInfo.engineType     = EngineTypeUniversal;
-        releaseInfo.vgtEvent       = BOTTOM_OF_PIPE_TS;
-        releaseInfo.tcCacheOp      = TcCacheOp::Nop;
-        releaseInfo.dstAddr        = address;
-        releaseInfo.dataSel        = ((dataSize == ImmediateDataWidth::ImmediateData32Bit) ?
-                                         data_sel__me_release_mem__send_32_bit_low :
-                                         data_sel__me_release_mem__send_64_bit_data);
-        releaseInfo.data           = data;
+        ReleaseMemGfx releaseInfo = {};
+        releaseInfo.vgtEvent = BOTTOM_OF_PIPE_TS;
+        releaseInfo.dstAddr  = address;
+        releaseInfo.data     = data;
+        releaseInfo.dataSel  = is32Bit ? data_sel__me_release_mem__send_32_bit_low
+                                       : data_sel__me_release_mem__send_64_bit_data;
 
-        pDeCmdSpace += m_cmdUtil.BuildReleaseMem(releaseInfo, pDeCmdSpace);
+        pDeCmdSpace += m_cmdUtil.BuildReleaseMemGfx(releaseInfo, pDeCmdSpace);
     }
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
@@ -4460,11 +4486,7 @@ Result UniversalCmdBuffer::AddPreamble()
     // Initialize m_acqRelFenceValGpuVa.
     if (AcqRelFenceValBaseGpuVa() != 0)
     {
-        uint32 data[static_cast<uint32>(AcqRelEventType::Count)] = {};
-        for (uint32 i = 0; i < static_cast<uint32>(AcqRelEventType::Count); i++)
-        {
-            data[i] = AcqRelFenceResetVal;
-        }
+        const uint32 data[static_cast<uint32>(AcqRelEventType::Count)] = {};
 
         WriteDataInfo writeDataInfo = { };
         writeDataInfo.engineType = m_engineType;
@@ -4474,7 +4496,7 @@ Result UniversalCmdBuffer::AddPreamble()
 
         pDeCmdSpace += CmdUtil::BuildWriteData(writeDataInfo,
                                                (sizeof(data) / sizeof(uint32)),
-                                               reinterpret_cast<uint32*>(&data),
+                                               reinterpret_cast<const uint32*>(&data),
                                                pDeCmdSpace);
     }
 
@@ -4527,12 +4549,12 @@ Result UniversalCmdBuffer::AddPostamble()
 
     }
 
-    if (m_gfxCmdBufState.flags.cpBltActive)
+    if (m_pm4CmdBufState.flags.cpBltActive)
     {
         // Stalls the CP ME until the CP's DMA engine has finished all previous "CP blts" (DMA_DATA commands
         // without the sync bit set). The ring won't wait for CP DMAs to finish so we need to do this manually.
         pDeCmdSpace += CmdUtil::BuildWaitDmaData(pDeCmdSpace);
-        SetGfxCmdBufCpBltState(false);
+        SetPm4CmdBufCpBltState(false);
     }
 
     bool didWaitForIdle = false;
@@ -4569,11 +4591,8 @@ Result UniversalCmdBuffer::AddPostamble()
         // by draws or dispatches. If we don't wait for idle then the driver might reset and write over that memory
         // before the shaders are done executing.
         didWaitForIdle = true;
-        pDeCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEventTs(GetEngineType(),
-                                                              BOTTOM_OF_PIPE_TS,
-                                                              TcCacheOp::Nop,
-                                                              TimestampGpuVirtAddr(),
-                                                              pDeCmdSpace);
+        pDeCmdSpace = m_deCmdStream.WriteWaitEopGfx(HwPipePostPrefetch, SyncGlxNone, SyncRbNone,
+                                                    TimestampGpuVirtAddr(), pDeCmdSpace);
 
         // The following ATOMIC_MEM packet increments the done-count for the CE command stream, so that we can probe
         // when the command buffer has completed execution on the GPU.
@@ -4596,11 +4615,8 @@ Result UniversalCmdBuffer::AddPostamble()
         // If we didn't have a CE tracker we still need this wait-for-idle. See the comment above for the reason.
         if (didWaitForIdle == false)
         {
-            pDeCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEventTs(GetEngineType(),
-                                                                  BOTTOM_OF_PIPE_TS,
-                                                                  TcCacheOp::Nop,
-                                                                  TimestampGpuVirtAddr(),
-                                                                  pDeCmdSpace);
+            pDeCmdSpace = m_deCmdStream.WriteWaitEopGfx(HwPipePostPrefetch, SyncGlxNone, SyncRbNone,
+                                                        TimestampGpuVirtAddr(), pDeCmdSpace);
         }
 
         pDeCmdSpace += CmdUtil::BuildAtomicMem(AtomicOp::AddInt32,
@@ -4629,7 +4645,8 @@ void UniversalCmdBuffer::BeginExecutionMarker(
     PAL_ASSERT(m_executionMarkerAddr != 0);
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-    pDeCmdSpace += m_cmdUtil.BuildExecutionMarker(m_executionMarkerAddr,
+    pDeCmdSpace += m_cmdUtil.BuildExecutionMarker(EngineTypeCompute,
+                                                  m_executionMarkerAddr,
                                                   m_executionMarkerCount,
                                                   clientHandle,
                                                   RGD_EXECUTION_BEGIN_MARKER_GUARD,
@@ -4646,7 +4663,8 @@ uint32 UniversalCmdBuffer::CmdInsertExecutionMarker()
         PAL_ASSERT(m_executionMarkerAddr != 0);
 
         uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-        pDeCmdSpace += m_cmdUtil.BuildExecutionMarker(m_executionMarkerAddr,
+        pDeCmdSpace += m_cmdUtil.BuildExecutionMarker(EngineTypeCompute,
+                                                      m_executionMarkerAddr,
                                                       ++m_executionMarkerCount,
                                                       0,
                                                       RGD_EXECUTION_MARKER_GUARD,
@@ -4664,7 +4682,8 @@ void UniversalCmdBuffer::EndExecutionMarker()
     PAL_ASSERT(m_executionMarkerAddr != 0);
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-    pDeCmdSpace += m_cmdUtil.BuildExecutionMarker(m_executionMarkerAddr,
+    pDeCmdSpace += m_cmdUtil.BuildExecutionMarker(EngineTypeCompute,
+                                                  m_executionMarkerAddr,
                                                   ++m_executionMarkerCount,
                                                   0,
                                                   RGD_EXECUTION_MARKER_GUARD,
@@ -4683,14 +4702,14 @@ void UniversalCmdBuffer::WriteEventCmd(
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-    if ((pipePoint >= HwPipePostBlt) && (m_gfxCmdBufState.flags.cpBltActive))
+    if ((pipePoint >= HwPipePostBlt) && (m_pm4CmdBufState.flags.cpBltActive))
     {
         // We must guarantee that all prior CP DMA accelerated blts have completed before we write this event because
         // the CmdSetEvent and CmdResetEvent functions expect that the prior blts have reached the post-blt stage by
         // the time the event is written to memory. Given that our CP DMA blts are asynchronous to the pipeline stages
         // the only way to satisfy this requirement is to force the MEC to stall until the CP DMAs are completed.
         pDeCmdSpace += CmdUtil::BuildWaitDmaData(pDeCmdSpace);
-        SetGfxCmdBufCpBltState(false);
+        SetPm4CmdBufCpBltState(false);
     }
 
     OptimizePipePoint(&pipePoint);
@@ -4701,12 +4720,10 @@ void UniversalCmdBuffer::WriteEventCmd(
     writeData.dstAddr    = boundMemObj.GpuVirtAddr();
     writeData.dstSel     = dst_sel__me_write_data__memory;
 
-    ReleaseMemInfo releaseInfo = {};
-    releaseInfo.engineType     = engineType;
-    releaseInfo.tcCacheOp      = TcCacheOp::Nop;
-    releaseInfo.dstAddr        = boundMemObj.GpuVirtAddr();
-    releaseInfo.dataSel        = data_sel__me_release_mem__send_32_bit_low;
-    releaseInfo.data           = data;
+    ReleaseMemGfx releaseInfo = {};
+    releaseInfo.dstAddr = boundMemObj.GpuVirtAddr();
+    releaseInfo.dataSel = data_sel__me_release_mem__send_32_bit_low;
+    releaseInfo.data    = data;
 
     switch (pipePoint)
     {
@@ -4717,7 +4734,7 @@ void UniversalCmdBuffer::WriteEventCmd(
         pDeCmdSpace += CmdUtil::BuildWriteData(writeData, data, pDeCmdSpace);
         break;
 
-    case HwPipePostIndexFetch:
+    case HwPipePostPrefetch:
         // Implement set/reset event with a WRITE_DATA command using the ME engine.
         writeData.engineSel = engine_sel__me_write_data__micro_engine;
 
@@ -4734,13 +4751,13 @@ void UniversalCmdBuffer::WriteEventCmd(
         // Implement set/reset with an EOS event waiting for VS/PS or CS waves to complete.  Unfortunately, there is
         // no VS_DONE event with which to implement HwPipePreRasterization, so it has to conservatively use PS_DONE.
         releaseInfo.vgtEvent = (pipePoint == HwPipePostCs) ? CS_DONE : PS_DONE;
-        pDeCmdSpace += m_cmdUtil.BuildReleaseMem(releaseInfo, pDeCmdSpace);
+        pDeCmdSpace += m_cmdUtil.BuildReleaseMemGfx(releaseInfo, pDeCmdSpace);
         break;
 
     case HwPipeBottom:
         // Implement set/reset with an EOP event written when all prior GPU work completes.
         releaseInfo.vgtEvent = BOTTOM_OF_PIPE_TS;
-        pDeCmdSpace += m_cmdUtil.BuildReleaseMem(releaseInfo, pDeCmdSpace);
+        pDeCmdSpace += m_cmdUtil.BuildReleaseMemGfx(releaseInfo, pDeCmdSpace);
         break;
 
     default:
@@ -6017,6 +6034,11 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         const bool            wdSwitchOnEop   = ForceWdSwitchOnEop(*pPipeline, drawInfo);
         regIA_MULTI_VGT_PARAM iaMultiVgtParam = pPipeline->IaMultiVgtParam(wdSwitchOnEop);
         regVGT_LS_HS_CONFIG   vgtLsHsConfig   = pPipeline->VgtLsHsConfig();
+
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 747)
+        const uint32 patchControlPoints = m_graphicsState.inputAssemblyState.patchControlPoints;
+        PAL_ASSERT(IsTessEnabled() || (vgtLsHsConfig.bits.HS_NUM_INPUT_CP == patchControlPoints));
+#endif
 
         if (IsGfx9(m_gfxIpLevel))
         {
@@ -7301,7 +7323,7 @@ uint32* UniversalCmdBuffer::ValidateScissorRects(
 }
 
 // =====================================================================================================================
-// Translates the supplied IA_MULTI_VGT_PARAM register to its equivalent GE_CNTL value
+// Calculates the GE_CNTL register value.
 template <bool IsNgg>
 uint32 UniversalCmdBuffer::CalcGeCntl(
     bool                  usesLineStipple,
@@ -7311,7 +7333,7 @@ uint32 UniversalCmdBuffer::CalcGeCntl(
     const     auto*  pPalPipeline         = m_graphicsState.pipelineState.pPipeline;
     const     auto*  pPipeline            = static_cast<const GraphicsPipeline*>(pPalPipeline);
     const     bool   isTess               = IsTessEnabled();
-    const     bool   isNggFastLaunch      = pPipeline->IsNggFastLaunch();
+    const     bool   isNggFastLaunch      = (pPipeline->FastLaunchMode() != GsFastLaunchMode::Disabled);
     const     bool   disableVertGrouping  = (m_cachedSettings.disableVertGrouping &&
                                              (isNggFastLaunch == false)           &&
                                              (pPipeline->NggSubgroupSize() == 0));
@@ -8091,8 +8113,8 @@ void UniversalCmdBuffer::CmdResolveQuery(
     gpusize           dstStride)
 {
     // Resolving a query is not supposed to honor predication.
-    const uint32 packetPredicate = m_gfxCmdBufState.flags.packetPredicate;
-    m_gfxCmdBufState.flags.packetPredicate = 0;
+    const uint32 packetPredicate = m_pm4CmdBufState.flags.packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = 0;
 
     m_device.RsrcProcMgr().CmdResolveQuery(this,
                                            static_cast<const QueryPool&>(queryPool),
@@ -8104,7 +8126,7 @@ void UniversalCmdBuffer::CmdResolveQuery(
                                            dstOffset,
                                            dstStride);
 
-    m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
 }
 
 // =====================================================================================================================
@@ -8517,7 +8539,7 @@ void UniversalCmdBuffer::SetGraphicsState(
 // =====================================================================================================================
 // Bind the last state set on the specified command buffer
 void UniversalCmdBuffer::InheritStateFromCmdBuf(
-    const GfxCmdBuffer* pCmdBuffer)
+    const Pm4CmdBuffer* pCmdBuffer)
 {
     SetComputeState(pCmdBuffer->GetComputeState(), ComputeStateAll);
 
@@ -8806,8 +8828,8 @@ void UniversalCmdBuffer::CmdSetPredication(
 {
     PAL_ASSERT((pQueryPool == nullptr) || (pGpuMemory == nullptr));
 
-    m_gfxCmdBufState.flags.clientPredicate = ((pQueryPool != nullptr) || (pGpuMemory != nullptr)) ? 1 : 0;
-    m_gfxCmdBufState.flags.packetPredicate = m_gfxCmdBufState.flags.clientPredicate;
+    m_gfxCmdBufStateFlags.clientPredicate  = ((pQueryPool != nullptr) || (pGpuMemory != nullptr)) ? 1 : 0;
+    m_pm4CmdBufState.flags.packetPredicate = m_gfxCmdBufStateFlags.clientPredicate;
 
     gpusize gpuVirtAddr = 0;
     if (pGpuMemory != nullptr)
@@ -9389,7 +9411,7 @@ void UniversalCmdBuffer::ExecuteIndirectShader(
             // execution inside a CmdIf, we want to disable normal predication for this blit.
             const uint32 packetPredicate   = PacketPredicate();
             const uint32 numChunksExecuted = numGenChunks;
-            m_gfxCmdBufState.flags.packetPredicate = 0;
+            m_pm4CmdBufState.flags.packetPredicate = 0;
 
             const GenerateInfo genInfo =
             {
@@ -9426,7 +9448,7 @@ void UniversalCmdBuffer::ExecuteIndirectShader(
                                                            numChunkLists,
                                                            &numGenChunks);
 
-            m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
+            m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
 
             if (cmdGenUseAce)
             {
@@ -9441,18 +9463,14 @@ void UniversalCmdBuffer::ExecuteIndirectShader(
                 uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
                 // Insert a CS_PARTIAL_FLUSH to make sure that the generated commands are written out to L2 before we
-                // attempt to execute them. Then, a PFP_SYNC_ME is also required so that the PFP doesn't prefetch the
+                // attempt to execute them. Then, a PFP wait is also required so that the PFP doesn't prefetch the
                 // generated commands before they are finished executing.
-                AcquireMemInfo acquireInfo = {};
-                acquireInfo.flags.invSqK$  = 1;
-                acquireInfo.tcCacheOp      = TcCacheOp::Nop;
-                acquireInfo.engineType     = EngineTypeUniversal;
-                acquireInfo.baseAddress    = FullSyncBaseAddr;
-                acquireInfo.sizeBytes      = FullSyncSize;
+                AcquireMemGfxSurfSync acquireInfo = {};
+                acquireInfo.cacheSync     = SyncGlkInv; // It's not clear why this was written with a K$ inv.
+                acquireInfo.flags.pfpWait = 1;
 
                 pDeCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, EngineTypeUniversal, pDeCmdSpace);
-                pDeCmdSpace += m_cmdUtil.BuildAcquireMem(acquireInfo, pDeCmdSpace);
-                pDeCmdSpace += CmdUtil::BuildPfpSyncMe(pDeCmdSpace);
+                pDeCmdSpace += m_cmdUtil.BuildAcquireMemGfxSurfSync(acquireInfo, pDeCmdSpace);
                 m_deCmdStream.SetContextRollDetected<false>();
 
                 m_deCmdStream.CommitCommands(pDeCmdSpace);
@@ -9709,7 +9727,7 @@ void UniversalCmdBuffer::GetChunkForCmdGeneration(
         const GfxCmdStream* pStream   = pStreams[i];
         ChunkOutput* pOutput          = &pChunkOutputs[i];
 
-        pOutput->pChunk = Pal::GfxCmdBuffer::GetNextGeneratedChunk();
+        pOutput->pChunk = Pal::Pm4CmdBuffer::GetNextGeneratedChunk();
 
         const uint32* pUserDataEntries = nullptr;
         bool usesVertexBufTable        = false;
@@ -9935,13 +9953,13 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     m_nggState.flags.dirty                 |= cmdBuffer.m_nggState.flags.dirty;
 
     // It is possible that nested command buffer execute operation which affect the data in the primary buffer
-    m_gfxCmdBufState.flags.gfxBltActive              = cmdBuffer.m_gfxCmdBufState.flags.gfxBltActive;
-    m_gfxCmdBufState.flags.csBltActive               = cmdBuffer.m_gfxCmdBufState.flags.csBltActive;
-    m_gfxCmdBufState.flags.gfxWriteCachesDirty       = cmdBuffer.m_gfxCmdBufState.flags.gfxWriteCachesDirty;
-    m_gfxCmdBufState.flags.csWriteCachesDirty        = cmdBuffer.m_gfxCmdBufState.flags.csWriteCachesDirty;
-    m_gfxCmdBufState.flags.cpWriteCachesDirty        = cmdBuffer.m_gfxCmdBufState.flags.cpWriteCachesDirty;
-    m_gfxCmdBufState.flags.cpMemoryWriteL2CacheStale = cmdBuffer.m_gfxCmdBufState.flags.cpMemoryWriteL2CacheStale;
-    m_gfxCmdBufState.flags.rasterKillDrawsActive     = cmdBuffer.m_gfxCmdBufState.flags.rasterKillDrawsActive;
+    m_pm4CmdBufState.flags.gfxBltActive              = cmdBuffer.m_pm4CmdBufState.flags.gfxBltActive;
+    m_pm4CmdBufState.flags.csBltActive               = cmdBuffer.m_pm4CmdBufState.flags.csBltActive;
+    m_pm4CmdBufState.flags.gfxWriteCachesDirty       = cmdBuffer.m_pm4CmdBufState.flags.gfxWriteCachesDirty;
+    m_pm4CmdBufState.flags.csWriteCachesDirty        = cmdBuffer.m_pm4CmdBufState.flags.csWriteCachesDirty;
+    m_pm4CmdBufState.flags.cpWriteCachesDirty        = cmdBuffer.m_pm4CmdBufState.flags.cpWriteCachesDirty;
+    m_pm4CmdBufState.flags.cpMemoryWriteL2CacheStale = cmdBuffer.m_pm4CmdBufState.flags.cpMemoryWriteL2CacheStale;
+    m_pm4CmdBufState.flags.rasterKillDrawsActive     = cmdBuffer.m_pm4CmdBufState.flags.rasterKillDrawsActive;
 
     // Invalidate PM4 optimizer state on post-execute since the current command buffer state does not reflect
     // state changes from the nested command buffer. We will need to resolve the nested PM4 state onto the
@@ -10378,7 +10396,7 @@ void UniversalCmdBuffer::SwitchDrawFunctionsInternal(
         // Mesh shader only pipeline.
         {
             m_funcTable.pfnCmdDispatchMesh =
-                CmdDispatchMesh<IssueSqtt, HasUavExport, ViewInstancing, DescribeDrawDispatch>;
+                CmdDispatchMeshAmpFastLaunch<IssueSqtt, HasUavExport, ViewInstancing, DescribeDrawDispatch>;
         }
         m_funcTable.pfnCmdDispatchMeshIndirectMulti =
             CmdDispatchMeshIndirectMulti<IssueSqtt, ViewInstancing, DescribeDrawDispatch>;
@@ -10394,11 +10412,13 @@ void UniversalCmdBuffer::SwitchDrawFunctionsInternal(
 {
     if (hasUavExport)
     {
-        SwitchDrawFunctionsInternal<ViewInstancing, true, IssueSqtt, DescribeDrawDispatch>(hasTaskShader);
+        SwitchDrawFunctionsInternal<ViewInstancing, true, IssueSqtt, DescribeDrawDispatch>(
+                                                                                           hasTaskShader);
     }
     else
     {
-        SwitchDrawFunctionsInternal<ViewInstancing, false, IssueSqtt, DescribeDrawDispatch>(hasTaskShader);
+        SwitchDrawFunctionsInternal<ViewInstancing, false, IssueSqtt, DescribeDrawDispatch>(
+                                                                                            hasTaskShader);
     }
 }
 
@@ -10412,11 +10432,13 @@ void UniversalCmdBuffer::SwitchDrawFunctionsInternal(
 {
     if (viewInstancingEnable)
     {
-        SwitchDrawFunctionsInternal<true, IssueSqtt, DescribeDrawDispatch>(hasUavExport, hasTaskShader);
+        SwitchDrawFunctionsInternal<true, IssueSqtt, DescribeDrawDispatch>(hasUavExport,
+                                                                           hasTaskShader);
     }
     else
     {
-        SwitchDrawFunctionsInternal<false, IssueSqtt, DescribeDrawDispatch>(hasUavExport, hasTaskShader);
+        SwitchDrawFunctionsInternal<false, IssueSqtt, DescribeDrawDispatch>(hasUavExport,
+                                                                            hasTaskShader);
     }
 }
 
@@ -10430,15 +10452,21 @@ void UniversalCmdBuffer::SwitchDrawFunctions(
     if (m_cachedSettings.issueSqttMarkerEvent)
     {
         PAL_ASSERT(m_cachedSettings.describeDrawDispatch == 1);
-        SwitchDrawFunctionsInternal<true, true>(hasUavExport, viewInstancingEnable, hasTaskShader);
+        SwitchDrawFunctionsInternal<true, true>(hasUavExport,
+                                                viewInstancingEnable,
+                                                hasTaskShader);
     }
     else if (m_cachedSettings.describeDrawDispatch)
     {
-        SwitchDrawFunctionsInternal<false, true>(hasUavExport, viewInstancingEnable, hasTaskShader);
+        SwitchDrawFunctionsInternal<false, true>(hasUavExport,
+                                                 viewInstancingEnable,
+                                                 hasTaskShader);
     }
     else
     {
-        SwitchDrawFunctionsInternal<false, false>(hasUavExport, viewInstancingEnable, hasTaskShader);
+        SwitchDrawFunctionsInternal<false, false>(hasUavExport,
+                                                  viewInstancingEnable,
+                                                  hasTaskShader);
     }
 }
 
@@ -10456,7 +10484,7 @@ void UniversalCmdBuffer::CpCopyMemory(
     dmaDataInfo.srcSel      = src_sel__pfp_dma_data__src_addr_using_l2;
     dmaDataInfo.sync        = false;
     dmaDataInfo.usePfp      = false;
-    dmaDataInfo.predicate   = static_cast<Pm4Predicate>(GetGfxCmdBufState().flags.packetPredicate);
+    dmaDataInfo.predicate   = static_cast<Pm4Predicate>(GetPm4CmdBufState().flags.packetPredicate);
     dmaDataInfo.dstAddr     = dstAddr;
     dmaDataInfo.srcAddr     = srcAddr;
     dmaDataInfo.numBytes    = static_cast<uint32>(numBytes);
@@ -10465,8 +10493,8 @@ void UniversalCmdBuffer::CpCopyMemory(
     pCmdSpace += CmdUtil::BuildDmaData<false>(dmaDataInfo, pCmdSpace);
     m_deCmdStream.CommitCommands(pCmdSpace);
 
-    SetGfxCmdBufCpBltState(true);
-    SetGfxCmdBufCpBltWriteCacheState(true);
+    SetPm4CmdBufCpBltState(true);
+    SetPm4CmdBufCpBltWriteCacheState(true);
 }
 
 // =====================================================================================================================

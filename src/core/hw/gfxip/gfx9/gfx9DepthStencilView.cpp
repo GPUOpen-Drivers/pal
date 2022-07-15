@@ -584,11 +584,7 @@ uint32* DepthStencilView::HandleBoundTargetChanged(
     // If you change the mips of a resource being used as a depth/stencil target, we need to flush the DB metadata
     // cache. This protects against the case where an Htile cacheline can contain data from two different mip levels
     // in different RB's.
-    size_t  packetSize = 0;
-
-    {
-        packetSize = cmdUtil.BuildNonSampleEventWrite(FLUSH_AND_INV_DB_META, EngineTypeUniversal, pCmdSpace);
-    }
+    const size_t packetSize = cmdUtil.BuildNonSampleEventWrite(FLUSH_AND_INV_DB_META, EngineTypeUniversal, pCmdSpace);
 
     return (pCmdSpace + packetSize);
 }

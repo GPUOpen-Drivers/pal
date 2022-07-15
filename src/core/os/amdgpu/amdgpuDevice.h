@@ -977,11 +977,9 @@ private:
     Result InitQueueInfo();
 
     Result InitScreen();
-#if PAL_BUILD_GFX6
     void InitGfx6ChipProperties();
     void InitGfx6CuMask(
         struct drm_amdgpu_info_device* pDeviceInfo);
-#endif
 
     void InitGfx9ChipProperties();
     void InitGfx9CuMask(

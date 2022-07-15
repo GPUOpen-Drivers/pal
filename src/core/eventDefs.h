@@ -135,6 +135,15 @@ struct GpuMemoryResourceCreateData
     const void*      pDescription;
 };
 
+struct ResourceUpdateInfoData
+{
+    ResourceHandle handle;
+    uint32         subresourceId;
+    ResourceType   type;
+    uint32         before;
+    uint32         after;
+};
+
 struct GpuMemoryResourceDestroyData
 {
     ResourceHandle handle;
@@ -250,7 +259,7 @@ static const char* ResourceCategoryToStr(
 static const char* PalEventToStr(
     PalEvent eventId)
 {
-    static_assert(static_cast<uint32>(PalEvent::Count) == 16, "Write support for new event!");
+    static_assert(static_cast<uint32>(PalEvent::Count) == 17, "Write support for new event!");
 
     const char* pRet = "Unknown";
     switch (eventId)
@@ -268,6 +277,7 @@ static const char* PalEventToStr(
     case PalEvent::GpuMemorySnapshot:        pRet = "GpuMemorySnapshot";        break;
     case PalEvent::GpuMemoryMisc:            pRet = "GpuMemoryMisc";            break;
     case PalEvent::ResourceCorrelation:      pRet = "ResourceCorrelation";      break;
+    case PalEvent::ResourceInfoUpdate:       pRet = "ResourceInfoUpdate";       break;
     default:
         PAL_ASSERT_ALWAYS();
         break;

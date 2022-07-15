@@ -61,6 +61,8 @@ namespace DevDriver
         void Finalize();
         void Destroy();
 
+        const AllocCb& GetAllocCb() const { return m_allocCb; }
+
 #if GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION < GPUOPEN_DRIVER_CONTROL_CLEANUP_VERSION
         // Called by the driver to mark the end of Platform and the start of device initialization.
         // Starting with GPUOPEN_DRIVER_CONTROL_CLEANUP_VERSION the driver should call the driver control

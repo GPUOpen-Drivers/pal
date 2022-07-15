@@ -285,6 +285,21 @@ void RpcServer::UnregisterFunction(
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+DD_RESULT RpcServer::IsServiceRegistered(DDRpcServiceId id)
+{
+    DD_RESULT result = DD_RESULT_DD_RPC_SERVICE_NOT_REGISTERED;
+
+    Platform::LockGuard<Platform::AtomicLock> lock(m_servicesLock);
+
+    RegisteredService* pService = m_services.FindPointer(id);
+    if (pService != nullptr)
+    {
+        result = DD_RESULT_SUCCESS;
+    }
+
+    return result;
+}
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void RpcServer::Cleanup()
 {
     // Shut down the accept thread so no new clients will be added while we're trying to clean up

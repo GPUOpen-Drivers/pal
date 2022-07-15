@@ -63,6 +63,8 @@ target_sources(pal PRIVATE
     msaaState.h
     pipeline.cpp
     pipeline.h
+    pm4CmdBuffer.cpp
+    pm4CmdBuffer.h
     queryPool.cpp
     queryPool.h
     shaderLibrary.cpp

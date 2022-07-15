@@ -55,14 +55,16 @@ enum FileSettings : uint32
     LogToTerminal = 0x02,  ///< Write debug messages to terminal or debuger's output window
     AddPid        = 0x04,  ///< Add PID to file name
     AddPname      = 0x08,  ///< Add process name to file name
-    AddLibName    = 0x10   ///< Add Library name to file name
+    AddLibName    = 0x10,  ///< Add Library name to file name
+    ForceFlush    = 0x20,  ///< Force a flush after every write
 };
 
 constexpr uint32 AllFileSettings = FileSettings::LogToDisk     |
                                    FileSettings::LogToTerminal |
                                    FileSettings::AddPid        |
                                    FileSettings::AddPname      |
-                                   FileSettings::AddLibName;
+                                   FileSettings::AddLibName    |
+                                   FileSettings::ForceFlush;
 
 /// Structure of file debug logger settings
 struct DbgLoggerFileSettings : public DbgLogBaseSettings
@@ -285,10 +287,12 @@ public:
     /// @param [in] sourceMask   Specifies this logger's acceptable origination types as a bit mask.
     DbgLoggerFile(
         SeverityLevel   severity,
-        uint32          sourceMask)
+        uint32          sourceMask,
+        bool            forceFlush)
         :
         IDbgLogger(severity, sourceMask),
-        m_file()
+        m_file(),
+        m_forceFlush(forceFlush)
     {}
 
     /// Destructor
@@ -331,13 +335,13 @@ public:
         Result result = CreateLogFileName(fileName, MaxFileNameStrLen, settings, pBaseFileName);
         if (result == Result::Success)
         {
-            result = Result::ErrorOutOfMemory;
+            result          = Result::ErrorOutOfMemory;
+            bool forceFlush = TestAnyFlagSet(settings.fileSettingsFlags, FileSettings::ForceFlush);
             DbgLoggerFile* pDbgLogger = PAL_NEW(DbgLoggerFile, pAllocator, AllocInternal)
-                                               (settings.severityLevel, settings.origTypeMask);
+                                               (settings.severityLevel, settings.origTypeMask, forceFlush);
             if (pDbgLogger != nullptr)
             {
                 result = pDbgLogger->Init(fileName, settings.fileAccessFlags);
-
                 if (result == Result::Success)
                 {
                     g_dbgLogMgr.AttachDbgLogger(pDbgLogger);
@@ -388,10 +392,15 @@ protected:
         const void*     pData)
     {
         m_file.Write(pData, dataSize);
+        if (m_forceFlush)
+        {
+            m_file.Flush();
+        }
     }
 
 private:
-    File m_file; ///< File where debug messages will be logged.
+    File m_file;       ///< File where debug messages will be logged.
+    bool m_forceFlush; ///< Force a flush after every write
 };
 
 /**

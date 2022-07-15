@@ -90,9 +90,9 @@ struct PipelineState
     {
         struct
         {
-            uint32 pipelineDirty             :  1;
-            uint32 borderColorPaletteDirty   :  1;
-            uint32 reserved                  : 30;
+            uint32 pipelineDirty           : 1;
+            uint32 borderColorPaletteDirty : 1;
+            uint32 reserved                : 30;
         };
 
         uint32 u32All;
@@ -117,63 +117,11 @@ union GfxCmdBufferStateFlags
 {
     struct
     {
-        uint32 perfCounterStarted        :  1;  // Track if perfExperiment has started with perfCounter or spmTrace
-        uint32 perfCounterStopped        :  1;  // Track if perfExperiment has stopped with perfCounter or spmTrace
-        uint32 sqttStarted               :  1;  // Track if perfExperiment has started with SQ Thread Trace enabled
-        uint32 sqttStopped               :  1;  // Track if perfExperiment has stopped with SQ Thread Trace enabled
-        uint32 clientPredicate           :  1;  // Track if client is currently using predication functionality.
-        uint32 packetPredicate           :  1;  // Track if command buffer packets are currently using predication.
-        uint32 gfxBltActive              :  1;  // Track if there are potentially any GFX Blt in flight.
-        uint32 gfxWriteCachesDirty       :  1;  // Track if any of the GFX Blt write caches may be dirty.
-        uint32 csBltActive               :  1;  // Track if there are potentially any CS Blt in flight.
-        uint32 csWriteCachesDirty        :  1;  // Track if any of the CS Blt write caches may be dirty.
-        uint32 cpBltActive               :  1;  // Track if there are potentially any CP Blt in flight. A CP Blt is
-                                                // an asynchronous CP DMA operation acting as a PAL Blt.
-        uint32 cpWriteCachesDirty        :  1;  // Track if any of the CP Blt write caches may be dirty.
-        uint32 cpMemoryWriteL2CacheStale :  1;  // Track if a CP memory write has occurred and the L2 cache could be
-                                                // stale.
-        uint32 prevCmdBufActive          :  1;  // Set if it's possible work from a previous command buffer
-                                                // submitted on this queue may still be active.  This flag starts
-                                                // set and will be cleared if/when an EOP wait is inserted in this
-                                                // command buffer.
-        uint32 reserved1                 :  1;
-        uint32 rasterKillDrawsActive     :  1;  // Track if there are any rasterization kill draws in flight.
-        uint32 reserved                  : 16;
+        uint32 clientPredicate :  1;  // Track if client is currently using predication functionality.
+        uint32 reserved        : 31;
     };
 
     uint32 u32All;
-};
-
-struct GfxCmdBufferState
-{
-    GfxCmdBufferStateFlags flags;
-
-    struct
-    {
-        uint32 gfxBltExecEopFenceVal;       // Earliest EOP fence value that can confirm all GFX BLTs are complete.
-        uint32 gfxBltWbEopFenceVal;         // Earliest EOP fence value that can confirm all GFX BLT destination data is
-                                            // written back to L2.
-        uint32 csBltExecEopFenceVal;        // Earliest EOP fence value that can confirm all CS BLTs are complete.
-        uint32 csBltExecCsDoneFenceVal;     // Earliest CS_DONE fence value that can confirm all CS BLTs are complete.
-        uint32 rasterKillDrawsExecFenceVal; // Earliest EOP fence value that can confirm all rasterization kill
-                                            // draws are complete.
-    } fences;
-};
-
-// Tracks the state of a user-data table stored in GPU memory.  The table's contents are managed using embedded data
-// and the CPU, or using GPU scratch memory and CE RAM.
-struct UserDataTableState
-{
-    gpusize  gpuVirtAddr;   // GPU virtual address where the current copy of the table data is stored.
-    // CPU address of the embedded-data allocation storing the current copy of the table data.  This can be null if
-    // the table has not yet been uploaded to embedded data.
-    uint32*  pCpuVirtAddr;
-    struct
-    {
-        uint32  sizeInDwords : 31; // Size of one full instance of the user-data table, in DWORD's.
-        uint32  dirty        :  1; // Indicates that the CPU copy of the user-data table is more up to date than the
-                                   // copy currently in GPU memory and should be updated before the next dispatch.
-    };
 };
 
 // Structure for getting CmdChunks for the IndirectCmdGenerator.
@@ -186,56 +134,21 @@ struct ChunkOutput
     uint32          chainSizeInDwords;
 };
 
-constexpr uint32 AcqRelFenceResetVal = 0;
-
-// Acquire/release synchronization event types for supported pipeline event.
-enum class AcqRelEventType : uint32
-{
-    Eop    = 0x0,
-    PsDone = 0x1,
-    CsDone = 0x2,
-    Count,
-
-    Invalid = Count
-};
-
-// Acquire/release synchronization token structure.
-union AcqRelSyncToken
-{
-    struct
-    {
-        uint32 fenceVal : 30;
-        uint32 type     :  2;
-    };
-
-    uint32 u32All;
-};
-
 // =====================================================================================================================
 // Abstract class for executing basic hardware-specific functionality common to GFXIP universal and compute command
-// buffers.
+// buffers in PM4 and PUP.
 class GfxCmdBuffer : public CmdBuffer
 {
-
     // A useful shorthand for a vector of chunks.
     typedef ChunkVector<CmdStreamChunk*, 16, Platform> ChunkRefList;
 
-    // Alias for a vector of pointers to gfx images.
-    using FceRefCountsVector = Util::Vector<uint32*, MaxNumFastClearImageRefs, Platform>;
-
 public:
     virtual Result Init(const CmdBufferInternalCreateInfo& internalInfo) override;
-
-    virtual Result Begin(const CmdBufferBuildInfo& info) override;
-    virtual Result End() override;
     virtual Result Reset(ICmdAllocator* pCmdAllocator, bool returnGpuMemory) override;
+    virtual Result End() override;
 
     virtual void CmdBindPipeline(
         const PipelineBindParams& params) override;
-
-    virtual void CmdDuplicateUserData(
-        PipelineBindPoint source,
-        PipelineBindPoint dest) override;
 
     virtual void CmdCopyMemoryByGpuVa(
         gpusize                 srcGpuVirtAddr,
@@ -402,13 +315,10 @@ public:
         const CmdPostProcessFrameInfo& postProcessInfo,
         bool*                          pAddedGpuWork) override;
 
-    void CmdPresentBlt(
+    virtual void CmdPresentBlt(
         const IImage&   srcImage,
         const IImage&   dstImage,
         const Offset3d& dstOffset);
-
-    virtual void CmdSuspendPredication(bool suspend) override
-        { m_gfxCmdBufState.flags.packetPredicate = suspend ? 0 : 1; }
 
     virtual void CmdSaveComputeState(uint32 stateFlags) override;
     virtual void CmdRestoreComputeState(uint32 stateFlags) override;
@@ -419,71 +329,12 @@ public:
 
     gpusize TimestampGpuVirtAddr() const { return m_timestampGpuVa; }
 
-    gpusize AcqRelFenceValBaseGpuVa() const { return m_acqRelFenceValGpuVa; }
-    gpusize AcqRelFenceValGpuVa(AcqRelEventType type) const
-        { return (m_acqRelFenceValGpuVa + sizeof(uint32) * static_cast<uint32>(type)); }
-
-    uint32 GetNextAcqRelFenceVal(AcqRelEventType type)
-    {
-        m_acqRelFenceVals[static_cast<uint32>(type)]++;
-        return m_acqRelFenceVals[static_cast<uint32>(type)];
-    }
-
     GpuEvent* GetInternalEvent() { return m_pInternalEvent; }
-
-    const ComputeState& GetComputeState() const { return m_computeState; }
 
     // Returns a pointer to the command stream associated with the specified engine type
     virtual CmdStream* GetCmdStreamByEngine(uint32 engineType) = 0;
 
-    const GfxCmdBufferState& GetGfxCmdBufState() const { return m_gfxCmdBufState; }
-
-    // Helper functions
-    void OptimizePipePoint(HwPipePoint* pPipePoint) const;
-    void OptimizeSrcCacheMask(uint32* pCacheMask) const;
-    virtual void OptimizePipeAndCacheMaskForRelease(uint32* pStageMask, uint32* pAccessMask) const;
-    void SetGfxCmdBufGfxBltState(bool gfxBltActive) { m_gfxCmdBufState.flags.gfxBltActive = gfxBltActive; }
-    void SetGfxCmdBufCsBltState(bool csBltActive) { m_gfxCmdBufState.flags.csBltActive = csBltActive; }
-    void SetGfxCmdBufCpBltState(bool cpBltActive) { m_gfxCmdBufState.flags.cpBltActive = cpBltActive; }
-    void SetGfxCmdBufRasterKillDrawsState(bool rasterKillDrawsActive)
-        { m_gfxCmdBufState.flags.rasterKillDrawsActive = rasterKillDrawsActive; }
-    void SetGfxCmdBufGfxBltWriteCacheState(bool gfxWriteCacheDirty)
-        { m_gfxCmdBufState.flags.gfxWriteCachesDirty = gfxWriteCacheDirty; }
-    void SetGfxCmdBufCsBltWriteCacheState(bool csWriteCacheDirty)
-        { m_gfxCmdBufState.flags.csWriteCachesDirty = csWriteCacheDirty; }
-    void SetGfxCmdBufCpBltWriteCacheState(bool cpWriteCacheDirty)
-        { m_gfxCmdBufState.flags.cpWriteCachesDirty = cpWriteCacheDirty; }
-    void SetGfxCmdBufCpMemoryWriteL2CacheStaleState(bool cpMemoryWriteDirty)
-        { m_gfxCmdBufState.flags.cpMemoryWriteL2CacheStale = cpMemoryWriteDirty; }
-    void SetPrevCmdBufInactive() { m_gfxCmdBufState.flags.prevCmdBufActive = 0; }
-    uint32 GetCurAcqRelFenceVal(AcqRelEventType type) const { return m_acqRelFenceVals[static_cast<uint32>(type)]; }
-
-    // Execution fence value is updated at every BLT. Set it to the next event because its completion indicates all
-    // prior BLTs have completed.
-    void UpdateGfxCmdBufGfxBltExecEopFence()
-    {
-        m_gfxCmdBufState.fences.gfxBltExecEopFenceVal = GetCurAcqRelFenceVal(AcqRelEventType::Eop) + 1;
-    }
-    void UpdateGfxCmdBufCsBltExecFence()
-    {
-        m_gfxCmdBufState.fences.csBltExecEopFenceVal    = GetCurAcqRelFenceVal(AcqRelEventType::Eop) + 1;
-        m_gfxCmdBufState.fences.csBltExecCsDoneFenceVal = GetCurAcqRelFenceVal(AcqRelEventType::CsDone) + 1;
-    }
-    // Execution fence value is updated at every draw when rasterization kill state is dirtied.
-    // - If rasterization kill is enabled, set it UINT32_MAX to make rasterKillDrawsActive never to be cleared.
-    // - If rasterization kill is disabled, set it to the next EOP event because its completion indicates all
-    //   prior rasterization kill draws have completed.
-    void UpdateGfxCmdBufRasterKillDrawsExecEopFence(bool setMaxFenceVal)
-    {
-        m_gfxCmdBufState.fences.rasterKillDrawsExecFenceVal =
-            setMaxFenceVal ? UINT32_MAX : GetCurAcqRelFenceVal(AcqRelEventType::Eop) + 1;
-    }
-    // Cache write-back fence value is updated at every release event. Completion of current event indicates the cache
-    // synchronization has completed too, so set it to current event fence value.
-    void UpdateGfxCmdBufGfxBltWbEopFence(uint32 fenceVal)
-    {
-        m_gfxCmdBufState.fences.gfxBltWbEopFenceVal = fenceVal;
-    }
+    const GfxCmdBufferStateFlags& GetGfxCmdBufStateFlags() const { return m_gfxCmdBufStateFlags; }
 
     // Obtains a fresh command stream chunk from the current command allocator, for use as the target of GPU-generated
     // commands. The chunk is inserted onto the generated-chunks list so it can be recycled by the allocator after the
@@ -501,12 +352,6 @@ public:
         uint32      yDim,
         uint32      zDim)
     { PAL_NEVER_CALLED(); }
-
-    virtual void CmdBeginPerfExperiment(IPerfExperiment* pPerfExperiment) override;
-    virtual void CmdUpdatePerfExperimentSqttTokenMask(
-        IPerfExperiment*              pPerfExperiment,
-        const ThreadTraceTokenConfig& sqttTokenConfig) override;
-    virtual void CmdEndPerfExperiment(IPerfExperiment* pPerfExperiment) override;
 
     virtual void AddPerPresentCommands(
         gpusize frameCountGpuAddr,
@@ -529,31 +374,13 @@ public:
         SwizzledFormat format,
         uint32         targetIndex) = 0;
 
-    virtual void CmdOverwriteDisableViewportClampForBlits(
-        bool disableViewportClamp) = 0;
-
-    virtual uint32 GetUsedSize(CmdAllocType type) const override;
-
-    PerfExperimentFlags PerfTracesEnabled() const { return m_cmdBufPerfExptFlags; }
-
-    bool PerfCounterStarted() const
-        { return m_gfxCmdBufState.flags.perfCounterStarted; }
-
-    bool PerfCounterClosed() const
-        { return m_gfxCmdBufState.flags.perfCounterStopped; }
-
-    bool SqttStarted() const
-        { return m_gfxCmdBufState.flags.sqttStarted; }
-
-    bool SqttClosed() const
-        { return m_gfxCmdBufState.flags.sqttStopped; }
-
     // Allows the queue to query the MALL perfmon info for this command buffer and
     // add it to the CmdBufInfo if need be.
     const DfSpmPerfmonInfo* GetDfSpmPerfmonInfo() const
-        { return m_pDfSpmPerfmonInfo; }
-
-    void AddFceSkippedImageCounter(GfxImage* pGfxImage);
+    {
+        return m_pDfSpmPerfmonInfo;
+    }
+    PerfExperimentFlags PerfTracesEnabled() const { return m_cmdBufPerfExptFlags; }
 
     // Other Cmd* functions may call this function to notify our VRS copy state tracker of changes to VRS resources.
     // Provide a NOP default implementation, it should only be implemented on gfx9 universal command buffers.
@@ -573,10 +400,12 @@ public:
         return 0;
     }
 
-    virtual void CmdSetKernelArguments(
-        uint32            firstArg,
-        uint32            argCount,
-        const void*const* ppValues) override;
+    virtual uint32 GetUsedSize(CmdAllocType type) const override;
+
+    virtual bool PerfCounterStarted() const = 0;
+    virtual bool PerfCounterClosed() const = 0;
+    virtual bool SqttStarted() const = 0;
+    virtual bool SqttClosed() const = 0;
 
 protected:
     GfxCmdBuffer(
@@ -592,143 +421,51 @@ protected:
     void DescribeDispatchOffset(uint32 xOffset, uint32 yOffset, uint32 zOffset, uint32 xDim, uint32 yDim, uint32 zDim);
     void DescribeDispatchIndirect();
 
-    // Returns the number of queries associated with this command buffer that have yet to "end"
-    uint32 NumActiveQueries(QueryPoolType queryPoolType) const
-        { return m_numActiveQueries[static_cast<size_t>(queryPoolType)]; }
-
-    // NOTE: We need to be conservative if this is a nested command buffer: the calling command buffer may have
-    // enabled one or more queries before calling this command buffer, so we need to assume that it did, because
-    // we have no way of knowing for sure.  Returning uint32 as zero vs. non-zero to avoid some branches.
-    uint32 MayHaveActiveQueries() const
-        { return  (m_createInfo.flags.nested | NumActiveQueries(QueryPoolType::Occlusion)); }
-
-    virtual void ActivateQueryType(QueryPoolType queryPoolType)
-        { m_queriesActive[static_cast<size_t>(queryPoolType)] = true; }
-
-    virtual void DeactivateQueryType(QueryPoolType queryPoolType)
-        { m_queriesActive[static_cast<size_t>(queryPoolType)] = false; }
-
-    void DeactivateQueries();
-    void ReactivateQueries();
-
-    bool IsQueryActive(QueryPoolType queryPoolType) const
-        { return m_queriesActive[static_cast<size_t>(queryPoolType)]; }
-
-    // Returns true if the client is beginning the first query of the specified type on this command buffer. Note that
-    // this function has the side-effect of changing the number of active queries begin tracked. For general-status
-    // queries, call NumActiveQueries() instead to not modify the current state.
-    bool IsFirstQuery(QueryPoolType queryPoolType)
-    {
-        m_numActiveQueries[static_cast<uint32>(queryPoolType)]++;
-        return (NumActiveQueries(queryPoolType) == 1);
-    }
-
-    // Returns true if the client is ending the last active query of the specified type on this command buffer. Note
-    // that this function has the side-effect of changing the number of active queries begin tracked. For
-    // general-status queries, call NumActiveQueries() instead to not modify the current state.
-    bool IsLastActiveQuery(QueryPoolType queryPoolType)
-    {
-        PAL_ASSERT(NumActiveQueries(queryPoolType) != 0);
-        m_numActiveQueries[static_cast<uint32>(queryPoolType)]--;
-        return (NumActiveQueries(queryPoolType) == 0);
-    }
-
-    void UpdateUserDataTableCpu(
-        UserDataTableState* pTable,
-        uint32              dwordsNeeded,
-        uint32              offsetInDwords,
-        const uint32*       pSrcData,
-        uint32              alignmentInDwords = 1);
-
     static void PAL_STDCALL CmdSetUserDataCs(
         ICmdBuffer*   pCmdBuffer,
         uint32        firstEntry,
         uint32        entryCount,
         const uint32* pEntryValues);
 
-    void LeakPerPipelineStateChanges(
-        const Pal::PipelineState& leakedPipelineState,
-        const UserDataEntries&    leakedUserDataEntries,
-        Pal::PipelineState*       pDestPipelineState,
-        UserDataEntries*          pDestUserDataEntries);
-
-    CmdStreamChunk* GetNextGeneratedChunk();
-
     void SetComputeState(const ComputeState& newComputeState, uint32 stateFlags);
-
-    virtual void InheritStateFromCmdBuf(const GfxCmdBuffer* pCmdBuffer) = 0;
 
     virtual bool SupportsExecutionMarker() override { return true; }
 
-    virtual void OptimizeBarrierReleaseInfo(
-        uint32       pipePointCount,
-        HwPipePoint* pPipePoints,
-        uint32*      pCacheMask) const override;
+    CmdBufferEngineSupport GetPerfExperimentEngine() const;
 
-    virtual void OptimizeAcqRelReleaseInfo(uint32* pStageMask, uint32* pAccessMask) const override;
-
-    uint32            m_engineSupport;       // Indicates which engines are supported by the command buffer.
-                                             // Populated by the GFXIP-specific layer.
-    ComputeState      m_computeState;        // Currently bound compute command buffer state.
-    ComputeState      m_computeRestoreState; // State saved by the previous call to CmdSaveCompputeState.
-    GfxCmdBufferState m_gfxCmdBufState;      // Common gfx command buffer states.
+    uint32                  m_engineSupport;       // Indicates which engines are supported by the command buffer.
+                                                   // Populated by the GFXIP-specific layer.
+    ComputeState            m_computeState;        // Currently bound compute command buffer state.
+    ComputeState            m_computeRestoreState; // State saved by the previous call to CmdSaveCompputeState.
+    GfxCmdBufferStateFlags  m_gfxCmdBufStateFlags;
 
     // This list of command chunks contains all of the command chunks containing commands which were generated on the
     // GPU using a compute shader. This list of chunks is associated with the command buffer, but won't contain valid
     // commands until after the command buffer has been executed by the GPU.
-    ChunkRefList m_generatedChunkList;
-    ChunkRefList m_retainedGeneratedChunkList;
+    ChunkRefList            m_generatedChunkList;
+    ChunkRefList            m_retainedGeneratedChunkList;
 
-    const PerfExperiment* m_pCurrentExperiment; // Current performance experiment.
-    const GfxIpLevel      m_gfxIpLevel;
+    const PerfExperiment*   m_pCurrentExperiment;  // Current performance experiment.
+    const GfxIpLevel        m_gfxIpLevel;
 
-    UploadFenceToken m_maxUploadFenceToken;
+    UploadFenceToken        m_maxUploadFenceToken;
+
+    const DfSpmPerfmonInfo* m_pDfSpmPerfmonInfo;   // Cached pointer to the DF SPM perfmon info for the DF SPM perf
+                                                   // experiment.
+    PerfExperimentFlags     m_cmdBufPerfExptFlags; // Flags that indicate which Performance Experiments are ongoing in
+                                                   // this CmdBuffer.
+
+    uint32                  m_computeStateFlags;   // The flags that CmdSaveComputeState was called with.
+    GpuEvent*               m_pInternalEvent;      // Internal Event for Release/Acquire based barrier.  CPU invisible.
 
 private:
     void ReturnGeneratedCommandChunks(bool returnGpuMemory);
-    CmdBufferEngineSupport GetPerfExperimentEngine() const;
-    void ResetFastClearReferenceCounts();
 
-    const GfxDevice&  m_device;
+    const GfxDevice& m_device;
 
-    // False if DeactivateQuery() has been called on a particular query type, true otherwise.
-    // Specifically used for when Push/Pop state has been called. We only want to have a query active on code
-    // executed by a client.
-    bool  m_queriesActive[static_cast<size_t>(QueryPoolType::Count)];
-
-    // Number of active queries in this command buffer.
-    uint32  m_numActiveQueries[static_cast<size_t>(QueryPoolType::Count)];
-
-    gpusize m_acqRelFenceValGpuVa; // GPU virtual address of 3-dwords memory used for acquire/release pipe event sync.
-    uint32 m_acqRelFenceVals[static_cast<uint32>(AcqRelEventType::Count)];
-
-    GpuEvent*  m_pInternalEvent;   // Internal Event for Release/Acquire based barrier.  CPU invisible.
-
-    gpusize    m_timestampGpuVa;   // GPU virtual address of memory used for cache flush & inv timestamp events.
-
-    uint32  m_computeStateFlags;   // The flags that CmdSaveComputeState was called with.
-
-    FceRefCountsVector m_fceRefCountVec;
-
-    const DfSpmPerfmonInfo* m_pDfSpmPerfmonInfo; // Cached pointer to the DF SPM perfmon info for the DF SPM perf
-                                                 // experiment.
-
-    PerfExperimentFlags m_cmdBufPerfExptFlags; // Flags that indicate which Performance Experiments are ongoing in
-                                               // this CmdBuffer.
+    gpusize m_timestampGpuVa;   // GPU virtual address of memory used for cache flush & inv timestamp events.
 
     PAL_DISALLOW_COPY_AND_ASSIGN(GfxCmdBuffer);
     PAL_DISALLOW_DEFAULT_CTOR(GfxCmdBuffer);
 };
-
-// =====================================================================================================================
-// Helper function for resetting a user-data table which is managed using embdedded data or CE RAM at the beginning of
-// a command buffer.
-inline void ResetUserDataTable(
-    UserDataTableState* pTable)
-{
-    pTable->pCpuVirtAddr = nullptr;
-    pTable->gpuVirtAddr  = 0;
-    pTable->dirty        = 0;
-}
-
 } // Pal

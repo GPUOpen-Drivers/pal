@@ -819,8 +819,9 @@ void GraphicsPipeline::SetupCommonRegisters(
     const RegisterVector&             registers,
     PipelineUploader*                 pUploader)
 {
-    const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
-    const Gfx6PalSettings&   settings  = m_pDevice->Settings();
+    const auto&              palDevice    = *(m_pDevice->Parent());
+    const GpuChipProperties& chipProps    = palDevice.ChipProperties();
+    const Gfx6PalSettings&   settings     = m_pDevice->Settings();
     const PalPublicSettings* pPalSettings = m_pDevice->Parent()->GetPublicSettings();
 
     m_regs.context.paClClipCntl.u32All = registers.At(mmPA_CL_CLIP_CNTL);
@@ -836,6 +837,10 @@ void GraphicsPipeline::SetupCommonRegisters(
     if (createInfo.viewportInfo.depthClipFarEnable == false)
     {
         m_regs.context.paClClipCntl.bits.ZCLIP_FAR_DISABLE = 1;
+    }
+    if (static_cast<TossPointMode>(palDevice.Settings().tossPointMode) == TossPointAfterRaster)
+    {
+        m_regs.context.paClClipCntl.bits.DX_RASTERIZATION_KILL = 1;
     }
 
     // Overrides some of the fields in PA_SC_MODE_CNTL1 to account for GPU pipe config and features like out-of-order

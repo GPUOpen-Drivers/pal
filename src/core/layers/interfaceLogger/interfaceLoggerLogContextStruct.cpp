@@ -1555,7 +1555,20 @@ void LogContext::Struct(
     }
 #endif
 
-    static_assert(CheckReservedBits<GpuMemoryCreateFlags>(32, 3), "Need to update interfaceLogger!");
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 746
+    if (value.kmdShareUmdSysMem)
+    {
+        Value("kmdShareUmdSysMem");
+    }
+    if (value.deferCpuVaReservation)
+    {
+        Value("deferCpuVaReservation");
+    }
+#endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 746
+    static_assert(CheckReservedBits<GpuMemoryCreateFlags>(64, 32), "Need to update interfaceLogger!");
+#endif
 
     EndList();
 }
@@ -2191,8 +2204,14 @@ void LogContext::Struct(
 {
     BeginMap(false);
     KeyAndEnum("topology", value.topology);
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 747)
+    KeyAndValue("patchControlPoints", value.patchControlPoints);
+#endif
     KeyAndValue("primitiveRestartIndex", value.primitiveRestartIndex);
     KeyAndValue("primitiveRestartEnable", value.primitiveRestartEnable);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 745
+    KeyAndValue("primitiveRestartMatchAllBits", value.primitiveRestartMatchAllBits);
+#endif
     EndMap();
 }
 

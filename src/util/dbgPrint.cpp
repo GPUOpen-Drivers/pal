@@ -356,7 +356,7 @@ void SetDbgPrintCallback(
 // =====================================================================================================================
 // Compiler-specific wrapper of the standard vsnprintf implementation. If buffer is a nullptr it returns the length of
 // the string that would be printed had a buffer with enough space been provided.
-int Vsnprintf(
+int32 Vsnprintf(
     char*       pOutput,  // [out] Output string.
     size_t      bufSize,  // Available space in pOutput (in bytes).
     const char* pFormat,  // Printf-style format string.
@@ -366,7 +366,7 @@ int Vsnprintf(
     // crash in different versions of vsnprintf.
     PAL_ASSERT((pOutput == nullptr) ? (bufSize == 0) : (bufSize > 0));
 
-    int length = -1;
+    int32 length = -1;
 
     va_list argList2;
 
@@ -384,7 +384,7 @@ int Vsnprintf(
 // =====================================================================================================================
 // Variable argument wrapper on sprintf function to be used when output needs to be written to a string and no prefix
 // information is required.
-int Snprintf(
+int32 Snprintf(
     char*       pOutput,  // [out] Output string.
     size_t      bufSize,  // Available space in pOutput (in bytes).
     const char* pFormat,  // Printf-style format string.
@@ -393,7 +393,7 @@ int Snprintf(
     va_list argList;
     va_start(argList, pFormat);
 
-    const int length = Vsnprintf(pOutput, bufSize, pFormat, argList);
+    const int32 length = Vsnprintf(pOutput, bufSize, pFormat, argList);
 
     va_end(argList);
 

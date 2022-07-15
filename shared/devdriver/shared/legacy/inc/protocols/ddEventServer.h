@@ -41,6 +41,16 @@ class BaseEventProvider;
 struct EventChunk;
 class EventServerSession;
 
+constexpr size_t kEventProviderMaxNameLen = 256;
+
+struct EventProviderInfo
+{
+    EventProviderId id;
+    char            name[kEventProviderMaxNameLen];
+    bool            enabled;
+    bool            registered;
+};
+
 class EventServer final : public BaseProtocolServer
 {
     friend class BaseEventProvider;
@@ -54,6 +64,7 @@ public:
     void SessionEstablished(const SharedPointer<ISession>& pSession) override;
     void UpdateSession(const SharedPointer<ISession>& pSession) override;
     void SessionTerminated(const SharedPointer<ISession>& pSession, Result terminationReason) override;
+    void GetEventProviders(Vector<EventProviderInfo>& eventProviders);
 
     Result RegisterProvider(BaseEventProvider* pProvider);
     Result UnregisterProvider(BaseEventProvider* pProvider);

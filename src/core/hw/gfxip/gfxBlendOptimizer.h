@@ -28,7 +28,6 @@
 #include "pal.h"
 #include "palAssert.h"
 #include "palDevice.h"
-#include "core/hw/gfxip/gfxCmdBuffer.h"
 
 namespace Pal
 {

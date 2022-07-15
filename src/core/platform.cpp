@@ -911,7 +911,7 @@ void Platform::LogEvent(
     const void* pEventData,
     uint32      eventDataSize)
 {
-    static_assert(static_cast<uint32>(PalEvent::Count) == 16, "Write support for new event!");
+    static_assert(static_cast<uint32>(PalEvent::Count) == 17, "Write support for new event!");
 
     PAL_ASSERT(pEventData != nullptr);
 
@@ -953,6 +953,10 @@ void Platform::LogEvent(
     case PalEvent::ResourceCorrelation:
         PAL_ASSERT(eventDataSize == sizeof(ResourceCorrelationEventData));
         m_eventProvider.LogResourceCorrelationEvent(*(static_cast<const ResourceCorrelationEventData*>(pEventData)));
+        break;
+    case PalEvent::ResourceInfoUpdate:
+        PAL_ASSERT(eventDataSize == sizeof(ResourceUpdateEventData));
+        m_eventProvider.LogResourceUpdateEvent(*(static_cast<const ResourceUpdateEventData*>(pEventData)));
         break;
     default:
         PAL_ASSERT_ALWAYS_MSG("Unhandled PalEvent type");

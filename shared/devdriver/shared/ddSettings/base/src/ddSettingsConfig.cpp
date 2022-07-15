@@ -23,11 +23,9 @@
  *
  **********************************************************************************************************************/
 
-#include "settingsConfig.h"
-#include "settingsBase.h"
-#include "settingsParsingUtils.h"
+#include "../inc/ddSettingsConfig.h"
+#include "../inc/ddSettingsBase.h"
 #include "libyamlUtils.h"
-#include <stdio.h>
 #include <ddCommon.h>
 #include <ddPlatform.h>
 #include <protocols/ddSettingsServiceTypes.h>

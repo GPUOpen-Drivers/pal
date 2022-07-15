@@ -125,8 +125,8 @@ enum QueueType : uint32
     /// Supports copy commands.
     QueueTypeDma         = 0x2,
 
-    /// Virtual engine that only supports inserting sleeps, used for implementing frame pacing.  This is a software-only
-    /// queue.
+    /// Virtual engine that only supports inserting sleeps, used for implementing frame pacing.
+    /// This is a software-only queue.
     QueueTypeTimer       = 0x3,
 
     /// Number of queue types.
@@ -140,6 +140,7 @@ enum QueueTypeSupport : uint32
     SupportQueueTypeCompute     = (1 << static_cast<uint32>(QueueTypeCompute)),
     SupportQueueTypeDma         = (1 << static_cast<uint32>(QueueTypeDma)),
     SupportQueueTypeTimer       = (1 << static_cast<uint32>(QueueTypeTimer)),
+
 };
 
 // Many command buffers break down into multiple command streams targeting internal sub-engines. For example, Universal

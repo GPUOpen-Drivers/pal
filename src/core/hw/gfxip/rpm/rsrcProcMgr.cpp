@@ -2697,7 +2697,7 @@ void RsrcProcMgr::GenerateMipmapsSlow(
     const HwPipePoint postBlt = useGraphicsCopy ? HwPipeBottom : HwPipePostCs;
     BarrierInfo       barrier = {};
 
-    barrier.waitPoint          = HwPipePostIndexFetch;
+    barrier.waitPoint          = HwPipePostPrefetch;
     barrier.pipePointWaitCount = 1;
     barrier.pPipePoints        = &postBlt;
     barrier.transitionCount    = 1;
@@ -7483,7 +7483,7 @@ void RsrcProcMgr::GenericColorBlit(
         {
             // Use predication to skip this operation based on the image's conditional dwords.
             // We can only perform this optimization if the client is not currently using predication.
-            if ((pCmdBuffer->GetGfxCmdBufState().flags.clientPredicate == 0) && (pGpuMemory != nullptr))
+            if ((pCmdBuffer->GetGfxCmdBufStateFlags().clientPredicate == 0) && (pGpuMemory != nullptr))
             {
                 // Set/Enable predication
                 pCmdBuffer->CmdSetPredication(nullptr,

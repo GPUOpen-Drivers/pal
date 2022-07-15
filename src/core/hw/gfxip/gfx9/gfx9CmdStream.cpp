@@ -1157,7 +1157,7 @@ void CmdStream::SetContextRollDetected<false>();
 // Calls the PAL developer callback to issue a report on how many times SET packets to each SH and context register were
 // seen by the optimizer and kept after redundancy checking.
 void CmdStream::IssueHotRegisterReport(
-    GfxCmdBuffer* pCmdBuf
+    Pm4CmdBuffer* pCmdBuf
     ) const
 {
     if (m_pPm4Optimizer != nullptr)
@@ -1205,5 +1205,177 @@ uint32* CmdStream::WriteDynamicLaunchDesc(
 
     return pCmdSpace;
 }
+
+// =====================================================================================================================
+uint32* CmdStream::WriteWaitEopGeneric(
+    SyncGlxFlags glxSync,
+    gpusize      timestampGpuAddr,
+    uint32*      pCmdSpace)
+{
+    const EngineType engineType = GetEngineType();
+
+    if (Pal::Device::EngineSupportsGraphics(engineType))
+    {
+        // Defer to the gfx-specific path. By convention we define a generic EOP wait as waiting at HwPipePostPrefetch
+        // because that's what most PAL operations consider their starting point and non-gfx engines lack prefetching.
+        pCmdSpace = WriteWaitEopGfx(HwPipePostPrefetch, glxSync, SyncRbNone, timestampGpuAddr, pCmdSpace);
+    }
+    else
+    {
+        // A simple CS_PARTIAL_FLUSH is almost always equivalent to an EOP wait on ACE but it won't be good enough in
+        // some corner cases like EOP TS writes through functions like CmdWriteTimestamp. We define a generic EOP wait
+        // as something that waits for every operation below HwPipePostPrefetch so we must use a full EOP TS wait.
+        pCmdSpace = WriteWaitEopTsAce(glxSync, timestampGpuAddr, pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+uint32* CmdStream::WriteWaitEopGfx(
+    HwPipePoint  waitPoint,
+    SyncGlxFlags glxSync,
+    SyncRbFlags  rbSync,
+    gpusize      timestampGpuAddr,
+    uint32*      pCmdSpace)
+{
+    PAL_ASSERT(GetEngineType() == EngineTypeUniversal);
+
+    {
+        // Note that WriteWaitEopTsGfx waits on an EOP TS event at the ME even if we want a HwPipeTop wait.
+        // It could be implemented entirely at the PFP but that would require the caller to pass in a timestamp
+        // address that has only been read or written by the PFP. In practice PAL always uses the same timestamp
+        // memory so we choose not to implement this optimization and instead run a PFP_SYNC_ME after the TS wait.
+        //
+        // To see why, consider calling WriteWaitEopTsGfx twice: first with an ME wait and then with a PFP wait, using
+        // the same timestamp memory. The ME will try to write the timestamp directly to "false" and then issue a TS
+        // event which writes to to "true", blocking until the memory reads "true". The PFP will run ahead of that,
+        // doing no waiting at all, and may start executing the second WriteWaitEopTsGfx sequence. If the timing is
+        // right, the PFP and ME can both write the same memory to "false" before the ME's EOP TS write to "true"
+        // finishes. Thus when the ME's timestamp comes back it will unblock *both* waits at the same time. The PFP
+        // will move on before its EOP TS event makes it to the bottom of the pipeline.
+        pCmdSpace = WriteWaitEopTsGfx(glxSync, rbSync, timestampGpuAddr, pCmdSpace);
+
+        if (waitPoint == HwPipeTop)
+        {
+            pCmdSpace += m_cmdUtil.BuildPfpSyncMe(pCmdSpace);
+        }
+    }
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+// Internal graphics-only helper function which just does a classic EOP TS wait (at the ME) with cache flushes.
+uint32* CmdStream::WriteWaitEopTsGfx(
+    SyncGlxFlags glxSync,
+    SyncRbFlags  rbSync,
+    gpusize      timestampGpuAddr,
+    uint32*      pCmdSpace)
+{
+    PAL_ASSERT(Pal::Device::EngineSupportsGraphics(GetEngineType()));
+
+    constexpr uint32 ClearedTimestamp   = 0x11111111;
+    constexpr uint32 CompletedTimestamp = 0x22222222;
+
+    // Write a known value to the timestamp.
+    WriteDataInfo writeData = {};
+    writeData.engineType = EngineTypeUniversal;
+    writeData.dstAddr    = timestampGpuAddr;
+    writeData.engineSel  = engine_sel__me_write_data__micro_engine;
+    writeData.dstSel     = dst_sel__me_write_data__tc_l2;
+
+    pCmdSpace += m_cmdUtil.BuildWriteData(writeData, ClearedTimestamp, pCmdSpace);
+
+    // We prefer to do our GCR in the release_mem if we can. This function always does an EOP wait so we don't have
+    // to worry about release_mem not supporting GCRs with EOS events. Any remaining sync flags must be handled in a
+    // trailing acquire_mem packet.
+    ReleaseMemGfx releaseInfo = {};
+    releaseInfo.vgtEvent  = m_cmdUtil.SelectEopEvent(rbSync);
+    releaseInfo.cacheSync = m_cmdUtil.SelectReleaseMemCaches(&glxSync);
+    releaseInfo.dstAddr   = timestampGpuAddr;
+    releaseInfo.dataSel   = data_sel__me_release_mem__send_32_bit_low;
+    releaseInfo.data      = CompletedTimestamp;
+
+    pCmdSpace += m_cmdUtil.BuildReleaseMemGfx(releaseInfo, pCmdSpace);
+    pCmdSpace += m_cmdUtil.BuildWaitRegMem(EngineTypeUniversal,
+                                           mem_space__me_wait_reg_mem__memory_space,
+                                           function__me_wait_reg_mem__equal_to_the_reference_value,
+                                           engine_sel__me_wait_reg_mem__micro_engine,
+                                           timestampGpuAddr,
+                                           CompletedTimestamp,
+                                           UINT32_MAX,
+                                           pCmdSpace);
+
+    // If we still have some caches to sync we require a final acquire_mem. It doesn't do any waiting, it just
+    // immediately does some full-range cache flush and invalidates. The previous WRM packet is the real wait.
+    if (glxSync != SyncGlxNone)
+    {
+        AcquireMemGfxSurfSync acquireInfo = {};
+        acquireInfo.cacheSync = glxSync;
+
+        pCmdSpace += m_cmdUtil.BuildAcquireMemGfxSurfSync(acquireInfo, pCmdSpace);
+
+        // acquire_mem may cause a context roll on gfx and gfx9 GPUs must be told about this.
+        SetContextRollDetected<false>();
+    }
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+// Internal compute-only helper function which just does a classic EOP TS wait (at the ME) with cache flushes.
+uint32* CmdStream::WriteWaitEopTsAce(
+    SyncGlxFlags glxSync,
+    gpusize      timestampGpuAddr,
+    uint32*      pCmdSpace)
+{
+    PAL_ASSERT(Pal::Device::EngineSupportsGraphics(GetEngineType()) == false);
+
+    constexpr uint32 ClearedTimestamp   = 0x11111111;
+    constexpr uint32 CompletedTimestamp = 0x22222222;
+
+    // Write a known value to the timestamp.
+    WriteDataInfo writeData = {};
+    writeData.engineType = EngineTypeCompute;
+    writeData.dstAddr    = timestampGpuAddr;
+    writeData.dstSel     = dst_sel__me_write_data__tc_l2;
+
+    pCmdSpace += m_cmdUtil.BuildWriteData(writeData, ClearedTimestamp, pCmdSpace);
+
+    // We prefer to do our GCR in the release_mem if we can. This function always does an EOP wait so we don't have
+    // to worry about release_mem not supporting GCRs with EOS events. Any remaining sync flags must be handled in a
+    // trailing acquire_mem packet.
+    ReleaseMemGeneric releaseInfo = {};
+    releaseInfo.engineType = EngineTypeCompute;
+    releaseInfo.cacheSync  = m_cmdUtil.SelectReleaseMemCaches(&glxSync);
+    releaseInfo.dstAddr    = timestampGpuAddr;
+    releaseInfo.dataSel    = data_sel__me_release_mem__send_32_bit_low;
+    releaseInfo.data       = CompletedTimestamp;
+
+    pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseInfo, pCmdSpace);
+    pCmdSpace += m_cmdUtil.BuildWaitRegMem(EngineTypeCompute,
+                                           mem_space__me_wait_reg_mem__memory_space,
+                                           function__me_wait_reg_mem__equal_to_the_reference_value,
+                                           engine_sel__me_wait_reg_mem__micro_engine,
+                                           timestampGpuAddr,
+                                           CompletedTimestamp,
+                                           UINT32_MAX,
+                                           pCmdSpace);
+
+    // If we still have some caches to sync we require a final acquire_mem. It doesn't do any waiting, it just
+    // immediately does some full-range cache flush and invalidates. The previous WRM packet is the real wait.
+    if (glxSync != SyncGlxNone)
+    {
+        AcquireMemGeneric acquireInfo = {};
+        acquireInfo.engineType = EngineTypeCompute;
+        acquireInfo.cacheSync  = glxSync;
+
+        pCmdSpace += m_cmdUtil.BuildAcquireMemGeneric(acquireInfo, pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
+
 } // Gfx9
 } // Pal

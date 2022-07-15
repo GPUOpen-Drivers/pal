@@ -194,6 +194,22 @@ Result EventServer::UnregisterProvider(BaseEventProvider* pProvider)
     return result;
 }
 
+void EventServer::GetEventProviders(Vector<EventProviderInfo>& eventProviders)
+{
+    Platform::LockGuard<Platform::AtomicLock> providersLock(m_eventProvidersMutex);
+
+    for (const auto& providerPair : m_eventProviders)
+    {
+        const BaseEventProvider* pProvider = providerPair.value;
+        EventProviderInfo        info      = {};
+        info.id                            = pProvider->GetId();
+        info.enabled                       = pProvider->IsProviderEnabled();
+        info.registered                    = pProvider->IsProviderRegistered();
+        strncpy(info.name, pProvider->GetName(), kEventProviderMaxNameLen);
+        eventProviders.PushBack(info);
+    }
+}
+
 Result EventServer::AllocateEventChunk(EventChunk** ppChunk)
 {
     DD_ASSERT(ppChunk != nullptr);

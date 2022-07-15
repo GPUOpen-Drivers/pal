@@ -707,6 +707,8 @@ protected:
     explicit GfxDevice(Device* pDevice, Pal::RsrcProcMgr* pRsrcProcMgr, uint32 frameCountRegOffset);
     virtual ~GfxDevice();
 
+    static bool IsValidTypedBufferView(const BufferViewInfo& info);
+
     Device*const       m_pParent;
     Pal::RsrcProcMgr*  m_pRsrcProcMgr;
 
@@ -757,7 +759,6 @@ private:
 // * This function is the actual factory for creating GfxDevice objects. It creates a new object in the specified
 //   preallocated memory buffer and returns a pointer to that object through ppGfxDevice.
 
-#if PAL_BUILD_GFX6
 namespace Gfx6
 {
 extern size_t GetDeviceSize();
@@ -769,7 +770,6 @@ extern Result CreateDevice(
 // Creates SettingsLoader object for Gfx6/7/8 hardware layer
 extern Pal::ISettingsLoader* CreateSettingsLoader(Pal::Device* pDevice);
 } // Gfx6
-#endif
 
 namespace Gfx9
 {

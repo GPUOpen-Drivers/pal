@@ -304,16 +304,19 @@ void FillSqttAsicInfo(
 
     pAsicInfo->deviceId                   = properties.deviceId;
     pAsicInfo->deviceRevisionId           = properties.revisionId;
-    pAsicInfo->vgprsPerSimd               = properties.gfxipProperties.shaderCore.vgprsPerSimd;
-    pAsicInfo->sgprsPerSimd               = properties.gfxipProperties.shaderCore.sgprsPerSimd;
-    pAsicInfo->shaderEngines              = properties.gfxipProperties.shaderCore.numShaderEngines;
-    uint32 computeUnitPerShaderEngine     = 0;
-    for (uint32 seIndex = 0; seIndex < properties.gfxipProperties.shaderCore.numShaderEngines; seIndex++)
+
+    const auto& shaderCoreProps = properties.gfxipProperties.shaderCore;
+
+    pAsicInfo->vgprsPerSimd           = shaderCoreProps.vgprsPerSimd;
+    pAsicInfo->sgprsPerSimd           = shaderCoreProps.sgprsPerSimd;
+    pAsicInfo->shaderEngines          = shaderCoreProps.numShaderEngines;
+    uint32 computeUnitPerShaderEngine = 0;
+    for (uint32 seIndex = 0; seIndex < shaderCoreProps.numShaderEngines; seIndex++)
     {
         uint32 totalActiveCu = 0;
-        for (uint32 saIndex = 0; saIndex < properties.gfxipProperties.shaderCore.numShaderArrays; saIndex++)
+        for (uint32 saIndex = 0; saIndex < shaderCoreProps.numShaderArrays; saIndex++)
         {
-            const uint32 activeCuMask   = properties.gfxipProperties.shaderCore.activeCuMask[seIndex][saIndex];
+            const uint32 activeCuMask = shaderCoreProps.activeCuMask[seIndex][saIndex];
             totalActiveCu += Util::CountSetBits(activeCuMask);
         }
         // If there are no Active CU's then we assume this engine is disabled(harvested), and ignore the zero count
@@ -323,12 +326,12 @@ void FillSqttAsicInfo(
         }
     }
     pAsicInfo->computeUnitPerShaderEngine = computeUnitPerShaderEngine;
-    pAsicInfo->simdPerComputeUnit         = properties.gfxipProperties.shaderCore.numSimdsPerCu;
-    pAsicInfo->wavefrontsPerSimd          = properties.gfxipProperties.shaderCore.numWavefrontsPerSimd;
-    pAsicInfo->minimumVgprAlloc           = properties.gfxipProperties.shaderCore.minVgprAlloc;
-    pAsicInfo->vgprAllocGranularity       = properties.gfxipProperties.shaderCore.vgprAllocGranularity;
-    pAsicInfo->minimumSgprAlloc           = properties.gfxipProperties.shaderCore.minSgprAlloc;
-    pAsicInfo->sgprAllocGranularity       = properties.gfxipProperties.shaderCore.sgprAllocGranularity;
+    pAsicInfo->simdPerComputeUnit         = shaderCoreProps.numSimdsPerCu;
+    pAsicInfo->wavefrontsPerSimd          = shaderCoreProps.numWavefrontsPerSimd;
+    pAsicInfo->minimumVgprAlloc           = shaderCoreProps.minVgprAlloc;
+    pAsicInfo->vgprAllocGranularity       = shaderCoreProps.vgprAllocGranularity;
+    pAsicInfo->minimumSgprAlloc           = shaderCoreProps.minSgprAlloc;
+    pAsicInfo->sgprAllocGranularity       = shaderCoreProps.sgprAllocGranularity;
     pAsicInfo->hardwareContexts           = properties.gfxipProperties.hardwareContexts;
     pAsicInfo->gpuType                    = static_cast<SqttGpuType>(properties.gpuType);
     pAsicInfo->gfxIpLevel                 = GfxipToSqttGfxIpLevel(properties.gfxLevel);
@@ -341,9 +344,9 @@ void FillSqttAsicInfo(
 
     pAsicInfo->vramBusWidth               = properties.gpuMemoryProperties.performance.vramBusBitWidth;
     pAsicInfo->vramSize                   = properties.gpuMemoryProperties.maxLocalMemSize;
-    pAsicInfo->l2CacheSize                = properties.gfxipProperties.shaderCore.tccSizeInBytes;
-    pAsicInfo->l1CacheSize                = properties.gfxipProperties.shaderCore.tcpSizeInBytes;
-    pAsicInfo->ldsSize                    = properties.gfxipProperties.shaderCore.ldsSizePerCu;
+    pAsicInfo->l2CacheSize                = shaderCoreProps.tccSizeInBytes;
+    pAsicInfo->l1CacheSize                = shaderCoreProps.tcpSizeInBytes;
+    pAsicInfo->ldsSize                    = shaderCoreProps.ldsSizePerCu;
 
     memcpy(pAsicInfo->gpuName, &properties.gpuName, SQTT_GPU_NAME_MAX_SIZE);
 
@@ -356,27 +359,36 @@ void FillSqttAsicInfo(
 
     pAsicInfo->maxShaderCoreClock =
         static_cast<uint64>(properties.gfxipProperties.performance.maxGpuClock * 1000000.0f);
-    pAsicInfo->maxMemoryClock =
+    pAsicInfo->maxMemoryClock     =
         static_cast<uint64>(properties.gpuMemoryProperties.performance.maxMemClock * 1000000.0f);
 
-    pAsicInfo->memoryOpsPerClock = properties.gpuMemoryProperties.performance.memOpsPerClock;
+    pAsicInfo->memoryOpsPerClock  = properties.gpuMemoryProperties.performance.memOpsPerClock;
 
-    pAsicInfo->memoryChipType =
+    pAsicInfo->memoryChipType     =
         SqttMemoryTypeTable[static_cast<uint32>(properties.gpuMemoryProperties.localMemoryType)];
 
-    pAsicInfo->ldsGranularity = properties.gfxipProperties.shaderCore.ldsGranularity;
+    pAsicInfo->ldsGranularity     = shaderCoreProps.ldsGranularity;
 
     for (uint32 se = 0; se < MaxShaderEngines; se++)
     {
         for (uint32 sa = 0; sa < MaxShaderArraysPerSe; sa++)
         {
-            pAsicInfo->cuMask[se][sa] = static_cast<uint16>(properties.gfxipProperties.shaderCore.activeCuMask[se][sa]);
+            pAsicInfo->cuMask[se][sa] = static_cast<uint16>(shaderCoreProps.activeCuMask[se][sa]);
 
             // If this triggers we need to update the RGP spec to use at least 32 bits per SA.
-            PAL_ASSERT(Util::TestAnyFlagSet(
-                        properties.gfxipProperties.shaderCore.activeCuMask[se][sa], 0xffff0000) == false);
+            PAL_ASSERT(Util::TestAnyFlagSet(shaderCoreProps.activeCuMask[se][sa], 0xffff0000) == false);
         }
     }
+
+    static_assert(sizeof(pAsicInfo->activePixelPackerMask) == sizeof(shaderCoreProps.activePixelPackerMask),
+                  "Device activePixelPackerMask size does not match RGP file format spec size.");
+    memcpy(pAsicInfo->activePixelPackerMask, shaderCoreProps.activePixelPackerMask,
+           sizeof(shaderCoreProps.activePixelPackerMask));
+
+    pAsicInfo->gl1CacheSize         = shaderCoreProps.gl1cSizePerSa;
+    pAsicInfo->instructionCacheSize = shaderCoreProps.instCacheSizePerCu;
+    pAsicInfo->scalarCacheSize      = shaderCoreProps.scalarCacheSizePerCu;
+    pAsicInfo->mallCacheSize        = properties.gfxipProperties.mallSizeInBytes;
 }
 
 // =====================================================================================================================
@@ -1003,7 +1015,7 @@ Pal::Result GpaSession::TimedSubmit(
                     // The gpu memory pointer should never be null.
                     PAL_ASSERT(pPreTimestampMemoryInfo->pGpuMemory != nullptr);
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 697
-                    pPreCmdBuffer->CmdWriteTimestamp(Pal::HwPipePostIndexFetch,
+                    pPreCmdBuffer->CmdWriteTimestamp(Pal::HwPipePostPrefetch,
                                                      *pPreTimestampMemoryInfo->pGpuMemory,
                                                      preTimestampOffset);
 #else
@@ -1277,7 +1289,7 @@ Pal::Result GpaSession::TimedQueuePresent(
         PAL_ASSERT(timestampMemoryInfo.pGpuMemory != nullptr);
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 697
-        pCmdBuffer->CmdWriteTimestamp(Pal::HwPipePostIndexFetch, *timestampMemoryInfo.pGpuMemory, timestampMemoryOffset);
+        pCmdBuffer->CmdWriteTimestamp(Pal::HwPipePostPrefetch, *timestampMemoryInfo.pGpuMemory, timestampMemoryOffset);
 #else
         pCmdBuffer->CmdWriteTimestamp(Pal::HwPipeTop, *timestampMemoryInfo.pGpuMemory, timestampMemoryOffset);
 #endif
@@ -2581,8 +2593,8 @@ Result GpaSession::RegisterPipeline(
 
     if (result == Result::Success)
     {
-        result = m_registeredPipelines.Contains(pipeInfo.internalPipelineHash.unique) ? Result::AlreadyExists :
-                 m_registeredPipelines.Insert(pipeInfo.internalPipelineHash.unique);
+        const uint64 hash = pipeInfo.internalPipelineHash.unique ^ pipeInfo.internalPipelineHash.stable;
+        result = m_registeredPipelines.Contains(hash) ? Result::AlreadyExists : m_registeredPipelines.Insert(hash);
     }
 
     m_registerPipelineLock.UnlockForWrite();

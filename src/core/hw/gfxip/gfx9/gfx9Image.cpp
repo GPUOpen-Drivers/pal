@@ -1107,8 +1107,8 @@ bool Image::DoesImageSupportCopyCompression() const
 
 // =====================================================================================================================
 // Initializes the layout-to-state masks which are used by Device::Barrier() to determine which operations are needed
-// when transitioning between different Image layouts. DefaultGfxLayouts are used by Device::BarrierAcquire() and
-// Device::BarrierRelease().
+// when transitioning between different Image layouts. DefaultGfxLayouts are used by Device::Acquire() and
+// Device::Release().
 void Image::InitLayoutStateMasks()
 {
     const SubResourceInfo*const pBaseSubResInfo = Parent()->SubresourceInfo(0);

@@ -26,8 +26,8 @@
 devdriver_library(ddSettingsBlob STATIC)
 
 target_sources(ddSettingsBlob PRIVATE
-    inc/settingsBlob.h
-    src/settingsBlob.cpp
+    inc/ddSettingsBlob.h
+    src/ddSettingsBlob.cpp
 )
 
 target_include_directories(ddSettingsBlob PUBLIC inc)

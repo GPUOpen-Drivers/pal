@@ -29,6 +29,7 @@ target_sources(pal PRIVATE
     CMakeLists.txt
     g_gfx9MergedDataFormats.h
     g_gfx9ShadowedRegistersInit.h
+    gfx9AbiToPipelineRegisters.h
     gfx9AcquireReleaseBarrier.cpp
     gfx9Barrier.cpp
     gfx9BorderColorPalette.cpp

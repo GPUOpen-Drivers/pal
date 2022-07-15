@@ -23,43 +23,25 @@
  *
  **********************************************************************************************************************/
 
+#pragma once
+
+#include <stddef.h>
 #include <stdint.h>
-#include <ddApi.h>
-#include <rapidjson/document.h>
 
-/// This file contains functions that help parse Settings JSON files.
+namespace DevDriver
+{
 
-DD_RESULT RjGetMemberString(
-    const rapidjson::Value* json,
-    const char* jsonField,
-    const char** ppOutStr);
+/// A utility function to compute FNV1-a hash for Settings names.
+constexpr uint32_t Fnv1aCompTime(const char* const pStr, size_t len)
+{
+    constexpr uint32_t prime = 0x01000193;
+    uint32_t hash = 0x811C9DC5;
+    for (size_t i = 0; i < len; ++i)
+    {
+        hash = hash ^ pStr[i];
+        hash = hash * prime;
+    }
+    return hash;
+}
 
-DD_RESULT RjGetMemberUint32(
-    const rapidjson::Value* json,
-    const char* jsonField,
-    uint32_t* pOutInt);
-
-DD_RESULT RjGetMemberInt32(
-    const rapidjson::Value* json,
-    const char* jsonField, int32_t*
-    pOutInt);
-
-DD_RESULT RjGetMemberUint64(
-    const rapidjson::Value* json,
-    const char* jsonField,
-    uint64_t* pOutInt);
-
-DD_RESULT RjGetMemberInt64(
-    const rapidjson::Value* json,
-    const char* jsonField,
-    int64_t* pOutInt);
-
-DD_RESULT RjGetMemberBool(
-    const rapidjson::Value* json,
-    const char* jsonField,
-    bool* pOutBool);
-
-DD_RESULT RjGetMemberFloat(
-    const rapidjson::Value* json,
-    const char* jsonField,
-    float* pOutFloat);
+} // namespace DevDriver

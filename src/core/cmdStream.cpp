@@ -72,6 +72,8 @@ CmdStream::CmdStream(
     , m_isReserved(false)
 #endif
 {
+    m_cmdDataAllocType = CommandDataAlloc;
+
     const auto& engineInfo = pDevice->EngineProperties().perEngine[engineType];
 
     uint32 worstCasePaddingDwords = 0;
@@ -98,7 +100,7 @@ CmdStream::CmdStream(
         // The reserve limit cannot be larger than the chunk size minus the padding space. Reserve limits up to 1024
         // DWORDs will always be OK; anything larger is at the mercy of the client's suballocation size.
         PAL_ASSERT(m_reserveLimit <=
-            (m_pCmdAllocator->ChunkSize(CommandDataAlloc) / sizeof(uint32)) - m_cmdSpaceDwordPadding);
+            (m_pCmdAllocator->ChunkSize(m_cmdDataAllocType) / sizeof(uint32)) - m_cmdSpaceDwordPadding);
     }
 
     // Cannot init flags bitfield in the initializer list.
@@ -339,7 +341,7 @@ CmdStreamChunk* CmdStream::GetNextChunk(
             // stream doesn't have enough space to accomodate this request.  Either way, we need to obtain a new chunk.
             // The allocator adds a reference for us automatically. If the chunk list is empty, then the new chunk will
             // be the root.
-            m_status = m_pCmdAllocator->GetNewChunk(CommandDataAlloc, (m_flags.buildInSysMem != 0), &pChunk);
+            m_status = m_pCmdAllocator->GetNewChunk(m_cmdDataAllocType, (m_flags.buildInSysMem != 0), &pChunk);
 
             if (m_status != Result::Success)
             {
@@ -464,7 +466,7 @@ void CmdStream::Reset(
         // be useless and need to be freed.
         if (IsAutoMemoryReuse() && (m_chunkList.IsEmpty() == false) && (m_status == Result::Success))
         {
-            m_pCmdAllocator->ReuseChunks(CommandDataAlloc, (m_flags.buildInSysMem != 0), m_chunkList.Begin());
+            m_pCmdAllocator->ReuseChunks(m_cmdDataAllocType, (m_flags.buildInSysMem != 0), m_chunkList.Begin());
         }
     }
     else
@@ -502,7 +504,7 @@ void CmdStream::Reset(
         // The reserve limit cannot be larger than the chunk size minus the padding space. Reserve limits up to
         // 1024 DWORDs will always be OK; anything larger is at the mercy of the client's suballocation size.
         PAL_ASSERT(m_reserveLimit <=
-            (m_pCmdAllocator->ChunkSize(CommandDataAlloc) / sizeof(uint32)) - m_cmdSpaceDwordPadding);
+            (m_pCmdAllocator->ChunkSize(m_cmdDataAllocType) / sizeof(uint32)) - m_cmdSpaceDwordPadding);
     }
 
     // It's not legal to use this allocator now that command building is over. We make no attempt to rewind the
@@ -562,7 +564,7 @@ void CmdStream::Call(
 {
     if (targetStream.IsEmpty() == false)
     {
-        PAL_ASSERT(m_pCmdAllocator->ChunkSize(CommandDataAlloc) >= targetStream.GetFirstChunk()->Size());
+        PAL_ASSERT(m_pCmdAllocator->ChunkSize(m_cmdDataAllocType) >= targetStream.GetFirstChunk()->Size());
 
         for (auto chunkIter = targetStream.GetFwdIterator(); chunkIter.IsValid(); chunkIter.Next())
         {

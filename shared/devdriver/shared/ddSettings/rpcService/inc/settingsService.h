@@ -25,11 +25,11 @@
 
 #pragma once
 
+#include "../../base/inc/ddSettingsTypes.h"
 #include <ddApi.h>
-#include "rpcService/inc/g_SettingsRpcService.h"
-#include "util/hashMap.h"
-#include "protocols/ddSettingsServiceTypes.h"
-#include "settingsTypes.h"
+#include <g_SettingsRpcService.h>
+#include <util/hashMap.h>
+#include <protocols/ddSettingsServiceTypes.h>
 
 using namespace DevDriver::SettingsURIService;
 

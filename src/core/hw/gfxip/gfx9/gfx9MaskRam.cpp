@@ -4200,7 +4200,7 @@ bool Gfx9Dcc::UseDccForImage(
         useDcc = false;
         mustDisableDcc = true;
     }
-    else if (IsGfx10(*pDevice) &&
+    else if (IsGfx10Plus(*pDevice) &&
              (AddrMgr2::IsStandardSwzzle(swizzleMode) || AddrMgr2::IsDisplayableSwizzle(swizzleMode)))
     {
         //   1) SW_D does not support DCC.

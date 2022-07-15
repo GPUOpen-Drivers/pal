@@ -767,6 +767,18 @@ void CmdBuffer::CmdBarrier(
 uint32 CmdBuffer::CmdRelease(
     const AcquireReleaseInfo& releaseInfo)
 {
+    // Validate input data.
+    PAL_ASSERT(releaseInfo.dstStageMask == 0);
+    PAL_ASSERT(releaseInfo.dstGlobalAccessMask == 0);
+    for (uint32 i = 0; i < releaseInfo.memoryBarrierCount; i++)
+    {
+        PAL_ASSERT(releaseInfo.pMemoryBarriers[i].dstAccessMask == 0);
+    }
+    for (uint32 i = 0; i < releaseInfo.imageBarrierCount; i++)
+    {
+        PAL_ASSERT(releaseInfo.pImageBarriers[i].dstAccessMask == 0);
+    }
+
 #if PAL_ENABLE_PRINTS_ASSERTS
     VerifyBarrierTransitions(releaseInfo);
 #endif
@@ -780,6 +792,20 @@ void CmdBuffer::CmdAcquire(
     uint32                    syncTokenCount,
     const uint32*             pSyncTokens)
 {
+    // Validate input data.
+    PAL_ASSERT(acquireInfo.srcStageMask == 0);
+    PAL_ASSERT(acquireInfo.srcGlobalAccessMask == 0);
+    for (uint32 i = 0; i < acquireInfo.memoryBarrierCount; i++)
+    {
+        PAL_ASSERT(acquireInfo.pMemoryBarriers[i].srcAccessMask == 0);
+    }
+    for (uint32 i = 0; i < acquireInfo.imageBarrierCount; i++)
+    {
+        PAL_ASSERT(acquireInfo.pImageBarriers[i].srcAccessMask == 0);
+    }
+
+    PAL_ASSERT((syncTokenCount == 0) || (pSyncTokens != nullptr));
+
 #if PAL_ENABLE_PRINTS_ASSERTS
     VerifyBarrierTransitions(acquireInfo);
 #endif
@@ -790,6 +816,20 @@ void CmdBuffer::CmdReleaseEvent(
     const AcquireReleaseInfo& releaseInfo,
     const IGpuEvent*          pGpuEvent)
 {
+    // Validate input data.
+    PAL_ASSERT(releaseInfo.dstStageMask == 0);
+    PAL_ASSERT(releaseInfo.dstGlobalAccessMask == 0);
+    for (uint32 i = 0; i < releaseInfo.memoryBarrierCount; i++)
+    {
+        PAL_ASSERT(releaseInfo.pMemoryBarriers[i].dstAccessMask == 0);
+    }
+    for (uint32 i = 0; i < releaseInfo.imageBarrierCount; i++)
+    {
+        PAL_ASSERT(releaseInfo.pImageBarriers[i].dstAccessMask == 0);
+    }
+
+    PAL_ASSERT(pGpuEvent != nullptr);
+
 #if PAL_ENABLE_PRINTS_ASSERTS
     VerifyBarrierTransitions(releaseInfo);
 #endif
@@ -801,6 +841,20 @@ void CmdBuffer::CmdAcquireEvent(
     uint32                    gpuEventCount,
     const IGpuEvent*const*    ppGpuEvents)
 {
+    // Validate input data.
+    PAL_ASSERT(acquireInfo.srcStageMask == 0);
+    PAL_ASSERT(acquireInfo.srcGlobalAccessMask == 0);
+    for (uint32 i = 0; i < acquireInfo.memoryBarrierCount; i++)
+    {
+        PAL_ASSERT(acquireInfo.pMemoryBarriers[i].srcAccessMask == 0);
+    }
+    for (uint32 i = 0; i < acquireInfo.imageBarrierCount; i++)
+    {
+        PAL_ASSERT(acquireInfo.pImageBarriers[i].srcAccessMask == 0);
+    }
+
+    PAL_ASSERT((gpuEventCount == 0) || (ppGpuEvents != nullptr));
+
 #if PAL_ENABLE_PRINTS_ASSERTS
     VerifyBarrierTransitions(acquireInfo);
 #endif

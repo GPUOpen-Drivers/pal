@@ -24,6 +24,7 @@
  **********************************************************************************************************************/
 
 #include "core/platform.h"
+#include "core/hw/gfxip/gfx9/gfx9AbiToPipelineRegisters.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
@@ -45,7 +46,8 @@ PipelineChunkGs::PipelineChunkGs(
     m_device(device),
     m_regs{},
     m_pPerfDataInfo(pPerfDataInfo),
-    m_stageInfo{}
+    m_stageInfo{},
+    m_fastLaunchMode(GsFastLaunchMode::Disabled)
 {
     m_stageInfo.stageId = Abi::HardwareStage::Gs;
 }
@@ -68,18 +70,12 @@ void PipelineChunkGs::EarlyInit(
 void PipelineChunkGs::LateInit(
     const AbiReader&                  abiReader,
     const PalAbi::CodeObjectMetadata& metadata,
-    const RegisterVector&             registers,
     const GraphicsPipelineLoadInfo&   loadInfo,
     const GraphicsPipelineCreateInfo& createInfo,
     PipelineUploader*                 pUploader,
     MetroHash64*                      pHasher)
 {
-    const Gfx9PalSettings&   settings     = m_device.Settings();
     const GpuChipProperties& chipProps    = m_device.Parent()->ChipProperties();
-    const RegisterInfo&      registerInfo = m_device.CmdUtil().GetRegInfo();
-
-    const uint16 mmSpiShaderUserDataGs0 = registerInfo.mmUserDataStartGsShaderStage;
-    const uint16 mmSpiShaderPgmLoEs     = registerInfo.mmSpiShaderPgmLoEs;
 
     GpuSymbol symbol = { };
     if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::GsMainEntry, &symbol) == Result::Success)
@@ -101,108 +97,22 @@ void PipelineChunkGs::LateInit(
         m_stageInfo.disassemblyLength = static_cast<size_t>(pElfSymbol->st_size);
     }
 
-    m_regs.sh.spiShaderPgmRsrc1Gs.u32All      = registers.At(mmSPI_SHADER_PGM_RSRC1_GS);
-    m_regs.sh.spiShaderPgmRsrc2Gs.u32All      = registers.At(mmSPI_SHADER_PGM_RSRC2_GS);
-    m_regs.dynamic.spiShaderPgmRsrc4Gs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC4_GS);
+    m_fastLaunchMode = static_cast<GsFastLaunchMode>(metadata.pipeline.graphicsRegister.vgtShaderStagesEn.gsFastLaunch);
 
-    registers.HasEntry(mmSPI_SHADER_PGM_RSRC3_GS, &m_regs.dynamic.spiShaderPgmRsrc3Gs.u32All);
-
-    // NOTE: The Pipeline ABI doesn't specify CU_GROUP_ENABLE for various shader stages, so it should be safe to
-    // always use the setting PAL prefers.
-    m_regs.sh.spiShaderPgmRsrc1Gs.bits.CU_GROUP_ENABLE = (settings.gsCuGroupEnabled ? 1 : 0);
-
-#if PAL_ENABLE_PRINTS_ASSERTS
-    m_device.AssertUserAccumRegsDisabled(registers, Gfx10Plus::mmSPI_SHADER_USER_ACCUM_ESGS_0);
-#endif
-
-    uint32 lateAllocWaves  = (loadInfo.enableNgg) ? settings.nggLateAllocGs : settings.lateAllocGs;
-    uint32 lateAllocLimit  = 127;
-    uint16 gsCuDisableMask = 0;
-
-    if (loadInfo.enableNgg == false)
-    {
-        const auto&  pgmRsrc1Gs = m_regs.sh.spiShaderPgmRsrc1Gs.bits;
-        const auto&  pgmRsrc2Gs = m_regs.sh.spiShaderPgmRsrc2Gs.bits;
-        lateAllocLimit          = GraphicsPipeline::CalcMaxLateAllocLimit(m_device,
-                                                                          registers,
-                                                                          pgmRsrc1Gs.VGPRS,
-                                                                          pgmRsrc1Gs.SGPRS,
-                                                                          pgmRsrc2Gs.SCRATCH_EN,
-                                                                          lateAllocWaves);
-    }
-    else if (IsGfx10Plus(chipProps.gfxLevel))
-    {
-        VGT_SHADER_STAGES_EN vgtShaderStagesEn = {};
-        vgtShaderStagesEn.u32All = registers.At(mmVGT_SHADER_STAGES_EN);
-
-        if ((vgtShaderStagesEn.bits.PRIMGEN_EN != 0) && settings.waLimitLateAllocGsNggFifo)
-        {
-            lateAllocLimit = 64;
-        }
-    }
-
-    lateAllocWaves = Min(lateAllocWaves, lateAllocLimit);
-
-    // If late-alloc for NGG is enabled, or if we're using on-chip legacy GS path, we need to avoid using CU1
-    // for GS waves to avoid a deadlock with the PS. It is impossible to fully disable LateAlloc on Gfx9+, even
-    // with LateAlloc = 0.
-    // There are two issues:
-    //    1. NGG:
-    //       The HW-GS can perform exports which require parameter cache space. There are pending PS waves who have
-    //       claims on parameter cache space (before the interpolants are moved to LDS). This can cause a deadlock
-    //       where the HW-GS waves are waiting for space in the cache, but that space is claimed by pending PS waves
-    //       that can't launch on the CU due to lack of space (already existing waves).
-    //    2. On-chip legacy GS:
-    //       When on-chip is enabled, the HW-VS must run on the same CU as the HW-GS, since all communication between
-    //       the waves are done via LDS. This means that wherever the HW-GS launches is where the HW-VS (copy shader)
-    //       will launch. Due to the same issues as above (HW-VS waiting for parameter cache space, pending PS waves),
-    //       this could also cause a deadlock.
-    if (loadInfo.enableNgg || loadInfo.usesOnChipGs)
-    {
-        // It is possible, with an NGG shader, that late-alloc GS waves can deadlock the PS.  To prevent this hang
-        // situation, we need to mask off one CU when NGG is enabled.
-        if (IsGfx101(chipProps.gfxLevel))
-        {
-            // Both CU's of a WGP need to be disabled for better performance.
-            gsCuDisableMask = 0xC;
-        }
-        else
-        {
-            // Disable virtualized CU #1 instead of #0 because thread traces use CU #0 by default.
-            gsCuDisableMask = 0x2;
-        }
-
-        if ((loadInfo.enableNgg) && (settings.allowNggOnAllCusWgps))
-        {
-            gsCuDisableMask = 0x0;
-        }
-    }
-
-    m_regs.dynamic.spiShaderPgmRsrc3Gs.bits.CU_EN = m_device.GetCuEnableMask(gsCuDisableMask,
-                                                                             settings.gsCuEnLimitMask);
-
-    if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
-    {
-        m_regs.dynamic.spiShaderPgmRsrc4Gs.gfx09.SPI_SHADER_LATE_ALLOC_GS = lateAllocWaves;
-    }
-    else // Gfx10+
-    {
-        // Note that SPI_SHADER_PGM_RSRC4_GS has a totally different layout on Gfx10+ vs. Gfx9!
-        m_regs.dynamic.spiShaderPgmRsrc4Gs.gfx10Plus.SPI_SHADER_LATE_ALLOC_GS = lateAllocWaves;
-
-        constexpr uint16 GsCuDisableMaskHi = 0;
-
-        if (IsGfx10(chipProps.gfxLevel))
-        {
-            m_regs.dynamic.spiShaderPgmRsrc4Gs.gfx10.CU_EN = m_device.GetCuEnableMaskHi(GsCuDisableMaskHi,
-                                                                                        settings.gsCuEnLimitMask);
-        }
-    }
-
-    if (chipProps.gfx9.supportSpp != 0)
-    {
-        registers.HasEntry(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_GS, &m_regs.sh.spiShaderPgmChksumGs.u32All);
-    }
+    m_regs.sh.spiShaderPgmRsrc1Gs.u32All      =
+        AbiRegisters::SpiShaderPgmRsrc1Gs(metadata, m_device, chipProps.gfxLevel);
+    m_regs.sh.spiShaderPgmRsrc2Gs.u32All      = AbiRegisters::SpiShaderPgmRsrc2Gs(metadata, chipProps.gfxLevel);
+    m_regs.dynamic.spiShaderPgmRsrc3Gs.u32All = AbiRegisters::SpiShaderPgmRsrc3Gs(metadata,
+                                                                                  m_device,
+                                                                                  chipProps.gfxLevel,
+                                                                                  loadInfo.enableNgg,
+                                                                                  loadInfo.usesOnChipGs);
+    m_regs.dynamic.spiShaderPgmRsrc4Gs.u32All = AbiRegisters::SpiShaderPgmRsrc4Gs(metadata,
+                                                                                  m_device,
+                                                                                  chipProps.gfxLevel,
+                                                                                  loadInfo.enableNgg,
+                                                                                  m_stageInfo.codeLength);
+    m_regs.sh.spiShaderPgmChksumGs.u32All = AbiRegisters::SpiShaderPgmChksumGs(metadata, m_device);
 
     if (metadata.pipeline.hasEntry.esGsLdsSize != 0)
     {
@@ -213,49 +123,37 @@ void PipelineChunkGs::LateInit(
         PAL_ASSERT(loadInfo.enableNgg || (loadInfo.usesOnChipGs == false));
     }
 
-    m_regs.context.vgtGsInstanceCnt.u32All    = registers.At(mmVGT_GS_INSTANCE_CNT);
+    m_regs.context.vgtGsInstanceCnt.u32All    = AbiRegisters::VgtGsInstanceCnt(metadata, chipProps.gfxLevel);
+    m_regs.context.vgtGsOutPrimType.u32All    = AbiRegisters::VgtGsOutPrimType(metadata, chipProps.gfxLevel);
+    m_regs.context.vgtEsGsRingItemSize.u32All = AbiRegisters::VgtEsGsRingItemSize(metadata);
+    m_regs.context.vgtGsMaxVertOut.u32All     = AbiRegisters::VgtGsMaxVertOut(metadata);
+    m_regs.context.geNggSubgrpCntl.u32All     = AbiRegisters::GeNggSubgrpCntl(metadata);
+    m_regs.context.paClNggCntl.u32All         = AbiRegisters::PaClNggCntl(createInfo, chipProps.gfxLevel);
 
+    if (chipProps.gfxip.supportsHwVs)
     {
         bool allHere = true;
-        allHere &= registers.HasEntry(HasHwVs::mmVGT_GS_PER_VS,          &m_regs.context.vgtGsPerVs.u32All);
-        allHere &= registers.HasEntry(HasHwVs::mmVGT_GS_VERT_ITEMSIZE,   &m_regs.context.vgtGsVertItemSize0.u32All);
-        allHere &= registers.HasEntry(HasHwVs::mmVGT_GS_VERT_ITEMSIZE_1, &m_regs.context.vgtGsVertItemSize1.u32All);
-        allHere &= registers.HasEntry(HasHwVs::mmVGT_GS_VERT_ITEMSIZE_2, &m_regs.context.vgtGsVertItemSize2.u32All);
-        allHere &= registers.HasEntry(HasHwVs::mmVGT_GS_VERT_ITEMSIZE_3, &m_regs.context.vgtGsVertItemSize3.u32All);
-        allHere &= registers.HasEntry(HasHwVs::mmVGT_GSVS_RING_ITEMSIZE, &m_regs.context.vgtGsVsRingItemSize.u32All);
-        allHere &= registers.HasEntry(HasHwVs::mmVGT_GSVS_RING_OFFSET_1, &m_regs.context.vgtGsVsRingOffset1.u32All);
-        allHere &= registers.HasEntry(HasHwVs::mmVGT_GSVS_RING_OFFSET_2, &m_regs.context.vgtGsVsRingOffset2.u32All);
-        allHere &= registers.HasEntry(HasHwVs::mmVGT_GSVS_RING_OFFSET_3, &m_regs.context.vgtGsVsRingOffset3.u32All);
+        m_regs.context.vgtGsPerVs.u32All          = AbiRegisters::VgtGsPerVs(metadata, &allHere);
+        m_regs.context.vgtGsVsRingItemSize.u32All = AbiRegisters::VgtGsVsRingItemsize(metadata, &allHere);
+        AbiRegisters::VgtGsVertItemsizes(metadata,
+                                         &m_regs.context.vgtGsVertItemSize0,
+                                         &m_regs.context.vgtGsVertItemSize1,
+                                         &m_regs.context.vgtGsVertItemSize2,
+                                         &m_regs.context.vgtGsVertItemSize3,
+                                         &allHere);
+        AbiRegisters::VgtGsVsRingOffsets(metadata,
+                                         &m_regs.context.vgtGsVsRingOffset1,
+                                         &m_regs.context.vgtGsVsRingOffset2,
+                                         &m_regs.context.vgtGsVsRingOffset3,
+                                         &allHere);
 
         PAL_ASSERT(loadInfo.enableNgg || allHere);
-        m_regs.context.vgtGsOutPrimType.u32All    = registers.At(Gfx09_10::mmVGT_GS_OUT_PRIM_TYPE);
     }
 
-    m_regs.context.vgtEsGsRingItemSize.u32All = registers.At(mmVGT_ESGS_RING_ITEMSIZE);
-    m_regs.context.vgtGsMaxVertOut.u32All     = registers.At(mmVGT_GS_MAX_VERT_OUT);
-
-    if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
-    {
-        m_regs.context.vgtGsMaxPrimsPerSubgroup.u32All = registers.At(Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP);
-    }
-    else
-    {
-        m_regs.context.geMaxOutputPerSubgroup.u32All = registers.At(Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP);
-        m_regs.context.geNggSubgrpCntl.u32All        = registers.At(Gfx10Plus::mmGE_NGG_SUBGRP_CNTL);
-    }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 709
-    m_regs.context.paClNggCntl.bits.INDEX_BUF_EDGE_FLAG_ENA = createInfo.iaState.topologyInfo.topologyIsPolygon ||
-        (createInfo.iaState.topologyInfo.primitiveType == Pal::PrimitiveType::Quad);
-#else
-    m_regs.context.paClNggCntl.bits.INDEX_BUF_EDGE_FLAG_ENA =
-        (createInfo.iaState.topologyInfo.primitiveType == Pal::PrimitiveType::Quad);
-#endif
-
-    if (IsGfx103PlusExclusive(*m_device.Parent()))
-    {
-        m_regs.context.paClNggCntl.gfx103PlusExclusive.VERTEX_REUSE_DEPTH = 30;
-    }
+    AbiRegisters::GeMaxOutputPerSubgroup(metadata,
+                                         &m_regs.context.vgtGsMaxPrimsPerSubgroup,
+                                         &m_regs.context.geMaxOutputPerSubgroup,
+                                         chipProps.gfxLevel);
 
     pHasher->Update(m_regs.context);
 }

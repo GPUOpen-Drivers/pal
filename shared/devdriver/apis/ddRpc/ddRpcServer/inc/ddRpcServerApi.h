@@ -38,7 +38,7 @@ extern "C" {
 
 /// Compile time version information
 #define DD_RPC_SERVER_API_MAJOR_VERSION 0
-#define DD_RPC_SERVER_API_MINOR_VERSION 2
+#define DD_RPC_SERVER_API_MINOR_VERSION 3
 #define DD_RPC_SERVER_API_PATCH_VERSION 0
 
 #define DD_RPC_SERVER_API_VERSION_STRING DD_API_STRINGIFY_VERSION(DD_RPC_SERVER_API_MAJOR_VERSION, \
@@ -153,18 +153,24 @@ typedef void (*PFN_ddRpcServerUnregisterFunction)(
 typedef DDClientId (*PFN_ddRpcServerQueryClientId)(
     DDRpcServer hServer); /// [in] Handle to an existing RPC server
 
+/// Returns DD_RESULT_SUCCESS if the service is registered
+typedef DD_RESULT (*PFN_ddRpcServerIsServiceRegistered)(
+    DDRpcServer    hServer,    /// [in] Handle to an existing RPC server
+    DDRpcServiceId serviceId); /// [in] Service identifier
+
 /// API structure
 typedef struct DDRpcServerApi
 {
-    PFN_ddRpcServerQueryVersion       pfnQueryVersion;
-    PFN_ddRpcServerQueryVersionString pfnQueryVersionString;
-    PFN_ddRpcServerCreate             pfnCreate;
-    PFN_ddRpcServerDestroy            pfnDestroy;
-    PFN_ddRpcServerRegisterService    pfnRegisterService;
-    PFN_ddRpcServerUnregisterService  pfnUnregisterService;
-    PFN_ddRpcServerRegisterFunction   pfnRegisterFunction;
-    PFN_ddRpcServerUnregisterFunction pfnUnregisterFunction;
-    PFN_ddRpcServerQueryClientId      pfnQueryClientId;
+    PFN_ddRpcServerQueryVersion        pfnQueryVersion;
+    PFN_ddRpcServerQueryVersionString  pfnQueryVersionString;
+    PFN_ddRpcServerCreate              pfnCreate;
+    PFN_ddRpcServerDestroy             pfnDestroy;
+    PFN_ddRpcServerRegisterService     pfnRegisterService;
+    PFN_ddRpcServerUnregisterService   pfnUnregisterService;
+    PFN_ddRpcServerRegisterFunction    pfnRegisterFunction;
+    PFN_ddRpcServerUnregisterFunction  pfnUnregisterFunction;
+    PFN_ddRpcServerQueryClientId       pfnQueryClientId;
+    PFN_ddRpcServerIsServiceRegistered pfnIsServiceRegistered;
 } DDRpcServerApi;
 
 #ifdef __cplusplus

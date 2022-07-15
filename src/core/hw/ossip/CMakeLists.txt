@@ -23,9 +23,11 @@
  #
  #######################################################################################################################
 
+#if PAL_BUILD_OSS2_4
 if(PAL_BUILD_OSS2_4)
     add_subdirectory(oss2_4)
 endif()
+#endif
 
 if(PAL_BUILD_OSS4)
     add_subdirectory(oss4)

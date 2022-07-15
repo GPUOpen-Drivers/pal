@@ -44,7 +44,7 @@ struct SettingsBlob
     /// hash of the blob
     uint64_t blobHash;
     /// a variable-size array of char, representing Settings blob.
-    char blob[1];
+    uint8_t blob[1];
 };
 
 /// All Settings blobs are packed in one buffer. This struct always sit at the
@@ -94,7 +94,7 @@ public:
     /// the Settings blob is written to `pOutSize`. Note, the byte-size does
     /// not include the null-terminator at the end of the string blob (if it
     /// has one).
-    virtual const char* GetBlob(uint32_t* pOutSize) = 0;
+    virtual const uint8_t* GetBlob(uint32_t* pOutSize) = 0;
 
     /// Return the hash of the blob.
     virtual uint64_t GetBlobHash() = 0;
@@ -113,7 +113,7 @@ public:
     /// `bufferSize` is the size of `pBuffer`.
     ///
     /// Return the size required for a buffer to receive all Settings blobs.
-    static uint32_t GetAllSettingsBlobs(char* pBuffer, uint32_t bufferSize);
+    static uint32_t GetAllSettingsBlobs(uint8_t* pBuffer, uint32_t bufferSize);
 };
 
 } // namespace DevDriver

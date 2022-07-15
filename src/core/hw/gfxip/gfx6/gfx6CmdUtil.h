@@ -47,7 +47,7 @@ namespace Gfx6
 //   2. The caller is operating under "CoherCopy/HwPipePostBlt" semantics and a CmdBarrier call will be issued. This
 //      case is commonly referred to as a "CP Blt".
 //
-// In case #2, the caller must update the GfxCmdBufferState by calling the relevant SetGfxCmdBuf* functions.
+// In case #2, the caller must update the Pm4CmdBufferState by calling the relevant SetGfxCmdBuf* functions.
 // Furthermore, the caller must not set "disableWc" because write-confirms are necessary for the barrier to guarantee
 // that the CP DMA writes have made it to their destination (memory, L2, etc.).
 struct DmaDataInfo

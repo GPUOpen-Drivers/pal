@@ -67,6 +67,11 @@ public:
         return 0;
     }
 
+    const char* GetName() const override
+    {
+        return m_createInfo.name;
+    }
+
     void OnEnable() override;
     void OnDisable() override;
 

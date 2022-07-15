@@ -1014,7 +1014,7 @@ void UniversalCmdBuffer::CmdBarrier(
 
     // Barriers do not honor predication.
     const uint32 packetPredicate = PacketPredicate();
-    m_gfxCmdBufState.flags.packetPredicate = 0;
+    m_pm4CmdBufState.flags.packetPredicate = 0;
 
     bool splitMemAllocated;
     BarrierInfo splitBarrierInfo = barrierInfo;
@@ -1039,7 +1039,7 @@ void UniversalCmdBuffer::CmdBarrier(
         PAL_SAFE_DELETE_ARRAY(splitBarrierInfo.pTransitions, m_device.GetPlatform());
     }
 
-    m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
 }
 
 // =====================================================================================================================
@@ -2233,7 +2233,7 @@ void UniversalCmdBuffer::CmdWriteTimestamp(
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 697
-    if (pipePoint == HwPipePostIndexFetch)
+    if (pipePoint == HwPipePostPrefetch)
 #else
     if (pipePoint == HwPipeTop)
 #endif
@@ -2287,7 +2287,7 @@ void UniversalCmdBuffer::CmdWriteImmediate(
                                                COPY_DATA_WR_CONFIRM_WAIT,
                                                pDeCmdSpace);
     }
-    else if (pipePoint == HwPipePostIndexFetch)
+    else if (pipePoint == HwPipePostPrefetch)
 #endif
     {
         pDeCmdSpace += m_cmdUtil.BuildCopyData(COPY_DATA_SEL_DST_ASYNC_MEMORY,
@@ -2615,12 +2615,12 @@ Result UniversalCmdBuffer::AddPostamble()
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-    if (m_gfxCmdBufState.flags.cpBltActive)
+    if (m_pm4CmdBufState.flags.cpBltActive)
     {
         // Stalls the CP ME until the CP's DMA engine has finished all previous "CP blts" (CP_DMA/DMA_DATA commands
         // without the sync bit set). The ring won't wait for CP DMAs to finish so we need to do this manually.
         pDeCmdSpace += m_cmdUtil.BuildWaitDmaData(pDeCmdSpace);
-        SetGfxCmdBufCpBltState(false);
+        SetPm4CmdBufCpBltState(false);
     }
 
     bool didWaitForIdle = false;
@@ -2697,14 +2697,14 @@ void UniversalCmdBuffer::WriteEventCmd(
     // GFX6-8 should always have supportReleaseAcquireInterface=0, so GpuEvent is always single slot (one dword).
     PAL_ASSERT(m_device.Parent()->ChipProperties().gfxip.numSlotsPerEvent == 1);
 
-    if ((pipePoint >= HwPipePostBlt) && (m_gfxCmdBufState.flags.cpBltActive))
+    if ((pipePoint >= HwPipePostBlt) && (m_pm4CmdBufState.flags.cpBltActive))
     {
         // We must guarantee that all prior CP DMA accelerated blts have completed before we write this event because
         // the CmdSetEvent and CmdResetEvent functions expect that the prior blts have reached the post-blt stage by
         // the time the event is written to memory. Given that our CP DMA blts are asynchronous to the pipeline stages
         // the only way to satisfy this requirement is to force the MEC to stall until the CP DMAs are completed.
         pDeCmdSpace += m_cmdUtil.BuildWaitDmaData(pDeCmdSpace);
-        SetGfxCmdBufCpBltState(false);
+        SetPm4CmdBufCpBltState(false);
     }
 
     OptimizePipePoint(&pipePoint);
@@ -2722,7 +2722,7 @@ void UniversalCmdBuffer::WriteEventCmd(
         pDeCmdSpace += m_cmdUtil.BuildWriteData(writeData, data, pDeCmdSpace);
         break;
 
-    case HwPipePostIndexFetch:
+    case HwPipePostPrefetch:
         // Implement set/reset event with a WRITE_DATA command using ME engine.
         writeData.dstAddr   = boundMemObj.GpuVirtAddr();
         writeData.engineSel = WRITE_DATA_ENGINE_ME;
@@ -3548,6 +3548,10 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     regIA_MULTI_VGT_PARAM iaMultiVgtParam = pPipeline->IaMultiVgtParam(wdSwitchOnEop);
     regVGT_LS_HS_CONFIG   vgtLsHsConfig   = pPipeline->VgtLsHsConfig();
 
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 747)
+    PAL_ASSERT(pPipeline->IsTessEnabled() ||
+               (vgtLsHsConfig.bits.HS_NUM_INPUT_CP == m_graphicsState.inputAssemblyState.patchControlPoints));
+#endif
     if (m_primGroupOpt.optimalSize > 0)
     {
         iaMultiVgtParam.bits.PRIMGROUP_SIZE = m_primGroupOpt.optimalSize - 1;
@@ -4353,7 +4357,7 @@ void UniversalCmdBuffer::CmdResolveQuery(
 {
     // Resolving a query is not supposed to honor predication.
     const uint32 packetPredicate = PacketPredicate();
-    m_gfxCmdBufState.flags.packetPredicate = 0;
+    m_pm4CmdBufState.flags.packetPredicate = 0;
 
     m_device.RsrcProcMgr().CmdResolveQuery(this,
                                            static_cast<const QueryPool&>(queryPool),
@@ -4365,7 +4369,7 @@ void UniversalCmdBuffer::CmdResolveQuery(
                                            dstOffset,
                                            dstStride);
 
-    m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
+    m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
 }
 
 // =====================================================================================================================
@@ -4805,7 +4809,7 @@ void UniversalCmdBuffer::SetGraphicsState(
 // =====================================================================================================================
 // Bind the last state set on the specified command buffer
 void UniversalCmdBuffer::InheritStateFromCmdBuf(
-    const GfxCmdBuffer* pCmdBuffer)
+    const Pm4CmdBuffer* pCmdBuffer)
 {
     SetComputeState(pCmdBuffer->GetComputeState(), ComputeStateAll);
 
@@ -5031,8 +5035,8 @@ void UniversalCmdBuffer::CmdSetPredication(
 {
     PAL_ASSERT((pQueryPool == nullptr) || (pGpuMemory == nullptr));
 
-    m_gfxCmdBufState.flags.clientPredicate = ((pQueryPool != nullptr) || (pGpuMemory != nullptr)) ? 1 : 0;
-    m_gfxCmdBufState.flags.packetPredicate = m_gfxCmdBufState.flags.clientPredicate;
+    m_gfxCmdBufStateFlags.clientPredicate  = ((pQueryPool != nullptr) || (pGpuMemory != nullptr)) ? 1 : 0;
+    m_pm4CmdBufState.flags.packetPredicate = m_gfxCmdBufStateFlags.clientPredicate;
 
     gpusize gpuVirtAddr = 0;
     if (pGpuMemory != nullptr)
@@ -5228,7 +5232,7 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
             // execution inside a CmdIf, we want to disable normal predication for this blit.
             const uint32 packetPredicate   = PacketPredicate();
             const uint32 numChunksExecuted = numGenChunks;
-            m_gfxCmdBufState.flags.packetPredicate = 0;
+            m_pm4CmdBufState.flags.packetPredicate = 0;
 
             const GenerateInfo genInfo =
             {
@@ -5245,7 +5249,7 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
 
             m_device.RsrcProcMgr().CmdGenerateIndirectCmds(genInfo, &ppChunkList[0], 1, &numGenChunks);
 
-            m_gfxCmdBufState.flags.packetPredicate = packetPredicate;
+            m_pm4CmdBufState.flags.packetPredicate = packetPredicate;
 
             uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
@@ -5377,7 +5381,7 @@ void UniversalCmdBuffer::GetChunkForCmdGeneration(
     PAL_ASSERT(m_pCmdAllocator != nullptr);
     PAL_ASSERT(numChunkOutputs == 1);
 
-    CmdStreamChunk*const pChunk = Pal::GfxCmdBuffer::GetNextGeneratedChunk();
+    CmdStreamChunk*const pChunk = Pal::Pm4CmdBuffer::GetNextGeneratedChunk();
     pChunkOutputs->pChunk = pChunk;
 
     const uint32* pUserDataEntries   = nullptr;
@@ -5533,12 +5537,12 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     m_pipelineCtxRegHash = cmdBuffer.m_pipelineCtxRegHash;
 
     // It is possible that nested command buffer execute operation which affect the data in the primary buffer
-    m_gfxCmdBufState.flags.gfxBltActive              = cmdBuffer.m_gfxCmdBufState.flags.gfxBltActive;
-    m_gfxCmdBufState.flags.csBltActive               = cmdBuffer.m_gfxCmdBufState.flags.csBltActive;
-    m_gfxCmdBufState.flags.gfxWriteCachesDirty       = cmdBuffer.m_gfxCmdBufState.flags.gfxWriteCachesDirty;
-    m_gfxCmdBufState.flags.csWriteCachesDirty        = cmdBuffer.m_gfxCmdBufState.flags.csWriteCachesDirty;
-    m_gfxCmdBufState.flags.cpWriteCachesDirty        = cmdBuffer.m_gfxCmdBufState.flags.cpWriteCachesDirty;
-    m_gfxCmdBufState.flags.cpMemoryWriteL2CacheStale = cmdBuffer.m_gfxCmdBufState.flags.cpMemoryWriteL2CacheStale;
+    m_pm4CmdBufState.flags.gfxBltActive              = cmdBuffer.m_pm4CmdBufState.flags.gfxBltActive;
+    m_pm4CmdBufState.flags.csBltActive               = cmdBuffer.m_pm4CmdBufState.flags.csBltActive;
+    m_pm4CmdBufState.flags.gfxWriteCachesDirty       = cmdBuffer.m_pm4CmdBufState.flags.gfxWriteCachesDirty;
+    m_pm4CmdBufState.flags.csWriteCachesDirty        = cmdBuffer.m_pm4CmdBufState.flags.csWriteCachesDirty;
+    m_pm4CmdBufState.flags.cpWriteCachesDirty        = cmdBuffer.m_pm4CmdBufState.flags.cpWriteCachesDirty;
+    m_pm4CmdBufState.flags.cpMemoryWriteL2CacheStale = cmdBuffer.m_pm4CmdBufState.flags.cpMemoryWriteL2CacheStale;
 
     // Invalidate PM4 optimizer state on post-execute since the current command buffer state does not reflect
     // state changes from the nested command buffer. We will need to resolve the nested PM4 state onto the
@@ -6065,7 +6069,7 @@ void UniversalCmdBuffer::CpCopyMemory(
     dmaDataInfo.srcSel      = supportsL2 ? CPDMA_SRC_SEL_SRC_ADDR_USING_L2 : CPDMA_SRC_SEL_SRC_ADDR;
     dmaDataInfo.sync        = false;
     dmaDataInfo.usePfp      = false;
-    dmaDataInfo.predicate   = static_cast<PM4Predicate>(GetGfxCmdBufState().flags.packetPredicate);
+    dmaDataInfo.predicate   = static_cast<PM4Predicate>(GetPm4CmdBufState().flags.packetPredicate);
     dmaDataInfo.dstAddr     = dstAddr;
     dmaDataInfo.srcAddr     = srcAddr;
     dmaDataInfo.numBytes    = static_cast<uint32>(numBytes);
@@ -6074,15 +6078,15 @@ void UniversalCmdBuffer::CpCopyMemory(
     pCmdSpace += m_cmdUtil.BuildDmaData(dmaDataInfo, pCmdSpace);
     m_deCmdStream.CommitCommands(pCmdSpace);
 
-    SetGfxCmdBufCpBltState(true);
+    SetPm4CmdBufCpBltState(true);
 
     if (supportsL2)
     {
-        SetGfxCmdBufCpBltWriteCacheState(true);
+        SetPm4CmdBufCpBltWriteCacheState(true);
     }
     else
     {
-        SetGfxCmdBufCpMemoryWriteL2CacheStaleState(true);
+        SetPm4CmdBufCpMemoryWriteL2CacheStaleState(true);
     }
 }
 

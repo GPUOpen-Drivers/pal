@@ -77,6 +77,9 @@ public:
     // Unregisters an existing function on an existing service within the server
     void UnregisterFunction(DDRpcServiceId serviceId, DDRpcFunctionId id);
 
+    // Determines if a service is registered.
+    DD_RESULT IsServiceRegistered(DDRpcServiceId id);
+
 private:
     // Shuts down all internal operations and threads so the object can be destroyed or used with a new protocol id
     void Cleanup();

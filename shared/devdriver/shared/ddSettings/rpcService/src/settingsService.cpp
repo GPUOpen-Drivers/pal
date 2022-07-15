@@ -23,10 +23,10 @@
  *
  **********************************************************************************************************************/
 
-#include "settingsService.h"
+#include "../inc/settingsService.h"
+#include "../../base/inc/ddSettingsTypes.h"
 #include <util/vector.h>
 #include <util/ddJsonWriter.h>
-#include "settingsTypes.h"
 
 using namespace DevDriver;
 

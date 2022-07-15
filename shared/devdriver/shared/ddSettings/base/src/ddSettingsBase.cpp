@@ -23,7 +23,7 @@
  *
  **********************************************************************************************************************/
 
-#include "settingsBase.h"
+#include "../inc/ddSettingsBase.h"
 #include <ddCommon.h>
 
 using namespace DevDriver;

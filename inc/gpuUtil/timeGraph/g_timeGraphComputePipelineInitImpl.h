@@ -54,13 +54,11 @@ Pal::Result CreateTimeGraphComputePipelines(
 
     switch (properties.revision)
     {
-#if PAL_BUILD_GFX6
     case Pal::AsicRevision::Polaris10:
     case Pal::AsicRevision::Polaris11:
     case Pal::AsicRevision::Polaris12:
         pTable = timeGraphComputeBinaryTablePolaris10;
         break;
-#endif
 
     case Pal::AsicRevision::Vega10:
     case Pal::AsicRevision::Raven:

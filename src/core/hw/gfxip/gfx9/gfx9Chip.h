@@ -29,17 +29,18 @@
 #include "palAssert.h"
 #include "palInlineFuncs.h"
 #include "palCmdBuffer.h"
+#include "palPipelineAbi.h"
 #include "palSparseVector.h"
 #include "palLiterals.h"
 
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_offset.h"
-#include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_default.h"
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_enum.h"
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_mask.h"
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_shift.h"
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_registers.h"
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_typedef.h"
+#include "core/hw/gfxip/pm4CmdBuffer.h"
 
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_f32_ce_pm4_packets.h"  // constant engine
 #include "core/hw/gfxip/gfx9/chip/gfx9_plus_merged_f32_mec_pm4_packets.h" // compute engine
@@ -177,6 +178,17 @@ enum HwShaderStage : uint32
     Last,
 };
 
+constexpr Util::Abi::HardwareStage PalToAbiHwShaderStage[] =
+{
+    Util::Abi::HardwareStage::Hs,
+    Util::Abi::HardwareStage::Gs,
+    Util::Abi::HardwareStage::Vs,
+    Util::Abi::HardwareStage::Ps,
+    Util::Abi::HardwareStage::Cs,
+};
+static_assert(Util::ArrayLen(PalToAbiHwShaderStage) == uint32(HwShaderStage::Last),
+              "Translation table is not sized properly!");
+
 // Number of user-data registers per shader stage on the chip. PAL reserves a number of these for internal use, making
 // them unusable from the client. The registers PAL reserves are:
 //
@@ -220,34 +232,9 @@ constexpr uint32 MaxPsInputSemantics = 32;
 // Number of VS export semantic registers.
 constexpr uint32 MaxVsExportSemantics = 32;
 
-// Mask of CP_ME_COHER_CNTL bits which stall based on all DB base addresses (depth and stencil).
-constexpr uint32 CpMeCoherCntlStallDbMask = CP_ME_COHER_CNTL__DB_DEST_BASE_ENA_MASK |
-                                            CP_ME_COHER_CNTL__DEST_BASE_0_ENA_MASK;
-// Mask of CP_ME_COHER_CNTL bits which stall based on all base addresses.
-constexpr uint32 CpMeCoherCntlStallMask = CP_ME_COHER_CNTL__CB0_DEST_BASE_ENA_MASK |
-                                          CP_ME_COHER_CNTL__CB1_DEST_BASE_ENA_MASK |
-                                          CP_ME_COHER_CNTL__CB2_DEST_BASE_ENA_MASK |
-                                          CP_ME_COHER_CNTL__CB3_DEST_BASE_ENA_MASK |
-                                          CP_ME_COHER_CNTL__CB4_DEST_BASE_ENA_MASK |
-                                          CP_ME_COHER_CNTL__CB5_DEST_BASE_ENA_MASK |
-                                          CP_ME_COHER_CNTL__CB6_DEST_BASE_ENA_MASK |
-                                          CP_ME_COHER_CNTL__CB7_DEST_BASE_ENA_MASK |
-                                          CP_ME_COHER_CNTL__DB_DEST_BASE_ENA_MASK  |
-                                          CP_ME_COHER_CNTL__DEST_BASE_0_ENA_MASK   |
-                                          CP_ME_COHER_CNTL__DEST_BASE_1_ENA_MASK   |
-                                          CP_ME_COHER_CNTL__DEST_BASE_2_ENA_MASK   |
-                                          CP_ME_COHER_CNTL__DEST_BASE_3_ENA_MASK;
-
 // Cacheline size.
 constexpr uint32 CacheLineBytes  = 128;
 constexpr uint32 CacheLineDwords = (CacheLineBytes / sizeof(uint32));
-
-// Base GPU virtual address for full-range surface sync.
-constexpr gpusize FullSyncBaseAddr = 0;
-
-// Size for full-range surface sync.  This is 64-bits wide, which is much more than the number of bits actually
-// available, but this value provides an easy way (+1 == 0) to determine that a full-sync is underway.
-constexpr gpusize FullSyncSize = 0xFFFFFFFFFFFFFFFF;
 
 // Number of Registers per CB slot.
 constexpr uint32 CbRegsPerSlot = (mmCB_COLOR1_BASE - mmCB_COLOR0_BASE);
@@ -257,8 +244,10 @@ constexpr uint32 NumSampleQuadRegs = 4;
 
 // Gfx9 interpretation of the LDS_SIZE register field: the granularity of the value in DWORDs and the amount of bits
 // to shift.
-constexpr uint32 Gfx9LdsDwGranularity      = 128;
-constexpr uint32 Gfx9LdsDwGranularityShift = 7;
+constexpr uint32 Gfx9LdsDwGranularity             = 128;
+constexpr uint32 Gfx9PsExtraLdsDwGranularity      = 256;
+constexpr uint32 Gfx9LdsDwGranularityShift        = 7;
+constexpr uint32 Gfx9PsExtraLdsDwGranularityShift = 8;
 
 // The WAVE_LIMIT register setting for graphics hardware stages is defined in units of this many waves per SH.
 constexpr uint32 Gfx9MaxWavesPerShGraphicsUnitSize = 16;
@@ -270,6 +259,14 @@ constexpr uint32 MaxGsThreadsPerSubgroup = 256;
 
 // The value of ONCHIP that is the field of register VGT_GS_MODE
 constexpr uint32 VgtGsModeOnchip = 3;
+
+enum class GsFastLaunchMode : uint32
+{
+    Disabled   = 0,
+    VertInLane = 1, // - Emulates threadgroups where each subgroup has 1 vert/prim and we use the primitive
+                    //   amplification factor to "grow" the subgroup up to the threadgroup sizes required by the
+                    //   shader.
+};
 
 // Memory alignment requirement in bytes for shader and immediate constant buffer memory.
 static constexpr gpusize PrimeUtcL2MemAlignment = 4096;
@@ -634,5 +631,75 @@ constexpr uint32 DynamicCsLaunchDescRegOffsets[] =
 constexpr uint32 DynamicCsLaunchDescRegCount = Util::ArrayLen32(DynamicCsLaunchDescRegOffsets);
 static_assert(DynamicCsLaunchDescRegCount == sizeof(DynamicCsLaunchDescLayout) / (2 * sizeof(uint32)),
               "Unexpected number of DynamicCsLaunchDesc registers!");
+
+// Abstract cache sync flags modeled after the hardware GCR flags.The "Glx" flags apply to the GL2, GL1, and L0 caches
+// which are accessable from both graphics and compute engines.
+enum SyncGlxFlags : uint8
+{
+    SyncGlxNone = 0x00,
+    // Global caches.
+    SyncGl2Inv  = 0x01, // Invalidate the GL2 cache.
+    SyncGl2Wb   = 0x02, // Flush the GL2 cache.
+    SyncGlmInv  = 0x04, // Invalidate the GL2 metadata cache.
+    SyncGl1Inv  = 0x08, // Invalidate the GL1 cache, ignored on gfx9.
+    // Shader L0 caches.
+    SyncGlvInv  = 0x10, // Invalidate the L0 vector cache.
+    SyncGlkInv  = 0x20, // Invalidate the L0 scalar cache.
+    SyncGlkWb   = 0x40, // Flush the L0 scalar cache.
+    SyncGliInv  = 0x80, // Invalidate the L0 instruction cache.
+
+    // A helper enum which combines a GL2 flush and invalidate. Note that an equivalent for glk was not implemented
+    // because it should be extremely rare for PAL to flush the glk and we don't want people to do it accidentally.
+    SyncGl2WbInv = SyncGl2Wb | SyncGl2Inv,
+
+    // Flush and invalidate all Glx caches.
+    SyncGlxWbInvAll = 0xFF,
+};
+
+// We want flag combinations to retain the SyncGlxFlags type so it's harder to confuse them with SyncRbFlags.
+// This is only really practical if we define some operator overloads to hide all of the casting.
+constexpr SyncGlxFlags operator|(SyncGlxFlags lhs, SyncGlxFlags rhs) { return SyncGlxFlags(uint8(lhs) | uint8(rhs)); }
+constexpr SyncGlxFlags operator&(SyncGlxFlags lhs, SyncGlxFlags rhs) { return SyncGlxFlags(uint8(lhs) & uint8(rhs)); }
+constexpr SyncGlxFlags operator~(SyncGlxFlags val) { return SyncGlxFlags(~uint8(val)); }
+
+constexpr SyncGlxFlags& operator|=(SyncGlxFlags& lhs, SyncGlxFlags rhs) { lhs = lhs | rhs;  return lhs; }
+constexpr SyncGlxFlags& operator&=(SyncGlxFlags& lhs, SyncGlxFlags rhs) { lhs = lhs & rhs;  return lhs; }
+
+// The same idea as the "Glx" flags but these describle the graphics render backend L0 caches.
+enum SyncRbFlags : uint8
+{
+    SyncRbNone      = 0x00,
+    SyncCbDataInv   = 0x01, // Invalidate the CB data cache (color data and DCC keys).
+    SyncCbDataWb    = 0x02, // Flush the CB data cache (color data and DCC keys).
+    SyncCbMetaInv   = 0x04, // Invalidate the CB metadata cache (CMask and FMask).
+    SyncCbMetaWb    = 0x08, // Flush the CB metadata cache (CMask and FMask).
+    SyncDbDataInv   = 0x10, // Invalidate the DB data cache (depth data and stencil data).
+    SyncDbDataWb    = 0x20, // Flush the DB data cache (depth data and stencil data).
+    SyncDbMetaInv   = 0x40, // Invalidate the DB metadata cache (HTile).
+    SyncDbMetaWb    = 0x80, // Flush the DB metadata cache (HTile).
+
+    // Some helper for the CB, DB, and both together (RB)
+    SyncCbDataWbInv = SyncCbDataWb    | SyncCbDataInv,
+    SyncCbMetaWbInv = SyncCbMetaWb    | SyncCbMetaInv,
+    SyncCbWbInv     = SyncCbDataWbInv | SyncCbMetaWbInv,
+
+    SyncDbDataWbInv = SyncDbDataWb    | SyncDbDataInv,
+    SyncDbMetaWbInv = SyncDbMetaWb    | SyncDbMetaInv,
+    SyncDbWbInv     = SyncDbDataWbInv | SyncDbMetaWbInv,
+
+    SyncRbInv       = SyncCbDataInv | SyncCbMetaInv | SyncDbDataInv | SyncDbMetaInv,
+    SyncRbWb        = SyncCbDataWb  | SyncCbMetaWb  | SyncDbDataWb  | SyncDbMetaWb,
+    SyncRbWbInv     = 0xFF
+};
+
+// We want flag combinations to retain the SyncRbFlags type so it's harder to confuse them with SyncGlxFlags.
+// This is only really practical if we define some operator overloads to hide all of the casting.
+constexpr SyncRbFlags operator|(SyncRbFlags lhs, SyncRbFlags rhs) { return SyncRbFlags(uint8(lhs) | uint8(rhs)); }
+constexpr SyncRbFlags operator&(SyncRbFlags lhs, SyncRbFlags rhs) { return SyncRbFlags(uint8(lhs) & uint8(rhs)); }
+constexpr SyncRbFlags operator~(SyncRbFlags val) { return SyncRbFlags(~uint8(val)); }
+
+constexpr SyncRbFlags& operator|=(SyncRbFlags& lhs, SyncRbFlags rhs) { lhs = lhs | rhs;  return lhs; }
+constexpr SyncRbFlags& operator&=(SyncRbFlags& lhs, SyncRbFlags rhs) { lhs = lhs & rhs;  return lhs; }
+
 } // Gfx9
 } // Pal

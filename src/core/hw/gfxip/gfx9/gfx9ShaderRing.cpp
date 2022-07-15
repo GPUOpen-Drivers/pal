@@ -653,8 +653,8 @@ PayloadDataRing::PayloadDataRing(
     bool       isTmz)
     :
     ShaderRing(pDevice, pSrdTable, isTmz, ShaderRingType::PayloadData),
-    m_maxNumEntries(m_pDevice->Settings().numTsMsDrawEntriesPerSe *
-                    pDevice->Parent()->ChipProperties().gfx9.numShaderEngines)
+    m_maxNumEntries(Pow2Pad(m_pDevice->Settings().numTsMsDrawEntriesPerSe *
+                            pDevice->Parent()->ChipProperties().gfx9.numShaderEngines))
 {
     const GpuChipProperties& chipProps   = m_pDevice->Parent()->ChipProperties();
     BufferSrd*const          pGenericSrd = &m_pSrdTable[static_cast<size_t>(ShaderRingSrd::PayloadDataRing)];
@@ -681,8 +681,8 @@ DrawDataRing::DrawDataRing(
     bool       isTmz)
     :
     ShaderRing(pDevice, pSrdTable, isTmz, ShaderRingType::DrawData),
-    m_maxNumEntries(m_pDevice->Settings().numTsMsDrawEntriesPerSe *
-                    pDevice->Parent()->ChipProperties().gfx9.numShaderEngines)
+    m_maxNumEntries(Pow2Pad(m_pDevice->Settings().numTsMsDrawEntriesPerSe *
+                            pDevice->Parent()->ChipProperties().gfx9.numShaderEngines))
 {
     const GpuChipProperties& chipProps   = m_pDevice->Parent()->ChipProperties();
     BufferSrd*const          pGenericSrd = &m_pSrdTable[static_cast<size_t>(ShaderRingSrd::DrawDataRing)];

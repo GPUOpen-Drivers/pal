@@ -391,17 +391,18 @@ Result Device::DetermineExternalSharedResourceType(
     return Result::Unsupported;
 }
 
-#if PAL_BUILD_GFX6
 // =====================================================================================================================
-// Helper method which initializes the GPU chip properties for all hardware families using the GFX6 hardware layer.
-void Device::InitGfx6ChipProperties()
+// Helper method which initializes the GPU chip properties for all hardware families using the GFX9 hardware layer.
+void Device::FillGfx6ChipProperties(
+    GpuChipProperties* pChipProps)
 {
-    auto*const  pChipInfo  = &m_chipProperties.gfx6;
+    auto*const  pChipInfo  = &pChipProps->gfx6;
 
-    // Call into the HWL to initialize the default values for many properties of the hardware (based on chip ID).
-    Gfx6::InitializeGpuChipProperties(UINT_MAX, &m_chipProperties);
+    const uint32     familyId = pChipProps->familyId;
+    const uint32     eRevId   = pChipProps->eRevId;
+    const GfxIpLevel gfxLevel = pChipProps->gfxLevel;
 
-    if (AMDGPU_IS_TAHITI(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    if (AMDGPU_IS_TAHITI(familyId, eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
         pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
@@ -419,7 +420,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->gsPrimBufferDepth       = 1792; // tahiti__GPU__VGT__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_PITCAIRN(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_PITCAIRN(familyId, eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
         pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
@@ -437,7 +438,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_CAPEVERDE(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_CAPEVERDE(familyId, eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
         pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
@@ -455,7 +456,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_OLAND(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_OLAND(familyId, eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
         pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
@@ -473,7 +474,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->gsPrimBufferDepth       =  768; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   16; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_HAINAN(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_HAINAN(familyId, eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
         pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
@@ -491,7 +492,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->gsPrimBufferDepth       =  768; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   16; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_SPECTRE(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_SPECTRE(familyId, eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
         pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
@@ -509,7 +510,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->gsPrimBufferDepth       =  768; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   16; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_SPOOKY(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_SPOOKY(familyId, eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
         pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
@@ -527,7 +528,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->gsPrimBufferDepth       =  768; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   16; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_HAWAII(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_HAWAII(familyId, eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
         pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
@@ -545,7 +546,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_GODAVARI(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_GODAVARI(familyId, eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
         pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
@@ -563,7 +564,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->gsPrimBufferDepth       =  256; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   16; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_KALINDI(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_KALINDI(familyId, eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
         pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
@@ -581,7 +582,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->gsPrimBufferDepth       =  256; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   16; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_BONAIRE(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_BONAIRE(familyId, eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
         pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
@@ -599,8 +600,8 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_CARRIZO(m_nullIdLookup.familyId, m_nullIdLookup.eRevId) ||
-             AMDGPU_IS_BRISTOL(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_CARRIZO(familyId, eRevId) ||
+             AMDGPU_IS_BRISTOL(familyId, eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
         pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
@@ -618,7 +619,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->gsPrimBufferDepth       =  768; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   16; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_ICELAND(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_ICELAND(familyId, eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
         pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
@@ -636,7 +637,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->gsPrimBufferDepth       =  768; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   16; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_TONGA(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_TONGA(familyId, eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
         pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
@@ -654,7 +655,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_FIJI(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_FIJI(familyId, eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
         pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
@@ -672,7 +673,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_POLARIS10(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_POLARIS10(familyId, eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
         pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
@@ -690,7 +691,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_POLARIS11(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_POLARIS11(familyId, eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
         pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
@@ -708,7 +709,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_POLARIS12(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_POLARIS12(familyId, eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
         pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
@@ -726,7 +727,7 @@ void Device::InitGfx6ChipProperties()
         pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_STONEY(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_STONEY(familyId, eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
         pChipInfo->mcArbRamcfg             = 0x00007001; // MC_ARB_RAMCFG_DEFAULT;
@@ -755,22 +756,22 @@ void Device::InitGfx6ChipProperties()
     pChipInfo->numActiveRbs            = pChipInfo->maxNumRbPerSe * pChipInfo->numShaderEngines;
     pChipInfo->gbTileMode[TILEINDEX_LINEAR_ALIGNED] = ADDR_TM_LINEAR_ALIGNED << 2;
 
-    if ((m_chipProperties.gfxLevel == GfxIpLevel::GfxIp8) || (m_chipProperties.gfxLevel == GfxIpLevel::GfxIp8_1))
+    if ((gfxLevel == GfxIpLevel::GfxIp8) || (gfxLevel == GfxIpLevel::GfxIp8_1))
     {
-        Gfx8InsertDummyTilingValues();
+        Gfx8InsertDummyTilingValues(pChipProps);
     }
 
-    PAL_ASSERT(m_chipProperties.gfxLevel >= GfxIpLevel::GfxIp6);
+    PAL_ASSERT(gfxLevel >= GfxIpLevel::GfxIp6);
     const uint32  activeCuMask = (1 << pChipInfo->numCuPerSh) - 1;
 
     // GFXIP 7+ hardware only has one shader array per shader engine!
-    PAL_ASSERT(m_chipProperties.gfxLevel < GfxIpLevel::GfxIp7 || pChipInfo->numShaderArrays == 1);
+    PAL_ASSERT(gfxLevel < GfxIpLevel::GfxIp7 || pChipInfo->numShaderArrays == 1);
 
     for (uint32 seIndex = 0; seIndex < pChipInfo->numShaderEngines; seIndex++)
     {
         for (uint32 shIndex = 0; shIndex < pChipInfo->numShaderArrays; shIndex++)
         {
-            if (m_chipProperties.gfxLevel == GfxIpLevel::GfxIp6)
+            if (gfxLevel == GfxIpLevel::GfxIp6)
             {
                 pChipInfo->activeCuMaskGfx6[seIndex][shIndex]   = activeCuMask;
                 pChipInfo->alwaysOnCuMaskGfx6[seIndex][shIndex] = activeCuMask;
@@ -782,6 +783,17 @@ void Device::InitGfx6ChipProperties()
             }
         }
     }
+}
+
+// =====================================================================================================================
+// Helper method which initializes the GPU chip properties for all hardware families using the GFX6 hardware layer.
+void Device::InitGfx6ChipProperties()
+{
+    // Call into the HWL to initialize the default values for many properties of the hardware (based on chip ID).
+    Gfx6::InitializeGpuChipProperties(UINT_MAX, &m_chipProperties);
+
+    // Fill in properties that would normally get pulled from the KMD
+    FillGfx6ChipProperties(&m_chipProperties);
 
     // Call into the HWL to finish initializing some GPU properties which can be derived from the ones which we
     // overrode above.
@@ -791,9 +803,10 @@ void Device::InitGfx6ChipProperties()
 // =====================================================================================================================
 // Clients expect a valid number of swizzle equations when querying the device properties during their init code.
 // It's a minor quality of life that doesn't impact correctness. Values are taken from a gfx8 GPU.
-void Device::Gfx8InsertDummyTilingValues()
+void Device::Gfx8InsertDummyTilingValues(
+    GpuChipProperties* pChipProps)
 {
-    auto* const  pChipInfo = &m_chipProperties.gfx6;
+    auto*const  pChipInfo  = &pChipProps->gfx6;
 
     uint32 constexpr Gfx8DummyTileModeValues[] = {
         0x00800150,
@@ -856,18 +869,17 @@ void Device::Gfx8InsertDummyTilingValues()
     memcpy(pChipInfo->gbTileMode, &Gfx8DummyTileModeValues, sizeof(Gfx8DummyTileModeValues));
     memcpy(pChipInfo->gbMacroTileMode, &Gfx8DummyMacroTileModeValues, sizeof(Gfx8DummyMacroTileModeValues));
 }
-#endif
 
 // =====================================================================================================================
 // Helper method which initializes the GPU chip properties for all hardware families using the GFX9 hardware layer.
-void Device::InitGfx9ChipProperties()
+void Device::FillGfx9ChipProperties(
+    GpuChipProperties* pChipProps)
 {
-    auto*const  pChipInfo  = &m_chipProperties.gfx9;
+    auto*const   pChipInfo = &pChipProps->gfx9;
+    const uint32 familyId  = pChipProps->familyId;
+    const uint32 eRevId    = pChipProps->eRevId;
 
-    // Call into the HWL to initialize the default values for many properties of the hardware (based on chip ID).
-    Gfx9::InitializeGpuChipProperties(GetPlatform(), UINT_MAX, &m_chipProperties);
-
-    if (AMDGPU_IS_VEGA10(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    if (AMDGPU_IS_VEGA10(familyId, eRevId))
     {
         // NOTE: KMD only gives us a flag indicating whether the Off-chip LDS buffers are "large" or not. The HWL will
         // need to determine the actual LDS buffer size based on this flag.
@@ -886,7 +898,7 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_VEGA12(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_VEGA12(familyId, eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
         pChipInfo->gbAddrConfig            = 0x26110001; // GB_ADDR_CONFIG_DEFAULT;
@@ -903,7 +915,7 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_VEGA20(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_VEGA20(familyId, eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
         pChipInfo->gbAddrConfig            = 0x2A110002; // GB_ADDR_CONFIG_DEFAULT;
@@ -920,7 +932,7 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_RAVEN(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_RAVEN(familyId, eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
         pChipInfo->gbAddrConfig            = 0x26010001; // GB_ADDR_CONFIG_DEFAULT;
@@ -937,7 +949,7 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_RAVEN2(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_RAVEN2(familyId, eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
         pChipInfo->gbAddrConfig            = 0x26010001; // GB_ADDR_CONFIG_DEFAULT;
@@ -954,7 +966,7 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_RENOIR(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_RENOIR(familyId, eRevId))
     {
         pChipInfo->doubleOffchipLdsBuffers = 1;
         pChipInfo->gbAddrConfig            = 0x26010001; // GB_ADDR_CONFIG_DEFAULT;
@@ -971,7 +983,7 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_NAVI10(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_NAVI10(familyId, eRevId))
     {
         pChipInfo->supportSpiPrefPriority  =    1;
         pChipInfo->doubleOffchipLdsBuffers =    1;
@@ -989,7 +1001,7 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_NAVI12(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_NAVI12(familyId, eRevId))
     {
         pChipInfo->supportSpiPrefPriority  =    1;
         pChipInfo->doubleOffchipLdsBuffers =    1;
@@ -1007,7 +1019,7 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_NAVI14(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_NAVI14(familyId, eRevId))
     {
         pChipInfo->supportSpiPrefPriority  =    1;
         pChipInfo->doubleOffchipLdsBuffers =    1;
@@ -1027,7 +1039,7 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->gsPrimBufferDepth       = 1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =   32; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_NAVI21(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_NAVI21(familyId, eRevId))
     {
         pChipInfo->supportSpiPrefPriority  =     1;
         pChipInfo->doubleOffchipLdsBuffers =     1;
@@ -1045,7 +1057,7 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->gsPrimBufferDepth       =  1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =    32; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_NAVI22(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_NAVI22(familyId, eRevId))
     {
         pChipInfo->supportSpiPrefPriority  =     1;
         pChipInfo->doubleOffchipLdsBuffers =     1;
@@ -1063,7 +1075,7 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->gsPrimBufferDepth       =  1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =    32; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_NAVI23(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_NAVI23(familyId, eRevId))
     {
         pChipInfo->supportSpiPrefPriority  =     1;
         pChipInfo->doubleOffchipLdsBuffers =     1;
@@ -1081,7 +1093,7 @@ void Device::InitGfx9ChipProperties()
         pChipInfo->gsPrimBufferDepth       =  1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =    32; // GPU__GC__NUM_MAX_GS_THDS;
     }
-    else if (AMDGPU_IS_NAVI24(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    else if (AMDGPU_IS_NAVI24(familyId, eRevId))
     {
         pChipInfo->supportSpiPrefPriority  =     1;
         pChipInfo->doubleOffchipLdsBuffers =     1;
@@ -1105,7 +1117,7 @@ void Device::InitGfx9ChipProperties()
         PAL_ASSERT_ALWAYS();
     }
 
-    if (IsGfx103PlusExclusive(m_chipProperties.gfxLevel))
+    if (IsGfx103PlusExclusive(pChipProps->gfxLevel))
     {
         pChipInfo->supportMeshTaskShader = pChipInfo->supportImplicitPrimitiveShader;
     }
@@ -1125,7 +1137,7 @@ void Device::InitGfx9ChipProperties()
         }
     }
 
-    if (AMDGPU_IS_NAVI(m_nullIdLookup.familyId, m_nullIdLookup.eRevId))
+    if (AMDGPU_IS_NAVI(familyId, eRevId))
     {
         PAL_ASSERT(pChipInfo->numCuPerSh <= 32);      // avoid overflow in activeWgpMask
         PAL_ASSERT((pChipInfo->numCuPerSh & 1) == 0); // CUs come in WGP pairs in gfx10
@@ -1139,6 +1151,18 @@ void Device::InitGfx9ChipProperties()
             }
         }
     }
+
+}
+
+// =====================================================================================================================
+// Helper method which initializes the GPU chip properties for all hardware families using the GFX9 hardware layer.
+void Device::InitGfx9ChipProperties()
+{
+    // Call into the HWL to initialize the default values for many properties of the hardware (based on chip ID).
+    Gfx9::InitializeGpuChipProperties(GetPlatform(), UINT_MAX, &m_chipProperties);
+
+    // Fill in properties that would normally get pulled from the KMD
+    FillGfx9ChipProperties(&m_chipProperties);
 
     // Call into the HWL to finish initializing some GPU properties which can be derived from the ones which we
     // overrode above.
@@ -1190,7 +1214,6 @@ Result Device::EarlyInit(
 
     switch (m_chipProperties.gfxLevel)
     {
-#if PAL_BUILD_GFX6
     case GfxIpLevel::GfxIp6:
     case GfxIpLevel::GfxIp7:
     case GfxIpLevel::GfxIp8:
@@ -1203,7 +1226,6 @@ Result Device::EarlyInit(
                                             m_chipProperties.eRevId,
                                             &m_engineProperties);
         break;
-#endif
     case GfxIpLevel::GfxIp10_1:
     case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_3:

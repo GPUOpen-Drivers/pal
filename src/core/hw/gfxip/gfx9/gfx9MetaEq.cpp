@@ -957,7 +957,7 @@ void MetaDataAddrEquation::Upload(
     if (pCmdBuffer->GetEngineType() != EngineTypeDma)
     {
         const auto*  pGfxDevice    = static_cast<const Device*>(pDevice->GetGfxDevice());
-        auto*        pGfxCmdBuffer = static_cast<GfxCmdBuffer*>(pCmdBuffer);
+        auto*        pGfxCmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
         auto*        pCmdStream    = pGfxCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::CpDma);
         auto*        pGfxCmdStream = static_cast<CmdStream*>(pCmdStream);
 
@@ -972,14 +972,7 @@ void MetaDataAddrEquation::Upload(
 
         // Dummy BarrierOperations used in Device::IssueSyncs()
         Developer::BarrierOperations barrierOps = {};
-
-        pGfxDevice->IssueSyncs(pGfxCmdBuffer,
-                               pGfxCmdStream,
-                               syncReqs,
-                               HwPipePoint::HwPipePreCs,
-                               FullSyncBaseAddr,
-                               FullSyncSize,
-                               &barrierOps);
+        pGfxDevice->IssueSyncs(pGfxCmdBuffer, pGfxCmdStream, syncReqs, HwPipePoint::HwPipePreCs, 0, 0, &barrierOps);
     }
     else
     {

@@ -153,6 +153,26 @@ enum class BinningOverride : uint32
     Count
 };
 
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 744)
+/// GPU behavior is controlled by LDS_GROUP_SIZE.
+enum class LdsPsGroupSizeOverride : uint32
+{
+    Default = 0X0,
+    SingleWave = 0X1,
+    DoubleWaves = 0X2
+};
+#endif
+
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 749)
+/// This enum controls binning on/off in cases where the PS can kill pixels.
+enum class DisableBinningPsKill : uint32
+{
+    Default = 0X0,
+    False = 0X1,
+    True = 0X2
+};
+#endif
+
 /// Enumerates the depth clamping modes a pipeline can use.
 enum class DepthClampMode : uint32
 {
@@ -384,6 +404,9 @@ struct GraphicsPipelineCreateInfo
                                                   ///  of the graphics pipeline
     MsaaCoverageOutDescriptor coverageOutDesc;    ///< Descriptor describes input parameters for MSAA coverage out.
     ViewportInfo              viewportInfo;       ///< Viewport info.
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 744)
+    LdsPsGroupSizeOverride ldsPsGroupSizeOverride; ///< Specifies whether to override ldsPsGroupSize setting for pipeline.
+#endif
 };
 
 /// The graphic pipeline view instancing information. This is used to determine if hardware accelerated stereo rendering

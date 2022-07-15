@@ -87,10 +87,13 @@ void AddrMgr1::BuildTileToken(
 
     switch (GetDevice()->ChipProperties().ossLevel)
     {
+#if PAL_BUILD_OSS2_4
     case OssIpLevel::OssIp2_4:
         token.bits.tileType    = pTileInfo->tileType;
         token.bits.elementSize = Util::Log2(pSubResInfo->bitsPerTexel >> 3);
         break;
+#endif
+    case OssIpLevel::None:
     default:
         PAL_NEVER_CALLED(); // Unsupported OssIp version!
         break;

@@ -98,6 +98,7 @@ public:
     regPA_SU_VTX_CNTL PaSuVtxCntl() const { return m_regs.context.paSuVtxCntl; }
     regSPI_PS_INPUT_ENA SpiPsInputEna() const { return m_chunkVsPs.SpiPsInputEna(); }
     regSPI_BARYC_CNTL SpiBarycCntl() const { return m_chunkVsPs.SpiBarycCntl(); }
+    regDB_SHADER_CONTROL DbShaderControl() const { return m_chunkVsPs.DbShaderControl(); }
 
     bool CanDrawPrimsOutOfOrder(const DepthStencilView*  pDsView,
                                 const DepthStencilState* pDepthStencilState,
@@ -121,7 +122,7 @@ public:
     regPA_CL_CLIP_CNTL PaClClipCntl() const { return m_regs.context.paClClipCntl; }
 
     bool   IsNgg() const { return (m_regs.context.vgtShaderStagesEn.bits.PRIMGEN_EN != 0); }
-    bool   IsNggFastLaunch() const { return m_isNggFastLaunch; }
+    GsFastLaunchMode FastLaunchMode() const { return m_fastLaunchMode; }
     uint32 NggSubgroupSize() const { return m_nggSubgroupSize; }
 
     bool UsesInnerCoverage() const { return m_chunkVsPs.UsesInnerCoverage(); }
@@ -155,12 +156,13 @@ public:
     uint32 GetVsUserDataBaseOffset() const;
 
     static uint32 CalcMaxLateAllocLimit(
-        const Device&          device,
-        const RegisterVector&  registers,
-        uint32                 numVgprs,
-        uint32                 numSgprs,
-        uint32                 scratchEn,
-        uint32                 targetLateAllocLimit);
+        const Device& device,
+        uint32        vsNumVgpr,
+        uint32        vsNumSgpr,
+        uint32        vsWaveSize,
+        bool          vsScratchEn,
+        bool          psScratchEn,
+        uint32        targetLateAllocLimit);
 
     bool IsRasterizationKilled() const { return (m_regs.context.paClClipCntl.bits.DX_RASTERIZATION_KILL != 0); }
 
@@ -181,13 +183,11 @@ protected:
 
     virtual const ShaderStageInfo* GetShaderStageInfo(ShaderType shaderType) const override;
     void EarlyInit(const Util::PalAbi::CodeObjectMetadata& metadata,
-                   const RegisterVector&                   registers,
                    GraphicsPipelineLoadInfo*               pInfo);
     void LateInit(
         const GraphicsPipelineCreateInfo&       createInfo,
         const AbiReader&                        abiReader,
         const Util::PalAbi::CodeObjectMetadata& metadata,
-        const RegisterVector&                   registers,
         const GraphicsPipelineLoadInfo&         loadInfo,
         PipelineUploader*                       pUploader);
 
@@ -222,21 +222,19 @@ private:
 
     void SetupSignatureFromElf(
         const Util::PalAbi::CodeObjectMetadata& metadata,
-        const RegisterVector&                   registers,
         uint16*                                 pEsGsLdsSizeRegGs,
         uint16*                                 pEsGsLdsSizeRegVs);
     void SetupSignatureForStageFromElf(
         const Util::PalAbi::CodeObjectMetadata& metadata,
-        const RegisterVector&                   registers,
         HwShaderStage                           stage,
         uint16*                                 pEsGsLdsSizeReg);
 
     void SetupCommonRegisters(
-        const GraphicsPipelineCreateInfo& createInfo,
-        const RegisterVector&             registers);
+        const GraphicsPipelineCreateInfo&       createInfo,
+        const Util::PalAbi::CodeObjectMetadata& metadata);
     void SetupNonShaderRegisters(
-        const GraphicsPipelineCreateInfo& createInfo,
-        const RegisterVector&             registers);
+        const GraphicsPipelineCreateInfo&       createInfo,
+        const Util::PalAbi::CodeObjectMetadata& metadata);
     void SetupStereoRegisters();
 
     void SetupFetchShaderInfo(const PipelineUploader* pUploader);
@@ -247,7 +245,7 @@ private:
         uint32     fetchShaderRegAddr) const;
 
     void SetupIaMultiVgtParam(
-        const RegisterVector& registers);
+        const Util::PalAbi::CodeObjectMetadata& metadata);
     void FixupIaMultiVgtParam(
         bool                   forceWdSwitchOnEop,
         regIA_MULTI_VGT_PARAM* pIaMultiVgtParam) const;
@@ -267,7 +265,7 @@ private:
     uint32            m_contextRegHash;
     uint32            m_rbplusRegHash;
     uint32            m_configRegHash;
-    bool              m_isNggFastLaunch; ///< Is NGG fast launch enabled?
+    GsFastLaunchMode  m_fastLaunchMode;
     uint32            m_nggSubgroupSize;
     bool              m_uavExportRequiresFlush; // If false, must flush after each draw when UAV export is enabled
     bool              m_binningAllowed;

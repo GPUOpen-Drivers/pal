@@ -198,7 +198,7 @@ void JsonWriter::FormattedValue(
 
     constexpr size_t BufferSize = 32;
     char             buffer[BufferSize];
-    const int        length = Snprintf(buffer, BufferSize, pFormat, value);
+    const int32      length = Snprintf(buffer, BufferSize, pFormat, value);
 
     PAL_ASSERT((length >= 0) && (length <= static_cast<int>(BufferSize)));
 

@@ -101,11 +101,9 @@ endfunction()
 function(pal_compile_definitions_gpu TARGET)
     if (PAL_BUILD_CORE AND PAL_BUILD_GFX)
         target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_GFX=1)
-
         if(PAL_BUILD_GFX6)
             pal_compile_definitions_gfx6(${TARGET})
         endif()
-
         if(PAL_BUILD_GFX9)
             pal_compile_definitions_gfx9(${TARGET})
         endif()
@@ -216,9 +214,11 @@ function(pal_compile_definitions TARGET)
     if (PAL_BUILD_OSS)
         target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_OSS=1)
 
+#if PAL_BUILD_OSS2_4
         if(PAL_BUILD_OSS2_4)
             target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_OSS2_4=1)
         endif()
+#endif
 
         if(PAL_BUILD_OSS4)
             target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_OSS4=1)

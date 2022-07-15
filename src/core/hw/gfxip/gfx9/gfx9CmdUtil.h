@@ -41,158 +41,88 @@ namespace Gfx9
 
 class Device;
 
-// The ACQUIRE_MEM and RELEASE_MEM packets can issue one "TC cache op" in addition to their other operations. This
-// behavior is controlled by CP_COHER_CNTL but only certain bit combinations are legal. To be clear what the HW can do
-// and avoid illegal combinations we abstract those bit combinations using this enum.
-enum class TcCacheOp : uint32
+// Describes the core acquire_mem functionality common to ACE and GFX engines.
+struct AcquireMemCore
 {
-    Nop = 0,   // Do nothing.
-    WbInvL1L2, // Flush and invalidate all TCP and TCC data.
-    WbInvL2Nc, // Flush and invalidate all TCC data that used the non-coherent MTYPE.
-    WbL2Nc,    // Flush all TCC data that used the non-coherent MTYPE.
-    WbL2Wc,    // Flush all TCC data that used the write-combined MTYPE.
-    InvL2Nc,   // Invalidate all TCC data that used the non-coherent MTYPE.
-    InvL2Md,   // Invalidate the TCC's read-only metadata cache.
-    InvL1,     // Invalidate all TCP data.
-    InvL1Vol,  // Invalidate all volatile TCP data.
-    Count
+    SyncGlxFlags cacheSync; // Multiple acquire_mems may be issued on gfx9 to handle some cache combinations.
+
+    // Acquires can apply to the full GPU address space or to a particular range. If these values are both zero
+    // this is a full address space acquire. If both are non-zero then it's a ranged acquire. Depending on your
+    // perspective, a full range acquire may be thought of as a rangeless acquire. Defining it this way means that
+    // doing a "= {}" on the AcquireMem structs will give a full range acquire by default.
+    gpusize      rangeBase; // The start of this acquire's address range or zero for a full range acquire.
+    gpusize      rangeSize; // The length of the address range in bytes or zero for a full range acquire.
 };
 
-// GCR_CNTL bit fields for ACQUIRE_MEM and RELEASE_MEM are slightly different.
-union Gfx10AcquireMemGcrCntl
+// In practice, we also need to know your runtime engine type to implement a generic acquire_mem. This isn't an
+// abstract requirement of acquire_mem so it's not in AcquireMemCore.
+struct AcquireMemGeneric : AcquireMemCore
 {
-    struct
-    {
-        uint32  gliInv     :  2;
-        uint32  gl1Range   :  2;
-        uint32  glmWb      :  1;
-        uint32  glmInv     :  1;
-        uint32  glkWb      :  1;
-        uint32  glkInv     :  1;
-        uint32  glvInv     :  1;
-        uint32  gl1Inv     :  1;
-        uint32  gl2Us      :  1;
-        uint32  gl2Range   :  2;
-        uint32  gl2Discard :  1;
-        uint32  gl2Inv     :  1;
-        uint32  gl2Wb      :  1;
-        uint32  seq        :  2;
-        uint32             : 14;
-    } bits;
-
-    uint32  u32All;
-};
-
-union Gfx10ReleaseMemGcrCntl
-{
-    struct
-    {
-        uint32  glmWb      :  1;
-        uint32  glmInv     :  1;
-        uint32  glvInv     :  1;
-        uint32  gl1Inv     :  1;
-        uint32  gl2Us      :  1;
-        uint32  gl2Range   :  2;
-        uint32  gl2Discard :  1;
-        uint32  gl2Inv     :  1;
-        uint32  gl2Wb      :  1;
-        uint32  seq        :  2;
-        uint32  reserved1  :  1;
-        uint32             : 18;
-        uint32  reserved2  :  1;
-    } bits;
-
-    uint32  u32All;
-};
-
-// This table was taken from the ACQUIRE_MEM packet spec.
-static constexpr uint32 Gfx9TcCacheOpConversionTable[] =
-{
-    0,                                                                                                         // Nop
-    Gfx09_10::CP_COHER_CNTL__TC_WB_ACTION_ENA_MASK | Gfx09_10::CP_COHER_CNTL__TC_ACTION_ENA_MASK,              // WbInvL1L2
-    Gfx09_10::CP_COHER_CNTL__TC_WB_ACTION_ENA_MASK | Gfx09_10::CP_COHER_CNTL__TC_ACTION_ENA_MASK
-                                                   | Gfx09_10::CP_COHER_CNTL__TC_NC_ACTION_ENA_MASK,           // WbInvL2Nc
-    Gfx09_10::CP_COHER_CNTL__TC_WB_ACTION_ENA_MASK | Gfx09_10::CP_COHER_CNTL__TC_NC_ACTION_ENA_MASK,           // WbL2Nc
-    Gfx09_10::CP_COHER_CNTL__TC_WB_ACTION_ENA_MASK | Gfx09_10::CP_COHER_CNTL__TC_WC_ACTION_ENA_MASK,           // WbL2Wc
-    Gfx09_10::CP_COHER_CNTL__TC_ACTION_ENA_MASK    | Gfx09_10::CP_COHER_CNTL__TC_NC_ACTION_ENA_MASK,           // InvL2Nc
-    Gfx09_10::CP_COHER_CNTL__TC_ACTION_ENA_MASK    | Gfx09_10::CP_COHER_CNTL__TC_INV_METADATA_ACTION_ENA_MASK, // InvL2Md
-    Gfx09_10::CP_COHER_CNTL__TCL1_ACTION_ENA_MASK,                                                             // InvL1
-    Gfx09_10::CP_COHER_CNTL__TCL1_ACTION_ENA_MASK  | Gfx09_10::CP_COHER_CNTL__TCL1_VOL_ACTION_ENA_MASK,        // InvL1Vol
-};
-
-// In addition to the a TC cache op, ACQUIRE_MEM can flush or invalidate additional caches independently. It is easiest
-// to capture all of this information if we use an input structure for BuildAcquireMem.
-struct AcquireMemInfo
-{
-    union
-    {
-        struct
-        {
-            uint32 usePfp      :  1; // If true the PFP will process this packet. Only valid on the universal engine.
-            uint32 invSqI$     :  1; // Invalidate the SQ instruction caches.
-            uint32 invSqK$     :  1; // Invalidate the SQ scalar caches.
-            uint32 flushSqK$   :  1; // Flush the SQ scalar caches.
-            uint32 wbInvCbData :  1; // Flush and invalidate the CB data cache. Only valid on the universal engine.
-            uint32 wbInvDb     :  1; // Flush and invalidate the DB data and metadata caches. Only valid on universal.
-            uint32 reserved    : 26;
-        };
-        uint32 u32All;
-    } flags;
-
-    EngineType          engineType;
-    regCP_ME_COHER_CNTL cpMeCoherCntl; // All "dest base" bits to wait on. Only valid on the universal engine.
-    TcCacheOp           tcCacheOp;     // An optional, additional cache operation to issue.
-
-    // These define the address range being acquired. Use FullSyncBaseAddr and FullSyncSize for a global acquire.
-    gpusize             baseAddress;
-    gpusize             sizeBytes;
-};
-
-// Explicit version of AcquireMemInfo struct.
-struct ExplicitAcquireMemInfo
-{
-    union
-    {
-        struct
-        {
-            uint32 usePfp           :  1; // If true the PFP will process this packet. Only valid on the universal engine.
-            uint32 reservedFutureHw :  1; // Placeholder
-            uint32 reserved         : 30;
-        };
-        uint32 u32All;
-    } flags;
-
     EngineType engineType;
-    uint32     coherCntl;
-    uint32     gcrCntl;
-
-    // These define the address range being acquired. Use FullSyncBaseAddr and FullSyncSize for a global acquire.
-    gpusize    baseAddress;
-    gpusize    sizeBytes;
 };
 
-// To easily see the the differences between ReleaseMem and AcquireMem, we want to use an input structure
-// for BuildAcquireMem.
-struct ReleaseMemInfo
+// A collection of flags for AcquireMemGfxSurfSync and the internal implementation functions. The "target stall" flags
+// tell the CP to compare active render target contexts against the AcquireMemCore GPU memory range. The RB cache
+// flush and invalidate flags trigger after the target stalls. The Glx cache syncs trigger after the RB cache syncs.
+union SurfSyncFlags
 {
-    EngineType     engineType;
-    VGT_EVENT_TYPE vgtEvent;
-    TcCacheOp      tcCacheOp;  // The cache operation to issue.
-    gpusize        dstAddr;
-    uint32         dataSel;    // One of the data_sel_*_release_mem enumerations
-    uint64         data;       // data to write, ignored except for DATA_SEL_SEND_DATA{32,64}
+    uint8 u8All;
+
+    struct
+    {
+        uint8 pfpWait              : 1; // Execute the acquire_mem at the PFP instead of the ME.
+        uint8 cbTargetStall        : 1; // Do a range-checked stall on the active color targets.
+        uint8 dbTargetStall        : 1; // Do a range-checked stall on the active depth and stencil targets.
+        uint8 gfx9Gfx10CbDataWbInv : 1; // Flush and invalidate the CB data cache. Only supported on gfx9-10.
+        uint8 gfx9Gfx10DbWbInv     : 1; // Flush and invalidate all DB caches. Only supported on gfx9-10.
+        uint8 reserved             : 3;
+    };
 };
 
-// Explicit version of ReleaseMemInfo struct.
-struct ExplicitReleaseMemInfo
+// If we know we're building an acquire_mem for a graphics engine we can expose extra features.
+// This version programs the CP's legacy "surf sync" functionality to wait on gfx contexts and flush/inv caches.
+struct AcquireMemGfxSurfSync : AcquireMemCore
 {
-    EngineType       engineType;
-    VGT_EVENT_TYPE   vgtEvent;
-    uint32           coherCntl;
-    uint32           gcrCntl;
-    gpusize          dstAddr;
-    uint32           dataSel;    // One of the data_sel_*_release_mem enumerations
-    uint64           data;       // data to write, ignored except for DATA_SEL_SEND_DATA{32,64}
+    SurfSyncFlags flags;
+};
+
+// Modeled after the GCR bits. Multiple release_mems may be issued on gfx9 to handle some cache combinations.
+// Caches can only be synced by EOP release_mems.
+union ReleaseMemCaches
+{
+    uint8 u8All;
+
+    struct
+    {
+        uint8 gl2Inv      : 1; // Invalidate the GL2 cache.
+        uint8 gl2Wb       : 1; // Flush the GL2 cache.
+        uint8 glmInv      : 1; // Invalidate the GL2 metadata cache.
+        uint8 gl1Inv      : 1; // Invalidate the GL1 cache, ignored on gfx9.
+        uint8 glvInv      : 1; // Invalidate the L0 vector cache.
+        uint8 reserved    : 3;
+    };
+};
+
+// Describes the core release_mem functionality common to ACE and GFX engines.
+struct ReleaseMemCore
+{
+    ReleaseMemCaches cacheSync; // Caches can only be synced by EOP release_mems.
+    uint32           dataSel;   // One of the {ME,MEC}_RELEASE_MEM_data_sel_enum values.
+    gpusize          dstAddr;   // The the selected data here, must be aligned to the data byte size.
+    uint64           data;      // data to write, ignored except for *_send_32_bit_low or *_send_64_bit_data.
+};
+
+// In practice, we also need to know your runtime engine type to implement a generic release_mem. This isn't an
+// abstract requirement of release_mem so it's not in ReleaseMemCore.
+struct ReleaseMemGeneric : ReleaseMemCore
+{
+    EngineType engineType;
+};
+
+// If we know we're building a release_mem for a graphics engine we can expose extra features.
+struct ReleaseMemGfx : ReleaseMemCore
+{
+    VGT_EVENT_TYPE vgtEvent; // Use this event. It must be an EOP TS event or an EOS event.
 };
 
 // The "official" "event-write" packet definition (see:  PM4_MEC_EVENT_WRITE) contains "extra" dwords that aren't
@@ -211,7 +141,7 @@ struct PM4_ME_NON_SAMPLE_EVENT_WRITE
 //   2. The caller is operating under "CoherCopy/HwPipePostBlt" semantics and a CmdBarrier call will be issued. This
 //      case is commonly referred to as a "CP Blt".
 //
-// In case #2, the caller must update the GfxCmdBufferState by calling the relevant SetGfxCmdBuf* functions.
+// In case #2, the caller must update the Pm4CmdBufferState by calling the relevant SetGfxCmdBuf* functions.
 // Furthermore, the caller must not set "disWc" because write-confirms are necessary for the barrier to guarantee
 // that the CP DMA writes have made it to their destination (memory, L2, etc.).
 struct DmaDataInfo
@@ -385,20 +315,19 @@ public:
     static bool CanUseCopyDataRegOffset(uint32 regOffset) { return (((~MaxCopyDataRegOffset) & regOffset) == 0); }
 
     bool CanUseCsPartialFlush(EngineType engineType) const;
+    bool CanUseAcquireMem(SyncRbFlags rbSync) const;
 
-    bool CanUseAcquireMem(uint32 cacheSyncFlags) const;
+    // Helper functions for building ReleaseMem info structs.
+    VGT_EVENT_TYPE SelectEopEvent(SyncRbFlags rbSync) const;
+    ReleaseMemCaches SelectReleaseMemCaches(SyncGlxFlags* pGlxSync) const;
 
     // If we have support for the indirect_addr index and compute engines.
     bool HasEnhancedLoadShRegIndex() const;
 
     static uint16 ShRegOffset(uint16 regAddr) { return (regAddr == 0) ? 0 : (regAddr - PERSISTENT_SPACE_START); }
 
-    size_t BuildAcquireMem(
-        const AcquireMemInfo& acquireMemInfo,
-        void*                 pBuffer) const;
-    size_t ExplicitBuildAcquireMem(
-        const ExplicitAcquireMemInfo& acquireMemInfo,
-        void*                         pBuffer) const;
+    size_t BuildAcquireMemGeneric(const AcquireMemGeneric& info, void* pBuffer) const;
+    size_t BuildAcquireMemGfxSurfSync(const AcquireMemGfxSurfSync& info, void* pBuffer) const;
     static size_t BuildAtomicMem(
         AtomicOp atomicOp,
         gpusize  dstMemAddr,
@@ -594,11 +523,12 @@ public:
         gpusize                                  gpuAddr,
         void*                                    pBuffer) const;
     size_t BuildExecutionMarker(
-        gpusize markerAddr,
-        uint32  markerVal,
-        uint64  clientHandle,
-        uint32  markerType,
-        void*   pBuffer) const;
+        EngineType engineType,
+        gpusize    markerAddr,
+        uint32     markerVal,
+        uint64     clientHandle,
+        uint32     markerType,
+        void*      pBuffer) const;
     static size_t BuildIncrementCeCounter(void* pBuffer);
     static size_t BuildIncrementDeCounter(void* pBuffer);
     static size_t BuildIndexAttributesIndirect(gpusize baseAddr, uint16 index, bool hasIndirectAddress, void* pBuffer);
@@ -696,16 +626,8 @@ public:
         uint32  engineSel,
         size_t  requestedPages,
         void*   pBuffer);
-    size_t BuildReleaseMem(
-        const ReleaseMemInfo& releaseMemInfo,
-        void*                 pBuffer,
-        uint32                gdsAddr = 0,
-        uint32                gdsSize = 0) const;
-    size_t ExplicitBuildReleaseMem(
-        const ExplicitReleaseMemInfo& releaseMemInfo,
-        void*                         pBuffer,
-        uint32                        gdsAddr = 0,
-        uint32                        gdsSize = 0) const;
+    size_t BuildReleaseMemGeneric(const ReleaseMemGeneric& info, void* pBuffer) const;
+    size_t BuildReleaseMemGfx(const ReleaseMemGfx& info, void* pBuffer) const;
     size_t BuildRewind(
         bool  offloadEnable,
         bool  valid,
@@ -778,12 +700,6 @@ public:
     static size_t BuildWaitDmaData(void* pBuffer);
     static size_t BuildWaitOnCeCounter(bool invalidateKcache, void* pBuffer);
     static size_t BuildWaitOnDeCounterDiff(uint32 counterDiff, void* pBuffer);
-    size_t BuildWaitOnReleaseMemEventTs(
-        EngineType     engineType,
-        VGT_EVENT_TYPE vgtEvent,
-        TcCacheOp      tcCacheOp,
-        gpusize        gpuAddr,
-        void*          pBuffer) const;
     static size_t BuildWaitRegMem(
         EngineType engineType,
         uint32     memSpace,
@@ -838,13 +754,30 @@ public:
     const RegisterInfo& GetRegInfo() const { return m_registerInfo; }
 
 private:
+    size_t BuildAcquireMemInternalGfx9(
+        const AcquireMemCore& info,
+        EngineType            engineType,
+        SurfSyncFlags         surfSyncFlags,
+        void*                 pBuffer) const;
+    size_t BuildAcquireMemInternalGfx10(
+        const AcquireMemCore& info,
+        EngineType            engineType,
+        SurfSyncFlags         surfSyncFlags,
+        void*                 pBuffer) const;
+    size_t BuildReleaseMemInternalGfx9(
+        const ReleaseMemCore& info,
+        EngineType            engineType,
+        VGT_EVENT_TYPE        vgtEvent,
+        void*                 pBuffer) const;
+    size_t BuildReleaseMemInternalGfx10(
+        const ReleaseMemCore& info,
+        VGT_EVENT_TYPE        vgtEvent,
+        void*                 pBuffer) const;
+
     static size_t BuildWriteDataInternal(
         const WriteDataInfo& info,
         size_t               dwordsToWrite,
         void*                pBuffer);
-
-    uint32 Gfx10CalcAcquireMemGcrCntl(const AcquireMemInfo&  acquireMemInfo) const;
-    uint32 Gfx10CalcReleaseMemGcrCntl(const ReleaseMemInfo&  releaseMemInfo) const;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     void CheckShadowedContextReg(uint32 regAddr) const;

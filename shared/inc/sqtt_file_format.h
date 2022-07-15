@@ -114,7 +114,7 @@ typedef enum SqttFileChunkType
 /// Lookup table providing the major version and minor version numbers for the RGP chunks within this header.
 static constexpr RgpChunkVersionNumbers RgpChunkVersionNumberLookup[] =
 {
-    {0, 4}, // SQTT_FILE_CHUNK_TYPE_ASIC_INFO,
+    {0, 5}, // SQTT_FILE_CHUNK_TYPE_ASIC_INFO,
     {0, 2}, // SQTT_FILE_CHUNK_TYPE_SQTT_DESC,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_SQTT_DATA,
     {0, 1}, // SQTT_FILE_CHUNK_TYPE_API_INFO,
@@ -124,7 +124,7 @@ static constexpr RgpChunkVersionNumbers RgpChunkVersionNumberLookup[] =
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_CPU_INFO,
     {2, 0}, // SQTT_FILE_CHUNK_TYPE_SPM_DB,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_DATABASE,
-    {1, 0}, // SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_LOADER_EVENTS
+    {1, 1}, // SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_LOADER_EVENTS
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_PSO_CORRELATION
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_INSTRUMENTATION_TABLE
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_DF_SPM_DB,
@@ -229,9 +229,10 @@ typedef enum SqttMemoryType
     SQTT_MEMORY_TYPE_LPDDR5  = 0x31,
 } SqttMemoryType;
 
-const uint32_t SQTT_GPU_NAME_MAX_SIZE = 256;
-const uint32_t SQTT_MAX_NUM_SE        = 32;
-const uint32_t SQTT_SA_PER_SE         = 2;
+const uint32_t SQTT_GPU_NAME_MAX_SIZE               = 256;
+const uint32_t SQTT_MAX_NUM_SE                      = 32;
+const uint32_t SQTT_SA_PER_SE                       = 2;
+const uint32_t SQTT_ACTIVE_PIXEL_PACKER_MASK_DWORDS = 4;
 
 /** A structure encapsulating information about the ASIC on which the trace was performed.
  */
@@ -282,11 +283,21 @@ typedef struct SqttFileChunkAsicInfo
     uint16_t            cuMask[SQTT_MAX_NUM_SE][SQTT_SA_PER_SE];
                                                          /*!< Mask of present, non-harvested CUs (physical layout) */
     char                reserved1[128];                  /*!< Reserved for future changes to CU mask */
+    uint32_t            activePixelPackerMask[SQTT_ACTIVE_PIXEL_PACKER_MASK_DWORDS];
+                                                         /*!< Mask of live pixel packers. Max 32 SEs and 4 packers/SE */
+    char                reserved2[16];                   /*!< Reserved for future changes to pixel packer mask */
+    uint32_t            gl1CacheSize;                    /*!< Total size of GL1 cache per shader array in bytes */
+    uint32_t            instructionCacheSize;            /*!< Total size of instruction cache per CU/WGP in bytes */
+    uint32_t            scalarCacheSize;                 /*!< Total size of scalar cache per CU/WGP in bytes */
+    uint32_t            mallCacheSize;                   /*!< Total size of MALL cache in bytes */
 } SqttFileChunkAsicInfo;
 
 static_assert(sizeof(SqttFileChunkAsicInfo::cuMask)    == 1024 / 8, "cuMask doesn't match RGP Spec");
 static_assert(sizeof(SqttFileChunkAsicInfo::cuMask[0]) == 32   / 8, "cuMask SE size doesn't match RGP Spec");
 static_assert(sizeof(SqttFileChunkAsicInfo::reserved1) == 1024 / 8, "reserved1 doesn't match RGP Spec");
+static_assert(sizeof(SqttFileChunkAsicInfo::activePixelPackerMask) == 128 / 8,
+                                                                    "activePixelPackerMask doens't match RGP Spec");
+static_assert(sizeof(SqttFileChunkAsicInfo::reserved2) == 128  / 8, "reserved2 doesn't match RGP Spec");
 
 /** An enumeration of the SQTT profiling mode.
 */

@@ -72,6 +72,11 @@ void ddRpcServerUnregisterFunction(
 DDClientId ddRpcServerQueryClientId(
     DDRpcServer hServer); /// [in] Handle to an existing RPC server
 
+/// Returns DD_RESULT_SUCCESS if the service is registered
+DD_RESULT ddRpcServerIsServiceRegistered(
+    DDRpcServer    hServer,    /// [in] Handle to an existing RPC server
+    DDRpcServiceId serviceId); /// [in] Service identifier
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

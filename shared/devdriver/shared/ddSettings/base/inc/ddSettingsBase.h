@@ -25,14 +25,14 @@
 
 #pragma once
 
+#include "../inc/ddSettingsTypes.h"
+#include "../inc/ddSettingsConfig.h"
+#include <settingsService.h>
 #include <stdint.h>
 #include <ddApi.h>
 #include <ddDefs.h>
-#include <settingsService.h>
 #include <util/hashMap.h>
 #include <protocols/ddSettingsServiceTypes.h>
-#include "settingsConfig.h"
-#include "settingsTypes.h"
 
 namespace DevDriver
 {
@@ -50,8 +50,20 @@ class SettingsBase
 {
     using SettingValue = SettingsURIService::SettingValue;
 
+// ============================================================================
+// Member variables
+private:
+    SettingsData* m_pSettingsData;
+    MetroHash::Hash m_settingsHash;
+    SettingsConfig m_useroverrides;
+protected:
+    HashMap<uint32_t, SettingsValueRef> m_settingValueRefsMap;
+
 public:
-    SettingsBase(SettingsData* pSettings, uint32 numSettings, size_t settingsBytes)
+    SettingsBase(
+        SettingsData* pSettings,
+        uint32 numSettings,
+        size_t settingsBytes)
         : m_pSettingsData(pSettings)
         , m_settingValueRefsMap(DevDriver::Platform::GenericAllocCb)
     {
@@ -64,7 +76,9 @@ public:
 
     virtual ~SettingsBase() {}
 
-    virtual DD_RESULT Init(const char* pUserOverridesFilePath) = 0;
+    virtual DD_RESULT Init(
+        const char* pUserOverridesFilePath,
+        SettingsRpcService::SettingsService* pRpcService) = 0;
 
     MetroHash::Hash GetSettingsHash() const { return m_settingsHash; }
 
@@ -113,18 +127,15 @@ protected:
     DD_RESULT ApplyUserOverridesByComponent(const char* pComponentName);
 
     // auto-generated functions
+    virtual const char* GetComponentName() { return nullptr; }
     virtual void InitSettingsInfo() = 0;
     virtual void SetupDefaults() = 0;
-    virtual void DevDriverRegister(SettingsRpcService::SettingsService* pSettingsService) = 0;
 
-// ============================================================================
-// Member variables
-private:
-    SettingsData* m_pSettingsData;
-    MetroHash::Hash m_settingsHash;
-    SettingsConfig m_useroverrides;
-protected:
-    HashMap<uint32_t, SettingsValueRef> m_settingValueRefsMap;
+    /// @deprecated, please use `SettingsRpcRegisterComponent`
+    virtual void DevDriverRegister(SettingsRpcService::SettingsService* pRpcService)
+    {
+        DD_UNUSED(pRpcService);
+    };
 
 private:
     DD_DISALLOW_COPY_AND_ASSIGN(SettingsBase);

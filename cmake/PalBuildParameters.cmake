@@ -55,7 +55,9 @@ endif()
 
 # Build PAL with Operating System support
 pal_bp(PAL_BUILD_OSS    ON)
+#if PAL_BUILD_OSS2_4
 pal_bp(PAL_BUILD_OSS2_4 ON DEPENDS_ON ${PAL_BUILD_OSS})
+#endif
 pal_bp(PAL_BUILD_OSS4   ON DEPENDS_ON ${PAL_BUILD_OSS})
 
 # Clients must define this variable so pal know what API it's facilitating

@@ -324,6 +324,8 @@ private:
     bool    m_isReserved;       // Used to validate that reserve and commit are always called in pairs.
 #endif
 
+    CmdAllocType m_cmdDataAllocType;
+
     PAL_DISALLOW_DEFAULT_CTOR(CmdStream);
     PAL_DISALLOW_COPY_AND_ASSIGN(CmdStream);
 };

@@ -76,7 +76,7 @@ static uint32 FindConsecutiveOps(
 //
 // pSyncReqs will be updated to reflect synchronization that must be performed after the BLT.
 void Device::TransitionDepthStencil(
-    GfxCmdBuffer*                 pCmdBuf,
+    Pm4CmdBuffer*                 pCmdBuf,
     const BarrierInfo&            barrier,
     uint32                        transitionId,
     bool                          earlyPhase,
@@ -174,7 +174,7 @@ void Device::TransitionDepthStencil(
 // a mip level, the bit location marked by DepthStencilBlt will be set.  The return value is a bool, indicating whether
 // we'll need to flush DB/TC caches.
 bool Device::GetDepthStencilBltPerSubres(
-    GfxCmdBuffer*            pCmdBuf,
+    Pm4CmdBuffer*            pCmdBuf,
     uint32*                  pBlt,
     const BarrierTransition& transition,
     bool                     earlyPhase
@@ -238,7 +238,7 @@ bool Device::GetDepthStencilBltPerSubres(
 
 // =====================================================================================================================
 void Device::DepthStencilExpand(
-    GfxCmdBuffer*                 pCmdBuf,
+    Pm4CmdBuffer*                 pCmdBuf,
     const BarrierTransition&      transition,
     const Image&                  gfx6Image,
     const SubresRange&            subresRange,
@@ -257,7 +257,7 @@ void Device::DepthStencilExpand(
 
 // =====================================================================================================================
 void Device::DepthStencilExpandHiZRange(
-    GfxCmdBuffer*                 pCmdBuf,
+    Pm4CmdBuffer*                 pCmdBuf,
     const BarrierTransition&      transition,
     const Image&                  gfx6Image,
     const SubresRange&            subresRange,
@@ -280,7 +280,7 @@ void Device::DepthStencilExpandHiZRange(
 
 // =====================================================================================================================
 void Device::DepthStencilResummarize(
-    GfxCmdBuffer*                 pCmdBuf,
+    Pm4CmdBuffer*                 pCmdBuf,
     const BarrierTransition&      transition,
     const Image&                  gfx6Image,
     const SubresRange&            subresRange,
@@ -310,7 +310,7 @@ void Device::DepthStencilResummarize(
 //
 // pSyncReqs will be updated to reflect synchronization that must be performed after the BLT.
 void Device::ExpandColor(
-    GfxCmdBuffer*                 pCmdBuf,
+    Pm4CmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     const BarrierInfo&            barrier,
     uint32                        transitionId,
@@ -344,14 +344,7 @@ void Device::ExpandColor(
         {
             pCmdSpace += m_cmdUtil.BuildEventWrite(CACHE_FLUSH_AND_INV_EVENT, pCmdSpace);
 
-            pOperations->caches.flushCb = 1;
-            pOperations->caches.invalCb = 1;
-            pOperations->caches.flushDb = 1;
-            pOperations->caches.invalDb = 1;
-            pOperations->caches.flushCbMetadata = 1;
-            pOperations->caches.invalCbMetadata = 1;
-            pOperations->caches.flushDbMetadata = 1;
-            pOperations->caches.invalDbMetadata = 1;
+            Pm4CmdBuffer::SetBarrierOperationsRbCacheSynced(pOperations);
         }
     }
     else if (TestAnyFlagSet(allBltOperations, ColorBlt::FmaskDecompress))
@@ -364,14 +357,7 @@ void Device::ExpandColor(
             // version which waits for completion.
             pCmdSpace += m_cmdUtil.BuildEventWrite(CACHE_FLUSH_AND_INV_EVENT, pCmdSpace);
 
-            pOperations->caches.flushCb = 1;
-            pOperations->caches.invalCb = 1;
-            pOperations->caches.flushDb = 1;
-            pOperations->caches.invalDb = 1;
-            pOperations->caches.flushCbMetadata = 1;
-            pOperations->caches.invalCbMetadata = 1;
-            pOperations->caches.flushDbMetadata = 1;
-            pOperations->caches.invalDbMetadata = 1;
+            Pm4CmdBuffer::SetBarrierOperationsRbCacheSynced(pOperations);
         }
         else
         {
@@ -480,7 +466,7 @@ void Device::ExpandColor(
 // a mip level, the bit location marked by ColorBlt will be set.  The return value is a uint32, containing the
 // ORs of all the mips,  will be used to decide whether we'll need a pre decompress flush or not later in the code.
 uint32 Device::GetColorBltPerSubres(
-    GfxCmdBuffer*            pCmdBuf,
+    Pm4CmdBuffer*            pCmdBuf,
     uint32*                  pBlt,
     const BarrierTransition& transition,
     bool                     earlyPhase
@@ -612,7 +598,7 @@ uint32 Device::GetColorBltPerSubres(
 // Writes decompressed pixel data to the base image and updates DCC to reflect the decompressed state.  Single sample
 // or MSAA.  Causes a fast clear eliminate and fmask decompress implicitly.
 void Device::DccDecompress(
-    GfxCmdBuffer*                 pCmdBuf,
+    Pm4CmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     const BarrierTransition&      transition,
     const Image&                  gfx6Image,
@@ -634,7 +620,7 @@ void Device::DccDecompress(
 // Leaves FMask-compressed pixel data in the base image, but puts FMask in a texture-readable state (CMask marks all
 // blocks as having the max number of samples).  Causes a fast clear eliminate implicitly (if not using DCC).
 void Device::FmaskDecompress(
-    GfxCmdBuffer*                 pCmdBuf,
+    Pm4CmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     const BarrierTransition&      transition,
     const Image&                  gfx6Image,
@@ -669,7 +655,7 @@ void Device::FmaskDecompress(
 // Shader based decompress that writes every sample's color value to the base image. An FMask decompress must be
 // executed before this BLT.
 void Device::MsaaDecompress(
-    GfxCmdBuffer*                 pCmdBuf,
+    Pm4CmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     const BarrierTransition&      transition,
     const Image&                  gfx6Image,
@@ -702,7 +688,7 @@ void Device::MsaaDecompress(
 // Writes the last clear color values to the base image for any pixel blocks that are marked as fast cleared in CMask
 // or DCC.  Single sample or MSAA.
 void Device::FastClearEliminate(
-    GfxCmdBuffer*                 pCmdBuf,
+    Pm4CmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     const BarrierTransition&      transition,
     const Image&                  gfx6Image,
@@ -723,7 +709,7 @@ void Device::FastClearEliminate(
 // =====================================================================================================================
 // Examines the specified sync reqs, and the corresponding hardware commands to satisfy the requirements.
 void Device::IssueSyncs(
-    GfxCmdBuffer*                 pCmdBuf,
+    Pm4CmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     SyncReqs                      syncReqs,
     HwPipePoint                   waitPoint,
@@ -854,31 +840,31 @@ void Device::IssueSyncs(
     // Clear up xxxBltActive flags
     if (syncReqs.waitOnEopTs || TestAnyFlagSet(syncReqs.cpCoherCntl.u32All, CpCoherCntlStallMask))
     {
-        pCmdBuf->SetGfxCmdBufGfxBltState(false);
+        pCmdBuf->SetPm4CmdBufGfxBltState(false);
     }
-    if ((pCmdBuf->GetGfxCmdBufState().flags.gfxBltActive == false) &&
+    if ((pCmdBuf->GetPm4CmdBufState().flags.gfxBltActive == false) &&
         ((syncReqs.cacheFlushAndInv != 0) && (syncReqs.waitOnEopTs != 0)))
     {
-        pCmdBuf->SetGfxCmdBufGfxBltWriteCacheState(false);
+        pCmdBuf->SetPm4CmdBufGfxBltWriteCacheState(false);
     }
 
     if (syncReqs.waitOnEopTs || syncReqs.csPartialFlush)
     {
-        pCmdBuf->SetGfxCmdBufCsBltState(false);
+        pCmdBuf->SetPm4CmdBufCsBltState(false);
     }
-    if ((pCmdBuf->GetGfxCmdBufState().flags.csBltActive == false) && (syncReqs.cpCoherCntl.bits.TC_ACTION_ENA != 0))
+    if ((pCmdBuf->GetPm4CmdBufState().flags.csBltActive == false) && (syncReqs.cpCoherCntl.bits.TC_ACTION_ENA != 0))
     {
-        pCmdBuf->SetGfxCmdBufCsBltWriteCacheState(false);
+        pCmdBuf->SetPm4CmdBufCsBltWriteCacheState(false);
     }
 
     if (syncReqs.syncCpDma)
     {
-        pCmdBuf->SetGfxCmdBufCpBltState(false);
+        pCmdBuf->SetPm4CmdBufCpBltState(false);
     }
-    if ((pCmdBuf->GetGfxCmdBufState().flags.cpBltActive == false) && (syncReqs.cpCoherCntl.bits.TC_ACTION_ENA != 0))
+    if ((pCmdBuf->GetPm4CmdBufState().flags.cpBltActive == false) && (syncReqs.cpCoherCntl.bits.TC_ACTION_ENA != 0))
     {
-        pCmdBuf->SetGfxCmdBufCpBltWriteCacheState(false);
-        pCmdBuf->SetGfxCmdBufCpMemoryWriteL2CacheStaleState(false);
+        pCmdBuf->SetPm4CmdBufCpBltWriteCacheState(false);
+        pCmdBuf->SetPm4CmdBufCpMemoryWriteL2CacheStaleState(false);
     }
 }
 
@@ -929,7 +915,7 @@ void Device::FillCacheOperations(
 //            - Issue range-checked DB cache flushes.
 //            - Issue any decompress BLTs that couldn't be performed in phase 1.
 void Device::Barrier(
-    GfxCmdBuffer*      pCmdBuf,
+    Pm4CmdBuffer*      pCmdBuf,
     CmdStream*         pCmdStream,
     const BarrierInfo& barrier
     ) const
@@ -938,7 +924,7 @@ void Device::Barrier(
     Developer::BarrierOperations barrierOps         = {};
 
     // Keep a copy of original CmdBufferState flag as TransitionDepthStencil() or ExpandColor() may change it.
-    const GfxCmdBufferStateFlags origCmdBufStateFlags = pCmdBuf->GetGfxCmdBufState().flags;
+    const Pm4CmdBufferStateFlags origCmdBufStateFlags = pCmdBuf->GetPm4CmdBufState().flags;
 
     // -----------------------------------------------------------------------------------------------------------------
     // -- Early image layout transitions.
@@ -995,9 +981,14 @@ void Device::Barrier(
         // different packer.  If the writes and reads in that scenario access the same data, the operations will not
         // occur in the API-defined pipeline order.  This is a narrow data hazard, but to safely avoid it we need to
         // adjust the pre color target wait point to be before any pixel shader waves launch. VS has same issue, so
-        // adjust the wait point to the latest before any pixel/vertex wave launches which is HwPipePostIndexFetch.
-        waitPoint = (Parent()->GetPublicSettings()->forceWaitPointPreColorToPostIndexFetch) ? HwPipePostIndexFetch
+        // adjust the wait point to the latest before any pixel/vertex wave launches which is HwPipePostPrefetch.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 743
+        waitPoint = (Parent()->GetPublicSettings()->forceWaitPointPreColorToPostIndexFetch) ? HwPipePostPrefetch
                                                                                             : HwPipePostPs;
+#else
+        waitPoint = (Parent()->GetPublicSettings()->forceWaitPointPreColorToPostPrefetch) ? HwPipePostPrefetch
+                                                                                          : HwPipePostPs;
+#endif
     }
 
     // Determine sync requirements for global pipeline waits.
@@ -1021,7 +1012,7 @@ void Device::Barrier(
                 // Note that we set this to post index fetch, which is earlier in the pipeline than our CP blts,
                 // because we just handled CP DMA syncronization. This pipe point is still necessary to catch cases
                 // when the caller wishes to sync up to the top of the pipeline.
-                pipePoint = HwPipePostIndexFetch;
+                pipePoint = HwPipePostPrefetch;
             }
         }
         else
@@ -1034,7 +1025,7 @@ void Device::Barrier(
         {
             switch (pipePoint)
             {
-            case HwPipePostIndexFetch:
+            case HwPipePostPrefetch:
                 PAL_ASSERT(waitPoint == HwPipeTop);
                 globalSyncReqs.pfpSyncMe = 1;
                 break;
@@ -1423,7 +1414,7 @@ void Device::Barrier(
 // =====================================================================================================================
 // Call back to above layers before starting the barrier execution.
 void Device::DescribeBarrierStart(
-    GfxCmdBuffer* pCmdBuf,
+    Pm4CmdBuffer* pCmdBuf,
     uint32        reason
     ) const
 {
@@ -1443,7 +1434,7 @@ void Device::DescribeBarrierStart(
 // =====================================================================================================================
 // Callback to above layers with summary information at end of barrier execution.
 void Device::DescribeBarrierEnd(
-    GfxCmdBuffer*                 pCmdBuf,
+    Pm4CmdBuffer*                 pCmdBuf,
     Developer::BarrierOperations* pOperations
     ) const
 {
@@ -1463,7 +1454,7 @@ void Device::DescribeBarrierEnd(
 // passed in after calling back in case of layout transitions. This function is expected to be called only on layout
 // transitions.
 void Device::DescribeBarrier(
-    GfxCmdBuffer*                 pCmdBuf,
+    Pm4CmdBuffer*                 pCmdBuf,
     Developer::BarrierOperations* pOperations,
     const BarrierTransition*      pTransition
     ) const

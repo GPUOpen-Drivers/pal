@@ -100,6 +100,9 @@ public:
         return ProviderId;
     }
 
+    /// @returns the name of this provider
+    const char* GetName() const override { return "PalDbgLogEventProvider"; }
+
     /// @returns a description of this provider.
     virtual const void* GetEventDescriptionData() const override;
 

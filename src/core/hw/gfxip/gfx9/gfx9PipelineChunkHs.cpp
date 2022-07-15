@@ -24,6 +24,7 @@
  **********************************************************************************************************************/
 
 #include "core/platform.h"
+#include "core/hw/gfxip/gfx9/gfx9AbiToPipelineRegisters.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
@@ -54,16 +55,18 @@ PipelineChunkHs::PipelineChunkHs(
 // Late initialization for this pipeline chunk.  Responsible for fetching register values from the pipeline binary and
 // determining the values of other registers.
 void PipelineChunkHs::LateInit(
-    const AbiReader&        abiReader,
-    const RegisterVector&   registers,
-    PipelineUploader*       pUploader,
-    MetroHash64*            pHasher)
+    const AbiReader&                  abiReader,
+    const PalAbi::CodeObjectMetadata& metadata,
+    PipelineUploader*                 pUploader,
+    MetroHash64*                      pHasher)
 {
     const GpuChipProperties& chipProps    = m_device.Parent()->ChipProperties();
     const RegisterInfo&      registerInfo = m_device.CmdUtil().GetRegInfo();
 
     const uint16 mmSpiShaderUserDataHs0 = registerInfo.mmUserDataStartHsShaderStage;
     const uint16 mmSpiShaderPgmLoLs     = registerInfo.mmSpiShaderPgmLoLs;
+
+    const auto& hwHs = metadata.pipeline.hardwareStage[uint32(Abi::HardwareStage::Hs)];
 
     GpuSymbol symbol = { };
     if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::HsMainEntry, &symbol) == Result::Success)
@@ -74,7 +77,6 @@ void PipelineChunkHs::LateInit(
         m_regs.sh.spiShaderPgmLoLs.bits.MEM_BASE = Get256BAddrLo(symbol.gpuVirtAddr);
     }
 
-    regSPI_SHADER_USER_DATA_LS_0 spiShaderUserDataLoHs = { };
     if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::HsShdrIntrlTblPtr, &symbol) == Result::Success)
     {
         m_regs.sh.userDataInternalTable = LowPart(symbol.gpuVirtAddr);
@@ -86,30 +88,15 @@ void PipelineChunkHs::LateInit(
         m_stageInfo.disassemblyLength = static_cast<size_t>(pElfSymbol->st_size);
     }
 
-    m_regs.sh.spiShaderPgmRsrc1Hs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC1_HS);
-    m_regs.sh.spiShaderPgmRsrc2Hs.u32All = registers.At(mmSPI_SHADER_PGM_RSRC2_HS);
-    registers.HasEntry(mmSPI_SHADER_PGM_RSRC3_HS, &m_regs.dynamic.spiShaderPgmRsrc3Hs.u32All);
-
-    // NOTE: The Pipeline ABI doesn't specify CU enable masks for each shader stage, so it should be safe to
-    // always use the ones PAL prefers.
-    m_regs.dynamic.spiShaderPgmRsrc3Hs.bits.CU_EN = m_device.GetCuEnableMask(0, UINT_MAX);
-
-    if (IsGfx10Plus(chipProps.gfxLevel))
-    {
-        m_regs.dynamic.spiShaderPgmRsrc4Hs.gfx10Plus.CU_EN = m_device.GetCuEnableMaskHi(0, UINT_MAX);
-
-#if PAL_ENABLE_PRINTS_ASSERTS
-        m_device.AssertUserAccumRegsDisabled(registers, Gfx10Plus::mmSPI_SHADER_USER_ACCUM_LSHS_0);
-#endif
-    }
-
-    if (chipProps.gfx9.supportSpp != 0)
-    {
-        registers.HasEntry(Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_HS, &m_regs.sh.spiShaderPgmChksumHs.u32All);
-    }
-
-    m_regs.context.vgtHosMinTessLevel.u32All = registers.At(mmVGT_HOS_MIN_TESS_LEVEL);
-    m_regs.context.vgtHosMaxTessLevel.u32All = registers.At(mmVGT_HOS_MAX_TESS_LEVEL);
+    m_regs.sh.spiShaderPgmRsrc1Hs.u32All      = AbiRegisters::SpiShaderPgmRsrc1Hs(metadata, chipProps.gfxLevel);
+    m_regs.sh.spiShaderPgmRsrc2Hs.u32All      = AbiRegisters::SpiShaderPgmRsrc2Hs(metadata, chipProps.gfxLevel);
+    m_regs.dynamic.spiShaderPgmRsrc3Hs.u32All =
+        AbiRegisters::SpiShaderPgmRsrc3Hs(metadata, m_device, chipProps.gfxLevel);
+    m_regs.dynamic.spiShaderPgmRsrc4Hs.u32All =
+        AbiRegisters::SpiShaderPgmRsrc4Hs(metadata, m_device, chipProps.gfxLevel, m_stageInfo.codeLength);
+    m_regs.sh.spiShaderPgmChksumHs.u32All     = AbiRegisters::SpiShaderPgmChksumHs(metadata, m_device);
+    m_regs.context.vgtHosMinTessLevel.u32All  = AbiRegisters::VgtHosMinTessLevel(metadata);
+    m_regs.context.vgtHosMaxTessLevel.u32All  = AbiRegisters::VgtHosMaxTessLevel(metadata);
 
     pHasher->Update(m_regs.context);
 }

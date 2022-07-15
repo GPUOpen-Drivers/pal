@@ -808,7 +808,7 @@ Result ArchiveFile::RefreshFile(
             if (result == Result::Success)
             {
                 PAL_ALERT(header.ordinalId != m_entries.NumElements());
-                m_entries.PushBack(header);
+                result = m_entries.PushBack(header);
             }
         }
 

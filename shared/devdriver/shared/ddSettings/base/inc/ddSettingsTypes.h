@@ -25,6 +25,9 @@
 
 #pragma once
 
+// TODO: remove this once when we remove from ddSettingsServiceTypes.h
+#define GPUOPEN_CLIENT_INTERFACE_MAJOR_VERSION 42
+
 #include <ddPlatform.h>
 #include "protocols/ddSettingsServiceTypes.h"
 
@@ -58,7 +61,7 @@ namespace DevDriver
         /// A pointer to the setting value.
         void*        pValue;
     };
-}
+} // namespace DevDriver
 
 namespace SettingsRpcService
 {

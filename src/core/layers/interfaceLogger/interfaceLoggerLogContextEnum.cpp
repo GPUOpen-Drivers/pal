@@ -711,7 +711,7 @@ void LogContext::Enum(
     const char*const StringTable[] =
     {
         "HwPipeTop",              // 0x0,
-        "HwPipePostIndexFetch",   // 0x1,
+        "HwPipePostPrefetch",     // 0x1,
         "HwPipePreRasterization", // 0x2,
         "HwPipePostPs",           // 0x3,
         "HwPipePreColorTarget",   // 0x4,
@@ -880,9 +880,10 @@ void LogContext::Enum(
         "Draw",           // 0x0
         "DrawIndexed",    // 0x1
         "Dispatch",       // 0x2
-        "BindIndexData",  // 0x3
-        "BindUntypedSrd", // 0x4
-        "SetUserData",    // 0x5
+        "DispatchMesh",   // 0x3
+        "BindIndexData",  // 0x4
+        "BindVertexData", // 0x5
+        "SetUserData",    // 0x6
     };
 
     const uint32 idx = static_cast<uint32>(value);

@@ -151,11 +151,9 @@ bool Device::DetermineGpuIpLevels(
 
     switch (familyId)
     {
-#if PAL_BUILD_GFX6
     case FAMILY_POLARIS:
         pIpLevels->gfx = Gfx6::DetermineIpLevel(familyId, eRevId, cpMicrocodeVersion);
         break;
-#endif
     case FAMILY_NV:
     case FAMILY_AI:
     case FAMILY_RV:
@@ -515,7 +513,11 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.zeroUnboundDescDebugSrd = false;
     m_publicSettings.pipelinePreferredHeap = HasLargeLocalHeap() ? GpuHeap::GpuHeapLocal : GpuHeap::GpuHeapInvisible;
     m_publicSettings.depthClampBasedOnZExport = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 743
     m_publicSettings.forceWaitPointPreColorToPostIndexFetch = false;
+#else
+    m_publicSettings.forceWaitPointPreColorToPostPrefetch = false;
+#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 680
     m_publicSettings.enableExecuteIndirectPacket = false;
 #endif
@@ -530,6 +532,13 @@ Result Device::SetupPublicSettingDefaults()
 #endif
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 716) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 719)
     m_publicSettings.memMgrPoolAllocationSizeInBytes = 0;
+#endif
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 744)
+    m_publicSettings.binningContextStatesPerBin = 0;
+    m_publicSettings.binningPersistentStatesPerBin = 0;
+#endif
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 749)
+    m_publicSettings.disableBinningPsKill = DisableBinningPsKill::Default;
 #endif
     return ret;
 }
@@ -555,14 +564,12 @@ Result Device::HwlEarlyInit()
 #if PAL_BUILD_GFX
     switch (ChipProperties().gfxLevel)
     {
-#if PAL_BUILD_GFX6
     case GfxIpLevel::GfxIp6:
     case GfxIpLevel::GfxIp7:
     case GfxIpLevel::GfxIp8:
     case GfxIpLevel::GfxIp8_1:
         result = Gfx6::CreateDevice(this, pGfxPlacementAddr, &pfnTable, &m_pGfxDevice);
         break;
-#endif
     case GfxIpLevel::GfxIp10_1:
     case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_3:
@@ -607,9 +614,7 @@ Result Device::HwlEarlyInit()
         if ((ChipProperties().gfxLevel < GfxIpLevel::GfxIp9) &&
             (ChipProperties().ossLevel < OssIpLevel::OssIp4))
         {
-#if PAL_BUILD_GFX6 || PAL_BUILD_OSS2_4
             result = AddrMgr1::Create(this, pAddrMgrPlacementAddr, &m_pAddrMgr);
-#endif
         }
 
         else
@@ -656,7 +661,6 @@ void Device::InitPerformanceRatings()
 #if PAL_BUILD_GFX
     switch (m_chipProperties.gfxLevel)
     {
-#if PAL_BUILD_GFX6
         case GfxIpLevel::GfxIp6:
         case GfxIpLevel::GfxIp7:
         case GfxIpLevel::GfxIp8:
@@ -667,7 +671,6 @@ void Device::InitPerformanceRatings()
             numSimdPerCu     = m_chipProperties.gfx6.numSimdPerCu;
             numWavesPerSimd  = m_chipProperties.gfx6.numWavesPerSimd;
             break;
-#endif
         case GfxIpLevel::GfxIp9:
             numShaderEngines = m_chipProperties.gfx9.numShaderEngines;
             numShaderArrays  = m_chipProperties.gfx9.numShaderArrays;
@@ -811,7 +814,6 @@ void Device::GetHwIpDeviceSizes(
 
     switch (ipLevels.gfx)
     {
-#if PAL_BUILD_GFX6
     case GfxIpLevel::GfxIp6:
     case GfxIpLevel::GfxIp7:
     case GfxIpLevel::GfxIp8:
@@ -819,7 +821,6 @@ void Device::GetHwIpDeviceSizes(
         pHwDeviceSizes->gfx = Gfx6::GetDeviceSize();
         gfxAddrMgrSize      = AddrMgr1::GetSize();
         break;
-#endif
     case GfxIpLevel::GfxIp10_1:
     case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_3:
@@ -2238,7 +2239,6 @@ Result Device::GetProperties(
 
         switch (m_chipProperties.gfxLevel)
         {
-#if PAL_BUILD_GFX6
         case GfxIpLevel::GfxIp6:
         case GfxIpLevel::GfxIp7:
         case GfxIpLevel::GfxIp8:
@@ -2326,7 +2326,6 @@ Result Device::GetProperties(
             }
             break;
         }
-#endif
 
         case GfxIpLevel::GfxIp9:
         case GfxIpLevel::GfxIp10_1:
@@ -2450,6 +2449,8 @@ Result Device::GetProperties(
         pInfo->gfxipProperties.hardwareContexts    = m_chipProperties.gfxip.hardwareContexts;
         pInfo->gfxipProperties.maxPrimgroupSize    = m_chipProperties.gfxip.maxPrimgroupSize;
 
+        pInfo->gfxipProperties.mallSizeInBytes     = m_chipProperties.gfxip.mallSizeInBytes;
+
         pInfo->gfxipProperties.maxGsOutputVert            = m_chipProperties.gfxip.maxGsOutputVert;
         pInfo->gfxipProperties.maxGsTotalOutputComponents = m_chipProperties.gfxip.maxGsTotalOutputComponents;
 
@@ -2469,6 +2470,15 @@ Result Device::GetProperties(
         pInfo->gfxipProperties.shaderCore.tccSizeInBytes         = m_chipProperties.gfxip.tccSizeInBytes;
         pInfo->gfxipProperties.shaderCore.tcpSizeInBytes         = m_chipProperties.gfxip.tcpSizeInBytes;
         pInfo->gfxipProperties.shaderCore.maxLateAllocVsLimit    = m_chipProperties.gfxip.maxLateAllocVsLimit;
+        pInfo->gfxipProperties.shaderCore.gl1cSizePerSa          = m_chipProperties.gfxip.gl1cSizePerSa;
+        pInfo->gfxipProperties.shaderCore.instCacheSizePerCu     = m_chipProperties.gfxip.instCacheSizePerCu;
+        pInfo->gfxipProperties.shaderCore.scalarCacheSizePerCu   = m_chipProperties.gfxip.scalarCacheSizePerCu;
+
+        static_assert(sizeof(m_chipProperties.gfxip.activePixelPackerMask) ==
+                      sizeof(pInfo->gfxipProperties.shaderCore.activePixelPackerMask),
+                      "PAL Device and interface active pixel packer mask sizes do not match!");
+        memcpy(pInfo->gfxipProperties.shaderCore.activePixelPackerMask, m_chipProperties.gfxip.activePixelPackerMask,
+               sizeof(pInfo->gfxipProperties.shaderCore.activePixelPackerMask));
 
         pInfo->gfxipProperties.gl2UncachedCpuCoherency           = m_chipProperties.gfxip.gl2UncachedCpuCoherency;
         pInfo->gfxipProperties.flags.supportGl2Uncached          = m_chipProperties.gfxip.supportGl2Uncached;

@@ -25,15 +25,15 @@
 
 #pragma once
 
-#include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/gfxCmdStream.h"
+#include "core/hw/gfxip/pm4CmdBuffer.h"
 
 namespace Pal
 {
 
 // =====================================================================================================================
-// Class for executing basic hardware-specific functionality common to all compute command buffers.
-class ComputeCmdBuffer : public GfxCmdBuffer
+// Class for executing basic hardware-specific functionality common to all pm4 based compute command buffers.
+class ComputeCmdBuffer : public Pm4CmdBuffer
 {
 public:
     virtual Result Init(const CmdBufferInternalCreateInfo& internalInfo) override;

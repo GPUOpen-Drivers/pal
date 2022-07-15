@@ -70,13 +70,11 @@ Result CreateRpmComputePipelines(
 
     switch (properties.revision)
     {
-#if PAL_BUILD_GFX6
     case AsicRevision::Polaris10:
     case AsicRevision::Polaris11:
     case AsicRevision::Polaris12:
         pTable = rpmComputeBinaryTablePolaris10;
         break;
-#endif
 
     case AsicRevision::Vega10:
     case AsicRevision::Raven:
@@ -308,9 +306,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -321,9 +317,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -334,9 +328,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -347,9 +339,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -420,9 +410,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -433,9 +421,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -446,9 +432,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -459,9 +443,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -472,9 +454,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -485,9 +465,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -498,9 +476,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -511,9 +487,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -524,9 +498,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -537,9 +509,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -550,9 +520,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -563,9 +531,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -576,9 +542,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -589,9 +553,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -602,9 +564,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -615,9 +575,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -628,9 +586,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -641,9 +597,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -654,9 +608,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -667,9 +619,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -680,9 +630,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -693,9 +641,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -706,9 +652,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -719,9 +663,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -732,9 +674,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -745,9 +685,7 @@ Result CreateRpmComputePipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_GFX6
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
-#endif
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
@@ -913,7 +851,6 @@ Result CreateRpmComputePipelines(
             RpmComputePipeline::YuvToRgb, pDevice, pTable, pPipelineMem);
     }
 
-#if PAL_BUILD_GFX6
     if (result == Result::Success && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp8)
         ))
@@ -929,7 +866,6 @@ Result CreateRpmComputePipelines(
         result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx6GenerateCmdDraw, pDevice, pTable, pPipelineMem);
     }
-#endif
 
     if (result == Result::Success && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)

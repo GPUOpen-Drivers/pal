@@ -25,9 +25,9 @@
 
 #pragma once
 
-#include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/gfxCmdStream.h"
 #include "core/hw/gfxip/gfxBlendOptimizer.h"
+#include "core/hw/gfxip/pm4CmdBuffer.h"
 #include "palDeque.h"
 
 namespace Pal
@@ -207,8 +207,8 @@ struct ValidateDrawInfo
 };
 
 // =====================================================================================================================
-// Class for executing basic hardware-specific functionality common to all universal command buffers.
-class UniversalCmdBuffer : public GfxCmdBuffer
+// Class for executing basic hardware-specific functionality common to all PM4 universal command buffers.
+class UniversalCmdBuffer : public Pm4CmdBuffer
 {
 public:
     virtual Result Begin(const CmdBufferBuildInfo& info) override;

@@ -33,6 +33,7 @@
 
 #include "pal.h"
 #include "palDestroyable.h"
+#include "palEvent.h"
 
 namespace Pal
 {

@@ -72,7 +72,7 @@ constexpr uint32 AlwaysL2Mask = (MaybeL1ShaderMask       |
 //  1. Cat A(write)->Cat B(read or write)
 //  2. Cat B(write)->Cat A(read or write)
 void Device::FlushAndInvL2IfNeeded(
-    GfxCmdBuffer*                 pCmdBuf,
+    Pm4CmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     const BarrierInfo&            barrier,
     uint32                        transitionId,
@@ -90,8 +90,8 @@ void Device::FlushAndInvL2IfNeeded(
     if (TestAnyFlagSet(srcCacheMask, MaybeTccMdShaderMask) &&
         gfx9Image.NeedFlushForMetadataPipeMisalignment(subresRange))
     {
-        SyncReqs syncReqs   = {};
-        syncReqs.cacheFlags = (CacheSyncFlushTcc | CacheSyncInvTcc);
+        SyncReqs syncReqs  = {};
+        syncReqs.glxCaches = SyncGl2WbInv;
 
         IssueSyncs(pCmdBuf,
                    pCmdStream,
@@ -130,9 +130,9 @@ bool Device::NeedGlobalFlushAndInvL2(
 //
 // pSyncReqs will be updated to reflect synchronization that must be performed after the BLT.
 void Device::TransitionDepthStencil(
-    GfxCmdBuffer*                 pCmdBuf,
+    Pm4CmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
-    GfxCmdBufferStateFlags        cmdBufStateFlags,
+    Pm4CmdBufferStateFlags        cmdBufStateFlags,
     const BarrierInfo&            barrier,
     uint32                        transitionId,
     bool                          earlyPhase,
@@ -236,8 +236,7 @@ void Device::TransitionDepthStencil(
                     // We need to wait for the compute shader to finish and also invalidate the texture L1 cache, TCC's
                     // meta cache before any further depth rendering can be done to this Image.
                     pSyncReqs->csPartialFlush = 1;
-                    pSyncReqs->cacheFlags    |= CacheSyncInvTcp;
-                    pSyncReqs->cacheFlags    |= CacheSyncInvTccMd;
+                    pSyncReqs->glxCaches |= SyncGlmInv | SyncGl1Inv | SyncGlvInv;
 
                     // Note: If the client didn't provide any cache information, we cannot be sure whether or not they
                     // wish to have the result of this transition flushed out to memory.  That would require an L2
@@ -269,9 +268,8 @@ void Device::TransitionDepthStencil(
             if (issuedComputeBlt == false)
             {
                 // Issue ACQUIRE_MEM stalls on depth/stencil surface writes and flush DB caches
-                pSyncReqs->cpMeCoherCntl.bits.DB_DEST_BASE_ENA = 1;
-                pSyncReqs->cpMeCoherCntl.bits.DEST_BASE_0_ENA  = 1;
-                pSyncReqs->cacheFlags                         |= CacheSyncFlushAndInvDb;
+                pSyncReqs->dbTargetStall = 1;
+                pSyncReqs->rbCaches |= SyncDbWbInv;
             }
 
             // The decompress/resummarize blit that was just executed was effectively a PAL-initiated draw that wrote to
@@ -283,8 +281,7 @@ void Device::TransitionDepthStencil(
             // Note that we must always invalidate these caches if the client didn't give us any cache information.
             if (TestAnyFlagSet(dstCacheMask, MaybeTccMdShaderMask) || noCacheFlags)
             {
-                pSyncReqs->cacheFlags |= CacheSyncInvTcp;
-                pSyncReqs->cacheFlags |= CacheSyncInvTccMd;
+                pSyncReqs->glxCaches |= SyncGlmInv | SyncGl1Inv | SyncGlvInv;
             }
 
             // Note: If the client didn't provide any cache information, we cannot be sure whether or not they wish to
@@ -314,9 +311,8 @@ void Device::TransitionDepthStencil(
             TestAnyFlagSet(dstCacheMask, ~CoherDepthStencilTarget))
         {
             // Issue ACQUIRE_MEM stalls on depth/stencil surface writes and flush DB caches
-            pSyncReqs->cpMeCoherCntl.bits.DB_DEST_BASE_ENA = 1;
-            pSyncReqs->cpMeCoherCntl.bits.DEST_BASE_0_ENA  = 1;
-            pSyncReqs->cacheFlags                         |= CacheSyncFlushAndInvDb;
+            pSyncReqs->dbTargetStall = 1;
+            pSyncReqs->rbCaches |= SyncDbWbInv;
         }
 
         // Make sure we handle L2 cache coherency if we're potentially interacting with fixed function hardware.
@@ -333,26 +329,10 @@ void Device::TransitionDepthStencil(
         {
             if (gfx9Image.NeedFlushForMetadataPipeMisalignment(subresRange))
             {
-                pSyncReqs->cacheFlags |= (CacheSyncFlushTcc | CacheSyncInvTcc);
+                pSyncReqs->glxCaches |= SyncGl2WbInv;
             }
         }
     }
-}
-
-// =====================================================================================================================
-uint32* Device::AddCacheFlushAndInvEvent(
-    const GfxCmdBuffer*  pCmdBuffer,
-    uint32*              pCmdSpace
-    ) const
-{
-    const EngineType  engineType = pCmdBuffer->GetEngineType();
-    size_t            packetSize = 0;
-
-    {
-        packetSize = m_cmdUtil.BuildNonSampleEventWrite(CACHE_FLUSH_AND_INV_EVENT, engineType, pCmdSpace);
-    }
-
-    return (pCmdSpace + packetSize);
 }
 
 // =====================================================================================================================
@@ -367,7 +347,7 @@ uint32* Device::AddCacheFlushAndInvEvent(
 //
 // pSyncReqs will be updated to reflect synchronization that must be performed after the BLT.
 void Device::ExpandColor(
-    GfxCmdBuffer*                 pCmdBuf,
+    Pm4CmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     const BarrierInfo&            barrier,
     uint32                        transitionId,
@@ -513,7 +493,7 @@ void Device::ExpandColor(
             if (earlyPhase && WaEnableDccCacheFlushAndInvalidate())
             {
                 uint32*  pCmdSpace = pCmdStream->ReserveCommands();
-                pCmdSpace = AddCacheFlushAndInvEvent(pCmdBuf, pCmdSpace);
+                pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CACHE_FLUSH_AND_INV_EVENT, engineType, pCmdSpace);
                 pCmdStream->CommitCommands(pCmdSpace);
 
             }
@@ -537,7 +517,7 @@ void Device::ExpandColor(
                 // NOTE: CB.doc says we need to do a full CacheFlushInv event before the FMask decompress.  We're
                 // using the lightweight event for now, but if we see issues this should be changed to the timestamp
                 // version which waits for completion.
-                pCmdSpace = AddCacheFlushAndInvEvent(pCmdBuf, pCmdSpace);
+                pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CACHE_FLUSH_AND_INV_EVENT, engineType, pCmdSpace);
             }
             else
             {
@@ -565,7 +545,7 @@ void Device::ExpandColor(
             if (earlyPhase && WaEnableDccCacheFlushAndInvalidate() && gfx9Image.HasDccData())
             {
                 uint32* pCmdSpace = pCmdStream->ReserveCommands();
-                pCmdSpace = AddCacheFlushAndInvEvent(pCmdBuf, pCmdSpace);
+                pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CACHE_FLUSH_AND_INV_EVENT, engineType, pCmdSpace);
                 pCmdStream->CommitCommands(pCmdSpace);
             }
 
@@ -599,15 +579,11 @@ void Device::ExpandColor(
             // This must execute on a queue that supports graphics operations
             PAL_ASSERT(isGfxSupported);
 
+            // FmaskColorExpand is expected to run a compute shader but waiting at HwPipePostPrefetch will work for
+            // compute or graphics.
             uint32* pCmdSpace = pCmdStream->ReserveCommands();
-
-            {
-                pCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEventTs(engineType,
-                                                                    CACHE_FLUSH_AND_INV_TS_EVENT,
-                                                                    TcCacheOp::Nop,
-                                                                    pCmdBuf->TimestampGpuVirtAddr(),
-                                                                    pCmdSpace);
-            }
+            pCmdSpace = pCmdStream->WriteWaitEopGfx(HwPipePostPrefetch, SyncGlxNone, SyncCbWbInv,
+                                                    pCmdBuf->TimestampGpuVirtAddr(), pCmdSpace);
             pCmdStream->CommitCommands(pCmdSpace);
         }
 
@@ -632,7 +608,7 @@ void Device::ExpandColor(
         // CB metadata caches can only be flushed with a pipelined VGT event, like CACHE_FLUSH_AND_INV.  In order to
         // ensure the cache flush finishes before continuing, we must wait on a timestamp.
         pSyncReqs->waitOnEopTs = 1;
-        pSyncReqs->cacheFlags |= CacheSyncFlushAndInvRb;
+        pSyncReqs->rbCaches    = SyncRbWbInv;
 
         // The decompression that was just executed was effectively a PAL-initiated draw that wrote to the image as a
         // CB destination.  In addition to flushing the data out of the CB cache, we need to invalidate any possible
@@ -648,8 +624,7 @@ void Device::ExpandColor(
 
         if (TestAnyFlagSet(dstCacheMask, MaybeTccMdShaderMask) || noCacheFlags)
         {
-            pSyncReqs->cacheFlags |= CacheSyncInvTcp;
-            pSyncReqs->cacheFlags |= CacheSyncInvTccMd;
+             pSyncReqs->glxCaches |= SyncGlmInv | SyncGl1Inv | SyncGlvInv;
         }
 
         // Note: If the client didn't provide any cache information, we cannot be sure whether or not they wish to have
@@ -669,7 +644,7 @@ void Device::ExpandColor(
         if ((TestAnyFlagSet(srcCacheMask | dstCacheMask, MaybeFixedFunction) || didGfxBlt || noCacheFlags) &&
             gfx9Image.NeedFlushForMetadataPipeMisalignment(subresRange))
         {
-            pSyncReqs->cacheFlags |= (CacheSyncFlushTcc | CacheSyncInvTcc);
+            pSyncReqs->glxCaches |= SyncGl2WbInv;
         }
 
         if (gfx9Image.HasDccStateMetaData(subresRange))
@@ -701,46 +676,49 @@ void Device::FillCacheOperations(
 {
     PAL_ASSERT(pOperations != nullptr);
 
-    pOperations->caches.invalTcp         |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvTcp);
-    pOperations->caches.invalSqI$        |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvSqI$);
-    pOperations->caches.invalSqK$        |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvSqK$);
-    pOperations->caches.flushTcc         |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushTcc);
-    pOperations->caches.invalTcc         |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvTcc);
-    pOperations->caches.flushCb          |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushCbData);
-    pOperations->caches.invalCb          |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvCbData);
-    pOperations->caches.flushDb          |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushDbData);
-    pOperations->caches.invalDb          |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvDbData);
-    pOperations->caches.invalCbMetadata  |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvCbMd);
-    pOperations->caches.flushCbMetadata  |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushCbMd);
-    pOperations->caches.invalDbMetadata  |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvDbMd);
-    pOperations->caches.flushDbMetadata  |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushDbMd);
-    pOperations->caches.invalTccMetadata |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvTccMd);
+    pOperations->caches.invalTcp         |= TestAnyFlagSet(syncReqs.glxCaches, SyncGlvInv);
+    pOperations->caches.invalSqI$        |= TestAnyFlagSet(syncReqs.glxCaches, SyncGliInv);
+    pOperations->caches.invalSqK$        |= TestAnyFlagSet(syncReqs.glxCaches, SyncGlkInv);
+    pOperations->caches.flushTcc         |= TestAnyFlagSet(syncReqs.glxCaches, SyncGl2Wb);
+    pOperations->caches.invalTcc         |= TestAnyFlagSet(syncReqs.glxCaches, SyncGl2Inv);
+    pOperations->caches.flushCb          |= TestAnyFlagSet(syncReqs.rbCaches,  SyncCbDataWb);
+    pOperations->caches.invalCb          |= TestAnyFlagSet(syncReqs.rbCaches,  SyncCbDataInv);
+    pOperations->caches.flushDb          |= TestAnyFlagSet(syncReqs.rbCaches,  SyncDbDataWb);
+    pOperations->caches.invalDb          |= TestAnyFlagSet(syncReqs.rbCaches,  SyncDbDataInv);
+    pOperations->caches.invalCbMetadata  |= TestAnyFlagSet(syncReqs.rbCaches,  SyncCbMetaInv);
+    pOperations->caches.flushCbMetadata  |= TestAnyFlagSet(syncReqs.rbCaches,  SyncCbMetaWb);
+    pOperations->caches.invalDbMetadata  |= TestAnyFlagSet(syncReqs.rbCaches,  SyncDbMetaInv);
+    pOperations->caches.flushDbMetadata  |= TestAnyFlagSet(syncReqs.rbCaches,  SyncDbMetaWb);
+    pOperations->caches.invalTccMetadata |= TestAnyFlagSet(syncReqs.glxCaches, SyncGlmInv);
+
+    // We have an additional cache level since gfx10.
     if (m_gfxIpLevel != GfxIpLevel::GfxIp9)
     {
-        // On gfx10 here, invalidating the L0 V$ and the GL1 are treated the same
-        pOperations->caches.invalGl1     |= TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvTcp);
+        pOperations->caches.invalGl1     |= TestAnyFlagSet(syncReqs.glxCaches, SyncGl1Inv);
     }
 }
 
 // =====================================================================================================================
 // Examines the specified sync reqs, and the corresponding hardware commands to satisfy the requirements.
 void Device::IssueSyncs(
-    GfxCmdBuffer*                 pCmdBuf,
+    Pm4CmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     SyncReqs                      syncReqs,
     HwPipePoint                   waitPoint,
-    gpusize                       rangeStartAddr,
-    gpusize                       rangeSize,
+    gpusize                       rangeBase,  // Set to 0 to do a full-range sync.
+    gpusize                       rangeSize,  // Set to 0 to do a full-range sync.
     Developer::BarrierOperations* pOperations
     ) const
 {
-    const EngineType engineType     = pCmdBuf->GetEngineType();
-    const bool       isGfxSupported = pCmdBuf->IsGraphicsSupported();
-    const uint32     origCacheFlags = syncReqs.cacheFlags;
-    uint32*          pCmdSpace      = pCmdStream->ReserveCommands();
+    const SyncGlxFlags origGlxCaches  = syncReqs.glxCaches;
+    const SyncRbFlags  origRbCaches   = syncReqs.rbCaches;
+    const EngineType   engineType     = pCmdBuf->GetEngineType();
+    const bool         isGfxSupported = pCmdBuf->IsGraphicsSupported();
+    const bool         isFullRange    = (rangeBase == 0) && (rangeSize == 0);
+    uint32*            pCmdSpace      = pCmdStream->ReserveCommands();
 
-    // We shouldn't ask ACE to flush GFX-only caches, nor set undefined bits.
-    PAL_ASSERT(TestAnyFlagSet(syncReqs.cacheFlags, isGfxSupported ? ~CacheSyncAll : ~CacheSyncAllCompute) == false);
+    // We shouldn't ask ACE to flush GFX-only caches.
+    PAL_ASSERT(isGfxSupported || (syncReqs.rbCaches == SyncRbNone));
 
     FillCacheOperations(syncReqs, pOperations);
 
@@ -763,7 +741,7 @@ void Device::IssueSyncs(
     // must use event flush instead. If waitPoint < HwPipePoint::HwPipeBottom, we must force a wait-on-eop-ts. With
     // this set, the wait-on-eop-ts path will roll in our cache flushes and we'll skip over the pipelined cache flush
     // logic below which does no waiting.
-    if ((m_cmdUtil.CanUseAcquireMem(syncReqs.cacheFlags) == false) && (waitPoint < HwPipePoint::HwPipeBottom))
+    if ((m_cmdUtil.CanUseAcquireMem(syncReqs.rbCaches) == false) && (waitPoint < HwPipePoint::HwPipeBottom))
     {
         syncReqs.waitOnEopTs = 1;
     }
@@ -783,41 +761,43 @@ void Device::IssueSyncs(
         // previous graphics and compute work has completed.
         //
         // We will also issue any cache flushes or invalidations that can be pipelined with the timestamp.
-        VGT_EVENT_TYPE eopEvent = BOTTOM_OF_PIPE_TS;
-
-        if (TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushAndInvRb))
-        {
-            syncReqs.cacheFlags &= ~CacheSyncFlushAndInvRb;
-            eopEvent             = CACHE_FLUSH_AND_INV_TS_EVENT;
-        }
         pOperations->pipelineStalls.eopTsBottomOfPipe = 1;
         pOperations->pipelineStalls.waitOnTs          = 1;
 
+        if (isGfxSupported)
         {
-            pCmdSpace += m_cmdUtil.BuildWaitOnReleaseMemEventTs(engineType,
-                                                                eopEvent,
-                                                                SelectTcCacheOp(&syncReqs.cacheFlags),
-                                                                pCmdBuf->TimestampGpuVirtAddr(),
-                                                                pCmdSpace);
+            pCmdSpace = pCmdStream->WriteWaitEopGfx(waitPoint, syncReqs.glxCaches, syncReqs.rbCaches,
+                                                    pCmdBuf->TimestampGpuVirtAddr(), pCmdSpace);
 
-            // WriteWaitOnEopEvent waits in the ME, if the waitPoint needs to stall at the PFP request a PFP/ME sync.
-            syncReqs.pfpSyncMe = (waitPoint == HwPipeTop);
+            syncReqs.rbCaches = SyncRbNone;
+
+            // The previous sync has already ensured that the graphics contexts are idle. It will also sync up to
+            // the PFP if waitPoint == HwPipeTop.
+            syncReqs.cbTargetStall = 0;
+            syncReqs.dbTargetStall = 0;
+
+            if (waitPoint == HwPipeTop)
+            {
+                syncReqs.pfpSyncMe = 0;
+                pOperations->pipelineStalls.pfpSyncMe = 1;
+            }
+        }
+        else
+        {
+            pCmdSpace = pCmdStream->WriteWaitEopGeneric(syncReqs.glxCaches, pCmdBuf->TimestampGpuVirtAddr(), pCmdSpace);
         }
 
-        pCmdBuf->SetPrevCmdBufInactive();
+        syncReqs.glxCaches = SyncGlxNone;
 
-        // The previous sync has already ensured that the graphics contexts are idle and all CS waves have completed.
-        syncReqs.cpMeCoherCntl.u32All &= ~CpMeCoherCntlStallMask;
+        pCmdBuf->SetPrevCmdBufInactive();
     }
     else
     {
-        // If the address range covers from 0 to all Fs, and any of the BASE_ENA bits in the CP_COHER_CNTL value are
-        // set, the ACQUIRE_MEM issued at the end of this function is guaranteed to idle all graphics contexts.  Based
-        // on that knowledge, some other commands may be skipped.
+        // If we've been asked to do a full-range target stall on CB or DB then the ACQUIRE_MEM issued at the end of
+        // this function is guaranteed to idle all graphics contexts. Based on that knowledge, some other commands may
+        // be skipped.
         if (isGfxSupported &&
-            ((rangeStartAddr != FullSyncBaseAddr) ||
-             (rangeSize != FullSyncSize)          ||
-             (TestAnyFlagSet(syncReqs.cpMeCoherCntl.u32All, CpMeCoherCntlStallMask) == false)))
+            ((isFullRange == false) || ((syncReqs.cbTargetStall == 0) && (syncReqs.dbTargetStall == 0))))
         {
             if (syncReqs.vsPartialFlush)
             {
@@ -830,7 +810,6 @@ void Device::IssueSyncs(
             {
                 // Waits in the CP ME for all previously issued PS waves to complete.
                 pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, engineType, pCmdSpace);
-
                 pOperations->pipelineStalls.psPartialFlush = 1;
             }
         }
@@ -839,97 +818,78 @@ void Device::IssueSyncs(
         {
             // Waits in the CP ME for all previously issued CS waves to complete.
             pCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuf->TimestampGpuVirtAddr(), pCmdSpace);
-
             pOperations->pipelineStalls.csPartialFlush = 1;
+
         }
     }
 
     // We can't flush or invalidate some caches using an ACQUIRE_MEM so we must use an event.
-    if (m_cmdUtil.CanUseAcquireMem(syncReqs.cacheFlags) == false)
+    if (m_cmdUtil.CanUseAcquireMem(syncReqs.rbCaches) == false)
     {
+        // We should only get in here on graphics engines.
+        PAL_ASSERT(isGfxSupported);
+
         // If waitPoint < HwPipePoint::HwPipeBottom, we must force a wait-on-eop-ts to flush and wait which has already
         // been handled in this function; and for waitPoint == HwPipePoint::HwPipeBottom, we could optimize to use an
         // async event to flush these caches without wait here.
         PAL_ASSERT(waitPoint == HwPipePoint::HwPipeBottom);
 
-        // We need to use at least one RELEASE_MEM because it gives us the ability to flush or invalidate the GL2
-        // after the CB cache(s) without using a full wait for idle. If we don't roll the GL2 flush into the CB flush
-        // then the ACQUIRE_MEM path below may flush GL2 before the CB flush is done. The racing issue here may make
-        // the CB data not go to memory.
-        ReleaseMemInfo releaseInfo = {};
-        releaseInfo.engineType     = engineType;
-        releaseInfo.tcCacheOp      = SelectTcCacheOp(&syncReqs.cacheFlags);
-        releaseInfo.dataSel        = data_sel__me_release_mem__none;
+        // The ACQUIRE_MEM can't flush and invalidate all of our RB caches so we need at least one RELEASE_MEM to do so.
+        // While we're at it, toss as many other cache flushes in here as we can.
+        //
+        // Note that SelectReleaseMemCaches will restrict itself to the subset of valid TC cache ops on gfx9, so gfx9
+        // GPUs may see some L0 cache invalidates deferred to the ACQUIRE_MEM which a gfx10 GPU would always do in the
+        // RELEASE_MEM.
+        //
+        // This sounds bad because the barrier logic here would execute the RB cache flushes asynchronously from the
+        // ACQUIRE_MEM packet(s) below. However, SelectReleaseMemCaches always selects GL2 flushes and invalidates
+        // over L0 cache invalidates so there shouldn't be any real race conditions. If an RB flush does happen, that
+        // data will be written to the GL2 which will then be synchronously flushed and/or invalidated. The read-only
+        // L0 invalidates may still fire before that occurs, but that ordering doesn't matter.
+        ReleaseMemGfx releaseInfo = {};
+        releaseInfo.vgtEvent  = m_cmdUtil.SelectEopEvent(syncReqs.rbCaches);
+        releaseInfo.cacheSync = m_cmdUtil.SelectReleaseMemCaches(&syncReqs.glxCaches);
+        releaseInfo.dataSel   = data_sel__me_release_mem__none;
 
-        if (TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushAndInvDb))
-        {
-            // If any DB caches also need to be hit we can get everything at once using this event.
-            releaseInfo.vgtEvent = CACHE_FLUSH_AND_INV_TS_EVENT;
-            pCmdSpace += m_cmdUtil.BuildReleaseMem(releaseInfo, pCmdSpace);
+        pCmdSpace += m_cmdUtil.BuildReleaseMemGfx(releaseInfo, pCmdSpace);
 
-            syncReqs.cacheFlags &= ~CacheSyncFlushAndInvRb;
-        }
-        else
-        {
-            // Otherwise we need two events to clear all of the CB metadata caches. The CMask and FMask caches are
-            // cleared by the CB_META event but the DCC keys are only cleared when we use CB_DATA which will also
-            // clear the CB data cache. Thus, we are forced to clear all CB caches.
-            pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(FLUSH_AND_INV_CB_META, engineType, pCmdSpace);
-
-            releaseInfo.vgtEvent = FLUSH_AND_INV_CB_DATA_TS;
-            pCmdSpace += m_cmdUtil.BuildReleaseMem(releaseInfo, pCmdSpace);
-
-            syncReqs.cacheFlags &= ~CacheSyncFlushAndInvCb;
-        }
-
-        // On some hardware it takes us multiple TC cache ops to clear out all of our TC cache flags. We must issue a
-        // dummy RELEASE_MEM for each remaining cache op so that they also execute after the CB cache flush.
-        releaseInfo.tcCacheOp = SelectTcCacheOp(&syncReqs.cacheFlags);
-
-        while (releaseInfo.tcCacheOp != TcCacheOp::Nop)
-        {
-            releaseInfo.vgtEvent = BOTTOM_OF_PIPE_TS;
-            pCmdSpace += m_cmdUtil.BuildReleaseMem(releaseInfo, pCmdSpace);
-
-            releaseInfo.tcCacheOp = SelectTcCacheOp(&syncReqs.cacheFlags);
-        }
+        // We just handled these caches, we don't want to generate an acquire_mem that also flushes them.
+        // Note that SelectReleaseMemCaches updates syncReqs.glxCaches for us.
+        syncReqs.rbCaches = SyncRbNone;
     }
 
     // Issue accumulated ACQUIRE_MEM commands on the specified memory range. Note that we must issue one ACQUIRE_MEM
-    // if cacheFlags is zero but cpMeCoherCntl non-zero to implement a range-checked target stall.
-    if ((syncReqs.cacheFlags != 0) || (syncReqs.cpMeCoherCntl.u32All != 0))
+    // if cacheFlags is zero when target stalls are enabled to implement a range-checked target stall.
+    if ((syncReqs.rbCaches  != SyncRbNone)  ||
+        (syncReqs.glxCaches != SyncGlxNone) ||
+        (syncReqs.cbTargetStall != 0)       ||
+        (syncReqs.dbTargetStall != 0))
     {
-        do
-        {
-            AcquireMemInfo acquireInfo = {};
-            acquireInfo.flags.usePfp         = (waitPoint == HwPipeTop);
-            acquireInfo.flags.invSqI$        = TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvSqI$);
-            acquireInfo.flags.invSqK$        = TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncInvSqK$);
-            acquireInfo.flags.flushSqK$      = TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushSqK$);
-            acquireInfo.flags.wbInvCbData    = TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushAndInvCbData);
-            acquireInfo.flags.wbInvDb        = TestAnyFlagSet(syncReqs.cacheFlags, CacheSyncFlushAndInvDb);
-
-            syncReqs.cacheFlags &= ~(CacheSyncInvSqI$ | CacheSyncInvSqK$ | CacheSyncFlushSqK$ |
-                                     CacheSyncFlushAndInvCbData | CacheSyncFlushAndInvDb);
-
-            acquireInfo.engineType           = engineType;
-            acquireInfo.cpMeCoherCntl.u32All = syncReqs.cpMeCoherCntl.u32All;
-            acquireInfo.tcCacheOp            = SelectTcCacheOp(&syncReqs.cacheFlags);
-            acquireInfo.baseAddress          = rangeStartAddr;
-            acquireInfo.sizeBytes            = rangeSize;
-
-            pCmdSpace += m_cmdUtil.BuildAcquireMem(acquireInfo, pCmdSpace);
-
-            // If we didn't pick a cache op but there are still valid cache flags we will never clear them and this loop
-            // will never terminate. In practice this should never happen because this function handles all flags that
-            // can't be cleared by an ACQUIRE_MEM before this loop.
-            PAL_ASSERT((acquireInfo.tcCacheOp != TcCacheOp::Nop) || (syncReqs.cacheFlags == 0));
-        }
-        while (syncReqs.cacheFlags != 0);
-
         if (isGfxSupported)
         {
+            AcquireMemGfxSurfSync acquireInfo = {};
+            acquireInfo.flags.pfpWait              = (waitPoint == HwPipeTop);
+            acquireInfo.flags.cbTargetStall        = syncReqs.cbTargetStall;
+            acquireInfo.flags.dbTargetStall        = syncReqs.dbTargetStall;
+            acquireInfo.flags.gfx9Gfx10CbDataWbInv = TestAnyFlagSet(syncReqs.rbCaches, SyncCbDataWbInv);
+            acquireInfo.flags.gfx9Gfx10DbWbInv     = TestAnyFlagSet(syncReqs.rbCaches, SyncDbWbInv);
+            acquireInfo.cacheSync                  = syncReqs.glxCaches;
+            acquireInfo.rangeBase                  = rangeBase;
+            acquireInfo.rangeSize                  = rangeSize;
+
+            pCmdSpace += m_cmdUtil.BuildAcquireMemGfxSurfSync(acquireInfo, pCmdSpace);
+
             pCmdStream->SetContextRollDetected<false>();
+        }
+        else
+        {
+            AcquireMemGeneric acquireInfo = {};
+            acquireInfo.engineType = engineType;
+            acquireInfo.cacheSync  = syncReqs.glxCaches;
+            acquireInfo.rangeBase  = rangeBase;
+            acquireInfo.rangeSize  = rangeSize;
+
+            pCmdSpace += m_cmdUtil.BuildAcquireMemGeneric(acquireInfo, pCmdSpace);
         }
     }
 
@@ -945,42 +905,44 @@ void Device::IssueSyncs(
     pCmdStream->CommitCommands(pCmdSpace);
 
     // Clear up xxxBltActive flags
-    if (syncReqs.waitOnEopTs                                                   ||
-        (TestAnyFlagSet(syncReqs.cpMeCoherCntl.u32All, CpMeCoherCntlStallMask) &&
-         (rangeStartAddr == FullSyncBaseAddr)                                  &&
-         (rangeSize == FullSyncSize)))
+    if (syncReqs.waitOnEopTs ||
+        (isFullRange && ((syncReqs.cbTargetStall != 0) || (syncReqs.dbTargetStall != 0))))
     {
-        pCmdBuf->SetGfxCmdBufGfxBltState(false);
+        pCmdBuf->SetPm4CmdBufGfxBltState(false);
     }
-    if ((pCmdBuf->GetGfxCmdBufState().flags.gfxBltActive == false) &&
-        (TestAnyFlagSet(origCacheFlags, CacheSyncFlushAndInvRb) && (syncReqs.waitOnEopTs != 0)))
+
+    if ((pCmdBuf->GetPm4CmdBufState().flags.gfxBltActive == false) &&
+        (TestAnyFlagSet(origRbCaches, SyncRbWbInv) && (syncReqs.waitOnEopTs != 0)))
     {
-        pCmdBuf->SetGfxCmdBufGfxBltWriteCacheState(false);
+        pCmdBuf->SetPm4CmdBufGfxBltWriteCacheState(false);
     }
 
     if (syncReqs.waitOnEopTs || syncReqs.csPartialFlush)
     {
-        pCmdBuf->SetGfxCmdBufCsBltState(false);
+        pCmdBuf->SetPm4CmdBufCsBltState(false);
     }
-    if ((pCmdBuf->GetGfxCmdBufState().flags.csBltActive == false) &&
-        TestAllFlagsSet(origCacheFlags, CacheSyncFlushTcc | CacheSyncInvTcp | CacheSyncInvSqK$ | CacheSyncInvTccMd))
+
+    if ((pCmdBuf->GetPm4CmdBufState().flags.csBltActive == false) &&
+        TestAllFlagsSet(origGlxCaches, SyncGl2Wb | SyncGlmInv | SyncGl1Inv | SyncGlvInv | SyncGlkInv))
     {
-        pCmdBuf->SetGfxCmdBufCsBltWriteCacheState(false);
+        pCmdBuf->SetPm4CmdBufCsBltWriteCacheState(false);
     }
 
     if (syncReqs.syncCpDma)
     {
-        pCmdBuf->SetGfxCmdBufCpBltState(false);
+        pCmdBuf->SetPm4CmdBufCpBltState(false);
     }
-    if (pCmdBuf->GetGfxCmdBufState().flags.cpBltActive == false)
+
+    if (pCmdBuf->GetPm4CmdBufState().flags.cpBltActive == false)
     {
-        if (TestAnyFlagSet(origCacheFlags, CacheSyncFlushTcc))
+        if (TestAnyFlagSet(origGlxCaches, SyncGl2Wb))
         {
-            pCmdBuf->SetGfxCmdBufCpBltWriteCacheState(false);
+            pCmdBuf->SetPm4CmdBufCpBltWriteCacheState(false);
         }
-        if (TestAnyFlagSet(origCacheFlags, CacheSyncInvTcc))
+
+        if (TestAnyFlagSet(origGlxCaches, SyncGl2Inv))
         {
-            pCmdBuf->SetGfxCmdBufCpMemoryWriteL2CacheStaleState(false);
+            pCmdBuf->SetPm4CmdBufCpMemoryWriteL2CacheStaleState(false);
         }
     }
 }
@@ -1007,7 +969,7 @@ void Device::IssueSyncs(
 //            - Issue range-checked DB cache flushes.
 //            - Issue any decompress BLTs that couldn't be performed in phase 1.
 void Device::Barrier(
-    GfxCmdBuffer*      pCmdBuf,
+    Pm4CmdBuffer*      pCmdBuf,
     CmdStream*         pCmdStream,
     const BarrierInfo& barrier
     ) const
@@ -1016,7 +978,7 @@ void Device::Barrier(
     Developer::BarrierOperations barrierOps = {};
 
     // Keep a copy of original CmdBufferState flag as TransitionDepthStencil() or ExpandColor() may change it.
-    const GfxCmdBufferStateFlags origCmdBufStateFlags = pCmdBuf->GetGfxCmdBufState().flags;
+    const Pm4CmdBufferStateFlags origCmdBufStateFlags = pCmdBuf->GetPm4CmdBufState().flags;
     const bool                   isGfxSupported       = pCmdBuf->IsGraphicsSupported();
 
     // -----------------------------------------------------------------------------------------------------------------
@@ -1080,9 +1042,14 @@ void Device::Barrier(
         // different packer.  If the writes and reads in that scenario access the same data, the operations will not
         // occur in the API-defined pipeline order.  This is a narrow data hazard, but to safely avoid it we need to
         // adjust the pre color target wait point to be before any pixel shader waves launch. VS has same issue, so
-        // adjust the wait point to the latest before any pixel/vertex wave launches which is HwPipePostIndexFetch.
-        waitPoint = (Parent()->GetPublicSettings()->forceWaitPointPreColorToPostIndexFetch) ? HwPipePostIndexFetch
+        // adjust the wait point to the latest before any pixel/vertex wave launches which is HwPipePostPrefetch.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 743
+        waitPoint = (Parent()->GetPublicSettings()->forceWaitPointPreColorToPostIndexFetch) ? HwPipePostPrefetch
                                                                                             : HwPipePostPs;
+#else
+        waitPoint = (Parent()->GetPublicSettings()->forceWaitPointPreColorToPostPrefetch) ? HwPipePostPrefetch
+                                                                                          : HwPipePostPs;
+#endif
     }
 
     // Determine sync requirements for global pipeline waits.
@@ -1107,7 +1074,7 @@ void Device::Barrier(
                 // Note that we set this to post index fetch, which is earlier in the pipeline than our CP blts,
                 // because we just handled CP DMA syncronization. This pipe point is still necessary to catch cases
                 // when the caller wishes to sync up to the top of the pipeline.
-                pipePoint = HwPipePostIndexFetch;
+                pipePoint = HwPipePostPrefetch;
             }
         }
         else
@@ -1120,7 +1087,7 @@ void Device::Barrier(
         {
             switch (pipePoint)
             {
-            case HwPipePostIndexFetch:
+            case HwPipePostPrefetch:
                 PAL_ASSERT(waitPoint == HwPipeTop);
                 globalSyncReqs.pfpSyncMe      = 1;
                 break;
@@ -1165,14 +1132,16 @@ void Device::Barrier(
         if ((TestAnyFlagSet(srcCacheMask, MaybeL2Mask) && TestAnyFlagSet(dstCacheMask, ~AlwaysL2Mask)) ||
             NeedGlobalFlushAndInvL2(srcCacheMask, dstCacheMask, transition.imageInfo.pImage))
         {
-            globalSyncReqs.cacheFlags |= CacheSyncFlushTcc;
+            globalSyncReqs.glxCaches |= SyncGl2Wb;
         }
 
         // Invalidate L2 if prior output might not have been through L2 and upcoming reads/writes might be through L2.
         if ((TestAnyFlagSet(srcCacheMask, ~AlwaysL2Mask) && TestAnyFlagSet(dstCacheMask, MaybeL2Mask)) ||
             NeedGlobalFlushAndInvL2(srcCacheMask, dstCacheMask, transition.imageInfo.pImage))
         {
-            globalSyncReqs.cacheFlags |= CacheSyncInvTcc;
+            // Originally, this just did a Gl2 invalidate but that implicitly invalidated the glm as well.
+            // It's not clear if the glm invalidate is required or not so to be conservative we explicitly add it.
+            globalSyncReqs.glxCaches |= SyncGl2Inv | SyncGlmInv;
         }
 
         // Invalidate L1 shader caches if the previous output may have done shader writes, since there is no coherence
@@ -1180,15 +1149,14 @@ void Device::Barrier(
         // (scalar cache) if this barrier is forcing shader read coherency.
         if (TestAnyFlagSet(srcCacheMask, MaybeL1ShaderMask) || TestAnyFlagSet(dstCacheMask, MaybeL1ShaderMask))
         {
-            globalSyncReqs.cacheFlags |= CacheSyncInvTcp;
-            globalSyncReqs.cacheFlags |= CacheSyncInvSqK$;
+            globalSyncReqs.glxCaches |= SyncGl1Inv | SyncGlvInv | SyncGlkInv;
         }
 
         if (isGfxSupported &&
             TestAnyFlagSet(srcCacheMask, CoherColorTarget) &&
             (TestAnyFlagSet(srcCacheMask, ~CoherColorTarget) || TestAnyFlagSet(dstCacheMask, ~CoherColorTarget)))
         {
-            globalSyncReqs.cacheFlags |= CacheSyncFlushAndInvRb;
+            globalSyncReqs.rbCaches = SyncRbWbInv;
 
             // CB metadata caches can only be flushed with a pipelined VGT event, like CACHE_FLUSH_AND_INV. In order to
             // ensure the cache flush finishes before continuing, we must wait on a timestamp. We're only required to
@@ -1211,7 +1179,7 @@ void Device::Barrier(
         if (couldHaveMetadata &&
             (TestAnyFlagSet(srcCacheMask, MaybeTccMdShaderMask) || TestAnyFlagSet(dstCacheMask, MaybeTccMdShaderMask)))
         {
-            globalSyncReqs.cacheFlags |= CacheSyncInvTccMd;
+            globalSyncReqs.glxCaches |= SyncGlmInv;
         }
     } // For each transition
 
@@ -1220,8 +1188,9 @@ void Device::Barrier(
     //     - Any DEST_BASE_ENA bit is set in the global ACQUIRE_MEM request, waiting for all gfx contexts to be idle.
     //     - If a CS_PARTIAL_FLUSH AND either VS/PS_PARTIAL_FLUSH are requested, we have to idle the whole pipe to
     //       ensure both sets of potentially parallel work have completed.
-    const bool bottomOfPipeStall = (globalSyncReqs.waitOnEopTs ||
-                                    (globalSyncReqs.cpMeCoherCntl.u32All != 0) ||
+    const bool bottomOfPipeStall = (globalSyncReqs.waitOnEopTs   ||
+                                    globalSyncReqs.cbTargetStall ||
+                                    globalSyncReqs.dbTargetStall ||
                                     (globalSyncReqs.csPartialFlush &&
                                      (globalSyncReqs.vsPartialFlush || globalSyncReqs.psPartialFlush)));
 
@@ -1241,10 +1210,10 @@ void Device::Barrier(
             // If this barrier requires CB/DB caches to be flushed, enqueue a pipeline event to do that now.  In
             // particular, note that CB/DB flushes performed by an ACQUIRE_MEM with a regular barrier is converted to
             // a pipelined event in a split barrier.
-            if (TestAnyFlagSet(globalSyncReqs.cacheFlags, CacheSyncFlushAndInvRb))
+            if (globalSyncReqs.rbCaches != SyncRbNone)
             {
                 uint32* pCmdSpace = pCmdStream->ReserveCommands();
-                AddCacheFlushAndInvEvent(pCmdBuf, pCmdSpace);
+                pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CACHE_FLUSH_AND_INV_EVENT, engineType, pCmdSpace);
                 pCmdStream->CommitCommands(pCmdSpace);
             }
 
@@ -1301,13 +1270,14 @@ void Device::Barrier(
             }
 
             // Clear any global sync requirements that we know have been satisfied by the wait on pSplitBarrierGpuEvent.
-            globalSyncReqs.waitOnEopTs           = 0;
-            globalSyncReqs.vsPartialFlush        = 0;
-            globalSyncReqs.psPartialFlush        = 0;
-            globalSyncReqs.csPartialFlush        = 0;
-            globalSyncReqs.pfpSyncMe             = 0;
-            globalSyncReqs.cacheFlags           &= ~CacheSyncFlushAndInvRb;
-            globalSyncReqs.cpMeCoherCntl.u32All &= ~CpMeCoherCntlStallMask;
+            globalSyncReqs.waitOnEopTs    = 0;
+            globalSyncReqs.cbTargetStall  = 0;
+            globalSyncReqs.dbTargetStall  = 0;
+            globalSyncReqs.vsPartialFlush = 0;
+            globalSyncReqs.psPartialFlush = 0;
+            globalSyncReqs.csPartialFlush = 0;
+            globalSyncReqs.pfpSyncMe      = 0;
+            globalSyncReqs.rbCaches       = SyncRbNone;
 
             // Some globalSyncReqs bits may still be set.  These will allow any late cache flush/invalidations that have
             // to be performed with ACQUIRE_MEM to be executed during the IssueSyncs() call, below.
@@ -1325,8 +1295,9 @@ void Device::Barrier(
             {
                 const Pal::Image* pImage = static_cast<const Pal::Image*>(barrier.ppTargets[i]);
 
-                SyncReqs targetStallSyncReqs = { };
-                targetStallSyncReqs.cpMeCoherCntl.u32All = CpMeCoherCntlStallMask;
+                SyncReqs targetStallSyncReqs = {};
+                targetStallSyncReqs.cbTargetStall = 1;
+                targetStallSyncReqs.dbTargetStall = 1;
 
                 if (pImage != nullptr)
                 {
@@ -1341,13 +1312,8 @@ void Device::Barrier(
                 }
                 else
                 {
-                    IssueSyncs(pCmdBuf,
-                               pCmdStream,
-                               targetStallSyncReqs,
-                               barrier.waitPoint,
-                               FullSyncBaseAddr,
-                               FullSyncSize,
-                               &barrierOps);
+                    IssueSyncs(pCmdBuf, pCmdStream, targetStallSyncReqs, barrier.waitPoint, 0, 0, &barrierOps);
+
                     // Ignore the rest since we are syncing on the full range.
                     break;
                 }
@@ -1381,7 +1347,7 @@ void Device::Barrier(
             pCmdStream->CommitCommands(pCmdSpace);
         }
 
-        IssueSyncs(pCmdBuf, pCmdStream, globalSyncReqs, barrier.waitPoint, FullSyncBaseAddr, FullSyncSize, &barrierOps);
+        IssueSyncs(pCmdBuf, pCmdStream, globalSyncReqs, barrier.waitPoint, 0, 0, &barrierOps);
 
         // -------------------------------------------------------------------------------------------------------------
         // -- Perform late image transitions (layout changes and range-checked DB cache flushes).
@@ -1429,9 +1395,8 @@ void Device::Barrier(
                             // write of HTile on one plane (e.g., stencil) while reading in HTile values with stale
                             // data for the other plane (e.g., depth) which will clobber the correct values.
                             SyncReqs sharedHtileSync = {};
-                            sharedHtileSync.cpMeCoherCntl.bits.DB_DEST_BASE_ENA = 1;
-                            sharedHtileSync.cpMeCoherCntl.bits.DEST_BASE_0_ENA  = 1;
-                            sharedHtileSync.cacheFlags |= CacheSyncFlushAndInvDb;
+                            sharedHtileSync.dbTargetStall = 1;
+                            sharedHtileSync.rbCaches = SyncDbWbInv;
 
                             IssueSyncs(pCmdBuf, pCmdStream, sharedHtileSync, barrier.waitPoint,
                                        image.GetGpuVirtualAddr(), gfx9Image.GetGpuMemSyncSize(), &barrierOps);
@@ -1460,16 +1425,14 @@ void Device::Barrier(
                         if (usedCompute)
                         {
                             initSyncReqs.csPartialFlush = 1;
-                            initSyncReqs.cacheFlags    |= CacheSyncInvTcp;
-                            initSyncReqs.cacheFlags    |= CacheSyncInvTccMd;
+                            initSyncReqs.glxCaches |= SyncGlmInv | SyncGl1Inv | SyncGlvInv;
                         }
 
                         // F/I L2 since metadata init is a direct metadata write.  Refer to FlushAndInvL2IfNeeded for
                         // full details of this issue.
                         if (gfx9Image.NeedFlushForMetadataPipeMisalignment(subresRange))
                         {
-                            initSyncReqs.cacheFlags |= CacheSyncFlushTcc;
-                            initSyncReqs.cacheFlags |= CacheSyncInvTcc;
+                            initSyncReqs.glxCaches |= SyncGl2WbInv;
                         }
                     }
                 }
@@ -1483,7 +1446,7 @@ void Device::Barrier(
             }
         } // For each transition.
 
-        IssueSyncs(pCmdBuf, pCmdStream, initSyncReqs, barrier.waitPoint, FullSyncBaseAddr, FullSyncSize, &barrierOps);
+        IssueSyncs(pCmdBuf, pCmdStream, initSyncReqs, barrier.waitPoint, 0, 0, &barrierOps);
 
         for (uint32 i = 0; i < barrier.transitionCount; i++)
         {
@@ -1534,7 +1497,7 @@ void Device::Barrier(
 // =====================================================================================================================
 // Call back to above layers before starting the barrier execution.
 void Device::DescribeBarrierStart(
-    GfxCmdBuffer*          pCmdBuf,
+    Pm4CmdBuffer*          pCmdBuf,
     uint32                 reason,
     Developer::BarrierType type
     ) const
@@ -1556,7 +1519,7 @@ void Device::DescribeBarrierStart(
 // =====================================================================================================================
 // Callback to above layers with summary information at end of barrier execution.
 void Device::DescribeBarrierEnd(
-    GfxCmdBuffer*                 pCmdBuf,
+    Pm4CmdBuffer*                 pCmdBuf,
     Developer::BarrierOperations* pOperations
     ) const
 {
@@ -1576,7 +1539,7 @@ void Device::DescribeBarrierEnd(
 // passed in after calling back in case of layout transitions. This function is expected to be called only on layout
 // transitions.
 void Device::DescribeBarrier(
-    GfxCmdBuffer*                 pCmdBuf,
+    Pm4CmdBuffer*                 pCmdBuf,
     const BarrierTransition*      pTransition,
     Developer::BarrierOperations* pOperations
     ) const

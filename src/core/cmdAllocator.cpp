@@ -134,8 +134,14 @@ CmdAllocator::CmdAllocator(
 
         memset(&m_gpuAllocInfo[i].allocCreateInfo, 0, sizeof(m_gpuAllocInfo[i].allocCreateInfo));
 
+        if (createInfo.allocInfo[i].allocSize == 0)
+        {
+            continue;
+        }
+
         m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.priority  = GpuMemPriority::Normal;
         m_gpuAllocInfo[i].allocCreateInfo.memObjCreateInfo.vaRange   = VaRange::Default;
+
         if (i != GpuScratchMemAlloc)
         {
             m_gpuAllocInfo[i].allocCreateInfo.flags.cpuAccessible = 1;

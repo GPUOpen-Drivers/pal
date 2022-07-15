@@ -269,6 +269,13 @@ extern uint64 AtomicIncrement64(volatile uint64* pAddend);
 /// @returns Result of the decrement operation.
 extern uint32 AtomicDecrement(volatile uint32* pValue);
 
+/// Atomically decrements the specified 64-bit unsigned integer.
+///
+/// @param [in,out] pValue Pointer to the value to be decremented.
+///
+/// @returns Result of the decrement operation.
+extern uint32 AtomicDecrement64(volatile uint64* pValue);
+
 /// Performs an atomic compare and swap operation on two 32-bit unsigned integers. This operation compares *pTarget
 /// with oldValue and replaces it with newValue if they match. If the values don't match, no action is taken.
 /// The original value of *pTarget is returned as a result.

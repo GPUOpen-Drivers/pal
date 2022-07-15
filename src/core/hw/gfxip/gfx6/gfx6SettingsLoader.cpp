@@ -26,7 +26,6 @@
 #include "pal.h"
 #include "palInlineFuncs.h"
 #include "palHashMapImpl.h"
-#include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/gfx6/gfx6Chip.h"
 #include "core/hw/gfxip/gfx6/gfx6Device.h"
 #include "core/hw/gfxip/gfx6/gfx6SettingsLoader.h"

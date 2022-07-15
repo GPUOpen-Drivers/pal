@@ -416,12 +416,33 @@ void EventProvider::LogResourceCorrelationEvent(
 }
 
 // =====================================================================================================================
+void EventProvider::LogResourceUpdateEvent(
+    const ResourceUpdateEventData& eventData)
+{
+    static constexpr PalEvent eventId = PalEvent::ResourceInfoUpdate;
+
+    if (ShouldLog(eventId))
+    {
+        PAL_ASSERT(eventData.pObj != nullptr);
+
+        ResourceUpdateInfoData data = {};
+        data.handle                 = reinterpret_cast<ResourceHandle>(eventData.pObj);
+        data.subresourceId          = eventData.subresourceId;
+        data.type                   = eventData.type;
+        data.before                 = eventData.beforeUsageFlags;
+        data.after                  = eventData.afterUsageFlags;
+
+        LogEvent(eventId, &data, sizeof(data));
+    }
+}
+
+// =====================================================================================================================
 void EventProvider::LogEvent(
     PalEvent    eventId,
     const void* pEventData,
     size_t      eventDataSize)
 {
-    static_assert(static_cast<uint32>(PalEvent::Count) == 16, "Write support for new event!");
+    static_assert(static_cast<uint32>(PalEvent::Count) == 17, "Write support for new event!");
 
     if (ShouldLog(eventId))
     {
@@ -652,6 +673,28 @@ void EventProvider::LogEvent(
                 WriteTokenData(eventToken);
                 break;
             }
+            case PalEvent::ResourceInfoUpdate:
+            {
+                PAL_ASSERT(sizeof(ResourceUpdateInfoData) == eventDataSize);
+
+                const auto* pUpdateInfo = reinterpret_cast<const ResourceUpdateInfoData*>(pEventData);
+                // We are only logging buffers to capture DX12 raytracing resources. Logging all resource transitions
+                // will lead to a significant increase in the size of the log file, so we are only supporting
+                // buffers at this point.
+                // Additionally, conversion functions are needed to support other types.
+                PAL_ALERT_MSG(pUpdateInfo->type != ResourceType::Buffer,
+                    "We only support buffers. Add conversion functions to use new types");
+
+                RMT_MSG_RESOURCE_UPDATE rsrcUpdateToken(delta,
+                                                        LowPart(pUpdateInfo->handle),
+                                                        pUpdateInfo->subresourceId,
+                                                        PalToRmtResourceType(pUpdateInfo->type),
+                                                        PalToRmtBufferUsageFlags(pUpdateInfo->before),
+                                                        PalToRmtBufferUsageFlags(pUpdateInfo->after));
+
+                WriteTokenData(rsrcUpdateToken);
+                break;
+            }
         }
     }
 }
@@ -718,10 +761,9 @@ void EventProvider::LogResourceCreateEvent(
         PAL_ASSERT(pRsrcCreateData->descriptionSize == sizeof(ResourceDescriptionBuffer));
         const auto* pBufferData = reinterpret_cast<const ResourceDescriptionBuffer*>(pRsrcCreateData->pDescription);
 
-        // @TODO - add static asserts to make sure the bit positions in RMT_BUFFER_CREATE/USAGE_FLAGS match Pal values
         RMT_RESOURCE_TYPE_BUFFER_TOKEN bufferDesc(
-            static_cast<uint8>(pBufferData->createFlags),
-            static_cast<uint16>(pBufferData->usageFlags),
+            PalToRmtBufferCreateFlags(pBufferData->createFlags),
+            PalToRmtBufferUsageFlags(pBufferData->usageFlags),
             pBufferData->size);
 
         WriteTokenData(bufferDesc);
@@ -733,11 +775,11 @@ void EventProvider::LogResourceCreateEvent(
         PAL_ASSERT(pRsrcCreateData->descriptionSize == sizeof(ResourceDescriptionPipeline));
         const auto* pPipelineData = reinterpret_cast<const ResourceDescriptionPipeline*>(pRsrcCreateData->pDescription);
 
-        RMT_PIPELINE_CREATE_FLAGS flags;
+        RMT_PIPELINE_CREATE_FLAGS flags = {};
         flags.CLIENT_INTERNAL   = pPipelineData->pCreateFlags->clientInternal;
         flags.OVERRIDE_GPU_HEAP = 0; // pipeline heap override has been removed in PAL version 631.0
 
-        RMT_PIPELINE_HASH hash;
+        RMT_PIPELINE_HASH hash = {};
         hash.hashUpper = pPipelineData->pPipelineInfo->internalPipelineHash.unique;
         hash.hashLower = pPipelineData->pPipelineInfo->internalPipelineHash.stable;
 

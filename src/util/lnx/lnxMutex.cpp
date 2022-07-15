@@ -194,6 +194,18 @@ uint32 AtomicDecrement(
 }
 
 // =====================================================================================================================
+// Atomically decrements a 64-bit unsigned integer, returning the new value.
+uint32 AtomicDecrement64(
+    volatile uint64* pValue)
+{
+    // The variable pointed to by the pValue parameter must be aligned on a 64-bit boundary; otherwise, this function
+    // will behave unpredictably on multiprocessor x86 systems and any non-x86 systems
+    PAL_ASSERT(IsPow2Aligned(reinterpret_cast<size_t>(pValue), sizeof(uint64)));
+
+    return __sync_sub_and_fetch(pValue, 1ULL);
+}
+
+// =====================================================================================================================
 // Thread-safe method to compare and swap two 32-bit values.
 // Returns the value at (*pTarget) before this method was called.
 uint32 AtomicCompareAndSwap(

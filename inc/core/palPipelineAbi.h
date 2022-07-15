@@ -465,6 +465,8 @@ enum class UserDataMapping : uint32
     EnPrimsNeededCnt      = 0x10000017,  ///< Address of userdata register that will be used to dynamically enable/disable
                                          ///  extra shader work for generated prim counts in PipelineStats queries
 
+    NotMapped             = 0xFFFFFFFF,  ///< Register is not mapped to any user-data entry.
+
     /// @internal The following enum values are deprecated and only remain in the header file to avoid build errors.
 
     GdsRange          = 0x10000007, ///< GDS range (32-bit unsigned integer: gdsSizeInBytes | (gdsOffsetInBytes << 16)).
@@ -682,14 +684,45 @@ struct PrimShaderCbLayout
 static_assert(sizeof(PrimShaderCullingCb) == sizeof(PrimShaderCbLayout),
     "Transition structure (PrimShaderCullingCb) is not the same size as original structure (PrimShaderCbLayout)!");
 
+/// Point sprite override selection.
+enum class PointSpriteSelect : uint32
+{
+    Zero,   ///< Select 0.0f.
+    One,    ///< Select 1.0f.
+    S,      ///< Select S component value.
+    T,      ///< Select T component value.
+    None,   ///< Keep interpolated result.
+};
+
+/// Geometry Shader output primitive type.
+enum class GsOutPrimType : uint32
+{
+    PointList = 0, ///< A list of individual vertices that make up points.
+    LineStrip,     ///< Each additional vertex after the first two makes a new line.
+    TriStrip,      ///< Each additional vertex after the first three makes a new triangle.
+    Rect2d,        ///< Each rect is the bounding box of an arbitrary 2D triangle.
+    RectList       ///< Each rect is three 2D axis-aligned rectangle vertices.
+};
+
+/// Specifies how to populate the sample mask provided to pixel shaders.
+enum class CoverageToShaderSel : uint32
+{
+    InputCoverage = 0,      ///< In over rasterization mode, replicate the overrast result to all detail samples of
+                            ///  the pixel. In standard rasterization mode, leave the sample mask untouched.
+    InputInnerCoverage,     ///< In under rasterization mode, replicate the underrast result to all detail samples
+                            ///  of the pixel. If under rasterization is disabled output raw mask.
+    InputDepthCoverage,     ///< The InputCoverage mask bitwise ANDed with the result of Early Depth/Stencil testing.
+    Raw,                    ///< Output the scan converter's internal mask, unchanged.
+};
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 676
  } //Abi
  namespace PalAbi
  {
  #endif
 
- constexpr uint32 PipelineMetadataMajorVersion = 2;  ///< Pipeline Metadata Major Version
- constexpr uint32 PipelineMetadataMinorVersion = 6;  ///< Pipeline Metadata Minor Version
+ constexpr uint32 PipelineMetadataMajorVersion = 3;  ///< Pipeline Metadata Major Version
+ constexpr uint32 PipelineMetadataMinorVersion = 0;  ///< Pipeline Metadata Minor Version
 
  constexpr uint32 PipelineMetadataBase = 0x10000000; ///< Deprecated - Pipeline Metadata base value to be OR'd with the
                                                      ///  PipelineMetadataEntry value when saving to ELF.

@@ -41,7 +41,9 @@ public:
     virtual Result Init(
         const GraphicsPipelineCreateInfo&         createInfo,
         const GraphicsPipelineInternalCreateInfo& internalInfo,
-        const AbiReader&                          abiReader);
+        const AbiReader&                          abiReader,
+        const Util::PalAbi::CodeObjectMetadata&   metadata,
+        Util::MsgPackReader*                      pMetadataReader);
 
     bool IsGsEnabled() const { return m_flags.gsEnabled; }
     bool IsGsOnChip() const { return m_flags.isGsOnchip; }
@@ -95,7 +97,9 @@ private:
     Result InitFromPipelineBinary(
         const GraphicsPipelineCreateInfo&         createInfo,
         const GraphicsPipelineInternalCreateInfo& internalInfo,
-        const AbiReader&                          abiReader);
+        const AbiReader&                          abiReader,
+        const Util::PalAbi::CodeObjectMetadata&   metadata,
+        Util::MsgPackReader*                      pMetadataReader);
 
     union
     {
