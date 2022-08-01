@@ -2601,8 +2601,9 @@ void RsrcProcMgr::DepthStencilClearGraphics(
                                                                                   stencilWriteMask,
                                                                                   range));
 
-    const bool clearDepth   = TestAnyFlagSet(clearMask, HtilePlaneDepth);
-    const bool clearStencil = TestAnyFlagSet(clearMask, HtilePlaneStencil);
+    const auto& settings     = m_pDevice->Parent()->Settings();
+    const bool  clearDepth   = TestAnyFlagSet(clearMask, HtilePlaneDepth);
+    const bool  clearStencil = TestAnyFlagSet(clearMask, HtilePlaneStencil);
     PAL_ASSERT(clearDepth || clearStencil); // How did we get here if there's nothing to clear!?
 
     const StencilRefMaskParams stencilRefMasks =
@@ -2666,8 +2667,9 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     depthViewInfoInternal.stencilClearValue = stencil;
 
     DepthStencilViewCreateInfo depthViewInfo = { };
-    depthViewInfo.pImage    = dstImage.Parent();
-    depthViewInfo.arraySize = 1;
+    depthViewInfo.pImage           = dstImage.Parent();
+    depthViewInfo.arraySize        = 1;
+    depthViewInfo.flags.bypassMall = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnCbDbWrite);
 
     // Depth-stencil targets must be used on the universal engine.
     PAL_ASSERT((clearDepth   == false) || TestAnyFlagSet(depthLayout.engines,   LayoutUniversalEngine));

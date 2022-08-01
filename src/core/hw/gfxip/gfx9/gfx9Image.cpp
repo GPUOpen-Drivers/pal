@@ -944,7 +944,7 @@ Result Image::Finalize(
             {
                 Developer::ImageDataAddrMgrSurfInfo data = {};
 
-                data.tiling.gfx9.swizzle = pImageInternalCreateInfo->gfx9.sharedSwizzleMode;
+                data.tiling.gfx9.swizzle = m_addrSurfSetting[0].swizzleMode;
 
                 data.flags.properties.color = m_createInfo.usageFlags.colorTarget;
                 data.flags.properties.depth = m_createInfo.usageFlags.depthStencil;
@@ -2113,8 +2113,7 @@ bool Image::IsIterate256Meaningful(
     return ((imageCreateInfo.samples > 1)             &&
             imageCreateInfo.usageFlags.depthStencil   &&
             subResInfo->flags.supportMetaDataTexFetch &&
-            ((IsNavi21(device) && (imageCreateInfo.samples >= 4)) == false) &&
-            ((IsNavi23(device) && (imageCreateInfo.samples >= 4)) == false) &&
+            ((IsNavi2x(device) && (imageCreateInfo.samples >= 4)) == false) &&
             (subResInfo->subresId.plane < m_pImageInfo->numPlanes));
 }
 

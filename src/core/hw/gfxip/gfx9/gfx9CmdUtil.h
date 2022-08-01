@@ -321,6 +321,8 @@ public:
     VGT_EVENT_TYPE SelectEopEvent(SyncRbFlags rbSync) const;
     ReleaseMemCaches SelectReleaseMemCaches(SyncGlxFlags* pGlxSync) const;
 
+    SyncGlxFlags GetSyncGlxFlagsFromReleaseMemCaches(ReleaseMemCaches releaseCaches) const;
+
     // If we have support for the indirect_addr index and compute engines.
     bool HasEnhancedLoadShRegIndex() const;
 
@@ -749,6 +751,8 @@ public:
     size_t BuildPrimeGpuCaches(
         const PrimeGpuCacheRange& primeGpuCacheRange,
         void*                     pBuffer) const;
+
+    static bool IsIndexedRegister(uint32 regAddr);
 
     // Returns the register information for registers which have differing addresses between hardware families.
     const RegisterInfo& GetRegInfo() const { return m_registerInfo; }

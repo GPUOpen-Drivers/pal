@@ -152,6 +152,19 @@ public:
     }
     ///@}
 
+    /// Packs a scalar element.
+    ///
+    /// @param [in]     value   The value to write.
+    /// @param [in,out] pResult Result code returned from this function if Success is passed in.
+    template <typename T>
+    void Pack(T value, Result* pResult)
+    {
+        if (*pResult == Result::Success)
+        {
+            *pResult = Pack(value);
+        }
+    }
+
     /// Packs a string element.
     ///
     /// @param [in] pString  The null-terminated string to write.
@@ -179,6 +192,19 @@ public:
     template <size_t N>
     Result Pack(const char (&string)[N]) { return PackString(&string[0], N - 1); }
 
+    /// Packs a string element from a string literal as input.
+    ///
+    /// @param [in]     str     The null-terminated string to write.
+    /// @param [in,out] pResult Result code returned from this function if Success is passed in.
+    template <size_t N>
+    void Pack(const char(&string)[N], Result* pResult)
+    {
+        if (*pResult == Result::Success)
+        {
+            *pResult = PackString(string);
+        }
+    }
+
     /// Packs an array of scalar elements.
     ///
     /// @param [in] pArray       The beginning of the array to write.
@@ -188,6 +214,20 @@ public:
     template <typename T>
     Result PackArray(const T* pArray, uint32 numElements);
 
+    /// Packs an array of scalar elements.
+    ///
+    /// @param [in] pArray       The beginning of the array to write.
+    /// @param [in] numElements  How many elements wide the array is.
+    /// @param [in,out] pResult Result code returned from this function if Success is passed in.
+    template <typename T>
+    void PackArray(const T* pArray, uint32 numElements, Result* pResult)
+    {
+        if (*pResult == Result::Success)
+        {
+            *pResult = PackArray(pArray, numElements);
+        }
+    }
+
     /// Packs an array of scalar elements (bools, ints, uints, or floats) from a C-style array as input.
     ///
     /// @param [in] array  Reference to the C-style source array.
@@ -195,6 +235,19 @@ public:
     /// @returns Success if successful, ErrorOutOfMemory if memory allocation fails.
     template <typename T, size_t N>
     Result Pack(const T (&array)[N]) { return PackArray(&array[0], static_cast<uint32>(N)); }
+
+    /// Packs an array of scalar elements (bools, ints, uints, or floats) from a C-style array as input.
+    ///
+    /// @param [in] array  Reference to the C-style source array.
+    /// @param [in,out] pResult Result code returned from this function if Success is passed in.
+    template <typename T, size_t N>
+    void Pack(const T (&array)[N], Result* pResult)
+    {
+        if (*pResult == Result::Success)
+        {
+            *pResult = PackArray(&array[0], static_cast<uint32>(N));
+        }
+    }
 
     /// Packs a binary blob element.
     ///
@@ -260,6 +313,27 @@ public:
               size_t GroupSize>
     Result Pack(const HashMap<Key, Value, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>& map);
 
+    /// Creates an array from the contents of an existing MsgPack token stream which was created by another
+    /// MsgPackWriter object.
+    ///
+    /// @param [in] src  Reference to the other MsgPackWriter to copy from.
+    ///
+    /// @returns Success if successful, ErrorOutOfMemory if memory allocation fails.
+    Result AppendArray(const MsgPackWriter& src);
+
+    /// Creates an array from the contents of an existing MsgPack token stream which was created by another
+    /// MsgPackWriter object.
+    ///
+    /// @param [in]     src     Reference to the other MsgPackWriter to copy from.
+    /// @param [in,out] pResult Result code returned from this function if Success is passed in.
+    void AppendArray(const MsgPackWriter& src, Result* pResult)
+    {
+        if (*pResult == Result::Success)
+        {
+            *pResult = AppendArray(src);
+        }
+    }
+
     /// Creates a map from the contents of an existing MsgPack token stream which was created by another
     /// MsgPackWriter object.
     ///
@@ -267,6 +341,21 @@ public:
     ///
     /// @returns Success if successful, ErrorOutOfMemory if memory allocation fails.
     Result AppendMap(const MsgPackWriter& src);
+
+    /// Creates a map from the contents of an existing MsgPack token stream which was created by another
+    /// MsgPackWriter object.
+    ///
+    /// @param [in] src  Reference to the other MsgPackWriter to copy from.
+    /// @param [in,out] pResult Result code returned from this function if Success is passed in.
+    ///
+    /// @returns Success if successful, ErrorOutOfMemory if memory allocation fails.
+    void AppendMap(const MsgPackWriter& src, Result* pResult)
+    {
+        if (*pResult == Result::Success)
+        {
+            *pResult = AppendMap(src);
+        }
+    }
 
     /// Convenience function that combines two Pack() calls. Useful for manually packing a map.
     ///
@@ -279,6 +368,20 @@ public:
     {
         Pack(first);
         return Pack(second);
+    }
+
+    /// Convenience function that combines two Pack() calls. Useful for manually packing a map.
+    ///
+    /// @param [in]     first   First element to pack (key).
+    /// @param [in]     second  Second element to pack (value).
+    /// @param [in,out] pResult Result code returned from this function if Success is passed in.
+    template <typename T1, typename T2>
+    void PackPair(const T1& first, const T2& second, Result* pResult)
+    {
+        if (*pResult == Result::Success)
+        {
+            *pResult = PackPair(first, second);
+        }
     }
 
     /// Declares the beginning of a fixed-size array, with the exact number of elements specified.

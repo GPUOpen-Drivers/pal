@@ -104,7 +104,7 @@ class UniversalQueueContext final : public QueueContext
 public:
     UniversalQueueContext(
         Device* pDevice,
-        bool    useStateShadowing,
+        bool    supportMcbp,
         uint32  persistentCeRamOffset,
         uint32  persistentCeRamSize,
         Engine* pEngine,
@@ -157,7 +157,7 @@ private:
     bool    m_cmdsUseTmzRing;
 
     // GPU memory allocation used for shadowing persistent CE RAM between submissions.
-    bool            m_useShadowing;
+    bool            m_supportMcbp;
     BoundGpuMemory  m_shadowGpuMem;
     gpusize         m_shadowGpuMemSizeInBytes;
     uint32          m_shadowedRegCount; // Number of state registers shadowed using state-shadowing.

@@ -804,7 +804,7 @@ void CmdBuffer::CmdAcquire(
         PAL_ASSERT(acquireInfo.pImageBarriers[i].srcAccessMask == 0);
     }
 
-    PAL_ASSERT((syncTokenCount == 0) || (pSyncTokens != nullptr));
+    PAL_ASSERT((syncTokenCount > 0) && (pSyncTokens != nullptr));
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     VerifyBarrierTransitions(acquireInfo);
@@ -853,7 +853,12 @@ void CmdBuffer::CmdAcquireEvent(
         PAL_ASSERT(acquireInfo.pImageBarriers[i].srcAccessMask == 0);
     }
 
-    PAL_ASSERT((gpuEventCount == 0) || (ppGpuEvents != nullptr));
+    PAL_ASSERT((gpuEventCount > 0) && (ppGpuEvents != nullptr));
+
+    for (uint32 i = 0; i < gpuEventCount; i++)
+    {
+        PAL_ASSERT(ppGpuEvents[i] != nullptr);
+    }
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     VerifyBarrierTransitions(acquireInfo);

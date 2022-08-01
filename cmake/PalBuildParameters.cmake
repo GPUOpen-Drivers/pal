@@ -56,9 +56,9 @@ endif()
 # Build PAL with Operating System support
 pal_bp(PAL_BUILD_OSS    ON)
 #if PAL_BUILD_OSS2_4
-pal_bp(PAL_BUILD_OSS2_4 ON DEPENDS_ON ${PAL_BUILD_OSS})
+pal_bp(PAL_BUILD_OSS2_4 ON DEPENDS_ON PAL_BUILD_OSS)
 #endif
-pal_bp(PAL_BUILD_OSS4   ON DEPENDS_ON ${PAL_BUILD_OSS})
+pal_bp(PAL_BUILD_OSS4   ON DEPENDS_ON PAL_BUILD_OSS)
 
 # Clients must define this variable so pal know what API it's facilitating
 pal_bp(PAL_CLIENT "-1" MODE "FATAL_ERROR")
@@ -73,10 +73,10 @@ else()
     set(PAL_AMDGPU_BUILD OFF)
 endif()
 
-pal_bp(PAL_BUILD_DRI3 ON DEPENDS_ON ${PAL_AMDGPU_BUILD})
-pal_bp(PAL_BUILD_WAYLAND OFF DEPENDS_ON ${PAL_AMDGPU_BUILD})
+pal_bp(PAL_BUILD_DRI3 ON DEPENDS_ON PAL_AMDGPU_BUILD)
+pal_bp(PAL_BUILD_WAYLAND OFF DEPENDS_ON PAL_AMDGPU_BUILD)
 
-pal_bp(PAL_DISPLAY_DCC ON DEPENDS_ON ${PAL_AMDGPU_BUILD})
+pal_bp(PAL_DISPLAY_DCC ON DEPENDS_ON PAL_AMDGPU_BUILD)
 
 # Build null device backend for offline compilation
 pal_bp(PAL_BUILD_NULL_DEVICE ON)

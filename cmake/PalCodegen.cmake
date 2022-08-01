@@ -204,7 +204,6 @@ function(pal_setup_generated_code)
                                 ENSURE_DELETED src/core/hw/gfxip/gfx9/g_gfx9PalSettings.h
                                                src/core/hw/gfxip/gfx9/g_gfx9PalSettings.cpp)
     endif()
-
 endfunction()
 
 function(nongen_source_groups DIR TGT)

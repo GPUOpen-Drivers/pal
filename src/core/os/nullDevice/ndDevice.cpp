@@ -1119,7 +1119,9 @@ void Device::FillGfx9ChipProperties(
 
     if (IsGfx103PlusExclusive(pChipProps->gfxLevel))
     {
-        pChipInfo->supportMeshTaskShader = pChipInfo->supportImplicitPrimitiveShader;
+        // Task/Mesh shaders are only supported for Gfx10.3+
+        pChipInfo->supportMeshShader = pChipInfo->supportImplicitPrimitiveShader;
+        pChipInfo->supportTaskShader = pChipInfo->supportImplicitPrimitiveShader;
     }
 
     // Assume all CUs and all RBs are active/enabled.

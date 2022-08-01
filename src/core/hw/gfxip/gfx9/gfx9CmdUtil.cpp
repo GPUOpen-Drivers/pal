@@ -3369,6 +3369,23 @@ ReleaseMemCaches CmdUtil::SelectReleaseMemCaches(
 }
 
 // =====================================================================================================================
+// Convert from ReleaseMemCaches to SyncGlxFlags. ReleaseMemCaches is a subset of SyncGlxFlags.
+SyncGlxFlags CmdUtil::GetSyncGlxFlagsFromReleaseMemCaches(
+    ReleaseMemCaches releaseCaches
+    ) const
+{
+    SyncGlxFlags syncGlx = {};
+
+    syncGlx |= releaseCaches.gl2Inv ? SyncGl2Inv : SyncGlxNone;
+    syncGlx |= releaseCaches.gl2Wb  ? SyncGl2Wb  : SyncGlxNone;
+    syncGlx |= releaseCaches.glmInv ? SyncGlmInv : SyncGlxNone;
+    syncGlx |= releaseCaches.gl1Inv ? SyncGl1Inv : SyncGlxNone;
+    syncGlx |= releaseCaches.glvInv ? SyncGlvInv : SyncGlxNone;
+
+    return syncGlx;
+}
+
+// =====================================================================================================================
 // Builds a release_mem packet for compute or graphics. The feature set is restricted to what compute engines and
 // graphics engines both support.
 //
@@ -4760,6 +4777,26 @@ ME_WAIT_REG_MEM_function_enum CmdUtil::WaitRegMemFunc(
     PAL_ASSERT(compareFunc32 < sizeof(xlateCompareFunc)/sizeof(ME_WAIT_REG_MEM_function_enum));
 
     return xlateCompareFunc[compareFunc32];
+}
+
+// =====================================================================================================================
+bool CmdUtil::IsIndexedRegister(
+    uint32 regAddr)
+{
+    return
+        (regAddr == mmVGT_LS_HS_CONFIG) ||
+        (regAddr == mmSPI_SHADER_PGM_RSRC3_GS) ||
+        (regAddr == mmSPI_SHADER_PGM_RSRC4_GS) ||
+        (regAddr == mmSPI_SHADER_PGM_RSRC3_HS) ||
+        (regAddr == mmSPI_SHADER_PGM_RSRC4_HS) ||
+        (regAddr == mmSPI_SHADER_PGM_RSRC3_PS) ||
+        (regAddr == Gfx10Plus::mmSPI_SHADER_PGM_RSRC4_PS) ||
+        (regAddr == HasHwVs::mmSPI_SHADER_PGM_RSRC3_VS) ||
+        (regAddr == Gfx10::mmSPI_SHADER_PGM_RSRC4_VS) ||
+        (regAddr == mmVGT_PRIMITIVE_TYPE) ||
+        (regAddr == mmVGT_INDEX_TYPE) ||
+        (regAddr == mmVGT_NUM_INSTANCES) ||
+        (regAddr == Gfx09::mmIA_MULTI_VGT_PARAM);
 }
 
 #if PAL_ENABLE_PRINTS_ASSERTS

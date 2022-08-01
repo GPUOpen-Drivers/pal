@@ -3402,21 +3402,21 @@ Result GpaSession::AcquirePerfExperiment(
     GpuMemoryInfo*          pSecondaryGpuMem,
     gpusize*                pSecondaryOffset,
     gpusize*                pHeapSize,
-    IPerfExperiment**       ppExperiment
-    )
+    IPerfExperiment**       ppExperiment)
 {
     PAL_ASSERT(pSampleItem != nullptr);
 
     // No experiments are currently idle (or possibly none exist at all) - allocate a new one.
-    PerfExperimentCreateInfo createInfo                   = {};
+    PerfExperimentCreateInfo createInfo = {};
 
-    createInfo.optionFlags.sampleInternalOperations       = 1;
+    createInfo.optionFlags.sampleInternalOperations  = 1;
+    createInfo.optionValues.sampleInternalOperations = sampleConfig.flags.sampleInternalOperations;
+
     createInfo.optionFlags.cacheFlushOnCounterCollection  = 1;
-
-    createInfo.optionValues.sampleInternalOperations      = sampleConfig.flags.sampleInternalOperations;
     createInfo.optionValues.cacheFlushOnCounterCollection = sampleConfig.flags.cacheFlushOnCounterCollection;
-    createInfo.optionFlags.sqShaderMask                   = sampleConfig.flags.sqShaderMask;
-    createInfo.optionValues.sqShaderMask                  = sampleConfig.sqShaderMask;
+
+    createInfo.optionFlags.sqShaderMask  = sampleConfig.flags.sqShaderMask;
+    createInfo.optionValues.sqShaderMask = sampleConfig.sqShaderMask;
 
     const size_t perfExperimentSize = m_pDevice->GetPerfExperimentSize(createInfo, nullptr);
     const bool   memoryExists       = ((m_pAvailablePerfExpMem != nullptr) &&

@@ -866,9 +866,6 @@ void DmaCmdBuffer::WriteEventCmd(
     // Make sure our destination address is dword aligned.
     PAL_ASSERT(IsPow2Aligned(dstAddr, sizeof(uint32)));
 
-    // GFX6-8 should always have supportReleaseAcquireInterface=0, so GpuEvent is always single slot (one dword).
-    PAL_ASSERT(m_pDevice->ChipProperties().gfxip.numSlotsPerEvent == 1);
-
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
 
     constexpr size_t PacketDwords = sizeof(SDMA_PKT_FENCE) / sizeof(uint32);

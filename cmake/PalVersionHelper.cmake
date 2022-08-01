@@ -94,10 +94,28 @@ function(pal_bp AMD_VAR AMD_DFLT)
 
     # If the user specified a dependency. And that depedency is false.
     # Then we shouldn't define the build parameter
-    if (DEFINED AMD_DEPENDS_ON AND (NOT ${AMD_DEPENDS_ON}))
-        message(${AMD_MODE} "${AMD_VAR} dependency not met. (${AMD_DEPENDS_ON})")
-        return()
-    endif()
+    foreach(d ${AMD_DEPENDS_ON})
+        string(REPLACE "(" " ( " _CMAKE_PAL_DEP "${d}")
+        string(REPLACE ")" " ) " _CMAKE_PAL_DEP "${_CMAKE_PAL_DEP}")
+        string(REGEX REPLACE " +" ";" PAL_BP_DEP "${_CMAKE_PAL_DEP}")
+        unset(_CMAKE_PAL_DEP)
+
+        # If the dependency isn't defined or if the dependency is false,
+        # then we need to disable the build parameter.
+        if((NOT DEFINED ${PAL_BP_DEP}) OR (NOT ${${PAL_BP_DEP}}))
+            if (DEFINED ${PAL_BP_DEP})
+                set(_NEW_VALUE ${${PAL_BP_DEP}})
+            else()
+                # If the dependency is not defined, this isn't worthy of anything but a status message.
+                set(AMD_MODE "STATUS")
+                set(_NEW_VALUE OFF)
+            endif()
+            set(${AMD_VAR} ${_NEW_VALUE} PARENT_SCOPE)
+
+            message(${AMD_MODE} "${AMD_VAR} dependency (${d}) failed. Defaulting to ${_NEW_VALUE}. ${AMD_MSG}")
+            return()
+        endif()
+    endforeach()
 
     # If clients don't yet have 3.15 still allow them usage of DEBUG and VERBOSE
     if (${CMAKE_VERSION} VERSION_LESS "3.15" AND ${AMD_MODE} MATCHES "DEBUG|VERBOSE")

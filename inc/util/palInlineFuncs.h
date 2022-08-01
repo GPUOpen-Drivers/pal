@@ -667,6 +667,18 @@ constexpr T Clamp(
             (input >= highBound) ? highBound : input);
 }
 
+/// Determines if the input is within the range specified (inclusive).
+///
+/// @returns True if within range, False otherwise.
+template <typename T>
+constexpr bool InRange(
+    T input,     ///< Input number to range check.
+    T lowBound,  ///< Low bound of the range to check (inclusive).
+    T highBound) ///< High bound of the range to check (inclusive).
+{
+    return (lowBound <= input) && (input <= highBound);
+}
+
 /// Converts a byte value to the equivalent number of DWORDs (uint32) rounded up.  I.e., 3 bytes will return 1 dword.
 ///
 /// @returns Number of dwords necessary to cover numBytes.

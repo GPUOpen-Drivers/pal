@@ -59,6 +59,7 @@
 #include "devDriverServer.h"
 #include "protocols/driverControlServer.h"
 #include "protocols/rgpServer.h"
+#include "settingsService.h"
 
 using namespace Util;
 using namespace Util::Literals;
@@ -154,9 +155,9 @@ bool Device::DetermineGpuIpLevels(
     case FAMILY_POLARIS:
         pIpLevels->gfx = Gfx6::DetermineIpLevel(familyId, eRevId, cpMicrocodeVersion);
         break;
-    case FAMILY_NV:
     case FAMILY_AI:
     case FAMILY_RV:
+    case FAMILY_NV:
         pIpLevels->gfx = Gfx9::DetermineIpLevel(familyId, eRevId, cpMicrocodeVersion);
         break;
 
@@ -481,65 +482,77 @@ Result Device::SetupPublicSettingDefaults()
 {
     Result ret = Result::Success;
 
-    m_publicSettings.fastDepthStencilClearMode = FastDepthStencilClearMode::Default;
-    m_publicSettings.forceLoadObjectFailure = false;
-    m_publicSettings.distributionTessMode = DistributionTessDefault;
-    m_publicSettings.contextRollOptimizationFlags = 0;
-    m_publicSettings.unboundDescriptorDebugSrdCount = 1;
-    m_publicSettings.disableResourceProcessingManager = false;
-    m_publicSettings.tcCompatibleMetaData = 0x7F;
-    m_publicSettings.cpDmaCmdCopyMemoryMaxBytes = 64_KiB;
-    m_publicSettings.forceHighClocks = false;
-    m_publicSettings.cmdBufBatchedSubmitChainLimit = 128;
-    m_publicSettings.cmdAllocResidency = 0xF;
-    m_publicSettings.presentableImageNumberThreshold = 16;
-    m_publicSettings.hintInvariantDepthStencilClearValues = false;
+    m_publicSettings.fastDepthStencilClearMode                = FastDepthStencilClearMode::Default;
+    m_publicSettings.forceLoadObjectFailure                   = false;
+    m_publicSettings.distributionTessMode                     = DistributionTessDefault;
+    m_publicSettings.contextRollOptimizationFlags             = 0;
+    m_publicSettings.unboundDescriptorDebugSrdCount           = 1;
+    m_publicSettings.disableResourceProcessingManager         = false;
+    m_publicSettings.tcCompatibleMetaData                     = 0x7F;
+    m_publicSettings.cpDmaCmdCopyMemoryMaxBytes               = 64_KiB;
+    m_publicSettings.forceHighClocks                          = false;
+    m_publicSettings.cmdBufBatchedSubmitChainLimit            = 128;
+    m_publicSettings.cmdAllocResidency                        = 0xF;
+    m_publicSettings.presentableImageNumberThreshold          = 16;
+    m_publicSettings.hintInvariantDepthStencilClearValues     = false;
     m_publicSettings.hintDisableSmallSurfColorCompressionSize = 128;
-    m_publicSettings.disableEscapeCall = false;
-    m_publicSettings.longRunningSubmissions = false;
-    m_publicSettings.borderColorPaletteSizeLimit = 4096;
-    m_publicSettings.disableCommandBufferPreemption = false;
-    m_publicSettings.disableSkipFceOptimization = false;
-    m_publicSettings.dccBitsPerPixelThreshold = UINT_MAX;
-    m_publicSettings.largePageMinSizeForVaAlignmentInBytes =
+    m_publicSettings.disableEscapeCall                        = false;
+    m_publicSettings.longRunningSubmissions                   = false;
+    m_publicSettings.borderColorPaletteSizeLimit              = 4096;
+    m_publicSettings.disableCommandBufferPreemption           = false;
+    m_publicSettings.disableSkipFceOptimization               = false;
+    m_publicSettings.dccBitsPerPixelThreshold                 = UINT_MAX;
+    m_publicSettings.largePageMinSizeForVaAlignmentInBytes    =
         m_memoryProperties.largePageSupport.minSurfaceSizeForAlignmentInBytes;
-    m_publicSettings.largePageMinSizeForSizeAlignmentInBytes =
+    m_publicSettings.largePageMinSizeForSizeAlignmentInBytes  =
         m_memoryProperties.largePageSupport.minSurfaceSizeForAlignmentInBytes;
-    m_publicSettings.miscellaneousDebugString[0] = '\0';
-    m_publicSettings.renderedByString[0] = '\0';
+    m_publicSettings.miscellaneousDebugString[0]              = '\0';
+    m_publicSettings.renderedByString[0]                      = '\0';
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 727
-    m_publicSettings.useAcqRelInterface = false;
+    m_publicSettings.useAcqRelInterface                       = false;
 #endif
-    m_publicSettings.zeroUnboundDescDebugSrd = false;
-    m_publicSettings.pipelinePreferredHeap = HasLargeLocalHeap() ? GpuHeap::GpuHeapLocal : GpuHeap::GpuHeapInvisible;
-    m_publicSettings.depthClampBasedOnZExport = true;
+    m_publicSettings.zeroUnboundDescDebugSrd                  = false;
+    m_publicSettings.pipelinePreferredHeap                    = HasLargeLocalHeap() ? GpuHeap::GpuHeapLocal
+                                                                                    : GpuHeap::GpuHeapInvisible;
+    m_publicSettings.depthClampBasedOnZExport                 = true;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 743
-    m_publicSettings.forceWaitPointPreColorToPostIndexFetch = false;
+    m_publicSettings.forceWaitPointPreColorToPostIndexFetch   = false;
 #else
-    m_publicSettings.forceWaitPointPreColorToPostPrefetch = false;
+    m_publicSettings.forceWaitPointPreColorToPostPrefetch     = false;
 #endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 680
-    m_publicSettings.enableExecuteIndirectPacket = false;
+    m_publicSettings.enableExecuteIndirectPacket              = false;
 #endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 691
-    m_publicSettings.disableExecuteIndirectAceOffload = false;
+    m_publicSettings.disableExecuteIndirectAceOffload         = false;
 #endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 706
-    m_publicSettings.dccInitialClearKind = static_cast<uint32>(DccInitialClearKind::Uncompressed);
+    m_publicSettings.dccInitialClearKind                      = static_cast<uint32>(DccInitialClearKind::Uncompressed);
 #endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 713
-    m_publicSettings.disableInternalVrsImage = false;
+    m_publicSettings.disableInternalVrsImage                  = false;
 #endif
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 716) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 719)
-    m_publicSettings.memMgrPoolAllocationSizeInBytes = 0;
+    m_publicSettings.memMgrPoolAllocationSizeInBytes          = 0;
 #endif
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 744)
-    m_publicSettings.binningContextStatesPerBin = 0;
-    m_publicSettings.binningPersistentStatesPerBin = 0;
+    m_publicSettings.binningContextStatesPerBin               = 0;
+    m_publicSettings.binningPersistentStatesPerBin            = 0;
 #endif
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 749)
-    m_publicSettings.disableBinningPsKill = DisableBinningPsKill::Default;
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 753)
+    m_publicSettings.disableBinningPsKill                     = OverrideMode::Default;
+#else
+    m_publicSettings.disableBinningPsKill                     = DisableBinningPsKill::Default;
 #endif
+#endif
+    m_publicSettings.isolineDistributionFactor                =  12;
+    m_publicSettings.triDistributionFactor                    =  30;
+    m_publicSettings.quadDistributionFactor                   =  24;
+    m_publicSettings.donutDistributionFactor                  =  24;
+    m_publicSettings.trapezoidDistributionFactor              =   6;
+    m_publicSettings.nggLateAllocGs                           = 127;
+
     return ret;
 }
 
@@ -570,8 +583,8 @@ Result Device::HwlEarlyInit()
     case GfxIpLevel::GfxIp8_1:
         result = Gfx6::CreateDevice(this, pGfxPlacementAddr, &pfnTable, &m_pGfxDevice);
         break;
-    case GfxIpLevel::GfxIp10_1:
     case GfxIpLevel::GfxIp9:
+    case GfxIpLevel::GfxIp10_1:
     case GfxIpLevel::GfxIp10_3:
         result = Gfx9::CreateDevice(this, pGfxPlacementAddr, &pfnTable, &m_pGfxDevice);
         break;
@@ -821,8 +834,8 @@ void Device::GetHwIpDeviceSizes(
         pHwDeviceSizes->gfx = Gfx6::GetDeviceSize();
         gfxAddrMgrSize      = AddrMgr1::GetSize();
         break;
-    case GfxIpLevel::GfxIp10_1:
     case GfxIpLevel::GfxIp9:
+    case GfxIpLevel::GfxIp10_1:
     case GfxIpLevel::GfxIp10_3:
         pHwDeviceSizes->gfx = Gfx9::GetDeviceSize(ipLevels.gfx);
         gfxAddrMgrSize      = AddrMgr2::GetSize();
@@ -2358,7 +2371,13 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportSingleChannelMinMaxFilter = gfx9Props.supportSingleChannelMinMaxFilter;
             pInfo->gfxipProperties.flags.supportPerChannelMinMaxFilter    = gfx9Props.supportSingleChannelMinMaxFilter;
             pInfo->gfxipProperties.flags.supportRgpTraces                 = 1;
-            pInfo->gfxipProperties.flags.supportMeshShader                = gfx9Props.supportMeshTaskShader;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 752
+            pInfo->gfxipProperties.flags.supportMeshShader = gfx9Props.supportMeshShader;
+            pInfo->gfxipProperties.flags.supportTaskShader = gfx9Props.supportTaskShader;
+#else
+            pInfo->gfxipProperties.flags.supportMeshShader = ((gfx9Props.supportMeshShader != 0) &&
+                                                              (gfx9Props.supportTaskShader != 0));
+#endif
             pInfo->gfxipProperties.flags.supports2BitSignedValues         = gfx9Props.supports2BitSignedValues;
             pInfo->gfxipProperties.flags.supportPrimitiveOrderedPs        = gfx9Props.supportPrimitiveOrderedPs;
             pInfo->gfxipProperties.flags.supportImplicitPrimitiveShader   = gfx9Props.supportImplicitPrimitiveShader;
@@ -4489,8 +4508,9 @@ Result Device::GetPrivateScreens(
                 }
                 PAL_ASSERT(slot < MaxPrivateScreens);
 
+                // KMD does not report some of the formats, using fixed value MaxPrivateScreens instead.
                 size_t memSize = sizeof(PrivateScreen) +
-                                 m_privateScreenInfo[n].props.numFormats * sizeof(SwizzledFormat);
+                                 MaxPrivateScreenFormats * sizeof(SwizzledFormat);
                 PrivateScreen* pScreen =
                     static_cast<PrivateScreen*>(PAL_MALLOC(memSize, GetPlatform(), AllocInternal));
 
@@ -4882,22 +4902,95 @@ void Device::ApplyDevOverlay(
 
     if (pDevDriverServer->IsConnected())
     {
-        // Get the RGPServer object
-        DevDriver::RGPProtocol::RGPServer* pRgpServer = pDevDriverServer->GetRGPServer();
-        // This pointer should always be valid if developer mode is enabled.
-        PAL_ASSERT(pRgpServer != nullptr);
-
-        // Check the profiling status
-        const char* pTraceStatusString = "Disabled";
-        if (pRgpServer->TracesEnabled())
+        // Event providers
+        if (TestAnyFlagSet(m_pPlatform->PlatformSettings().debugOverlayConfig.overlayTypeMask, DebugOverlayTypeEvent))
         {
-            pTraceStatusString = pRgpServer->IsTracePending() ? "Pending" : "Ready";
+            DevDriver::EventProtocol::EventServer* pServer = pDevDriverServer->GetEventServer();
+
+            DevDriver::Vector<DevDriver::EventProtocol::EventProviderInfo>
+                eventProviders(pDevDriverServer->GetAllocCb());
+            pServer->GetEventProviders(eventProviders);
+
+            int32 offset = Util::Snprintf(overlayTextBuffer,
+                                          OverlayTextBufferSize,
+                                          "Registered Event Providers: ");
+
+            uint32 count = 0;
+
+            for (const auto& providerInfo : eventProviders)
+            {
+                if (providerInfo.registered)
+                {
+                    offset += Util::Snprintf(overlayTextBuffer + offset,
+                                             OverlayTextBufferSize,
+                                             (count == eventProviders.Size() - 1) ? "%s" : "%s, ",
+                                             providerInfo.name);
+                }
+
+                count++;
+            }
+
+            m_pTextWriter->DrawDebugText(dstImage,
+                                         pCmdBuffer,
+                                         overlayTextBuffer,
+                                         0,
+                                         letterHeight);
+            letterHeight += GpuUtil::TextWriterFont::LetterHeight;
+
+            offset = Util::Snprintf(overlayTextBuffer,
+                                    OverlayTextBufferSize,
+                                    "Enabled Event Providers: ");
+
+            count = 0;
+            for (const auto& providerInfo : eventProviders)
+            {
+                if (providerInfo.enabled)
+                {
+                    offset += Util::Snprintf(overlayTextBuffer + offset,
+                                             OverlayTextBufferSize,
+                                             (count == eventProviders.Size() - 1) ? "%s" : "%s, ",
+                                             providerInfo.name);
+                }
+
+                count++;
+            }
+
+            m_pTextWriter->DrawDebugText(dstImage,
+                                         pCmdBuffer,
+                                         overlayTextBuffer,
+                                         0,
+                                         letterHeight);
+            letterHeight += GpuUtil::TextWriterFont::LetterHeight;
         }
 
-        // Print the profiling status string
+        // RPC Services:
+        if (TestAnyFlagSet(m_pPlatform->PlatformSettings().debugOverlayConfig.overlayTypeMask, DebugOverlayTypeRPC))
+        {
+            const bool settingsRegistered =
+                m_pPlatform->IsServiceRegistered(SettingsRpcService::SettingsService::kServiceInfo.id);
+            const bool uberTraceRegistered   = m_pPlatform->IsUberTraceServiceRegistered();
+            const bool driverUtilsRegistered = m_pPlatform->IsDriverUtilsServiceRegistered();
+
+            Util::Snprintf(overlayTextBuffer,
+                           OverlayTextBufferSize,
+                           "Registered RPC Services: %s %s %s",
+                           settingsRegistered ? "Settings," : "",
+                           uberTraceRegistered ? "Ubertrace," : "",
+                           driverUtilsRegistered ? "DriverUtils" : "");
+
+            m_pTextWriter->DrawDebugText(dstImage,
+                                         pCmdBuffer,
+                                         overlayTextBuffer,
+                                         0,
+                                         letterHeight);
+            letterHeight += GpuUtil::TextWriterFont::LetterHeight;
+        }
+
+        // Print the client string and Client Id on screen
         Util::Snprintf(overlayTextBuffer,
-                       OverlayTextBufferSize, "RGP Profiling: %s",
-                       pTraceStatusString);
+                       OverlayTextBufferSize,
+                       "Client: %s",
+                       m_pPlatform->GetClientApiStr());
         m_pTextWriter->DrawDebugText(dstImage,
                                      pCmdBuffer,
                                      overlayTextBuffer,
@@ -4905,14 +4998,10 @@ void Device::ApplyDevOverlay(
                                      letterHeight);
         letterHeight += GpuUtil::TextWriterFont::LetterHeight;
 
-        // Check the RMV trace status
-        const char* pRmvTraceStatusString = m_pPlatform->GetEventProvider()->IsMemoryProfilingEnabled() ?
-            "Active": "Inactive";
-
-        // Print the RMV trace status string
         Util::Snprintf(overlayTextBuffer,
-                       OverlayTextBufferSize, "RMV Tracing: %s",
-                       pRmvTraceStatusString);
+                       OverlayTextBufferSize,
+                       "Client Id: %d",
+                       m_devDriverClientId);
         m_pTextWriter->DrawDebugText(dstImage,
                                      pCmdBuffer,
                                      overlayTextBuffer,
@@ -4921,7 +5010,6 @@ void Device::ApplyDevOverlay(
         letterHeight += GpuUtil::TextWriterFont::LetterHeight;
 
         // Write the device clock mode
-
         // These labels differ from the DeviceClockMode enum name so as to match the names used by RDP.
         constexpr const char* pClockModeTable[] = {
             "Unknown",          // Corresponds with DeviceClockMode::Unknown
@@ -4970,29 +5058,6 @@ void Device::ApplyDevOverlay(
                                      0,
                                      letterHeight);
         letterHeight += GpuUtil::TextWriterFont::LetterHeight;
-
-        // Print the client string and Client Id on screen
-        Util::Snprintf(overlayTextBuffer,
-            OverlayTextBufferSize,
-            "Client: %s",
-            m_pPlatform->GetClientApiStr());
-        m_pTextWriter->DrawDebugText(dstImage,
-            pCmdBuffer,
-            overlayTextBuffer,
-            0,
-            letterHeight);
-        letterHeight += GpuUtil::TextWriterFont::LetterHeight;
-
-        Util::Snprintf(overlayTextBuffer,
-                       OverlayTextBufferSize,
-                       "Client Id: %d",
-                       m_devDriverClientId);
-        m_pTextWriter->DrawDebugText(dstImage,
-                                     pCmdBuffer,
-                                     overlayTextBuffer,
-                                     0,
-                                     letterHeight);
-        letterHeight += GpuUtil::TextWriterFont::LetterHeight;
     }
     else // !IsConnected()
     {
@@ -5005,8 +5070,8 @@ void Device::ApplyDevOverlay(
         letterHeight += GpuUtil::TextWriterFont::LetterHeight;
     }
 
-    // If the setting is enabled, display a visual confirmation of HDR Mode
-    if (Settings().overlayReportHDR)
+    // If the misc setting is enabled, display a visual confirmation of HDR Mode and MES for supported HW
+    if (TestAnyFlagSet(m_pPlatform->PlatformSettings().debugOverlayConfig.overlayTypeMask, DebugOverlayTypeMisc))
     {
         Util::Snprintf(overlayTextBuffer,
                        OverlayTextBufferSize,
@@ -5020,24 +5085,23 @@ void Device::ApplyDevOverlay(
                                      0,
                                      letterHeight);
         letterHeight += GpuUtil::TextWriterFont::LetterHeight;
-    }
 
-    // If the setting is enabled, display a visual confirmation of MES HWS Mode (only for supported HW)
-    if (Settings().overlayReportMes && (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp10_1))
-    {
-        Util::Snprintf(overlayTextBuffer,
-                       OverlayTextBufferSize,
-                       "MES HWS: %s",
-                       (GetHwsInfo().gfxHwsEnabled     ||
-                        GetHwsInfo().computeHwsEnabled ||
-                        GetHwsInfo().dmaHwsEnabled) ? "Enabled" : "Disabled");
+        if (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp10_1)
+        {
+            Util::Snprintf(overlayTextBuffer,
+                           OverlayTextBufferSize,
+                           "MES HWS: %s",
+                           (GetHwsInfo().gfxHwsEnabled     ||
+                            GetHwsInfo().computeHwsEnabled ||
+                            GetHwsInfo().dmaHwsEnabled) ? "Enabled" : "Disabled");
 
-        m_pTextWriter->DrawDebugText(dstImage,
-                                     pCmdBuffer,
-                                     overlayTextBuffer,
-                                     0,
-                                     letterHeight);
-        letterHeight += GpuUtil::TextWriterFont::LetterHeight;
+            m_pTextWriter->DrawDebugText(dstImage,
+                                         pCmdBuffer,
+                                         overlayTextBuffer,
+                                         0,
+                                         letterHeight);
+            letterHeight += GpuUtil::TextWriterFont::LetterHeight;
+        }
     }
 
     // Issue a barrier to ensure the text written via CS is complete and flushed out of L2.

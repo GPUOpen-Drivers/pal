@@ -170,13 +170,13 @@ extern bool IsAssertCategoryEnabled(
 ///
 /// @note This version of assert inlines an 'int 3' every time it is used so that each occurrence can be zapped
 ///       independently.  This macro cannot be used in assignment operations.
-#define PAL_TRIGGER_ASSERT(_pFormat, ...)                     \
-{                                                             \
-    PAL_DPERROR(_pFormat, ##__VA_ARGS__);                     \
-    if (Util::IsAssertCategoryEnabled(Util::AssertCatAssert)) \
-    {                                                         \
-        PAL_DEBUG_BREAK();                                    \
-    }                                                         \
+#define PAL_TRIGGER_ASSERT(_pFormat, ...)                           \
+{                                                                   \
+    PAL_DPERROR(_pFormat, ##__VA_ARGS__);                           \
+    if (::Util::IsAssertCategoryEnabled(::Util::AssertCatAssert))   \
+    {                                                               \
+        PAL_DEBUG_BREAK();                                          \
+    }                                                               \
 }
 
 /// If the expression evaluates to false, then it calls the PAL_TRIGGER_ASSERT macro with an error message with the
@@ -280,13 +280,13 @@ constexpr void PalTriggerAssertImpl(
 /// not typically expected.  For example, asserting that an OS call succeeded should be avoided since there cannot be an
 /// assumption that it will succeed.  Nonetheless, a developer may want to be alerted immediately and dropped into the
 /// debugger when such a failure occurs.
-#define PAL_TRIGGER_ALERT(_pFormat, ...)                     \
-{                                                            \
-    PAL_DPWARN(_pFormat, ##__VA_ARGS__);                     \
-    if (Util::IsAssertCategoryEnabled(Util::AssertCatAlert)) \
-    {                                                        \
-        PAL_DEBUG_BREAK();                                   \
-    }                                                        \
+#define PAL_TRIGGER_ALERT(_pFormat, ...)                            \
+{                                                                   \
+    PAL_DPWARN(_pFormat, ##__VA_ARGS__);                            \
+    if (::Util::IsAssertCategoryEnabled(::Util::AssertCatAlert))    \
+    {                                                               \
+        PAL_DEBUG_BREAK();                                          \
+    }                                                               \
 }
 
 #define PAL_ALERT_MSG(_expr, _pReasonFmt, ...)                                                  \

@@ -1402,15 +1402,14 @@ Result Queue::BuildGpaSessionSampleConfig()
         m_gpaSessionSampleConfig.type = GpuUtil::GpaSampleType::None;
     }
 
-    PerfExperimentProperties perfExpProps;
-
     m_gpaSessionSampleConfig.flags.sampleInternalOperations      = 1;
     m_gpaSessionSampleConfig.flags.cacheFlushOnCounterCollection =
         settings.gpuProfilerPerfCounterConfig.cacheFlushOnCounterCollection;
 
-    m_gpaSessionSampleConfig.flags.sqShaderMask                  = 1;
-    m_gpaSessionSampleConfig.sqShaderMask                        = PerfShaderMaskAll;
+    m_gpaSessionSampleConfig.flags.sqShaderMask = 1;
+    m_gpaSessionSampleConfig.sqShaderMask       = PerfShaderMaskAll;
 
+    PerfExperimentProperties perfExpProps;
     Result result = m_pDevice->GetPerfExperimentProperties(&perfExpProps);
 
     if (result == Result::Success)

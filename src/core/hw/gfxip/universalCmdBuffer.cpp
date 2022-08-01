@@ -297,12 +297,12 @@ void UniversalCmdBuffer::CmdBindPipeline(
         m_graphicsState.pipelineState.pPipeline  = static_cast<const Pipeline*>(params.pPipeline);
         m_graphicsState.pipelineState.apiPsoHash = params.apiPsoHash;
         m_graphicsState.colorWriteMask           = UINT_MAX;
-        m_graphicsState.pipelineState.dirtyFlags.pipelineDirty = 1;
+        m_graphicsState.pipelineState.dirtyFlags.pipeline = 1;
         m_graphicsState.rasterizerDiscardEnable  = false;
     }
 
     // Compute state and some additional generic support is handled by the Pm4CmdBuffer.
-    GfxCmdBuffer::CmdBindPipeline(params);
+    Pm4CmdBuffer::CmdBindPipeline(params);
 }
 
 // =====================================================================================================================
@@ -415,15 +415,7 @@ bool UniversalCmdBuffer::FilterSetUserDataGfx(
 // =====================================================================================================================
 bool UniversalCmdBuffer::IsAnyGfxUserDataDirty() const
 {
-    const size_t* pDirtyMask = &m_graphicsState.gfxUserDataEntries.dirty[0];
-
-    size_t dirty = 0;
-    for (uint32 i = 0; i < NumUserDataFlagsParts; i++)
-    {
-        dirty |= pDirtyMask[i];
-    }
-
-    return (dirty != 0);
+    return IsAnyUserDataDirty(&m_graphicsState.gfxUserDataEntries);
 }
 
 // =====================================================================================================================

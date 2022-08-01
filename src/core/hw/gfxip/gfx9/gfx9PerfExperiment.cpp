@@ -2083,48 +2083,41 @@ void PerfExperiment::IssueBegin(
 
         if (m_perfExperimentFlags.perfCtrsEnabled || m_perfExperimentFlags.spmTraceEnabled)
         {
-            // SQ_PERFCOUNTER_CTRL controls how the SQGs increments its perf counters. We treat it as global state.
+            // SQ_PERFCOUNTER_CTRL controls how the SQs increment their perf counters. We treat it as global state.
             regSQ_PERFCOUNTER_CTRL sqPerfCounterCtrl = {};
 
-            if (m_createInfo.optionFlags.sqShaderMask != 0)
+            // By default sample from all shader stages.
+            PerfExperimentShaderFlags sqShaderMask = PerfShaderMaskAll;
+
             {
-                sqPerfCounterCtrl.bits.PS_EN     = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskPs) != 0);
-                sqPerfCounterCtrl.bits.GS_EN     = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskGs) != 0);
-                sqPerfCounterCtrl.bits.HS_EN     = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskHs) != 0);
-                sqPerfCounterCtrl.bits.CS_EN     = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskCs) != 0);
-                if (m_pDevice->ChipProperties().gfxip.supportsHwVs)
+                if (m_createInfo.optionFlags.sqShaderMask != 0)
                 {
-                    sqPerfCounterCtrl.gfx09_10.VS_EN =
-                        ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskVs) != 0);
-                }
-                {
-                    static_assert(Gfx09::SQ_PERFCOUNTER_CTRL__LS_EN_MASK ==
-                                  Gfx10Core::SQ_PERFCOUNTER_CTRL__LS_EN_MASK, "Regs have changed");
-                    static_assert(Gfx09::SQ_PERFCOUNTER_CTRL__ES_EN_MASK ==
-                                  Gfx10Core::SQ_PERFCOUNTER_CTRL__ES_EN_MASK, "Regs have changed");
-                    sqPerfCounterCtrl.most.LS_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskLs) != 0);
-                    sqPerfCounterCtrl.most.ES_EN = ((m_createInfo.optionValues.sqShaderMask & PerfShaderMaskEs) != 0);
+                    sqShaderMask = m_createInfo.optionValues.sqShaderMask;
                 }
             }
-            else
+
+            sqPerfCounterCtrl.bits.PS_EN = TestAnyFlagSet(sqShaderMask, PerfShaderMaskPs);
+            sqPerfCounterCtrl.bits.GS_EN = TestAnyFlagSet(sqShaderMask, PerfShaderMaskGs);
+            sqPerfCounterCtrl.bits.HS_EN = TestAnyFlagSet(sqShaderMask, PerfShaderMaskHs);
+            sqPerfCounterCtrl.bits.CS_EN = TestAnyFlagSet(sqShaderMask, PerfShaderMaskCs);
+
+            if (m_pDevice->ChipProperties().gfxip.supportsHwVs)
             {
-                // By default sample from all shader stages.
-                sqPerfCounterCtrl.bits.PS_EN     = 1;
-                sqPerfCounterCtrl.bits.GS_EN     = 1;
-                sqPerfCounterCtrl.bits.HS_EN     = 1;
-                sqPerfCounterCtrl.bits.CS_EN     = 1;
-                if (m_pDevice->ChipProperties().gfxip.supportsHwVs)
-                {
-                    sqPerfCounterCtrl.gfx09_10.VS_EN = 1;
-                }
-                {
-                    sqPerfCounterCtrl.most.LS_EN = 1;
-                    sqPerfCounterCtrl.most.ES_EN = 1;
-                }
+                sqPerfCounterCtrl.gfx09_10.VS_EN = TestAnyFlagSet(sqShaderMask, PerfShaderMaskVs);
+            }
+
+            {
+                static_assert((Gfx09::SQ_PERFCOUNTER_CTRL__LS_EN_MASK == Gfx10Core::SQ_PERFCOUNTER_CTRL__LS_EN_MASK) &&
+                              (Gfx09::SQ_PERFCOUNTER_CTRL__ES_EN_MASK == Gfx10Core::SQ_PERFCOUNTER_CTRL__ES_EN_MASK),
+                              "Regs have changed");
+
+                sqPerfCounterCtrl.most.LS_EN = TestAnyFlagSet(sqShaderMask, PerfShaderMaskLs);
+                sqPerfCounterCtrl.most.ES_EN = TestAnyFlagSet(sqShaderMask, PerfShaderMaskEs);
             }
 
             // Note that we must write this after CP_PERFMON_CNTRL because the CP ties ownership of this state to it.
             pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmSQ_PERFCOUNTER_CTRL, sqPerfCounterCtrl.u32All, pCmdSpace);
+
         }
 
         if (m_perfExperimentFlags.spmTraceEnabled)

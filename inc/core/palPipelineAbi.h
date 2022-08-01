@@ -701,7 +701,8 @@ enum class GsOutPrimType : uint32
     LineStrip,     ///< Each additional vertex after the first two makes a new line.
     TriStrip,      ///< Each additional vertex after the first three makes a new triangle.
     Rect2d,        ///< Each rect is the bounding box of an arbitrary 2D triangle.
-    RectList       ///< Each rect is three 2D axis-aligned rectangle vertices.
+    RectList,      ///< Each rect is three 2D axis-aligned rectangle vertices.
+    Last,
 };
 
 /// Specifies how to populate the sample mask provided to pixel shaders.

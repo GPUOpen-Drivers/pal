@@ -68,28 +68,28 @@ constexpr T* AssumeAligned(T* p)
 
 /// @internal Malloc allocation method with extra memory leak tracking arguments.
 #define PAL_MALLOC_BASE(_size, _align, _allocator, _allocType, _memBlkType) \
-    _allocator->Alloc(Util::AllocInfo(_size, _align, false, _allocType, _memBlkType, __FILE__, __LINE__))
+    _allocator->Alloc(::Util::AllocInfo(_size, _align, false, _allocType, _memBlkType, __FILE__, __LINE__))
 
 /// @internal Calloc allocation method with extra memory leak tracking arguments.
 #define PAL_CALLOC_BASE(_size, _align, _allocator, _allocType, _memBlkType) \
-    _allocator->Alloc(Util::AllocInfo(_size, _align, true, _allocType, _memBlkType, __FILE__, __LINE__))
+    _allocator->Alloc(::Util::AllocInfo(_size, _align, true, _allocType, _memBlkType, __FILE__, __LINE__))
 
 /// @internal Free method with extra memory leak tracking arguments.
 #define PAL_FREE_BASE(_ptr, _allocator, _memBlkType) \
-    _allocator->Free(Util::FreeInfo(const_cast<void*>(static_cast<const void*>(_ptr)), _memBlkType))
+    _allocator->Free(::Util::FreeInfo(const_cast<void*>(static_cast<const void*>(_ptr)), _memBlkType))
 #else
 
 /// @internal Malloc method not wrapped with memory leak tracking.
 #define PAL_MALLOC_BASE(_size, _align, _allocator, _allocType, _memBlkType) \
-    _allocator->Alloc(Util::AllocInfo(_size, _align, false, _allocType))
+    _allocator->Alloc(::Util::AllocInfo(_size, _align, false, _allocType))
 
 /// @internal Calloc method not wrapped with memory leak tracking.
 #define PAL_CALLOC_BASE(_size, _align, _allocator, _allocType, _memBlkType) \
-    _allocator->Alloc(Util::AllocInfo(_size, _align, true, _allocType))
+    _allocator->Alloc(::Util::AllocInfo(_size, _align, true, _allocType))
 
 /// @internal Free method not wrapped with memory leak tracking.
 #define PAL_FREE_BASE(_ptr, _allocator, _memBlkType) \
-    _allocator->Free(Util::FreeInfo(const_cast<void*>(static_cast<const void*>(_ptr))))
+    _allocator->Free(::Util::FreeInfo(const_cast<void*>(static_cast<const void*>(_ptr))))
 
 #endif
 
@@ -98,7 +98,7 @@ constexpr T* AssumeAligned(T* p)
 /// This macro is used internally by PAL, and will potentially result in a callback to the client for actual allocation.
 /// The client is also free to use this macro in order to take advantage of PAL's memory leak tracking.
 #define PAL_MALLOC_ALIGNED(_size, _align, _allocator, _allocType) \
-    PAL_MALLOC_BASE((_size), (_align), (_allocator), (_allocType), Util::MemBlkType::Malloc)
+    PAL_MALLOC_BASE((_size), (_align), (_allocator), (_allocType), ::Util::MemBlkType::Malloc)
 
 /// Same as @ref PAL_MALLOC_ALIGNED with alignment set to the alignment of the largest native scalar type.
 #define PAL_MALLOC(_size, _allocator, _allocType) \
@@ -106,14 +106,14 @@ constexpr T* AssumeAligned(T* p)
 
 /// Allocates zero-initialized heap memory in place of calloc().  See @ref PAL_MALLOC_ALIGNED.
 #define PAL_CALLOC_ALIGNED(_size, _align, _allocator, _allocType) \
-    PAL_CALLOC_BASE((_size), (_align), (_allocator), (_allocType), Util::MemBlkType::Malloc)
+    PAL_CALLOC_BASE((_size), (_align), (_allocator), (_allocType), ::Util::MemBlkType::Malloc)
 
 /// Same as @ref PAL_CALLOC_ALIGNED with alignment set to the alignment of the largest native scalar type.
 #define PAL_CALLOC(_size, _allocator, _allocType) \
     PAL_CALLOC_ALIGNED(_size, PAL_DEFAULT_MEM_ALIGN, _allocator, _allocType)
 
 /// Frees heap memory allocated with the @ref PAL_MALLOC* or @ref PAL_CALLOC* macros.
-#define PAL_FREE(_ptr, _allocator) PAL_FREE_BASE((_ptr), (_allocator), Util::MemBlkType::Malloc)
+#define PAL_FREE(_ptr, _allocator) PAL_FREE_BASE((_ptr), (_allocator), ::Util::MemBlkType::Malloc)
 
 /// Safe free macro.  Pointer is set to null after the free.
 #define PAL_SAFE_FREE(_ptr, _allocator) { PAL_FREE((_ptr), (_allocator)); (_ptr) = nullptr; }
@@ -159,7 +159,7 @@ extern void PAL_CDECL operator delete(
     Util::Dummy  dummy) noexcept;
 
 /// Placement new macro.
-#define PAL_PLACEMENT_NEW(_ptr) new((_ptr), Util::Dummy{})
+#define PAL_PLACEMENT_NEW(_ptr) new((_ptr), ::Util::Dummy{})
 
 /// Allocates heap memory and calls constructor for an object of the specified type.
 ///
@@ -170,16 +170,16 @@ extern void PAL_CDECL operator delete(
 /// "MyClass* pMyClass = PAL_NEW(MyClass, AllocInternal)(arg1, arg2)".
 #define PAL_NEW(_className, _allocator, _allocType) \
     PAL_PLACEMENT_NEW( \
-        PAL_MALLOC_BASE(sizeof(_className), alignof(_className), (_allocator), (_allocType), Util::MemBlkType::New)) \
+        PAL_MALLOC_BASE(sizeof(_className), alignof(_className), (_allocator), (_allocType), ::Util::MemBlkType::New)) \
         _className
 
 /// Calls destructor and frees heap memory for the object allocated with PAL_NEW*.
 #define PAL_DELETE(_ptr, _allocator) \
-    { Util::Destructor(_ptr); PAL_FREE_BASE((_ptr), (_allocator), Util::MemBlkType::New); }
+    { ::Util::Destructor(_ptr); PAL_FREE_BASE((_ptr), (_allocator), ::Util::MemBlkType::New); }
 
 /// Calls destructor and frees heap memory for "this".  Use this macro to delete an object without a public destructor.
 #define PAL_DELETE_THIS(_className, _allocator) \
-    { this->~_className(); PAL_FREE_BASE(this, (_allocator), Util::MemBlkType::New); }
+    { this->~_className(); PAL_FREE_BASE(this, (_allocator), ::Util::MemBlkType::New); }
 
 /// Safe delete macro.  Pointer is set to null after the delete.
 #define PAL_SAFE_DELETE(_ptr, _allocator) { PAL_DELETE(_ptr, _allocator); (_ptr) = nullptr; }
@@ -190,16 +190,16 @@ extern void PAL_CDECL operator delete(
 /// (i.e., PAL_NEW_ARRAY(int, 3, AllocInternal)() won't work.
 #if PAL_MEMTRACK
 #define PAL_NEW_ARRAY(_className, _arrayCnt, _allocator, _allocType) \
-    Util::NewArray<_className>((_arrayCnt), (_allocator), (_allocType), __FILE__, __LINE__)
+    ::Util::NewArray<_className>((_arrayCnt), (_allocator), (_allocType), __FILE__, __LINE__)
 #else
 #define PAL_NEW_ARRAY(_className, _arrayCnt, _allocator, _allocType) \
-    Util::NewArray<_className>((_arrayCnt), (_allocator), (_allocType))
+    ::Util::NewArray<_className>((_arrayCnt), (_allocator), (_allocType))
 #endif
 
 /// Destroys an array of the specified object type.
 ///
 /// For non-POD types, the destructor will be called.
-#define PAL_DELETE_ARRAY(_ptr, _allocator) Util::DeleteArray(_ptr, _allocator)
+#define PAL_DELETE_ARRAY(_ptr, _allocator) ::Util::DeleteArray(_ptr, _allocator)
 
 /// Safe delete array macro.  Pointer is set to null after the delete.
 #define PAL_SAFE_DELETE_ARRAY(_ptr, _allocator) { PAL_DELETE_ARRAY(_ptr, _allocator); (_ptr) = nullptr; }

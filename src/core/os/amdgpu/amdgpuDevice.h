@@ -202,6 +202,9 @@ public:
 
     virtual bool IsMasterGpu() const override { return true; }
 
+    bool IsAceGfxGangSubmitSupported() const
+        { return false; }
+
     virtual Result AddGpuMemoryReferences(
         uint32              gpuMemRefCount,
         const GpuMemoryRef* pGpuMemoryRefs,

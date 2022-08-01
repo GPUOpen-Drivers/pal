@@ -54,11 +54,11 @@ constexpr uint32 MsaaLevelCount = 5;
 
 enum RegisterRangeType : uint32
 {
-    RegRangeUserConfig  = 0x0,
-    RegRangeContext     = 0x1,
-    RegRangeSh          = 0x2,
-    RegRangeCsSh        = 0x3,
-    RegRangeNonShadowed = 0x4,
+    RegRangeUserConfig           = 0x0,
+    RegRangeContext              = 0x1,
+    RegRangeSh                   = 0x2,
+    RegRangeCsSh                 = 0x3,
+    RegRangeNonShadowed          = 0x4,
 };
 
 struct SyncReqs
@@ -81,7 +81,7 @@ struct SyncReqs
     };
 };
 
-enum HwLayoutTransition : uint32
+enum HwLayoutTransition : uint8
 {
     None                         = 0x0,
 
@@ -109,11 +109,9 @@ struct LayoutTransitionInfo
         {
             uint32 useComputePath   : 1;  // For those transition BLTs that could do either graphics or compute path,
                                           // figure out what path the BLT will use and cache it here.
-            uint32 skipFce          : 1;  // Set if the transition needs a FastClearEliminate BLT but can be skipped by
-                                          // optimization.
-            uint32 reserved         : 30; // Reserved for future usage.
+            uint32 reserved         : 7;  // Reserved for future usage.
         };
-        uint32 u32All;                    // Flags packed as uint32.
+        uint8 u8All;                      // Flags packed as uint32.
     } flags;
 
     HwLayoutTransition blt[2];            // Color target may need a second decompress pass to do MSAA color decompress.
@@ -121,15 +119,24 @@ struct LayoutTransitionInfo
 
 // A structure that helps cache and reuse the calculated BLT transition and sync requests for an image barrier in
 // acquire-release based barrier.
-struct AcqRelTransitionInfo
+struct AcqRelImgTransitionInfo
 {
     const ImgBarrier*    pImgBarrier;
     LayoutTransitionInfo layoutTransInfo;
-    uint32               bltStageMask;
-    uint32               bltAccessMask;
+    uint32               stageMask;     // Pipeline stage mask of layoutTransInfo.blt[0]
+    uint32               accessMask;    // Coherency access mask of layoutTransInfo.blt[0]
 };
 
-using AcqRelAutoBuffer = Util::AutoBuffer<AcqRelTransitionInfo, 8, Platform>;
+using AcqRelAutoBuffer = Util::AutoBuffer<AcqRelImgTransitionInfo, 8, Platform>;
+
+// Acquire release transition info gathered from all image transitions.
+struct AcqRelTransitionInfo
+{
+    AcqRelAutoBuffer* pBltList;       // List of AcqRelImgTransitionInfo that need layout transition BLT.
+    uint32            bltCount;       // Number of valid entries in pBltList.
+    uint32            bltStageMask;   // Pipeline stage mask for all layout transition BLTs in pBltList.
+    uint32            bltAccessMask;  // Coherency access mask for all layout transition BLTs in pBltList.
+};
 
 // Forward decl
 static const Gfx9PalSettings& GetGfx9Settings(const Pal::Device& device);
@@ -672,7 +679,7 @@ private:
     void SetupWorkarounds();
 
     LayoutTransitionInfo PrepareColorBlt(
-        const Pm4CmdBuffer* pCmdBuf,
+        Pm4CmdBuffer*       pCmdBuf,
         const Pal::Image&   image,
         const SubresRange&  subresRange,
         ImageLayout         oldLayout,
@@ -687,13 +694,14 @@ private:
         Pm4CmdBuffer*       pCmdBuf,
         const ImgBarrier&   imageBarrier) const;
 
-    ReleaseMemCaches ConvertReleaseCacheFlags(
+    SyncGlxFlags GetAcquireCacheFlags(
         uint32                        accessMask,
         bool                          refreshTcc,
         Developer::BarrierOperations* pBarrierOps) const;
 
-    SyncGlxFlags ConvertAcquireCacheFlags(
-        uint32                        accessMask,
+    SyncGlxFlags GetReleaseThenAcquireCacheFlags(
+        uint32                        srcAccessMask,
+        uint32                        dstAccessMask,
         bool                          refreshTcc,
         Developer::BarrierOperations* pBarrierOps) const;
 
@@ -709,21 +717,16 @@ private:
         Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         const AcquireReleaseInfo&     barrierInfo,
-        AcqRelAutoBuffer*             pTransitionList,
-        Developer::BarrierOperations* pBarrierOps,
-        uint32*                       pBltCount,
-        uint32*                       pBltStageMask,
-        uint32*                       pBltAccessMask,
-        uint32*                       pSrcAccessMask) const;
+        AcqRelTransitionInfo*         pTransitonInfo,
+        uint32*                       pSrcAccessMask,
+        uint32*                       pDstAccessMask,
+        Developer::BarrierOperations* pBarrierOps) const;
 
     bool IssueAcqRelLayoutTransitionBlt(
         Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
-        uint32                        imageBarrierCount,
-        const AcqRelAutoBuffer&       transitionList,
-        Developer::BarrierOperations* pBarrierOps,
-        uint32*                       pPostBltStageMask,
-        uint32*                       pPostBltAccessMask) const;
+        AcqRelTransitionInfo*         pTransitonInfo,
+        Developer::BarrierOperations* pBarrierOps) const;
 
     bool AcqRelInitMaskRam(
         Pm4CmdBuffer*      pCmdBuf,
@@ -746,6 +749,16 @@ private:
         bool                          refreshTcc,
         uint32                        syncTokenCount,
         const AcqRelSyncToken*        pSyncTokens,
+        Developer::BarrierOperations* pBarrierOps) const;
+
+    void IssueReleaseThenAcquireSync(
+        Pm4CmdBuffer*                 pCmdBuf,
+        CmdStream*                    pCmdStream,
+        uint32                        srcStageMask,
+        uint32                        dstStageMask,
+        uint32                        srcAccessMask,
+        uint32                        dstAccessMask,
+        bool                          refreshTcc,
         Developer::BarrierOperations* pBarrierOps) const;
 
     void IssueReleaseSyncEvent(

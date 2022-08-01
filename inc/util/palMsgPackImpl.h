@@ -252,6 +252,19 @@ inline Result MsgPackWriter::DeclareMap(
 }
 
 // =====================================================================================================================
+inline Result MsgPackWriter::AppendArray(
+    const MsgPackWriter& src)
+{
+    Result result = DeclareArray(src.NumItems());
+    if (result == Result::Success)
+    {
+        result = Append(src);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 inline Result MsgPackWriter::AppendMap(
     const MsgPackWriter& src)
 {

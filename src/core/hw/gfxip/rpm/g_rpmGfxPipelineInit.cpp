@@ -60,12 +60,9 @@ Result CreateRpmGraphicsPipelines(
 
     case AsicRevision::Vega10:
     case AsicRevision::Raven:
-        pTable = rpmGfxBinaryTableVega10;
-        break;
-
     case AsicRevision::Vega12:
     case AsicRevision::Vega20:
-        pTable = rpmGfxBinaryTableVega12;
+        pTable = rpmGfxBinaryTableVega10;
         break;
 
     case AsicRevision::Raven2:

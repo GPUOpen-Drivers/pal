@@ -51,6 +51,8 @@ void LogContext::Struct(
     const BarrierInfo& value)
 {
     BeginMap(false);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 751
     KeyAndBeginList("flags", true);
 
     if (value.flags.splitBarrierEarlyPhase)
@@ -65,6 +67,8 @@ void LogContext::Struct(
 
     EndList();
     KeyAndObject("pSplitBarrierGpuEvent", value.pSplitBarrierGpuEvent);
+#endif
+
     KeyAndEnum("waitPoint", value.waitPoint);
     KeyAndBeginList("pipePoints", false);
 

@@ -683,50 +683,6 @@ struct SpiPsInputCntlMetadata
     } hasEntry;
 };
 
-struct SpiShaderGsMeshletDimMetadata
-{
-    /// Threadgroup size in the X dimension.
-    uint16 numThreadX;
-    /// Threadgroup size in the Y dimension.
-    uint16 numThreadY;
-    /// Threadgroup size in the Z dimension.
-    uint16 numThreadZ;
-    /// Threadgroup size (X * Y * Z).
-    uint32 threadgroupSize;
-
-    union
-    {
-        struct
-        {
-            uint8 numThreadX      : 1;
-            uint8 numThreadY      : 1;
-            uint8 numThreadZ      : 1;
-            uint8 threadgroupSize : 1;
-            uint8 reserved        : 4;
-        };
-        uint8 uAll;
-    } hasEntry;
-};
-
-struct SpiShaderGsMeshletExpAllocMetadata
-{
-    /// Maximum position export space per meshlet subgroup.
-    uint16 maxExpVerts;
-    /// Maximum primitive export space per meshlet subgroup.
-    uint16 maxExpPrims;
-
-    union
-    {
-        struct
-        {
-            uint8 maxExpVerts : 1;
-            uint8 maxExpPrims : 1;
-            uint8 reserved    : 6;
-        };
-        uint8 uAll;
-    } hasEntry;
-};
-
 struct VgtGsInstanceCntMetadata
 {
     /// Number of GS primitive instances. If set to 0, GS instancing is treated as disabled.
@@ -1556,9 +1512,6 @@ struct GraphicsRegisterMetadata
     /// against this value.
     float                              vgtHosMaxTessLevel;
 
-    SpiShaderGsMeshletDimMetadata      spiShaderGsMeshletDim;
-
-    SpiShaderGsMeshletExpAllocMetadata spiShaderGsMeshletExpAlloc;
     /// Maximum number of verts that can be emitted from a geometry shader.
     uint16                             vgtGsMaxVertOut;
 
@@ -2179,20 +2132,6 @@ namespace VgtGsInstanceCntMetadataKey
     static constexpr char Enable[]                    = ".enable";
     static constexpr char Count[]                     = ".count";
     static constexpr char EnMaxVertOutPerGsInstance[] = ".en_max_vert_out_per_gs_instance";
-};
-
-namespace SpiShaderGsMeshletExpAllocMetadataKey
-{
-    static constexpr char MaxExpVerts[] = ".max_exp_verts";
-    static constexpr char MaxExpPrims[] = ".max_exp_prims";
-};
-
-namespace SpiShaderGsMeshletDimMetadataKey
-{
-    static constexpr char NumThreadX[]      = ".num_thread_x";
-    static constexpr char NumThreadY[]      = ".num_thread_y";
-    static constexpr char NumThreadZ[]      = ".num_thread_z";
-    static constexpr char ThreadgroupSize[] = ".threadgroup_size";
 };
 
 namespace SpiPsInputCntlMetadataKey

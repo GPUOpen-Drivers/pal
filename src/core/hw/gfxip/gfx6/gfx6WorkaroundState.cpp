@@ -116,7 +116,7 @@ uint32* WorkaroundState::PreDraw(
     const bool ocDisableLogicOp = m_settings.waLogicOpDisablesOverwriteCombiner;
     const bool pipelineDirty    =  ocDisableLogicOp &&
                                    stateDirty       &&
-                                   gfxState.pipelineState.dirtyFlags.pipelineDirty;
+                                   gfxState.pipelineState.dirtyFlags.pipeline;
 
     if (pipelineDirty  ||
         (stateDirty && targetsDirty && ocDisableWorkaroundsActive))
@@ -257,7 +257,7 @@ uint32* WorkaroundState::PreDraw(
     // Mantle doesn't support the primitive restart index feature.
     if (m_device.WaVgtPrimResetIndxMaskByType() &&
         gfxState.inputAssemblyState.primitiveRestartEnable &&
-        (gfxState.pipelineState.dirtyFlags.pipelineDirty ||            // Primitive restart value has changed
+        (gfxState.pipelineState.dirtyFlags.pipeline ||                 // Primitive restart value has changed
          (gfxState.iaState.indexType != m_multiPrimRestartIndexType))) // Index type has changed
     {
         static_assert(

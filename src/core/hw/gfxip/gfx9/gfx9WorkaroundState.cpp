@@ -139,7 +139,7 @@ uint32* WorkaroundState::PreDraw(
     // pipeline is active.
     const bool pipelineDirty = m_cachedSettings.waLogicOpDisablesOverwriteCombiner &&
                                PipelineDirty                                       &&
-                               gfxState.pipelineState.dirtyFlags.pipelineDirty;
+                               gfxState.pipelineState.dirtyFlags.pipeline;
 
     // colorBlendWorkaoundsActive will be true if the state of the view and / or blend state
     // is important.
@@ -203,7 +203,7 @@ uint32* WorkaroundState::PreDraw(
         // applies to GFX9 only.
         PAL_ASSERT(m_device.Settings().waStalledPopsMode == false);
 
-        if ((PipelineDirty && gfxState.pipelineState.dirtyFlags.pipelineDirty) ||
+        if ((PipelineDirty && gfxState.pipelineState.dirtyFlags.pipeline) ||
             (StateDirty && (dirtyFlags.validationBits.msaaState ||
                             dirtyFlags.validationBits.depthStencilView)))
         {
@@ -257,7 +257,7 @@ uint32* WorkaroundState::PreDraw(
     // pipeline is bound and fillMode goes from Wireframe to NOT wireframe.
     if ((StateDirty || PipelineDirty)                       &&
         m_cachedSettings.waTessIncorrectRelativeIndex       &&
-        (gfxState.pipelineState.dirtyFlags.pipelineDirty ||
+        (gfxState.pipelineState.dirtyFlags.pipeline ||
          dirtyFlags.validationBits.triangleRasterState)     &&
         pPipeline->IsTessEnabled()                          &&
         (pPipeline->IsNgg() == false)                       &&

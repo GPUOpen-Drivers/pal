@@ -60,7 +60,7 @@ Result CreateLogFileName(
     if ((result == Result::Success) && (TestAnyFlagSet(settings.fileSettingsFlags, FileSettings::AddPname)))
     {
         char  executableNameBuffer[MaxPathStrLen] = {};
-        char* pExecutableName = '\0';
+        char* pExecutableName = nullptr;
         result = GetExecutableName(executableNameBuffer, &pExecutableName, sizeof(executableNameBuffer));
         if (result == Result::Success)
         {

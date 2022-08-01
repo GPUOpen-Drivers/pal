@@ -709,10 +709,33 @@ struct PalPublicSettings
     uint32 binningPersistentStatesPerBin;
     uint32 binningContextStatesPerBin;
 #endif
+
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 749)
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 753)
+    /// This key controls if binning will be disabled when the PS may kill pixels.
+    OverrideMode disableBinningPsKill;
+#else
     /// This key controls if binning will be disabled when the PS may kill pixels.
     DisableBinningPsKill disableBinningPsKill;
 #endif
+#endif
+    /// The following 3 factors are used by hardware when distributed tessellation is active: the min tess factors for
+    /// each patch processed by a VGT are accumulated. When the sum exceeds this threshold, the next patch is sent to a
+    /// different VGT.
+    uint32 isolineDistributionFactor;
+    uint32 triDistributionFactor;     ///< Recommended to be higher than quad factor.
+    uint32 quadDistributionFactor;
+    /// Used by the hardware when distributed tessellation is in DONUT mode: the min tess factor for each patch is
+    // tested against this threshold to determine whether a patch gets split up. If the patch isn't split, it still
+    // increments the accumulator for the Patch distribution factor.
+    uint32 donutDistributionFactor;
+    /// Used when the distribution mode is TRAPEZOID for quad and tri domain types. The number of donuts in the patch
+    /// are compared against this value to detemine whether this donut gets split up into trapezoids (needs the patch to
+    /// be in donut mode). A value of 0 or 1 will be treated as 2. The innermost donut is never allowed to be broken
+    /// into trapezoids.
+    uint32 trapezoidDistributionFactor;
+    /// Controls GS LateAlloc val (for pos/prim allocations NOT param cache) on NGG pipelines. Can be no more than 127.
+    uint32 nggLateAllocGs;
 };
 
 /// Defines the modes that the GPU Profiling layer can use when its buffer fills.
@@ -1211,6 +1234,7 @@ struct DeviceProperties
                                                                 ///  perform culling and compaction optimizations in
                                                                 ///  the shader.
                 uint64 supportMeshShader                  :  1; ///< Indicates support for mesh shaders.
+                uint64 supportTaskShader                  :  1; ///< Indicates support for task shaders.
                 uint64 supportPrtBlendZeroMode            :  1; ///< Blend zero mode support.
                 uint64 supports2BitSignedValues           :  1; ///< Hardware natively supports 2-bit signed values.
                 uint64 supportPrimitiveOrderedPs          :  1; ///< Hardware supports primitive ordered UAV
@@ -1286,7 +1310,7 @@ struct DeviceProperties
                 uint64 supportHsaAbi                      :  1; ///< PAL supports HSA ABI compute pipelines.
                 uint64 supportImageViewMinLod             :  1; ///< Indicates image srd supports min_lod.
                 uint64 supportStaticVmid                  :  1; ///< Indicates support for static-VMID
-                uint64 reserved                           : 11; ///< Reserved for future use.
+                uint64 reserved                           : 10; ///< Reserved for future use.
             };
             uint64 u64All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.

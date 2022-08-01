@@ -5,75 +5,6 @@
   ],
   "Settings": [
     {
-      "Name": "DbgPrintConfig",
-      "Tags": [
-        "Debug Print"
-      ],
-      "Scope": "PrivatePalKey",
-      "Type": "struct",
-      "VariableName": "dbgPrintConfig",
-      "Structure": [
-        {
-          "Description": "Enables debug print messages in the Info category [DbgPrintCatInfoMsg].",
-          "Defaults": {
-            "Default": false
-          },
-          "Type": "bool",
-          "VariableName": "infoEnabled",
-          "Name": "InfoEnabled"
-        },
-        {
-          "Description": "Enables debug print messages in the Warning category [DbgPrintCatWarnMsg].",
-          "Defaults": {
-            "Default": false
-          },
-          "Type": "bool",
-          "VariableName": "warningEnabled",
-          "Name": "WarningEnabled"
-        },
-        {
-          "Description": "Enables debug print messages in the Error category [DbgPrintCatErrorMsg].",
-          "Defaults": {
-            "Default": false
-          },
-          "Type": "bool",
-          "VariableName": "errorEnabled",
-          "Name": "ErrorEnabled"
-        },
-        {
-          "Description": "Enables debug print messages in the SC category [DbgPrintCatScMsg].",
-          "Defaults": {
-            "Default": false
-          },
-          "Type": "bool",
-          "VariableName": "ScEnabled",
-          "Name": "ScEnabled"
-        },
-        {
-          "Description": "Enables debug print messages in the Event Print category [DbgPrintCatEventPrintMsg].",
-          "Defaults": {
-            "Default": false
-          },
-          "Type": "bool",
-          "VariableName": "eventPrintEnabled",
-          "Name": "EventPrintEnabled"
-        },
-        {
-          "Description": "Enables debug print messages in the Event Print Callback category [DbgPrintCatEventPrintCallbackMsg].",
-          "Defaults": {
-            "Default": false
-          },
-          "Type": "bool",
-          "VariableName": "eventPrintCbEnabled",
-          "Name": "EventPrintCbEnabled"
-        }
-      ],
-      "Description": "Controls debug print category enable/disable.",
-      "BuildTypes": [
-        "PAL_ENABLE_PRINTS_ASSERTS"
-      ]
-    },
-    {
       "Name": "DbgLogEnabled",
       "Tags": [
         "Debug Log"
@@ -287,89 +218,6 @@
       ]
     },
     {
-      "Name": "AssertsEnabled",
-      "Tags": [
-        "Asserts and Alerts"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalKey",
-      "Type": "bool",
-      "VariableName": "assertsEnabled",
-      "Description": "Enables driver asserts.",
-      "BuildTypes": [
-        "PAL_ENABLE_PRINTS_ASSERTS"
-      ]
-    },
-    {
-      "Name": "AlertsEnabled",
-      "Tags": [
-        "Asserts and Alerts"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Scope": "PrivatePalKey",
-      "Type": "bool",
-      "VariableName": "alertsEnabled",
-      "Description": "Enables driver alerts.",
-      "BuildTypes": [
-        "PAL_ENABLE_PRINTS_ASSERTS"
-      ]
-    },
-    {
-      "Name": "EnableEventLogFile",
-      "Tags": [
-        "Event Logging"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "DriverState": [
-        "HaltedOnPlatformInit",
-        "HaltedOnDeviceInit",
-        "HaltedPostDeviceInit",
-        "Paused",
-        "Running"
-      ],
-      "Scope": "PrivatePalKey",
-      "Type": "bool",
-      "VariableName": "enableEventLogFile",
-      "Description": "Enables logging of events to a file."
-    },
-    {
-      "Description": "Relative directory where event log file will be placed. Relative to the path in the AMD_DEBUG_DIR environment variable. If that env var isn't set, the location is platform dependent.",
-      "Flags": {
-        "IsPath": true
-      },
-      "Tags": [
-        "Event Logging"
-      ],
-      "Defaults": {
-        "Default": "amdpal/",
-        "WinDefault": "C:\\PalLog\\",
-        "LnxDefault": "amdpal/"
-      },
-      "Size": "Util::MaxPathStrLen",
-      "Type": "string",
-      "VariableName": "eventLogDirectory",
-      "Name": "EventLogDirectory"
-    },
-    {
-      "Description": "Filename and extension of the event log file.",
-      "Defaults": {
-        "Default": "PalEventLog.json"
-      },
-      "Tags": [
-        "Event Logging"
-      ],
-      "Size": "Util::MaxPathStrLen",
-      "Type": "string",
-      "VariableName": "eventLogFilename",
-      "Name": "EventLogFilename"
-    },
-    {
       "Tags": [
         "GPU ID Masquerade"
       ],
@@ -382,6 +230,19 @@
       },
       "VariableName": "spoofNullGpuIfh",
       "Name": "SpoofNullGpuIfh"
+    },
+    {
+      "Tags": [
+        "GPU ID Masquerade"
+      ],
+      "Scope": "PrivatePalKey",
+      "Type": "gpusize",
+      "Description": "To override non-local heap size for private debug usage. Value=0 means not override the non-local heap size. NOTE: This key is only for linux usage.",
+      "Defaults": {
+        "Default": 0
+      },
+      "VariableName": "overrideNonLocalHeapSize",
+      "Name": "OverrideNonLocalHeapSize"
     },
     {
       "Name": "DebugOverlayEnabled",
@@ -467,6 +328,41 @@
           "Type": "enum",
           "VariableName": "overlayLocation",
           "Description": "Location to display debug text."
+        },
+        {
+          "ValidValues": {
+            "IsEnum": true,
+            "Values": [
+              {
+                "Name": "DebugOverlayTypeNone",
+                "Value": 0
+              },
+              {
+                "Name": "DebugOverlayTypeEvent",
+                "Value": 1
+              },
+              {
+                "Name": "DebugOverlayTypeRPC",
+                "Value": 2
+              },
+              {
+                "Name": "DebugOverlayTypeMisc",
+                "Value": 4
+              }
+            ],
+            "Name": "DebugOverlayType"
+          },
+          "Name": "DebugOverlayTypeMask",
+          "Defaults": {
+            "Default": 0
+          },
+          "Flags": {
+            "IsBitmask": true,
+            "IsHex": true
+          },
+          "Type": "uint32",
+          "VariableName": "overlayTypeMask",
+          "Description": "Debug overlay info to display."
         },
         {
           "Description": "Information about the client performing the rendering. For example: Rendered By PAL (0.0.1)",

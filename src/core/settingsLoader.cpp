@@ -330,11 +330,6 @@ void SettingsLoader::ValidateSettings()
                  sizeof(pPlatformSettings->pm4InstrumentorConfig.logDirectory),
                  "%s/%s", pRootPath, subDir);
 
-        Strncpy(subDir, pPlatformSettings->eventLogDirectory, sizeof(subDir));
-        Snprintf(pPlatformSettings->eventLogDirectory,
-            sizeof(pPlatformSettings->eventLogDirectory),
-            "%s/%s", pRootPath, subDir);
-
 #if PAL_DEVELOPER_BUILD
         Strncpy(subDir, pPlatformSettings->gpuDebugConfig.surfaceCaptureLogDirectory, sizeof(subDir));
         Snprintf(pPlatformSettings->gpuDebugConfig.surfaceCaptureLogDirectory,
@@ -366,8 +361,6 @@ void SettingsLoader::GenerateSettingHash()
     // Temporarily ignore these CCC settings when computing a settings hash as described in the function header.
     uint32 textureOptLevel = m_settings.textureOptLevel;
     m_settings.textureOptLevel = 0;
-    uint32 catalystAI = m_settings.catalystAI;
-    m_settings.catalystAI = 0;
 
     MetroHash128::Hash(
         reinterpret_cast<const uint8*>(&m_settings),
@@ -375,7 +368,5 @@ void SettingsLoader::GenerateSettingHash()
         m_settingHash.bytes);
 
     m_settings.textureOptLevel = textureOptLevel;
-    m_settings.catalystAI = catalystAI;
 }
-
 } // Pal

@@ -729,8 +729,6 @@ struct GpuChipProperties
         uint32 scalarCacheSizePerCu;                 // Size in bytes of scalar cache per CU/WGP.
         uint32 maxLateAllocVsLimit;                  // Maximum number of VS waves that can be in flight without
                                                      // having param cache and position buffer space.
-        uint32 numSlotsPerEvent;                     // Number of slots allocated for a GPU event. One slot is
-                                                     // one dword size.
         uint32 shaderPrefetchBytes;                  // Number of bytes the SQ will prefetch, if any.
 
         uint32 gl2UncachedCpuCoherency;              // If supportGl2Uncached is set, then this is a bitmask of all
@@ -983,14 +981,16 @@ struct GpuChipProperties
                 uint64 supportAlphaToOne                  :  1; // HW supports forcing alpha channel to one
                 uint64 supportSingleChannelMinMaxFilter   :  1; // HW supports any min/max filter.
                 uint64 supportSortAgnosticBarycentrics    :  1; // HW provides provoking vertex for custom interp
-                uint64 supportMeshTaskShader              :  1;
+                uint64 supportMeshShader                  :  1;
+                uint64 supportTaskShader                  :  1;
                 uint64 placeholder5                       :  2;
                 uint64 supportTextureGatherBiasLod        :  1; // HW supports SQ_IMAGE_GATHER4_L_O
                 uint64 supportInt8Dot                     :  1; // HW supports a dot product 8bit.
                 uint64 supportInt4Dot                     :  1; // HW supports a dot product 4bit.
                 uint64 support2DRectList                  :  1; // HW supports PrimitiveTopology::TwoDRectList.
                 uint64 supportImageViewMinLod             :  1; // Indicates image srd supports min_lod.
-                uint64 reserved                           : 15;
+                uint64 stateShadowingByCpFw               :  1; // Indicates that state shadowing is done is CP FW.
+                uint64 reserved                           : 14;
             };
 
             RayTracingIpLevel rayTracingIp;      //< HW RayTracing IP version
@@ -1749,6 +1749,11 @@ public:
     FormatFeatureFlags FeatureSupportFlags(ChNumFormat format, ImageTiling tiling) const
     {
         return m_pFormatPropertiesTable->features[static_cast<uint32>(format)][tiling != ImageTiling::Linear];
+    }
+
+    bool SupportStateShadowingByCpFw() const
+    {
+        return m_chipProperties.gfx9.stateShadowingByCpFw;
     }
 
     bool SupportsStaticVmid() const

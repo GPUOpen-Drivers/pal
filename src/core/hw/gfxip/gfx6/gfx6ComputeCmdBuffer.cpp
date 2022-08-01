@@ -536,7 +536,7 @@ void ComputeCmdBuffer::CmdBindBorderColorPalette(
         }
 
         m_computeState.pipelineState.pBorderColorPalette = pNewPalette;
-        m_computeState.pipelineState.dirtyFlags.borderColorPaletteDirty = 1;
+        m_computeState.pipelineState.dirtyFlags.borderColorPalette = 1;
     }
 }
 
@@ -664,7 +664,7 @@ uint32* ComputeCmdBuffer::ValidateDispatch(
     uint32  userDataCmdLen    = 0;
 #endif
 
-    if (m_computeState.pipelineState.dirtyFlags.pipelineDirty)
+    if (m_computeState.pipelineState.dirtyFlags.pipeline)
     {
         const auto*const pNewPipeline = static_cast<const ComputePipeline*>(m_computeState.pipelineState.pPipeline);
 
@@ -1372,9 +1372,6 @@ void ComputeCmdBuffer::WriteEventCmd(
     uint32                data)
 {
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
-
-    // GFX6-8 should always have supportReleaseAcquireInterface=0, so GpuEvent is always single slot (one dword).
-    PAL_ASSERT(m_device.Parent()->ChipProperties().gfxip.numSlotsPerEvent == 1);
 
     if ((pipePoint >= HwPipePostBlt) && (m_pm4CmdBufState.flags.cpBltActive))
     {

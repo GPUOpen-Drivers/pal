@@ -203,9 +203,11 @@ void SettingsLoader::ValidateSettings(
         (m_settings.numOffchipLdsBuffers == 0) ||
         (IsGfx8(*m_pDevice) == false))
     {
-        pPalSettings->distributionTessMode        = DistributionTessOff;
-        m_settings.gfx8PatchDistributionFactor = 0;
-        m_settings.gfx8DonutDistributionFactor = 0;
+        pPalSettings->distributionTessMode      = DistributionTessOff;
+        pPalSettings->isolineDistributionFactor = 0;
+        pPalSettings->triDistributionFactor     = 0;
+        pPalSettings->quadDistributionFactor    = 0;
+        pPalSettings->donutDistributionFactor   = 0;
     }
 
     // Validate tessellation distribution settings.
@@ -376,6 +378,19 @@ void SettingsLoader::OverrideDefaults(
     }
     else if (IsGfx8(*m_pDevice))
     {
+        // Disable VS half-pack mode by default on Gfx8 hardware. The reg-spec recommends more optimal VGT settings
+        // which can only be used when half-pack mode is disabled. All Gfx8 parts have enough param cache space for the
+        // maximum of 32 VS exports, so VS half-pack mode is never necessary.
+        // ( Param cache space: Carrizo:512, Iceland:1024, Tonga:2048 )
+        m_settings.vsHalfPackThreshold = (MaxVsExportSemantics + 1);
+
+        PalPublicSettings* pPublicSettings           = m_pDevice->GetPublicSettings();
+        pPublicSettings->isolineDistributionFactor   = 8;
+        pPublicSettings->triDistributionFactor       = 8;
+        pPublicSettings->quadDistributionFactor      = 8;
+        pPublicSettings->donutDistributionFactor     = 8;
+        pPublicSettings->trapezoidDistributionFactor = 8;
+
         m_settings.waLogicOpDisablesOverwriteCombiner = true;
 
         if (IsCarrizo(*m_pDevice))
@@ -400,15 +415,6 @@ void SettingsLoader::OverrideDefaults(
         (m_pDevice->ChipProperties().gfx6.numShaderEngines > 2))
     {
         m_settings.gfx7VsPartialWaveWithEoiEnabled = true;
-    }
-
-    if (IsGfx8(*m_pDevice))
-    {
-        // Disable VS half-pack mode by default on Gfx8 hardware. The reg-spec recommends more optimal VGT settings
-        // which can only be used when half-pack mode is disabled. All Gfx8 parts have enough param cache space for the
-        // maximum of 32 VS exports, so VS half-pack mode is never necessary.
-        // ( Param cache space: Carrizo:512, Iceland:1024, Tonga:2048 )
-        m_settings.vsHalfPackThreshold = (MaxVsExportSemantics + 1);
     }
 
     // Prior-to-Gfx8, the DCC (delta color compression) and texture-fetch-of-meta-data features did not exist. These

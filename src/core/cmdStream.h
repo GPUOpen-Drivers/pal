@@ -264,6 +264,7 @@ protected:
     // chunk if more space is needed. Returns true if it didn't get a new chunk.
     bool ValidateCommandSpace(uint32 sizeInDwords);
 
+    Device* const        m_pDevice;
     // A list of command chunk pointers that the command stream owns. The chunks will be executed from front to back
     // which means that the chunk at the back is currently being built.
     ChunkRefList         m_chunkList;
@@ -301,7 +302,6 @@ private:
 
     void TrackNestedChunks(const ChunkRefList& chunkList);
 
-    Device*const     m_pDevice;
     const EngineType m_engineType;
     const uint32     m_cmdSpaceDwordPadding; // End-of-chunk padding needed for a postamble and/or NOP padding.
     const uint32     m_reserveLimit;         // DWORDs that are reserved by each call to ReserveCommands.

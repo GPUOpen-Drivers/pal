@@ -147,6 +147,9 @@ Platform::Platform(
     m_flags.requestShadowDescVaRange     = createInfo.flags.requestShadowDescriptorVaRange;
     m_flags.disableInternalResidencyOpts = createInfo.flags.disableInternalResidencyOpts;
     m_flags.supportRgpTraces             = createInfo.flags.supportRgpTraces;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 754
+    m_flags.dontOpenPrimaryNode          = createInfo.flags.dontOpenPrimaryNode;
+#endif
 
     if (createInfo.pLogInfo != nullptr)
     {
@@ -537,11 +540,6 @@ Result Platform::EarlyInitDevDriver()
                 m_pEventServer = m_pDevDriverServer->GetEventServer();
 
 #if PAL_ENABLE_RPC_SETTINGS
-                DevDriver::AllocCb allocCb = {};
-                allocCb.pUserdata = this;
-                allocCb.pfnAlloc = &DevDriverAlloc;
-                allocCb.pfnFree = &DevDriverFree;
-
                 m_pSettingsService = PAL_NEW(SettingsRpcService::SettingsService, this, AllocInternal)(allocCb);
                 PAL_ASSERT(m_pSettingsService != nullptr);
 #endif
@@ -1020,6 +1018,28 @@ bool Platform::IsDevDriverProfilingEnabled() const
     }
 
     return isProfilingEnabled;
+}
+
+// =====================================================================================================================
+bool Platform::IsUberTraceServiceRegistered()
+{
+#if PAL_BUILD_RDF
+    return IsServiceRegistered(UberTrace::IService::kServiceInfo.id);
+#else
+    return false;
+#endif
+}
+
+// =====================================================================================================================
+bool Platform::IsDriverUtilsServiceRegistered()
+{
+    return IsServiceRegistered(DriverUtilsService::DriverUtilsService::kServiceInfo.id);
+}
+
+// =====================================================================================================================
+bool Platform::IsServiceRegistered(DDRpcServiceId serviceId)
+{
+    return (DD_RESULT_SUCCESS == ddRpcServerIsServiceRegistered(m_rpcServer, serviceId));
 }
 
 // =====================================================================================================================

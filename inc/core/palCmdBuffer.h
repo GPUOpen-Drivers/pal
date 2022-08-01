@@ -733,6 +733,7 @@ struct BarrierTransition
     } imageInfo;                      ///< Image-specific transition information.
 };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 751
 /// Flags that modify the behavior of ICmdBuffer::CmdBarrier().  @see BarrierInfo.
 union BarrierFlags
 {
@@ -756,6 +757,7 @@ union BarrierFlags
     };
     uint32 u32All;                           ///< Flags packed as a 32-bit uint.
 };
+#endif
 
 /// Describes a barrier as inserted by a call to ICmdBuffer::CmdBarrier().
 ///
@@ -767,7 +769,9 @@ union BarrierFlags
 /// structures passed in pTransitions.
 struct BarrierInfo
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 751
     BarrierFlags        flags;                       ///< Flags controlling behavior of the barrier.
+#endif
 
     /// Determine at what point the GPU should stall until all specified waits and transitions have completed.  If the
     /// specified wait point is unavailable, PAL will wait at the closest available earlier point.  In practice, on
@@ -808,6 +812,7 @@ struct BarrierInfo
                                 ///  to every element in @ref pTransitions.  If this is zero, then no global cache flags
                                 ///  are applied during every transition.
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 751
     /// If non-null, this is a split barrier.  A split barrier is executed by making two separate CmdBarrier() calls
     /// with identical parameters with the exception that the first call sets flags.splitBarrierEarlyPhase and the
     /// second calls sets flags.splitBarrierLatePhase.
@@ -831,6 +836,7 @@ struct BarrierInfo
     /// @note PAL will not access these GPU events with the CPU.  Clients should set the gpuAccessOnly flag when
     ///       creating GPU events used exclusively for this purpose.
     const IGpuEvent*  pSplitBarrierGpuEvent;
+#endif
 
     uint32 reason; ///< The reason that the barrier was invoked.
 };
@@ -2538,15 +2544,15 @@ public:
     /// @param [in] syncTokenCount Number of entries in pSyncTokens.
     /// @param [in] pSyncTokens    Array of synchronization tokens, as returned from CmdRelease, to confirm completion.
     ///                            The token value(s) must have been returned by a CmdRelease call in the same command
-    ///                            buffer.
+    ///                            buffer, which means pSyncTokens can't be null.
     virtual void CmdAcquire(
         const AcquireReleaseInfo& acquireInfo,
         uint32                    syncTokenCount,
         const uint32*             pSyncTokens) = 0;
 
-    /// Performs the release portion of an acquire/release-based barrier.  This releases a set of resources from their
-    /// current usage, while CmdAcquire() is expected to be called to acquire access to the resources for future,
-    /// different usage.
+    /// Performs the release portion of an acquire/release event-based barrier.  This releases a set of resources from
+    /// their current usage, while CmdAcquireEvent() is expected to be called to acquire access to the resources for
+    /// future, different usage.
     ///
     /// Conceptually, this method will:
     ///   - Ensure the specified source synchronization scope has completed.
@@ -2555,7 +2561,7 @@ public:
     ///   - Perform any requested layout transitions.
     ///
     /// Once all of these operations are complete, the specified IGpuEvent object will be signaled.  A corresponding
-    /// CmdAcquire() call is expected to wait on this event and perform any necessary visibility operations and/or
+    /// CmdAcquireEvent() call is expected to wait on this event and perform any necessary visibility operations and/or
     /// layout transitions that could not be predicted at release-time.
     ///
     /// @note Not all hardware can support the acquire/release mechanism with good performance.  This call is only
@@ -2563,14 +2569,15 @@ public:
     ///
     /// @param [in] releaseInfo Describes the synchronization scope, availability operations, and required layout
     ///                         transitions.
-    /// @param [in] pGpuEvent   Event to be signaled once the release has completed.  Can be null, in which case
-    ///                         no event will be signaled.
+    /// @param [in] pGpuEvent   Event to be signaled once the release has completed.  Must be a valid (non-null) GPU
+    ///                         event pointer. Call CmdRelease()/CmdAcquire() pair instead if want to release/acquire
+    ///                         something but no GPU event is available.
     virtual void CmdReleaseEvent(
         const AcquireReleaseInfo& releaseInfo,
         const IGpuEvent*          pGpuEvent) = 0;
 
-    /// Performs the acquire portion of an acquire/release-based barrier.  This acquire a set of resources for a new
-    /// set of usages, assuming CmdRelease() was called to release access for the resource's past usage.
+    /// Performs the acquire portion of an acquire/release event-based barrier.  This acquire a set of resources for a
+    /// new set of usages, assuming CmdReleaseEvent() was called to release access for the resource's past usage.
     ///
     /// Conceptually, this method will:
     ///   - Ensure the release(s) have completed by waiting for the specified IGpuEvent early enough in the pipeline to
@@ -2585,17 +2592,19 @@ public:
     /// @param [in] acquireInfo    Describes the synchronization scope, visibility operations, and the required layout
     ///                            layout transitions.
     /// @param [in] gpuEventCount  Number of entries in pGpuEvents.
-    /// @param [in] ppGpuEvents    One or more events to wait on.  Typically these will be set via CmdRelease(), but
-    ///                            it is valid to wait on an event set through a different means, like CmdSetEvent().
-    ///                            If null, the implementation will automatically wait for all prior GPU work on this
-    ///                            queue to complete before allowing future work specified in dstStageMask.
+    /// @param [in] ppGpuEvents    Array of one or more events to wait on.  Typically these will be set via
+    ///                            CmdReleaseEvent(), but it's valid to wait on an event set through a different means
+    ///                            like CmdSetEvent() from CPU side. Must be a valid (non-null) pointer to an array of
+    ///                            gpuEventCount valid GPU event pointers. Call CmdReleaseThenAcquire() instead if wait
+    ///                            to acquire something but no GPU event is available.
     virtual void CmdAcquireEvent(
         const AcquireReleaseInfo& acquireInfo,
         uint32                    gpuEventCount,
         const IGpuEvent* const*   ppGpuEvents) = 0;
 
-    /// Conceptually equivalent to calling CmdRelease() followed immediately by CmdAcquire().  Can be called in cases
-    /// where the client/application cannot detect separate release and acquire points for a transition.
+    /// Conceptually equivalent to calling CmdRelease() followed immediately by CmdAcquire(),  but it potentially has
+    /// better performance than calling CmdRelease()/CmdAcquire() directly.  Can be called in cases where the client/
+    /// application cannot detect separate release and acquire points for a transition.
     ///
     /// Effectively equivalent to @ref ICmdBuffer::CmdBarrier.
     ///

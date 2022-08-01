@@ -314,11 +314,17 @@ static Result OpenAndInitializeDrmDevice(
 
     // Using render node here so that we can do the off-screen rendering without authentication.
     int32 fd        = open(pRenderNode, O_RDWR, 0);
-    int32 primaryFd = open(pPrimaryNode, O_RDWR, 0);
+    int32 primaryFd = InvalidFd;
+
+    if (pPlatform->DontOpenPrimaryNode() == false)
+    {
+        primaryFd = open(pPrimaryNode, O_RDWR, 0);
+    }
 
     const DrmLoaderFuncs& procs = pPlatform->GetDrmLoader().GetProcsTable();
 
-    if ((fd < 0) || (primaryFd < 0))
+    if ((fd < 0) ||
+        ((primaryFd < 0) && (pPlatform->DontOpenPrimaryNode() == false)))
     {
         result = Result::ErrorInitializationFailed;
     }
@@ -363,7 +369,10 @@ static Result OpenAndInitializeDrmDevice(
         }
         else
         {
-            procs.pfnDrmSetClientCap(primaryFd, DRM_CLIENT_CAP_ATOMIC, 1);
+            if (pPlatform->DontOpenPrimaryNode() == false)
+            {
+                procs.pfnDrmSetClientCap(primaryFd, DRM_CLIENT_CAP_ATOMIC, 1);
+            }
         }
     }
 
@@ -1592,7 +1601,14 @@ Result Device::InitMemInfo()
                 // On the platform with VRAM bigger than system memory, kernel driver would return an incorrect
                 // GTT heap size, which is bigger than system memory. So, workaround it before kernel has a fix.
                 gpusize totalSysMemSize = static_cast<gpusize>(systemInfo.totalSysMemSize) * 1024 * 1024;
-                m_memoryProperties.nonLocalHeapSize = Min(totalSysMemSize, m_memoryProperties.nonLocalHeapSize);
+                if (GetPlatform()->PlatformSettings().overrideNonLocalHeapSize != 0)
+                {
+                    m_memoryProperties.nonLocalHeapSize = GetPlatform()->PlatformSettings().overrideNonLocalHeapSize;
+                }
+                else
+                {
+                    m_memoryProperties.nonLocalHeapSize = Min(totalSysMemSize, m_memoryProperties.nonLocalHeapSize);
+                }
             }
 
             drm_amdgpu_capability cap = {};
@@ -1740,9 +1756,19 @@ Result Device::InitQueueInfo()
             }
         }
 
+        // This code is added here because it is entirely reliant on kernel level support for implicit/explicit
+        // gang submit. As a result, this GFXIP-specific logic is being handled in InitQueueInfo.
+        const HwsInfo& hwsInfo = GetHwsInfo();
+
+        const bool supportsImplicitGangSubmit = IsAceGfxGangSubmitSupported();
+        const bool supportsExplicitGangSubmit = ((hwsInfo.gangSubmitEngineFlags.compute == 1) &&
+                                                 (hwsInfo.gangSubmitEngineFlags.graphics == 1));
+
         if (IsGfx103PlusExclusive(m_chipProperties.gfxLevel))
         {
-            m_chipProperties.gfx9.supportMeshTaskShader = 0;
+            m_chipProperties.gfx9.supportMeshShader =  m_chipProperties.gfx9.supportImplicitPrimitiveShader;
+            m_chipProperties.gfx9.supportTaskShader = (m_chipProperties.gfx9.supportImplicitPrimitiveShader &&
+                                                       (supportsImplicitGangSubmit || supportsExplicitGangSubmit));
         }
         m_chipProperties.gfxip.supportAceOffload = 0;
 

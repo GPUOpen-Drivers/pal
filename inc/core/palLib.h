@@ -43,7 +43,8 @@
 ///            compatible, it is not assumed that the client will initialize all input structs to 0.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 749
+
+#define PAL_INTERFACE_MAJOR_VERSION 754
 
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
 /// in @ref Pal::PlatformProperties.
@@ -219,8 +220,12 @@ struct PlatformCreateInfo
             uint32 supportRgpTraces               :  1; ///< Indicates that the client supports RGP tracing. PAL will
                                                         ///  use this flag and the hardware support flag to setup the
                                                         ///  DevDriver RgpServer.
-
-            uint32 reserved                       : 25; ///< Reserved for future use.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 754
+            uint32 dontOpenPrimaryNode            :  1; ///< No primary node is needed (Linux only)
+#else
+            uint32 placeholder754                 :  1;
+#endif
+            uint32 reserved                       : 24; ///< Reserved for future use.
         };
         uint32 u32All;                                  ///< Flags packed as 32-bit uint.
     } flags;                                            ///< Platform-wide creation flags.

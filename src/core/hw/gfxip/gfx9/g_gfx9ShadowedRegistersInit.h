@@ -412,6 +412,7 @@ void InitializeContextRegistersGfx9(
         0x0       ,
         0x0       ,
         0x0       ,
+        0x0       ,
         0x0
     };
     constexpr uint32 PaSuSmallPrimFilterCntlGfx9[] = {
@@ -680,7 +681,7 @@ void InitializeContextRegistersGfx9(
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_BLEND_RED, mmPA_CL_UCP_5_W, CbBlendRedGfx9, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_PS_INPUT_CNTL_0, mmSPI_SHADER_COL_FORMAT, SpiPsInputCntl0Gfx9, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSX_PS_DOWNCONVERT, Gfx09::mmCB_MRT7_EPITCH, SxPsDownconvertGfx9, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmDB_DEPTH_CONTROL, mmPA_SU_LINE_STIPPLE_SCALE, DbDepthControlGfx9, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmDB_DEPTH_CONTROL, mmPA_SU_PRIM_FILTER_CNTL, DbDepthControlGfx9, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_SMALL_PRIM_FILTER_CNTL, Vg12_Vg20::mmPA_STEREO_CNTL, PaSuSmallPrimFilterCntlGfx9, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_POINT_SIZE, mmPA_SC_LINE_STIPPLE, PaSuPointSizeGfx9, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_HOS_MAX_TESS_LEVEL, mmVGT_HOS_MIN_TESS_LEVEL, VgtHosMaxTessLevelGfx9, pCmdSpace);

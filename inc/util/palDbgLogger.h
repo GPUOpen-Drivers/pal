@@ -34,11 +34,13 @@
 #if PAL_ENABLE_LOGGING
 
 #include "palDbgLogHelper.h"
+#include "palDbgLogMgr.h"
 #include "palFile.h"
 #include "palIntrusiveList.h"
 
 namespace Util
 {
+class DbgLoggerFile;
 static constexpr uint32 DefaultMsgSize = 1024;  ///< default max size for the main message
 
 /// By default, the final formatted message consists of: "<severity>:<main message>\r\n"

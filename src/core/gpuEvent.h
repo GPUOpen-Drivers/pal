@@ -60,15 +60,13 @@ public:
     bool IsGpuAccessOnly() const { return (m_createInfo.flags.gpuAccessOnly == 1); }
 
 private:
-    Result CpuWrite(uint32 slotId, uint32 data);
+    Result CpuWrite(uint32 data);
 
     const GpuEventCreateInfo m_createInfo;
     Device*const             m_pDevice;
 
     BoundGpuMemory    m_gpuMemory;
     volatile uint32*  m_pEventData;
-
-    const uint32      m_numSlotsPerEvent;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(GpuEvent);
 };

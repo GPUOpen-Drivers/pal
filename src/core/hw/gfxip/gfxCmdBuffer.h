@@ -79,24 +79,25 @@ struct UserDataEntries
     UserDataFlags  touched;
 };
 
+union PipelineStateFlags
+{
+    struct
+    {
+        uint32 pipeline             :  1;
+        uint32 borderColorPalette   :  1;
+        uint32 reserved             : 30;
+    };
+
+    uint32 u32All;
+};
+
 // Represents GFXIP state which is currently active within a command buffer.
 struct PipelineState
 {
     const Pipeline*           pPipeline;
     uint64                    apiPsoHash;
     const BorderColorPalette* pBorderColorPalette;
-
-    union
-    {
-        struct
-        {
-            uint32 pipelineDirty           : 1;
-            uint32 borderColorPaletteDirty : 1;
-            uint32 reserved                : 30;
-        };
-
-        uint32 u32All;
-    } dirtyFlags;   // Tracks which part of command buffer state is dirty
+    PipelineStateFlags        dirtyFlags;
 };
 
 // State active necessary for compute operations. Used by compute and universal command buffers.
@@ -143,12 +144,10 @@ class GfxCmdBuffer : public CmdBuffer
     typedef ChunkVector<CmdStreamChunk*, 16, Platform> ChunkRefList;
 
 public:
+    virtual Result Begin(const CmdBufferBuildInfo& info) override;
     virtual Result Init(const CmdBufferInternalCreateInfo& internalInfo) override;
     virtual Result Reset(ICmdAllocator* pCmdAllocator, bool returnGpuMemory) override;
     virtual Result End() override;
-
-    virtual void CmdBindPipeline(
-        const PipelineBindParams& params) override;
 
     virtual void CmdCopyMemoryByGpuVa(
         gpusize                 srcGpuVirtAddr,
@@ -407,6 +406,8 @@ public:
     virtual bool SqttStarted() const = 0;
     virtual bool SqttClosed() const = 0;
 
+    static bool IsAnyUserDataDirty(const UserDataEntries* pUserDataEntries);
+
 protected:
     GfxCmdBuffer(
         const GfxDevice&           device,
@@ -421,22 +422,12 @@ protected:
     void DescribeDispatchOffset(uint32 xOffset, uint32 yOffset, uint32 zOffset, uint32 xDim, uint32 yDim, uint32 zDim);
     void DescribeDispatchIndirect();
 
-    static void PAL_STDCALL CmdSetUserDataCs(
-        ICmdBuffer*   pCmdBuffer,
-        uint32        firstEntry,
-        uint32        entryCount,
-        const uint32* pEntryValues);
-
-    void SetComputeState(const ComputeState& newComputeState, uint32 stateFlags);
-
     virtual bool SupportsExecutionMarker() override { return true; }
 
     CmdBufferEngineSupport GetPerfExperimentEngine() const;
 
     uint32                  m_engineSupport;       // Indicates which engines are supported by the command buffer.
                                                    // Populated by the GFXIP-specific layer.
-    ComputeState            m_computeState;        // Currently bound compute command buffer state.
-    ComputeState            m_computeRestoreState; // State saved by the previous call to CmdSaveCompputeState.
     GfxCmdBufferStateFlags  m_gfxCmdBufStateFlags;
 
     // This list of command chunks contains all of the command chunks containing commands which were generated on the

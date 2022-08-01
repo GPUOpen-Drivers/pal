@@ -163,8 +163,12 @@ void SettingsLoader::ValidateSettings(
             // 2 parameter cache lines. So divide by 2.
             m_settings.binningMaxAllocCountNggOnChip /= 2;
         }
-
     }
+
+    // If a specific late-alloc GS value was requested in the panel, we want to supersede a client set value. This may
+    // still be overridden to 0 below for sufficiently small GPUs.
+    pPalSettings->nggLateAllocGs = m_settings.overrideNggLateAllocGs >= 0 ? m_settings.overrideNggLateAllocGs
+                                                                          : pPalSettings->nggLateAllocGs;
 
     // Some hardware can support 128 offchip buffers per SE, but most support 64.
     const uint32 maxOffchipLdsBuffersPerSe = (gfx9Props.doubleOffchipLdsBuffers ? 128 : 64);
@@ -268,18 +272,33 @@ void SettingsLoader::ValidateSettings(
 #endif
 
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 749)
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 753)
+    if (pPalSettings->disableBinningPsKill == OverrideMode::Default)
+    {
+        if (
+            false)
+        {
+            pPalSettings->disableBinningPsKill = OverrideMode::Disabled;
+        }
+        else
+        {
+            pPalSettings->disableBinningPsKill = OverrideMode::Enabled;
+        }
+    }
+#else
     if (pPalSettings->disableBinningPsKill == DisableBinningPsKill::Default)
     {
         if (
             false)
         {
-            pPalSettings->disableBinningPsKill = DisableBinningPsKill::False;
+            pPalSettings->disableBinningPsKill = DisableBinningPsKill::_False;
         }
         else
         {
-            pPalSettings->disableBinningPsKill = DisableBinningPsKill::True;
+            pPalSettings->disableBinningPsKill = DisableBinningPsKill::_True;
         }
     }
+#endif
 #endif
 
     if (IsGfx10(*m_pDevice))
@@ -294,12 +313,12 @@ void SettingsLoader::ValidateSettings(
         if (m_settings.waClampQuadDistributionFactor)
         {
             // VGT_TESS_DISTRIBUTION.ACCUM_QUAD should never be allowed to exceed 64
-            m_settings.quadDistributionFactor = Min(m_settings.quadDistributionFactor, 64u);
+            pPalSettings->quadDistributionFactor = Min(pPalSettings->quadDistributionFactor , 64u);
         }
 
         if ((m_settings.waLateAllocGs0) && m_settings.nggSupported)
         {
-            m_settings.nggLateAllocGs = 0;
+            pPalSettings->nggLateAllocGs = 0;
 
             // This workaround requires that tessellation distribution is enabled and the distribution factors are
             // non-zero.
@@ -307,11 +326,6 @@ void SettingsLoader::ValidateSettings(
             {
                 pPalSettings->distributionTessMode = DistributionTessDefault;
             }
-            m_settings.donutDistributionFactor     = Max(m_settings.donutDistributionFactor,     1u);
-            m_settings.isolineDistributionFactor   = Max(m_settings.isolineDistributionFactor,   1u);
-            m_settings.quadDistributionFactor      = Max(m_settings.quadDistributionFactor,      1u);
-            m_settings.trapezoidDistributionFactor = Max(m_settings.trapezoidDistributionFactor, 1u);
-            m_settings.triDistributionFactor       = Max(m_settings.triDistributionFactor,       1u);
         }
 
         if (m_settings.gfx9RbPlusEnable)
@@ -379,12 +393,15 @@ void SettingsLoader::ValidateSettings(
         constexpr uint32 MaskEnableAll                          = UINT_MAX;
         m_settings.gsCuEnLimitMask                              = MaskEnableAll;
         m_settings.allowNggOnAllCusWgps                         = true;
-        m_settings.nggLateAllocGs                               = 0;
+        pPalSettings->nggLateAllocGs                            = 0;
         {
             m_settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru = 0;
             m_settings.gfx10GePcAllocNumLinesPerSeNggCulling        = 0;
         }
     }
+
+    // nggLateAllocGs can NOT be greater than 127.
+    pPalSettings->nggLateAllocGs = Min(pPalSettings->nggLateAllocGs, 127u);
 
     // Since XGMI is much faster than PCIe, PAL should not reduce the number of RBs to increase the PCIe throughput
     if (chipProps.p2pSupport.xgmiEnabled != 0)
@@ -646,7 +663,8 @@ static void SetupNavi24Workarounds(
 void SettingsLoader::OverrideDefaults(
     PalSettings* pSettings)
 {
-    const Pal::Device& device = *m_pDevice;
+    const Pal::Device& device          = *m_pDevice;
+    PalPublicSettings* pPublicSettings = m_pDevice->GetPublicSettings();
 
     uint16 minBatchBinSizeWidth  = 128;
     uint16 minBatchBinSizeHeight = 64;

@@ -163,7 +163,7 @@ void ComputeCmdBuffer::CmdBindPipeline(
         SetDispatchFunctions(newUsesHsaAbi);
     }
 
-    Pal::GfxCmdBuffer::CmdBindPipeline(params);
+    Pal::Pm4CmdBuffer::CmdBindPipeline(params);
 }
 
 // =====================================================================================================================
@@ -886,7 +886,7 @@ void ComputeCmdBuffer::CmdBindBorderColorPalette(
             }
 
             m_computeState.pipelineState.pBorderColorPalette = pNewPalette;
-            m_computeState.pipelineState.dirtyFlags.borderColorPaletteDirty = 1;
+            m_computeState.pipelineState.dirtyFlags.borderColorPalette = 1;
         }
     }
 }
@@ -1021,7 +1021,7 @@ uint32* ComputeCmdBuffer::ValidateDispatchPalAbi(
     PAL_ASSERT(((supportDynamicDispatch == true)  && (launchDescGpuVirtAddr != 0)) ||
                ((supportDynamicDispatch == false) && (launchDescGpuVirtAddr == 0)));
 
-    if (m_computeState.pipelineState.dirtyFlags.pipelineDirty)
+    if (m_computeState.pipelineState.dirtyFlags.pipeline)
     {
         const auto*const pNewPipeline = static_cast<const ComputePipeline*>(m_computeState.pipelineState.pPipeline);
 
@@ -1138,7 +1138,7 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
     // We didn't implement support for dynamic dispatch.
     PAL_ASSERT(pPipeline->SupportDynamicDispatch() == false);
 
-    if (m_computeState.pipelineState.dirtyFlags.pipelineDirty)
+    if (m_computeState.pipelineState.dirtyFlags.pipeline)
     {
         pCmdSpace = pPipeline->WriteCommands(&m_cmdStream,
                                              pCmdSpace,
@@ -1193,7 +1193,7 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
         // Zero everything out then fill in certain fields the shader is likely to read.
         memset(pAqlPacket, 0, sizeof(sizeof(hsa_kernel_dispatch_packet_t)));
 
-        pAqlPacket->workgroup_size_x     = zThreads;
+        pAqlPacket->workgroup_size_x     = xThreads;
         pAqlPacket->workgroup_size_y     = yThreads;
         pAqlPacket->workgroup_size_z     = zThreads;
         pAqlPacket->grid_size_x          = xDim;
@@ -1768,22 +1768,6 @@ void ComputeCmdBuffer::WriteEventCmd(
         releaseInfo.data       = data;
 
         pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseInfo, pCmdSpace);
-    }
-
-    // Set remaining (unused) event slots as early as possible. GFX9 and above may have supportReleaseAcquireInterface=1
-    // which enables multiple slots (one dword per slot) for a GpuEvent. If the interface is not enabled, PAL client can
-    // still treat the GpuEvent as one dword, but PAL needs to handle the unused extra dwords internally by setting it
-    // as early in the pipeline as possible.
-    const uint32 numEventSlots = m_device.Parent()->ChipProperties().gfxip.numSlotsPerEvent;
-    for (uint32 i = 1; i < numEventSlots; i++)
-    {
-        // Implement set/reset event with a WRITE_DATA command using the CP.
-        WriteDataInfo writeData = {};
-        writeData.engineType = EngineTypeCompute;
-        writeData.dstAddr    = boundMemObj.GpuVirtAddr() + (i * sizeof(uint32));
-        writeData.dstSel     = dst_sel__mec_write_data__memory;
-
-        pCmdSpace += m_cmdUtil.BuildWriteData(writeData, data, pCmdSpace);
     }
 
     m_cmdStream.CommitCommands(pCmdSpace);

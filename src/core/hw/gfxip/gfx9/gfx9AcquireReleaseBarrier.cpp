@@ -35,24 +35,50 @@ namespace Pal
 namespace Gfx9
 {
 
+// Define required HW release info in acquire release: release events and RB cache flags.
+// CpDma and PfpSyncMe are not tracked here.
+union ReleaseEvents
+{
+    struct
+    {
+        uint8 eop      : 1;
+        uint8 ps       : 1;
+        uint8 vs       : 1;
+        uint8 cs       : 1;
+        uint8 rbCache  : 1;
+        uint8 reserved : 3;
+    };
+
+    uint8_t u8All;
+};
+
+// Define ordered HW acquire points.
+enum class AcquirePoint : uint8
+{
+
+    Pfp       = 0,
+    Me        = 1,
+    PreShader = 2,
+    PreDepth  = 3,
+    PrePs     = 4,
+    PreColor  = 5,
+    Eop       = 6, // Invalid, for internal optimization purpose.
+    Count
+};
+
 static constexpr uint32 PipelineStagePfpMask =  PipelineStageTopOfPipe | PipelineStageFetchIndirectArgs |
                                                 PipelineStageFetchIndices;
 
-static constexpr uint32 PipelineStageHsGsMask = PipelineStageVs | PipelineStageHs | PipelineStageDs | PipelineStageGs;
-
-static constexpr uint32 PipelineStageEopMask =  PipelineStageEarlyDsTarget | PipelineStageLateDsTarget |
-                                                PipelineStageColorTarget   | PipelineStageBottomOfPipe;
-
 // =====================================================================================================================
 // Translate accessMask to ReleaseMemCaches.
-ReleaseMemCaches Device::ConvertReleaseCacheFlags(
+static ReleaseMemCaches GetReleaseCacheFlags(
     uint32                        accessMask,  // Bitmask of CacheCoherencyUsageFlags.
     bool                          refreshTcc,
-    Developer::BarrierOperations* pBarrierOps
-    ) const
+    Developer::BarrierOperations* pBarrierOps)
 {
     PAL_ASSERT(pBarrierOps != nullptr);
 
+    // Note that if add any new cache sync flags, remember to update GetReleaseThenAcquireCacheFlags().
     ReleaseMemCaches flags = {};
 
     if (refreshTcc)
@@ -75,7 +101,7 @@ ReleaseMemCaches Device::ConvertReleaseCacheFlags(
 
 // =====================================================================================================================
 // Translate accessMask to SyncGlxFlags.
-SyncGlxFlags Device::ConvertAcquireCacheFlags(
+SyncGlxFlags Device::GetAcquireCacheFlags(
     uint32                        accessMask,  // Bitmask of CacheCoherencyUsageFlags.
     bool                          refreshTcc,
     Developer::BarrierOperations* pBarrierOps
@@ -135,6 +161,24 @@ SyncGlxFlags Device::ConvertAcquireCacheFlags(
     }
 
     return flags;
+}
+
+// =====================================================================================================================
+SyncGlxFlags Device::GetReleaseThenAcquireCacheFlags(
+    uint32                        srcAccessMask,
+    uint32                        dstAccessMask,
+    bool                          refreshTcc,
+    Developer::BarrierOperations* pBarrierOps
+    ) const
+{
+    const ReleaseMemCaches releaseCaches = GetReleaseCacheFlags(srcAccessMask, refreshTcc, pBarrierOps);
+    SyncGlxFlags           acquireCaches = GetAcquireCacheFlags(dstAccessMask, refreshTcc, pBarrierOps);
+
+    // Currently GetReleaseCacheFlags() only set gl2Inv/gl2Wb.
+    acquireCaches |= releaseCaches.gl2Inv ? SyncGl2Inv : SyncGlxNone;
+    acquireCaches |= releaseCaches.gl2Wb  ? SyncGl2Wb  : SyncGlxNone;
+
+    return acquireCaches;
 }
 
 // =====================================================================================================================
@@ -246,7 +290,7 @@ static BarrierTransition AcqRelBuildTransition(
         pBarrierOps->layoutTransitions.depthStencilResummarize = 1;
         break;
     case FastClearEliminate:
-        pBarrierOps->layoutTransitions.fastClearEliminate = (transitionInfo.flags.skipFce == false);
+        pBarrierOps->layoutTransitions.fastClearEliminate = 1;
         break;
     case FmaskDecompress:
         pBarrierOps->layoutTransitions.fmaskDecompress = 1;
@@ -362,11 +406,8 @@ static void GetBltStageAccessInfo(
         break;
 
     case HwLayoutTransition::FastClearEliminate:
-        if (info.flags.skipFce == false)
-        {
-            *pStageMask  = PipelineStageColorTarget;
-            *pAccessMask = CoherColorTarget;
-        }
+        *pStageMask  = PipelineStageColorTarget;
+        *pAccessMask = CoherColorTarget;
         break;
     case HwLayoutTransition::FmaskDecompress:
         *pStageMask  = PipelineStageColorTarget;
@@ -397,49 +438,21 @@ static void GetBltStageAccessInfo(
 }
 
 // =====================================================================================================================
-// Group all acquire dst access mask into global acquire access mask. No support ranged cache operation.
-static uint32 GetAcquireSyncDstGlobalAccessMask(
-    const AcquireReleaseInfo& barrierInfo)
-{
-    uint32 dstGlobalAccessMask = barrierInfo.dstGlobalAccessMask;
-
-    // Loop through memory transitions to check if can group non-ranged acquire sync into global sync
-    for (uint32 i = 0; i < barrierInfo.memoryBarrierCount; i++)
-    {
-        const MemBarrier& barrier = barrierInfo.pMemoryBarriers[i];
-
-        dstGlobalAccessMask |= barrier.dstAccessMask;
-        dstGlobalAccessMask |= barrier.flags.globallyAvailable ? CoherMemory : 0;
-    }
-
-    // Loop through image transitions to check if can group non-ranged acquire sync into global sync
-    for (uint32 i = 0; i < barrierInfo.imageBarrierCount; i++)
-    {
-        const ImgBarrier& imgBarrier = barrierInfo.pImageBarriers[i];
-
-        dstGlobalAccessMask |= imgBarrier.dstAccessMask;
-    }
-
-    return dstGlobalAccessMask;
-}
-
-// =====================================================================================================================
 // Prepare and get all image layout transition info
 bool Device::GetAcqRelLayoutTransitionBltInfo(
     Pm4CmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
     const AcquireReleaseInfo&     barrierInfo,
-    AcqRelAutoBuffer*             pTransitionList,
-    Developer::BarrierOperations* pBarrierOps,
-    uint32*                       pBltCount,
-    uint32*                       pBltStageMask,
-    uint32*                       pBltAccessMask,
-    uint32*                       pSrcAccessMask = nullptr
+    AcqRelTransitionInfo*         pTransitonInfo,
+    uint32*                       pSrcAccessMask, // OR with all image srcAccessMask as output
+    uint32*                       pDstAccessMask, // OR with all image dstAccessMask as output
+    Developer::BarrierOperations* pBarrierOps
     ) const
 {
     uint32 bltStageMask  = 0;
     uint32 bltAccessMask = 0;
     uint32 srcAccessMask = 0;
+    uint32 dstAccessMask = 0;
     uint32 bltCount      = 0;
     bool   refreshTcc    = false;
 
@@ -450,14 +463,11 @@ bool Device::GetAcqRelLayoutTransitionBltInfo(
 
         PAL_ASSERT(imageBarrier.subresRange.numPlanes == 1);
 
-        // Update client requested access mask.
         srcAccessMask |= imageBarrier.srcAccessMask;
+        dstAccessMask |= imageBarrier.dstAccessMask;
 
         // Prepare a layout transition BLT info and do pre-BLT preparation work.
-        LayoutTransitionInfo layoutTransInfo = PrepareBltInfo(pCmdBuf, imageBarrier);
-
-        (*pTransitionList)[i].pImgBarrier     = &imageBarrier;
-        (*pTransitionList)[i].layoutTransInfo = layoutTransInfo;
+        const LayoutTransitionInfo layoutTransInfo = PrepareBltInfo(pCmdBuf, imageBarrier);
 
         uint32 stageMask  = 0;
         uint32 accessMask = 0;
@@ -465,19 +475,16 @@ bool Device::GetAcqRelLayoutTransitionBltInfo(
         {
             GetBltStageAccessInfo(layoutTransInfo, &stageMask, &accessMask);
 
-            (*pTransitionList)[i].bltStageMask  = stageMask;
-            (*pTransitionList)[i].bltAccessMask = accessMask;
+            (*pTransitonInfo->pBltList)[bltCount].pImgBarrier     = &imageBarrier;
+            (*pTransitonInfo->pBltList)[bltCount].layoutTransInfo = layoutTransInfo;
+            (*pTransitonInfo->pBltList)[bltCount].stageMask       = stageMask;
+            (*pTransitonInfo->pBltList)[bltCount].accessMask      = accessMask;
+            bltCount++;
 
             // Add current BLT's stageMask into a stageMask/accessMask used for an all-in-one pre-BLT acquire.
             bltStageMask  |= stageMask;
             // Optimization: set preBltAccessMask=0 for transition to InitMaskRam since no need cache sync in this case.
             bltAccessMask |= (layoutTransInfo.blt[0] == HwLayoutTransition::InitMaskRam) ? 0 : accessMask;
-            bltCount++;
-        }
-        else
-        {
-            (*pTransitionList)[i].bltStageMask  = 0;
-            (*pTransitionList)[i].bltAccessMask = 0;
         }
 
         // Check refresh L2 WA at Release() call and skip for Acquire() to save CPU overhead.
@@ -501,48 +508,50 @@ bool Device::GetAcqRelLayoutTransitionBltInfo(
         }
     }
 
-    PAL_ASSERT((pBltCount != nullptr) && (pBltStageMask != nullptr) && (pBltAccessMask != nullptr));
-
-    *pBltCount      = bltCount;
-    *pBltStageMask  = bltStageMask;
-    *pBltAccessMask = bltAccessMask;
+    PAL_ASSERT(pTransitonInfo != nullptr);
+    pTransitonInfo->bltCount      = bltCount;
+    pTransitonInfo->bltStageMask  = bltStageMask;
+    pTransitonInfo->bltAccessMask = bltAccessMask;
 
     if (pSrcAccessMask != nullptr)
     {
-        *pSrcAccessMask = srcAccessMask;
+        *pSrcAccessMask |= srcAccessMask;
+    }
+
+    if (pDstAccessMask != nullptr)
+    {
+        *pDstAccessMask |= dstAccessMask;
     }
 
     return refreshTcc;
 }
 
 // =====================================================================================================================
-// Issue all image layout transition BLT(s) and compute info for release the BLT(s).
+// Issue all image layout transition BLTs and compute info for release the BLTs.
 bool Device::IssueAcqRelLayoutTransitionBlt(
     Pm4CmdBuffer*                 pCmdBuf,
     CmdStream*                    pCmdStream,
-    uint32                        imageBarrierCount,
-    const AcqRelAutoBuffer&       transitionList,
-    Developer::BarrierOperations* pBarrierOps,
-    uint32*                       pPostBltStageMask,
-    uint32*                       pPostBltAccessMask
+    AcqRelTransitionInfo*         pTransitonInfo,
+    Developer::BarrierOperations* pBarrierOps
     ) const
 {
-    // If BLT(s) will be issued, we need to know how to release from it/them.
+    // If BLTs will be issued, we need to know how to release from it/them.
     uint32 postBltStageMask   = 0;
     uint32 postBltAccessMask  = 0;
     bool   postBltRefreshTcc  = false;
     bool   preInitHtileSynced = false;
 
+    PAL_ASSERT(pTransitonInfo != nullptr);
+
     // Issue BLTs.
-    for (uint32 i = 0; i < imageBarrierCount; i++)
+    for (uint32 i = 0; i < pTransitonInfo->bltCount; i++)
     {
-        const AcqRelTransitionInfo& transition = transitionList[i];
-        const ImgBarrier&           imgBarrier = *transition.pImgBarrier;
+        const AcqRelImgTransitionInfo& transition = (*pTransitonInfo->pBltList)[i];
+        const ImgBarrier&              imgBarrier = *transition.pImgBarrier;
 
         if (transition.layoutTransInfo.blt[0] != HwLayoutTransition::None)
         {
-            if (IssueBlt(pCmdBuf, pCmdStream, transition.pImgBarrier,
-                         transition.layoutTransInfo, preInitHtileSynced, pBarrierOps))
+            if (IssueBlt(pCmdBuf, pCmdStream, &imgBarrier, transition.layoutTransInfo, preInitHtileSynced, pBarrierOps))
             {
                 preInitHtileSynced = true;
             }
@@ -557,8 +566,8 @@ bool Device::IssueAcqRelLayoutTransitionBlt(
             }
             else
             {
-                stageMask  = transition.bltStageMask;
-                accessMask = transition.bltAccessMask;
+                stageMask  = transition.stageMask;
+                accessMask = transition.accessMask;
             }
 
             postBltRefreshTcc |= WaRefreshTccOnImageBarrier(imgBarrier.pImage,
@@ -574,10 +583,11 @@ bool Device::IssueAcqRelLayoutTransitionBlt(
         }
     }
 
-    PAL_ASSERT((pPostBltStageMask != nullptr) && (pPostBltAccessMask != nullptr));
-
-    *pPostBltStageMask  = postBltStageMask;
-    *pPostBltAccessMask = postBltAccessMask;
+    // Output bltStageMask and bltAccessMask for release BLTs. Generally they're the same as the input values in
+    // pTransitonInfo, but if (layoutTransInfo.blt[1] != HwLayoutTransition::None), they may be different and we
+    // should update the values to release blt[1] correctly.
+    pTransitonInfo->bltStageMask  = postBltStageMask;
+    pTransitonInfo->bltAccessMask = postBltAccessMask;
 
     return postBltRefreshTcc;
 }
@@ -713,24 +723,11 @@ void Device::AcqRelColorTransition(
         }
         else if (layoutTransInfo.blt[0] == HwLayoutTransition::FastClearEliminate)
         {
-            if (layoutTransInfo.flags.skipFce != 0)
-            {
-                auto& gfx9ImageNonConst = static_cast<Gfx9::Image&>(*image.GetGfxImage()); // Cast to modifiable value
-                                                                                           // for skip-FCE optimization
-                                                                                           // only.
-
-                // Skip the fast clear eliminate for this image if the clear color is TC-compatible and the
-                // optimization was enabled.
-                pCmdBuf->AddFceSkippedImageCounter(&gfx9ImageNonConst);
-            }
-            else
-            {
-                RsrcProcMgr().FastClearEliminate(pCmdBuf,
-                                                 pCmdStream,
-                                                 gfx9Image,
-                                                 imgBarrier.pQuadSamplePattern,
-                                                 imgBarrier.subresRange);
-            }
+            RsrcProcMgr().FastClearEliminate(pCmdBuf,
+                                             pCmdStream,
+                                             gfx9Image,
+                                             imgBarrier.pQuadSamplePattern,
+                                             imgBarrier.subresRange);
         }
 
         // Handle corner cases where it needs a second pass.
@@ -738,27 +735,23 @@ void Device::AcqRelColorTransition(
         {
             PAL_ASSERT(layoutTransInfo.blt[1] == HwLayoutTransition::MsaaColorDecompress);
 
-            uint32 stageMask  = 0;
-            uint32 accessMask = 0;
+            uint32 srcStageMask  = 0;
+            uint32 dstStageMask  = 0;
+            uint32 srcAccessMask = 0;
+            uint32 dstAccessMask = 0;
 
             // Prepare release info for first pass BLT.
-            GetBltStageAccessInfo(layoutTransInfo, &stageMask, &accessMask);
+            GetBltStageAccessInfo(layoutTransInfo, &srcStageMask, &srcAccessMask);
 
-            // Release from first pass.
-            const AcqRelSyncToken syncToken = IssueReleaseSync(pCmdBuf,
-                                                               pCmdStream,
-                                                               stageMask,
-                                                               accessMask,
-                                                               false,
-                                                               pBarrierOps);
-
-            // Prepare second pass info.
+            // Prepare acquire info for second pass BLT.
             constexpr LayoutTransitionInfo MsaaBltInfo = { {}, HwLayoutTransition::MsaaColorDecompress };
+            GetBltStageAccessInfo(MsaaBltInfo, &dstStageMask, &dstAccessMask);
 
-            GetBltStageAccessInfo(MsaaBltInfo, &stageMask, &accessMask);
+            const bool refreshTcc = WaRefreshTccOnImageBarrier(&image, imgBarrier.subresRange,
+                                                               srcAccessMask, dstAccessMask, false);
 
-            // Acquire for second pass.
-            IssueAcquireSync(pCmdBuf, pCmdStream, stageMask, accessMask, false, 1, &syncToken, pBarrierOps);
+            IssueReleaseThenAcquireSync(pCmdBuf, pCmdStream, srcStageMask, dstStageMask,
+                                        srcAccessMask, dstAccessMask, refreshTcc, pBarrierOps);
 
             // Tell RGP about this transition
             BarrierTransition rgpTransition = AcqRelBuildTransition(&imgBarrier, MsaaBltInfo, pBarrierOps);
@@ -767,6 +760,128 @@ void Device::AcqRelColorTransition(
             RsrcProcMgr().FmaskColorExpand(pCmdBuf, gfx9Image, imgBarrier.subresRange);
         }
     }
+}
+
+// =====================================================================================================================
+static ReleaseEvents GetReleaseEvents(
+    Pm4CmdBuffer* pCmdBuf,
+    const Device& device,
+    uint32        srcStageMask,
+    uint32        srcAccessMask,
+    bool          splitBarrier,
+    AcquirePoint  acquirePoint = AcquirePoint::Pfp) // Assume worst stall if info not available in split barrier
+{
+    constexpr uint32 EopWaitStageMask = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget |
+                                        PipelineStageColorTarget   | PipelineStageBottomOfPipe;
+    // PFP sets IB base and size to register VGT_DMA_BASE & VGT_DMA_SIZE and send request to VGT for indices fetch,
+    // which is done in GE. So need VsDone to make sure indices fetch done.
+    constexpr uint32 VsWaitStageMask  = PipelineStageVs | PipelineStageHs | PipelineStageDs |
+                                        PipelineStageGs | PipelineStageFetchIndices;
+    constexpr uint32 PsWaitStageMask  = PipelineStagePs;
+    constexpr uint32 CsWaitStageMask  = PipelineStageCs;
+
+    // Detect cases where no global execution barrier is required because the acquire point is later than the
+    // pipeline stages being released.
+    constexpr uint32 StallReqStageMask[] =
+    {
+        // Pfp       = 0
+        VsWaitStageMask | PsWaitStageMask | CsWaitStageMask | EopWaitStageMask,
+        // Me        = 1
+        VsWaitStageMask | PsWaitStageMask | CsWaitStageMask | EopWaitStageMask,
+        // PreShader = 2
+        VsWaitStageMask | PsWaitStageMask | CsWaitStageMask | EopWaitStageMask,
+        // PreDepth  = 3
+        PsWaitStageMask | CsWaitStageMask | EopWaitStageMask,
+        // PrePs     = 4
+        PsWaitStageMask | CsWaitStageMask | EopWaitStageMask,
+        // PreColor  = 5
+        // PS exports from distinct packers are not ordered.  Therefore, it is possible for color target writes in an
+        // RB associated with one packer to start while pixel shader reads from the previous draw are still active on a
+        // different packer.  If the writes and reads in that scenario access the same data, the operations will not
+        // occur in the API-defined pipeline order.  So need stall here to guarantee the order.
+        PsWaitStageMask | CsWaitStageMask | EopWaitStageMask,
+        // Eop       = 6, can skip all release events (except RB cache)
+        0,
+    };
+
+    ReleaseEvents release = {};
+
+    if (TestAnyFlagSet(srcStageMask, StallReqStageMask[uint32(acquirePoint)]))
+    {
+        if (TestAnyFlagSet(srcStageMask, EopWaitStageMask))
+        {
+            release.eop = 1;
+        }
+        else
+        {
+            release.ps = TestAnyFlagSet(srcStageMask, PsWaitStageMask);
+            release.vs = TestAnyFlagSet(srcStageMask, VsWaitStageMask);
+            release.cs = TestAnyFlagSet(srcStageMask, CsWaitStageMask);
+        }
+    }
+
+    // Use CACHE_FLUSH_AND_INV_TS to sync RB cache. There is no way to INV the CB metadata caches during acquire.
+    // So at release always also invalidate if we are to flush CB metadata. Furthermore, CACHE_FLUSH_AND_INV_TS_EVENT
+    // always flush and invalidate RB cache, so there is no need to invalidate RB at acquire again.
+    if (TestAnyFlagSet(srcAccessMask, CoherColorTarget | CoherDepthStencilTarget))
+    {
+        release.eop     = 1;
+        release.rbCache = 1;
+    }
+
+    if (splitBarrier)
+    {
+        // No VS_DONE event support from HW yet. For ReleaseThenAcquire, can issue VS_PARTIAL_FLUSH instead and for
+        // split barrier, need bump to PsDone or Eop instead. However, if rasterKill is enabled (there is no Ps wave),
+        // PsDone can't guarantee Vs done where we have to convert to Eop instead.
+        if (release.vs)
+        {
+            release.vs = 0;
+
+            if (pCmdBuf->GetPm4CmdBufState().flags.rasterKillDrawsActive != 0)
+            {
+                release.eop = 1;
+            }
+            else
+            {
+                release.ps = 1;
+            }
+        }
+
+        // Combine to single event
+        if (release.ps && release.cs)
+        {
+            release.eop = 1;
+            release.ps  = 0;
+            release.cs  = 0;
+        }
+    }
+
+    return release;
+}
+
+// =====================================================================================================================
+static AcquirePoint GetAcquirePoint(
+    uint32 dstStageMask)
+{
+    // Constants to map PAL interface pipe stage masks to HW acquire points.
+    constexpr uint32 AcqPfpStages       = PipelineStageTopOfPipe | PipelineStageFetchIndirectArgs |
+                                          PipelineStageFetchIndices;
+    constexpr uint32 AcqMeStages        = PipelineStageBlt;
+    constexpr uint32 AcqPreShaderStages = PipelineStageVs | PipelineStageHs | PipelineStageDs |
+                                          PipelineStageGs | PipelineStageCs;
+    constexpr uint32 AcqPreDepthStages  = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget;
+    constexpr uint32 AcqPrePsStages     = PipelineStagePs;
+    constexpr uint32 AcqPreColorStages  = PipelineStageColorTarget;
+
+    // Convert global dstStageMask to HW acquire point.
+    return TestAnyFlagSet(dstStageMask, AcqPfpStages)       ? AcquirePoint::Pfp       :
+           TestAnyFlagSet(dstStageMask, AcqMeStages)        ? AcquirePoint::Me        :
+           TestAnyFlagSet(dstStageMask, AcqPreShaderStages) ? AcquirePoint::PreShader :
+           TestAnyFlagSet(dstStageMask, AcqPreDepthStages)  ? AcquirePoint::PreDepth  :
+           TestAnyFlagSet(dstStageMask, AcqPrePsStages)     ? AcquirePoint::PrePs     :
+           TestAnyFlagSet(dstStageMask, AcqPreColorStages)  ? AcquirePoint::PreColor  :
+                                                              AcquirePoint::Eop;
 }
 
 // =====================================================================================================================
@@ -814,84 +929,45 @@ AcqRelSyncToken Device::IssueReleaseSync(
         PAL_ASSERT(TestAnyFlagSet(accessMask, CacheCoherencyBlt) == false);
     }
 
-    AcqRelSyncToken syncToken             = {};
-    syncToken.type                        = static_cast<uint32>(AcqRelEventType::Invalid);
-    bool            issueRbCacheSyncEvent = false; // If set, this EOP event is CACHE_FLUSH_AND_INV_TS, not
-                                                   // the pipeline stall-only version BOTTOM_OF_PIPE.
-
-    const bool hasRasterKill  = pCmdBuf->GetPm4CmdBufState().flags.rasterKillDrawsActive;
-    const bool requiresEop    = TestAnyFlagSet(stageMask, PipelineStageEopMask);
-    // No VS_DONE event support from HW yet, and EOP event will be used instead. Optimize to use PS_DONE instead of
-    // heavy VS_DONE (EOP) if there is ps wave. If no ps wave, PS_DONE doesn't safely ensures the completion of VS
-    // and prior stage waves.
-    // PFP sets IB base and size to register VGT_DMA_BASE & VGT_DMA_SIZE and send request to VGT for indices fetch,
-    // so need VsDone to make sure indices fetch is fully done.
-    const bool requiresPsDone = TestAnyFlagSet(stageMask, PipelineStagePs) ||
-                                ((hasRasterKill == false) &&
-                                 TestAnyFlagSet(stageMask, PipelineStageFetchIndices | PipelineStageHsGsMask));
-    const bool requiresVsDone = hasRasterKill &&
-                                TestAnyFlagSet(stageMask, PipelineStageFetchIndices | PipelineStageHsGsMask);
-    const bool requiresCsDone = TestAnyFlagSet(stageMask, PipelineStageCs);
-
-    // If any of the access mask bits that could result in RB sync are set, use CACHE_FLUSH_AND_INV_TS.
-    // There is no way to INV the CB metadata caches during acquire. So at release always also invalidate if we are to
-    // flush CB metadata. Furthermore, CACHE_FLUSH_AND_INV_TS_EVENT always flush & invalidate RB, so there is no need
-    // to invalidate RB at acquire again.
-    if (TestAnyFlagSet(accessMask, CoherColorTarget | CoherDepthStencilTarget))
-    {
-        // Issue a pipelined EOP event that writes timestamp to a GpuEvent slot when all prior GPU work completes.
-        syncToken.type        = static_cast<uint32>(AcqRelEventType::Eop);
-        issueRbCacheSyncEvent = true;
-
-        accessMask &= ~(CoherColorTarget | CoherDepthStencilTarget);
-
-        Pm4CmdBuffer::SetBarrierOperationsRbCacheSynced(pBarrierOps);
-    }
-    else if (requiresEop || requiresVsDone || (requiresCsDone && requiresPsDone))
-    {
-        // Implement set with an EOP event written when all prior GPU work completes if either:
-        // 1. End of RB or end of whole pipe is required,
-        // 2. There are Vs/Hs/Ds/Gs that require a graphics pipe done event, but there is no PS wave. Since there is no
-        //    VS_DONE event, we have to conservatively use an EOP event,
-        // 3. Both graphics and compute events are required.
-        syncToken.type = static_cast<uint32>(AcqRelEventType::Eop);
-    }
-    else if (requiresCsDone)
-    {
-        // Implement set with an EOS event waiting for CS waves to complete.
-        syncToken.type = static_cast<uint32>(AcqRelEventType::CsDone);
-    }
-    else if (requiresPsDone)
-    {
-        // Implement set with an EOS event waiting for PS waves to complete.
-        syncToken.type = static_cast<uint32>(AcqRelEventType::PsDone);
-    }
-
-    const ReleaseMemCaches cacheSync = ConvertReleaseCacheFlags(accessMask, refreshTcc, pBarrierOps);
-
+    const ReleaseEvents    releaseEvents = GetReleaseEvents(pCmdBuf, *this, stageMask, accessMask, true);
+    const ReleaseMemCaches releaseCaches = GetReleaseCacheFlags(accessMask, refreshTcc, pBarrierOps);
     // Pick EOP event if a cache sync is requested because EOS events do not support cache syncs.
-    if ((syncToken.type != static_cast<uint32>(AcqRelEventType::Invalid)) && (cacheSync.u8All != 0))
-    {
-        syncToken.type = static_cast<uint32>(AcqRelEventType::Eop);
-    }
+    const bool             bumpToEop     = (releaseCaches.u8All != 0) && (releaseEvents.u8All != 0);
+
+    // Note that release event flags for split barrier should meet below conditions,
+    //    1). No VsDone as it should be converted to PsDone or Eop.
+    //    2). PsDone and CsDone should have been already converted to Eop.
+    //    3). rbCache sync must have Eop event set.
+    PAL_ASSERT(releaseEvents.vs == 0);
+    PAL_ASSERT((releaseEvents.ps & releaseEvents.cs)== 0);
+    PAL_ASSERT((releaseEvents.rbCache == 0) || releaseEvents.eop);
+
+    AcqRelSyncToken syncToken = {};
+    syncToken.type = (releaseEvents.eop || bumpToEop) ? uint32(AcqRelEventType::Eop)    :
+                     releaseEvents.ps                 ? uint32(AcqRelEventType::PsDone) :
+                     releaseEvents.cs                 ? uint32(AcqRelEventType::CsDone) :
+                                                        uint32(AcqRelEventType::Invalid);
 
     // Issue RELEASE_MEM packet.
-    if (syncToken.type != static_cast<uint32>(AcqRelEventType::Invalid))
+    if (syncToken.type != uint32(AcqRelEventType::Invalid))
     {
         // Request sync fence value after VGT event type is finalized.
-        syncToken.fenceVal = pCmdBuf->GetNextAcqRelFenceVal(static_cast<AcqRelEventType>(syncToken.type));
+        syncToken.fenceVal = pCmdBuf->GetNextAcqRelFenceVal(AcqRelEventType(syncToken.type));
 
         if (Pal::Device::EngineSupportsGraphics(engineType))
         {
             ReleaseMemGfx releaseMem = {};
-            releaseMem.cacheSync = cacheSync;
-            releaseMem.dataSel   = data_sel__me_release_mem__send_32_bit_low;
+            releaseMem.cacheSync = releaseCaches;
 
-            switch (static_cast<AcqRelEventType>(syncToken.type))
+            switch (AcqRelEventType(syncToken.type))
             {
             case AcqRelEventType::Eop:
-                releaseMem.vgtEvent = issueRbCacheSyncEvent ? CACHE_FLUSH_AND_INV_TS_EVENT : BOTTOM_OF_PIPE_TS;
+                releaseMem.vgtEvent = releaseEvents.rbCache ? CACHE_FLUSH_AND_INV_TS_EVENT : BOTTOM_OF_PIPE_TS;
                 pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
+                if (releaseEvents.rbCache)
+                {
+                    Pm4CmdBuffer::SetBarrierOperationsRbCacheSynced(pBarrierOps);
+                }
                 break;
             case AcqRelEventType::PsDone:
                 releaseMem.vgtEvent = PS_DONE;
@@ -907,7 +983,8 @@ AcqRelSyncToken Device::IssueReleaseSync(
             }
 
             {
-                releaseMem.dstAddr = pCmdBuf->AcqRelFenceValGpuVa(static_cast<AcqRelEventType>(syncToken.type));
+                releaseMem.dataSel = data_sel__me_release_mem__send_32_bit_low;
+                releaseMem.dstAddr = pCmdBuf->AcqRelFenceValGpuVa(AcqRelEventType(syncToken.type));
                 releaseMem.data    = syncToken.fenceVal;
             }
 
@@ -915,10 +992,7 @@ AcqRelSyncToken Device::IssueReleaseSync(
         }
         else
         {
-            // Compute engines can't touch the RB caches or wait for PS_DONE.
-            PAL_ASSERT(issueRbCacheSyncEvent == false);
-
-            switch (static_cast<AcqRelEventType>(syncToken.type))
+            switch (AcqRelEventType(syncToken.type))
             {
             case AcqRelEventType::Eop:
                 pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
@@ -933,41 +1007,33 @@ AcqRelSyncToken Device::IssueReleaseSync(
 
             ReleaseMemGeneric releaseMem = {};
             releaseMem.engineType = engineType;
-            releaseMem.cacheSync  = cacheSync;
-            releaseMem.dstAddr    = pCmdBuf->AcqRelFenceValGpuVa(static_cast<AcqRelEventType>(syncToken.type));
+            releaseMem.cacheSync  = releaseCaches;
+            releaseMem.dstAddr    = pCmdBuf->AcqRelFenceValGpuVa(AcqRelEventType(syncToken.type));
             releaseMem.dataSel    = data_sel__me_release_mem__send_32_bit_low;
             releaseMem.data       = syncToken.fenceVal;
 
             pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseMem, pCmdSpace);
         }
     }
-    else if (cacheSync.u8All != 0)
+    else if (releaseCaches.u8All != 0)
     {
         // This is an optimization path to use AcquireMem for cache syncs only (issueSyncEvent = false) case as
         // ReleaseMem requires an EOP or EOS event.
         AcquireMemGeneric acquireMem = {};
         acquireMem.engineType = engineType;
 
-        // This is messy, but the alternative is to return a SyncGlxFlags from ConvertReleaseCacheFlags. That makes
+        // This is messy, but the alternative is to return a SyncGlxFlags from GetReleaseCacheFlags. That makes
         // it possible for someone to accidentally add a cache flag later on which is not supported by release_mem.
         // If trying to avoid that kind of bug using an assert is preferable to this mess it can be changed.
-        acquireMem.cacheSync = (((cacheSync.gl2Inv != 0) ? SyncGl2Inv : SyncGlxNone) |
-                                ((cacheSync.gl2Wb  != 0) ? SyncGl2Wb  : SyncGlxNone) |
-                                ((cacheSync.glmInv != 0) ? SyncGlmInv : SyncGlxNone) |
-                                ((cacheSync.gl1Inv != 0) ? SyncGl1Inv : SyncGlxNone) |
-                                ((cacheSync.glvInv != 0) ? SyncGlvInv : SyncGlxNone));
+        acquireMem.cacheSync  = m_cmdUtil.GetSyncGlxFlagsFromReleaseMemCaches(releaseCaches);
 
         pCmdSpace += m_cmdUtil.BuildAcquireMemGeneric(acquireMem, pCmdSpace);
 
         // Required for gfx9: acquire_mem packets can cause a context roll.
         pCmdStream->SetContextRollDetected<false>();
     }
-    else
-    {
-        PAL_ALERT_ALWAYS_MSG("Barrier-release does nothing, need to validate the correctness of this barrier call.");
-    }
 
-    if (issueRbCacheSyncEvent)
+    if (releaseEvents.rbCache)
     {
         pCmdBuf->UpdatePm4CmdBufGfxBltWbEopFence(syncToken.fenceVal);
     }
@@ -997,11 +1063,10 @@ void Device::IssueAcquireSync(
     ) const
 {
     PAL_ASSERT(pBarrierOps != nullptr);
-    PAL_ASSERT((syncTokenCount == 0) || (pSyncTokens != nullptr));
 
     const EngineType engineType     = pCmdBuf->GetEngineType();
     const bool       isGfxSupported = Pal::Device::EngineSupportsGraphics(engineType);
-    bool             pfpSyncMe      = isGfxSupported && TestAnyFlagSet(stageMask, PipelineStagePfpMask);
+    bool             needPfpSyncMe  = isGfxSupported && TestAnyFlagSet(stageMask, PipelineStagePfpMask);
 
     if (isGfxSupported == false)
     {
@@ -1009,11 +1074,11 @@ void Device::IssueAcquireSync(
         accessMask &= ~CacheCoherencyGraphicsOnly;
     }
 
-    const SyncGlxFlags glxSync = ConvertAcquireCacheFlags(accessMask, refreshTcc, pBarrierOps);
+    const SyncGlxFlags acquireCaches = GetAcquireCacheFlags(accessMask, refreshTcc, pBarrierOps);
 
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
-    uint32 syncTokenToWait[static_cast<uint32>(AcqRelEventType::Count)] = {};
+    uint32 syncTokenToWait[uint32(AcqRelEventType::Count)] = {};
     bool hasValidSyncToken = false;
 
     // Merge synchronization timestamp entries in the list.
@@ -1021,10 +1086,9 @@ void Device::IssueAcquireSync(
     {
         const AcqRelSyncToken curSyncToken = pSyncTokens[i];
 
-        if ((curSyncToken.fenceVal != 0) &&
-            (curSyncToken.type != static_cast<uint32>(AcqRelEventType::Invalid)))
+        if ((curSyncToken.fenceVal != 0) && (curSyncToken.type != uint32(AcqRelEventType::Invalid)))
         {
-            PAL_ASSERT(curSyncToken.type < static_cast<uint32>(AcqRelEventType::Count));
+            PAL_ASSERT(curSyncToken.type < uint32(AcqRelEventType::Count));
 
             syncTokenToWait[curSyncToken.type] = Max(curSyncToken.fenceVal, syncTokenToWait[curSyncToken.type]);
             hasValidSyncToken = true;
@@ -1034,62 +1098,30 @@ void Device::IssueAcquireSync(
     bool waitAtPfpOrMe = false;
 
     {
-        waitAtPfpOrMe = true;
-
-        if (syncTokenToWait[static_cast<uint32>(AcqRelEventType::Eop)] != 0)
+        for (uint32 i = 0; i < uint32(AcqRelEventType::Count); i++)
         {
-            // Issue wait on EOP.
-            pCmdSpace += m_cmdUtil.BuildWaitRegMem(engineType,
-                                                   mem_space__me_wait_reg_mem__memory_space,
-                                                   function__me_wait_reg_mem__greater_than_or_equal_reference_value,
-                                                   engine_sel__me_wait_reg_mem__micro_engine,
-                                                   pCmdBuf->AcqRelFenceValGpuVa(AcqRelEventType::Eop),
-                                                   syncTokenToWait[static_cast<uint32>(AcqRelEventType::Eop)],
-                                                   UINT32_MAX,
-                                                   pCmdSpace);
-
-            pBarrierOps->pipelineStalls.waitOnTs          = 1;
-            pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
+            if (syncTokenToWait[i] != 0)
+            {
+                 pCmdSpace += m_cmdUtil.BuildWaitRegMem(engineType,
+                                                        mem_space__me_wait_reg_mem__memory_space,
+                                                        function__me_wait_reg_mem__greater_than_or_equal_reference_value,
+                                                        engine_sel__me_wait_reg_mem__micro_engine,
+                                                        pCmdBuf->AcqRelFenceValGpuVa(AcqRelEventType(i)),
+                                                        syncTokenToWait[i],
+                                                        UINT32_MAX,
+                                                        pCmdSpace);
+            }
         }
 
-        if (syncTokenToWait[static_cast<uint32>(AcqRelEventType::PsDone)] != 0)
-        {
-            // Issue wait on PS.
-            pCmdSpace += m_cmdUtil.BuildWaitRegMem(engineType,
-                                                   mem_space__me_wait_reg_mem__memory_space,
-                                                   function__me_wait_reg_mem__greater_than_or_equal_reference_value,
-                                                   engine_sel__me_wait_reg_mem__micro_engine,
-                                                   pCmdBuf->AcqRelFenceValGpuVa(AcqRelEventType::PsDone),
-                                                   syncTokenToWait[static_cast<uint32>(AcqRelEventType::PsDone)],
-                                                   UINT32_MAX,
-                                                   pCmdSpace);
+        waitAtPfpOrMe                         = hasValidSyncToken;
+        pBarrierOps->pipelineStalls.waitOnTs |= hasValidSyncToken;
 
-            pBarrierOps->pipelineStalls.waitOnTs    = 1;
-            pBarrierOps->pipelineStalls.eosTsPsDone = 1;
-        }
-
-        if (syncTokenToWait[static_cast<uint32>(AcqRelEventType::CsDone)] != 0)
-        {
-            // Issue wait on CS.
-            pCmdSpace += m_cmdUtil.BuildWaitRegMem(engineType,
-                                                   mem_space__me_wait_reg_mem__memory_space,
-                                                   function__me_wait_reg_mem__greater_than_or_equal_reference_value,
-                                                   engine_sel__me_wait_reg_mem__micro_engine,
-                                                   pCmdBuf->AcqRelFenceValGpuVa(AcqRelEventType::CsDone),
-                                                   syncTokenToWait[static_cast<uint32>(AcqRelEventType::CsDone)],
-                                                   UINT32_MAX,
-                                                   pCmdSpace);
-
-            pBarrierOps->pipelineStalls.waitOnTs    = 1;
-            pBarrierOps->pipelineStalls.eosTsCsDone = 1;
-        }
-
-        if (glxSync != SyncGlxNone)
+        if (acquireCaches != SyncGlxNone)
         {
             // We need a trailing acquire_mem to handle any cache sync requests.
             AcquireMemGeneric acquireMem = {};
             acquireMem.engineType = engineType;
-            acquireMem.cacheSync  = glxSync;
+            acquireMem.cacheSync  = acquireCaches;
 
             pCmdSpace += m_cmdUtil.BuildAcquireMemGeneric(acquireMem, pCmdSpace);
 
@@ -1099,7 +1131,7 @@ void Device::IssueAcquireSync(
     }
 
     // The code above waits in the ME, if the waitPoint needs to stall at the PFP request a PFP/ME sync.
-    if (pfpSyncMe)
+    if (needPfpSyncMe)
     {
         // Stalls the CP PFP until the ME has processed all previous commands.  Useful in cases where the ME is waiting
         // on some condition, but the PFP needs to stall execution until the condition is satisfied.  This must go last
@@ -1109,7 +1141,7 @@ void Device::IssueAcquireSync(
     }
 
     const Pm4CmdBufferState& cmdBufState       = pCmdBuf->GetPm4CmdBufState();
-    const uint32             waitedEopFenceVal = syncTokenToWait[static_cast<uint32>(AcqRelEventType::Eop)];
+    const uint32             waitedEopFenceVal = syncTokenToWait[uint32(AcqRelEventType::Eop)];
 
     // If we have waited on a valid EOP fence value, update some CmdBufState (e.g. xxxBltActive) flags.
     if ((waitedEopFenceVal != 0) && waitAtPfpOrMe)
@@ -1142,7 +1174,7 @@ void Device::IssueAcquireSync(
         }
     }
 
-    const uint32 waitedCsDoneFenceVal = syncTokenToWait[static_cast<uint32>(AcqRelEventType::CsDone)];
+    const uint32 waitedCsDoneFenceVal = syncTokenToWait[uint32(AcqRelEventType::CsDone)];
 
     if ((waitedCsDoneFenceVal != 0) &&
         (waitAtPfpOrMe == true)     &&
@@ -1156,13 +1188,187 @@ void Device::IssueAcquireSync(
 }
 
 // =====================================================================================================================
+// Issue appropriate cache sync hardware commands to satisfy the cache release requirements.
+void Device::IssueReleaseThenAcquireSync(
+    Pm4CmdBuffer*                 pCmdBuf,
+    CmdStream*                    pCmdStream,
+    uint32                        srcStageMask,
+    uint32                        dstStageMask,
+    uint32                        srcAccessMask,
+    uint32                        dstAccessMask,
+    bool                          refreshTcc,
+    Developer::BarrierOperations* pBarrierOps
+    ) const
+{
+    const EngineType engineType     = pCmdBuf->GetEngineType();
+    const bool       isGfxSupported = Pal::Device::EngineSupportsGraphics(engineType);
+    bool             needPfpSyncMe  = isGfxSupported && TestAnyFlagSet(dstStageMask, PipelineStagePfpMask);
+    uint32*          pCmdSpace      = pCmdStream->ReserveCommands();
+
+    if (isGfxSupported == false)
+    {
+        srcStageMask  &= ~PipelineStagesGraphicsOnly;
+        dstStageMask  &= ~PipelineStagesGraphicsOnly;
+        srcAccessMask &= ~CacheCoherencyGraphicsOnly;
+        dstAccessMask &= ~CacheCoherencyGraphicsOnly;
+    }
+
+    if (pCmdBuf->GetPm4CmdBufState().flags.cpBltActive &&
+        TestAnyFlagSet(srcStageMask, PipelineStageBlt | PipelineStageBottomOfPipe))
+    {
+        pBarrierOps->pipelineStalls.syncCpDma = 1;
+        pCmdSpace += m_cmdUtil.BuildWaitDmaData(pCmdSpace);
+        pCmdBuf->SetPm4CmdBufCpBltState(false);
+    }
+
+    // Converts PipelineStageBlt stage to specific internal pipeline stage, and optimize cache flags for BLTs.
+    if (TestAnyFlagSet(srcStageMask, PipelineStageBlt) || TestAnyFlagSet(srcAccessMask, CacheCoherencyBlt))
+    {
+        pCmdBuf->OptimizePipeAndCacheMaskForRelease(&srcStageMask, &srcAccessMask);
+        PAL_ASSERT(TestAnyFlagSet(srcAccessMask, CacheCoherencyBlt) == false);
+    }
+
+    AcquirePoint        acquirePoint  = GetAcquirePoint(dstStageMask);
+    const ReleaseEvents releaseEvents = GetReleaseEvents(pCmdBuf, *this, srcStageMask, srcAccessMask,
+                                                         false, acquirePoint);
+    SyncGlxFlags        acquireCaches = GetReleaseThenAcquireCacheFlags(srcAccessMask, dstAccessMask,
+                                                                        refreshTcc, pBarrierOps);
+    ReleaseMemCaches    releaseCaches = {};
+    bool                waitAtPfpOrMe = false;
+
+    if (releaseEvents.rbCache)
+    {
+        PAL_ASSERT(releaseEvents.eop); // rbCache sync must have Eop event set.
+        Pm4CmdBuffer::SetBarrierOperationsRbCacheSynced(pBarrierOps);
+    }
+
+    if (dstStageMask != PipelineStageBottomOfPipe)
+    {
+        {
+            waitAtPfpOrMe = (releaseEvents.u8All != 0);
+
+            if (releaseEvents.eop)
+            {
+                auto*const pGfx9Stream = static_cast<CmdStream*>(pCmdStream);
+
+                if (releaseEvents.rbCache)
+                {
+                    pCmdSpace = pGfx9Stream->WriteWaitEopGfx(HwPipePostPrefetch, SyncGlxNone, SyncRbWbInv,
+                                                             pCmdBuf->TimestampGpuVirtAddr(), pCmdSpace);
+                }
+                else
+                {
+                    pCmdSpace = pGfx9Stream->WriteWaitEopGeneric(SyncGlxNone, pCmdBuf->TimestampGpuVirtAddr(),
+                                                                 pCmdSpace);
+                }
+
+                pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
+                pBarrierOps->pipelineStalls.waitOnTs = 1;
+            }
+            else
+            {
+                if (releaseEvents.ps)
+                {
+                    pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, engineType, pCmdSpace);
+                    pBarrierOps->pipelineStalls.psPartialFlush = 1;
+
+                    // When rasterKillDrawsActive=1 (not accurate status but assumed worst case), PS_PARTIAL_FLUSH
+                    // complete can't make sure VS_PARTIAL_FLUSH complete. Need issue VS_PARTIAL_FLUSH as well.
+                    if (pCmdBuf->GetPm4CmdBufState().flags.rasterKillDrawsActive != 0)
+                    {
+                        pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(VS_PARTIAL_FLUSH, engineType, pCmdSpace);
+                        pBarrierOps->pipelineStalls.vsPartialFlush = 1;
+                    }
+                }
+                else if (releaseEvents.vs)
+                {
+                    pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(VS_PARTIAL_FLUSH, engineType, pCmdSpace);
+                    pBarrierOps->pipelineStalls.vsPartialFlush = 1;
+                }
+
+                if (releaseEvents.cs)
+                {
+                    pCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuf->TimestampGpuVirtAddr(), pCmdSpace);
+                    pBarrierOps->pipelineStalls.csPartialFlush = 1;
+                }
+            }
+        }
+    }
+    else // (dstStageMask == PipelineStageBottomOfPipe)
+    {
+        if (releaseEvents.rbCache)
+        {
+            // Need issue GCR.gl2Inv/gl2Wb and RB cache sync in single ReleaseMem packet to avoid racing issue. Note
+            // that it's possible GCR.glkInv is left in acquireCaches for cases glkInv isn't supported in ReleaseMem
+            // packet and that should be fine.
+            releaseCaches = m_cmdUtil.SelectReleaseMemCaches(&acquireCaches);
+
+            ReleaseMemGfx releaseMem = {};
+            releaseMem.cacheSync = releaseCaches;
+            releaseMem.vgtEvent  = CACHE_FLUSH_AND_INV_TS_EVENT;
+            releaseMem.dataSel   = data_sel__me_release_mem__none;
+
+            pCmdSpace += m_cmdUtil.BuildReleaseMemGfx(releaseMem, pCmdSpace);
+            pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
+        }
+    }
+
+    if (acquireCaches != SyncGlxNone)
+    {
+        // We need a trailing acquire_mem to handle any cache sync requests.
+        AcquireMemGeneric acquireMem = {};
+        acquireMem.engineType = engineType;
+        acquireMem.cacheSync  = acquireCaches;
+
+        pCmdSpace += m_cmdUtil.BuildAcquireMemGeneric(acquireMem, pCmdSpace);
+
+        // Required for gfx9: acquire_mem packets can cause a context roll.
+        pCmdStream->SetContextRollDetected<false>();
+    }
+
+    // BuildWaitRegMem waits in the ME, if the waitPoint needs to stall at the PFP request a PFP/ME sync.
+    if (needPfpSyncMe)
+    {
+        // Stalls the CP PFP until the ME has processed all previous commands.  Useful in cases where the ME is waiting
+        // on some condition, but the PFP needs to stall execution until the condition is satisfied.  This must go last
+        // otherwise the PFP could resume execution before the ME is done with all of its waits.
+        pCmdSpace += m_cmdUtil.BuildPfpSyncMe(pCmdSpace);
+        pBarrierOps->pipelineStalls.pfpSyncMe = 1;
+    }
+
+    // If we have waited on a valid EOP fence value, update some CmdBufState (e.g. xxxBltActive) flags.
+    if (waitAtPfpOrMe)
+    {
+        if (releaseEvents.eop)
+        {
+            pCmdBuf->SetPrevCmdBufInactive();
+
+            pCmdBuf->SetPm4CmdBufGfxBltState(false);
+            pCmdBuf->SetPm4CmdBufCsBltState(false);
+            pCmdBuf->SetPm4CmdBufRasterKillDrawsState(false);
+
+            if (releaseEvents.rbCache)
+            {
+                pCmdBuf->SetPm4CmdBufGfxBltWriteCacheState(false);
+            }
+        }
+        else if (releaseEvents.cs)
+        {
+            pCmdBuf->SetPm4CmdBufCsBltState(false);
+        }
+    }
+
+    pCmdStream->CommitCommands(pCmdSpace);
+}
+
+// =====================================================================================================================
 // Figure out the specific BLT operation(s) necessary to convert a color image from one ImageLayout to another.
 LayoutTransitionInfo Device::PrepareColorBlt(
-    const Pm4CmdBuffer* pCmdBuf,
-    const Pal::Image&   image,
-    const SubresRange&  subresRange,
-    ImageLayout         oldLayout,
-    ImageLayout         newLayout
+    Pm4CmdBuffer*      pCmdBuf,
+    const Pal::Image&  image,
+    const SubresRange& subresRange,
+    ImageLayout        oldLayout,
+    ImageLayout        newLayout
     ) const
 {
     PAL_ASSERT(subresRange.numPlanes == 1);
@@ -1260,32 +1466,30 @@ LayoutTransitionInfo Device::PrepareColorBlt(
     }
     else if ((oldState == ColorCompressed) && (newState == ColorCompressed) && (oldLayout.usages != newLayout.usages))
     {
-        // This case indicates that the layout capabilities changed, but the color image is able to remain in
-        // the compressed state.  If the image is about to be read, we may need to perform a fast clear
-        // eliminate BLT if the clear color is not texture compatible.  This BLT will end up being skipped on
-        // the GPU side if the latest clear color was supported by the texture hardware (i.e., black or white).
-        constexpr uint32 TcCompatReadFlags = LayoutShaderRead           |
-                                             LayoutShaderFmaskBasedRead |
-                                             LayoutCopySrc              |
-                                             LayoutSampleRate;
-
-        // LayoutResolveSrc is treated as a color compressed state and if any decompression is required at resolve
-        // time, @ref RsrcProcMgr::LateExpandResolveSrc will do the job.  So LayoutResolveSrc isn't added into
-        // 'TcCompatReadFlags' above to skip performing a fast clear eliminate BLT.  If a shader resolve is to be
-        // used, a barrier transiton to either LayoutShaderRead or LayoutShaderFmaskBasedRead is issued, which would
-        // really trigger an FCE operation.
-        if (fastClearEliminateSupported && TestAnyFlagSet(newLayout.usages, TcCompatReadFlags))
+        // If the previous state allowed the possibility of a reg-based fast clear(comp-to-reg) while the new state
+        // does not, we need to issue a fast clear eliminate BLT
+        if (fastClearEliminateSupported &&
+            (gfx9Image.SupportsCompToReg(newLayout, subresRange.startSubres) == false) &&
+            gfx9Image.SupportsCompToReg(oldLayout, subresRange.startSubres))
         {
-            // The image has been fast cleared with a non-TC compatible color or the FCE optimization is not
-            // enabled.
-            transitionInfo.blt[bltIndex++] = HwLayoutTransition::FastClearEliminate;
-
             if (gfx9ImageConst.IsFceOptimizationEnabled() &&
                 (gfx9ImageConst.HasSeenNonTcCompatibleClearColor() == false))
             {
                 // Skip the fast clear eliminate for this image if the clear color is TC-compatible and the
                 // optimization was enabled.
-                transitionInfo.flags.skipFce = 1;
+                // Cast to modifiable value for skip-FCE optimization only.
+                auto& gfx9ImageNonConst = static_cast<Gfx9::Image&>(*image.GetGfxImage());
+
+                // Skip the fast clear eliminate for this image if the clear color is TC-compatible and the
+                // optimization was enabled.
+                pCmdBuf->AddFceSkippedImageCounter(&gfx9ImageNonConst);
+
+            }
+            else
+            {
+                // The image has been fast cleared with a non-TC compatible color or the FCE optimization is not
+                // enabled.
+                transitionInfo.blt[bltIndex++] = HwLayoutTransition::FastClearEliminate;
             }
         }
     }
@@ -1445,90 +1649,68 @@ AcqRelSyncToken Device::Release(
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
-    const uint32 preBltStageMask  = releaseInfo.srcStageMask;
-    uint32       preBltAccessMask = releaseInfo.srcGlobalAccessMask;
+    uint32 srcStageMask        = releaseInfo.srcStageMask;
+    uint32 srcGlobalAccessMask = releaseInfo.srcGlobalAccessMask;
 
     // Check if global barrier needs refresh L2
-    bool globalRefreshTcc = WaRefreshTccOnGlobalBarrier(releaseInfo.srcGlobalAccessMask, 0);
+    bool globalRefreshTcc = WaRefreshTccOnGlobalBarrier(srcGlobalAccessMask, 0);
 
-    // Assumes always do full-range flush sync.
+    // Always do full-range flush sync.
     for (uint32 i = 0; i < releaseInfo.memoryBarrierCount; i++)
     {
         const MemBarrier& barrier = releaseInfo.pMemoryBarriers[i];
 
-        preBltAccessMask |= barrier.srcAccessMask;
+        // globallyAvailable is processed in Acquire().
+        srcGlobalAccessMask |= barrier.srcAccessMask;
     }
 
     // A container to cache the calculated BLT transitions and some cache info for reuse.
     AcqRelAutoBuffer transitionList(releaseInfo.imageBarrierCount, GetPlatform());
     AcqRelSyncToken  syncToken = {};
 
-    if (transitionList.Capacity() < releaseInfo.imageBarrierCount)
+    if (transitionList.Capacity() >= releaseInfo.imageBarrierCount)
     {
-        pCmdBuf->NotifyAllocFailure();
-    }
-    else
-    {
-        // If BLT(s) will be issued, we need to know how to acquire for them.
-        uint32 bltCount;
-        uint32 bltStageMask;
-        uint32 bltAccessMask;
-        uint32 srcAccessMask;
+        // If BLTs will be issued, we need to know how to acquire for them.
+        AcqRelTransitionInfo transInfo = { &transitionList, 0, 0, 0 };
 
         globalRefreshTcc |= GetAcqRelLayoutTransitionBltInfo(pCmdBuf,
                                                              pCmdStream,
                                                              releaseInfo,
-                                                             &transitionList,
-                                                             pBarrierOps,
-                                                             &bltCount,
-                                                             &bltStageMask,
-                                                             &bltAccessMask,
-                                                             &srcAccessMask);
-        preBltAccessMask |= srcAccessMask;
+                                                             &transInfo,
+                                                             &srcGlobalAccessMask,
+                                                             nullptr,
+                                                             pBarrierOps);
 
-        // Perform an all-in-one release prior to the potential BLT(s).
+        // Issue BLTs if there exists transitions that require one.
+        if (transInfo.bltCount > 0)
+        {
+            // Issue all-in-one ReleaseThenAcquire prior to the potential BLTs.
+            IssueReleaseThenAcquireSync(pCmdBuf,
+                                        pCmdStream,
+                                        srcStageMask,
+                                        transInfo.bltStageMask,
+                                        srcGlobalAccessMask,
+                                        transInfo.bltAccessMask,
+                                        globalRefreshTcc,
+                                        pBarrierOps);
+
+            globalRefreshTcc = IssueAcqRelLayoutTransitionBlt(pCmdBuf, pCmdStream, &transInfo, pBarrierOps);
+
+            // Override srcStageMask and srcGlobalAccessMask to release from BLTs.
+            srcStageMask        = transInfo.bltStageMask;
+            srcGlobalAccessMask = transInfo.bltAccessMask;
+        }
+
         syncToken = IssueReleaseSync(pCmdBuf,
                                      pCmdStream,
-                                     preBltStageMask,
-                                     preBltAccessMask,
-                                     (bltCount > 0) ? false : globalRefreshTcc,// Defer L2 refresh at acquire if has BLT
+                                     srcStageMask,
+                                     srcGlobalAccessMask,
+                                     globalRefreshTcc,
                                      pBarrierOps);
-
-        // Issue BLT(s) if there exists transitions that require one.
-        bool syncTokenWaited = false;
-        if (bltCount > 0)
-        {
-            // Issue all-in-one acquire prior to the potential BLT(s).
-            IssueAcquireSync(pCmdBuf,
-                             pCmdStream,
-                             bltStageMask,
-                             bltAccessMask,
-                             globalRefreshTcc,
-                             1,
-                             &syncToken,
-                             pBarrierOps);
-
-            // If BLT(s) will be issued, we need to know how to release from it/them.
-            uint32 postBltStageMask  = 0;
-            uint32 postBltAccessMask = 0;
-
-            // Issue BLTs.
-            globalRefreshTcc = IssueAcqRelLayoutTransitionBlt(pCmdBuf,
-                                                              pCmdStream,
-                                                              releaseInfo.imageBarrierCount,
-                                                              transitionList,
-                                                              pBarrierOps,
-                                                              &postBltStageMask,
-                                                              &postBltAccessMask);
-
-            // Release from BLTs.
-            syncToken = IssueReleaseSync(pCmdBuf,
-                                         pCmdStream,
-                                         postBltStageMask,
-                                         postBltAccessMask,
-                                         globalRefreshTcc,
-                                         pBarrierOps);
-        }
+    }
+    else
+    {
+        pCmdBuf->NotifyAllocFailure();
     }
 
     return syncToken;
@@ -1547,89 +1729,72 @@ void Device::Acquire(
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
+    const uint32 dstStageMask        = acquireInfo.dstStageMask;
+    uint32       dstGlobalAccessMask = acquireInfo.dstGlobalAccessMask;
+
     // Check if global barrier needs refresh L2
-    bool globalRefreshTcc = WaRefreshTccOnGlobalBarrier(0, acquireInfo.dstGlobalAccessMask);
+    bool globalRefreshTcc = WaRefreshTccOnGlobalBarrier(0, dstGlobalAccessMask);
+
+    // Always do full-range flush sync.
+    for (uint32 i = 0; i < acquireInfo.memoryBarrierCount; i++)
+    {
+        const MemBarrier& barrier = acquireInfo.pMemoryBarriers[i];
+
+        dstGlobalAccessMask |= barrier.dstAccessMask;
+        dstGlobalAccessMask |= barrier.flags.globallyAvailable ? CoherMemory : 0;
+    }
 
     // A container to cache the calculated BLT transitions and some cache info for reuse.
     AcqRelAutoBuffer transitionList(acquireInfo.imageBarrierCount, GetPlatform());
 
-    if (transitionList.Capacity() < acquireInfo.imageBarrierCount)
+    if (transitionList.Capacity() >= acquireInfo.imageBarrierCount)
     {
-        pCmdBuf->NotifyAllocFailure();
-    }
-    else
-    {
-        // If BLT(s) will be issued, we need to know how to acquire for them.
-        uint32 bltCount;
-        uint32 bltStageMask;
-        uint32 bltAccessMask;
+        // If BLTs will be issued, we need to know how to acquire for them.
+        AcqRelTransitionInfo transInfo = { &transitionList, 0, 0, 0 };
 
         const uint32 preBltRefreshTcc = GetAcqRelLayoutTransitionBltInfo(pCmdBuf,
                                                                          pCmdStream,
                                                                          acquireInfo,
-                                                                         &transitionList,
-                                                                         pBarrierOps,
-                                                                         &bltCount,
-                                                                         &bltStageMask,
-                                                                         &bltAccessMask);
+                                                                         &transInfo,
+                                                                         nullptr,
+                                                                         &dstGlobalAccessMask,
+                                                                         pBarrierOps);
         // Should have no L2 refresh for image barrier as this is done at Release().
         PAL_ASSERT(preBltRefreshTcc == false);
 
-        const AcqRelSyncToken* pCurSyncTokens = pSyncTokens;
-
-        // A new sync token may be generated by internal BLT.
-        AcqRelSyncToken bltSyncToken = {};
-
-        // Issue BLT(s) if there exists transitions that require one.
-        if (bltCount > 0)
-        {
-            // Issue all-in-one acquire prior to the potential BLT(s).
-            IssueAcquireSync(pCmdBuf,
-                             pCmdStream,
-                             bltStageMask,
-                             bltAccessMask,
-                             false, // refreshTcc
-                             syncTokenCount,
-                             pCurSyncTokens,
-                             pBarrierOps);
-
-            // If BLT(s) will be issued, we need to know how to release from it/them.
-            uint32 postBltStageMask  = 0;
-            uint32 postBltAccessMask = 0;
-
-            // Issue BLTs.
-            globalRefreshTcc |= IssueAcqRelLayoutTransitionBlt(pCmdBuf,
-                                                               pCmdStream,
-                                                               acquireInfo.imageBarrierCount,
-                                                               transitionList,
-                                                               pBarrierOps,
-                                                               &postBltStageMask,
-                                                               &postBltAccessMask);
-
-            // Release from BLTs.
-            bltSyncToken = IssueReleaseSync(pCmdBuf,
-                                            pCmdStream,
-                                            postBltStageMask,
-                                            postBltAccessMask,
-                                            0, // Defer tcc refresh at the following global acquire
-                                            pBarrierOps);
-
-            syncTokenCount = 1;
-            pCurSyncTokens = &bltSyncToken;
-        }
-
-        // Issue acquire for global cache sync. No need stall if wait at bottom of pipe
-        const bool   needWaitSyncToken   = (acquireInfo.dstStageMask != PipelineStageBottomOfPipe);
-        const uint32 dstGlobalAccessMask = GetAcquireSyncDstGlobalAccessMask(acquireInfo);
+        // Issue acquire for global or pre-BLT sync. No need stall if wait at bottom of pipe
+        const uint32 acquireDstStageMask  = (transInfo.bltCount > 0) ? transInfo.bltStageMask : dstStageMask;
+        const uint32 acquireDstAccessMask = (transInfo.bltCount > 0) ? transInfo.bltAccessMask : dstGlobalAccessMask;
+        const bool   needWaitSyncToken    = (acquireDstStageMask != PipelineStageBottomOfPipe);
 
         IssueAcquireSync(pCmdBuf,
                          pCmdStream,
-                         acquireInfo.dstStageMask,
-                         dstGlobalAccessMask,
+                         acquireDstStageMask,
+                         acquireDstAccessMask,
                          globalRefreshTcc,
-                         needWaitSyncToken ? syncTokenCount : 0,
-                         pCurSyncTokens,
+                         (needWaitSyncToken ? syncTokenCount : 0),
+                         pSyncTokens,
                          pBarrierOps);
+
+        if (transInfo.bltCount > 0)
+        {
+            // Issue BLTs.
+            globalRefreshTcc = IssueAcqRelLayoutTransitionBlt(pCmdBuf, pCmdStream, &transInfo, pBarrierOps);
+
+            // Issue all-in-one ReleaseThenAcquire prior to the potential BLTs.
+            IssueReleaseThenAcquireSync(pCmdBuf,
+                                        pCmdStream,
+                                        transInfo.bltStageMask,
+                                        dstStageMask,
+                                        transInfo.bltAccessMask,
+                                        dstGlobalAccessMask,
+                                        globalRefreshTcc,
+                                        pBarrierOps);
+        }
+    }
+    else
+    {
+        pCmdBuf->NotifyAllocFailure();
     }
 }
 
@@ -1645,104 +1810,71 @@ void Device::ReleaseThenAcquire(
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
-    const uint32 preBltStageMask  = barrierInfo.srcStageMask;
-    uint32       preBltAccessMask = barrierInfo.srcGlobalAccessMask;
+    uint32 srcStageMask        = barrierInfo.srcStageMask;
+    uint32 srcGlobalAccessMask = barrierInfo.srcGlobalAccessMask;
+    uint32 dstGlobalAccessMask = barrierInfo.dstGlobalAccessMask;
 
     // Check if global barrier needs refresh L2
-    bool globalRefreshTcc = WaRefreshTccOnGlobalBarrier(barrierInfo.srcGlobalAccessMask,
-                                                        barrierInfo.dstGlobalAccessMask);
+    bool globalRefreshTcc = WaRefreshTccOnGlobalBarrier(srcGlobalAccessMask, dstGlobalAccessMask);
 
-    // Assumes always do full-range flush sync.
+    // Always do full-range flush sync.
     for (uint32 i = 0; i < barrierInfo.memoryBarrierCount; i++)
     {
         const MemBarrier& barrier = barrierInfo.pMemoryBarriers[i];
 
-        preBltAccessMask |= barrier.srcAccessMask;
+        srcGlobalAccessMask |= barrier.srcAccessMask;
+        dstGlobalAccessMask |= barrier.dstAccessMask;
+        dstGlobalAccessMask |= barrier.flags.globallyAvailable ? CoherMemory : 0;
     }
 
     // A container to cache the calculated BLT transitions and some cache info for reuse.
     AcqRelAutoBuffer transitionList(barrierInfo.imageBarrierCount, GetPlatform());
 
-    if (transitionList.Capacity() < barrierInfo.imageBarrierCount)
+    if (transitionList.Capacity() >= barrierInfo.imageBarrierCount)
     {
-        pCmdBuf->NotifyAllocFailure();
-    }
-    else
-    {
-        AcqRelSyncToken syncToken = {};
-
-        // If BLT(s) will be issued, we need to know how to acquire for them.
-        uint32 bltCount;
-        uint32 bltStageMask;
-        uint32 bltAccessMask;
-        uint32 srcAccessMask;
+        // If BLTs will be issued, we need to know how to acquire for them.
+        AcqRelTransitionInfo transInfo = { &transitionList, 0, 0, 0 };
 
         globalRefreshTcc |= GetAcqRelLayoutTransitionBltInfo(pCmdBuf,
                                                              pCmdStream,
                                                              barrierInfo,
-                                                             &transitionList,
-                                                             pBarrierOps,
-                                                             &bltCount,
-                                                             &bltStageMask,
-                                                             &bltAccessMask,
-                                                             &srcAccessMask);
-        preBltAccessMask |= srcAccessMask;
+                                                             &transInfo,
+                                                             &srcGlobalAccessMask,
+                                                             &dstGlobalAccessMask,
+                                                             pBarrierOps);
 
-        // Perform an all-in-one release prior to the potential BLT(s).
-        syncToken = IssueReleaseSync(pCmdBuf,
-                                     pCmdStream,
-                                     preBltStageMask,
-                                     preBltAccessMask,
-                                     0, // Defer tcc refresh at later pre-BLT acquire or global acquire
-                                     pBarrierOps);
-
-        // Issue BLT(s) if there exists transitions that require one.
-        if (bltCount > 0)
+        // Issue BLTs if there exists transitions that require one.
+        if (transInfo.bltCount > 0)
         {
-            // Issue all-in-one acquire prior to the potential BLT(s).
-            IssueAcquireSync(pCmdBuf,
-                             pCmdStream,
-                             bltStageMask,
-                             bltAccessMask,
-                             globalRefreshTcc,
-                             1,
-                             &syncToken,
-                             pBarrierOps);
+            IssueReleaseThenAcquireSync(pCmdBuf,
+                                        pCmdStream,
+                                        srcStageMask,
+                                        transInfo.bltStageMask,
+                                        srcGlobalAccessMask,
+                                        transInfo.bltAccessMask,
+                                        globalRefreshTcc,
+                                        pBarrierOps);
 
-            // If BLT(s) will be issued, we need to know how to release from it/them.
-            uint32 postBltStageMask  = 0;
-            uint32 postBltAccessMask = 0;
+            globalRefreshTcc = IssueAcqRelLayoutTransitionBlt(pCmdBuf, pCmdStream, &transInfo, pBarrierOps);
 
-            // Issue BLTs.
-            globalRefreshTcc = IssueAcqRelLayoutTransitionBlt(pCmdBuf,
-                                                              pCmdStream,
-                                                              barrierInfo.imageBarrierCount,
-                                                              transitionList,
-                                                              pBarrierOps,
-                                                              &postBltStageMask,
-                                                              &postBltAccessMask);
-
-            // Release from BLTs.
-            syncToken = IssueReleaseSync(pCmdBuf,
-                                         pCmdStream,
-                                         postBltStageMask,
-                                         postBltAccessMask,
-                                         0, // Defer tcc refresh at later global acquire
-                                         pBarrierOps);
+            // Override srcStageMask and srcGlobalAccessMask to release from BLTs.
+            srcStageMask        = transInfo.bltStageMask;
+            srcGlobalAccessMask = transInfo.bltAccessMask;
         }
 
-        // Issue acquire for global cache sync. No need stall if wait at bottom of pipe
-        const uint32 dstGlobalAccessMask = GetAcquireSyncDstGlobalAccessMask(barrierInfo);
-        const bool   needWaitSyncToken   = (barrierInfo.dstStageMask != PipelineStageBottomOfPipe);
-
-        IssueAcquireSync(pCmdBuf,
-                         pCmdStream,
-                         barrierInfo.dstStageMask,
-                         dstGlobalAccessMask,
-                         globalRefreshTcc,
-                         needWaitSyncToken ? 1 : 0,
-                         &syncToken,
-                         pBarrierOps);
+        // Issue acquire for global sync.
+        IssueReleaseThenAcquireSync(pCmdBuf,
+                                    pCmdStream,
+                                    srcStageMask,
+                                    barrierInfo.dstStageMask,
+                                    srcGlobalAccessMask,
+                                    dstGlobalAccessMask,
+                                    globalRefreshTcc,
+                                    pBarrierOps);
+    }
+    else
+    {
+        pCmdBuf->NotifyAllocFailure();
     }
 }
 
@@ -1790,31 +1922,43 @@ bool Device::IssueBlt(
             (image.GetImageInfo().numPlanes == 2) &&
             (gfx9Image.GetHtile()->TileStencilDisabled() == false))
         {
+            bool fullRangeSynced = false;
+
             uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
             if (pCmdBuf->IsGraphicsSupported())
             {
-                pCmdSpace = pCmdStream->WriteWaitEopGfx(HwPipePostPrefetch, SyncGlvInv | SyncGl1Inv, SyncDbWbInv,
-                                                        pCmdBuf->TimestampGpuVirtAddr(), pCmdSpace);
+                {
+                    AcquireMemGfxSurfSync acquireInfo = {};
+                    acquireInfo.cacheSync              = SyncGlvInv | SyncGl1Inv;
+                    acquireInfo.rangeBase              = image.GetGpuVirtualAddr();
+                    acquireInfo.rangeSize              = gfx9Image.GetGpuMemSyncSize();
+                    acquireInfo.flags.dbTargetStall    = 1;
+                    acquireInfo.flags.gfx9Gfx10DbWbInv = 1;
 
-                pBarrierOps->caches.flushDb         = 1;
-                pBarrierOps->caches.invalDb         = 1;
-                pBarrierOps->caches.flushDbMetadata = 1;
-                pBarrierOps->caches.invalDbMetadata = 1;
+                    pCmdSpace += m_cmdUtil.BuildAcquireMemGfxSurfSync(acquireInfo, pCmdSpace);
+
+                    // acquire_mem packets can cause a context roll.
+                    pCmdStream->SetContextRollDetected<false>();
+                }
             }
             else
             {
                 pCmdSpace = pCmdStream->WriteWaitEopGeneric(SyncGlvInv | SyncGl1Inv,
                                                             pCmdBuf->TimestampGpuVirtAddr(), pCmdSpace);
+                fullRangeSynced = true;
             }
 
             pCmdStream->CommitCommands(pCmdSpace);
 
-            pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
-            pBarrierOps->pipelineStalls.waitOnTs          = 1;
-            pBarrierOps->caches.invalTcp                  = 1;
-            pBarrierOps->caches.invalGl1                  = 1;
-            preInitHtileSynced                            = true;
+            if (fullRangeSynced)
+            {
+                pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
+                pBarrierOps->pipelineStalls.waitOnTs          = 1;
+                pBarrierOps->caches.invalTcp                  = 1;
+                pBarrierOps->caches.invalGl1                  = 1;
+                preInitHtileSynced                            = true;
+            }
         }
 
         // Transition out of LayoutUninitializedTarget needs to initialize metadata memories.
@@ -1889,24 +2033,11 @@ void Device::AcqRelColorTransitionEvent(
         }
         else if (layoutTransInfo.blt[0] == HwLayoutTransition::FastClearEliminate)
         {
-            if (layoutTransInfo.flags.skipFce != 0)
-            {
-                auto& gfx9ImageNonConst = static_cast<Gfx9::Image&>(*image.GetGfxImage()); // Cast to modifiable value
-                                                                                           // for skip-FCE optimization
-                                                                                           // only.
-
-                // Skip the fast clear eliminate for this image if the clear color is TC-compatible and the
-                // optimization was enabled.
-                pCmdBuf->AddFceSkippedImageCounter(&gfx9ImageNonConst);
-            }
-            else
-            {
-                RsrcProcMgr().FastClearEliminate(pCmdBuf,
-                                                 pCmdStream,
-                                                 gfx9Image,
-                                                 imgBarrier.pQuadSamplePattern,
-                                                 imgBarrier.subresRange);
-            }
+            RsrcProcMgr().FastClearEliminate(pCmdBuf,
+                                             pCmdStream,
+                                             gfx9Image,
+                                             imgBarrier.pQuadSamplePattern,
+                                             imgBarrier.subresRange);
         }
 
         // Handle corner cases where it needs a second pass.
@@ -1956,7 +2087,6 @@ void Device::IssueReleaseSyncEvent(
 {
     // Validate input.
     PAL_ASSERT(stageMask != 0);
-    PAL_ASSERT(pGpuEvent != nullptr);
     PAL_ASSERT(pBarrierOps != nullptr);
 
     const EngineType engineType     = pCmdBuf->GetEngineType();
@@ -1990,97 +2120,30 @@ void Device::IssueReleaseSyncEvent(
     }
 
     // Issue RELEASE_MEM packets to flush caches (optional) and signal gpuEvent.
-    const uint32          numEventSlots             = Parent()->ChipProperties().gfxip.numSlotsPerEvent;
-    const BoundGpuMemory& gpuEventBoundMemObj       = static_cast<const GpuEvent*>(pGpuEvent)->GetBoundGpuMemory();
+    const BoundGpuMemory& gpuEventBoundMemObj = static_cast<const GpuEvent*>(pGpuEvent)->GetBoundGpuMemory();
     PAL_ASSERT(gpuEventBoundMemObj.IsBound());
-    const gpusize         gpuEventStartVa           = gpuEventBoundMemObj.GpuVirtAddr();
+    const gpusize         gpuEventStartVa     = gpuEventBoundMemObj.GpuVirtAddr();
 
-    AcqRelEventType syncEventType[MaxSlotsPerEvent] = {};
-    uint32          syncEventCount                  = 0;
-    bool            issueRbCacheSyncEvent           = false; // If set, this EOP event is CACHE_FLUSH_AND_INV_TS, not
-                                                             // the pipeline stall-only version BOTTOM_OF_PIPE.
+    const ReleaseEvents    releaseEvents = GetReleaseEvents(pCmdBuf, *this, stageMask, accessMask, true);
+    const ReleaseMemCaches releaseCaches = GetReleaseCacheFlags(accessMask, refreshTcc, pBarrierOps);
 
-    const bool requiresEop    = TestAnyFlagSet(stageMask, PipelineStageEopMask);
-    const bool requiresPsDone = TestAnyFlagSet(stageMask, PipelineStagePs);
-    // If no ps wave, PS_DONE doesn't safely ensures the completion of VS and prior stage waves.
-    // PFP sets IB base and size to register VGT_DMA_BASE & VGT_DMA_SIZE and send request to VGT for indices fetch,
-    // so need VsDone to make sure indices fetch is fully done.
-    const bool requiresVsDone = (requiresPsDone == false) &&
-                                TestAnyFlagSet(stageMask, PipelineStageFetchIndices | PipelineStageHsGsMask);
-    const bool requiresCsDone = TestAnyFlagSet(stageMask, PipelineStageCs);
+    // Note that release event flags for split barrier should meet below conditions,
+    //    1). No VsDone as it should be converted to PsDone or Eop.
+    //    2). PsDone and CsDone should have been already converted to Eop.
+    //    3). rbCache sync must have Eop event set.
+    PAL_ASSERT(releaseEvents.vs == 0);
+    PAL_ASSERT((releaseEvents.ps & releaseEvents.cs)== 0);
+    PAL_ASSERT((releaseEvents.rbCache == 0) || releaseEvents.eop);
 
-    // If any of the access mask bits that could result in RB sync are set, use CACHE_FLUSH_AND_INV_TS.
-    // There is no way to INV the CB metadata caches during acquire. So at release always also invalidate if we are to
-    // flush CB metadata. Furthermore, CACHE_FLUSH_AND_INV_TS_EVENT always flush & invalidate RB, so there is no need
-    // to invalidate RB at acquire again.
-    if (TestAnyFlagSet(accessMask, CoherColorTarget | CoherDepthStencilTarget))
-    {
-        // Issue a pipelined EOP event that writes timestamp to a GpuEvent slot when all prior GPU work completes.
-        syncEventType[syncEventCount++] = AcqRelEventType::Eop;
-        issueRbCacheSyncEvent         = true;
+    // Pick EOP event if a cache sync is requested because EOS events do not support cache syncs.
+    const bool             bumpToEop     = (releaseCaches.u8All != 0) && (releaseEvents.u8All != 0);
+    const AcqRelEventType  syncEventType = (releaseEvents.eop || bumpToEop) ? AcqRelEventType::Eop    :
+                                           releaseEvents.ps                 ? AcqRelEventType::PsDone :
+                                           releaseEvents.cs                 ? AcqRelEventType::CsDone :
+                                                                              AcqRelEventType::Invalid;
 
-        // Clear up CB/DB request
-        accessMask &= ~(CoherColorTarget | CoherDepthStencilTarget);
-
-        Pm4CmdBuffer::SetBarrierOperationsRbCacheSynced(pBarrierOps);
-    }
-    else if (requiresEop || requiresVsDone)
-    {
-        // Implement set with an EOP event written when all prior GPU work completes if either:
-        // 1. End of RB or end of whole pipe is required,
-        // 2. There are Vs/Hs/Ds/Gs that require a graphics pipe done event, but there is no PS wave. Since there is no
-        //    VS_DONE event, we have to conservatively use an EOP event.
-        syncEventType[syncEventCount++] = AcqRelEventType::Eop;
-    }
-    else
-    {
-        // The signal/wait event may have multiple slots, we can utilize it to issue separate EOS event for PS and CS
-        // waves.
-        if (requiresCsDone)
-        {
-            // Implement set/reset with an EOS event waiting for CS waves to complete.
-            syncEventType[syncEventCount++] = AcqRelEventType::CsDone;
-        }
-
-        if (requiresPsDone)
-        {
-            // Implement set with an EOS event waiting for PS waves to complete.
-            syncEventType[syncEventCount++] = AcqRelEventType::PsDone;
-        }
-
-        if (syncEventCount > numEventSlots)
-        {
-            // Fall back to single EOP pipe point if available event slots are not sufficient for multiple pipe points.
-            syncEventType[0] = AcqRelEventType::Eop;
-            syncEventCount   = 1;
-        }
-    }
-
-    const ReleaseMemCaches cacheSync = ConvertReleaseCacheFlags(accessMask, refreshTcc, pBarrierOps);
-
-    // If we have cache sync request yet don't assign any VGT event, we need to issue a dummy one.
-    if ((syncEventCount == 0) && (cacheSync.u8All != 0))
-    {
-        // Flush at earliest supported pipe point for RELEASE_MEM (CS_DONE always works).
-        syncEventType[syncEventCount++] = AcqRelEventType::CsDone;
-    }
-
-    // Pick EOP event if GCR cache sync is requested, EOS event is not supported.
-    if ((syncEventCount > 0) && (cacheSync.u8All != 0))
-    {
-        for (uint32 i = 0; i < syncEventCount; i++)
-        {
-            if (syncEventType[i] != AcqRelEventType::Eop)
-            {
-                syncEventType[0] = AcqRelEventType::Eop;
-                syncEventCount   = 1;
-                break;
-            }
-        }
-    }
-
-    // Issue releases with the requested eop/eos
-    if (syncEventCount > 0)
+    // Issue releases with the requested EOP/EOS
+    if (syncEventType != AcqRelEventType::Invalid)
     {
         // Build a WRITE_DATA command to first RESET event slots that will be set by event later on.
         WriteDataInfo writeData = {};
@@ -2089,89 +2152,94 @@ void Device::IssueReleaseSyncEvent(
         writeData.dstSel        = dst_sel__me_write_data__memory;
         writeData.dstAddr       = gpuEventStartVa;
 
-        const uint32 dword = GpuEvent::ResetValue;
-
-        pCmdSpace += CmdUtil::BuildWriteDataPeriodic(writeData, 1, syncEventCount, &dword, pCmdSpace);
+        pCmdSpace += CmdUtil::BuildWriteData(writeData, GpuEvent::ResetValue, pCmdSpace);
 
         if (Pal::Device::EngineSupportsGraphics(engineType))
         {
-            // Build RELEASE_MEM packet with requested eop/eos events at ME engine.
+            // Build RELEASE_MEM packet with requested EOP/EOS events at ME engine.
             ReleaseMemGfx releaseMem = {};
-            releaseMem.cacheSync = cacheSync;
+            releaseMem.cacheSync = releaseCaches;
             releaseMem.dataSel   = data_sel__me_release_mem__send_32_bit_low;
             releaseMem.data      = GpuEvent::SetValue;
+            releaseMem.dstAddr   = gpuEventStartVa;
 
-            for (uint32 i = 0; i < syncEventCount; i++)
+            switch (syncEventType)
             {
-                releaseMem.dstAddr = gpuEventStartVa + (i * sizeof(uint32));
-
-                switch (syncEventType[i])
+            case AcqRelEventType::Eop:
+                releaseMem.vgtEvent = releaseEvents.rbCache ? CACHE_FLUSH_AND_INV_TS_EVENT : BOTTOM_OF_PIPE_TS;
+                pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
+                if (releaseEvents.rbCache)
                 {
-                case AcqRelEventType::Eop:
-                    releaseMem.vgtEvent = issueRbCacheSyncEvent ? CACHE_FLUSH_AND_INV_TS_EVENT : BOTTOM_OF_PIPE_TS;
-                    pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
-                    break;
-                case AcqRelEventType::PsDone:
-                    releaseMem.vgtEvent = PS_DONE;
-                    pBarrierOps->pipelineStalls.eosTsPsDone = 1;
-                    break;
-                case AcqRelEventType::CsDone:
-                    releaseMem.vgtEvent = CS_DONE;
-                    pBarrierOps->pipelineStalls.eosTsCsDone = 1;
-                    break;
-                default:
-                    PAL_ASSERT_ALWAYS();
-                    break;
+                    Pm4CmdBuffer::SetBarrierOperationsRbCacheSynced(pBarrierOps);
                 }
-
-                pCmdSpace += m_cmdUtil.BuildReleaseMemGfx(releaseMem, pCmdSpace);
+                break;
+            case AcqRelEventType::PsDone:
+                releaseMem.vgtEvent = PS_DONE;
+                pBarrierOps->pipelineStalls.eosTsPsDone = 1;
+                break;
+            case AcqRelEventType::CsDone:
+                releaseMem.vgtEvent = CS_DONE;
+                pBarrierOps->pipelineStalls.eosTsCsDone = 1;
+                break;
+            default:
+                PAL_ASSERT_ALWAYS();
+                break;
             }
+
+            pCmdSpace += m_cmdUtil.BuildReleaseMemGfx(releaseMem, pCmdSpace);
         }
         else
         {
             ReleaseMemGeneric releaseMem = {};
             releaseMem.engineType = engineType;
-            releaseMem.cacheSync  = cacheSync;
+            releaseMem.cacheSync  = releaseCaches;
             releaseMem.dataSel    = data_sel__me_release_mem__send_32_bit_low;
             releaseMem.data       = GpuEvent::SetValue;
+            releaseMem.dstAddr    = gpuEventStartVa;
 
-            for (uint32 i = 0; i < syncEventCount; i++)
+            switch (syncEventType)
             {
-                releaseMem.dstAddr = gpuEventStartVa + (i * sizeof(uint32));
-
-                // Compute engines can't touch the RB caches or wait for PS_DONE.
-                PAL_ASSERT(issueRbCacheSyncEvent == false);
-
-                switch (syncEventType[i])
-                {
-                case AcqRelEventType::Eop:
-                    pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
-                    break;
-                case AcqRelEventType::CsDone:
-                    pBarrierOps->pipelineStalls.eosTsCsDone = 1;
-                    break;
-                default:
-                    PAL_ASSERT_ALWAYS();
-                    break;
-                }
-
-                pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseMem, pCmdSpace);
+            case AcqRelEventType::Eop:
+                pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
+                break;
+            case AcqRelEventType::CsDone:
+                pBarrierOps->pipelineStalls.eosTsCsDone = 1;
+                break;
+            default:
+                PAL_ASSERT_ALWAYS();
+                break;
             }
+
+            pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseMem, pCmdSpace);
         }
     }
-
-    // Issue a WRITE_DATA command to SET the remaining (unused) event slots as early as possible.
-    if (syncEventCount < numEventSlots)
+    else // (syncEventType == AcqRelEventType::Invalid)
     {
         WriteDataInfo writeData = {};
         writeData.engineType    = engineType;
         writeData.engineSel     = engine_sel__me_write_data__micro_engine;
         writeData.dstSel        = dst_sel__me_write_data__memory;
-        writeData.dstAddr       = gpuEventStartVa + (sizeof(uint32) * syncEventCount);
+        writeData.dstAddr       = gpuEventStartVa;
 
-        const uint32 dword      = GpuEvent::SetValue;
+        pCmdSpace += CmdUtil::BuildWriteData(writeData, GpuEvent::SetValue, pCmdSpace);
 
-        pCmdSpace += CmdUtil::BuildWriteDataPeriodic(writeData, 1, numEventSlots - syncEventCount, &dword, pCmdSpace);
+        if (releaseCaches.u8All != 0)
+        {
+            // This is an optimization path to use AcquireMem for cache syncs only (issueSyncEvent = false) case as
+            // ReleaseMem requires an EOP or EOS event.
+            AcquireMemGeneric acquireMem = {};
+            acquireMem.engineType = engineType;
+
+            // This is messy, but the alternative is to return a SyncGlxFlags from GetReleaseCacheFlags. That makes
+            // it possible for someone to accidentally add a cache flag later on which is not supported by release_mem.
+            // If trying to avoid that kind of bug using an assert is preferable to this mess it can be changed.
+            acquireMem.cacheSync  = m_cmdUtil.GetSyncGlxFlagsFromReleaseMemCaches(releaseCaches);
+
+            pCmdSpace += m_cmdUtil.BuildAcquireMemGeneric(acquireMem, pCmdSpace);
+
+            // Required for gfx9: acquire_mem packets can cause a context roll.
+            pCmdStream->SetContextRollDetected<false>();
+        }
     }
 
     pCmdStream->CommitCommands(pCmdSpace);
@@ -2202,52 +2270,30 @@ void Device::IssueAcquireSyncEvent(
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
     // Wait on the GPU memory slot(s) in all specified IGpuEvent objects.
-    if (gpuEventCount != 0)
+    pBarrierOps->pipelineStalls.waitOnTs |= (gpuEventCount != 0);
+    for (uint32 i = 0; i < gpuEventCount; i++)
     {
-        PAL_ASSERT(ppGpuEvents != nullptr);
-        pBarrierOps->pipelineStalls.waitOnTs = 1;
+        const GpuEvent* pGpuEvent       = static_cast<const GpuEvent*>(ppGpuEvents[i]);
+        const gpusize   gpuEventStartVa = pGpuEvent->GetBoundGpuMemory().GpuVirtAddr();
 
-        const uint32 numEventSlots = Parent()->ChipProperties().gfxip.numSlotsPerEvent;
-
-        for (uint32 i = 0; i < gpuEventCount; i++)
-        {
-            const GpuEvent* pGpuEvent       = static_cast<const GpuEvent*>(ppGpuEvents[i]);
-            const gpusize   gpuEventStartVa = pGpuEvent->GetBoundGpuMemory().GpuVirtAddr();
-
-            if (numEventSlots == 1)
-            {
-                pCmdSpace += m_cmdUtil.BuildWaitRegMem(engineType,
-                                                       mem_space__me_wait_reg_mem__memory_space,
-                                                       function__me_wait_reg_mem__equal_to_the_reference_value,
-                                                       engine_sel__me_wait_reg_mem__micro_engine,
-                                                       gpuEventStartVa,
-                                                       GpuEvent::SetValue,
-                                                       UINT32_MAX,
-                                                       pCmdSpace);
-            }
-            else
-            {
-                PAL_ASSERT(numEventSlots == 2);
-                pCmdSpace += m_cmdUtil.BuildWaitRegMem64(engineType,
-                                                         mem_space__me_wait_reg_mem__memory_space,
-                                                         function__me_wait_reg_mem__equal_to_the_reference_value,
-                                                         engine_sel__me_wait_reg_mem__micro_engine,
-                                                         gpuEventStartVa,
-                                                         GpuEvent::SetValue64,
-                                                         UINT64_MAX,
-                                                         pCmdSpace);
-            }
-        }
+        pCmdSpace += m_cmdUtil.BuildWaitRegMem(engineType,
+                                               mem_space__me_wait_reg_mem__memory_space,
+                                               function__me_wait_reg_mem__equal_to_the_reference_value,
+                                               engine_sel__me_wait_reg_mem__micro_engine,
+                                               gpuEventStartVa,
+                                               GpuEvent::SetValue,
+                                               UINT32_MAX,
+                                               pCmdSpace);
     }
 
-    const SyncGlxFlags glxSync = ConvertAcquireCacheFlags(accessMask, refreshTcc, pBarrierOps);
+    const SyncGlxFlags acquireCaches = GetAcquireCacheFlags(accessMask, refreshTcc, pBarrierOps);
 
-    if (glxSync != SyncGlxNone)
+    if (acquireCaches != SyncGlxNone)
     {
         // We need a trailing acquire_mem to handle any cache sync requests.
         AcquireMemGeneric acquireMem = {};
         acquireMem.engineType = engineType;
-        acquireMem.cacheSync  = glxSync;
+        acquireMem.cacheSync  = acquireCaches;
 
         pCmdSpace += m_cmdUtil.BuildAcquireMemGeneric(acquireMem, pCmdSpace);
 
@@ -2280,97 +2326,82 @@ void Device::ReleaseEvent(
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
-    const uint32 preBltStageMask  = releaseInfo.srcStageMask;
-    uint32       preBltAccessMask = releaseInfo.srcGlobalAccessMask;
+    uint32 srcGlobalAccessMask = releaseInfo.srcGlobalAccessMask;
 
     // Check if global barrier needs refresh L2
-    bool globalRefreshTcc = WaRefreshTccOnGlobalBarrier(releaseInfo.srcGlobalAccessMask, 0);
+    bool globalRefreshTcc = WaRefreshTccOnGlobalBarrier(srcGlobalAccessMask, 0);
 
-    // Assumes always do full-range flush sync.
+    // Always do full-range flush sync.
     for (uint32 i = 0; i < releaseInfo.memoryBarrierCount; i++)
     {
         const MemBarrier& barrier = releaseInfo.pMemoryBarriers[i];
 
-        preBltAccessMask |= barrier.srcAccessMask;
+        // globallyAvailable is processed in AcquireEvent().
+        srcGlobalAccessMask |= barrier.srcAccessMask;
     }
 
     // A container to cache the calculated BLT transitions and some cache info for reuse.
     AcqRelAutoBuffer transitionList(releaseInfo.imageBarrierCount, GetPlatform());
 
-    if (transitionList.Capacity() < releaseInfo.imageBarrierCount)
+    if (transitionList.Capacity() >= releaseInfo.imageBarrierCount)
     {
-        pCmdBuf->NotifyAllocFailure();
-    }
-    else
-    {
-        // If BLT(s) will be issued, we need to know how to acquire for them.
-        uint32 bltCount;
-        uint32 bltStageMask;
-        uint32 bltAccessMask;
-        uint32 srcAccessMask;
+        // If BLTs will be issued, we need to know how to acquire for them.
+        AcqRelTransitionInfo transInfo = { &transitionList, 0, 0, 0 };
 
         globalRefreshTcc |= GetAcqRelLayoutTransitionBltInfo(pCmdBuf,
                                                              pCmdStream,
                                                              releaseInfo,
-                                                             &transitionList,
-                                                             pBarrierOps,
-                                                             &bltCount,
-                                                             &bltStageMask,
-                                                             &bltAccessMask,
-                                                             &srcAccessMask);
-        preBltAccessMask |= srcAccessMask;
+                                                             &transInfo,
+                                                             &srcGlobalAccessMask,
+                                                             nullptr,
+                                                             pBarrierOps);
 
         // Initialize an IGpuEvent* pEvent pointing at the client provided event.
-        // If we have internal BLT(s), use internal event to signal/wait.
-        const IGpuEvent* pActiveEvent = (bltCount > 0) ? pCmdBuf->GetInternalEvent() : pClientEvent;
+        // If we have internal BLTs, use internal event to signal/wait.
+        const IGpuEvent* pActiveEvent = (transInfo.bltCount > 0) ? pCmdBuf->GetInternalEvent() : pClientEvent;
 
-        // Perform an all-in-one release prior to the potential BLT(s): IssueReleaseSyncEvent() on pActiveEvent.
+        // Perform an all-in-one release prior to the potential BLTs: IssueReleaseSyncEvent() on pActiveEvent.
+        // Defer L2 refresh at acquire if has BLT.
         IssueReleaseSyncEvent(pCmdBuf,
                               pCmdStream,
-                              preBltStageMask,
-                              preBltAccessMask,
-                              (bltCount > 0) ? false : globalRefreshTcc, // Defer L2 refresh at acquire if has BLT
+                              releaseInfo.srcStageMask,
+                              srcGlobalAccessMask,
+                              (transInfo.bltCount > 0) ? false : globalRefreshTcc,
                               pActiveEvent,
                               pBarrierOps);
 
-        // Issue BLT(s) if there exists transitions that require one.
-        if (bltCount > 0)
+        // Issue BLTs if there exists transitions that require one.
+        if (transInfo.bltCount > 0)
         {
-            // Issue all-in-one acquire prior to the potential BLT(s).
+            // Issue all-in-one acquire prior to the potential BLTs.
             IssueAcquireSyncEvent(pCmdBuf,
                                   pCmdStream,
-                                  bltStageMask,
-                                  bltAccessMask,
+                                  transInfo.bltStageMask,
+                                  transInfo.bltAccessMask,
                                   globalRefreshTcc,
                                   1,
                                   &pActiveEvent,
                                   pBarrierOps);
 
-            // If BLT(s) will be issued, we need to know how to release from it/them.
-            uint32 postBltStageMask  = 0;
-            uint32 postBltAccessMask = 0;
-
             // Issue BLTs.
-            globalRefreshTcc = IssueAcqRelLayoutTransitionBlt(pCmdBuf,
-                                                              pCmdStream,
-                                                              releaseInfo.imageBarrierCount,
-                                                              transitionList,
-                                                              pBarrierOps,
-                                                              &postBltStageMask,
-                                                              &postBltAccessMask);
+            globalRefreshTcc = IssueAcqRelLayoutTransitionBlt(pCmdBuf, pCmdStream, &transInfo, pBarrierOps);
 
-            // Get back the client provided event and signal it when the whole barrier-release is done.
+            // Get back the client provided event and signal it when BLTs are done.
             pActiveEvent = pClientEvent;
 
             // Release from BLTs.
             IssueReleaseSyncEvent(pCmdBuf,
                                   pCmdStream,
-                                  postBltStageMask,
-                                  postBltAccessMask,
+                                  transInfo.bltStageMask,
+                                  transInfo.bltAccessMask,
                                   globalRefreshTcc,
                                   pActiveEvent,
                                   pBarrierOps);
         }
+    }
+    else
+    {
+        pCmdBuf->NotifyAllocFailure();
     }
 }
 
@@ -2387,31 +2418,35 @@ void Device::AcquireEvent(
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
+    uint32 dstGlobalAccessMask = acquireInfo.dstGlobalAccessMask;
+
     // Check if global barrier needs refresh L2
-    bool globalRefreshTcc = WaRefreshTccOnGlobalBarrier(0, acquireInfo.dstGlobalAccessMask);
+    bool globalRefreshTcc = WaRefreshTccOnGlobalBarrier(0, dstGlobalAccessMask);
+
+    // Always do full-range flush sync.
+    for (uint32 i = 0; i < acquireInfo.memoryBarrierCount; i++)
+    {
+        const MemBarrier& barrier = acquireInfo.pMemoryBarriers[i];
+
+        dstGlobalAccessMask |= barrier.dstAccessMask;
+        dstGlobalAccessMask |= barrier.flags.globallyAvailable ? CoherMemory : 0;
+    }
 
     // A container to cache the calculated BLT transitions and some cache info for reuse.
     AcqRelAutoBuffer transitionList(acquireInfo.imageBarrierCount, GetPlatform());
 
-    if (transitionList.Capacity() < acquireInfo.imageBarrierCount)
+    if (transitionList.Capacity() >= acquireInfo.imageBarrierCount)
     {
-        pCmdBuf->NotifyAllocFailure();
-    }
-    else
-    {
-        // If BLT(s) will be issued, we need to know how to acquire for them.
-        uint32 bltCount;
-        uint32 bltStageMask;
-        uint32 bltAccessMask;
+        // If BLTs will be issued, we need to know how to acquire for them.
+        AcqRelTransitionInfo transInfo = { &transitionList, 0, 0, 0 };
 
         const uint32 preBltRefreshTcc = GetAcqRelLayoutTransitionBltInfo(pCmdBuf,
                                                                          pCmdStream,
                                                                          acquireInfo,
-                                                                         &transitionList,
-                                                                         pBarrierOps,
-                                                                         &bltCount,
-                                                                         &bltStageMask,
-                                                                         &bltAccessMask);
+                                                                         &transInfo,
+                                                                         nullptr,
+                                                                         &dstGlobalAccessMask,
+                                                                         pBarrierOps);
         // Should have no L2 refresh for image barrier as this is done at Release().
         PAL_ASSERT(preBltRefreshTcc == false);
 
@@ -2419,40 +2454,30 @@ void Device::AcquireEvent(
         uint32                  activeEventCount = gpuEventCount;
         const IGpuEvent*        pEvent           = nullptr;
 
-        if (bltCount > 0)
+        if (transInfo.bltCount > 0)
         {
-            // Issue all-in-one acquire prior to the potential BLT(s).
+            // Issue all-in-one acquire prior to the potential BLTs.
             IssueAcquireSyncEvent(pCmdBuf,
                                   pCmdStream,
-                                  bltStageMask,
-                                  bltAccessMask,
+                                  transInfo.bltStageMask,
+                                  transInfo.bltAccessMask,
                                   false, // refreshTcc
                                   activeEventCount,
                                   ppActiveEvents,
                                   pBarrierOps);
 
-            // If BLT(s) will be issued, we need to know how to release from it/them.
-            uint32 postBltStageMask  = 0;
-            uint32 postBltAccessMask = 0;
-
             // Issue BLTs.
-            globalRefreshTcc |= IssueAcqRelLayoutTransitionBlt(pCmdBuf,
-                                                               pCmdStream,
-                                                               acquireInfo.imageBarrierCount,
-                                                               transitionList,
-                                                               pBarrierOps,
-                                                               &postBltStageMask,
-                                                               &postBltAccessMask);
+            globalRefreshTcc |= IssueAcqRelLayoutTransitionBlt(pCmdBuf, pCmdStream, &transInfo, pBarrierOps);
 
-            // We have internal BLT(s), enable internal event to signal/wait.
+            // We have internal BLTs, enable internal event to signal/wait.
             pEvent = pCmdBuf->GetInternalEvent();
 
             // Release from BLTs.
             IssueReleaseSyncEvent(pCmdBuf,
                                   pCmdStream,
-                                  postBltStageMask,
-                                  postBltAccessMask,
-                                  0, // Defer tcc refresh at later global acquire
+                                  transInfo.bltStageMask,
+                                  transInfo.bltAccessMask,
+                                  0, // Defer Tcc refresh at later global acquire
                                   pEvent,
                                   pBarrierOps);
 
@@ -2461,8 +2486,7 @@ void Device::AcquireEvent(
         }
 
         // Issue acquire for global cache sync. No need stall if wait at bottom of pipe
-        const uint32 dstGlobalAccessMask = GetAcquireSyncDstGlobalAccessMask(acquireInfo);
-        const bool   needWaitEvents      = (acquireInfo.dstStageMask != PipelineStageBottomOfPipe);
+        const bool needWaitEvents = (acquireInfo.dstStageMask != PipelineStageBottomOfPipe);
 
         IssueAcquireSyncEvent(pCmdBuf,
                               pCmdStream,
@@ -2472,6 +2496,10 @@ void Device::AcquireEvent(
                               needWaitEvents ? activeEventCount : 0,
                               ppActiveEvents,
                               pBarrierOps);
+    }
+    else
+    {
+        pCmdBuf->NotifyAllocFailure();
     }
 }
 

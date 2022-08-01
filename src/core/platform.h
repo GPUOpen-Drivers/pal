@@ -163,6 +163,10 @@ public:
         { m_pfnDeveloperCb(m_pClientPrivateData, deviceIndex, type, pData); }
 
     virtual DevDriver::DevDriverServer* GetDevDriverServer() override { return m_pDevDriverServer; }
+    bool IsUberTraceServiceRegistered();
+    bool IsDriverUtilsServiceRegistered();
+    bool IsServiceRegistered(DDRpcServiceId serviceId);
+
     virtual DevDriver::EventProtocol::EventServer* GetEventServer() override { return m_pEventServer; }
 
     virtual SettingsRpcService::SettingsService* GetSettingsService() override { return m_pSettingsService; }
@@ -181,6 +185,7 @@ public:
     bool InternalResidencyOptsDisabled() const { return m_flags.disableInternalResidencyOpts; }
     bool NullDeviceEnabled()             const { return m_flags.createNullDevice; }
     bool GpuIsSpoofed()                  const { return m_flags.gpuIsSpoofed; }
+    bool DontOpenPrimaryNode()           const { return m_flags.dontOpenPrimaryNode; }
 
     gpusize GetSvmRangeStart() const { return m_svmRangeStart; }
     void SetSvmRangeStart(gpusize svmRangeStart) { m_svmRangeStart = svmRangeStart; }
@@ -268,7 +273,8 @@ protected:
                                                      // DevDriver RgpServer.
             uint32 gpuIsSpoofed                 : 1; // If set, ignores device properties reported by OS and pretends
                                                      // to be a given GPU instead.
-            uint32 reserved                     : 24; // Reserved for future use.
+            uint32 dontOpenPrimaryNode          : 1; // If set, no primary node is needed.
+            uint32 reserved                     : 23; // Reserved for future use.
         };
         uint32 u32All;
     } m_flags;

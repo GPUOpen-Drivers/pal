@@ -1178,85 +1178,6 @@
       "Name": "OffchipLdsBufferSize"
     },
     {
-      "Description": "Used by the hardware when distributed tessellation is active: the min tess factors for each patch processed by a VGT are accumulated. When the sum exceeds this threshold, the next patch is sent to a different VGT.",
-      "Tags": [
-        "Graphics Pipelines",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": 12
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "uint32",
-      "VariableName": "isolineDistributionFactor",
-      "Name": "IsolineDistributionFactor",
-      "Flags": {
-        "RereadSetting": true
-      }
-    },
-    {
-      "Description": "Used by the hardware when distributed tessellation is active: the min tess factors for each patch processed by a VGT are accumulated. When the sum exceeds this threshold, the next patch is sent to a different VGT. Recommended to be higher than quad factor",
-      "Tags": [
-        "Graphics Pipelines",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": 30
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "uint32",
-      "VariableName": "triDistributionFactor",
-      "Name": "TriDistributionFactor",
-      "Flags": {
-        "RereadSetting": true
-      }
-    },
-    {
-      "Description": "Used by the hardware when distributed tessellation is active: the min tess factors for each patch processed by a VGT are accumulated. When the sum exceeds this threshold, the next patch is sent to a different VGT.",
-      "Tags": [
-        "Graphics Pipelines",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": 24
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "uint32",
-      "VariableName": "quadDistributionFactor",
-      "Name": "QuadDistributionFactor",
-      "Flags": {
-        "RereadSetting": true
-      }
-    },
-    {
-      "Description": "Used by the hardware when distributed tessellation is in DONUT mode: the min tess factor for each patch is tested against this threshold to determine whether a patch gets split up. If the patch isn't split, it still increments the accumulator for the Patch distribution factor.",
-      "Tags": [
-        "Graphics Pipelines",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": 24
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "uint32",
-      "VariableName": "donutDistributionFactor",
-      "Name": "DonutDistributionFactor"
-    },
-    {
-      "Description": "Used when the distribution mode is TRAPEZOID for quad and tri domain types. The number of donuts in the patch are compared against this value to detemine whether this donut gets split up into trapezoids (needs the patch to be in donut mode). A value of 0 or 1 will be treated as 2. The innermost donut is never allowed to be broken into trapezoids.",
-      "Tags": [
-        "Graphics Pipelines",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": 6
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "uint32",
-      "VariableName": "trapezoidDistributionFactor",
-      "Name": "TrapezoidDistributionFactor"
-    },
-    {
       "Description": "Number of primitives sent to one VGT before switching to the next. Valid range is 1-65536, values larger than 256 are expected to hurtperformance. This setting only affects non-tessellation and non-NGG pipelines.",
       "Tags": [
         "Graphics Pipelines",
@@ -1636,18 +1557,18 @@
       "Name": "NggSupported"
     },
     {
-      "Description": "Controls the value for late-alloc GS for NGG pipelines. Can be no more than 127.",
+      "Description": "Overrides the default value for late-alloc GS for NGG pipelines. Must be set to greater than -1 to take effect and max value must not be greater than 127.",
       "Tags": [
         "NGG Controls",
         "Gfx9"
       ],
       "Defaults": {
-        "Default": 127
+        "Default": -1
       },
       "Scope": "PrivatePalGfx9Key",
-      "Type": "uint32",
-      "VariableName": "nggLateAllocGs",
-      "Name": "NggLateAllocGs",
+      "Type": "int32",
+      "VariableName": "overrideNggLateAllocGs",
+      "Name": "OverrideNggLateAllocGs",
       "Flags": {
         "RereadSetting": true
       }

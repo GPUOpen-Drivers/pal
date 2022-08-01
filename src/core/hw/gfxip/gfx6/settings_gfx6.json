@@ -1301,48 +1301,6 @@
       "Name": "AvoidVgtNullPrims"
     },
     {
-      "Description": "Used by the hardware when distributed tessellation is active: the min tess factors for each patch processed by a VGT are accumulated. When the sum exceeds this threshold, the next patch is sent to a different VGT.",
-      "Tags": [
-        "Volcanic Islands",
-        "Gfx8"
-      ],
-      "Defaults": {
-        "Default": 8
-      },
-      "Scope": "PrivatePalGfx6Key",
-      "Type": "uint32",
-      "VariableName": "gfx8PatchDistributionFactor",
-      "Name": "PatchDistributionFactor"
-    },
-    {
-      "Description": "Used by the hardware when distributed tessellation is in DONUT mode: the min tess factor for each patch is tested against this threshold to determine whether a patch gets split up. If the patch isn't split, it still increments the accumulator for the Patch distribution factor.",
-      "Tags": [
-        "Volcanic Islands",
-        "Gfx8"
-      ],
-      "Defaults": {
-        "Default": 8
-      },
-      "Scope": "PrivatePalGfx6Key",
-      "Type": "uint32",
-      "VariableName": "gfx8DonutDistributionFactor",
-      "Name": "DonutDistributionFactor"
-    },
-    {
-      "Description": "Used by the hardware when distributed tessellation is in TRAPEZOID mode: the min tess factor for each patch is tested against this threshold to determine whether a patch gets split up. If the patch isn't split, it still increments the accumulator for the Patch distribution factor.  Note: The Trapezoid is supported by only a few ASICs in gfxip-8+.",
-      "Tags": [
-        "Volcanic Islands",
-        "Gfx8"
-      ],
-      "Defaults": {
-        "Default": 8
-      },
-      "Scope": "PrivatePalGfx6Key",
-      "Type": "uint32",
-      "VariableName": "gfx8TrapezoidDistributionFactor",
-      "Name": "TrapezoidDistributionFactor"
-    },
-    {
       "ValidValues": {
         "Values": [
           {

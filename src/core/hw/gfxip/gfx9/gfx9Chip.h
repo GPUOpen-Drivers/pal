@@ -160,9 +160,6 @@ constexpr uint32 Gfx10NumSgprsPerWave = 128;
 // The hardware can only support a limited number of scratch waves per CU.
 constexpr uint32 MaxScratchWavesPerCu = 32;
 
-// Number of slots the GPU events need in order to support all the MultiSlots usecases (for now just AcqRelBarrier).
-constexpr uint32 MaxSlotsPerEvent = 2;
-
 // Enumerates the possible hardware stages which a shader can run as.  GFX9 combines several shader stages:
 // 1) LS + HS have been combined into a HS stage.  Note that the registers that control this stage are still
 //            called "LS", but HW considers this to be a HS stage in their docs.

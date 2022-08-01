@@ -1037,7 +1037,9 @@ void CmdBuffer::CmdBarrier(
         }
         nextBarrierInfo.pTransitions = &transitions[0];
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 751
         nextBarrierInfo.pSplitBarrierGpuEvent = NextGpuEvent(barrierInfo.pSplitBarrierGpuEvent);
+#endif
 
         BeginFuncInfo funcInfo;
         funcInfo.funcId       = InterfaceFunc::CmdBufferCmdBarrier;

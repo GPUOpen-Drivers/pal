@@ -614,6 +614,8 @@ public:
 
     bool NeedsToValidateScissorRectsWa(bool pm4OptImmediate) const;
 
+    uint32* ValidatePaScAaConfig(uint32* pDeCmdSpace);
+
     virtual void CpCopyMemory(gpusize dstAddr, gpusize srcAddr, gpusize numBytes) override;
 
     virtual void CmdSetPerDrawVrsRate(const VrsRateParams&  rateParams) override;
@@ -622,6 +624,8 @@ public:
 
     // See gfxCmdBuffer.h for a full description of this function.
     virtual void DirtyVrsDepthImage(const IImage* pDepthImage) override;
+
+    void CallNestedCmdBuffer(UniversalCmdBuffer* pCmdBuf);
 
     bool IsRasterizationKilled() const
         { return (m_pipelineState.flags.noRaster != 0) || m_graphicsState.rasterizerDiscardEnable; }
@@ -1005,6 +1009,8 @@ private:
     void       IssueGangedBarrierDeWaitAceIncr();
     void       UpdateTaskMeshRingSize();
     void       ValidateTaskMeshDispatch(gpusize indirectGpuVirtAddr, uint32 xDim, uint32 yDim, uint32 zDim);
+
+    void        ValidateExecuteNestedCmdBuffer();
 
     bool IsTessEnabled() const
     {

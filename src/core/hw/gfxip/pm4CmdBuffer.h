@@ -82,7 +82,7 @@ union AcqRelSyncToken
     struct
     {
         uint32 fenceVal : 30;
-        uint32 type     :  2;
+        uint32 type     :  2; // AcqRelEventType
     };
 
     uint32 u32All;
@@ -149,6 +149,8 @@ public:
     virtual Result Begin(const CmdBufferBuildInfo& info) override;
     virtual Result Reset(ICmdAllocator* pCmdAllocator, bool returnGpuMemory) override;
     virtual Result End() override;
+
+    virtual void CmdBindPipeline(const PipelineBindParams& params) override;
 
     virtual void CmdSaveComputeState(uint32 stateFlags) override;
     virtual void CmdRestoreComputeState(uint32 stateFlags) override;
@@ -239,10 +241,6 @@ public:
     // Helper functions
     uint32 GetCurAcqRelFenceVal(AcqRelEventType type) const { return m_acqRelFenceVals[static_cast<uint32>(type)]; }
 
-    virtual void CmdOverwriteRbPlusFormatForBlits(
-        SwizzledFormat format,
-        uint32         targetIndex) = 0;
-
     virtual void CmdOverwriteDisableViewportClampForBlits(
         bool disableViewportClamp) = 0;
 
@@ -275,6 +273,14 @@ protected:
     virtual Result BeginCommandStreams(CmdStreamBeginFlags cmdStreamFlags, bool doReset) override;
 
     virtual void ResetState() override;
+
+    void SetComputeState(const ComputeState& newComputeState, uint32 stateFlags);
+
+    static void PAL_STDCALL CmdSetUserDataCs(
+        ICmdBuffer*   pCmdBuffer,
+        uint32        firstEntry,
+        uint32        entryCount,
+        const uint32* pEntryValues);
 
     void LeakPerPipelineStateChanges(
         const Pal::PipelineState& leakedPipelineState,
@@ -354,6 +360,9 @@ protected:
     FceRefCountsVector m_fceRefCountVec;
 
     Pm4CmdBufferState  m_pm4CmdBufState;      // Common pm4 command buffer states.
+
+    ComputeState       m_computeState;        // Currently bound compute command buffer state.
+    ComputeState       m_computeRestoreState; // State saved by the previous call to CmdSaveComputeState.
 
 private:
     void ResetFastClearReferenceCounts();

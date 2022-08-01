@@ -164,13 +164,30 @@ enum class LdsPsGroupSizeOverride : uint32
 #endif
 
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 749)
-/// This enum controls binning on/off in cases where the PS can kill pixels.
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 753)
+/// Tri-state enum which controls enabling or disabling a feature or behavior, or letting PAL
+/// select a sensible default
+enum class OverrideMode : int32
+{
+    Default  = -1, ///< PAL selects the default behavior, which could be either enabled or disabled.
+    Disabled = 0,  ///< Force to disabled. Equal to set to False.
+    Enabled  = 1,  ///< Force to enabled. Equal to set to True.
+
+};
+#else
 enum class DisableBinningPsKill : uint32
 {
     Default = 0X0,
-    False = 0X1,
-    True = 0X2
+    _False = 0X1,
+    _True = 0X2,
+#ifndef False
+    False = _False,
+#endif
+#ifndef True
+    True = _True,
+#endif
 };
+#endif
 #endif
 
 /// Enumerates the depth clamping modes a pipeline can use.

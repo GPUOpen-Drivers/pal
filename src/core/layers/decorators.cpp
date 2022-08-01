@@ -2133,7 +2133,9 @@ void CmdBufferFwdDecorator::CmdBarrier(
         }
         nextBarrierInfo.pTransitions = &transitions[0];
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 751
         nextBarrierInfo.pSplitBarrierGpuEvent = NextGpuEvent(barrierInfo.pSplitBarrierGpuEvent);
+#endif
 
         m_pNextLayer->CmdBarrier(nextBarrierInfo);
     }

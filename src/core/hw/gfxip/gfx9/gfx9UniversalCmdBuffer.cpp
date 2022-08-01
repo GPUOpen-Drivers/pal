@@ -377,7 +377,8 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.optimizeDepthOnlyFmt    = settings.rbPlusOptimizeDepthOnlyExportRate;
     PAL_ASSERT(m_cachedSettings.optimizeDepthOnlyFmt ? m_cachedSettings.rbPlusSupported : true);
     m_cachedSettings.has32bPred              = curEngineProps.flags.memory32bPredicationSupport;
-    m_cachedSettings.optimizeNullSourceImage = settings.optimizeNullSourceImage;
+    m_cachedSettings.optimizeNullSourceImage = settings.optimizeNullSourceImage &&
+        (m_graphicsState.inheritedState.stateFlags.targetViewState == 0);
 
     // Here we pre-calculate constants used in gfx10 PBB bin sizing calculations.
     // The logic is based on formulas that account for the number of RBs and Channels on the ASIC.
@@ -4179,7 +4180,7 @@ void UniversalCmdBuffer::CmdBindBorderColorPalette(
                     ? &m_computeState.pipelineState
                     : &m_graphicsState.pipelineState;
             pPipelineState->pBorderColorPalette = pNewPalette;
-            pPipelineState->dirtyFlags.borderColorPaletteDirty = 1;
+            pPipelineState->dirtyFlags.borderColorPalette = 1;
         }
     }
 }
@@ -4714,69 +4715,52 @@ void UniversalCmdBuffer::WriteEventCmd(
 
     OptimizePipePoint(&pipePoint);
 
-    // Prepare packet build info structs.
-    WriteDataInfo writeData = {};
-    writeData.engineType = engineType;
-    writeData.dstAddr    = boundMemObj.GpuVirtAddr();
-    writeData.dstSel     = dst_sel__me_write_data__memory;
-
-    ReleaseMemGfx releaseInfo = {};
-    releaseInfo.dstAddr = boundMemObj.GpuVirtAddr();
-    releaseInfo.dataSel = data_sel__me_release_mem__send_32_bit_low;
-    releaseInfo.data    = data;
-
-    switch (pipePoint)
+    if ((pipePoint == HwPipeTop) ||
+        (pipePoint == HwPipePostPrefetch))
     {
-    case HwPipeTop:
-        // Implement set/reset event with a WRITE_DATA command using PFP engine.
-        writeData.engineSel = engine_sel__pfp_write_data__prefetch_parser;
+        WriteDataInfo writeData = {};
+        writeData.engineType = engineType;
+        writeData.dstAddr    = boundMemObj.GpuVirtAddr();
+        writeData.dstSel     = dst_sel__me_write_data__memory;
+        // Implement set/reset event with a WRITE_DATA command using PFP or ME engine.
+        writeData.engineSel  = (pipePoint == HwPipeTop) ? static_cast<uint32>(engine_sel__pfp_write_data__prefetch_parser)
+                                                        : static_cast<uint32>(engine_sel__me_write_data__micro_engine);
 
         pDeCmdSpace += CmdUtil::BuildWriteData(writeData, data, pDeCmdSpace);
-        break;
-
-    case HwPipePostPrefetch:
-        // Implement set/reset event with a WRITE_DATA command using the ME engine.
-        writeData.engineSel = engine_sel__me_write_data__micro_engine;
-
-        pDeCmdSpace += CmdUtil::BuildWriteData(writeData, data, pDeCmdSpace);
-        break;
-
-    case HwPipePostCs:
-        // If this trips, expect a hang.
-        PAL_ASSERT(IsComputeSupported());
-        // break intentionally left out!
-
-    case HwPipePreRasterization:
-    case HwPipePostPs:
-        // Implement set/reset with an EOS event waiting for VS/PS or CS waves to complete.  Unfortunately, there is
-        // no VS_DONE event with which to implement HwPipePreRasterization, so it has to conservatively use PS_DONE.
-        releaseInfo.vgtEvent = (pipePoint == HwPipePostCs) ? CS_DONE : PS_DONE;
-        pDeCmdSpace += m_cmdUtil.BuildReleaseMemGfx(releaseInfo, pDeCmdSpace);
-        break;
-
-    case HwPipeBottom:
-        // Implement set/reset with an EOP event written when all prior GPU work completes.
-        releaseInfo.vgtEvent = BOTTOM_OF_PIPE_TS;
-        pDeCmdSpace += m_cmdUtil.BuildReleaseMemGfx(releaseInfo, pDeCmdSpace);
-        break;
-
-    default:
-        PAL_ASSERT_ALWAYS();
-        break;
     }
-
-    // Set remaining (unused) event slots as early as possible. GFX9 and above may have supportReleaseAcquireInterface=1
-    // which enables multiple slots (one dword per slot) for a GpuEvent. If the interface is not enabled, PAL client can
-    // still treat the GpuEvent as one dword, but PAL needs to handle the unused extra dwords internally by setting it
-    // as early in the pipeline as possible.
-    const uint32 numEventSlots = m_device.Parent()->ChipProperties().gfxip.numSlotsPerEvent;
-
-    for (uint32 i = 1; i < numEventSlots; i++)
+    else if ((pipePoint == HwPipePostCs) ||
+             (pipePoint == HwPipePostPs) ||
+             ((pipePoint == HwPipePreRasterization) && (GetPm4CmdBufState().flags.rasterKillDrawsActive == 0)))
     {
-        // Implement set/reset event with a WRITE_DATA command using the CP.
-        writeData.dstAddr = boundMemObj.GpuVirtAddr() + (i * sizeof(uint32));
+        PAL_ASSERT((pipePoint != HwPipePostCs) || IsComputeSupported());
 
-        pDeCmdSpace += CmdUtil::BuildWriteData(writeData, data, pDeCmdSpace);
+        // Implement set/reset with an EOS event waiting for VS waves to complete.  Unfortunately, there is no VS_DONE
+        // event with which to implement HwPipePreRasterization, so it has to conservatively use PS_DONE if
+        // rasterizationKill is inactive.
+        ReleaseMemGfx releaseInfo = {};
+        releaseInfo.dstAddr  = boundMemObj.GpuVirtAddr();
+        releaseInfo.dataSel  = data_sel__me_release_mem__send_32_bit_low;
+        releaseInfo.data     = data;
+        releaseInfo.vgtEvent = (pipePoint == HwPipePostCs) ? CS_DONE : PS_DONE;
+
+        pDeCmdSpace += m_cmdUtil.BuildReleaseMemGfx(releaseInfo, pDeCmdSpace);
+    }
+    else if ((pipePoint == HwPipeBottom) ||
+             ((pipePoint == HwPipePreRasterization) && (GetPm4CmdBufState().flags.rasterKillDrawsActive != 0)))
+    {
+        // Implement set/reset with an EOP event written when all prior GPU work completes or VS waves to complete
+        // if rasterizationKill is active since there is no VS_DONE event.
+        ReleaseMemGfx releaseInfo = {};
+        releaseInfo.dstAddr  = boundMemObj.GpuVirtAddr();
+        releaseInfo.dataSel  = data_sel__me_release_mem__send_32_bit_low;
+        releaseInfo.data     = data;
+        releaseInfo.vgtEvent = BOTTOM_OF_PIPE_TS;
+
+        pDeCmdSpace += m_cmdUtil.BuildReleaseMemGfx(releaseInfo, pDeCmdSpace);
+    }
+    else
+    {
+        PAL_ASSERT_ALWAYS();
     }
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
@@ -5376,7 +5360,7 @@ void UniversalCmdBuffer::ValidateDraw(
     uint32 userDataCmdLen = 0;
 #endif
 
-    if (m_graphicsState.pipelineState.dirtyFlags.pipelineDirty)
+    if (m_graphicsState.pipelineState.dirtyFlags.pipeline)
     {
         uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
@@ -6120,10 +6104,7 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     if ((PipelineDirty || StateDirty) &&
         (m_paScAaConfigNew.u32All != m_paScAaConfigLast.u32All))
     {
-        pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(mmPA_SC_AA_CONFIG,
-                                                               m_paScAaConfigNew.u32All,
-                                                               pDeCmdSpace);
-        m_paScAaConfigLast.u32All = m_paScAaConfigNew.u32All;
+        pDeCmdSpace = ValidatePaScAaConfig(pDeCmdSpace);
     }
 
     // We shouldn't rewrite the PBB bin sizes unless at least one of these state objects has changed
@@ -7204,8 +7185,8 @@ bool UniversalCmdBuffer::NeedsToValidateScissorRectsWa(
                             dirtyFlags.nonValidationBits.pointLineRasterState ||
                             dirtyFlags.nonValidationBits.stencilRefMaskState  ||
                             dirtyFlags.nonValidationBits.clipRectsState       ||
-                            pipelineFlags.borderColorPaletteDirty             ||
-                            pipelineFlags.pipelineDirty));
+                            pipelineFlags.borderColorPalette                  ||
+                            pipelineFlags.pipeline));
     }
 
     return needsValidation;
@@ -7319,6 +7300,18 @@ uint32* UniversalCmdBuffer::ValidateScissorRects(
         pDeCmdSpace = ValidateScissorRects<false>(pDeCmdSpace);
     }
 
+    return pDeCmdSpace;
+}
+
+// =====================================================================================================================
+uint32* UniversalCmdBuffer::ValidatePaScAaConfig(
+    uint32* pDeCmdSpace)
+{
+    pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(mmPA_SC_AA_CONFIG,
+                                                           m_paScAaConfigNew.u32All,
+                                                           pDeCmdSpace);
+
+    m_paScAaConfigLast.u32All = m_paScAaConfigNew.u32All;
     return pDeCmdSpace;
 }
 
@@ -7579,7 +7572,7 @@ void UniversalCmdBuffer::ValidateTaskMeshDispatch(
     ComputeState tempComputeState                           = m_computeState;
     tempComputeState.pipelineState.pPipeline                = pHybridPipeline;
     tempComputeState.pipelineState.apiPsoHash               = m_graphicsState.pipelineState.apiPsoHash;
-    tempComputeState.pipelineState.dirtyFlags.pipelineDirty = 1;
+    tempComputeState.pipelineState.dirtyFlags.pipeline      = 1;
 
     // Copy the gfx user-data entries on to this temporary ComputeState.
     memcpy(&tempComputeState.csUserDataEntries.entries,
@@ -7629,7 +7622,7 @@ void UniversalCmdBuffer::ValidateDispatchPalAbi(
     UserDataTableState* pUserDataTable            = &m_spillTable.stateCs;
     const ComputePipelineSignature* pNewSignature = m_pSignatureCs;
 
-    if (pComputeState->pipelineState.dirtyFlags.pipelineDirty)
+    if (pComputeState->pipelineState.dirtyFlags.pipeline)
     {
         const auto*const pPrevSignature = m_pSignatureCs;
         if (pComputeState->pipelineState.pPipeline->IsTaskShaderEnabled())
@@ -7797,7 +7790,7 @@ void UniversalCmdBuffer::ValidateDispatchHsaAbi(
     // We didn't implement support for dynamic dispatch.
     PAL_ASSERT(pPipeline->SupportDynamicDispatch() == false);
 
-    if (pComputeState->pipelineState.dirtyFlags.pipelineDirty)
+    if (pComputeState->pipelineState.dirtyFlags.pipeline)
     {
         // We don't expect any HSA ABI pipelines to support task shaders.
         PAL_ASSERT(pPipeline->IsTaskShaderEnabled() == false);
@@ -7858,7 +7851,7 @@ void UniversalCmdBuffer::ValidateDispatchHsaAbi(
         // Zero everything out then fill in certain fields the shader is likely to read.
         memset(pAqlPacket, 0, sizeof(sizeof(hsa_kernel_dispatch_packet_t)));
 
-        pAqlPacket->workgroup_size_x     = zThreads;
+        pAqlPacket->workgroup_size_x     = xThreads;
         pAqlPacket->workgroup_size_y     = yThreads;
         pAqlPacket->workgroup_size_z     = zThreads;
         pAqlPacket->grid_size_x          = xDim;
@@ -8089,7 +8082,17 @@ void UniversalCmdBuffer::CmdBeginQuery(
     uint32            slot,
     QueryControlFlags flags)
 {
-    static_cast<const QueryPool&>(queryPool).Begin(this, &m_deCmdStream, m_pAceCmdStream, queryType, slot, flags);
+    const auto& pool = static_cast<const QueryPool&>(queryPool);
+    if (pool.RequiresHybridCmdStream())
+    {
+        // Some types of queries require us to use the ganged ACE stream for correctness.  Initialize it if it hasn't
+        // been created yet.
+        EnableImplicitGangedSubQueueCount(1);
+        GetAceCmdStream();
+        CmdAceWaitDe();
+    }
+
+    pool.Begin(this, &m_deCmdStream, m_pAceCmdStream, queryType, slot, flags);
 }
 
 // =====================================================================================================================
@@ -9633,7 +9636,7 @@ void UniversalCmdBuffer::CmdDispatchAce(
     ComputeState tempComputeState                           = m_computeState;
     tempComputeState.pipelineState.pPipeline                = m_computeState.pipelineState.pPipeline;
     tempComputeState.pipelineState.apiPsoHash               = m_computeState.pipelineState.apiPsoHash;
-    tempComputeState.pipelineState.dirtyFlags.pipelineDirty = 1;
+    tempComputeState.pipelineState.dirtyFlags.pipeline      = 1;
 
     // Copy the cs user-data entries on to this temporary ComputeState.
     memcpy(&tempComputeState.csUserDataEntries.entries,
@@ -9940,7 +9943,7 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     m_pipelinePsHash       = cmdBuffer.m_pipelinePsHash;
     m_pipelineState        = cmdBuffer.m_pipelineState;
 
-    if (cmdBuffer.m_graphicsState.pipelineState.dirtyFlags.pipelineDirty ||
+    if (cmdBuffer.m_graphicsState.pipelineState.dirtyFlags.pipeline ||
         (cmdBuffer.m_graphicsState.pipelineState.pPipeline != nullptr))
     {
         m_spiPsInControl = cmdBuffer.m_spiPsInControl;
@@ -10121,16 +10124,14 @@ void UniversalCmdBuffer::CmdXdmaWaitFlipPending()
 }
 
 // =====================================================================================================================
-void UniversalCmdBuffer::CmdExecuteNestedCmdBuffers(
-    uint32            cmdBufferCount,
-    ICmdBuffer*const* ppCmdBuffers)
+// Need to validate some state as it is valid for root CmdBuf to set state, not issue a draw and expect
+// that state to inherit into the nested CmdBuf. It might be safest to just ValidateDraw here eventually.
+// That would break the assumption that the Pipeline is bound at draw-time.
+void UniversalCmdBuffer::ValidateExecuteNestedCmdBuffer()
 {
-    // Need to validate some state as it is valid for root CmdBuf to set state, not issue a draw and expect
-    // that state to inherit into the nested CmdBuf. It might be safest to just ValidateDraw here eventually.
-    // That would break the assumption that the Pipeline is bound at draw-time.
     uint32*    pDeCmdSpace = m_deCmdStream.ReserveCommands();
     const auto dirtyFlags  = m_graphicsState.dirtyFlags.validationBits;
-    if (m_graphicsState.pipelineState.dirtyFlags.pipelineDirty)
+    if (m_graphicsState.pipelineState.dirtyFlags.pipeline)
     {
         if (dirtyFlags.u32All)
         {
@@ -10164,48 +10165,65 @@ void UniversalCmdBuffer::CmdExecuteNestedCmdBuffers(
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 
+}
+
+// =====================================================================================================================
+void UniversalCmdBuffer::CmdExecuteNestedCmdBuffers(
+    uint32            cmdBufferCount,
+    ICmdBuffer*const* ppCmdBuffers)
+{
+    ValidateExecuteNestedCmdBuffer();
+
     for (uint32 buf = 0; buf < cmdBufferCount; ++buf)
     {
         auto*const pCallee = static_cast<Gfx9::UniversalCmdBuffer*>(ppCmdBuffers[buf]);
         PAL_ASSERT(pCallee != nullptr);
 
-        // Track the most recent OS paging fence value across all nested command buffers called from this one.
-        m_lastPagingFence = Max(m_lastPagingFence, pCallee->LastPagingFence());
-
-        // Track the lastest fence token across all nested command buffers called from this one.
-        m_maxUploadFenceToken = Max(m_maxUploadFenceToken, pCallee->GetMaxUploadFenceToken());
-
-        // All user-data entries have been uploaded into CE RAM and GPU memory, so we can safely "call" the nested
-        // command buffer's command streams.
-
-        const bool exclusiveSubmit  = pCallee->IsExclusiveSubmit();
-        const bool allowIb2Launch   = (pCallee->AllowLaunchViaIb2() &&
-                                       ((pCallee->m_state.flags.containsDrawIndirect == 0) ||
-                                       IsGfx10Plus(m_gfxIpLevel)));
-        const bool allowIb2LaunchCe = (allowIb2Launch && (m_cachedSettings.waCeDisableIb2 == 0));
-
-        m_deCmdStream.TrackNestedEmbeddedData(pCallee->m_embeddedData.chunkList);
-        m_deCmdStream.TrackNestedEmbeddedData(pCallee->m_gpuScratchMem.chunkList);
-
-        if ((pCallee->m_pAceCmdStream != nullptr) && (pCallee->m_pAceCmdStream->IsEmpty() == false))
-        {
-            CmdStream* pAceCmdStream = GetAceCmdStream();
-            pAceCmdStream->TrackNestedCommands(*(pCallee->m_pAceCmdStream));
-            pAceCmdStream->Call(*(pCallee->m_pAceCmdStream), exclusiveSubmit, false);
-
-            EnableImplicitGangedSubQueueCount(1);
-        }
-
-        m_deCmdStream.TrackNestedCommands(pCallee->m_deCmdStream);
-        m_ceCmdStream.TrackNestedCommands(pCallee->m_ceCmdStream);
-
-        m_deCmdStream.Call(pCallee->m_deCmdStream, exclusiveSubmit, allowIb2Launch);
-        m_ceCmdStream.Call(pCallee->m_ceCmdStream, exclusiveSubmit, allowIb2LaunchCe);
+        CallNestedCmdBuffer(pCallee);
 
         // Callee command buffers are also able to leak any changes they made to bound user-data entries and any other
         // state back to the caller.
         LeakNestedCmdBufferState(*pCallee);
     }
+}
+
+// =====================================================================================================================
+void UniversalCmdBuffer::CallNestedCmdBuffer(
+    UniversalCmdBuffer* pCallee)
+{
+    // Track the most recent OS paging fence value across all nested command buffers called from this one.
+    m_lastPagingFence = Max(m_lastPagingFence, pCallee->LastPagingFence());
+
+    // Track the lastest fence token across all nested command buffers called from this one.
+    m_maxUploadFenceToken = Max(m_maxUploadFenceToken, pCallee->GetMaxUploadFenceToken());
+
+    // All user-data entries have been uploaded into CE RAM and GPU memory, so we can safely "call" the nested
+    // command buffer's command streams.
+
+    const bool exclusiveSubmit  = pCallee->IsExclusiveSubmit();
+    const bool allowIb2Launch   = (pCallee->AllowLaunchViaIb2() &&
+                                   ((pCallee->m_state.flags.containsDrawIndirect == 0) ||
+                                   IsGfx10Plus(m_gfxIpLevel)));
+    const bool allowIb2LaunchCe = (allowIb2Launch && (m_cachedSettings.waCeDisableIb2 == 0));
+
+    m_deCmdStream.TrackNestedEmbeddedData(pCallee->m_embeddedData.chunkList);
+    m_deCmdStream.TrackNestedEmbeddedData(pCallee->m_gpuScratchMem.chunkList);
+
+    if ((pCallee->m_pAceCmdStream != nullptr) && (pCallee->m_pAceCmdStream->IsEmpty() == false))
+    {
+        CmdStream* pAceCmdStream = GetAceCmdStream();
+        pAceCmdStream->TrackNestedCommands(*(pCallee->m_pAceCmdStream));
+        pAceCmdStream->Call(*(pCallee->m_pAceCmdStream), exclusiveSubmit, false);
+
+        EnableImplicitGangedSubQueueCount(1);
+    }
+
+    m_deCmdStream.TrackNestedCommands(pCallee->m_deCmdStream);
+    m_ceCmdStream.TrackNestedCommands(pCallee->m_ceCmdStream);
+
+    m_deCmdStream.Call(pCallee->m_deCmdStream, exclusiveSubmit, allowIb2Launch);
+    m_ceCmdStream.Call(pCallee->m_ceCmdStream, exclusiveSubmit, allowIb2LaunchCe);
+
 }
 
 // =====================================================================================================================
@@ -10535,7 +10553,6 @@ CmdStream* UniversalCmdBuffer::GetAceCmdStream()
                 (coreSettings.cmdBufOptimizePm4 == Pm4OptForceEnable));
 
             result = m_pAceCmdStream->Begin(cmdStreamFlags, m_pMemAllocator);
-
         }
 
         if (result == Result::Success)

@@ -2112,20 +2112,20 @@ static void PipelineStageFlagToString(
 {
     const char* PipeStageNames[] =
     {
-        "PipelineStageTopOfPipe",
-        "PipelineStageFetchIndirectArgs",
-        "PipelineStageFetchIndices",
-        "PipelineStageVs",
-        "PipelineStageHs",
-        "PipelineStageDs",
-        "PipelineStageGs",
-        "PipelineStagePs",
-        "PipelineStageEarlyDsTarget",
-        "PipelineStageLateDsTarget",
-        "PipelineStageColorTarget",
-        "PipelineStageCs",
-        "PipelineStageBlt",
-        "PipelineStageBottomOfPipe",
+        "Top",          // PipelineStageTopOfPipe
+        "IndirectArgs", // PipelineStageFetchIndirectArgs
+        "Indices",      // PipelineStageFetchIndices
+        "Vs",           // PipelineStageVs
+        "Hs",           // PipelineStageHs
+        "Ds",           // PipelineStageDs
+        "Gs",           // PipelineStageGs
+        "Ps",           // PipelineStagePs
+        "EarlyDs",      // PipelineStageEarlyDsTarget
+        "LateDs",       // PipelineStageLateDsTarget
+        "Rt",           // PipelineStageColorTarget
+        "Cs",           // PipelineStageCs
+        "Blt",          // PipelineStageBlt
+        "Bottom",       // PipelineStageBottomOfPipe
     };
 
     bool   firstOneDumped = false;
@@ -2154,34 +2154,34 @@ static void CacheCoherencyUsageToString(
 {
     const char* CacheCoherUsageNames[] =
     {
-        "Cpu",
+        "Cpu",          // CoherCpu
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 740
-        "CoherShader",
-        "CoherCopy",
-        "CoherColorTarget",
-        "CoherDepthStencilTarget",
-        "CoherResolve",
+        "Shader",       // CoherShader
+        "Copy",         // CoherCopy
+        "Rt",           // CoherColorTarget
+        "Ds",           // CoherDepthStencilTarget
+        "Resolve",      // CoherResolve
 #else
-        "CoherShaderRead",
-        "CoherShaderWrite",
-        "CoherCopySrc",
-        "CoherCopyDst",
-        "CoherColorTarget",
-        "CoherDepthStencilTarget",
-        "CoherResolveSrc",
-        "CoherResolveDst",
+        "ShaderR",      // CoherShaderRead
+        "ShaderW",      // CoherShaderWrite
+        "CopySrc",      // CoherCopySrc
+        "CopyDst",      // CoherCopySrc
+        "Rt",           // CoherColorTarget
+        "Ds",           // CoherDepthStencilTarget
+        "ResolveSrc",   // CoherResolveSrc
+        "ResolveDst",   // CoherResolveDst
 #endif
-        "CoherClear",
-        "CoherIndirectArgs",
-        "CoherIndexData",
-        "CoherQueueAtomic",
-        "CoherTimestamp",
-        "CoherCeLoad",
-        "CoherCeDump",
-        "CoherStreamOut",
-        "CoherMemory",
-        "CoherSampleRate",
-        "CoherPresent",
+        "Clear",        // CoherClear
+        "IndirectArgs", // CoherIndirectArgs
+        "IndexData",    // CoherIndexData
+        "QueueAtomic",  // CoherQueueAtomic
+        "Timestamp",    // CoherTimestamp
+        "CeLoad",       // CoherCeLoad
+        "CeDump",       // CoherCeDump
+        "So",           // CoherStreamOut
+        "Memory",       // CoherMemory
+        "SampleRate",   // CoherSampleRate
+        "Present",      // CoherPresent
     };
 
     bool   firstOneDumped = false;
@@ -2406,8 +2406,10 @@ static void CmdBarrierToString(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 751
     Snprintf(pString, StringLength, "barrierInfo.flags = 0x%0X", barrierInfo.flags);
     pNextCmdBuffer->CmdCommentString(pString);
+#endif
 
     Snprintf(pString, StringLength,
              "barrierInfo.rangeCheckedTargetWaitCount = %u", barrierInfo.rangeCheckedTargetWaitCount);
@@ -2444,9 +2446,11 @@ static void CmdBarrierToString(
         BarrierTransitionToString(pCmdBuffer, i, barrierInfo.pTransitions[i], pString);
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 751
     Snprintf(pString, StringLength,
              "barrierInfo.pSplitBarrierGpuEvent = 0x%016" PRIXPTR, barrierInfo.pSplitBarrierGpuEvent);
     pNextCmdBuffer->CmdCommentString(pString);
+#endif
 
     const char* pReasonStr = BarrierReasonToString(barrierInfo.reason);
     if (pReasonStr != nullptr)
@@ -2517,7 +2521,9 @@ void CmdBuffer::CmdBarrier(
         nextBarrierInfo.pTransitions = pTransitions;
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 751
     nextBarrierInfo.pSplitBarrierGpuEvent = NextGpuEvent(barrierInfo.pSplitBarrierGpuEvent);
+#endif
 
     GetNextLayer()->CmdBarrier(nextBarrierInfo);
 

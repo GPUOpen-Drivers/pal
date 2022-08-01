@@ -2217,224 +2217,133 @@ inline Result DeserializeSpiPsInputCntlMetadata(
 {
     Result result = (pReader->Type() == CWP_ITEM_ARRAY) ? Result::Success : Result::ErrorInvalidValue;
 
-    if (result == Result::Success)
+    const uint32 arraySize = pReader->Get().as.array.size;
+
+    for (uint32 j = 0; ((result == Result::Success) && (j < arraySize)); j++)
     {
-        PAL_ASSERT(pReader->Get().as.array.size == 1);
         result = pReader->Next(CWP_ITEM_MAP);
-    }
 
-    for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
-    {
-        uint32 keyHash = 0;
-        result = pReader->Next(CWP_ITEM_STR);
-
-        if (result == Result::Success)
+        for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
         {
-            keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                 pReader->Get().as.str.length);
-        }
+            uint32 keyHash = 0;
+            result = pReader->Next(CWP_ITEM_STR);
 
-        if (result == Result::Success)
-        {
-            switch (keyHash)
+            if (result == Result::Success)
             {
-            case HashLiteralString(SpiPsInputCntlMetadataKey::Offset):
-                PAL_ASSERT(pMetadata->hasEntry.offset == 0);
-                result = pReader->UnpackNext(&pMetadata->offset);
-                pMetadata->hasEntry.offset = (result == Result::Success);
-                break;
+                keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
+                                     pReader->Get().as.str.length);
+            }
 
-            case HashLiteralString(SpiPsInputCntlMetadataKey::DefaultVal):
-                PAL_ASSERT(pMetadata->hasEntry.defaultVal == 0);
-                result = pReader->UnpackNext(&pMetadata->defaultVal);
-                pMetadata->hasEntry.defaultVal = (result == Result::Success);
-                break;
-
-            case HashLiteralString(SpiPsInputCntlMetadataKey::FlatShade):
+            if (result == Result::Success)
             {
-                PAL_ASSERT(pMetadata->hasEntry.flatShade == 0);
-                bool value = false;
-                result = pReader->UnpackNext(&value);
-
-                if (result == Result::Success)
+                switch (keyHash)
                 {
-                    pMetadata->flags.flatShade = value;
-                }
-                pMetadata->hasEntry.flatShade = (result == Result::Success);
-                break;
-            }
+                case HashLiteralString(SpiPsInputCntlMetadataKey::Offset):
+                    PAL_ASSERT(pMetadata[j].hasEntry.offset == 0);
+                    result = pReader->UnpackNext(&pMetadata[j].offset);
+                    pMetadata[j].hasEntry.offset = (result == Result::Success);
+                    break;
 
-            case HashLiteralString(SpiPsInputCntlMetadataKey::CylWrap):
-                PAL_ASSERT(pMetadata->hasEntry.cylWrap == 0);
-                result = pReader->UnpackNext(&pMetadata->cylWrap);
-                pMetadata->hasEntry.cylWrap = (result == Result::Success);
-                break;
+                case HashLiteralString(SpiPsInputCntlMetadataKey::DefaultVal):
+                    PAL_ASSERT(pMetadata[j].hasEntry.defaultVal == 0);
+                    result = pReader->UnpackNext(&pMetadata[j].defaultVal);
+                    pMetadata[j].hasEntry.defaultVal = (result == Result::Success);
+                    break;
 
-            case HashLiteralString(SpiPsInputCntlMetadataKey::PtSpriteTex):
-            {
-                PAL_ASSERT(pMetadata->hasEntry.ptSpriteTex == 0);
-                bool value = false;
-                result = pReader->UnpackNext(&value);
-
-                if (result == Result::Success)
+                case HashLiteralString(SpiPsInputCntlMetadataKey::FlatShade):
                 {
-                    pMetadata->flags.ptSpriteTex = value;
+                    PAL_ASSERT(pMetadata[j].hasEntry.flatShade == 0);
+                    bool value = false;
+                    result = pReader->UnpackNext(&value);
+
+                    if (result == Result::Success)
+                    {
+                        pMetadata[j].flags.flatShade = value;
+                    }
+                    pMetadata[j].hasEntry.flatShade = (result == Result::Success);
+                    break;
                 }
-                pMetadata->hasEntry.ptSpriteTex = (result == Result::Success);
-                break;
-            }
 
-            case HashLiteralString(SpiPsInputCntlMetadataKey::Fp16InterpMode):
-            {
-                PAL_ASSERT(pMetadata->hasEntry.fp16InterpMode == 0);
-                bool value = false;
-                result = pReader->UnpackNext(&value);
+                case HashLiteralString(SpiPsInputCntlMetadataKey::CylWrap):
+                    PAL_ASSERT(pMetadata[j].hasEntry.cylWrap == 0);
+                    result = pReader->UnpackNext(&pMetadata[j].cylWrap);
+                    pMetadata[j].hasEntry.cylWrap = (result == Result::Success);
+                    break;
 
-                if (result == Result::Success)
+                case HashLiteralString(SpiPsInputCntlMetadataKey::PtSpriteTex):
                 {
-                    pMetadata->flags.fp16InterpMode = value;
+                    PAL_ASSERT(pMetadata[j].hasEntry.ptSpriteTex == 0);
+                    bool value = false;
+                    result = pReader->UnpackNext(&value);
+
+                    if (result == Result::Success)
+                    {
+                        pMetadata[j].flags.ptSpriteTex = value;
+                    }
+                    pMetadata[j].hasEntry.ptSpriteTex = (result == Result::Success);
+                    break;
                 }
-                pMetadata->hasEntry.fp16InterpMode = (result == Result::Success);
-                break;
-            }
 
-            case HashLiteralString(SpiPsInputCntlMetadataKey::Attr0Valid):
-            {
-                PAL_ASSERT(pMetadata->hasEntry.attr0Valid == 0);
-                bool value = false;
-                result = pReader->UnpackNext(&value);
-
-                if (result == Result::Success)
+                case HashLiteralString(SpiPsInputCntlMetadataKey::Fp16InterpMode):
                 {
-                    pMetadata->flags.attr0Valid = value;
+                    PAL_ASSERT(pMetadata[j].hasEntry.fp16InterpMode == 0);
+                    bool value = false;
+                    result = pReader->UnpackNext(&value);
+
+                    if (result == Result::Success)
+                    {
+                        pMetadata[j].flags.fp16InterpMode = value;
+                    }
+                    pMetadata[j].hasEntry.fp16InterpMode = (result == Result::Success);
+                    break;
                 }
-                pMetadata->hasEntry.attr0Valid = (result == Result::Success);
-                break;
-            }
 
-            case HashLiteralString(SpiPsInputCntlMetadataKey::Attr1Valid):
-            {
-                PAL_ASSERT(pMetadata->hasEntry.attr1Valid == 0);
-                bool value = false;
-                result = pReader->UnpackNext(&value);
-
-                if (result == Result::Success)
+                case HashLiteralString(SpiPsInputCntlMetadataKey::Attr0Valid):
                 {
-                    pMetadata->flags.attr1Valid = value;
+                    PAL_ASSERT(pMetadata[j].hasEntry.attr0Valid == 0);
+                    bool value = false;
+                    result = pReader->UnpackNext(&value);
+
+                    if (result == Result::Success)
+                    {
+                        pMetadata[j].flags.attr0Valid = value;
+                    }
+                    pMetadata[j].hasEntry.attr0Valid = (result == Result::Success);
+                    break;
                 }
-                pMetadata->hasEntry.attr1Valid = (result == Result::Success);
-                break;
-            }
 
-            case HashLiteralString(SpiPsInputCntlMetadataKey::RotatePcPtr):
-            {
-                PAL_ASSERT(pMetadata->hasEntry.rotatePcPtr == 0);
-                bool value = false;
-                result = pReader->UnpackNext(&value);
-
-                if (result == Result::Success)
+                case HashLiteralString(SpiPsInputCntlMetadataKey::Attr1Valid):
                 {
-                    pMetadata->flags.rotatePcPtr = value;
+                    PAL_ASSERT(pMetadata[j].hasEntry.attr1Valid == 0);
+                    bool value = false;
+                    result = pReader->UnpackNext(&value);
+
+                    if (result == Result::Success)
+                    {
+                        pMetadata[j].flags.attr1Valid = value;
+                    }
+                    pMetadata[j].hasEntry.attr1Valid = (result == Result::Success);
+                    break;
                 }
-                pMetadata->hasEntry.rotatePcPtr = (result == Result::Success);
-                break;
-            }
 
-            default:
-                result = pReader->Skip(1);
-                break;
-            }
-        }
-    }
+                case HashLiteralString(SpiPsInputCntlMetadataKey::RotatePcPtr):
+                {
+                    PAL_ASSERT(pMetadata[j].hasEntry.rotatePcPtr == 0);
+                    bool value = false;
+                    result = pReader->UnpackNext(&value);
 
-    return result;
-}
+                    if (result == Result::Success)
+                    {
+                        pMetadata[j].flags.rotatePcPtr = value;
+                    }
+                    pMetadata[j].hasEntry.rotatePcPtr = (result == Result::Success);
+                    break;
+                }
 
-// =====================================================================================================================
-inline Result DeserializeSpiShaderGsMeshletDimMetadata(
-    MsgPackReader*  pReader,
-    SpiShaderGsMeshletDimMetadata*  pMetadata)
-{
-    Result result = (pReader->Type() == CWP_ITEM_MAP) ? Result::Success : Result::ErrorInvalidValue;
-
-    for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
-    {
-        result = pReader->Next(CWP_ITEM_STR);
-
-        if (result == Result::Success)
-        {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
-            {
-            case HashLiteralString(SpiShaderGsMeshletDimMetadataKey::NumThreadX):
-                PAL_ASSERT(pMetadata->hasEntry.numThreadX == 0);
-                result = pReader->UnpackNext(&pMetadata->numThreadX);
-                pMetadata->hasEntry.numThreadX = (result == Result::Success);
-                break;
-
-            case HashLiteralString(SpiShaderGsMeshletDimMetadataKey::NumThreadY):
-                PAL_ASSERT(pMetadata->hasEntry.numThreadY == 0);
-                result = pReader->UnpackNext(&pMetadata->numThreadY);
-                pMetadata->hasEntry.numThreadY = (result == Result::Success);
-                break;
-
-            case HashLiteralString(SpiShaderGsMeshletDimMetadataKey::NumThreadZ):
-                PAL_ASSERT(pMetadata->hasEntry.numThreadZ == 0);
-                result = pReader->UnpackNext(&pMetadata->numThreadZ);
-                pMetadata->hasEntry.numThreadZ = (result == Result::Success);
-                break;
-
-            case HashLiteralString(SpiShaderGsMeshletDimMetadataKey::ThreadgroupSize):
-                PAL_ASSERT(pMetadata->hasEntry.threadgroupSize == 0);
-                result = pReader->UnpackNext(&pMetadata->threadgroupSize);
-                pMetadata->hasEntry.threadgroupSize = (result == Result::Success);
-                break;
-
-            default:
-                result = pReader->Skip(1);
-                break;
-            }
-        }
-    }
-
-    return result;
-}
-
-// =====================================================================================================================
-inline Result DeserializeSpiShaderGsMeshletExpAllocMetadata(
-    MsgPackReader*  pReader,
-    SpiShaderGsMeshletExpAllocMetadata*  pMetadata)
-{
-    Result result = (pReader->Type() == CWP_ITEM_MAP) ? Result::Success : Result::ErrorInvalidValue;
-
-    for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
-    {
-        result = pReader->Next(CWP_ITEM_STR);
-
-        if (result == Result::Success)
-        {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
-            {
-            case HashLiteralString(SpiShaderGsMeshletExpAllocMetadataKey::MaxExpVerts):
-                PAL_ASSERT(pMetadata->hasEntry.maxExpVerts == 0);
-                result = pReader->UnpackNext(&pMetadata->maxExpVerts);
-                pMetadata->hasEntry.maxExpVerts = (result == Result::Success);
-                break;
-
-            case HashLiteralString(SpiShaderGsMeshletExpAllocMetadataKey::MaxExpPrims):
-                PAL_ASSERT(pMetadata->hasEntry.maxExpPrims == 0);
-                result = pReader->UnpackNext(&pMetadata->maxExpPrims);
-                pMetadata->hasEntry.maxExpPrims = (result == Result::Success);
-                break;
-
-            default:
-                result = pReader->Skip(1);
-                break;
+                default:
+                    result = pReader->Skip(1);
+                    break;
+                }
             }
         }
     }

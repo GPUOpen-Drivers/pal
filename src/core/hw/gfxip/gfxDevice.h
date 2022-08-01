@@ -277,14 +277,16 @@ constexpr uint32 PipelineStagesGraphicsOnly = PipelineStageVs            |
                                               PipelineStagePs            |
                                               PipelineStageEarlyDsTarget |
                                               PipelineStageLateDsTarget  |
-                                              PipelineStageColorTarget;
+                                              PipelineStageColorTarget   |
+                                              PipelineStageFetchIndices;
 
 constexpr uint32 CacheCoherencyGraphicsOnly = CoherColorTarget        |
                                               CoherDepthStencilTarget |
                                               CoherSampleRate         |
                                               CoherCeLoad             |
                                               CoherCeDump             |
-                                              CoherStreamOut;
+                                              CoherStreamOut          |
+                                              CoherIndexData;
 
 // There are various BLTs(Copy, Clear, and Resolve) that can involve different caches based on what engine
 // does the BLT.

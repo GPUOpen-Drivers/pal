@@ -51,8 +51,8 @@ public:
 
     Pal::Result Init();
 
-    virtual const char* GetName() const  { return FrameTraceControllerName; }
-    virtual Pal::uint32 GetVersion() const  { return FrameTraceControllerVersion; }
+    virtual const char* GetName() const override { return FrameTraceControllerName; }
+    virtual Pal::uint32 GetVersion() const override { return FrameTraceControllerVersion; }
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 712
     virtual void OnConfigUpdated(DevDriver::StructuredValue* pJsonConfig) override {}
@@ -60,8 +60,8 @@ public:
     virtual void OnConfigUpdated(const char* pJsonConfig) override {}
 #endif
 
-    virtual Pal::Result OnBeginGpuWork(Pal::uint32 gpuIndex, Pal::ICmdBuffer** ppCmdBuffer);
-    virtual Pal::Result OnEndGpuWork(Pal::uint32 gpuIndex, Pal::ICmdBuffer** ppCmdBuffer);
+    virtual Pal::Result OnBeginGpuWork(Pal::uint32 gpuIndex, Pal::ICmdBuffer** ppCmdBuffer) override;
+    virtual Pal::Result OnEndGpuWork(Pal::uint32 gpuIndex, Pal::ICmdBuffer** ppCmdBuffer) override;
 
     void FinishTrace();
 

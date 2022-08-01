@@ -128,6 +128,40 @@ PipelineStatsQueryPool::PipelineStatsQueryPool(
 }
 
 // =====================================================================================================================
+// The SAMPLE_PIPELINESTAT event on the Compute engine only writes csInvocation, so we must write dummy zero's to other
+// slots on a compute command buffer.
+// This should only be called on a compute command buffer!
+uint32* PipelineStatsQueryPool::FixupQueryDataOnAsyncCompute(
+    gpusize gpuVirtAddr,
+    uint32* pCmdSpace
+    ) const
+{
+    constexpr uint32 DwordsBeforeCsInvocations = offsetof(Gfx9PipelineStatsData, csInvocations) / sizeof(uint32);
+    constexpr uint32  Zeros[DwordsBeforeCsInvocations] { };
+
+    WriteDataInfo writeData { };
+    writeData.engineType = EngineTypeCompute;
+    writeData.dstAddr    = gpuVirtAddr;
+    writeData.dstSel     = dst_sel__mec_write_data__memory;
+
+    pCmdSpace += CmdUtil::BuildWriteData(writeData, DwordsBeforeCsInvocations, Zeros, pCmdSpace);
+
+    constexpr uint32 MsTsMask =
+        (QueryPipelineStatsMsInvocations | QueryPipelineStatsMsPrimitives | QueryPipelineStatsTsInvocations);
+
+    if (TestAnyFlagSet(m_createInfo.enabledStats, MsTsMask))
+    {
+        constexpr uint32 DwordsAfterCsInvocations =
+            (sizeof(Gfx9PipelineStatsData) - offsetof(Gfx9PipelineStatsData, msInvocations)) / sizeof(uint32);
+
+        writeData.dstAddr += offsetof(Gfx9PipelineStatsData, msInvocations);
+        pCmdSpace += CmdUtil::BuildWriteData(writeData, DwordsAfterCsInvocations, Zeros, pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
 // Adds the PM4 commands needed to begin this query to the supplied stream.
 void PipelineStatsQueryPool::Begin(
     GfxCmdBuffer*     pCmdBuffer,
@@ -156,19 +190,7 @@ void PipelineStatsQueryPool::Begin(
 
         if (engineType == EngineTypeCompute)
         {
-            // Query event for compute engine only writes csInvocation, must write dummy zero's to other slots.
-            constexpr uint32 DwordsToWrite = offsetof(Gfx9PipelineStatsData, csInvocations) / sizeof(uint32);
-            const uint32 pData[DwordsToWrite] = {};
-
-            gpuAddr = beginQueryAddr;
-
-            WriteDataInfo writeData = {};
-            writeData.engineType    = engineType;
-            writeData.dstAddr       = gpuAddr;
-            writeData.dstSel        = dst_sel__mec_write_data__memory;
-
-            pCmdSpace += CmdUtil::BuildWriteData(writeData, DwordsToWrite, pData, pCmdSpace);
-
+            pCmdSpace = FixupQueryDataOnAsyncCompute(beginQueryAddr, pCmdSpace);
             gpuAddr += offsetof(Gfx9PipelineStatsData, csInvocations);
         }
 
@@ -222,19 +244,7 @@ void PipelineStatsQueryPool::End(
 
         if (engineType == EngineTypeCompute)
         {
-            // Query event for compute engine only writes csInvocation, must write dummy zero's to other slots.
-            constexpr uint32 DwordsToWrite = offsetof(Gfx9PipelineStatsData, csInvocations) / sizeof(uint32);
-            const uint32 pData[DwordsToWrite] = {};
-
-            gpuAddr = endQueryAddr;
-
-            WriteDataInfo writeData = {};
-            writeData.engineType    = engineType;
-            writeData.dstAddr       = gpuAddr;
-            writeData.dstSel        = dst_sel__mec_write_data__memory;
-
-            pCmdSpace += CmdUtil::BuildWriteData(writeData, DwordsToWrite, pData, pCmdSpace);
-
+            pCmdSpace = FixupQueryDataOnAsyncCompute(endQueryAddr, pCmdSpace);
             gpuAddr += offsetof(Gfx9PipelineStatsData, csInvocations);
         }
 

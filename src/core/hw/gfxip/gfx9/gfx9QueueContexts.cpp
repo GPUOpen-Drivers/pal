@@ -28,6 +28,7 @@
 #include "core/engine.h"
 #include "core/platform.h"
 #include "core/queue.h"
+#include "core/device.h"
 #include "palAssert.h"
 #include "core/hw/gfxip/gfx9/gfx9ComputeEngine.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
@@ -574,7 +575,7 @@ Result ComputeQueueContext::UpdateRingSet(
 // =====================================================================================================================
 UniversalQueueContext::UniversalQueueContext(
     Device* pDevice,
-    bool    useStateShadowing,
+    bool    supportMcbp,
     uint32  persistentCeRamOffset,
     uint32  persistentCeRamSize,
     Engine* pEngine,
@@ -592,7 +593,7 @@ UniversalQueueContext::UniversalQueueContext(
     m_currentUpdateCounterTmz(0),
     m_currentStackSizeDw(0),
     m_cmdsUseTmzRing(false),
-    m_useShadowing(useStateShadowing),
+    m_supportMcbp(supportMcbp),
     m_shadowGpuMem(),
     m_shadowGpuMemSizeInBytes(0),
     m_shadowedRegCount(0),
@@ -674,7 +675,7 @@ Result UniversalQueueContext::Init()
         result = m_perSubmitCmdStream.Init();
     }
 
-    if ((result == Result::Success) && m_useShadowing)
+    if ((result == Result::Success) && m_supportMcbp)
     {
         result = m_shadowInitCmdStream.Init();
     }
@@ -729,12 +730,14 @@ Result UniversalQueueContext::AllocateShadowMemory()
     // persistent between submissions.
     uint32 ceRamBytes = (m_persistentCeRamSize * sizeof(uint32));
 
-    if (m_useShadowing)
+    if (m_supportMcbp)
     {
-        // If mid command buffer preemption is enabled, we must also include shadow space for all of the context,
-        // SH, and user-config registers. This is because the CP will restore the whole state when resuming this
-        // Queue from being preempted.
-        m_shadowedRegCount = (ShRegCount + CntxRegCount + UserConfigRegCount);
+        {
+            // If mid command buffer preemption is enabled, we must also include shadow space for all of the context,
+            // SH, and user-config registers. This is because the CP will restore the whole state when resuming this
+            // Queue from being preempted.
+            m_shadowedRegCount = (ShRegCount + CntxRegCount + UserConfigRegCount);
+        }
 
         // Also, if mid command buffer preemption is enabled, we must restore all CE RAM used by the client and
         // internally by PAL. All of that data will need to be restored aftere resuming this Queue from being
@@ -779,7 +782,7 @@ Result UniversalQueueContext::BuildShadowPreamble()
     Result result = Result::Success;
 
     // This should only be called when state shadowing is being used.
-    if (m_useShadowing)
+    if (m_supportMcbp)
     {
         m_shadowInitCmdStream.Reset(nullptr, true);
         result = m_shadowInitCmdStream.Begin({}, nullptr);
@@ -803,8 +806,9 @@ void UniversalQueueContext::WritePerSubmitPreamble(
     bool       initShadowMemory)
 {
     // Shadow memory should only be initialized when state shadowing is being used.
-    PAL_ASSERT(m_useShadowing || (initShadowMemory == false));
+    PAL_ASSERT(m_supportMcbp || (initShadowMemory == false));
 
+    const auto& chipProps  = m_pDevice->Parent()->ChipProperties();
     const CmdUtil& cmdUtil = m_pDevice->CmdUtil();
     uint32* pCmdSpace      = pCmdStream->ReserveCommands();
 
@@ -830,13 +834,16 @@ void UniversalQueueContext::WritePerSubmitPreamble(
 
     pCmdSpace += cmdUtil.BuildAcquireMemGfxSurfSync(acquireInfo, pCmdSpace);
 
-    if (m_useShadowing)
+    // We should keep the following events even if m_pDevice->Parent()->SupportStateShadowingByCpFw() is true.
+    // The reason is that the FW doing the restore does not absolve us from idling.
+    if (m_supportMcbp)
     {
         // Those registers (which are used to setup UniversalRingSet) are shadowed and will be set by LOAD_*_REG.
         // We have to setup packets which issue VS_PARTIAL_FLUSH and VGT_FLUSH events before those LOAD_*_REGs
         // to make sure it is safe to write the ring config.
         pCmdSpace += cmdUtil.BuildNonSampleEventWrite(VS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
         pCmdSpace += cmdUtil.BuildNonSampleEventWrite(VGT_FLUSH,        EngineTypeUniversal, pCmdSpace);
+
     }
 
     pCmdSpace += CmdUtil::BuildContextControl(m_pDevice->GetContextControl(), pCmdSpace);
@@ -845,7 +852,8 @@ void UniversalQueueContext::WritePerSubmitPreamble(
         pCmdSpace += CmdUtil::BuildClearState(cmd__pfp_clear_state__clear_state__HASCLEARSTATE, pCmdSpace);
     }
 
-    if (m_useShadowing)
+    if (m_supportMcbp
+       )
     {
         const gpusize userCfgRegGpuAddr = m_shadowGpuMem.GpuVirtAddr();
         const gpusize contextRegGpuAddr = (userCfgRegGpuAddr + (sizeof(uint32) * UserConfigRegCount));
@@ -871,38 +879,40 @@ void UniversalQueueContext::WritePerSubmitPreamble(
 
     if (initShadowMemory)
     {
-        const gpusize userCfgRegGpuAddr = m_shadowGpuMem.GpuVirtAddr();
-        const gpusize contextRegGpuAddr = (userCfgRegGpuAddr + (sizeof(uint32) * UserConfigRegCount));
-        const gpusize shRegGpuAddr      = (contextRegGpuAddr + (sizeof(uint32) * CntxRegCount));
-
         pCmdSpace = pCmdStream->ReserveCommands();
 
         {
-            // Use a DMA_DATA packet to initialize all shadow memory to 0s explicitely.
-            DmaDataInfo dmaData  = {};
-            dmaData.dstSel       = dst_sel__pfp_dma_data__dst_addr_using_l2;
-            dmaData.dstAddr      = m_shadowGpuMem.GpuVirtAddr();
-            dmaData.dstAddrSpace = das__pfp_dma_data__memory;
-            dmaData.srcSel       = src_sel__pfp_dma_data__data;
-            dmaData.srcData      = 0;
-            dmaData.numBytes     = static_cast<uint32>(m_shadowGpuMemSizeInBytes);
-            dmaData.sync         = true;
-            dmaData.usePfp       = true;
-            pCmdSpace += CmdUtil::BuildDmaData<false>(dmaData, pCmdSpace);
+            const gpusize userCfgRegGpuAddr = m_shadowGpuMem.GpuVirtAddr();
+            const gpusize contextRegGpuAddr = (userCfgRegGpuAddr + (sizeof(uint32) * UserConfigRegCount));
+            const gpusize shRegGpuAddr      = (contextRegGpuAddr + (sizeof(uint32) * CntxRegCount));
 
-            // After initializing shadow memory to 0, load user config and sh register again, otherwise the registers
-            // might contain invalid value. We don't need to load context register again because in the
-            // InitializeContextRegisters() we will set the contexts that we can load.
-            uint32      numEntries = 0;
-            const auto* pRegRange  = m_pDevice->GetRegisterRange(RegRangeUserConfig, &numEntries);
-            pCmdSpace += CmdUtil::BuildLoadUserConfigRegs(userCfgRegGpuAddr, pRegRange, numEntries, pCmdSpace);
+            {
+                // Use a DMA_DATA packet to initialize all shadow memory to 0s explicitely.
+                DmaDataInfo dmaData = {};
+                dmaData.dstSel = dst_sel__pfp_dma_data__dst_addr_using_l2;
+                dmaData.dstAddr = m_shadowGpuMem.GpuVirtAddr();
+                dmaData.dstAddrSpace = das__pfp_dma_data__memory;
+                dmaData.srcSel = src_sel__pfp_dma_data__data;
+                dmaData.srcData = 0;
+                dmaData.numBytes = static_cast<uint32>(m_shadowGpuMemSizeInBytes);
+                dmaData.sync = true;
+                dmaData.usePfp = true;
+                pCmdSpace += CmdUtil::BuildDmaData<false>(dmaData, pCmdSpace);
 
-            pRegRange = m_pDevice->GetRegisterRange(RegRangeSh, &numEntries);
-            pCmdSpace += CmdUtil::BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderGraphics, pCmdSpace);
+                // After initializing shadow memory to 0, load user config and sh register again, otherwise the registers
+                // might contain invalid value. We don't need to load context register again because in the
+                // InitializeContextRegisters() we will set the contexts that we can load.
+                uint32      numEntries = 0;
+                const auto* pRegRange = m_pDevice->GetRegisterRange(RegRangeUserConfig, &numEntries);
+                pCmdSpace += CmdUtil::BuildLoadUserConfigRegs(userCfgRegGpuAddr, pRegRange, numEntries, pCmdSpace);
 
-            pRegRange = m_pDevice->GetRegisterRange(RegRangeCsSh, &numEntries);
-            pCmdSpace += CmdUtil::BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderCompute, pCmdSpace);
-        }
+                pRegRange = m_pDevice->GetRegisterRange(RegRangeSh, &numEntries);
+                pCmdSpace += CmdUtil::BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderGraphics, pCmdSpace);
+
+                pRegRange = m_pDevice->GetRegisterRange(RegRangeCsSh, &numEntries);
+                pCmdSpace += CmdUtil::BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderCompute, pCmdSpace);
+            }
+        } // state shadowing by CP Fw
 
         // If SPM interval spans across gfx and ace, we need to manually set COMPUTE_PERFCOUNT_ENABLE for the pipes.
         // Set this register to correct value instead of loading with zero.
@@ -919,7 +929,6 @@ void UniversalQueueContext::WritePerSubmitPreamble(
 
         // We do this after m_stateShadowPreamble, when the LOADs are done and HW knows the shadow memory.
         // First LOADs will load garbage. InitializeContextRegisters will init the register and also the shadow Memory.
-        const auto& chipProps = m_pDevice->Parent()->ChipProperties();
         if (chipProps.gfxLevel == GfxIpLevel::GfxIp9)
         {
             InitializeContextRegistersGfx9(pCmdStream, 0, nullptr, nullptr);
@@ -1099,7 +1108,7 @@ Result UniversalQueueContext::ProcessInitialSubmit(
     Result result = Result::Unsupported;
 
     // We only need to perform an initial submit if we're using state shadowing.
-    if (m_useShadowing)
+    if (m_supportMcbp)
     {
         // Submit a special version of the per submit preamble that initializes shadow memory.
         pSubmitInfo->pPreambleCmdStream[0] = &m_shadowInitCmdStream;
@@ -1282,14 +1291,14 @@ Result UniversalQueueContext::RebuildCommandStreams(
     // If the client has requested that this Queue maintain persistent CE RAM contents, we need to rebuild the CE
     // preamble and postamble.
     if (m_pDevice->Parent()->IsConstantEngineSupported(EngineType::EngineTypeUniversal) &&
-        ((m_persistentCeRamSize != 0) || m_useShadowing))
+        ((m_persistentCeRamSize != 0) || m_supportMcbp))
     {
         PAL_ASSERT(m_shadowGpuMem.IsBound());
         const gpusize gpuVirtAddr = (m_shadowGpuMem.GpuVirtAddr() + (sizeof(uint32) * m_shadowedRegCount));
         uint32 ceRamByteOffset    = m_persistentCeRamOffset;
         uint32 ceRamDwordSize     =  m_persistentCeRamSize;
 
-        if (m_useShadowing)
+        if (m_supportMcbp)
         {
             // If preemption is supported, we must save & restore all CE RAM used by either PAL or the client.
             ceRamByteOffset = 0;
@@ -1415,10 +1424,11 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
     CmdStream*  pCmdStream,
     uint32*     pCmdSpace)
 {
-    const Pal::Device&       device    = *(m_pDevice->Parent());
-    const GpuChipProperties& chipProps = device.ChipProperties();
-    const Gfx9PalSettings&   settings  = m_pDevice->Settings();
-    const CmdUtil&           cmdUtil   = m_pDevice->CmdUtil();
+    const Pal::Device&       device          = *(m_pDevice->Parent());
+    const GpuChipProperties& chipProps       = device.ChipProperties();
+    const Gfx9PalSettings&   settings        = m_pDevice->Settings();
+    const PalPublicSettings* pPublicSettings = device.GetPublicSettings();
+    const CmdUtil&           cmdUtil         = m_pDevice->CmdUtil();
 
     // Occlusion query control event, specifies that we want one counter to dump out every 128 bits for every
     // DB that the HW supports.
@@ -1462,11 +1472,11 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
     // Set patch and donut distribution thresholds for tessellation. If we decide that this should be tunable
     // per-pipeline, we can move the registers to the Pipeline object (DXX currently uses per-Device thresholds).
     regVGT_TESS_DISTRIBUTION vgtTessDistribution = { };
-    vgtTessDistribution.bits.ACCUM_ISOLINE = settings.isolineDistributionFactor;
-    vgtTessDistribution.bits.ACCUM_TRI     = settings.triDistributionFactor;
-    vgtTessDistribution.bits.ACCUM_QUAD    = settings.quadDistributionFactor;
-    vgtTessDistribution.bits.DONUT_SPLIT   = settings.donutDistributionFactor;
-    vgtTessDistribution.bits.TRAP_SPLIT    = settings.trapezoidDistributionFactor;
+    vgtTessDistribution.bits.ACCUM_ISOLINE = pPublicSettings->isolineDistributionFactor;
+    vgtTessDistribution.bits.ACCUM_TRI     = pPublicSettings->triDistributionFactor;
+    vgtTessDistribution.bits.ACCUM_QUAD    = pPublicSettings->quadDistributionFactor;
+    vgtTessDistribution.bits.DONUT_SPLIT   = pPublicSettings->donutDistributionFactor;
+    vgtTessDistribution.bits.TRAP_SPLIT    = pPublicSettings->trapezoidDistributionFactor;
 
     // Force line stipple scale to 1.0f
     regPA_SU_LINE_STIPPLE_SCALE paSuLineStippleScale = {};

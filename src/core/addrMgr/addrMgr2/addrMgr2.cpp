@@ -634,6 +634,16 @@ bool AddrMgr2::IsValidToOverride(
 }
 
 // =====================================================================================================================
+uint32 AddrMgr2::GetNoXorStatus(
+    const Image*  pImage)
+    const
+{
+    uint32 noXor = 0;
+
+    return noXor;
+}
+
+// =====================================================================================================================
 // Computes the swizzling mode for all subresources for the plane associated with the specified subresource.
 Result AddrMgr2::ComputePlaneSwizzleMode(
     const Image*                             pImage,
@@ -653,7 +663,7 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
     ADDR2_GET_PREFERRED_SURF_SETTING_INPUT surfSettingInput = { };
     surfSettingInput.size            = sizeof(surfSettingInput);
     surfSettingInput.format          = Image::GetAddrFormat(pBaseSubRes->format.format);
-    surfSettingInput.noXor           = false;
+    surfSettingInput.noXor           = GetNoXorStatus(pImage);
     surfSettingInput.bpp             = Formats::BitsPerPixel(pBaseSubRes->format.format);
     surfSettingInput.width           = createInfo.extent.width;
     surfSettingInput.height          = createInfo.extent.height;

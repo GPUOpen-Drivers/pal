@@ -31,7 +31,6 @@
 */
 
 #include "gfx10addrlib.h"
-#include "addrcommon.h"
 #include "gfx10_gb_reg.h"
 
 #include "amdgpu_asic_addr.h"
@@ -2242,7 +2241,6 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeNonBlockCompressedView(
         infoIn.numFrags     = 1;
 
         ADDR2_MIP_INFO mipInfo[MaxMipLevels] = {};
-        ADDR_ASSERT(pIn->numMipLevels <= MaxMipLevels);
 
         ADDR2_COMPUTE_SURFACE_INFO_OUTPUT infoOut = {};
         infoOut.pMipInfo = mipInfo;
@@ -3579,7 +3577,6 @@ ADDR_E_RETURNCODE Gfx10Lib::ComputeSurfaceInfoMacroTiled(
                 UINT_64       mipSize[MaxMipLevels];
                 UINT_64       mipSliceSize[MaxMipLevels];
 
-                ADDR_ASSERT(pIn->numMipLevels <= MaxMipLevels);
                 Dim3d fixedTailMaxDim = tailMaxDim;
 
                 if (m_settings.dsMipmapHtileFix && IsZOrderSwizzle(pIn->swizzleMode) && (index <= 1))
@@ -4252,7 +4249,6 @@ ADDR_E_RETURNCODE Gfx10Lib::ComputeSurfaceAddrFromCoordMicroTiled(
     ADDR2_COMPUTE_SURFACE_INFO_INPUT  localIn  = {};
     ADDR2_COMPUTE_SURFACE_INFO_OUTPUT localOut = {};
     ADDR2_MIP_INFO                    mipInfo[MaxMipLevels];
-    ADDR_ASSERT(pIn->numMipLevels <= MaxMipLevels);
 
     localIn.swizzleMode  = pIn->swizzleMode;
     localIn.flags        = pIn->flags;
@@ -4319,7 +4315,6 @@ ADDR_E_RETURNCODE Gfx10Lib::ComputeSurfaceAddrFromCoordMacroTiled(
     ADDR2_COMPUTE_SURFACE_INFO_INPUT  localIn  = {};
     ADDR2_COMPUTE_SURFACE_INFO_OUTPUT localOut = {};
     ADDR2_MIP_INFO                    mipInfo[MaxMipLevels];
-    ADDR_ASSERT(pIn->numMipLevels <= MaxMipLevels);
 
     localIn.swizzleMode  = pIn->swizzleMode;
     localIn.flags        = pIn->flags;

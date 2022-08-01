@@ -370,8 +370,13 @@ void GraphicsPipeline::DetermineBinningOnOff()
     // This is an optimization for cases where early Z accepts are not allowed (because the shader may kill) and early
     // Z rejects are allowed (PS does not output depth).
     // In such cases the binner orders pixel traffic in a suboptimal way.
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 753)
     disableBinning |= canKill && canReject && (m_pDevice->Parent()->GetPublicSettings()->disableBinningPsKill
-                                               == DisableBinningPsKill::True);
+                                               == OverrideMode::Enabled);
+#else
+    disableBinning |= canKill && canReject && (m_pDevice->Parent()->GetPublicSettings()->disableBinningPsKill
+                                               == DisableBinningPsKill::_True);
+#endif
 #else
     disableBinning |=
         canKill && canReject;
@@ -1926,14 +1931,12 @@ static uint8 Rop3(
 }
 
 // =====================================================================================================================
-// Returns true if no color buffers and oDepth/discard
+// Returns true if no color buffers and no PS UAVs
 bool GraphicsPipeline::CanRbPlusOptimizeDepthOnly() const
 {
-    const bool zExportEnable = m_chunkVsPs.DbShaderControl().bits.Z_EXPORT_ENABLE;
-    const bool killEnable = m_chunkVsPs.DbShaderControl().bits.KILL_ENABLE;
     return ((NumColorTargets() == 0) &&
             (m_regs.context.cbColorControl.bits.MODE == CB_DISABLE) &&
-            (zExportEnable || killEnable));
+            (PsUsesUavs() == false) && (PsWritesUavs() == false));
 }
 
 // =====================================================================================================================

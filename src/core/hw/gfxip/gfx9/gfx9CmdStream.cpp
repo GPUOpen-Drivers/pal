@@ -329,6 +329,36 @@ uint32* CmdStream::WriteSetSeqConfigRegs<false>(
     uint32*     pCmdSpace);
 
 // =====================================================================================================================
+// Builds a PM4 packet to set the given set of sequential config registers to 0.  Returns a pointer to the next unused
+// DWORD in pCmdSpace.
+//
+// Note that we must be very careful when setting registers on gfx10. The CP's register filter CAM isn't smart enough
+// to track GRBM_GFX_INDEX so it can filter out packets that set the same register value for different instances.
+// The caller must set isPerfCtr = true when they could write any register to multiple instances.
+template <bool isPerfCtr>
+uint32* CmdStream::WriteSetZeroSeqConfigRegs(
+    uint32      startRegAddr,
+    uint32      endRegAddr,
+    uint32* pCmdSpace)
+{
+    const size_t totalDwords = m_cmdUtil.BuildSetSeqConfigRegs<isPerfCtr>(startRegAddr, endRegAddr, pCmdSpace);
+
+    memset(&pCmdSpace[CmdUtil::ConfigRegSizeDwords], 0, (totalDwords - CmdUtil::ConfigRegSizeDwords) * sizeof(uint32));
+
+    return (pCmdSpace + totalDwords);
+}
+template
+uint32* CmdStream::WriteSetZeroSeqConfigRegs<true>(
+    uint32      startRegAddr,
+    uint32      endRegAddr,
+    uint32* pCmdSpace);
+template
+uint32* CmdStream::WriteSetZeroSeqConfigRegs<false>(
+    uint32      startRegAddr,
+    uint32      endRegAddr,
+    uint32* pCmdSpace);
+
+// =====================================================================================================================
 // Builds a PM4 packet to set the given register unless the PM4 optimizer indicates that it is redundant.
 // Returns a pointer to the next unused DWORD in pCmdSpace.
 template <bool Pm4OptEnabled>
@@ -524,6 +554,24 @@ uint32* CmdStream::WriteSetSeqShRegs(
                (totalDwords - CmdUtil::ShRegSizeDwords) * sizeof(uint32));
         pCmdSpace += totalDwords;
     }
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+// Builds a PM4 packet to set the given registers to 0 unless the PM4 optimizer indicates that it is redundant.
+// Returns a pointer to the next unused DWORD in pCmdSpace.
+uint32* CmdStream::WriteSetZeroSeqShRegs(
+    uint32        startRegAddr,
+    uint32        endRegAddr,
+    Pm4ShaderType shaderType,
+    uint32*       pCmdSpace)
+{
+    // Only m_shadowInitCmdStream will call this function, and m_flags.optimizeCommands of 0 in m_shadowInitCmdStream.
+    PAL_ASSERT(m_flags.optimizeCommands == 0);
+    const size_t totalDwords = m_cmdUtil.BuildSetSeqShRegs(startRegAddr, endRegAddr, shaderType, pCmdSpace);
+    memset(&pCmdSpace[CmdUtil::ShRegSizeDwords], 0, (totalDwords - CmdUtil::ShRegSizeDwords) * sizeof(uint32));
+    pCmdSpace += totalDwords;
 
     return pCmdSpace;
 }

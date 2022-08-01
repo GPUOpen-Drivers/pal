@@ -113,6 +113,8 @@ public:
     virtual bool HasForcedQueryResult() const { return false; }
     virtual uint32 GetForcedQueryResult() const { return 0; }
 
+    virtual bool RequiresHybridCmdStream() const { return false; }
+
 protected:
     QueryPool(const Device&              device,
               const QueryPoolCreateInfo& createInfo,

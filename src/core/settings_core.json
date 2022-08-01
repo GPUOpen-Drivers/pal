@@ -48,19 +48,6 @@
       "Description": "Controls texture filtering optimizations exposed by CCC."
     },
     {
-      "Name": "CatalystAI",
-      "Tags": [
-        "Public CCC Options"
-      ],
-      "Defaults": {
-        "Default": 1
-      },
-      "Scope": "PublicCatalystKey",
-      "Type": "uint32",
-      "VariableName": "catalystAI",
-      "Description": "Controls app detect and image quality altering optimizations exposed by CCC."
-    },
-    {
       "ValidValues": {
         "IsExclusive": true,
         "Values": [
@@ -343,23 +330,6 @@
       "Description": "This setting forces MSAA color images to always prefer fixed function resolves over any other resolve method (if FixedFunc resolves are supported by the image). This will override the client's preferred resolve method"
     },
     {
-      "Description": "64-bit address to use for unbound descriptors. This will show up in the faulting address if a page fault is triggered due to an unbound descriptor in an application.",
-      "Tags": [
-        "General",
-        "SafeSetting"
-      ],
-      "Flags": {
-        "IsHex": true
-      },
-      "Defaults": {
-        "Default": 16045690984833335023
-      },
-      "Scope": "PrivatePalKey",
-      "Type": "gpusize",
-      "VariableName": "unboundDescriptorAddress",
-      "Name": "UnboundDescriptorAddress"
-    },
-    {
       "Name": "IsLocalHeapPreferred",
       "Tags": [
         "General",
@@ -576,6 +546,11 @@
             "Name": "Gfx10RpmViewsBypassMallOnWrite",
             "Value": 2,
             "Description": "Skip MALL for write access of views created in RPM"
+          },
+          {
+            "Name": "Gfx10RpmViewsBypassMallOnCbDbWrite",
+            "Value": 4,
+            "Description": "Control the CB/DB MALL noalloc bits in the CB_RMI_GL2_CACHE_CONTROL and DB_RMI_L2_CACHE_CONTROL registers"
           }
         ],
         "Name": "Gfx10RpmViewsBypassMall"
@@ -663,21 +638,6 @@
       "Type": "bool",
       "VariableName": "displayDccSkipRetileBlt",
       "Name": "DisplayDccSkipRetileBlt"
-    },
-    {
-      "Name": "OverlayReportHDR",
-      "Tags": [
-        "General",
-        "DevMode",
-        "HDR"
-      ],
-      "Defaults": {
-        "Default": true
-      },
-      "Scope": "PrivatePalKey",
-      "Type": "bool",
-      "VariableName": "overlayReportHDR",
-      "Description": "Determines if the developer mode overlay will report information about HDR mode."
     },
     {
       "ValidValues": {
@@ -1703,45 +1663,6 @@
       "Description": "When this setting is non-zero, clamp shader prefetching to this many bytes."
     },
     {
-      "Name": "MaxAvailableSgpr",
-      "Tags": [
-        "Shader Options"
-      ],
-      "Defaults": {
-        "Default": 0
-      },
-      "Scope": "PrivatePalKey",
-      "Type": "uint32",
-      "VariableName": "maxAvailableSgpr",
-      "Description": "Artificially limits the maximum number of SGPRs available for shader compilation. A value of zero disables the limit and HW defaults are used."
-    },
-    {
-      "Name": "MaxAvailableVgpr",
-      "Tags": [
-        "Shader Options"
-      ],
-      "Defaults": {
-        "Default": 0
-      },
-      "Scope": "PrivatePalKey",
-      "Type": "uint32",
-      "VariableName": "maxAvailableVgpr",
-      "Description": "Artificially limits the maximum number of VGPRs available for shader compilation. A value of zero disables the limit and HW defaults are used."
-    },
-    {
-      "Name": "MaxThreadGroupsPerComputeUnit",
-      "Tags": [
-        "Shader Options"
-      ],
-      "Defaults": {
-        "Default": 0
-      },
-      "Scope": "PrivatePalKey",
-      "Type": "uint32",
-      "VariableName": "maxThreadGroupsPerComputeUnit",
-      "Description": "Controls how many CS thread-groups are allowed to launch per compute unit.  This throttles the shader, which can sometimes enable more graphics shader work to complete in parallel. A value of zero disables limiting the number of thread-groups to launch.  This field is  ignored for graphics shaders."
-    },
-    {
       "Name": "MaxScratchRingSizeBaseline",
       "Tags": [
         "Scratch",
@@ -1899,20 +1820,6 @@
       "Type": "gpusize",
       "VariableName": "debugForceResourceAdditionalPadding",
       "Description": "Add the additional padding to resources' memory requirements. This setting is in units of bytes. This is a debug setting and strange behavior (e.g. poor performance, out of memory) may occur in some applications."
-    },
-    {
-      "Name": "OverlayReportMes",
-      "Tags": [
-        "General",
-        "DevMode"
-      ],
-      "Defaults": {
-        "Default": true
-      },
-      "Scope": "PrivatePalKey",
-      "Type": "bool",
-      "VariableName": "overlayReportMes",
-      "Description": "Determines if the developer mode overlay will report information about MES HWS."
     },
     {
       "Name": "MipGenUseFastPath",

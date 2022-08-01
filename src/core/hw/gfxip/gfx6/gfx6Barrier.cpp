@@ -926,43 +926,46 @@ void Device::Barrier(
     // Keep a copy of original CmdBufferState flag as TransitionDepthStencil() or ExpandColor() may change it.
     const Pm4CmdBufferStateFlags origCmdBufStateFlags = pCmdBuf->GetPm4CmdBufState().flags;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 751
+    PAL_ASSERT(barrier.flags.splitBarrierEarlyPhase == 0);
+    PAL_ASSERT(barrier.flags.splitBarrierLatePhase == 0);
+    PAL_ASSERT(barrier.pSplitBarrierGpuEvent == nullptr);
+#endif
+
     // -----------------------------------------------------------------------------------------------------------------
     // -- Early image layout transitions.
     // -----------------------------------------------------------------------------------------------------------------
-    if (barrier.flags.splitBarrierLatePhase == 0)
+    DescribeBarrierStart(pCmdBuf, barrier.reason);
+
+    for (uint32 i = 0; i < barrier.transitionCount; i++)
     {
-        DescribeBarrierStart(pCmdBuf, barrier.reason);
+        const auto& imageInfo = barrier.pTransitions[i].imageInfo;
 
-        for (uint32 i = 0; i < barrier.transitionCount; i++)
+        if (imageInfo.pImage != nullptr)
         {
-            const auto& imageInfo = barrier.pTransitions[i].imageInfo;
+            PAL_ASSERT(imageInfo.subresRange.numPlanes == 1);
+            // At least one usage must be specified for the old and new layouts.
+            PAL_ASSERT((imageInfo.oldLayout.usages != 0) && (imageInfo.newLayout.usages != 0));
 
-            if (imageInfo.pImage != nullptr)
+            // With the exception of a transition out of the uninitialized state, at least one queue type must be
+            // valid for every layout.
+
+            PAL_ASSERT(((imageInfo.oldLayout.usages == LayoutUninitializedTarget) ||
+                        (imageInfo.oldLayout.engines != 0)) &&
+                        (imageInfo.newLayout.engines != 0));
+
+            if ((TestAnyFlagSet(imageInfo.oldLayout.usages, LayoutUninitializedTarget) == false) &&
+                (TestAnyFlagSet(imageInfo.newLayout.usages, LayoutUninitializedTarget) == false))
             {
-                PAL_ASSERT(imageInfo.subresRange.numPlanes == 1);
-                // At least one usage must be specified for the old and new layouts.
-                PAL_ASSERT((imageInfo.oldLayout.usages != 0) && (imageInfo.newLayout.usages != 0));
+                const auto& image = static_cast<const Pal::Image&>(*imageInfo.pImage);
 
-                // With the exception of a transition out of the uninitialized state, at least one queue type must be
-                // valid for every layout.
-
-                PAL_ASSERT(((imageInfo.oldLayout.usages == LayoutUninitializedTarget) ||
-                            (imageInfo.oldLayout.engines != 0)) &&
-                           (imageInfo.newLayout.engines != 0));
-
-                if ((TestAnyFlagSet(imageInfo.oldLayout.usages, LayoutUninitializedTarget) == false) &&
-                    (TestAnyFlagSet(imageInfo.newLayout.usages, LayoutUninitializedTarget) == false))
+                if (image.IsDepthStencilTarget())
                 {
-                    const auto& image = static_cast<const Pal::Image&>(*imageInfo.pImage);
-
-                    if (image.IsDepthStencilTarget())
-                    {
-                        TransitionDepthStencil(pCmdBuf, barrier, i, true, &globalSyncReqs, &barrierOps);
-                    }
-                    else
-                    {
-                        ExpandColor(pCmdBuf, pCmdStream, barrier, i, true, &globalSyncReqs, &barrierOps);
-                    }
+                    TransitionDepthStencil(pCmdBuf, barrier, i, true, &globalSyncReqs, &barrierOps);
+                }
+                else
+                {
+                    ExpandColor(pCmdBuf, pCmdStream, barrier, i, true, &globalSyncReqs, &barrierOps);
                 }
             }
         }
@@ -1117,298 +1120,206 @@ void Device::Barrier(
                                     (globalSyncReqs.csPartialFlush &&
                                      (globalSyncReqs.vsPartialFlush || globalSyncReqs.psPartialFlush)));
 
-    if (barrier.pSplitBarrierGpuEvent != nullptr)
+    // Skip the range-checked stalls if we know a global stall already ensured all graphics contexts are idle.
+    if (bottomOfPipeStall == false)
     {
-        if (barrier.flags.splitBarrierEarlyPhase)
+        // Issue any range-checked target stalls.  This will wait for any active graphics contexts that reference
+        // the VA range of the specified image to be idle.
+        for (uint32 i = 0; i < barrier.rangeCheckedTargetWaitCount; i++)
         {
-            // This is the early phase of a split barrier.  We've already performed any early phase decompresses, etc.
-            // that were possible.
+            const Pal::Image* pImage = static_cast<const Pal::Image*>(barrier.ppTargets[i]);
 
-            // Reset the split barrier event to get it in a known state.
-            pCmdBuf->CmdResetEvent(*barrier.pSplitBarrierGpuEvent, HwPipeTop);
+            SyncReqs targetStallSyncReqs = { };
+            targetStallSyncReqs.cpCoherCntl.u32All = CpCoherCntlStallMask;
 
-            // If this barrier requires CB/DB caches to be flushed, enqueue a pipeline event to do that now.  In
-            // particular, note that CB/DB flushes performed by a surface sync with a regular barrier is converted to
-            // a pipelined event in a split barrier.
-            if (globalSyncReqs.cacheFlushAndInv               ||
-                globalSyncReqs.cpCoherCntl.bits.CB_ACTION_ENA ||
-                globalSyncReqs.cpCoherCntl.bits.DB_ACTION_ENA)
+            if (pImage != nullptr)
             {
-                uint32* pCmdSpace = pCmdStream->ReserveCommands();
-                pCmdSpace += m_cmdUtil.BuildEventWrite(CACHE_FLUSH_AND_INV_EVENT, pCmdSpace);
-                pCmdStream->CommitCommands(pCmdSpace);
-
-                barrierOps.caches.flushCb = globalSyncReqs.cpCoherCntl.bits.CB_ACTION_ENA;
-                barrierOps.caches.flushDb = globalSyncReqs.cpCoherCntl.bits.DB_ACTION_ENA;
+                IssueSyncs(pCmdBuf,
+                           pCmdStream,
+                           targetStallSyncReqs,
+                           barrier.waitPoint,
+                           pImage->GetGpuVirtualAddr(),
+                           pImage->GetGpuMemSize(),
+                           &barrierOps);
             }
-
-            // Determine the "release point" for the barrier.  We want to choose the earliest point in the pipe that
-            // ensures the early phase barrier is complete.
-            HwPipePoint releasePoint = HwPipeTop;
-
-            if (bottomOfPipeStall)
+            else
             {
-                releasePoint = HwPipeBottom;
+                IssueSyncs(pCmdBuf,
+                           pCmdStream,
+                           targetStallSyncReqs,
+                           barrier.waitPoint,
+                           FullSyncBaseAddr,
+                           FullSyncSize,
+                           &barrierOps);
+                // Ignore the rest since we are syncing on the full range.
+                break;
             }
-            else if (globalSyncReqs.csPartialFlush)
-            {
-                PAL_ASSERT((globalSyncReqs.vsPartialFlush == 0) && (globalSyncReqs.psPartialFlush == 0));
-                releasePoint = HwPipePostCs;
-            }
-            else if (globalSyncReqs.psPartialFlush)
-            {
-                PAL_ASSERT(globalSyncReqs.csPartialFlush == 0);
-                releasePoint = HwPipePostPs;
-            }
-            else if (globalSyncReqs.vsPartialFlush)
-            {
-                PAL_ASSERT((globalSyncReqs.csPartialFlush == 0) && (globalSyncReqs.psPartialFlush == 0));
-                releasePoint = HwPipePreRasterization;
-            }
-
-            // Set event at the computed pipeline point.
-            pCmdBuf->CmdSetEvent(*barrier.pSplitBarrierGpuEvent, releasePoint);
-        }
-        else if (barrier.flags.splitBarrierLatePhase)
-        {
-            // Wait for the event set during the early phase to be set.
-            const GpuEvent* pGpuEvent = static_cast<const GpuEvent*>(barrier.pSplitBarrierGpuEvent);
-
-            uint32* pCmdSpace = pCmdStream->ReserveCommands();
-            pCmdSpace += m_cmdUtil.BuildWaitRegMem(WAIT_REG_MEM_SPACE_MEMORY,
-                                                   WAIT_REG_MEM_FUNC_EQUAL,
-                                                   WAIT_REG_MEM_ENGINE_PFP,
-                                                   pGpuEvent->GetBoundGpuMemory().GpuVirtAddr(),
-                                                   GpuEvent::SetValue,
-                                                   0xFFFFFFFF,
-                                                   false,
-                                                   pCmdSpace);
-            pCmdStream->CommitCommands(pCmdSpace);
-
-            if (globalSyncReqs.waitOnEopTs)
-            {
-                pCmdBuf->SetPrevCmdBufInactive();
-            }
-
-            // Clear any global sync requirements that we know have been satisfied by the wait on pSplitBarrierGpuEvent.
-            globalSyncReqs.waitOnEopTs                     = 0;
-            globalSyncReqs.cacheFlushAndInv                = 0;
-            globalSyncReqs.vsPartialFlush                  = 0;
-            globalSyncReqs.psPartialFlush                  = 0;
-            globalSyncReqs.csPartialFlush                  = 0;
-            globalSyncReqs.pfpSyncMe                       = 0;
-            globalSyncReqs.cpCoherCntl.u32All             &= ~CpCoherCntlStallMask;
-            globalSyncReqs.cpCoherCntl.bits.CB_ACTION_ENA  = 0;
-            globalSyncReqs.cpCoherCntl.bits.DB_ACTION_ENA  = 0;
-
-            // Some globalSyncReqs bits may still be set.  These will allow any late cache flush/invalidations that have
-            // to be performed with SURFACE_SYNC to be executed during the IssueSyncs() call, below.
         }
     }
 
-    if (barrier.flags.splitBarrierEarlyPhase == 0)
+    // Wait on all GPU events specified in barrier.ppGpuEvents to be in the "set" state.  Note that this is done
+    // even if other sync guarantees an idle pipeline since these events could be signaled from a different queue or
+    // CPU.
+    for (uint32 i = 0; i < barrier.gpuEventWaitCount; i++)
     {
-        // Skip the range-checked stalls if we know a global stall already ensured all graphics contexts are idle.
-        if (bottomOfPipeStall == false)
+        const GpuEvent* pGpuEvent  = static_cast<const GpuEvent*>(barrier.ppGpuEvents[i]);
+        const uint32    waitEngine = (barrier.waitPoint == HwPipeTop) ? WAIT_REG_MEM_ENGINE_PFP :
+                                                                        WAIT_REG_MEM_ENGINE_ME;
+
+        uint32* pCmdSpace = pCmdStream->ReserveCommands();
+        pCmdSpace += m_cmdUtil.BuildWaitRegMem(WAIT_REG_MEM_SPACE_MEMORY,
+                                               WAIT_REG_MEM_FUNC_EQUAL,
+                                               waitEngine,
+                                               pGpuEvent->GetBoundGpuMemory().GpuVirtAddr(),
+                                               GpuEvent::SetValue,
+                                               UINT32_MAX,
+                                               false,
+                                               pCmdSpace);
+        pCmdStream->CommitCommands(pCmdSpace);
+    }
+
+    IssueSyncs(pCmdBuf, pCmdStream, globalSyncReqs, barrier.waitPoint, FullSyncBaseAddr, FullSyncSize, &barrierOps);
+
+    // -------------------------------------------------------------------------------------------------------------
+    // -- Perform late image transitions (layout changes and range-checked DB cache flushes).
+    // -------------------------------------------------------------------------------------------------------------
+    SyncReqs initSyncReqs = { };
+
+    for (uint32 i = 0; i < barrier.transitionCount; i++)
+    {
+        const auto& imageInfo = barrier.pTransitions[i].imageInfo;
+
+        if (imageInfo.pImage != nullptr)
         {
-            // Issue any range-checked target stalls.  This will wait for any active graphics contexts that reference
-            // the VA range of the specified image to be idle.
-            for (uint32 i = 0; i < barrier.rangeCheckedTargetWaitCount; i++)
+            PAL_ASSERT(imageInfo.subresRange.numPlanes == 1);
+
+            if (TestAnyFlagSet(imageInfo.oldLayout.usages, LayoutUninitializedTarget))
             {
-                const Pal::Image* pImage = static_cast<const Pal::Image*>(barrier.ppTargets[i]);
+                // If the LayoutUninitializedTarget usage is set, no other usages should be set.
+                PAL_ASSERT(TestAnyFlagSet(imageInfo.oldLayout.usages, ~LayoutUninitializedTarget) == false);
 
-                SyncReqs targetStallSyncReqs = { };
-                targetStallSyncReqs.cpCoherCntl.u32All = CpCoherCntlStallMask;
+                const auto& image       = static_cast<const Pal::Image&>(*imageInfo.pImage);
+                const auto& gfx6Image   = static_cast<const Image&>(*image.GetGfxImage());
+                const auto& subresRange = imageInfo.subresRange;
 
-                if (pImage != nullptr)
+#if PAL_ENABLE_PRINTS_ASSERTS
+                const auto& engineProps = Parent()->EngineProperties().perEngine[pCmdBuf->GetEngineType()];
+                const auto& createInfo  = image.GetImageCreateInfo();
+                const bool  isFullPlane = image.IsRangeFullPlane(subresRange);
+
+                // This queue must support this barrier transition.
+                PAL_ASSERT(engineProps.flags.supportsImageInitBarrier == 1);
+
+                // By default, the entire plane must be initialized in one go. Per-subres support can be requested
+                // using an image flag as long as the queue supports it.
+                PAL_ASSERT(isFullPlane || ((engineProps.flags.supportsImageInitPerSubresource == 1) &&
+                                           (createInfo.flags.perSubresInit == 1)));
+#endif
+
+                if (gfx6Image.HasColorMetaData() || gfx6Image.HasHtileData())
                 {
-                    IssueSyncs(pCmdBuf,
-                               pCmdStream,
-                               targetStallSyncReqs,
-                               barrier.waitPoint,
-                               pImage->GetGpuVirtualAddr(),
-                               pImage->GetGpuMemSize(),
-                               &barrierOps);
+                    if (pCmdBuf->IsGraphicsSupported() &&
+                        gfx6Image.HasHtileData()       &&
+                        (gfx6Image.GetHtile(subresRange.startSubres)->GetHtileContents() ==
+                         HtileContents::DepthStencil))
+                    {
+                        // If HTile encodes depth and stencil data we must idle any prior draws that bound this
+                        // image as a depth-stencil target and flush/invalidate the DB caches because we always
+                        // use compute to initialize HTile. That compute shader could attempt to do a read-modify-
+                        // write of HTile on one plane (e.g., stencil) while reading in HTile values with stale
+                        // data for the other plane (e.g., depth) which will clobber the correct values.
+                        SyncReqs sharedHtileSync = {};
+                        sharedHtileSync.cpCoherCntl.bits.DB_DEST_BASE_ENA = 1;
+                        sharedHtileSync.cpCoherCntl.bits.DEST_BASE_0_ENA  = 1;
+                        sharedHtileSync.cpCoherCntl.bits.DB_ACTION_ENA    = 1;
+
+                        IssueSyncs(pCmdBuf, pCmdStream, sharedHtileSync, barrier.waitPoint,
+                                   image.GetGpuVirtualAddr(), image.GetGpuMemSize(), &barrierOps);
+                    }
+
+                    barrierOps.layoutTransitions.initMaskRam = 1;
+                    DescribeBarrier(pCmdBuf, &barrierOps, &barrier.pTransitions[i]);
+
+                    RsrcProcMgr().InitMaskRam(pCmdBuf,
+                                              pCmdStream,
+                                              gfx6Image,
+                                              subresRange,
+                                              imageInfo.newLayout,
+                                              &initSyncReqs);
+                }
+            }
+            else if (TestAnyFlagSet(imageInfo.newLayout.usages, LayoutUninitializedTarget))
+            {
+                // If the LayoutUninitializedTarget usage is set, no other usages should be set.
+                PAL_ASSERT(TestAnyFlagSet(imageInfo.newLayout.usages, ~LayoutUninitializedTarget) == false);
+
+                // We do no decompresses, expands, or any other kind of blt in this case.
+            }
+        }
+    }
+
+    IssueSyncs(pCmdBuf, pCmdStream, initSyncReqs, barrier.waitPoint, FullSyncBaseAddr, FullSyncSize, &barrierOps);
+
+    for (uint32 i = 0; i < barrier.transitionCount; i++)
+    {
+        const auto& transition = barrier.pTransitions[i];
+
+        if (transition.imageInfo.pImage != nullptr)
+        {
+            if ((TestAnyFlagSet(transition.imageInfo.oldLayout.usages, LayoutUninitializedTarget) == false) &&
+                (TestAnyFlagSet(transition.imageInfo.newLayout.usages, LayoutUninitializedTarget) == false))
+            {
+                const auto& image = static_cast<const Pal::Image&>(*transition.imageInfo.pImage);
+
+                SyncReqs imageSyncReqs = { };
+
+                if (image.IsDepthStencilTarget())
+                {
+                    // Issue a late-phase DB decompress, if necessary.
+                    TransitionDepthStencil(pCmdBuf, barrier, i, false, &imageSyncReqs, &barrierOps);
+
+                    uint32       srcCacheMask = (barrier.globalSrcCacheMask | transition.srcCacheMask);
+                    const uint32 dstCacheMask = (barrier.globalDstCacheMask | transition.dstCacheMask);
+
+                    // There are two various srcCache Clear which we can further optimize if we know which
+                    // write caches have been dirtied:
+                    // - If a graphics clear occurred, alias these srcCaches to CoherDepthStencilTarget.
+                    // - If a compute clear occurred, alias these srcCaches to CoherShader.
+                    // Clear the original srcCaches from the srcCache mask for the rest of this scope.
+                    if (TestAnyFlagSet(srcCacheMask, CoherClear))
+                    {
+                        srcCacheMask &= ~CoherClear;
+
+                        srcCacheMask |= origCmdBufStateFlags.gfxWriteCachesDirty ? CoherDepthStencilTarget : 0;
+                        srcCacheMask |= origCmdBufStateFlags.csWriteCachesDirty  ? CoherShader             : 0;
+                    }
+
+                    if (TestAnyFlagSet(srcCacheMask, CoherDepthStencilTarget) &&
+                        TestAnyFlagSet(dstCacheMask, ~CoherDepthStencilTarget))
+                    {
+                        // Issue surface sync stalls on depth/stencil surface writes and flush DB caches
+                        imageSyncReqs.cpCoherCntl.bits.DB_DEST_BASE_ENA = 1;
+                        imageSyncReqs.cpCoherCntl.bits.DEST_BASE_0_ENA  = 1;
+                        imageSyncReqs.cpCoherCntl.bits.DB_ACTION_ENA    = 1;
+                    }
                 }
                 else
                 {
-                    IssueSyncs(pCmdBuf,
-                               pCmdStream,
-                               targetStallSyncReqs,
-                               barrier.waitPoint,
-                               FullSyncBaseAddr,
-                               FullSyncSize,
-                               &barrierOps);
-                    // Ignore the rest since we are syncing on the full range.
-                    break;
+                    ExpandColor(pCmdBuf, pCmdStream, barrier, i, false, &imageSyncReqs, &barrierOps);
                 }
+
+                IssueSyncs(pCmdBuf,
+                           pCmdStream,
+                           imageSyncReqs,
+                           barrier.waitPoint,
+                           image.GetGpuVirtualAddr(),
+                           image.GetGpuMemSize(),
+                           &barrierOps);
             }
         }
-
-        // Wait on all GPU events specified in barrier.ppGpuEvents to be in the "set" state.  Note that this is done
-        // even if other sync guarantees an idle pipeline since these events could be signaled from a different queue or
-        // CPU.
-        for (uint32 i = 0; i < barrier.gpuEventWaitCount; i++)
-        {
-            const GpuEvent* pGpuEvent  = static_cast<const GpuEvent*>(barrier.ppGpuEvents[i]);
-            const uint32    waitEngine = (barrier.waitPoint == HwPipeTop) ? WAIT_REG_MEM_ENGINE_PFP :
-                                                                            WAIT_REG_MEM_ENGINE_ME;
-
-            uint32* pCmdSpace = pCmdStream->ReserveCommands();
-            pCmdSpace += m_cmdUtil.BuildWaitRegMem(WAIT_REG_MEM_SPACE_MEMORY,
-                                                   WAIT_REG_MEM_FUNC_EQUAL,
-                                                   waitEngine,
-                                                   pGpuEvent->GetBoundGpuMemory().GpuVirtAddr(),
-                                                   GpuEvent::SetValue,
-                                                   0xFFFFFFFF,
-                                                   false,
-                                                   pCmdSpace);
-            pCmdStream->CommitCommands(pCmdSpace);
-        }
-
-        IssueSyncs(pCmdBuf, pCmdStream, globalSyncReqs, barrier.waitPoint, FullSyncBaseAddr, FullSyncSize, &barrierOps);
-
-        // -------------------------------------------------------------------------------------------------------------
-        // -- Perform late image transitions (layout changes and range-checked DB cache flushes).
-        // -------------------------------------------------------------------------------------------------------------
-        SyncReqs initSyncReqs = { };
-
-        for (uint32 i = 0; i < barrier.transitionCount; i++)
-        {
-            const auto& imageInfo = barrier.pTransitions[i].imageInfo;
-
-            if (imageInfo.pImage != nullptr)
-            {
-                PAL_ASSERT(imageInfo.subresRange.numPlanes == 1);
-
-                if (TestAnyFlagSet(imageInfo.oldLayout.usages, LayoutUninitializedTarget))
-                {
-                    // If the LayoutUninitializedTarget usage is set, no other usages should be set.
-                    PAL_ASSERT(TestAnyFlagSet(imageInfo.oldLayout.usages, ~LayoutUninitializedTarget) == false);
-
-                    const auto& image       = static_cast<const Pal::Image&>(*imageInfo.pImage);
-                    const auto& gfx6Image   = static_cast<const Image&>(*image.GetGfxImage());
-                    const auto& subresRange = imageInfo.subresRange;
-
-#if PAL_ENABLE_PRINTS_ASSERTS
-                    const auto& engineProps = Parent()->EngineProperties().perEngine[pCmdBuf->GetEngineType()];
-                    const auto& createInfo  = image.GetImageCreateInfo();
-                    const bool  isFullPlane = image.IsRangeFullPlane(subresRange);
-
-                    // This queue must support this barrier transition.
-                    PAL_ASSERT(engineProps.flags.supportsImageInitBarrier == 1);
-
-                    // By default, the entire plane must be initialized in one go. Per-subres support can be requested
-                    // using an image flag as long as the queue supports it.
-                    PAL_ASSERT(isFullPlane || ((engineProps.flags.supportsImageInitPerSubresource == 1) &&
-                                               (createInfo.flags.perSubresInit == 1)));
-#endif
-
-                    if (gfx6Image.HasColorMetaData() || gfx6Image.HasHtileData())
-                    {
-                        if (pCmdBuf->IsGraphicsSupported() &&
-                            gfx6Image.HasHtileData()       &&
-                            (gfx6Image.GetHtile(subresRange.startSubres)->GetHtileContents() ==
-                             HtileContents::DepthStencil))
-                        {
-                            // If HTile encodes depth and stencil data we must idle any prior draws that bound this
-                            // image as a depth-stencil target and flush/invalidate the DB caches because we always
-                            // use compute to initialize HTile. That compute shader could attempt to do a read-modify-
-                            // write of HTile on one plane (e.g., stencil) while reading in HTile values with stale
-                            // data for the other plane (e.g., depth) which will clobber the correct values.
-                            SyncReqs sharedHtileSync = {};
-                            sharedHtileSync.cpCoherCntl.bits.DB_DEST_BASE_ENA = 1;
-                            sharedHtileSync.cpCoherCntl.bits.DEST_BASE_0_ENA  = 1;
-                            sharedHtileSync.cpCoherCntl.bits.DB_ACTION_ENA    = 1;
-
-                            IssueSyncs(pCmdBuf, pCmdStream, sharedHtileSync, barrier.waitPoint,
-                                       image.GetGpuVirtualAddr(), image.GetGpuMemSize(), &barrierOps);
-                        }
-
-                        barrierOps.layoutTransitions.initMaskRam = 1;
-                        DescribeBarrier(pCmdBuf, &barrierOps, &barrier.pTransitions[i]);
-
-                        RsrcProcMgr().InitMaskRam(pCmdBuf,
-                                                  pCmdStream,
-                                                  gfx6Image,
-                                                  subresRange,
-                                                  imageInfo.newLayout,
-                                                  &initSyncReqs);
-                    }
-                }
-                else if (TestAnyFlagSet(imageInfo.newLayout.usages, LayoutUninitializedTarget))
-                {
-                    // If the LayoutUninitializedTarget usage is set, no other usages should be set.
-                    PAL_ASSERT(TestAnyFlagSet(imageInfo.newLayout.usages, ~LayoutUninitializedTarget) == false);
-
-                    // We do no decompresses, expands, or any other kind of blt in this case.
-                }
-            }
-        }
-
-        IssueSyncs(pCmdBuf, pCmdStream, initSyncReqs, barrier.waitPoint, FullSyncBaseAddr, FullSyncSize, &barrierOps);
-
-        for (uint32 i = 0; i < barrier.transitionCount; i++)
-        {
-            const auto& transition = barrier.pTransitions[i];
-
-            if (transition.imageInfo.pImage != nullptr)
-            {
-                if ((TestAnyFlagSet(transition.imageInfo.oldLayout.usages, LayoutUninitializedTarget) == false) &&
-                    (TestAnyFlagSet(transition.imageInfo.newLayout.usages, LayoutUninitializedTarget) == false))
-                {
-                    const auto& image = static_cast<const Pal::Image&>(*transition.imageInfo.pImage);
-
-                    SyncReqs imageSyncReqs = { };
-
-                    if (image.IsDepthStencilTarget())
-                    {
-                        // Issue a late-phase DB decompress, if necessary.
-                        TransitionDepthStencil(pCmdBuf, barrier, i, false, &imageSyncReqs, &barrierOps);
-
-                        uint32       srcCacheMask = (barrier.globalSrcCacheMask | transition.srcCacheMask);
-                        const uint32 dstCacheMask = (barrier.globalDstCacheMask | transition.dstCacheMask);
-
-                        // There are two various srcCache Clear which we can further optimize if we know which
-                        // write caches have been dirtied:
-                        // - If a graphics clear occurred, alias these srcCaches to CoherDepthStencilTarget.
-                        // - If a compute clear occurred, alias these srcCaches to CoherShader.
-                        // Clear the original srcCaches from the srcCache mask for the rest of this scope.
-                        if (TestAnyFlagSet(srcCacheMask, CoherClear))
-                        {
-                            srcCacheMask &= ~CoherClear;
-
-                            srcCacheMask |= origCmdBufStateFlags.gfxWriteCachesDirty ? CoherDepthStencilTarget : 0;
-                            srcCacheMask |= origCmdBufStateFlags.csWriteCachesDirty  ? CoherShader             : 0;
-                        }
-
-                        if (TestAnyFlagSet(srcCacheMask, CoherDepthStencilTarget) &&
-                            TestAnyFlagSet(dstCacheMask, ~CoherDepthStencilTarget))
-                        {
-                            // Issue surface sync stalls on depth/stencil surface writes and flush DB caches
-                            imageSyncReqs.cpCoherCntl.bits.DB_DEST_BASE_ENA = 1;
-                            imageSyncReqs.cpCoherCntl.bits.DEST_BASE_0_ENA  = 1;
-                            imageSyncReqs.cpCoherCntl.bits.DB_ACTION_ENA    = 1;
-                        }
-                    }
-                    else
-                    {
-                        ExpandColor(pCmdBuf, pCmdStream, barrier, i, false, &imageSyncReqs, &barrierOps);
-                    }
-
-                    IssueSyncs(pCmdBuf,
-                               pCmdStream,
-                               imageSyncReqs,
-                               barrier.waitPoint,
-                               image.GetGpuVirtualAddr(),
-                               image.GetGpuMemSize(),
-                               &barrierOps);
-                }
-            }
-        }
-
-        DescribeBarrierEnd(pCmdBuf, &barrierOps);
     }
+
+    DescribeBarrierEnd(pCmdBuf, &barrierOps);
 }
 
 // =====================================================================================================================

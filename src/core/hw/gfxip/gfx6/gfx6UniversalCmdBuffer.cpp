@@ -2349,7 +2349,7 @@ void UniversalCmdBuffer::CmdBindBorderColorPalette(
         auto*const pPipelineState = (pipelineBindPoint == PipelineBindPoint::Compute) ? &m_computeState.pipelineState
                                                                                       : &m_graphicsState.pipelineState;
         pPipelineState->pBorderColorPalette = pNewPalette;
-        pPipelineState->dirtyFlags.borderColorPaletteDirty = 1;
+        pPipelineState->dirtyFlags.borderColorPalette = 1;
     }
 }
 
@@ -2694,9 +2694,6 @@ void UniversalCmdBuffer::WriteEventCmd(
 {
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-    // GFX6-8 should always have supportReleaseAcquireInterface=0, so GpuEvent is always single slot (one dword).
-    PAL_ASSERT(m_device.Parent()->ChipProperties().gfxip.numSlotsPerEvent == 1);
-
     if ((pipePoint >= HwPipePostBlt) && (m_pm4CmdBufState.flags.cpBltActive))
     {
         // We must guarantee that all prior CP DMA accelerated blts have completed before we write this event because
@@ -2709,33 +2706,27 @@ void UniversalCmdBuffer::WriteEventCmd(
 
     OptimizePipePoint(&pipePoint);
 
-    WriteDataInfo writeData = {};
-
-    switch (pipePoint)
+    if ((pipePoint == HwPipeTop) ||
+        (pipePoint == HwPipePostPrefetch))
     {
-    case HwPipeTop:
-        // Implement set/reset event with a WRITE_DATA command using PFP engine.
+        WriteDataInfo writeData = {};
+
+        // Implement set/reset event with a WRITE_DATA command using PFP or ME engine.
         writeData.dstAddr   = boundMemObj.GpuVirtAddr();
-        writeData.engineSel = WRITE_DATA_ENGINE_PFP;
+        writeData.engineSel = (pipePoint == HwPipeTop) ? WRITE_DATA_ENGINE_PFP : WRITE_DATA_ENGINE_ME;
         writeData.dstSel    = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
 
         pDeCmdSpace += m_cmdUtil.BuildWriteData(writeData, data, pDeCmdSpace);
-        break;
+    }
+    else if ((pipePoint == HwPipePostCs) ||
+             (pipePoint == HwPipePostPs) ||
+             ((pipePoint == HwPipePreRasterization) && (GetPm4CmdBufState().flags.rasterKillDrawsActive == 0)))
+    {
+        PAL_ASSERT((pipePoint != HwPipePostCs) || IsComputeSupported());
 
-    case HwPipePostPrefetch:
-        // Implement set/reset event with a WRITE_DATA command using ME engine.
-        writeData.dstAddr   = boundMemObj.GpuVirtAddr();
-        writeData.engineSel = WRITE_DATA_ENGINE_ME;
-        writeData.dstSel    = WRITE_DATA_DST_SEL_MEMORY_ASYNC;
-
-        pDeCmdSpace += m_cmdUtil.BuildWriteData(writeData, data, pDeCmdSpace);
-        break;
-
-    case HwPipePreRasterization:
-    case HwPipePostPs:
-    case HwPipePostCs:
-        // Implement set/reset with an EOS event waiting for VS/PS or CS waves to complete.  Unfortunately, there is
-        // no VS_DONE event with which to implement HwPipePreRasterization, so it has to conservatively use PS_DONE.
+        // Implement set/reset with an EOS event waiting for VS waves to complete.  Unfortunately, there is no VS_DONE
+        // event with which to implement HwPipePreRasterization, so it has to conservatively use PS_DONE if
+        // rasterizationKill is inactive.
         pDeCmdSpace += m_cmdUtil.BuildEventWriteEos((pipePoint == HwPipePostCs) ? CS_DONE : PS_DONE,
                                                     boundMemObj.GpuVirtAddr(),
                                                     EVENT_WRITE_EOS_CMD_STORE_32BIT_DATA_TO_MEMORY,
@@ -2743,21 +2734,22 @@ void UniversalCmdBuffer::WriteEventCmd(
                                                     0,
                                                     0,
                                                     pDeCmdSpace);
-        break;
-
-    case HwPipeBottom:
-        // Implement set/reset with an EOP event written when all prior GPU work completes.
+    }
+    else if ((pipePoint == HwPipeBottom) ||
+             ((pipePoint == HwPipePreRasterization) && (GetPm4CmdBufState().flags.rasterKillDrawsActive != 0)))
+    {
+        // Implement set/reset with an EOP event written when all prior GPU work completes or VS waves to complete
+        // if rasterizationKill is active since there is no VS_DONE event.
         pDeCmdSpace += m_cmdUtil.BuildEventWriteEop(BOTTOM_OF_PIPE_TS,
                                                     boundMemObj.GpuVirtAddr(),
                                                     EVENTWRITEEOP_DATA_SEL_SEND_DATA32,
                                                     data,
                                                     false,
                                                     pDeCmdSpace);
-        break;
-
-    default:
+    }
+    else
+    {
         PAL_ASSERT_ALWAYS();
-        break;
     }
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
@@ -3317,7 +3309,7 @@ void UniversalCmdBuffer::ValidateDraw(
     uint32 userDataCmdLen = 0;
 #endif
 
-    if (m_graphicsState.pipelineState.dirtyFlags.pipelineDirty)
+    if (m_graphicsState.pipelineState.dirtyFlags.pipeline)
     {
         uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
@@ -4124,7 +4116,7 @@ uint32* UniversalCmdBuffer::ValidateDispatch(
     }
 #endif
 
-    if (m_computeState.pipelineState.dirtyFlags.pipelineDirty)
+    if (m_computeState.pipelineState.dirtyFlags.pipeline)
     {
         const auto*const pNewPipeline = static_cast<const ComputePipeline*>(m_computeState.pipelineState.pPipeline);
 
@@ -5527,7 +5519,7 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     m_spillTable.stateCs.dirty  |= cmdBuffer.m_spillTable.stateCs.dirty;
     m_spillTable.stateGfx.dirty |= cmdBuffer.m_spillTable.stateGfx.dirty;
 
-    if (cmdBuffer.m_graphicsState.pipelineState.dirtyFlags.pipelineDirty ||
+    if (cmdBuffer.m_graphicsState.pipelineState.dirtyFlags.pipeline ||
         (cmdBuffer.m_graphicsState.pipelineState.pPipeline != nullptr))
     {
         m_spiPsInControl = cmdBuffer.m_spiPsInControl;

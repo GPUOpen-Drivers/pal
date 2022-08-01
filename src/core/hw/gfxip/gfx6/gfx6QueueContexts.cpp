@@ -1454,9 +1454,10 @@ Result UniversalQueueContext::RebuildCommandStreams(
 uint32* UniversalQueueContext::WriteUniversalPreamble(
     uint32* pCmdSpace)
 {
-    const Pal::Device&       device    = *(m_pDevice->Parent());
-    const GpuChipProperties& chipProps = device.ChipProperties();
-    const Gfx6PalSettings&   settings  = m_pDevice->Settings();
+    const Pal::Device&       device          = *(m_pDevice->Parent());
+    const GpuChipProperties& chipProps       = device.ChipProperties();
+    const Gfx6PalSettings&   settings        = m_pDevice->Settings();
+    const PalPublicSettings* pPublicSettings = device.GetPublicSettings();
 
     struct
     {
@@ -1562,11 +1563,11 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
         // Set patch and donut distribution thresholds for tessellation. If we decide that this should be tunable
         // per-pipeline, we can move the registers to the Pipeline object (DXX currently uses per-Device thresholds).
         regVGT_TESS_DISTRIBUTION__VI vgtTessDistribution = { };
-        vgtTessDistribution.bits.ACCUM_ISOLINE = settings.gfx8PatchDistributionFactor;
-        vgtTessDistribution.bits.ACCUM_TRI     = settings.gfx8PatchDistributionFactor;
-        vgtTessDistribution.bits.ACCUM_QUAD    = settings.gfx8PatchDistributionFactor;
-        vgtTessDistribution.bits.DONUT_SPLIT   = settings.gfx8DonutDistributionFactor;
-        vgtTessDistribution.bits.TRAP_SPLIT    = settings.gfx8TrapezoidDistributionFactor;
+        vgtTessDistribution.bits.ACCUM_ISOLINE = pPublicSettings->isolineDistributionFactor;
+        vgtTessDistribution.bits.ACCUM_TRI     = pPublicSettings->triDistributionFactor;
+        vgtTessDistribution.bits.ACCUM_QUAD    = pPublicSettings->quadDistributionFactor;
+        vgtTessDistribution.bits.DONUT_SPLIT   = pPublicSettings->donutDistributionFactor;
+        vgtTessDistribution.bits.TRAP_SPLIT    = pPublicSettings->trapezoidDistributionFactor;
 
         // Set-and-forget DCC register.
         regCB_DCC_CONTROL__VI cbDccControl = { };

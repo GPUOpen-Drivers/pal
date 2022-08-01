@@ -631,13 +631,14 @@ static uint32 SpiShaderPgmRsrc4Gs(
     bool                                    nggEnabled,
     size_t                                  codeLength)
 {
-    const Gfx9PalSettings&   settings  = device.Settings();
-    const auto&              hwGs      = metadata.pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Gs)];
-    const auto&              hwPs      = metadata.pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Ps)];
+    const Gfx9PalSettings&   settings        = device.Settings();
+    const PalPublicSettings* pPublicSettings = device.Parent()->GetPublicSettings();
+    const auto&              hwGs            = metadata.pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Gs)];
+    const auto&              hwPs            = metadata.pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Ps)];
 
     SPI_SHADER_PGM_RSRC4_GS spiShaderPgmRsrc4Gs = {};
 
-    uint32 lateAllocWaves  = (nggEnabled) ? settings.nggLateAllocGs : settings.lateAllocGs;
+    uint32 lateAllocWaves  = (nggEnabled) ? pPublicSettings->nggLateAllocGs : settings.lateAllocGs;
     uint32 lateAllocLimit  = 127;
 
     if (nggEnabled == false)

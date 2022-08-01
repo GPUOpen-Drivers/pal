@@ -98,6 +98,10 @@ private:
         gpusize       gpuAddr,
         uint32*       pCmdSpace) const;
 
+    uint32* FixupQueryDataOnAsyncCompute(
+        gpusize gpuVirtAddr,
+        uint32* pCmdSpace) const;
+
     const Device& m_device;
     uint32        m_numEnabledStats;
 

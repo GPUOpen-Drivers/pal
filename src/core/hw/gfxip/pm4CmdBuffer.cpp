@@ -59,6 +59,8 @@ Pm4CmdBuffer::Pm4CmdBuffer(
     m_acqRelFenceValGpuVa(0),
     m_fceRefCountVec(device.GetPlatform()),
     m_pm4CmdBufState{},
+    m_computeState{},
+    m_computeRestoreState{},
     m_device(device)
 {
     for (uint32 i = 0; i < static_cast<uint32>(QueryPoolType::Count); i++)
@@ -77,6 +79,9 @@ Pm4CmdBuffer::Pm4CmdBuffer(
 Pm4CmdBuffer::~Pm4CmdBuffer()
 {
     ResetFastClearReferenceCounts();
+
+    PAL_SAFE_FREE(m_computeState.pKernelArguments, m_device.GetPlatform());
+    PAL_SAFE_FREE(m_computeRestoreState.pKernelArguments, m_device.GetPlatform());
 }
 
 // =====================================================================================================================
@@ -86,7 +91,7 @@ Pm4CmdBuffer::~Pm4CmdBuffer()
 Result Pm4CmdBuffer::Begin(
     const CmdBufferBuildInfo& info)
 {
-    const Result result = CmdBuffer::Begin(info);
+    const Result result = GfxCmdBuffer::Begin(info);
 
     if (result == Result::Success)
     {
@@ -97,7 +102,6 @@ Result Pm4CmdBuffer::Begin(
 
         if (info.pInheritedState != nullptr)
         {
-            m_gfxCmdBufStateFlags.clientPredicate  = info.pInheritedState->stateFlags.predication;
             m_pm4CmdBufState.flags.packetPredicate = info.pInheritedState->stateFlags.predication;
         }
 
@@ -224,9 +228,6 @@ void Pm4CmdBuffer::ResetState()
 {
     GfxCmdBuffer::ResetState();
 
-    m_maxUploadFenceToken = 0;
-
-    m_cmdBufPerfExptFlags.u32All            = 0;
     m_pm4CmdBufState.flags.u32All           = 0;
     m_pm4CmdBufState.flags.prevCmdBufActive = 1;
 
@@ -259,6 +260,11 @@ void Pm4CmdBuffer::ResetState()
     UpdatePm4CmdBufCsBltExecFence();
     UpdatePm4CmdBufRasterKillDrawsExecEopFence(true);
 
+    PAL_SAFE_FREE(m_computeState.pKernelArguments, m_device.GetPlatform());
+    memset(&m_computeState, 0, sizeof(m_computeState));
+
+    PAL_SAFE_FREE(m_computeRestoreState.pKernelArguments, m_device.GetPlatform());
+    memset(&m_computeRestoreState, 0, sizeof(m_computeRestoreState));
 }
 
 // =====================================================================================================================
@@ -323,12 +329,6 @@ Result Pm4CmdBuffer::BeginCommandStreams(
         // to access, and sets m_status to a failure code.
         m_acqRelFenceValGpuVa = AllocateGpuScratchMem(static_cast<uint32>(AcqRelEventType::Count), sizeof(uint32));
         result = m_status;
-    }
-
-    if (result == Result::Success)
-    {
-        // Allocate GPU memory for the internal event from the command allocator.
-        result = AllocateAndBindGpuMemToEvent(m_pInternalEvent);
     }
 
     return result;
@@ -521,15 +521,195 @@ void Pm4CmdBuffer::OptimizePipeAndCacheMaskForRelease(
 }
 
 // =====================================================================================================================
+void Pm4CmdBuffer::CmdBindPipeline(
+    const PipelineBindParams& params)
+{
+    // Try to catch users who try to bind graphics pipelines to compute command buffers.
+    PAL_ASSERT((params.pipelineBindPoint == PipelineBindPoint::Compute) || IsGraphicsSupported());
+
+    const auto* const pPipeline = static_cast<const Pipeline*>(params.pPipeline);
+
+    if (params.pipelineBindPoint == PipelineBindPoint::Compute)
+    {
+        m_computeState.pipelineState.pPipeline  = pPipeline;
+        m_computeState.pipelineState.apiPsoHash = params.apiPsoHash;
+        m_computeState.pipelineState.dirtyFlags.pipeline = 1;
+
+        m_computeState.dynamicCsInfo = params.cs;
+        m_computeState.hsaAbiMode    = (pPipeline != nullptr) && (pPipeline->GetInfo().flags.hsaAbi == 1);
+
+        // It's simplest to always free the kernel args buffer and allocate a new one with the proper size if needed.
+        PAL_SAFE_FREE(m_computeState.pKernelArguments, m_device.GetPlatform());
+
+        if (m_computeState.hsaAbiMode)
+        {
+            // HSA mode overwrites the user-data SGPRs. The easiest way to force user-data validation when we return
+            // to PAL mode is to mark all user-data values that have ever been set as dirty.
+            memcpy(m_computeState.csUserDataEntries.dirty,
+                   m_computeState.csUserDataEntries.touched,
+                   sizeof(m_computeState.csUserDataEntries.dirty));
+
+            const ComputePipeline& pipeline            = *static_cast<const ComputePipeline*>(pPipeline);
+            const HsaAbi::CodeObjectMetadata& metadata = pipeline.HsaMetadata();
+
+            // We're callocing here on purpose because some HSA ABI arguments need to use zero by default.
+            m_computeState.pKernelArguments = static_cast<uint8*>(PAL_CALLOC(metadata.KernargSegmentSize(),
+                                                                             m_device.GetPlatform(),
+                                                                             AllocInternal));
+
+            if (m_computeState.pKernelArguments == nullptr)
+            {
+                // Allocation failure, mark buffer as faulty.
+                NotifyAllocFailure();
+            }
+        }
+    }
+
+    m_device.DescribeBindPipeline(this, pPipeline, params.apiPsoHash, params.pipelineBindPoint);
+
+    if (pPipeline != nullptr)
+    {
+        m_maxUploadFenceToken = Max(m_maxUploadFenceToken, pPipeline->GetUploadFenceToken());
+        m_lastPagingFence     = Max(m_lastPagingFence, pPipeline->GetPagingFenceVal());
+    }
+}
+
+// =====================================================================================================================
+// Set all specified state on this command buffer.
+void Pm4CmdBuffer::SetComputeState(
+    const ComputeState& newComputeState,
+    uint32              stateFlags)
+{
+    if (TestAnyFlagSet(stateFlags, ComputeStatePipelineAndUserData))
+    {
+        if (newComputeState.pipelineState.pPipeline != m_computeState.pipelineState.pPipeline)
+        {
+            PipelineBindParams bindParams = {};
+            bindParams.pipelineBindPoint  = PipelineBindPoint::Compute;
+            bindParams.pPipeline          = newComputeState.pipelineState.pPipeline;
+            bindParams.cs                 = newComputeState.dynamicCsInfo;
+            bindParams.apiPsoHash         = newComputeState.pipelineState.apiPsoHash;
+
+            CmdBindPipeline(bindParams);
+        }
+
+        // We're only supposed to save/restore kernel args in HSA mode and user-data in PAL mode.
+        if (m_computeState.hsaAbiMode)
+        {
+            // It's impossible to be in HSA mode without a pipeline.
+            PAL_ASSERT(m_computeState.pipelineState.pPipeline != nullptr);
+
+            // By now the current pKernelArguments must have the same size as the saved original. We must memcpy it
+            // because this function is used in places where we can't just assume ownership of the saved copy's buffer.
+            const auto& pipeline = *static_cast<const ComputePipeline*>(m_computeState.pipelineState.pPipeline);
+            const uint32 size    = pipeline.HsaMetadata().KernargSegmentSize();
+
+            memcpy(m_computeState.pKernelArguments, newComputeState.pKernelArguments, size);
+        }
+        else
+        {
+            CmdSetUserData(PipelineBindPoint::Compute,
+                           0,
+                           m_device.Parent()->ChipProperties().gfxip.maxUserDataEntries,
+                           &newComputeState.csUserDataEntries.entries[0]);
+        }
+    }
+
+    if (TestAnyFlagSet(stateFlags, ComputeStateBorderColorPalette) &&
+        (newComputeState.pipelineState.pBorderColorPalette != m_computeState.pipelineState.pBorderColorPalette))
+    {
+        CmdBindBorderColorPalette(PipelineBindPoint::Compute, newComputeState.pipelineState.pBorderColorPalette);
+    }
+}
+
+// =====================================================================================================================
+// CmdSetUserData callback which updates the tracked user-data entries for the compute state.
+void PAL_STDCALL Pm4CmdBuffer::CmdSetUserDataCs(
+    ICmdBuffer*   pCmdBuffer,
+    uint32        firstEntry,
+    uint32        entryCount,
+    const uint32* pEntryValues)
+{
+    PAL_ASSERT((pCmdBuffer != nullptr) && (entryCount != 0) && (pEntryValues != nullptr));
+
+    auto* const pThis    = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+    auto* const pEntries = &pThis->m_computeState.csUserDataEntries;
+
+    // It's illegal to bind user-data when in HSA ABI mode.
+    PAL_ASSERT(pThis->m_computeState.hsaAbiMode == false);
+
+    // NOTE: Compute operations are expected to be far rarer than graphics ones, so at the moment it is not expected
+    // that filtering-out redundant compute user-data updates is worthwhile.
+    for (uint32 e = firstEntry; e < (firstEntry + entryCount); ++e)
+    {
+        WideBitfieldSetBit(pEntries->touched, e);
+        WideBitfieldSetBit(pEntries->dirty, e);
+    }
+    memcpy(&pEntries->entries[firstEntry], pEntryValues, entryCount * sizeof(uint32));
+}
+
+// =====================================================================================================================
+// Copies the requested portion of the currently bound compute state to m_computeRestoreState. All active queries will
+// be disabled.
 void Pm4CmdBuffer::CmdSaveComputeState(uint32 stateFlags)
 {
     GfxCmdBuffer::CmdSaveComputeState(stateFlags);
 
+    if (TestAnyFlagSet(stateFlags, ComputeStatePipelineAndUserData))
+    {
+        // It should be impossible to already have this allocated because we null it out on restore.
+        PAL_ASSERT(m_computeRestoreState.pKernelArguments == nullptr);
+
+        // Copy over the bound pipeline and all non-indirect user-data state.
+        m_computeRestoreState = m_computeState;
+
+        // In HSA mode we must also duplicate the dynamically allocated current kernel argument buffer.
+        if (m_computeState.hsaAbiMode)
+        {
+            // It's impossible to be in HSA mode without a pipeline.
+            PAL_ASSERT(m_computeState.pipelineState.pPipeline != nullptr);
+
+            const auto& pipeline = *static_cast<const ComputePipeline*>(m_computeState.pipelineState.pPipeline);
+            const uint32 size = pipeline.HsaMetadata().KernargSegmentSize();
+
+            m_computeRestoreState.pKernelArguments =
+                static_cast<uint8*>(PAL_MALLOC(size, m_device.GetPlatform(), AllocInternal));
+
+            if (m_computeRestoreState.pKernelArguments == nullptr)
+            {
+                // Allocation failure, mark buffer as faulty.
+                NotifyAllocFailure();
+            }
+            else
+            {
+                memcpy(m_computeRestoreState.pKernelArguments, m_computeState.pKernelArguments, size);
+            }
+        }
+    }
+
+    if (TestAnyFlagSet(stateFlags, ComputeStateBorderColorPalette))
+    {
+        // Copy over the bound border color palette.
+        m_computeRestoreState.pipelineState.pBorderColorPalette = m_computeState.pipelineState.pBorderColorPalette;
+    }
+
 }
 
 // =====================================================================================================================
+// Restores the requested portion of the last saved compute state in m_computeRestoreState, rebinding all objects as
+// necessary. All previously disabled queries will be reactivated.
 void Pm4CmdBuffer::CmdRestoreComputeState(uint32 stateFlags)
 {
+    // Vulkan does allow blits in nested command buffers, but they do not support inheriting user-data values from
+    // the caller. Therefore, simply "setting" the restored-state's user-data is sufficient, just like it is in a
+    // root command buffer. (If Vulkan decides to support user-data inheritance in a later API version, we'll need
+    // to revisit this!)
+
+    SetComputeState(m_computeRestoreState, stateFlags);
+
+    // We may have allocated this if we saved while in HSA mode. It makes things simpler if we just free it now.
+    PAL_SAFE_FREE(m_computeRestoreState.pKernelArguments, m_device.GetPlatform());
+
     GfxCmdBuffer::CmdRestoreComputeState(stateFlags);
 
     // The caller has just executed one or more CS blts.
@@ -552,13 +732,13 @@ void Pm4CmdBuffer::LeakPerPipelineStateChanges(
     if (leakedPipelineState.pBorderColorPalette != nullptr)
     {
         pDestPipelineState->pBorderColorPalette = leakedPipelineState.pBorderColorPalette;
-        pDestPipelineState->dirtyFlags.borderColorPaletteDirty = 1;
+        pDestPipelineState->dirtyFlags.borderColorPalette = 1;
     }
 
     if (leakedPipelineState.pPipeline != nullptr)
     {
         pDestPipelineState->pPipeline = leakedPipelineState.pPipeline;
-        pDestPipelineState->dirtyFlags.pipelineDirty = 1;
+        pDestPipelineState->dirtyFlags.pipeline = 1;
     }
 
     for (uint32 index = 0; index < NumUserDataFlagsParts; ++index)
