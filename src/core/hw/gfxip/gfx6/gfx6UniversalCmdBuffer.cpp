@@ -271,6 +271,11 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.enablePm4Instrumentation = platformSettings.pm4InstrumentorEnabled;
 #endif
 
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 755)
+    // Recommended defaults for GFX8
+    m_tessDistributionFactors = { 8, 8, 8, 8, 8 };
+#endif
+
     m_sxPsDownconvert.u32All     = 0;
     m_sxBlendOptEpsilon.u32All   = 0;
     m_sxBlendOptControl.u32All   = 0;
@@ -2459,6 +2464,45 @@ uint32* UniversalCmdBuffer::WriteNullColorTargets(
 }
 
 // =====================================================================================================================
+//  Validates and writes tessellation distribution factors
+uint32* UniversalCmdBuffer::WriteTessDistributionFactors(
+    uint32*           pDeCmdSpace,
+    GpuChipProperties chipProps)
+{
+    // Confirm equivalence b/w the two unions assuming each bitfield compared is the same size (8, 8, 8, 5, and 3 bits).
+    constexpr regVGT_TESS_DISTRIBUTION__VI RegCheck    = { 255, 255, 255, 31, 7 };
+    constexpr TessDistributionFactors      StructCheck = { 255, 255, 255, 31, 7 };
+    static_assert((RegCheck.bitfields.ACCUM_ISOLINE == StructCheck.isoDistributionFactor),
+                  "ACCUM_ISOLINE and isoDistributionFactor do not match!");
+    static_assert((RegCheck.bitfields.ACCUM_TRI == StructCheck.triDistributionFactor),
+                  "ACCUM_TRI and triDistributionFactor do not match!");
+    static_assert((RegCheck.bitfields.ACCUM_QUAD == StructCheck.quadDistributionFactor),
+                  "ACCUM_QUAD and quadDistributionFactor do not match!");
+    static_assert((RegCheck.bitfields.DONUT_SPLIT == StructCheck.donutDistributionFactor),
+                  "DONUT_SPLIT and donutDistributionFactor do not match!");
+    static_assert((RegCheck.bitfields.TRAP_SPLIT == StructCheck.trapDistributionFactor),
+                  "TRAP_SPLIT and trapDistributionFactor do not match!");
+    static_assert((sizeof(RegCheck) == sizeof(StructCheck)),
+                  "TessDistributionFactors and regVGT_TESS_DISTRIBUTION sizes do not match!");
+
+    // Distributed tessellation mode is only supported on Gfx8+ hardware with two or more shader engines, and when
+    // off-chip tessellation is enabled.
+    if ((chipProps.gfx6.numShaderEngines == 1) || (m_device.Settings().numOffchipLdsBuffers == 0))
+    {
+        m_tessDistributionFactors.isoDistributionFactor   = 0;
+        m_tessDistributionFactors.triDistributionFactor   = 0;
+        m_tessDistributionFactors.quadDistributionFactor  = 0;
+        m_tessDistributionFactors.donutDistributionFactor = 0;
+    }
+
+    pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmVGT_TESS_DISTRIBUTION__VI,
+                                                      m_tessDistributionFactors.u32All,
+                                                      pDeCmdSpace);
+
+    return pDeCmdSpace;
+}
+
+// =====================================================================================================================
 // Adds a preamble to the start of a new command buffer.
 Result UniversalCmdBuffer::AddPreamble()
 {
@@ -2498,7 +2542,7 @@ Result UniversalCmdBuffer::AddPreamble()
     paScRasterConfig.u32All  = chipProps.gfx6.paScRasterCfg;
     paScRasterConfig1.u32All = chipProps.gfx6.paScRasterCfg1;
 
-    if (m_device.Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp6)
+    if (chipProps.gfxLevel == GfxIpLevel::GfxIp6)
     {
         pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SC_RASTER_CONFIG,
                                                           paScRasterConfig.u32All,
@@ -2511,6 +2555,12 @@ Result UniversalCmdBuffer::AddPreamble()
         pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SC_RASTER_CONFIG_1__CI__VI,
                                                           paScRasterConfig1.u32All,
                                                           pDeCmdSpace);
+    }
+
+    if (chipProps.gfxLevel >= GfxIpLevel::GfxIp8)
+    {
+        // Set patch and donut distribution thresholds for tessellation.
+        pDeCmdSpace = WriteTessDistributionFactors(pDeCmdSpace, chipProps);
     }
 
     // Clear out the blend optimizations explicitly here as the chained command buffers don't have a way to check
@@ -5150,6 +5200,14 @@ void UniversalCmdBuffer::CmdExecuteNestedCmdBuffers(
         m_ceCmdStream.TrackNestedCommands(pCallee->m_ceCmdStream);
         m_deCmdStream.Call(pCallee->m_deCmdStream, exclusiveSubmit, allowIb2Launch);
         m_ceCmdStream.Call(pCallee->m_ceCmdStream, exclusiveSubmit, allowIb2Launch);
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+        if (allowIb2Launch)
+        {
+            TrackIb2DumpInfoFromExecuteNestedCmds(pCallee->m_deCmdStream);
+            TrackIb2DumpInfoFromExecuteNestedCmds(pCallee->m_ceCmdStream);
+        }
+#endif
 
         // Callee command buffers are also able to leak any changes they made to bound user-data entries and any other
         // state back to the caller.

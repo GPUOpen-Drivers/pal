@@ -32,6 +32,7 @@ if(PAL_BUILD_GFX9)
 endif()
 
 add_subdirectory(rpm)
+add_subdirectory(sdma)
 
 target_sources(pal PRIVATE
     borderColorPalette.cpp
@@ -40,8 +41,6 @@ target_sources(pal PRIVATE
     cmdUploadRing.cpp
     cmdUploadRing.h
     colorBlendState.h
-    computeCmdBuffer.cpp
-    computeCmdBuffer.h
     computePipeline.cpp
     computePipeline.h
     depthStencilState.h
@@ -65,6 +64,8 @@ target_sources(pal PRIVATE
     pipeline.h
     pm4CmdBuffer.cpp
     pm4CmdBuffer.h
+    pm4ComputeCmdBuffer.cpp
+    pm4ComputeCmdBuffer.h
     queryPool.cpp
     queryPool.h
     shaderLibrary.cpp

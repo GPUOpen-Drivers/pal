@@ -28,6 +28,7 @@
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9Pm4Optimizer.h"
 #include "core/hw/gfxip/gfx9/gfx9UniversalCmdBuffer.h"
+#include "palIterator.h"
 #include "palLinearAllocator.h"
 
 using namespace Util;

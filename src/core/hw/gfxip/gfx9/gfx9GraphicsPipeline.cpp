@@ -211,7 +211,6 @@ void GraphicsPipeline::EarlyInit(
     const PalAbi::CodeObjectMetadata& metadata,
     GraphicsPipelineLoadInfo*         pInfo)
 {
-    const RegisterInfo&      regInfo   = m_pDevice->CmdUtil().GetRegInfo();
     const Pal::Device&       palDevice = *m_pDevice->Parent();
     const GpuChipProperties& chipProps = palDevice.ChipProperties();
     const GfxIpLevel         gfxLevel  = chipProps.gfxLevel;
@@ -818,7 +817,6 @@ void GraphicsPipeline::SetupCommonRegisters(
 {
     const auto&              palDevice    = *(m_pDevice->Parent());
     const GpuChipProperties& chipProps    = palDevice.ChipProperties();
-    const RegisterInfo&      regInfo      = m_pDevice->CmdUtil().GetRegInfo();
     const Gfx9PalSettings&   settings     = m_pDevice->Settings();
     const PalPublicSettings* pPalSettings = m_pDevice->Parent()->GetPublicSettings();
 

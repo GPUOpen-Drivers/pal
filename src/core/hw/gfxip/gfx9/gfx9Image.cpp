@@ -3040,7 +3040,7 @@ void Image::InitMetadataFill(
         PAL_ASSERT(m_pHtile->HasMetaEqGenerator());
         m_pHtile->GetMetaEqGenerator()->UploadEq(pCmdBuffer);
     }
-    else if (Parent()->IsRenderTarget())
+    else
     {
         if (HasDccData())
         {

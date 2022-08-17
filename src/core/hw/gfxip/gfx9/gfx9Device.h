@@ -136,6 +136,7 @@ struct AcqRelTransitionInfo
     uint32            bltCount;       // Number of valid entries in pBltList.
     uint32            bltStageMask;   // Pipeline stage mask for all layout transition BLTs in pBltList.
     uint32            bltAccessMask;  // Coherency access mask for all layout transition BLTs in pBltList.
+    bool              hasMetadata;    // If any image of the transition images has metadata.
 };
 
 // Forward decl
@@ -697,12 +698,14 @@ private:
     SyncGlxFlags GetAcquireCacheFlags(
         uint32                        accessMask,
         bool                          refreshTcc,
+        bool                          mayHaveMetadata,
         Developer::BarrierOperations* pBarrierOps) const;
 
     SyncGlxFlags GetReleaseThenAcquireCacheFlags(
         uint32                        srcAccessMask,
         uint32                        dstAccessMask,
         bool                          refreshTcc,
+        bool                          mayHaveMetadata,
         Developer::BarrierOperations* pBarrierOps) const;
 
     bool IssueBlt(
@@ -747,6 +750,7 @@ private:
         uint32                        stageMask,
         uint32                        accessMask,
         bool                          refreshTcc,
+        bool                          mayHaveMetadata,
         uint32                        syncTokenCount,
         const AcqRelSyncToken*        pSyncTokens,
         Developer::BarrierOperations* pBarrierOps) const;
@@ -759,6 +763,7 @@ private:
         uint32                        srcAccessMask,
         uint32                        dstAccessMask,
         bool                          refreshTcc,
+        bool                          mayHaveMetadata,
         Developer::BarrierOperations* pBarrierOps) const;
 
     void IssueReleaseSyncEvent(
@@ -776,6 +781,7 @@ private:
         uint32                        stageMask,
         uint32                        accessMask,
         bool                          refreshTcc,
+        bool                          mayHaveMetadata,
         uint32                        gpuEventCount,
         const IGpuEvent* const*       ppGpuEvents,
         Developer::BarrierOperations* pBarrierOps) const;

@@ -639,6 +639,13 @@ void LogContext::Struct(
         Value("optimizeOneTimeSubmit");
     }
 
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 755)
+    if (value.flags.optimizeTessDistributionFactors)
+    {
+        Value("optimizeTessDistributionFactors");
+    }
+#endif
+
     if (value.flags.prefetchShaders)
     {
         Value("prefetchShaders");
@@ -669,7 +676,7 @@ void LogContext::Struct(
         Value("enableTmz");
     }
 
-    static_assert(CheckReservedBits<decltype(value.flags)>(32, 21), "Update interfaceLogger!");
+    static_assert(CheckReservedBits<decltype(value.flags)>(32, 20), "Update interfaceLogger!");
 
     EndList();
 
@@ -690,6 +697,13 @@ void LogContext::Struct(
     {
         KeyAndNullValue("stateInheritCmdBuffer");
     }
+
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 755)
+    if (value.flags.optimizeTessDistributionFactors)
+    {
+        KeyAndStruct("clientTessDistributionFactors", value.clientTessDistributionFactors);
+    }
+#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 661
 #endif
@@ -3317,6 +3331,19 @@ void LogContext::Struct(
     BeginMap(false);
     KeyAndEnum("format", value.format);
     KeyAndStruct("swizzle", value.swizzle);
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
+    TessDistributionFactors value)
+{
+    BeginMap(false);
+    KeyAndValue("isoDistributionFactor", value.isoDistributionFactor);
+    KeyAndValue("triDistributionFactor", value.triDistributionFactor);
+    KeyAndValue("quadDistributionFactor", value.quadDistributionFactor);
+    KeyAndValue("donutDistributionFactor", value.donutDistributionFactor);
+    KeyAndValue("trapDistributionFactor", value.trapDistributionFactor);
     EndMap();
 }
 

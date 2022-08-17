@@ -59,7 +59,6 @@
 #include "devDriverServer.h"
 #include "protocols/driverControlServer.h"
 #include "protocols/rgpServer.h"
-#include "settingsService.h"
 
 using namespace Util;
 using namespace Util::Literals;
@@ -546,11 +545,13 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.disableBinningPsKill                     = DisableBinningPsKill::Default;
 #endif
 #endif
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 755)
     m_publicSettings.isolineDistributionFactor                =  12;
     m_publicSettings.triDistributionFactor                    =  30;
     m_publicSettings.quadDistributionFactor                   =  24;
     m_publicSettings.donutDistributionFactor                  =  24;
     m_publicSettings.trapezoidDistributionFactor              =   6;
+#endif
     m_publicSettings.nggLateAllocGs                           = 127;
 
     return ret;
@@ -2378,6 +2379,7 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportMeshShader = ((gfx9Props.supportMeshShader != 0) &&
                                                               (gfx9Props.supportTaskShader != 0));
 #endif
+            pInfo->gfxipProperties.flags.supportMsFullRangeRtai           = gfx9Props.supportMsFullRangeRtai;
             pInfo->gfxipProperties.flags.supports2BitSignedValues         = gfx9Props.supports2BitSignedValues;
             pInfo->gfxipProperties.flags.supportPrimitiveOrderedPs        = gfx9Props.supportPrimitiveOrderedPs;
             pInfo->gfxipProperties.flags.supportImplicitPrimitiveShader   = gfx9Props.supportImplicitPrimitiveShader;
@@ -4902,95 +4904,22 @@ void Device::ApplyDevOverlay(
 
     if (pDevDriverServer->IsConnected())
     {
-        // Event providers
-        if (TestAnyFlagSet(m_pPlatform->PlatformSettings().debugOverlayConfig.overlayTypeMask, DebugOverlayTypeEvent))
+        // Get the RGPServer object
+        DevDriver::RGPProtocol::RGPServer* pRgpServer = pDevDriverServer->GetRGPServer();
+        // This pointer should always be valid if developer mode is enabled.
+        PAL_ASSERT(pRgpServer != nullptr);
+
+        // Check the profiling status
+        const char* pTraceStatusString = "Disabled";
+        if (pRgpServer->TracesEnabled())
         {
-            DevDriver::EventProtocol::EventServer* pServer = pDevDriverServer->GetEventServer();
-
-            DevDriver::Vector<DevDriver::EventProtocol::EventProviderInfo>
-                eventProviders(pDevDriverServer->GetAllocCb());
-            pServer->GetEventProviders(eventProviders);
-
-            int32 offset = Util::Snprintf(overlayTextBuffer,
-                                          OverlayTextBufferSize,
-                                          "Registered Event Providers: ");
-
-            uint32 count = 0;
-
-            for (const auto& providerInfo : eventProviders)
-            {
-                if (providerInfo.registered)
-                {
-                    offset += Util::Snprintf(overlayTextBuffer + offset,
-                                             OverlayTextBufferSize,
-                                             (count == eventProviders.Size() - 1) ? "%s" : "%s, ",
-                                             providerInfo.name);
-                }
-
-                count++;
-            }
-
-            m_pTextWriter->DrawDebugText(dstImage,
-                                         pCmdBuffer,
-                                         overlayTextBuffer,
-                                         0,
-                                         letterHeight);
-            letterHeight += GpuUtil::TextWriterFont::LetterHeight;
-
-            offset = Util::Snprintf(overlayTextBuffer,
-                                    OverlayTextBufferSize,
-                                    "Enabled Event Providers: ");
-
-            count = 0;
-            for (const auto& providerInfo : eventProviders)
-            {
-                if (providerInfo.enabled)
-                {
-                    offset += Util::Snprintf(overlayTextBuffer + offset,
-                                             OverlayTextBufferSize,
-                                             (count == eventProviders.Size() - 1) ? "%s" : "%s, ",
-                                             providerInfo.name);
-                }
-
-                count++;
-            }
-
-            m_pTextWriter->DrawDebugText(dstImage,
-                                         pCmdBuffer,
-                                         overlayTextBuffer,
-                                         0,
-                                         letterHeight);
-            letterHeight += GpuUtil::TextWriterFont::LetterHeight;
+            pTraceStatusString = pRgpServer->IsTracePending() ? "Pending" : "Ready";
         }
 
-        // RPC Services:
-        if (TestAnyFlagSet(m_pPlatform->PlatformSettings().debugOverlayConfig.overlayTypeMask, DebugOverlayTypeRPC))
-        {
-            const bool settingsRegistered =
-                m_pPlatform->IsServiceRegistered(SettingsRpcService::SettingsService::kServiceInfo.id);
-            const bool uberTraceRegistered   = m_pPlatform->IsUberTraceServiceRegistered();
-            const bool driverUtilsRegistered = m_pPlatform->IsDriverUtilsServiceRegistered();
-
-            Util::Snprintf(overlayTextBuffer,
-                           OverlayTextBufferSize,
-                           "Registered RPC Services: %s %s %s",
-                           settingsRegistered ? "Settings," : "",
-                           uberTraceRegistered ? "Ubertrace," : "",
-                           driverUtilsRegistered ? "DriverUtils" : "");
-
-            m_pTextWriter->DrawDebugText(dstImage,
-                                         pCmdBuffer,
-                                         overlayTextBuffer,
-                                         0,
-                                         letterHeight);
-            letterHeight += GpuUtil::TextWriterFont::LetterHeight;
-        }
-
-        // Print the client string and Client Id on screen
+        // Print the profiling status string
         Util::Snprintf(overlayTextBuffer,
-                       OverlayTextBufferSize,
-                       "Client: %s",
-                       m_pPlatform->GetClientApiStr());
+                       OverlayTextBufferSize, "RGP Profiling: %s",
+                       pTraceStatusString);
         m_pTextWriter->DrawDebugText(dstImage,
                                      pCmdBuffer,
                                      overlayTextBuffer,
@@ -4998,10 +4927,14 @@ void Device::ApplyDevOverlay(
                                      letterHeight);
         letterHeight += GpuUtil::TextWriterFont::LetterHeight;
 
+        // Check the RMV trace status
+        const char* pRmvTraceStatusString = m_pPlatform->GetEventProvider()->IsMemoryProfilingEnabled() ?
+            "Active": "Inactive";
+
+        // Print the RMV trace status string
         Util::Snprintf(overlayTextBuffer,
-                       OverlayTextBufferSize,
-                       "Client Id: %d",
-                       m_devDriverClientId);
+                       OverlayTextBufferSize, "RMV Tracing: %s",
+                       pRmvTraceStatusString);
         m_pTextWriter->DrawDebugText(dstImage,
                                      pCmdBuffer,
                                      overlayTextBuffer,
@@ -5010,6 +4943,7 @@ void Device::ApplyDevOverlay(
         letterHeight += GpuUtil::TextWriterFont::LetterHeight;
 
         // Write the device clock mode
+
         // These labels differ from the DeviceClockMode enum name so as to match the names used by RDP.
         constexpr const char* pClockModeTable[] = {
             "Unknown",          // Corresponds with DeviceClockMode::Unknown
@@ -5058,6 +4992,29 @@ void Device::ApplyDevOverlay(
                                      0,
                                      letterHeight);
         letterHeight += GpuUtil::TextWriterFont::LetterHeight;
+
+        // Print the client string and Client Id on screen
+        Util::Snprintf(overlayTextBuffer,
+            OverlayTextBufferSize,
+            "Client: %s",
+            m_pPlatform->GetClientApiStr());
+        m_pTextWriter->DrawDebugText(dstImage,
+            pCmdBuffer,
+            overlayTextBuffer,
+            0,
+            letterHeight);
+        letterHeight += GpuUtil::TextWriterFont::LetterHeight;
+
+        Util::Snprintf(overlayTextBuffer,
+                       OverlayTextBufferSize,
+                       "Client Id: %d",
+                       m_devDriverClientId);
+        m_pTextWriter->DrawDebugText(dstImage,
+                                     pCmdBuffer,
+                                     overlayTextBuffer,
+                                     0,
+                                     letterHeight);
+        letterHeight += GpuUtil::TextWriterFont::LetterHeight;
     }
     else // !IsConnected()
     {
@@ -5070,8 +5027,8 @@ void Device::ApplyDevOverlay(
         letterHeight += GpuUtil::TextWriterFont::LetterHeight;
     }
 
-    // If the misc setting is enabled, display a visual confirmation of HDR Mode and MES for supported HW
-    if (TestAnyFlagSet(m_pPlatform->PlatformSettings().debugOverlayConfig.overlayTypeMask, DebugOverlayTypeMisc))
+    // If the setting is enabled, display a visual confirmation of HDR Mode
+    if (Settings().overlayReportHDR)
     {
         Util::Snprintf(overlayTextBuffer,
                        OverlayTextBufferSize,
@@ -5085,23 +5042,24 @@ void Device::ApplyDevOverlay(
                                      0,
                                      letterHeight);
         letterHeight += GpuUtil::TextWriterFont::LetterHeight;
+    }
 
-        if (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp10_1)
-        {
-            Util::Snprintf(overlayTextBuffer,
-                           OverlayTextBufferSize,
-                           "MES HWS: %s",
-                           (GetHwsInfo().gfxHwsEnabled     ||
-                            GetHwsInfo().computeHwsEnabled ||
-                            GetHwsInfo().dmaHwsEnabled) ? "Enabled" : "Disabled");
+    // If the setting is enabled, display a visual confirmation of MES HWS Mode (only for supported HW)
+    if (Settings().overlayReportMes && (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp10_1))
+    {
+        Util::Snprintf(overlayTextBuffer,
+                       OverlayTextBufferSize,
+                       "MES HWS: %s",
+                       (GetHwsInfo().gfxHwsEnabled     ||
+                        GetHwsInfo().computeHwsEnabled ||
+                        GetHwsInfo().dmaHwsEnabled) ? "Enabled" : "Disabled");
 
-            m_pTextWriter->DrawDebugText(dstImage,
-                                         pCmdBuffer,
-                                         overlayTextBuffer,
-                                         0,
-                                         letterHeight);
-            letterHeight += GpuUtil::TextWriterFont::LetterHeight;
-        }
+        m_pTextWriter->DrawDebugText(dstImage,
+                                     pCmdBuffer,
+                                     overlayTextBuffer,
+                                     0,
+                                     letterHeight);
+        letterHeight += GpuUtil::TextWriterFont::LetterHeight;
     }
 
     // Issue a barrier to ensure the text written via CS is complete and flushed out of L2.

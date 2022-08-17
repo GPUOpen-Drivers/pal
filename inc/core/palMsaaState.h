@@ -86,7 +86,7 @@ struct MsaaStateCreateInfo
                                           ///  to coverageSamples. Valid values are 1, 2, 4, and 8.
     uint32 shaderExportMaskSamples;       ///< Number of samples to use in the shader export mask. Should match the
                                           ///  number of color target samples clamped to 8.
-    uint32 sampleMask;                    ///< Bitmask of which color target samples should be
+    uint32 sampleMask;                    ///< Bitmask of which color target and depth/stencil samples should be
                                           ///  updated.  The lowest bit corresponds to sample 0.
     uint32 sampleClusters;                ///< Number of sample clusters to control over-rasterization (all samples
                                           ///  in a cluster are rasterized if any are hit). Must be less than or

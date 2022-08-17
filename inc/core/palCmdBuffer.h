@@ -487,56 +487,90 @@ union CmdBufferBuildFlags
         /// Optimize command buffer building for large sets of draw or dispatch operations that are GPU front-end
         /// limited.  These optimizations include removing redundant PM4 commands and reducing the VGT prim group size.
         /// This flag might increase the CPU overhead of building command buffers.
-        uint32 optimizeGpuSmallBatch        :  1;
+        uint32 optimizeGpuSmallBatch           :  1;
 
         /// Optimize command buffer building for exclusive command buffer submission.  Command buffers built with this
         /// flag cannot be submitted if they have already been submitted previously unless the caller guarantees that
         /// they are no longer in use.  This flag allows PAL to modify the contents of command buffers during
         /// submission.
-        uint32 optimizeExclusiveSubmit      :  1;
+        uint32 optimizeExclusiveSubmit         :  1;
 
         /// Optimize command buffer building for single command buffer submission.  Command buffers built with this flag
         /// cannot be submitted more than once.  This flag allows PAL to modify the contents of command buffers during
         /// submission.  This flag is a stricter version of optimizeExclusiveSubmit, it is not necessary to set
         /// optimizeExclusiveSubmit if this flag is set.
-        uint32 optimizeOneTimeSubmit        :  1;
+        uint32 optimizeOneTimeSubmit           :  1;
+
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 755)
+        /// Indicates that the client is providing custom tessellation distribution settings. If set, it is the clients
+        /// responsibility to ensure all 5 (isoline, triangle, quad, donut, trapezoid) factors are provided.
+        uint32 optimizeTessDistributionFactors :  1;
+#else
+        uint32 placeholder754                  :  1;
+#endif
 
         /// Attempt to prefetch shader code into cache before launching draws or dispatches with a freshly bound
         /// pipeline object.  This optimization might increase the CPU overhead of building command buffers and/or
         /// introduce additional front-end GPU bottlenecks.
-        uint32 prefetchShaders              :  1;
+        uint32 prefetchShaders                 :  1;
 
         /// Attempt to prefetch the command buffer into cache to avoid bottlenecking the GPU front-end.
         /// This optimization might slightly increase the overhead of some GPU copies and other front-end reads/writes.
-        uint32 prefetchCommands             :  1;
+        uint32 prefetchCommands                :  1;
 
         /// Indicates the command buffer will use one or more constant engine commands: CmdLoadCeRam(), CmdDumpCeRam(),
         /// or CmdWriteCeRam()
-        uint32 usesCeRamCmds                :  1;
+        uint32 usesCeRamCmds                   :  1;
 
         /// Indicates that the client would prefer that this nested command buffer not be launched using an IB2 packet.
         /// The calling command buffer will either inline this command buffer into itself or use IB chaining based on if
         /// the optimizeExclusiveSubmit flag is also set. This flag is ignored for root command buffers.
-        uint32 disallowNestedLaunchViaIb2   :  1;
+        uint32 disallowNestedLaunchViaIb2      :  1;
 
         /// Enables execution marker support, which adds structured NOPs and timestamps to the command buffer to allow
         /// for fine-grained hang identification.
-        uint32 enableExecutionMarkerSupport :  1;
+        uint32 enableExecutionMarkerSupport    :  1;
 
         /// placeholder
-        uint32 placeholder1                  :  1;
+        uint32 placeholder1                    :  1;
         /// Enable TMZ mode to allow reading TMZ protected allocations. If this command buffer attempts to write
         /// non-TMZ memory, the results are undefined. Only valid for graphics and compute.
-        uint32  enableTmz                    :  1;
+        uint32  enableTmz                      :  1;
 
-        uint32 placeholder2                  :  1;
+        uint32 placeholder2                    :  1;
 
         /// Reserved for future use.
-        uint32 reserved                      :  21;
+        uint32 reserved                        :  20;
 
     };
 
     /// Flags packed as 32-bit uint.
+    uint32 u32All;
+};
+
+/// Specifies tessellation accum factors.
+union TessDistributionFactors
+{
+    struct
+    {
+        /// The following 3 factors are used by hardware when distributed tessellation is active: the min tess factors for
+        /// each patch processed by a VGT are accumulated. When the sum exceeds this threshold, the next patch is sent to a
+        /// different VGT.
+        uint32 isoDistributionFactor   : 8;
+        uint32 triDistributionFactor   : 8; ///< Recommended to be higher than quad factor.
+        uint32 quadDistributionFactor  : 8;
+        /// Used by the hardware when distributed tessellation is in DONUT mode: the min tess factor for each patch is
+        /// tested against this threshold to determine whether a patch gets split up. If the patch isn't split, it still
+        /// increments the accumulator for the Patch distribution factor.
+        uint32 donutDistributionFactor : 5;
+        /// Used when the distribution mode is TRAPEZOID for quad and tri domain types. The number of donuts in the patch
+        /// are compared against this value to detemine whether this donut gets split up into trapezoids (needs the patch to
+        /// be in donut mode). A value of 0 or 1 will be treated as 2. The innermost donut is never allowed to be broken
+        /// into trapezoids.
+        uint32 trapDistributionFactor  : 3;
+    };
+
+    /// Values packed as 32-bit uint.
     uint32 u32All;
 };
 
@@ -566,7 +600,13 @@ struct CmdBufferBuildInfo
     ///   before calling Begin() or PAL will accidentally free it.
     Util::VirtualLinearAllocator* pMemAllocator;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 661
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 755)
+    /// Optional tessellation distribution factors that will overwrite PAL set defaults. Clients must also set the
+    /// optimizeTessDistributionFactors flag for these custom factors to take effect.
+    TessDistributionFactors clientTessDistributionFactors;
+#endif
+
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 661)
 #endif
 
     uint64 execMarkerClientHandle; ///< Client/app data handle. This can have an arbitrary value and is used to uniquely
@@ -1491,8 +1531,8 @@ struct InputAssemblyStateParams
                                                     ///  the graphics pipeline.
 
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 747)
-    uint32            patchControlPoints;           ///< Number of control points per patch.  Only required if topology
-                                                    ///  is PrimitiveTopology::Patch.
+    uint32            patchControlPoints;           ///< Number of control points per patch.  Should be set to 0 by
+                                                    ///  clients if topology is not PrimitiveTopology::Patch.
 #endif
 
     uint32            primitiveRestartIndex;        ///< When primitiveRestartEnable is true, this is the index value

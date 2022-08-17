@@ -28,9 +28,9 @@
 #include "core/settingsLoader.h"
 #include "core/hw/gfxip/gfx9/gfx9FormatInfo.h"
 #include "core/hw/gfxip/gfx9/gfx9Image.h"
-#include "core/hw/gfxip/gfx9/gfx10DmaCmdBuffer.h"
+#include "core/hw/gfxip/sdma/gfx10/gfx10DmaCmdBuffer.h"
+#include "core/hw/gfxip/sdma/gfx10/gfx10_merged_sdma_packets.h"
 #include "core/addrMgr/addrMgr2/addrMgr2.h"
-#include "chip/gfx10_merged_sdma_packets.h"
 #include "marker_payload.h"
 #include "palFormatInfo.h"
 

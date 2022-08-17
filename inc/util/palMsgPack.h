@@ -31,10 +31,11 @@
 
 #pragma once
 
-#include "palSysMemory.h"
+#include "palHashMap.h"
 #include "palVector.h"
 #include "palSparseVector.h"
-#include "palHashMap.h"
+#include "palStringView.h"
+#include "palSysMemory.h"
 
 #include <type_traits>
 
@@ -177,12 +178,12 @@ public:
         return CountAndStatus(1);
     }
 
-    /// Packs a string element when the length is not already known.
+    /// Packs a string element from a @ref StringView object.
     ///
-    /// @param [in] pString  The null-terminated string to write.
+    /// @param [in] string  The StringView to pack.
     ///
     /// @returns Success if successful, ErrorOutOfMemory if memory allocation fails.
-    Result PackString(const char* pString) { return PackString(pString, uint32(strlen(pString))); }
+    Result PackString(const StringView<char>& string) { return PackString(string.Data(), string.Length()); }
 
     /// Packs a string element from a string literal as input.
     ///
@@ -568,7 +569,8 @@ public:
     Result Unpack(double* pValue) { return UnpackScalar(pValue); }
     ///@}
 
-    /// Unpacks the current item as a string.
+    /// Unpacks the current item as a string, copying the data into the specified string buffer.  NIL is treated as
+    /// the empty string.
     ///
     /// @param [out] pString      Pointer to the beginning of where to store the string data in.
     /// @param [in]  sizeInBytes  How large the storage buffer is.
@@ -576,6 +578,18 @@ public:
     /// @returns Result if successful, ErrorInvalidValue if @ref pString cannot represent the current item,
     /// Eof if unexpected end-of-file was reached.
     Result Unpack(char* pString, uint32 sizeInBytes);
+
+    /// Unpacks the current item as a string, storing a reference to it in a @ref StringView object.  NIL is treated
+    /// as the empty string.
+    ///
+    /// The data referenced by the StringView object is only valid as long as the source MsgPack buffer remains
+    /// valid.  It is an error to access the StringView _after_ the MsgPack buffer has been freed.
+    ///
+    /// @param [out] pStringView  Pointer to the StringView object to initialize.
+    ///
+    /// @returns Result if successful, ErrorInvalidValue if @ref pString cannot represent the current item,
+    /// Eof if unexpected end-of-file was reached.
+    Result Unpack(Util::StringView<char>* pStringView);
 
     /// Unpacks the current item as an array of scalars or as binary data, type casting if necessary.
     /// NOTE: This will advance the iterator to the last element.

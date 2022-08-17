@@ -719,6 +719,7 @@ struct PalPublicSettings
     DisableBinningPsKill disableBinningPsKill;
 #endif
 #endif
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 755)
     /// The following 3 factors are used by hardware when distributed tessellation is active: the min tess factors for
     /// each patch processed by a VGT are accumulated. When the sum exceeds this threshold, the next patch is sent to a
     /// different VGT.
@@ -734,6 +735,7 @@ struct PalPublicSettings
     /// be in donut mode). A value of 0 or 1 will be treated as 2. The innermost donut is never allowed to be broken
     /// into trapezoids.
     uint32 trapezoidDistributionFactor;
+#endif
     /// Controls GS LateAlloc val (for pos/prim allocations NOT param cache) on NGG pipelines. Can be no more than 127.
     uint32 nggLateAllocGs;
 };
@@ -1235,6 +1237,8 @@ struct DeviceProperties
                                                                 ///  the shader.
                 uint64 supportMeshShader                  :  1; ///< Indicates support for mesh shaders.
                 uint64 supportTaskShader                  :  1; ///< Indicates support for task shaders.
+                uint64 supportMsFullRangeRtai             :  1; ///< HW supports full range render target array
+                                                                ///  index for Mesh Shaders.
                 uint64 supportPrtBlendZeroMode            :  1; ///< Blend zero mode support.
                 uint64 supports2BitSignedValues           :  1; ///< Hardware natively supports 2-bit signed values.
                 uint64 supportPrimitiveOrderedPs          :  1; ///< Hardware supports primitive ordered UAV
@@ -1310,7 +1314,7 @@ struct DeviceProperties
                 uint64 supportHsaAbi                      :  1; ///< PAL supports HSA ABI compute pipelines.
                 uint64 supportImageViewMinLod             :  1; ///< Indicates image srd supports min_lod.
                 uint64 supportStaticVmid                  :  1; ///< Indicates support for static-VMID
-                uint64 reserved                           : 10; ///< Reserved for future use.
+                uint64 reserved                           :  9; ///< Reserved for future use.
             };
             uint64 u64All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.

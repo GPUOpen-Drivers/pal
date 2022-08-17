@@ -640,6 +640,21 @@
       "Name": "DisplayDccSkipRetileBlt"
     },
     {
+      "Name": "OverlayReportHDR",
+      "Tags": [
+        "General",
+        "DevMode",
+        "HDR"
+      ],
+      "Defaults": {
+        "Default": true
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "overlayReportHDR",
+      "Description": "Determines if the developer mode overlay will report information about HDR mode."
+    },
+    {
       "ValidValues": {
         "IsEnum": true,
         "IsExclusive": true,
@@ -1820,6 +1835,20 @@
       "Type": "gpusize",
       "VariableName": "debugForceResourceAdditionalPadding",
       "Description": "Add the additional padding to resources' memory requirements. This setting is in units of bytes. This is a debug setting and strange behavior (e.g. poor performance, out of memory) may occur in some applications."
+    },
+    {
+      "Name": "OverlayReportMes",
+      "Tags": [
+        "General",
+        "DevMode"
+      ],
+      "Defaults": {
+        "Default": true
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "overlayReportMes",
+      "Description": "Determines if the developer mode overlay will report information about MES HWS."
     },
     {
       "Name": "MipGenUseFastPath",

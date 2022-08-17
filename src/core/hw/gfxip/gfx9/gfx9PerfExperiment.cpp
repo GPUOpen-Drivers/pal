@@ -1178,9 +1178,9 @@ Result PerfExperiment::AddThreadTrace(
         result = Result::ErrorInvalidValue;
     }
     else if ((traceInfo.optionFlags.threadTraceTargetCu != 0) &&
-             (traceInfo.optionValues.threadTraceTargetCu >= m_chipProps.gfx9.numCuPerSh))
+             (traceInfo.optionValues.threadTraceTargetCu >= m_chipProps.gfx9.maxNumCuPerSh))
     {
-        // The detailed CU is out of bounds.
+        // The detailed CU is out of bounds. This does not check whether the CU is active, merely that it exists physically.
         result = Result::ErrorInvalidValue;
     }
     else if ((traceInfo.optionFlags.threadTraceSh0CounterMask != 0) &&

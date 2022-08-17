@@ -242,6 +242,7 @@ public:
 #if PAL_ENABLE_PRINTS_ASSERTS
     // This function allows us to dump the contents of this command buffer to a file at submission time.
     virtual void DumpCmdStreamsToFile(Util::File* pFile, CmdBufDumpFormat mode) const override;
+    virtual void EndCmdBufferDump(const CmdStream** ppCmdStreams, uint32 cmdStreamsNum) override;
 #endif
 
     // Universal command buffers have three command streams: Draw Engine, Constant Engine and a hidden ACE cmd stream.
@@ -249,10 +250,8 @@ public:
     static constexpr uint32 AceStreamCount   = 1;
 
     // Returns the number of command streams associated with this command buffer.
-    virtual uint32 NumCmdStreams() const override
-    {
-        return NumCmdStreamsVal;
-    }
+    virtual uint32 NumCmdStreams() const override { return NumCmdStreamsVal; }
+
     virtual const CmdStream* GetCmdStream(uint32 cmdStreamIdx) const override;
 
     virtual uint32 NumCmdStreamsInSubQueue(int32 subQueueIndex) const override;
@@ -349,6 +348,8 @@ protected:
     // Ace command stream is used for ganged submit of compute workloads (task shader workloads)
     // after which graphics workloads will be submitted on the DE command stream.
     GfxCmdStream* m_pAceCmdStream;
+
+    TessDistributionFactors m_tessDistributionFactors;
 
 private:
     const GfxDevice&   m_device;

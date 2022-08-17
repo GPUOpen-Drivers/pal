@@ -56,7 +56,7 @@
 #include "core/hw/gfxip/gfx9/gfx9StreamoutStatsQueryPool.h"
 #include "core/hw/gfxip/gfx9/gfx9UniversalCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/gfx9UniversalEngine.h"
-#include "core/hw/gfxip/gfx9/gfx10DmaCmdBuffer.h"
+#include "core/hw/gfxip/sdma/gfx10/gfx10DmaCmdBuffer.h"
 #include "palAssert.h"
 #include "palAutoBuffer.h"
 #include "palDequeImpl.h"
@@ -942,11 +942,15 @@ static Result ConvertAbiRegistersToMetadata(
     const Pal::Device& palDevice = *(pDevice->Parent());
 
     RegisterVector registers(pDevice->GetPlatform());
-    Result result = pMetadataReader->Seek(pMetadata->pipeline.registers);
 
-    if (result == Result::Success)
+    Result result = Result::Success;
+    if (pMetadata->pipeline.hasEntry.registers != 0)
     {
-        result = pMetadataReader->Unpack(&registers);
+        result = pMetadataReader->Seek(pMetadata->pipeline.registers);
+        if (result == Result::Success)
+        {
+            result = pMetadataReader->Unpack(&registers);
+        }
     }
 
     if ((result == Result::Success) && (registers.NumElements() > 0))

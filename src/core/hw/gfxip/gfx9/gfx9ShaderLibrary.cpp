@@ -55,10 +55,12 @@ ShaderLibrary::ShaderLibrary(
     Pal::ShaderLibrary(pDevice->Parent()),
     m_pDevice(pDevice),
     m_signature(NullCsSignature),
-    m_chunkCs(*pDevice),
+    m_chunkCs(*pDevice, &m_stageInfoCs, nullptr),
+    m_stageInfoCs{ },
     m_pFunctionList(nullptr),
     m_funcCount(0)
 {
+    m_stageInfoCs.stageId = Abi::HardwareStage::Cs;
 }
 
 // =====================================================================================================================
@@ -112,8 +114,16 @@ Result ShaderLibrary::HwlInit(
         // Update the pipeline signature with user-mapping data contained in the ELF:
         m_chunkCs.SetupSignatureFromElf(&m_signature, metadata, registers);
 
-        const uint32 wavefrontSize = IsWave32() ? 32 : 64;
-        m_chunkCs.LateInit(abiReader, registers, wavefrontSize, createInfo.pFuncList, createInfo.funcCount, &uploader);
+        Extent3d threadsPerTg { };
+        m_chunkCs.LateInit(abiReader,
+                           registers,
+                           (IsWave32() ? 32 : 64),
+                           &threadsPerTg.width,
+                           &threadsPerTg.height,
+                           &threadsPerTg.depth,
+                           &uploader);
+
+        GetFunctionGpuVirtAddrs(uploader, createInfo.pFuncList, createInfo.funcCount);
 
         UpdateHwInfo();
         PAL_ASSERT(m_uploadFenceToken == 0);
@@ -187,9 +197,9 @@ Result ShaderLibrary::HwlInit(
 // the main shader register values.
 void ShaderLibrary::UpdateHwInfo()
 {
-    m_hwInfo.libRegs.computePgmRsrc1 = m_chunkCs.LibHWInfo().computePgmRsrc1;
-    m_hwInfo.libRegs.computePgmRsrc2 = m_chunkCs.LibHWInfo().dynamic.computePgmRsrc2;
-    m_hwInfo.libRegs.computePgmRsrc3 = m_chunkCs.LibHWInfo().computePgmRsrc3;
+    m_hwInfo.libRegs.computePgmRsrc1 = m_chunkCs.HwInfo().computePgmRsrc1;
+    m_hwInfo.libRegs.computePgmRsrc2 = m_chunkCs.HwInfo().dynamic.computePgmRsrc2;
+    m_hwInfo.libRegs.computePgmRsrc3 = m_chunkCs.HwInfo().computePgmRsrc3;
 }
 
 // =====================================================================================================================

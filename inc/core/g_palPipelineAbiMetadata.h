@@ -45,7 +45,8 @@ namespace PalCodeObjectMetadataKey = CodeObjectMetadataKey;
 namespace PalAbi
 {
 #endif
-using MsgPackOffset = uint32;
+using MsgPackOffset  = uint32;
+using StringViewType = StringView<char>;
 
 struct BinaryData
 {
@@ -594,13 +595,9 @@ struct IaMultiVgtParamMetadata
 
 struct SpiInterpControlMetadata
 {
-
     Abi::PointSpriteSelect pointSpriteOverrideX;
-
     Abi::PointSpriteSelect pointSpriteOverrideY;
-
     Abi::PointSpriteSelect pointSpriteOverrideZ;
-
     Abi::PointSpriteSelect pointSpriteOverrideW;
 
     union
@@ -1483,25 +1480,15 @@ struct GraphicsRegisterMetadata
     uint8                              vsVgprCompCnt;
     /// Extra LDS size to allocate, in bytes.
     uint32                             psExtraLdsSize;
-
     PaClClipCntlMetadata               paClClipCntl;
-
     PaClVteCntlMetadata                paClVteCntl;
-
     PaSuVtxCntlMetadata                paSuVtxCntl;
-
     VgtShaderStagesEnMetadata          vgtShaderStagesEn;
-
     VgtGsModeMetadata                  vgtGsMode;
-
     VgtTfParamMetadata                 vgtTfParam;
-
     VgtLsHsConfigMetadata              vgtLsHsConfig;
-
     IaMultiVgtParamMetadata            iaMultiVgtParam;
-
     SpiInterpControlMetadata           spiInterpControl;
-
     SpiPsInputCntlMetadata             spiPsInputCntl[32];
     /// Specifies a minimum tessellation level clamp that is applied to fetched tessellation factors. Values in the
     /// range (0.0, 64.0) are legal. If the incoming factor is a Nan, a negative number or Zero, it is not clamped
@@ -1511,14 +1498,11 @@ struct GraphicsRegisterMetadata
     /// range (0.0, 64.0) are legal. If the incoming factor is a Nan, a negative number or Zero, it is not clamped
     /// against this value.
     float                              vgtHosMaxTessLevel;
-
     /// Maximum number of verts that can be emitted from a geometry shader.
     uint16                             vgtGsMaxVertOut;
-
     VgtGsInstanceCntMetadata           vgtGsInstanceCnt;
     /// EsGs ring item size in dwords.
     uint16                             vgtEsgsRingItemsize;
-
     VgtGsOutPrimTypeMetadata           vgtGsOutPrimType;
     /// Size of each vertex, in dwords, for the specified stream.
     uint16                             vgtGsVertItemsize[4];
@@ -1542,11 +1526,8 @@ struct GraphicsRegisterMetadata
     /// - 3 - 4 Components, Compressed
     /// - 4 - 4 Components
     uint8                              spiShaderIdxFormat;
-
     GeNggSubgrpCntlMetadata            geNggSubgrpCntl;
-
     VgtGsOnchipCntlMetadata            vgtGsOnchipCntl;
-
     PaClVsOutCntlMetadata              paClVsOutCntl;
     /// Specifies the format of the position exports coming out of the shader.
     /// - 0 - None
@@ -1555,29 +1536,18 @@ struct GraphicsRegisterMetadata
     /// - 3 - 4 Components, Compressed
     /// - 4 - 4 Components
     uint8                              spiShaderPosFormat[5];
-
     SpiVsOutConfigMetadata             spiVsOutConfig;
-
     VgtStrmoutConfigMetadata           vgtStrmoutConfig;
-
     VgtStrmoutBufferConfigMetadata     vgtStrmoutBufferConfig;
-
     CbShaderMaskMetadata               cbShaderMask;
-
     DbShaderControlMetadata            dbShaderControl;
-
     SpiPsInControlMetadata             spiPsInControl;
     /// Specifies how to populate the sample mask provided to the pixel shader.
     Abi::CoverageToShaderSel           aaCoverageToShaderSelect;
-
     PaScShaderControlMetadata          paScShaderControl;
-
     SpiBarycCntlMetadata               spiBarycCntl;
-
     SpiPsInputEnaMetadata              spiPsInputEna;
-
     SpiPsInputAddrMetadata             spiPsInputAddr;
-
     SpiShaderColFormatMetadata         spiShaderColFormat;
     /// Specifies the format of the depth export.
     /// - 0 - No exports done
@@ -1633,42 +1603,70 @@ struct GraphicsRegisterMetadata
     {
         struct
         {
-            uint64 nggCullingDataReg        : 1;
-            uint64 lsVgprCompCnt            : 1;
-            uint64 hsTgSizeEn               : 1;
-            uint64 esVgprCompCnt            : 1;
-            uint64 gsVgprCompCnt            : 1;
-            uint64 vsVgprCompCnt            : 1;
-            uint64 vsSoBase0En              : 1;
-            uint64 vsSoBase1En              : 1;
-            uint64 vsSoBase2En              : 1;
-            uint64 vsSoBase3En              : 1;
-            uint64 vsStreamoutEn            : 1;
-            uint64 vsPcBaseEn               : 1;
-            uint64 psLoadProvokingVtx       : 1;
-            uint64 psWaveCntEn              : 1;
-            uint64 psExtraLdsSize           : 1;
-            uint64 psIterSample             : 1;
-            uint64 vgtReuseOff              : 1;
-            uint64 vgtHosMinTessLevel       : 1;
-            uint64 vgtHosMaxTessLevel       : 1;
-            uint64 vgtGsMaxVertOut          : 1;
-            uint64 vgtEsgsRingItemsize      : 1;
-            uint64 vgtDrawPrimPayloadEn     : 1;
-            uint64 vgtGsVertItemsize        : 1;
-            uint64 vgtGsvsRingOffset        : 1;
-            uint64 vgtGsvsRingItemsize      : 1;
-            uint64 vgtEsPerGs               : 1;
-            uint64 vgtGsPerEs               : 1;
-            uint64 vgtGsPerVs               : 1;
-            uint64 maxVertsPerSubgroup      : 1;
-            uint64 spiShaderIdxFormat       : 1;
-            uint64 spiShaderPosFormat       : 1;
-            uint64 vgtPrimitiveIdEn         : 1;
-            uint64 nggDisableProvokReuse    : 1;
-            uint64 aaCoverageToShaderSelect : 1;
-            uint64 spiShaderZFormat         : 1;
-            uint64 reserved                 : 29;
+            uint64 nggCullingDataReg          : 1;
+            uint64 lsVgprCompCnt              : 1;
+            uint64 hsTgSizeEn                 : 1;
+            uint64 esVgprCompCnt              : 1;
+            uint64 gsVgprCompCnt              : 1;
+            uint64 vsVgprCompCnt              : 1;
+            uint64 vsSoBase0En                : 1;
+            uint64 vsSoBase1En                : 1;
+            uint64 vsSoBase2En                : 1;
+            uint64 vsSoBase3En                : 1;
+            uint64 vsStreamoutEn              : 1;
+            uint64 vsPcBaseEn                 : 1;
+            uint64 psLoadProvokingVtx         : 1;
+            uint64 psWaveCntEn                : 1;
+            uint64 psExtraLdsSize             : 1;
+            uint64 paClClipCntl               : 1;
+            uint64 paClVteCntl                : 1;
+            uint64 paSuVtxCntl                : 1;
+            uint64 psIterSample               : 1;
+            uint64 vgtShaderStagesEn          : 1;
+            uint64 vgtReuseOff                : 1;
+            uint64 vgtGsMode                  : 1;
+            uint64 vgtTfParam                 : 1;
+            uint64 vgtLsHsConfig              : 1;
+            uint64 iaMultiVgtParam            : 1;
+            uint64 spiInterpControl           : 1;
+            uint64 spiPsInputCntl             : 1;
+            uint64 vgtHosMinTessLevel         : 1;
+            uint64 vgtHosMaxTessLevel         : 1;
+            uint64 placeholder0               : 1;
+            uint64 placeholder1               : 1;
+            uint64 vgtGsMaxVertOut            : 1;
+            uint64 vgtGsInstanceCnt           : 1;
+            uint64 vgtEsgsRingItemsize        : 1;
+            uint64 vgtDrawPrimPayloadEn       : 1;
+            uint64 vgtGsOutPrimType           : 1;
+            uint64 vgtGsVertItemsize          : 1;
+            uint64 vgtGsvsRingOffset          : 1;
+            uint64 vgtGsvsRingItemsize        : 1;
+            uint64 vgtEsPerGs                 : 1;
+            uint64 vgtGsPerEs                 : 1;
+            uint64 vgtGsPerVs                 : 1;
+            uint64 maxVertsPerSubgroup        : 1;
+            uint64 spiShaderIdxFormat         : 1;
+            uint64 geNggSubgrpCntl            : 1;
+            uint64 vgtGsOnchipCntl            : 1;
+            uint64 paClVsOutCntl              : 1;
+            uint64 spiShaderPosFormat         : 1;
+            uint64 spiVsOutConfig             : 1;
+            uint64 vgtPrimitiveIdEn           : 1;
+            uint64 nggDisableProvokReuse      : 1;
+            uint64 vgtStrmoutConfig           : 1;
+            uint64 vgtStrmoutBufferConfig     : 1;
+            uint64 cbShaderMask               : 1;
+            uint64 dbShaderControl            : 1;
+            uint64 spiPsInControl             : 1;
+            uint64 aaCoverageToShaderSelect   : 1;
+            uint64 paScShaderControl          : 1;
+            uint64 spiBarycCntl               : 1;
+            uint64 spiPsInputEna              : 1;
+            uint64 spiPsInputAddr             : 1;
+            uint64 spiShaderColFormat         : 1;
+            uint64 spiShaderZFormat           : 1;
+            uint64 reserved                   : 1;
         };
         uint64 uAll;
     } hasEntry;
@@ -1714,7 +1712,7 @@ struct ComputeRegisterMetadata
 struct PipelineMetadata
 {
     /// Source name of the pipeline.
-    char                     name[256];
+    StringViewType           name;
     /// Pipeline type, e.g. VsPs.
     Abi::PipelineType        type;
     /// Internal compiler hash for this pipeline.
@@ -1787,6 +1785,8 @@ struct PipelineMetadata
             uint32 name                   : 1;
             uint32 type                   : 1;
             uint32 internalPipelineHash   : 1;
+            uint32 shader                 : 1;
+            uint32 hardwareStage          : 1;
             uint32 shaderFunctions        : 1;
             uint32 registers              : 1;
             uint32 placeholder0           : 1;
@@ -1804,7 +1804,9 @@ struct PipelineMetadata
             uint32 psDummyExport          : 1;
             uint32 psSampleMask           : 1;
             uint32 streamoutVertexStrides : 1;
-            uint32 reserved               : 12;
+            uint32 graphicsRegister       : 1;
+            uint32 computeRegister        : 1;
+            uint32 reserved               : 8;
         };
         uint32 uAll;
     } hasEntry;
@@ -1814,16 +1816,18 @@ struct PipelineMetadata
 struct CodeObjectMetadata
 {
     /// PAL code object metadata (major, minor) version.
-    uint32           version[2];
+    uint32                version[2];
     /// Per-pipeline metadata.
-    PipelineMetadata pipeline;
+    PipelineMetadata      pipeline;
 
     union
     {
         struct
         {
-            uint8 version  : 1;
-            uint8 reserved : 7;
+            uint8 version       : 1;
+            uint8 pipeline      : 1;
+            uint8 placeholder0  : 1;
+            uint8 reserved      : 5;
         };
         uint8 uAll;
     } hasEntry;
@@ -1831,8 +1835,9 @@ struct CodeObjectMetadata
 
 namespace CodeObjectMetadataKey
 {
-    static constexpr char Version[]   = "amdpal.version";
-    static constexpr char Pipelines[] = "amdpal.pipelines";
+    static constexpr char Version[]        = "amdpal.version";
+    static constexpr char Pipelines[]      = "amdpal.pipelines";
+
 };
 
 namespace PipelineMetadataKey

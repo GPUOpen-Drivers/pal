@@ -69,6 +69,9 @@ enum class AcquirePoint : uint8
 static constexpr uint32 PipelineStagePfpMask =  PipelineStageTopOfPipe | PipelineStageFetchIndirectArgs |
                                                 PipelineStageFetchIndices;
 
+// Cache coherency masks that may read or write data through L0 (V$ and K$)/L1 caches.
+static constexpr uint32 CacheCoherShaderAccessMask = CacheCoherencyBlt | CoherShader | CoherSampleRate | CoherStreamOut;
+
 // =====================================================================================================================
 // Translate accessMask to ReleaseMemCaches.
 static ReleaseMemCaches GetReleaseCacheFlags(
@@ -78,7 +81,6 @@ static ReleaseMemCaches GetReleaseCacheFlags(
 {
     PAL_ASSERT(pBarrierOps != nullptr);
 
-    // Note that if add any new cache sync flags, remember to update GetReleaseThenAcquireCacheFlags().
     ReleaseMemCaches flags = {};
 
     if (refreshTcc)
@@ -88,10 +90,12 @@ static ReleaseMemCaches GetReleaseCacheFlags(
         pBarrierOps->caches.flushTcc = 1;
         pBarrierOps->caches.invalTcc = 1;
     }
-    else if (TestAnyFlagSet(accessMask, CoherCpu | CoherMemory | CoherPresent))
+    else if (TestAnyFlagSet(accessMask, CoherCpu | CoherMemory))
     {
-        // At release we want to invalidate L2 so any future read to L2 would go down to memory, at acquire we want to
-        // flush L2 so that main memory gets the latest data.
+        // Split Release/Acquire is built around GL2 being the LLC where data is either released to or acquired from.
+        // The Cpu and Memory usages are special because they do not go through GL2. Therefore, when releasing the
+        // Cpu or Memory usage, where memory may have been updated directly, we must INV GL2 to ensure those updates
+        // will be properly fetched into GL2 for the next GPU usage that is acquired.
         flags.gl2Inv = 1;
         pBarrierOps->caches.invalTcc = 1;
     }
@@ -104,6 +108,7 @@ static ReleaseMemCaches GetReleaseCacheFlags(
 SyncGlxFlags Device::GetAcquireCacheFlags(
     uint32                        accessMask,  // Bitmask of CacheCoherencyUsageFlags.
     bool                          refreshTcc,
+    bool                          mayHaveMetadata,
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
@@ -111,40 +116,24 @@ SyncGlxFlags Device::GetAcquireCacheFlags(
 
     SyncGlxFlags flags = SyncGlxNone;
 
-    if (IsGfx9(m_gfxIpLevel))
+    // Invalidate all of the L0 and L1 caches (except for the I$, it can be left alone).
+    // Note that PAL never really needs to write-back the K$ because we should never write to it.
+    if (TestAnyFlagSet(accessMask, CacheCoherShaderAccessMask))
     {
-        // There are various BLTs (Copy, Clear, and Resolve) that can involve different caches based on what engine
-        // does the BLT.
-        // - If a graphics BLT occurred, alias to CB/DB. This was handled during release.
-        // - If a compute BLT occurred, alias to shader. -> SyncGlkInv, SyncGlvInv, SyncGlmInv
-        // - If a CP L2 BLT occured, alias to L2.        -> None (data is always in GL2 as it's the central cache)
-        if (TestAnyFlagSet(accessMask, CoherShader | CacheCoherencyBlt))
+        flags |= SyncGlkInv | SyncGlvInv;
+        pBarrierOps->caches.invalSqK$ = 1;
+        pBarrierOps->caches.invalTcp  = 1;
+
+        if (mayHaveMetadata)
         {
-            flags |= SyncGlkInv | SyncGlvInv | SyncGlmInv;
-            pBarrierOps->caches.invalSqK$        = 1;
-            pBarrierOps->caches.invalTcp         = 1;
+            flags |= SyncGlmInv;
             pBarrierOps->caches.invalTccMetadata = 1;
         }
 
-        if (TestAnyFlagSet(accessMask, CoherStreamOut))
+        if (IsGfx10Plus(m_gfxIpLevel))
         {
-            // Read/write through V$ and read through K$.
-            flags |= SyncGlkInv | SyncGlvInv;
-            pBarrierOps->caches.invalSqK$ = 1;
-            pBarrierOps->caches.invalTcp  = 1;
-        }
-    }
-    else
-    {
-        // Invalidate all of the L0 and L1 caches (except for the I$, it can be left alone).
-        // Note that PAL never really needs to write-back the K$ because we should never write to it.
-        if (TestAnyFlagSet(accessMask, CacheCoherencyBlt | CoherShader | CoherStreamOut | CoherSampleRate))
-        {
-            flags |= SyncGlmInv | SyncGlkInv | SyncGlvInv | SyncGl1Inv;
-            pBarrierOps->caches.invalTccMetadata = 1;
-            pBarrierOps->caches.invalSqK$        = 1;
-            pBarrierOps->caches.invalTcp         = 1;
-            pBarrierOps->caches.invalGl1         = 1;
+            flags |= SyncGl1Inv;
+            pBarrierOps->caches.invalGl1 = 1;
         }
     }
 
@@ -156,6 +145,10 @@ SyncGlxFlags Device::GetAcquireCacheFlags(
     }
     else if (TestAnyFlagSet(accessMask, CoherCpu | CoherMemory | CoherPresent))
     {
+        // Split Release/Acquire is built around GL2 being the LLC where data is either released to or acquired from.
+        // The Cpu, Memory, and Present usages are special because they do not go through GL2. Therefore, when acquiring
+        // the Cpu, Memory, or Present usages we must WB GL2 so all prior writes are visible to those usages that will
+        // read directly from memory.
         flags |= SyncGl2Wb;
         pBarrierOps->caches.flushTcc = 1;
     }
@@ -168,17 +161,74 @@ SyncGlxFlags Device::GetReleaseThenAcquireCacheFlags(
     uint32                        srcAccessMask,
     uint32                        dstAccessMask,
     bool                          refreshTcc,
+    bool                          mayHaveMetadata,
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
-    const ReleaseMemCaches releaseCaches = GetReleaseCacheFlags(srcAccessMask, refreshTcc, pBarrierOps);
-    SyncGlxFlags           acquireCaches = GetAcquireCacheFlags(dstAccessMask, refreshTcc, pBarrierOps);
+    // Cache coherency masks that may read data through L0 (V$ and K$)/L1 caches.
+    constexpr uint32 CacheCoherShaderReadMask = CoherShaderRead | CoherCopySrc | CoherResolveSrc | CoherSampleRate;
 
-    // Currently GetReleaseCacheFlags() only set gl2Inv/gl2Wb.
-    acquireCaches |= releaseCaches.gl2Inv ? SyncGl2Inv : SyncGlxNone;
-    acquireCaches |= releaseCaches.gl2Wb  ? SyncGl2Wb  : SyncGlxNone;
+    SyncGlxFlags flags = SyncGlxNone;
 
-    return acquireCaches;
+    // Invalidate L0/L1 caches if about to access data through L0/L1 caches.
+    // Optimization: skip L0/L1 inv for CacheCoherShaderReadMask->CacheCoherShaderAccessMask transition. If the
+    //               srcAccessMask belongs to CacheCoherShaderReadMask which means 1). L0/L1 invalidation has been done
+    //               in previous barrier where it was dstAccessMask and 2) it's read only which will not make L0/L1
+    //               cache stale before this barrier. So we can safely skip L0/L1 inv in this case.
+    // Note that OptimizePipeAndCacheMaskForRelease may optimize srcAccessMask to 0, assume worst cache op in this case.
+    if (((srcAccessMask == 0) || TestAnyFlagSet(srcAccessMask, ~CacheCoherShaderReadMask)) &&
+        TestAnyFlagSet(dstAccessMask, CacheCoherShaderAccessMask))
+    {
+        // Invalidate all of the L0 and L1 caches (except for the I$, it can be left alone).
+        // Note that PAL never really needs to write-back the K$ because we should never write to it.
+        flags |= SyncGlkInv | SyncGlvInv;
+        pBarrierOps->caches.invalSqK$ = 1;
+        pBarrierOps->caches.invalTcp  = 1;
+
+        if (mayHaveMetadata)
+        {
+            flags |= SyncGlmInv;
+            pBarrierOps->caches.invalTccMetadata = 1;
+        }
+
+        if (IsGfx10Plus(m_gfxIpLevel))
+        {
+            flags |= SyncGl1Inv;
+            pBarrierOps->caches.invalGl1 = 1;
+        }
+    }
+
+    if (refreshTcc)
+    {
+        flags |= SyncGl2Wb;
+        flags |= SyncGl2Inv;
+        pBarrierOps->caches.flushTcc = 1;
+        pBarrierOps->caches.invalTcc = 1;
+    }
+    else
+    {
+        // Split Release/Acquire is built around GL2 being the LLC where data is either released to or acquired from.
+        // The Cpu, Memory, and Present usages are special because they do not go through GL2. Therefore, when acquiring
+        // the Cpu, Memory, or Present usages we must WB GL2 so all prior writes are visible to those usages that will
+        // read directly from memory.
+        if (TestAnyFlagSet(dstAccessMask, CoherCpu | CoherMemory | CoherPresent))
+        {
+            flags |= SyncGl2Wb;
+            pBarrierOps->caches.flushTcc = 1;
+        }
+
+        // Split Release/Acquire is built around GL2 being the LLC where data is either released to or acquired from.
+        // The Cpu and Memory usages are special because they do not go through GL2. Therefore, when releasing the
+        // Cpu or Memory usage, where memory may have been updated directly, we must INV GL2 to ensure those updates
+        // will be properly fetched into GL2 for the next GPU usage that is acquired.
+        if (TestAnyFlagSet(srcAccessMask, CoherCpu | CoherMemory))
+        {
+            flags |= SyncGl2Inv;
+            pBarrierOps->caches.invalTcc = 1;
+        }
+    }
+
+    return flags;
 }
 
 // =====================================================================================================================
@@ -455,16 +505,20 @@ bool Device::GetAcqRelLayoutTransitionBltInfo(
     uint32 dstAccessMask = 0;
     uint32 bltCount      = 0;
     bool   refreshTcc    = false;
+    bool   hasMetadata   = false;
 
     // Loop through image transitions to update client requested access.
     for (uint32 i = 0; i < barrierInfo.imageBarrierCount; i++)
     {
         const ImgBarrier& imageBarrier = barrierInfo.pImageBarriers[i];
+        const auto&       image        = static_cast<const Pal::Image&>(*imageBarrier.pImage);
+        const auto&       gfx9Image    = static_cast<const Pal::Gfx9::Image&>(*image.GetGfxImage());
 
         PAL_ASSERT(imageBarrier.subresRange.numPlanes == 1);
 
         srcAccessMask |= imageBarrier.srcAccessMask;
         dstAccessMask |= imageBarrier.dstAccessMask;
+        hasMetadata   |= (gfx9Image.HasColorMetaData() || gfx9Image.HasHtileData());
 
         // Prepare a layout transition BLT info and do pre-BLT preparation work.
         const LayoutTransitionInfo layoutTransInfo = PrepareBltInfo(pCmdBuf, imageBarrier);
@@ -512,6 +566,7 @@ bool Device::GetAcqRelLayoutTransitionBltInfo(
     pTransitonInfo->bltCount      = bltCount;
     pTransitonInfo->bltStageMask  = bltStageMask;
     pTransitonInfo->bltAccessMask = bltAccessMask;
+    pTransitonInfo->hasMetadata   = hasMetadata;
 
     if (pSrcAccessMask != nullptr)
     {
@@ -751,7 +806,7 @@ void Device::AcqRelColorTransition(
                                                                srcAccessMask, dstAccessMask, false);
 
             IssueReleaseThenAcquireSync(pCmdBuf, pCmdStream, srcStageMask, dstStageMask,
-                                        srcAccessMask, dstAccessMask, refreshTcc, pBarrierOps);
+                                        srcAccessMask, dstAccessMask, refreshTcc, true, pBarrierOps);
 
             // Tell RGP about this transition
             BarrierTransition rgpTransition = AcqRelBuildTransition(&imgBarrier, MsaaBltInfo, pBarrierOps);
@@ -1057,6 +1112,7 @@ void Device::IssueAcquireSync(
     uint32                        stageMask,  // Bitmask of PipelineStageFlag.
     uint32                        accessMask, // Bitmask of CacheCoherencyUsageFlags.
     bool                          refreshTcc,
+    bool                          mayHaveMetadata,
     uint32                        syncTokenCount,
     const AcqRelSyncToken*        pSyncTokens,
     Developer::BarrierOperations* pBarrierOps
@@ -1074,7 +1130,7 @@ void Device::IssueAcquireSync(
         accessMask &= ~CacheCoherencyGraphicsOnly;
     }
 
-    const SyncGlxFlags acquireCaches = GetAcquireCacheFlags(accessMask, refreshTcc, pBarrierOps);
+    const SyncGlxFlags acquireCaches = GetAcquireCacheFlags(accessMask, refreshTcc, mayHaveMetadata, pBarrierOps);
 
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
@@ -1197,6 +1253,7 @@ void Device::IssueReleaseThenAcquireSync(
     uint32                        srcAccessMask,
     uint32                        dstAccessMask,
     bool                          refreshTcc,
+    bool                          mayHaveMetadata,
     Developer::BarrierOperations* pBarrierOps
     ) const
 {
@@ -1232,7 +1289,7 @@ void Device::IssueReleaseThenAcquireSync(
     const ReleaseEvents releaseEvents = GetReleaseEvents(pCmdBuf, *this, srcStageMask, srcAccessMask,
                                                          false, acquirePoint);
     SyncGlxFlags        acquireCaches = GetReleaseThenAcquireCacheFlags(srcAccessMask, dstAccessMask,
-                                                                        refreshTcc, pBarrierOps);
+                                                                        refreshTcc, mayHaveMetadata, pBarrierOps);
     ReleaseMemCaches    releaseCaches = {};
     bool                waitAtPfpOrMe = false;
 
@@ -1671,7 +1728,7 @@ AcqRelSyncToken Device::Release(
     if (transitionList.Capacity() >= releaseInfo.imageBarrierCount)
     {
         // If BLTs will be issued, we need to know how to acquire for them.
-        AcqRelTransitionInfo transInfo = { &transitionList, 0, 0, 0 };
+        AcqRelTransitionInfo transInfo = { &transitionList, 0, 0, 0, false };
 
         globalRefreshTcc |= GetAcqRelLayoutTransitionBltInfo(pCmdBuf,
                                                              pCmdStream,
@@ -1692,6 +1749,7 @@ AcqRelSyncToken Device::Release(
                                         srcGlobalAccessMask,
                                         transInfo.bltAccessMask,
                                         globalRefreshTcc,
+                                        true, // Image with Layout BLT should have metadata
                                         pBarrierOps);
 
             globalRefreshTcc = IssueAcqRelLayoutTransitionBlt(pCmdBuf, pCmdStream, &transInfo, pBarrierOps);
@@ -1735,6 +1793,9 @@ void Device::Acquire(
     // Check if global barrier needs refresh L2
     bool globalRefreshTcc = WaRefreshTccOnGlobalBarrier(0, dstGlobalAccessMask);
 
+    // Assume worst case that global barrier may contain images with metadata.
+    bool mayHaveMatadata = (dstGlobalAccessMask != 0);
+
     // Always do full-range flush sync.
     for (uint32 i = 0; i < acquireInfo.memoryBarrierCount; i++)
     {
@@ -1750,7 +1811,7 @@ void Device::Acquire(
     if (transitionList.Capacity() >= acquireInfo.imageBarrierCount)
     {
         // If BLTs will be issued, we need to know how to acquire for them.
-        AcqRelTransitionInfo transInfo = { &transitionList, 0, 0, 0 };
+        AcqRelTransitionInfo transInfo = { &transitionList, 0, 0, 0, false };
 
         const uint32 preBltRefreshTcc = GetAcqRelLayoutTransitionBltInfo(pCmdBuf,
                                                                          pCmdStream,
@@ -1759,6 +1820,8 @@ void Device::Acquire(
                                                                          nullptr,
                                                                          &dstGlobalAccessMask,
                                                                          pBarrierOps);
+        mayHaveMatadata |= transInfo.hasMetadata;
+
         // Should have no L2 refresh for image barrier as this is done at Release().
         PAL_ASSERT(preBltRefreshTcc == false);
 
@@ -1772,6 +1835,7 @@ void Device::Acquire(
                          acquireDstStageMask,
                          acquireDstAccessMask,
                          globalRefreshTcc,
+                         mayHaveMatadata,
                          (needWaitSyncToken ? syncTokenCount : 0),
                          pSyncTokens,
                          pBarrierOps);
@@ -1789,6 +1853,7 @@ void Device::Acquire(
                                         transInfo.bltAccessMask,
                                         dstGlobalAccessMask,
                                         globalRefreshTcc,
+                                        true, // Image with Layout BLT should have metadata
                                         pBarrierOps);
         }
     }
@@ -1817,6 +1882,9 @@ void Device::ReleaseThenAcquire(
     // Check if global barrier needs refresh L2
     bool globalRefreshTcc = WaRefreshTccOnGlobalBarrier(srcGlobalAccessMask, dstGlobalAccessMask);
 
+    // Assume worst case that global barrier may contain images with metadata.
+    bool mayHaveMatadata = ((srcGlobalAccessMask | dstGlobalAccessMask) != 0);
+
     // Always do full-range flush sync.
     for (uint32 i = 0; i < barrierInfo.memoryBarrierCount; i++)
     {
@@ -1833,7 +1901,7 @@ void Device::ReleaseThenAcquire(
     if (transitionList.Capacity() >= barrierInfo.imageBarrierCount)
     {
         // If BLTs will be issued, we need to know how to acquire for them.
-        AcqRelTransitionInfo transInfo = { &transitionList, 0, 0, 0 };
+        AcqRelTransitionInfo transInfo = { &transitionList, 0, 0, 0, false };
 
         globalRefreshTcc |= GetAcqRelLayoutTransitionBltInfo(pCmdBuf,
                                                              pCmdStream,
@@ -1842,6 +1910,7 @@ void Device::ReleaseThenAcquire(
                                                              &srcGlobalAccessMask,
                                                              &dstGlobalAccessMask,
                                                              pBarrierOps);
+        mayHaveMatadata |= transInfo.hasMetadata;
 
         // Issue BLTs if there exists transitions that require one.
         if (transInfo.bltCount > 0)
@@ -1853,6 +1922,7 @@ void Device::ReleaseThenAcquire(
                                         srcGlobalAccessMask,
                                         transInfo.bltAccessMask,
                                         globalRefreshTcc,
+                                        true, // Image with Layout BLT should have metadata
                                         pBarrierOps);
 
             globalRefreshTcc = IssueAcqRelLayoutTransitionBlt(pCmdBuf, pCmdStream, &transInfo, pBarrierOps);
@@ -1870,6 +1940,7 @@ void Device::ReleaseThenAcquire(
                                     srcGlobalAccessMask,
                                     dstGlobalAccessMask,
                                     globalRefreshTcc,
+                                    mayHaveMatadata,
                                     pBarrierOps);
     }
     else
@@ -2062,7 +2133,7 @@ void Device::AcqRelColorTransitionEvent(
             GetBltStageAccessInfo(MsaaBltInfo, &stageMask, &accessMask);
 
             // Acquire for second pass.
-            IssueAcquireSyncEvent(pCmdBuf, pCmdStream, stageMask, accessMask, false, 1, &pEvent, pBarrierOps);
+            IssueAcquireSyncEvent(pCmdBuf, pCmdStream, stageMask, accessMask, false, true, 1, &pEvent, pBarrierOps);
 
             // Tell RGP about this transition
             BarrierTransition rgpTransition = AcqRelBuildTransition(&imgBarrier, MsaaBltInfo, pBarrierOps);
@@ -2253,6 +2324,7 @@ void Device::IssueAcquireSyncEvent(
     uint32                        stageMask,  // Bitmask of PipelineStageFlag.
     uint32                        accessMask, // Bitmask of CacheCoherencyUsageFlags.
     bool                          refreshTcc,
+    bool                          mayHaveMetadata,
     uint32                        gpuEventCount,
     const IGpuEvent* const*       ppGpuEvents,
     Developer::BarrierOperations* pBarrierOps
@@ -2286,7 +2358,7 @@ void Device::IssueAcquireSyncEvent(
                                                pCmdSpace);
     }
 
-    const SyncGlxFlags acquireCaches = GetAcquireCacheFlags(accessMask, refreshTcc, pBarrierOps);
+    const SyncGlxFlags acquireCaches = GetAcquireCacheFlags(accessMask, refreshTcc, mayHaveMetadata, pBarrierOps);
 
     if (acquireCaches != SyncGlxNone)
     {
@@ -2346,7 +2418,7 @@ void Device::ReleaseEvent(
     if (transitionList.Capacity() >= releaseInfo.imageBarrierCount)
     {
         // If BLTs will be issued, we need to know how to acquire for them.
-        AcqRelTransitionInfo transInfo = { &transitionList, 0, 0, 0 };
+        AcqRelTransitionInfo transInfo = { &transitionList, 0, 0, 0, false };
 
         globalRefreshTcc |= GetAcqRelLayoutTransitionBltInfo(pCmdBuf,
                                                              pCmdStream,
@@ -2379,6 +2451,7 @@ void Device::ReleaseEvent(
                                   transInfo.bltStageMask,
                                   transInfo.bltAccessMask,
                                   globalRefreshTcc,
+                                  true,  // mayHaveMatadata. Layout BLT images should have metadata.
                                   1,
                                   &pActiveEvent,
                                   pBarrierOps);
@@ -2423,6 +2496,9 @@ void Device::AcquireEvent(
     // Check if global barrier needs refresh L2
     bool globalRefreshTcc = WaRefreshTccOnGlobalBarrier(0, dstGlobalAccessMask);
 
+    // Assume worst case that global barrier may contain images with metadata.
+    bool mayHaveMatadata = (dstGlobalAccessMask != 0);
+
     // Always do full-range flush sync.
     for (uint32 i = 0; i < acquireInfo.memoryBarrierCount; i++)
     {
@@ -2438,7 +2514,7 @@ void Device::AcquireEvent(
     if (transitionList.Capacity() >= acquireInfo.imageBarrierCount)
     {
         // If BLTs will be issued, we need to know how to acquire for them.
-        AcqRelTransitionInfo transInfo = { &transitionList, 0, 0, 0 };
+        AcqRelTransitionInfo transInfo = { &transitionList, 0, 0, 0, false };
 
         const uint32 preBltRefreshTcc = GetAcqRelLayoutTransitionBltInfo(pCmdBuf,
                                                                          pCmdStream,
@@ -2447,6 +2523,8 @@ void Device::AcquireEvent(
                                                                          nullptr,
                                                                          &dstGlobalAccessMask,
                                                                          pBarrierOps);
+        mayHaveMatadata |= transInfo.hasMetadata;
+
         // Should have no L2 refresh for image barrier as this is done at Release().
         PAL_ASSERT(preBltRefreshTcc == false);
 
@@ -2462,6 +2540,7 @@ void Device::AcquireEvent(
                                   transInfo.bltStageMask,
                                   transInfo.bltAccessMask,
                                   false, // refreshTcc
+                                  true,  // mayHaveMatadata. Layout BLT images should have metadata.
                                   activeEventCount,
                                   ppActiveEvents,
                                   pBarrierOps);
@@ -2493,6 +2572,7 @@ void Device::AcquireEvent(
                               acquireInfo.dstStageMask,
                               dstGlobalAccessMask,
                               globalRefreshTcc,
+                              mayHaveMatadata,
                               needWaitEvents ? activeEventCount : 0,
                               ppActiveEvents,
                               pBarrierOps);

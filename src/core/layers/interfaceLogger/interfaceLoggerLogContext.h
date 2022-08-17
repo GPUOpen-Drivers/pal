@@ -588,6 +588,7 @@ public:
     void Struct(const SvmGpuMemoryCreateInfo& value);
     void Struct(const SwapChainCreateInfo& value);
     void Struct(SwizzledFormat value);
+    void Struct(TessDistributionFactors value);
     void Struct(TexFilter value);
     void Struct(const TriangleRasterStateParams& value);
     void Struct(const TurboSyncControlInput& value);

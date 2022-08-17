@@ -204,10 +204,12 @@ void SettingsLoader::ValidateSettings(
         (IsGfx8(*m_pDevice) == false))
     {
         pPalSettings->distributionTessMode      = DistributionTessOff;
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 755)
         pPalSettings->isolineDistributionFactor = 0;
         pPalSettings->triDistributionFactor     = 0;
         pPalSettings->quadDistributionFactor    = 0;
         pPalSettings->donutDistributionFactor   = 0;
+#endif
     }
 
     // Validate tessellation distribution settings.
@@ -384,12 +386,14 @@ void SettingsLoader::OverrideDefaults(
         // ( Param cache space: Carrizo:512, Iceland:1024, Tonga:2048 )
         m_settings.vsHalfPackThreshold = (MaxVsExportSemantics + 1);
 
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 755)
         PalPublicSettings* pPublicSettings           = m_pDevice->GetPublicSettings();
         pPublicSettings->isolineDistributionFactor   = 8;
         pPublicSettings->triDistributionFactor       = 8;
         pPublicSettings->quadDistributionFactor      = 8;
         pPublicSettings->donutDistributionFactor     = 8;
         pPublicSettings->trapezoidDistributionFactor = 8;
+#endif
 
         m_settings.waLogicOpDisablesOverwriteCombiner = true;
 

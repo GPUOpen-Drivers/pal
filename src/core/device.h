@@ -983,6 +983,8 @@ struct GpuChipProperties
                 uint64 supportSortAgnosticBarycentrics    :  1; // HW provides provoking vertex for custom interp
                 uint64 supportMeshShader                  :  1;
                 uint64 supportTaskShader                  :  1;
+                uint64 supportMsFullRangeRtai             :  1; // HW supports full range render target array
+                                                                // for Mesh Shaders.
                 uint64 placeholder5                       :  2;
                 uint64 supportTextureGatherBiasLod        :  1; // HW supports SQ_IMAGE_GATHER4_L_O
                 uint64 supportInt8Dot                     :  1; // HW supports a dot product 8bit.
@@ -990,7 +992,7 @@ struct GpuChipProperties
                 uint64 support2DRectList                  :  1; // HW supports PrimitiveTopology::TwoDRectList.
                 uint64 supportImageViewMinLod             :  1; // Indicates image srd supports min_lod.
                 uint64 stateShadowingByCpFw               :  1; // Indicates that state shadowing is done is CP FW.
-                uint64 reserved                           : 14;
+                uint64 reserved                           : 12;
             };
 
             RayTracingIpLevel rayTracingIp;      //< HW RayTracing IP version

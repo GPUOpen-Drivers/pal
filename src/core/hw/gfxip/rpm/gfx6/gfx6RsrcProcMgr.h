@@ -26,7 +26,7 @@
 #pragma once
 
 #include "core/hw/gfxip/queryPool.h"
-#include "core/hw/gfxip/rpm/rsrcProcMgr.h"
+#include "core/hw/gfxip/rpm/pm4RsrcProcMgr.h"
 
 namespace Pal
 {
@@ -44,7 +44,7 @@ enum class DccClearPurpose : uint32;
 // =====================================================================================================================
 // GFX6 hardware layer implementation of the Resource Processing Manager. It is most known for handling GFX6-specific
 // resource operations like DCC decompression.
-class RsrcProcMgr final : public Pal::RsrcProcMgr
+class RsrcProcMgr final : public Pm4::RsrcProcMgr
 {
 public:
     explicit RsrcProcMgr(Device* pDevice);

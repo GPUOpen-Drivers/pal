@@ -408,12 +408,6 @@ private:
         volatile bool*   pIsStalled);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-    void DumpCmdToFile(
-        const MultiSubmitInfo&    submitInfo,
-        const InternalSubmitInfo& internalSubmitInfo);
-#endif
-
-#if PAL_ENABLE_PRINTS_ASSERTS
     bool IsCmdDumpEnabled() const;
     Result OpenCommandDumpFile(
         const MultiSubmitInfo&      submitInfo,

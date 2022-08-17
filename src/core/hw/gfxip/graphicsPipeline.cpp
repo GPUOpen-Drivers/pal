@@ -166,8 +166,7 @@ Result GraphicsPipeline::InitFromPipelineBinary(
 
     ExtractPipelineInfo(metadata, ShaderType::Task, ShaderType::Pixel);
 
-    DumpPipelineElf("PipelineGfx",
-                    ((metadata.pipeline.hasEntry.name != 0) ? &metadata.pipeline.name[0] : nullptr));
+    DumpPipelineElf("PipelineGfx", metadata.pipeline.name);
 
     if (ShaderHashIsNonzero(m_info.shader[static_cast<uint32>(ShaderType::Geometry)].hash))
     {

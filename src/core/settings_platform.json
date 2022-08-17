@@ -330,41 +330,6 @@
           "Description": "Location to display debug text."
         },
         {
-          "ValidValues": {
-            "IsEnum": true,
-            "Values": [
-              {
-                "Name": "DebugOverlayTypeNone",
-                "Value": 0
-              },
-              {
-                "Name": "DebugOverlayTypeEvent",
-                "Value": 1
-              },
-              {
-                "Name": "DebugOverlayTypeRPC",
-                "Value": 2
-              },
-              {
-                "Name": "DebugOverlayTypeMisc",
-                "Value": 4
-              }
-            ],
-            "Name": "DebugOverlayType"
-          },
-          "Name": "DebugOverlayTypeMask",
-          "Defaults": {
-            "Default": 0
-          },
-          "Flags": {
-            "IsBitmask": true,
-            "IsHex": true
-          },
-          "Type": "uint32",
-          "VariableName": "overlayTypeMask",
-          "Description": "Debug overlay info to display."
-        },
-        {
           "Description": "Information about the client performing the rendering. For example: Rendered By PAL (0.0.1)",
           "Defaults": {
             "Default": ""

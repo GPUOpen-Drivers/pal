@@ -47,14 +47,12 @@ inline Result DeserializeEnum(
     MsgPackReader*  pReader,
     Abi::PipelineType*  pValue)
 {
-    Result result = pReader->Next(CWP_ITEM_STR);
+    StringViewType key;
+    Result result = pReader->UnpackNext(&key);
 
     if (result == Result::Success)
     {
-        const uint32 strHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                          pReader->Get().as.str.length);
-
-        switch (strHash)
+        switch (HashString(key))
         {
         case HashLiteralString("VsPs"):
             *pValue = Abi::PipelineType::VsPs;
@@ -140,14 +138,12 @@ inline Result DeserializeEnum(
     MsgPackReader*  pReader,
     Abi::ApiShaderType*  pValue)
 {
-    Result result = pReader->Next(CWP_ITEM_STR);
+    StringViewType key;
+    Result result = pReader->UnpackNext(&key);
 
     if (result == Result::Success)
     {
-        const uint32 strHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                          pReader->Get().as.str.length);
-
-        switch (strHash)
+        switch (HashString(key))
         {
         case HashLiteralString(".compute"):
             *pValue = Abi::ApiShaderType::Cs;
@@ -227,14 +223,12 @@ inline Result DeserializeEnum(
     MsgPackReader*  pReader,
     Abi::ApiShaderSubType*  pValue)
 {
-    Result result = pReader->Next(CWP_ITEM_STR);
+    StringViewType key;
+    Result result = pReader->UnpackNext(&key);
 
     if (result == Result::Success)
     {
-        const uint32 strHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                          pReader->Get().as.str.length);
-
-        switch (strHash)
+        switch (HashString(key))
         {
         case HashLiteralString("Unknown"):
             *pValue = Abi::ApiShaderSubType::Unknown;
@@ -314,14 +308,12 @@ inline Result DeserializeEnum(
     MsgPackReader*  pReader,
     Abi::HardwareStage*  pValue)
 {
-    Result result = pReader->Next(CWP_ITEM_STR);
+    StringViewType key;
+    Result result = pReader->UnpackNext(&key);
 
     if (result == Result::Success)
     {
-        const uint32 strHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                          pReader->Get().as.str.length);
-
-        switch (strHash)
+        switch (HashString(key))
         {
         case HashLiteralString(".ls"):
             *pValue = Abi::HardwareStage::Ls;
@@ -395,14 +387,12 @@ inline Result DeserializeEnum(
     MsgPackReader*  pReader,
     Abi::PipelineSymbolType*  pValue)
 {
-    Result result = pReader->Next(CWP_ITEM_STR);
+    StringViewType key;
+    Result result = pReader->UnpackNext(&key);
 
     if (result == Result::Success)
     {
-        const uint32 strHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                          pReader->Get().as.str.length);
-
-        switch (strHash)
+        switch (HashString(key))
         {
         case HashLiteralString("unknown"):
             *pValue = Abi::PipelineSymbolType::Unknown;
@@ -620,14 +610,12 @@ inline Result DeserializeEnum(
     MsgPackReader*  pReader,
     Abi::PointSpriteSelect*  pValue)
 {
-    Result result = pReader->Next(CWP_ITEM_STR);
+    StringViewType key;
+    Result result = pReader->UnpackNext(&key);
 
     if (result == Result::Success)
     {
-        const uint32 strHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                          pReader->Get().as.str.length);
-
-        switch (strHash)
+        switch (HashString(key))
         {
         case HashLiteralString("Zero"):
             *pValue = Abi::PointSpriteSelect::Zero;
@@ -689,14 +677,12 @@ inline Result DeserializeEnum(
     MsgPackReader*  pReader,
     Abi::GsOutPrimType*  pValue)
 {
-    Result result = pReader->Next(CWP_ITEM_STR);
+    StringViewType key;
+    Result result = pReader->UnpackNext(&key);
 
     if (result == Result::Success)
     {
-        const uint32 strHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                          pReader->Get().as.str.length);
-
-        switch (strHash)
+        switch (HashString(key))
         {
         case HashLiteralString("PointList"):
             *pValue = Abi::GsOutPrimType::PointList;
@@ -758,14 +744,12 @@ inline Result DeserializeEnum(
     MsgPackReader*  pReader,
     Abi::CoverageToShaderSel*  pValue)
 {
-    Result result = pReader->Next(CWP_ITEM_STR);
+    StringViewType key;
+    Result result = pReader->UnpackNext(&key);
 
     if (result == Result::Success)
     {
-        const uint32 strHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                          pReader->Get().as.str.length);
-
-        switch (strHash)
+        switch (HashString(key))
         {
         case HashLiteralString("InputCoverage"):
             *pValue = Abi::CoverageToShaderSel::InputCoverage;
@@ -869,14 +853,12 @@ inline Result DeserializeShaderMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(ShaderMetadataKey::ApiShaderHash):
                 PAL_ASSERT(pMetadata->hasEntry.apiShaderHash == 0);
@@ -943,14 +925,12 @@ inline Result DeserializeHardwareStageMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(HardwareStageMetadataKey::EntryPoint):
                 PAL_ASSERT(pMetadata->hasEntry.entryPoint == 0);
@@ -1317,14 +1297,12 @@ inline Result DeserializePaClClipCntlMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(PaClClipCntlMetadataKey::UserClipPlane0Ena):
             {
@@ -1499,14 +1477,12 @@ inline Result DeserializePaClVteCntlMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(PaClVteCntlMetadataKey::VtxXyFmt):
             {
@@ -1653,14 +1629,12 @@ inline Result DeserializePaSuVtxCntlMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(PaSuVtxCntlMetadataKey::PixCenter):
             {
@@ -1707,14 +1681,12 @@ inline Result DeserializeVgtShaderStagesEnMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(VgtShaderStagesEnMetadataKey::LsStageEn):
             {
@@ -1871,14 +1843,12 @@ inline Result DeserializeVgtGsModeMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(VgtGsModeMetadataKey::Mode):
                 PAL_ASSERT(pMetadata->hasEntry.mode == 0);
@@ -1945,14 +1915,12 @@ inline Result DeserializeVgtTfParamMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(VgtTfParamMetadataKey::Type):
                 PAL_ASSERT(pMetadata->hasEntry.type == 0);
@@ -2017,14 +1985,12 @@ inline Result DeserializeVgtLsHsConfigMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(VgtLsHsConfigMetadataKey::NumPatches):
                 PAL_ASSERT(pMetadata->hasEntry.numPatches == 0);
@@ -2063,14 +2029,12 @@ inline Result DeserializeIaMultiVgtParamMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(IaMultiVgtParamMetadataKey::PrimgroupSize):
                 PAL_ASSERT(pMetadata->hasEntry.primgroupSize == 0);
@@ -2153,14 +2117,12 @@ inline Result DeserializeSpiInterpControlMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(SpiInterpControlMetadataKey::PointSpriteEna):
             {
@@ -2225,18 +2187,12 @@ inline Result DeserializeSpiPsInputCntlMetadata(
 
         for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
         {
-            uint32 keyHash = 0;
-            result = pReader->Next(CWP_ITEM_STR);
+            StringViewType key;
+            result = pReader->UnpackNext(&key);
 
             if (result == Result::Success)
             {
-                keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                     pReader->Get().as.str.length);
-            }
-
-            if (result == Result::Success)
-            {
-                switch (keyHash)
+                switch (HashString(key))
                 {
                 case HashLiteralString(SpiPsInputCntlMetadataKey::Offset):
                     PAL_ASSERT(pMetadata[j].hasEntry.offset == 0);
@@ -2360,14 +2316,12 @@ inline Result DeserializeVgtGsInstanceCntMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(VgtGsInstanceCntMetadataKey::Enable):
             {
@@ -2422,14 +2376,12 @@ inline Result DeserializeVgtGsOutPrimTypeMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(VgtGsOutPrimTypeMetadataKey::OutprimType):
                 PAL_ASSERT(pMetadata->hasEntry.outprimType == 0);
@@ -2488,14 +2440,12 @@ inline Result DeserializeGeNggSubgrpCntlMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(GeNggSubgrpCntlMetadataKey::PrimAmpFactor):
                 PAL_ASSERT(pMetadata->hasEntry.primAmpFactor == 0);
@@ -2528,14 +2478,12 @@ inline Result DeserializeVgtGsOnchipCntlMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(VgtGsOnchipCntlMetadataKey::EsVertsPerSubgroup):
                 PAL_ASSERT(pMetadata->hasEntry.esVertsPerSubgroup == 0);
@@ -2574,14 +2522,12 @@ inline Result DeserializePaClVsOutCntlMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(PaClVsOutCntlMetadataKey::ClipDistEna_0):
             {
@@ -3022,14 +2968,12 @@ inline Result DeserializeSpiVsOutConfigMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(SpiVsOutConfigMetadataKey::NoPcExport):
             {
@@ -3076,14 +3020,12 @@ inline Result DeserializeVgtStrmoutConfigMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(VgtStrmoutConfigMetadataKey::Streamout_0En):
             {
@@ -3200,14 +3142,12 @@ inline Result DeserializeVgtStrmoutBufferConfigMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(VgtStrmoutBufferConfigMetadataKey::Stream_0BufferEn):
                 PAL_ASSERT(pMetadata->hasEntry.stream_0BufferEn == 0);
@@ -3252,14 +3192,12 @@ inline Result DeserializeCbShaderMaskMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(CbShaderMaskMetadataKey::Output0Enable):
                 PAL_ASSERT(pMetadata->hasEntry.output0Enable == 0);
@@ -3328,14 +3266,12 @@ inline Result DeserializeDbShaderControlMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(DbShaderControlMetadataKey::ZExportEnable):
             {
@@ -3536,14 +3472,12 @@ inline Result DeserializeSpiPsInControlMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(SpiPsInControlMetadataKey::NumInterps):
                 PAL_ASSERT(pMetadata->hasEntry.numInterps == 0);
@@ -3632,14 +3566,12 @@ inline Result DeserializePaScShaderControlMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(PaScShaderControlMetadataKey::LoadCollisionWaveid):
             {
@@ -3694,14 +3626,12 @@ inline Result DeserializeSpiBarycCntlMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(SpiBarycCntlMetadataKey::PosFloatLocation):
                 PAL_ASSERT(pMetadata->hasEntry.posFloatLocation == 0);
@@ -3742,14 +3672,12 @@ inline Result DeserializeSpiPsInputEnaMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(SpiPsInputEnaMetadataKey::PerspSampleEna):
             {
@@ -3994,14 +3922,12 @@ inline Result DeserializeSpiPsInputAddrMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(SpiPsInputAddrMetadataKey::PerspSampleEna):
             {
@@ -4246,14 +4172,12 @@ inline Result DeserializeSpiShaderColFormatMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(SpiShaderColFormatMetadataKey::Col_0ExportFormat):
                 PAL_ASSERT(pMetadata->hasEntry.col_0ExportFormat == 0);
@@ -4322,14 +4246,12 @@ inline Result DeserializeGraphicsRegisterMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(GraphicsRegisterMetadataKey::NggCullingDataReg):
                 PAL_ASSERT(pMetadata->hasEntry.nggCullingDataReg == 0);
@@ -4494,29 +4416,35 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::PaClClipCntl):
+                PAL_ASSERT(pMetadata->hasEntry.paClClipCntl == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializePaClClipCntlMetadata(
                         pReader, &pMetadata->paClClipCntl);
+                    pMetadata->hasEntry.paClClipCntl = (result == Result::Success);
                 }
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::PaClVteCntl):
+                PAL_ASSERT(pMetadata->hasEntry.paClVteCntl == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializePaClVteCntlMetadata(
                         pReader, &pMetadata->paClVteCntl);
+                    pMetadata->hasEntry.paClVteCntl = (result == Result::Success);
                 }
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::PaSuVtxCntl):
+                PAL_ASSERT(pMetadata->hasEntry.paSuVtxCntl == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializePaSuVtxCntlMetadata(
                         pReader, &pMetadata->paSuVtxCntl);
+                    pMetadata->hasEntry.paSuVtxCntl = (result == Result::Success);
                 }
                 break;
 
@@ -4535,11 +4463,13 @@ inline Result DeserializeGraphicsRegisterMetadata(
             }
 
             case HashLiteralString(GraphicsRegisterMetadataKey::VgtShaderStagesEn):
+                PAL_ASSERT(pMetadata->hasEntry.vgtShaderStagesEn == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializeVgtShaderStagesEnMetadata(
                         pReader, &pMetadata->vgtShaderStagesEn);
+                    pMetadata->hasEntry.vgtShaderStagesEn = (result == Result::Success);
                 }
                 break;
 
@@ -4558,56 +4488,68 @@ inline Result DeserializeGraphicsRegisterMetadata(
             }
 
             case HashLiteralString(GraphicsRegisterMetadataKey::VgtGsMode):
+                PAL_ASSERT(pMetadata->hasEntry.vgtGsMode == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializeVgtGsModeMetadata(
                         pReader, &pMetadata->vgtGsMode);
+                    pMetadata->hasEntry.vgtGsMode = (result == Result::Success);
                 }
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::VgtTfParam):
+                PAL_ASSERT(pMetadata->hasEntry.vgtTfParam == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializeVgtTfParamMetadata(
                         pReader, &pMetadata->vgtTfParam);
+                    pMetadata->hasEntry.vgtTfParam = (result == Result::Success);
                 }
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::VgtLsHsConfig):
+                PAL_ASSERT(pMetadata->hasEntry.vgtLsHsConfig == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializeVgtLsHsConfigMetadata(
                         pReader, &pMetadata->vgtLsHsConfig);
+                    pMetadata->hasEntry.vgtLsHsConfig = (result == Result::Success);
                 }
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::IaMultiVgtParam):
+                PAL_ASSERT(pMetadata->hasEntry.iaMultiVgtParam == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializeIaMultiVgtParamMetadata(
                         pReader, &pMetadata->iaMultiVgtParam);
+                    pMetadata->hasEntry.iaMultiVgtParam = (result == Result::Success);
                 }
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::SpiInterpControl):
+                PAL_ASSERT(pMetadata->hasEntry.spiInterpControl == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializeSpiInterpControlMetadata(
                         pReader, &pMetadata->spiInterpControl);
+                    pMetadata->hasEntry.spiInterpControl = (result == Result::Success);
                 }
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::SpiPsInputCntl):
+                PAL_ASSERT(pMetadata->hasEntry.spiPsInputCntl == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializeSpiPsInputCntlMetadata(
                         pReader, &pMetadata->spiPsInputCntl[0]);
+                    pMetadata->hasEntry.spiPsInputCntl = (result == Result::Success);
                 }
                 break;
 
@@ -4630,11 +4572,13 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::VgtGsInstanceCnt):
+                PAL_ASSERT(pMetadata->hasEntry.vgtGsInstanceCnt == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializeVgtGsInstanceCntMetadata(
                         pReader, &pMetadata->vgtGsInstanceCnt);
+                    pMetadata->hasEntry.vgtGsInstanceCnt = (result == Result::Success);
                 }
                 break;
 
@@ -4659,11 +4603,13 @@ inline Result DeserializeGraphicsRegisterMetadata(
             }
 
             case HashLiteralString(GraphicsRegisterMetadataKey::VgtGsOutPrimType):
+                PAL_ASSERT(pMetadata->hasEntry.vgtGsOutPrimType == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializeVgtGsOutPrimTypeMetadata(
                         pReader, &pMetadata->vgtGsOutPrimType);
+                    pMetadata->hasEntry.vgtGsOutPrimType = (result == Result::Success);
                 }
                 break;
 
@@ -4716,29 +4662,35 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::GeNggSubgrpCntl):
+                PAL_ASSERT(pMetadata->hasEntry.geNggSubgrpCntl == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializeGeNggSubgrpCntlMetadata(
                         pReader, &pMetadata->geNggSubgrpCntl);
+                    pMetadata->hasEntry.geNggSubgrpCntl = (result == Result::Success);
                 }
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::VgtGsOnchipCntl):
+                PAL_ASSERT(pMetadata->hasEntry.vgtGsOnchipCntl == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializeVgtGsOnchipCntlMetadata(
                         pReader, &pMetadata->vgtGsOnchipCntl);
+                    pMetadata->hasEntry.vgtGsOnchipCntl = (result == Result::Success);
                 }
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::PaClVsOutCntl):
+                PAL_ASSERT(pMetadata->hasEntry.paClVsOutCntl == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializePaClVsOutCntlMetadata(
                         pReader, &pMetadata->paClVsOutCntl);
+                    pMetadata->hasEntry.paClVsOutCntl = (result == Result::Success);
                 }
                 break;
 
@@ -4749,11 +4701,13 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::SpiVsOutConfig):
+                PAL_ASSERT(pMetadata->hasEntry.spiVsOutConfig == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializeSpiVsOutConfigMetadata(
                         pReader, &pMetadata->spiVsOutConfig);
+                    pMetadata->hasEntry.spiVsOutConfig = (result == Result::Success);
                 }
                 break;
 
@@ -4786,47 +4740,57 @@ inline Result DeserializeGraphicsRegisterMetadata(
             }
 
             case HashLiteralString(GraphicsRegisterMetadataKey::VgtStrmoutConfig):
+                PAL_ASSERT(pMetadata->hasEntry.vgtStrmoutConfig == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializeVgtStrmoutConfigMetadata(
                         pReader, &pMetadata->vgtStrmoutConfig);
+                    pMetadata->hasEntry.vgtStrmoutConfig = (result == Result::Success);
                 }
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::VgtStrmoutBufferConfig):
+                PAL_ASSERT(pMetadata->hasEntry.vgtStrmoutBufferConfig == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializeVgtStrmoutBufferConfigMetadata(
                         pReader, &pMetadata->vgtStrmoutBufferConfig);
+                    pMetadata->hasEntry.vgtStrmoutBufferConfig = (result == Result::Success);
                 }
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::CbShaderMask):
+                PAL_ASSERT(pMetadata->hasEntry.cbShaderMask == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializeCbShaderMaskMetadata(
                         pReader, &pMetadata->cbShaderMask);
+                    pMetadata->hasEntry.cbShaderMask = (result == Result::Success);
                 }
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::DbShaderControl):
+                PAL_ASSERT(pMetadata->hasEntry.dbShaderControl == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializeDbShaderControlMetadata(
                         pReader, &pMetadata->dbShaderControl);
+                    pMetadata->hasEntry.dbShaderControl = (result == Result::Success);
                 }
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::SpiPsInControl):
+                PAL_ASSERT(pMetadata->hasEntry.spiPsInControl == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializeSpiPsInControlMetadata(
                         pReader, &pMetadata->spiPsInControl);
+                    pMetadata->hasEntry.spiPsInControl = (result == Result::Success);
                 }
                 break;
 
@@ -4837,47 +4801,57 @@ inline Result DeserializeGraphicsRegisterMetadata(
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::PaScShaderControl):
+                PAL_ASSERT(pMetadata->hasEntry.paScShaderControl == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializePaScShaderControlMetadata(
                         pReader, &pMetadata->paScShaderControl);
+                    pMetadata->hasEntry.paScShaderControl = (result == Result::Success);
                 }
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::SpiBarycCntl):
+                PAL_ASSERT(pMetadata->hasEntry.spiBarycCntl == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializeSpiBarycCntlMetadata(
                         pReader, &pMetadata->spiBarycCntl);
+                    pMetadata->hasEntry.spiBarycCntl = (result == Result::Success);
                 }
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::SpiPsInputEna):
+                PAL_ASSERT(pMetadata->hasEntry.spiPsInputEna == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializeSpiPsInputEnaMetadata(
                         pReader, &pMetadata->spiPsInputEna);
+                    pMetadata->hasEntry.spiPsInputEna = (result == Result::Success);
                 }
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::SpiPsInputAddr):
+                PAL_ASSERT(pMetadata->hasEntry.spiPsInputAddr == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializeSpiPsInputAddrMetadata(
                         pReader, &pMetadata->spiPsInputAddr);
+                    pMetadata->hasEntry.spiPsInputAddr = (result == Result::Success);
                 }
                 break;
 
             case HashLiteralString(GraphicsRegisterMetadataKey::SpiShaderColFormat):
+                PAL_ASSERT(pMetadata->hasEntry.spiShaderColFormat == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializeSpiShaderColFormatMetadata(
                         pReader, &pMetadata->spiShaderColFormat);
+                    pMetadata->hasEntry.spiShaderColFormat = (result == Result::Success);
                 }
                 break;
 
@@ -4906,14 +4880,12 @@ inline Result DeserializeComputeRegisterMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(ComputeRegisterMetadataKey::TgidXEn):
             {
@@ -4988,18 +4960,12 @@ inline Result DeserializePipelineMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        uint32 keyHash = 0;
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                 pReader->Get().as.str.length);
-        }
-
-        if (result == Result::Success)
-        {
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(PipelineMetadataKey::Name):
                 PAL_ASSERT(pMetadata->hasEntry.name == 0);
@@ -5020,20 +4986,24 @@ inline Result DeserializePipelineMetadata(
                 break;
 
             case HashLiteralString(PipelineMetadataKey::Shaders):
+                PAL_ASSERT(pMetadata->hasEntry.shader == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializeShaderMetadata(
                         pReader, &pMetadata->shader);
+                    pMetadata->hasEntry.shader = (result == Result::Success);
                 }
                 break;
 
             case HashLiteralString(PipelineMetadataKey::HardwareStages):
+                PAL_ASSERT(pMetadata->hasEntry.hardwareStage == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializeHardwareStageMetadata(
                         pReader, &pMetadata->hardwareStage);
+                    pMetadata->hasEntry.hardwareStage = (result == Result::Success);
                 }
                 break;
 
@@ -5168,20 +5138,24 @@ inline Result DeserializePipelineMetadata(
                 break;
 
             case HashLiteralString(PipelineMetadataKey::GraphicsRegisters):
+                PAL_ASSERT(pMetadata->hasEntry.graphicsRegister == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializeGraphicsRegisterMetadata(
                         pReader, &pMetadata->graphicsRegister);
+                    pMetadata->hasEntry.graphicsRegister = (result == Result::Success);
                 }
                 break;
 
             case HashLiteralString(PipelineMetadataKey::ComputeRegisters):
+                PAL_ASSERT(pMetadata->hasEntry.computeRegister == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializeComputeRegisterMetadata(
                         pReader, &pMetadata->computeRegister);
+                    pMetadata->hasEntry.computeRegister = (result == Result::Success);
                 }
                 break;
 
@@ -5204,14 +5178,12 @@ inline Result DeserializeCodeObjectMetadata(
 
     for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
     {
-        result = pReader->Next(CWP_ITEM_STR);
+        StringViewType key;
+        result = pReader->UnpackNext(&key);
 
         if (result == Result::Success)
         {
-            const uint32 keyHash = HashString(static_cast<const char*>(pReader->Get().as.str.start),
-                                              pReader->Get().as.str.length);
-
-            switch (keyHash)
+            switch (HashString(key))
             {
             case HashLiteralString(CodeObjectMetadataKey::Version):
                 PAL_ASSERT(pMetadata->hasEntry.version == 0);
@@ -5220,11 +5192,13 @@ inline Result DeserializeCodeObjectMetadata(
                 break;
 
             case HashLiteralString(CodeObjectMetadataKey::Pipelines):
+                PAL_ASSERT(pMetadata->hasEntry.pipeline == 0);
                 result = pReader->Next();
                 if (result == Result::Success)
                 {
                     result = DeserializePipelineMetadata(
                         pReader, &pMetadata->pipeline);
+                    pMetadata->hasEntry.pipeline = (result == Result::Success);
                 }
                 break;
 

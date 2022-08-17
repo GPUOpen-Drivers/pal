@@ -37,6 +37,7 @@
 #include "palPipeline.h"
 #include "palPipelineAbiReader.h"
 #include "palSparseVectorImpl.h"
+#include "palStringView.h"
 #include "palVectorImpl.h"
 
 namespace Pal
@@ -196,8 +197,8 @@ protected:
         ShaderStats*           pStats) const;
 
     void DumpPipelineElf(
-        const char*         pPrefix,
-        const char*         pName) const;
+        Util::StringView<char> prefix,
+        Util::StringView<char> name) const;
 
     size_t PerformanceDataSize(
         const Util::PalAbi::CodeObjectMetadata& metadata) const;

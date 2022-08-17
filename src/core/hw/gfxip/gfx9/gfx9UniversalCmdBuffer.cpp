@@ -368,11 +368,13 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.waVgtFlushNggToLegacyGs                   = settings.waVgtFlushNggToLegacyGs;
     m_cachedSettings.waIndexBufferZeroSize                     = settings.waIndexBufferZeroSize;
     m_cachedSettings.waLegacyGsCutModeFlush                    = settings.waLegacyGsCutModeFlush;
+    m_cachedSettings.waClampQuadDistributionFactor             = settings.waClampQuadDistributionFactor;
     m_cachedSettings.supportsVrs                               = chipProps.gfxip.supportsVrs;
     m_cachedSettings.vrsForceRateFine                          = settings.vrsForceRateFine;
 
-    m_cachedSettings.supportAceOffload        = chipProps.gfxip.supportAceOffload;
-    m_cachedSettings.useExecuteIndirectPacket = coreSettings.useExecuteIndirectPacket;
+    m_cachedSettings.supportAceOffload                         = chipProps.gfxip.supportAceOffload;
+    m_cachedSettings.useExecuteIndirectPacket                  = coreSettings.useExecuteIndirectPacket;
+    m_cachedSettings.disablePreamblePipelineStats              = settings.disablePreamblePipelineStats;
 
     m_cachedSettings.optimizeDepthOnlyFmt    = settings.rbPlusOptimizeDepthOnlyExportRate;
     PAL_ASSERT(m_cachedSettings.optimizeDepthOnlyFmt ? m_cachedSettings.rbPlusSupported : true);
@@ -4344,6 +4346,40 @@ void UniversalCmdBuffer::WriteNullColorTargets(
 }
 
 // =====================================================================================================================
+// Validates and writes tessellation distribution factors
+uint32* UniversalCmdBuffer::WriteTessDistributionFactors(
+    uint32* pDeCmdSpace)
+{
+    // Confirm equivalence b/w the two unions assuming each bitfield compared is the same size (8, 8, 8, 5, and 3 bits).
+    constexpr regVGT_TESS_DISTRIBUTION RegCheck    = { 255, 255, 255, 31, 7 };
+    constexpr TessDistributionFactors  StructCheck = { 255, 255, 255, 31, 7 };
+    static_assert((RegCheck.bits.ACCUM_ISOLINE == StructCheck.isoDistributionFactor),
+                  "ACCUM_ISOLINE and isoDistributionFactor do not match!");
+    static_assert((RegCheck.bits.ACCUM_TRI == StructCheck.triDistributionFactor),
+                  "ACCUM_TRI and triDistributionFactor do not match!");
+    static_assert((RegCheck.bits.ACCUM_QUAD == StructCheck.quadDistributionFactor),
+                  "ACCUM_QUAD and quadDistributionFactor do not match!");
+    static_assert((RegCheck.bits.DONUT_SPLIT == StructCheck.donutDistributionFactor),
+                  "DONUT_SPLIT and donutDistributionFactor do not match!");
+    static_assert((RegCheck.bits.TRAP_SPLIT == StructCheck.trapDistributionFactor),
+                  "TRAP_SPLIT and trapDistributionFactor do not match!");
+    static_assert((sizeof(RegCheck) == sizeof(StructCheck)),
+                  "TessDistributionFactors and regVGT_TESS_DISTRIBUTION sizes do not match!");
+
+    if (m_cachedSettings.waClampQuadDistributionFactor)
+    {
+        // VGT_TESS_DISTRIBUTION.ACCUM_QUAD should never be allowed to exceed 64
+        m_tessDistributionFactors.quadDistributionFactor = Min(m_tessDistributionFactors.quadDistributionFactor, 64u);
+    }
+
+    pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmVGT_TESS_DISTRIBUTION,
+                                                      m_tessDistributionFactors.u32All,
+                                                      pDeCmdSpace);
+
+    return pDeCmdSpace;
+}
+
+// =====================================================================================================================
 // Adds a preamble to the start of a new command buffer.
 Result UniversalCmdBuffer::AddPreamble()
 {
@@ -4358,7 +4394,8 @@ Result UniversalCmdBuffer::AddPreamble()
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-    pDeCmdSpace += cmdUtil.BuildNonSampleEventWrite(PIPELINESTAT_START, EngineTypeUniversal, pDeCmdSpace);
+    pDeCmdSpace += cmdUtil.BuildNonSampleEventWrite(m_cachedSettings.disablePreamblePipelineStats ?
+        PIPELINESTAT_STOP : PIPELINESTAT_START, EngineTypeUniversal, pDeCmdSpace);
 
     // DB_RENDER_OVERRIDE bits are updated via depth-stencil view and at draw time validation based on dirty
     // depth-stencil state.
@@ -4381,6 +4418,9 @@ Result UniversalCmdBuffer::AddPreamble()
 
     // The draw-time validation will get confused unless we set PA_SC_AA_CONFIG to a known last value.
     pDeCmdSpace = m_deCmdStream.WriteSetOneContextRegNoOpt(mmPA_SC_AA_CONFIG, m_paScAaConfigLast.u32All, pDeCmdSpace);
+
+    // Set patch and donut distribution thresholds for tessellation.
+    pDeCmdSpace = WriteTessDistributionFactors(pDeCmdSpace);
 
     if (isNested)
     {
@@ -7962,7 +8002,11 @@ void UniversalCmdBuffer::AddQuery(
         }
         else if (queryType == QueryPoolType::PipelineStats)
         {
-            // PIPELINE_START event was issued in the preamble, so no need to do anything here
+            if (m_cachedSettings.disablePreamblePipelineStats)
+            {
+                // If pipeline stats are disabled in preamble, need to activate first queries of type PipelineStats
+                ActivateQueryType(queryType);
+            }
         }
         else if (queryType == QueryPoolType::StreamoutStats)
         {
@@ -9191,6 +9235,19 @@ gpusize UniversalCmdBuffer::ConstructExecuteIndirectIb2(
 
     *pIb2GpuSize = (cmdDwords + paddingDwords) * sizeof(uint32);
 
+#if PAL_ENABLE_PRINTS_ASSERTS
+    const Ib2DumpInfo dumpInfo =
+    {
+        static_cast<uint32*>(pIb2SpaceBegin),   // CPU address of the commands
+        static_cast<uint32>(*pIb2GpuSize),      // Length of the dump in bytes
+        uint64(ib2GpuVa),                       // GPU virtual address of the commands
+        m_deCmdStream.GetEngineType(),          // Engine Type
+        m_deCmdStream.GetSubEngineType(),       // Sub Engine Type
+    };
+
+    InsertIb2DumpInfo(dumpInfo);
+#endif
+
     return ib2GpuVa;
 }
 
@@ -10223,6 +10280,17 @@ void UniversalCmdBuffer::CallNestedCmdBuffer(
 
     m_deCmdStream.Call(pCallee->m_deCmdStream, exclusiveSubmit, allowIb2Launch);
     m_ceCmdStream.Call(pCallee->m_ceCmdStream, exclusiveSubmit, allowIb2LaunchCe);
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    if (allowIb2Launch)
+    {
+        TrackIb2DumpInfoFromExecuteNestedCmds(pCallee->m_deCmdStream);
+    }
+    if (allowIb2LaunchCe)
+    {
+        TrackIb2DumpInfoFromExecuteNestedCmds(pCallee->m_ceCmdStream);
+    }
+#endif
 
 }
 

@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include "core/hw/gfxip/computeCmdBuffer.h"
+#include "core/hw/gfxip/pm4ComputeCmdBuffer.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdStream.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdUtil.h"
 #include "palAutoBuffer.h"
@@ -38,8 +38,8 @@ namespace Gfx6
 class Device;
 
 // =====================================================================================================================
-// GFX6 compute command buffer class: implements GFX6 specific functionality for the ComputeCmdBuffer class.
-class ComputeCmdBuffer final : public Pal::ComputeCmdBuffer
+// GFX6 compute command buffer class: implements GFX6 specific functionality for the Pm4::ComputeCmdBuffer class.
+class ComputeCmdBuffer final : public Pm4::ComputeCmdBuffer
 {
 public:
     ComputeCmdBuffer(const Device& device, const CmdBufferCreateInfo& createInfo);

@@ -136,7 +136,7 @@ static bool PreferFastDepthStencilClearGraphics(
 RsrcProcMgr::RsrcProcMgr(
     Device* pDevice)
     :
-    Pal::RsrcProcMgr(pDevice),
+    Pm4::RsrcProcMgr(pDevice),
     m_pDevice(pDevice),
     m_cmdUtil(pDevice->CmdUtil())
 {

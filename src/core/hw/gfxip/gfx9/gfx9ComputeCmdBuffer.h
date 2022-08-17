@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include "core/hw/gfxip/computeCmdBuffer.h"
+#include "core/hw/gfxip/pm4ComputeCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9ComputePipeline.h"
 #include "palAutoBuffer.h"
@@ -39,8 +39,8 @@ class Device;
 class WorkGraph;
 
 // =====================================================================================================================
-// GFX9 compute command buffer class: implements GFX9 specific functionality for the ComputeCmdBuffer class.
-class ComputeCmdBuffer final : public Pal::ComputeCmdBuffer
+// GFX9 compute command buffer class: implements GFX9 specific functionality for the Pm4::ComputeCmdBuffer class.
+class ComputeCmdBuffer final : public Pm4::ComputeCmdBuffer
 {
 public:
     ComputeCmdBuffer(const Device& device, const CmdBufferCreateInfo& createInfo);

@@ -176,8 +176,7 @@ Result ComputePipeline::InitFromPalAbiBinary(
     {
         ExtractPipelineInfo(metadata, ShaderType::Compute, ShaderType::Compute);
 
-        DumpPipelineElf("PipelineCs",
-                        ((metadata.pipeline.hasEntry.name != 0) ? metadata.pipeline.name : nullptr));
+        DumpPipelineElf("PipelineCs", metadata.pipeline.name);
 
         const Elf::SymbolTableEntry* pSymbol =
             abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::CsDisassembly);

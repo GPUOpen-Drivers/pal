@@ -41,7 +41,7 @@ class  Device;
 struct GraphicsPipelineLoadInfo;
 
 // =====================================================================================================================
-// Describe HW Reg for a Computer Pipeline
+// Describe HW Reg for a Computer Pipeline or Library.
 struct HwRegInfo
 {
     regCOMPUTE_NUM_THREAD_X        computeNumThreadX;
@@ -52,23 +52,6 @@ struct HwRegInfo
     regCOMPUTE_PGM_RSRC3           computePgmRsrc3;
     regCOMPUTE_USER_DATA_0         userDataInternalTable;
     regCOMPUTE_SHADER_CHKSUM       computeShaderChksum;
-
-    struct
-    {
-        regCOMPUTE_PGM_RSRC2        computePgmRsrc2;
-        regCOMPUTE_RESOURCE_LIMITS  computeResourceLimits;
-    } dynamic; // Contains state which depends on bind-time parameters.
-};
-
-// =====================================================================================================================
-// Describe HW Reg for a Shader Library
-// Shader Library only need HW regs includes: computePgmRsrc1 / computePgmRsrc2 / computePgmRsrc3
-// The PGM_LO/PGM_HI are for programming the main shader address to the HW,
-// and the USER_ACCUM registers are specific to the main shader also.
-struct LibHwRegInfo
-{
-    regCOMPUTE_PGM_RSRC1     computePgmRsrc1;
-    regCOMPUTE_PGM_RSRC3     computePgmRsrc3;
 
     struct
     {
@@ -156,38 +139,6 @@ private:
 
     PAL_DISALLOW_DEFAULT_CTOR(PipelineChunkCs);
     PAL_DISALLOW_COPY_AND_ASSIGN(PipelineChunkCs);
-};
-
-// =====================================================================================================================
-// Represents the chunk of a compute library object which contains all of the registers
-// which setup the hardware library stage.
-// This is sort of a PM4 "image" of the commands which write these registers, but with some intelligence so that the
-// code used to setup the commands can be reused.
-class LibraryChunkCs final : public PipelineChunkCs
-{
-public:
-    explicit LibraryChunkCs(const Device& device);
-
-    ~LibraryChunkCs() { }
-
-    // Compute Library use only
-    void LateInit(
-        const AbiReader&            abiReader,
-        const RegisterVector&       registers,
-        uint32                      wavefrontSize,
-        ShaderLibraryFunctionInfo*  pFunctionList,
-        uint32                      funcCount,
-        PipelineUploader*           pUploader);
-
-    const LibHwRegInfo& LibHWInfo() const { return m_regs; }
-
-private:
-    const Device&  m_device;
-
-    LibHwRegInfo  m_regs;
-
-    PAL_DISALLOW_DEFAULT_CTOR(LibraryChunkCs);
-    PAL_DISALLOW_COPY_AND_ASSIGN(LibraryChunkCs);
 };
 
 } // Gfx9

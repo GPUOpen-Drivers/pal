@@ -24,6 +24,7 @@
  **********************************************************************************************************************/
 
 #include "core/cmdAllocator.h"
+#include "core/cmdBuffer.h"
 #include "core/cmdStream.h"
 #include "core/device.h"
 #include "core/fence.h"
@@ -721,23 +722,8 @@ void CmdStream::DumpCommands(
         result = pFile->Write(line, strlen(line));
     }
 
-    uint32 subEngineId = 0; // DE subengine ID
-
-    if (m_subEngineType == SubEngineType::ConstantEngine)
-    {
-        if (m_cmdStreamUsage == CmdStreamUsage::Preamble)
-        {
-            subEngineId = 2; // CE preamble subengine ID
-        }
-        else
-        {
-            subEngineId = 1; // CE subengine ID
-        }
-    }
-    else if (GetEngineType() == EngineType::EngineTypeDma)
-    {
-        subEngineId = 4; // SDMA engine ID
-    }
+    const bool   isPreamble  = (m_cmdStreamUsage == CmdStreamUsage::Preamble);
+    const uint32 subEngineId = GetSubEngineId(m_subEngineType, GetEngineType(), isPreamble);
 
     // Next, walk through all the chunks that make up this command stream and write their command to the file.
     for (auto iter = m_chunkList.Begin(); iter.IsValid() && (result == Result::Success); iter.Next())

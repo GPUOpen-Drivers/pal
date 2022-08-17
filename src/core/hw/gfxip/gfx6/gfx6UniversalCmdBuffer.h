@@ -551,6 +551,10 @@ private:
     uint32* ValidateScissorRects(uint32* pDeCmdSpace);
     uint32* ValidateTriangleRasterState(uint32* pDeCmdSpace);
 
+    uint32* WriteTessDistributionFactors(
+        uint32* pDeCmdSpace,
+        GpuChipProperties chipProps);
+
     uint32* WriteNullColorTargets(
         uint32* pCmdSpace,
         uint32  newColorTargetMask,

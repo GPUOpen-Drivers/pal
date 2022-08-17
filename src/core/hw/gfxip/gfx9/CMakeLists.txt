@@ -110,8 +110,6 @@ target_sources(pal PRIVATE
     gfx9UniversalEngine.h
     gfx9WorkaroundState.cpp
     gfx9WorkaroundState.h
-    gfx10DmaCmdBuffer.cpp
-    gfx10DmaCmdBuffer.h
     gfx10ShadowedRegisters.h
     gfx10ShadowedRegisters_gfx103.h
     gfx10ShadowedRegisters_nv10.h

@@ -131,7 +131,8 @@ CmdBuffer::CmdBuffer(
 #if PAL_ENABLE_PRINTS_ASSERTS
     ,
     m_uniqueId(0),
-    m_numCmdBufsBegun(0)
+    m_numCmdBufsBegun(0),
+    m_ib2DumpInfos(device.GetPlatform())
 #endif
 {
     m_buildFlags.u32All = 0;
@@ -315,6 +316,16 @@ Result CmdBuffer::Begin(
         }
     }
 
+#if PAL_ENABLE_PRINTS_ASSERTS
+    if ((result == Result::Success) && (IsDumpingEnabled()))
+    {
+        char filename[MaxFilenameLength] = {};
+
+        GetCmdBufDumpFilename(filename, MaxFilenameLength * sizeof(char));
+        OpenCmdBufDumpFile(&filename[0]);
+    }
+#endif
+
     return result;
 }
 
@@ -415,6 +426,11 @@ Result CmdBuffer::Reset(
 
     m_executionMarkerCount = 0;
     m_executionMarkerAddr  = 0;
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    // reset the dumpInfos
+    m_ib2DumpInfos.Clear();
+#endif
 
     // We must attempt to return our linear allocator in the case that the client reset this command buffer while it was
     // in the building state. In normal operation this call will do nothing and take no locks.
@@ -1111,6 +1127,45 @@ bool CmdBuffer::HasAddressDependentCmdStream() const
 
 #if PAL_ENABLE_PRINTS_ASSERTS
 // =====================================================================================================================
+void CmdBuffer::EndCmdBufferDump(
+    const CmdStream** ppCmdStreams,
+    uint32            cmdStreamsNum)
+{
+    if (IsDumpingEnabled() && DumpFile()->IsOpen())
+    {
+        if (m_device.Settings().cmdBufDumpFormat == CmdBufDumpFormatBinaryHeaders)
+        {
+            const CmdBufferDumpFileHeader fileHeader =
+            {
+                static_cast<uint32>(sizeof(CmdBufferDumpFileHeader)), // Structure size
+                1,                                                    // Header version
+                m_device.ChipProperties().familyId,                   // ASIC family
+                m_device.ChipProperties().eRevId,                     // ASIC revision
+                0                                                     // Ib2 Start Index
+            };
+            DumpFile()->Write(&fileHeader, sizeof(fileHeader));
+
+            CmdBufferListHeader listHeader =
+            {
+                static_cast<uint32>(sizeof(CmdBufferListHeader)),   // Structure size
+                0,                                                  // Engine index
+                0                                                   // Number of command buffer chunks
+            };
+
+            for (uint32 i = 0; i < cmdStreamsNum && ppCmdStreams[i] != nullptr; i++)
+            {
+                listHeader.count += ppCmdStreams[i]->GetNumChunks();
+            }
+
+            DumpFile()->Write(&listHeader, sizeof(listHeader));
+        }
+
+        DumpCmdStreamsToFile(DumpFile(), m_device.Settings().cmdBufDumpFormat);
+        DumpFile()->Close();
+    }
+}
+
+// =====================================================================================================================
 // Open the dump file, gets the directory from device setting so the file is dumped to the correct folder.
 void CmdBuffer::OpenCmdBufDumpFile(
     const char* pFilename)
@@ -1160,7 +1215,188 @@ void CmdBuffer::OpenCmdBufDumpFile(
         PAL_ASSERT_ALWAYS();
     }
 }
+
+// =====================================================================================================================
+// Dumps the IB2 to a file with headers.
+static void DumpIb2ToFile(
+    const Ib2DumpInfo& dumpInfo,
+    Util::File*        pFile,
+    CmdBufDumpFormat   dumpFormat)
+{
+    const uint32 subEngineId = GetSubEngineId(dumpInfo.subEngineType, dumpInfo.engineType, false);
+
+    if ((dumpFormat == CmdBufDumpFormatBinary) || (dumpFormat == CmdBufDumpFormatBinaryHeaders))
+    {
+        if (dumpFormat == CmdBufDumpFormatBinaryHeaders)
+        {
+            const CmdBufferIb2DumpHeader chunkheader =
+            {
+                static_cast<uint32>(sizeof(CmdBufferIb2DumpHeader)),
+                dumpInfo.ib2Size,
+                subEngineId,
+                dumpInfo.gpuVa,
+            };
+            pFile->Write(&chunkheader, sizeof(chunkheader));
+        }
+        pFile->Write(dumpInfo.pCpuAddress, (uint32)(dumpInfo.ib2Size));
+    }
+    else if (dumpFormat == CmdBufDumpFormatText)
+    {
+        constexpr uint32 MaxLineSize = 128;
+        char line[MaxLineSize];
+
+        // first put some indication that this is an IB2
+        Snprintf(line, MaxLineSize, "# IB2 - Command Length: %d - IB2 GPU VA: %016llX\n",
+                 dumpInfo.ib2Size / sizeof(uint32), dumpInfo.gpuVa);
+
+        Result result = pFile->Write(line, strlen(line));
+        for (uint32 idx = 0; (idx < dumpInfo.ib2Size / sizeof(uint32)) && (result == Result::Success); ++idx)
+        {
+            Snprintf(line, MaxLineSize, "0x%08x\n", dumpInfo.pCpuAddress[idx]);
+            result = pFile->Write(line, strlen(line));
+        }
+
+        PAL_ASSERT(result == Result::Success);
+    }
+    else
+    {
+        PAL_ALERT_ALWAYS_MSG("Unsupported Dump Format - Pal::Ib2DumpInfo::DumpToFile")
+    }
+}
+
+// =====================================================================================================================
+// Dumps all the IB2s created in this buffer to the file with appropriate Headers.
+void CmdBuffer::DumpIb2s(
+    Util::File*      pFile,
+    CmdBufDumpFormat mode)
+{
+    const uint32 numIb2 = m_ib2DumpInfos.size();
+    if (numIb2 > 0)
+    {
+        if (mode == CmdBufDumpFormatBinaryHeaders)
+        {
+            CmdBufferListHeader listHeader =
+            {
+                static_cast<uint32>(sizeof(CmdBufferListHeader)),   // Structure size
+                GetEngineType(),                                    // Engine index
+                numIb2,                                             // Number of Ib2 chunks
+            };
+            pFile->Write(&listHeader, sizeof(listHeader));
+        }
+
+        for (auto iter = m_ib2DumpInfos.Begin(); iter.IsValid(); iter.Next())
+        {
+            const Ib2DumpInfo& dumpInfo = iter.Get();
+            DumpIb2ToFile(dumpInfo, pFile, mode);
+        }
+    }
+}
+
+// =====================================================================================================================
+// Doesn't insert if an Ib2 with the same gpuVa is already inserted.
+void CmdBuffer::InsertIb2DumpInfo(
+    const Ib2DumpInfo& dumpInfo)
+{
+    bool foundMatch = false;
+    for (auto iter = m_ib2DumpInfos.Begin(); iter.IsValid(); iter.Next())
+    {
+        Ib2DumpInfo iterDumpInfo = iter.Get();
+        if (dumpInfo.gpuVa == iterDumpInfo.gpuVa)
+        {
+            foundMatch = true;
+            break;
+        }
+    }
+    if (foundMatch == false)
+    {
+        PAL_ASSERT(m_ib2DumpInfos.PushBack(dumpInfo) == Result::Success);
+    }
+}
+
+// =====================================================================================================================
+// This tracks the IB2 launch addresses if CmdStream::Call(...) will use an IB2
+void CmdBuffer::TrackIb2DumpInfoFromExecuteNestedCmds(
+    const Pal::CmdStream& targetStream)
+{
+    for (auto chunkIter = targetStream.GetFwdIterator(); chunkIter.IsValid(); chunkIter.Next())
+    {
+        // When not chaining, can just push back multiple dumpinfos
+        const auto* const pChunk  = chunkIter.Get();
+
+        const Ib2DumpInfo dumpInfo =
+        {
+            pChunk->CpuAddr(),               // CPU address of the commands
+            pChunk->CmdDwordsToExecute(),    // Length of the dump in bytes
+            pChunk->GpuVirtAddr(),           // GPU virtual address of the commands
+            targetStream.GetEngineType(),    // Engine Type
+            targetStream.GetSubEngineType(), // Sub Engine Type
+        };
+
+        InsertIb2DumpInfo(dumpInfo);
+    }
+}
+
+// =====================================================================================================================
+void CmdBuffer::GetCmdBufDumpFilename(
+    char*  pOutput,
+    size_t outputBufSize) const
+{
+    // filename is:  eeeeeeeeexx_yyyyy, where "eeeeeeeee" is the target engine, "xx" is the number of command
+    //               buffers that have been created so far (one based) and "yyyyy" is the number of times this
+    //               command buffer has been begun (also one based).
+    //
+    // All streams associated with this command buffer are included in this one file.
+    switch (GetEngineType())
+    {
+    case EngineTypeUniversal:
+        Snprintf(pOutput, outputBufSize, "universal%02d_%05d", UniqueId(), NumBegun());
+        break;
+    case EngineTypeCompute:
+        Snprintf(pOutput, outputBufSize, "compute%02d_%05d", UniqueId(), NumBegun());
+        break;
+    case EngineTypeDma:
+        Snprintf(pOutput, outputBufSize, "dma%02d_%05d", UniqueId(), NumBegun());
+        break;
+    default:
+        PAL_ASSERT_ALWAYS();
+        break;
+    }
+}
+
 #endif
+
+// =====================================================================================================================
+// Gets the subEngineId for dump headers
+const uint32 GetSubEngineId(
+    const SubEngineType subEngineType,
+    const EngineType    engineType,
+    const bool          isPreamble)
+{
+    uint32 subEngineId = 0; // DE subengine ID
+
+    if (subEngineType == SubEngineType::ConstantEngine)
+    {
+        if (isPreamble)
+        {
+            subEngineId = 2; // CE preamble subengine ID
+        }
+        else
+        {
+            subEngineId = 1; // CE subengine ID
+        }
+    }
+    else if ((engineType == EngineType::EngineTypeCompute) ||
+             (subEngineType == SubEngineType::AsyncCompute))
+    {
+        subEngineId = 3; // Compute subengine ID
+    }
+    else if (engineType == EngineType::EngineTypeDma)
+    {
+        subEngineId = 4; // SDMA engine ID
+    }
+
+    return subEngineId;
+}
 
 // =====================================================================================================================
 // Default implementation of CmdDraw is unimplemented, derived CmdBuffer classes should override it if supported.

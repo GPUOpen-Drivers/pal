@@ -1560,15 +1560,6 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
         regVGT_OUT_DEALLOC_CNTL vgtOutDeallocCntl = { };
         vgtOutDeallocCntl.bits.DEALLOC_DIST = (settings.vsHalfPackThreshold >= MaxVsExportSemantics) ? 32 : 16;
 
-        // Set patch and donut distribution thresholds for tessellation. If we decide that this should be tunable
-        // per-pipeline, we can move the registers to the Pipeline object (DXX currently uses per-Device thresholds).
-        regVGT_TESS_DISTRIBUTION__VI vgtTessDistribution = { };
-        vgtTessDistribution.bits.ACCUM_ISOLINE = pPublicSettings->isolineDistributionFactor;
-        vgtTessDistribution.bits.ACCUM_TRI     = pPublicSettings->triDistributionFactor;
-        vgtTessDistribution.bits.ACCUM_QUAD    = pPublicSettings->quadDistributionFactor;
-        vgtTessDistribution.bits.DONUT_SPLIT   = pPublicSettings->donutDistributionFactor;
-        vgtTessDistribution.bits.TRAP_SPLIT    = pPublicSettings->trapezoidDistributionFactor;
-
         // Set-and-forget DCC register.
         regCB_DCC_CONTROL__VI cbDccControl = { };
         cbDccControl.bits.OVERWRITE_COMBINER_MRT_SHARING_DISABLE = 1;
@@ -1600,9 +1591,6 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
         }
 
         pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmVGT_OUT_DEALLOC_CNTL, vgtOutDeallocCntl.u32All, pCmdSpace);
-        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmVGT_TESS_DISTRIBUTION__VI,
-                                                        vgtTessDistribution.u32All,
-                                                        pCmdSpace);
         pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmCB_DCC_CONTROL__VI,
                                                         cbDccControl.u32All,
                                                         pCmdSpace);

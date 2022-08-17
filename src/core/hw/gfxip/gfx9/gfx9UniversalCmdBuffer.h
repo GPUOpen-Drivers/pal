@@ -255,20 +255,23 @@ union CachedSettings
         uint64 waVgtFlushNggToLegacyGs                   :  1;
         uint64 waIndexBufferZeroSize                     :  1;
         uint64 waLegacyGsCutModeFlush                    :  1;
+        uint64 waClampQuadDistributionFactor             :  1;
 
         uint64 supportsVrs                               :  1;
         uint64 vrsForceRateFine                          :  1;
         uint64 reserved7                                 :  1;
         uint64 supportAceOffload                         :  1;
         uint64 useExecuteIndirectPacket                  :  2;
+        uint64 disablePreamblePipelineStats              :  1;
         uint64 reserved8                   : 15;
         uint64 reserved10                 :  1;
 
         uint64 optimizeDepthOnlyFmt       :  1;
         uint64 has32bPred                 :  1;
         uint64 optimizeNullSourceImage    :  1;
+        uint64 reserved                   : 63;
     };
-    uint64 u64All[2];
+    uint64 u64All[3];
 };
 
 // Tracks a prior VRS rate image to HTile copy so that we can skip redundant rate image copies.
@@ -839,6 +842,9 @@ private:
 
     template <bool Pm4OptImmediate, bool PipelineDirty, bool StateDirty>
     uint32* ValidateDbRenderOverride(
+        uint32* pDeCmdSpace);
+
+    uint32* WriteTessDistributionFactors(
         uint32* pDeCmdSpace);
 
     static Offset2d GetHwShadingRate(VrsShadingRate  shadingRate);

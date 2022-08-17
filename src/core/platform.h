@@ -163,10 +163,6 @@ public:
         { m_pfnDeveloperCb(m_pClientPrivateData, deviceIndex, type, pData); }
 
     virtual DevDriver::DevDriverServer* GetDevDriverServer() override { return m_pDevDriverServer; }
-    bool IsUberTraceServiceRegistered();
-    bool IsDriverUtilsServiceRegistered();
-    bool IsServiceRegistered(DDRpcServiceId serviceId);
-
     virtual DevDriver::EventProtocol::EventServer* GetEventServer() override { return m_pEventServer; }
 
     virtual SettingsRpcService::SettingsService* GetSettingsService() override { return m_pSettingsService; }

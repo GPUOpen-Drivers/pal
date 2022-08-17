@@ -68,6 +68,18 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 
     SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute,  &Pm4CmdBuffer::CmdSetUserDataCs);
     SwitchCmdSetUserDataFunc(PipelineBindPoint::Graphics, &CmdSetUserDataGfx<true>);
+
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 755)
+    constexpr TessDistributionFactors DefaultTessDistributionFactors = { 12, 30, 24, 24, 6 };
+    m_tessDistributionFactors = DefaultTessDistributionFactors;
+#else
+    const PalPublicSettings* pPalSettings = m_device.Parent()->GetPublicSettings();
+    m_tessDistributionFactors = { pPalSettings->isolineDistributionFactor,
+                                  pPalSettings->triDistributionFactor,
+                                  pPalSettings->quadDistributionFactor,
+                                  pPalSettings->donutDistributionFactor,
+                                  pPalSettings->trapezoidDistributionFactor };
+#endif
 }
 
 // =====================================================================================================================
@@ -84,21 +96,12 @@ Result UniversalCmdBuffer::Begin(
         m_graphicsState.inheritedState = *(info.pInheritedState);
     }
 
-#if PAL_ENABLE_PRINTS_ASSERTS
-    if ((result == Result::Success) && (IsDumpingEnabled()))
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 755)
+    if (m_buildFlags.optimizeTessDistributionFactors)
     {
-        char filename[MaxFilenameLength] = {};
-
-        // filename is:  computexx_yyyyy, where "xx" is the number of universal command buffers that have been created
-        //               so far (one based) and "yyyyy" is the number of times this command buffer has been begun (also
-        //               one based).
-        //
-        // All streams associated with this command buffer are included in this one file.
-        Snprintf(filename, MaxFilenameLength, "universal%02d_%05d", UniqueId(), NumBegun());
-        OpenCmdBufDumpFile(&filename[0]);
+        m_tessDistributionFactors = info.clientTessDistributionFactors;
     }
 #endif
-
     return result;
 }
 
@@ -173,36 +176,8 @@ Result UniversalCmdBuffer::End()
         m_graphicsState.leakFlags.u64All |= m_graphicsState.dirtyFlags.u64All;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-        if (IsDumpingEnabled() && DumpFile()->IsOpen())
-        {
-            if (m_device.Parent()->Settings().cmdBufDumpFormat == CmdBufDumpFormatBinaryHeaders)
-            {
-                const CmdBufferDumpFileHeader fileHeader =
-                {
-                    static_cast<uint32>(sizeof(CmdBufferDumpFileHeader)), // Structure size
-                    1,                                                    // Header version
-                    m_device.Parent()->ChipProperties().familyId,         // ASIC family
-                    m_device.Parent()->ChipProperties().eRevId,           // ASIC revision
-                    0                                                     // Reserved
-                };
-                DumpFile()->Write(&fileHeader, sizeof(fileHeader));
-
-                CmdBufferListHeader listHeader =
-                {
-                    static_cast<uint32>(sizeof(CmdBufferListHeader)),   // Structure size
-                    0,                                                  // Engine index
-                    0                                                   // Number of command buffer chunks
-                };
-
-                listHeader.count = m_pDeCmdStream->GetNumChunks() +
-                                   ((m_pCeCmdStream != nullptr) ? m_pCeCmdStream->GetNumChunks() : 0);
-
-                DumpFile()->Write(&listHeader, sizeof(listHeader));
-            }
-
-            DumpCmdStreamsToFile(DumpFile(), m_device.Parent()->Settings().cmdBufDumpFormat);
-            DumpFile()->Close();
-        }
+        const CmdStream* cmdStreams[] ={ m_pDeCmdStream, m_pCeCmdStream, m_pAceCmdStream };
+        EndCmdBufferDump(cmdStreams, 3);
 #endif
     }
 
@@ -585,7 +560,7 @@ void UniversalCmdBuffer::CmdSetRasterizerDiscardEnable(
 // =====================================================================================================================
 // Dumps this command buffer's DE and CE command streams to the given file with an appropriate header.
 void UniversalCmdBuffer::DumpCmdStreamsToFile(
-    File*          pFile,
+    File*            pFile,
     CmdBufDumpFormat mode
     ) const
 {
@@ -599,6 +574,48 @@ void UniversalCmdBuffer::DumpCmdStreamsToFile(
     if (m_pAceCmdStream != nullptr)
     {
         m_pAceCmdStream->DumpCommands(pFile, "# Universal Queue - ACE Command length = ", mode);
+    }
+}
+
+// =====================================================================================================================
+void UniversalCmdBuffer::EndCmdBufferDump(
+    const CmdStream** ppCmdStreams,
+    uint32            cmdStreamsNum)
+{
+    if (IsDumpingEnabled() && DumpFile()->IsOpen())
+    {
+        if (m_device.Parent()->Settings().cmdBufDumpFormat == CmdBufDumpFormatBinaryHeaders)
+        {
+            CmdBufferDumpFileHeader fileHeader =
+            {
+                static_cast<uint32>(sizeof(CmdBufferDumpFileHeader)), // Structure size
+                1,                                                    // Header version
+                m_device.Parent()->ChipProperties().familyId,         // ASIC family
+                m_device.Parent()->ChipProperties().eRevId,           // ASIC revision
+                0                                                     // IB2 start index
+            };
+
+            CmdBufferListHeader listHeader =
+            {
+                static_cast<uint32>(sizeof(CmdBufferListHeader)),   // Structure size
+                0,                                                  // Engine index
+                0,                                                  // Number of command buffer chunks
+            };
+
+            for (uint32 i = 0; i < cmdStreamsNum && ppCmdStreams[i] != nullptr; i++)
+            {
+                listHeader.count += ppCmdStreams[i]->GetNumChunks();
+            }
+
+            fileHeader.ib2Start = (m_ib2DumpInfos.size() > 0) ? listHeader.count : 0;
+
+            DumpFile()->Write(&fileHeader, sizeof(fileHeader));
+            DumpFile()->Write(&listHeader, sizeof(listHeader));
+        }
+
+        DumpCmdStreamsToFile(DumpFile(), m_device.Parent()->Settings().cmdBufDumpFormat);
+        DumpIb2s(DumpFile(), m_device.Parent()->Settings().cmdBufDumpFormat);
+        DumpFile()->Close();
     }
 }
 #endif

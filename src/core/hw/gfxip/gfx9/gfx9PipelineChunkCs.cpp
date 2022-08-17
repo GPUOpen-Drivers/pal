@@ -105,9 +105,11 @@ void PipelineChunkCs::InitRegisters(
 
     m_regs.computePgmRsrc1.u32All         = registers.At(mmCOMPUTE_PGM_RSRC1);
     m_regs.dynamic.computePgmRsrc2.u32All = registers.At(mmCOMPUTE_PGM_RSRC2);
-    m_regs.computeNumThreadX.u32All       = registers.At(mmCOMPUTE_NUM_THREAD_X);
-    m_regs.computeNumThreadY.u32All       = registers.At(mmCOMPUTE_NUM_THREAD_Y);
-    m_regs.computeNumThreadZ.u32All       = registers.At(mmCOMPUTE_NUM_THREAD_Z);
+
+    // These are optional for shader libraries.
+    registers.HasEntry(mmCOMPUTE_NUM_THREAD_X, &m_regs.computeNumThreadX.u32All);
+    registers.HasEntry(mmCOMPUTE_NUM_THREAD_Y, &m_regs.computeNumThreadY.u32All);
+    registers.HasEntry(mmCOMPUTE_NUM_THREAD_Z, &m_regs.computeNumThreadZ.u32All);
 
     if (IsGfx10Plus(chipProps.gfxLevel))
     {
@@ -538,85 +540,6 @@ Result PipelineChunkCs::CreateLaunchDescriptor(
     memcpy(pOut, &layout, sizeof(layout));
 
     return Result::Success;
-}
-
-// =====================================================================================================================
-LibraryChunkCs::LibraryChunkCs(
-    const Device&    device)
-    :
-    PipelineChunkCs(device, nullptr, nullptr),
-    m_device(device)
-{
-    memset(&m_regs, 0, sizeof(m_regs));
-}
-
-// =====================================================================================================================
-// Late initialization for this Compute Library chunk.
-// Responsible for fetching register values from the library binary and
-// determining the values of other registers.
-void LibraryChunkCs::LateInit(
-    const AbiReader&            abiReader,
-    const RegisterVector&       registers,
-    uint32                      wavefrontSize,
-    ShaderLibraryFunctionInfo*  pFunctionList,
-    uint32                      funcCount,
-    PipelineUploader*           pUploader)
-{
-    const auto&              cmdUtil   = m_device.CmdUtil();
-    const auto&              regInfo   = cmdUtil.GetRegInfo();
-    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
-
-    m_regs.computePgmRsrc1.u32All         = registers.At(mmCOMPUTE_PGM_RSRC1);
-    m_regs.dynamic.computePgmRsrc2.u32All = registers.At(mmCOMPUTE_PGM_RSRC2);
-
-    if (IsGfx10Plus(chipProps.gfxLevel))
-    {
-        m_regs.computePgmRsrc3.u32All = registers.At(Gfx10Plus::mmCOMPUTE_PGM_RSRC3);
-    }
-
-    // Double check with Rob - Is this the correct way to calculate wavesPerGroup?
-    const uint32 threadsPerGroup = 0;
-    const uint32 wavesPerGroup   = RoundUpQuotient(threadsPerGroup, wavefrontSize);
-
-    // SIMD_DEST_CNTL: Controls which SIMDs thread groups get scheduled on.  If the number of
-    // waves-per-TG is a multiple of 4, this should be 1, otherwise 0.
-    m_regs.dynamic.computeResourceLimits.bits.SIMD_DEST_CNTL = ((wavesPerGroup % 4) == 0) ? 1 : 0;
-
-    // Force even distribution on all SIMDs in CU for workgroup size is 64
-    // This has shown some good improvements if #CU per SE not a multiple of 4
-    if (((chipProps.gfx9.numShaderArrays * chipProps.gfx9.numCuPerSh) & 0x3) && (wavesPerGroup == 1))
-    {
-        m_regs.dynamic.computeResourceLimits.bits.FORCE_SIMD_DIST = 1;
-    }
-
-    if (m_device.Parent()->LegacyHwsTrapHandlerPresent() && (chipProps.gfxLevel == GfxIpLevel::GfxIp9))
-    {
-
-        // If the legacy HWS's trap handler is present, compute shaders must always set the TRAP_PRESENT
-        // flag.
-
-        // TODO: Handle the case where the client enabled a trap handler and the hardware scheduler's trap handler
-        // is already active!
-        PAL_ASSERT(m_regs.dynamic.computePgmRsrc2.bits.TRAP_PRESENT == 0);
-        m_regs.dynamic.computePgmRsrc2.bits.TRAP_PRESENT = 1;
-    }
-
-    const auto& settings = m_device.Settings();
-
-    // LOCK_THRESHOLD: Sets per-SH low threshold for locking.  Set in units of 4, 0 disables locking.
-    // LOCK_THRESHOLD's maximum value: (6 bits), in units of 4, so it is max of 252.
-    constexpr uint32 Gfx9MaxLockThreshold = 252;
-    PAL_ASSERT(settings.csLockThreshold <= Gfx9MaxLockThreshold);
-    m_regs.dynamic.computeResourceLimits.bits.LOCK_THRESHOLD = Min((settings.csLockThreshold >> 2),
-                                                                   (Gfx9MaxLockThreshold >> 2));
-
-    // libraries probably don't need any prefetching,
-    // i.e., no need for " cmdUtil.BuildPipelinePrefetchPm4(*pUploader, &m_prefetch)" here.
-    //
-    // Might be nice to do so, but it adds up complexity, in that we would have to maintain a list
-    // of every linked library with each pipeline object and pretech the main pipeline with each library...
-
-    ShaderLibrary::GetFunctionGpuVirtAddrs(*pUploader, pFunctionList, funcCount);
 }
 
 } // Gfx9

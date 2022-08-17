@@ -37,6 +37,5 @@ target_sources(pal PRIVATE
     gfx9_plus_merged_registers.h
     gfx9_plus_merged_shift.h
     gfx9_plus_merged_typedef.h
-    gfx10_merged_sdma_packets.h
     gfx10_sq_ko_reg.h
 )

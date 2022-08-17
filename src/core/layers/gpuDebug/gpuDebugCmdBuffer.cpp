@@ -623,9 +623,9 @@ Result CmdBuffer::CaptureImageSurface(
         // Send Barrier to prepare for upcoming copy
         // Transition 0 : Src from Color/Depth Target to Copy Src
         // Transition 1 : Dst from Uninitialized to Copy Dst
-        BarrierInfo preCopyBarrier = {0};
+        BarrierInfo preCopyBarrier = {};
 
-        BarrierTransition preCopyTransitions[2]                 = {0};
+        BarrierTransition preCopyTransitions[2]                 = {};
         preCopyTransitions[0].srcCacheMask                      = srcCoher;
         preCopyTransitions[0].dstCacheMask                      = CoherCopySrc;
         preCopyTransitions[0].imageInfo.pImage                  = pSrcImage;
@@ -694,9 +694,9 @@ Result CmdBuffer::CaptureImageSurface(
 
         // Send Barrier for post copy transitions
         // Transition Src from Copy Src to Color/Depth Target
-        BarrierInfo postCopyBarrier = {0};
+        BarrierInfo postCopyBarrier = {};
 
-        BarrierTransition postCopyTransition                 = {0};
+        BarrierTransition postCopyTransition                 = {};
         postCopyTransition.srcCacheMask                      = CoherCopySrc;
         postCopyTransition.dstCacheMask                      = srcCoher;
         postCopyTransition.imageInfo.pImage                  = pSrcImage;
@@ -772,8 +772,8 @@ void CmdBuffer::OverrideDepthFormat(
 // Issues barrier calls to sync all of surface capture's output images
 void CmdBuffer::SyncSurfaceCapture()
 {
-    BarrierInfo barrierInfo      = {0};
-    BarrierTransition transition = {0};
+    BarrierInfo barrierInfo      = {};
+    BarrierTransition transition = {};
 
     transition.srcCacheMask                                 = CoherCopyDst;
     transition.dstCacheMask                                 = CoherCpu;
@@ -937,13 +937,13 @@ void CmdBuffer::OutputSurfaceCaptureImage(
         ImageCreateInfo imageInfo = pImage->GetImageCreateInfo();
 
         bool            canUseDds = false;
-        DdsHeaderFull   ddsHeader  = {0};
+        DdsHeaderFull   ddsHeader  = {};
         size_t          ddsHeaderSize = 0;
 
         if (imageInfo.mipLevels == 1)
         {
             SubresId subresId = { };
-            SubresLayout subresLayout = {0};
+            SubresLayout subresLayout = {};
             pImage->GetSubresourceLayout(subresId, &subresLayout);
 
             Result ddsResult = GetDdsHeader(&ddsHeader,

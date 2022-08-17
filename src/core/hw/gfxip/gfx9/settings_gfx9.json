@@ -1509,6 +1509,19 @@
       }
     },
     {
+      "Description": "If true, preamble will issue PIPELINESTAT_STOP, and a subsequent UniversalCmdBuffer::AddQuery() call with QueryPoolType::PipelineStats will start stats again. If false, preamble will start pipeline stats and subsequent pipeline queries will be ignored.",
+      "Tags": [
+        "Graphics Pipelines"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "disablePreamblePipelineStats",
+      "Name": "DisablePreamblePipelineStats"
+    },
+    {
       "Description": "Maximum shader prefetch size in bytes.  Set arbitrarily large to use driver default.  Set to zero to disable",
       "Tags": [
         "Shader Options",

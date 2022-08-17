@@ -31,6 +31,9 @@
 namespace Pal
 {
 
+namespace Pm4
+{
+
 // =====================================================================================================================
 // Class for executing basic hardware-specific functionality common to all pm4 based compute command buffers.
 class ComputeCmdBuffer : public Pm4CmdBuffer
@@ -110,4 +113,5 @@ private:
     PAL_DISALLOW_DEFAULT_CTOR(ComputeCmdBuffer);
 };
 
+} // Pm4
 } // Pal

@@ -142,7 +142,7 @@ static bool PreferFastDepthStencilClearGraphics(
 RsrcProcMgr::RsrcProcMgr(
     Device* pDevice)
     :
-    Pal::RsrcProcMgr(pDevice),
+    Pm4::RsrcProcMgr(pDevice),
     m_pDevice(pDevice),
     m_cmdUtil(pDevice->CmdUtil()),
     m_pEchoGlobalTablePipeline(nullptr)
@@ -3011,6 +3011,7 @@ void RsrcProcMgr::DccDecompress(
 
         if ((pCmdBuffer->GetEngineType() == EngineTypeCompute)           ||
             AddrMgr2::IsSwizzleModeComputeOnly(addrSettings.swizzleMode) ||
+            (image.Parent()->IsRenderTarget() == false)                  ||
             (supportsComputePath && (TestAnyFlagSet(Image::UseComputeExpand, UseComputeExpandAlways))))
         {
             // We should have already done a fast-clear-eliminate on the graphics engine when we transitioned to
@@ -5596,6 +5597,277 @@ void Gfx9RsrcProcMgr::FastDepthStencilClearCompute(
 }
 
 // =====================================================================================================================
+// Builds commands to copy one or more regions from one GPU memory location to another with a compute shader.
+void Gfx9RsrcProcMgr::CopyMemoryCs(
+    GfxCmdBuffer*           pCmdBuffer,
+    const GpuMemory&        srcGpuMemory,
+    const GpuMemory&        dstGpuMemory,
+    uint32                  regionCount,
+    const MemoryCopyRegion* pRegions
+    ) const
+{
+    bool p2pBltInfoRequired = m_pDevice->Parent()->IsP2pBltWaRequired(dstGpuMemory);
+
+    uint32 newRegionCount = 0;
+    if (p2pBltInfoRequired)
+    {
+        m_pDevice->P2pBltWaModifyRegionListMemory(dstGpuMemory,
+                                                  regionCount,
+                                                  pRegions,
+                                                  &newRegionCount,
+                                                  nullptr,
+                                                  nullptr);
+    }
+
+    AutoBuffer<MemoryCopyRegion, 32, Platform> newRegions(newRegionCount, m_pDevice->GetPlatform());
+    AutoBuffer<gpusize, 32, Platform> chunkAddrs(newRegionCount, m_pDevice->GetPlatform());
+    if (p2pBltInfoRequired)
+    {
+        if ((newRegions.Capacity() >= newRegionCount) && (chunkAddrs.Capacity() >= newRegionCount))
+        {
+            m_pDevice->P2pBltWaModifyRegionListMemory(dstGpuMemory,
+                                                      regionCount,
+                                                      pRegions,
+                                                      &newRegionCount,
+                                                      &newRegions[0],
+                                                      &chunkAddrs[0]);
+            regionCount = newRegionCount;
+            pRegions    = &newRegions[0];
+
+            pCmdBuffer->P2pBltWaCopyBegin(&dstGpuMemory, regionCount, &chunkAddrs[0]);
+        }
+        else
+        {
+            pCmdBuffer->NotifyAllocFailure();
+            p2pBltInfoRequired = false;
+        }
+    }
+
+    // Local to local copy prefers wide format copy for better performance. Copy to/from nonlocal heap
+    // with wide format may result in worse performance.
+    const bool preferWideFormatCopy = (srcGpuMemory.IsLocalPreferred() && dstGpuMemory.IsLocalPreferred());
+
+    Pal::RsrcProcMgr::CopyMemoryCs(pCmdBuffer,
+                                   srcGpuMemory.Desc().gpuVirtAddr,
+                                   *srcGpuMemory.GetDevice(),
+                                   dstGpuMemory.Desc().gpuVirtAddr,
+                                   *dstGpuMemory.GetDevice(),
+                                   regionCount,
+                                   pRegions,
+                                   preferWideFormatCopy,
+                                   (p2pBltInfoRequired ? chunkAddrs.Data() : nullptr));
+}
+
+// =====================================================================================================================
+ImageCopyEngine Gfx9RsrcProcMgr::GetImageToImageCopyEngine(
+    const GfxCmdBuffer*    pCmdBuffer,
+    const Pal::Image&      srcImage,
+    const Pal::Image&      dstImage,
+    uint32                 regionCount,
+    const ImageCopyRegion* pRegions,
+    uint32                 copyFlags
+    ) const
+{
+    const bool p2pBltWa = m_pDevice->Parent()->ChipProperties().p2pBltWaInfo.required &&
+                          dstImage.GetBoundGpuMemory().Memory()->AccessesPeerMemory();
+
+    ImageCopyEngine copyEngine = p2pBltWa ? ImageCopyEngine::Compute :
+        Pm4::RsrcProcMgr::GetImageToImageCopyEngine(pCmdBuffer, srcImage, dstImage, regionCount, pRegions, copyFlags);
+
+    return copyEngine;
+}
+
+// =====================================================================================================================
+// Builds commands to copy one or more regions from one image to another using a compute shader.
+// The caller should assert that the source and destination images have the same image types and sample counts.
+void Gfx9RsrcProcMgr::CopyImageCompute(
+    GfxCmdBuffer*          pCmdBuffer,
+    const Pal::Image&      srcImage,
+    ImageLayout            srcImageLayout,
+    const Pal::Image&      dstImage,
+    ImageLayout            dstImageLayout,
+    uint32                 regionCount,
+    const ImageCopyRegion* pRegions,
+    uint32                 flags
+    ) const
+{
+    PAL_ASSERT(TestAnyFlagSet(flags, CopyEnableScissorTest) == false);
+
+    const bool isCompressed  = (Formats::IsBlockCompressed(srcImage.GetImageCreateInfo().swizzledFormat.format) ||
+                                Formats::IsBlockCompressed(dstImage.GetImageCreateInfo().swizzledFormat.format));
+    const bool useMipInSrd   = CopyImageUseMipLevelInSrd(isCompressed);
+
+    bool isFmaskCopy          = false;
+    bool isFmaskCopyOptimized = false;
+    // Get the appropriate pipeline object.
+    const Pal::ComputePipeline* pPipeline = GetCopyImageComputePipeline(srcImage,
+                                                                        srcImageLayout,
+                                                                        dstImage,
+                                                                        dstImageLayout,
+                                                                        regionCount,
+                                                                        pRegions,
+                                                                        flags,
+                                                                        useMipInSrd,
+                                                                        &isFmaskCopy,
+                                                                        &isFmaskCopyOptimized);
+
+    bool p2pBltInfoRequired = m_pDevice->Parent()->IsP2pBltWaRequired(*dstImage.GetBoundGpuMemory().Memory());
+
+    uint32 newRegionCount = 0;
+    if (p2pBltInfoRequired)
+    {
+        m_pDevice->P2pBltWaModifyRegionListImage(srcImage,
+                                                 dstImage,
+                                                 regionCount,
+                                                 pRegions,
+                                                 &newRegionCount,
+                                                 nullptr,
+                                                 nullptr);
+    }
+
+    AutoBuffer<ImageCopyRegion, 32, Platform> newRegions(newRegionCount, m_pDevice->GetPlatform());
+    AutoBuffer<gpusize, 32, Platform> chunkAddrs(newRegionCount, m_pDevice->GetPlatform());
+
+    if (p2pBltInfoRequired)
+    {
+        if ((newRegions.Capacity() >= newRegionCount) && (chunkAddrs.Capacity() >= newRegionCount))
+        {
+            m_pDevice->P2pBltWaModifyRegionListImage(srcImage,
+                                                     dstImage,
+                                                     regionCount,
+                                                     pRegions,
+                                                     &newRegionCount,
+                                                     &newRegions[0],
+                                                     &chunkAddrs[0]);
+
+            regionCount = newRegionCount;
+            pRegions    = &newRegions[0];
+
+            pCmdBuffer->P2pBltWaCopyBegin(dstImage.GetBoundGpuMemory().Memory(), regionCount, &chunkAddrs[0]);
+        }
+        else
+        {
+            pCmdBuffer->NotifyAllocFailure();
+            p2pBltInfoRequired = false;
+        }
+    }
+
+    CopyImageCsInfo copyImageCsInfo;
+    copyImageCsInfo.pPipeline            = pPipeline;
+    copyImageCsInfo.pSrcImage            = &srcImage;
+    copyImageCsInfo.srcImageLayout       = srcImageLayout;
+    copyImageCsInfo.pDstImage            = &dstImage;
+    copyImageCsInfo.dstImageLayout       = dstImageLayout;
+    copyImageCsInfo.regionCount          = regionCount;
+    copyImageCsInfo.pRegions             = pRegions;
+    copyImageCsInfo.flags                = flags;
+    copyImageCsInfo.isFmaskCopy          = isFmaskCopy;
+    copyImageCsInfo.isFmaskCopyOptimized = isFmaskCopyOptimized;
+    copyImageCsInfo.useMipInSrd          = useMipInSrd;
+    copyImageCsInfo.pP2pBltInfoChunks    = p2pBltInfoRequired ? chunkAddrs.Data() : nullptr;
+
+    CopyImageCs(pCmdBuffer, copyImageCsInfo);
+}
+
+// =====================================================================================================================
+// Builds commands to copy one or more regions between an image and a GPU memory location. Which object is the source
+// and which object is the destination is determined by the given pipeline. This works because the image <-> memory
+// pipelines all have the same input layouts.
+void Gfx9RsrcProcMgr::CopyBetweenMemoryAndImage(
+    GfxCmdBuffer*                pCmdBuffer,
+    const Pal::ComputePipeline*  pPipeline,
+    const GpuMemory&             gpuMemory,
+    const Pal::Image&            image,
+    ImageLayout                  imageLayout,
+    bool                         isImageDst,
+    bool                         isFmaskCopy,
+    uint32                       regionCount,
+    const MemoryImageCopyRegion* pRegions,
+    bool                         includePadding
+    ) const
+{
+    bool p2pBltInfoRequired =
+        m_pDevice->Parent()->IsP2pBltWaRequired(isImageDst ? *image.GetBoundGpuMemory().Memory() : gpuMemory);
+    uint32 newRegionCount = 0;
+    if (p2pBltInfoRequired)
+    {
+        if (isImageDst)
+        {
+            m_pDevice->P2pBltWaModifyRegionListMemoryToImage(gpuMemory,
+                                                             image,
+                                                             regionCount,
+                                                             pRegions,
+                                                             &newRegionCount,
+                                                             nullptr,
+                                                             nullptr);
+        }
+        else
+        {
+            m_pDevice->P2pBltWaModifyRegionListImageToMemory(image,
+                                                             gpuMemory,
+                                                             regionCount,
+                                                             pRegions,
+                                                             &newRegionCount,
+                                                             nullptr,
+                                                             nullptr);
+        }
+    }
+
+    AutoBuffer<MemoryImageCopyRegion, 32, Platform> newRegions(newRegionCount, m_pDevice->GetPlatform());
+    AutoBuffer<gpusize, 32, Platform> chunkAddrs(newRegionCount, m_pDevice->GetPlatform());
+
+    if (p2pBltInfoRequired)
+    {
+        if ((newRegions.Capacity() >= newRegionCount) && (chunkAddrs.Capacity() >= newRegionCount))
+        {
+            if (isImageDst)
+            {
+                m_pDevice->P2pBltWaModifyRegionListMemoryToImage(gpuMemory,
+                                                                 image,
+                                                                 regionCount,
+                                                                 pRegions,
+                                                                 &newRegionCount,
+                                                                 &newRegions[0],
+                                                                 &chunkAddrs[0]);
+            }
+            else
+            {
+                m_pDevice->P2pBltWaModifyRegionListImageToMemory(image,
+                                                                 gpuMemory,
+                                                                 regionCount,
+                                                                 pRegions,
+                                                                 &newRegionCount,
+                                                                 &newRegions[0],
+                                                                 &chunkAddrs[0]);
+            }
+
+            regionCount = newRegionCount;
+            pRegions    = &newRegions[0];
+
+            const GpuMemory* pDstGpuMemory = isImageDst ? image.GetBoundGpuMemory().Memory() : &gpuMemory;
+            pCmdBuffer->P2pBltWaCopyBegin(pDstGpuMemory, regionCount, &chunkAddrs[0]);
+        }
+        else
+        {
+            pCmdBuffer->NotifyAllocFailure();
+            p2pBltInfoRequired = false;
+        }
+    }
+
+    CopyBetweenMemoryAndImageCs(pCmdBuffer,
+                                pPipeline,
+                                gpuMemory,
+                                image,
+                                imageLayout,
+                                isImageDst,
+                                isFmaskCopy,
+                                regionCount,
+                                pRegions,
+                                includePadding,
+                                (p2pBltInfoRequired ? chunkAddrs.Data() : nullptr));
+}
+
+// =====================================================================================================================
 void Gfx9RsrcProcMgr::HwlDecodeBufferViewSrd(
     const void*      pBufferViewSrd,
     BufferViewInfo*  pViewInfo
@@ -7094,7 +7366,7 @@ ImageCopyEngine Gfx10RsrcProcMgr::GetImageToImageCopyEngine(
 {
     // Get the default engine type for the copy here.
     ImageCopyEngine copyEngine = PreferComputeForNonLocalDestCopy(dstImage) ? ImageCopyEngine::Compute :
-        Pal::RsrcProcMgr::GetImageToImageCopyEngine(pCmdBuffer, srcImage, dstImage, regionCount, pRegions, copyFlags);
+        Pm4::RsrcProcMgr::GetImageToImageCopyEngine(pCmdBuffer, srcImage, dstImage, regionCount, pRegions, copyFlags);
 
     // If the copy will use the graphics engine anyway then there's no need to go through this as graphics
     // copies won't corrupt the VRS encoding.

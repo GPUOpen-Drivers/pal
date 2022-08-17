@@ -364,10 +364,10 @@ inline Result MsgPackReader::Unpack(
     char*   pString,
     uint32  sizeInBytes)
 {
-    PAL_ASSERT(pString != nullptr);
-    Result result = (m_context.item.type == CWP_ITEM_STR) ? Result::Success : Result::ErrorInvalidValue;
+    PAL_ASSERT((pString != nullptr) && (sizeInBytes > 0));
 
-    if (result == Result::Success)
+    Result result = Result::Success;
+    if (m_context.item.type == CWP_ITEM_STR)
     {
         if (m_context.item.as.str.length < sizeInBytes)
         {
@@ -379,8 +379,40 @@ inline Result MsgPackReader::Unpack(
         }
         else
         {
-            result = Result::ErrorInvalidValue;
+            result = Result::ErrorOutOfMemory;
         }
+    }
+    else if (m_context.item.type == CWP_ITEM_NIL)
+    {
+        pString[0] = '\0';
+    }
+    else
+    {
+        result = Result::ErrorInvalidValue;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+inline Result MsgPackReader::Unpack(
+    Util::StringView<char>* pStringView)
+{
+    PAL_ASSERT(pStringView != nullptr);
+    Result result = Result::Success;
+
+    if (m_context.item.type == CWP_ITEM_STR)
+    {
+        *pStringView = StringView<char>{static_cast<const char*>(m_context.item.as.str.start),
+                                        m_context.item.as.str.length};
+    }
+    else if (m_context.item.type == CWP_ITEM_NIL)
+    {
+        *pStringView = { };
+    }
+    else
+    {
+        result = Result::ErrorInvalidValue;
     }
 
     return result;

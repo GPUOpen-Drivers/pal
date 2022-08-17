@@ -310,11 +310,13 @@ void SettingsLoader::ValidateSettings(
         // the "optimized" algorithm for processing the meta-equations.
         m_settings.optimizedFastClear = 0;
 
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 755)
         if (m_settings.waClampQuadDistributionFactor)
         {
             // VGT_TESS_DISTRIBUTION.ACCUM_QUAD should never be allowed to exceed 64
             pPalSettings->quadDistributionFactor = Min(pPalSettings->quadDistributionFactor , 64u);
         }
+#endif
 
         if ((m_settings.waLateAllocGs0) && m_settings.nggSupported)
         {

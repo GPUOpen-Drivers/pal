@@ -63,6 +63,7 @@ struct CmdBufferInternalCreateInfo
 //
 //    * First comes a header (CmdBufDumpFileHeader).
 //      * This includes versioning information and the ASIC family.
+//      * Also includes the starting index of the IB2 chunks (0 if no IB2 chunks)
 //    * Next, we read the file until we're out of data or reach an invalid header. Until that happens:
 //      * Find a list header (CmdBufferListHeader). It contains:
 //        * The engine index (universal, compute, SDMA, etc).
@@ -80,8 +81,8 @@ struct CmdBufferDumpFileHeader
     uint32      size;               // Size of this structure in bytes.
     uint32      headerVersion;      // Version of header. Should be 1.
     uint32      asicFamily;         // ASIC family
-    uint32      reserved1;          // Reserved field. Set to 0.
-    uint32      reserved2;          // Reserved field. Set to 0.
+    uint32      asicRevision;       // ASIC revision
+    uint32      ib2Start;           // Chunk index of first IB2 (by dump order), 0 if there is no IB2
 };
 
 // Structure defining header for list of command buffers.
@@ -99,6 +100,33 @@ struct CmdBufferDumpHeader
     uint32      cmdBufferSize;      // Size of the command buffer in bytes.
     uint32      subEngineId;        // Sub-engine. (0 = DE, 1 = CE)
 };
+
+// Structure defining header for an IB2 buffer.
+struct CmdBufferIb2DumpHeader
+{
+    uint32      size;               // Size of this structure in bytes.
+    uint32      cmdBufferSize;      // Size of the command buffer in bytes.
+    uint32      subEngineId;        // Sub-engine. (0 = DE, 1 = CE)
+    uint64      gpuVa;              // GPU virtual address of the IB2
+};
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+// Structure holding information needed to dump IB2s
+struct Ib2DumpInfo
+{
+    const uint32*       pCpuAddress;      // CPU address of the commands
+    const uint32        ib2Size;          // Length of the dump in bytes
+    const uint64        gpuVa;            // GPU virtual address of the commands
+    const EngineType    engineType;       // Engine Type
+    const SubEngineType subEngineType;    // SubEngine Type
+};
+#endif
+
+// Gets the subEngineId to put in headers when dumping
+const uint32 GetSubEngineId(
+    const SubEngineType subEngineType,
+    const EngineType    engineType,
+    const bool          isPreamble);
 
 // The available states of command buffer recording.
 enum class CmdBufferRecordState : uint32
@@ -157,6 +185,11 @@ class CmdBuffer : public ICmdBuffer
 {
     // A useful shorthand for a vector of chunks.
     typedef ChunkVector<CmdStreamChunk*, 16, Platform> ChunkRefList;
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    // A useful shorthand for a vector of IB2 Infos
+    typedef Util::Vector<Ib2DumpInfo, 4, Platform> Ib2DumpInfoVec;
+#endif
 
 public:
     // NOTE: Part of the public IDestroyable interface.
@@ -713,6 +746,8 @@ public:
         uint32            cmdBufferCount,
         ICmdBuffer*const* ppCmdBuffers) override { PAL_NEVER_CALLED(); }
 
+    void TrackIb2DumpInfoFromExecuteNestedCmds(const Pal::CmdStream& targetStream);
+
     virtual void CmdSaveComputeState(
         uint32 stateFlags) override { PAL_NEVER_CALLED(); }
 
@@ -784,11 +819,25 @@ public:
     virtual void IncrementSubmitCount() = 0;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
+    // This function allows us end all CmdStream provided and dump them into a file.
+    virtual void EndCmdBufferDump(const CmdStream** ppCmdStreams, uint32 cmdStreamsNum);
+
     // This function allows us to dump the contents of this command buffer to a file at submission time.
     virtual void DumpCmdStreamsToFile(Util::File* pFile, CmdBufDumpFormat mode) const = 0;
 
     // This function gets the directory from device settings and dump the file to the right directory.
     void OpenCmdBufDumpFile(const char* pFilename);
+
+    void GetCmdBufDumpFilename(char* pOutput, size_t outputBufSize) const;
+
+    // Dumps the Ib2s to a file.  Should be called after the rest of the dumping is done.
+    // Even though not all command buffers can have IB2s, dumping from Pal::Queue is much more straightforward if the
+    // dumpInfo is stored in all types of command buffers, and just empty in ones that don't use it.
+    void DumpIb2s(Util::File* pFil, CmdBufDumpFormat mode);
+    Ib2DumpInfoVec* GetIb2DumpInfos() { return &m_ib2DumpInfos; }
+
+    // Inserts Ib2 to the vector, but only if there isn't an ib2 with the same gpuVA already
+    void InsertIb2DumpInfo(const Ib2DumpInfo& dumpInfo);
 #endif
 
     // Returns the number of command streams associated with this command buffer.
@@ -1057,6 +1106,10 @@ protected:
 
     // Number of implicit ganged sub-queues.
     uint32 m_implicitGangSubQueueCount;
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    Ib2DumpInfoVec m_ib2DumpInfos; // Vector holding information needed to dump IB2s
+#endif
 
 private:
     CmdStreamChunk* GetNextDataChunk(

@@ -53,7 +53,7 @@ ComputeCmdBuffer::ComputeCmdBuffer(
     const Device&              device,
     const CmdBufferCreateInfo& createInfo)
     :
-    Pal::ComputeCmdBuffer(device, createInfo, &m_cmdStream),
+    Pm4::ComputeCmdBuffer(device, createInfo, &m_cmdStream),
     m_device(device),
     m_cmdUtil(device.CmdUtil()),
     m_issueSqttMarkerEvent(device.Parent()->IssueSqttMarkerEvents()),
@@ -80,7 +80,7 @@ ComputeCmdBuffer::ComputeCmdBuffer(
 Result ComputeCmdBuffer::Init(
     const CmdBufferInternalCreateInfo& internalInfo)
 {
-    Result result = Pal::ComputeCmdBuffer::Init(internalInfo);
+    Result result = Pm4::ComputeCmdBuffer::Init(internalInfo);
 
     if (result == Result::Success)
     {
@@ -93,7 +93,7 @@ Result ComputeCmdBuffer::Init(
 // =====================================================================================================================
 void ComputeCmdBuffer::ResetState()
 {
-    Pal::ComputeCmdBuffer::ResetState();
+    Pm4::ComputeCmdBuffer::ResetState();
 
     // Assume PAL ABI compute pipelines by default.
     SetDispatchFunctions(false);
@@ -110,7 +110,7 @@ void ComputeCmdBuffer::ResetState()
 Result ComputeCmdBuffer::Begin(
     const CmdBufferBuildInfo& info)
 {
-    const Result result = Pal::ComputeCmdBuffer::Begin(info);
+    const Result result = Pm4::ComputeCmdBuffer::Begin(info);
 
     if ((result == Result::Success) &&
         (info.pInheritedState != nullptr) && info.pInheritedState->stateFlags.predication)
@@ -1530,7 +1530,7 @@ void ComputeCmdBuffer::CmdNop(
 void ComputeCmdBuffer::LeakNestedCmdBufferState(
     const ComputeCmdBuffer& callee)
 {
-    Pal::ComputeCmdBuffer::LeakNestedCmdBufferState(callee);
+    Pm4::ComputeCmdBuffer::LeakNestedCmdBufferState(callee);
 
     // Invalidate PM4 optimizer state on post-execute since the current command buffer state does not reflect
     // state changes from the nested command buffer. We will need to resolve the nested PM4 state onto the

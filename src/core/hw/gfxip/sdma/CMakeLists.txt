@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2021-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2022 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -23,26 +23,6 @@
  #
  #######################################################################################################################
 
-if (PAL_BUILD_GFX6)
-    add_subdirectory(gfx6)
+if(PAL_BUILD_GFX9)
+    add_subdirectory(gfx10)
 endif()
-
-if (PAL_BUILD_GFX9)
-    add_subdirectory(gfx9)
-endif()
-
-target_sources(pal PRIVATE
-    CMakeLists.txt
-    g_rpmComputePipelineBinaries.h
-    g_rpmComputePipelineInit.cpp
-    g_rpmComputePipelineInit.h
-    g_rpmGfxPipelineBinaries.h
-    g_rpmGfxPipelineInit.cpp
-    g_rpmGfxPipelineInit.h
-    pm4RsrcProcMgr.cpp
-    pm4RsrcProcMgr.h
-    rpmUtil.cpp
-    rpmUtil.h
-    rsrcProcMgr.cpp
-    rsrcProcMgr.h
-)

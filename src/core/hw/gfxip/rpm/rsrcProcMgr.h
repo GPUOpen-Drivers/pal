@@ -81,6 +81,23 @@ struct GenerateInfo
                                               // count to generate.
 };
 
+// Specifies the info used for CopyImageCs
+struct CopyImageCsInfo
+{
+    const ComputePipeline* pPipeline;
+    const Image*           pSrcImage;
+    ImageLayout            srcImageLayout;
+    const Image*           pDstImage;
+    ImageLayout            dstImageLayout;
+    uint32                 regionCount;
+    const ImageCopyRegion* pRegions;
+    uint32                 flags;
+    bool                   isFmaskCopy;
+    bool                   isFmaskCopyOptimized;
+    bool                   useMipInSrd;
+    const gpusize*         pP2pBltInfoChunks;
+};
+
 // =====================================================================================================================
 // Resource Processing Manager: Contains resource modification and preparation logic. RPM and its subclasses issue
 // draws, dispatches, and other operations to manipulate resource contents and hardware state.
@@ -342,7 +359,13 @@ protected:
         const Image&           dstImage,
         uint32                 regionCount,
         const ImageCopyRegion* pRegions,
-        uint32                 copyFlags) const;
+        uint32                 copyFlags) const
+        { return ImageCopyEngine::Compute; }
+
+    virtual bool ScaledCopyImageUseGraphics(
+        GfxCmdBuffer*           pCmdBuffer,
+        const ScaledCopyInfo&   copyInfo) const
+        { return false; }
 
     virtual bool PreferComputeForNonLocalDestCopy(
         const Pal::Image& dstImage) const
@@ -419,12 +442,41 @@ protected:
         uint32             boxCount,
         const Box*         pBoxes) const;
 
-    void CopyMemoryCs(
+    virtual void CopyMemoryCs(
         GfxCmdBuffer*           pCmdBuffer,
         const GpuMemory&        srcGpuMemory,
         const GpuMemory&        dstGpuMemory,
         uint32                  regionCount,
         const MemoryCopyRegion* pRegions) const;
+
+    const ComputePipeline* GetCopyImageComputePipeline(
+        const Image&           srcImage,
+        ImageLayout            srcImageLayout,
+        const Image&           dstImage,
+        ImageLayout            dstImageLayout,
+        uint32                 regionCount,
+        const ImageCopyRegion* pRegions,
+        uint32                 flags,
+        bool                   useMipInSrd,
+        bool*                  pIsFmaskCopy,
+        bool*                  pIsFmaskCopyOptimized) const;
+
+    void CopyImageCs(
+        GfxCmdBuffer*          pCmdBuffer,
+        const CopyImageCsInfo& copyImageCsInfo) const;
+
+    void CopyBetweenMemoryAndImageCs(
+        GfxCmdBuffer*                pCmdBuffer,
+        const ComputePipeline*       pPipeline,
+        const GpuMemory&             gpuMemory,
+        const Image&                 image,
+        ImageLayout                  imageLayout,
+        bool                         isImageDst,
+        bool                         isFmaskCopy,
+        uint32                       regionCount,
+        const MemoryImageCopyRegion* pRegions,
+        bool                         includePadding,
+        const gpusize*               pP2pBltInfoChunks) const;
 
     const ComputePipeline* GetComputeMaskRamExpandPipeline(
         const Image& image) const;
@@ -432,6 +484,20 @@ protected:
     void BindCommonGraphicsState(
         GfxCmdBuffer* pCmdBuffer) const;
 
+    template <typename CopyRegion>
+    void GetCopyImageFormats(
+        const Image&           srcImage,
+        ImageLayout            srcImageLayout,
+        const Image&           dstImage,
+        ImageLayout            dstImageLayout,
+        const CopyRegion&      copyRegion,
+        uint32                 copyFlags,
+        SwizzledFormat*        pSrcFormat,
+        SwizzledFormat*        pDstFormat,
+        uint32*                pTexelScale,
+        bool*                  pSingleSubres) const;
+
+    GfxDevice*const     m_pDevice;
     ColorBlendState*    m_pBlendDisableState;               // Blend state object with all blending disabled.
     ColorBlendState*    m_pColorBlendState;                 // Blend state object with rt0 blending enabled.
     DepthStencilState*  m_pDepthDisableState;               // DS state object with all depth disabled.
@@ -498,16 +564,6 @@ private:
         uint32             boxCnt,
         const Box*         pBox) const = 0;
 
-    // The next two functions should be called before and after a graphics copy. They give the gfxip layer a chance
-    // to optimize the hardware for the copy operation and restore to the previous state once the copy is done.
-    virtual uint32 HwlBeginGraphicsCopy(
-        GfxCmdBuffer*           pCmdBuffer,
-        const GraphicsPipeline* pPipeline,
-        const Image&            dstImage,
-        uint32                  bpp) const = 0;
-
-    virtual void HwlEndGraphicsCopy(CmdStream* pCmdStream, uint32 restoreMask) const = 0;
-
     virtual void HwlDecodeImageViewSrd(
         const void*     pImageViewSrd,
         const Image&    dstImage,
@@ -545,7 +601,7 @@ private:
         const Pal::Image&      dstImage,
         const ImageCopyRegion& region) const = 0;
 
-    void CopyColorImageGraphics(
+    virtual void CopyImageGraphics(
         GfxCmdBuffer*          pCmdBuffer,
         const Image&           srcImage,
         ImageLayout            srcImageLayout,
@@ -554,28 +610,19 @@ private:
         uint32                 regionCount,
         const ImageCopyRegion* pRegions,
         const Rect*            pScissorRect,
-        uint32                 flags) const;
+        uint32                 flags) const
+        { PAL_NEVER_CALLED(); }
 
-    void ScaledCopyImageGraphics(
-        GfxCmdBuffer*           pCmdBuffer,
-        const ScaledCopyInfo&   copyInfo) const;
+    virtual void ScaledCopyImageGraphics(
+        GfxCmdBuffer*         pCmdBuffer,
+        const ScaledCopyInfo& copyInfo) const
+        { PAL_NEVER_CALLED(); }
 
     void ScaledCopyImageCompute(
         GfxCmdBuffer*           pCmdBuffer,
         const ScaledCopyInfo&   copyInfo) const;
 
-    void CopyDepthStencilImageGraphics(
-        GfxCmdBuffer*          pCmdBuffer,
-        const Image&           srcImage,
-        ImageLayout            srcImageLayout,
-        const Image&           dstImage,
-        ImageLayout            dstImageLayout,
-        uint32                 regionCount,
-        const ImageCopyRegion* pRegions,
-        const Rect*            pScissorRect,
-        uint32                 flags) const;
-
-    void CopyImageCompute(
+    virtual void CopyImageCompute(
         GfxCmdBuffer*          pCmdBuffer,
         const Image&           srcImage,
         ImageLayout            srcImageLayout,
@@ -585,20 +632,7 @@ private:
         const ImageCopyRegion* pRegions,
         uint32                 flags) const;
 
-    template <typename CopyRegion>
-    void GetCopyImageFormats(
-        const Image&           srcImage,
-        ImageLayout            srcImageLayout,
-        const Image&           dstImage,
-        ImageLayout            dstImageLayout,
-        const CopyRegion&      copyRegion,
-        uint32                 copyFlags,
-        SwizzledFormat*        pSrcFormat,
-        SwizzledFormat*        pDstFormat,
-        uint32*                pTexelScale,
-        bool*                  pSingleSubres) const;
-
-    void CopyBetweenMemoryAndImage(
+    virtual void CopyBetweenMemoryAndImage(
         GfxCmdBuffer*                pCmdBuffer,
         const ComputePipeline*       pPipeline,
         const GpuMemory&             gpuMemory,
@@ -728,10 +762,6 @@ private:
         const ImageFixupRegion* pRegions,
         bool                    beforeCopy) const;
 
-    bool ScaledCopyImageUseGraphics(
-        GfxCmdBuffer*           pCmdBuffer,
-        const ScaledCopyInfo&   copyInfo) const;
-
     void GenerateMipmapsFast(
         GfxCmdBuffer*         pCmdBuffer,
         const GenMipmapsInfo& genInfo) const;
@@ -740,8 +770,7 @@ private:
         GfxCmdBuffer*         pCmdBuffer,
         const GenMipmapsInfo& genInfo) const;
 
-    GfxDevice*const  m_pDevice;
-    uint32           m_srdAlignment; // All SRDs must be offset and size aligned to this many DWORDs.
+    uint32             m_srdAlignment; // All SRDs must be offset and size aligned to this many DWORDs.
 
     // All internal RPM pipelines are stored here.
     ComputePipeline*   m_pComputePipelines[static_cast<size_t>(RpmComputePipeline::Count)];

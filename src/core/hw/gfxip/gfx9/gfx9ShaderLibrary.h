@@ -92,10 +92,12 @@ protected:
     void UpdateHwInfo();
 
 private:
+
     Device*const  m_pDevice;
 
     ComputePipelineSignature  m_signature;
-    LibraryChunkCs            m_chunkCs;
+    PipelineChunkCs           m_chunkCs;
+    ShaderStageInfo           m_stageInfoCs;
     LibraryHwInfo             m_hwInfo;
 
     ShaderLibraryFunctionInfo*  m_pFunctionList;

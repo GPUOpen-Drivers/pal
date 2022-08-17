@@ -512,8 +512,8 @@ size_t Pipeline::PerformanceDataSize(
 
 // =====================================================================================================================
 void Pipeline::DumpPipelineElf(
-    const char*         pPrefix,
-    const char*         pName         // Optional: Non-null if we want to use a human-readable name for the filename.
+    Util::StringView<char> prefix,
+    Util::StringView<char> name     // Optional: Can be the empty string if a human-readable filename is not desired.
     ) const
 {
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -537,7 +537,7 @@ void Pipeline::DumpPipelineElf(
         // We will truncate the name string if necessary, preserving the path, prefix, and suffix.
         constexpr int32 MaxLen = 260; // Util::File has an implicit 260 char limit on Windows.
         char  fileName[MaxLen] = {};
-        int32 offset = Snprintf(fileName, MaxLen, "%s/%s_", pLogDir, pPrefix);
+        int32 offset = Snprintf(fileName, MaxLen, "%s/%s_", pLogDir, prefix.Data());
 
         if (offset < 0)
         {
@@ -549,16 +549,15 @@ void Pipeline::DumpPipelineElf(
             char*  pNextChar = fileName + offset;
             size_t remaining = MaxLen - offset;
 
-            if ((pName == nullptr) || (pName[0] == '\0'))
+            if (name.IsEmpty())
             {
                 Snprintf(pNextChar, remaining, "0x%016llX.elf", m_info.internalPipelineHash.stable);
             }
             else
             {
-                const size_t nameLen = strlen(pName);
-                const size_t copyLen = Min(strlen(pName), remaining - 5);
+                const size_t copyLen = Min(size_t(name.Length()), remaining - 5);
 
-                memcpy(pNextChar, pName, copyLen);
+                memcpy(pNextChar, name.Data(), copyLen);
                 pNextChar += copyLen;
                 remaining -= copyLen;
 

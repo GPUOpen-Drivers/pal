@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include "core/hw/gfxip/rpm/rsrcProcMgr.h"
+#include "core/hw/gfxip/rpm/pm4RsrcProcMgr.h"
 
 namespace Pal
 {
@@ -48,7 +48,7 @@ enum class DccClearPurpose : uint32;
 // =====================================================================================================================
 // GFX9+10 common hardware layer implementation of the Resource Processing Manager. It is most known for handling
 // GFX9+10-specific resource operations like DCC decompression.
-class RsrcProcMgr : public Pal::RsrcProcMgr
+class RsrcProcMgr : public Pm4::RsrcProcMgr
 {
 public:
 
@@ -476,6 +476,21 @@ protected:
         uint32             clearMask,
         uint8              stencil) const override;
 
+    virtual void CopyMemoryCs(
+        GfxCmdBuffer*           pCmdBuffer,
+        const GpuMemory&        srcGpuMemory,
+        const GpuMemory&        dstGpuMemory,
+        uint32                  regionCount,
+        const MemoryCopyRegion* pRegions) const override;
+
+    virtual ImageCopyEngine GetImageToImageCopyEngine(
+        const GfxCmdBuffer*    pCmdBuffer,
+        const Pal::Image&      srcImage,
+        const Pal::Image&      dstImage,
+        uint32                 regionCount,
+        const ImageCopyRegion* pRegions,
+        uint32                 copyFlags) const override;
+
     virtual const Pal::ComputePipeline* GetCmdGenerationPipeline(
         const Pal::IndirectCmdGenerator& generator,
         const CmdBuffer&                 cmdBuffer) const override;
@@ -554,6 +569,28 @@ private:
         const SubresRange& range,
         uint32             htileValue,
         uint32             htileMask) const;
+
+    virtual void CopyImageCompute(
+        GfxCmdBuffer*          pCmdBuffer,
+        const Pal::Image&      srcImage,
+        ImageLayout            srcImageLayout,
+        const Pal::Image&      dstImage,
+        ImageLayout            dstImageLayout,
+        uint32                 regionCount,
+        const ImageCopyRegion* pRegions,
+        uint32                 flags) const override;
+
+    virtual void CopyBetweenMemoryAndImage(
+        GfxCmdBuffer*                pCmdBuffer,
+        const Pal::ComputePipeline*  pPipeline,
+        const GpuMemory&             gpuMemory,
+        const Pal::Image&            image,
+        ImageLayout                  imageLayout,
+        bool                         isImageDst,
+        bool                         isFmaskCopy,
+        uint32                       regionCount,
+        const MemoryImageCopyRegion* pRegions,
+        bool                         includePadding) const override;
 
     void HwlHtileCopyAndFixUp(
         GfxCmdBuffer*             pCmdBuffer,

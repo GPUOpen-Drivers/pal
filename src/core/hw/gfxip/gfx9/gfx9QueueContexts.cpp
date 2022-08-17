@@ -1469,15 +1469,6 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
     regVGT_OUT_DEALLOC_CNTL vgtOutDeallocCntl = { };
     vgtOutDeallocCntl.bits.DEALLOC_DIST = (settings.vsHalfPackThreshold >= MaxVsExportSemantics) ? 32 : 16;
 
-    // Set patch and donut distribution thresholds for tessellation. If we decide that this should be tunable
-    // per-pipeline, we can move the registers to the Pipeline object (DXX currently uses per-Device thresholds).
-    regVGT_TESS_DISTRIBUTION vgtTessDistribution = { };
-    vgtTessDistribution.bits.ACCUM_ISOLINE = pPublicSettings->isolineDistributionFactor;
-    vgtTessDistribution.bits.ACCUM_TRI     = pPublicSettings->triDistributionFactor;
-    vgtTessDistribution.bits.ACCUM_QUAD    = pPublicSettings->quadDistributionFactor;
-    vgtTessDistribution.bits.DONUT_SPLIT   = pPublicSettings->donutDistributionFactor;
-    vgtTessDistribution.bits.TRAP_SPLIT    = pPublicSettings->trapezoidDistributionFactor;
-
     // Force line stipple scale to 1.0f
     regPA_SU_LINE_STIPPLE_SCALE paSuLineStippleScale = {};
     constexpr uint32 FloatOne = 0x3F800000;
@@ -1591,7 +1582,6 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                         vgtOutDeallocCntl.u32All,
                                                         pCmdSpace);
     }
-    pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmVGT_TESS_DISTRIBUTION, vgtTessDistribution.u32All, pCmdSpace);
     pCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_SU_SMALL_PRIM_FILTER_CNTL,
                                                     paSuSmallPrimFilterCntl.u32All,
                                                     pCmdSpace);

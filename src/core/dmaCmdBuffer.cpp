@@ -110,21 +110,6 @@ Result DmaCmdBuffer::Begin(
 {
     Result result = CmdBuffer::Begin(info);
 
-#if PAL_ENABLE_PRINTS_ASSERTS
-    if ((result == Result::Success) && IsDumpingEnabled())
-    {
-        char filename[MaxFilenameLength] = {};
-
-        // filename is:  dmaxx_yyyyy, where "xx" is the number of universal command buffers that have been created so
-        //               far (one based) and "yyyyy" is the number of times this command buffer has been begun (also
-        //               one based).
-        //
-        // All streams associated with this command buffer are included in this one file.
-        Snprintf(filename, MaxFilenameLength, "dma%02d_%05d", UniqueId(), NumBegun());
-        OpenCmdBufDumpFile(&filename[0]);
-    }
-#endif
-
     return result;
 }
 
@@ -166,35 +151,8 @@ Result DmaCmdBuffer::End()
     {
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-        if (IsDumpingEnabled() && DumpFile()->IsOpen())
-        {
-            if (m_pDevice->Settings().cmdBufDumpFormat == CmdBufDumpFormatBinaryHeaders)
-            {
-                const CmdBufferDumpFileHeader fileHeader =
-                {
-                    static_cast<uint32>(sizeof(CmdBufferDumpFileHeader)), // Structure size
-                    1,                                                    // Header version
-                    m_pDevice->ChipProperties().familyId,                 // ASIC family
-                    m_pDevice->ChipProperties().eRevId,                   // ASIC revision
-                    0                                                     // Reserved
-                };
-                DumpFile()->Write(&fileHeader, sizeof(fileHeader));
-
-                CmdBufferListHeader listHeader =
-                {
-                    static_cast<uint32>(sizeof(CmdBufferListHeader)),   // Structure size
-                    0,                                                  // Engine index
-                    0                                                   // Number of command buffer chunks
-                };
-
-                listHeader.count = m_cmdStream.GetNumChunks();
-
-                DumpFile()->Write(&listHeader, sizeof(listHeader));
-            }
-
-            DumpCmdStreamsToFile(DumpFile(), m_pDevice->Settings().cmdBufDumpFormat);
-            DumpFile()->Close();
-        }
+        const CmdStream* cmdStreams[] = { &m_cmdStream };
+        EndCmdBufferDump(cmdStreams, 1);
 #endif
     }
 
@@ -1646,7 +1604,7 @@ void DmaCmdBuffer::SetupDmaTypedBufferCopyInfo(
 // =====================================================================================================================
 // Dumps this command buffer's single command stream to the given file with an appropriate header.
 void DmaCmdBuffer::DumpCmdStreamsToFile(
-    File*          pFile,
+    File*            pFile,
     CmdBufDumpFormat mode
     ) const
 {
