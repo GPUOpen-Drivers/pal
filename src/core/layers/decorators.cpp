@@ -27,6 +27,7 @@
 #include "palAutoBuffer.h"
 #include "palHashMapImpl.h"
 #include "palSysUtil.h"
+#include "palVectorImpl.h"
 
 #include <ctime>
 
@@ -1262,6 +1263,12 @@ Result DeviceDecorator::CreateGraphicsPipeline(
         pPipeline->SetClientData(pPlacementAddr);
 
         (*ppPipeline) = PAL_PLACEMENT_NEW(pPlacementAddr) PipelineDecorator(pPipeline, this);
+        result = static_cast<PipelineDecorator*>(*ppPipeline)->Init();
+        if (result != Result::Success)
+        {
+            (*ppPipeline)->Destroy();
+            *ppPipeline = nullptr;
+        }
     }
 
     return result;
@@ -2760,7 +2767,6 @@ Result QueueDecorator::Submit(
 {
     Result     result    = Result::Success;
     auto*const pPlatform = m_pDevice->GetPlatform();
-    PAL_ASSERT(submitInfo.perSubQueueInfoCount > 0);
     AutoBuffer<PerSubQueueSubmitInfo, 64, PlatformDecorator> nextPerSubQueueInfo(
         submitInfo.perSubQueueInfoCount, pPlatform);
 
@@ -3035,6 +3041,22 @@ Result SwapChainDecorator::AcquireNextImage(
     nextAcquireInfo.pFence     = NextFence(acquireInfo.pFence);
 
     return m_pNextLayer->AcquireNextImage(nextAcquireInfo, pImageIndex);
+}
+
+// =====================================================================================================================
+// Initialize the PipelineDecorator. Populates the m_pipelines vector.
+Result PipelineDecorator::Init()
+{
+    Result result = Result::Success;
+    for (const IPipeline* pPipeline : GetNextLayer()->GetPipelines())
+    {
+        result = m_pipelines.PushBack(PreviousObject(pPipeline));
+        if (result != Result::Success)
+        {
+            break;
+        }
+    }
+    return result;
 }
 
 // =====================================================================================================================

@@ -41,10 +41,13 @@ public:
 
     // Attempts to enable tracing
     virtual DD_RESULT EnableTracing() override;
+    virtual DD_RESULT EnableCrashAnalysisMode() override;
 
-    bool IsTracingEnabled() { return m_isTracingEnabled; }
+    bool IsTracingEnabled() const { return m_isTracingEnabled; }
+    bool IsCrashAnalysisModeEnabled() const { return m_crashAnalysisModeEnabled; }
 
 private:
     bool m_isTracingEnabled;
+    bool m_crashAnalysisModeEnabled;
 };
 }

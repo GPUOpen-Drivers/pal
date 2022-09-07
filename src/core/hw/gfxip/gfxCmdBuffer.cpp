@@ -55,6 +55,9 @@ GfxCmdBuffer::GfxCmdBuffer(
     m_computeStateFlags(0),
     m_pDfSpmPerfmonInfo(nullptr),
     m_cmdBufPerfExptFlags{}
+#if PAL_ENABLE_PRINTS_ASSERTS
+    , m_graphicsStateIsPushed(false)
+#endif
 {
     PAL_ASSERT((createInfo.queueType == QueueTypeUniversal) || (createInfo.queueType == QueueTypeCompute));
 }
@@ -935,6 +938,37 @@ void GfxCmdBuffer::CmdResolvePrtPlusImage(
                                                       resolveType,
                                                       regionCount,
                                                       pRegions);
+    }
+}
+
+// =====================================================================================================================
+// This cannot be called again until CmdRestoreGraphicsState is called.
+void GfxCmdBuffer::CmdSaveGraphicsState()
+{
+#if PAL_ENABLE_PRINTS_ASSERTS
+    PAL_ASSERT(m_graphicsStateIsPushed == false);
+    m_graphicsStateIsPushed = true;
+#endif
+
+    if (m_pCurrentExperiment != nullptr)
+    {
+        // Inform the performance experiment that we're starting some internal operations.
+        m_pCurrentExperiment->BeginInternalOps(GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics));
+    }
+}
+
+// =====================================================================================================================
+void GfxCmdBuffer::CmdRestoreGraphicsState()
+{
+#if PAL_ENABLE_PRINTS_ASSERTS
+    PAL_ASSERT(m_graphicsStateIsPushed);
+    m_graphicsStateIsPushed = false;
+#endif
+
+    if (m_pCurrentExperiment != nullptr)
+    {
+        // Inform the performance experiment that we've finished some internal operations.
+        m_pCurrentExperiment->EndInternalOps(GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics));
     }
 }
 

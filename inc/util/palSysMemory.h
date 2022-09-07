@@ -76,7 +76,8 @@ constexpr T* AssumeAligned(T* p)
 
 /// @internal Free method with extra memory leak tracking arguments.
 #define PAL_FREE_BASE(_ptr, _allocator, _memBlkType) \
-    _allocator->Free(::Util::FreeInfo(const_cast<void*>(static_cast<const void*>(_ptr)), _memBlkType))
+ _allocator->Free(::Util::FreeInfo(const_cast<void*>(static_cast<const volatile void*>(_ptr)), _memBlkType))
+
 #else
 
 /// @internal Malloc method not wrapped with memory leak tracking.
@@ -89,7 +90,7 @@ constexpr T* AssumeAligned(T* p)
 
 /// @internal Free method not wrapped with memory leak tracking.
 #define PAL_FREE_BASE(_ptr, _allocator, _memBlkType) \
-    _allocator->Free(::Util::FreeInfo(const_cast<void*>(static_cast<const void*>(_ptr))))
+    _allocator->Free(::Util::FreeInfo(const_cast<void*>(static_cast<const volatile void*>(_ptr))))
 
 #endif
 
@@ -174,12 +175,24 @@ extern void PAL_CDECL operator delete(
         _className
 
 /// Calls destructor and frees heap memory for the object allocated with PAL_NEW*.
-#define PAL_DELETE(_ptr, _allocator) \
-    { ::Util::Destructor(_ptr); PAL_FREE_BASE((_ptr), (_allocator), ::Util::MemBlkType::New); }
+#define PAL_DELETE(_ptr, _allocator)                                    \
+{                                                                       \
+    /* we want to evaluate the expression (_allocator) before calling
+       the destructor because the destructor might have side effects */ \
+    auto _allocator_ = (_allocator);                                    \
+    ::Util::Destructor(_ptr);                                           \
+    PAL_FREE_BASE((_ptr), _allocator_, ::Util::MemBlkType::New);        \
+}
 
 /// Calls destructor and frees heap memory for "this".  Use this macro to delete an object without a public destructor.
-#define PAL_DELETE_THIS(_className, _allocator) \
-    { this->~_className(); PAL_FREE_BASE(this, (_allocator), ::Util::MemBlkType::New); }
+#define PAL_DELETE_THIS(_className, _allocator)                         \
+{                                                                       \
+    /* we want to evaluate the expression (_allocator) before calling
+       the destructor because the destructor might have side effects */ \
+    auto _allocator_ = (_allocator);                                    \
+    this->~_className();                                                \
+    PAL_FREE_BASE(this, _allocator_, ::Util::MemBlkType::New);          \
+}
 
 /// Safe delete macro.  Pointer is set to null after the delete.
 #define PAL_SAFE_DELETE(_ptr, _allocator) { PAL_DELETE(_ptr, _allocator); (_ptr) = nullptr; }
@@ -747,20 +760,20 @@ void DeleteArray(T* p, Allocator* pAllocator)
     if ((p != nullptr) && !std::is_pod<T>::value)
     {
         const size_t  headerSize = Max(Max(alignof(T), alignof(size_t)), sizeof(size_t));
-        const size_t* pArrayCnt  = reinterpret_cast<const size_t*>(p) - 1;
+        const size_t* pArrayCnt  = const_cast<const size_t*>(reinterpret_cast<const volatile size_t*>(p)) - 1;
 
         for (uint32 i = 0; i < *pArrayCnt; i++)
         {
             Destructor(p + i);
         }
 
-        p = static_cast<T*>(Util::VoidPtrDec(p, headerSize));
+        p = const_cast<T*>(reinterpret_cast<const T*>((Util::VoidPtrDec(pArrayCnt + 1, headerSize))));
     }
 
 #if PAL_MEMTRACK
-    const Util::FreeInfo info(const_cast<void*>(static_cast<const void*>(p)), MemBlkType::NewArray);
+    const Util::FreeInfo info(const_cast<void*>(static_cast<const volatile void*>(p)), MemBlkType::NewArray);
 #else
-    const Util::FreeInfo info(const_cast<void*>(static_cast<const void*>(p)));
+    const Util::FreeInfo info(const_cast<void*>(static_cast<const volatile void*>(p)));
 #endif
 
     pAllocator->Free(info);

@@ -573,8 +573,8 @@ uint32* DepthStencilView::WriteUpdateFastClearDepthStencilValue(
 // Helper function which adds commands into the command stream when the currently-bound depth target is changing.
 // Returns the address to where future commands will be written.
 uint32* DepthStencilView::HandleBoundTargetChanged(
-    const UniversalCmdBuffer*  pCmdBuffer,
-    uint32*                    pCmdSpace
+    const Pm4::UniversalCmdBuffer* pCmdBuffer,
+    uint32*                        pCmdSpace
     ) const
 {
     const Pal::Device&  palDevice  = *(m_pImage->Parent()->GetDevice());

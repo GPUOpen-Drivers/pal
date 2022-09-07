@@ -186,8 +186,12 @@ union GpuMemoryCreateFlags
         uint64 placeholder745               :  2;
 #endif
         uint64 placeholder1                 :  1;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 746
-        uint64 reserved                     : 32; ///< Reserved for future use.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 761
+         uint64 startVaHintFlag             :  1;  ///< startVaHintFlag is set to 1 for passing startVaHint address
+                                                   ///< to set baseVirtAddr as startVaHint for memory allocation.
+         uint64 reserved                    :  31; ///< Reserved for future use.
+#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 746
+        uint64 reserved                     :  32; ///< Reserved for future use.
 #endif
     };
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 746
@@ -237,6 +241,14 @@ struct GpuMemoryCreateInfo
 
         gpusize                 replayVirtAddr;       ///< Must be zero unless vRange is CaptureReplay, in which case
                                                       ///  it must specify the GPU VA of the corresponding memory object.
+
+        gpusize                 startVaHint;         ///< Client passes a start VA hint to set as baseVirtAddr. If the
+                                                     ///  given hint is not properly aligned, find next higher aligned
+                                                     ///  address as hint. If the hint is available and within right
+                                                     ///  vaRange where vaRange is VaRange::Default then set baseVirtAddr
+                                                     ///  as hint. If the hint is unavailable, find the higher available
+                                                     ///  address between startVaHint and max vaRange. If any of the two
+                                                     ///  cases are failed, set baseVirtAddr as normal.
     };
     GpuMemPriority               priority;            ///< Hint to the OS paging process on how important it is to keep
                                                       ///  this allocation in its preferred heap.

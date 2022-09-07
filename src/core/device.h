@@ -424,8 +424,9 @@ struct GpuEngineProperties
                 uint32 supportsTrackBusyChunks         :  1;
                 uint32 supportsUnmappedPrtPageAccess   :  1;
                 uint32 memory32bPredicationEmulated    :  1;
+                uint32 supportsClearCopyMsaaDsDst      :  1;
                 uint32 reserved1                       :  1;
-                uint32 reserved                        :  7;
+                uint32 reserved                        :  6;
             };
             uint32 u32All;
         } flags;
@@ -1179,14 +1180,14 @@ public:
         bool*               pMemAllocated) const;
 
     virtual Result QueryRawApplicationProfile(
-        const char*              pFilename,
-        const char*              pPathname,
+        const wchar_t*           pFilename,
+        const wchar_t*           pPathname,
         ApplicationProfileClient client,
         const char**             pOut) = 0;
 
     virtual Result EnableSppProfile(
-        const char*              pFilename,
-        const char*              pPathname) = 0;
+        const wchar_t*           pFilename,
+        const wchar_t*           pPathname) = 0;
 
     virtual Result SelectSppTable(
         uint32 pixelCount,
@@ -1982,6 +1983,16 @@ public:
     bool IssueSqttMarkerEvents() const;
 
     const FlglState& GetFlglState() const { return m_flglState; }
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    void LogCodeObjectToDisk(
+        Util::StringView<char> prefix,
+        Util::StringView<char> name,
+        PipelineHash           hash,
+        bool                   isInternal,
+        const void*            pCodeObject,
+        size_t                 codeObjectLen) const;
+#endif
 
 protected:
     Device(

@@ -40,7 +40,6 @@ class  GfxCmdBuffer;
 class  GfxImage;
 class  GpuMemory;
 class  Image;
-class  IndirectCmdGenerator;
 class  Pipeline;
 struct ImageCopyRegion;
 struct ImageResolveRegion;
@@ -66,19 +65,6 @@ enum class ImageCopyEngine : uint32
     Graphics        = 0x1,
     Compute         = 0x2,
     ComputeVrsDirty = 0x3,
-};
-
-// Specifies gpu addresses that are used as input to CmdGenerateIndirectCmds
-struct GenerateInfo
-{
-    GfxCmdBuffer*               pCmdBuffer;
-    const Pipeline*             pPipeline;
-    const IndirectCmdGenerator& generator;
-    uint32                      indexBufSize; // Maximum number of indices in the bound index buffer.
-    uint32                      maximumCount; // Maximum number of draw or dispatch commands.
-    gpusize                     argsGpuAddr;  // Argument buffer GPU address.
-    gpusize                     countGpuAddr; // GPU address of the memory containing the actual command
-                                              // count to generate.
 };
 
 // Specifies the info used for CopyImageCs
@@ -264,7 +250,7 @@ public:
         uint32            rectCount = 0,
         const Rect*       pRects    = nullptr) const;
 
-    void CmdResolveImage(
+    virtual void CmdResolveImage(
         GfxCmdBuffer*             pCmdBuffer,
         const Image&              srcImage,
         ImageLayout               srcImageLayout,
@@ -273,7 +259,8 @@ public:
         ResolveMode               resolveMode,
         uint32                    regionCount,
         const ImageResolveRegion* pRegions,
-        uint32                    flags) const;
+        uint32                    flags) const
+        { PAL_NEVER_CALLED(); }
 
     virtual void CmdResolvePrtPlusImage(
         GfxCmdBuffer*                    pCmdBuffer,
@@ -285,33 +272,6 @@ public:
         uint32                           regionCount,
         const PrtPlusImageResolveRegion* pRegions) const
         { PAL_NEVER_CALLED(); }
-
-    void CmdGenerateIndirectCmds(
-        const GenerateInfo& genInfo,
-        CmdStreamChunk**    ppChunkLists[],
-        uint32              NumChunkLists,
-        uint32*             pNumGenChunks
-        ) const;
-
-    virtual bool ExpandDepthStencil(
-        GfxCmdBuffer*        pCmdBuffer,
-        const Image&         image,
-        const MsaaQuadSamplePattern* pQuadSamplePattern,
-        const SubresRange&   range
-        ) const;
-
-    void ResummarizeDepthStencil(
-        GfxCmdBuffer*        pCmdBuffer,
-        const Image&         image,
-        ImageLayout          imageLayout,
-        const MsaaQuadSamplePattern* pQuadSamplePattern,
-        const SubresRange&   range
-    ) const;
-
-    virtual void HwlResummarizeHtileCompute(
-        GfxCmdBuffer*      pCmdBuffer,
-        const GfxImage&    image,
-        const SubresRange& range) const = 0;
 
     void CopyImageToPackedPixelImage(
         GfxCmdBuffer*          pCmdBuffer,
@@ -367,29 +327,12 @@ protected:
         const ScaledCopyInfo&   copyInfo) const
         { return false; }
 
-    virtual bool PreferComputeForNonLocalDestCopy(
-        const Pal::Image& dstImage) const
-        { return false; }
-
-    const ComputePipeline* GetLinearHtileClearPipeline(
-        bool    expClearEnable,
-        bool    tileStencilDisabled,
-        uint32  hTileMask) const;
-
     // Some blts need to use GFXIP-specific algorithms to pick the proper state. The baseState is the first
     // graphics state in a series of states that vary only on target format and target index.
     virtual const GraphicsPipeline* GetGfxPipelineByTargetIndexAndFormat(
         RpmGfxPipeline basePipeline,
         uint32         targetIndex,
         SwizzledFormat format) const = 0;
-
-    virtual const bool IsGfxPipelineForFormatSupported(
-        SwizzledFormat format) const = 0;
-
-    // Generating indirect commands needs to choose different shaders based on the GFXIP version.
-    virtual const ComputePipeline* GetCmdGenerationPipeline(
-        const IndirectCmdGenerator& generator,
-        const CmdBuffer&            cmdBuffer) const = 0;
 
     const ComputePipeline* GetPipeline(RpmComputePipeline pipeline) const
         { return m_pComputePipelines[static_cast<size_t>(pipeline)]; }
@@ -398,24 +341,6 @@ protected:
         { return m_pGraphicsPipelines[pipeline]; }
 
     const MsaaState* GetMsaaState(uint32 samples, uint32 fragments) const;
-
-    const GraphicsPipeline* GetCopyDepthStencilPipeline(bool isDepth,
-                                                        bool isDepthStencil,
-                                                        uint32 numSamples) const;
-
-    const GraphicsPipeline* GetScaledCopyDepthStencilPipeline(bool isDepth,
-                                                              bool isDepthStencil,
-                                                              uint32 numSamples) const;
-
-    void GenericColorBlit(
-        GfxCmdBuffer*        pCmdBuffer,
-        const Image&         dstImage,
-        const SubresRange&   range,
-        const MsaaQuadSamplePattern* pQuadSamplePattern,
-        RpmGfxPipeline       pipeline,
-        const GpuMemory*     pGpuMemory,
-        gpusize              metaDataOffset
-    ) const;
 
     static gpusize ComputeTypedBufferRange(
         const Extent3d& extent,
@@ -478,8 +403,35 @@ protected:
         bool                         includePadding,
         const gpusize*               pP2pBltInfoChunks) const;
 
-    const ComputePipeline* GetComputeMaskRamExpandPipeline(
-        const Image& image) const;
+    void ResolveImageCompute(
+        GfxCmdBuffer*             pCmdBuffer,
+        const Image&              srcImage,
+        ImageLayout               srcImageLayout,
+        const Image&              dstImage,
+        ImageLayout               dstImageLayout,
+        ResolveMode               resolveMode,
+        uint32                    regionCount,
+        const ImageResolveRegion* pRegions,
+        ResolveMethod             method,
+        uint32                    flags) const;
+
+    void LateExpandShaderResolveSrc(
+        GfxCmdBuffer*             pCmdBuffer,
+        const Image&              srcImage,
+        ImageLayout               srcImageLayout,
+        const ImageResolveRegion* pRegions,
+        uint32                    regionCount,
+        ResolveMethod             method,
+        bool                      isCsResolve) const;
+
+    void FixupLateExpandShaderResolveSrc(
+        GfxCmdBuffer*             pCmdBuffer,
+        const Image&              srcImage,
+        ImageLayout               srcImageLayout,
+        const ImageResolveRegion* pRegions,
+        uint32                    regionCount,
+        ResolveMethod             method,
+        bool                      isCsResolve) const;
 
     void BindCommonGraphicsState(
         GfxCmdBuffer* pCmdBuffer) const;
@@ -496,6 +448,32 @@ protected:
         SwizzledFormat*        pDstFormat,
         uint32*                pTexelScale,
         bool*                  pSingleSubres) const;
+
+    void PreComputeColorClearSync(
+        ICmdBuffer*        pCmdBuffer,
+        const IImage*      pImage,
+        const SubresRange& subres,
+        ImageLayout        layout) const;
+
+    void PostComputeColorClearSync(
+        ICmdBuffer*        pCmdBuffer,
+        const IImage*      pImage,
+        const SubresRange& subres,
+        ImageLayout        layout,
+        bool               csFastClear) const;
+
+    virtual void PreComputeDepthStencilClearSync(
+        ICmdBuffer*        pCmdBuffer,
+        const GfxImage&    gfxImage,
+        const SubresRange& subres,
+        ImageLayout        layout) const;
+
+    void PostComputeDepthStencilClearSync(
+        ICmdBuffer*        pCmdBuffer,
+        const GfxImage&    gfxImage,
+        const SubresRange& subres,
+        ImageLayout        layout,
+        bool               csFastClear) const;
 
     GfxDevice*const     m_pDevice;
     ColorBlendState*    m_pBlendDisableState;               // Blend state object with all blending disabled.
@@ -529,15 +507,6 @@ private:
         const ImageFixupRegion* pRegions,
         uint32                  regionCount,
         bool                    isFmaskCopyOptimized) const = 0;
-
-    virtual void HwlHtileCopyAndFixUp(
-        GfxCmdBuffer*             pCmdBuffer,
-        const Pal::Image&         srcImage,
-        const Pal::Image&         dstImage,
-        ImageLayout               dstImageLayout,
-        uint32                    regionCount,
-        const ImageResolveRegion* pRegions,
-        bool                      computeResolve) const = 0;
 
     virtual void HwlGfxDccToDisplayDcc(
         GfxCmdBuffer*     pCmdBuffer,
@@ -573,27 +542,6 @@ private:
     virtual void HwlDecodeBufferViewSrd(
         const void*     pBufferViewSrd,
         BufferViewInfo* pViewInfo) const = 0;
-
-    virtual bool HwlCanDoFixedFuncResolve(
-        const Pal::Image&         srcImage,
-        const Pal::Image&         dstImage,
-        ResolveMode               resolveMode,
-        uint32                    regionCount,
-        const ImageResolveRegion* pRegions) const = 0;
-
-    virtual bool HwlCanDoDepthStencilCopyResolve(
-        const Pal::Image&         srcImage,
-        const Pal::Image&         dstImage,
-        uint32                    regionCount,
-        const ImageResolveRegion* pRegions) const = 0;
-
-    virtual void HwlFixupResolveDstImage(
-        GfxCmdBuffer*             pCmdBuffer,
-        const GfxImage&           dstImage,
-        ImageLayout               dstImageLayout,
-        const ImageResolveRegion* pRegions,
-        uint32                    regionCount,
-        bool                      computeResolve) const = 0;
 
     virtual void HwlImageToImageMissingPixelCopy(
         GfxCmdBuffer*          pCmdBuffer,
@@ -644,48 +592,6 @@ private:
         const MemoryImageCopyRegion* pRegions,
         bool                         includePadding) const;
 
-    void ResolveImageDepthStencilGraphics(
-        GfxCmdBuffer*             pCmdBuffer,
-        const Image&              srcImage,
-        ImageLayout               srcImageLayout,
-        const Image&              dstImage,
-        ImageLayout               dstImageLayout,
-        uint32                    regionCount,
-        const ImageResolveRegion* pRegions,
-        uint32                    flags) const;
-
-    void ResolveImageCompute(
-        GfxCmdBuffer*             pCmdBuffer,
-        const Image&              srcImage,
-        ImageLayout               srcImageLayout,
-        const Image&              dstImage,
-        ImageLayout               dstImageLayout,
-        ResolveMode               resolveMode,
-        uint32                    regionCount,
-        const ImageResolveRegion* pRegions,
-        ResolveMethod             method,
-        uint32                    flags) const;
-
-    void ResolveImageFixedFunc(
-        GfxCmdBuffer*             pCmdBuffer,
-        const Image&              srcImage,
-        ImageLayout               srcImageLayout,
-        const Image&              dstImage,
-        ImageLayout               dstImageLayout,
-        uint32                    regionCount,
-        const ImageResolveRegion* pRegions,
-        uint32                    flags) const;
-
-    void ResolveImageDepthStencilCopy(
-        GfxCmdBuffer*             pCmdBuffer,
-        const Image&              srcImage,
-        ImageLayout               srcImageLayout,
-        const Image&              dstImage,
-        ImageLayout               dstImageLayout,
-        uint32                    regionCount,
-        const ImageResolveRegion* pRegions,
-        uint32                    flags) const;
-
     void SlowClearGraphicsOneMip(
         GfxCmdBuffer*              pCmdBuffer,
         const Image&               dstImage,
@@ -728,24 +634,6 @@ private:
         ResolveMode   mode,
         ResolveMethod method) const;
 
-    void LateExpandShaderResolveSrc(
-        GfxCmdBuffer*             pCmdBuffer,
-        const Image&              srcImage,
-        ImageLayout               srcImageLayout,
-        const ImageResolveRegion* pRegions,
-        uint32                    regionCount,
-        ResolveMethod             method,
-        bool                      isCsResolve) const;
-
-    void FixupLateExpandShaderResolveSrc(
-        GfxCmdBuffer*             pCmdBuffer,
-        const Image&              srcImage,
-        ImageLayout               srcImageLayout,
-        const ImageResolveRegion* pRegions,
-        uint32                    regionCount,
-        ResolveMethod             method,
-        bool                      isCsResolve) const;
-
     void LateExpandShaderResolveSrcHelper(
         GfxCmdBuffer*             pCmdBuffer,
         const ImageResolveRegion* pRegions,
@@ -754,13 +642,19 @@ private:
         HwPipePoint               pipePoint,
         HwPipePoint               waitPoint) const;
 
-    void FixupMetadataForComputeDst(
+    virtual void FixupMetadataForComputeDst(
         GfxCmdBuffer*           pCmdBuffer,
         const Image&            dstImage,
         ImageLayout             dstImageLayout,
         uint32                  regionCount,
         const ImageFixupRegion* pRegions,
-        bool                    beforeCopy) const;
+        bool                    beforeCopy) const = 0;
+
+    virtual void FixupComputeResolveDst(
+        GfxCmdBuffer*             pCmdBuffer,
+        const Image&              dstImage,
+        uint32                    regionCount,
+        const ImageResolveRegion* pRegions) const = 0;
 
     void GenerateMipmapsFast(
         GfxCmdBuffer*         pCmdBuffer,
@@ -770,7 +664,8 @@ private:
         GfxCmdBuffer*         pCmdBuffer,
         const GenMipmapsInfo& genInfo) const;
 
-    uint32             m_srdAlignment; // All SRDs must be offset and size aligned to this many DWORDs.
+    uint32             m_srdAlignment;             // All SRDs must be offset and size aligned to this many DWORDs.
+    bool               m_releaseAcquireSupported;  // If acquire release interface is supported.
 
     // All internal RPM pipelines are stored here.
     ComputePipeline*   m_pComputePipelines[static_cast<size_t>(RpmComputePipeline::Count)];
@@ -779,14 +674,5 @@ private:
     PAL_DISALLOW_DEFAULT_CTOR(RsrcProcMgr);
     PAL_DISALLOW_COPY_AND_ASSIGN(RsrcProcMgr);
 };
-
-extern void PreComputeDepthStencilClearSync(ICmdBuffer*        pCmdBuffer,
-                                            const GfxImage&    gfxImage,
-                                            const SubresRange& subres,
-                                            ImageLayout        layout);
-extern void PostComputeDepthStencilClearSync(ICmdBuffer* pCmdBuffer,
-                                             const GfxImage&    gfxImage,
-                                             const SubresRange& subres,
-                                             ImageLayout        layout);
 
 } // Pal

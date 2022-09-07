@@ -29,7 +29,7 @@
 #include "core/hw/gfxip/gfx6/gfx6Chip.h"
 #include "core/hw/gfxip/gfx6/gfx6Device.h"
 #include "core/hw/gfxip/gfx6/gfx6Image.h"
-#include "core/hw/gfxip/universalCmdBuffer.h"
+#include "core/hw/gfxip/pm4UniversalCmdBuffer.h"
 
 namespace Pal
 {
@@ -116,7 +116,7 @@ public:
     bool ReadOnlyDepth() const { return m_flags.readOnlyDepth; }
     bool ReadOnlyStencil() const { return m_flags.readOnlyStencil; }
 
-    TargetExtent2d GetExtent() const { return m_extent; }
+    Pm4::TargetExtent2d GetExtent() const { return m_extent; }
 
 private:
     virtual ~DepthStencilView()
@@ -159,9 +159,9 @@ private:
         uint32 u32All;
     } m_flags;
 
-    const Device&      m_device;
-    const Image*const  m_pImage;
-    TargetExtent2d     m_extent;
+    const Device&       m_device;
+    const Image*const   m_pImage;
+    Pm4::TargetExtent2d m_extent;
 
     SubresId  m_depthSubresource;   // Sub-resource associated with the Depth plane
     SubresId  m_stencilSubresource; // Sub-resource associated with the Stencil plane

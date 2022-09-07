@@ -46,6 +46,7 @@ static constexpr uint32 AmdInstructionFamilyF        = 0xF;           ///< Instr
 
 /// Defines for Processor Signature
 static constexpr uint32 IntelProcessorExtendedFamily = 0x0ff00000;    ///< Bits 27 - 20 of processor signature
+static constexpr uint32 IntelProcessorExtendedModel  = 0x000f0000;    ///< Bits 19 - 16 of processor signature
 static constexpr uint32 IntelProcessorType           = 0x00003000;    ///< Bits 13 - 12 of processor signature
 static constexpr uint32 IntelProcessorFamily         = 0x00000f00;    ///< Bits 11 -  8 of processor signature
 static constexpr uint32 IntelProcessorModel          = 0x000000f0;    ///< Bits  7 -  4 of processor signature
@@ -66,9 +67,13 @@ void QueryAMDCpuType(
 
     CpuId(reg, 1);
 
-    uint32 model  = (reg[0] & AmdProcessorModel) >> 0;
+    uint32 model = (reg[0] & AmdProcessorModel) >> 4;
+    uint32 extendedModel = (reg[0] & AmdProcessorExtendedModel) >> 16;
     uint32 family = (reg[0] & AmdProcessorFamily) >> 8;
     uint32 extendedFamily = (reg[0] & AmdProcessorExtendedFamily) >> 20;
+
+    uint32 displayModel = model;
+    uint32 displayFamily = family;
 
     switch (family)
     {
@@ -139,6 +144,19 @@ void QueryAMDCpuType(
             pSystemInfo->cpuType = CpuType::Unknown;
             break;
     }
+
+    if (family == AmdInstructionFamilyF)
+    {
+        // If ExtendedModel[3:0] == 1h and BaseModel[3:0] == 8h, then Model[7:0] = 18h
+        displayModel += extendedModel << 4;
+        // If BaseFamily[3:0] == Fh and ExtendedFamily[7:0] == 08h, then Family[7:0] = 17h
+        displayFamily += extendedFamily;
+    }
+
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 757)
+    pSystemInfo->displayFamily = displayFamily;
+    pSystemInfo->displayModel = displayModel;
+#endif
 #else
     pSystemInfo->cpuType = CpuType::Unknown;
 #endif
@@ -154,9 +172,13 @@ void QueryIntelCpuType(
 
     CpuId(reg, 1);
 
-    uint32 model  = (reg[0] & IntelProcessorModel) >> 0;
+    uint32 model = (reg[0] & IntelProcessorModel) >> 4;
+    uint32 extendedModel = (reg[0] & IntelProcessorExtendedModel) >> 16;
     uint32 family = (reg[0] & IntelProcessorFamily) >> 8;
     uint32 extendedFamily = (reg[0] & IntelProcessorExtendedFamily) >> 20;
+
+    uint32 displayModel = model;
+    uint32 displayFamily = family;
 
     switch (family)
     {
@@ -212,6 +234,21 @@ void QueryIntelCpuType(
             pSystemInfo->cpuType = CpuType::Unknown;
             break;
     }
+
+    if (family == IntelPentium4Family)
+    {
+        displayFamily += extendedFamily;
+        displayModel += extendedModel << 4;
+    }
+    else if (family == IntelP6ArchitectureFamily)
+    {
+        displayModel += extendedModel << 4;
+    }
+
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 757)
+    pSystemInfo->displayFamily = displayFamily;
+    pSystemInfo->displayModel = displayModel;
+#endif
 #else
     pSystemInfo->cpuType = CpuType::Unknown;
 #endif

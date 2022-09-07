@@ -51,6 +51,7 @@
 #include "palScreen.h"
 #include "palShaderLibrary.h"
 #include "palSwapChain.h"
+#include "palVector.h"
 #include "palHashMap.h"
 #include "palSysMemory.h"
 
@@ -265,15 +266,26 @@ public:
         IScreen* pScreens[MaxScreens]) override;
 
     virtual Result QueryRawApplicationProfile(
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 759
+        const wchar_t*           pFilename,
+        const wchar_t*           pPathname,
+#else
         const char*              pFilename,
         const char*              pPathname,
+#endif
         ApplicationProfileClient client,
         const char**             pOut) override
         { return m_pNextLayer->QueryRawApplicationProfile(pFilename, pPathname, client, pOut); }
 
     virtual Result EnableSppProfile(
-        const char*              pFilename,
-        const char*              pPathname) override
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 759
+        const wchar_t* pFilename,
+        const wchar_t* pPathname
+#else
+        const char*    pFilename,
+        const char*    pPathname
+#endif
+    ) override
     {
         return m_pNextLayer->EnableSppProfile(pFilename, pPathname);
     }
@@ -337,6 +349,11 @@ public:
     virtual bool IsTracingEnabled() const override
     {
         return m_pNextLayer->IsTracingEnabled();
+    }
+
+    virtual bool IsCrashAnalysisModeEnabled() const override
+    {
+        return m_pNextLayer->IsCrashAnalysisModeEnabled();
     }
 
     virtual DevDriver::EventProtocol::EventServer* GetEventServer() override
@@ -2792,7 +2809,7 @@ class PipelineDecorator : public IPipeline
 public:
     PipelineDecorator(IPipeline* pNextPipeline, const DeviceDecorator* pNextDevice)
         :
-        m_pNextLayer(pNextPipeline), m_pDevice(pNextDevice)
+        m_pNextLayer(pNextPipeline), m_pDevice(pNextDevice), m_pipelines(pNextDevice->GetPlatform())
     {}
 
     virtual Result GetShaderStats(
@@ -2835,6 +2852,8 @@ public:
     virtual const Util::HsaAbi::KernelArgument* GetKernelArgument(uint32 index) const override
         { return m_pNextLayer->GetKernelArgument(index); }
 
+    virtual Util::Span<const IPipeline* const> GetPipelines() const override { return m_pipelines; }
+
     // Part of the IDestroyable public interface.
     virtual void Destroy() override
     {
@@ -2842,6 +2861,9 @@ public:
         this->~PipelineDecorator();
         pNextLayer->Destroy();
     }
+
+    // Initialize the PipelineDecorator. Populates the m_pipelines vector.
+    Result Init();
 
     const IDevice*  GetDevice() const { return m_pDevice; }
     IPipeline*      GetNextLayer() const { return m_pNextLayer; }
@@ -2855,6 +2877,9 @@ protected:
 private:
     PAL_DISALLOW_DEFAULT_CTOR(PipelineDecorator);
     PAL_DISALLOW_COPY_AND_ASSIGN(PipelineDecorator);
+
+    // Array of pipelines to be returned by GetPipelines()
+    Util::Vector<const IPipeline*, 1, PlatformDecorator> m_pipelines;
 };
 
 // =====================================================================================================================

@@ -534,8 +534,8 @@ public:
     bool PreferCbResolve() const
         { return (m_createInfo.flags.repetitiveResolve != 0); }
 
-    bool PreferGraphicsScaledCopy() const { return m_preferGraphicsScaledCopy; };
-    void SetPreferGraphicsScaledCopy(bool val) { m_preferGraphicsScaledCopy = val; };
+    bool PreferGraphicsScaledCopy() const { return m_preferGraphicsScaledCopy; }
+    void SetPreferGraphicsScaledCopy(bool val) { m_preferGraphicsScaledCopy = val; }
 
 protected:
     Image(Device*                        pDevice,

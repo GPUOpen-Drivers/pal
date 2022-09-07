@@ -1595,8 +1595,8 @@ Result Device::QueryWorkStationCaps(
 // =====================================================================================================================
 // Application profiles?  Null devices?  I don't think so.
 Result Device::QueryRawApplicationProfile(
-    const char*              pFilename,
-    const char*              pPathname,  // This parameter is optional and may be null!
+    const wchar_t*           pFilename,
+    const wchar_t*           pPathname,  // This parameter is optional and may be null
     ApplicationProfileClient client,
     const char**             pOut
     )
@@ -1606,8 +1606,8 @@ Result Device::QueryRawApplicationProfile(
 
 // =====================================================================================================================
 Result Device::EnableSppProfile(
-    const char*              pFilename,
-    const char*              pPathname)
+    const wchar_t* pFilename,
+    const wchar_t* pPathname)
 {
     return Result::Unsupported;
 }

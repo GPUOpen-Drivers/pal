@@ -56,20 +56,22 @@ target_sources(pal PRIVATE
     gfxImage.h
     graphicsPipeline.cpp
     graphicsPipeline.h
-    indirectCmdGenerator.cpp
-    indirectCmdGenerator.h
     maskRam.h
     msaaState.h
     pipeline.cpp
     pipeline.h
     pm4CmdBuffer.cpp
     pm4CmdBuffer.h
+    pm4CmdStream.cpp
+    pm4CmdStream.h
     pm4ComputeCmdBuffer.cpp
     pm4ComputeCmdBuffer.h
+    pm4IndirectCmdGenerator.cpp
+    pm4IndirectCmdGenerator.h
+    pm4UniversalCmdBuffer.cpp
+    pm4UniversalCmdBuffer.h
     queryPool.cpp
     queryPool.h
     shaderLibrary.cpp
     shaderLibrary.h
-    universalCmdBuffer.cpp
-    universalCmdBuffer.h
 )

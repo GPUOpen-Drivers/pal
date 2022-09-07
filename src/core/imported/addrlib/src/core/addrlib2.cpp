@@ -2062,7 +2062,7 @@ BOOL_32 Lib::IsBlockTypeAvaiable(
 *   Lib::BlockTypeWithinMemoryBudget
 *
 *   @brief
-*       Determine whether a new block type is acceptible based on memory waste ratio
+*       Determine whether a new block type is acceptable based on memory waste ratio. Will favor larger block types.
 *
 *   @return
 *       N/A

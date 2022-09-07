@@ -926,12 +926,6 @@ void Device::Barrier(
     // Keep a copy of original CmdBufferState flag as TransitionDepthStencil() or ExpandColor() may change it.
     const Pm4CmdBufferStateFlags origCmdBufStateFlags = pCmdBuf->GetPm4CmdBufState().flags;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 751
-    PAL_ASSERT(barrier.flags.splitBarrierEarlyPhase == 0);
-    PAL_ASSERT(barrier.flags.splitBarrierLatePhase == 0);
-    PAL_ASSERT(barrier.pSplitBarrierGpuEvent == nullptr);
-#endif
-
     // -----------------------------------------------------------------------------------------------------------------
     // -- Early image layout transitions.
     // -----------------------------------------------------------------------------------------------------------------

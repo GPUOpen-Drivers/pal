@@ -58,8 +58,8 @@ struct Gfx10ChipSettings
         UINT_32 supportRbPlus       : 1;
         UINT_32 dsMipmapHtileFix    : 1;
         UINT_32 dccUnsup3DSwDis     : 1;
-        UINT_32                     : 2;
-        UINT_32 reserved2           : 26;
+        UINT_32                     : 3;
+        UINT_32 reserved2           : 25;
     };
 };
 
@@ -159,7 +159,8 @@ const UINT_32 Gfx10Rsrc3dPrtSwModeMask = Gfx10Rsrc2dPrtSwModeMask & ~Gfx10Displa
 const UINT_32 Gfx10Rsrc3dThin64KBSwModeMask = (1u << ADDR_SW_64KB_Z_X) |
                                               (1u << ADDR_SW_64KB_R_X);
 
-const UINT_32 Gfx10Rsrc3dThinSwModeMask = Gfx10Rsrc3dThin64KBSwModeMask | Gfx10BlkVarSwModeMask;
+const UINT_32 Gfx10Rsrc3dThinSwModeMask = Gfx10Rsrc3dThin64KBSwModeMask |
+                                          Gfx10BlkVarSwModeMask;
 
 const UINT_32 Gfx10Rsrc3dThickSwModeMask = Gfx10Rsrc3dSwModeMask & ~(Gfx10Rsrc3dThinSwModeMask | Gfx10LinearSwModeMask);
 
@@ -167,8 +168,9 @@ const UINT_32 Gfx10Rsrc3dThick4KBSwModeMask = Gfx10Rsrc3dThickSwModeMask & Gfx10
 
 const UINT_32 Gfx10Rsrc3dThick64KBSwModeMask = Gfx10Rsrc3dThickSwModeMask & Gfx10Blk64KBSwModeMask;
 
-const UINT_32 Gfx10MsaaSwModeMask = Gfx10ZSwModeMask |
-                                    Gfx10RenderSwModeMask;
+const UINT_32 Gfx10MsaaSwModeMask = Gfx10ZSwModeMask      |
+                                    Gfx10RenderSwModeMask
+                                    ;
 
 const UINT_32 Dcn20NonBpp64SwModeMask = (1u << ADDR_SW_LINEAR)   |
                                         (1u << ADDR_SW_4KB_S)    |
@@ -397,6 +399,12 @@ private:
         UINT_32          log2Elem,
         UINT_32          numFrag) const;
 
+    /**
+     * Will use the indices, "nibbles", to build an index equation inside pSwizzle
+     *
+     * @param pPatInfo Pointer to a patInfo. Contains indices mapping to the 2D nibble arrays which will be used to build an index equation.
+     * @param pSwizzle Array to write the index equation to.
+     */
     VOID GetSwizzlePatternFromPatternInfo(
         const ADDR_SW_PATINFO* pPatInfo,
         ADDR_BIT_SETTING       (&pSwizzle)[20]) const

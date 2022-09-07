@@ -962,8 +962,11 @@ struct DeviceProperties
                 /// Indicates whether the engine can safely access non-resident ranges of resources.
                 uint32 supportsUnmappedPrtPageAccess   :  1;
 
+                /// This engine supports clear or copy with MSAA depth-stencil destination
+                uint32 supportsClearCopyMsaaDsDst : 1;
+
                 /// Reserved for future use.
-                uint32 reserved                        : 16;
+                uint32 reserved                        : 15;
             };
             uint32 u32All;                  ///< Flags packed as 32-bit uint.
         } flags;                            ///< Engines property flags.
@@ -1442,7 +1445,9 @@ struct DeviceProperties
                 uint32 supportRSync               :  1;    ///< Whether RSync is supported by KMD, RSync is a feature
                                                            ///  to sync the fullscreen app rendering frame rate with
                                                            ///  the capture frame rate in the Streaming SDK project.
-                uint32 reserved                   : 22;    ///< Reserved for future use.
+                uint32 flipQueueSupportsDecodeDst :  1;    ///< If set, Decode destination images are supported
+                                                           ///  in the OS flip-queue.
+                uint32 reserved                   : 21;    ///< Reserved for future use.
             };
             uint32 u32All;                        ///< Flags packed as 32-bit uint.
         } flags;                                  ///< OS-specific property flags.
@@ -1916,6 +1921,7 @@ struct ImageViewInfo
                                    ///  compatible with either the luma or chroma plane(s) of the YUV format.
     SubresRange    subresRange;    ///< Specifies a subset of subresources to include in the view.  If the base Image
                                    ///  has a YUV planar format, the number of array slices in the range must be 1.
+                                   ///  If zRange feature is used, the number of mips in the range must be 1.
     float          minLod;         ///< Minimum mip level of detail to use for this view.
 
     uint32         samplePatternIdx;  ///< Index into the currently bound MSAA sample pattern palette to be

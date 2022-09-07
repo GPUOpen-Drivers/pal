@@ -74,7 +74,8 @@ Pipeline::Pipeline(
     m_pagingFenceVal(0),
     m_flags{},
     m_perfDataMem(),
-    m_perfDataGpuMemSize(0)
+    m_perfDataGpuMemSize(0),
+    m_pSelf(this)
 {
     m_flags.isInternal = isInternal;
 }
@@ -229,6 +230,7 @@ void Pipeline::ExtractPipelineInfo(
 {
     m_info.internalPipelineHash =
         { metadata.pipeline.internalPipelineHash[0], metadata.pipeline.internalPipelineHash[1] };
+    m_info.resourceMappingHash  = metadata.pipeline.resourceHash;
 
     // We don't expect the pipeline ABI to report a hash of zero.
     PAL_ALERT((metadata.pipeline.internalPipelineHash[0] | metadata.pipeline.internalPipelineHash[1]) == 0);
@@ -517,64 +519,13 @@ void Pipeline::DumpPipelineElf(
     ) const
 {
 #if PAL_ENABLE_PRINTS_ASSERTS
-    const PalSettings& settings = m_pDevice->Settings();
-    uint64 hashToDump = settings.pipelineElfLogConfig.logHash;
-    bool hashMatches = ((hashToDump == 0) || (m_info.internalPipelineHash.stable == hashToDump));
-
-    const bool dumpInternal  = settings.pipelineElfLogConfig.logInternal;
-    const bool dumpExternal  = settings.pipelineElfLogConfig.logExternal;
-    const bool dumpPipeline  =
-        (settings.logPipelineElf && hashMatches && ((dumpExternal && !IsInternal()) || (dumpInternal && IsInternal())));
-
-    if (dumpPipeline)
-    {
-        const char*const pLogDir = &settings.pipelineElfLogConfig.logDirectory[0];
-
-        // Create the directory. We don't care if it fails (existing is fine, failure is caught when opening the file).
-        MkDir(pLogDir);
-
-        // This Snprintf has been split into pieces to try to handle pipelines with extremely long names.
-        // We will truncate the name string if necessary, preserving the path, prefix, and suffix.
-        constexpr int32 MaxLen = 260; // Util::File has an implicit 260 char limit on Windows.
-        char  fileName[MaxLen] = {};
-        int32 offset = Snprintf(fileName, MaxLen, "%s/%s_", pLogDir, prefix.Data());
-
-        if (offset < 0)
-        {
-            // Offset will be -1 if not even the path and prefix fit.
-            PAL_ASSERT_ALWAYS();
-        }
-        else
-        {
-            char*  pNextChar = fileName + offset;
-            size_t remaining = MaxLen - offset;
-
-            if (name.IsEmpty())
-            {
-                Snprintf(pNextChar, remaining, "0x%016llX.elf", m_info.internalPipelineHash.stable);
-            }
-            else
-            {
-                const size_t copyLen = Min(size_t(name.Length()), remaining - 5);
-
-                memcpy(pNextChar, name.Data(), copyLen);
-                pNextChar += copyLen;
-                remaining -= copyLen;
-
-                Strncpy(pNextChar, ".elf", remaining);
-            }
-
-            File file;
-            Result result = file.Open(fileName, FileAccessWrite | FileAccessBinary);
-
-            if (result == Result::Success)
-            {
-                result = file.Write(m_pPipelineBinary, m_pipelineBinaryLen);
-            }
-
-            PAL_ASSERT(result == Result::Success);
-        }
-    }
+    m_pDevice->LogCodeObjectToDisk(
+        prefix,
+        name,
+        m_info.internalPipelineHash,
+        IsInternal(),
+        m_pPipelineBinary,
+        m_pipelineBinaryLen);
 #endif
 }
 

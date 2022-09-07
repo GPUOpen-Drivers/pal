@@ -23,7 +23,7 @@
  *
  **********************************************************************************************************************/
 
-#include "core/hw/gfxip/universalCmdBuffer.h"
+#include "core/hw/gfxip/pm4UniversalCmdBuffer.h"
 #include "g_gfx9Settings.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
@@ -123,10 +123,10 @@ void WorkaroundState::HandleZeroIndexBuffer(
 // Returns the next unused DWORD in pCmdSpace.
 template <bool PipelineDirty, bool StateDirty, bool Pm4OptImmediate>
 uint32* WorkaroundState::PreDraw(
-    const GraphicsState&    gfxState,        // Currently-active Command Buffer Graphics state
-    CmdStream*              pDeCmdStream,    // DE command stream
-    UniversalCmdBuffer*     pCmdBuffer,
-    uint32*                 pCmdSpace)
+    const Pm4::GraphicsState& gfxState,        // Currently-active Command Buffer Graphics state
+    CmdStream*                pDeCmdStream,    // DE command stream
+    UniversalCmdBuffer*       pCmdBuffer,
+    uint32*                   pCmdSpace)
 {
     const auto&      dirtyFlags       = gfxState.dirtyFlags;
     const auto*const pBlendState      = static_cast<const ColorBlendState*>(gfxState.pColorBlendState);
@@ -319,59 +319,59 @@ bool WorkaroundState::DisableInstancePacking <false>(
 // Instantiate the template for the linker.
 template
 uint32* WorkaroundState::PreDraw<false, false, false>(
-    const GraphicsState&    gfxState,        // Currently-active Command Buffer Graphics state
-    CmdStream*              pDeCmdStream,    // DE command stream
-    UniversalCmdBuffer*     pCmdBuffer,
-    uint32*                 pCmdSpace);
+    const Pm4::GraphicsState& gfxState,        // Currently-active Command Buffer Graphics state
+    CmdStream*                pDeCmdStream,    // DE command stream
+    UniversalCmdBuffer*       pCmdBuffer,
+    uint32*                   pCmdSpace);
 
 template
 uint32* WorkaroundState::PreDraw<false, false, true>(
-    const GraphicsState&    gfxState,        // Currently-active Command Buffer Graphics state
-    CmdStream*              pDeCmdStream,    // DE command stream
-    UniversalCmdBuffer*     pCmdBuffer,
-    uint32*                 pCmdSpace);
+    const Pm4::GraphicsState& gfxState,        // Currently-active Command Buffer Graphics state
+    CmdStream*                pDeCmdStream,    // DE command stream
+    UniversalCmdBuffer*       pCmdBuffer,
+    uint32*                   pCmdSpace);
 
 template
 uint32* WorkaroundState::PreDraw<false, true, false>(
-    const GraphicsState&    gfxState,        // Currently-active Command Buffer Graphics state
-    CmdStream*              pDeCmdStream,    // DE command stream
-    UniversalCmdBuffer*     pCmdBuffer,
-    uint32*                 pCmdSpace);
+    const Pm4::GraphicsState& gfxState,        // Currently-active Command Buffer Graphics state
+    CmdStream*                pDeCmdStream,    // DE command stream
+    UniversalCmdBuffer*       pCmdBuffer,
+    uint32*                   pCmdSpace);
 
 template
 uint32* WorkaroundState::PreDraw<false, true, true>(
-    const GraphicsState&    gfxState,        // Currently-active Command Buffer Graphics state
-    CmdStream*              pDeCmdStream,    // DE command stream
-    UniversalCmdBuffer*     pCmdBuffer,
-    uint32*                 pCmdSpace);
+    const Pm4::GraphicsState& gfxState,        // Currently-active Command Buffer Graphics state
+    CmdStream*                pDeCmdStream,    // DE command stream
+    UniversalCmdBuffer*       pCmdBuffer,
+    uint32*                   pCmdSpace);
 
 template
 uint32* WorkaroundState::PreDraw<true, false, false>(
-    const GraphicsState&    gfxState,        // Currently-active Command Buffer Graphics state
-    CmdStream*              pDeCmdStream,    // DE command stream
-    UniversalCmdBuffer*     pCmdBuffer,
-    uint32*                 pCmdSpace);
+    const Pm4::GraphicsState& gfxState,        // Currently-active Command Buffer Graphics state
+    CmdStream*                pDeCmdStream,    // DE command stream
+    UniversalCmdBuffer*       pCmdBuffer,
+    uint32*                   pCmdSpace);
 
 template
 uint32* WorkaroundState::PreDraw<true, false, true>(
-    const GraphicsState&    gfxState,        // Currently-active Command Buffer Graphics state
-    CmdStream*              pDeCmdStream,    // DE command stream
-    UniversalCmdBuffer*     pCmdBuffer,
-    uint32*                 pCmdSpace);
+    const Pm4::GraphicsState& gfxState,        // Currently-active Command Buffer Graphics state
+    CmdStream*                pDeCmdStream,    // DE command stream
+    UniversalCmdBuffer*       pCmdBuffer,
+    uint32*                   pCmdSpace);
 
 template
 uint32* WorkaroundState::PreDraw<true, true, false>(
-    const GraphicsState&    gfxState,        // Currently-active Command Buffer Graphics state
-    CmdStream*              pDeCmdStream,    // DE command stream
-    UniversalCmdBuffer*     pCmdBuffer,
-    uint32*                 pCmdSpace);
+    const Pm4::GraphicsState& gfxState,        // Currently-active Command Buffer Graphics state
+    CmdStream*                pDeCmdStream,    // DE command stream
+    UniversalCmdBuffer*       pCmdBuffer,
+    uint32*                   pCmdSpace);
 
 template
 uint32* WorkaroundState::PreDraw<true, true, true>(
-    const GraphicsState&    gfxState,        // Currently-active Command Buffer Graphics state
-    CmdStream*              pDeCmdStream,    // DE command stream
-    UniversalCmdBuffer*     pCmdBuffer,
-    uint32*                 pCmdSpace);
+    const Pm4::GraphicsState& gfxState,        // Currently-active Command Buffer Graphics state
+    CmdStream*                pDeCmdStream,    // DE command stream
+    UniversalCmdBuffer*       pCmdBuffer,
+    uint32*                   pCmdSpace);
 
 } // Gfx9
 } // Pal

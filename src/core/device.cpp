@@ -2135,6 +2135,7 @@ Result Device::GetProperties(
             pEngineInfo->flags.p2pCopyToInvisibleHeapIllegal   = engineInfo.flags.p2pCopyToInvisibleHeapIllegal;
             pEngineInfo->flags.supportsTrackBusyChunks         = engineInfo.flags.supportsTrackBusyChunks;
             pEngineInfo->flags.supportsUnmappedPrtPageAccess   = engineInfo.flags.supportsUnmappedPrtPageAccess;
+            pEngineInfo->flags.supportsClearCopyMsaaDsDst      = engineInfo.flags.supportsClearCopyMsaaDsDst;
 
             for (uint32 engineIdx = 0; engineIdx < MaxAvailableEngines; engineIdx++)
             {
@@ -5254,5 +5255,78 @@ bool Device::IssueSqttMarkerEvents() const
 
     return sqttEnabled || m_pPlatform->IsDevDriverProfilingEnabled();
 }
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+// =====================================================================================================================
+// Writes an ELF code object used by a pipeline or library to disk.
+void Device::LogCodeObjectToDisk(
+    StringView<char> prefix,
+    StringView<char> name,      // Optional: Can be the empty string if a human-readable filename is not desired.
+    PipelineHash     hash,
+    bool             isInternal,
+    const void*      pCodeObject,
+    size_t           codeObjectLen
+    ) const
+{
+    const PalSettings& settings = Settings();
+
+    const bool dumpEnabled = settings.logPipelineElf &&
+                             (isInternal ? settings.pipelineElfLogConfig.logInternal
+                                         : settings.pipelineElfLogConfig.logExternal);
+
+    const uint64 hashToDump  = settings.pipelineElfLogConfig.logHash;
+    const bool   hashMatches = ((hashToDump == 0) || (hash.stable == hashToDump));
+
+    if (dumpEnabled && hashMatches)
+    {
+        const char*const pLogDir = &settings.pipelineElfLogConfig.logDirectory[0];
+
+        // Create the directory. We don't care if it fails (existing is fine, failure is caught when opening the file).
+        MkDir(pLogDir);
+
+        // This Snprintf has been split into pieces to try to handle pipelines with extremely long names.
+        // We will truncate the name string if necessary, preserving the path, prefix, and suffix.
+        constexpr int32 MaxLen = 260; // Util::File has an implicit 260 char limit on Windows.
+        char  fileName[MaxLen] = {};
+        int32 offset = Snprintf(fileName, MaxLen, "%s/%s_", pLogDir, prefix.Data());
+
+        if (offset < 0)
+        {
+            // Offset will be -1 if not even the path and prefix fit.
+            PAL_ASSERT_ALWAYS();
+        }
+        else
+        {
+            char*  pNextChar = fileName + offset;
+            size_t remaining = MaxLen - offset;
+
+            if (name.IsEmpty())
+            {
+                Snprintf(pNextChar, remaining, "0x%016llX.elf", hash.stable);
+            }
+            else
+            {
+                const size_t copyLen = Min(size_t(name.Length()), remaining - 5);
+
+                memcpy(pNextChar, name.Data(), copyLen);
+                pNextChar += copyLen;
+                remaining -= copyLen;
+
+                Strncpy(pNextChar, ".elf", remaining);
+            }
+
+            File file;
+            Result result = file.Open(fileName, FileAccessWrite | FileAccessBinary);
+
+            if (result == Result::Success)
+            {
+                result = file.Write(pCodeObject, codeObjectLen);
+            }
+
+            PAL_ASSERT(result == Result::Success);
+        }
+    }
+}
+#endif
 
 } // Pal

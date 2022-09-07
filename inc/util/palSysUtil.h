@@ -209,6 +209,10 @@ struct SystemInfo
     uint32  totalSysMemSize;        ///< Total system memory (RAM) size in megabytes
     uint32  cpuFrequency;           ///< Reports CPU clock speed (from Registry for Windows;
                                     ///< current average processor speed for Linux) in MHz.
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 757)
+    uint32 displayFamily;           ///< Display Family of cpu
+    uint32 displayModel;            ///< Display Model of cpu
+#endif
     union
     {
         struct

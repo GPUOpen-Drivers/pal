@@ -609,134 +609,124 @@ Result Queue::SubmitInternal(
     bool                   postBatching)
 {
     Result result = Result::Success;
-
-    if (submitInfo.pPerSubQueueInfo == nullptr)
+    PAL_ASSERT(submitInfo.perSubQueueInfoCount <= m_queueCount);
+    AutoBuffer<InternalSubmitInfo, 8, Platform> internalSubmitInfos(
+        submitInfo.perSubQueueInfoCount, m_pDevice->GetPlatform());
+    if (internalSubmitInfos.Capacity() < submitInfo.perSubQueueInfoCount)
     {
-        PAL_ASSERT(submitInfo.perSubQueueInfoCount == 0);
-        result = Result::ErrorInvalidPointer;
+        result = Result::ErrorOutOfMemory;
+    }
+    else
+    {
+        memset(internalSubmitInfos.Data(), 0, sizeof(InternalSubmitInfo) * submitInfo.perSubQueueInfoCount);
+        for (uint32 qIndex = 0; (qIndex < submitInfo.perSubQueueInfoCount) && (result == Result::Success); qIndex++)
+        {
+            SubmitConfig(submitInfo, &internalSubmitInfos[qIndex]);
+            for (uint32 idx = 0; idx < submitInfo.pPerSubQueueInfo[qIndex].cmdBufferCount; ++idx)
+            {
+                // Pre-process the command buffers before submission.
+                // Command buffers that require building the commands at submission time should build them here.
+                auto* const pCmdBuffer = static_cast<CmdBuffer*>(submitInfo.pPerSubQueueInfo[qIndex].ppCmdBuffers[idx]);
+                result = pCmdBuffer->PreSubmit();
+            }
+        }
     }
 
     if (result == Result::Success)
     {
-        PAL_ASSERT(submitInfo.perSubQueueInfoCount <= m_queueCount);
-        AutoBuffer<InternalSubmitInfo, 8, Platform> internalSubmitInfos(
-            submitInfo.perSubQueueInfoCount, m_pDevice->GetPlatform());
-        if (internalSubmitInfos.Capacity() < submitInfo.perSubQueueInfoCount)
+        result = ValidateSubmit(submitInfo);
+    }
+
+    if (result == Result::Success)
+    {
+        if (submitInfo.perSubQueueInfoCount > 0)
         {
-            result = Result::ErrorOutOfMemory;
+            for (uint32 qIndex = 0;
+                    (qIndex < submitInfo.perSubQueueInfoCount) && (result == Result::Success);
+                    qIndex++)
+            {
+                uint32 cmdBufferCount = submitInfo.pPerSubQueueInfo[qIndex].cmdBufferCount;
+                QueueContext* pQueueContext = m_pQueueInfos[qIndex].pQueueContext;
+                result = pQueueContext->PreProcessSubmit(&internalSubmitInfos[qIndex], cmdBufferCount);
+            }
         }
         else
         {
-            memset(internalSubmitInfos.Data(), 0, sizeof(InternalSubmitInfo) * submitInfo.perSubQueueInfoCount);
-            for (uint32 qIndex = 0; (qIndex < submitInfo.perSubQueueInfoCount) && (result == Result::Success); qIndex++)
-            {
-                SubmitConfig(submitInfo, &internalSubmitInfos[qIndex]);
-                for (uint32 idx = 0; idx < submitInfo.pPerSubQueueInfo[qIndex].cmdBufferCount; ++idx)
-                {
-                    // Pre-process the command buffers before submission.
-                    // Command buffers that require building the commands at submission time should build them here.
-                    auto* const pCmdBuffer = static_cast<CmdBuffer*>(submitInfo.pPerSubQueueInfo[qIndex].ppCmdBuffers[idx]);
-                    result = pCmdBuffer->PreSubmit();
-                }
-            }
+            result = m_pQueueInfos[0].pQueueContext->PreProcessSubmit(&internalSubmitInfos[0], 0);
         }
-
-        if (result == Result::Success)
-        {
-            result = ValidateSubmit(submitInfo);
-        }
-
-        if (result == Result::Success)
-        {
-            if (submitInfo.perSubQueueInfoCount > 0)
-            {
-                for (uint32 qIndex = 0;
-                     (qIndex < submitInfo.perSubQueueInfoCount) && (result == Result::Success);
-                     qIndex++)
-                {
-                    uint32 cmdBufferCount = submitInfo.pPerSubQueueInfo[qIndex].cmdBufferCount;
-                    QueueContext* pQueueContext = m_pQueueInfos[qIndex].pQueueContext;
-                    result = pQueueContext->PreProcessSubmit(&internalSubmitInfos[qIndex], cmdBufferCount);
-                }
-            }
-            else
-            {
-                result = m_pQueueInfos[0].pQueueContext->PreProcessSubmit(&internalSubmitInfos[0], 0);
-            }
-        }
+    }
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-        if (result == Result::Success)
+    if (result == Result::Success)
+    {
+        if (IsCmdDumpEnabled())
         {
-            if (IsCmdDumpEnabled())
+            Util::File logFile;
+            // Open file for write depending on the settings
+            const Result openResult = OpenCommandDumpFile(submitInfo, internalSubmitInfos[0], &logFile);
+
+            if (openResult == Result::Success) // file opened correctly
             {
-                Util::File logFile;
-                // Open file for write depending on the settings
-                const Result openResult = OpenCommandDumpFile(submitInfo, internalSubmitInfos[0], &logFile);
+                MultiSubmitInfo submitInfoCopy = submitInfo;
 
-                if (openResult == Result::Success) // file opened correctly
-                {
-                    MultiSubmitInfo submitInfoCopy = submitInfo;
+                CmdDumpToFilePayload payload = {};
+                payload.pLogFile = &logFile;
+                payload.pSettings = &m_pDevice->Settings();
 
-                    CmdDumpToFilePayload payload = {};
-                    payload.pLogFile = &logFile;
-                    payload.pSettings = &m_pDevice->Settings();
+                submitInfoCopy.pfnCmdDumpCb = WriteCmdDumpToFile;
+                submitInfoCopy.pUserData = &payload;
 
-                    submitInfoCopy.pfnCmdDumpCb = WriteCmdDumpToFile;
-                    submitInfoCopy.pUserData = &payload;
-
-                    DumpCmdBuffers(submitInfoCopy, internalSubmitInfos[0]);
-                }
+                DumpCmdBuffers(submitInfoCopy, internalSubmitInfos[0]);
             }
         }
+    }
 #endif
 
-        if ((submitInfo.pfnCmdDumpCb != nullptr) && (result == Result::Success))
-        {
-            DumpCmdBuffers(submitInfo, internalSubmitInfos[0]);
-        }
+    if ((submitInfo.pfnCmdDumpCb != nullptr) && (result == Result::Success))
+    {
+        DumpCmdBuffers(submitInfo, internalSubmitInfos[0]);
+    }
 
-        if (result == Result::Success)
+    if (result == Result::Success)
+    {
+        if (m_ifhMode == IfhModeDisabled)
         {
-            if (m_ifhMode == IfhModeDisabled)
+            for (uint32 qIndex = 0; (qIndex < submitInfo.perSubQueueInfoCount); qIndex++)
             {
-                for (uint32 qIndex = 0; (qIndex < submitInfo.perSubQueueInfoCount); qIndex++)
+                for (uint32 idx = 0; idx < submitInfo.pPerSubQueueInfo[qIndex].cmdBufferCount; ++idx)
                 {
-                    for (uint32 idx = 0; idx < submitInfo.pPerSubQueueInfo[qIndex].cmdBufferCount; ++idx)
-                    {
-                        // Each command buffer being submitted needs to be notified about it, so
-                        // the command stream(s) can manage their GPU-completion tracking.
-                        auto*const pCmdBuffer = static_cast<CmdBuffer*>(
-                            submitInfo.pPerSubQueueInfo[qIndex].ppCmdBuffers[idx]);
-                        pCmdBuffer->IncrementSubmitCount();
-                    }
+                    // Each command buffer being submitted needs to be notified about it, so
+                    // the command stream(s) can manage their GPU-completion tracking.
+                    auto*const pCmdBuffer = static_cast<CmdBuffer*>(
+                        submitInfo.pPerSubQueueInfo[qIndex].ppCmdBuffers[idx]);
+                    pCmdBuffer->IncrementSubmitCount();
                 }
             }
-
-            for (uint32 idx = 0; idx < submitInfo.fenceCount; idx++)
-            {
-                PAL_ASSERT(submitInfo.ppFences[idx] != nullptr);
-                static_cast<Fence*>(submitInfo.ppFences[idx])->AssociateWithContext(m_pSubmissionContext);
-            }
-
-            // Either execute the submission immediately, or enqueue it for later, depending on whether or not we are
-            // stalled and/or the caller is a function after the batching logic and thus must execute immediately.
-            if (postBatching || (m_stalled == false))
-            {
-                result = OsSubmit(submitInfo, &internalSubmitInfos[0]);
-            }
-            else
-            {
-                result = EnqueueSubmit(submitInfo, &internalSubmitInfos[0]);
-            }
         }
 
-        if (result == Result::Success)
+        for (uint32 idx = 0; idx < submitInfo.fenceCount; idx++)
         {
-            for (uint32 qIndex = 0; qIndex < submitInfo.perSubQueueInfoCount; qIndex++)
-            {
-                m_pQueueInfos[qIndex].pQueueContext->PostProcessSubmit();
-            }
+            PAL_ASSERT(submitInfo.ppFences[idx] != nullptr);
+            static_cast<Fence*>(submitInfo.ppFences[idx])->AssociateWithContext(m_pSubmissionContext);
+        }
+
+        // Either execute the submission immediately, or enqueue it for later, depending on whether or not we are
+        // stalled and/or the caller is a function after the batching logic and thus must execute immediately.
+        if (postBatching || (m_stalled == false))
+        {
+            result = OsSubmit(submitInfo, &internalSubmitInfos[0]);
+        }
+        else
+        {
+            result = EnqueueSubmit(submitInfo, &internalSubmitInfos[0]);
+        }
+    }
+
+    if (result == Result::Success)
+    {
+        for (uint32 qIndex = 0; qIndex < submitInfo.perSubQueueInfoCount; qIndex++)
+        {
+            m_pQueueInfos[qIndex].pQueueContext->PostProcessSubmit();
         }
     }
 
@@ -1995,7 +1985,7 @@ void Queue::SubmitConfig(
     const MultiSubmitInfo& submitInfo,
     InternalSubmitInfo*    pInternalSubmitInfos)
 {
-    if ((submitInfo.pPerSubQueueInfo == nullptr) || (submitInfo.pPerSubQueueInfo[0].cmdBufferCount == 0))
+    if ((submitInfo.perSubQueueInfoCount == 0) || (submitInfo.pPerSubQueueInfo[0].cmdBufferCount == 0))
     {
         // Dummy submission doesn't need to update resource list since dummy resource list will be used.
         pInternalSubmitInfos->flags.isDummySubmission = 1;

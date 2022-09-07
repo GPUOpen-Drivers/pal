@@ -1351,7 +1351,7 @@ size_t Device::GetIndirectCmdGeneratorSize(
 {
     if (pResult != nullptr)
     {
-        (*pResult) = Pal::IndirectCmdGenerator::ValidateCreateInfo(createInfo);
+        (*pResult) = Pm4::IndirectCmdGenerator::ValidateCreateInfo(createInfo);
     }
 
     return IndirectCmdGenerator::GetSize(createInfo);
@@ -1366,7 +1366,7 @@ Result Device::CreateIndirectCmdGenerator(
 {
     PAL_ASSERT((pPlacementAddr != nullptr) && (ppGenerator != nullptr));
 #if PAL_ENABLE_PRINTS_ASSERTS
-    PAL_ASSERT(Pal::IndirectCmdGenerator::ValidateCreateInfo(createInfo) == Result::Success);
+    PAL_ASSERT(Pm4::IndirectCmdGenerator::ValidateCreateInfo(createInfo) == Result::Success);
 #endif
 
     (*ppGenerator) = PAL_PLACEMENT_NEW(pPlacementAddr) IndirectCmdGenerator(*this, createInfo);
@@ -3366,6 +3366,7 @@ void InitializeGpuEngineProperties(
     pUniversal->flags.supportsImageInitBarrier        = 1;
     pUniversal->flags.supportsImageInitPerSubresource = 1;
     pUniversal->flags.supportsUnmappedPrtPageAccess   = 1;
+    pUniversal->flags.supportsClearCopyMsaaDsDst      = 1;
     pUniversal->maxControlFlowNestingDepth            = CmdStream::CntlFlowNestingLimit;
     pUniversal->minTiledImageCopyAlignment.width      = 1;
     pUniversal->minTiledImageCopyAlignment.height     = 1;

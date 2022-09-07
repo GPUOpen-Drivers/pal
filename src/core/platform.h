@@ -118,14 +118,25 @@ public:
         IScreen* pScreens[MaxScreens]) override;
 
     virtual Result QueryRawApplicationProfile(
-        const char*              pFilename,
-        const char*              pPathname,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 759
+        const wchar_t*                pFilename,
+        const wchar_t*                pPathname,
+#else
+        const char*                   pFilename,
+        const char*                   pPathname,
+#endif
         Pal::ApplicationProfileClient client,
-        const char**             pOut) override;
+        const char**                  pOut) override;
 
     virtual Result EnableSppProfile(
-        const char*              pFilename,
-        const char*              pPathname) override;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 759
+        const wchar_t* pFilename,
+        const wchar_t* pPathname
+#else
+        const char*    pFilename,
+        const char*    pPathname
+#endif
+    ) override;
 
     virtual Result GetProperties(
         PlatformProperties* pProperties) override;
@@ -170,6 +181,7 @@ public:
     bool IsDeveloperModeEnabled() const { return (m_pDevDriverServer != nullptr); }
     bool IsDevDriverProfilingEnabled() const;
     virtual bool IsTracingEnabled() const override;
+    virtual bool IsCrashAnalysisModeEnabled() const override;
     bool ShowDevDriverOverlay() const;
     bool Force32BitVaSpace() const { return m_flags.force32BitVaSpace; }
 

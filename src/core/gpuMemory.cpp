@@ -150,6 +150,24 @@ Result GpuMemory::ValidateCreateInfo(
     {
         result = Result::ErrorOutOfGpuMemory;
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 761
+    if ((createInfo.flags.startVaHintFlag == 1) && (createInfo.startVaHint != 0))
+    {
+        gpusize startVaHintAddr     = 0;
+        gpusize endVaHintAddr       = 0;
+        pDevice->VirtualAddressRange(VaPartition::Default, &startVaHintAddr, &endVaHintAddr);
+        const gpusize pageSize = pDevice->MemoryProperties().virtualMemPageSize;
+        const gpusize alignment = Pow2Align(createInfo.alignment, pageSize);
+        const gpusize startVaHintAlign = Pow2Align(createInfo.startVaHint, alignment);
+
+        if ((startVaHintAlign < startVaHintAddr) || ((startVaHintAlign + createInfo.size) >= endVaHintAddr))
+        {
+            result = Result::ErrorInvalidPointer;
+        }
+    }
+#endif
+
     if (createInfo.flags.useReservedGpuVa)
     {
         if (createInfo.pReservedGpuVaOwner == nullptr)
@@ -774,6 +792,23 @@ Result GpuMemory::Init(
                     m_desc.size = Pow2Align(m_desc.size, idealAlignment);
                 }
             }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 761
+            if ((createInfo.flags.startVaHintFlag == 1) && (createInfo.startVaHint != 0))
+            {
+                gpusize startVaHintAddr = 0;
+                gpusize endVaHintAddr   = 0;
+                m_pDevice->VirtualAddressRange(VaPartition::Default, &startVaHintAddr, &endVaHintAddr);
+                const gpusize pageSize          = m_pDevice->MemoryProperties().virtualMemPageSize;
+                const gpusize alignment         = Pow2Align(createInfo.alignment, pageSize);
+                const gpusize startVaHintAlign  = Pow2Align(createInfo.startVaHint, alignment);
+
+                if ((startVaHintAlign >= startVaHintAddr) && ((startVaHintAlign + m_desc.size) < endVaHintAddr))
+                {
+                    baseVirtAddr = startVaHintAlign;
+                }
+            }
+#endif
         }
         else if (createInfo.vaRange == VaRange::CaptureReplay)
         {

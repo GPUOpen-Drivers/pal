@@ -30,7 +30,7 @@
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9Image.h"
 #include "core/hw/gfxip/gfx9/gfx9MaskRam.h"
-#include "core/hw/gfxip/universalCmdBuffer.h"
+#include "core/hw/gfxip/pm4UniversalCmdBuffer.h"
 
 namespace Pal
 {
@@ -83,9 +83,9 @@ public:
         CmdStream* pCmdStream,
         uint32*    pCmdSpace);
 
-    uint32* HandleBoundTargetChanged(const UniversalCmdBuffer*  pCmdBuffer, uint32* pCmdSpace) const;
+    uint32* HandleBoundTargetChanged(const Pm4::UniversalCmdBuffer*  pCmdBuffer, uint32* pCmdSpace) const;
 
-    TargetExtent2d GetExtent() const { return m_extent; }
+    Pm4::TargetExtent2d GetExtent() const { return m_extent; }
 
     static const uint32 DbRenderOverrideRmwMask = DB_RENDER_OVERRIDE__FORCE_HIZ_ENABLE_MASK        |
                                                   DB_RENDER_OVERRIDE__FORCE_HIS_ENABLE0_MASK       |
@@ -150,8 +150,8 @@ protected:
         uint32 u32All;
     } m_flags;
 
-    const Image*const  m_pImage;
-    TargetExtent2d     m_extent;
+    const Image*const   m_pImage;
+    Pm4::TargetExtent2d m_extent;
 
     SubresId  m_depthSubresource;   // Sub-resource associated with the Depth plane
     SubresId  m_stencilSubresource; // Sub-resource associated with the Stencil plane

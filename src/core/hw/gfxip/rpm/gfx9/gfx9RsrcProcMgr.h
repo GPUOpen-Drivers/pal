@@ -57,13 +57,6 @@ public:
     virtual Result LateInit() override;
     virtual void Cleanup() override;
 
-    void CmdCopyMemory(
-        GfxCmdBuffer*           pCmdBuffer,
-        const GpuMemory&        srcGpuMemory,
-        const GpuMemory&        dstGpuMemory,
-        uint32                  regionCount,
-        const MemoryCopyRegion* pRegions) const;
-
     void CmdCloneImageData(
         GfxCmdBuffer* pCmdBuffer,
         const Image&  srcImage,
@@ -274,6 +267,12 @@ protected:
         Pal::CmdStream*  pCmdStream,
         uint32           paScTileSteeringOverride) const;
 
+    virtual void PreComputeDepthStencilClearSync(
+        ICmdBuffer*        pCmdBuffer,
+        const GfxImage&    gfxImage,
+        const SubresRange& subres,
+        ImageLayout        layout) const;
+
     Device*const   m_pDevice;
     const CmdUtil& m_cmdUtil;
 
@@ -458,6 +457,13 @@ public:
         const GfxImage&    image,
         const SubresRange& range) const override;
 
+    virtual void CmdCopyMemory(
+        GfxCmdBuffer*           pCmdBuffer,
+        const GpuMemory&        srcGpuMemory,
+        const GpuMemory&        dstGpuMemory,
+        uint32                  regionCount,
+        const MemoryCopyRegion* pRegions) const override;
+
 protected:
     void ClearDccCompute(
         GfxCmdBuffer*      pCmdBuffer,
@@ -492,7 +498,7 @@ protected:
         uint32                 copyFlags) const override;
 
     virtual const Pal::ComputePipeline* GetCmdGenerationPipeline(
-        const Pal::IndirectCmdGenerator& generator,
+        const Pm4::IndirectCmdGenerator& generator,
         const CmdBuffer&                 cmdBuffer) const override;
 
     void HwlDecodeBufferViewSrd(
@@ -617,7 +623,7 @@ private:
         uint32                       bpp) const override;
 
     virtual void HwlEndGraphicsCopy(
-        Pal::CmdStream* pCmdStream,
+        Pm4::CmdStream* pCmdStream,
         uint32          restoreMask) const override;
 
     PAL_DISALLOW_DEFAULT_CTOR(Gfx9RsrcProcMgr);
@@ -686,7 +692,7 @@ protected:
         uint8              stencil) const override;
 
     virtual const Pal::ComputePipeline* GetCmdGenerationPipeline(
-        const Pal::IndirectCmdGenerator& generator,
+        const Pm4::IndirectCmdGenerator& generator,
         const CmdBuffer&                 cmdBuffer) const override;
 
     virtual void HwlDecodeBufferViewSrd(
@@ -780,7 +786,7 @@ private:
         uint32                       bpp) const override;
 
     virtual void HwlEndGraphicsCopy(
-        Pal::CmdStream* pCmdStream,
+        Pm4::CmdStream* pCmdStream,
         uint32          restoreMask) const override;
 
     virtual void HwlGfxDccToDisplayDcc(

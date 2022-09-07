@@ -45,15 +45,15 @@ CmdStream::CmdStream(
     CmdStreamUsage cmdStreamUsage,
     bool           isNested)
     :
-    Pal::GfxCmdStream(device,
-                      pCmdAllocator,
-                      engineType,
-                      subEngineType,
-                      cmdStreamUsage,
-                      GetChainSizeInDwords(device, isNested),
-                      device.CmdUtil().GetMinNopSizeInDwords(),
-                      CmdUtil::GetCondIndirectBufferSize(),
-                      isNested),
+    Pm4::CmdStream(device,
+                   pCmdAllocator,
+                   engineType,
+                   subEngineType,
+                   cmdStreamUsage,
+                   GetChainSizeInDwords(device, isNested),
+                   device.CmdUtil().GetMinNopSizeInDwords(),
+                   CmdUtil::GetCondIndirectBufferSize(),
+                   isNested),
     m_cmdUtil(device.CmdUtil()),
     m_pPm4Optimizer(nullptr)
 {
@@ -68,7 +68,7 @@ Result CmdStream::Begin(
     // Pm4Optimizer. We also shouldn't optimize CE streams because Pm4Optimizer has no optimizations for them.
     flags.optimizeCommands &= (pMemAllocator != nullptr) && (m_subEngineType != SubEngineType::ConstantEngine);
 
-    Result result = GfxCmdStream::Begin(flags, pMemAllocator);
+    Result result = Pm4::CmdStream::Begin(flags, pMemAllocator);
 
     if ((result == Result::Success) && (m_flags.optimizeCommands == 1))
     {

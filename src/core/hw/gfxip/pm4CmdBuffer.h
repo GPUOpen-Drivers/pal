@@ -44,10 +44,14 @@ class CmdStream;
 class GfxCmdBuffer;
 class GfxDevice;
 class GpuMemory;
-class IndirectCmdGenerator;
 class Pipeline;
 class PerfExperiment;
 class IPerfExperiment;
+
+namespace Pm4
+{
+class IndirectCmdGenerator;
+}
 
 // Tracks the state of a user-data table stored in GPU memory.  The table's contents are managed using embedded data
 // and the CPU, or using GPU scratch memory and CE RAM.
@@ -264,6 +268,16 @@ public:
     gpusize AcqRelFenceValGpuVa(AcqRelEventType type) const
         { return (m_acqRelFenceValGpuVa + sizeof(uint32) * static_cast<uint32>(type)); }
 
+    // Obtains a fresh command stream chunk from the current command allocator, for use as the target of GPU-generated
+    // commands. The chunk is inserted onto the generated-chunks list so it can be recycled by the allocator after the
+    // GPU is done with it.
+    virtual void GetChunkForCmdGeneration(
+        const Pm4::IndirectCmdGenerator& generator,
+        const Pipeline&                  pipeline,
+        uint32                           maxCommands,
+        uint32                           numChunkOutputs,
+        ChunkOutput*                     pChunkOutputs) = 0;
+
 protected:
     Pm4CmdBuffer(
         const GfxDevice&           device,
@@ -354,6 +368,12 @@ protected:
         pTable->gpuVirtAddr  = 0;
         pTable->dirty        = 0;
     }
+
+    static void SetUserData(
+        uint32           firstEntry,
+        uint32           entryCount,
+        UserDataEntries* pEntries,
+        const uint32*    pEntryValues);
 
     CmdStreamChunk* GetNextGeneratedChunk();
 

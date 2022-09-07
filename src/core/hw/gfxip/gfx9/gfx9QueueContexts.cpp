@@ -35,7 +35,7 @@
 #include "core/hw/gfxip/gfx9/gfx9QueueContexts.h"
 #include "core/hw/gfxip/gfx9/gfx9ShaderRingSet.h"
 #include "core/hw/gfxip/gfx9/gfx9UniversalEngine.h"
-#include "core/hw/gfxip/universalCmdBuffer.h"
+#include "core/hw/gfxip/pm4UniversalCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/g_gfx9ShadowedRegistersInit.h"
 #include "palVectorImpl.h"
 #include "palDequeImpl.h"
@@ -752,7 +752,9 @@ Result UniversalQueueContext::AllocateShadowMemory()
     createInfo.size       = (ceRamBytes + (sizeof(uint32) * m_shadowedRegCount));
     createInfo.priority   = GpuMemPriority::Normal;
     createInfo.vaRange    = VaRange::Default;
-    createInfo.heapAccess = GpuHeapAccess::GpuHeapAccessCpuNoAccess;
+    createInfo.heapAccess = GpuHeapAccess::GpuHeapAccessExplicit;
+    createInfo.heapCount  = 1;
+    createInfo.heaps[0]   = GpuHeap::GpuHeapLocal;
 
     m_shadowGpuMemSizeInBytes = createInfo.size;
 
@@ -769,6 +771,18 @@ Result UniversalQueueContext::AllocateShadowMemory()
         if (result == Result::Success)
         {
             m_shadowGpuMem.Update(pGpuMemory, offset);
+        }
+
+        void* pData = nullptr;
+        if (result == Result::Success)
+        {
+            result = m_shadowGpuMem.Map(&pData);
+        }
+
+        if (result == Result::Success)
+        {
+            memset(pData, 0, m_shadowGpuMemSizeInBytes);
+            result = m_shadowGpuMem.Unmap();
         }
     }
 
@@ -882,25 +896,18 @@ void UniversalQueueContext::WritePerSubmitPreamble(
         pCmdSpace = pCmdStream->ReserveCommands();
 
         {
+            // We memset m_shadowGpuMem to 0 in AllocateShadowMemory.
+            // Therefore, we don't need to use DMA packets to zero it.
+            // The issue is that m_shadowGpuMem should always be non-tmz backed, but m_pDummyCmdBuffer
+            // may be tmz enabled.
             const gpusize userCfgRegGpuAddr = m_shadowGpuMem.GpuVirtAddr();
             const gpusize contextRegGpuAddr = (userCfgRegGpuAddr + (sizeof(uint32) * UserConfigRegCount));
             const gpusize shRegGpuAddr      = (contextRegGpuAddr + (sizeof(uint32) * CntxRegCount));
 
             {
-                // Use a DMA_DATA packet to initialize all shadow memory to 0s explicitely.
-                DmaDataInfo dmaData = {};
-                dmaData.dstSel = dst_sel__pfp_dma_data__dst_addr_using_l2;
-                dmaData.dstAddr = m_shadowGpuMem.GpuVirtAddr();
-                dmaData.dstAddrSpace = das__pfp_dma_data__memory;
-                dmaData.srcSel = src_sel__pfp_dma_data__data;
-                dmaData.srcData = 0;
-                dmaData.numBytes = static_cast<uint32>(m_shadowGpuMemSizeInBytes);
-                dmaData.sync = true;
-                dmaData.usePfp = true;
-                pCmdSpace += CmdUtil::BuildDmaData<false>(dmaData, pCmdSpace);
-
-                // After initializing shadow memory to 0, load user config and sh register again, otherwise the registers
-                // might contain invalid value. We don't need to load context register again because in the
+                // We've zeroed shadow memory in AllocateShadowMemory().
+                // We load user config and sh register again to make sure they're initialized to zeros.
+                // We don't need to load context register again because in the
                 // InitializeContextRegisters() we will set the contexts that we can load.
                 uint32      numEntries = 0;
                 const auto* pRegRange = m_pDevice->GetRegisterRange(RegRangeUserConfig, &numEntries);

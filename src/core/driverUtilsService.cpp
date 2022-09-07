@@ -49,4 +49,12 @@ DD_RESULT DriverUtilsService::EnableTracing()
 
     return DD_RESULT_SUCCESS;
 }
+
+// =====================================================================================================================
+DD_RESULT DriverUtilsService::EnableCrashAnalysisMode()
+{
+    m_crashAnalysisModeEnabled = true;
+
+    return DD_RESULT_SUCCESS;
+}
 }

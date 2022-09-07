@@ -36,6 +36,8 @@
 #include "palDestroyable.h"
 #include "palImage.h"
 #include "palShaderLibrary.h"
+#include "palSpan.h"
+#include <utility>
 
 namespace Util
 {
@@ -282,7 +284,8 @@ struct ComputePipelineCreateInfo
                                                ///  interface. The Pipeline ELF contains pre-compiled shaders,
                                                ///  register values, and additional metadata.
     size_t              pipelineBinarySize;    ///< Size of Pipeline ELF binary in bytes.
-    uint32              maxFunctionCallDepth;  ///< Maximum depth for indirect function calls
+    uint32              maxFunctionCallDepth;  ///< Maximum depth for indirect function calls. Only used where the
+                                               ///  client driver uses IPipeline::LinkWithLibraries.
     bool disablePartialDispatchPreemption; ///< Prevents scenarios where a subset of the dispatched thread groups are
                                            ///  preempted and the remaining thread groups run to completion. This
                                            ///  can occur when thread group granularity preemption is available and
@@ -350,6 +353,7 @@ struct RasterizerState
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 665
     bool            dx10DiamondTestDisable;     ///< Disable DX10 diamond test during line rasterization.
 #endif
+
 };
 
 /// Specifies Per-MRT color target info in olor target state
@@ -484,6 +488,10 @@ struct PipelineInfo
             uint32 u32All;                      ///< All flags combined as a single uint32.
         } flags;
     } ps;                                       ///< Pixel shader properties.
+
+    uint64 resourceMappingHash; ///< 64-bit hash of the resource mapping used when compiling the pipeline,
+                                ///  if available (0 otherwise).
+
 };
 
 /// Used to represent API level shader stage.
@@ -736,6 +744,14 @@ public:
     {
         m_pClientData = pClientData;
     }
+
+    /// Get the array of underlying pipelines that this pipeline contains. For a normal non-multi-pipeline,
+    /// this returns a single-entry array pointing to the same IPipeline. For a multi-pipeline compiled in
+    /// dynamic launch mode, this returns an empty array. The contents of the returned array remain valid
+    /// until the IPipeline is destroyed.
+    ///
+    /// @returns The array of underlying pipelines.
+    virtual Util::Span<const IPipeline* const> GetPipelines() const = 0;
 
 protected:
     /// @internal Constructor. Prevent use of new operator on this interface. Client must create objects by explicitly

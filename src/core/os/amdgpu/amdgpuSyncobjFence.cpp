@@ -298,17 +298,17 @@ Result SyncobjFence::GetStatus() const
     // Thus, this version of GetStatus() is not equivalent to the old one exactly.
     // ErrorFenceNeverSubmitted is not reported correctly here.
     // After we start removing ErrorFenceNeverSubmitted in another changelist, I will remove the second the if block.
-    if ((IsSyncobjSignaled(m_fenceSyncObject) == false) && (WasNeverSubmitted() == false))
+    if (IsSyncobjSignaled(m_fenceSyncObject))
     {
-        result = Result::NotReady;
+        result = Result::Success;
     }
-    else if ((IsSyncobjSignaled(m_fenceSyncObject) == false) && (WasNeverSubmitted() == true))
+    else if (WasNeverSubmitted())
     {
         result = Result::ErrorFenceNeverSubmitted;
     }
     else
     {
-        result = Result::Success;
+        result = Result::NotReady;
     }
 
     return result;

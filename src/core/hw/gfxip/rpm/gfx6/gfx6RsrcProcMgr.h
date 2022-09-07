@@ -50,12 +50,12 @@ public:
     explicit RsrcProcMgr(Device* pDevice);
     virtual ~RsrcProcMgr() {}
 
-    void CmdCopyMemory(
+    virtual void CmdCopyMemory(
         GfxCmdBuffer*           pCmdBuffer,
         const GpuMemory&        srcGpuMemory,
         const GpuMemory&        dstGpuMemory,
         uint32                  regionCount,
-        const MemoryCopyRegion* pRegions) const;
+        const MemoryCopyRegion* pRegions) const override;
 
     void CmdCloneImageData(GfxCmdBuffer* pCmdBuffer, const Image& srcImage, const Image& dstImage) const;
 
@@ -132,7 +132,7 @@ protected:
         SwizzledFormat format) const override;
 
     virtual const Pal::ComputePipeline* GetCmdGenerationPipeline(
-        const Pal::IndirectCmdGenerator& generator,
+        const Pm4::IndirectCmdGenerator& generator,
         const CmdBuffer&                 cmdBuffer) const override;
 
 private:
@@ -181,7 +181,7 @@ private:
         const Pal::Image&            dstImage,
         uint32                       bpp) const override;
 
-    virtual void HwlEndGraphicsCopy(Pal::CmdStream* pCmdStream, uint32 restoreMask) const override;
+    virtual void HwlEndGraphicsCopy(Pm4::CmdStream* pCmdStream, uint32 restoreMask) const override;
 
     virtual void HwlDecodeImageViewSrd(
         const void*       pImageViewSrd,

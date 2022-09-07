@@ -33,12 +33,14 @@
 #include "palFormatInfo.h"
 #include "palInlineFuncs.h"
 #include "core/hw/gfxip/colorBlendState.h"
+#include "core/hw/gfxip/computePipeline.h"
 #include "core/hw/gfxip/depthStencilState.h"
 #include "core/hw/gfxip/msaaState.h"
 #include "core/hw/gfxip/gfxDevice.h"
 #include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/graphicsPipeline.h"
-#include "core/hw/gfxip/universalCmdBuffer.h"
+#include "core/hw/gfxip/pm4IndirectCmdGenerator.h"
+#include "core/hw/gfxip/pm4UniversalCmdBuffer.h"
 #include "core/hw/gfxip/rpm/rpmUtil.h"
 #include "core/hw/gfxip/rpm/pm4RsrcProcMgr.h"
 
@@ -444,7 +446,7 @@ void RsrcProcMgr::CopyColorImageGraphics(
     }
 
     // Call back to the gfxip layer so it can restore any state it modified previously.
-    HwlEndGraphicsCopy(pStream, restoreMask);
+    HwlEndGraphicsCopy(static_cast<Pm4::CmdStream*>(pStream), restoreMask);
 
     // Restore original command buffer state.
     pCmdBuffer->CmdRestoreGraphicsState();
@@ -1650,7 +1652,1900 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
         }
     }
     // Call back to the gfxip layer so it can restore any state it modified previously.
-    HwlEndGraphicsCopy(pStream, restoreMask);
+    HwlEndGraphicsCopy(static_cast<Pm4::CmdStream*>(pStream), restoreMask);
+}
+
+// =====================================================================================================================
+// Executes a compute shader which generates a PM4 command buffer which can later be executed. If the number of indirect
+// commands being generated will not fit into a single command-stream chunk, this will issue multiple dispatches, one
+// for each command chunk to generate.
+void RsrcProcMgr::CmdGenerateIndirectCmds(
+    const GenerateInfo& genInfo,
+    CmdStreamChunk**    ppChunkLists[],
+    uint32              NumChunkLists,
+    uint32*             pNumGenChunks
+    ) const
+{
+    const auto&                 settings       = m_pDevice->Parent()->Settings();
+    const auto&                 publicSettings = m_pDevice->Parent()->GetPublicSettings();
+    const auto&                 chipProps      = m_pDevice->Parent()->ChipProperties();
+    const gpusize               argsGpuAddr    = genInfo.argsGpuAddr;
+    const gpusize               countGpuAddr   = genInfo.countGpuAddr;
+    const Pipeline*             pPipeline      = genInfo.pPipeline;
+    const Pm4::IndirectCmdGenerator& generator = genInfo.generator;
+    Pm4CmdBuffer*               pCmdBuffer     = static_cast<Pm4CmdBuffer*>(genInfo.pCmdBuffer);
+    uint32                      indexBufSize   = genInfo.indexBufSize;
+    uint32                      maximumCount   = genInfo.maximumCount;
+
+    const ComputePipeline* pGenerationPipeline = GetCmdGenerationPipeline(generator, *pCmdBuffer);
+
+    uint32 threadsPerGroup[3] = { };
+    pGenerationPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+
+    pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
+    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pGenerationPipeline, InternalApiPsoHash, });
+
+    // The command-generation pipelines expect the following descriptor-table layout for the resources which are the
+    // same for each command-stream chunk being generated:
+    //  + Raw-buffer SRD for the indirect argument data (4 DW)
+    //  + Structured-buffer SRD for the command parameter data (4 DW)
+    //  + Typed buffer SRD for the user-data entry mapping table for each shader stage (4 DW)
+    //  + Structured-buffer SRD for the pipeline signature (4 DW)
+    //  + Structured-buffer SRD for the second pipeline signature (4 DW)
+    //  + Raw-buffer SRD pointing to return-to-caller INDIRECT_BUFFER packet location for the main chunk. (4 DW)
+    //  + Raw-buffer SRD pointing to return-to-caller INDIRECT_BUFFER packet location for the task chunk. (4 DW)
+    //  + Constant buffer SRD for the command-generator properties (4 DW)
+    //  + Constant buffer SRD for the properties of the ExecuteIndirect() invocation (4 DW)
+    //  + GPU address of the memory containing the count of commands to generate (2 DW)
+    //  + Issue THREAD_TRACE_MARKER after draw or dispatch (1 DW)
+    //  + Task Shader Enabled flag (1 DW)
+
+    constexpr uint32 SrdDwords = 4;
+    PAL_ASSERT(chipProps.srdSizes.bufferView == (sizeof(uint32) * SrdDwords));
+
+    const bool taskShaderEnabled = ((generator.Type() == Pm4::GeneratorType::DispatchMesh) &&
+                                    (static_cast<const GraphicsPipeline*>(pPipeline)->HasTaskShader()));
+
+    // The generation pipelines expect the descriptor table's GPU address to be written to user-data #0-1.
+    gpusize tableGpuAddr = 0uLL;
+
+    uint32* pTableMem = pCmdBuffer->CmdAllocateEmbeddedData(((9 * SrdDwords) + 4), 1, &tableGpuAddr);
+
+    PAL_ASSERT(pTableMem != nullptr);
+
+    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, 2, reinterpret_cast<uint32*>(&tableGpuAddr));
+
+    // Raw-buffer SRD for the indirect-argument data:
+    BufferViewInfo viewInfo = { };
+    viewInfo.gpuAddr        = argsGpuAddr;
+    viewInfo.swizzledFormat = UndefinedSwizzledFormat;
+    viewInfo.range          = (generator.Properties().argBufStride * maximumCount);
+    viewInfo.stride         = 1;
+    viewInfo.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                    Gfx10RpmViewsBypassMallOnRead);
+    viewInfo.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                    Gfx10RpmViewsBypassMallOnWrite);
+    m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &viewInfo, pTableMem);
+    pTableMem += SrdDwords;
+
+    // Structured-buffer SRD for the command parameter data:
+    generator.PopulateParameterBuffer(pCmdBuffer, pPipeline, pTableMem);
+    pTableMem += SrdDwords;
+
+    // Typed-buffer SRD for the user-data entry mappings:
+    generator.PopulateUserDataMappingBuffer(pCmdBuffer, pPipeline, pTableMem);
+    pTableMem += SrdDwords;
+
+    // Structured buffer SRD for the pipeline signature:
+    generator.PopulateSignatureBuffer(pCmdBuffer, pPipeline, pTableMem);
+    if (generator.Type() == Pm4::GeneratorType::DispatchMesh)
+    {
+        // In the case of DispatchMesh, PopulateSignatureBuffer will allocate an additional SRD hence the increment.
+        pTableMem += SrdDwords;
+    }
+    pTableMem += SrdDwords;
+
+    // Raw-buffer SRD pointing to return-to-caller INDIRECT_BUFFER packet location for the main chunk.
+    uint32* pReturnIbAddrTableMem = pTableMem;
+    memset(pTableMem, 0, (sizeof(uint32) * SrdDwords));
+    pTableMem += SrdDwords;
+
+    // Raw-buffer SRD pointing to return-to-caller INDIRECT_BUFFER packet location for the task chunk.
+    uint32* pReturnTaskIbAddrTableMem = pTableMem;
+    if (generator.Type() == Pm4::GeneratorType::DispatchMesh)
+    {
+        memset(pTableMem, 0, (sizeof(uint32) * SrdDwords));
+        pTableMem += SrdDwords;
+    }
+
+    // Constant buffer SRD for the command-generator properties:
+    generator.PopulatePropertyBuffer(pCmdBuffer, pPipeline, pTableMem);
+    pTableMem += SrdDwords;
+
+    // Constant buffer SRD for the properties of the ExecuteIndirect() invocation:
+    generator.PopulateInvocationBuffer(pCmdBuffer,
+                                       pPipeline,
+                                       taskShaderEnabled,
+                                       argsGpuAddr,
+                                       maximumCount,
+                                       indexBufSize,
+                                       pTableMem);
+    pTableMem += SrdDwords;
+
+    // GPU address of the memory containing the actual command count to generate:
+    memcpy(pTableMem, &countGpuAddr, sizeof(countGpuAddr));
+    pTableMem += 2;
+
+    // Flag to decide whether to issue THREAD_TRACE_MARKER following generated draw/dispatch commands.
+    pTableMem[0] = m_pDevice->Parent()->IssueSqttMarkerEvents();
+    pTableMem[1] = taskShaderEnabled;
+
+    // These will be used for tracking the postamble size of the main and task chunks respectively.
+    uint32 postambleDwords    = 0;
+    uint32 postambleDwordsAce = 0;
+
+    uint32 commandIdOffset = 0;
+    while (commandIdOffset < maximumCount)
+    {
+        // Obtain a command-stream chunk for generating commands into. This also sets-up the padding requirements
+        // for the chunk and determines the number of commands which will safely fit. We'll need to build a raw-
+        // buffer SRD so the shader can access the command buffer as a UAV.
+        ChunkOutput output[2]  = {};
+        const uint32 numChunks = (taskShaderEnabled) ? 2 : 1;
+        pCmdBuffer->GetChunkForCmdGeneration(generator,
+                                             *pPipeline,
+                                             (maximumCount - commandIdOffset),
+                                             numChunks,
+                                             output);
+
+        ChunkOutput& mainChunk          = output[0];
+        ppChunkLists[0][*pNumGenChunks] = mainChunk.pChunk;
+
+        postambleDwords = mainChunk.chainSizeInDwords;
+
+        // The command generation pipeline also expects the following descriptor-table layout for the resources
+        // which change between each command-stream chunk being generated:
+        //  + Raw buffer UAV SRD for the command-stream chunk to generate (4 DW)
+        //  + Raw buffer UAV SRD for the embedded data segment to use for the spill table (4 DW)
+        //  + Raw buffer UAV SRD pointing to current chunk's INDIRECT_BUFFER packet that chains to the next chunk (4 DW)
+        //  + Command ID offset for the current command-stream-chunk (1 DW)
+        //  + Low half of the GPU virtual address of the spill table's embedded data segment (1 DW)
+
+        // The generation pipelines expect the descriptor table's GPU address to be written to user-data #2-3.
+        pTableMem = pCmdBuffer->CmdAllocateEmbeddedData(((3 * SrdDwords) + 2), 1, &tableGpuAddr);
+        PAL_ASSERT(pTableMem != nullptr);
+
+        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 2, 2, reinterpret_cast<uint32*>(&tableGpuAddr));
+
+        // UAV buffer SRD for the command-stream-chunk to generate:
+        viewInfo.gpuAddr        = mainChunk.pChunk->GpuVirtAddr();
+        viewInfo.swizzledFormat = UndefinedSwizzledFormat;
+        viewInfo.range          = (mainChunk.commandsInChunk * generator.CmdBufStride(pPipeline));
+        viewInfo.stride         = 1;
+        m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &viewInfo, pTableMem);
+        pTableMem += SrdDwords;
+
+        // UAV buffer SRD for the embedded-data spill table:
+        if (mainChunk.embeddedDataSize != 0)
+        {
+            viewInfo.gpuAddr        = mainChunk.embeddedDataAddr;
+            viewInfo.swizzledFormat = UndefinedSwizzledFormat;
+            viewInfo.range          = (sizeof(uint32) * mainChunk.embeddedDataSize);
+            viewInfo.stride         = 1;
+            m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &viewInfo, pTableMem);
+        }
+        else
+        {
+            // If we're not using the embedded-data spill table, we still need to clear the srd to 0.
+            // This prevents hangs on older hardware caused by the shader attempting to read an invalid srd.
+            memset(pTableMem, 0, (sizeof(uint32) * SrdDwords));
+        }
+
+        pTableMem += SrdDwords;
+
+        // UAV buffer SRD pointing to current chunk's INDIRECT_BUFFER packet that chains to the next chunk.
+        const gpusize chainIbAddress = mainChunk.pChunk->GpuVirtAddr() +
+                                       ((mainChunk.pChunk->CmdDwordsToExecute() - postambleDwords) * sizeof(uint32));
+
+        viewInfo.gpuAddr        = chainIbAddress;
+        viewInfo.swizzledFormat = UndefinedSwizzledFormat;
+        viewInfo.range          = postambleDwords * sizeof(uint32);
+        viewInfo.stride         = 1;
+        // Value stored for this chunk's "commandBufChainIb" in the shader.
+        m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &viewInfo, pTableMem);
+        pTableMem += SrdDwords;
+
+        // Command ID offset for the current command stream-chunk
+        pTableMem[0] = commandIdOffset;
+        // Low portion of the spill table's GPU virtual address
+        pTableMem[1] = LowPart(mainChunk.embeddedDataAddr);
+
+        // The command generation pipeline also expects the following descriptor-table layout for the resources
+        // which change between each command-stream chunk being generated:
+        // + Raw buffer UAV SRD for the command-stream chunk to generate (4 DW)
+        // + Raw buffer UAV SRD for the embedded data segment to use for the spill table (4 DW)
+        // + Raw buffer UAV SRD pointing to current task chunk's INDIRECT_BUFFER packet that chains to the next chunk
+        // + (4 DW)
+        if (taskShaderEnabled)
+        {
+            ChunkOutput& taskChunk          = output[1];
+            ppChunkLists[1][*pNumGenChunks] = taskChunk.pChunk;
+
+            postambleDwordsAce = taskChunk.chainSizeInDwords;
+            // This assert validates that the following dispatch contains equivalent commands for both the DE and ACE
+            // engines for this DispatchMesh pipeline.
+            PAL_ASSERT(taskChunk.commandsInChunk == mainChunk.commandsInChunk);
+
+            pTableMem = pCmdBuffer->CmdAllocateEmbeddedData((3 * SrdDwords), 1, &tableGpuAddr);
+            PAL_ASSERT(pTableMem != nullptr);
+
+            // UAV buffer SRD for the command-stream-chunk to generate:
+            viewInfo.gpuAddr        = taskChunk.pChunk->GpuVirtAddr();
+            viewInfo.swizzledFormat = UndefinedSwizzledFormat;
+            viewInfo.range          = (taskChunk.commandsInChunk * generator.CmdBufStride(pPipeline));
+            viewInfo.stride         = 1;
+            m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &viewInfo, pTableMem);
+            pTableMem += SrdDwords;
+
+            // UAV buffer SRD for the embedded-data spill table:
+            viewInfo.gpuAddr        = taskChunk.embeddedDataAddr;
+            viewInfo.swizzledFormat = UndefinedSwizzledFormat;
+            viewInfo.range          = (sizeof(uint32) * taskChunk.embeddedDataSize);
+            viewInfo.stride         = 1;
+            m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &viewInfo, pTableMem);
+            pTableMem += SrdDwords;
+
+            // UAV buffer SRD pointing to current task chunk's INDIRECT_BUFFER packet that chains to the next task
+            // chunk:
+            const gpusize taskChainIbAddress = taskChunk.pChunk->GpuVirtAddr() +
+                                               ((taskChunk.pChunk->CmdDwordsToExecute() - postambleDwordsAce) *
+                                                sizeof(uint32));
+
+            viewInfo.gpuAddr        = taskChainIbAddress;
+            viewInfo.swizzledFormat = UndefinedSwizzledFormat;
+            viewInfo.range          = postambleDwordsAce * sizeof(uint32);
+            viewInfo.stride         = 1;
+            // Value stored for this chunk's "taskCommandBufChainIb" in the shader.
+            m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &viewInfo, pTableMem);
+        }
+
+        // We use the ACE for IndirectCmdGeneration only for this very special case. It has to be a UniversalCmdBuffer,
+        // ganged ACE is supported, and we are not using the ACE for Task Shader work.
+        bool cmdGenUseAce = pCmdBuffer->IsGraphicsSupported() &&
+                            (chipProps.gfxip.supportAceOffload != 0) &&
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 691
+                            (publicSettings->disableExecuteIndirectAceOffload != true) &&
+#endif
+                            (taskShaderEnabled == false);
+
+        if (cmdGenUseAce)
+        {
+            pCmdBuffer->CmdDispatchAce(RpmUtil::MinThreadGroups(generator.ParameterCount(), threadsPerGroup[0]),
+                                       RpmUtil::MinThreadGroups(mainChunk.commandsInChunk, threadsPerGroup[1]),
+                                       1);
+        }
+        else
+        {
+            pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(generator.ParameterCount(), threadsPerGroup[0]),
+                                    RpmUtil::MinThreadGroups(mainChunk.commandsInChunk, threadsPerGroup[1]),
+                                    1);
+        }
+
+        (*pNumGenChunks)++;
+        commandIdOffset += mainChunk.commandsInChunk;
+    }
+
+    // This will calculate the IB's return addresses that will be helpful for the CP jump/ short-circuit over possibly
+    // executing long chains of NOPs.
+    if (*pNumGenChunks > 0)
+    {
+        const CmdStreamChunk* pLastChunk = ppChunkLists[0][(*pNumGenChunks) - 1];
+        const gpusize pReturnChainIbAddress = pLastChunk->GpuVirtAddr() +
+                                              ((pLastChunk->CmdDwordsToExecute() - postambleDwords) * sizeof(uint32));
+        viewInfo.gpuAddr               = pReturnChainIbAddress;
+        viewInfo.swizzledFormat        = UndefinedSwizzledFormat;
+        viewInfo.range                 = postambleDwords * sizeof(uint32);
+        viewInfo.stride                = 1;
+        // Value stored in "cmdBufReturningChainIb" in the shader.
+        m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &viewInfo, pReturnIbAddrTableMem);
+
+        if (taskShaderEnabled)
+        {
+            const CmdStreamChunk* pLastTaskChunk = ppChunkLists[1][(*pNumGenChunks) - 1];
+            const gpusize pReturnTaskChainIbAddress = pLastTaskChunk->GpuVirtAddr() +
+                                                      ((pLastTaskChunk->CmdDwordsToExecute() - postambleDwordsAce) *
+                                                       sizeof(uint32));
+            viewInfo.gpuAddr               = pReturnTaskChainIbAddress;
+            viewInfo.swizzledFormat        = UndefinedSwizzledFormat;
+            viewInfo.range                 = postambleDwordsAce * sizeof(uint32);
+            viewInfo.stride                = 1;
+            // Value stored in "taskCmdBufReturningChainIb" in the shader.
+            m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &viewInfo, pReturnTaskIbAddrTableMem);
+        }
+    }
+
+    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+}
+
+// =====================================================================================================================
+// Adds commands to pCmdBuffer to copy data between srcGpuMemory and dstGpuMemory. Note that this function requires a
+// command buffer that supports CP DMA workloads.
+void RsrcProcMgr::CmdCopyMemory(
+    GfxCmdBuffer*           pCmdBuffer,
+    const GpuMemory&        srcGpuMemory,
+    const GpuMemory&        dstGpuMemory,
+    uint32                  regionCount,
+    const MemoryCopyRegion* pRegions
+    ) const
+{
+    // Force the compute shader copy path if any regions couldn't be executed by the CPDMA copy path:
+    //
+    //     - Size exceeds the maximum supported by CPDMA.
+    //     - Source or destination are virtual resources (CP would halt).
+    bool useCsCopy = srcGpuMemory.IsVirtual() || dstGpuMemory.IsVirtual();
+
+    for (uint32 i = 0; !useCsCopy && (i < regionCount); i++)
+    {
+        if (pRegions[i].copySize > m_pDevice->Parent()->GetPublicSettings()->cpDmaCmdCopyMemoryMaxBytes)
+        {
+            // We will copy this region later on.
+            useCsCopy = true;
+        }
+    }
+
+    if (useCsCopy)
+    {
+        CopyMemoryCs(pCmdBuffer, srcGpuMemory, dstGpuMemory, regionCount, pRegions);
+    }
+    else
+    {
+        for (uint32 i = 0; i < regionCount; i++)
+        {
+            const gpusize dstAddr = dstGpuMemory.Desc().gpuVirtAddr + pRegions[i].dstOffset;
+            const gpusize srcAddr = srcGpuMemory.Desc().gpuVirtAddr + pRegions[i].srcOffset;
+
+            pCmdBuffer->CpCopyMemory(dstAddr, srcAddr, pRegions[i].copySize);
+        }
+    }
+}
+
+// =====================================================================================================================
+// Resolves a multisampled source Image into the single-sampled destination Image using the Image's resolve method.
+void RsrcProcMgr::CmdResolveImage(
+    GfxCmdBuffer*             pCmdBuffer,
+    const Image&              srcImage,
+    ImageLayout               srcImageLayout,
+    const Image&              dstImage,
+    ImageLayout               dstImageLayout,
+    ResolveMode               resolveMode,
+    uint32                    regionCount,
+    const ImageResolveRegion* pRegions,
+    uint32                    flags
+    ) const
+{
+    const ResolveMethod srcMethod = srcImage.GetImageInfo().resolveMethod;
+    const ResolveMethod dstMethod = dstImage.GetImageInfo().resolveMethod;
+
+    if (pCmdBuffer->GetEngineType() == EngineTypeCompute)
+    {
+        PAL_ASSERT((srcMethod.shaderCsFmask == 1) || (srcMethod.shaderCs == 1));
+        ResolveImageCompute(pCmdBuffer,
+                            srcImage,
+                            srcImageLayout,
+                            dstImage,
+                            dstImageLayout,
+                            resolveMode,
+                            regionCount,
+                            pRegions,
+                            srcMethod,
+                            flags);
+
+        HwlFixupResolveDstImage(pCmdBuffer,
+                                *dstImage.GetGfxImage(),
+                                dstImageLayout,
+                                pRegions,
+                                regionCount,
+                                true);
+    }
+    else
+    {
+        if ((srcMethod.fixedFunc == 1) && HwlCanDoFixedFuncResolve(srcImage,
+                                                                   dstImage,
+                                                                   resolveMode,
+                                                                   regionCount,
+                                                                   pRegions))
+        {
+            PAL_ASSERT(resolveMode == ResolveMode::Average);
+            // this only support color resolves.
+            ResolveImageFixedFunc(pCmdBuffer,
+                                  srcImage,
+                                  srcImageLayout,
+                                  dstImage,
+                                  dstImageLayout,
+                                  regionCount,
+                                  pRegions,
+                                  flags);
+
+            HwlFixupResolveDstImage(pCmdBuffer,
+                                    *dstImage.GetGfxImage(),
+                                    dstImageLayout,
+                                    pRegions,
+                                    regionCount,
+                                    false);
+        }
+        else if ((srcMethod.depthStencilCopy == 1) && (dstMethod.depthStencilCopy == 1) &&
+                 (resolveMode == ResolveMode::Average) &&
+                 (TestAnyFlagSet(flags, ImageResolveInvertY) == false) &&
+                  HwlCanDoDepthStencilCopyResolve(srcImage, dstImage, regionCount, pRegions))
+        {
+            ResolveImageDepthStencilCopy(pCmdBuffer,
+                                         srcImage,
+                                         srcImageLayout,
+                                         dstImage,
+                                         dstImageLayout,
+                                         regionCount,
+                                         pRegions,
+                                         flags);
+
+            HwlHtileCopyAndFixUp(pCmdBuffer, srcImage, dstImage, dstImageLayout, regionCount, pRegions, false);
+        }
+        else if (dstMethod.shaderPs && (resolveMode == ResolveMode::Average))
+        {
+            // this only supports Depth/Stencil resolves.
+            ResolveImageDepthStencilGraphics(pCmdBuffer,
+                                             srcImage,
+                                             srcImageLayout,
+                                             dstImage,
+                                             dstImageLayout,
+                                             regionCount,
+                                             pRegions,
+                                             flags);
+        }
+        else if (pCmdBuffer->IsComputeSupported() &&
+                 ((srcMethod.shaderCsFmask == 1) ||
+                  (srcMethod.shaderCs == 1)))
+        {
+            ResolveImageCompute(pCmdBuffer,
+                                srcImage,
+                                srcImageLayout,
+                                dstImage,
+                                dstImageLayout,
+                                resolveMode,
+                                regionCount,
+                                pRegions,
+                                srcMethod,
+                                flags);
+
+            HwlFixupResolveDstImage(pCmdBuffer,
+                                    *dstImage.GetGfxImage(),
+                                    dstImageLayout,
+                                    pRegions,
+                                    regionCount,
+                                    true);
+        }
+        else
+        {
+            PAL_NOT_IMPLEMENTED();
+        }
+    }
+}
+
+// =====================================================================================================================
+// Executes a CB fixed function resolve.
+void RsrcProcMgr::ResolveImageFixedFunc(
+    GfxCmdBuffer*             pCmdBuffer,
+    const Image&              srcImage,
+    ImageLayout               srcImageLayout,
+    const Image&              dstImage,
+    ImageLayout               dstImageLayout,
+    uint32                    regionCount,
+    const ImageResolveRegion* pRegions,
+    uint32                    flags
+    ) const
+{
+    const auto& settings = m_pDevice->Parent()->Settings();
+
+    PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
+    // Don't expect GFX Blts on Nested unless targets not inherited.
+    PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<Pm4::UniversalCmdBuffer*>(
+        pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
+
+    const auto& srcCreateInfo = srcImage.GetImageCreateInfo();
+    const auto& dstCreateInfo = dstImage.GetImageCreateInfo();
+
+    ViewportParams viewportInfo = { };
+    viewportInfo.count                 = 1;
+    viewportInfo.viewports[0].minDepth = 0.f;
+    viewportInfo.viewports[0].maxDepth = 1.f;
+    viewportInfo.viewports[0].origin   = PointOrigin::UpperLeft;
+    viewportInfo.horzClipRatio         = FLT_MAX;
+    viewportInfo.horzDiscardRatio      = 1.0f;
+    viewportInfo.vertClipRatio         = FLT_MAX;
+    viewportInfo.vertDiscardRatio      = 1.0f;
+    viewportInfo.depthRange            = DepthRange::ZeroToOne;
+
+    ScissorRectParams scissorInfo = { };
+    scissorInfo.count = 1;
+
+    const ColorTargetViewInternalCreateInfo colorViewInfoInternal = { };
+
+    ColorTargetViewCreateInfo srcColorViewInfo = { };
+    srcColorViewInfo.imageInfo.pImage    = &srcImage;
+    srcColorViewInfo.imageInfo.arraySize = 1;
+    srcColorViewInfo.flags.bypassMall    = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                          Gfx10RpmViewsBypassMallOnCbDbWrite);
+
+    ColorTargetViewCreateInfo dstColorViewInfo = { };
+    dstColorViewInfo.imageInfo.pImage    = &dstImage;
+    dstColorViewInfo.imageInfo.arraySize = 1;
+    dstColorViewInfo.flags.bypassMall    = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                          Gfx10RpmViewsBypassMallOnCbDbWrite);
+
+    BindTargetParams bindTargetsInfo = {};
+    bindTargetsInfo.colorTargetCount                    = 2;
+    bindTargetsInfo.colorTargets[0].pColorTargetView    = nullptr;
+    bindTargetsInfo.colorTargets[0].imageLayout.usages  = LayoutColorTarget;
+    bindTargetsInfo.colorTargets[0].imageLayout.engines = LayoutUniversalEngine;
+    bindTargetsInfo.colorTargets[1].pColorTargetView    = nullptr;
+    bindTargetsInfo.colorTargets[1].imageLayout.usages  = LayoutColorTarget;
+    bindTargetsInfo.colorTargets[1].imageLayout.engines = LayoutUniversalEngine;
+
+    // Save current command buffer state and bind graphics state which is common for all regions.
+    pCmdBuffer->CmdSaveGraphicsState();
+    BindCommonGraphicsState(pCmdBuffer);
+    pCmdBuffer->CmdBindMsaaState(GetMsaaState(srcCreateInfo.samples, srcCreateInfo.fragments));
+    pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
+    pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
+
+    const GraphicsPipeline* pPipelinePrevious      = nullptr;
+    const GraphicsPipeline* pPipelineByImageFormat =
+        GetGfxPipelineByTargetIndexAndFormat(ResolveFixedFunc_32ABGR, 0, srcCreateInfo.swizzledFormat);
+
+    // Put ImageResolveInvertY value in user data 0 used by VS.
+    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 0, 1, &flags);
+
+    // Each region needs to be resolved individually.
+    for (uint32 idx = 0; idx < regionCount; ++idx)
+    {
+        LinearAllocatorAuto<VirtualLinearAllocator> regionAlloc(pCmdBuffer->Allocator(), false);
+
+        srcColorViewInfo.swizzledFormat                = srcCreateInfo.swizzledFormat;
+        dstColorViewInfo.swizzledFormat                = dstCreateInfo.swizzledFormat;
+        dstColorViewInfo.imageInfo.baseSubRes.mipLevel = pRegions[idx].dstMipLevel;
+
+        // Override the formats with the caller's "reinterpret" format:
+        if (Formats::IsUndefined(pRegions[idx].swizzledFormat.format) == false)
+        {
+            // We require that the channel formats match.
+            PAL_ASSERT(Formats::ShareChFmt(srcColorViewInfo.swizzledFormat.format,
+                                           pRegions[idx].swizzledFormat.format));
+            PAL_ASSERT(Formats::ShareChFmt(dstColorViewInfo.swizzledFormat.format,
+                                           pRegions[idx].swizzledFormat.format));
+
+            const SubresId srcSubres = { pRegions[idx].srcPlane, 0, pRegions[idx].srcSlice };
+            const SubresId dstSubres = { pRegions[idx].dstPlane, pRegions[idx].dstMipLevel, pRegions[idx].dstSlice };
+
+            // If the specified format exactly matches the image formats the resolve will always work. Otherwise, the
+            // images must support format replacement.
+            PAL_ASSERT(Formats::HaveSameNumFmt(srcColorViewInfo.swizzledFormat.format,
+                                               pRegions[idx].swizzledFormat.format) ||
+                       srcImage.GetGfxImage()->IsFormatReplaceable(srcSubres, srcImageLayout, false));
+
+            PAL_ASSERT(Formats::HaveSameNumFmt(dstColorViewInfo.swizzledFormat.format,
+                                               pRegions[idx].swizzledFormat.format) ||
+                       dstImage.GetGfxImage()->IsFormatReplaceable(dstSubres, dstImageLayout, true));
+
+            srcColorViewInfo.swizzledFormat.format = pRegions[idx].swizzledFormat.format;
+            dstColorViewInfo.swizzledFormat.format = pRegions[idx].swizzledFormat.format;
+        }
+
+        // Setup the viewport and scissor to restrict rendering to the destination region being copied.
+        viewportInfo.viewports[0].originX = static_cast<float>(pRegions[idx].dstOffset.x);
+        viewportInfo.viewports[0].originY = static_cast<float>(pRegions[idx].dstOffset.y);
+        viewportInfo.viewports[0].width   = static_cast<float>(pRegions[idx].extent.width);
+        viewportInfo.viewports[0].height  = static_cast<float>(pRegions[idx].extent.height);
+
+        scissorInfo.scissors[0].offset.x      = pRegions[idx].dstOffset.x;
+        scissorInfo.scissors[0].offset.y      = pRegions[idx].dstOffset.y;
+        scissorInfo.scissors[0].extent.width  = pRegions[idx].extent.width;
+        scissorInfo.scissors[0].extent.height = pRegions[idx].extent.height;
+
+        const GraphicsPipeline* pPipeline =
+            Formats::IsUndefined(pRegions[idx].swizzledFormat.format)
+            ? pPipelineByImageFormat
+            : GetGfxPipelineByTargetIndexAndFormat(ResolveFixedFunc_32ABGR, 0, pRegions[idx].swizzledFormat);
+
+        if (pPipelinePrevious != pPipeline)
+        {
+            pPipelinePrevious = pPipeline;
+            pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, pPipeline, InternalApiPsoHash, });
+        }
+
+        pCmdBuffer->CmdSetViewports(viewportInfo);
+        pCmdBuffer->CmdSetScissorRects(scissorInfo);
+
+        for (uint32 slice = 0; slice < pRegions[idx].numSlices; ++slice)
+        {
+            srcColorViewInfo.imageInfo.baseSubRes.arraySlice = (pRegions[idx].srcSlice + slice);
+            dstColorViewInfo.imageInfo.baseSubRes.arraySlice = (pRegions[idx].dstSlice + slice);
+
+            LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
+
+            IColorTargetView* pSrcColorView = nullptr;
+            IColorTargetView* pDstColorView = nullptr;
+
+            void* pSrcColorViewMem =
+                PAL_MALLOC(m_pDevice->GetColorTargetViewSize(nullptr), &sliceAlloc, AllocInternalTemp);
+            void* pDstColorViewMem =
+                PAL_MALLOC(m_pDevice->GetColorTargetViewSize(nullptr), &sliceAlloc, AllocInternalTemp);
+
+            if ((pDstColorViewMem == nullptr) || (pSrcColorViewMem == nullptr))
+            {
+                pCmdBuffer->NotifyAllocFailure();
+            }
+            else
+            {
+                Result result = m_pDevice->CreateColorTargetView(srcColorViewInfo,
+                                                                 colorViewInfoInternal,
+                                                                 pSrcColorViewMem,
+                                                                 &pSrcColorView);
+                PAL_ASSERT(result == Result::Success);
+                if (result == Result::Success)
+                {
+                    result = m_pDevice->CreateColorTargetView(dstColorViewInfo,
+                                                              colorViewInfoInternal,
+                                                              pDstColorViewMem,
+                                                              &pDstColorView);
+                    PAL_ASSERT(result == Result::Success);
+                }
+
+                if (result == Result::Success)
+                {
+                    bindTargetsInfo.colorTargets[0].pColorTargetView = pSrcColorView;
+                    bindTargetsInfo.colorTargets[1].pColorTargetView = pDstColorView;
+                    bindTargetsInfo.colorTargetCount = 2;
+                    pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+
+                    // Draw a fullscreen quad.
+                    pCmdBuffer->CmdDraw(0, 3, 0, 1, 0);
+
+                    // Unbind the color-target view and destroy it.
+                    bindTargetsInfo.colorTargetCount = 0;
+                    pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+                }
+
+            }
+
+            PAL_SAFE_FREE(pSrcColorViewMem, &sliceAlloc);
+            PAL_SAFE_FREE(pDstColorViewMem, &sliceAlloc);
+        } // End for each slice.
+    } // End for each region.
+
+    // Restore original command buffer state.
+    pCmdBuffer->CmdRestoreGraphicsState();
+}
+
+// =====================================================================================================================
+// Resolves a multisampled depth-stencil source Image into the single-sampled destination Image using a pixel shader.
+void RsrcProcMgr::ResolveImageDepthStencilGraphics(
+    GfxCmdBuffer*             pCmdBuffer,
+    const Image&              srcImage,
+    ImageLayout               srcImageLayout,
+    const Image&              dstImage,
+    ImageLayout               dstImageLayout,
+    uint32                    regionCount,
+    const ImageResolveRegion* pRegions,
+    uint32                    flags
+    ) const
+{
+    PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
+    // Don't expect GFX Blts on Nested unless targets not inherited.
+    PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<Pm4::UniversalCmdBuffer*>(
+        pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
+
+    const auto& device        = *m_pDevice->Parent();
+    const auto& settings      = device.Settings();
+    const auto& dstCreateInfo = dstImage.GetImageCreateInfo();
+    const auto& srcCreateInfo = srcImage.GetImageCreateInfo();
+    const auto& srcImageInfo  = srcImage.GetImageInfo();
+
+    LateExpandShaderResolveSrc(pCmdBuffer,
+                               srcImage,
+                               srcImageLayout,
+                               pRegions,
+                               regionCount,
+                               srcImageInfo.resolveMethod,
+                               false);
+
+    // This path only works on depth-stencil images.
+    PAL_ASSERT((srcCreateInfo.usageFlags.depthStencil && dstCreateInfo.usageFlags.depthStencil) ||
+               (Formats::IsDepthStencilOnly(srcCreateInfo.swizzledFormat.format) &&
+                Formats::IsDepthStencilOnly(dstCreateInfo.swizzledFormat.format)));
+
+    const StencilRefMaskParams       stencilRefMasks      = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF, };
+
+    // Initialize some structures we will need later on.
+    ViewportParams viewportInfo = { };
+    viewportInfo.count                 = 1;
+    viewportInfo.viewports[0].minDepth = 0.f;
+    viewportInfo.viewports[0].maxDepth = 1.f;
+    viewportInfo.viewports[0].origin   = PointOrigin::UpperLeft;
+    viewportInfo.horzClipRatio         = FLT_MAX;
+    viewportInfo.horzDiscardRatio      = 1.0f;
+    viewportInfo.vertClipRatio         = FLT_MAX;
+    viewportInfo.vertDiscardRatio      = 1.0f;
+    viewportInfo.depthRange            = DepthRange::ZeroToOne;
+
+    ScissorRectParams scissorInfo = { };
+    scissorInfo.count = 1;
+
+    const DepthStencilViewInternalCreateInfo noDepthViewInfoInternal = { };
+    DepthStencilViewCreateInfo               depthViewInfo           = { };
+    depthViewInfo.pImage           = &dstImage;
+    depthViewInfo.arraySize        = 1;
+    depthViewInfo.flags.bypassMall = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnCbDbWrite);
+
+    // Save current command buffer state and bind graphics state which is common for all regions.
+    pCmdBuffer->CmdSaveGraphicsState();
+    BindCommonGraphicsState(pCmdBuffer);
+    pCmdBuffer->CmdBindMsaaState(GetMsaaState(dstCreateInfo.samples, dstCreateInfo.fragments));
+    pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
+
+    // Determine which format we should use to view the source image. The initial value is the stencil format.
+    SwizzledFormat srcFormat =
+    {
+        ChNumFormat::Undefined,
+        { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
+    };
+
+    // Each region needs to be resolved individually.
+    for (uint32 idx = 0; idx < regionCount; ++idx)
+    {
+        // Same sanity checks of the region planes.
+        const bool isDepth = dstImage.IsDepthPlane(pRegions[idx].dstPlane);
+        PAL_ASSERT((srcImage.IsDepthPlane(pRegions[idx].srcPlane) ||
+                    srcImage.IsStencilPlane(pRegions[idx].srcPlane)) &&
+                   (pRegions[idx].srcPlane == pRegions[idx].dstPlane));
+
+        // This path can't reinterpret the resolve format.
+        const SubresId dstStartSubres =
+        {
+            pRegions[idx].dstPlane,
+            pRegions[idx].dstMipLevel,
+            pRegions[idx].dstSlice
+        };
+
+        PAL_ASSERT(Formats::IsUndefined(pRegions[idx].swizzledFormat.format) ||
+                  (dstImage.SubresourceInfo(dstStartSubres)->format.format == pRegions[idx].swizzledFormat.format));
+
+        BindTargetParams bindTargetsInfo = { };
+
+        if (isDepth)
+        {
+            if ((srcCreateInfo.swizzledFormat.format == ChNumFormat::D32_Float_S8_Uint) ||
+                Formats::ShareChFmt(srcCreateInfo.swizzledFormat.format, ChNumFormat::X32_Float))
+            {
+                srcFormat.format = ChNumFormat::X32_Float;
+            }
+            else
+            {
+                srcFormat.format = ChNumFormat::X16_Unorm;
+            }
+
+            bindTargetsInfo.depthTarget.depthLayout = dstImageLayout;
+            pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics,
+                                          GetGfxPipeline(ResolveDepth),
+                                          InternalApiPsoHash, });
+            pCmdBuffer->CmdBindDepthStencilState(m_pDepthResolveState);
+        }
+        else
+        {
+            srcFormat.format                          = ChNumFormat::X8_Uint;
+            bindTargetsInfo.depthTarget.stencilLayout = dstImageLayout;
+            pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(ResolveStencil),
+                                          InternalApiPsoHash, });
+            pCmdBuffer->CmdBindDepthStencilState(m_pStencilResolveState);
+        }
+
+        // Setup the viewport and scissor to restrict rendering to the destination region being copied.
+        viewportInfo.viewports[0].originX = static_cast<float>(pRegions[idx].dstOffset.x);
+        viewportInfo.viewports[0].originY = static_cast<float>(pRegions[idx].dstOffset.y);
+        viewportInfo.viewports[0].width   = static_cast<float>(pRegions[idx].extent.width);
+        viewportInfo.viewports[0].height  = static_cast<float>(pRegions[idx].extent.height);
+
+        scissorInfo.scissors[0].offset.x      = pRegions[idx].dstOffset.x;
+        scissorInfo.scissors[0].offset.y      = pRegions[idx].dstOffset.y;
+        scissorInfo.scissors[0].extent.width  = pRegions[idx].extent.width;
+        scissorInfo.scissors[0].extent.height = pRegions[idx].extent.height;
+
+        // The shader will calculate src coordinates by adding a delta to the dst coordinates. The user data should
+        // contain those deltas which are (srcOffset-dstOffset) for X & Y.
+        // The shader also needs data for y inverting - a boolean flag and height of the image, so the integer
+        // coords in texture-space can be inverted.
+        const int32  xOffset     = (pRegions[idx].srcOffset.x - pRegions[idx].dstOffset.x);
+        int32_t yOffset = pRegions[idx].srcOffset.y;
+        if (TestAnyFlagSet(flags, ImageResolveInvertY))
+        {
+            yOffset = srcCreateInfo.extent.height - yOffset - pRegions[idx].extent.height;
+        }
+        yOffset = (yOffset - pRegions[idx].dstOffset.y);
+        const uint32 userData[5] =
+        {
+            reinterpret_cast<const uint32&>(xOffset),
+            reinterpret_cast<const uint32&>(yOffset),
+            TestAnyFlagSet(flags, ImageResolveInvertY) ? 1u : 0u,
+            srcCreateInfo.extent.height - 1,
+        };
+
+        pCmdBuffer->CmdSetViewports(viewportInfo);
+        pCmdBuffer->CmdSetScissorRects(scissorInfo);
+        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 1, 4, userData);
+
+        for (uint32 slice = 0; slice < pRegions[idx].numSlices; ++slice)
+        {
+            LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
+
+            const SubresId srcSubres = { pRegions[idx].srcPlane, 0, pRegions[idx].srcSlice + slice };
+            const SubresId dstSubres =
+            {
+                pRegions[idx].dstPlane,
+                pRegions[idx].dstMipLevel,
+                pRegions[idx].dstSlice + slice
+            };
+
+            // Create an embedded user-data table and bind it to user data 1. We only need one image view.
+            uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
+                                                                       SrdDwordAlignment(),
+                                                                       SrdDwordAlignment(),
+                                                                       PipelineBindPoint::Graphics,
+                                                                       0);
+
+            // Populate the table with an image view of the source image.
+            ImageViewInfo     imageView = { };
+            const SubresRange viewRange = { srcSubres, 1, 1, 1 };
+            RpmUtil::BuildImageViewInfo(&imageView,
+                                        srcImage,
+                                        viewRange,
+                                        srcFormat,
+                                        srcImageLayout,
+                                        device.TexOptLevel(),
+                                        false);
+            device.CreateImageViewSrds(1, &imageView, pSrdTable);
+
+            // Create and bind a depth stencil view of the destination region.
+            depthViewInfo.baseArraySlice = dstSubres.arraySlice;
+            depthViewInfo.mipLevel       = dstSubres.mipLevel;
+
+            void* pDepthStencilViewMem = PAL_MALLOC(m_pDevice->GetDepthStencilViewSize(nullptr),
+                                                    &sliceAlloc,
+                                                    AllocInternalTemp);
+            if (pDepthStencilViewMem == nullptr)
+            {
+                pCmdBuffer->NotifyAllocFailure();
+            }
+            else
+            {
+                IDepthStencilView* pDepthView = nullptr;
+                Result result = m_pDevice->CreateDepthStencilView(depthViewInfo,
+                                                                  noDepthViewInfoInternal,
+                                                                  pDepthStencilViewMem,
+                                                                  &pDepthView);
+                PAL_ASSERT(result == Result::Success);
+
+                bindTargetsInfo.depthTarget.pDepthStencilView = pDepthView;
+                pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+
+                // Draw a fullscreen quad.
+                pCmdBuffer->CmdDraw(0, 3, 0, 1, 0);
+
+                // Unbind the depth view and destroy it.
+                bindTargetsInfo.depthTarget.pDepthStencilView = nullptr;
+                pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+
+                PAL_SAFE_FREE(pDepthStencilViewMem, &sliceAlloc);
+            }
+        } // End for each slice.
+    } // End for each region.
+
+    // Restore original command buffer state.
+    pCmdBuffer->CmdRestoreGraphicsState();
+
+    FixupLateExpandShaderResolveSrc(pCmdBuffer,
+                                    srcImage,
+                                    srcImageLayout,
+                                    pRegions,
+                                    regionCount,
+                                    srcImageInfo.resolveMethod,
+                                    false);
+}
+
+// =====================================================================================================================
+// Executes a image resolve by performing fixed-func depth copy or stencil copy
+void RsrcProcMgr::ResolveImageDepthStencilCopy(
+    GfxCmdBuffer*             pCmdBuffer,
+    const Image&              srcImage,
+    ImageLayout               srcImageLayout,
+    const Image&              dstImage,
+    ImageLayout               dstImageLayout,
+    uint32                    regionCount,
+    const ImageResolveRegion* pRegions,
+    uint32                    flags) const
+{
+    PAL_ASSERT(srcImage.IsDepthStencilTarget() && dstImage.IsDepthStencilTarget());
+    PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
+    // Don't expect GFX Blts on Nested unless targets not inherited.
+    PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<Pm4::UniversalCmdBuffer*>(
+        pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
+
+    const auto& settings      = m_pDevice->Parent()->Settings();
+    const auto& srcCreateInfo = srcImage.GetImageCreateInfo();
+    const auto& dstCreateInfo = dstImage.GetImageCreateInfo();
+
+    ViewportParams viewportInfo = {};
+    viewportInfo.count = 1;
+
+    viewportInfo.viewports[0].minDepth = 0.f;
+    viewportInfo.viewports[0].maxDepth = 1.f;
+    viewportInfo.viewports[0].origin   = PointOrigin::UpperLeft;
+
+    viewportInfo.horzClipRatio    = FLT_MAX;
+    viewportInfo.horzDiscardRatio = 1.0f;
+    viewportInfo.vertClipRatio    = FLT_MAX;
+    viewportInfo.vertDiscardRatio = 1.0f;
+    viewportInfo.depthRange       = DepthRange::ZeroToOne;
+
+    ScissorRectParams scissorInfo = {};
+    scissorInfo.count = 1;
+
+    DepthStencilViewCreateInfo srcDepthViewInfo = {};
+    srcDepthViewInfo.pImage                = &srcImage;
+    srcDepthViewInfo.arraySize             = 1;
+    srcDepthViewInfo.flags.readOnlyDepth   = 1;
+    srcDepthViewInfo.flags.readOnlyStencil = 1;
+    srcDepthViewInfo.flags.bypassMall      = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                            Gfx10RpmViewsBypassMallOnCbDbWrite);
+
+    ColorTargetViewCreateInfo dstColorViewInfo = {};
+    dstColorViewInfo.imageInfo.pImage    = &dstImage;
+    dstColorViewInfo.imageInfo.arraySize = 1;
+    dstColorViewInfo.flags.bypassMall    = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                          Gfx10RpmViewsBypassMallOnCbDbWrite);
+
+    BindTargetParams bindTargetsInfo = {};
+    bindTargetsInfo.colorTargetCount = 1;
+    bindTargetsInfo.colorTargets[0].pColorTargetView = nullptr;
+    bindTargetsInfo.colorTargets[0].imageLayout.usages = LayoutColorTarget;
+    bindTargetsInfo.colorTargets[0].imageLayout.engines = LayoutUniversalEngine;
+
+    bindTargetsInfo.depthTarget.depthLayout.usages = LayoutDepthStencilTarget;
+    bindTargetsInfo.depthTarget.depthLayout.engines = LayoutUniversalEngine;
+    bindTargetsInfo.depthTarget.stencilLayout.usages = LayoutDepthStencilTarget;
+    bindTargetsInfo.depthTarget.stencilLayout.engines = LayoutUniversalEngine;
+
+    // Save current command buffer state and bind graphics state which is common for all regions.
+    pCmdBuffer->CmdSaveGraphicsState();
+    BindCommonGraphicsState(pCmdBuffer);
+    pCmdBuffer->CmdBindMsaaState(GetMsaaState(1u, 1u));
+    pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
+    pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
+
+    // Put ImageResolveInvertY value in user data 0 used by VS.
+    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 0, 1, &flags);
+
+    // Each region needs to be resolved individually.
+    for (uint32 idx = 0; idx < regionCount; ++idx)
+    {
+        LinearAllocatorAuto<VirtualLinearAllocator> regionAlloc(pCmdBuffer->Allocator(), false);
+
+        dstColorViewInfo.imageInfo.baseSubRes.mipLevel = pRegions[idx].dstMipLevel;
+
+        // Setup the viewport and scissor to restrict rendering to the destination region being copied.
+        // srcOffset and dstOffset have to be exactly same
+        PAL_ASSERT((pRegions[idx].srcOffset.x == pRegions[idx].dstOffset.x) &&
+                   (pRegions[idx].srcOffset.y == pRegions[idx].dstOffset.y));
+        viewportInfo.viewports[0].originX = static_cast<float>(pRegions[idx].srcOffset.x);
+        viewportInfo.viewports[0].originY = static_cast<float>(pRegions[idx].srcOffset.y);
+        viewportInfo.viewports[0].width = static_cast<float>(pRegions[idx].extent.width);
+        viewportInfo.viewports[0].height = static_cast<float>(pRegions[idx].extent.height);
+
+        scissorInfo.scissors[0].offset.x = pRegions[idx].srcOffset.x;
+        scissorInfo.scissors[0].offset.y = pRegions[idx].srcOffset.y;
+        scissorInfo.scissors[0].extent.width = pRegions[idx].extent.width;
+        scissorInfo.scissors[0].extent.height = pRegions[idx].extent.height;
+
+        pCmdBuffer->CmdSetViewports(viewportInfo);
+        pCmdBuffer->CmdSetScissorRects(scissorInfo);
+
+        if (srcCreateInfo.flags.sampleLocsAlwaysKnown != 0)
+        {
+            PAL_ASSERT(pRegions[idx].pQuadSamplePattern != nullptr);
+            pCmdBuffer->CmdSetMsaaQuadSamplePattern(srcCreateInfo.samples, *pRegions[idx].pQuadSamplePattern);
+        }
+        else
+        {
+            PAL_ASSERT(pRegions[idx].pQuadSamplePattern == nullptr);
+        }
+
+        for (uint32 slice = 0; slice < pRegions[idx].numSlices; ++slice)
+        {
+            DepthStencilViewInternalCreateInfo depthViewInfoInternal = {};
+            ColorTargetViewInternalCreateInfo  colorViewInfoInternal = {};
+            colorViewInfoInternal.flags.depthStencilCopy = 1;
+
+            srcDepthViewInfo.baseArraySlice = (pRegions[idx].srcSlice + slice);
+            dstColorViewInfo.imageInfo.baseSubRes.arraySlice = (pRegions[idx].dstSlice + slice);
+
+            LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
+
+            IDepthStencilView* pSrcDepthView = nullptr;
+            IColorTargetView* pDstColorView = nullptr;
+
+            void* pSrcDepthViewMem =
+                PAL_MALLOC(m_pDevice->GetDepthStencilViewSize(nullptr), &sliceAlloc, AllocInternalTemp);
+            void* pDstColorViewMem =
+                PAL_MALLOC(m_pDevice->GetColorTargetViewSize(nullptr), &sliceAlloc, AllocInternalTemp);
+
+            if ((pDstColorViewMem == nullptr) || (pSrcDepthViewMem == nullptr))
+            {
+                pCmdBuffer->NotifyAllocFailure();
+            }
+            else
+            {
+                dstColorViewInfo.imageInfo.baseSubRes.plane = pRegions[idx].dstPlane;
+
+                SubresId dstSubresId   = {};
+                dstSubresId.mipLevel   = pRegions[idx].dstMipLevel;
+                dstSubresId.arraySlice = (pRegions[idx].dstSlice + slice);
+                dstSubresId.plane      = pRegions[idx].dstPlane;
+
+                dstColorViewInfo.swizzledFormat.format = dstImage.SubresourceInfo(dstSubresId)->format.format;
+
+                if (dstImage.IsDepthPlane(pRegions[idx].dstPlane))
+                {
+                    depthViewInfoInternal.flags.isDepthCopy = 1;
+
+                    dstColorViewInfo.swizzledFormat.swizzle =
+                        {ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One};
+                    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(ResolveDepthCopy),
+                                                  InternalApiPsoHash, });
+                }
+                else if (dstImage.IsStencilPlane(pRegions[idx].dstPlane))
+                {
+                    // Fixed-func stencil copies stencil value from db to g chanenl of cb.
+                    // Swizzle the stencil plance to 0X00.
+                    depthViewInfoInternal.flags.isStencilCopy = 1;
+
+                    dstColorViewInfo.swizzledFormat.swizzle =
+                        { ChannelSwizzle::Zero, ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::One };
+                    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics,
+                                                  GetGfxPipeline(ResolveStencilCopy),
+                                                  InternalApiPsoHash, });
+                }
+                else
+                {
+                    PAL_ASSERT_ALWAYS();
+                }
+
+                Result result = m_pDevice->CreateDepthStencilView(srcDepthViewInfo,
+                                                                  depthViewInfoInternal,
+                                                                  pSrcDepthViewMem,
+                                                                  &pSrcDepthView);
+                PAL_ASSERT(result == Result::Success);
+
+                if (result == Result::Success)
+                {
+                    result = m_pDevice->CreateColorTargetView(dstColorViewInfo,
+                                                              colorViewInfoInternal,
+                                                              pDstColorViewMem,
+                                                              &pDstColorView);
+                    PAL_ASSERT(result == Result::Success);
+                }
+
+                if (result == Result::Success)
+                {
+                    bindTargetsInfo.colorTargetCount = 1;
+                    bindTargetsInfo.colorTargets[0].pColorTargetView = pDstColorView;
+                    bindTargetsInfo.depthTarget.pDepthStencilView = pSrcDepthView;
+
+                    pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+
+                    // Draw a fullscreen quad.
+                    pCmdBuffer->CmdDraw(0, 3, 0, 1, 0);
+
+                    // Unbind the color-target and depth-stencil target view and destroy them.
+                    bindTargetsInfo.colorTargetCount = 0;
+                    bindTargetsInfo.depthTarget.pDepthStencilView = nullptr;
+                    pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+                }
+            }
+
+            PAL_SAFE_FREE(pSrcDepthViewMem, &sliceAlloc);
+            PAL_SAFE_FREE(pDstColorViewMem, &sliceAlloc);
+        } // End for each slice.
+    } // End for each region.
+
+      // Restore original command buffer state.
+    pCmdBuffer->CmdRestoreGraphicsState();
+}
+
+// =====================================================================================================================
+// Executes a generic color blit which acts upon the specified color Image. If mipCondDwordsAddr is non-zero, it is the
+// GPU virtual address of an array of conditional DWORDs, one for each mip level in the image. RPM will use these
+// DWORDs to conditionally execute this blit on a per-mip basis.
+void RsrcProcMgr::GenericColorBlit(
+    GfxCmdBuffer*                pCmdBuffer,
+    const Image&                 dstImage,
+    const SubresRange&           range,
+    const MsaaQuadSamplePattern* pQuadSamplePattern,
+    RpmGfxPipeline               pipeline,
+    const GpuMemory*             pGpuMemory,
+    gpusize                      metaDataOffset
+    ) const
+{
+    PAL_ASSERT(range.numPlanes == 1);
+    PAL_ASSERT(dstImage.IsRenderTarget());
+    PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
+    // Don't expect GFX Blts on Nested unless targets not inherited.
+    PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<Pm4::UniversalCmdBuffer*>(
+        pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
+
+    const auto& settings        = m_pDevice->Parent()->Settings();
+    const auto& imageCreateInfo = dstImage.GetImageCreateInfo();
+    const bool  is3dImage       = (imageCreateInfo.imageType == ImageType::Tex3d);
+    const bool  isDecompress    = ((pipeline == RpmGfxPipeline::DccDecompress) ||
+                                   (pipeline == RpmGfxPipeline::FastClearElim) ||
+                                   (pipeline == RpmGfxPipeline::FmaskDecompress));
+
+    ViewportParams viewportInfo = { };
+    viewportInfo.count                 = 1;
+    viewportInfo.viewports[0].originX  = 0;
+    viewportInfo.viewports[0].originY  = 0;
+    viewportInfo.viewports[0].minDepth = 0.f;
+    viewportInfo.viewports[0].maxDepth = 1.f;
+    viewportInfo.viewports[0].origin   = PointOrigin::UpperLeft;
+    viewportInfo.horzClipRatio         = FLT_MAX;
+    viewportInfo.horzDiscardRatio      = 1.0f;
+    viewportInfo.vertClipRatio         = FLT_MAX;
+    viewportInfo.vertDiscardRatio      = 1.0f;
+    viewportInfo.depthRange            = DepthRange::ZeroToOne;
+
+    ScissorRectParams scissorInfo;
+    scissorInfo.count                  = 1;
+    scissorInfo.scissors[0].offset.x   = 0;
+    scissorInfo.scissors[0].offset.y   = 0;
+
+    ColorTargetViewInternalCreateInfo colorViewInfoInternal = { };
+    colorViewInfoInternal.flags.dccDecompress   = (pipeline == RpmGfxPipeline::DccDecompress);
+    colorViewInfoInternal.flags.fastClearElim   = (pipeline == RpmGfxPipeline::FastClearElim);
+    colorViewInfoInternal.flags.fmaskDecompress = (pipeline == RpmGfxPipeline::FmaskDecompress);
+
+    ColorTargetViewCreateInfo colorViewInfo = { };
+    colorViewInfo.swizzledFormat      = imageCreateInfo.swizzledFormat;
+    colorViewInfo.imageInfo.pImage    = &dstImage;
+    colorViewInfo.imageInfo.arraySize = 1;
+    colorViewInfo.imageInfo.baseSubRes.plane = range.startSubres.plane;
+    colorViewInfo.flags.bypassMall           = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                              Gfx10RpmViewsBypassMallOnCbDbWrite);
+
+    if (is3dImage)
+    {
+        colorViewInfo.zRange.extent     = 1;
+        colorViewInfo.flags.zRangeValid = 1;
+    }
+
+    BindTargetParams bindTargetsInfo = { };
+    bindTargetsInfo.colorTargets[0].pColorTargetView    = nullptr;
+    bindTargetsInfo.colorTargets[0].imageLayout.usages  = LayoutColorTarget;
+    bindTargetsInfo.colorTargets[0].imageLayout.engines = LayoutUniversalEngine;
+    bindTargetsInfo.depthTarget.pDepthStencilView       = nullptr;
+    bindTargetsInfo.depthTarget.depthLayout.usages      = LayoutDepthStencilTarget;
+    bindTargetsInfo.depthTarget.depthLayout.engines     = LayoutUniversalEngine;
+    bindTargetsInfo.depthTarget.stencilLayout.usages    = LayoutDepthStencilTarget;
+    bindTargetsInfo.depthTarget.stencilLayout.engines   = LayoutUniversalEngine;
+
+    const StencilRefMaskParams stencilRefMasks = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF };
+
+    // Save current command buffer state and bind graphics state which is common for all mipmap levels.
+    pCmdBuffer->CmdSaveGraphicsState();
+    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(pipeline), InternalApiPsoHash, });
+
+    BindCommonGraphicsState(pCmdBuffer);
+
+    SwizzledFormat swizzledFormat = {};
+
+    swizzledFormat.format  = ChNumFormat::X8Y8Z8W8_Unorm;
+    swizzledFormat.swizzle = { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
+
+    pCmdBuffer->CmdOverwriteRbPlusFormatForBlits(swizzledFormat, 0);
+
+    pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
+    pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
+    pCmdBuffer->CmdBindMsaaState(GetMsaaState(dstImage.GetImageCreateInfo().samples,
+                                              dstImage.GetImageCreateInfo().fragments));
+
+    if (pQuadSamplePattern != nullptr)
+    {
+        pCmdBuffer->CmdSetMsaaQuadSamplePattern(dstImage.GetImageCreateInfo().samples, *pQuadSamplePattern);
+    }
+
+    pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
+
+    RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
+
+    const uint32 lastMip                = (range.startSubres.mipLevel + range.numMips - 1);
+    gpusize      mipCondDwordsOffset    = metaDataOffset;
+    bool         needDisablePredication = false;
+
+    for (uint32 mip = range.startSubres.mipLevel; mip <= lastMip; ++mip)
+    {
+        // If this is a decompress operation of some sort, then don't bother continuing unless this
+        // subresource supports expansion.
+        if ((isDecompress == false) ||
+            (dstImage.GetGfxImage()->CanMipSupportMetaData(mip)))
+        {
+            // Use predication to skip this operation based on the image's conditional dwords.
+            // We can only perform this optimization if the client is not currently using predication.
+            if ((pCmdBuffer->GetGfxCmdBufStateFlags().clientPredicate == 0) && (pGpuMemory != nullptr))
+            {
+                // Set/Enable predication
+                pCmdBuffer->CmdSetPredication(nullptr,
+                                              0,
+                                              pGpuMemory,
+                                              mipCondDwordsOffset,
+                                              PredicateType::Boolean64,
+                                              true,
+                                              false,
+                                              false);
+                mipCondDwordsOffset += PredicationAlign; // Advance to the next mip's conditional meta-data.
+
+                needDisablePredication = true;
+            }
+
+            const SubresId mipSubres  = { range.startSubres.plane, mip, 0 };
+            const auto&    subResInfo = *dstImage.SubresourceInfo(mipSubres);
+
+            // All slices of the same mipmap level can re-use the same viewport & scissor states.
+            viewportInfo.viewports[0].width       = static_cast<float>(subResInfo.extentTexels.width);
+            viewportInfo.viewports[0].height      = static_cast<float>(subResInfo.extentTexels.height);
+            scissorInfo.scissors[0].extent.width  = subResInfo.extentTexels.width;
+            scissorInfo.scissors[0].extent.height = subResInfo.extentTexels.height;
+
+            pCmdBuffer->CmdSetViewports(viewportInfo);
+            pCmdBuffer->CmdSetScissorRects(scissorInfo);
+
+            // We need to draw each array slice individually because we cannot select which array slice to render to
+            // without a Geometry Shader. If this is a 3D Image, we need to include all slices for this mipmap level.
+            const uint32 baseSlice = (is3dImage ? 0                             : range.startSubres.arraySlice);
+            const uint32 numSlices = (is3dImage ? subResInfo.extentTexels.depth : range.numSlices);
+            const uint32 lastSlice = baseSlice + numSlices - 1;
+
+            for (uint32 arraySlice = baseSlice; arraySlice <= lastSlice; ++arraySlice)
+            {
+                LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
+
+                // Create and bind a color-target view for this mipmap level and slice.
+                IColorTargetView* pColorView = nullptr;
+                void* pColorViewMem =
+                    PAL_MALLOC(m_pDevice->GetColorTargetViewSize(nullptr), &sliceAlloc, AllocInternalTemp);
+
+                if (pColorViewMem == nullptr)
+                {
+                    pCmdBuffer->NotifyAllocFailure();
+                }
+                else
+                {
+                    if (is3dImage)
+                    {
+                        colorViewInfo.zRange.offset = arraySlice;
+                    }
+                    else
+                    {
+                        colorViewInfo.imageInfo.baseSubRes.arraySlice = arraySlice;
+                    }
+
+                    colorViewInfo.imageInfo.baseSubRes.mipLevel   = mip;
+
+                    Result result = m_pDevice->CreateColorTargetView(colorViewInfo,
+                                                                     colorViewInfoInternal,
+                                                                     pColorViewMem,
+                                                                     &pColorView);
+                    PAL_ASSERT(result == Result::Success);
+
+                    bindTargetsInfo.colorTargets[0].pColorTargetView = pColorView;
+                    bindTargetsInfo.colorTargetCount = 1;
+                    pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+
+                    // Draw a fullscreen quad.
+                    pCmdBuffer->CmdDraw(0, 3, 0, 1, 0);
+
+                    // Unbind the color-target view and destroy it.
+                    bindTargetsInfo.colorTargetCount = 0;
+                    pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+
+                    PAL_SAFE_FREE(pColorViewMem, &sliceAlloc);
+                }
+            } // End for each array slice.
+        }
+    } // End for each mip level.
+
+    if (needDisablePredication)
+    {
+        // Disable predication
+        pCmdBuffer->CmdSetPredication(nullptr,
+                                      0,
+                                      nullptr,
+                                      0,
+                                      static_cast<PredicateType>(0),
+                                      false,
+                                      false,
+                                      false);
+    }
+
+    // Restore original command buffer state.
+    pCmdBuffer->CmdRestoreGraphicsState();
+}
+
+// =====================================================================================================================
+// Performs a depth/stencil expand (decompress) on the provided image.
+bool RsrcProcMgr::ExpandDepthStencil(
+    GfxCmdBuffer*                pCmdBuffer,
+    const Image&                 image,
+    const MsaaQuadSamplePattern* pQuadSamplePattern,
+    const SubresRange&           range
+    ) const
+{
+    PAL_ASSERT(range.numPlanes == 1);
+    PAL_ASSERT(image.IsDepthStencilTarget());
+    PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
+    // Don't expect GFX Blts on Nested unless targets not inherited.
+    PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<Pm4::UniversalCmdBuffer*>(
+        pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
+
+    const auto&                 settings        = m_pDevice->Parent()->Settings();
+    const StencilRefMaskParams  stencilRefMasks = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF };
+
+    ViewportParams viewportInfo = { };
+    viewportInfo.count                 = 1;
+    viewportInfo.viewports[0].originX  = 0;
+    viewportInfo.viewports[0].originY  = 0;
+    viewportInfo.viewports[0].minDepth = 0.f;
+    viewportInfo.viewports[0].maxDepth = 1.f;
+    viewportInfo.viewports[0].origin   = PointOrigin::UpperLeft;
+    viewportInfo.horzClipRatio         = FLT_MAX;
+    viewportInfo.horzDiscardRatio      = 1.0f;
+    viewportInfo.vertClipRatio         = FLT_MAX;
+    viewportInfo.vertDiscardRatio      = 1.0f;
+    viewportInfo.depthRange            = DepthRange::ZeroToOne;
+
+    ScissorRectParams scissorInfo      = { };
+    scissorInfo.count                  = 1;
+    scissorInfo.scissors[0].offset.x   = 0;
+    scissorInfo.scissors[0].offset.y   = 0;
+
+    DepthStencilViewInternalCreateInfo depthViewInfoInternal = { };
+    depthViewInfoInternal.flags.isExpand = 1;
+
+    DepthStencilViewCreateInfo depthViewInfo = { };
+    depthViewInfo.pImage           = &image;
+    depthViewInfo.arraySize        = 1;
+    depthViewInfo.flags.bypassMall = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnCbDbWrite);
+
+    if (image.IsDepthPlane(range.startSubres.plane))
+    {
+        depthViewInfo.flags.readOnlyStencil = 1;
+    }
+    else
+    {
+        depthViewInfo.flags.readOnlyDepth = 1;
+    }
+
+    BindTargetParams bindTargetsInfo = { };
+    bindTargetsInfo.depthTarget.pDepthStencilView     = nullptr;
+    bindTargetsInfo.depthTarget.depthLayout.usages    = LayoutDepthStencilTarget;
+    bindTargetsInfo.depthTarget.depthLayout.engines   = LayoutUniversalEngine;
+    bindTargetsInfo.depthTarget.stencilLayout.usages  = LayoutDepthStencilTarget;
+    bindTargetsInfo.depthTarget.stencilLayout.engines = LayoutUniversalEngine;
+
+    // Save current command buffer state and bind graphics state which is common for all subresources.
+    pCmdBuffer->CmdSaveGraphicsState();
+    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(DepthExpand), InternalApiPsoHash, });
+    BindCommonGraphicsState(pCmdBuffer);
+    pCmdBuffer->CmdBindDepthStencilState(m_pDepthExpandState);
+    pCmdBuffer->CmdBindMsaaState(GetMsaaState(image.GetImageCreateInfo().samples,
+                                              image.GetImageCreateInfo().fragments));
+
+    if (pQuadSamplePattern != nullptr)
+    {
+        pCmdBuffer->CmdSetMsaaQuadSamplePattern(image.GetImageCreateInfo().samples, *pQuadSamplePattern);
+    }
+
+    pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
+
+    RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
+
+    const uint32 lastMip   = (range.startSubres.mipLevel   + range.numMips   - 1);
+    const uint32 lastSlice = (range.startSubres.arraySlice + range.numSlices - 1);
+
+    for (depthViewInfo.mipLevel  = range.startSubres.mipLevel;
+         depthViewInfo.mipLevel <= lastMip;
+         ++depthViewInfo.mipLevel)
+    {
+        if (image.GetGfxImage()->CanMipSupportMetaData(depthViewInfo.mipLevel))
+        {
+            LinearAllocatorAuto<VirtualLinearAllocator> mipAlloc(pCmdBuffer->Allocator(), false);
+
+            const SubresId mipSubres  = { range.startSubres.plane, depthViewInfo.mipLevel, 0 };
+            const auto&    subResInfo = *image.SubresourceInfo(mipSubres);
+
+            // All slices of the same mipmap level can re-use the same viewport/scissor state.
+            viewportInfo.viewports[0].width  = static_cast<float>(subResInfo.extentTexels.width);
+            viewportInfo.viewports[0].height = static_cast<float>(subResInfo.extentTexels.height);
+
+            scissorInfo.scissors[0].extent.width  = subResInfo.extentTexels.width;
+            scissorInfo.scissors[0].extent.height = subResInfo.extentTexels.height;
+
+            pCmdBuffer->CmdSetViewports(viewportInfo);
+            pCmdBuffer->CmdSetScissorRects(scissorInfo);
+
+            for (depthViewInfo.baseArraySlice  = range.startSubres.arraySlice;
+                 depthViewInfo.baseArraySlice <= lastSlice;
+                 ++depthViewInfo.baseArraySlice)
+            {
+                LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
+
+                // Create and bind a depth stencil view of the current subresource.
+                IDepthStencilView* pDepthView = nullptr;
+                void* pDepthViewMem =
+                    PAL_MALLOC(m_pDevice->GetDepthStencilViewSize(nullptr), &sliceAlloc, AllocInternalTemp);
+
+                if (pDepthViewMem == nullptr)
+                {
+                    pCmdBuffer->NotifyAllocFailure();
+                }
+                else
+                {
+                    Result result = m_pDevice->CreateDepthStencilView(depthViewInfo,
+                                                                      depthViewInfoInternal,
+                                                                      pDepthViewMem,
+                                                                      &pDepthView);
+                    PAL_ASSERT(result == Result::Success);
+
+                    bindTargetsInfo.depthTarget.pDepthStencilView = pDepthView;
+                    pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+
+                    // Draw a fullscreen quad.
+                    pCmdBuffer->CmdDraw(0, 3, 0, 1, 0);
+
+                    PAL_SAFE_FREE(pDepthViewMem, &sliceAlloc);
+
+                    // Unbind the depth view and destroy it.
+                    bindTargetsInfo.depthTarget.pDepthStencilView = nullptr;
+                    pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+                }
+            }
+        }
+    }
+
+    // Restore command buffer state.
+    pCmdBuffer->CmdRestoreGraphicsState();
+
+    // Compute path was not used
+    return false;
+}
+
+// =====================================================================================================================
+// Performs a depth/stencil resummarization on the provided image.  This operation recalculates the HiZ range in the
+// htile based on the z-buffer values.
+void RsrcProcMgr::ResummarizeDepthStencil(
+    GfxCmdBuffer*                pCmdBuffer,
+    const Image&                 image,
+    ImageLayout                  imageLayout,
+    const MsaaQuadSamplePattern* pQuadSamplePattern,
+    const SubresRange&           range
+    ) const
+{
+    PAL_ASSERT(range.numPlanes == 1);
+    PAL_ASSERT(image.IsDepthStencilTarget());
+    PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
+    // Don't expect GFX Blts on Nested unless targets not inherited.
+    PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<Pm4::UniversalCmdBuffer*>(
+        pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
+
+    const auto&                 settings        = m_pDevice->Parent()->Settings();
+    const StencilRefMaskParams  stencilRefMasks = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF };
+
+    ViewportParams viewportInfo = { };
+    viewportInfo.count                 = 1;
+    viewportInfo.viewports[0].originX  = 0;
+    viewportInfo.viewports[0].originY  = 0;
+    viewportInfo.viewports[0].minDepth = 0.f;
+    viewportInfo.viewports[0].maxDepth = 1.f;
+    viewportInfo.viewports[0].origin   = PointOrigin::UpperLeft;
+    viewportInfo.horzClipRatio         = FLT_MAX;
+    viewportInfo.horzDiscardRatio      = 1.0f;
+    viewportInfo.vertClipRatio         = FLT_MAX;
+    viewportInfo.vertDiscardRatio      = 1.0f;
+    viewportInfo.depthRange            = DepthRange::ZeroToOne;
+
+    ScissorRectParams scissorInfo    = { };
+    scissorInfo.count                = 1;
+    scissorInfo.scissors[0].offset.x = 0;
+    scissorInfo.scissors[0].offset.y = 0;
+
+    const DepthStencilViewInternalCreateInfo depthViewInfoInternal = { };
+
+    DepthStencilViewCreateInfo depthViewInfo = { };
+    depthViewInfo.pImage    = &image;
+    depthViewInfo.arraySize = 1;
+    depthViewInfo.flags.resummarizeHiZ = 1;
+    depthViewInfo.flags.bypassMall     = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                        Gfx10RpmViewsBypassMallOnCbDbWrite);
+
+    if (image.IsDepthPlane(range.startSubres.plane))
+    {
+        depthViewInfo.flags.readOnlyStencil = 1;
+    }
+    else
+    {
+        depthViewInfo.flags.readOnlyDepth = 1;
+    }
+
+    BindTargetParams bindTargetsInfo = {};
+    bindTargetsInfo.depthTarget.pDepthStencilView = nullptr;
+    bindTargetsInfo.depthTarget.depthLayout       = imageLayout;
+    bindTargetsInfo.depthTarget.stencilLayout     = imageLayout;
+
+    // Save current command buffer state and bind graphics state which is common for all subresources.
+    pCmdBuffer->CmdSaveGraphicsState();
+    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(DepthResummarize), InternalApiPsoHash, });
+    BindCommonGraphicsState(pCmdBuffer);
+    pCmdBuffer->CmdBindDepthStencilState(m_pDepthResummarizeState);
+    pCmdBuffer->CmdBindMsaaState(GetMsaaState(image.GetImageCreateInfo().samples,
+                                              image.GetImageCreateInfo().fragments));
+
+    if (pQuadSamplePattern != nullptr)
+    {
+        pCmdBuffer->CmdSetMsaaQuadSamplePattern(image.GetImageCreateInfo().samples, *pQuadSamplePattern);
+    }
+
+    pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
+
+    RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
+
+    const uint32 lastMip   = range.startSubres.mipLevel   + range.numMips   - 1;
+    const uint32 lastSlice = range.startSubres.arraySlice + range.numSlices - 1;
+
+    for (depthViewInfo.mipLevel  = range.startSubres.mipLevel;
+         depthViewInfo.mipLevel <= lastMip;
+         ++depthViewInfo.mipLevel)
+    {
+        if (image.GetGfxImage()->CanMipSupportMetaData(depthViewInfo.mipLevel))
+        {
+            LinearAllocatorAuto<VirtualLinearAllocator> mipAlloc(pCmdBuffer->Allocator(), false);
+
+            const SubresId mipSubres  = { range.startSubres.plane, depthViewInfo.mipLevel, 0 };
+            const auto&    subResInfo = *image.SubresourceInfo(mipSubres);
+
+            // All slices of the same mipmap level can re-use the same viewport/scissor state.
+            viewportInfo.viewports[0].width  = static_cast<float>(subResInfo.extentTexels.width);
+            viewportInfo.viewports[0].height = static_cast<float>(subResInfo.extentTexels.height);
+
+            scissorInfo.scissors[0].extent.width  = subResInfo.extentTexels.width;
+            scissorInfo.scissors[0].extent.height = subResInfo.extentTexels.height;
+
+            pCmdBuffer->CmdSetViewports(viewportInfo);
+            pCmdBuffer->CmdSetScissorRects(scissorInfo);
+
+            for (depthViewInfo.baseArraySlice  = range.startSubres.arraySlice;
+                 depthViewInfo.baseArraySlice <= lastSlice;
+                 ++depthViewInfo.baseArraySlice)
+            {
+                LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
+
+                // Create and bind a depth stencil view of the current subresource.
+                IDepthStencilView* pDepthView = nullptr;
+                void* pDepthViewMem =
+                    PAL_MALLOC(m_pDevice->GetDepthStencilViewSize(nullptr), &sliceAlloc, AllocInternalTemp);
+
+                if (pDepthViewMem == nullptr)
+                {
+                    pCmdBuffer->NotifyAllocFailure();
+                }
+                else
+                {
+                    Result result = m_pDevice->CreateDepthStencilView(depthViewInfo,
+                                                                      depthViewInfoInternal,
+                                                                      pDepthViewMem,
+                                                                      &pDepthView);
+                    PAL_ASSERT(result == Result::Success);
+
+                    bindTargetsInfo.depthTarget.pDepthStencilView = pDepthView;
+                    pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+
+                    // Draw a fullscreen quad.
+                    pCmdBuffer->CmdDraw(0, 3, 0, 1, 0);
+
+                    PAL_SAFE_FREE(pDepthViewMem, &sliceAlloc);
+
+                    // Unbind the depth view and destroy it.
+                    bindTargetsInfo.depthTarget.pDepthStencilView = nullptr;
+                    pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+                }
+            }
+        }
+    }
+
+    // Restore command buffer state.
+    pCmdBuffer->CmdRestoreGraphicsState();
+}
+
+// =====================================================================================================================
+// Returns a pointer to the compute pipeline used to decompress the supplied image.
+const ComputePipeline* RsrcProcMgr::GetComputeMaskRamExpandPipeline(
+    const Image& image
+    ) const
+{
+    const auto&  createInfo   = image.GetImageCreateInfo();
+
+    const auto   pipelineEnum = ((createInfo.samples == 1) ? RpmComputePipeline::ExpandMaskRam :
+                                 (createInfo.samples == 2) ? RpmComputePipeline::ExpandMaskRamMs2x :
+                                 (createInfo.samples == 4) ? RpmComputePipeline::ExpandMaskRamMs4x :
+                                 (createInfo.samples == 8) ? RpmComputePipeline::ExpandMaskRamMs8x :
+                                 RpmComputePipeline::ExpandMaskRam);
+
+    const ComputePipeline*  pPipeline = GetPipeline(pipelineEnum);
+
+    PAL_ASSERT(pPipeline != nullptr);
+
+    return pPipeline;
+}
+
+// =====================================================================================================================
+// Returns a pointer to the compute pipeline used for fast-clearing hTile data that is laid out in a linear fashion.
+const ComputePipeline* RsrcProcMgr::GetLinearHtileClearPipeline(
+    bool   expClearEnable,
+    bool   tileStencilDisabled,
+    uint32 hTileMask
+    ) const
+{
+    // Determine which pipeline to use for this clear.
+    const ComputePipeline* pPipeline = nullptr;
+    if (expClearEnable)
+    {
+        // If Exp/Clear is enabled, fast clears require using a special Exp/Clear shader. One such shader exists for
+        // depth/stencil Images and for depth-only Images.
+        if (tileStencilDisabled == false)
+        {
+            pPipeline = GetPipeline(RpmComputePipeline::FastDepthStExpClear);
+        }
+        else
+        {
+            pPipeline = GetPipeline(RpmComputePipeline::FastDepthExpClear);
+        }
+    }
+    else if (hTileMask == UINT_MAX)
+    {
+        // If the HTile mask has all bits set, we can use the standard ClearHtile path.
+        // Set the pipeline to null so we don't attempt to use it.
+        pPipeline = nullptr;
+    }
+    else
+    {
+        // Otherwise use the depth clear read-write shader.
+        pPipeline = GetPipeline(RpmComputePipeline::FastDepthClear);
+    }
+
+    return pPipeline;
+}
+
+// =====================================================================================================================
+// This must be called before and after each compute copy. The pre-copy call will insert any required metadata
+// decompresses and the post-copy call will fixup any metadata that needs updating. In practice these barriers are
+// required in cases where we treat CopyDst as compressed but RPM can't actually write compressed data directly from
+// the compute shader.
+void RsrcProcMgr::FixupMetadataForComputeDst(
+    GfxCmdBuffer*           pCmdBuffer,
+    const Image&            dstImage,
+    ImageLayout             dstImageLayout,
+    uint32                  regionCount,
+    const ImageFixupRegion* pRegions,
+    bool                    beforeCopy
+    ) const
+{
+    const GfxImage* pGfxImage = dstImage.GetGfxImage();
+
+    // TODO: unify all RPM metadata fixup here; currently only depth image is handled.
+    if (pGfxImage->HasHtileData())
+    {
+        // There is a Hiz issue on gfx10 with compressed depth writes so we need an htile resummarize blt.
+        const bool enableCompressedDepthWriteTempWa = IsGfx10(*m_pDevice->Parent());
+
+        // If enable temp workaround for comrpessed depth write, always need barriers for before and after copy.
+        bool needBarrier = enableCompressedDepthWriteTempWa;
+        for (uint32 i = 0; (needBarrier == false) && (i < regionCount); i++)
+        {
+            needBarrier = pGfxImage->ShaderWriteIncompatibleWithLayout(pRegions[i].subres, dstImageLayout);
+        }
+
+        if (needBarrier)
+        {
+            AutoBuffer<BarrierTransition, 32, Platform> transitions(regionCount, m_pDevice->GetPlatform());
+
+            if (transitions.Capacity() >= regionCount)
+            {
+                const uint32 shaderWriteLayout =
+                    (enableCompressedDepthWriteTempWa ? (LayoutShaderWrite | LayoutUncompressed) : LayoutShaderWrite);
+
+                for (uint32 i = 0; i < regionCount; i++)
+                {
+                    transitions[i].imageInfo.pImage                  = &dstImage;
+                    transitions[i].imageInfo.subresRange.startSubres = pRegions[i].subres;
+                    transitions[i].imageInfo.subresRange.numPlanes   = 1;
+                    transitions[i].imageInfo.subresRange.numMips     = 1;
+                    transitions[i].imageInfo.subresRange.numSlices   = pRegions[i].numSlices;
+                    transitions[i].imageInfo.oldLayout               = dstImageLayout;
+                    transitions[i].imageInfo.newLayout               = dstImageLayout;
+                    transitions[i].imageInfo.pQuadSamplePattern      = nullptr;
+
+                    // The first barrier must prepare the image for shader writes, perhaps by decompressing metadata.
+                    // The second barrier is required to undo those changes, perhaps by resummarizing the metadata.
+                    if (beforeCopy)
+                    {
+                        // Can optimize depth expand to lighter Barrier with UninitializedTarget for full subres copy.
+                        const SubResourceInfo* pSubresInfo = dstImage.SubresourceInfo(pRegions[i].subres);
+                        const bool fullSubresCopy =
+                            ((pRegions[i].offset.x == 0) &&
+                             (pRegions[i].offset.y == 0) &&
+                             (pRegions[i].offset.z == 0) &&
+                             (pRegions[i].extent.width  >= pSubresInfo->extentElements.width) &&
+                             (pRegions[i].extent.height >= pSubresInfo->extentElements.height) &&
+                             (pRegions[i].extent.depth  >= pSubresInfo->extentElements.depth));
+
+                        if (fullSubresCopy)
+                        {
+                            transitions[i].imageInfo.oldLayout.usages = LayoutUninitializedTarget;
+                        }
+
+                        transitions[i].imageInfo.newLayout.usages |= shaderWriteLayout;
+                        transitions[i].srcCacheMask                = CoherCopyDst;
+                        transitions[i].dstCacheMask                = CoherShader;
+                    }
+                    else // After copy
+                    {
+                        transitions[i].imageInfo.oldLayout.usages |= shaderWriteLayout;
+                        transitions[i].srcCacheMask                = CoherShader;
+                        transitions[i].dstCacheMask                = CoherCopyDst;
+                    }
+                }
+
+                // Operations like resummarizes might read the blit's output so we can't optimize the wait point.
+                BarrierInfo barrierInfo = {};
+                barrierInfo.pTransitions    = &transitions[0];
+                barrierInfo.transitionCount = regionCount;
+                barrierInfo.waitPoint       = HwPipePreBlt;
+
+                const HwPipePoint releasePipePoint = beforeCopy ? HwPipeBottom : HwPipePostCs;
+                barrierInfo.pipePointWaitCount = 1;
+                barrierInfo.pPipePoints        = &releasePipePoint;
+
+                pCmdBuffer->CmdBarrier(barrierInfo);
+            }
+            else
+            {
+                pCmdBuffer->NotifyAllocFailure();
+            }
+        }
+    }
+}
+
+// =====================================================================================================================
+// This is called after compute resolve image.
+void RsrcProcMgr::FixupComputeResolveDst(
+    GfxCmdBuffer*             pCmdBuffer,
+    const Image&              dstImage,
+    uint32                    regionCount,
+    const ImageResolveRegion* pRegions
+    ) const
+{
+    if (dstImage.GetGfxImage()->HasHtileData())
+    {
+        PAL_ASSERT((regionCount > 0) && (pRegions != nullptr));
+
+        for (uint32 i = 0; i < regionCount; ++i)
+        {
+            const ImageResolveRegion& curRegion = pRegions[i];
+            SubresRange subresRange = {};
+            subresRange.startSubres.plane      = curRegion.dstPlane;
+            subresRange.startSubres.mipLevel   = curRegion.dstMipLevel;
+            subresRange.startSubres.arraySlice = curRegion.dstSlice;
+            subresRange.numPlanes              = 1;
+            subresRange.numMips                = 1;
+            subresRange.numSlices              = curRegion.numSlices;
+            HwlResummarizeHtileCompute(pCmdBuffer, *dstImage.GetGfxImage(), subresRange);
+        }
+
+        // There is a potential problem here because the htile is shared between
+        // the depth and stencil planes, but the APIs manage the state of those
+        // planes independently.  At this point in the code, we know the depth
+        // plane must be in a state that supports being a resolve destination,
+        // but the stencil plane may still be in a state that supports stencil
+        // target rendering.  Since we are modifying HTILE asynchronously with
+        // respect to the DB and through a different data path than the DB, we
+        // need to ensure our CS won't overlap with subsequent stencil rendering
+        // and that our HTILE updates are immediately visible to the DB.
+
+        BarrierInfo hiZExpandBarrier = {};
+        hiZExpandBarrier.waitPoint = HwPipePreCs;
+
+        constexpr HwPipePoint PostCs = HwPipePostCs;
+        hiZExpandBarrier.pipePointWaitCount = 1;
+        hiZExpandBarrier.pPipePoints = &PostCs;
+
+        BarrierTransition transition = {};
+        transition.srcCacheMask = CoherShader;
+        transition.dstCacheMask = CoherShader | CoherDepthStencilTarget;
+        hiZExpandBarrier.pTransitions = &transition;
+
+        pCmdBuffer->CmdBarrier(hiZExpandBarrier);
+    }
+}
+
+// =====================================================================================================================
+// Selects the appropriate Depth Stencil copy pipeline based on usage and samples
+const GraphicsPipeline* RsrcProcMgr::GetCopyDepthStencilPipeline(
+    bool   isDepth,
+    bool   isDepthStencil,
+    uint32 numSamples
+    ) const
+{
+    RpmGfxPipeline pipelineType;
+
+    if (isDepthStencil)
+    {
+        pipelineType = (numSamples > 1) ? CopyMsaaDepthStencil : CopyDepthStencil;
+    }
+    else
+    {
+        if (isDepth)
+        {
+            pipelineType = (numSamples > 1) ? CopyMsaaDepth : CopyDepth;
+        }
+        else
+        {
+            pipelineType = (numSamples > 1) ? CopyMsaaStencil : CopyStencil;
+        }
+    }
+
+    return GetGfxPipeline(pipelineType);
+}
+
+// =====================================================================================================================
+// Selects the appropriate scaled Depth Stencil copy pipeline based on usage and samples
+const GraphicsPipeline* RsrcProcMgr::GetScaledCopyDepthStencilPipeline(
+    bool   isDepth,
+    bool   isDepthStencil,
+    uint32 numSamples
+    ) const
+{
+    RpmGfxPipeline pipelineType;
+
+    if (isDepthStencil)
+    {
+        pipelineType = (numSamples > 1) ? ScaledCopyMsaaDepthStencil : ScaledCopyDepthStencil;
+    }
+    else
+    {
+        if (isDepth)
+        {
+            pipelineType = (numSamples > 1) ? ScaledCopyMsaaDepth : ScaledCopyDepth;
+        }
+        else
+        {
+            pipelineType = (numSamples > 1) ? ScaledCopyMsaaStencil : ScaledCopyStencil;
+        }
+    }
+
+    return GetGfxPipeline(pipelineType);
 }
 
 } // Pm4

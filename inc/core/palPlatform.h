@@ -389,8 +389,13 @@ public:
     ///          + ErrorUnavailable if this is called before IPlatform::EnumerateDevices(), or if there were no Devices
     ///            discovered.
     virtual Result QueryRawApplicationProfile(
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 759
+        const wchar_t*           pFilename,
+        const wchar_t*           pPathname,
+#else
         const char*              pFilename,
         const char*              pPathname,
+#endif
         ApplicationProfileClient client,
         const char**             pOut) = 0;
 
@@ -416,8 +421,14 @@ public:
     ///          + ErrorUnavailable if this is called before IPlatform::EnumerateDevices(), or if there were no Devices
     ///            discovered.
     virtual Result EnableSppProfile(
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 759
+        const wchar_t*           pFilename,
+        const wchar_t*           pPathname
+#else
         const char*              pFilename,
-        const char*              pPathname) = 0;
+        const char*              pPathname
+#endif
+    ) = 0;
 
     /// Reports the properties of the platform.
     ///
@@ -469,6 +480,11 @@ public:
     ///
     /// @returns True if tracing is enabled, false otherwise.
     virtual bool IsTracingEnabled() const = 0;
+
+    /// Indicates whether the driver has been signaled to enable crash analysis mode.
+    ///
+    /// @returns True if crash analysis is enabled, false otherwise.
+    virtual bool IsCrashAnalysisModeEnabled() const = 0;
 
     /// Returns a pointer to the Platform settings structure
     ///

@@ -40,6 +40,9 @@ public:
     // Informs driver we are collecting trace data
     virtual DD_RESULT EnableTracing() = 0;
 
+    // Informs driver to enable crash analysis mode
+    virtual DD_RESULT EnableCrashAnalysisMode() = 0;
+
 protected:
     IDriverUtilsService() {}
 };

@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include "core/hw/gfxip/gfxCmdStream.h"
+#include "core/hw/gfxip/pm4CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 
@@ -42,7 +42,7 @@ class Pm4Optimizer;
 // This is a specialization of CmdStream that has special knowledge of PM4 on GFX9 hardware. It implements conditional
 // execution and chunk chaining. This class is also responsible for invoking the PM4 optimizer if it is enabled. Callers
 // should use the "write" functions below when applicable as they may be necessary to hook into the PM4 optimizer.
-class CmdStream final : public Pal::GfxCmdStream
+class CmdStream final : public Pm4::CmdStream
 {
 public:
     CmdStream(

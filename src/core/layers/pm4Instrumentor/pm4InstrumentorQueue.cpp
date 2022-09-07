@@ -137,7 +137,9 @@ Result Queue::Submit(
     PAL_ASSERT_MSG((submitInfo.perSubQueueInfoCount <= 1),
                    "Multi-Queue support has not yet been implemented in Pm4Instrumentor!");
 
-    if (submitInfo.pPerSubQueueInfo != nullptr)
+    PAL_ASSERT((submitInfo.perSubQueueInfoCount == 0) || (submitInfo.pPerSubQueueInfo != nullptr));
+
+    if (submitInfo.perSubQueueInfoCount > 0)
     {
         AccumulateStatistics(submitInfo.pPerSubQueueInfo[0].ppCmdBuffers,
                              submitInfo.pPerSubQueueInfo[0].cmdBufferCount);

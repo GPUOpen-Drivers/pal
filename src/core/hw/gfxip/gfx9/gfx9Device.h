@@ -713,7 +713,7 @@ private:
         CmdStream*                    pCmdStream,
         const ImgBarrier*             pImgBarrier,
         LayoutTransitionInfo          transition,
-        bool                          preInitHtileSynced,
+        bool*                         pPreInitHtileSynced,
         Developer::BarrierOperations* pBarrierOps) const;
 
     bool GetAcqRelLayoutTransitionBltInfo(

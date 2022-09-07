@@ -756,7 +756,25 @@ Result Image::CreateExternalSharedImage(
             createInfo.metadataTcCompatMode   = MetadataTcCompatMode::Disabled;
         }
     }
-
+    if (IsMesaMetadata(sharedInfo.info.metadata))
+    {
+        const auto*const pMesaUmdMetaData = reinterpret_cast<const MesaUmdMetaData*>(&sharedInfo.info.metadata.umd_metadata[0]);
+        // from mesa function si_set_mutable_tex_desc_fields, only when dcc enable or hile enable, compressionEnable bit
+        // will be set as 1
+        if (pMesaUmdMetaData->imageSrd.gfx10.compressionEnable == 1)
+        {
+            // According to Mesa3D metadata encoding function si_set_tex_bo_metadata,
+            // Mesa3D share standard dcc metadata though first 10 dwords of umd_metadata of struct amdgpu_bo_metadata.
+            internalCreateInfo.sharedMetadata.dccOffset[0] = (pMesaUmdMetaData->imageSrd.gfx10.metaDataOffset) << 8;
+            internalCreateInfo.flags.useSharedMetadata = 1;
+            createInfo.flags.optimalShareable = 1;
+            internalCreateInfo.sharedMetadata.numPlanes = 1;
+            internalCreateInfo.sharedMetadata.flags.shaderFetchable = 1;
+            internalCreateInfo.sharedMetadata.pipeAligned[0] = 1;
+            createInfo.metadataMode           = MetadataMode::Default;
+            createInfo.metadataTcCompatMode   = MetadataTcCompatMode::Default;
+        }
+    }
     Pal::Image* pImage = nullptr;
     if (result == Result::Success)
     {

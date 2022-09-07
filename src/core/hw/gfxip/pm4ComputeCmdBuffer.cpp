@@ -53,7 +53,7 @@ static void PAL_STDCALL DummyCmdSetUserDataGfx(
 ComputeCmdBuffer::ComputeCmdBuffer(
     const GfxDevice&           device,
     const CmdBufferCreateInfo& createInfo,
-    GfxCmdStream*              pCmdStream)
+    Pm4::CmdStream*            pCmdStream)
     :
     Pm4CmdBuffer(device, createInfo),
     m_spillTable{},
@@ -131,7 +131,7 @@ Result ComputeCmdBuffer::End()
     if (result == Result::Success)
     {
 #if PAL_ENABLE_PRINTS_ASSERTS
-        const CmdStream* cmdStreams[] = { m_pCmdStream };
+        const Pal::CmdStream* cmdStreams[] = { m_pCmdStream };
         EndCmdBufferDump(cmdStreams, 1);
 #endif
     }

@@ -1719,6 +1719,8 @@ struct PipelineMetadata
     /// Lower 64 bits is the "stable" portion of the hash, used for e.g. shader replacement lookup.
     /// Upper 64 bits is the "unique" portion of the hash, used for e.g. pipeline cache lookup.
     uint64                   internalPipelineHash[2];
+    /// 64-bit hash of the resource mapping used when compiling this pipeline.
+    uint64                   resourceHash;
     /// Per-API shader metadata.
     ShaderMetadata           shader[static_cast<uint32>(Abi::ApiShaderType::Count)];
     /// Per-hardware stage metadata.
@@ -1785,6 +1787,7 @@ struct PipelineMetadata
             uint32 name                   : 1;
             uint32 type                   : 1;
             uint32 internalPipelineHash   : 1;
+            uint32 resourceHash           : 1;
             uint32 shader                 : 1;
             uint32 hardwareStage          : 1;
             uint32 shaderFunctions        : 1;
@@ -1806,7 +1809,7 @@ struct PipelineMetadata
             uint32 streamoutVertexStrides : 1;
             uint32 graphicsRegister       : 1;
             uint32 computeRegister        : 1;
-            uint32 reserved               : 8;
+            uint32 reserved               : 7;
         };
         uint32 uAll;
     } hasEntry;
@@ -1845,6 +1848,7 @@ namespace PipelineMetadataKey
     static constexpr char Name[]                   = ".name";
     static constexpr char Type[]                   = ".type";
     static constexpr char InternalPipelineHash[]   = ".internal_pipeline_hash";
+    static constexpr char ResourceHash[]           = ".resource_hash";
     static constexpr char Shaders[]                = ".shaders";
     static constexpr char HardwareStages[]         = ".hardware_stages";
     static constexpr char ShaderFunctions[]        = ".shader_functions";

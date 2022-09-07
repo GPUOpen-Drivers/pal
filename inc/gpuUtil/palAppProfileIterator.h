@@ -43,7 +43,11 @@ namespace GpuUtil
 ///
 /// @returns true if a match is found, otherwise false.
 extern bool QueryAppContentDistributionId(
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 759
+    wchar_t*       pContentDistributionId,
+#else
     char*          pContentDistributionId,
+#endif
     size_t         bufferLength);
 
 /**

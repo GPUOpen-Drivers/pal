@@ -73,9 +73,6 @@ struct ChainPatch
 // Implements control flow and other code common to GFX-specific command stream implementations.
 class GfxCmdStream : public CmdStream
 {
-    // A useful shorthand for a vector list of chunks.
-    typedef ChunkVector<CmdStreamChunk*, 16, Platform> ChunkRefList;
-
 public:
     virtual ~GfxCmdStream() { }
 
@@ -88,20 +85,13 @@ public:
     virtual void While(CompareFunc compareFunc, gpusize compareGpuAddr, uint64 data, uint64 mask);
     virtual void EndWhile();
 
-    virtual void Call(const CmdStream& targetStream, bool exclusiveSubmit, bool allowIb2Launch) override;
-
-    void ExecuteGeneratedCommands(CmdStreamChunk** ppChunkList, uint32 numChunksExecuted, uint32 numGenChunks);
-
-    uint32 PrepareChunkForCmdGeneration(
-        CmdStreamChunk* pChunk,
-        uint32          cmdBufStride,           // In dwords
-        uint32          embeddedDataStride,     // In dwords
-        uint32          maxCommands) const;
-
-    virtual void PatchTailChain(const CmdStream* pTargetStream) const override;
+    virtual void PatchTailChain(const Pal::CmdStream* pTargetStream) const override;
 
     // This defines PAL's control flow nesting limit
     static constexpr uint32 CntlFlowNestingLimit = 8;
+
+    const uint32 m_chainIbSpaceInDwords; // DWORDs needed for chaining in each chunk, 0 if unsupported
+    uint32*      m_pTailChainLocation;     // Put a chain packet here to chain this command stream to another.
 
     virtual size_t BuildNop(uint32 numDwords, uint32* pCmdSpace) const = 0;
 
@@ -149,8 +139,8 @@ protected:
         gpusize      address,
         uint32       ibSizeDwords) const = 0;
 
-    const GfxDevice&  m_device;
-    const uint32      m_chainIbSpaceInDwords; // DWORDs needed for chaining in each chunk, 0 if unsupported
+    const GfxDevice& m_device;
+    const uint32     m_minNopSizeInDwords;     // The minimum NOP size in DWORDs.
 
 private:
     void ComputeCommandBlockSizes(
@@ -159,10 +149,8 @@ private:
         uint32* pAllocDwords,
         uint32* pTotalDwords) const;
 
-    const uint32   m_minNopSizeInDwords;     // The minimum NOP size in DWORDs.
     const uint32   m_condIndirectBufferSize; // Number of DWORDs needed to conditionally launch an indirect buffer
     uint32         m_cmdBlockOffset;         // The current command block began at this DW offset in the current chunk
-    uint32*        m_pTailChainLocation;     // Put a chain packet here to chain this command stream to another.
 
     // We need a stack of control flow frames to manage nested control flow statements.
     CntlFlowFrame  m_cntlFlowStack[CntlFlowNestingLimit];

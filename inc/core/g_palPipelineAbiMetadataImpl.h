@@ -4985,6 +4985,12 @@ inline Result DeserializePipelineMetadata(
                 pMetadata->hasEntry.internalPipelineHash = (result == Result::Success);
                 break;
 
+            case HashLiteralString(PipelineMetadataKey::ResourceHash):
+                PAL_ASSERT(pMetadata->hasEntry.resourceHash == 0);
+                result = pReader->UnpackNext(&pMetadata->resourceHash);
+                pMetadata->hasEntry.resourceHash = (result == Result::Success);
+                break;
+
             case HashLiteralString(PipelineMetadataKey::Shaders):
                 PAL_ASSERT(pMetadata->hasEntry.shader == 0);
                 result = pReader->Next();

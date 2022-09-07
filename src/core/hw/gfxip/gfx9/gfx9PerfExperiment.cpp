@@ -1140,6 +1140,8 @@ Result PerfExperiment::AddThreadTrace(
 {
     Result result = Result::Success;
 
+    const uint32 realInstance = VirtualSeToRealSe(traceInfo.instance);
+
     if (m_isFinalized)
     {
         // The perf experiment cannot be changed once it is finalized.
@@ -1151,7 +1153,7 @@ Result PerfExperiment::AddThreadTrace(
         // There's one thread trace instance per SQG.
         result = Result::ErrorInvalidValue;
     }
-    else if (m_sqtt[traceInfo.instance].inUse)
+    else if (m_sqtt[realInstance].inUse)
     {
         // You can't use the same instance twice!
         result = Result::ErrorInvalidValue;
@@ -1252,8 +1254,8 @@ Result PerfExperiment::AddThreadTrace(
         m_perfExperimentFlags.sqtTraceEnabled = true;
 
         // Set all sqtt properties for this trace except for the buffer offset which is found during Finalize.
-        m_sqtt[traceInfo.instance].inUse = true;
-        m_sqtt[traceInfo.instance].bufferSize = (traceInfo.optionFlags.bufferSize != 0)
+        m_sqtt[realInstance].inUse = true;
+        m_sqtt[realInstance].bufferSize = (traceInfo.optionFlags.bufferSize != 0)
                 ? traceInfo.optionValues.bufferSize : SqttDefaultBufferSize;
 
         // Default to all shader stages enabled.
@@ -1265,9 +1267,9 @@ Result PerfExperiment::AddThreadTrace(
                 ? traceInfo.optionValues.threadTraceTargetSh : 0;
 
         // Target this trace's specific SE and SH.
-        m_sqtt[traceInfo.instance].grbmGfxIndex.bits.SE_INDEX  = traceInfo.instance;
-        m_sqtt[traceInfo.instance].grbmGfxIndex.gfx09.SH_INDEX = shIndex;
-        m_sqtt[traceInfo.instance].grbmGfxIndex.bits.INSTANCE_BROADCAST_WRITES = 1;
+        m_sqtt[realInstance].grbmGfxIndex.bits.SE_INDEX = realInstance;
+        m_sqtt[realInstance].grbmGfxIndex.gfx09.SH_INDEX = shIndex;
+        m_sqtt[realInstance].grbmGfxIndex.bits.INSTANCE_BROADCAST_WRITES = 1;
 
         // By default stall always so that we get accurate data.
         const uint32 stallMode =
@@ -1286,7 +1288,7 @@ Result PerfExperiment::AddThreadTrace(
             // active and not reserved for realtime use. Note that there is no real time WGP mask, but all of the
             // CU masks are still populated with two adjacent bits set for each WGP.
             const uint32 traceableCuMask =
-                m_chipProps.gfx9.activeCuMask[traceInfo.instance][shIndex] & ~m_chipProps.gfxip.realTimeCuMask;
+                m_chipProps.gfx9.activeCuMask[realInstance][shIndex] & ~m_chipProps.gfxip.realTimeCuMask;
 
             const int32 customDefaultSqttDetailedCuIndex = m_pDevice->Settings().defaultSqttDetailedCuIndex;
 
@@ -1315,89 +1317,89 @@ Result PerfExperiment::AddThreadTrace(
 
         if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp9)
         {
-            m_sqtt[traceInfo.instance].mode.bits.MASK_PS      = ((shaderMask & PerfShaderMaskPs) != 0);
-            m_sqtt[traceInfo.instance].mode.bits.MASK_VS      = ((shaderMask & PerfShaderMaskVs) != 0);
-            m_sqtt[traceInfo.instance].mode.bits.MASK_GS      = ((shaderMask & PerfShaderMaskGs) != 0);
-            m_sqtt[traceInfo.instance].mode.bits.MASK_ES      = ((shaderMask & PerfShaderMaskEs) != 0);
-            m_sqtt[traceInfo.instance].mode.bits.MASK_HS      = ((shaderMask & PerfShaderMaskHs) != 0);
-            m_sqtt[traceInfo.instance].mode.bits.MASK_LS      = ((shaderMask & PerfShaderMaskLs) != 0);
-            m_sqtt[traceInfo.instance].mode.bits.MASK_CS      = ((shaderMask & PerfShaderMaskCs) != 0);
-            m_sqtt[traceInfo.instance].mode.bits.MODE         = SQ_THREAD_TRACE_MODE_ON;
-            m_sqtt[traceInfo.instance].mode.bits.CAPTURE_MODE = SQ_THREAD_TRACE_CAPTURE_MODE_ALL;
-            m_sqtt[traceInfo.instance].mode.bits.AUTOFLUSH_EN = 1; // Periodically flush SQTT data to memory.
-            m_sqtt[traceInfo.instance].mode.bits.TC_PERF_EN   = 1; // Count SQTT traffic in TCC perf counters.
+            m_sqtt[realInstance].mode.bits.MASK_PS      = ((shaderMask & PerfShaderMaskPs) != 0);
+            m_sqtt[realInstance].mode.bits.MASK_VS      = ((shaderMask & PerfShaderMaskVs) != 0);
+            m_sqtt[realInstance].mode.bits.MASK_GS      = ((shaderMask & PerfShaderMaskGs) != 0);
+            m_sqtt[realInstance].mode.bits.MASK_ES      = ((shaderMask & PerfShaderMaskEs) != 0);
+            m_sqtt[realInstance].mode.bits.MASK_HS      = ((shaderMask & PerfShaderMaskHs) != 0);
+            m_sqtt[realInstance].mode.bits.MASK_LS      = ((shaderMask & PerfShaderMaskLs) != 0);
+            m_sqtt[realInstance].mode.bits.MASK_CS      = ((shaderMask & PerfShaderMaskCs) != 0);
+            m_sqtt[realInstance].mode.bits.MODE         = SQ_THREAD_TRACE_MODE_ON;
+            m_sqtt[realInstance].mode.bits.CAPTURE_MODE = SQ_THREAD_TRACE_CAPTURE_MODE_ALL;
+            m_sqtt[realInstance].mode.bits.AUTOFLUSH_EN = 1; // Periodically flush SQTT data to memory.
+            m_sqtt[realInstance].mode.bits.TC_PERF_EN   = 1; // Count SQTT traffic in TCC perf counters.
 
             // By default capture all instruction scheduling updates.
-            m_sqtt[traceInfo.instance].mode.bits.ISSUE_MASK = (traceInfo.optionFlags.threadTraceIssueMask != 0)
+            m_sqtt[realInstance].mode.bits.ISSUE_MASK = (traceInfo.optionFlags.threadTraceIssueMask != 0)
                     ? traceInfo.optionValues.threadTraceIssueMask : SQ_THREAD_TRACE_ISSUE_MASK_ALL;
 
             // By default don't wrap.
-            m_sqtt[traceInfo.instance].mode.bits.WRAP =
+            m_sqtt[realInstance].mode.bits.WRAP =
                 ((traceInfo.optionFlags.threadTraceWrapBuffer != 0) && traceInfo.optionValues.threadTraceWrapBuffer);
 
-            m_sqtt[traceInfo.instance].mask.gfx09.SH_SEL = shIndex;
+            m_sqtt[realInstance].mask.gfx09.SH_SEL = shIndex;
 
-            m_sqtt[traceInfo.instance].mask.gfx09.CU_SEL = cuIndex;
+            m_sqtt[realInstance].mask.gfx09.CU_SEL = cuIndex;
 
             // Default to getting detailed tokens from all SIMDs.
-            m_sqtt[traceInfo.instance].mask.gfx09.SIMD_EN = (traceInfo.optionFlags.threadTraceSimdMask != 0)
+            m_sqtt[realInstance].mask.gfx09.SIMD_EN = (traceInfo.optionFlags.threadTraceSimdMask != 0)
                     ? traceInfo.optionValues.threadTraceSimdMask : SqttDetailedSimdMask;
 
             // By default we should only trace our VMID.
-            m_sqtt[traceInfo.instance].mask.gfx09.VM_ID_MASK = (traceInfo.optionFlags.threadTraceVmIdMask != 0)
+            m_sqtt[realInstance].mask.gfx09.VM_ID_MASK = (traceInfo.optionFlags.threadTraceVmIdMask != 0)
                     ? traceInfo.optionValues.threadTraceVmIdMask : SQ_THREAD_TRACE_VM_ID_MASK_SINGLE;
 
             // By default enable sqtt perf counters for all CUs.
-            m_sqtt[traceInfo.instance].perfMask.bits.SH0_MASK = (traceInfo.optionFlags.threadTraceSh0CounterMask != 0)
+            m_sqtt[realInstance].perfMask.bits.SH0_MASK = (traceInfo.optionFlags.threadTraceSh0CounterMask != 0)
                     ? traceInfo.optionValues.threadTraceSh0CounterMask : SqttPerfCounterCuMask;
 
-            m_sqtt[traceInfo.instance].perfMask.bits.SH1_MASK = (traceInfo.optionFlags.threadTraceSh1CounterMask != 0)
+            m_sqtt[realInstance].perfMask.bits.SH1_MASK = (traceInfo.optionFlags.threadTraceSh1CounterMask != 0)
                     ? traceInfo.optionValues.threadTraceSh1CounterMask : SqttPerfCounterCuMask;
 
             if (traceInfo.optionFlags.threadTraceTokenConfig != 0)
             {
-                m_sqtt[traceInfo.instance].tokenMask.u32All =
+                m_sqtt[realInstance].tokenMask.u32All =
                     GetGfx9SqttTokenMask(traceInfo.optionValues.threadTraceTokenConfig);
             }
             else
             {
                 // By default trace all tokens and registers.
-                m_sqtt[traceInfo.instance].tokenMask.gfx09.TOKEN_MASK = SqttGfx9TokenMaskDefault;
-                m_sqtt[traceInfo.instance].tokenMask.gfx09.REG_MASK   = SqttGfx9RegMaskDefault;
+                m_sqtt[realInstance].tokenMask.gfx09.TOKEN_MASK = SqttGfx9TokenMaskDefault;
+                m_sqtt[realInstance].tokenMask.gfx09.REG_MASK   = SqttGfx9RegMaskDefault;
             }
 
             // Enable all stalling in "always" mode, "lose detail" mode only disables register stalls.
-            m_sqtt[traceInfo.instance].mask.gfx09.REG_STALL_EN           = (stallMode == GpuProfilerStallAlways);
-            m_sqtt[traceInfo.instance].mask.gfx09.SPI_STALL_EN           = (stallMode != GpuProfilerStallNever);
-            m_sqtt[traceInfo.instance].mask.gfx09.SQ_STALL_EN            = (stallMode != GpuProfilerStallNever);
-            m_sqtt[traceInfo.instance].tokenMask.gfx09.REG_DROP_ON_STALL = (stallMode != GpuProfilerStallAlways);
+            m_sqtt[realInstance].mask.gfx09.REG_STALL_EN           = (stallMode == GpuProfilerStallAlways);
+            m_sqtt[realInstance].mask.gfx09.SPI_STALL_EN           = (stallMode != GpuProfilerStallNever);
+            m_sqtt[realInstance].mask.gfx09.SQ_STALL_EN            = (stallMode != GpuProfilerStallNever);
+            m_sqtt[realInstance].tokenMask.gfx09.REG_DROP_ON_STALL = (stallMode != GpuProfilerStallAlways);
         }
         else
         {
             // Note that gfx10 has new thread trace modes. For now we use "on" to match the gfx9 implementation.
             // We may want to consider using one of the new modes by default.
-            m_sqtt[traceInfo.instance].ctrl.gfx10Plus.MODE              = SQ_TT_MODE_ON;
-            m_sqtt[traceInfo.instance].ctrl.gfx10Plus.HIWATER           = SqttGfx10HiWaterValue;
-            m_sqtt[traceInfo.instance].ctrl.gfx10Plus.UTIL_TIMER        = 1;
-            m_sqtt[traceInfo.instance].ctrl.gfx10Plus.RT_FREQ           = SQ_TT_RT_FREQ_4096_CLK;
-            m_sqtt[traceInfo.instance].ctrl.gfx10Plus.DRAW_EVENT_EN     = 1;
+            m_sqtt[realInstance].ctrl.gfx10Plus.MODE              = SQ_TT_MODE_ON;
+            m_sqtt[realInstance].ctrl.gfx10Plus.HIWATER           = SqttGfx10HiWaterValue;
+            m_sqtt[realInstance].ctrl.gfx10Plus.UTIL_TIMER        = 1;
+            m_sqtt[realInstance].ctrl.gfx10Plus.RT_FREQ           = SQ_TT_RT_FREQ_4096_CLK;
+            m_sqtt[realInstance].ctrl.gfx10Plus.DRAW_EVENT_EN     = 1;
 
             if (IsGfx103PlusExclusive(*m_pDevice))
             {
-                m_sqtt[traceInfo.instance].ctrl.gfx103PlusExclusive.LOWATER_OFFSET = SqttGfx103LoWaterOffsetValue;
+                m_sqtt[realInstance].ctrl.gfx103PlusExclusive.LOWATER_OFFSET = SqttGfx103LoWaterOffsetValue;
 
                 // On Navi2x hw, the polarity of AutoFlushMode is inverted, thus this step is necessary to correct
-                m_sqtt[traceInfo.instance].ctrl.gfx103PlusExclusive.AUTO_FLUSH_MODE =
+                m_sqtt[realInstance].ctrl.gfx103PlusExclusive.AUTO_FLUSH_MODE =
                                                                m_settings.waAutoFlushModePolarityInversed ? 1 : 0;
             }
 
             // Enable all stalling in "always" mode, "lose detail" mode only disables register stalls.
             if (IsGfx10(*m_pDevice))
             {
-                m_sqtt[traceInfo.instance].ctrl.gfx10.REG_STALL_EN      = (stallMode == GpuProfilerStallAlways);
-                m_sqtt[traceInfo.instance].ctrl.gfx10.SPI_STALL_EN      = (stallMode != GpuProfilerStallNever);
-                m_sqtt[traceInfo.instance].ctrl.gfx10.SQ_STALL_EN       = (stallMode != GpuProfilerStallNever);
-                m_sqtt[traceInfo.instance].ctrl.gfx10.REG_DROP_ON_STALL = (stallMode != GpuProfilerStallAlways);
+                m_sqtt[realInstance].ctrl.gfx10.REG_STALL_EN      = (stallMode == GpuProfilerStallAlways);
+                m_sqtt[realInstance].ctrl.gfx10.SPI_STALL_EN      = (stallMode != GpuProfilerStallNever);
+                m_sqtt[realInstance].ctrl.gfx10.SQ_STALL_EN       = (stallMode != GpuProfilerStallNever);
+                m_sqtt[realInstance].ctrl.gfx10.REG_DROP_ON_STALL = (stallMode != GpuProfilerStallAlways);
             }
 
             static_assert((static_cast<uint32>(PerfShaderMaskPs) == static_cast<uint32>(SQ_TT_WTYPE_INCLUDE_PS_BIT) &&
@@ -1413,32 +1415,32 @@ Result PerfExperiment::AddThreadTrace(
                            "We assume that the SQ_TT_WTYPE enum matches PerfExperimentShaderFlags.");
 
             {
-                m_sqtt[traceInfo.instance].mask.gfx10Plus.WTYPE_INCLUDE = shaderMask;
+                m_sqtt[realInstance].mask.gfx10Plus.WTYPE_INCLUDE = shaderMask;
             }
 
-            m_sqtt[traceInfo.instance].mask.gfx10Plus.SA_SEL = shIndex;
+            m_sqtt[realInstance].mask.gfx10Plus.SA_SEL = shIndex;
 
             // Divide by two to convert from CUs to WGPs.
-            m_sqtt[traceInfo.instance].mask.gfx10Plus.WGP_SEL = cuIndex / 2;
+            m_sqtt[realInstance].mask.gfx10Plus.WGP_SEL = cuIndex / 2;
 
             // Default to getting detailed tokens from SIMD 0.
-            m_sqtt[traceInfo.instance].mask.gfx10Plus.SIMD_SEL = (traceInfo.optionFlags.threadTraceSimdMask != 0)
+            m_sqtt[realInstance].mask.gfx10Plus.SIMD_SEL = (traceInfo.optionFlags.threadTraceSimdMask != 0)
                     ? traceInfo.optionValues.threadTraceSimdMask : 0;
 
             if (traceInfo.optionFlags.threadTraceTokenConfig != 0)
             {
-                m_sqtt[traceInfo.instance].tokenMask =
+                m_sqtt[realInstance].tokenMask =
                     GetGfx10SqttTokenMask(*m_pDevice, traceInfo.optionValues.threadTraceTokenConfig);
             }
             else
             {
                 // By default trace all tokens and registers.
                 uint32 excludeMask = SqttGfx10TokenMaskDefault;
-                SetSqttTokenExclude(*m_pDevice, &m_sqtt[traceInfo.instance].tokenMask, SqttGfx10TokenMaskDefault);
-                m_sqtt[traceInfo.instance].tokenMask.gfx10Plus.REG_INCLUDE   = SqttGfx10RegMaskDefault;
+                SetSqttTokenExclude(*m_pDevice, &m_sqtt[realInstance].tokenMask, SqttGfx10TokenMaskDefault);
+                m_sqtt[realInstance].tokenMask.gfx10Plus.REG_INCLUDE   = SqttGfx10RegMaskDefault;
                 if (IsGfx103PlusExclusive(*m_pDevice))
                 {
-                    m_sqtt[traceInfo.instance].tokenMask.gfx103PlusExclusive.REG_EXCLUDE =
+                    m_sqtt[realInstance].tokenMask.gfx103PlusExclusive.REG_EXCLUDE =
                                                                                SqttGfx103RegExcludeMaskDefault;
                 }
             }
@@ -2614,20 +2616,8 @@ regGRBM_GFX_INDEX PerfExperiment::BuildGrbmGfxIndex(
     GpuBlock               block
     ) const
 {
-    // Determine the real SE mapping for GPUs that have harvested SE
-    uint32 seCount = 0;
-    uint32 seIndex = 0;
-    for (; seIndex < m_chipProps.gfx9.numShaderEngines; seIndex++)
-    {
-        if( (m_chipProps.gfx9.activeSeMask & (1 << seIndex)) &&
-            (mapping.seIndex == seCount++))
-        {
-            break;
-        }
-    }
-
     regGRBM_GFX_INDEX grbmGfxIndex = {};
-    grbmGfxIndex.bits.SE_INDEX  = seIndex;
+    grbmGfxIndex.bits.SE_INDEX  = VirtualSeToRealSe(mapping.seIndex);
     grbmGfxIndex.gfx09.SH_INDEX = mapping.saIndex;
 
     switch (m_counterInfo.block[static_cast<uint32>(block)].distribution)
@@ -3237,7 +3227,7 @@ uint32* PerfExperiment::WriteSelectRegisters(
         {
             // The SQ counters must be programmed while broadcasting to all SQs on the target SE. This should be
             // fine because each "SQ" instance here is really a SQG instance and there's only one in each SE.
-            pCmdSpace = WriteGrbmGfxIndexBroadcastSe(m_select.sqg[instance].grbmGfxIndex.bits.SE_INDEX,
+            pCmdSpace = WriteGrbmGfxIndexBroadcastSe(instance,
                                                      pCmdStream,
                                                      pCmdSpace);
 
@@ -3911,7 +3901,7 @@ uint32* PerfExperiment::WriteGrbmGfxIndexBroadcastSe(
     ) const
 {
     regGRBM_GFX_INDEX grbmGfxIndex = {};
-    grbmGfxIndex.bits.SE_INDEX                  = seIndex;
+    grbmGfxIndex.bits.SE_INDEX                  = VirtualSeToRealSe(seIndex);
     grbmGfxIndex.gfx09.SH_BROADCAST_WRITES      = 1;
     grbmGfxIndex.bits.INSTANCE_BROADCAST_WRITES = 1;
 
@@ -4218,5 +4208,23 @@ bool PerfExperiment::IsSqLevelEvent(
     return isLevelEvent;
 }
 
+// =====================================================================================================================
+// Needed for SE harvesting. Translate the Virtual Shader Engine that apps use to the real Hardware Shader Engine
+uint32 PerfExperiment::VirtualSeToRealSe(
+    uint32 index
+    ) const
+{
+    uint32 seCount = 0;
+    uint32 seIndex = 0;
+    for (; seIndex < m_chipProps.gfx9.numShaderEngines; seIndex++)
+    {
+        if ((m_chipProps.gfx9.activeSeMask & (1 << seIndex)) &&
+            (index == seCount++))
+        {
+            break;
+        }
+    }
+    return seIndex;
+}
 } // gfx9
 } // Pal

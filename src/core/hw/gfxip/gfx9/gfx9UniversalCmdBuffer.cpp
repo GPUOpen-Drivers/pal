@@ -255,7 +255,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     const Device&              device,
     const CmdBufferCreateInfo& createInfo)
     :
-    Pal::UniversalCmdBuffer(device,
+    Pal::Pm4::UniversalCmdBuffer(device,
                             createInfo,
                             &m_deCmdStream,
                             &m_ceCmdStream,
@@ -548,7 +548,7 @@ Result UniversalCmdBuffer::Init(
     m_vbTable.pSrds              = static_cast<BufferSrd*>(VoidPtrAlign((this + 1), alignof(BufferSrd)));
     m_vbTable.state.sizeInDwords = ((sizeof(BufferSrd) / sizeof(uint32)) * MaxVertexBuffers);
 
-    Result result = Pal::UniversalCmdBuffer::Init(internalInfo);
+    Result result = Pal::Pm4::UniversalCmdBuffer::Init(internalInfo);
 
     if (result == Result::Success)
     {
@@ -698,7 +698,7 @@ void UniversalCmdBuffer::SetUserDataValidationFunctions(
 // Resets all of the state tracked by this command buffer
 void UniversalCmdBuffer::ResetState()
 {
-    Pal::UniversalCmdBuffer::ResetState();
+    Pal::Pm4::UniversalCmdBuffer::ResetState();
 
     // Assume PAL ABI compute pipelines by default.
     SetDispatchFunctions(false);
@@ -1100,7 +1100,7 @@ void UniversalCmdBuffer::CmdBindPipeline(
         }
     }
 
-     Pal::UniversalCmdBuffer::CmdBindPipeline(params);
+     Pal::Pm4::UniversalCmdBuffer::CmdBindPipeline(params);
 }
 
 // =====================================================================================================================
@@ -1401,7 +1401,7 @@ void UniversalCmdBuffer::CmdBindIndexData(
     }
 
     // NOTE: This must come last because it updates m_graphicsState.iaState.
-    Pal::UniversalCmdBuffer::CmdBindIndexData(gpuAddr, indexCount, indexType);
+    Pal::Pm4::UniversalCmdBuffer::CmdBindIndexData(gpuAddr, indexCount, indexType);
 }
 
 // =====================================================================================================================
@@ -1442,7 +1442,7 @@ void UniversalCmdBuffer::CmdBindMsaaState(
 // =====================================================================================================================
 void UniversalCmdBuffer::CmdSaveGraphicsState()
 {
-    Pal::UniversalCmdBuffer::CmdSaveGraphicsState();
+    Pal::Pm4::UniversalCmdBuffer::CmdSaveGraphicsState();
 
     // We reset the rbplusRegHash in this cmdBuffer to 0, so that we'll definitely set the context roll state true
     // and update the values of rb+ registers through pm4 commands.
@@ -1452,7 +1452,7 @@ void UniversalCmdBuffer::CmdSaveGraphicsState()
 // =====================================================================================================================
 void UniversalCmdBuffer::CmdRestoreGraphicsState()
 {
-    Pal::UniversalCmdBuffer::CmdRestoreGraphicsState();
+    Pal::Pm4::UniversalCmdBuffer::CmdRestoreGraphicsState();
 
     // We reset the rbplusRegHash in this cmdBuffer to 0, so that we'll definitely set the context roll state true
     // and update the values of rb+ registers through pm4 commands.
@@ -2145,7 +2145,7 @@ void UniversalCmdBuffer::CmdBindTargets(
     bool validCbViewFound   = false;
     bool validAaCbViewFound = false;
 
-    TargetExtent2d surfaceExtent = { MaxScissorExtent, MaxScissorExtent }; // Default to fully open
+    Pm4::TargetExtent2d surfaceExtent = { Pm4::MaxScissorExtent, Pm4::MaxScissorExtent }; // Default to fully open
 
     // Bind all color targets.
     const uint32  colorTargetLimit   = Max(params.colorTargetCount, m_graphicsState.bindTargets.colorTargetCount);
@@ -2249,7 +2249,7 @@ void UniversalCmdBuffer::CmdBindTargets(
                                                    &m_dbRenderOverride,
                                                    pDeCmdSpace);
 
-        const TargetExtent2d depthViewExtent = pNewDepthView->GetExtent();
+        const Pm4::TargetExtent2d depthViewExtent = pNewDepthView->GetExtent();
         surfaceExtent.width  = Min(surfaceExtent.width,  depthViewExtent.width);
         surfaceExtent.height = Min(surfaceExtent.height, depthViewExtent.height);
 
@@ -2675,7 +2675,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
     const auto&  cmdUtil  = pThis->m_device.CmdUtil();
     uint32       numDraws = 0;
 
-    ValidateDrawInfo drawInfo;
+    Pm4::ValidateDrawInfo drawInfo;
     drawInfo.vtxIdxCount       = vertexCount;
     drawInfo.instanceCount     = instanceCount;
     drawInfo.firstVertex       = firstVertex;
@@ -2767,7 +2767,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
     auto*  pThis    = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
     uint32 numDraws = 0;
 
-    ValidateDrawInfo drawInfo;
+    Pm4::ValidateDrawInfo drawInfo;
     drawInfo.vtxIdxCount       = 0;
     drawInfo.instanceCount     = instanceCount;
     drawInfo.firstVertex       = 0;
@@ -2880,7 +2880,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
     auto*  pThis    = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
     uint32 numDraws = 0;
 
-    ValidateDrawInfo drawInfo;
+    Pm4::ValidateDrawInfo drawInfo;
     drawInfo.vtxIdxCount       = indexCount;
     drawInfo.instanceCount     = instanceCount;
     drawInfo.firstVertex       = vertexOffset;
@@ -3028,7 +3028,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
     PAL_ASSERT((countGpuAddr != 0) ||
                (offset + (sizeof(DrawIndirectArgs) * maximumCount) <= gpuMemory.Desc().size));
 
-    ValidateDrawInfo drawInfo;
+    Pm4::ValidateDrawInfo drawInfo;
     drawInfo.vtxIdxCount       = 0;
     drawInfo.instanceCount     = 0;
     drawInfo.firstVertex       = 0;
@@ -3148,7 +3148,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
     PAL_ASSERT((countGpuAddr != 0) ||
                (offset + (sizeof(DrawIndexedIndirectArgs) * maximumCount) <= gpuMemory.Desc().size));
 
-    ValidateDrawInfo drawInfo;
+    Pm4::ValidateDrawInfo drawInfo;
     drawInfo.vtxIdxCount       = 0;
     drawInfo.instanceCount     = 0;
     drawInfo.firstVertex       = 0;
@@ -3463,7 +3463,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshAmpFastLaunch(
 {
     auto*const pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
-    ValidateDrawInfo drawInfo;
+    Pm4::ValidateDrawInfo drawInfo;
     drawInfo.vtxIdxCount       = 0;
     drawInfo.instanceCount     = 1;
     drawInfo.firstVertex       = 0;
@@ -3567,7 +3567,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshIndirectMulti(
 
     auto*const pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
-    constexpr ValidateDrawInfo DrawInfo = { };
+    constexpr Pm4::ValidateDrawInfo DrawInfo = { };
     pThis->ValidateDraw<false, true>(DrawInfo);
 
     // Issue the DescribeDraw here, after ValidateDraw so that the user data locations are mapped, as they are
@@ -3734,7 +3734,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshTask(
 
     // Validate the draw after signaling the semaphore, so that register writes for validation can be overlapped with
     // the ACE engine launching the first task shader waves.
-    ValidateDrawInfo drawInfo = {};
+    Pm4::ValidateDrawInfo drawInfo = {};
     drawInfo.vtxIdxCount      = 0;
     drawInfo.instanceCount    = 0;
     drawInfo.firstVertex      = 0;
@@ -3909,7 +3909,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchMeshIndirectMultiTask(
 
     // Validate the draw after signaling the semaphore, so that register writes for validation can be overlapped with
     // the ACE engine launching the first task shader waves.
-    ValidateDrawInfo drawInfo = {};
+    Pm4::ValidateDrawInfo drawInfo = {};
     drawInfo.vtxIdxCount      = 0;
     drawInfo.instanceCount    = 0;
     drawInfo.firstVertex      = 0;
@@ -5364,7 +5364,7 @@ uint32* UniversalCmdBuffer::ValidateComputeUserData(
 // if immediate mode pm4 optimization is enabled before calling the real ValidateDraw() function.
 template <bool Indexed, bool Indirect>
 void UniversalCmdBuffer::ValidateDraw(
-    const ValidateDrawInfo& drawInfo)      // Draw info
+    const Pm4::ValidateDrawInfo& drawInfo)      // Draw info
 {
     if (m_deCmdStream.Pm4OptimizerEnabled())
     {
@@ -5381,7 +5381,7 @@ void UniversalCmdBuffer::ValidateDraw(
 // if the pipeline is dirty before calling the real ValidateDraw() function.
 template <bool Indexed, bool Indirect, bool Pm4OptImmediate>
 void UniversalCmdBuffer::ValidateDraw(
-    const ValidateDrawInfo& drawInfo)
+    const Pm4::ValidateDrawInfo & drawInfo)
 {
     const auto&  dirtyFlags = m_graphicsState.dirtyFlags.validationBits;
 
@@ -5499,8 +5499,8 @@ void UniversalCmdBuffer::ValidateDraw(
 // if any interesting state is dirty before calling the real ValidateDraw() function.
 template <bool Indexed, bool Indirect, bool Pm4OptImmediate, bool PipelineDirty>
 uint32* UniversalCmdBuffer::ValidateDraw(
-    const ValidateDrawInfo& drawInfo,
-    uint32*                 pDeCmdSpace)
+    const Pm4::ValidateDrawInfo& drawInfo,
+    uint32*                      pDeCmdSpace)
 {
     // Strictly speaking, paScModeCntl1 is not similar dirty bits as tracked in validationBits. However for best CPU
     // performance in <PipelineDirty=false, StateDirty=false> path, manually make it as part of StateDirty path as
@@ -5525,8 +5525,8 @@ uint32* UniversalCmdBuffer::ValidateDraw(
 // if the pipeline is NGG before calling the real ValidateDraw() function.
 template <bool Indexed, bool Indirect, bool Pm4OptImmediate, bool PipelineDirty, bool StateDirty>
 uint32* UniversalCmdBuffer::ValidateDraw(
-    const ValidateDrawInfo& drawInfo,
-    uint32*                 pDeCmdSpace)
+    const Pm4::ValidateDrawInfo& drawInfo,
+    uint32*                      pDeCmdSpace)
 {
     if (IsNggEnabled())
     {
@@ -5945,8 +5945,8 @@ template <bool Indexed,
           bool StateDirty,
           bool IsNgg>
 uint32* UniversalCmdBuffer::ValidateDraw(
-    const ValidateDrawInfo& drawInfo,      // Draw info
-    uint32*                 pDeCmdSpace)   // Write new draw-engine commands here.
+    const Pm4::ValidateDrawInfo& drawInfo,      // Draw info
+    uint32*                      pDeCmdSpace)   // Write new draw-engine commands here.
 {
     const auto*const pBlendState = static_cast<const ColorBlendState*>(m_graphicsState.pColorBlendState);
     const auto*const pDepthState = static_cast<const DepthStencilState*>(m_graphicsState.pDepthStencilState);
@@ -7451,9 +7451,9 @@ uint32 UniversalCmdBuffer::CalcGeCntl(
 // in pDeCmdSpace.
 template <bool Indexed, bool Indirect, bool Pm4OptImmediate>
 uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
-    regPA_SC_MODE_CNTL_1          paScModeCntl1,         // PA_SC_MODE_CNTL_1 register value.
-    const ValidateDrawInfo&       drawInfo,              // Draw info
-    uint32*                       pDeCmdSpace)           // Write new draw-engine commands here.
+    regPA_SC_MODE_CNTL_1         paScModeCntl1,         // PA_SC_MODE_CNTL_1 register value.
+    const Pm4::ValidateDrawInfo& drawInfo,              // Draw info
+    uint32*                      pDeCmdSpace)           // Write new draw-engine commands here.
 {
     if ((m_drawTimeHwState.vgtMultiPrimIbResetEn.u32All != m_vgtMultiPrimIbResetEn.u32All) ||
         (m_drawTimeHwState.valid.vgtMultiPrimIbResetEn == 0))
@@ -8220,7 +8220,7 @@ void UniversalCmdBuffer::DeactivateQueryType(
     }
 
     // Call base function
-    Pal::UniversalCmdBuffer::DeactivateQueryType(queryPoolType);
+    Pal::Pm4::UniversalCmdBuffer::DeactivateQueryType(queryPoolType);
 }
 
 // =====================================================================================================================
@@ -8258,7 +8258,7 @@ void UniversalCmdBuffer::ActivateQueryType(
     }
 
     // Call base class function
-    Pal::UniversalCmdBuffer::ActivateQueryType(queryPoolType);
+    Pal::Pm4::UniversalCmdBuffer::ActivateQueryType(queryPoolType);
 }
 
 // =====================================================================================================================
@@ -8326,8 +8326,8 @@ uint32* UniversalCmdBuffer::UpdateDbCountControl(
 // =====================================================================================================================
 // Returns true if the current command buffer state requires WD_SWITCH_ON_EOP=1, or if a HW workaround necessitates it.
 bool UniversalCmdBuffer::ForceWdSwitchOnEop(
-    const GraphicsPipeline& pipeline,
-    const ValidateDrawInfo& drawInfo
+    const GraphicsPipeline&      pipeline,
+    const Pm4::ValidateDrawInfo& drawInfo
 ) const
 {
     // We need switch on EOP if primitive restart is enabled or if our primitive topology cannot be split between IAs.
@@ -8398,9 +8398,9 @@ uint32* UniversalCmdBuffer::FlushStreamOut(
 // =====================================================================================================================
 // Set all specified state on this command buffer.
 void UniversalCmdBuffer::SetGraphicsState(
-    const GraphicsState& newGraphicsState)
+    const Pm4::GraphicsState& newGraphicsState)
 {
-    Pal::UniversalCmdBuffer::SetGraphicsState(newGraphicsState);
+    Pal::Pm4::UniversalCmdBuffer::SetGraphicsState(newGraphicsState);
 
     if (newGraphicsState.colorWriteMask != UINT_MAX)
     {
@@ -9263,7 +9263,7 @@ void UniversalCmdBuffer::ExecuteIndirectPacket(
     const auto& gfx9Generator = static_cast<const IndirectCmdGenerator&>(generator);
 
     // The generation of indirect commands is determined by the currently-bound pipeline.
-    const PipelineBindPoint bindPoint    = ((gfx9Generator.Type() == GeneratorType::Dispatch) ?
+    const PipelineBindPoint bindPoint    = ((gfx9Generator.Type() == Pm4::GeneratorType::Dispatch) ?
                                            PipelineBindPoint::Compute                         :
                                            PipelineBindPoint::Graphics);
     const auto*             pGfxPipeline =
@@ -9290,14 +9290,14 @@ void UniversalCmdBuffer::ExecuteIndirectPacket(
 
         if (isGfx)
         {
-            ValidateDrawInfo drawInfo;
+            Pm4::ValidateDrawInfo drawInfo;
             drawInfo.vtxIdxCount   = 0;
             drawInfo.instanceCount = 0;
             drawInfo.firstVertex   = 0;
             drawInfo.firstInstance = 0;
             drawInfo.firstIndex    = 0;
             drawInfo.useOpaque     = false;
-            if (gfx9Generator.ContainsIndexBufferBind() || (gfx9Generator.Type() == GeneratorType::Draw))
+            if (gfx9Generator.ContainsIndexBufferBind() || (gfx9Generator.Type() == Pm4::GeneratorType::Draw))
             {
                 ValidateDraw<false, true>(drawInfo);
             }
@@ -9368,9 +9368,9 @@ void UniversalCmdBuffer::ExecuteIndirectPacket(
         // executing.
         if (isGfx)
         {
-            if ((gfx9Generator.Type() == GeneratorType::Draw) ||
-                (gfx9Generator.Type() == GeneratorType::DrawIndexed) ||
-                (gfx9Generator.Type() == GeneratorType::DispatchMesh))
+            if ((gfx9Generator.Type() == Pm4::GeneratorType::Draw) ||
+                (gfx9Generator.Type() == Pm4::GeneratorType::DrawIndexed) ||
+                (gfx9Generator.Type() == Pm4::GeneratorType::DispatchMesh))
             {
                 // Command generators which issue non-indexed draws generate DRAW_INDEX_AUTO packets, which will
                 // invalidate some of our draw-time HW state. SEE: CmdDraw() for more details.
@@ -9403,7 +9403,7 @@ void UniversalCmdBuffer::ExecuteIndirectShader(
     const auto& gfx9Generator = static_cast<const IndirectCmdGenerator&>(generator);
 
     // The generation of indirect commands is determined by the currently-bound pipeline.
-    const PipelineBindPoint bindPoint     = ((gfx9Generator.Type() == GeneratorType::Dispatch) ?
+    const PipelineBindPoint bindPoint     = ((gfx9Generator.Type() == Pm4::GeneratorType::Dispatch) ?
                                              PipelineBindPoint::Compute : PipelineBindPoint::Graphics);
     const bool              setViewId     = (bindPoint == PipelineBindPoint::Graphics);
     const auto* const        pGfxPipeline =
@@ -9427,7 +9427,7 @@ void UniversalCmdBuffer::ExecuteIndirectShader(
     AutoBuffer<CmdStreamChunk*, 16, Platform> deChunks(maximumCount, m_device.GetPlatform());
     AutoBuffer<CmdStreamChunk*, 16, Platform> aceChunks(maximumCount, m_device.GetPlatform());
 
-    const bool isTaskEnabled = ((gfx9Generator.Type() == GeneratorType::DispatchMesh) &&
+    const bool isTaskEnabled = ((gfx9Generator.Type() == Pm4::GeneratorType::DispatchMesh) &&
                                 pGfxPipeline->HasTaskShader());
 
     const bool cmdGenUseAce = (m_cachedSettings.supportAceOffload &&
@@ -9473,7 +9473,7 @@ void UniversalCmdBuffer::ExecuteIndirectShader(
             const uint32 numChunksExecuted = numGenChunks;
             m_pm4CmdBufState.flags.packetPredicate = 0;
 
-            const GenerateInfo genInfo =
+            const Pm4::GenerateInfo genInfo =
             {
                 this,
                 (bindPoint == PipelineBindPoint::Graphics)
@@ -9556,14 +9556,14 @@ void UniversalCmdBuffer::ExecuteIndirectShader(
                 // generate the commands to bind their own index buffer state, our draw-time validation could be
                 // redundant. Therefore, pretend this is a non-indexed draw call if the generated command binds
                 // its own index buffer(s).
-                ValidateDrawInfo drawInfo;
+                Pm4::ValidateDrawInfo drawInfo;
                 drawInfo.vtxIdxCount   = 0;
                 drawInfo.instanceCount = 0;
                 drawInfo.firstVertex   = 0;
                 drawInfo.firstInstance = 0;
                 drawInfo.firstIndex    = 0;
                 drawInfo.useOpaque     = false;
-                if (gfx9Generator.ContainsIndexBufferBind() || (gfx9Generator.Type() == GeneratorType::Draw))
+                if (gfx9Generator.ContainsIndexBufferBind() || (gfx9Generator.Type() == Pm4::GeneratorType::Draw))
                 {
                     ValidateDraw<false, true>(drawInfo);
                 }
@@ -9609,9 +9609,9 @@ void UniversalCmdBuffer::ExecuteIndirectShader(
             // have finished.
             if (bindPoint == PipelineBindPoint::Graphics)
             {
-                if ((gfx9Generator.Type() == GeneratorType::Draw) ||
-                    (gfx9Generator.Type() == GeneratorType::DrawIndexed) ||
-                    ((gfx9Generator.Type() == GeneratorType::DispatchMesh) && (isTaskEnabled == false)))
+                if ((gfx9Generator.Type() == Pm4::GeneratorType::Draw) ||
+                    (gfx9Generator.Type() == Pm4::GeneratorType::DrawIndexed) ||
+                    ((gfx9Generator.Type() == Pm4::GeneratorType::DispatchMesh) && (isTaskEnabled == false)))
                 {
                     // Command generators which issue non-indexed draws generate DRAW_INDEX_AUTO packets, which will
                     // invalidate some of our draw-time HW state. SEE: CmdDraw() for more details.
@@ -9763,7 +9763,7 @@ void UniversalCmdBuffer::CmdNop(
 
 // =====================================================================================================================
 void UniversalCmdBuffer::GetChunkForCmdGeneration(
-    const Pal::IndirectCmdGenerator& generator,
+    const Pm4::IndirectCmdGenerator& generator,
     const Pal::Pipeline&             pipeline,
     uint32                           maxCommands,
     uint32                           numChunkOutputs,
@@ -9776,7 +9776,7 @@ void UniversalCmdBuffer::GetChunkForCmdGeneration(
     PAL_ASSERT(m_pCmdAllocator != nullptr);
     PAL_ASSERT((numChunkOutputs > 0) && (numChunkOutputs <= 2));
 
-    const GfxCmdStream* pStreams[] =
+    const Pm4::CmdStream* pStreams[] =
     {
         &m_deCmdStream,
         m_pAceCmdStream,
@@ -9784,7 +9784,7 @@ void UniversalCmdBuffer::GetChunkForCmdGeneration(
 
     for (uint32 i = 0; i < numChunkOutputs; i++)
     {
-        const GfxCmdStream* pStream   = pStreams[i];
+        const Pm4::CmdStream* pStream = pStreams[i];
         ChunkOutput* pOutput          = &pChunkOutputs[i];
 
         pOutput->pChunk = Pal::Pm4CmdBuffer::GetNextGeneratedChunk();
@@ -9793,7 +9793,7 @@ void UniversalCmdBuffer::GetChunkForCmdGeneration(
         bool usesVertexBufTable        = false;
         uint32 spillThreshold          = NoUserDataSpilling;
 
-        if (generator.Type() == GeneratorType::Dispatch)
+        if (generator.Type() == Pm4::GeneratorType::Dispatch)
         {
             const auto& signature = static_cast<const ComputePipeline&>(pipeline).Signature();
             spillThreshold        = signature.spillThreshold;
@@ -9886,7 +9886,7 @@ void UniversalCmdBuffer::GetChunkForCmdGeneration(
 void UniversalCmdBuffer::LeakNestedCmdBufferState(
     const UniversalCmdBuffer& cmdBuffer)
 {
-    Pal::UniversalCmdBuffer::LeakNestedCmdBufferState(cmdBuffer);
+    Pal::Pm4::UniversalCmdBuffer::LeakNestedCmdBufferState(cmdBuffer);
 
     if (cmdBuffer.m_graphicsState.pipelineState.pPipeline != nullptr)
     {
@@ -10021,6 +10021,9 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     m_pm4CmdBufState.flags.cpMemoryWriteL2CacheStale = cmdBuffer.m_pm4CmdBufState.flags.cpMemoryWriteL2CacheStale;
     m_pm4CmdBufState.flags.rasterKillDrawsActive     = cmdBuffer.m_pm4CmdBufState.flags.rasterKillDrawsActive;
 
+    m_pSignatureCs = cmdBuffer.m_pSignatureCs;
+    m_pSignatureGfx = cmdBuffer.m_pSignatureGfx;
+
     // Invalidate PM4 optimizer state on post-execute since the current command buffer state does not reflect
     // state changes from the nested command buffer. We will need to resolve the nested PM4 state onto the
     // current command buffer for this to work correctly.
@@ -10133,7 +10136,7 @@ void UniversalCmdBuffer::CmdSetClipRects(
     uint32      rectCount,
     const Rect* pRectList)
 {
-    PAL_ASSERT(rectCount <= MaxClipRects);
+    PAL_ASSERT(rectCount <= Pm4::MaxClipRects);
 
     m_graphicsState.clipRectsState.clipRule  = clipRule;
     m_graphicsState.clipRectsState.rectCount = rectCount;
@@ -10153,7 +10156,7 @@ void UniversalCmdBuffer::CmdSetClipRects(
         {
             regPA_SC_CLIPRECT_0_TL tl;
             regPA_SC_CLIPRECT_0_BR br;
-        } paScClipRect[MaxClipRects];
+        } paScClipRect[Pm4::MaxClipRects];
     } regs; // Intentionally not initialized!
 
     regs.paScClipRectRule.u32All = 0;
@@ -10394,7 +10397,7 @@ void UniversalCmdBuffer::P2pBltWaCopyBegin(
         m_deCmdStream.CommitCommands(pCmdSpace);
     }
 
-    Pal::UniversalCmdBuffer::P2pBltWaCopyBegin(pDstMemory, regionCount, pChunkAddrs);
+    Pal::Pm4::UniversalCmdBuffer::P2pBltWaCopyBegin(pDstMemory, regionCount, pChunkAddrs);
 }
 
 // =====================================================================================================================
@@ -10410,7 +10413,7 @@ void UniversalCmdBuffer::P2pBltWaCopyNextRegion(
         P2pBltWaSync();
     }
 
-    Pal::UniversalCmdBuffer::P2pBltWaCopyNextRegion(chunkAddr);
+    Pal::Pm4::UniversalCmdBuffer::P2pBltWaCopyNextRegion(chunkAddr);
 }
 
 // =====================================================================================================================
@@ -10419,7 +10422,7 @@ void UniversalCmdBuffer::P2pBltWaCopyEnd()
 {
     P2pBltWaSync();
 
-    Pal::UniversalCmdBuffer::P2pBltWaCopyEnd();
+    Pal::Pm4::UniversalCmdBuffer::P2pBltWaCopyEnd();
 
     if (m_device.Parent()->IsPreemptionSupported(EngineType::EngineTypeUniversal))
     {
@@ -10763,7 +10766,7 @@ void UniversalCmdBuffer::WritePerDrawVrsRate(
 void UniversalCmdBuffer::CmdSetPerDrawVrsRate(
     const VrsRateParams&  rateParams)
 {
-    Pal::UniversalCmdBuffer::CmdSetPerDrawVrsRate(rateParams);
+    Pal::Pm4::UniversalCmdBuffer::CmdSetPerDrawVrsRate(rateParams);
 
     if (m_cachedSettings.supportsVrs)
     {
@@ -10788,7 +10791,7 @@ void UniversalCmdBuffer::CmdSetVrsCenterState(
     const VrsCenterState&  centerState)
 {
     // Record the state so that we can restore it after RPM operations.
-    Pal::UniversalCmdBuffer::CmdSetVrsCenterState(centerState);
+    Pal::Pm4::UniversalCmdBuffer::CmdSetVrsCenterState(centerState);
 
     if (m_cachedSettings.supportsVrs)
     {
@@ -10855,7 +10858,7 @@ void UniversalCmdBuffer::CmdBindSampleRateImage(
         ((pImage == nullptr) != (m_graphicsState.pVrsImage == nullptr));
 
     // Independent layer records the source image and marks our command buffer state as dirty.
-    Pal::UniversalCmdBuffer::CmdBindSampleRateImage(pImage);
+    Pal::Pm4::UniversalCmdBuffer::CmdBindSampleRateImage(pImage);
 
     // Nothing else to do here; we don't know which depth buffer is going to be bound for the upcoming draw
     // yet, so we don't have a destination for the source image data (yet).

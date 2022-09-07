@@ -30,7 +30,11 @@
 namespace Pal
 {
 
+namespace Pm4
+{
 struct GraphicsState;
+struct ValidateDrawInfo;
+}
 
 namespace Gfx6
 {
@@ -49,14 +53,14 @@ public:
     ~WorkaroundState() {}
 
     template <bool indirect, bool stateDirty>
-    uint32* PreDraw(const GraphicsState&    gfxState,
-                    CmdStream&              deCmdStream,
-                    regIA_MULTI_VGT_PARAM   iaMultiVgtParam,
-                    const ValidateDrawInfo& drawInfo,
-                    uint32*                 pCmdSpace);
+    uint32* PreDraw(const Pm4::GraphicsState&    gfxState,
+                    CmdStream&                   deCmdStream,
+                    Chip::regIA_MULTI_VGT_PARAM  iaMultiVgtParam,
+                    const Pm4::ValidateDrawInfo& drawInfo,
+                    uint32*                      pCmdSpace);
 
-    uint32* PostDraw(const GraphicsState& gfxState,
-                     uint32*              pCmdSpace);
+    uint32* PostDraw(const Pm4::GraphicsState& gfxState,
+                     uint32*                   pCmdSpace);
 
     void Reset();
 

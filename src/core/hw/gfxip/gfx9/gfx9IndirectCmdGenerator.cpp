@@ -111,7 +111,7 @@ IndirectCmdGenerator::IndirectCmdGenerator(
     const Device&                         device,
     const IndirectCmdGeneratorCreateInfo& createInfo)
     :
-    Pal::IndirectCmdGenerator(device, createInfo),
+    Pm4::IndirectCmdGenerator(device, createInfo),
     m_bindsIndexBuffer(false),
     m_usingExecuteIndirectPacket(false),
     m_pParamData(reinterpret_cast<IndirectParamData*>(this + 1)),
@@ -182,7 +182,7 @@ Result IndirectCmdGenerator::BindGpuMemory(
     IGpuMemory* pGpuMemory,
     gpusize     offset)
 {
-    Result result = Pal::IndirectCmdGenerator::BindGpuMemory(pGpuMemory, offset);
+    Result result = Pm4::IndirectCmdGenerator::BindGpuMemory(pGpuMemory, offset);
     if ((result == Result::Success) && (m_cmdSizeNeedPipeline == false))
     {
         const uint32 paddedParamCount = PaddedParamCount(ParameterCount());
@@ -222,7 +222,7 @@ Result IndirectCmdGenerator::BindGpuMemory(
 
 // =====================================================================================================================
 uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
-    GeneratorType        type,
+    Pm4::GeneratorType   type,
     IndirectOpType       opType,
     const IndirectParam& param
     ) const
@@ -252,8 +252,8 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
         numHwStages++;
     }
 
-    const uint32 shaderStageCount = ((type == GeneratorType::Dispatch) ? 1 : numHwStages);
-    PAL_ASSERT((type != GeneratorType::Dispatch) || (param.userDataShaderUsage == ApiShaderStageCompute));
+    const uint32 shaderStageCount = ((type == Pm4::GeneratorType::Dispatch) ? 1 : numHwStages);
+    PAL_ASSERT((type != Pm4::GeneratorType::Dispatch) || (param.userDataShaderUsage == ApiShaderStageCompute));
 
     uint32 size = 0;
     switch (opType)
@@ -265,15 +265,16 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
         }
         else
         {
-            // DRAW_INDEX_AUTO operations generate the following PM4 packets in the worst case:
-            //  + SET_SH_REG (2 registers)
-            //  + SET_SH_REG (1 register)
-            //  + NUM_INSTANCES
-            //  + DRAW_INDEX_AUTO
-            size = (CmdUtil::ShRegSizeDwords + 2) +
-                   (CmdUtil::ShRegSizeDwords + 1) +
-                   CmdUtil::NumInstancesDwords    +
-                   CmdUtil::DrawIndexAutoSize;
+            // We must check the Generator Type in case we're using IndirectOpType::DrawIndexAuto to launch
+            // Mesh Shaders on Gfx103.
+            if (type == Pm4::GeneratorType::DispatchMesh)
+            {
+                size = Gfx10DispatchMeshCmdBufSize;
+            }
+            else
+            {
+                size = DrawIndexAutoCmdBufSize;
+            }
         }
         break;
     case IndirectOpType::DrawIndex2:
@@ -283,17 +284,7 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
         }
         else
         {
-            // DRAW_INDEX_2 operations generate the following PM4 packets in the worst case:
-            //  + SET_SH_REG (2 registers)
-            //  + SET_SH_REG (1 register)
-            //  + NUM_INSTANCES
-            //  + INDEX_TYPE
-            //  + DRAW_INDEX_2
-            size = (CmdUtil::ShRegSizeDwords + 2)     +
-                   (CmdUtil::ShRegSizeDwords + 1)     +
-                   CmdUtil::NumInstancesDwords        +
-                   (CmdUtil::ConfigRegSizeDwords + 1) +
-                   CmdUtil::DrawIndex2Size;
+            size = DrawIndex2CmdBufSize;
         }
         break;
     case IndirectOpType::DrawIndexOffset2:
@@ -303,23 +294,11 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
         }
         else
         {
-            // DRAW_INDEX_OFFSET_2 operations generate the following PM4 packets in the worst case:
-            //  + SET_SH_REG (2 registers)
-            //  + SET_SH_REG (1 register)
-            //  + NUM_INSTANCES
-            //  + DRAW_INDEX_OFFSET_2
-            size = (CmdUtil::ShRegSizeDwords + 2) +
-                   (CmdUtil::ShRegSizeDwords + 1) +
-                   CmdUtil::NumInstancesDwords    +
-                   CmdUtil::DrawIndexOffset2Size;
+            size = DrawIndexOffset2CmdBufSize;
         }
         break;
     case IndirectOpType::Dispatch:
-        // DISPATCH operations generate the following PM4 packets in the worst case:
-        //  + SET_SH_REG (2 registers)
-        //  + DISPATCH_DIRECT
-        size = (CmdUtil::ShRegSizeDwords + 2) +
-                CmdUtil::DispatchDirectSize;
+        size = DispatchCmdBufSize;
         break;
     case IndirectOpType::SetUserData:
         if (m_usingExecuteIndirectPacket)
@@ -341,27 +320,6 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
         break;
     case IndirectOpType::Skip:
         // INDIRECT_TABLE_SRD and SKIP operations don't directly generate any PM4 packets.
-        break;
-    case IndirectOpType::DispatchMesh:
-        // DISPATCH_MESH operations handle both mesh-only pipelines and task+mesh pipelines.
-        // In the case of mesh-only piplines we generate the following in the worst case:
-        //  + SET_SH_REG (3 registers)
-        //  + SET_SH_REG (1 register)
-        //  + NUM_INSTANCES
-        //  + DRAW_INDEX_AUTO
-        // For task+mesh pipelines, we generate the following on the gfx cmdStream:
-        //  + DISPATCH_TASKMESH_GFX
-        // For the ace cmdStream, we generate the following:
-        //  + SET_SH_REG (3 registers)
-        //  + DISPATCH_TASKMESH_DIRECT_ACE
-
-        size = Max((CmdUtil::ShRegSizeDwords + 3) +
-                   (CmdUtil::ShRegSizeDwords + 1) +
-                   CmdUtil::NumInstancesDwords    +
-                   CmdUtil::DrawIndexAutoSize,
-                   Max((CmdUtil::ShRegSizeDwords + 3) +
-                       CmdUtil::DispatchTaskMeshDirectMecSize,
-                       CmdUtil::DispatchTaskMeshGfxSize));
         break;
     default:
         PAL_NOT_IMPLEMENTED();
@@ -449,7 +407,7 @@ void IndirectCmdGenerator::InitParamBuffer(
                 m_pParamData[p].data[0] = argBufOffsetIndices;
                 break;
             case IndirectParamType::DispatchMesh:
-                m_pParamData[p].type = IndirectOpType::DispatchMesh;
+                m_pParamData[p].type    = IndirectOpType::DrawIndexAuto;
                 break;
             case IndirectParamType::SetUserData:
                 m_pParamData[p].type    = IndirectOpType::SetUserData;
@@ -460,11 +418,9 @@ void IndirectCmdGenerator::InitParamBuffer(
                 m_properties.userDataWatermark = Max((param.userData.firstEntry + param.userData.entryCount),
                                                      m_properties.userDataWatermark);
                 // Also, we need to track the mask of which user-data entries this command-generator touches.
-                for (uint32 e = 0; e < param.userData.entryCount; ++e)
-                {
-                    WideBitfieldSetBit(m_touchedUserData, (e + param.userData.firstEntry));
-                }
-                if (Type() != GeneratorType::Dispatch)
+                WideBitfieldSetRange(m_touchedUserData, param.userData.firstEntry, param.userData.entryCount);
+
+                if (Type() != Pm4::GeneratorType::Dispatch)
                 {
                     m_cmdSizeNeedPipeline = true;
                 }
@@ -502,9 +458,10 @@ void IndirectCmdGenerator::PopulateParameterBuffer(
     void*           pSrd
     ) const
 {
-    if (m_cmdSizeNeedPipeline)
+    if (m_cmdSizeNeedPipeline
+       )
     {
-        PAL_ASSERT(Type() != GeneratorType::Dispatch);
+        PAL_ASSERT(Type() != Pm4::GeneratorType::Dispatch);
         const auto& signature = static_cast<const GraphicsPipeline*>(pPipeline)->Signature();
         const uint32 paddedParamCount = PaddedParamCount(ParameterCount());
 
@@ -545,6 +502,7 @@ void IndirectCmdGenerator::PopulateParameterBuffer(
                 uint32 size = (CmdUtil::ShRegSizeDwords + param.userData.entryCount) * numHwStages;
                 pData[p].cmdBufSize = sizeof(uint32) * size;
             }
+
             pData[p].cmdBufOffset = cmdBufOffset;
             cmdBufOffset += pData[p].cmdBufSize;
         }
@@ -563,8 +521,8 @@ uint32 IndirectCmdGenerator::CmdBufStride(
     ) const
 {
     uint32  cmdBufStride = 0;
-
-    if (m_cmdSizeNeedPipeline)
+    if (m_cmdSizeNeedPipeline
+       )
     {
         const auto& signature = static_cast<const GraphicsPipeline*>(pPipeline)->Signature();
 
@@ -615,7 +573,8 @@ void IndirectCmdGenerator::PopulatePropertyBuffer(
     void*           pSrd
     ) const
 {
-    if (m_cmdSizeNeedPipeline)
+    if (m_cmdSizeNeedPipeline
+       )
     {
         BufferViewInfo viewInfo = { };
         viewInfo.stride        = (sizeof(uint32) * 4);
@@ -624,8 +583,9 @@ void IndirectCmdGenerator::PopulatePropertyBuffer(
         viewInfo.swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-        GeneratorProperties* pData = reinterpret_cast<GeneratorProperties*>(pCmdBuffer->CmdAllocateEmbeddedData(
-            static_cast<uint32>(viewInfo.range) / sizeof(uint32), 1, &viewInfo.gpuAddr));
+        Pm4::GeneratorProperties* pData = reinterpret_cast<Pm4::GeneratorProperties*>(
+            pCmdBuffer->CmdAllocateEmbeddedData(static_cast<uint32>(viewInfo.range) /
+                                                sizeof(uint32), 1, &viewInfo.gpuAddr));
         memcpy(pData, &m_properties, sizeof(m_properties));
         pData->cmdBufStride = CmdBufStride(pPipeline);
 
@@ -650,14 +610,14 @@ void IndirectCmdGenerator::PopulateInvocationBuffer(
 {
     BufferViewInfo viewInfo = { };
     viewInfo.stride         = (sizeof(uint32) * 4);
-    viewInfo.range          = sizeof(InvocationProperties);
+    viewInfo.range          = sizeof(Pm4::InvocationProperties);
 
     viewInfo.swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Uint;
     viewInfo.swizzledFormat.swizzle =
         { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-    auto*const pData = reinterpret_cast<InvocationProperties*>(pCmdBuffer->CmdAllocateEmbeddedData(
-        (sizeof(InvocationProperties) / sizeof(uint32)),
+    auto*const pData = reinterpret_cast<Pm4::InvocationProperties*>(pCmdBuffer->CmdAllocateEmbeddedData(
+        (sizeof(Pm4::InvocationProperties) / sizeof(uint32)),
         1,
         &viewInfo.gpuAddr));
     PAL_ASSERT(pData != nullptr);
@@ -667,12 +627,12 @@ void IndirectCmdGenerator::PopulateInvocationBuffer(
     pData->argumentBufAddr[0] = LowPart(argsGpuAddr);
     pData->argumentBufAddr[1] = HighPart(argsGpuAddr);
 
-    if ((Type() == GeneratorType::Dispatch) || ((Type() == GeneratorType::DispatchMesh) && isTaskEnabled))
+    if ((Type() == Pm4::GeneratorType::Dispatch) || ((Type() == Pm4::GeneratorType::DispatchMesh) && isTaskEnabled))
     {
         bool csWave32              = false;
         bool disablePartialPreempt = false;
 
-        if (Type() == GeneratorType::Dispatch)
+        if (Type() == Pm4::GeneratorType::Dispatch)
         {
             const ComputePipeline* pCsPipeline = static_cast<const ComputePipeline*>(pPipeline);
             csWave32              = pCsPipeline->Signature().flags.isWave32;
@@ -717,7 +677,7 @@ void IndirectCmdGenerator::PopulateSignatureBuffer(
 {
     BufferViewInfo viewInfo = { };
 
-    if (Type() == GeneratorType::Dispatch)
+    if (Type() == Pm4::GeneratorType::Dispatch)
     {
         viewInfo.stride  = sizeof(ComputePipelineSignatureData);
         auto*const pData = reinterpret_cast<ComputePipelineSignatureData*>(pCmdBuffer->CmdAllocateEmbeddedData(
@@ -731,7 +691,7 @@ void IndirectCmdGenerator::PopulateSignatureBuffer(
         pData->spillThreshold       = signature.spillThreshold;
         pData->numWorkGroupsRegAddr = signature.numWorkGroupsRegAddr;
     }
-    else if (Type() == GeneratorType::DispatchMesh)
+    else if (Type() == Pm4::GeneratorType::DispatchMesh)
     {
         BufferViewInfo secondViewInfo = {};
 
@@ -809,7 +769,7 @@ void IndirectCmdGenerator::PopulateUserDataMappingBuffer(
     const UserDataEntryMap* pStage     = nullptr;
     uint32                  stageCount = 0;
 
-    if (Type() == GeneratorType::Dispatch)
+    if (Type() == Pm4::GeneratorType::Dispatch)
     {
         const auto& signature = static_cast<const ComputePipeline*>(pPipeline)->Signature();
 

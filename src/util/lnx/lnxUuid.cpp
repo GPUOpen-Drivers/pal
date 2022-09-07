@@ -29,6 +29,7 @@
 #include "util/imported/libuuid/libuuid.h"
 
 #include <random>
+#include <time.h>
 #include <unistd.h>
 
 namespace Util

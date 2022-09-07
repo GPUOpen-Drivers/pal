@@ -852,6 +852,7 @@ void Device::IssueSyncs(
         releaseInfo.dataSel   = data_sel__me_release_mem__none;
 
         pCmdSpace += m_cmdUtil.BuildReleaseMemGfx(releaseInfo, pCmdSpace);
+        pOperations->pipelineStalls.eopTsBottomOfPipe = 1;
 
         // We just handled these caches, we don't want to generate an acquire_mem that also flushes them.
         // Note that SelectReleaseMemCaches updates syncReqs.glxCaches for us.
@@ -981,12 +982,6 @@ void Device::Barrier(
     const Pm4CmdBufferStateFlags origCmdBufStateFlags = pCmdBuf->GetPm4CmdBufState().flags;
     const bool                   isGfxSupported       = pCmdBuf->IsGraphicsSupported();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 751
-    PAL_ASSERT(barrier.flags.splitBarrierEarlyPhase == 0);
-    PAL_ASSERT(barrier.flags.splitBarrierLatePhase == 0);
-    PAL_ASSERT(barrier.pSplitBarrierGpuEvent == nullptr);
-#endif
-
     // -----------------------------------------------------------------------------------------------------------------
     // -- Early image layout transitions.
     // -----------------------------------------------------------------------------------------------------------------
@@ -1109,6 +1104,7 @@ void Device::Barrier(
                 break;
             case HwPipeBottom:
                 globalSyncReqs.waitOnEopTs    = 1;
+                globalSyncReqs.pfpSyncMe      = (waitPoint == HwPipeTop);
                 break;
             case HwPipeTop:
             default:

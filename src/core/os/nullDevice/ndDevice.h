@@ -386,14 +386,14 @@ private:
     void InitOutputPaths();
 
     virtual Result QueryRawApplicationProfile(
-        const char*              pFilename,
-        const char*              pPathname,
+        const wchar_t*           pFilename,
+        const wchar_t*           pPathname,
         ApplicationProfileClient client,
         const char**             pOut) override;
 
     virtual Result EnableSppProfile(
-        const char*              pFilename,
-        const char*              pPathname) override;
+        const wchar_t* pFilename,
+        const wchar_t* pPathname) override;
 
     virtual Result SelectSppTable(
         uint32 pixelCount,

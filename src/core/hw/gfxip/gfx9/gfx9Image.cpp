@@ -469,8 +469,9 @@ Result Image::Finalize(
         useCmask              = (sharedMetadata.cmaskOffset  != 0) && (sharedMetadata.fmaskOffset != 0);
 
         // Fast-clear metadata is a must for shared DCC and HTILE. Sharing is disabled if it is not provided.
+        // however, when dcc is shared from mesa, fastClearMetaDataOffset doesn't exist for mesa, so add the filter.
         if (useDcc &&
-            (sharedMetadata.fastClearMetaDataOffset[0] == 0)
+            (sharedMetadata.fastClearMetaDataOffset[0] == 0) && (m_createInfo.flags.sharedWithMesa != 1)
             )
         {
             useDcc = false;

@@ -768,7 +768,13 @@ void ComputeCmdBuffer::AddQuery(
     QueryPoolType     queryPoolType,
     QueryControlFlags flags)
 {
-    // PIPELINE_START event was issued in the preamble, so no need to do anything here.
+    // Compute command buffers only support pipeline stat queries.
+    PAL_ASSERT(queryPoolType == QueryPoolType::PipelineStats);
+    // PIPELINE_START event may not have been issued in the preamble, so do this for safety.
+    if (IsFirstQuery(queryPoolType))
+    {
+        // This adds the required active query.
+    }
 }
 
 // =====================================================================================================================
@@ -776,7 +782,13 @@ void ComputeCmdBuffer::AddQuery(
 void ComputeCmdBuffer::RemoveQuery(
     QueryPoolType queryPoolType)
 {
-    // We're not bothering with PIPELINE_STOP events, as leaving these counters running doesn't hurt anything.
+    // Compute command buffers only support pipeline stat queries.
+    PAL_ASSERT(queryPoolType == QueryPoolType::PipelineStats);
+    // Acknowledge this PIPELINE_STOP event.
+    if (IsLastActiveQuery(queryPoolType))
+    {
+        // This will remove the active query as required.
+    }
 }
 
 // =====================================================================================================================
@@ -1058,7 +1070,7 @@ void ComputeCmdBuffer::CmdExecuteIndirectCmds(
         m_pm4CmdBufState.flags.packetPredicate = 0;
 
         constexpr uint32 DummyIndexBufSize = 0; // Compute doesn't care about the index buffer size.
-        const GenerateInfo genInfo =
+        const Pm4::GenerateInfo genInfo =
         {
             this,
             m_computeState.pipelineState.pPipeline,
@@ -1114,13 +1126,13 @@ void ComputeCmdBuffer::CmdExecuteIndirectCmds(
 
 // =====================================================================================================================
 void ComputeCmdBuffer::GetChunkForCmdGeneration(
-    const Pal::IndirectCmdGenerator& generator,
+    const Pm4::IndirectCmdGenerator& generator,
     const Pal::Pipeline&             pipeline,
     uint32                           maxCommands,
     uint32                           numChunkOutputs,
     ChunkOutput*                     pChunkOutputs)
 {
-    const GeneratorProperties&      properties = generator.Properties();
+    const Pm4::GeneratorProperties& properties = generator.Properties();
     const ComputePipelineSignature& signature  = static_cast<const ComputePipeline&>(pipeline).Signature();
 
     PAL_ASSERT(m_pCmdAllocator != nullptr);

@@ -313,6 +313,12 @@ Result CmdBuffer::Begin(
             {
                 m_buildFlags.enableExecutionMarkerSupport = 0;
             }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 757
+            if (settings.disableQueryInternalOps == true)
+            {
+                m_buildFlags.disableQueryInternalOps = 1;
+            }
+#endif
         }
     }
 
@@ -775,6 +781,19 @@ void CmdBuffer::CmdBarrier(
                 } // end check for an image that needs more validation
             }
         } // end loop through all the transitions associated with this barrier
+    }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 751
+    PAL_ASSERT(barrierInfo.flags.splitBarrierEarlyPhase == 0);
+    PAL_ASSERT(barrierInfo.flags.splitBarrierLatePhase == 0);
+    PAL_ASSERT(barrierInfo.pSplitBarrierGpuEvent == nullptr);
+#endif
+
+    PAL_ASSERT((barrierInfo.gpuEventWaitCount == 0) || (barrierInfo.ppGpuEvents != nullptr));
+
+    for (uint32 i = 0; i < barrierInfo.gpuEventWaitCount; i++)
+    {
+        PAL_ASSERT(barrierInfo.ppGpuEvents[i] != nullptr);
     }
 #endif
 }

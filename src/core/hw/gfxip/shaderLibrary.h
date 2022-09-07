@@ -141,6 +141,10 @@ private:
     Result InitFromCodeObjectBinary(
         const ShaderLibraryCreateInfo& createInfo);
 
+    void DumpLibraryElf(
+        Util::StringView<char> prefix,
+        Util::StringView<char> name) const;
+
     BoundGpuMemory  m_perfDataMem;
     gpusize         m_perfDataGpuMemSize;
 

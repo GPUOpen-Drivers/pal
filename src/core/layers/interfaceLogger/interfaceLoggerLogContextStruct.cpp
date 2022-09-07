@@ -676,7 +676,14 @@ void LogContext::Struct(
         Value("enableTmz");
     }
 
-    static_assert(CheckReservedBits<decltype(value.flags)>(32, 20), "Update interfaceLogger!");
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 757
+    if (value.flags.disableQueryInternalOps)
+    {
+        Value("disableQueryInternalOps");
+    }
+#endif
+
+    static_assert(CheckReservedBits<decltype(value.flags)>(32, 19), "Update interfaceLogger!");
 
     EndList();
 
@@ -1584,7 +1591,16 @@ void LogContext::Struct(
     }
 #endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 746
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 761
+    if (value.startVaHintFlag)
+    {
+        Value("startVaHintFlag");
+    }
+#endif
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 761
+    static_assert(CheckReservedBits<GpuMemoryCreateFlags>(64, 31), "Need to update interfaceLogger!");
+#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 746
     static_assert(CheckReservedBits<GpuMemoryCreateFlags>(64, 32), "Need to update interfaceLogger!");
 #endif
 

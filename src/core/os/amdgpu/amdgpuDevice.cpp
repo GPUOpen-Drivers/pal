@@ -1432,6 +1432,18 @@ static LocalMemoryType TranslateMemoryType(
             break;
         }
 
+    case AMDGPU_VRAM_TYPE_LPDDR4:
+        {
+            result = LocalMemoryType::Lpddr4;
+            break;
+        }
+
+    case AMDGPU_VRAM_TYPE_LPDDR5:
+        {
+            result = LocalMemoryType::Lpddr5;
+            break;
+        }
+
     default:
         {
             // Unhandled memory type

@@ -276,12 +276,38 @@ Result Platform::GetScreens(
 // Queries the kernel-mode driver to determine if there is a platform-wide profile for a specific application that the
 // client would like to honor. Returned in raw format.
 Result Platform::QueryRawApplicationProfile(
-    const char*              pFilename,
-    const char*              pPathname,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 759
+    const wchar_t*           pFilename,
+    const wchar_t*           pPathname,
+#else
+    const char*              pFilenameChar,
+    const char*              pPathnameChar,
+#endif
     ApplicationProfileClient client,
     const char**             pOut)
 {
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 759
     PAL_ASSERT((pFilename != nullptr) && (pOut != nullptr));
+#else
+    PAL_ASSERT((pFilenameChar != nullptr) && (pOut != nullptr));
+    PAL_ASSERT(strlen(pFilenameChar) < Util::MaxFileNameStrLen);
+
+    wchar_t pFilename[Util::MaxFileNameStrLen];
+    wchar_t pPathname[MaxPathStrLen];
+    // KMD expects wchars
+    Mbstowcs(pFilename, pFilenameChar, ArrayLen(pFilename));
+    if (pPathnameChar != nullptr)
+    {
+        PAL_ASSERT(strlen(pPathnameChar) < MaxPathStrLen);
+        Mbstowcs(pPathname, pPathnameChar, ArrayLen(pPathname));
+    }
+    else
+    {
+        // Null-terminate the string.
+        pPathname[0] = '\0';
+    }
+#endif
 
     Result result = Result::ErrorUnavailable;
 
@@ -300,10 +326,31 @@ Result Platform::QueryRawApplicationProfile(
 // Queries the kernel-mode driver to determine if there is a platform-wide spp profile for a specific application that
 // the client would like to honor.
 Result Platform::EnableSppProfile(
-    const char*              pFilename,
-    const char*              pPathname)
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 759
+    const wchar_t* pFilename,
+    const wchar_t* pPathname
+#else
+    const char*    pFilenameChar,
+    const char*    pPathnameChar
+#endif
+)
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 759
     PAL_ASSERT(pFilename != nullptr);
+#else
+    PAL_ASSERT(pFilenameChar != nullptr);
+    PAL_ASSERT(strlen(pFilenameChar) < Util::MaxFileNameStrLen);
+
+    wchar_t pFilename[Util::MaxFileNameStrLen];
+    wchar_t pPathname[Util::MaxPathStrLen];
+    // KMD expects wchars
+    Mbstowcs(pFilename, pFilenameChar, ArrayLen(pFilename));
+    if (pPathnameChar != nullptr)
+    {
+        PAL_ASSERT(strlen(pPathnameChar) < Util::MaxPathStrLen);
+        Mbstowcs(pPathname, pPathnameChar, ArrayLen(pPathname));
+    }
+#endif
 
     Result result = Result::ErrorUnavailable;
 
@@ -1039,6 +1086,19 @@ bool Platform::IsTracingEnabled() const
     isTracingEnabled |= IsDevDriverProfilingEnabled();
 
     return isTracingEnabled;
+}
+
+// =====================================================================================================================
+bool Platform::IsCrashAnalysisModeEnabled() const
+{
+    bool isCrashAnalysisModeEnabled = false;
+
+    if (m_pDriverUtilsService != nullptr)
+    {
+        isCrashAnalysisModeEnabled = m_pDriverUtilsService->IsCrashAnalysisModeEnabled();
+    }
+
+    return isCrashAnalysisModeEnabled;
 }
 
 // =====================================================================================================================

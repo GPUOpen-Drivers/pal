@@ -172,6 +172,51 @@ void Pm4CmdBuffer::ReactivateQueries()
 }
 
 // =====================================================================================================================
+// Helper function for updating user data entries and tracking flags common to different pipeline types. Specializes
+// updating a single user data entry as well as WideBitfieldSetBit* functions to set two UserDataFlags bitmasks.
+void Pm4CmdBuffer::SetUserData(
+    uint32           firstEntry,
+    uint32           entryCount,
+    UserDataEntries* pEntries,
+    const uint32*    pEntryValues)
+{
+    uint32 index       = (firstEntry / UserDataEntriesPerMask);
+    uint32 startingBit = firstEntry & (UserDataEntriesPerMask - 1);
+
+    if (entryCount == 1)
+    {
+        // Equivalent to WideBitfieldSetBit for both touched and dirty bitmasks
+        const size_t mask  = (static_cast<size_t>(1) << startingBit);
+
+        pEntries->touched[index] |= mask;
+        pEntries->dirty[index]   |= mask;
+
+        pEntries->entries[firstEntry] = pEntryValues[0];
+    }
+    else
+    {
+        // Equivalent to WideBitfieldSetRange for both touched and dirty bitmasks
+        uint32 numBits = entryCount;
+
+        while (numBits > 0)
+        {
+            const uint32 maxNumBits = UserDataEntriesPerMask - startingBit;
+            const uint32 curNumBits = (maxNumBits < numBits) ? maxNumBits : numBits;
+            const size_t bitMask    = (curNumBits == UserDataEntriesPerMask) ? -1 : ((static_cast<size_t>(1) << curNumBits) - 1);
+
+            pEntries->touched[index] |= (bitMask << startingBit);
+            pEntries->dirty[index]   |= (bitMask << startingBit);
+
+            index++;
+            startingBit  = 0;
+            numBits     -= curNumBits;
+        }
+
+        memcpy(&pEntries->entries[firstEntry], pEntryValues, entryCount * sizeof(uint32));
+    }
+}
+
+// =====================================================================================================================
 // Returns a new chunk by first searching the retained chunk list for a valid chunk then querying the command allocator
 // if there are no retained chunks available.
 CmdStreamChunk* Pm4CmdBuffer::GetNextGeneratedChunk()
@@ -640,12 +685,7 @@ void PAL_STDCALL Pm4CmdBuffer::CmdSetUserDataCs(
 
     // NOTE: Compute operations are expected to be far rarer than graphics ones, so at the moment it is not expected
     // that filtering-out redundant compute user-data updates is worthwhile.
-    for (uint32 e = firstEntry; e < (firstEntry + entryCount); ++e)
-    {
-        WideBitfieldSetBit(pEntries->touched, e);
-        WideBitfieldSetBit(pEntries->dirty, e);
-    }
-    memcpy(&pEntries->entries[firstEntry], pEntryValues, entryCount * sizeof(uint32));
+    SetUserData(firstEntry, entryCount, pEntries, pEntryValues);
 }
 
 // =====================================================================================================================
@@ -693,6 +733,20 @@ void Pm4CmdBuffer::CmdSaveComputeState(uint32 stateFlags)
         m_computeRestoreState.pipelineState.pBorderColorPalette = m_computeState.pipelineState.pBorderColorPalette;
     }
 
+    // Disable all active queries so that we don't sample internal operations in the app's query pool slots.
+    // NOTE: We don't do this for the Vulkan client because Vulkan allows blits to occur inside nested command buffers.
+    // In a nested command buffer, we don't know what value of DB_COUNT_CONTROL to restore because the query state may
+    // have been inherited from the calling command buffer. Luckily, Vulkan also states that whether blit or barrier
+    // operations affect the results of queries is implementation-defined. So, for symmetry, we'll skip disabling any
+    // active queries for blits on any Vulkan command buffer. If your test matches this criterion, starting
+    // Interface Version 757 you will need to set flag disableQueryInternalOps to False from the PanelSettings to
+    // ensure correct behavior.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 757
+    if (m_buildFlags.disableQueryInternalOps)
+    {
+        DeactivateQueries();
+    }
+#endif
 }
 
 // =====================================================================================================================
@@ -718,6 +772,13 @@ void Pm4CmdBuffer::CmdRestoreComputeState(uint32 stateFlags)
 
     UpdatePm4CmdBufCsBltExecFence();
 
+    // Reactivate all queries that we stopped in CmdSaveComputeState.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 757
+    if (m_buildFlags.disableQueryInternalOps)
+    {
+        ReactivateQueries();
+    }
+#endif
 }
 
 // =====================================================================================================================

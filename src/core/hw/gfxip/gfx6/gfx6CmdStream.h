@@ -26,7 +26,7 @@
 #pragma once
 
 #include "core/cmdStream.h"
-#include "core/hw/gfxip/gfxCmdStream.h"
+#include "core/hw/gfxip/pm4CmdStream.h"
 #include "core/hw/gfxip/gfx6/gfx6Chip.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdUtil.h"
 
@@ -49,7 +49,7 @@ struct UserDataEntryMap;
 // class has no command block concept, it simply doles out command space; however it must notify its subclasses when it
 // switches to a new command chunk so that they have a chance to chain the old chunk's final command block to the first
 // block of the new chunk.
-class CmdStream final : public Pal::GfxCmdStream
+class CmdStream final : public Pm4::CmdStream
 {
 public:
     CmdStream(

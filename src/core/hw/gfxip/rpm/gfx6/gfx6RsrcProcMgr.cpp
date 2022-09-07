@@ -352,7 +352,7 @@ const bool RsrcProcMgr::IsGfxPipelineForFormatSupported(
 
 // =====================================================================================================================
 const Pal::ComputePipeline* RsrcProcMgr::GetCmdGenerationPipeline(
-    const Pal::IndirectCmdGenerator& generator,
+    const Pm4::IndirectCmdGenerator& generator,
     const CmdBuffer&                 cmdBuffer
     ) const
 {
@@ -360,13 +360,13 @@ const Pal::ComputePipeline* RsrcProcMgr::GetCmdGenerationPipeline(
 
     switch (generator.Type())
     {
-    case GeneratorType::Draw:
-    case GeneratorType::DrawIndexed:
+    case Pm4::GeneratorType::Draw:
+    case Pm4::GeneratorType::DrawIndexed:
         PAL_ASSERT(cmdBuffer.GetEngineType() == EngineTypeUniversal);
         pipeline = RpmComputePipeline::Gfx6GenerateCmdDraw;
         break;
 
-    case GeneratorType::Dispatch:
+    case Pm4::GeneratorType::Dispatch:
         pipeline = RpmComputePipeline::Gfx6GenerateCmdDispatch;
         break;
 
@@ -982,7 +982,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
         }
 #endif
         // Do the expand the legacy way.
-        Pal::RsrcProcMgr::ExpandDepthStencil(pCmdBuffer, image, pQuadSamplePattern, range);
+        Pm4::RsrcProcMgr::ExpandDepthStencil(pCmdBuffer, image, pQuadSamplePattern, range);
     }
 
     return usedCompute;
@@ -1442,7 +1442,7 @@ uint32* RsrcProcMgr::UpdateBoundFastClearColor(
     PAL_ASSERT(pUnivCmdBuf->IsGraphicsStatePushed() == false);
 #endif
 
-    const GraphicsState& graphicsState = pUnivCmdBuf->GetGraphicsState();
+    const Pm4::GraphicsState& graphicsState = pUnivCmdBuf->GetGraphicsState();
 
     // Look for this image in the bound color target views and in such a case update the fast clear color in that
     // target.
@@ -1490,7 +1490,7 @@ void RsrcProcMgr::UpdateBoundFastClearDepthStencil(
     PAL_ASSERT(pUnivCmdBuf->IsGraphicsStatePushed() == false);
 #endif
 
-    const GraphicsState& graphicsState = pUnivCmdBuf->GetGraphicsState();
+    const Pm4::GraphicsState& graphicsState = pUnivCmdBuf->GetGraphicsState();
 
     // Look for this image in the bound depth stencil target and in such a case update the fast clear depth/stencil
     // value.
@@ -1753,7 +1753,8 @@ void RsrcProcMgr::HwlDepthStencilClear(
                         PostComputeDepthStencilClearSync(pCmdBuffer,
                                                          gfx6Image,
                                                          pRanges[idx],
-                                                         isDepth ? depthLayout : stencilLayout);
+                                                         isDepth ? depthLayout : stencilLayout,
+                                                         true);
                         needPostComputeSync = false;
                     }
                 }
@@ -1839,7 +1840,8 @@ void RsrcProcMgr::HwlDepthStencilClear(
                 PostComputeDepthStencilClearSync(pCmdBuffer,
                                                  gfx6Image,
                                                  pRanges[idx],
-                                                 isDepth ? depthLayout : stencilLayout);
+                                                 isDepth ? depthLayout : stencilLayout,
+                                                 false);
                 needPostComputeSync = false;
             }
         }
@@ -3756,7 +3758,7 @@ uint32 RsrcProcMgr::HwlBeginGraphicsCopy(
 // =====================================================================================================================
 // Restore the registers that HwlBeginGraphicsCopy has modified.
 void RsrcProcMgr::HwlEndGraphicsCopy(
-    Pal::CmdStream* pCmdStream,
+    Pm4::CmdStream* pCmdStream,
     uint32          restoreMask
     ) const
 {

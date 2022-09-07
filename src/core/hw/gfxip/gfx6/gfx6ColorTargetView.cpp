@@ -24,7 +24,7 @@
  **********************************************************************************************************************/
 
 #include "core/image.h"
-#include "core/hw/gfxip/universalCmdBuffer.h"
+#include "core/hw/gfxip/pm4UniversalCmdBuffer.h"
 #include "g_gfx6Settings.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdStream.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdUtil.h"

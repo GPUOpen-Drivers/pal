@@ -166,6 +166,40 @@ public:
         return Span(Data() + offset, count);
     }
 
+    /// Returns a subspan dropping the specified number (default 1) of elements from the front.
+    /// Returns an empty Span if there were no more elements than that to start with.
+    ///
+    /// @param count Number of elements to drop from the front
+    ///
+    /// @returns The subspan
+    constexpr Span DropFront(
+        size_t count = 1) const
+    {
+        Span retVal;
+        if (count < NumElements())
+        {
+            retVal = Subspan(count, size_t(-1));
+        }
+        return retVal;
+    }
+
+    /// Returns a subspan dropping the specified number (default 1) of elements from the back.
+    /// Returns an empty Span if there were no more elements than that to start with.
+    ///
+    /// @param count Number of elements to drop from the back
+    ///
+    /// @returns The subspan
+    constexpr Span DropBack(
+        size_t count = 1) const
+    {
+        Span retVal;
+        if (count < NumElements())
+        {
+            retVal = Subspan(0, NumElements() - count);
+        }
+        return retVal;
+    }
+
     ///@{
     /// @internal Satisfies concept `range_expression`, using T* as `iterator` and 32-bit size and difference types
     ///

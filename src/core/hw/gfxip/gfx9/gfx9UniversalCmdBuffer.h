@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include "core/hw/gfxip/universalCmdBuffer.h"
+#include "core/hw/gfxip/pm4UniversalCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9ComputeCmdBuffer.h"
@@ -44,6 +44,7 @@ namespace Gfx9
 class GraphicsPipeline;
 class Gfx10DepthStencilView;
 class UniversalCmdBuffer;
+class IndirectCmdGenerator;
 
 // Structure to track the state of internal command buffer operations.
 struct UniversalCmdBufferState
@@ -290,7 +291,7 @@ struct VrsCopyMapping
 
 // =====================================================================================================================
 // GFX9 universal command buffer class: implements GFX9 specific functionality for the UniversalCmdBuffer class.
-class UniversalCmdBuffer final : public Pal::UniversalCmdBuffer
+class UniversalCmdBuffer final : public Pal::Pm4::UniversalCmdBuffer
 {
     // Shorthand for function pointers which validate graphics user-data at Draw-time.
     typedef uint32* (UniversalCmdBuffer::*ValidateUserDataGfxFunc)(const GraphicsPipelineSignature*, uint32*);
@@ -583,7 +584,7 @@ public:
         uint32 zDim) override;
 
     virtual void GetChunkForCmdGeneration(
-        const Pal::IndirectCmdGenerator& generator,
+        const Pm4::IndirectCmdGenerator& generator,
         const Pal::Pipeline&             pipeline,
         uint32                           maxCommands,
         uint32                           numChunkOutputs,
@@ -654,7 +655,7 @@ protected:
 
     virtual void CmdXdmaWaitFlipPending() override;
 
-    virtual void SetGraphicsState(const GraphicsState& newGraphicsState) override;
+    virtual void SetGraphicsState(const Pm4::GraphicsState& newGraphicsState) override;
 
     virtual void InheritStateFromCmdBuf(const Pm4CmdBuffer* pCmdBuffer) override;
 
@@ -662,31 +663,31 @@ protected:
     uint32* ValidateBinSizes(uint32* pDeCmdSpace);
 
     template <bool Indexed, bool Indirect>
-    void ValidateDraw(const ValidateDrawInfo& drawInfo);
+    void ValidateDraw(const Pm4::ValidateDrawInfo& drawInfo);
 
     template <bool Indexed, bool Indirect, bool Pm4OptImmediate>
-    void ValidateDraw(const ValidateDrawInfo& drawInfopDeCmdSpace);
+    void ValidateDraw(const Pm4::ValidateDrawInfo& drawInfopDeCmdSpace);
 
     template <bool Indexed, bool Indirect, bool Pm4OptImmediate, bool PipelineDirty>
     uint32* ValidateDraw(
-        const ValidateDrawInfo& drawInfo,
-        uint32*                 pDeCmdSpace);
+        const Pm4::ValidateDrawInfo& drawInfo,
+        uint32*                      pDeCmdSpace);
 
     template <bool Indexed, bool Indirect, bool Pm4OptImmediate, bool PipelineDirty, bool StateDirty>
     uint32* ValidateDraw(
-        const ValidateDrawInfo& drawInfo,
-        uint32*                 pDeCmdSpace);
+        const Pm4::ValidateDrawInfo& drawInfo,
+        uint32*                      pDeCmdSpace);
 
     template <bool Indexed, bool Indirect, bool Pm4OptImmediate, bool PipelineDirty, bool StateDirty, bool IsNgg>
     uint32* ValidateDraw(
-        const ValidateDrawInfo& drawInfo,
-        uint32*                 pDeCmdSpace);
+        const Pm4::ValidateDrawInfo& drawInfo,
+        uint32*                      pDeCmdSpace);
 
     template <bool Indexed, bool Indirect, bool Pm4OptImmediate>
     uint32* ValidateDrawTimeHwState(
-        regPA_SC_MODE_CNTL_1    paScModeCntl1,
-        const ValidateDrawInfo& drawInfo,
-        uint32*                 pDeCmdSpace);
+        regPA_SC_MODE_CNTL_1         paScModeCntl1,
+        const Pm4::ValidateDrawInfo& drawInfo,
+        uint32*                      pDeCmdSpace);
 
     // Gets vertex offset register address
     uint16 GetVertexOffsetRegAddr() const { return m_vertexOffsetReg; }
@@ -871,7 +872,7 @@ private:
     template <bool pm4OptImmediate>
     uint32* UpdateDbCountControl(uint32 log2SampleRate, uint32* pDeCmdSpace);
 
-    bool ForceWdSwitchOnEop(const GraphicsPipeline& pipeline, const ValidateDrawInfo& drawInfo) const;
+    bool ForceWdSwitchOnEop(const GraphicsPipeline& pipeline, const Pm4::ValidateDrawInfo& drawInfo) const;
 
     VportCenterRect GetViewportsCenterAndScale() const;
 

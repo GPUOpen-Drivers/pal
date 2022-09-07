@@ -24,7 +24,7 @@
  **********************************************************************************************************************/
 
 #include "core/addrMgr/addrMgr2/addrMgr2.h"
-#include "core/hw/gfxip/universalCmdBuffer.h"
+#include "core/hw/gfxip/pm4UniversalCmdBuffer.h"
 #include "g_gfx9Settings.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"

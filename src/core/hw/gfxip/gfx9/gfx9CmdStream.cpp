@@ -47,15 +47,15 @@ CmdStream::CmdStream(
     CmdStreamUsage cmdStreamUsage,
     bool           isNested)
     :
-    GfxCmdStream(device,
-                 pCmdAllocator,
-                 engineType,
-                 subEngineType,
-                 cmdStreamUsage,
-                 GetChainSizeInDwords(device, engineType, isNested),
-                 CmdUtil::MinNopSizeInDwords,
-                 CmdUtil::CondIndirectBufferSize,
-                 isNested),
+    Pm4::CmdStream(device,
+                   pCmdAllocator,
+                   engineType,
+                   subEngineType,
+                   cmdStreamUsage,
+                   GetChainSizeInDwords(device, engineType, isNested),
+                   CmdUtil::MinNopSizeInDwords,
+                   CmdUtil::CondIndirectBufferSize,
+                   isNested),
     m_cmdUtil(device.CmdUtil()),
     m_pPm4Optimizer(nullptr),
     m_pChunkPreamble(nullptr),
@@ -113,7 +113,7 @@ Result CmdStream::Begin(
         }
     }
 
-    Result result = GfxCmdStream::Begin(flags, pMemAllocator);
+    Result result = Pm4::CmdStream::Begin(flags, pMemAllocator);
 
     if ((result == Result::Success) && (m_flags.optimizeCommands == 1))
     {
@@ -138,7 +138,7 @@ void CmdStream::Reset(
     m_pChunkPreamble      = nullptr;
     m_contextRollDetected = false;
 
-    GfxCmdStream::Reset(pNewAllocator, returnGpuMemory);
+    Pm4::CmdStream::Reset(pNewAllocator, returnGpuMemory);
 }
 
 // =====================================================================================================================

@@ -23,7 +23,7 @@
  *
  **********************************************************************************************************************/
 
-#include "core/hw/gfxip/universalCmdBuffer.h"
+#include "core/hw/gfxip/pm4UniversalCmdBuffer.h"
 #include "g_gfx6Settings.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdStream.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdUtil.h"
@@ -63,11 +63,11 @@ WorkaroundState::WorkaroundState(
 // Returns the next unused DWORD in pCmdSpace.
 template <bool indirect, bool stateDirty>
 uint32* WorkaroundState::PreDraw(
-    const GraphicsState&    gfxState,        // Currently-active Command Buffer Graphics state
-    CmdStream&              deCmdStream,     // DE command stream
-    regIA_MULTI_VGT_PARAM   iaMultiVgtParam, // The value of IA_MULTI_VGT_PARAM that this draw will use.
-    const ValidateDrawInfo& drawInfo,        // Draw info
-    uint32*                 pCmdSpace)
+    const Pm4::GraphicsState&    gfxState,        // Currently-active Command Buffer Graphics state
+    CmdStream&                   deCmdStream,     // DE command stream
+    regIA_MULTI_VGT_PARAM        iaMultiVgtParam, // The value of IA_MULTI_VGT_PARAM that this draw will use.
+    const Pm4::ValidateDrawInfo& drawInfo,        // Draw info
+    uint32*                      pCmdSpace)
 {
     const auto*const pPipeline   = static_cast<const GraphicsPipeline*>(gfxState.pipelineState.pPipeline);
     const auto*const pBlendState = static_cast<const ColorBlendState*>(gfxState.pColorBlendState);
@@ -292,42 +292,42 @@ uint32* WorkaroundState::PreDraw(
 // Instantiate the template for the linker.
 template
 uint32* WorkaroundState::PreDraw<true, false>(
-    const GraphicsState&    gfxState,        // Currently-active Command Buffer Graphics state
-    CmdStream&              deCmdStream,     // DE command stream
-    regIA_MULTI_VGT_PARAM   iaMultiVgtParam, // The value of IA_MULTI_VGT_PARAM that this draw will use.
-    const ValidateDrawInfo& drawInfo,        // Draw info
-    uint32*                 pCmdSpace);
+    const Pm4::GraphicsState&    gfxState,        // Currently-active Command Buffer Graphics state
+    CmdStream&                   deCmdStream,     // DE command stream
+    Chip::regIA_MULTI_VGT_PARAM  iaMultiVgtParam, // The value of IA_MULTI_VGT_PARAM that this draw will use.
+    const Pm4::ValidateDrawInfo& drawInfo,        // Draw info
+    uint32*                      pCmdSpace);
 
 template
 uint32* WorkaroundState::PreDraw<false, false>(
-    const GraphicsState&    gfxState,        // Currently-active Command Buffer Graphics state
-    CmdStream&              deCmdStream,     // DE command stream
-    regIA_MULTI_VGT_PARAM   iaMultiVgtParam, // The value of IA_MULTI_VGT_PARAM that this draw will use.
-    const ValidateDrawInfo& drawInfo,        // Draw info
-    uint32*                 pCmdSpace);
+    const Pm4::GraphicsState&    gfxState,        // Currently-active Command Buffer Graphics state
+    CmdStream&                   deCmdStream,     // DE command stream
+    Chip::regIA_MULTI_VGT_PARAM  iaMultiVgtParam, // The value of IA_MULTI_VGT_PARAM that this draw will use.
+    const Pm4::ValidateDrawInfo& drawInfo,        // Draw info
+    uint32*                      pCmdSpace);
 
 template
 uint32* WorkaroundState::PreDraw<true, true>(
-    const GraphicsState&    gfxState,        // Currently-active Command Buffer Graphics state
-    CmdStream&              deCmdStream,     // DE command stream
-    regIA_MULTI_VGT_PARAM   iaMultiVgtParam, // The value of IA_MULTI_VGT_PARAM that this draw will use.
-    const ValidateDrawInfo& drawInfo,        // Draw info
-    uint32*                 pCmdSpace);
+    const Pm4::GraphicsState&    gfxState,        // Currently-active Command Buffer Graphics state
+    CmdStream&                   deCmdStream,     // DE command stream
+    Chip::regIA_MULTI_VGT_PARAM  iaMultiVgtParam, // The value of IA_MULTI_VGT_PARAM that this draw will use.
+    const Pm4::ValidateDrawInfo& drawInfo,        // Draw info
+    uint32*                      pCmdSpace);
 
 template
 uint32* WorkaroundState::PreDraw<false, true>(
-    const GraphicsState&    gfxState,        // Currently-active Command Buffer Graphics state
-    CmdStream&              deCmdStream,     // DE command stream
-    regIA_MULTI_VGT_PARAM   iaMultiVgtParam, // The value of IA_MULTI_VGT_PARAM that this draw will use.
-    const ValidateDrawInfo& drawInfo,        // Draw info
-    uint32*                 pCmdSpace);
+    const Pm4::GraphicsState&    gfxState,        // Currently-active Command Buffer Graphics state
+    CmdStream&                   deCmdStream,     // DE command stream
+    Chip::regIA_MULTI_VGT_PARAM  iaMultiVgtParam, // The value of IA_MULTI_VGT_PARAM that this draw will use.
+    const Pm4::ValidateDrawInfo& drawInfo,        // Draw info
+    uint32*                      pCmdSpace);
 
 // =====================================================================================================================
 // Performs post-draw validation specifically for hardware workarounds which must be evaluated immediately following a
 // draw.  Returns the next unused DWORD in pCmdSpace.
 uint32* WorkaroundState::PostDraw(
-    const GraphicsState&  gfxState,     // Currently-active Command Buffer Graphics state
-    uint32*               pCmdSpace)
+    const Pm4::GraphicsState& gfxState,     // Currently-active Command Buffer Graphics state
+    uint32*                   pCmdSpace)
 {
     const auto*const pPipeline = static_cast<const GraphicsPipeline*>(gfxState.pipelineState.pPipeline);
 

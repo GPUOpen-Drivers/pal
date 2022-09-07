@@ -30,7 +30,7 @@
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "core/hw/gfxip/gfx9/gfx9Image.h"
 #include "core/hw/gfxip/gfx9/gfx9MaskRam.h"
-#include "core/hw/gfxip/universalCmdBuffer.h"
+#include "core/hw/gfxip/pm4UniversalCmdBuffer.h"
 
 namespace Pal
 {
@@ -82,7 +82,7 @@ public:
 
     static uint32* HandleBoundTargetsChanged(const CmdUtil& cmdUtil, uint32* pCmdSpace);
 
-    TargetExtent2d GetExtent() const { return m_extent; }
+    Pm4::TargetExtent2d GetExtent() const { return m_extent; }
 
     bool IsRotatedSwizzleOverwriteCombinerDisabled() const { return m_flags.disableRotateSwizzleOC != 0; }
 
@@ -175,7 +175,7 @@ protected:
     SubresId            m_subresource;
     uint32              m_arraySize;
     SwizzledFormat      m_swizzledFormat;
-    TargetExtent2d      m_extent;
+    Pm4::TargetExtent2d m_extent;
     ColorLayoutToState  m_layoutToState;
 
 private:

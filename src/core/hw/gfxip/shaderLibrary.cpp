@@ -112,6 +112,7 @@ Result ShaderLibrary::InitFromCodeObjectBinary(
     if (result == Result::Success)
     {
         ExtractLibraryInfo(metadata);
+        DumpLibraryElf("LibraryCs", metadata.pipeline.name);
 
         result = metadataReader.Seek(metadata.pipeline.shaderFunctions);
 
@@ -226,6 +227,11 @@ Result ShaderLibrary::PerformRelocationsAndUploadToGpuMemory(
 
     if (result == Result::Success)
     {
+        result = pUploader->ApplyRelocations();
+    }
+
+    if (result == Result::Success)
+    {
         m_pagingFenceVal = pUploader->PagingFenceVal();
         m_gpuMemSize     = pUploader->GpuMemSize();
         m_gpuMem.Update(pUploader->GpuMem(), pUploader->GpuMemOffset());
@@ -269,6 +275,23 @@ Result ShaderLibrary::GetCodeObject(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+void ShaderLibrary::DumpLibraryElf(
+    Util::StringView<char> prefix,
+    Util::StringView<char> name     // Optional: Can be the empty string if a human-readable filename is not desired.
+    ) const
+{
+#if PAL_ENABLE_PRINTS_ASSERTS
+    m_pDevice->LogCodeObjectToDisk(
+        prefix,
+        name,
+        m_info.internalLibraryHash,
+        false,
+        m_pCodeObjectBinary,
+        m_codeObjectBinaryLen);
+#endif
 }
 
 // =====================================================================================================================

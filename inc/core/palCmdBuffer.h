@@ -539,8 +539,14 @@ union CmdBufferBuildFlags
 
         uint32 placeholder2                    :  1;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 757
+        /// If set, internal operations such as blits, copies, etc. will not affect active Query results.
+        /// Otherwise they may affect the results.
+        uint32 disableQueryInternalOps         :  1;
+#endif
+
         /// Reserved for future use.
-        uint32 reserved                        :  20;
+        uint32 reserved                        :  19;
 
     };
 
@@ -724,45 +730,44 @@ struct DepthStencilBindInfo
 ///
 /// A single transition will ensure cache coherency of dirty data in the specific set of source caches with the
 /// specified set of destination caches. The source and destination designation is relative to the barrier itself
-/// and does not indicate whether a particular cache is a read or write cache. The transition is making dirty data
-/// in the srcCacheMask visible to the caches indicated by dstCacheMask. srcCacheMask, therefore, is always expected
-/// to be a write cache. For a well defined program writes should only be done through one bind point so we should only
-/// expect one bit to be set for srcCacheMask whereas dstCacheMask can have multiple bits set that may be read,
-/// read/write or write caches. If the both cache masks are zero the client is indicating that no cache coherency
-/// operations are required but PAL may still issue issue coherency operations to make the results of layout changes
-/// available.
+/// and does not indicate whether a particular cache is a read or write cache.
 ///
-/// In addition, for images, the client can initiate a change of layout
-/// usage/engine flags which may result in a decompression BLT.
+/// Typically a transition flushes written data from the source caches into the destination caches and thus the source
+/// cache mask typically only contains write caches. However, the client is encouraged to include flags for any prior
+/// read-only caches accesses as PAL may be able to optimize its cache operations.
 ///
-/// @note There is no range provided to control the range of addresses that will be flushed/invalidated in GPU caches
-///       as there is no hardware feature on current GPUs to support this.
+/// If the both cache masks are zero the client is indicating that no cache coherency operations are required but PAL
+/// may still issue cache operations for internal reasons.
+///
+/// In addition, the client can change an image's layout usage/engine flags which may result in a metadata blt.
+///
+/// @note There is no range provided to control the range of addresses that will be flushed/invalidated in GPU caches.
 struct BarrierTransition
 {
 
-    uint32 srcCacheMask;    ///< Bitmask of @ref CacheCoherencyUsageFlags describing previous write operations whose
-                            ///  results need to be visible for subsequent operations.
-
-    uint32 dstCacheMask;    ///< Bitmask of @ref CacheCoherencyUsageFlags describing the operations expected to read
-                            ///  data flushed from the caches indicated by the srcCacheMask.
+    uint32 srcCacheMask; ///< Bitmask of @ref CacheCoherencyUsageFlags describing previous write operations whose
+                         ///  results need to be visible for subsequent operations. Flags for prior read operations
+                         ///  may be included as well and may be used for internal optimizations.
+    uint32 dstCacheMask; ///< Bitmask of @ref CacheCoherencyUsageFlags describing the operations expected to read
+                         ///  and/or write data flushed from the caches indicated by the srcCacheMask.
 
     struct
     {
-        const IImage* pImage;         ///< If non-null, indicates this transition only applies to the specified image.
-                                      ///  The remaining members of this structure are ignored if this member is null.
-        SubresRange   subresRange;    ///< Subset of pImage this transition applies to. If newLayout includes @ref
-                                      ///  LayoutUninitializedTarget this range must cover all subresources of pImage
-                                      ///  unless the perSubresInit image create flag was specified.
-        ImageLayout   oldLayout;      ///< Specifies the current image layout based on bitmasks of allowed operations and
-                                      ///  engines up to this point.  These masks imply the previous compression state. No
-                                      ///  usage flags should ever be set in oldLayout.usages that correspond to usages
-                                      ///  that are not supported by the engine that is performing the transition.  The
-                                      ///  queue type performing the transition must be set in oldLayout.engines.
-        ImageLayout   newLayout;      ///< Specifies the upcoming image layout based on bitmasks of allowed operations and
-                                      ///  engines after this point.  These masks imply the upcoming compression state.
-                                      ///  point.  This usage mask implies the upcoming compressions state.  A difference
-                                      ///  between oldLayoutUsageMask and newLayoutUsageMask may result in a
-                                      ///  decompression.
+        const IImage* pImage;      ///< If non-null, indicates this transition only applies to the specified image.
+                                   ///  The remaining members of this structure are ignored if this member is null.
+        SubresRange   subresRange; ///< Subset of pImage this transition applies to. If newLayout includes @ref
+                                   ///  LayoutUninitializedTarget this range must cover all subresources of pImage
+                                   ///  unless the perSubresInit image create flag was specified.
+        ImageLayout   oldLayout;   ///< Specifies the current image layout based on bitmasks of allowed operations and
+                                   ///  engines up to this point.  These masks imply the previous compression state. No
+                                   ///  usage flags should ever be set in oldLayout.usages that correspond to usages
+                                   ///  that are not supported by the engine that is performing the transition.  The
+                                   ///  queue type performing the transition must be set in oldLayout.engines.
+        ImageLayout   newLayout;   ///< Specifies the upcoming image layout based on bitmasks of allowed operations and
+                                   ///  engines after this point.  These masks imply the upcoming compression state.
+                                   ///  point.  This usage mask implies the upcoming compressions state.  A difference
+                                   ///  between oldLayoutUsageMask and newLayoutUsageMask may result in a
+                                   ///  decompression.
 
         /// Specifies a custom sample pattern over a 2x2 pixel quad.  The position for each sample is specified on a
         /// grid where the pixel center is <0,0>, the top left corner of the pixel is <-8,-8>, and <7,7> is the maximum
@@ -770,7 +775,8 @@ struct BarrierTransition
         /// Specifies a custom sample pattern over a 2x2 pixel quad. Can be left null for non-MSAA images or when
         /// a valid MsaaQuadSamplePattern is bound prior to the CmdBarrier call.
         const MsaaQuadSamplePattern* pQuadSamplePattern;
-    } imageInfo;                      ///< Image-specific transition information.
+
+    } imageInfo; ///< Image-specific transition information.
 };
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 751
@@ -840,17 +846,15 @@ struct BarrierInfo
                                                      ///  be specified more than once in the list of transitions.
                                                      ///  PAL assumes that all specified subresources are unique.
 
-    uint32  globalSrcCacheMask; ///< Bitmask of @ref CacheCoherencyUsageFlags describing previous write operations whose
-                                ///  results need to be visible for subsequent operations.  This is a global mask and is
-                                ///  combined (bitwise logical union) with the @ref srcCacheMask field belonging to
-                                ///  every element in @ref pTransitions.  If this is zero, then no global cache flags
-                                ///  are applied during every transition.
+    uint32  globalSrcCacheMask; ///< This is a global bitmask of @ref CacheCoherencyUsageFlags which is combined
+                                ///  (bitwise logical union) with the @ref srcCacheMask field belonging to every
+                                ///  element in @ref pTransitions. If this is zero or if there are no transitions,
+                                ///  then no global cache flags are applied during every transition.
 
-    uint32  globalDstCacheMask; ///< Bitmask of @ref CacheCoherencyUsageFlags describing the operations expected to read
-                                ///  data flushed from the caches indicated by the srcCacheMask.  This is a global mask
-                                ///  and is combined (bitwise logical union) with the @ref dstCacheMask field belonging
-                                ///  to every element in @ref pTransitions.  If this is zero, then no global cache flags
-                                ///  are applied during every transition.
+    uint32  globalDstCacheMask; ///< This is a global bitmask of @ref CacheCoherencyUsageFlags which is combined
+                                ///  (bitwise logical union) with the @ref dstCacheMask field belonging to every
+                                ///  element in @ref pTransitions. If this is zero or if there are no transitions,
+                                ///  then no global cache flags are applied during every transition.
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 751
     /// If non-null, this is a split barrier.  A split barrier is executed by making two separate CmdBarrier() calls
@@ -881,8 +885,29 @@ struct BarrierInfo
     uint32 reason; ///< The reason that the barrier was invoked.
 };
 
-/// Specifies *availability* and/or *visibility* operations on a section of an IGpuMemory object.  See @ref
-/// AcquireReleaseInfo.
+/// Specifies *availability* and/or *visibility* operations on a section of an IGpuMemory object.
+///
+/// PAL specifies these operations using pairs of access scope bitmasks of @ref CacheCoherencyUsageFlags values.
+/// The source mask (named srcAccessMask or srcGlobalAccessMask) describes which prior write operations should be made
+/// available (i.e., written back from local caches to the LLC). The destination mask (named dstAccessMask or
+/// dstGlobalAccessMask) describes which upcoming read/write operations that need visibility (i.e., invalidate
+/// corresponding local caches above the LLC). These masks may be zero if no cache operations are needed.
+///
+/// In general, PAL executes the availability and visibility operations in isolation because the CmdRelease functions
+/// require that the destination masks be zero and the CmdAcquire functions require that the source masks be zero.
+/// In essence, CmdRelease implements the availability operations and CmdAcquire implements the visibility operations.
+/// However, CmdReleaseThenAcquire sees both masks and thus can optimize its cache operations.
+///
+/// To facilitate cache optimizations, the client is encouraged to add flags corresponding to prior read operations
+/// in the relevant source mask(s). Unlike the usual write operation flags, these read flags are entirely optional
+/// and do not impact correctness; if they are omitted PAL will simply issue the full set of cache operations.
+/// If they are provided PAL may detect cases where future read operations use the same caches as the prior read
+/// operations and thus can skip the usual visibility operations.
+///
+/// Note that if the client does provide read operation flags in a source mask they *must* guarantee that the same
+/// flags were provided to a prior barrier's destination mask(s). Incorrect behavior may occur otherwise.
+///
+/// This struct is used by @ref AcquireReleaseInfo.
 struct MemBarrier
 {
     union
@@ -899,21 +924,21 @@ struct MemBarrier
     } flags;                               ///< Flags controlling the memory barrier.
 
     GpuMemSubAllocInfo memory;             ///< Specifies a portion of an IGpuMemory object this memory barrier affects.
-    uint32             srcAccessMask;      ///< *Access scope* for the availability operation.  This should be a mask of
-                                           ///  all relevant CacheCoherencyUsageFlags corresponding to prior write
-                                           ///  operations that should be made available (i.e., written back from local
-                                           ///  caches to the LLC).  This must be 0 when passed in to
-                                           ///  ICmdBuffer::CmdAcquire(), which only supports visibility operations.
-    uint32             dstAccessMask;      ///< *Access scope* for the visibility operation.  This should be a mask of
-                                           ///  all relevant CacheCoherencyUsageFlags corresponding to upcoming
-                                           ///  read/write operations that need visibility (i.e., invalidate
-                                           ///  corresponding local caches above the LLC).  This must be 0 when passed
-                                           ///  in to ICmdBuffer::CmdRelease(), which only supports availability
-                                           ///  operations.
+    uint32             srcAccessMask;      ///< CacheCoherencyUsageFlags mask which defines the access scope for the
+                                           ///  availability operation, as defined in the struct comment header.
+                                           ///  This mask must be 0 when passed to CmdAcquire or CmdAcquireEvent.
+    uint32             dstAccessMask;      ///< CacheCoherencyUsageFlags mask which defines the access scope for the
+                                           ///  visibility operation, as defined in the struct comment header.
+                                           ///  This must be 0 when passed to CmdRelease or CmdReleaseEvent.
 };
 
 /// Specifies required layout transition, *availability*, and/or *visibility* operations on a subresource of an IImage
-/// object.  See @ref AcquireReleaseInfo.
+/// object.
+///
+/// See the header comment on @ref MemBarrier for a full description of the availability and visibility operations,
+/// including what rules the clients must follow when filling out srcAccessMask and dstAccessMask.
+///
+/// This struct is used by @ref AcquireReleaseInfo.
 struct ImgBarrier
 {
     const IImage* pImage;        ///< Relevant image resource for this barrier.
@@ -930,16 +955,12 @@ struct ImgBarrier
                                  ///  barrier to cover the entire subresource range.  Specifying a subregion with a box
                                  ///  when newLayout includes @ref LayoutUninitializedTarget is not supported.
 
-    uint32        srcAccessMask; ///< *Access scope* for the availability operation.  This should be a mask of all
-                                 ///  relevant CacheCoherencyUsageFlags corresponding to prior write operations that
-                                 ///  should be made available (i.e., written back from local caches to the LLC).  This
-                                 ///  must be 0 when passed in to ICmdBuffer::CmdAcquire(), which only supports
-                                 ///  visibility operations.
-    uint32        dstAccessMask; ///< *Access scope* for the visibility operation.  This should be a mask of all
-                                 ///  relevant CacheCoherencyUsageFlags corresponding to upcoming read/write operations
-                                 ///  that need visibility (i.e., invalidate corresponding local caches above the LLC).
-                                 ///  This must be 0 when passed in to ICmdBuffer::CmdRelease(), which only supports
-                                 ///  availability operations.
+    uint32        srcAccessMask; ///< CacheCoherencyUsageFlags mask which defines the access scope for the
+                                 ///  availability operation, as defined in the struct comment header.
+                                 ///  This mask must be 0 when passed to CmdAcquire or CmdAcquireEvent.
+    uint32        dstAccessMask; ///< CacheCoherencyUsageFlags mask which defines the access scope for the
+                                 ///  visibility operation, as defined in the struct comment header.
+                                 ///  This must be 0 when passed to CmdRelease or CmdReleaseEvent.
 
     ImageLayout   oldLayout;     ///< Specifies the current image layout based on bitmasks of allowed operations and
                                  ///  engines up to this point.  These masks imply the previous compression state. No
@@ -961,8 +982,8 @@ struct ImgBarrier
     const MsaaQuadSamplePattern* pQuadSamplePattern;
 };
 
-/// Input structure to CmdRelease(), CmdAcquire(), and CmdReleastThenAcquire(), describing the execution dependencies,
-/// memory dependencies, and image layout transitions that must be resolved.
+/// Input structure to CmdRelease(), CmdReleaseEvent(), CmdAcquire(), CmdAcquireEvent(), and CmdReleastThenAcquire().
+/// It describes the execution dependencies, memory dependencies, and image layout transitions that must be resolved.
 struct AcquireReleaseInfo
 {
     uint32               srcStageMask;        ///< Bitmask of PipelineStageFlag values defining the synchronization
@@ -974,14 +995,12 @@ struct AcquireReleaseInfo
 
     uint32               srcGlobalAccessMask; ///< *Access scope* for the global availability operation.  Serves the
                                               ///  same purpose as srcAccessMask in @ref MemoryBarrier, but will cause
-                                              ///  all relevant caches to be flushed without range checking.  This must
-                                              ///  be 0 when passed in to ICmdBuffer::CmdAcquire(), which only supports
-                                              ///  visibility operations.
+                                              ///  all relevant caches to be flushed without range checking.
+                                              ///  This mask must be 0 when passed to CmdAcquire or CmdAcquireEvent.
     uint32               dstGlobalAccessMask; ///< *Access scope* for the global visibility operation.  Serves the
                                               ///  same purpose as dstAccessMask in @ref MemoryBarrier, but will cause
-                                              ///  all relevant caches to be invalidated without range checking.  This
-                                              ///  must be 0 when passed in to ICmdBuffer::CmdRelease(), which only
-                                              ///  supports availability operations.
+                                              ///  all relevant caches to be invalidated without range checking.
+                                              ///  This must be 0 when passed to CmdRelease or CmdReleaseEvent.
 
     uint32               memoryBarrierCount;  ///< Number of entries in pMemoryBarriers.
     const MemBarrier*    pMemoryBarriers;     ///< Describes memory dependencies specific to a range of a particular

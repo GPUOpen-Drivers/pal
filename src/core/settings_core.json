@@ -132,6 +132,21 @@
       "Description": "Value to override the default SQTT CU within each SE to profile with which is otherwise the first always-on/active CU. Note that this setting is ignored if a custom thread trace target CU is provided. Also note that this is the CU index - for setting a custom WGP to profile with (i.e. on GFX10+ with 2 CUs per WGP), you must set this value to 2x the intended WGP eg. for WGP3, set this to 6."
     },
     {
+      "Name": "DisableQueryInternalOps",
+      "Tags": [
+        "General",
+        "Debug",
+        "Profiling"
+      ],
+      "Defaults": {
+        "Default": true
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "disableQueryInternalOps",
+      "Description": "Disable query pools when known internal PAL operations are called so that it does not interfere with this data gathering. If you are running a Vulkan Test which uses nested CmdBuffers you will need to set this to False to ensure correct behavior."
+    },
+    {
       "Name": "DisableVmPageFaultReporting",
       "Tags": [
         "General",
@@ -291,11 +306,6 @@
             "Name": "TossPointAfterPs",
             "Value": 6,
             "Description": "Disable Color Buffer writes"
-          },
-          {
-            "Name": "TossPointSimplePs",
-            "Value": 7,
-            "Description": "Use a trivial Pixel Shader"
           }
         ],
         "Name": "TossPointMode",

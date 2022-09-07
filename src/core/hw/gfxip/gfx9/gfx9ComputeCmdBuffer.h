@@ -187,7 +187,7 @@ public:
     virtual uint32 CmdInsertExecutionMarker() override;
 
     virtual void GetChunkForCmdGeneration(
-        const Pal::IndirectCmdGenerator& generator,
+        const Pm4::IndirectCmdGenerator& generator,
         const Pal::Pipeline&             pipeline,
         uint32                           maxCommands,
         uint32                           numChunkOutputs,

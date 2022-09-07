@@ -187,14 +187,14 @@ public:
             GpuCompatibilityInfo* pInfo) const override;
 
     virtual Result QueryRawApplicationProfile(
-            const char*              pFilename,
-            const char*              pPathname,
+            const wchar_t*           pFilename,
+            const wchar_t*           pPathname,
             ApplicationProfileClient client,
             const char**             pOut) override { return Result::Unsupported; }
 
     virtual Result EnableSppProfile(
-        const char*              pFilename,
-        const char*              pPathname) override { return Result::Unsupported; }
+        const wchar_t*              pFilename,
+        const wchar_t*              pPathname) override { return Result::Unsupported; }
 
     virtual Result SelectSppTable(
         uint32 pixelCount,

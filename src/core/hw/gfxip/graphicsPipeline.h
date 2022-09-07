@@ -125,7 +125,8 @@ private:
             uint32 placeholder1          :  1;
             uint32 psWritesUavs          :  1; // PS writes at least one UAV.
             uint32 primIdUsed            :  1; // One shader in this pipeline uses PrimID.
-            uint32 reserved              : 12;
+            uint32 reserved1             :  1;
+            uint32 reserved              : 11;
         };
         uint32 u32All;
     } m_flags;

@@ -26,7 +26,7 @@
 #pragma once
 
 #include "core/hw/gfxip/pipeline.h"
-#include "core/hw/gfxip/universalCmdBuffer.h"
+#include "core/hw/gfxip/pm4UniversalCmdBuffer.h"
 #include "core/hw/gfxip/gfx6/gfx6Chip.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdStream.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdUtil.h"
@@ -159,7 +159,7 @@ struct ScissorRectPm4Img
 
 // =====================================================================================================================
 // GFX6 universal command buffer class: implements GFX6 specific functionality for the UniversalCmdBuffer class.
-class UniversalCmdBuffer final : public Pal::UniversalCmdBuffer
+class UniversalCmdBuffer final : public Pal::Pm4::UniversalCmdBuffer
 {
     // Shorthand for function pointers which validate graphics user-data at draw-time.
     typedef uint32* (UniversalCmdBuffer::*ValidateUserDataGfxFunc)(const GraphicsPipelineSignature*, uint32*);
@@ -387,7 +387,7 @@ public:
     virtual uint32 CmdInsertExecutionMarker() override;
 
     virtual void GetChunkForCmdGeneration(
-        const Pal::IndirectCmdGenerator& generator,
+        const Pm4::IndirectCmdGenerator& generator,
         const Pal::Pipeline&             pipeline,
         uint32                           maxCommands,
         uint32                           numChunkOutputs,
@@ -431,33 +431,33 @@ protected:
 
     virtual void CmdXdmaWaitFlipPending() override;
 
-    virtual void SetGraphicsState(const GraphicsState& graphicsState) override;
+    virtual void SetGraphicsState(const Pm4::GraphicsState& graphicsState) override;
 
     virtual void InheritStateFromCmdBuf(const Pm4CmdBuffer* pCmdBuffer) override;
 
     template <bool indexed, bool indirect>
-    void ValidateDraw(const ValidateDrawInfo& drawInfo);
+    void ValidateDraw(const Pm4::ValidateDrawInfo& drawInfo);
 
     template <bool indexed, bool indirect, bool pm4OptImmediate>
-    void ValidateDraw(const ValidateDrawInfo& drawInfo);
+    void ValidateDraw(const Pm4::ValidateDrawInfo& drawInfo);
 
     template <bool indexed, bool indirect, bool pm4OptImmediate, bool pipelineDirty>
     uint32* ValidateDraw(
-        const ValidateDrawInfo& drawInfo,
-        uint32*                 pDeCmdSpace);
+        const Pm4::ValidateDrawInfo& drawInfo,
+        uint32*                      pDeCmdSpace);
 
     template <bool indexed, bool indirect, bool pm4OptImmediate, bool pipelineDirty, bool stateDirty>
     uint32* ValidateDraw(
-        const ValidateDrawInfo& drawInfo,
-        uint32*                 pDeCmdSpace);
+        const Pm4::ValidateDrawInfo& drawInfo,
+        uint32*                      pDeCmdSpace);
 
     template <bool indexed, bool indirect, bool pm4OptImmediate>
     uint32* ValidateDrawTimeHwState(
-        regIA_MULTI_VGT_PARAM   iaMultiVgtParam,
-        regVGT_LS_HS_CONFIG     vgtLsHsConfig,
-        regPA_SC_MODE_CNTL_1    paScModeCntl1,
-        const ValidateDrawInfo& drawInfo,
-        uint32*                 pDeCmdSpace);
+        regIA_MULTI_VGT_PARAM        iaMultiVgtParam,
+        regVGT_LS_HS_CONFIG          vgtLsHsConfig,
+        regPA_SC_MODE_CNTL_1         paScModeCntl1,
+        const Pm4::ValidateDrawInfo& drawInfo,
+        uint32*                      pDeCmdSpace);
 
     // Gets vertex offset register address
     uint16 GetVertexOffsetRegAddr() const { return m_vertexOffsetReg; }
@@ -541,7 +541,7 @@ private:
     void UpdatePrimGroupOpt(uint32 vxtIdxCount);
     void DisablePrimGroupOpt();
 
-    bool ForceWdSwitchOnEop(const GraphicsPipeline& pipeline, const ValidateDrawInfo& drawInfo) const;
+    bool ForceWdSwitchOnEop(const GraphicsPipeline& pipeline, const Pm4::ValidateDrawInfo& drawInfo) const;
 
     template <bool pm4OptImmediate>
     uint32* ValidateViewports(uint32* pDeCmdSpace);

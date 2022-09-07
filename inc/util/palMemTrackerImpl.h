@@ -299,22 +299,30 @@ void MemTracker<Allocator>::FreeLeakedMemory()
 template <typename Allocator>
 void MemTracker<Allocator>::MemoryReport()
 {
-    PAL_DPWARN("================ List of Leaked Blocks ================");
+    // When this env var is set to non-zero, don't report leaks.
+    // Useful for crashing apps that don't give us a chance to clean up.
+    const char* pToggle = getenv("AMDPAL_NO_LEAK_REPORT");
 
-    for (MemTrackerList::Iter iter = m_trackerList.Begin(); iter.IsValid(); iter.Next())
+    if ((pToggle == nullptr) || (atoi(pToggle) > 0))
     {
-        MemTrackerElem*const pCurrent = iter.Get();
+        PAL_DPWARN("================ List of Leaked Blocks ================");
 
-        PAL_DPWARN("ClientMem = 0x%p, AllocSize = %8d, MemBlkType = %s, File = %-15s, LineNumber = %8d, AllocNum = %8d",
-                   pCurrent->pClientMem,
-                   pCurrent->size,
-                   MemBlkTypeStr[static_cast<uint32>(pCurrent->blockType)],
-                   pCurrent->pFilename,
-                   pCurrent->lineNumber,
-                   pCurrent->allocNum);
+        for (MemTrackerList::Iter iter = m_trackerList.Begin(); iter.IsValid(); iter.Next())
+        {
+            MemTrackerElem*const pCurrent = iter.Get();
+
+            PAL_DPWARN(
+                "ClientMem = 0x%p, AllocSize = %8d, MemBlkType = %s, File = %-15s, LineNumber = %8d, AllocNum = %8d",
+                pCurrent->pClientMem,
+                pCurrent->size,
+                MemBlkTypeStr[static_cast<uint32>(pCurrent->blockType)],
+                pCurrent->pFilename,
+                pCurrent->lineNumber,
+                pCurrent->allocNum);
+        }
+
+        PAL_DPWARN("================ End of List ===========================");
     }
-
-    PAL_DPWARN("================ End of List ===========================");
 }
 
 } // Util

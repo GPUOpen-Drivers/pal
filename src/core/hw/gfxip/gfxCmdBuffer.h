@@ -44,7 +44,6 @@ class CmdStream;
 class GfxCmdBuffer;
 class GfxDevice;
 class GpuMemory;
-class IndirectCmdGenerator;
 class Pipeline;
 
 // Which engines are supported by this command buffer's CmdStreams.
@@ -319,6 +318,9 @@ public:
         const IImage&   dstImage,
         const Offset3d& dstOffset);
 
+    virtual void CmdSaveGraphicsState() override;
+    virtual void CmdRestoreGraphicsState() override;
+
     virtual void CmdSaveComputeState(uint32 stateFlags) override;
     virtual void CmdRestoreComputeState(uint32 stateFlags) override;
 
@@ -334,16 +336,6 @@ public:
     virtual CmdStream* GetCmdStreamByEngine(uint32 engineType) = 0;
 
     const GfxCmdBufferStateFlags& GetGfxCmdBufStateFlags() const { return m_gfxCmdBufStateFlags; }
-
-    // Obtains a fresh command stream chunk from the current command allocator, for use as the target of GPU-generated
-    // commands. The chunk is inserted onto the generated-chunks list so it can be recycled by the allocator after the
-    // GPU is done with it.
-    virtual void GetChunkForCmdGeneration(
-        const IndirectCmdGenerator& generator,
-        const Pipeline&             pipeline,
-        uint32                      maxCommands,
-        uint32                      numChunkOutputs,
-        ChunkOutput*                pChunkOutputs) = 0;
 
     // CmdDispatch on the ACE CmdStream for Gfx10+ UniversalCmdBuffer only when multi-queue is supported by the engine.
     virtual void CmdDispatchAce(
@@ -368,6 +360,11 @@ public:
         { return Util::TestAnyFlagSet(m_engineSupport, CmdBufferEngineSupport::Graphics); }
 
     bool IsComputeStateSaved() const { return (m_computeStateFlags != 0); }
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    // Returns true if the graphics state is currently pushed.
+    bool IsGraphicsStatePushed() const { return m_graphicsStateIsPushed; }
+#endif
 
     virtual void CmdOverwriteRbPlusFormatForBlits(
         SwizzledFormat format,
@@ -455,6 +452,10 @@ private:
     const GfxDevice& m_device;
 
     gpusize m_timestampGpuVa;   // GPU virtual address of memory used for cache flush & inv timestamp events.
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    bool  m_graphicsStateIsPushed; // If CmdSaveGraphicsState was called without a matching CmdRestoreGraphicsState.
+#endif
 
     PAL_DISALLOW_COPY_AND_ASSIGN(GfxCmdBuffer);
     PAL_DISALLOW_DEFAULT_CTOR(GfxCmdBuffer);

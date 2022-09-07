@@ -236,8 +236,10 @@ struct MultiSubmitInfo
                                                   ///  queueCount specified when the multi-queue was created and
                                                   ///  the workload specified in each entry will be assigned to the
                                                   ///  corresponding sub-queue.  It is valid to have a cmdBufferCount
-                                                  ///  of 0 for sub-queues without work.
-    uint32                  perSubQueueInfoCount; ///  Number of PerSubqueueSubmitInfo to be submitted.
+                                                  ///  of 0 for sub-queues without work. Can be null if perSubQueueInfo-
+                                                  ///  Count is 0.
+    uint32                  perSubQueueInfoCount; ///< Number of PerSubqueueSubmitInfo to be submitted. Can be zero if
+                                                  ///  there is no work to submit.
     uint32                  gpuMemRefCount;       ///< Number of GPU memory references for this submit.
     const GpuMemoryRef*     pGpuMemoryRefs;       ///< Array of gpuMemRefCount GPU memory references.  Can be null if
                                                   ///  gpuMemRefCount is zero.  The GPU memory objects will be made

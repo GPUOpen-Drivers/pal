@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include "core/hw/gfxip/indirectCmdGenerator.h"
+#include "core/hw/gfxip/pm4IndirectCmdGenerator.h"
 #include "palInlineFuncs.h"
 
 namespace Pal
@@ -83,7 +83,7 @@ struct IndirectParamData
 // snippets corresponding to different operations which can be done in an indirect command (e.g., draw, bind index data,
 // etc.). Contains the indirect parameter data and populates the buffers used to communicate the pipeline signature and
 // properties of the CmdExecuteIndirectCommands() call.
-class IndirectCmdGenerator final : public Pal::IndirectCmdGenerator
+class IndirectCmdGenerator final : public Pm4::IndirectCmdGenerator
 {
 public:
     static size_t GetSize(
@@ -138,7 +138,7 @@ private:
         const IndirectCmdGeneratorCreateInfo& createInfo);
 
     uint32 DetermineMaxCmdBufSize(
-        GeneratorType        type,
+        Pm4::GeneratorType   type,
         IndirectOpType       opType,
         const IndirectParam& param) const;
 

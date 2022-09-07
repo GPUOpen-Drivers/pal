@@ -282,6 +282,39 @@ void WideBitfieldClearBit(
     bitfield[index] &= ~mask;
 }
 
+/// Sets consecutive bits in a "wide bitfield" to one. A "wide bifield" is a bitfield which spans an array of
+/// integers because there are more flags than bits in one integer.
+///
+/// @param [in] bitfield    Reference to the bitfield being modified
+/// @param [in] startingBit Index of the first flag to set
+/// @param [in] numBits     Count of consecutive flags to set
+template <typename T, size_t N>
+void WideBitfieldSetRange(
+    T      (&bitfield)[N],
+    uint32 startingBit,
+    uint32 numBits)
+{
+    constexpr uint32 SizeInBits = (sizeof(T) << 3);
+
+    PAL_ASSERT((startingBit + numBits) <= (SizeInBits * N));
+
+    uint32 index = (startingBit / SizeInBits);
+
+    startingBit &= (SizeInBits - 1);
+
+    while (numBits > 0)
+    {
+        const uint32 maxNumBits     = SizeInBits - startingBit;
+        const uint32 curNumBits     = (maxNumBits < numBits) ? maxNumBits : numBits;
+        const T      bitMask        = (curNumBits == SizeInBits) ? -1 : ((static_cast<T>(1) << curNumBits) - 1);
+
+        bitfield[index++] |= (bitMask << startingBit);
+
+        startingBit  = 0;
+        numBits     -= curNumBits;
+    }
+}
+
 /// XORs all of the bits in two "wide bitfields". A "wide bifield" is a bitfield which spans an array of integers
 /// because there are more flags than bits in one integer.
 ///
@@ -726,6 +759,21 @@ inline void Wcsncpy(
     CopyUtf16String(pDst, pSrc, (dstSize - 1));
 #else
     wcsncpy(pDst, pSrc, (dstSize - 1));
+#endif
+    pDst[dstSize - 1] = L'\0';
+}
+
+// Wrapper for wcscat or wcscat_s which provides a safe version of wcscat
+inline void Wcscat(
+    wchar_t*       pDst,
+    const wchar_t* pSrc,
+    size_t         dstSize)
+{
+    const size_t dstLen = PalWcslen(pDst);
+#if defined(PAL_SHORT_WCHAR)
+    CopyUtf16String(&pDst[dstLen], pSrc, (dstSize - dstLen - 1));
+#else
+    wcsncat(pDst, pSrc, (dstSize - dstLen - 1));
 #endif
     pDst[dstSize - 1] = L'\0';
 }

@@ -101,7 +101,7 @@ IndirectCmdGenerator::IndirectCmdGenerator(
     const Device&                         device,
     const IndirectCmdGeneratorCreateInfo& createInfo)
     :
-    Pal::IndirectCmdGenerator(device, createInfo),
+    Pm4::IndirectCmdGenerator(device, createInfo),
     m_bindsIndexBuffer(false),
     m_pParamData(reinterpret_cast<IndirectParamData*>(this + 1))
 {
@@ -118,7 +118,7 @@ Result IndirectCmdGenerator::BindGpuMemory(
     IGpuMemory* pGpuMemory,
     gpusize     offset)
 {
-    Result result = Pal::IndirectCmdGenerator::BindGpuMemory(pGpuMemory, offset);
+    Result result = Pm4::IndirectCmdGenerator::BindGpuMemory(pGpuMemory, offset);
     if (result == Result::Success)
     {
         const uint32 paddedParamCount = PaddedParamCount(ParameterCount());
@@ -158,7 +158,7 @@ Result IndirectCmdGenerator::BindGpuMemory(
 
 // =====================================================================================================================
 uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
-    GeneratorType        type,
+    Pm4::GeneratorType   type,
     IndirectOpType       opType,
     const IndirectParam& param
     ) const
@@ -168,7 +168,7 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
     //       streamout SRD table. Streamout targets cannot be changed by an indirect command generator, so we don't need
     //       to flag this stage.
     const uint32 numHwStages = Util::CountSetBits(param.userDataShaderUsage);
-    const uint32 shaderStageCount = ((type == GeneratorType::Dispatch) ? 1 : numHwStages);
+    const uint32 shaderStageCount = ((type == Pm4::GeneratorType::Dispatch) ? 1 : numHwStages);
 
     uint32 size = 0;
     switch (opType)
@@ -327,10 +327,7 @@ void IndirectCmdGenerator::InitParamBuffer(
                 m_properties.userDataWatermark = Max((param.userData.firstEntry + param.userData.entryCount),
                                                      m_properties.userDataWatermark);
                 // Also, we need to track the mask of which user-data entries this command-generator touches.
-                for (uint32 e = 0; e < param.userData.entryCount; ++e)
-                {
-                    WideBitfieldSetBit(m_touchedUserData, (e + param.userData.firstEntry));
-                }
+                WideBitfieldSetRange(m_touchedUserData, param.userData.firstEntry, param.userData.entryCount);
                 break;
             case IndirectParamType::BindVertexData:
                 m_pParamData[p].type    = IndirectOpType::VertexBufTableSrd;
@@ -389,14 +386,14 @@ void IndirectCmdGenerator::PopulateInvocationBuffer(
 {
     BufferViewInfo viewInfo = { };
     viewInfo.stride        = (sizeof(uint32) * 4);
-    viewInfo.range         = sizeof(InvocationProperties);
+    viewInfo.range         = sizeof(Pm4::InvocationProperties);
 
     viewInfo.swizzledFormat.format  = ChNumFormat::X32Y32Z32W32_Uint;
     viewInfo.swizzledFormat.swizzle =
         { ChannelSwizzle::X, ChannelSwizzle::Y, ChannelSwizzle::Z, ChannelSwizzle::W };
 
-    auto*const pData = reinterpret_cast<InvocationProperties*>(pCmdBuffer->CmdAllocateEmbeddedData(
-        (sizeof(InvocationProperties) / sizeof(uint32)),
+    auto*const pData = reinterpret_cast<Pm4::InvocationProperties*>(pCmdBuffer->CmdAllocateEmbeddedData(
+        (sizeof(Pm4::InvocationProperties) / sizeof(uint32)),
         1,
         &viewInfo.gpuAddr));
     PAL_ASSERT(pData != nullptr);
@@ -445,7 +442,7 @@ void IndirectCmdGenerator::PopulateSignatureBuffer(
 {
     BufferViewInfo viewInfo = { };
 
-    if (Type() == GeneratorType::Dispatch)
+    if (Type() == Pm4::GeneratorType::Dispatch)
     {
         viewInfo.stride  = sizeof(ComputePipelineSignatureData);
         auto*const pData = reinterpret_cast<ComputePipelineSignatureData*>(pCmdBuffer->CmdAllocateEmbeddedData(
@@ -495,7 +492,7 @@ void IndirectCmdGenerator::PopulateUserDataMappingBuffer(
     const UserDataEntryMap* pStage     = nullptr;
     uint32                  stageCount = 0;
 
-    if (Type() == GeneratorType::Dispatch)
+    if (Type() == Pm4::GeneratorType::Dispatch)
     {
         const auto& signature = static_cast<const ComputePipeline*>(pPipeline)->Signature();
 

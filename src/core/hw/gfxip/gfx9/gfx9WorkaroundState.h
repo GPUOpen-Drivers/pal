@@ -31,7 +31,10 @@
 namespace Pal
 {
 
+namespace Pm4
+{
 struct GraphicsState;
+}
 
 namespace Gfx9
 {
@@ -60,10 +63,10 @@ public:
 
     template <bool PipelineDirty, bool StateDirty, bool Pm4OptImmediate>
     uint32* PreDraw(
-        const GraphicsState&    gfxState,
-        CmdStream*              pDeCmdStream,
-        UniversalCmdBuffer*     pCmdBuffer,
-        uint32*                 pCmdSpace);
+        const Pm4::GraphicsState& gfxState,
+        CmdStream*                pDeCmdStream,
+        UniversalCmdBuffer*       pCmdBuffer,
+        uint32*                   pCmdSpace);
     uint32* SwitchFromNggPipelineToLegacy(
         bool    nextPipelineUsesGs,
         uint32* pCmdSpace) const;

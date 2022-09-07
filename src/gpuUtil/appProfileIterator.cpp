@@ -34,7 +34,11 @@ namespace GpuUtil
 // =====================================================================================================================
 // Build the Content Distribution Network (CDN) application ID string.
 bool QueryAppContentDistributionId(
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 759
+    wchar_t*       pContentDistributionId,
+#else
     char*          pContentDistributionId,
+#endif
     size_t         bufferLength)
 {
     bool match = false;
@@ -44,19 +48,34 @@ bool QueryAppContentDistributionId(
         constexpr uint32 NumOfEnvVars = 4;
 
         // This strings are used for Steam, Ubisoft's UPlay, and EA's Origin..
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 759
+        const wchar_t* pEnvVarName[NumOfEnvVars] = { L"SteamAppId", L"upc_product_id", L"ContentId", L"EALaunchCode" };
+#else
         const char* pEnvVarName[NumOfEnvVars] = { "SteamAppId", "upc_product_id", "ContentId", "EALaunchCode" };
+#endif
 
         for (uint32 id = 0; id < NumOfEnvVars; id++)
         {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 759
+            wchar_t* pEnvVarValue;
+            pEnvVarValue = _wgetenv(pEnvVarName[id]);
+#else
             char* pEnvVarValue;
             pEnvVarValue = getenv(pEnvVarName[id]);
+#endif
 
             if (pEnvVarValue != nullptr)
             {
                 match = true;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 759
+                Util::Wcsncpy(pContentDistributionId, pEnvVarName[id], bufferLength);
+                Util::Wcscat(pContentDistributionId, L":", bufferLength);
+                Util::Wcscat(pContentDistributionId, pEnvVarValue, bufferLength);
+#else
                 Util::Strncpy(pContentDistributionId, pEnvVarName[id], bufferLength);
                 Util::Strncat(pContentDistributionId, bufferLength, ":");
                 Util::Strncat(pContentDistributionId, bufferLength, pEnvVarValue);
+#endif
                 break;
             }
         }

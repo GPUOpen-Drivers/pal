@@ -32,7 +32,7 @@ const DDRpcServerRegisterServiceInfo IDriverUtilsService::kServiceInfo = []() ->
     DDRpcServerRegisterServiceInfo info = {};
     info.id                             = 0x24815012;
     info.version.major                  = 1;
-    info.version.minor                  = 0;
+    info.version.minor                  = 1;
     info.version.patch                  = 0;
     info.pName                          = "DriverUtils";
     info.pDescription                   = "A utilities service for modifying the driver.";
@@ -62,6 +62,27 @@ static DD_RESULT RegisterFunctions(
 
             // Execute the service implementation
             return pService->EnableTracing();
+        };
+
+        result = ddRpcServerRegisterFunction(hServer, &info);
+    }
+
+    // Register "EnableCrashAnalysisMode"
+    if (result == DD_RESULT_SUCCESS)
+    {
+        DDRpcServerRegisterFunctionInfo info = {};
+        info.serviceId                       = 0x24815012;
+        info.id                              = 0x2;
+        info.pName                           = "EnableCrashAnalysisMode";
+        info.pDescription                    = "Informs driver to enable crash analysis mode";
+        info.pFuncUserdata                   = pService;
+        info.pfnFuncCb                       = [](
+            const DDRpcServerCallInfo* pCall) -> DD_RESULT
+        {
+            auto* pService = reinterpret_cast<IDriverUtilsService*>(pCall->pUserdata);
+
+            // Execute the service implementation
+            return pService->EnableCrashAnalysisMode();
         };
 
         result = ddRpcServerRegisterFunction(hServer, &info);

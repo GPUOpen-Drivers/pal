@@ -300,7 +300,7 @@ Result Queue::Submit(
 
     // Determine if we should add timestamps to this submission.
     bool addTimestamps = m_supportAnyTimestamp                    &&
-                         (submitInfo.pPerSubQueueInfo != nullptr) &&
+                         (submitInfo.perSubQueueInfoCount != 0) &&
                          (submitInfo.pPerSubQueueInfo[0].cmdBufferCount > 0);
     if (addTimestamps)
     {
@@ -425,7 +425,7 @@ Result Queue::SubmitWithGpuTimestampPair(
     GpuTimestampPair**     ppTimestamp)
 {
     // Caller should have made sure that there was at least one command buffer in here.
-    PAL_ASSERT((submitInfo.pPerSubQueueInfo != nullptr) && (submitInfo.pPerSubQueueInfo[0].cmdBufferCount > 0));
+    PAL_ASSERT((submitInfo.perSubQueueInfoCount > 0) && (submitInfo.pPerSubQueueInfo[0].cmdBufferCount > 0));
     Result result = Result::Success;
 
     Platform* pPlatform = static_cast<Platform*>(m_pDevice->GetPlatform());

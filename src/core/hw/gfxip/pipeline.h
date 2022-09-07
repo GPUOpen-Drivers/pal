@@ -160,6 +160,10 @@ public:
     // Unsupported in general, only compute currently has support.
     virtual const Util::HsaAbi::KernelArgument* GetKernelArgument(uint32 index) const override { return nullptr; }
 
+    // Get the array of underlying pipelines that this pipeline contains. For a normal non-multi-pipeline,
+    // this returns a single-entry array pointing to the same IPipeline.
+    virtual Util::Span<const IPipeline* const> GetPipelines() const override { return m_pSelf; }
+
     UploadFenceToken GetUploadFenceToken() const { return m_uploadFenceToken; }
     uint64 GetPagingFenceVal() const { return m_pagingFenceVal; }
 
@@ -236,8 +240,9 @@ private:
         uint32  value;  // Flags packed as a uint32.
     } m_flags;
 
-    BoundGpuMemory m_perfDataMem;
-    gpusize        m_perfDataGpuMemSize;
+    BoundGpuMemory   m_perfDataMem;
+    gpusize          m_perfDataGpuMemSize;
+    const IPipeline* m_pSelf;
 
     PAL_DISALLOW_DEFAULT_CTOR(Pipeline);
     PAL_DISALLOW_COPY_AND_ASSIGN(Pipeline);

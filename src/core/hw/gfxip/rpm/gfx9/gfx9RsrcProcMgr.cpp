@@ -434,95 +434,6 @@ void RsrcProcMgr::CmdCloneImageData(
 }
 
 // =====================================================================================================================
-// Adds commands to pCmdBuffer to copy data between srcGpuMemory and dstGpuMemory. Note that this function requires a
-// command buffer that supports CP DMA workloads.
-void RsrcProcMgr::CmdCopyMemory(
-    GfxCmdBuffer*           pCmdBuffer,
-    const GpuMemory&        srcGpuMemory,
-    const GpuMemory&        dstGpuMemory,
-    uint32                  regionCount,
-    const MemoryCopyRegion* pRegions
-    ) const
-{
-    // Force the compute shader copy path if any regions couldn't be executed by the CPDMA copy path:
-    //
-    //     - Size exceeds the maximum supported by CPDMA.
-    //     - Source or destination are virtual resources (CP would halt).
-    bool useCsCopy = srcGpuMemory.IsVirtual() || dstGpuMemory.IsVirtual();
-
-    for (uint32 i = 0; !useCsCopy && (i < regionCount); i++)
-    {
-        if (pRegions[i].copySize > m_pDevice->Parent()->GetPublicSettings()->cpDmaCmdCopyMemoryMaxBytes)
-        {
-            // We will copy this region later on.
-            useCsCopy = true;
-        }
-    }
-
-    if (useCsCopy)
-    {
-        CopyMemoryCs(pCmdBuffer, srcGpuMemory, dstGpuMemory, regionCount, pRegions);
-    }
-    else
-    {
-        bool p2pBltInfoRequired = m_pDevice->Parent()->IsP2pBltWaRequired(dstGpuMemory);
-
-        uint32 newRegionCount = 0;
-        if (p2pBltInfoRequired)
-        {
-            m_pDevice->P2pBltWaModifyRegionListMemory(dstGpuMemory,
-                                                      regionCount,
-                                                      pRegions,
-                                                      &newRegionCount,
-                                                      nullptr,
-                                                      nullptr);
-        }
-
-        AutoBuffer<MemoryCopyRegion, 32, Platform> newRegions(newRegionCount, m_pDevice->GetPlatform());
-        AutoBuffer<gpusize, 32, Platform> chunkAddrs(newRegionCount, m_pDevice->GetPlatform());
-        if (p2pBltInfoRequired)
-        {
-            if ((newRegions.Capacity() >= newRegionCount) && (chunkAddrs.Capacity() >= newRegionCount))
-            {
-                m_pDevice->P2pBltWaModifyRegionListMemory(dstGpuMemory,
-                                                          regionCount,
-                                                          pRegions,
-                                                          &newRegionCount,
-                                                          &newRegions[0],
-                                                          &chunkAddrs[0]);
-                regionCount = newRegionCount;
-                pRegions    = &newRegions[0];
-
-                pCmdBuffer->P2pBltWaCopyBegin(&dstGpuMemory, regionCount, &chunkAddrs[0]);
-            }
-            else
-            {
-                pCmdBuffer->NotifyAllocFailure();
-                p2pBltInfoRequired = false;
-            }
-        }
-
-        for (uint32 i = 0; i < regionCount; i++)
-        {
-            if (p2pBltInfoRequired)
-            {
-                pCmdBuffer->P2pBltWaCopyNextRegion(chunkAddrs[i]);
-            }
-
-            const gpusize dstAddr = dstGpuMemory.Desc().gpuVirtAddr + pRegions[i].dstOffset;
-            const gpusize srcAddr = srcGpuMemory.Desc().gpuVirtAddr + pRegions[i].srcOffset;
-
-            pCmdBuffer->CpCopyMemory(dstAddr, srcAddr, pRegions[i].copySize);
-        }
-
-        if (p2pBltInfoRequired)
-        {
-            pCmdBuffer->P2pBltWaCopyEnd();
-        }
-    }
-}
-
-// =====================================================================================================================
 // Adds commands to pCmdBuffer to copy the provided data into the specified GPU memory location. Note that this
 // function requires a command buffer that supports CP DMA workloads.
 void RsrcProcMgr::CmdUpdateMemory(
@@ -1444,7 +1355,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
             pCmdStream->CommitCommands(pCmdSpace);
         }
         // Do the expand the legacy way.
-        Pal::RsrcProcMgr::ExpandDepthStencil(pCmdBuffer, image, pQuadSamplePattern, range);
+        Pm4::RsrcProcMgr::ExpandDepthStencil(pCmdBuffer, image, pQuadSamplePattern, range);
     }
 
     return usedCompute;
@@ -1769,7 +1680,7 @@ uint32* RsrcProcMgr::UpdateBoundFastClearColor(
     PAL_ASSERT(pUnivCmdBuf->IsGraphicsStatePushed() == false);
 #endif
 
-    const GraphicsState& graphicsState = pUnivCmdBuf->GetGraphicsState();
+    const Pm4::GraphicsState& graphicsState = pUnivCmdBuf->GetGraphicsState();
 
     // Look for this image in the bound color target views and in such a case update the fast clear color in that
     // target.
@@ -1816,7 +1727,7 @@ void RsrcProcMgr::UpdateBoundFastClearDepthStencil(
     PAL_ASSERT(pUnivCmdBuf->IsGraphicsStatePushed() == false);
 #endif
 
-    const GraphicsState& graphicsState = pUnivCmdBuf->GetGraphicsState();
+    const Pm4::GraphicsState& graphicsState = pUnivCmdBuf->GetGraphicsState();
 
     // Look for this image in the bound depth stencil target and in such a case update the fast clear depth/stencil
     // value.
@@ -1850,6 +1761,21 @@ void RsrcProcMgr::UpdateBoundFastClearDepthStencil(
 
             pStream->CommitCommands(pCmdSpace);
         }
+    }
+}
+
+// =====================================================================================================================
+// Inserts barrier needed before issuing a compute clear when the target image is currently bound as a depth/stencil
+// target.  Only necessary when the client specifies the DsClearAutoSync flag for a depth/stencil clear.
+void RsrcProcMgr::PreComputeDepthStencilClearSync(
+    ICmdBuffer*        pCmdBuffer,
+    const GfxImage&    gfxImage,
+    const SubresRange& subres,
+    ImageLayout        layout
+    ) const
+{
+    {
+        Pal::RsrcProcMgr::PreComputeDepthStencilClearSync(pCmdBuffer, gfxImage, subres, layout);
     }
 }
 
@@ -2091,7 +2017,8 @@ void RsrcProcMgr::HwlDepthStencilClear(
                         PostComputeDepthStencilClearSync(pCmdBuffer,
                                                          gfx9Image,
                                                          pRanges[idx],
-                                                         isDepth ? depthLayout : stencilLayout);
+                                                         isDepth ? depthLayout : stencilLayout,
+                                                         true);
                         needPostComputeSync = false;
                     }
                 }
@@ -2176,7 +2103,8 @@ void RsrcProcMgr::HwlDepthStencilClear(
                 PostComputeDepthStencilClearSync(pCmdBuffer,
                                                  gfx9Image,
                                                  pRanges[idx],
-                                                 isDepth ? depthLayout : stencilLayout);
+                                                 isDepth ? depthLayout : stencilLayout,
+                                                 false);
                 needPostComputeSync = false;
             }
         }
@@ -3511,7 +3439,7 @@ uint32 Gfx9RsrcProcMgr::HwlBeginGraphicsCopy(
 // =====================================================================================================================
 // Undoes whatever HwlBeginGraphicsCopy did.
 void Gfx9RsrcProcMgr::HwlEndGraphicsCopy(
-    Pal::CmdStream* pCmdStream,
+    Pm4::CmdStream* pCmdStream,
     uint32          restoreMask
     ) const
 {
@@ -4064,6 +3992,95 @@ void RsrcProcMgr::EchoGlobalInternalTableAddr(
     }
 
     pCmdStream->CommitCommands(pCmdSpace);
+}
+
+// =====================================================================================================================
+// Adds commands to pCmdBuffer to copy data between srcGpuMemory and dstGpuMemory. Note that this function requires a
+// command buffer that supports CP DMA workloads.
+void Gfx9RsrcProcMgr::CmdCopyMemory(
+    GfxCmdBuffer*           pCmdBuffer,
+    const GpuMemory&        srcGpuMemory,
+    const GpuMemory&        dstGpuMemory,
+    uint32                  regionCount,
+    const MemoryCopyRegion* pRegions
+    ) const
+{
+    // Force the compute shader copy path if any regions couldn't be executed by the CPDMA copy path:
+    //
+    //     - Size exceeds the maximum supported by CPDMA.
+    //     - Source or destination are virtual resources (CP would halt).
+    bool useCsCopy = srcGpuMemory.IsVirtual() || dstGpuMemory.IsVirtual();
+
+    for (uint32 i = 0; !useCsCopy && (i < regionCount); i++)
+    {
+        if (pRegions[i].copySize > m_pDevice->Parent()->GetPublicSettings()->cpDmaCmdCopyMemoryMaxBytes)
+        {
+            // We will copy this region later on.
+            useCsCopy = true;
+        }
+    }
+
+    if (useCsCopy)
+    {
+        CopyMemoryCs(pCmdBuffer, srcGpuMemory, dstGpuMemory, regionCount, pRegions);
+    }
+    else
+    {
+        bool p2pBltInfoRequired = m_pDevice->Parent()->IsP2pBltWaRequired(dstGpuMemory);
+
+        uint32 newRegionCount = 0;
+        if (p2pBltInfoRequired)
+        {
+            m_pDevice->P2pBltWaModifyRegionListMemory(dstGpuMemory,
+                                                      regionCount,
+                                                      pRegions,
+                                                      &newRegionCount,
+                                                      nullptr,
+                                                      nullptr);
+        }
+
+        AutoBuffer<MemoryCopyRegion, 32, Platform> newRegions(newRegionCount, m_pDevice->GetPlatform());
+        AutoBuffer<gpusize, 32, Platform> chunkAddrs(newRegionCount, m_pDevice->GetPlatform());
+        if (p2pBltInfoRequired)
+        {
+            if ((newRegions.Capacity() >= newRegionCount) && (chunkAddrs.Capacity() >= newRegionCount))
+            {
+                m_pDevice->P2pBltWaModifyRegionListMemory(dstGpuMemory,
+                                                          regionCount,
+                                                          pRegions,
+                                                          &newRegionCount,
+                                                          &newRegions[0],
+                                                          &chunkAddrs[0]);
+                regionCount = newRegionCount;
+                pRegions    = &newRegions[0];
+
+                pCmdBuffer->P2pBltWaCopyBegin(&dstGpuMemory, regionCount, &chunkAddrs[0]);
+            }
+            else
+            {
+                pCmdBuffer->NotifyAllocFailure();
+                p2pBltInfoRequired = false;
+            }
+        }
+
+        for (uint32 i = 0; i < regionCount; i++)
+        {
+            if (p2pBltInfoRequired)
+            {
+                pCmdBuffer->P2pBltWaCopyNextRegion(chunkAddrs[i]);
+            }
+
+            const gpusize dstAddr = dstGpuMemory.Desc().gpuVirtAddr + pRegions[i].dstOffset;
+            const gpusize srcAddr = srcGpuMemory.Desc().gpuVirtAddr + pRegions[i].srcOffset;
+
+            pCmdBuffer->CpCopyMemory(dstAddr, srcAddr, pRegions[i].copySize);
+        }
+
+        if (p2pBltInfoRequired)
+        {
+            pCmdBuffer->P2pBltWaCopyEnd();
+        }
+    }
 }
 
 // ====================================================================================================================
@@ -5260,7 +5277,7 @@ void Gfx9RsrcProcMgr::ExecuteHtileEquation(
 
 // =====================================================================================================================
 const Pal::ComputePipeline* Gfx9RsrcProcMgr::GetCmdGenerationPipeline(
-    const Pal::IndirectCmdGenerator& generator,
+    const Pm4::IndirectCmdGenerator& generator,
     const CmdBuffer&                 cmdBuffer
     ) const
 {
@@ -5268,13 +5285,13 @@ const Pal::ComputePipeline* Gfx9RsrcProcMgr::GetCmdGenerationPipeline(
 
     switch (generator.Type())
     {
-    case GeneratorType::Draw:
-    case GeneratorType::DrawIndexed:
+    case Pm4::GeneratorType::Draw:
+    case Pm4::GeneratorType::DrawIndexed:
         PAL_ASSERT(cmdBuffer.GetEngineType() == EngineTypeUniversal);
         pipeline = RpmComputePipeline::Gfx9GenerateCmdDraw;
         break;
 
-    case GeneratorType::Dispatch:
+    case Pm4::GeneratorType::Dispatch:
         pipeline = RpmComputePipeline::Gfx9GenerateCmdDispatch;
         break;
 
@@ -6774,7 +6791,7 @@ void Gfx10RsrcProcMgr::FastDepthStencilClearCompute(
 
 // =====================================================================================================================
 const Pal::ComputePipeline* Gfx10RsrcProcMgr::GetCmdGenerationPipeline(
-    const Pal::IndirectCmdGenerator& generator,
+    const Pm4::IndirectCmdGenerator& generator,
     const CmdBuffer&                 cmdBuffer
     ) const
 {
@@ -6783,8 +6800,8 @@ const Pal::ComputePipeline* Gfx10RsrcProcMgr::GetCmdGenerationPipeline(
 
     switch (generator.Type())
     {
-    case GeneratorType::Draw:
-    case GeneratorType::DrawIndexed:
+    case Pm4::GeneratorType::Draw:
+    case Pm4::GeneratorType::DrawIndexed:
         // We use a compute pipeline to generate PM4 for executing graphics draws...  This command buffer needs
         // to be able to support both operations.  This will be a problem for GFX10-graphics only rings.
         PAL_ASSERT(Pal::Device::EngineSupportsGraphics(engineType) &&
@@ -6793,12 +6810,12 @@ const Pal::ComputePipeline* Gfx10RsrcProcMgr::GetCmdGenerationPipeline(
         pipeline = RpmComputePipeline::Gfx10GenerateCmdDraw;
         break;
 
-    case GeneratorType::Dispatch:
+    case Pm4::GeneratorType::Dispatch:
         PAL_ASSERT(Pal::Device::EngineSupportsCompute(engineType));
 
         pipeline = RpmComputePipeline::Gfx10GenerateCmdDispatch;
         break;
-    case GeneratorType::DispatchMesh:
+    case Pm4::GeneratorType::DispatchMesh:
         PAL_ASSERT(Pal::Device::EngineSupportsGraphics(engineType) &&
                    Pal::Device::EngineSupportsCompute(engineType));
         pipeline = RpmComputePipeline::Gfx10GenerateCmdDispatchTaskMesh;
@@ -7343,7 +7360,7 @@ uint32 Gfx10RsrcProcMgr::HwlBeginGraphicsCopy(
 // =====================================================================================================================
 // Undoes whatever HwlBeginGraphicsCopy did.
 void Gfx10RsrcProcMgr::HwlEndGraphicsCopy(
-    Pal::CmdStream* pCmdStream,
+    Pm4::CmdStream* pCmdStream,
     uint32          restoreMask
     ) const
 {

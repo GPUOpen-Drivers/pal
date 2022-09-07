@@ -150,7 +150,7 @@ Result ShaderLibrary::HwlInit(
         m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
     }
 
-    if (result == Result::Success)
+    if ((result == Result::Success) && (createInfo.funcCount != 0))
     {
         m_funcCount = createInfo.funcCount;
         m_pFunctionList = PAL_NEW_ARRAY(ShaderLibraryFunctionInfo,

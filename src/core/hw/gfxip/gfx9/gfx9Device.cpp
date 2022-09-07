@@ -82,11 +82,6 @@ constexpr uint32 UcodeVersionWithDumpOffsetSupport = 30;
 constexpr uint32 Gfx9UcodeVersionSetShRegOffset256B  = 42;
 constexpr uint32 Gfx10UcodeVersionSetShRegOffset256B = 27;
 
-static uint32 ComputeImageViewDepth(
-    const ImageViewInfo&   viewInfo,
-    const ImageInfo&       imageInfo,
-    const SubResourceInfo& subresInfo);
-
 // =====================================================================================================================
 size_t GetDeviceSize(
     GfxIpLevel  gfxLevel)
@@ -2987,7 +2982,7 @@ size_t Device::GetIndirectCmdGeneratorSize(
 {
     if (pResult != nullptr)
     {
-        (*pResult) = Pal::IndirectCmdGenerator::ValidateCreateInfo(createInfo);
+        (*pResult) = Pm4::IndirectCmdGenerator::ValidateCreateInfo(createInfo);
     }
 
     return IndirectCmdGenerator::GetSize(createInfo);
@@ -3002,7 +2997,7 @@ Result Device::CreateIndirectCmdGenerator(
 {
     PAL_ASSERT((pPlacementAddr != nullptr) && (ppGenerator != nullptr));
 #if PAL_ENABLE_PRINTS_ASSERTS
-    PAL_ASSERT(Pal::IndirectCmdGenerator::ValidateCreateInfo(createInfo) == Result::Success);
+    PAL_ASSERT(Pm4::IndirectCmdGenerator::ValidateCreateInfo(createInfo) == Result::Success);
 #endif
 
     (*ppGenerator) = PAL_PLACEMENT_NEW(pPlacementAddr) IndirectCmdGenerator(*this, createInfo);
@@ -3276,51 +3271,6 @@ DccFormatEncoding Device::ComputeDccFormatEncoding(
     }
 
     return dccFormatEncoding;
-}
-
-// =====================================================================================================================
-// Computes the image view SRD DEPTH field based on image view parameters
-static uint32 ComputeImageViewDepth(
-    const ImageViewInfo&   viewInfo,
-    const ImageInfo&       imageInfo,
-    const SubResourceInfo& subresInfo)
-{
-    uint32 depth = 0;
-
-    const ImageCreateInfo& imageCreateInfo = viewInfo.pImage->GetImageCreateInfo();
-
-    // From reg spec: Units are "depth - 1", so 0 = 1 slice, 1= 2 slices.
-    // If the image type is 3D, then the DEPTH field is the image's depth - 1.
-    // Otherwise, the DEPTH field replaces the old "last_array" field.
-
-    // Note that we can't use viewInfo.viewType here since 3D image may be viewed as 2D (array).
-    if (imageCreateInfo.imageType == ImageType::Tex3d)
-    {
-        if (viewInfo.flags.zRangeValid == 1)
-        {
-            // If the client is specifying a valid Z range, the depth of the SRD must include the range's offset
-            // and extent. Furthermore, the Z range is specified in terms of the view's first mip level, not the
-            // Image's base mip level. The hardware, however, requires the SRD depth to be in terms of the base
-            // mip level.
-            const uint32 firstMip = viewInfo.subresRange.startSubres.mipLevel;
-            depth = (((viewInfo.zRange.offset + viewInfo.zRange.extent) << firstMip) - 1);
-        }
-        else
-        {
-            depth = (subresInfo.extentTexels.depth - 1);
-        }
-    }
-    else
-    {
-
-        // For gfx9, there is no longer a separate last_array parameter  for arrays. Instead the "depth" input is used
-        // as the last_array parameter. For cubemaps, depth is no longer interpreted as the number of full cube maps
-        // (6 faces), but strictly as the number of array slices. It is up to driver to make sure depth-base is
-        // modulo 6 for cube maps.
-        depth = (viewInfo.subresRange.startSubres.arraySlice + viewInfo.subresRange.numSlices - 1);
-    }
-
-    return depth;
 }
 
 // These compile-time assertions verify the assumption that Pal compare function enums are identical to the HW values.
@@ -4426,7 +4376,41 @@ void PAL_STDCALL Device::Gfx9CreateImageViewSrds(
             srd.word5.bits.MAX_MIP    = mipLevels - 1;
         }
 
-        srd.word4.bits.DEPTH      = ComputeImageViewDepth(viewInfo, imageInfo, *pBaseSubResInfo);
+        uint32 depth = 0;
+
+        // From reg spec: Units are "depth - 1", so 0 = 1 slice, 1= 2 slices.
+        // If the image type is 3D, then the DEPTH field is the image's depth - 1.
+        // Otherwise, the DEPTH field replaces the old "last_array" field.
+
+        // Note that we can't use viewInfo.viewType here since 3D image may be viewed as 2D (array).
+        if (imageCreateInfo.imageType == ImageType::Tex3d)
+        {
+            if (viewInfo.flags.zRangeValid == 1)
+            {
+                // If the client is specifying a valid Z range, the depth of the SRD must include the range's offset
+                // and extent. Furthermore, the Z range is specified in terms of the view's first mip level, not the
+                // Image's base mip level. The hardware, however, requires the SRD depth to be in terms of the base
+                // mip level.
+                // could be broken as gfx9 does not support zRange on 3d images
+                const uint32 firstMip = viewInfo.subresRange.startSubres.mipLevel;
+                depth = (((viewInfo.zRange.offset + viewInfo.zRange.extent) << firstMip) - 1);
+            }
+            else
+            {
+                depth = (pBaseSubResInfo->extentTexels.depth - 1);
+            }
+        }
+        else
+        {
+
+            // For gfx9, there is no longer a separate last_array parameter  for arrays. Instead the "depth" input is
+            // used as the last_array parameter. For cubemaps, depth is no longer interpreted as the number of full cube
+            // maps (6 faces), but strictly as the number of array slices. It is up to driver to make sure depth-base is
+            // modulo 6 for cube maps.
+            depth = (viewInfo.subresRange.startSubres.arraySlice + viewInfo.subresRange.numSlices - 1);
+        }
+
+        srd.word4.bits.DEPTH      = depth;
         srd.word4.bits.BC_SWIZZLE = GetBcSwizzle(imageCreateInfo);
 
         if (modifiedYuvExtents == false)
@@ -4885,11 +4869,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
 
         PAL_ASSERT((viewInfo.possibleLayouts.engines != 0) && (viewInfo.possibleLayouts.usages != 0));
 
-        if ((viewInfo.flags.zRangeValid == 1) && (imageCreateInfo.imageType == ImageType::Tex3d))
-        {
-            baseArraySlice = viewInfo.zRange.offset;
-        }
-        else if (imgIsYuvPlanar && (viewInfo.subresRange.numSlices == 1))
+        if (imgIsYuvPlanar && (viewInfo.subresRange.numSlices == 1))
         {
             baseSubResId.arraySlice = baseArraySlice;
             baseArraySlice = 0;
@@ -5045,7 +5025,6 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
                         PAL_ASSERT((viewInfo.flags.zRangeValid == 1) && (viewInfo.zRange.extent == 1));
                         PAL_ASSERT(image.IsSubResourceLinear(baseSubResId));
 
-                        baseSubResId.arraySlice = 0;
                         overrideZRangeOffset    = viewInfo.flags.zRangeValid;
                     }
                     else
@@ -5216,17 +5195,6 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             break;
         case ImageViewType::Tex3d:
             srd.type = SQ_RSRC_IMG_3D;
-
-            // For 3D, bit 0 indicates SRV or UAV:
-            //   0: SRV (base_array ignored, depth w.r.t. base map)
-            //   1: UAV (base_array and depth are first and last layer in view, and w.r.t. mip level specified)
-            //
-            // "base_array" and "depth" specify the range of 3D slices that can be read from.  Both of these fields
-            // are setup (below) to what the client expects based on the "viewInfo" paramters, so we always want the
-            // HW to obey them, so we always set the LSB of "array_pitch".
-            //
-            // For non-3D images, the "array_pitch" field is only meaningful for quilts, which we do not support.
-            srd.gfx10CorePlus.array_pitch = 0;
             break;
         case ImageViewType::TexCube:
             srd.type = SQ_RSRC_IMG_CUBE;
@@ -5257,8 +5225,63 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             srd.gfx10Core.max_mip = maxMipField;
         }
 
+        uint32 depth = 0;
+
+        // From reg spec: Units are "depth - 1", so 0 = 1 slice, 1= 2 slices.
+        // If the image type is 3D, then the DEPTH field is the image's depth - 1.
+        // Otherwise, the DEPTH field replaces the old "last_array" field.
+
+        // Note that we can't use viewInfo.viewType here since 3D image may be viewed as 2D (array).
+        if (imageCreateInfo.imageType == ImageType::Tex3d)
         {
-            srd.gfx10.depth = ComputeImageViewDepth(viewInfo, imageInfo, *pBaseSubResInfo);
+            if (viewInfo.flags.zRangeValid == 1)
+            {
+                // For 3D, bit 0 indicates SRV or UAV:
+                //   0: SRV (base_array ignored, depth w.r.t. base map)
+                //   1: UAV (base_array and depth are first and last layer in view, and w.r.t. mip level specified)
+                //
+                // "base_array" and "depth" specify the range of 3D slices that can be read from.  Both of these fields
+                // are setup (below) to what the client expects based on the "viewInfo" paramters, so we always want the
+                // HW to obey them, so we always set the LSB of "array_pitch".
+                //
+                // For non-3D images, the "array_pitch" field is only meaningful for quilts, which we do not support.
+                // Since zRange is set valid here, UAV should be used.
+                srd.gfx10CorePlus.array_pitch = 1;
+                baseArraySlice = viewInfo.zRange.offset;
+                // If the client is specifying a valid Z range, the depth of the SRD must include the range's offset
+                // and extent. Furthermore, the Z range is specified in terms of the view's first mip level, not the
+                // Image's base mip level. Since it is UAV, so the hardware accepts depth in the current
+                // mip level.
+                depth = ((viewInfo.zRange.offset + viewInfo.zRange.extent) - 1);
+                // if the image is a 96-bit image, since we treat it as a 32-bit image with three times the width and
+                // compute the depth pitch in memory ourselves, we force the view to view one slice at a time, and set
+                // baseArraySlice to 0 for the computation of depth pitch.
+                if (overrideZRangeOffset)
+                {
+                    baseArraySlice = 0;
+                    depth = 0;
+                }
+            }
+            else
+            {
+                // Since zRange is not enabled, SRV should be used.
+                srd.gfx10CorePlus.array_pitch = 0;
+                // Using the depth of the base mip level for SRV according to the documentation.
+                depth = (pBaseSubResInfo ->extentTexels.depth - 1);
+            }
+        }
+        else
+        {
+
+            // For gfx9, there is no longer a separate last_array parameter  for arrays. Instead the "depth" input is
+            // used as the last_array parameter. For cubemaps, depth is no longer interpreted as the number of full cube
+            // maps (6 faces), but strictly as the number of array slices. It is up to driver to make sure depth-base is
+            // modulo 6 for cube maps.
+            depth = (viewInfo.subresRange.startSubres.arraySlice + viewInfo.subresRange.numSlices - 1);
+        }
+
+        {
+            srd.gfx10.depth = depth;
         }
 
         // (pitch-1)[12:0] of mip 0 for 1D, 2D and 2D MSAA in GFX10.3+, if pitch > width,
@@ -6940,6 +6963,7 @@ void InitializeGpuEngineProperties(
     pUniversal->flags.supportsImageInitBarrier        = 1;
     pUniversal->flags.supportsImageInitPerSubresource = 1;
     pUniversal->flags.supportsUnmappedPrtPageAccess   = 1;
+    pUniversal->flags.supportsClearCopyMsaaDsDst      = 1;
     pUniversal->maxControlFlowNestingDepth            = CmdStream::CntlFlowNestingLimit;
     pUniversal->minTiledImageCopyAlignment.width      = 1;
     pUniversal->minTiledImageCopyAlignment.height     = 1;

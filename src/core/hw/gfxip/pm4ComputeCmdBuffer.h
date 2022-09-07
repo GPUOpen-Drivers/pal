@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include "core/hw/gfxip/gfxCmdStream.h"
+#include "core/hw/gfxip/pm4CmdStream.h"
 #include "core/hw/gfxip/pm4CmdBuffer.h"
 
 namespace Pal
@@ -84,7 +84,7 @@ protected:
     ComputeCmdBuffer(
         const GfxDevice&           device,
         const CmdBufferCreateInfo& createInfo,
-        GfxCmdStream*              pCmdStream);
+        Pm4::CmdStream*            pCmdStream);
 
     virtual ~ComputeCmdBuffer() {}
 
@@ -106,8 +106,8 @@ protected:
     }  m_spillTable;
 
 private:
-    const GfxDevice&    m_device;
-    GfxCmdStream*const  m_pCmdStream;
+    const GfxDevice&     m_device;
+    Pm4::CmdStream*const m_pCmdStream;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(ComputeCmdBuffer);
     PAL_DISALLOW_DEFAULT_CTOR(ComputeCmdBuffer);

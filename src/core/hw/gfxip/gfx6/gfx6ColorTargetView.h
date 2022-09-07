@@ -26,12 +26,15 @@
 #include "palColorTargetView.h"
 #include "core/hw/gfxip/gfx6/gfx6Image.h"
 #include "core/hw/gfxip/gfx6/gfx6MaskRam.h"
-#include "core/hw/gfxip/universalCmdBuffer.h"
+#include "core/hw/gfxip/pm4UniversalCmdBuffer.h"
 
 namespace Pal
 {
 
+namespace Pm4
+{
 struct GraphicsState;
+}
 
 namespace Gfx6
 {
@@ -89,7 +92,7 @@ public:
 
     bool IsDccEnabled(ImageLayout imageLayout) const;
 
-    TargetExtent2d GetExtent() const { return m_extent; }
+    Pm4::TargetExtent2d GetExtent() const { return m_extent; }
 
     bool IsRotatedSwizzleOverwriteCombinerDisabled() const { return m_flags.disableRotateSwizzleOC != 0; }
 
@@ -132,9 +135,9 @@ private:
     } m_flags;
 
     // If this is an image view, these members give the bound image and its base subresource.
-    const Image*    m_pImage;
-    SubresId        m_subresource;
-    TargetExtent2d  m_extent;
+    const Image*        m_pImage;
+    SubresId            m_subresource;
+    Pm4::TargetExtent2d m_extent;
 
     ColorLayoutToState   m_layoutToState;
     ColorTargetViewRegs  m_regs;

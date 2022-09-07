@@ -900,6 +900,7 @@ Pal::Result GpaSession::TimedSubmit(
     const TimedSubmitInfo&      timedSubmitInfo)
 {
     // Multi-queue submits are not yet supported by GpaSession!
+    PAL_ASSERT(submitInfo.perSubQueueInfoCount != 0);
     PAL_ASSERT(submitInfo.pPerSubQueueInfo != nullptr);
     PAL_ASSERT_MSG((submitInfo.perSubQueueInfoCount <= 1),
                    "Multi-Queue support has not yet been implemented in GpaSession!", nullptr);
@@ -3551,63 +3552,41 @@ Result GpaSession::AcquirePerfExperiment(
                 sqttInfo.optionFlags.threadTraceShaderTypeMask  = 1;
                 sqttInfo.optionValues.threadTraceShaderTypeMask = PerfShaderMaskAll;
 
-                // Build a mask for active Shader Engines so we don't try trace any inactive/harvested ones
-                uint32 activeSeMask = 0;
-                for (uint32 seIndex = 0; seIndex < m_deviceProps.gfxipProperties.shaderCore.numShaderEngines; seIndex++)
-                {
-                    for (uint32 saIndex = 0; saIndex < m_deviceProps.gfxipProperties.shaderCore.numShaderArrays; saIndex++)
-                    {
-                        const uint32 activeCuMask = m_deviceProps.gfxipProperties.shaderCore.activeCuMask[seIndex][saIndex];
-                        if (activeCuMask != 0)
-                        {
-                            // this engine has one or more active CUs, so mark as available
-                            activeSeMask |= (1 << seIndex);
-                            break;
-                        }
-                    }
-                }
-
-                PAL_ASSERT(activeSeMask != 0);
-                const uint32 traceSeMask = (sampleConfig.sqtt.seMask == 0) ? activeSeMask : (sampleConfig.sqtt.seMask & activeSeMask);
-
                 for (uint32 i = 0; (i < m_perfExperimentProps.shaderEngineCount) && (result == Result::Success); i++)
                 {
                     sqttInfo.optionValues.bufferSize = alignedBufferSize;
 
-                    if (Util::TestAnyFlagSet(traceSeMask, 1 << i))
+                    // Build another mask of detailed info such as instruction tracing of SEs in order for gpu
+                    // profiler tools, And the shader type mask controls which shader stages emit detailed tokens
+                    // Note: An SE detailed mask of 0 means that detailed tokens should be enabled for all SEs.
+                    const bool enableDetailedTokens = (Util::TestAnyFlagSet(sampleConfig.sqtt.seDetailedMask, 1 << i) ||
+                                                        (sampleConfig.sqtt.seDetailedMask == 0));
+
+                    // In the case of the seDetailedMask set for this specific SE we want to increase the buffer
+                    // size.
+                    if (((sampleConfig.sqtt.seDetailedMask == 0) ||
+                            Util::TestAnyFlagSet(sampleConfig.sqtt.seDetailedMask, 1 << i)) &&
+                        (skipInstTokens == false))
                     {
-                        // Build another mask of detailed info such as instruction tracing of SEs in order for gpu
-                        // profiler tools, And the shader type mask controls which shader stages emit detailed tokens
-                        // Note: An SE detailed mask of 0 means that detailed tokens should be enabled for all SEs.
-                        const bool enableDetailedTokens = (Util::TestAnyFlagSet(sampleConfig.sqtt.seDetailedMask, 1 << i) ||
-                                                            (sampleConfig.sqtt.seDetailedMask == 0));
-
-                        // In the case of the seDetailedMask set for this specific SE we want to increase the buffer
-                        // size.
-                        if (((sampleConfig.sqtt.seDetailedMask == 0) ||
-                              Util::TestAnyFlagSet(sampleConfig.sqtt.seDetailedMask, 1 << i)) &&
-                            (skipInstTokens == false))
-                        {
-                            constexpr size_t DetailSqttSeBufferMultiplier = 4;
-                            sqttInfo.optionValues.bufferSize *= DetailSqttSeBufferMultiplier;
-                        }
-
-                        if (m_flags.enableSampleUpdates == true)
-                        {
-                            sqttInfo.optionValues.threadTraceTokenConfig = SqttTokenConfigMinimal;
-                        }
-                        else if((enableDetailedTokens == false) || (skipInstTokens == true))
-                        {
-                            sqttInfo.optionValues.threadTraceTokenConfig = SqttTokenConfigNoInst;
-                        }
-                        else
-                        {
-                            sqttInfo.optionValues.threadTraceTokenConfig = SqttTokenConfigAllTokens;
-                        }
-
-                        sqttInfo.instance = i;
-                        result = pExperiment->AddThreadTrace(sqttInfo);
+                        constexpr size_t DetailSqttSeBufferMultiplier = 4;
+                        sqttInfo.optionValues.bufferSize *= DetailSqttSeBufferMultiplier;
                     }
+
+                    if (m_flags.enableSampleUpdates == true)
+                    {
+                        sqttInfo.optionValues.threadTraceTokenConfig = SqttTokenConfigMinimal;
+                    }
+                    else if((enableDetailedTokens == false) || (skipInstTokens == true))
+                    {
+                        sqttInfo.optionValues.threadTraceTokenConfig = SqttTokenConfigNoInst;
+                    }
+                    else
+                    {
+                        sqttInfo.optionValues.threadTraceTokenConfig = SqttTokenConfigAllTokens;
+                    }
+
+                    sqttInfo.instance = i;
+                    result = pExperiment->AddThreadTrace(sqttInfo);
                 }
             }
 

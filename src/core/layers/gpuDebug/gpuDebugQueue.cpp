@@ -571,8 +571,10 @@ Result Queue::Submit(
     MultiSubmitInfo finalSubmitInfo = submitInfo;
     Result          result          = Result::Success;
 
+    PAL_ASSERT((submitInfo.perSubQueueInfoCount == 0) || (submitInfo.pPerSubQueueInfo != nullptr));
+
     const bool dummySubmit =
-        ((submitInfo.pPerSubQueueInfo == nullptr) || (submitInfo.pPerSubQueueInfo[0].cmdBufferCount == 0));
+        ((submitInfo.perSubQueueInfoCount == 0) || (submitInfo.pPerSubQueueInfo[0].cmdBufferCount == 0));
 
     // Start by assuming we'll need to add our header CmdBuffer per queue.
     size_t totalCmdBufferCount = m_queueCount;

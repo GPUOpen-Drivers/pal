@@ -36,7 +36,7 @@
 #include "core/hw/gfxip/gfx6/gfx6UniversalEngine.h"
 #include "g_gfx6Settings.h"
 #include "core/hw/gfxip/gfx6/g_gfx6ShadowedRegistersInit.h"
-#include "core/hw/gfxip/universalCmdBuffer.h"
+#include "core/hw/gfxip/pm4UniversalCmdBuffer.h"
 #include "palAssert.h"
 #include "palDequeImpl.h"
 #include "palVectorImpl.h"
