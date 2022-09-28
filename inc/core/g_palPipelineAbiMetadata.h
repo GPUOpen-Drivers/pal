@@ -628,7 +628,7 @@ struct SpiInterpControlMetadata
 
 struct SpiPsInputCntlMetadata
 {
-    /// PS input offset – specifies which parameter cache outputs are for this input.
+    /// PS input offset - specifies which parameter cache outputs are for this input.
     uint8 offset;
     /// Selects default value if no semantic match is found.
     uint8 defaultVal;

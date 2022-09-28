@@ -2868,6 +2868,9 @@ Result QueueDecorator::Submit(
         nextSubmitInfo.ppBlockIfFlipping    = &pNextBlockIfFlipping[0];
         nextSubmitInfo.fenceCount           = submitInfo.fenceCount;
         nextSubmitInfo.ppFences             = &nextFences[0];
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 764
+        nextSubmitInfo.pFreeMuxMemory       = NextGpuMemory(submitInfo.pFreeMuxMemory);
+#endif
 
         for (uint32 i = 0; i < submitInfo.gpuMemRefCount; i++)
         {

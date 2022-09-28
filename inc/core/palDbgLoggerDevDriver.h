@@ -109,10 +109,6 @@ public:
     /// @returns description data size.
     virtual uint32 GetEventDescriptionDataSize() const override;
 
-    /// Extracts the OriginationType and SeverityLevel from DevDriver's bit
-    /// mask and passes these on to its containing DbgLoggerDevDriver.
-    virtual void OnEnable() override;
-
 private:
     /// LogEventProvider's provider Id is the chain of ASCII codes of each letter in 'LogE'
     static constexpr DevDriver::EventProtocol::EventProviderId ProviderId = 0x4C6F6745; // 'LogE'
@@ -167,22 +163,6 @@ public:
     void Cleanup()
     {
         m_logEventProvider.Destroy();
-    }
-
-    /// Set this logger's cutoff severity level.
-    /// @param [in] cutOffeverity     Cutoff severity level.
-    void SetCutOffSeverityLevel(
-        Util::SeverityLevel cutOffeverity)
-    {
-        m_cutoffSeverityLevel = cutOffeverity;
-    }
-
-    /// Set this logger's origination type mask.
-    /// @param [in] origTypeMask     Mask of all acceptable Origination types.
-    void SetOriginationTypeMask(
-        uint32 origTypeMask)
-    {
-        m_originationTypeMask = origTypeMask;
     }
 
 protected:

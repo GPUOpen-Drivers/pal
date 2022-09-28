@@ -37,6 +37,7 @@ endif()
 #endif
 
 target_sources(pal PRIVATE
+    arFile.cpp
     assert.cpp
     cacheLayerBase.cpp
     cacheLayerBase.h

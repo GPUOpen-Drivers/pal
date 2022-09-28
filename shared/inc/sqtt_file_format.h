@@ -117,7 +117,7 @@ static constexpr RgpChunkVersionNumbers RgpChunkVersionNumberLookup[] =
     {0, 5}, // SQTT_FILE_CHUNK_TYPE_ASIC_INFO,
     {0, 2}, // SQTT_FILE_CHUNK_TYPE_SQTT_DESC,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_SQTT_DATA,
-    {0, 1}, // SQTT_FILE_CHUNK_TYPE_API_INFO,
+    {0, 2}, // SQTT_FILE_CHUNK_TYPE_API_INFO,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_RESERVED,
     {1, 1}, // SQTT_FILE_CHUNK_TYPE_QUEUE_EVENT_TIMINGS,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_CLOCK_CALIBRATION,
@@ -341,13 +341,13 @@ typedef union SqttProfilingModeData
 */
 typedef enum SqttInstructionTraceMode
 {
-    SQTT_INSTRUCTION_TRACE_DISABLED   = 0x0,         /*!< Instruction trace was disabled. */
-    SQTT_INSTRUCTION_TRACE_FULL_FRAME = 0x1,         /*!< Instruction trace was enabled for the full frame. */
-    SQTT_INSTRUCTION_TRACE_API_PSO    = 0x2,         /*!< Instruction trace was enabled for a single PSO. */
+    SQTT_INSTRUCTION_TRACE_DISABLED   = 0x0, /*!< Instruction trace was disabled. */
+    SQTT_INSTRUCTION_TRACE_FULL_FRAME = 0x1, /*!< Instruction trace was enabled for the full frame. */
+    SQTT_INSTRUCTION_TRACE_API_PSO    = 0x2, /*!< Instruction trace was enabled for a single PSO. */
 } SqttInstructionTraceMode;
 
-/** An structure containing the SQTT instruction trace mode data. For now there is only data for the API PSO
-instruction trace mode.
+/** An structure containing the SQTT instruction trace mode data. This is either the API Pso filter or the shader engine
+ *  filter that was used to control which shader engine(s) instruction tracing data was captured from.
 */
 typedef union SqttInstructionTraceData
 {
@@ -358,9 +358,8 @@ typedef union SqttInstructionTraceData
 
     struct
     {
-        char start[kUserMarkerStringLength];
-        char end[kUserMarkerStringLength];
-    } userMarkerData;
+        uint32_t mask;
+    } shaderEngineFilter;
 
 } SqttInstructionTraceData;
 
@@ -529,10 +528,10 @@ typedef struct SqttFileChunkQueueEventTimings
 */
 typedef enum SqttQueueType
 {
-    SQTT_QUEUE_TYPE_UNKNOWN   = 0x0,
-    SQTT_QUEUE_TYPE_UNIVERSAL = 0x1,
-    SQTT_QUEUE_TYPE_COMPUTE   = 0x2,
-    SQTT_QUEUE_TYPE_DMA       = 0x3,
+    SQTT_QUEUE_TYPE_UNKNOWN         = 0x0,
+    SQTT_QUEUE_TYPE_UNIVERSAL       = 0x1,
+    SQTT_QUEUE_TYPE_COMPUTE         = 0x2,
+    SQTT_QUEUE_TYPE_DMA             = 0x3,
 } SqttQueueType;
 
 /** An enumeration of all valid engine types.

@@ -57,6 +57,7 @@ Pm4CmdBuffer::Pm4CmdBuffer(
     :
     GfxCmdBuffer(device, createInfo),
     m_acqRelFenceValGpuVa(0),
+    m_timestampGpuVa(0),
     m_fceRefCountVec(device.GetPlatform()),
     m_pm4CmdBufState{},
     m_computeState{},
@@ -373,6 +374,16 @@ Result Pm4CmdBuffer::BeginCommandStreams(
         // allocator.  In that scenario, the allocator returns a dummy chunk so we can always have a valid object
         // to access, and sets m_status to a failure code.
         m_acqRelFenceValGpuVa = AllocateGpuScratchMem(static_cast<uint32>(AcqRelEventType::Count), sizeof(uint32));
+        result = m_status;
+    }
+
+    if (result == Result::Success)
+    {
+        // Allocate timestamp GPU memory from the command allocator.
+        // AllocateGpuScratchMem() always returns a valid GPU address, even if we fail to obtain memory from the
+        // allocator.  In that scenario, the allocator returns a dummy chunk so we can always have a valid object
+        // to access, and sets m_status to a failure code.
+        m_timestampGpuVa = AllocateGpuScratchMem(sizeof(uint32), sizeof(uint32));
         result = m_status;
     }
 

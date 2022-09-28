@@ -171,27 +171,27 @@ extern bool IsAssertCategoryEnabled(
 /// @note This version of assert inlines an 'int 3' every time it is used so that each occurrence can be zapped
 ///       independently.  This macro cannot be used in assignment operations.
 #define PAL_TRIGGER_ASSERT(_pFormat, ...)                           \
-{                                                                   \
+do {                                                                \
     PAL_DPERROR(_pFormat, ##__VA_ARGS__);                           \
     if (::Util::IsAssertCategoryEnabled(::Util::AssertCatAssert))   \
     {                                                               \
         PAL_DEBUG_BREAK();                                          \
     }                                                               \
-}
+} while (false)
 
 /// If the expression evaluates to false, then it calls the PAL_TRIGGER_ASSERT macro with an error message with the
 /// specified reason.
 ///
 /// @note This assert should not be used in constant evaluated contexts (e.g., constexpr functions).
 #define PAL_ASSERT_MSG(_expr, _pReasonFmt, ...)                                                   \
-{                                                                                                 \
+do {                                                                                              \
     const bool _expr_eval = static_cast<bool>(_expr);                                             \
     if (PAL_PREDICT_FALSE(_expr_eval == false))                                                   \
     {                                                                                             \
         PAL_TRIGGER_ASSERT("Assertion failed: %s | Reason: " _pReasonFmt, #_expr, ##__VA_ARGS__); \
     }                                                                                             \
     PAL_ANALYSIS_ASSUME(_expr_eval);                                                              \
-}
+} while (false)
 
 #if !defined(__clang__) && (__GNUC__< 6)
 
@@ -227,14 +227,14 @@ constexpr void PalTriggerAssertImpl(
 
 // gcc 5.4 implementation of PAL_CONSTEXPR_ASSERT_MSG that ignores the additional reason for the assertion
 #define PAL_CONSTEXPR_ASSERT_MSG(_expr, _pReasonFmt, ...)                                               \
-{                                                                                                       \
+do {                                                                                                    \
     const bool _expr_eval = static_cast<bool>(_expr);                                                   \
     if (PAL_PREDICT_FALSE(_expr_eval == false))                                                         \
     {                                                                                                   \
         PalTriggerAssertImpl("Assertion failed: %s (%s:%d:%s)", #_expr,  __FILE__, __LINE__, __func__); \
     }                                                                                                   \
     PAL_ANALYSIS_ASSUME(_expr_eval);                                                                    \
-}
+} while (false)
 
 #else
 
@@ -246,14 +246,14 @@ constexpr void PalTriggerAssertImpl(
 ///       failed assert. Since PAL_TRIGGER_ASSERT is not constexpr, an _expr that evaluates to false will fail to
 ///       compile the function operator of the lambda.
 #define PAL_CONSTEXPR_ASSERT_MSG(_expr, _pReasonFmt, ...)                                                    \
-{                                                                                                            \
+do {                                                                                                         \
     const bool _expr_eval = static_cast<bool>(_expr);                                                        \
     if (PAL_PREDICT_FALSE(_expr_eval == false))                                                              \
     {                                                                                                        \
         [&] { PAL_TRIGGER_ASSERT("Assertion failed: %s | Reason: " _pReasonFmt, #_expr, ##__VA_ARGS__); }(); \
     }                                                                                                        \
     PAL_ANALYSIS_ASSUME(_expr_eval);                                                                         \
-}
+} while (false)
 
 #endif
 
@@ -266,9 +266,9 @@ constexpr void PalTriggerAssertImpl(
 /// Debug build only PAL assert, the typical usage is when make an assertion on a debug-only variables.
 /// The only difference than PAL assert is it's empty in release mode.
 #define PAL_DEBUG_BUILD_ONLY_ASSERT(_expr) \
-{                                          \
+do {                                       \
     PAL_ASSERT(_expr);                     \
-}
+} while (false)
 
 /// If the expression evaluates to true, then a warning message with the specified reason will be printed via the
 /// debug print system. A debug break will also be triggered if they're currently enabled for alerts.
@@ -281,21 +281,21 @@ constexpr void PalTriggerAssertImpl(
 /// assumption that it will succeed.  Nonetheless, a developer may want to be alerted immediately and dropped into the
 /// debugger when such a failure occurs.
 #define PAL_TRIGGER_ALERT(_pFormat, ...)                            \
-{                                                                   \
+do {                                                                \
     PAL_DPWARN(_pFormat, ##__VA_ARGS__);                            \
     if (::Util::IsAssertCategoryEnabled(::Util::AssertCatAlert))    \
     {                                                               \
         PAL_DEBUG_BREAK();                                          \
     }                                                               \
-}
+} while (false)
 
 #define PAL_ALERT_MSG(_expr, _pReasonFmt, ...)                                                  \
-{                                                                                               \
+do {                                                                                            \
     if (PAL_PREDICT_FALSE(_expr))                                                               \
     {                                                                                           \
         PAL_TRIGGER_ALERT("Alert triggered: %s | Reason: " _pReasonFmt, #_expr, ##__VA_ARGS__); \
     }                                                                                           \
-}
+} while (false)
 
 /// Calls the PAL_ALERT_MSG macro with a generic reason string
 #define PAL_ALERT(_expr) PAL_ALERT_MSG(_expr, "%s", "Unknown")

@@ -99,50 +99,6 @@ uint32 LogEventProvider::GetEventDescriptionDataSize() const
 }
 
 // =====================================================================================================================
-// Extracts the OriginationType and SeverityLevel from DevDriver's bit mask and passes these on to its
-// containing DbgLoggerDevDriver.
-void LogEventProvider::OnEnable()
-{
-    // Extract the OriginationType bit mask
-    uint32 origTypeMask = 0;
-
-    for (uint32 eventId = 0; eventId < uint32(OriginationType::Count); eventId++)
-    {
-        if (IsEventEnabled(eventId))
-        {
-            origTypeMask |= (1ul << eventId);
-        }
-    }
-
-    // If origTypeMask is still 0, then DevDriver didn't set this, in which case use the default.
-    if (origTypeMask == 0)
-    {
-        origTypeMask = DefaultOriginationTypes;
-    }
-
-    // Extract the cut-off SeverityLevel.
-    // DevDriver packs OriginationType and SeverityLevel into a single uint32 word.
-    // Order of packing is: OriginationType followed by SeverityLevel.
-    // Hence add an offset (equal to the number of OriginationTypes) to the SeverityLevel
-    // in order to exctract the cutoff severityLevel.
-    SeverityLevel cutoffSeverityLevel    = DefaultSeverityLevel;
-    constexpr uint32 SeverityLevelOffset = uint32(OriginationType::Count);
-
-    for (uint32 eventId = 0; eventId < uint32(SeverityLevel::Count); eventId++)
-    {
-        if (IsEventEnabled(eventId + SeverityLevelOffset))
-        {
-            cutoffSeverityLevel = SeverityLevel(eventId);
-            break; // break when least restrictive level (lowest eventId) found
-        }
-    }
-
-    PAL_ASSERT(m_pDbgLoggerDevDriver != nullptr);
-    m_pDbgLoggerDevDriver->SetCutOffSeverityLevel(cutoffSeverityLevel);
-    m_pDbgLoggerDevDriver->SetOriginationTypeMask(origTypeMask);
-}
-
-// =====================================================================================================================
 /// Initializes the base class with default severity levels and origination types. These settings will
 /// be overridden later if the user changes them from the connected tool.
 DbgLoggerDevDriver::DbgLoggerDevDriver(

@@ -2032,14 +2032,15 @@ void CmdBuffer::CmdClearBoundColorTargets(
 
 // =====================================================================================================================
 void CmdBuffer::CmdClearColorImage(
-    const IImage&      image,
-    ImageLayout        imageLayout,
-    const ClearColor&  color,
-    uint32             rangeCount,
-    const SubresRange* pRanges,
-    uint32             boxCount,
-    const Box*         pBoxes,
-    uint32             flags)
+    const IImage&         image,
+    ImageLayout           imageLayout,
+    const ClearColor&     color,
+    const SwizzledFormat& clearFormat,
+    uint32                rangeCount,
+    const SubresRange*    pRanges,
+    uint32                boxCount,
+    const Box*            pBoxes,
+    uint32                flags)
 {
     BeginFuncInfo funcInfo;
     funcInfo.funcId       = InterfaceFunc::CmdBufferCmdClearColorImage;
@@ -2048,6 +2049,7 @@ void CmdBuffer::CmdClearColorImage(
     m_pNextLayer->CmdClearColorImage(*NextImage(&image),
                                      imageLayout,
                                      color,
+                                     clearFormat,
                                      rangeCount,
                                      pRanges,
                                      boxCount,
@@ -2062,6 +2064,7 @@ void CmdBuffer::CmdClearColorImage(
         pLogContext->KeyAndObject("image", &image);
         pLogContext->KeyAndStruct("imageLayout", imageLayout);
         pLogContext->KeyAndStruct("color", color);
+        pLogContext->KeyAndStruct("clearFormat", clearFormat);
         pLogContext->KeyAndBeginList("ranges", false);
 
         for (uint32 idx = 0; idx < rangeCount; ++idx)

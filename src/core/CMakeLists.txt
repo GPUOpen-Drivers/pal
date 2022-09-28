@@ -48,6 +48,8 @@ target_sources(pal PRIVATE
     cmdStream.h
     cmdStreamAllocation.cpp
     cmdStreamAllocation.h
+    crashAnalysisEventProvider.cpp
+    crashAnalysisEventProvider.h
     dbgLoggerDevDriver.cpp
     devDriverEventService.cpp
     devDriverEventService.h
@@ -63,8 +65,6 @@ target_sources(pal PRIVATE
     engine.cpp
     engine.h
     eventDefs.h
-    eventProvider.cpp
-    eventProvider.h
     fence.cpp
     fence.h
     formatInfo.cpp
@@ -73,6 +73,8 @@ target_sources(pal PRIVATE
     gpuEvent.h
     gpuMemory.cpp
     gpuMemory.h
+    gpuMemoryEventProvider.cpp
+    gpuMemoryEventProvider.h
     gpuMemPatchList.cpp
     gpuMemPatchList.h
     image.cpp

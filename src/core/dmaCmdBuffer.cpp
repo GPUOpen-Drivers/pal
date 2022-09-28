@@ -410,7 +410,20 @@ void DmaCmdBuffer::CmdReleaseThenAcquire(
 
     // For certain versions of SDMA, some copy/write execution happens asynchronously and the driver is responsible
     // for synchronizing hazards when such copies overlap by inserting a NOP packet, which acts as a fence command.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+    uint32 srcStageMask = barrierInfo.srcGlobalStageMask;
+    for (uint32 i = 0; i < barrierInfo.memoryBarrierCount; i++)
+    {
+        srcStageMask |= barrierInfo.pMemoryBarriers[i].srcStageMask;
+    }
+    for (uint32 i = 0; i < barrierInfo.imageBarrierCount; i++)
+    {
+        srcStageMask |= barrierInfo.pImageBarriers[i].srcStageMask;
+    }
+    if (imageTypeRequiresCopyOverlapHazardSyncs && (srcStageMask != 0))
+#else
     if (imageTypeRequiresCopyOverlapHazardSyncs && (barrierInfo.srcStageMask != 0))
+#endif
     {
         pCmdSpace = WriteNops(pCmdSpace, 1);
     }
@@ -1637,19 +1650,17 @@ bool DmaCmdBuffer::AreMemImageXParamsDwordAligned(
 // =====================================================================================================================
 // Helper function used by unaligned mem-image copy workaround paths to pad the X-extents of a copy region to
 // dword-alignment requirements when those extents are expressed in units of bytes.
-static void AlignMemImgCopyRegionToDword(
+static void AlignMemImgCopyRegion(
     const DmaImageInfo&    image,
-    MemoryImageCopyRegion* pRgn)
+    MemoryImageCopyRegion* pRgn,
+    const uint32           xAlign)
 {
-    // The x-offset and x-width values, when represented in units of bytes, must be dword-aligned
-    constexpr uint32 XAlign = sizeof(uint32);
-
     const uint32 bpp   = image.bytesPerPixel;
     const uint32 origX = pRgn->imageOffset.x;
 
-    pRgn->imageOffset.x     = Util::Pow2AlignDown(pRgn->imageOffset.x * bpp, XAlign) / bpp;
+    pRgn->imageOffset.x     = Util::Pow2AlignDown(pRgn->imageOffset.x * bpp, xAlign) / bpp;
     pRgn->imageExtent.width += (origX - pRgn->imageOffset.x);
-    pRgn->imageExtent.width = Util::Pow2Align(pRgn->imageExtent.width * bpp, XAlign) / bpp;
+    pRgn->imageExtent.width = Util::Pow2Align(pRgn->imageExtent.width * bpp, xAlign) / bpp;
 
     PAL_ASSERT(pRgn->imageExtent.width <= image.actualExtent.width);
 }
@@ -1687,8 +1698,18 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
 
     alignedImage.pSubresInfo = &alignedSubResInfo;
 
-    // Calculate a correctly aligned region of the image to copy to/from the embedded intermediate.
-    AlignMemImgCopyRegionToDword(image, &alignedRgn);
+    // Don't always need to align the x-offset and width, so only do that when we need to.
+    bool didAlignMemory = false;
+    const auto& engineProps = m_pDevice->EngineProperties().perEngine[EngineTypeDma];
+
+    const uint32 widthInBytes = alignedRgn.imageExtent.width * image.bytesPerPixel;
+    const uint32 widthAlignment = engineProps.minTiledImageMemCopyAlignment.width;
+    if (widthInBytes % widthAlignment != 0)
+    {
+        // Calculate a correctly aligned region of the image to copy to/from the embedded intermediate.
+        AlignMemImgCopyRegion(image, &alignedRgn, widthAlignment);
+        didAlignMemory = true;
+    }
 
     // The aligned region must be within the (actual i.e. padded) bounds of the subresource
     PAL_ASSERT(alignedRgn.imageExtent.width <= image.actualExtent.width);
@@ -1696,9 +1717,6 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
     // Calculate the scanline and slice sizes of the aligned region in bytes
     const uint32 scanlineBytes = alignedRgn.imageExtent.width * image.bytesPerPixel;
     const uint32 sliceBytes    = scanlineBytes * alignedRgn.imageExtent.height;
-
-    // This region should already be dword-aligned
-    PAL_ASSERT((scanlineBytes % sizeof(uint32)) == 0);
 
     // How many bytes of embedded data do we have available.  This is used as temp memory to store the aligned
     // region of the image that we are modifying.
@@ -1723,6 +1741,10 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
     const uint32 copySizeBytes  = Min(scanlineBytes, embeddedDataBytes);
     const uint32 copySizePixels = copySizeBytes / image.bytesPerPixel;
 
+    // These may not already be aligned, so force align them.
+    const gpusize gpuMemoryRowPitch   = Pow2Align(copySizeBytes, sizeof(uint32));
+    const gpusize gpuMemoryDepthPitch = Pow2Align((wholeSliceInEmbedded ? sliceBytes : copySizeBytes), sizeof(uint32));
+
     // Region to copy a scanline (or piece of a scanline) between memory and embedded data, and for non-whole-slice
     // copies between image and embedded memory
     MemoryImageCopyRegion passRgn = {};
@@ -1733,8 +1755,8 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
     passRgn.imageExtent.height  = 1;
     passRgn.imageExtent.depth   = 1;
     passRgn.numSlices           = 1;
-    passRgn.gpuMemoryRowPitch   = copySizeBytes;
-    passRgn.gpuMemoryDepthPitch = wholeSliceInEmbedded ? sliceBytes : copySizeBytes;
+    passRgn.gpuMemoryRowPitch   = gpuMemoryRowPitch;
+    passRgn.gpuMemoryDepthPitch = gpuMemoryDepthPitch;
     passRgn.gpuMemoryOffset     = m_t2tEmbeddedMemOffset;
 
     Pal::HwPipePoint pipePoints = HwPipePoint::HwPipeBottom;
@@ -1762,7 +1784,7 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
 
         // Attempt to copy the whole slice from image to embedded if we can.  This simplifies the inner loop
         // below.
-        if ((memToImg == false) && wholeSliceInEmbedded)
+        if (((memToImg == false) || didAlignMemory) && wholeSliceInEmbedded)
         {
             // Copy whole slice from image to embedded
             sliceRgn                    = passRgn;
@@ -1815,7 +1837,7 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
                     uint32* pCmdSpace = nullptr;
 
                     // Copy from image to embedded per scanline if we did not already do a whole slice
-                    if ((memToImg == false) && (wholeSliceInEmbedded == false))
+                    if (((memToImg == false) || didAlignMemory) && (wholeSliceInEmbedded == false))
                     {
                         // Propagate the copy offset to the other struct
                         alignedImage.offset = passRgn.imageOffset;

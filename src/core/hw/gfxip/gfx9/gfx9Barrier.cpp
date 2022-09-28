@@ -579,11 +579,19 @@ void Device::ExpandColor(
             // This must execute on a queue that supports graphics operations
             PAL_ASSERT(isGfxSupported);
 
+            SyncGlxFlags syncGlxFlags = SyncGlxNone;
+
+            // F/I L2 since FmaskColorExpand is a direct metadata write.  Refer to FlushAndInvL2IfNeeded for
+            // full details of this issue.
+            if (gfx9Image.NeedFlushForMetadataPipeMisalignment(subresRange))
+            {
+                syncGlxFlags = SyncGl2WbInv;
+            }
+
             // FmaskColorExpand is expected to run a compute shader but waiting at HwPipePostPrefetch will work for
             // compute or graphics.
             uint32* pCmdSpace = pCmdStream->ReserveCommands();
-            pCmdSpace = pCmdStream->WriteWaitEopGfx(HwPipePostPrefetch, SyncGlxNone, SyncCbWbInv,
-                                                    pCmdBuf->TimestampGpuVirtAddr(), pCmdSpace);
+            pCmdSpace = pCmdBuf->WriteWaitEop(HwPipePostPrefetch, syncGlxFlags, SyncCbWbInv, pCmdSpace);
             pCmdStream->CommitCommands(pCmdSpace);
         }
 
@@ -747,7 +755,7 @@ void Device::IssueSyncs(
     }
 
     // The CmdUtil might not permit us to use a CS_PARTIAL_FLUSH on this engine. If so we must fall back to a EOP TS.
-    // Typically we just hide this detail behind BuildWaitCsIdle but the barrier code might generate more efficient
+    // Typically we just hide this detail behind WriteWaitCsIdle but the barrier code might generate more efficient
     // commands if we force it down the waitOnEopTs path preemptively.
     if (syncReqs.csPartialFlush && (m_cmdUtil.CanUseCsPartialFlush(engineType) == false))
     {
@@ -764,11 +772,11 @@ void Device::IssueSyncs(
         pOperations->pipelineStalls.eopTsBottomOfPipe = 1;
         pOperations->pipelineStalls.waitOnTs          = 1;
 
+        pCmdSpace = pCmdBuf->WriteWaitEop(waitPoint, syncReqs.glxCaches, syncReqs.rbCaches, pCmdSpace);
+        syncReqs.glxCaches = SyncGlxNone;
+
         if (isGfxSupported)
         {
-            pCmdSpace = pCmdStream->WriteWaitEopGfx(waitPoint, syncReqs.glxCaches, syncReqs.rbCaches,
-                                                    pCmdBuf->TimestampGpuVirtAddr(), pCmdSpace);
-
             syncReqs.rbCaches = SyncRbNone;
 
             // The previous sync has already ensured that the graphics contexts are idle. It will also sync up to
@@ -782,14 +790,7 @@ void Device::IssueSyncs(
                 pOperations->pipelineStalls.pfpSyncMe = 1;
             }
         }
-        else
-        {
-            pCmdSpace = pCmdStream->WriteWaitEopGeneric(syncReqs.glxCaches, pCmdBuf->TimestampGpuVirtAddr(), pCmdSpace);
-        }
 
-        syncReqs.glxCaches = SyncGlxNone;
-
-        pCmdBuf->SetPrevCmdBufInactive();
     }
     else
     {
@@ -817,7 +818,7 @@ void Device::IssueSyncs(
         if (syncReqs.csPartialFlush)
         {
             // Waits in the CP ME for all previously issued CS waves to complete.
-            pCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuf->TimestampGpuVirtAddr(), pCmdSpace);
+            pCmdSpace = pCmdBuf->WriteWaitCsIdle(pCmdSpace);
             pOperations->pipelineStalls.csPartialFlush = 1;
 
         }

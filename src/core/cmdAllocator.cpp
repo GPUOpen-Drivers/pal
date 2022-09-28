@@ -118,7 +118,7 @@ CmdAllocator::CmdAllocator(
     }
 
     const uint32 residencyFlags = m_pDevice->GetPublicSettings()->cmdAllocResidency;
-    const bool   noInvisibleMem = (m_pDevice->MemoryProperties().invisibleHeapSize == 0);
+    const bool   noInvisibleMem = (m_pDevice->HeapLogicalSize(GpuHeapInvisible) == 0);
 
     for (uint32 i = 0; i < CmdAllocatorTypeCount; ++i)
     {
@@ -244,7 +244,7 @@ CmdAllocator::CmdAllocator(
     data.pResourceDescData = static_cast<void*>(&desc);
     data.resourceDescSize = sizeof(ResourceDescriptionCmdAllocator);
     data.pObj = this;
-    m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
+    m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceCreateEvent(data);
 }
 
 // =====================================================================================================================
@@ -254,7 +254,7 @@ CmdAllocator::~CmdAllocator()
 {
     ResourceDestroyEventData data = {};
     data.pObj = this;
-    m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(data);
+    m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceDestroyEvent(data);
 
     // We must explicitly invoke the mutexes' destructors because we created them using placement new.
     if (m_pChunkLock != nullptr)
@@ -874,7 +874,7 @@ Result CmdAllocator::CreateAllocation(
                 eventData.pGpuMemory = pAlloc->GpuMemory();
             }
             eventData.requiredGpuMemSize = pAllocInfo->allocCreateInfo.memObjCreateInfo.size;
-            m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(eventData);
+            m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(eventData);
         }
     }
 

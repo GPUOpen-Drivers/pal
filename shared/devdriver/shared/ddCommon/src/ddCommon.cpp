@@ -965,3 +965,12 @@ DynamicBufferByteWriter::DynamicBufferByteWriter()
         DD_API_UNUSED(result);
     };
 }
+
+// =======================================================================================
+DevDriver::Vector<uint8_t> DynamicBufferByteWriter::Take()
+{
+    DevDriver::Vector<uint8_t> takeBuffer(Platform::GenericAllocCb);
+    takeBuffer.Swap(m_buffer);
+
+    return takeBuffer;
+}

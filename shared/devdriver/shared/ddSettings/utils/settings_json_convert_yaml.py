@@ -32,14 +32,16 @@ from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedSeq, CommentedMap
 from ruamel.yaml.tokens import CommentToken
 from ruamel.yaml.error import CommentMark
+from packaging import version
 
 def add_build_filter_comment(seq: CommentedSeq, index: int, filter_comment: str):
     """Add surrounding build filter comments."""
-    assert ruamel.yaml.__version__ == "0.16.10", (
-        "This function uses internals "
-        "of ruamel.yaml, and was only tested with the version 0.16.10, beyond which "
-        "nothing is guaranteed to work."
-    )
+
+    if version.parse(ruamel.yaml.__version__) < version.parse("0.16.10"):
+        raise ImportError(
+            "This script depends on ruamel.yaml version >= 0.16.10. "
+            f"The version installed is {ruamel.yaml.__version__}"
+        )
 
     assert index >= 0
 
@@ -100,7 +102,7 @@ def extract_build_types(parent: dict) -> str:
     or_build_types = parent.get("OrBuildTypes", None)
     if or_build_types:
         result = "#if "
-        for i, macro in enumerate(build_types):
+        for i, macro in enumerate(or_build_types):
             if i > 0:
                 result += " || "
             result += macro
@@ -134,42 +136,56 @@ def convert_to_settings2_tags(
     return new_tags_list
 
 def convert_to_settings2_type(type: str) -> str:
-    if type == "struct":
+    type2 = type.strip().lower()
+
+    if type2 == "struct":
         raise AssertionError()
-    if type in ["size_t", "gpusize"]:
-        return "uint64"
-    elif type == "enum":
-        return "uint8"
+    if type2 in ["size_t", "gpusize"]:
+        return "Uint64"
+    elif type2 == "enum":
+        return "Uint32"
     else:
-        return type
+        return type2.capitalize()
 
 def convert_to_settings2_defaults(defaults: dict, type: str) -> dict:
-    def fix(default):
-        if isinstance(default, str):
+    def fix(default, type: str):
+        fixed_default = default
+
+        if type == "Float" and isinstance(default, str):
+            fixed_default = float(default.replace("f", ""))
+        elif type.startswith("Uint") or type.startswith("Int"):
+            if isinstance(default, str):
+                if default.isdigit():
+                    fixed_default = int(default)
+                elif default.startswith("0x"):
+                    fixed_default = int(default, 16)
+        elif isinstance(default, str):
             default_lowercase = default.lower()
             if default_lowercase == "true":
-                return True
+                fixed_default = True
             elif default_lowercase == "false":
-                return False
+                fixed_default = False
             else:
-                return default
-        else:
-            return default
+                fixed_default = default.replace("\\", "\\\\")
 
-    defaults = {
-        "Default": fix(defaults["Default"]),
-        "Type": convert_to_settings2_type(type),
+        return fixed_default
+
+    new_type = convert_to_settings2_type(type)
+
+    new_defaults = {
+        "Default": fix(defaults["Default"], new_type),
+        "Type": new_type,
     }
 
     default_win = defaults.get("WinDefault", None)
-    if default_win:
-        defaults["Windows"] = fix(default_win)
+    if default_win is not None:
+        new_defaults["Windows"] = fix(default_win, new_type)
 
     default_linux = defaults.get("LnxDefault", None)
-    if default_linux:
-        defaults["Linux"] = fix(default_linux)
+    if default_linux is not None:
+        new_defaults["Linux"] = fix(default_linux, new_type)
 
-    return defaults
+    return new_defaults
 
 def validvalues_missing_name_fix(setting_name: str) -> str:
     if setting_name == "SEMask":
@@ -178,8 +194,58 @@ def validvalues_missing_name_fix(setting_name: str) -> str:
         return "CmdBufferLoggerAnnotations"
     elif setting_name in ["BasePreset", "ElevatedPreset"]:
         return "PresetLogFlags"
+    elif setting_name == "FileSettingsFlags":
+        return "FileSettingsFlagsBitmask"
+    elif setting_name == "FileAccessFlags":
+        return "FileAccessFlagsBitmask"
+    elif setting_name == "OrigTypeMask":
+        return "OrigTypeMask"
     else:
         print(f'[WARN] ValidValues of {setting_name} has no "Name" field')
+
+def convert_to_settings2_enum(setting: dict, enums: List[dict]):
+    flags = setting.get("Flags", None)
+    is_bitmask = False
+    if flags:
+        if flags.get("IsBitmask", False):
+            is_bitmask = True
+        elif flags.get("IsHex", False):
+            valid_values = setting.get("ValidValues")
+            if valid_values:
+                # fix for bad json
+                is_bitmask = valid_values.get("IsEnum", False)
+
+    if setting["Type"] == "enum" or is_bitmask:
+        valid_values = setting["ValidValues"]
+        if "Name" not in valid_values:
+            valid_values["Name"] = validvalues_missing_name_fix(setting["Name"])
+
+        enum = {"Name": valid_values["Name"], "Description": setting["Description"]}
+
+        variants = CommentedSeq()
+        for val in valid_values["Values"]:
+            variant = CommentedMap({"Name": val["Name"], "Value": val["Value"]})
+
+            desc = val.get("Description", None)
+            if desc is None:
+                name = val["Name"]
+                valid_values_name = valid_values["Name"]
+                print(
+                    f'[WARN] Enum field "{name}" of "{valid_values_name}" has no description'
+                )
+            else:
+                variant["Description"] = desc
+
+            variants.append(variant)
+
+            filter_str = extract_build_types(val)
+            if filter_str:
+                add_build_filter_comment(variants, len(variants) - 1, filter_str)
+
+        enum["Variants"] = variants
+
+        if not any(map(lambda x: x["Name"] == enum["Name"], enums)):
+            enums.append(enum)
 
 def convert_to_settings2_setting(setting: dict, group_name: str, filtered_tags) -> dict:
 
@@ -244,13 +310,15 @@ def convert_to_settings2_setting(setting: dict, group_name: str, filtered_tags) 
     return new_setting
 
 def convert_to_settings2_setting_or_struct(
-    setting: dict, filtered_tags: List[dict]
+    setting: dict, filtered_tags: List[dict], enums: List[dict]
 ) -> dict:
     converted_settings = []
 
     setting_struct = setting.get("Structure", None)
     if setting_struct:
         for subsetting in setting_struct:
+            convert_to_settings2_enum(subsetting, enums)
+
             group_name = setting["Name"]
             new_setting = convert_to_settings2_setting(
                 subsetting, group_name, filtered_tags
@@ -283,48 +351,11 @@ def convert_to_settings2(old_settings: dict) -> dict:
 
     for setting in old_settings["Settings"]:
         # Populate top-level Enums list
-
-        flags = setting.get("Flags", None)
-        is_bitmask = False
-        if flags:
-            if flags.get("IsBitmask", False):
-                is_bitmask = True
-            elif flags.get("IsHex", False):
-                valid_values = setting.get("ValidValues")
-                if valid_values:
-                    # fix for bad json
-                    is_bitmask = valid_values.get("IsEnum", False)
-
-        if setting["Type"] == "enum" or is_bitmask:
-            valid_values = setting["ValidValues"]
-            enum = {"Name": valid_values["Name"], "Description": setting["Description"]}
-
-            variants = CommentedSeq()
-            for val in valid_values["Values"]:
-                variant = CommentedMap({"Name": val["Name"], "Value": val["Value"]})
-
-                desc = val.get("Description", None)
-                if desc is None:
-                    name = val["Name"]
-                    valid_values_name = valid_values["Name"]
-                    print(
-                        f'[WARN] Enum field "{name}" of "{valid_values_name}" has no description'
-                    )
-                else:
-                    variant["Description"] = desc
-
-                variants.append(variant)
-
-                filter_str = extract_build_types(val)
-                if filter_str:
-                    add_build_filter_comment(variants, len(variants) - 1, filter_str)
-
-            enum["Variants"] = variants
-            enums.append(enum)
+        convert_to_settings2_enum(setting, enums)
 
         # Populate Settings
         converted_settings = convert_to_settings2_setting_or_struct(
-            setting, top_level_filtered_tags
+            setting, top_level_filtered_tags, enums
         )
         new_settings_list.extend(converted_settings)
 
@@ -334,6 +365,44 @@ def convert_to_settings2(old_settings: dict) -> dict:
             add_build_filter_comment(new_settings_list, i, filter_str)
 
     return settings2
+
+def convert_settings2_enum_value_to_integer(settings2: dict):
+    """Convert default values of enum settings to integers.
+
+    If they are strings of enum/bitmask variants, use the corresponding
+    values of those variants.
+    """
+
+    def variant_name_to_int(variant_name: str, enum: dict) -> int:
+        result = next(v["Value"] for v in enum["Variants"] if v["Name"] == variant_name)
+        assert result is not None, "Invalid variant name {} under enum {}".format(
+            variant_name, enum["Name"]
+        )
+        return result
+
+    enums = settings2["Enums"]
+
+    for setting in settings2["Settings"]:
+        enum_name = setting.get("Enum", None)
+        if enum_name is None:
+            # enum and bitmask reference the same top-level "Enums" list.
+            enum_name = setting.get("Bitmask", None)
+
+        if enum_name:
+            enum = next(e for e in enums if e["Name"] == enum_name)
+            assert enum is not None, "Setting {} references an unknown enum {}.".format(
+                setting["Name"], enum_name
+            )
+
+            defaults = setting["Defaults"]
+            if isinstance(defaults["Default"], str):
+                defaults["Default"] = variant_name_to_int(defaults["Default"], enum)
+
+            if "Windows" in defaults:
+                defaults["Windows"] = variant_name_to_int(defaults["Windows"], enum)
+
+            if "Linux" in defaults:
+                defaults["Linux"] = variant_name_to_int(defaults["Linux"], enum)
 
 def main() -> int:
     parser = argparse.ArgumentParser(
@@ -360,6 +429,8 @@ def main() -> int:
         assert settings_json is not None, "`old_file` invalid: empty JSON input file"
 
     settings2 = convert_to_settings2(settings_json)
+    convert_settings2_enum_value_to_integer(settings2)
+
     with open(args.new_file, "w") as file:
         yaml = YAML()
         yaml.default_flow_style = False

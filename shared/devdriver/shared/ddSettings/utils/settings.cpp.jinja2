@@ -9,13 +9,17 @@
 #include "{{CodeGenHeader}}"
 #include <{{SettingsHeader}}>
 
-#include <ddSettingsBlob.h>
 #include <devDriverServer.h>
 #include <protocols/ddSettingsService.h>
 {% if UseRpc %}
 #include <ddSettingsService.h>
 {% endif %}
 #include <ddSettingsTypes.h>
+
+{% if PalSettings %}
+#include "palInlineFuncs.h"
+#include "core/device.h"
+{% endif %}
 
 using namespace DevDriver::SettingsURIService;
 
@@ -31,12 +35,24 @@ using namespace DevDriver::SettingsURIService;
 {% endif %}
 {% endmacro %}
 
-namespace {{ComponentName}}
+namespace {{Namespace}}
 {
 
-// =============================================================================
+// =======================================================================================
+const char* {{ClassName}}::GetComponentName() const
+{
+    return "{{ComponentName}}";
+}
+
+// =======================================================================================
+uint64_t {{ClassName}}::GetComponentHash() const
+{
+    return (uint64_t){{SettingsBlobHash|abs}}ULL;
+}
+
+// =======================================================================================
 // Initializes the settings structure to default values.
-void {{ComponentName}}Settings::SetupDefaults()
+void {{ClassName}}::SetupDefaults()
 {
 {% for setting in Settings %}
 {% if setting.GroupName %}
@@ -54,67 +70,103 @@ void {{ComponentName}}Settings::SetupDefaults()
 {% endfor %}
 }
 
-// =============================================================================
-const char* GetComponentName()
-{
-    return "{{ComponentName}}";
-}
-
-// =============================================================================
+// =======================================================================================
 // Initializes the SettingInfo hash map and array of setting hashes.
-void {{ComponentName}}Settings::InitSettingsInfo()
+void {{ClassName}}::InitSettingsInfo()
 {
-    DevDriver::SettingsValueRef valueRef = {};
+    using namespace DevDriver;
+
+    DDSettingsValueRef valueRef = {};
 {% for setting in Settings %}
 {% if setting.GroupName %}
 
 {% for subs in setting.Subsettings %}
 {{ prep_cond_begin(subs.BuildFilters) }}
-    valueRef.type = {{ subs.Defaults.Type|setting_type_cpp2 }};
-    valueRef.pValue = &m_settings.{{setting.GroupVariableName}}.{{subs.VariableName}};
+    valueRef.type = {{ subs.Defaults.Type|setting_type_cpp }};
+    valueRef.pVal = &m_settings.{{setting.GroupVariableName}}.{{subs.VariableName}};
     valueRef.size = sizeof(m_settings.{{setting.GroupVariableName}}.{{subs.VariableName}});
-    m_settingValueRefsMap.Insert({{subs.NameHash}}, valueRef);
+    m_settingsMap.Insert({{subs.NameHash}}, valueRef);
 {{ prep_cond_end(subs.BuildFilters) -}}
 {% endfor %}
 {% else %}
 {{ prep_cond_begin(setting.BuildFilters) }}
-    valueRef.type = {{ setting.Defaults.Type|setting_type_cpp2 }};
-    valueRef.pValue = &m_settings.{{setting.VariableName}};
+    valueRef.type = {{ setting.Defaults.Type|setting_type_cpp }};
+    valueRef.pVal = &m_settings.{{setting.VariableName}};
     valueRef.size = sizeof(m_settings.{{setting.VariableName}});
-    m_settingValueRefsMap.Insert({{setting.NameHash}}, valueRef);
+    m_settingsMap.Insert({{setting.NameHash}}, valueRef);
 {{ prep_cond_end(setting.BuildFilters) -}}
 {% endif %}
 {% endfor %}
 }
 
-// =============================================================================
+{% if PalSettings %}
+// =======================================================================================
+// Read settings from registry for PAL settings.
+void {{ClassName}}::ReadSettings(Pal::Device* pDevice)
+{
+{% for setting in Settings %}
+{% if setting.GroupName %}
+
+{% for subs in setting.Subsettings %}
+{{ prep_cond_begin(subs.BuildFilters) }}
+    pDevice->ReadSetting(
+        p{{setting.GroupName}}_{{subs.Name}}HashStr,
+        {{ subs.Defaults.Type|setting_type_cpp2 }},
+        &m_settings.{{setting.GroupVariableName}}.{{subs.VariableName}},
+        InternalSettingScope::{{setting.Scope|default('PrivatePalKey')}});
+{{ prep_cond_end(subs.BuildFilters) -}}
+{% endfor %}
+{% else %}
+{{ prep_cond_begin(setting.BuildFilters) }}
+    pDevice->ReadSetting(
+        p{{setting.Name}}HashStr,
+        {{ setting.Defaults.Type|setting_type_cpp2 }},
+        &m_settings.{{setting.VariableName}},
+        InternalSettingScope::{{setting.Scope|default('PrivatePalKey')}});
+{{ prep_cond_end(setting.BuildFilters) -}}
+{% endif %}
+{% endfor %}
+}
+{% endif %}
+
+{% if DxcSettings %}
+// =======================================================================================
+// Read settings from registry for DXCP settings.
+void {{ClassName}}::ReadSettings(DdiAdapter* pAdapter)
+{
+    (void)pAdapter;
+}
+{% endif %}
+
+// =======================================================================================
 // SettingsBlob implementation
 
-class {{ComponentName}}SettingsBlobNode : public DevDriver::SettingsBlobNode
+const uint8_t* {{ComponentName}}SettingsBlobNode::GetBlob(uint32_t* pOutSize)
 {
-public:
-    const uint8_t* GetBlob(uint32_t* pOutSize) override
-    {
-        static const uint8_t s_settingsBlob[] = {
-            {{SettingsBlob}}
-        };
+    static const uint8_t s_settingsBlob[] = {
+        {{SettingsBlob}}
+    };
 
-        static_assert({{SettingsBlobSize}} == sizeof(s_settingsBlob),
-            "Settings YAML data size in C++ doesn't match the one calculated "
-            "in the codegen script."
-        );
+    static_assert({{SettingsBlobSize}} == sizeof(s_settingsBlob),
+        "Settings YAML data size in C++ doesn't match the one calculated "
+        "in the codegen script."
+    );
 
-        *pOutSize = sizeof(s_settingsBlob);
+    *pOutSize = sizeof(s_settingsBlob);
 
-        return s_settingsBlob;
-    }
+    return s_settingsBlob;
+}
 
-    uint64_t GetBlobHash() override
-    {
-        return (uint64_t){{SettingsBlobHash}};
-    }
-};
+bool {{ComponentName}}SettingsBlobNode::IsEncoded()
+{
+    return {{Encoded|string|lower}};
+}
+
+uint64_t {{ComponentName}}SettingsBlobNode::GetBlobHash()
+{
+    return (uint64_t){{SettingsBlobHash|abs}}ULL;
+}
 
 {{ComponentName}}SettingsBlobNode g_{{ComponentNameLower}}SettingsBlobNode;
 
-} // namespace {{ComponentName}}
+} // namespace {{Namespace}}

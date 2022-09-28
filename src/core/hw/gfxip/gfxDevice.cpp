@@ -114,11 +114,11 @@ Result GfxDevice::Cleanup()
         result = m_pParent->MemMgr()->FreeGpuMem(m_debugStallGpuMem.Memory(), m_debugStallGpuMem.Offset());
         m_debugStallGpuMem.Update(nullptr, 0);
 
-        if ((m_pParent->GetPlatform() != nullptr) && (m_pParent->GetPlatform()->GetEventProvider() != nullptr))
+        if ((m_pParent->GetPlatform() != nullptr) && (m_pParent->GetPlatform()->GetGpuMemoryEventProvider() != nullptr))
         {
             ResourceDestroyEventData destroyData = {};
             destroyData.pObj = &m_debugStallGpuMem;
-            m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(destroyData);
+            m_pParent->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceDestroyEvent(destroyData);
         }
     }
 #endif
@@ -232,7 +232,7 @@ Result GfxDevice::Finalize()
         {
             m_debugStallGpuMem.Update(pMemObj, memOffset);
 
-            if ((m_pParent->GetPlatform() != nullptr) && (m_pParent->GetPlatform()->GetEventProvider() != nullptr))
+            if ((m_pParent->GetPlatform() != nullptr) && (m_pParent->GetPlatform()->GetGpuMemoryEventProvider() != nullptr))
             {
                 ResourceDescriptionMiscInternal desc;
                 desc.type = MiscInternalAllocType::DummyChunk;
@@ -243,14 +243,14 @@ Result GfxDevice::Finalize()
                 createData.pResourceDescData = &desc;
                 createData.resourceDescSize = sizeof(ResourceDescriptionMiscInternal);
 
-                m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(createData);
+                m_pParent->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceCreateEvent(createData);
 
                 GpuMemoryResourceBindEventData bindData = {};
                 bindData.pGpuMemory = pMemObj;
                 bindData.pObj = &m_debugStallGpuMem;
                 bindData.offset = memOffset;
                 bindData.requiredGpuMemSize = memCreateInfo.size;
-                m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+                m_pParent->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
             }
         }
     }

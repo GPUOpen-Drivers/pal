@@ -774,6 +774,36 @@ typedef struct DDByteWriter
     void*                      pUserdata;
 } DDByteWriter;
 
+/// Callback that ddApis may use to provide a heartbeat for i/o operations to a caller:
+
+typedef enum
+{
+    DD_IO_STATUS_BEGIN,
+    DD_IO_STATUS_END,
+    DD_IO_STATUS_WRITE
+
+} DD_IO_STATUS;
+
+/// Notifies the caller of an update for an i/o operation
+/// This callback may be called many times per stream
+/// All sizes are measured in bytes
+/// If this function returns non-success, the stream will be aborted
+typedef DD_RESULT (*PFN_ddIOWriteHeartbeat)(
+    void*            pUserdata, /// [in] Userdata pointer
+    DD_RESULT        result,    /// [in] The result of the current operation
+    DD_IO_STATUS     status,    /// [in] The current status of the writer
+    size_t           bytes);    /// [in] Estimate of the bytes, the interpretation will depend on the status above:
+                                /// When status = DD_FILEIO_STATUS_BEGIN, bytes is the estimate of total bytes to write.
+                                ///               DD_FILEIO_STATUS_WRITE, bytes is the last amount written.
+                                ///               DD_FILEIO_STATUS_END,   bytes is 0.
+
+/// An interface for providing a heartbeat for io operations
+typedef struct DDIOHeartbeat
+{
+    void*                      pUserdata;
+    PFN_ddIOWriteHeartbeat     pfnWriteHeartbeat;
+} DDIOHeartbeat;
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Shared Module Interface
 

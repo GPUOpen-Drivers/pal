@@ -69,6 +69,17 @@ public:
         size_t      paramBufferSize
     ) = 0;
 
+    // Queries the current Settings values for all components.
+    virtual DD_RESULT GetCurrentValues(
+        const DDByteWriter& writer
+    ) = 0;
+
+    // Set a setting's value.
+    virtual DD_RESULT SetValue(
+        const void* pParamBuffer,
+        size_t      paramBufferSize
+    ) = 0;
+
 protected:
     ISettingsRpcService() {}
 };

@@ -499,8 +499,8 @@ namespace DevDriver
             T* pResult = nullptr;
 
             // Check to see if the head is at a pBlockIndex edge + grow as necessary
-            if ((IndexForOffset(m_offset) == 0)
-                & ((m_size + kPaddedBlockSize) >= Capacity()))
+            if ((IndexForOffset(m_offset) == 0) &&
+                ((m_size + kPaddedBlockSize) >= Capacity()))
             {
                 GrowBlocks(1);
             }

@@ -138,7 +138,7 @@ Result ComputePipeline::Init(
 
     if (result == Result::Success)
     {
-        auto*const pEventProvider = m_pDevice->GetPlatform()->GetEventProvider();
+        auto*const pEventProvider = m_pDevice->GetPlatform()->GetGpuMemoryEventProvider();
 
         ResourceDescriptionPipeline desc { };
         desc.pPipelineInfo = &GetInfo();

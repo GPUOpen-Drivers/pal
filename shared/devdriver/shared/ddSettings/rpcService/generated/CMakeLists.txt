@@ -29,6 +29,11 @@
 
 add_library(SettingsRpcService STATIC)
 
+set_target_properties(SettingsRpcService
+    PROPERTIES
+        CXX_STANDARD 11
+)
+
 target_sources(SettingsRpcService PRIVATE
     inc/g_SettingsRpcService.h
     src/g_SettingsRpcService.cpp
@@ -47,3 +52,8 @@ target_link_libraries(SettingsRpcService
     PUBLIC
         ddRpcServer
 )
+
+# Need to apply devdriver specific warning configuration, because
+# this target indirectly includes ddPlatform.h which causes some
+# compiler warnings.
+apply_devdriver_warnings(SettingsRpcService)

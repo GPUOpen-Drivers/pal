@@ -84,23 +84,23 @@ typedef uint64 QueueHandle;
 /// Specifies the types of resources that can have GPU memory bound to them. Used for GPU Memory Event logging.
 enum class ResourceType : uint32
 {
-    Image = 0,
-    Buffer = 1,
-    Pipeline = 2,
-    Heap = 3,
-    GpuEvent = 4,
-    BorderColorPalette = 5,
+    Image                = 0,
+    Buffer               = 1,
+    Pipeline             = 2,
+    Heap                 = 3,
+    GpuEvent             = 4,
+    BorderColorPalette   = 5,
     IndirectCmdGenerator = 6,
-    MotionEstimator = 7,
-    PerfExperiment = 8,
-    QueryPool = 9,
-    VideoEncoder = 10,
-    VideoDecoder = 11,
-    Timestamp = 12,
-    DescriptorHeap = 13,
-    DescriptorPool = 14,
-    CmdAllocator = 15,
-    MiscInternal = 16,
+    MotionEstimator      = 7,
+    PerfExperiment       = 8,
+    QueryPool            = 9,
+    VideoEncoder         = 10,
+    VideoDecoder         = 11,
+    Timestamp            = 12,
+    DescriptorHeap       = 13,
+    DescriptorPool       = 14,
+    CmdAllocator         = 15,
+    MiscInternal         = 16,
 
     Count,
 };
@@ -108,12 +108,12 @@ enum class ResourceType : uint32
 /// Enumeration of miscellaneous events, used for GPU memory event logging
 enum class MiscEventType : uint32
 {
-    SubmitGfx = 0,
-    SubmitCompute = 1,
-    Present = 2,
-    InvalidateRanges = 3,
+    SubmitGfx               = 0,
+    SubmitCompute           = 1,
+    Present                 = 2,
+    InvalidateRanges        = 3,
     FlushMappedMemoryRanges = 4,
-    Trim = 5,
+    Trim                    = 5,
 };
 
 /// Describes the binding of a GPU Memory object to a resource
@@ -177,6 +177,20 @@ struct GpuMemorySnapshotEventData
 {
     const char* pSnapshotName;  ///< Name of the snapshot being created
 };
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Crash Analysis-specific structures and declarations
+
+/// Declaration and annotation of an execution marker for crash analysis functionality
+#pragma pack(push, 1)
+struct CrashAnalysisExecutionMarker
+{
+    uint32      cmdBufferId;      ///< A resouce ID for the CmdBuffer that the execution marker will be inserted into
+    uint32      markerValue;      ///< Value written to timestamp memory
+    uint32      markerStringSize; ///< Size of marker string
+    const char* pMarkerString;    ///< Marker string data
+};
+#pragma pack(pop)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Resource Type-Specific Description Structures

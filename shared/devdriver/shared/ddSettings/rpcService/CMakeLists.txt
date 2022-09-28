@@ -41,6 +41,7 @@ target_link_libraries(ddSettingsRpcService
         ddApi
         SettingsRpcService
     PRIVATE
+        ddSettings
         # To access DevDriver::Platform::Max from ddTemplate.h included by ddSettingsTypes.h
         ddCommon
         rapidjson

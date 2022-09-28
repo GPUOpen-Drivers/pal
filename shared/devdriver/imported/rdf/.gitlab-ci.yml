@@ -1,0 +1,125 @@
+build:linux:Debug:
+  artifacts:
+    name: amdrdf-Linux64-Debug-%CI_BUILD_REF_NAME%-%CI_COMMIT_SHORT_SHA%
+    paths:
+    - ./build/bin/*
+    - ./build/rdf/libamdrdf.so
+  image: ubuntu:20.04
+  script:
+  - apt-get update -qq && apt-get install -y wget make g++
+  - mkdir cmake
+  - cd cmake
+  - wget -q https://github.com/Kitware/CMake/releases/download/v3.22.0/cmake-3.22.0-Linux-x86_64.sh
+  - chmod +x cmake-3.22.0-Linux-x86_64.sh
+  - ./cmake-3.22.0-Linux-x86_64.sh --skip-license
+  - cd ..
+  - ./cmake/bin/cmake -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug .
+  - ./cmake/bin/cmake --build build --parallel
+  stage: build
+  tags:
+  - linux
+  - amd64
+build:linux:Release:
+  artifacts:
+    name: amdrdf-Linux64-Release-%CI_BUILD_REF_NAME%-%CI_COMMIT_SHORT_SHA%
+    paths:
+    - ./build/bin/*
+    - ./build/rdf/libamdrdf.so
+  image: ubuntu:20.04
+  script:
+  - apt-get update -qq && apt-get install -y wget make g++
+  - mkdir cmake
+  - cd cmake
+  - wget -q https://github.com/Kitware/CMake/releases/download/v3.22.0/cmake-3.22.0-Linux-x86_64.sh
+  - chmod +x cmake-3.22.0-Linux-x86_64.sh
+  - ./cmake-3.22.0-Linux-x86_64.sh --skip-license
+  - cd ..
+  - ./cmake/bin/cmake -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release .
+  - ./cmake/bin/cmake --build build --parallel
+  stage: build
+  tags:
+  - linux
+  - amd64
+build:windows:Debug:
+  artifacts:
+    name: amdrdf-Win64-Debug-%CI_BUILD_REF_NAME%-%CI_COMMIT_SHORT_SHA%
+    paths:
+    - .\build\bin\Debug\*
+  script:
+  - cmake.exe -B build -G "Visual Studio 16 2019" -S .
+  - cmake.exe --build build --config Debug
+  stage: build
+  tags:
+  - windows
+  - amd64
+build:windows:Release:
+  artifacts:
+    name: amdrdf-Win64-Release-%CI_BUILD_REF_NAME%-%CI_COMMIT_SHORT_SHA%
+    paths:
+    - .\build\bin\Release\*
+  script:
+  - cmake.exe -B build -G "Visual Studio 16 2019" -S .
+  - cmake.exe --build build --config Release
+  stage: build
+  tags:
+  - windows
+  - amd64
+stages:
+- build
+- test
+test:linux:Debug:
+  artifacts:
+    reports:
+      junit: report.xml
+    when: always
+  image: ubuntu:20.04
+  needs:
+  - build:linux:Debug
+  script:
+  - LD_LIBRARY_PATH=./build/rdf ./build/bin/rdf.Test -r junit > report.xml
+  stage: test
+  tags:
+  - linux
+  - amd64
+test:linux:Release:
+  artifacts:
+    reports:
+      junit: report.xml
+    when: always
+  image: ubuntu:20.04
+  needs:
+  - build:linux:Release
+  script:
+  - LD_LIBRARY_PATH=./build/rdf ./build/bin/rdf.Test -r junit > report.xml
+  stage: test
+  tags:
+  - linux
+  - amd64
+test:windows:Debug:
+  artifacts:
+    reports:
+      junit: report.xml
+    when: always
+  needs:
+  - build:windows:Debug
+  script:
+  - .\build\bin\Debug\rdf.Test.exe -r junit > report.xml
+  stage: test
+  tags:
+  - windows
+  - amd64
+test:windows:Release:
+  artifacts:
+    reports:
+      junit: report.xml
+    when: always
+  needs:
+  - build:windows:Release
+  script:
+  - .\build\bin\Release\rdf.Test.exe -r junit > report.xml
+  stage: test
+  tags:
+  - windows
+  - amd64
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive

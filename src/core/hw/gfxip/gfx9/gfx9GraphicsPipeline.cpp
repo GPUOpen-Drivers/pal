@@ -1929,11 +1929,12 @@ static uint8 Rop3(
 }
 
 // =====================================================================================================================
-// Returns true if no color buffers and no PS UAVs
+// Returns true if no color buffers and no PS UAVs and AlphaToCoverage is disabled.
 bool GraphicsPipeline::CanRbPlusOptimizeDepthOnly() const
 {
     return ((NumColorTargets() == 0) &&
             (m_regs.context.cbColorControl.bits.MODE == CB_DISABLE) &&
+            (DbShaderControl().bits.ALPHA_TO_MASK_DISABLE == 1) &&
             (PsUsesUavs() == false) && (PsWritesUavs() == false));
 }
 

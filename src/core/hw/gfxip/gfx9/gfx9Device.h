@@ -121,7 +121,7 @@ struct LayoutTransitionInfo
 // acquire-release based barrier.
 struct AcqRelImgTransitionInfo
 {
-    const ImgBarrier*    pImgBarrier;
+    ImgBarrier           imgBarrier;
     LayoutTransitionInfo layoutTransInfo;
     uint32               stageMask;     // Pipeline stage mask of layoutTransInfo.blt[0]
     uint32               accessMask;    // Coherency access mask of layoutTransInfo.blt[0]
@@ -655,7 +655,7 @@ public:
         size_t      tableBytes,
         gpusize     dataGpuVirtAddr) const override;
 
-    const Gfx10DepthStencilView*  GetVrsDepthStencilView() const { return m_pVrsDepthView; }
+    const Gfx10DepthStencilView* GetVrsDepthStencilView();
 
     uint32 Gfx103PlusExclusiveGetNumActiveShaderArraysLog2() const;
 
@@ -720,7 +720,11 @@ private:
         Pm4CmdBuffer*                 pCmdBuf,
         CmdStream*                    pCmdStream,
         const AcquireReleaseInfo&     barrierInfo,
-        AcqRelTransitionInfo*         pTransitonInfo,
+        AcqRelTransitionInfo*         pTransitionInfo,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+        uint32*                       pSrcStageMask,
+        uint32*                       pDstStageMask,
+#endif
         uint32*                       pSrcAccessMask,
         uint32*                       pDstAccessMask,
         Developer::BarrierOperations* pBarrierOps) const;
@@ -786,6 +790,11 @@ private:
         const IGpuEvent* const*       ppGpuEvents,
         Developer::BarrierOperations* pBarrierOps) const;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+    void OptimizeReadOnlyMemBarrier(Pm4CmdBuffer* pCmdBuf, MemBarrier* pTransition) const;
+    bool OptimizeReadOnlyImgBarrier(Pm4CmdBuffer* pCmdBuf, ImgBarrier* pTransition) const;
+#endif
+
     Gfx9::CmdUtil  m_cmdUtil;
     BoundGpuMemory m_occlusionSrcMem;   // If occlusionQueryDmaBufferSlots is in use, this is the source memory.
     BoundGpuMemory m_dummyZpassDoneMem; // A GFX9 workaround requires dummy ZPASS_DONE events which write to memory.
@@ -829,6 +838,7 @@ private:
     void    DestroyVrsDepthImage(Pal::Image*  pDsImage);
 
     Gfx10DepthStencilView*  m_pVrsDepthView;
+    bool                    m_vrsDepthViewMayBeNeeded;
 
     // Local copy of the GB_ADDR_CONFIG register
     const uint32      m_gbAddrConfig;

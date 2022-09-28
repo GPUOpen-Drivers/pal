@@ -223,15 +223,16 @@ public:
         const ClearBoundTargetRegion*   pBoxes) const;
 
     void CmdClearColorImage(
-        GfxCmdBuffer*      pCmdBuffer,
-        const Image&       dstImage,
-        ImageLayout        dstImageLayout,
-        const ClearColor&  color,
-        uint32             rangeCount,
-        const SubresRange* pRanges,
-        uint32             boxCount,
-        const Box*         pBoxes,
-        uint32             flags) const;
+        GfxCmdBuffer*         pCmdBuffer,
+        const Image&          dstImage,
+        ImageLayout           dstImageLayout,
+        const ClearColor&     color,
+        const SwizzledFormat& clearFormat,
+        uint32                rangeCount,
+        const SubresRange*    pRanges,
+        uint32                boxCount,
+        const Box*            pBoxes,
+        uint32                flags) const;
 
     virtual void CmdClearBufferView(
         GfxCmdBuffer*     pCmdBuffer,
@@ -349,23 +350,24 @@ protected:
         gpusize         depthPitch);
 
     void SlowClearGraphics(
-        GfxCmdBuffer*      pCmdBuffer,
-        const Image&       dstImage,
-        ImageLayout        dstImageLayout,
-        const ClearColor*  pColor,
-        const SubresRange& clearRange,
-        uint32             boxCount,
-        const Box*         pBoxes) const;
+        GfxCmdBuffer*         pCmdBuffer,
+        const Image&          dstImage,
+        ImageLayout           dstImageLayout,
+        const ClearColor*     pColor,
+        const SwizzledFormat& clearFormat,
+        const SubresRange&    clearRange,
+        uint32                boxCount,
+        const Box*            pBoxes) const;
 
     void SlowClearCompute(
-        GfxCmdBuffer*      pCmdBuffer,
-        const Image&       dstImage,
-        ImageLayout        dstImageLayout,
-        SwizzledFormat     dstFormat,
-        const ClearColor*  pColor,
-        const SubresRange& clearRange,
-        uint32             boxCount,
-        const Box*         pBoxes) const;
+        GfxCmdBuffer*         pCmdBuffer,
+        const Image&          dstImage,
+        ImageLayout           dstImageLayout,
+        const ClearColor*     pColor,
+        const SwizzledFormat& clearFormat,
+        const SubresRange&    clearRange,
+        uint32                boxCount,
+        const Box*            pBoxes) const;
 
     virtual void CopyMemoryCs(
         GfxCmdBuffer*           pCmdBuffer,
@@ -494,10 +496,11 @@ private:
     virtual Result CreateCommonStateObjects();
 
     virtual void HwlFastColorClear(
-        GfxCmdBuffer*      pCmdBuffer,
-        const GfxImage&    dstImage,
-        const uint32*      pConvertedColor,
-        const SubresRange& clearRange) const = 0;
+        GfxCmdBuffer*         pCmdBuffer,
+        const GfxImage&       dstImage,
+        const uint32*         pConvertedColor,
+        const SwizzledFormat& clearFormat,
+        const SubresRange&    clearRange) const = 0;
 
     virtual void HwlFixupCopyDstImageMetaData(
         GfxCmdBuffer*           pCmdBuffer,

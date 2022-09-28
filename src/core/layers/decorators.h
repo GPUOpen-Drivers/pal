@@ -1723,18 +1723,20 @@ public:
     }
 
     virtual void CmdClearColorImage(
-        const IImage&      image,
-        ImageLayout        imageLayout,
-        const ClearColor&  color,
-        uint32             rangeCount,
-        const SubresRange* pRanges,
-        uint32             boxCount,
-        const Box*         pBoxes,
-        uint32             flags) override
+        const IImage&         image,
+        ImageLayout           imageLayout,
+        const ClearColor&     color,
+        const SwizzledFormat& clearFormat,
+        uint32                rangeCount,
+        const SubresRange*    pRanges,
+        uint32                boxCount,
+        const Box*            pBoxes,
+        uint32                flags) override
     {
         m_pNextLayer->CmdClearColorImage(*NextImage(&image),
                                          imageLayout,
                                          color,
+                                         clearFormat,
                                          rangeCount,
                                          pRanges,
                                          boxCount,

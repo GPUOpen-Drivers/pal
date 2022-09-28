@@ -140,14 +140,14 @@ Result ShaderLibrary::HwlInit(
         data.pResourceDescData = &desc;
         data.resourceDescSize = sizeof(ResourceDescriptionShaderLibrary);
         data.pObj = this;
-        m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
+        m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceCreateEvent(data);
 
         GpuMemoryResourceBindEventData bindData = {};
         bindData.pObj = this;
         bindData.pGpuMemory = m_gpuMem.Memory();
         bindData.requiredGpuMemSize = m_gpuMemSize;
         bindData.offset = m_gpuMem.Offset();
-        m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+        m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
     }
 
     if ((result == Result::Success) && (createInfo.funcCount != 0))

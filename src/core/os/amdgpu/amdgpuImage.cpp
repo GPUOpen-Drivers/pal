@@ -360,7 +360,7 @@ Result Image::CreatePresentableMemoryObject(
     for (uint32 i = 0; i < memReqs.heapCount; i++)
     {
         // Don't allocate from local visible heap since the memory won't be mapped.
-        if ((memReqs.heaps[i] != GpuHeapLocal) || (pDevice->MemoryProperties().invisibleHeapSize == 0))
+        if ((memReqs.heaps[i] != GpuHeapLocal) || (pDevice->HeapLogicalSize(GpuHeapInvisible) == 0))
         {
             createInfo.heaps[createInfo.heapCount] = memReqs.heaps[i];
             createInfo.heapCount++;

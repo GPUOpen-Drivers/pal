@@ -242,9 +242,9 @@ constexpr uint32 NumSampleQuadRegs = 4;
 // Gfx9 interpretation of the LDS_SIZE register field: the granularity of the value in DWORDs and the amount of bits
 // to shift.
 constexpr uint32 Gfx9LdsDwGranularity             = 128;
-constexpr uint32 Gfx9PsExtraLdsDwGranularity      = 256;
+constexpr uint32 Gfx9PsExtraLdsDwGranularity      = 128;
 constexpr uint32 Gfx9LdsDwGranularityShift        = 7;
-constexpr uint32 Gfx9PsExtraLdsDwGranularityShift = 8;
+constexpr uint32 Gfx9PsExtraLdsDwGranularityShift = 7;
 
 // The WAVE_LIMIT register setting for graphics hardware stages is defined in units of this many waves per SH.
 constexpr uint32 Gfx9MaxWavesPerShGraphicsUnitSize = 16;

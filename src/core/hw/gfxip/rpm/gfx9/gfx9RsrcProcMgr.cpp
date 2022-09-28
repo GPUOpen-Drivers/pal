@@ -761,8 +761,10 @@ void RsrcProcMgr::FastDepthStencilClearComputeCommon(
         acquireInfo.cacheSync  = SyncGl1Inv | SyncGlvInv | SyncGlkInv;
         acquireInfo.engineType = engineType;
 
+        Pm4CmdBuffer* pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
-        pCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
+        pCmdSpace  = pPm4CmdBuf->WriteWaitCsIdle(pCmdSpace);
         pCmdSpace += m_cmdUtil.BuildAcquireMemGeneric(acquireInfo, pCmdSpace);
         pCmdStream->CommitCommands(pCmdSpace);
 
@@ -1310,9 +1312,11 @@ bool RsrcProcMgr::ExpandDepthStencil(
             } // end loop through all the slices
         } // end loop through all the mip levels
 
+        Pm4CmdBuffer* pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+
         // Allow the rewrite of depth data to complete
         uint32* pComputeCmdSpace = pComputeCmdStream->ReserveCommands();
-        pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pComputeCmdSpace);
+        pComputeCmdSpace = pPm4CmdBuf->WriteWaitCsIdle(pComputeCmdSpace);
         pComputeCmdStream->CommitCommands(pComputeCmdSpace);
 
         // Restore the compute state here as the "initHtile" function is going to push the compute state again
@@ -1328,10 +1332,8 @@ bool RsrcProcMgr::ExpandDepthStencil(
             InitHtile(pCmdBuffer, pComputeCmdStream, *pGfxImage, range);
 
             // And wait for that to finish...
-            pComputeCmdSpace  = pComputeCmdStream->ReserveCommands();
-            pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType,
-                                                          pCmdBuffer->TimestampGpuVirtAddr(),
-                                                          pComputeCmdSpace);
+            pComputeCmdSpace = pComputeCmdStream->ReserveCommands();
+            pComputeCmdSpace = pPm4CmdBuf->WriteWaitCsIdle(pComputeCmdSpace);
             pComputeCmdStream->CommitCommands(pComputeCmdSpace);
         }
 
@@ -1377,10 +1379,11 @@ bool RsrcProcMgr::WillDecompressWithCompute(
 // =====================================================================================================================
 // Performs a fast-clear on a color image by updating the image's DCC buffer.
 void RsrcProcMgr::HwlFastColorClear(
-    GfxCmdBuffer*      pCmdBuffer,
-    const GfxImage&    dstImage,
-    const uint32*      pConvertedColor,
-    const SubresRange& clearRange
+    GfxCmdBuffer*         pCmdBuffer,
+    const GfxImage&       dstImage,
+    const uint32*         pConvertedColor,
+    const SwizzledFormat& clearFormat,
+    const SubresRange&    clearRange
     ) const
 {
     PAL_ASSERT(clearRange.numPlanes == 1);
@@ -1413,8 +1416,11 @@ void RsrcProcMgr::HwlFastColorClear(
                                                                pCmdSpace);
     }
 
-    const SwizzledFormat planeFormat       = dstImage.Parent()->SubresourceInfo(clearRange.startSubres)->format;
-    uint32               swizzledColor[4]  = {};
+    const SwizzledFormat planeFormat = clearFormat.format == ChNumFormat::Undefined ?
+                                       dstImage.Parent()->SubresourceInfo(clearRange.startSubres)->format :
+                                       clearFormat;
+
+    uint32 swizzledColor[4] = {};
     Formats::SwizzleColor(planeFormat, pConvertedColor, &swizzledColor[0]);
 
     uint32 packedColor[4] = {};
@@ -2092,8 +2098,8 @@ void RsrcProcMgr::HwlDepthStencilClear(
             SlowClearCompute(pCmdBuffer,
                              *pParent,
                              isDepth ? depthLayout : stencilLayout,
-                             format,
                              &clearColor,
+                             format,
                              pRanges[idx],
                              boxCnt,
                              pBox);
@@ -2617,11 +2623,12 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
 
-    if (clearDepth && ((depth >= 0.0f) && (depth <= 1.0f)))
+    if (clearDepth)
     {
         // Enable viewport clamping if depth values are in the [0, 1] range. This avoids writing expanded depth
         // when using a float depth format. DepthExpand pipeline disables clamping by default.
-        pPm4CmdBuf->CmdOverwriteDisableViewportClampForBlits(false);
+        const bool disableClamp = ((depth < 0.0f) || (depth > 1.0f));
+        pPm4CmdBuf->CmdOverwriteDisableViewportClampForBlits(disableClamp);
     }
 
     // Select a depth/stencil state object for this clear:
@@ -2768,7 +2775,14 @@ bool RsrcProcMgr::ClearDcc(
             dstImageLayout.usages  = LayoutColorTarget;
 
             Pm4CmdBuffer* pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
-            SlowClearGraphics(pPm4CmdBuf, *pParent, dstImageLayout, &clearColor, clearRange, 0, nullptr);
+            SlowClearGraphics(pPm4CmdBuf,
+                              *pParent,
+                              dstImageLayout,
+                              &clearColor,
+                              pParent->GetImageCreateInfo().swizzledFormat,
+                              clearRange,
+                              0,
+                              nullptr);
             usedCompute = false;
         }
         else
@@ -2892,9 +2906,11 @@ void RsrcProcMgr::DccDecompressOnCompute(
     // We have to mark this mip level as actually being DCC decompressed
     image.UpdateDccStateMetaData(pCmdStream, range, false, engineType, PredDisable);
 
+    Pm4CmdBuffer* pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+
     // Make sure that the decompressed image data has been written before we start fixing up DCC memory.
-    pComputeCmdSpace  = pComputeCmdStream->ReserveCommands();
-    pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pComputeCmdSpace);
+    pComputeCmdSpace = pComputeCmdStream->ReserveCommands();
+    pComputeCmdSpace = pPm4CmdBuf->WriteWaitCsIdle(pComputeCmdSpace);
     pComputeCmdStream->CommitCommands(pComputeCmdSpace);
 
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
@@ -2910,12 +2926,12 @@ void RsrcProcMgr::DccDecompressOnCompute(
         // to be written, as initialization of dcc memory will write to uncompressed fragment and hence
         // they don't need to be written here. Change from init to fastclear.
         ClearDcc(pCmdBuffer, pCmdStream, image, range, Gfx9Dcc::DecompressedValue, DccClearPurpose::FastClear);
-    }
 
-    // And let the DCC fixup finish as well
-    pComputeCmdSpace  = pComputeCmdStream->ReserveCommands();
-    pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pComputeCmdSpace);
-    pComputeCmdStream->CommitCommands(pComputeCmdSpace);
+        // And let the DCC fixup finish as well
+        pComputeCmdSpace = pComputeCmdStream->ReserveCommands();
+        pComputeCmdSpace = pPm4CmdBuf->WriteWaitCsIdle(pComputeCmdSpace);
+        pComputeCmdStream->CommitCommands(pComputeCmdSpace);
+    }
 }
 
 // =====================================================================================================================
@@ -3919,10 +3935,11 @@ void RsrcProcMgr::CmdCopyImageToMemory(
                 {
                     Pal::CmdStream*  pPalCmdStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
                     CmdStream*       pGfxCmdStream = static_cast<CmdStream*>(pPalCmdStream);
+                    Pm4CmdBuffer*    pPm4CmdBuf    = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
                     uint32*          pCmdSpace     = pGfxCmdStream->ReserveCommands();
                     const EngineType engineType    = pGfxCmdStream->GetEngineType();
 
-                    pCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
+                    pCmdSpace = pPm4CmdBuf->WriteWaitCsIdle(pCmdSpace);
 
                     // Two things can happen next. We will either be copying the leftover pixels with CPDMA or with
                     // more CS invocations. CPDMA is preferred, but we will fallback on CS if the copy is too large
@@ -3981,9 +3998,10 @@ void RsrcProcMgr::EchoGlobalInternalTableAddr(
     // we could acomplish that, but the most simple way is to just do a wait for idle right here. We only need to
     // call this function once per command buffer (and only if we use a non-PAL ABI pipeline) so it should be fine.
     Pal::CmdStream* pCmdStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
+    Pm4CmdBuffer*   pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
     uint32*         pCmdSpace  = pCmdStream->ReserveCommands();
 
-    pCmdSpace += m_cmdUtil.BuildWaitCsIdle(pCmdBuffer->GetEngineType(), pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
+    pCmdSpace = pPm4CmdBuf->WriteWaitCsIdle(pCmdSpace);
 
     if (pCmdBuffer->IsGraphicsSupported())
     {
@@ -5969,7 +5987,7 @@ void Gfx9RsrcProcMgr::HwlDecodeImageViewSrd(
         pSubresRange->startSubres.arraySlice = srd.word5.bits.BASE_ARRAY;
     }
 
-    if (srd.word3.bits.TYPE == SQ_RSRC_IMG_2D_MSAA_ARRAY)
+    if (srd.word3.bits.TYPE >= SQ_RSRC_IMG_2D_MSAA)
     {
         // MSAA textures cannot be mipmapped; the BASE_LEVEL and LAST_LEVEL fields indicate the texture's sample count.
         pSubresRange->startSubres.mipLevel = 0;
@@ -6930,7 +6948,7 @@ void Gfx10RsrcProcMgr::HwlDecodeImageViewSrd(
         pSubresRange->startSubres.arraySlice = LowPart(pSrd->gfx10.base_array);
     }
 
-    if (pSrd->type == SQ_RSRC_IMG_2D_MSAA_ARRAY)
+    if (pSrd->type >= SQ_RSRC_IMG_2D_MSAA)
     {
         // MSAA textures cannot be mipmapped; the BASE_LEVEL and LAST_LEVEL fields indicate the texture's sample count.
         pSubresRange->startSubres.mipLevel = 0;
@@ -7689,10 +7707,10 @@ void Gfx10RsrcProcMgr::CopyVrsIntoHtile(
     // shader right away we risk corrupting HTile. We need to be sure that any prior draws that reference the depth
     // image are idle, HTile writes have been flushed down from the DB, and all stale HTile data has been invalidated
     // in the shader caches.
-    uint32* pCmdSpace = pCmdStream->ReserveCommands();
+    Pm4CmdBuffer* pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+    uint32*       pCmdSpace  = pCmdStream->ReserveCommands();
     pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(FLUSH_AND_INV_DB_META, pCmdBuffer->GetEngineType(), pCmdSpace);
-    pCmdSpace = pCmdStream->WriteWaitEopGeneric(SyncGlkInv | SyncGlvInv | SyncGl1Inv,
-                                                pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
+    pCmdSpace  = pPm4CmdBuf->WriteWaitEop(HwPipePostPrefetch, SyncGlkInv|SyncGlvInv|SyncGl1Inv, SyncRbNone, pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
 
     {
@@ -7702,8 +7720,7 @@ void Gfx10RsrcProcMgr::CopyVrsIntoHtile(
     // Step 3: The internal post-CS barrier. We must wait for the copy shader to finish. We invalidated the DB's
     // HTile cache in step 1 so we shouldn't need to touch the caches a second time.
     pCmdSpace = pCmdStream->ReserveCommands();
-    pCmdSpace += m_cmdUtil.BuildWaitCsIdle(pCmdBuffer->GetEngineType(),
-                                           pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
+    pCmdSpace = pPm4CmdBuf->WriteWaitCsIdle(pCmdSpace);
     pCmdStream->CommitCommands(pCmdSpace);
 }
 

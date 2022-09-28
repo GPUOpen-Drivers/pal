@@ -174,11 +174,11 @@ Result Device::Cleanup()
         result = m_pParent->MemMgr()->FreeGpuMem(m_occlusionSrcMem.Memory(), m_occlusionSrcMem.Offset());
         m_occlusionSrcMem.Update(nullptr, 0);
 
-        if ((m_pParent->GetPlatform() != nullptr) && (m_pParent->GetPlatform()->GetEventProvider() != nullptr))
+        if ((m_pParent->GetPlatform() != nullptr) && (m_pParent->GetPlatform()->GetGpuMemoryEventProvider() != nullptr))
         {
             ResourceDestroyEventData destroyData = {};
             destroyData.pObj = &m_occlusionSrcMem;
-            m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(destroyData);
+            m_pParent->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceDestroyEvent(destroyData);
         }
     }
 
@@ -187,11 +187,11 @@ Result Device::Cleanup()
         result = m_pParent->MemMgr()->FreeGpuMem(m_cpDmaPatchMem.Memory(), m_cpDmaPatchMem.Offset());
         m_cpDmaPatchMem.Update(nullptr, 0);
 
-        if ((m_pParent->GetPlatform() != nullptr) && (m_pParent->GetPlatform()->GetEventProvider() != nullptr))
+        if ((m_pParent->GetPlatform() != nullptr) && (m_pParent->GetPlatform()->GetGpuMemoryEventProvider() != nullptr))
         {
             ResourceDestroyEventData destroyData = {};
             destroyData.pObj = &m_cpDmaPatchMem;
-            m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(destroyData);
+            m_pParent->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceDestroyEvent(destroyData);
         }
     }
 
@@ -501,7 +501,7 @@ Result Device::Finalize()
         {
             m_occlusionSrcMem.Update(pMemObj, memOffset);
 
-            if ((m_pParent->GetPlatform() != nullptr) && (m_pParent->GetPlatform()->GetEventProvider() != nullptr))
+            if ((m_pParent->GetPlatform() != nullptr) && (m_pParent->GetPlatform()->GetGpuMemoryEventProvider() != nullptr))
             {
                 ResourceDescriptionMiscInternal desc;
                 desc.type = MiscInternalAllocType::OcclusionQueryResetData;
@@ -512,14 +512,14 @@ Result Device::Finalize()
                 createData.pResourceDescData = &desc;
                 createData.resourceDescSize = sizeof(ResourceDescriptionMiscInternal);
 
-                m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(createData);
+                m_pParent->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceCreateEvent(createData);
 
                 GpuMemoryResourceBindEventData bindData = {};
                 bindData.pGpuMemory = pMemObj;
                 bindData.pObj = &m_occlusionSrcMem;
                 bindData.offset = memOffset;
                 bindData.requiredGpuMemSize = srcMemCreateInfo.size;
-                m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+                m_pParent->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
             }
 
             result = m_occlusionSrcMem.Map(reinterpret_cast<void**>(&pData));
@@ -557,7 +557,7 @@ Result Device::Finalize()
             {
                 m_cpDmaPatchMem.Update(pMemObj, memOffset);
 
-                if ((m_pParent->GetPlatform() != nullptr) && (m_pParent->GetPlatform()->GetEventProvider() != nullptr))
+                if ((m_pParent->GetPlatform() != nullptr) && (m_pParent->GetPlatform()->GetGpuMemoryEventProvider() != nullptr))
                 {
                     ResourceDescriptionMiscInternal desc;
                     desc.type = MiscInternalAllocType::Cpdmapatch;
@@ -568,14 +568,14 @@ Result Device::Finalize()
                     createData.pResourceDescData = &desc;
                     createData.resourceDescSize = sizeof(ResourceDescriptionMiscInternal);
 
-                    m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(createData);
+                    m_pParent->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceCreateEvent(createData);
 
                     GpuMemoryResourceBindEventData bindData = {};
                     bindData.pGpuMemory = pMemObj;
                     bindData.pObj = &m_cpDmaPatchMem;
                     bindData.offset = memOffset;
                     bindData.requiredGpuMemSize = srcMemCreateInfo.size;
-                    m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+                    m_pParent->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
                 }
             }
         }

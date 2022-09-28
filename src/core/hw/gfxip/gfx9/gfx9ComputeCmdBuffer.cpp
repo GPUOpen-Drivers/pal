@@ -1611,6 +1611,7 @@ Result ComputeCmdBuffer::WritePostambleCommands(
         // Stalls the CP MEC until the CP's DMA engine has finished all previous "CP blts" (DMA_DATA commands
         // without the sync bit set). The ring won't wait for CP DMAs to finish so we need to do this manually.
         pCmdSpace += cmdUtil.BuildWaitDmaData(pCmdSpace);
+        pCmdBuffer->SetPm4CmdBufCpBltState(false);
     }
 
     // The following ATOMIC_MEM packet increments the done-count for the command stream, so that we can probe when the
@@ -1623,10 +1624,7 @@ Result ComputeCmdBuffer::WritePostambleCommands(
         // We also need a wait-for-idle before the atomic increment because command memory might be read or written
         // by dispatches. If we don't wait for idle then the driver might reset and write over that memory before the
         // shaders are done executing.
-        pCmdSpace += cmdUtil.BuildWaitCsIdle(pCmdBuffer->GetEngineType(),
-                                             pCmdBuffer->TimestampGpuVirtAddr(),
-                                             pCmdSpace);
-
+        pCmdSpace  = pCmdBuffer->WriteWaitCsIdle(pCmdSpace);
         pCmdSpace += cmdUtil.BuildAtomicMem(AtomicOp::AddInt32,
                                             pCmdStream->GetFirstChunk()->BusyTrackerGpuAddr(),
                                             1,
@@ -1647,8 +1645,6 @@ Result ComputeCmdBuffer::AddPostamble()
                                                              &m_cmdStream);
     if (result == Result::Success)
     {
-        SetPm4CmdBufCpBltState(false);
-
     }
 
     return result;
@@ -1909,7 +1905,7 @@ void ComputeCmdBuffer::CmdExecuteIndirectCmds(
         acquireInfo.engineType = EngineTypeCompute;
         acquireInfo.cacheSync  = SyncGlkInv;
 
-        pCmdSpace += m_cmdUtil.BuildWaitCsIdle(EngineTypeCompute, TimestampGpuVirtAddr(), pCmdSpace);
+        pCmdSpace  = WriteWaitCsIdle(pCmdSpace);
         pCmdSpace += m_cmdUtil.BuildAcquireMemGeneric(acquireInfo, pCmdSpace);
 
         // PFP_SYNC_ME cannot be used on an async compute engine so we need to use REWIND packet instead.
@@ -2181,6 +2177,65 @@ void ComputeCmdBuffer::CpCopyMemory(
 
     SetPm4CmdBufCpBltState(true);
     SetPm4CmdBufCpBltWriteCacheState(true);
+}
+
+// =====================================================================================================================
+uint32* ComputeCmdBuffer::WriteWaitEop(
+    HwPipePoint waitPoint,
+    uint32      hwGlxSync,
+    uint32      hwRbSync,
+    uint32*     pCmdSpace)
+{
+    SyncGlxFlags glxSync = SyncGlxFlags(hwGlxSync);
+
+    PAL_ASSERT(hwRbSync == SyncRbNone);
+
+    // We prefer to do our GCR in the release_mem if we can. This function always does an EOP wait so we don't have
+    // to worry about release_mem not supporting GCRs with EOS events. Any remaining sync flags must be handled in a
+    // trailing acquire_mem packet.
+    ReleaseMemGeneric releaseInfo = {};
+    releaseInfo.engineType = EngineTypeCompute;
+    releaseInfo.cacheSync  = m_cmdUtil.SelectReleaseMemCaches(&glxSync);
+    releaseInfo.dstAddr    = AcqRelFenceValGpuVa(AcqRelEventType::Eop);
+    releaseInfo.dataSel    = data_sel__me_release_mem__send_32_bit_low;
+    releaseInfo.data       = GetNextAcqRelFenceVal(AcqRelEventType::Eop);
+
+    pCmdSpace += m_cmdUtil.BuildReleaseMemGeneric(releaseInfo, pCmdSpace);
+    pCmdSpace += m_cmdUtil.BuildWaitRegMem(EngineTypeCompute,
+                                           mem_space__me_wait_reg_mem__memory_space,
+                                           function__me_wait_reg_mem__equal_to_the_reference_value,
+                                           engine_sel__me_wait_reg_mem__micro_engine,
+                                           releaseInfo.dstAddr,
+                                           releaseInfo.data,
+                                           UINT32_MAX,
+                                           pCmdSpace);
+
+    // If we still have some caches to sync we require a final acquire_mem. It doesn't do any waiting, it just
+    // immediately does some full-range cache flush and invalidates. The previous WRM packet is the real wait.
+    if (glxSync != SyncGlxNone)
+    {
+        AcquireMemGeneric acquireInfo = {};
+        acquireInfo.engineType = EngineTypeCompute;
+        acquireInfo.cacheSync  = glxSync;
+
+        pCmdSpace += m_cmdUtil.BuildAcquireMemGeneric(acquireInfo, pCmdSpace);
+    }
+
+    SetPm4CmdBufCsBltState(false);
+    SetPrevCmdBufInactive();
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+uint32* ComputeCmdBuffer::WriteWaitCsIdle(
+    uint32* pCmdSpace)
+{
+    pCmdSpace += m_cmdUtil.BuildWaitCsIdle(GetEngineType(), TimestampGpuVirtAddr(), pCmdSpace);
+
+    SetPm4CmdBufCsBltState(false);
+
+    return pCmdSpace;
 }
 
 } // Gfx9

@@ -298,14 +298,15 @@ public:
         uint32                          regionCount,
         const ClearBoundTargetRegion*   pClearRegions) override;
     virtual void CmdClearColorImage(
-        const IImage&      image,
-        ImageLayout        imageLayout,
-        const ClearColor&  color,
-        uint32             rangeCount,
-        const SubresRange* pRanges,
-        uint32             boxCount,
-        const Box*         pBoxes,
-        uint32             flags) override;
+        const IImage&         image,
+        ImageLayout           imageLayout,
+        const ClearColor&     color,
+        const SwizzledFormat& clearFormat,
+        uint32                rangeCount,
+        const SubresRange*    pRanges,
+        uint32                boxCount,
+        const Box*            pBoxes,
+        uint32                flags) override;
     virtual void CmdClearBoundDepthStencilTargets(
         float                         depth,
         uint8                         stencil,
@@ -482,6 +483,7 @@ public:
         uint32 stateFlags) override;
     virtual void CmdRestoreComputeState(
         uint32 stateFlags) override;
+
     virtual void CmdUpdateHiSPretests(
         const IImage*      pImage,
         const HiSPretests& pretests,
@@ -841,6 +843,7 @@ private:
     void ReplayCmdCopyDfSpmTraceData(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSaveComputeState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdRestoreComputeState(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+
     void ReplayCmdCommentString(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdNop(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdInsertExecutionMarker(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);

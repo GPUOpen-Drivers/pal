@@ -41,6 +41,8 @@ struct SettingsBlob
     uint32_t size;
     /// blob size
     uint32_t blobSize;
+    /// whether the blob is encoded.
+    bool encoded;
     /// hash of the blob
     uint64_t blobHash;
     /// a variable-size array of char, representing Settings blob.
@@ -67,7 +69,7 @@ inline uint32_t CalcSettingsBlobSizeAligned(uint32_t blobSize)
     // `unalignedSize` equals the offset of `blob[blobSize]` relative to the
     // beginning of `SettingsBlob`. Can't use `offsetof` because `blobSize` is
     // not a constant.
-    size_t unalignedSize = (uint32_t)((size_t)&(((SettingsBlob*)0)->blob[blobSize]));
+    size_t unalignedSize = (size_t)&(((SettingsBlob*)0)->blob[blobSize]);
 
     uint32_t alignedSize = (unalignedSize + WORD_SIZE - 1) & ~(WORD_SIZE - 1);
 
@@ -95,6 +97,9 @@ public:
     /// not include the null-terminator at the end of the string blob (if it
     /// has one).
     virtual const uint8_t* GetBlob(uint32_t* pOutSize) = 0;
+
+    /// Return whether this blob is encoded.
+    virtual bool IsEncoded() = 0;
 
     /// Return the hash of the blob.
     virtual uint64_t GetBlobHash() = 0;

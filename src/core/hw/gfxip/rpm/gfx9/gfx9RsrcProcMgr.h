@@ -271,7 +271,7 @@ protected:
         ICmdBuffer*        pCmdBuffer,
         const GfxImage&    gfxImage,
         const SubresRange& subres,
-        ImageLayout        layout) const;
+        ImageLayout        layout) const override;
 
     Device*const   m_pDevice;
     const CmdUtil& m_cmdUtil;
@@ -306,10 +306,11 @@ private:
         const ImageCopyRegion& region);
 
     virtual void HwlFastColorClear(
-        GfxCmdBuffer*      pCmdBuffer,
-        const GfxImage&    dstImage,
-        const uint32*      pConvertedColor,
-        const SubresRange& clearRange) const override;
+        GfxCmdBuffer*         pCmdBuffer,
+        const GfxImage&       dstImage,
+        const uint32*         pConvertedColor,
+        const SwizzledFormat& clearFormat,
+        const SubresRange&    clearRange) const override;
 
     virtual void HwlDepthStencilClear(
         GfxCmdBuffer*      pCmdBuffer,

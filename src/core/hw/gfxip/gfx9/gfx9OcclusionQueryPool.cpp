@@ -266,12 +266,7 @@ void OcclusionQueryPool::OptimizedReset(
 
         if (pPm4CmdBuf->GetPm4CmdBufState().flags.prevCmdBufActive || pActiveRanges->Overlap(&interval))
         {
-            auto*const  pGfx9Stream = static_cast<CmdStream*>(pCmdStream);
-            pCmdSpace = pGfx9Stream->WriteWaitEopGeneric(SyncGlxNone, pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
-
-            // The previous EOP event and wait mean that anything prior to this point, including previous command
-            // buffers on this queue, have completed.
-            pPm4CmdBuf->SetPrevCmdBufInactive();
+            pCmdSpace = pPm4CmdBuf->WriteWaitEop(HwPipePostPrefetch, SyncGlxNone, SyncRbNone, pCmdSpace);
 
             // The global wait guaranteed all work has completed, including any outstanding End() calls.
             pActiveRanges->Clear();

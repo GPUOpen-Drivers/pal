@@ -216,7 +216,7 @@ function(pal_compile_definitions TARGET)
 
 #if PAL_BUILD_OSS2_4
         if(PAL_BUILD_OSS2_4)
-            target_compile_definitions(${TARGET} PRIVATE PAL_BUILD_OSS2_4=1)
+            target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_OSS2_4=1)
         endif()
 #endif
 

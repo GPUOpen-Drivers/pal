@@ -23,7 +23,7 @@
  *
  **********************************************************************************************************************/
 
-#include "core/eventProvider.h"
+#include "core/gpuMemoryEventProvider.h"
 #include "core/queue.h"
 #include "core/platform.h"
 #include "core/gpuMemory.h"
@@ -52,17 +52,17 @@ constexpr uint32 kEventFlushTimeoutInMs = 10;
 
 constexpr const char kEventDescription[] = "All available events are RmtTokens directly embedded.";
 
-const void* EventProvider::GetEventDescriptionData() const
+const void* GpuMemoryEventProvider::GetEventDescriptionData() const
 {
     return kEventDescription;
 }
 
-uint32 EventProvider::GetEventDescriptionDataSize() const
+uint32 GpuMemoryEventProvider::GetEventDescriptionDataSize() const
 {
     return sizeof(kEventDescription);
 }
 
-EventProvider::EventProvider(Platform* pPlatform)
+GpuMemoryEventProvider::GpuMemoryEventProvider(Platform* pPlatform)
         :
         DevDriver::EventProtocol::BaseEventProvider(
             { pPlatform, DevDriverAlloc, DevDriverFree },
@@ -75,7 +75,7 @@ EventProvider::EventProvider(Platform* pPlatform)
         {}
 
 // =====================================================================================================================
-Result EventProvider::Init()
+Result GpuMemoryEventProvider::Init()
 {
     Result result = Result::Success;
 
@@ -112,7 +112,7 @@ Result EventProvider::Init()
 }
 
 // =====================================================================================================================
-void EventProvider::Destroy()
+void GpuMemoryEventProvider::Destroy()
 {
     // The event provider runs in a no-op mode when developer mode is not enabled
     if (m_pPlatform->IsDeveloperModeEnabled())
@@ -133,7 +133,7 @@ void EventProvider::Destroy()
 
 // =====================================================================================================================
 // Performs required actions in response to this event provider being enabled by a tool.
-void EventProvider::OnEnable()
+void GpuMemoryEventProvider::OnEnable()
 {
     DevDriver::Platform::LockGuard<DevDriver::Platform::Mutex> providerLock(m_providerLock);
 
@@ -143,7 +143,7 @@ void EventProvider::OnEnable()
 // =====================================================================================================================
 // Determines if the event would be written to either the EventServer or to the log file, used to determine if a log
 // event call should bother constructing the log event data structure.
-bool EventProvider::ShouldLog(
+bool GpuMemoryEventProvider::ShouldLog(
     PalEvent eventId
     ) const
 {
@@ -153,7 +153,7 @@ bool EventProvider::ShouldLog(
 
 // =====================================================================================================================
 // Logs an event on creation of a GPU Memory allocation (physical or virtual).
-void EventProvider::LogCreateGpuMemoryEvent(
+void GpuMemoryEventProvider::LogCreateGpuMemoryEvent(
     const GpuMemory* pGpuMemory)
 {
     // We only want to log new allocations
@@ -184,7 +184,7 @@ void EventProvider::LogCreateGpuMemoryEvent(
 
 // =====================================================================================================================
 // Logs an event when a GPU Memory allocation (physical or virtual) is destroyed.
-void EventProvider::LogDestroyGpuMemoryEvent(
+void GpuMemoryEventProvider::LogDestroyGpuMemoryEvent(
     const GpuMemory* pGpuMemory)
 {
     static constexpr PalEvent eventId = PalEvent::DestroyGpuMemory;
@@ -200,7 +200,7 @@ void EventProvider::LogDestroyGpuMemoryEvent(
 
 // =====================================================================================================================
 // Logs an event when a resource has GPU memory bound to it.
-void EventProvider::LogGpuMemoryResourceBindEvent(
+void GpuMemoryEventProvider::LogGpuMemoryResourceBindEvent(
     const GpuMemoryResourceBindEventData& eventData)
 {
     static constexpr PalEvent eventId = PalEvent::GpuMemoryResourceBind;
@@ -222,7 +222,7 @@ void EventProvider::LogGpuMemoryResourceBindEvent(
 
 // =====================================================================================================================
 // Logs an event when a GPU memory allocation is mapped for CPU access.
-void EventProvider::LogGpuMemoryCpuMapEvent(
+void GpuMemoryEventProvider::LogGpuMemoryCpuMapEvent(
     const GpuMemory* pGpuMemory)
 {
     static constexpr PalEvent eventId = PalEvent::GpuMemoryCpuMap;
@@ -238,7 +238,7 @@ void EventProvider::LogGpuMemoryCpuMapEvent(
 
 // =====================================================================================================================
 // Logs an event when a GPU memory allocation is unmapped for CPU access.
-void EventProvider::LogGpuMemoryCpuUnmapEvent(
+void GpuMemoryEventProvider::LogGpuMemoryCpuUnmapEvent(
     const GpuMemory* pGpuMemory)
 {
     static constexpr PalEvent eventId = PalEvent::GpuMemoryCpuUnmap;
@@ -256,7 +256,7 @@ void EventProvider::LogGpuMemoryCpuUnmapEvent(
 // Logs an event when GPU memory allocations are added to a per-device or per-queue reference list. The flags field is
 // a GpuMemoryRefFlags flags type.
 // NOTE: It is expected that pQueue will always be null for WDDM.
-void EventProvider::LogGpuMemoryAddReferencesEvent(
+void GpuMemoryEventProvider::LogGpuMemoryAddReferencesEvent(
     uint32              gpuMemRefCount,
     const GpuMemoryRef* pGpuMemoryRefs,
     IQueue*             pQueue,
@@ -281,7 +281,7 @@ void EventProvider::LogGpuMemoryAddReferencesEvent(
 // =====================================================================================================================
 // Logs an event when GPU memory allocations are removed from a per-device or per-queue reference list.
 // NOTE: It is expected that pQueue will always be null for WDDM.
-void EventProvider::LogGpuMemoryRemoveReferencesEvent(
+void GpuMemoryEventProvider::LogGpuMemoryRemoveReferencesEvent(
     uint32            gpuMemoryCount,
     IGpuMemory*const* ppGpuMemory,
     IQueue*           pQueue)
@@ -304,7 +304,7 @@ void EventProvider::LogGpuMemoryRemoveReferencesEvent(
 // =====================================================================================================================
 // Logs an event when a resource that requires GPU memory is created.  See the ResourceType enum for the list of
 // resources this applies to.
-void EventProvider::LogGpuMemoryResourceCreateEvent(
+void GpuMemoryEventProvider::LogGpuMemoryResourceCreateEvent(
     const ResourceCreateEventData& eventData)
 {
     static constexpr PalEvent eventId = PalEvent::GpuMemoryResourceCreate;
@@ -326,7 +326,7 @@ void EventProvider::LogGpuMemoryResourceCreateEvent(
 // =====================================================================================================================
 // Logs an event when a resource that requires GPU memory is destroyed.  See the ResourceType enum for the list of
 // resources this applies to.
-void EventProvider::LogGpuMemoryResourceDestroyEvent(
+void GpuMemoryEventProvider::LogGpuMemoryResourceDestroyEvent(
     const ResourceDestroyEventData& eventData)
 {
     static constexpr PalEvent eventId = PalEvent::GpuMemoryResourceDestroy;
@@ -344,7 +344,7 @@ void EventProvider::LogGpuMemoryResourceDestroyEvent(
 
 // =====================================================================================================================
 // Logs an event capturing the assignment of an app-specified name for an object.
-void EventProvider::LogDebugNameEvent(
+void GpuMemoryEventProvider::LogDebugNameEvent(
     const DebugNameEventData& eventData)
 {
     static constexpr PalEvent eventId = PalEvent::DebugName;
@@ -364,7 +364,7 @@ void EventProvider::LogDebugNameEvent(
 
 // =====================================================================================================================
 // Logs a miscellaneous event that requires no additional data.  See MiscEventType for the list of miscellaneous events.
-void EventProvider::LogGpuMemoryMiscEvent(
+void GpuMemoryEventProvider::LogGpuMemoryMiscEvent(
     const MiscEventData& eventData)
 {
     static constexpr PalEvent eventId = PalEvent::GpuMemoryMisc;
@@ -382,7 +382,7 @@ void EventProvider::LogGpuMemoryMiscEvent(
 // =====================================================================================================================
 // Logs an event when an application/driver wants to insert a snapshot marker into the event data.  A snapshot is a
 // named point in time that can give context to the surrounding event data.
-void EventProvider::LogGpuMemorySnapshotEvent(
+void GpuMemoryEventProvider::LogGpuMemorySnapshotEvent(
     const GpuMemorySnapshotEventData& eventData)
 {
     static constexpr PalEvent eventId = PalEvent::GpuMemorySnapshot;
@@ -400,7 +400,7 @@ void EventProvider::LogGpuMemorySnapshotEvent(
 // Logs an event when a driver wants to correlate internal driver information with the equivalent resource ID.
 // Allows the client to correlate PAL resources with arbitrary data, such as data provided by the
 // driver, runtime, or application.
-void EventProvider::LogResourceCorrelationEvent(
+void GpuMemoryEventProvider::LogResourceCorrelationEvent(
     const ResourceCorrelationEventData& eventData)
 {
     static constexpr PalEvent eventId = PalEvent::ResourceCorrelation;
@@ -416,7 +416,7 @@ void EventProvider::LogResourceCorrelationEvent(
 }
 
 // =====================================================================================================================
-void EventProvider::LogResourceUpdateEvent(
+void GpuMemoryEventProvider::LogResourceUpdateEvent(
     const ResourceUpdateEventData& eventData)
 {
     static constexpr PalEvent eventId = PalEvent::ResourceInfoUpdate;
@@ -437,7 +437,7 @@ void EventProvider::LogResourceUpdateEvent(
 }
 
 // =====================================================================================================================
-void EventProvider::LogEvent(
+void GpuMemoryEventProvider::LogEvent(
     PalEvent    eventId,
     const void* pEventData,
     size_t      eventDataSize)
@@ -700,7 +700,7 @@ void EventProvider::LogEvent(
 }
 
 // =====================================================================================================================
-void EventProvider::LogResourceCreateEvent(
+void GpuMemoryEventProvider::LogResourceCreateEvent(
     uint8       delta,
     const void* pEventData,
     size_t      eventDataSize)

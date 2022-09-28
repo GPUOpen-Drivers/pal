@@ -23,7 +23,7 @@
  *
  **********************************************************************************************************************/
 
-#include "libyamlUtils.h"
+#include "../inc/ddYaml.h"
 #include <ddPlatform.h>
 #include <string.h>
 #include <stdlib.h>
@@ -189,6 +189,7 @@ bool YamlNodeGetScalar(yaml_node_t* pValNode, int16_t* pOutValue)
     return success;
 }
 
+// ============================================================================
 bool YamlNodeGetScalar(yaml_node_t* pValNode, uint16_t* pOutValue)
 {
     bool success = false;

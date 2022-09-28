@@ -127,6 +127,9 @@ namespace DevDriver
             // Returns true if a client has requested a trace and it is currently running.
             bool IsTraceRunning();
 
+            // Returns true if the server is currently outputting trace results to a client.
+            bool IsTraceOutputInProgress();
+
             // Starts a new trace. This will only succeed if a trace was previously pending.
             Result BeginTrace();
 

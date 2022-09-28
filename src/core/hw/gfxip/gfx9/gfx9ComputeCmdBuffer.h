@@ -217,6 +217,9 @@ public:
 
     virtual void CpCopyMemory(gpusize dstAddr, gpusize srcAddr, gpusize numBytes) override;
 
+    virtual uint32* WriteWaitEop(HwPipePoint waitPoint, uint32 hwGlxSync, uint32 hwRbSync, uint32* pCmdSpace) override;
+    virtual uint32* WriteWaitCsIdle(uint32* pCmdSpace) override;
+
 protected:
     virtual ~ComputeCmdBuffer() {}
 

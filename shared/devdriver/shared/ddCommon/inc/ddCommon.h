@@ -216,6 +216,9 @@ public:
     void* Buffer() { return m_buffer.Data(); }
     size_t Size() { return m_buffer.Size(); }
 
+    /// Take the ownership of the underlying buffer.
+    DevDriver::Vector<uint8_t> Take();
+
     /// Returns the contents of the buffer as a null terminated character string
     ///
     /// This function returns nullptr if the buffered data is not a valid string
@@ -422,6 +425,14 @@ inline bool IsValidDDByteWriter(const DDByteWriter* pWriter)
             (pWriter->pfnBegin      != nullptr)  &&
             (pWriter->pfnWriteBytes != nullptr)  &&
             (pWriter->pfnEnd        != nullptr));
+}
+
+// Validate a DDFileWriter object
+// This can handle NULL and should be checked before using the writer.
+inline bool IsValidDDIOHeartbeat(const DDIOHeartbeat* pIoHeartbeat)
+{
+    return ((pIoHeartbeat != nullptr)                &&
+            (pIoHeartbeat->pfnWriteHeartbeat != nullptr));
 }
 
 /// Returns true if the provided buffer should be considered valid

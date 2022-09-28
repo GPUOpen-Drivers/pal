@@ -134,7 +134,8 @@ Platform::Platform(
     m_svmRangeStart(0),
     m_maxSvmSize(createInfo.maxSvmSize),
     m_logCb(),
-    m_eventProvider(this)
+    m_gpuMemoryEventProvider(this),
+    m_resourceId(0)
 {
     memset(&m_pDevice[0], 0, sizeof(m_pDevice));
     memset(&m_properties, 0, sizeof(m_properties));
@@ -149,6 +150,9 @@ Platform::Platform(
     m_flags.supportRgpTraces             = createInfo.flags.supportRgpTraces;
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 754
     m_flags.dontOpenPrimaryNode          = createInfo.flags.dontOpenPrimaryNode;
+#endif
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 765
+    m_flags.disableDevDriver              = createInfo.flags.disableDevDriver;
 #endif
 
     if (createInfo.pLogInfo != nullptr)
@@ -520,7 +524,12 @@ Result Platform::EarlyInitDevDriver()
 {
     DevDriver::HostInfo hostInfo = DevDriver::kDefaultNamedPipe;
 
-    bool isConnectionAvailable = DevDriver::DevDriverServer::IsConnectionAvailable(hostInfo);
+    bool isConnectionAvailable = (m_flags.disableDevDriver == false);
+    if (isConnectionAvailable)
+    {
+        isConnectionAvailable = DevDriver::DevDriverServer::IsConnectionAvailable(hostInfo);
+
+    }
 
     DevDriver::Result devDriverResult = DevDriver::Result::Success;
     if (isConnectionAvailable)
@@ -612,7 +621,7 @@ Result Platform::EarlyInitDevDriver()
     if ((result == Result::Success) && (m_pDevDriverServer != nullptr))
     {
         // Initialize the event provider if we have a valid connection
-        result = m_eventProvider.Init();
+        result = m_gpuMemoryEventProvider.Init();
 
         if (result == Result::Success)
         {
@@ -640,7 +649,7 @@ Result Platform::EarlyInitDevDriver()
             {
                 // The tools have indicated that they do not wish to communicate with this driver
                 // so we can safely destroy all of the previously initialized DevDriver infrastructure.
-                m_eventProvider.Destroy();
+                m_gpuMemoryEventProvider.Destroy();
 
 #if PAL_BUILD_RDF
                 DestroyRpcServices();
@@ -754,7 +763,7 @@ void Platform::DestroyDevDriver()
     {
         DestroyRpcServices();
 
-        m_eventProvider.Destroy();
+        m_gpuMemoryEventProvider.Destroy();
 
         // Null out cached pointers
         m_pRgpServer   = nullptr;
@@ -978,35 +987,35 @@ void Platform::LogEvent(
         break;
     case PalEvent::GpuMemoryResourceBind:
         PAL_ASSERT(eventDataSize == sizeof(GpuMemoryResourceBindEventData));
-        m_eventProvider.LogGpuMemoryResourceBindEvent(*(static_cast<const GpuMemoryResourceBindEventData*>(pEventData)));
+        m_gpuMemoryEventProvider.LogGpuMemoryResourceBindEvent(*(static_cast<const GpuMemoryResourceBindEventData*>(pEventData)));
         break;
     case PalEvent::GpuMemoryResourceCreate:
         PAL_ASSERT(eventDataSize == sizeof(ResourceCreateEventData));
-        m_eventProvider.LogGpuMemoryResourceCreateEvent(*(static_cast<const ResourceCreateEventData*>(pEventData)));
+        m_gpuMemoryEventProvider.LogGpuMemoryResourceCreateEvent(*(static_cast<const ResourceCreateEventData*>(pEventData)));
         break;
     case PalEvent::GpuMemoryResourceDestroy:
         PAL_ASSERT(eventDataSize == sizeof(ResourceDestroyEventData));
-        m_eventProvider.LogGpuMemoryResourceDestroyEvent(*(static_cast<const ResourceDestroyEventData*>(pEventData)));
+        m_gpuMemoryEventProvider.LogGpuMemoryResourceDestroyEvent(*(static_cast<const ResourceDestroyEventData*>(pEventData)));
         break;
     case PalEvent::GpuMemoryMisc:
         PAL_ASSERT(eventDataSize == sizeof(MiscEventData));
-        m_eventProvider.LogGpuMemoryMiscEvent(*(static_cast<const MiscEventData*>(pEventData)));
+        m_gpuMemoryEventProvider.LogGpuMemoryMiscEvent(*(static_cast<const MiscEventData*>(pEventData)));
         break;
     case PalEvent::GpuMemorySnapshot:
         PAL_ASSERT(eventDataSize == sizeof(GpuMemorySnapshotEventData));
-        m_eventProvider.LogGpuMemorySnapshotEvent(*(static_cast<const GpuMemorySnapshotEventData*>(pEventData)));
+        m_gpuMemoryEventProvider.LogGpuMemorySnapshotEvent(*(static_cast<const GpuMemorySnapshotEventData*>(pEventData)));
         break;
     case PalEvent::DebugName:
         PAL_ASSERT(eventDataSize == sizeof(DebugNameEventData));
-        m_eventProvider.LogDebugNameEvent(*(static_cast<const DebugNameEventData*>(pEventData)));
+        m_gpuMemoryEventProvider.LogDebugNameEvent(*(static_cast<const DebugNameEventData*>(pEventData)));
         break;
     case PalEvent::ResourceCorrelation:
         PAL_ASSERT(eventDataSize == sizeof(ResourceCorrelationEventData));
-        m_eventProvider.LogResourceCorrelationEvent(*(static_cast<const ResourceCorrelationEventData*>(pEventData)));
+        m_gpuMemoryEventProvider.LogResourceCorrelationEvent(*(static_cast<const ResourceCorrelationEventData*>(pEventData)));
         break;
     case PalEvent::ResourceInfoUpdate:
         PAL_ASSERT(eventDataSize == sizeof(ResourceUpdateEventData));
-        m_eventProvider.LogResourceUpdateEvent(*(static_cast<const ResourceUpdateEventData*>(pEventData)));
+        m_gpuMemoryEventProvider.LogResourceUpdateEvent(*(static_cast<const ResourceUpdateEventData*>(pEventData)));
         break;
     default:
         PAL_ASSERT_ALWAYS_MSG("Unhandled PalEvent type");

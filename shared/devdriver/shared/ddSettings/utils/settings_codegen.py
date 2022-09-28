@@ -33,6 +33,7 @@ from jinja2 import Environment as JinjaEnv, FileSystemLoader as JinjaLoader
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedSeq
 from ruamel.yaml.compat import ordereddict
+from packaging import version
 
 def extract_yaml_comment(seq: CommentedSeq, index: int) -> str:
     """Extract the filetering comments (e.g. `#if ...`) of the `i`-th item in the sequence `seq`.
@@ -51,10 +52,11 @@ def extract_yaml_comment(seq: CommentedSeq, index: int) -> str:
     """
     import ruamel.yaml
 
-    assert ruamel.yaml.__version__ == "0.16.10", (
-        "This function uses internals of ruamel.yaml, and was only tested "
-        "with the version 0.16.10, beyond which nothing is guaranteed to work."
-    )
+    if version.parse(ruamel.yaml.__version__) < version.parse("0.16.10"):
+        raise ImportError(
+            "This script depends on ruamel.yaml version >= 0.16.10. "
+            f"The version installed is {ruamel.yaml.__version__}"
+        )
 
     last_line = lambda comment: comment.splitlines()[-1].lstrip()
 
@@ -64,8 +66,9 @@ def extract_yaml_comment(seq: CommentedSeq, index: int) -> str:
     if index == 0:
         # If it's the first item, its comment is attached to the sequence
         # itself.
-        if seq.ca.comment:
+        if seq.ca.comment and seq.ca.comment[1]:
             comment = last_line(seq.ca.comment[1][0].value)
+
     else:
         if isinstance(seq[index], dict):
             # If items are of type `dict`, the comment is attached to the last
@@ -153,10 +156,13 @@ def setup_default(setting: dict, group_name: str) -> str:
                 default_str = str(default)
 
         elif isinstance(default, str):
-            if setting["Defaults"]["Type"] == "float":
+            setting_type = setting["Defaults"]["Type"]
+            if setting_type == "float":
                 default_str = default
                 if default_str[-1:] != "f":
                     default_str += "f"
+            elif setting_type in ["uint64", "uint32"]:
+                default_str = default
             else:
                 default_str = f'"{default}"'
                 is_string = True
@@ -182,7 +188,7 @@ def setup_default(setting: dict, group_name: str) -> str:
     default_linux = defaults.get("Linux", None)
 
     result = ""
-    if default_win and default_linux:
+    if (default_win is not None) and (default_linux is not None):
         result += "#if defined(_WIN32)\n"
         result += assign_line(setting, "Windows", group_name)
         result += "#elif (__unix__)\n"
@@ -190,13 +196,13 @@ def setup_default(setting: dict, group_name: str) -> str:
         result += "#else\n"
         result += assign_line(setting, "Default", group_name)
         result += "#endif\n"
-    elif default_win:
+    elif default_win is not None:
         result += "#if defined(_WIN32)\n"
         result += assign_line(setting, "Windows", group_name)
         result += "#else\n"
         result += assign_line(setting, "Default", group_name)
         result += "#endif\n"
-    elif default_linux:
+    elif default_linux is not None:
         result += "#if defined(__unix__)\n"
         result += assign_line(setting, "Linux", group_name)
         result += "#else\n"
@@ -207,15 +213,41 @@ def setup_default(setting: dict, group_name: str) -> str:
 
     return result
 
-# A jinja filter that returns "Util::ValueType".
+# A jinja filter that converts "Type" specified in YAML to DD_SETTINGS_TYPE.
 def setting_type_cpp(setting_type: str) -> str:
     if setting_type == "bool":
-        return "Util::ValueType::Boolean"
-    elif setting_type == "int8" or setting_type == "int16" or setting_type == "int32":
-        return "Util::ValueType::Int"
+        return "DD_SETTINGS_TYPE_BOOL"
+    elif setting_type == "int8":
+        return "DD_SETTINGS_TYPE_INT8"
     elif setting_type == "uint8":
-        return "Util::ValueType::Uint8"
-    elif setting_type == "uint16" or setting_type == "uint32":
+        return "DD_SETTINGS_TYPE_UINT8"
+    elif setting_type == "int16":
+        return "DD_SETTINGS_TYPE_INT16"
+    elif setting_type == "uint16":
+        return "DD_SETTINGS_TYPE_UINT16"
+    elif setting_type == "int32":
+        return "DD_SETTINGS_TYPE_INT32"
+    elif setting_type == "uint32":
+        return "DD_SETTINGS_TYPE_UINT32"
+    elif setting_type == "int64":
+        return "DD_SETTINGS_TYPE_INT64"
+    elif setting_type == "uint64":
+        return "DD_SETTINGS_TYPE_UINT64"
+    elif setting_type == "float":
+        return "DD_SETTINGS_TYPE_FLOAT"
+    elif setting_type == "string":
+        return "DD_SETTINGS_TYPE_STRING"
+    else:
+        return '"Invalid value for the JSON field Defaults::Type."'
+
+# A jinja filter that converts "Type" specified in YAML to Util::ValueType from
+# PAL.
+def setting_type_cpp2(setting_type: str) -> str:
+    if setting_type == "bool":
+        return "Util::ValueType::Boolean"
+    elif setting_type in ["int8", "int16", "int32"]:
+        return "Util::ValueType::Int"
+    elif setting_type in ["uint8", "uint16", "uint32"]:
         return "Util::ValueType::Uint"
     elif setting_type == "uint64":
         return "Util::ValueType::Uint64"
@@ -223,27 +255,6 @@ def setting_type_cpp(setting_type: str) -> str:
         return "Util::ValueType::Float"
     elif setting_type == "string":
         return "Util::ValueType::Str"
-    else:
-        return '"Invalid value for the JSON field Defaults::Type."'
-
-# A jinja filter that returns "SettingType".
-def setting_type_cpp2(setting_type: str) -> str:
-    if setting_type == "bool":
-        return "SettingType::Boolean"
-    elif setting_type == "int8" or setting_type == "int16" or setting_type == "int32":
-        return "SettingType::Int"
-    elif setting_type == "uint8":
-        return "SettingType::Uint8"
-    elif setting_type == "uint16" or setting_type == "uint32":
-        return "SettingType::Uint"
-    elif setting_type == "uint64":
-        return "SettingType::Uint64"
-    elif setting_type == "int64":
-        return "SettingType::Int64"
-    elif setting_type == "float":
-        return "SettingType::Float"
-    elif setting_type == "string":
-        return "SettingType::String"
     else:
         return '"Invalid value for the JSON field Defaults::Type."'
 
@@ -322,54 +333,38 @@ def validate_tag(tag: str):
         )
 
 # Generate a encoded byte array of the settings json data.
-def gen_settings_blob(settings: dict, magic_buf: bytes) -> bytearray:
+def gen_settings_blob(settings_root: dict, magic_buf: bytes) -> bytearray:
     settings_stream = io.StringIO()
     yaml = YAML()
-    yaml.dump(settings, settings_stream)
+    yaml.dump(settings_root, settings_stream)
     settings_str = settings_stream.getvalue()
     settings_bytes = bytearray(settings_str.encode(encoding="utf-8"))
-
-    # Pad settings_bytes to be 4-byte aligned.
     settings_bytes_len = len(settings_bytes)
-    assert settings_bytes_len != 0, "Settings JSON binary buffer is empty."
 
-    remainder4 = settings_bytes_len % 4
-    if remainder4 != 0:
-        for i in range(4 - remainder4):
-            settings_bytes.append(0)
-    settings_4byte_len = len(settings_bytes)
-
-    # 4-byte aligned length
-    magic_4byte_len = int(len(magic_buf) / 4) * 4
-
-    # XOR all bytes of settings with that of the magic buffer.
-    settings_bytes_encrypted = bytearray()
-    settings_bytes_cnt = 0
-    repeat = (settings_4byte_len - 1 + magic_4byte_len) % magic_4byte_len
-    for _ in range(repeat):
-        for i in range(0, magic_4byte_len, 4):
-            if settings_bytes_cnt >= settings_4byte_len:
-                break
-
-            # Do it 4 bytes at a time.
-            magic_int32 = int.from_bytes(
-                magic_buf[i : (i + 4)], byteorder="little", signed=False
+    if settings_root["Encoded"]:
+        # Fill `magic_bytes` to be as big as `settings_bytes`.
+        magic_buf_len = len(magic_buf)
+        repeat = settings_bytes_len // magic_buf_len
+        magic_bytes = bytearray()
+        if repeat == 0:
+            magic_bytes.extend(magic_buf[:settings_bytes_len])
+        else:
+            for i in range(repeat):
+                magic_bytes.extend(magic_buf)
+            magic_bytes.extend(
+                magic_buf[: (settings_bytes_len - (repeat * magic_buf_len))]
             )
-            settings_int32 = int.from_bytes(
-                settings_bytes[settings_bytes_cnt : (settings_bytes_cnt + 4)],
-                byteorder="little",
-                signed=False,
-            )
-            xor_res = settings_int32 ^ magic_int32
-            settings_bytes_encrypted.extend(
-                xor_res.to_bytes(4, byteorder="little", signed=False)
-            )
-            settings_bytes_cnt += 4
 
-        if settings_bytes_cnt >= settings_4byte_len:
-            break
+        # Convert both byte arrays to large intergers.
+        settings_int = int.from_bytes(settings_bytes, byteorder="little", signed=False)
+        magic_int = int.from_bytes(magic_bytes, byteorder="little", signed=False)
 
-    return settings_bytes_encrypted[:settings_bytes_len]
+        encoded_settings_int = settings_int ^ magic_int
+        return encoded_settings_int.to_bytes(
+            length=settings_bytes_len, byteorder="little", signed=False
+        )
+    else:
+        return settings_bytes
 
 def gen_setting_name_hashes(settings: ordereddict):
     """Generate name hash for each setting.
@@ -377,20 +372,36 @@ def gen_setting_name_hashes(settings: ordereddict):
     And add it as 'NameHash' field. This function also validates setting names
     and checks for duplicates.
     """
+
     setting_name_set = set()  # used to detect duplicate names
+    setting_name_hash_map = dict()  # used to detect hashing collision
+
     for setting in settings:
         name = setting["Name"]
         validate_settings_name(name)
+
+        group = setting.get("Group", None)
+        if group is not None:
+            name = f"{group}_{name}"
 
         if name not in setting_name_set:
             setting_name_set.add(name)
         else:
             raise ValueError(f"Duplicate setting name: {name}")
 
+        name_hash = fnv1a(bytes(name.encode(encoding="utf-8")))
+        if name_hash not in setting_name_hash_map:
+            setting_name_hash_map[name_hash] = name
+        else:
+            colliding_name = setting_name_hash_map[name_hash]
+            raise ValueError(
+                f"Hash collision detected between setting names: {name}, {colliding_name}"
+            )
+
         # `setting` is an ordereddict, and appending a key-value pair would
         # interfere with how we extract filtering comments (e.g. `#if ...`).
         # So insert at the beginning of `setting`.
-        setting.insert(0, "NameHash", fnv1a(bytes(name.encode(encoding="utf-8"))))
+        setting.insert(0, "NameHash", name_hash)
 
 def prepare_enums(settings_root: dict) -> set:
     """Prepare enums in the top-level 'Enums' list.
@@ -429,7 +440,8 @@ def prepare_settings_meta(
         The root of Settings YAML object.
 
     magic_buf:
-        An array of randomly generated bytes.
+        An array of randomly generated bytes to encode the generated
+        Settings blob.
 
     codegen_header:
         The name of the auto-generated header file by this script.
@@ -442,8 +454,10 @@ def prepare_settings_meta(
     settings_blob = gen_settings_blob(settings_root, magic_buf)
 
     # Compute settings blob hash. Blob hashes are used for consistency check
-    # between tools and drivers.
-    settings_root["SettingsBlobHash"] = hash(bytes(settings_blob))
+    # between tools and drivers. Clamp the hash value to be an uint64_t.
+    settings_root["SettingsBlobHash"] = (
+        hash(bytes(settings_blob)) & 0xFFFF_FFFF_FFFF_FFFF
+    )
 
     settings_root["SettingsBlob"] = ",".join(map(str, settings_blob))
     settings_root["SettingsBlobSize"] = len(settings_blob)
@@ -485,13 +499,20 @@ def prepare_settings_list(settings: dict, enum_name_set: set):
                 "An individual setting's bitmask name must match one in the Enums list."
             )
 
+        type_str = setting["Defaults"]["Type"]
+
+        # If a setting is an enum/bitmask, its "Type" must be "uint32".
+        if (enum_name is not None) or (bitmask_name is not None):
+            if type_str != "uint32":
+                raise ValueError(
+                    f"Setting {setting_name} is an enum, its type must be uint32, but its actual type is {type_str}."
+                )
+
         if enum_name:
             setting["VariableType"] = enum_name
         elif bitmask_name:
             setting["VariableType"] = "uint32_t"
         else:
-            defaults = setting["Defaults"]
-            type_str = defaults["Type"]
             if type_str == "string":
                 # We only support fixed-size string.
                 setting["VariableType"] = "char"
@@ -502,8 +523,11 @@ def prepare_settings_list(settings: dict, enum_name_set: set):
 
         # If a string, add a field "StringLength".
         if setting["Defaults"]["Type"] == "string":
-            flags = setting["Flags"]
-            if flags.get("IsDir", False) or flags.get("IsFile", False):
+            flags = setting.get("Flags", None)
+
+            if flags is not None and (
+                flags.get("IsDir", False) or flags.get("IsFile", False)
+            ):
                 setting["StringLength"] = "DevDriver::kSettingsMaxPathStrLen"
             else:
                 # Constant `SettingsMaxMiscStrLen` is defined in asettingsBase.h.
@@ -580,6 +604,23 @@ def main():
         required=True,
         help="The directory to put the generated files.",
     )
+    codegen_parser.add_argument(
+        "--classname",
+        required=False,
+        help="The Settings class name override. By default, it's `<ComponentName>Settings`.",
+    )
+    codegen_parser.add_argument(
+        "--pal",
+        action="store_true",
+        required=False,
+        help="The generated files for PAL settings need to include some dependent PAL files.",
+    )
+    codegen_parser.add_argument(
+        "--encoded",
+        action="store_true",
+        required=False,
+        help="If this flag is present, the generated settings blob is not encoded by a magic buffer.",
+    )
 
     args = parser.parse_args()
 
@@ -606,6 +647,19 @@ def main():
             settings_schema = yaml.load(file)
 
         jsonschema.validate(settings_root, schema=settings_schema)
+
+        settings_root["PalSettings"] = args.pal
+        settings_root["Namespace"] = (
+            "Pal" if args.pal else settings_root["ComponentName"]
+        )
+
+        settings_root["Encoded"] = args.encoded
+
+        settings_root["ClassName"] = (
+            args.classname
+            if args.classname
+            else settings_root["ComponentName"] + "Settings"
+        )
 
         with open(path.join(running_script_dir, "magic_buffer"), "rb") as magic_file:
             magic_buf = magic_file.read()

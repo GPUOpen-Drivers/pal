@@ -640,6 +640,9 @@ public:
 
     virtual gpusize GetMeshPipeStatsGpuAddr() const override { return m_meshPipeStatsGpuAddr; }
 
+    virtual uint32* WriteWaitEop(HwPipePoint waitPoint, uint32 hwGlxSync, uint32 hwRbSync, uint32* pCmdSpace) override;
+    virtual uint32* WriteWaitCsIdle(uint32* pCmdSpace) override;
+
 protected:
     virtual ~UniversalCmdBuffer();
 
@@ -1153,6 +1156,7 @@ private:
     uint32  m_fmaskBinSizeTagPart;    // Constant used in Fmask PBB bin size formulas
     uint16  m_minBinSizeX;            // Minimum bin size(width) for PBB.
     uint16  m_minBinSizeY;            // Minimum bin size(height) for PBB.
+    uint32  m_totalNumRbs;            // RB number
 
     regCB_RMI_GL2_CACHE_CONTROL m_cbRmiGl2CacheControl; // Control CB cache policy and big page
 

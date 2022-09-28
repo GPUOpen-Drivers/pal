@@ -236,14 +236,15 @@ public:
         const ClearBoundTargetRegion*   pClearRegions) override;
 
     virtual void CmdClearColorImage(
-        const IImage&      image,
-        ImageLayout        imageLayout,
-        const ClearColor&  color,
-        uint32             rangeCount,
-        const SubresRange* pRanges,
-        uint32             boxCount,
-        const Box*         pBoxes,
-        uint32             flags) override;
+        const IImage&         image,
+        ImageLayout           imageLayout,
+        const ClearColor&     color,
+        const SwizzledFormat& clearFormat,
+        uint32                rangeCount,
+        const SubresRange*    pRanges,
+        uint32                boxCount,
+        const Box*            pBoxes,
+        uint32                flags) override;
 
     virtual void CmdClearBoundDepthStencilTargets(
         float                         depth,
@@ -327,8 +328,6 @@ public:
     virtual bool IsQueryAllowed(QueryPoolType queryPoolType) const = 0;
     virtual void AddQuery(QueryPoolType queryPoolType, QueryControlFlags flags) = 0;
     virtual void RemoveQuery(QueryPoolType queryPoolType) = 0;
-
-    gpusize TimestampGpuVirtAddr() const { return m_timestampGpuVa; }
 
     GpuEvent* GetInternalEvent() { return m_pInternalEvent; }
 
@@ -450,8 +449,6 @@ private:
     void ReturnGeneratedCommandChunks(bool returnGpuMemory);
 
     const GfxDevice& m_device;
-
-    gpusize m_timestampGpuVa;   // GPU virtual address of memory used for cache flush & inv timestamp events.
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     bool  m_graphicsStateIsPushed; // If CmdSaveGraphicsState was called without a matching CmdRestoreGraphicsState.

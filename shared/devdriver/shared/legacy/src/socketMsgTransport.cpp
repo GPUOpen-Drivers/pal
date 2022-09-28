@@ -245,8 +245,8 @@ namespace DevDriver
                                 //        we have a version mismatch here.
 
                                 // check packet validity and set success if true
-                                if (IsOutOfBandMessage(responseMessage) &
-                                    IsValidOutOfBandMessage(responseMessage) &
+                                if (IsOutOfBandMessage(responseMessage) &&
+                                    IsValidOutOfBandMessage(responseMessage) &&
                                     (responseMessage.header.messageId == static_cast<MessageCode>(ManagementMessage::KeepAlive)))
                                 {
                                     result = Result::Success;

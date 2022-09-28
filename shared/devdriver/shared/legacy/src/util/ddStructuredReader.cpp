@@ -691,6 +691,8 @@ namespace DevDriver
         // On Debug builds, we print detailed error messages with context lines and a little "^".
         // This is a lot of string manipulation that we do not want on for Release builds, where it's a bit riskier.
 #if defined(_DEBUG)
+        DD_UNUSED(errorColmNum);
+
         {
             // Sort our list so that they're in the correct order.
             {

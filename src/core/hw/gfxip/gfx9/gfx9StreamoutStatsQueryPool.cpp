@@ -296,11 +296,12 @@ void StreamoutStatsQueryPool::OptimizedReset(
 
     if (pCmdBuffer->IsQueryAllowed(QueryPoolType::StreamoutStats))
     {
+        Pm4CmdBuffer* pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+
         // Before we initialize out the GPU's destination memory, make sure the ASIC has finished any previous reading
         // and writing of streamout stat data. Command buffers that do not support stats queries do not need to issue
         // this wait because the caller must use semaphores to make sure all queries are complete.
-        auto*const  pGfx9Stream = static_cast<CmdStream*>(pCmdStream);
-        pCmdSpace = pGfx9Stream->WriteWaitEopGeneric(SyncGlxNone, pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
+        pCmdSpace = pPm4CmdBuf->WriteWaitEop(HwPipePostPrefetch, SyncGlxNone, SyncRbNone, pCmdSpace);
     }
 
     gpusize gpuAddr          = 0;

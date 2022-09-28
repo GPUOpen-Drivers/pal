@@ -595,6 +595,19 @@
       "Name": "enableBigPagePreAlignment"
     },
     {
+      "Description": "Enable large-page alignment on resources which are yet to be bound",
+      "Tags": [
+        "General"
+      ],
+      "Defaults": {
+        "Default": true
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "enableLargePagePreAlignment",
+      "Name": "enableLargePagePreAlignment"
+    },
+    {
       "Description": "Enable Iterate256=0 alignment on images which satisfy its conditions and are yet to be bound",
       "Tags": [
         "General"

@@ -942,7 +942,7 @@ void Image::InitLayoutStateMasksOneMip(
         m_layoutToState[mip].color.compressed.engines = LayoutUniversalEngine;
 
         if (allowComputeDecompress &&
-            TestAnyFlagSet(UseComputeExpand, (isMsaa ? UseComputeExpandMsaaDcc : UseComputeExpandDcc)))
+            TestAnyFlagSet(UseComputeExpand, (isMsaa ? UseComputeExpandDccWithFmask : UseComputeExpandDcc)))
         {
             m_layoutToState[mip].color.compressed.engines |= LayoutComputeEngine;
         }

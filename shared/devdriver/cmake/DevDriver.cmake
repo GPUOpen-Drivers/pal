@@ -143,10 +143,13 @@ function(apply_devdriver_warnings name)
             )
         endif()
     elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-        target_compile_options(${name} PRIVATE
-            # Additional static analysis. This can be loud, so we disable some of the warnings this enables
-            $<$<CONFIG:Debug>:/analyze>
-        )
+        if (DD_MSVC_CODE_ANALYZE)
+            target_compile_options(${name} PRIVATE
+                # Additional static analysis. This can be loud, so we disable
+                # some of the warnings this enables
+                $<$<CONFIG:Debug>:/analyze>
+            )
+        endif()
 
         target_compile_options(${name} PRIVATE
             # Disable specific warnings

@@ -391,11 +391,11 @@ Result Device::Cleanup()
 
         Result freeVaResult = FreeGpuVirtualAddress(virtAddr, virtSize);
 
-        if (m_pPlatform->GetEventProvider() != nullptr)
+        if (m_pPlatform->GetGpuMemoryEventProvider() != nullptr)
         {
             ResourceDestroyEventData destroyData = {};
             destroyData.pObj = &m_pageFaultDebugSrdMem;
-            m_pPlatform->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(destroyData);
+            m_pPlatform->GetGpuMemoryEventProvider()->LogGpuMemoryResourceDestroyEvent(destroyData);
         }
 
         // An error here is not fatal, but it will likely prevent new debug SRDs from being allocated in new devices.
@@ -407,11 +407,11 @@ Result Device::Cleanup()
         result = m_memMgr.FreeGpuMem(m_dummyChunkMem.Memory(), m_dummyChunkMem.Offset());
         m_dummyChunkMem.Update(nullptr, 0);
 
-        if (m_pPlatform->GetEventProvider() != nullptr)
+        if (m_pPlatform->GetGpuMemoryEventProvider() != nullptr)
         {
             ResourceDestroyEventData destroyData = {};
             destroyData.pObj = &m_dummyChunkMem;
-            m_pPlatform->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(destroyData);
+            m_pPlatform->GetGpuMemoryEventProvider()->LogGpuMemoryResourceDestroyEvent(destroyData);
         }
     }
 
@@ -561,10 +561,12 @@ Result Device::SetupPublicSettingDefaults()
 // Helper function to create a sub-device for each present hardware IP.
 Result Device::HwlEarlyInit()
 {
-    void*const pGfxPlacementAddr     = VoidPtrInc(this, m_deviceSize);
-    void*const pOssPlacementAddr     = VoidPtrInc(pGfxPlacementAddr, m_hwDeviceSizes.gfx);
-
-    void*const pAddrMgrPlacementAddr = VoidPtrInc(pOssPlacementAddr, m_hwDeviceSizes.oss);
+    void* pCurrPlacementAddr            = VoidPtrInc(this, m_deviceSize);
+    void*const pGfxPlacementAddr        = pCurrPlacementAddr;
+    pCurrPlacementAddr                  = VoidPtrInc(pGfxPlacementAddr, m_hwDeviceSizes.gfx);
+    void*const pOssPlacementAddr        = pCurrPlacementAddr;
+    pCurrPlacementAddr                  = VoidPtrInc(pOssPlacementAddr, m_hwDeviceSizes.oss);
+    void*const pAddrMgrPlacementAddr    = pCurrPlacementAddr;
 
     Result result = Result::Success;
 
@@ -732,8 +734,12 @@ void Device::InitPerformanceRatings()
 }
 
 // =====================================================================================================================
-// Initializes the properties of each GPU memory heap available to this GPU (e.g., size, whether it is CPU visible or
-// not, etc.).
+// Initializes the properties for GPU memory heaps:
+//  GpuHeapLocal (partial)
+//  GpuHeapInvisible (partial)
+//  GpuHeapGartCacheable
+//  GpuHeapGartUswc
+// Derived devices are expected to fill out the logical, physical, and bar sizes for GpuHeapLocal and GpuHeapInvisible.
 void Device::InitMemoryHeapProperties()
 {
     for (uint32 i = 0; i < GpuHeapCount; ++i)
@@ -743,33 +749,35 @@ void Device::InitMemoryHeapProperties()
         switch (static_cast<GpuHeap>(i))
         {
         case GpuHeapLocal:
-            m_heapProperties[i].heapSize         = m_memoryProperties.localHeapSize;
-            m_heapProperties[i].physicalHeapSize = m_memoryProperties.localHeapSize;
             m_heapProperties[i].flags.cpuVisible       = 1;
             m_heapProperties[i].flags.cpuGpuCoherent   = 1;
             m_heapProperties[i].flags.cpuUncached      = 1;
             m_heapProperties[i].flags.cpuWriteCombined = 1;
             break;
         case GpuHeapInvisible:
-            // The invisible heap size is the HBCC size if HBCC is present.
-            // Otherwise its just the normal invisible heap
-            m_heapProperties[i].heapSize         = m_memoryProperties.hbccSizeInBytes == 0 ?
-                                                        m_memoryProperties.invisibleHeapSize :
-                                                        m_memoryProperties.hbccSizeInBytes;
-            m_heapProperties[i].physicalHeapSize = m_memoryProperties.invisibleHeapSize;
-            m_heapProperties[i].flags.cpuUncached       = 1;
+            m_heapProperties[i].flags.cpuUncached = 1;
             break;
         case GpuHeapGartCacheable:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 766
+            m_heapProperties[i].logicalSize  = m_memoryProperties.nonLocalHeapSize;
+            m_heapProperties[i].physicalSize = m_memoryProperties.nonLocalHeapSize;
+#else
             m_heapProperties[i].heapSize         = m_memoryProperties.nonLocalHeapSize;
             m_heapProperties[i].physicalHeapSize = m_memoryProperties.nonLocalHeapSize;
+#endif
             m_heapProperties[i].flags.cpuVisible     = 1;
             m_heapProperties[i].flags.cpuGpuCoherent = 1;
             m_heapProperties[i].flags.holdsPinned    = 1;
             m_heapProperties[i].flags.shareable      = 1;
             break;
         case GpuHeapGartUswc:
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 766
+            m_heapProperties[i].logicalSize  = m_memoryProperties.nonLocalHeapSize;
+            m_heapProperties[i].physicalSize = m_memoryProperties.nonLocalHeapSize;
+#else
             m_heapProperties[i].heapSize         = m_memoryProperties.nonLocalHeapSize;
             m_heapProperties[i].physicalHeapSize = m_memoryProperties.nonLocalHeapSize;
+#endif
             m_heapProperties[i].flags.cpuVisible       = 1;
             m_heapProperties[i].flags.cpuGpuCoherent   = 1;
             m_heapProperties[i].flags.cpuUncached      = 1;
@@ -1405,7 +1413,7 @@ void Device::InitPageFaultDebugSrd()
         void* pData = nullptr;
         if (result == Result::Success)
         {
-            if ((m_pPlatform != nullptr) && (m_pPlatform->GetEventProvider() != nullptr))
+            if ((m_pPlatform != nullptr) && (m_pPlatform->GetGpuMemoryEventProvider() != nullptr))
             {
                 ResourceDescriptionMiscInternal desc;
                 desc.type = MiscInternalAllocType::PageFaultSRD;
@@ -1416,14 +1424,14 @@ void Device::InitPageFaultDebugSrd()
                 createData.pResourceDescData = &desc;
                 createData.resourceDescSize = sizeof(ResourceDescriptionMiscInternal);
 
-                m_pPlatform->GetEventProvider()->LogGpuMemoryResourceCreateEvent(createData);
+                m_pPlatform->GetGpuMemoryEventProvider()->LogGpuMemoryResourceCreateEvent(createData);
 
                 GpuMemoryResourceBindEventData bindData = {};
                 bindData.pGpuMemory = pGpuMem;
                 bindData.pObj = &m_pageFaultDebugSrdMem;
                 bindData.offset = memOffset;
                 bindData.requiredGpuMemSize = createInfo.size;
-                m_pPlatform->GetEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+                m_pPlatform->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
             }
 
             m_pageFaultDebugSrdMem.Update(pGpuMem, memOffset);
@@ -1483,7 +1491,7 @@ Result Device::InitDummyChunkMem()
 
     if (result == Result::Success)
     {
-        if ((m_pPlatform != nullptr) && (m_pPlatform->GetEventProvider() != nullptr))
+        if ((m_pPlatform != nullptr) && (m_pPlatform->GetGpuMemoryEventProvider() != nullptr))
         {
             ResourceDescriptionMiscInternal desc;
             desc.type = MiscInternalAllocType::DummyChunk;
@@ -1494,14 +1502,14 @@ Result Device::InitDummyChunkMem()
             createData.pResourceDescData = &desc;
             createData.resourceDescSize = sizeof(ResourceDescriptionMiscInternal);
 
-            m_pPlatform->GetEventProvider()->LogGpuMemoryResourceCreateEvent(createData);
+            m_pPlatform->GetGpuMemoryEventProvider()->LogGpuMemoryResourceCreateEvent(createData);
 
             GpuMemoryResourceBindEventData bindData = {};
             bindData.pGpuMemory = pGpuMem;
             bindData.pObj = &m_dummyChunkMem;
             bindData.offset = memOffset;
             bindData.requiredGpuMemSize = createInfo.size;
-            m_pPlatform->GetEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+            m_pPlatform->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
         }
 
         m_dummyChunkMem.Update(pGpuMem, memOffset);
@@ -1617,7 +1625,7 @@ Result Device::Finalize(
             if ((result == Result::Success)                                    &&
                 (m_engineProperties.perEngine[EngineTypeDma].numAvailable > 0) &&
                 (m_pPlatform->InternalResidencyOptsDisabled() == false)        &&
-                (m_heapProperties[GpuHeapInvisible].heapSize > 0))
+                (HeapLogicalSize(GpuHeapInvisible) > 0))
             {
                 result = CreateDmaUploadRing();
             }
@@ -2193,11 +2201,20 @@ Result Device::GetProperties(
             m_memoryProperties.vaRange[static_cast<uint32>(VaPartition::DescriptorTable)].baseVirtAddr;
         pInfo->gpuMemoryProperties.shadowDescTableVaStart =
             m_memoryProperties.vaRange[static_cast<uint32>(VaPartition::ShadowDescriptorTable)].baseVirtAddr;
-        pInfo->gpuMemoryProperties.maxPhysicalMemSize = (m_memoryProperties.localHeapSize     +
-                                                         m_memoryProperties.invisibleHeapSize +
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 766
+        pInfo->gpuMemoryProperties.maxPhysicalMemSize = (m_heapProperties[GpuHeapLocal].physicalSize +
+                                                         m_heapProperties[GpuHeapInvisible].physicalSize +
                                                          m_memoryProperties.nonLocalHeapSize);
-        pInfo->gpuMemoryProperties.maxLocalMemSize    = (m_memoryProperties.localHeapSize +
-                                                         m_memoryProperties.invisibleHeapSize);
+        pInfo->gpuMemoryProperties.maxLocalMemSize    = (m_heapProperties[GpuHeapLocal].logicalSize +
+                                                         m_heapProperties[GpuHeapInvisible].logicalSize);
+        pInfo->gpuMemoryProperties.barSize            = m_memoryProperties.barSize;
+#else
+        pInfo->gpuMemoryProperties.maxPhysicalMemSize = (m_heapProperties[GpuHeapLocal].physicalHeapSize +
+                                                         m_heapProperties[GpuHeapInvisible].physicalHeapSize +
+                                                         m_memoryProperties.nonLocalHeapSize);
+        pInfo->gpuMemoryProperties.maxLocalMemSize    = (m_heapProperties[GpuHeapLocal].heapSize +
+                                                         m_heapProperties[GpuHeapInvisible].heapSize);
+#endif
         pInfo->gpuMemoryProperties.localMemoryType    = m_memoryProperties.localMemoryType;
 
         pInfo->gpuMemoryProperties.privateApertureBase         = m_memoryProperties.privateApertureBase;
@@ -2627,7 +2644,7 @@ size_t Device::UploadUsingEmbeddedData(
 /// Determine when a large local heap is available.  A large local heap is any size above 256MB.
 bool Device::HasLargeLocalHeap() const
 {
-    return m_heapProperties[GpuHeapLocal].heapSize > 256_MiB;
+    return HeapLogicalSize(GpuHeapLocal) > 256_MiB;
 }
 
 // =====================================================================================================================
@@ -3535,7 +3552,7 @@ Result Device::CreateGpuMemory(
         }
         else
         {
-            m_pPlatform->GetEventProvider()->LogCreateGpuMemoryEvent(pGpuMemory);
+            m_pPlatform->GetGpuMemoryEventProvider()->LogCreateGpuMemoryEvent(pGpuMemory);
         }
 
         (*ppGpuMemory) = pGpuMemory;
@@ -3592,9 +3609,9 @@ Result Device::CreateInternalGpuMemory(
             (*ppGpuMemory)->Destroy();
             (*ppGpuMemory) = nullptr;
         }
-        else if (m_pPlatform->GetEventProvider() != nullptr)
+        else if (m_pPlatform->GetGpuMemoryEventProvider() != nullptr)
         {
-            m_pPlatform->GetEventProvider()->LogCreateGpuMemoryEvent((*ppGpuMemory));
+            m_pPlatform->GetGpuMemoryEventProvider()->LogCreateGpuMemoryEvent((*ppGpuMemory));
         }
     }
 
@@ -3644,7 +3661,7 @@ Result Device::CreatePinnedGpuMemory(
         }
         else
         {
-            m_pPlatform->GetEventProvider()->LogCreateGpuMemoryEvent(pGpuMemory);
+            m_pPlatform->GetGpuMemoryEventProvider()->LogCreateGpuMemoryEvent(pGpuMemory);
         }
 
         (*ppGpuMemory) = pGpuMemory;
@@ -3698,7 +3715,7 @@ Result Device::CreateSvmGpuMemory(
         }
         else
         {
-            m_pPlatform->GetEventProvider()->LogCreateGpuMemoryEvent(pGpuMemory);
+            m_pPlatform->GetGpuMemoryEventProvider()->LogCreateGpuMemoryEvent(pGpuMemory);
         }
 
         (*ppGpuMemory) = pGpuMemory;
@@ -3750,7 +3767,7 @@ Result Device::OpenSharedGpuMemory(
         }
         else
         {
-            m_pPlatform->GetEventProvider()->LogCreateGpuMemoryEvent(pGpuMemory);
+            m_pPlatform->GetGpuMemoryEventProvider()->LogCreateGpuMemoryEvent(pGpuMemory);
         }
 
         (*ppGpuMemory) = pGpuMemory;
@@ -3800,7 +3817,7 @@ Result Device::OpenPeerGpuMemory(
         }
         else
         {
-            m_pPlatform->GetEventProvider()->LogCreateGpuMemoryEvent(pGpuMemory);
+            m_pPlatform->GetGpuMemoryEventProvider()->LogCreateGpuMemoryEvent(pGpuMemory);
         }
 
         (*ppGpuMemory) = pGpuMemory;
@@ -4645,7 +4662,7 @@ Result Device::AddGpuMemoryReferences(
     uint32              flags
     )
 {
-    m_pPlatform->GetEventProvider()->LogGpuMemoryAddReferencesEvent(gpuMemRefCount, pGpuMemoryRefs, pQueue, flags);
+    m_pPlatform->GetGpuMemoryEventProvider()->LogGpuMemoryAddReferencesEvent(gpuMemRefCount, pGpuMemoryRefs, pQueue, flags);
     return AddToReferencedMemoryTotals(gpuMemRefCount, pGpuMemoryRefs);
 }
 
@@ -4656,7 +4673,7 @@ Result Device::RemoveGpuMemoryReferences(
     IQueue*           pQueue
     )
 {
-    m_pPlatform->GetEventProvider()->LogGpuMemoryRemoveReferencesEvent(gpuMemoryCount, ppGpuMemory, pQueue);
+    m_pPlatform->GetGpuMemoryEventProvider()->LogGpuMemoryRemoveReferencesEvent(gpuMemoryCount, ppGpuMemory, pQueue);
     return SubtractFromReferencedMemoryTotals(gpuMemoryCount, ppGpuMemory, false);
 }
 
@@ -4929,7 +4946,7 @@ void Device::ApplyDevOverlay(
         letterHeight += GpuUtil::TextWriterFont::LetterHeight;
 
         // Check the RMV trace status
-        const char* pRmvTraceStatusString = m_pPlatform->GetEventProvider()->IsMemoryProfilingEnabled() ?
+        const char* pRmvTraceStatusString = m_pPlatform->GetGpuMemoryEventProvider()->IsMemoryProfilingEnabled() ?
             "Active": "Inactive";
 
         // Print the RMV trace status string
@@ -5225,7 +5242,7 @@ bool Device::ValidatePipelineUploadHeap(
     ) const
 {
     // Never prefer the heap which doesn't exit.
-    bool valid = (m_heapProperties[preferredHeap].heapSize > 0);
+    bool valid = HeapLogicalSize(preferredHeap);
 
     if (preferredHeap == GpuHeap::GpuHeapInvisible)
     {
@@ -5282,7 +5299,7 @@ void Device::LogCodeObjectToDisk(
         const char*const pLogDir = &settings.pipelineElfLogConfig.logDirectory[0];
 
         // Create the directory. We don't care if it fails (existing is fine, failure is caught when opening the file).
-        MkDir(pLogDir);
+        MkDirRecursively(pLogDir);
 
         // This Snprintf has been split into pieces to try to handle pipelines with extremely long names.
         // We will truncate the name string if necessary, preserving the path, prefix, and suffix.

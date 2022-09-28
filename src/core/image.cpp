@@ -156,7 +156,7 @@ Image::~Image()
 {
     ResourceDestroyEventData data = {};
     data.pObj = GetResourceId();
-    m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(data);
+    m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceDestroyEvent(data);
 
     if (m_pGfxImage != nullptr)
     {
@@ -848,7 +848,7 @@ Result Image::Init()
         data.pResourceDescData = static_cast<void*>(&desc);
         data.resourceDescSize  = sizeof(ResourceDescriptionImage);
         data.pObj              = GetResourceId();
-        m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
+        m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceCreateEvent(data);
     }
 
     return result;
@@ -944,7 +944,7 @@ void Image::GetGpuMemoryRequirements(
     pMemReqs->alignment    = Max(m_gpuMemAlignment, settings.debugForceSurfaceAlignment);
     pMemReqs->flags.u32All = 0;
 
-    const bool noInvisibleMem = (m_pDevice->MemoryProperties().invisibleHeapSize == 0);
+    const bool noInvisibleMem = (m_pDevice->HeapLogicalSize(GpuHeapInvisible) == 0);
 
     if (m_createInfo.flags.shareable)
     {
@@ -1054,7 +1054,7 @@ Result Image::BindGpuMemory(
         data.pGpuMemory = pGpuMemory;
         data.requiredGpuMemSize = m_gpuMemSize;
         data.offset = offset;
-        m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(data);
+        m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(data);
     }
 
     UpdateMetaDataInfo(pGpuMemory);

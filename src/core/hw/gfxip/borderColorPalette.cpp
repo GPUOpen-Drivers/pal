@@ -53,7 +53,7 @@ BorderColorPalette::BorderColorPalette(
     data.pResourceDescData = static_cast<void*>(&desc);
     data.resourceDescSize = sizeof(ResourceDescriptionBorderColorPalette);
     data.pObj = this;
-    m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
+    m_device.GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceCreateEvent(data);
 }
 
 // =====================================================================================================================
@@ -61,7 +61,7 @@ BorderColorPalette::~BorderColorPalette()
 {
     ResourceDestroyEventData data = {};
     data.pObj = this;
-    m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(data);
+    m_device.GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceDestroyEvent(data);
 }
 
 // =====================================================================================================================
@@ -138,7 +138,7 @@ Result BorderColorPalette::BindGpuMemory(
         data.pGpuMemory = pGpuMemory;
         data.requiredGpuMemSize = m_gpuMemSize;
         data.offset = offset;
-        m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(data);
+        m_device.GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(data);
     }
 
     return result;

@@ -43,11 +43,11 @@ QueueContext::~QueueContext()
         // We assume we allocated this timestamp together with the exclusive exec TS.
         PAL_ASSERT(m_exclusiveExecTs.IsBound());
 
-        if ((m_pDevice->GetPlatform() != nullptr) && (m_pDevice->GetPlatform()->GetEventProvider() != nullptr))
+        if ((m_pDevice->GetPlatform() != nullptr) && (m_pDevice->GetPlatform()->GetGpuMemoryEventProvider() != nullptr))
         {
             ResourceDestroyEventData destroyData = {};
             destroyData.pObj = &m_waitForIdleTs;
-            m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(destroyData);
+            m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceDestroyEvent(destroyData);
         }
     }
 
@@ -56,11 +56,11 @@ QueueContext::~QueueContext()
         m_pDevice->MemMgr()->FreeGpuMem(m_exclusiveExecTs.Memory(), m_exclusiveExecTs.Offset());
         m_exclusiveExecTs.Update(nullptr, 0);
 
-        if ((m_pDevice->GetPlatform() != nullptr) && (m_pDevice->GetPlatform()->GetEventProvider() != nullptr))
+        if ((m_pDevice->GetPlatform() != nullptr) && (m_pDevice->GetPlatform()->GetGpuMemoryEventProvider() != nullptr))
         {
             ResourceDestroyEventData destroyData = {};
             destroyData.pObj = &m_exclusiveExecTs;
-            m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(destroyData);
+            m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceDestroyEvent(destroyData);
         }
     }
 }
@@ -109,7 +109,7 @@ Result QueueContext::CreateTimestampMem(
             m_waitForIdleTs.Update(pGpuMemory, offset + sizeof(uint32));
         }
 
-        if ((m_pDevice->GetPlatform() != nullptr) && (m_pDevice->GetPlatform()->GetEventProvider() != nullptr))
+        if ((m_pDevice->GetPlatform() != nullptr) && (m_pDevice->GetPlatform()->GetGpuMemoryEventProvider() != nullptr))
         {
             ResourceCreateEventData createData = {};
             createData.type = ResourceType::Timestamp;
@@ -117,23 +117,23 @@ Result QueueContext::CreateTimestampMem(
             createData.pResourceDescData = nullptr;
             createData.resourceDescSize = 0;
 
-            m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(createData);
+            m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceCreateEvent(createData);
 
             GpuMemoryResourceBindEventData bindData = {};
             bindData.pGpuMemory = pGpuMemory;
             bindData.pObj = &m_exclusiveExecTs;
             bindData.offset = offset;
             bindData.requiredGpuMemSize = sizeof(uint32);
-            m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+            m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
 
             if (needWaitForIdleMem)
             {
                 createData.pObj = &m_waitForIdleTs;
-                m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(createData);
+                m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceCreateEvent(createData);
 
                 bindData.offset = offset + sizeof(uint32);
                 bindData.pObj = &m_waitForIdleTs;
-                m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+                m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
             }
 
         }

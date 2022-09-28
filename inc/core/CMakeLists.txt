@@ -63,6 +63,7 @@ target_sources(pal PRIVATE
     palPipelineAbiProcessorImpl.h
     palPipelineAbiReader.h
     palPipelineAbiUtils.h
+    palPipelineArFile.h
     palPlatform.h
     palPrivateScreen.h
     palQueryPool.h

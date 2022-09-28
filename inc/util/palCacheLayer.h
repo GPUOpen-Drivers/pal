@@ -538,7 +538,7 @@ struct CompressingCacheLayerCreateInfo
 
 /// Get the memory size for a compressing cache layer
 ///
-/// @return Minimum size of memory buffer needed to pass to CreateTrackingCacheLayer()
+/// @return Minimum size of memory buffer needed to pass to CreateCompressingCacheLayer()
 size_t GetCompressingCacheLayerSize();
 
 /// Create a compressing cache layer
@@ -546,7 +546,7 @@ size_t GetCompressingCacheLayerSize();
 /// @param [in]     pCreateInfo         Information about cache being created
 /// @param [in]     pPlacementAddr      Pointer to the location where the interface should be constructed. There
 ///                                     must be as much size available here as reported by calling
-///                                     GetTrackingCacheLayerSize().
+///                                     GetCompressingCacheLayerSize().
 /// @param [out]    ppCacheLayer        Cache layer interface. On failure this value will be set to nullptr.
 ///
 /// @returns Success if the cache layer was created. Otherwise, one of the following errors may be returned:

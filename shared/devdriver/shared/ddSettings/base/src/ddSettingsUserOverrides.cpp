@@ -23,85 +23,84 @@
  *
  **********************************************************************************************************************/
 
-#include "../inc/ddSettingsConfig.h"
-#include "../inc/ddSettingsBase.h"
-#include "libyamlUtils.h"
+#include <ddSettingsUserOverrides.h>
+#include <ddSettingsBase.h>
+#include <ddYaml.h>
 #include <ddCommon.h>
 #include <ddPlatform.h>
 #include <protocols/ddSettingsServiceTypes.h>
 #include <yaml.h>
 
+using namespace DevDriver;
+
 namespace
 {
 
-using SettingValue = DevDriver::SettingsURIService::SettingValue;
-using SettingsType = DevDriver::SettingsURIService::SettingType;
-
 template<typename T>
-SettingsType SettingsTypeSelector();
+DD_SETTINGS_TYPE SettingsTypeSelector();
 
 template<>
-SettingsType SettingsTypeSelector<bool>()
+DD_SETTINGS_TYPE SettingsTypeSelector<bool>()
 {
-    return SettingsType::Boolean;
+    return DD_SETTINGS_TYPE_BOOL;
 }
 
 template<>
-SettingsType SettingsTypeSelector<int8_t>()
+DD_SETTINGS_TYPE SettingsTypeSelector<int8_t>()
 {
-    return SettingsType::Int8;
+    return DD_SETTINGS_TYPE_INT8;
 }
 
 template<>
-SettingsType SettingsTypeSelector<uint8_t>()
+DD_SETTINGS_TYPE SettingsTypeSelector<uint8_t>()
 {
-    return SettingsType::Uint8;
+    return DD_SETTINGS_TYPE_UINT8;
 }
 
 template<>
-SettingsType SettingsTypeSelector<int16_t>()
+DD_SETTINGS_TYPE SettingsTypeSelector<int16_t>()
 {
-    return SettingsType::Int16;
+    return DD_SETTINGS_TYPE_INT16;
 }
 
 template<>
-SettingsType SettingsTypeSelector<uint16_t>()
+DD_SETTINGS_TYPE SettingsTypeSelector<uint16_t>()
 {
-    return SettingsType::Uint16;
+    return DD_SETTINGS_TYPE_UINT16;
 }
 
 template<>
-SettingsType SettingsTypeSelector<int32_t>()
+DD_SETTINGS_TYPE SettingsTypeSelector<int32_t>()
 {
-    return SettingsType::Int;
+    return DD_SETTINGS_TYPE_INT32;
 }
 
 template<>
-SettingsType SettingsTypeSelector<uint32_t>()
+DD_SETTINGS_TYPE SettingsTypeSelector<uint32_t>()
 {
-    return SettingsType::Uint;
+    return DD_SETTINGS_TYPE_UINT32;
 }
 
 template<>
-SettingsType SettingsTypeSelector<int64_t>()
+DD_SETTINGS_TYPE SettingsTypeSelector<int64_t>()
 {
-    return SettingsType::Int64;
+    return DD_SETTINGS_TYPE_INT64;
 }
 
 template<>
-SettingsType SettingsTypeSelector<uint64_t>()
+DD_SETTINGS_TYPE SettingsTypeSelector<uint64_t>()
 {
-    return SettingsType::Uint64;
+    return DD_SETTINGS_TYPE_UINT64;
 }
 
 template<>
-SettingsType SettingsTypeSelector<float>()
+DD_SETTINGS_TYPE SettingsTypeSelector<float>()
 {
-    return SettingsType::Float;
+    return DD_SETTINGS_TYPE_FLOAT;
 }
 
-// ============================================================================
-/// Fill `pOutUserOverride` based on a YAML node.
+// =======================================================================================
+// Fill `pOutUserOverride` based on a YAML node.
 template<typename T>
 bool SetUserOverrideValueFromYamlNode(
     yaml_node_t* pValNode,
@@ -128,8 +127,8 @@ bool SetUserOverrideValueFromYamlNode(
     return result;
 }
 
-// ============================================================================
-/// Get the YAML node that represents a sequence of user-overrides by component name.
+// =======================================================================================
+// Get the YAML node that represents a sequence of user-overrides by component name.
 yaml_node_t* GetUserOverridesNodeByComponentName(
     yaml_document_t* pDoc,
     const char* pComponentName)
@@ -158,7 +157,7 @@ yaml_node_t* GetUserOverridesNodeByComponentName(
                 }
 
                 yaml_node_t* pNameNode = YamlDocumentFindNodeByKey(pDoc, pCompNode, "Name");
-                if (!pNameNode || (pNameNode->type == YAML_SCALAR_NODE))
+                if (!pNameNode || (pNameNode->type != YAML_SCALAR_NODE))
                 {
                     // log error
                     continue;
@@ -179,7 +178,7 @@ yaml_node_t* GetUserOverridesNodeByComponentName(
     return pUserOverridesNode;
 }
 
-// ============================================================================
+// =======================================================================================
 DD_RESULT GetUserOverride(
     yaml_document_t* pDoc,
     yaml_node_t* pUserOverrideNode,
@@ -212,6 +211,23 @@ DD_RESULT GetUserOverride(
     else
     {
         result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
+    }
+
+    yaml_node_t* pNameHashNode = YamlDocumentFindNodeByKey(pDoc, pUserOverrideNode, "NameHash");
+    if (pNameHashNode)
+    {
+        if (pNameHashNode->type == YAML_SCALAR_NODE)
+        {
+            DD_SETTINGS_NAME_HASH hash = 0;
+            if (YamlNodeGetScalar(pNameHashNode, &hash))
+            {
+                pOutUserOverride->nameHash = hash;
+            }
+        }
+        else
+        {
+            result = DD_RESULT_DD_GENERIC_INVALID_PARAMETER;
+        }
     }
 
     const char* pTypeStr = nullptr;
@@ -324,8 +340,9 @@ DD_RESULT GetUserOverride(
         }
         else if (strncmp(pTypeStr, "String", typeStrLen) == 0)
         {
-            pOutUserOverride->type = SettingsType::String;
-            pOutUserOverride->size = pValueNode->data.scalar.length;
+            pOutUserOverride->type = DD_SETTINGS_TYPE_STRING;
+            DD_ASSERT(pValueNode->data.scalar.length < UINT32_MAX);
+            pOutUserOverride->size = (uint32_t)pValueNode->data.scalar.length;
             pOutUserOverride->val.s = (const char*)pValueNode->data.scalar.value;
         }
         else
@@ -347,11 +364,10 @@ DD_RESULT GetUserOverride(
 
 } // unnamed namespace
 
-// ============================================================================
 namespace DevDriver
 {
 
-// ============================================================================
+// =======================================================================================
 SettingsUserOverride SettingsUserOverrideIter::Next()
 {
     SettingsUserOverride useroverride = {};
@@ -375,7 +391,9 @@ SettingsUserOverride SettingsUserOverrideIter::Next()
                 if (result == DD_RESULT_SUCCESS)
                 {
                     useroverride.isValid = true;
-                    pUserOverrideNodeIndex++;
+
+                    pUserOverrideNodeIndex += 1;
+                    m_pUserOverrideNodeIndex = pUserOverrideNodeIndex;
                 }
             }
         }
@@ -384,35 +402,44 @@ SettingsUserOverride SettingsUserOverrideIter::Next()
     return useroverride;
 }
 
-// ============================================================================
-SettingsConfig::SettingsConfig()
-    : m_buffer(Platform::GenericAllocCb)
+// =======================================================================================
+SettingsUserOverridesLoader::SettingsUserOverridesLoader()
+    : m_pBuffer(nullptr)
     , m_pParser(nullptr)
     , m_pDocument(nullptr)
     , m_valid(false)
 {
-    m_pParser = new yaml_parser_t({});
-    m_pDocument = new yaml_document_t({});
+    m_pParser = (yaml_parser_t*)Platform::GenericAllocCb.Alloc(
+        sizeof(yaml_parser_t),
+        true);
+
+    m_pDocument = (yaml_document_t*)Platform::GenericAllocCb.Alloc(
+        sizeof(yaml_document_t),
+        true);
 }
 
-// ============================================================================
-SettingsConfig::~SettingsConfig()
+// =======================================================================================
+SettingsUserOverridesLoader::~SettingsUserOverridesLoader()
 {
     yaml_document_delete((yaml_document_t*)m_pDocument);
     yaml_parser_delete((yaml_parser_t*)m_pParser);
 
-    delete (yaml_document_t*)m_pDocument;
-    delete (yaml_parser_t*)m_pParser;
+    Platform::GenericAllocCb.Free(m_pDocument);
+    Platform::GenericAllocCb.Free(m_pParser);
+
+    Platform::GenericAllocCb.Free(m_pBuffer);
 }
 
-// ============================================================================
-DD_RESULT SettingsConfig::Load(const char* pUseroverridesFilePath)
+// =======================================================================================
+DD_RESULT SettingsUserOverridesLoader::Load(const char* pUseroverridesFilePath)
 {
     DD_RESULT result = DD_RESULT_SUCCESS;
 
     FILE* pConfigFile = fopen(pUseroverridesFilePath, "rb");
     if (pConfigFile)
     {
+        size_t bufferSize = 0;
+
         if (fseek(pConfigFile, 0L, SEEK_END) == 0)
         {
             long fileSize = ftell(pConfigFile);
@@ -422,7 +449,7 @@ DD_RESULT SettingsConfig::Load(const char* pUseroverridesFilePath)
             }
             else
             {
-                m_buffer.Resize(fileSize);
+                m_pBuffer = (char*)Platform::GenericAllocCb.Alloc(fileSize, false);
             }
 
             if (result == DD_RESULT_SUCCESS)
@@ -430,9 +457,9 @@ DD_RESULT SettingsConfig::Load(const char* pUseroverridesFilePath)
                 if (fseek(pConfigFile, 0L, SEEK_SET) == 0)
                 {
                     fread(
-                        m_buffer.Data(),
+                        m_pBuffer,
                         sizeof(char),
-                        m_buffer.Size(),
+                        fileSize,
                         pConfigFile
                     );
 
@@ -448,6 +475,8 @@ DD_RESULT SettingsConfig::Load(const char* pUseroverridesFilePath)
                     result = DD_RESULT_FS_UNKNOWN;
                 }
             }
+
+            bufferSize = (size_t)fileSize;
         }
         else
         {
@@ -463,7 +492,7 @@ DD_RESULT SettingsConfig::Load(const char* pUseroverridesFilePath)
 
             if (yaml_parser_initialize(pParser))
             {
-                yaml_parser_set_input_string(pParser, (const unsigned char*)m_buffer.Data(), m_buffer.Size());
+                yaml_parser_set_input_string(pParser, (const unsigned char*)m_pBuffer, bufferSize);
                 if (yaml_parser_load(pParser, pDoc))
                 {
                     yaml_node_t* pRoot = yaml_document_get_root_node(pDoc);
@@ -502,7 +531,9 @@ DD_RESULT SettingsConfig::Load(const char* pUseroverridesFilePath)
     return result;
 }
 
-SettingsUserOverrideIter SettingsConfig::GetUserOverridesIter(const char* pComponentName)
+// =======================================================================================
+SettingsUserOverrideIter SettingsUserOverridesLoader::GetUserOverridesIter(
+    const char* pComponentName)
 {
     SettingsUserOverrideIter iter = {};
 
@@ -522,6 +553,30 @@ SettingsUserOverrideIter SettingsConfig::GetUserOverridesIter(const char* pCompo
     }
 
     return iter;
+}
+
+// =======================================================================================
+SettingsUserOverride SettingsUserOverridesLoader::GetUserOverrideByNameHash(
+    const char* pComponentName,
+    DD_SETTINGS_NAME_HASH nameHash)
+{
+    SettingsUserOverride useroverride = {};
+
+    SettingsUserOverrideIter iter = GetUserOverridesIter(pComponentName);
+
+    if (iter.IsValid())
+    {
+        useroverride = iter.Next();
+        while (useroverride.isValid)
+        {
+            if (useroverride.nameHash == nameHash)
+            {
+                break;
+            }
+        }
+    }
+
+    return useroverride;
 }
 
 } // namespace DevDriver

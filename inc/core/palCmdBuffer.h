@@ -545,8 +545,16 @@ union CmdBufferBuildFlags
         uint32 disableQueryInternalOps         :  1;
 #endif
 
+        uint32 placeholder763                  :  1;
+
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 763)
+        uint32 optimizeContextStatesPerBin     :  1;
+        uint32 optimizePersistentStatesPerBin  :  1;
+#else
+        uint32 placeholder763_2                :  2;
+#endif
         /// Reserved for future use.
-        uint32 reserved                        :  19;
+        uint32 reserved                        : 16;
 
     };
 
@@ -610,6 +618,16 @@ struct CmdBufferBuildInfo
     /// Optional tessellation distribution factors that will overwrite PAL set defaults. Clients must also set the
     /// optimizeTessDistributionFactors flag for these custom factors to take effect.
     TessDistributionFactors clientTessDistributionFactors;
+#endif
+
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 763)
+    // Number of context states per PBB bin.
+    // Client must also set @ref CmdBufferBuildFlags::optimizeContextStatesPerBin for this to take effect.
+    uint8 contextStatesPerBin;
+
+    // Number of persistent states per PBB bin.
+    // Client must also set @ref CmdBufferBuildFlags::optimizePersistentStatesPerBin for this to take effect.
+    uint8 persistentStatesPerBin;
 #endif
 
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 661)
@@ -885,7 +903,13 @@ struct BarrierInfo
     uint32 reason; ///< The reason that the barrier was invoked.
 };
 
-/// Specifies *availability* and/or *visibility* operations on a section of an IGpuMemory object.
+/// Specifies execution dependencies, *availability* and/or *visibility* operations on a section of an IGpuMemory
+/// object.
+///
+/// PAL specifies these execution dependencies using pairs of synchronization scope bitmasks of
+/// @ref PipelineStageFlag values. The barrier's execution dependencies are only applied to state in this barrier.
+/// Memory coherency operations or layout transitions in other barriers will ignore this barrier's execution
+/// dependencies.
 ///
 /// PAL specifies these operations using pairs of access scope bitmasks of @ref CacheCoherencyUsageFlags values.
 /// The source mask (named srcAccessMask or srcGlobalAccessMask) describes which prior write operations should be made
@@ -924,6 +948,15 @@ struct MemBarrier
     } flags;                               ///< Flags controlling the memory barrier.
 
     GpuMemSubAllocInfo memory;             ///< Specifies a portion of an IGpuMemory object this memory barrier affects.
+                                           ///  Zero values of memory structure indicate full range barrier operations.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+    uint32             srcStageMask;       ///< Bitmask of PipelineStageFlag values defining the synchronization
+                                           ///  scope that must be confirmed complete as part of a release.  Must be
+                                           ///  0 when passed in to CmdAcquire or CmdAcquireEvent.
+    uint32             dstStageMask;       ///< Bitmask of PipelineStageFlag values defining the synchronization
+                                           ///  scope of operations to be performed after the acquire.  Must be
+                                           ///  0 when passed in to CmdRelease or CmdReleaseEvent.
+#endif
     uint32             srcAccessMask;      ///< CacheCoherencyUsageFlags mask which defines the access scope for the
                                            ///  availability operation, as defined in the struct comment header.
                                            ///  This mask must be 0 when passed to CmdAcquire or CmdAcquireEvent.
@@ -932,11 +965,12 @@ struct MemBarrier
                                            ///  This must be 0 when passed to CmdRelease or CmdReleaseEvent.
 };
 
-/// Specifies required layout transition, *availability*, and/or *visibility* operations on a subresource of an IImage
-/// object.
+/// Specifies required layout transition, execution dependencies, *availability*, and/or *visibility* operations on a
+/// subresource of an IImage object.
 ///
-/// See the header comment on @ref MemBarrier for a full description of the availability and visibility operations,
-/// including what rules the clients must follow when filling out srcAccessMask and dstAccessMask.
+/// See the header comment on @ref MemBarrier for a full description of the execution dependencies, availability and
+/// visibility operations, including what rules the clients must follow when filling out srcAccessMask and
+/// dstAccessMask.
 ///
 /// This struct is used by @ref AcquireReleaseInfo.
 struct ImgBarrier
@@ -954,7 +988,14 @@ struct ImgBarrier
                                  ///  implementation may not be able to optimize particular cases and may expand the
                                  ///  barrier to cover the entire subresource range.  Specifying a subregion with a box
                                  ///  when newLayout includes @ref LayoutUninitializedTarget is not supported.
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+    uint32        srcStageMask;  ///< Bitmask of PipelineStageFlag values defining the synchronization
+                                 ///  scope that must be confirmed complete as part of a release.  Must be
+                                 ///  0 when passed in to CmdAcquire or CmdAcquireEvent.
+    uint32        dstStageMask;  ///< Bitmask of PipelineStageFlag values defining the synchronization
+                                 ///  scope of operations to be performed after the acquire.  Must be
+                                 ///  0 when passed in to CmdRelease or CmdReleaseEvent.
+#endif
     uint32        srcAccessMask; ///< CacheCoherencyUsageFlags mask which defines the access scope for the
                                  ///  availability operation, as defined in the struct comment header.
                                  ///  This mask must be 0 when passed to CmdAcquire or CmdAcquireEvent.
@@ -984,15 +1025,33 @@ struct ImgBarrier
 
 /// Input structure to CmdRelease(), CmdReleaseEvent(), CmdAcquire(), CmdAcquireEvent(), and CmdReleastThenAcquire().
 /// It describes the execution dependencies, memory dependencies, and image layout transitions that must be resolved.
+///
+/// Global transition doesn't have buffer or image info so it will assume the worst case and the barrier operations may
+/// not be optimal (e.g. metadata may be misaligned and need issue LLC flush/invalidation). It's suggested that if
+/// clients know the buffer or image info, try setting up the barrier call with the full buffer or image transition
+/// info (including stageMask and accessMask) instead of global transition for optimal performance.
+///
+/// Clients may OR multiple MemBarrier into a single MemBarrier on full range barrier cases for simple and saving CPU
+/// overhead. To allow more optimization chances (e.g. skip unnecessary stalls for read only transitions) in PAL,
+/// it's suggested to split the single grouped MemBarrier into two separate grouped MemBarriers: one is read only
+/// MemBarrier and the other is writeable MemBarrier; both are then passed together to the barrier call.
 struct AcquireReleaseInfo
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+    uint32               srcGlobalStageMask;  ///< Bitmask of PipelineStageFlag values defining the global
+                                              ///  synchronization scope that must be confirmed complete as part of a
+                                              ///  release.  Must be 0 when passed in to CmdAcquire or CmdAcquireEvent.
+    uint32               dstGlobalStageMask;  ///< Bitmask of PipelineStageFlag values defining the global
+                                              ///  synchronization scope of operations to be performed after the
+                                              ///  acquire.  Must be 0 when passed in to CmdRelease or CmdReleaseEvent.
+#else
     uint32               srcStageMask;        ///< Bitmask of PipelineStageFlag values defining the synchronization
                                               ///  scope that must be confirmed complete as part of a release.  Must be
-                                              ///  0 when passed in to ICmdBuffer::CmdAcquire().
+                                              ///  0 when passed in to CmdAcquire or CmdAcquireEvent.
     uint32               dstStageMask;        ///< Bitmask of PipelineStageFlag values defining the synchronization
                                               ///  scope of operations to be performed after the acquire.  Must be
-                                              ///  0 when passed in to ICmdBuffer::CmdRelease().
-
+                                              ///  0 when passed in to CmdRelease or CmdReleaseEvent.
+#endif
     uint32               srcGlobalAccessMask; ///< *Access scope* for the global availability operation.  Serves the
                                               ///  same purpose as srcAccessMask in @ref MemoryBarrier, but will cause
                                               ///  all relevant caches to be flushed without range checking.
@@ -3332,7 +3391,8 @@ public:
     /// @param [in] gpuMemory     GPU memory to be cleared.
     /// @param [in] color         Specifies the clear color data and how to interpret it.
     /// @param [in] bufferFormat  The format of the color data in the buffer.
-    /// @param [in] bufferOffset  The offset to the beginning of the buffer, in units of texels (or bytes for 96-bit texels).
+    /// @param [in] bufferOffset  The offset to the beginning of the buffer, in units of texels
+    ///                           (or bytes for 96-bit texels).
     /// @param [in] bufferExtent  The extent of the buffer, in units of texels.
     /// @param [in] rangeCount    Number of ranges within the buffer to clear; size of the pRanges array.
     ///                           If zero, the entire view will be cleared and pRanges will be ignored.
@@ -3371,6 +3431,11 @@ public:
     /// @param [in] image       Image to be cleared.
     /// @param [in] imageLayout Current allowed usages and engines for the target image.
     /// @param [in] color       Specifies the clear color data and how to interpret it.
+    /// @param [in] clearFormat If clearFormat.format is Undefined (e.g. if UndefinedSwizzledFormat is provided), do not
+    ///                         reinterpret the subresources' formats. Otherwise, the subresources' formats will be
+    ///                         reinterpreted according to this parameter. The specified format needs to have been
+    ///                         included in the "pViewFormats" list specified at image-creation time, otherwise
+    ///                         corruption may occur.
     /// @param [in] rangeCount  Number of subresource ranges to clear; size of the pRanges array.
     /// @param [in] pRanges     Array of subresource ranges to clear.
     /// @param [in] boxCount    Number of volumes within the image to clear; size of the pBoxes array.
@@ -3378,6 +3443,18 @@ public:
     /// @param [in] pBoxes      Array of volumes within the subresources to clear.
     /// @param [in] flags       Mask of ClearColorImageFlags values controlling behavior of the clear.
     virtual void CmdClearColorImage(
+        const IImage&         image,
+        ImageLayout           imageLayout,
+        const ClearColor&     color,
+        const SwizzledFormat& clearFormat,
+        uint32                rangeCount,
+        const SubresRange*    pRanges,
+        uint32                boxCount,
+        const Box*            pBoxes,
+        uint32                flags) = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 762
+    inline void CmdClearColorImage(
         const IImage&      image,
         ImageLayout        imageLayout,
         const ClearColor&  color,
@@ -3385,7 +3462,12 @@ public:
         const SubresRange* pRanges,
         uint32             boxCount,
         const Box*         pBoxes,
-        uint32             flags) = 0;
+        uint32             flags)
+    {
+        CmdClearColorImage(image, imageLayout, color, UndefinedSwizzledFormat,
+                           rangeCount, pRanges, boxCount, pBoxes, flags);
+    }
+#endif
 
     /// Clears the currently bound depth/stencil targets to the specified clear values. This will always result in a
     /// slow clear, and should only be used when the actual image being cleared is unknown.

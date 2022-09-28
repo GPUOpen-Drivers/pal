@@ -1875,11 +1875,10 @@ DmaCmdBuffer::DmaMemImageCopyMethod DmaCmdBuffer::GetMemImageCopyMethod(
 {
     DmaMemImageCopyMethod copyMethod = DmaCmdBuffer::DmaMemImageCopyMethod::Native;
 
-    // Before OSS-4.0, the x, rect_x, src/dst_pitch and src/dst_slice_pitch must be dword-aligned when
-    // expressed in units of bytes on L2T copies only.
-    // See comments in function DmaCmdBuffer::ValidateLinearRowPitch.
-    if (((isLinearImg == false) && (AreMemImageXParamsDwordAligned(imageInfo, region) == false)) ||
-        (((region.gpuMemoryRowPitch & 0x3) != 0) && (region.imageExtent.height > 1)))
+    // On OSS-5.0, the linear pitch (gpuMemoryRowPitch) needs to be dword aligned for linear and tiled subwindow copy
+    // and the linear slice pitch (gpuMemoryDepthPitch) needs to be dword aligned for tiled subwindow copy
+    if ((IsPow2Aligned(region.gpuMemoryRowPitch, sizeof(uint32)) == false) ||
+        ((IsPow2Aligned(region.gpuMemoryDepthPitch, sizeof(uint32)) == false) && (isLinearImg == false)))
     {
         copyMethod = DmaMemImageCopyMethod::DwordUnaligned;
     }

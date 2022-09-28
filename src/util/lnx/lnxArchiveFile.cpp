@@ -335,9 +335,10 @@ static Result OpenFileInternal(
 
     if (fd != InvalidFd)
     {
-        // The lock will prevent the file from being opened by multiple instances simultaneously.
-        // It will be automatically released when we close the file handle.
-        if (flock(fd, LOCK_EX | LOCK_NB) == 0)
+        // Use an exculsive lock if opening for read-write
+        // Otherwise, use a shareable lock if opening for read-only
+        const int32 flockOp = (pOpenInfo->allowWriteAccess)? (LOCK_EX | LOCK_NB) : (LOCK_SH | LOCK_NB);
+        if (flock(fd, flockOp) == 0)
         {
             if (pOpenInfo->useBufferedReadMemory)
             {

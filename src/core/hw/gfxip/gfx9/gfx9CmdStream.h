@@ -159,18 +159,6 @@ public:
         gpusize launchDescGpuVa,
         uint32* pCmdSpace);
 
-    uint32* WriteWaitEopGeneric(
-        SyncGlxFlags glxSync,
-        gpusize      timestampGpuAddr,
-        uint32*      pCmdSpace);
-
-    uint32* WriteWaitEopGfx(
-        HwPipePoint  waitPoint,
-        SyncGlxFlags glxSync,
-        SyncRbFlags  rbSync,
-        gpusize      timestampGpuAddr,
-        uint32*      pCmdSpace);
-
     // In rare cases some packets will modify register state behind the scenes (e.g., DrawIndirect). This function must
     // be called in those cases to ensure that immediate mode PM4 optimization invalidates its copy of the register.
     void NotifyIndirectShRegWrite(uint32 regAddr);
@@ -216,17 +204,6 @@ private:
     virtual void CleanupTempObjects() override;
     virtual void BeginCurrentChunk() override;
     virtual void EndCurrentChunk(bool atEndOfStream) override;
-
-    uint32* WriteWaitEopTsGfx(
-        SyncGlxFlags glxSync,
-        SyncRbFlags  rbSync,
-        gpusize      timestampGpuAddr,
-        uint32*      pCmdSpace);
-
-    uint32* WriteWaitEopTsAce(
-        SyncGlxFlags glxSync,
-        gpusize      timestampGpuAddr,
-        uint32*      pCmdSpace);
 
     const CmdUtil& m_cmdUtil;
     Pm4Optimizer*  m_pPm4Optimizer;       // This will only be created if optimization is enabled for this stream.

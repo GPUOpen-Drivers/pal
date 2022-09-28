@@ -62,23 +62,31 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_device(device),
     m_pDeCmdStream(pDeCmdStream),
     m_pCeCmdStream(pCeCmdStream),
-    m_blendOptEnable(blendOptEnable)
+    m_blendOptEnable(blendOptEnable),
+    m_contextStatesPerBin(1),
+    m_persistentStatesPerBin(1)
 {
     PAL_ASSERT(createInfo.queueType == QueueTypeUniversal);
 
     SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute,  &Pm4CmdBuffer::CmdSetUserDataCs);
     SwitchCmdSetUserDataFunc(PipelineBindPoint::Graphics, &CmdSetUserDataGfx<true>);
 
+    const PalPublicSettings* pPalSettings = m_device.Parent()->GetPublicSettings();
+
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 755)
     constexpr TessDistributionFactors DefaultTessDistributionFactors = { 12, 30, 24, 24, 6 };
     m_tessDistributionFactors = DefaultTessDistributionFactors;
 #else
-    const PalPublicSettings* pPalSettings = m_device.Parent()->GetPublicSettings();
     m_tessDistributionFactors = { pPalSettings->isolineDistributionFactor,
                                   pPalSettings->triDistributionFactor,
                                   pPalSettings->quadDistributionFactor,
                                   pPalSettings->donutDistributionFactor,
                                   pPalSettings->trapezoidDistributionFactor };
+#endif
+
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 744)
+    m_contextStatesPerBin    = pPalSettings->binningContextStatesPerBin;
+    m_persistentStatesPerBin = pPalSettings->binningPersistentStatesPerBin;
 #endif
 }
 
@@ -89,6 +97,27 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 Result UniversalCmdBuffer::Begin(
     const CmdBufferBuildInfo& info)
 {
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 755)
+    if (m_buildFlags.optimizeTessDistributionFactors)
+    {
+        m_tessDistributionFactors = info.clientTessDistributionFactors;
+    }
+#endif
+    // m_persistentStatesPerBin and m_contextStatesPerBin
+    // need to be set before the base class Begin() is called.
+    // These values are read be ResetState() in the HWL which is called by Begin().
+
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 763)
+    if (m_buildFlags.optimizeContextStatesPerBin)
+    {
+        m_contextStatesPerBin = info.contextStatesPerBin;
+    }
+    if (m_buildFlags.optimizePersistentStatesPerBin)
+    {
+        m_persistentStatesPerBin = info.persistentStatesPerBin;
+    }
+#endif
+
     Result result = Pm4CmdBuffer::Begin(info);
 
     if (info.pInheritedState != nullptr)
@@ -96,12 +125,6 @@ Result UniversalCmdBuffer::Begin(
         m_graphicsState.inheritedState = *(info.pInheritedState);
     }
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 755)
-    if (m_buildFlags.optimizeTessDistributionFactors)
-    {
-        m_tessDistributionFactors = info.clientTessDistributionFactors;
-    }
-#endif
     return result;
 }
 

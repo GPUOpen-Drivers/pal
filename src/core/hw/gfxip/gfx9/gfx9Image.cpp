@@ -1157,8 +1157,10 @@ void Image::InitLayoutStateMasks()
                     compressedWriteLayout.usages |= LayoutResolveDst;
                 }
             }
-
-            if (TestAnyFlagSet(UseComputeExpand, (isMsaa ? UseComputeExpandMsaaDcc : UseComputeExpandDcc)))
+            if (TestAnyFlagSet(UseComputeExpand, UseComputeExpandDcc) &&
+                ((isMsaa == false)         ||
+                 (HasFmaskData() == false) ||
+                 TestAnyFlagSet(UseComputeExpand, UseComputeExpandDccWithFmask)))
             {
                 compressedWriteLayout.engines |= LayoutComputeEngine;
             }
@@ -1660,6 +1662,7 @@ Result Image::ComputePipeBankXor(
                 if (addrRetCode == ADDR_OK)
                 {
                     *pPipeBankXor = pipeBankXorOutput.pipeBankXor;
+
                 }
                 else
                 {
@@ -3755,7 +3758,7 @@ uint32 Image::GetPipeMisalignedMetadataFirstMip(
         // The pipe misalignment issue occurs on MSAA Z, MSAA color, mips in the metadata mip-tail, or any stencil.
 
         uint32 firstMipInMetadataMipTail = UINT_MAX;
-        for (uint32 mip = 0; mip < m_pParent->GetImageCreateInfo().mipLevels; ++mip)
+        for (uint32 mip = 0; mip < createInfo.mipLevels; ++mip)
         {
             const SubresId  mipBaseSubResId = { baseSubRes.subresId.plane, mip, 0 };
 
@@ -3796,12 +3799,14 @@ uint32 Image::GetPipeMisalignedMetadataFirstMip(
         // overlap             = MAX(clamped_bpe_samples + log2_pipes - 8, 0)
         // samples_overlap     = MIN(log2_samples, overlap)
         //
+        // Navi 1x/2x:
         // if (non-pow2-memory)
         //      do_flush = true
         // else if (depth)
         //      do_flush = (overlap > 0)
         // else if (color)
         //      do_flush = (samples_overlap > MAX(log2_samples - log2_max_compressed_frags, 0))
+        //
 
         regGB_ADDR_CONFIG gbAddrConfig;
         gbAddrConfig.u32All = chipProps.gfx9.gbAddrConfig;
@@ -3835,7 +3840,7 @@ uint32 Image::GetPipeMisalignedMetadataFirstMip(
         else
         {
             const int32 log2SamplesFragsDiff = Max<int32>(0, (log2Samples - gbAddrConfig.bits.MAX_COMPRESSED_FRAGS));
-        if (isNonPow2Vram || (samplesOverlap > log2SamplesFragsDiff))
+            if (isNonPow2Vram || (samplesOverlap > log2SamplesFragsDiff))
             {
                 if ( (HasDccData() && (baseSubRes.flags.supportMetaDataTexFetch != 0)) ||
                      (HasFmaskData() && (HasDccData() == false) && IsComprFmaskShaderReadable(baseSubRes.subresId)) )

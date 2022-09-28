@@ -738,6 +738,7 @@ struct PalPublicSettings
 #endif
     /// Controls GS LateAlloc val (for pos/prim allocations NOT param cache) on NGG pipelines. Can be no more than 127.
     uint32 nggLateAllocGs;
+
 };
 
 /// Defines the modes that the GPU Profiling layer can use when its buffer fills.
@@ -1133,6 +1134,9 @@ struct DeviceProperties
         gpusize maxLocalMemSize;            ///< Total VRAM available on the GPU (Local + Invisible heap sizes).
         LocalMemoryType localMemoryType;    ///< Type of local memory used by the GPU.
         gpusize maxCaptureReplaySize;       ///< Total virtual GPU available for Capture/Replay
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 766
+        gpusize barSize;                    ///< Total VRAM which can be accessed by the CPU.
+#endif
 
         struct
         {
@@ -1705,9 +1709,15 @@ struct GpuMemoryHeapProperties
         uint32 u32All;                     ///< Flags packed as 32-bit uint.
     } flags;                               ///< GPU memory heap property flags.
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 766
+    gpusize logicalSize;                   ///< Size of the heap in bytes. If HBCC is enabled, certain heaps may be
+                                           ///  virtualized and the logical size will exceed the physical size.
+    gpusize physicalSize;                  ///< Physical size of the heap in bytes
+#else
     gpusize  heapSize;                     ///< Size of the heap in bytes. If HBCC is enabled, certain heaps may be
-                                           ///< virtualized and the logical size will exceed the physical size.
+                                           ///  virtualized and the logical size will exceed the physical size.
     gpusize  physicalHeapSize;             ///< Physical size of the heap in bytes
+#endif
 };
 
 /// Reports properties of a specific GPU block required for interpretting performance experiment data from that block.

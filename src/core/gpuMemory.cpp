@@ -49,8 +49,7 @@ static void FilterViableHeaps(
     *pOutHeapCount = 0;
     for (uint32 heap = 0; heap < heapCount; ++heap)
     {
-        const GpuMemoryHeapProperties& heapProps = device.HeapProperties(pHeaps[heap]);
-        if (heapProps.heapSize > 0u)
+        if (device.HeapLogicalSize(pHeaps[heap]) > 0u)
         {
             pOutHeaps[(*pOutHeapCount)++] = pHeaps[heap];
         }
@@ -451,7 +450,7 @@ GpuMemory::~GpuMemory()
     IGpuMemory*const pGpuMemory = this;
     m_pDevice->SubtractFromReferencedMemoryTotals(1, &pGpuMemory, true);
 
-    m_pDevice->GetPlatform()->GetEventProvider()->LogDestroyGpuMemoryEvent(this);
+    m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogDestroyGpuMemoryEvent(this);
 
     Developer::GpuMemoryData data = {};
     data.size                     = m_desc.size;
@@ -724,16 +723,18 @@ Result GpuMemory::Init(
             //   ResizeBarOff case has small size (usually 256MB); it's easy to run out of the heap size due to various
             //   alignment padding which will cause worse performance.
             // - Type is SDI ExternalPhysical because it has no real allocation and size must be consistent with KMD.
-            auto memoryProperties = m_pDevice->MemoryProperties();
+            const GpuMemoryProperties& memoryProperties = m_pDevice->MemoryProperties();
+            bool invisibleHeapIsEmpty = m_pDevice->HeapLogicalSize(GpuHeapInvisible) == 0;
             if ((baseVirtAddr == 0) &&
                 ((m_heaps[0] == GpuHeapInvisible) ||
-                 ((m_heaps[0] == GpuHeapLocal) && (memoryProperties.invisibleHeapSize == 0))) &&
+                 ((m_heaps[0] == GpuHeapLocal) && invisibleHeapIsEmpty)) &&
                 (createInfo.flags.sdiExternal == 0))
             {
                 gpusize idealAlignment = 0;
 
-                if (memoryProperties.largePageSupport.gpuVaAlignmentNeeded ||
-                    memoryProperties.largePageSupport.sizeAlignmentNeeded)
+                if ((memoryProperties.largePageSupport.gpuVaAlignmentNeeded ||
+                    memoryProperties.largePageSupport.sizeAlignmentNeeded) &&
+                    m_pDevice->Settings().enableLargePagePreAlignment)
                 {
                     const gpusize largePageSize = memoryProperties.largePageSupport.largePageSizeInBytes;
                     idealAlignment = Max(idealAlignment, largePageSize);
@@ -1205,7 +1206,7 @@ Result GpuMemory::Map(
 
         if (result == Result::Success)
         {
-            m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryCpuMapEvent(this);
+            m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryCpuMapEvent(this);
         }
     }
 
@@ -1240,7 +1241,7 @@ Result GpuMemory::Unmap()
 
     if (result == Result::Success)
     {
-        m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryCpuUnmapEvent(this);
+        m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryCpuUnmapEvent(this);
     }
 
     return result;

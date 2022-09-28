@@ -31,14 +31,18 @@
 
 #pragma once
 
-#if defined(__unix__)
 #include <pthread.h>
-#endif
 
 #include "palUtil.h"
 
 namespace Util
 {
+
+// Define portable thread ID
+typedef pthread_t ThreadId;
+
+// Function to check if two ThreadIds are equal.
+inline bool ThreadIdEqual(ThreadId id1, ThreadId id2) { return pthread_equal(id1, id2); }
 
 /**
  ***********************************************************************************************************************
@@ -92,6 +96,9 @@ public:
 
     /// Returns true if the thread was created successfully
     bool IsCreated() const;
+
+    /// Static method to get current thread ID, only useful to give to ThreadIdEqual().
+    static ThreadId GetCurrentThreadId();
 
 private:
     // Our platforms' internal start functions all return different types so we can't directly launch our client's

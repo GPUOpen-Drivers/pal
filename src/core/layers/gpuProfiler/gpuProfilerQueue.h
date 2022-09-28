@@ -86,7 +86,8 @@ struct LogItem
                 uint32 taskmesh    :  1;      // Indicates that this dispatch has a task/mesh shader workload.
                 uint32 barrier     :  1;      // Barrier (should track before state, after state, etc.).
                 uint32 comment     :  1;      // A CmdCommentString call (should track the comment text).
-                uint32 reserved    : 27;
+                uint32 reserved1   :  1;
+                uint32 reserved    : 26;
             } flags;
 
             union

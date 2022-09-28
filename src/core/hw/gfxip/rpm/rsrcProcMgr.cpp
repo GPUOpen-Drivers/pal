@@ -3167,21 +3167,29 @@ void RsrcProcMgr::CmdClearBoundColorTargets(
 // =====================================================================================================================
 // Builds commands to clear the specified ranges of an image to the given color data.
 void RsrcProcMgr::CmdClearColorImage(
-    GfxCmdBuffer*      pCmdBuffer,
-    const Image&       dstImage,
-    ImageLayout        dstImageLayout,
-    const ClearColor&  color,
-    uint32             rangeCount,
-    const SubresRange* pRanges,
-    uint32             boxCount,
-    const Box*         pBoxes,
-    uint32             flags
+    GfxCmdBuffer*         pCmdBuffer,
+    const Image&          dstImage,
+    ImageLayout           dstImageLayout,
+    const ClearColor&     color,
+    const SwizzledFormat& clearFormat,
+    uint32                rangeCount,
+    const SubresRange*    pRanges,
+    uint32                boxCount,
+    const Box*            pBoxes,
+    uint32                flags
     ) const
 {
     Pal::GfxImage*              pGfxImage     = dstImage.GetGfxImage();
     const auto&                 createInfo    = dstImage.GetImageCreateInfo();
     const SubResourceInfo*const pStartSubRes  = dstImage.SubresourceInfo(pRanges[0].startSubres);
     const bool                  hasBoxes      = (boxCount > 0);
+
+    // If a clearFormat has been specified, assert that it is compatible with the image's selected DCC encoding. This
+    // should guard against compression-related corruption, and should always be true if the clearFormat is one of the
+    // pViewFormat's specified at image-creation time.
+    PAL_ASSERT((clearFormat.format == ChNumFormat::Undefined) ||
+               (m_pDevice->ComputeDccFormatEncoding(createInfo.swizzledFormat, &clearFormat, 1) >=
+                dstImage.GetImageInfo().dccFormatEncoding));
 
     const bool clearBoxCoversWholeImage = ((hasBoxes == false)                                    ||
                                            ((boxCount                 == 1)                       &&
@@ -3200,10 +3208,10 @@ void RsrcProcMgr::CmdClearColorImage(
     {
         PAL_ASSERT(pRanges[rangeIdx].numPlanes == 1);
 
-        SubresRange  minSlowClearRange = {};
-        const auto*  pSlowClearRange   = &minSlowClearRange;
-        const auto&  clearRange        = pRanges[rangeIdx];
-        ClearMethod  slowClearMethod   = Image::DefaultSlowClearMethod;
+        SubresRange minSlowClearRange = {};
+        const auto* pSlowClearRange   = &minSlowClearRange;
+        const auto& clearRange        = pRanges[rangeIdx];
+        ClearMethod slowClearMethod   = Image::DefaultSlowClearMethod;
 
         uint32 convertedColor[4] = { 0 };
         if (color.type == ClearColorType::Float)
@@ -3270,7 +3278,11 @@ void RsrcProcMgr::CmdClearColorImage(
                 // Hand off to the HWL to perform the fast-clear.
                 PAL_ASSERT(dstImage.IsRenderTarget());
 
-                HwlFastColorClear(pCmdBuffer, *pGfxImage, &convertedColor[0], fastClearRange);
+                HwlFastColorClear(pCmdBuffer,
+                                  *pGfxImage,
+                                  &convertedColor[0],
+                                  clearFormat,
+                                  fastClearRange);
             }
         }
         else
@@ -3282,10 +3294,9 @@ void RsrcProcMgr::CmdClearColorImage(
         // If we couldn't fast clear every range, then we need to slow clear whatever is left over.
         if (pSlowClearRange->numMips != 0)
         {
-            const SwizzledFormat& baseFormat   = dstImage.SubresourceInfo(pSlowClearRange->startSubres)->format;
-            const bool            is3dBoxClear = hasBoxes && (createInfo.imageType == ImageType::Tex3d);
-            uint32                texelScale   = 1;
-            const SwizzledFormat  rawFormat    = RpmUtil::GetRawFormat(baseFormat.format, &texelScale, nullptr);
+            const SwizzledFormat& baseFormat = dstImage.SubresourceInfo(pSlowClearRange->startSubres)->format;
+            uint32                texelScale = 1;
+            RpmUtil::GetRawFormat(baseFormat.format, &texelScale, nullptr);
 
             // Not surprisingly, a slow graphics clears requires a command buffer that supports graphics operations
             if (pCmdBuffer->IsGraphicsSupported() &&
@@ -3293,7 +3304,14 @@ void RsrcProcMgr::CmdClearColorImage(
                 (texelScale == 1)                 &&
                 (slowClearMethod == ClearMethod::NormalGraphics))
             {
-                SlowClearGraphics(pCmdBuffer, dstImage, dstImageLayout, &color, *pSlowClearRange, boxCount, pBoxes);
+                SlowClearGraphics(pCmdBuffer,
+                                  dstImage,
+                                  dstImageLayout,
+                                  &color,
+                                  clearFormat,
+                                  *pSlowClearRange,
+                                  boxCount,
+                                  pBoxes);
             }
             else
             {
@@ -3311,8 +3329,8 @@ void RsrcProcMgr::CmdClearColorImage(
                 SlowClearCompute(pCmdBuffer,
                                  dstImage,
                                  dstImageLayout,
-                                 baseFormat,
                                  &color,
+                                 clearFormat,
                                  *pSlowClearRange,
                                  boxCount,
                                  pBoxes);
@@ -3332,13 +3350,14 @@ void RsrcProcMgr::CmdClearColorImage(
 // Builds commands to slow clear a range of an image to the given raw color data using a pixel shader. Note that this
 // function can only clear color planes.
 void RsrcProcMgr::SlowClearGraphics(
-    GfxCmdBuffer*      pCmdBuffer,
-    const Image&       dstImage,
-    ImageLayout        dstImageLayout,
-    const ClearColor*  pColor,
-    const SubresRange& clearRange,
-    uint32             boxCount,
-    const Box*         pBoxes
+    GfxCmdBuffer*         pCmdBuffer,
+    const Image&          dstImage,
+    ImageLayout           dstImageLayout,
+    const ClearColor*     pColor,
+    const SwizzledFormat& clearFormat,
+    const SubresRange&    clearRange,
+    uint32                boxCount,
+    const Box*            pBoxes
     ) const
 {
     // Graphics slow clears only work on color planes.
@@ -3359,7 +3378,9 @@ void RsrcProcMgr::SlowClearGraphics(
 
         // Query the format of the image and determine which format to use for the color target view. If rawFmtOk is
         // set the caller has allowed us to use a slightly more efficient raw format.
-        const SwizzledFormat baseFormat   = dstImage.SubresourceInfo(subresId)->format;
+        const SwizzledFormat baseFormat   = clearFormat.format == ChNumFormat::Undefined ?
+                                            dstImage.SubresourceInfo(subresId)->format :
+                                            clearFormat;
         SwizzledFormat       viewFormat   = (rawFmtOk ? RpmUtil::GetRawFormat(baseFormat.format, nullptr, nullptr)
                                                       : baseFormat);
         uint32               xRightShift  = 0;
@@ -3662,14 +3683,14 @@ void RsrcProcMgr::ClearImageOneBox(
 // =====================================================================================================================
 // Builds commands to slow clear a range of an image to the given raw color data using a compute shader.
 void RsrcProcMgr::SlowClearCompute(
-    GfxCmdBuffer*      pCmdBuffer,
-    const Image&       dstImage,
-    ImageLayout        dstImageLayout,
-    SwizzledFormat     dstFormat,
-    const ClearColor*  pColor,
-    const SubresRange& clearRange,
-    uint32             boxCount,
-    const Box*         pBoxes
+    GfxCmdBuffer*         pCmdBuffer,
+    const Image&          dstImage,
+    ImageLayout           dstImageLayout,
+    const ClearColor*     pColor,
+    const SwizzledFormat& clearFormat,
+    const SubresRange&    clearRange,
+    uint32                boxCount,
+    const Box*            pBoxes
     ) const
 {
     PAL_ASSERT(clearRange.numPlanes == 1);
@@ -3682,20 +3703,16 @@ void RsrcProcMgr::SlowClearCompute(
     uint32          texelScale   = 1;
     uint32          texelShift   = 0;
     bool            singleSubRes = false;
-    bool            rawFmtOk     = dstImage.GetGfxImage()->IsFormatReplaceable(clearRange.startSubres,
-                                                                               dstImageLayout,
-                                                                               true);
-    const auto&          subresInfo = *dstImage.SubresourceInfo(clearRange.startSubres);
-    const SwizzledFormat baseFormat = subresInfo.format;
-    SwizzledFormat       viewFormat = rawFmtOk ? RpmUtil::GetRawFormat(dstFormat.format, &texelScale, &singleSubRes)
-                                               : baseFormat;
+
+    const auto&    subresInfo = *dstImage.SubresourceInfo(clearRange.startSubres);
+    const SwizzledFormat baseFormat = clearFormat.format == ChNumFormat::Undefined ? subresInfo.format : clearFormat;
+    SwizzledFormat viewFormat = RpmUtil::GetRawFormat(baseFormat.format, &texelScale, &singleSubRes);
 
     // For packed YUV image use X32_Uint instead of X16_Uint to fill with YUYV.
-    if ((viewFormat.format == ChNumFormat::X16_Uint) && Formats::IsYuvPacked(dstFormat.format))
+    if ((viewFormat.format == ChNumFormat::X16_Uint) && Formats::IsYuvPacked(baseFormat.format))
     {
         viewFormat.format  = ChNumFormat::X32_Uint;
         viewFormat.swizzle = { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
-        rawFmtOk           = false;
         // The extent and offset need to be adjusted to 1/2 size.
         texelShift         = (pColor->type == ClearColorType::Yuv) ? 1 : 0;
     }
@@ -3755,7 +3772,7 @@ void RsrcProcMgr::SlowClearCompute(
     {
         if (pColor->type == ClearColorType::Float)
         {
-            Formats::ConvertColor(dstFormat, &pColor->f32Color[0], &convertedColor[0]);
+            Formats::ConvertColor(baseFormat, &pColor->f32Color[0], &convertedColor[0]);
         }
         else
         {
@@ -3763,8 +3780,8 @@ void RsrcProcMgr::SlowClearCompute(
         }
 
         uint32 swizzledColor[4] = {0};
-        Formats::SwizzleColor(dstFormat, &convertedColor[0], &swizzledColor[0]);
-        Formats::PackRawClearColor(dstFormat, &swizzledColor[0], &packedColor[0]);
+        Formats::SwizzleColor(baseFormat, &convertedColor[0], &swizzledColor[0]);
+        Formats::PackRawClearColor(baseFormat, &swizzledColor[0], &packedColor[0]);
     }
 
     // Split the clear range into sections with constant mip/array levels and loop over them.
@@ -4095,7 +4112,14 @@ void RsrcProcMgr::CmdClearImageView(
                 pBoxes[i].extent.depth  = srdRange.numSlices;
             }
 
-            SlowClearCompute(pCmdBuffer, dstImage, dstImageLayout, srdFormat, &clearColor, srdRange, rectCount, pBoxes);
+            SlowClearCompute(pCmdBuffer,
+                             dstImage,
+                             dstImageLayout,
+                             &clearColor,
+                             srdFormat,
+                             srdRange,
+                             rectCount,
+                             pBoxes);
             PAL_DELETE_ARRAY(pBoxes, m_pDevice->GetPlatform());
         }
         else
@@ -4106,7 +4130,14 @@ void RsrcProcMgr::CmdClearImageView(
     }
     else
     {
-        SlowClearCompute(pCmdBuffer, dstImage, dstImageLayout, srdFormat, &clearColor, srdRange, rectCount, nullptr);
+        SlowClearCompute(pCmdBuffer,
+                         dstImage,
+                         dstImageLayout,
+                         &clearColor,
+                         srdFormat,
+                         srdRange,
+                         rectCount,
+                         nullptr);
     }
 }
 
@@ -4893,6 +4924,11 @@ void RsrcProcMgr::PreComputeColorClearSync(
     {
         ImgBarrier imgBarrier = {};
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+        imgBarrier.srcStageMask  = PipelineStageColorTarget;
+        // Fast clear path may have CP to update metadata state/values, wait at BLT/ME stage for safe.
+        imgBarrier.dstStageMask  = PipelineStageBlt;
+#endif
         imgBarrier.srcAccessMask = CoherColorTarget;
         imgBarrier.dstAccessMask = CoherShader;
         imgBarrier.subresRange   = subres;
@@ -4902,9 +4938,11 @@ void RsrcProcMgr::PreComputeColorClearSync(
 
         AcquireReleaseInfo acqRelInfo = {};
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 767
         acqRelInfo.srcStageMask      = PipelineStageColorTarget;
         // Fast clear path may have CP to update metadata state/values, wait at BLT/ME stage for safe.
         acqRelInfo.dstStageMask      = PipelineStageBlt;
+#endif
         acqRelInfo.imageBarrierCount = 1;
         acqRelInfo.pImageBarriers    = &imgBarrier;
         acqRelInfo.reason            = Developer::BarrierReasonPreComputeColorClear;
@@ -4955,6 +4993,10 @@ void RsrcProcMgr::PostComputeColorClearSync(
         //               SRC caches. Both cs fast clear and ColorTarget access metadata in direct mode, so no need
         //               L2 flush/inv even if the metadata is misaligned. See WaRefreshTccOnMetadataMisalignment()
         //               for more details. Safe to pass 0 here, so no cache operation and PWS can wait at PreColor.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+        imgBarrier.srcStageMask  = PipelineStageCs;
+        imgBarrier.dstStageMask  = PipelineStageColorTarget;
+#endif
         imgBarrier.srcAccessMask = csFastClear ? 0 : CoherShader;
         imgBarrier.dstAccessMask = csFastClear ? 0 : CoherColorTarget;
         imgBarrier.subresRange   = subres;
@@ -4964,8 +5006,10 @@ void RsrcProcMgr::PostComputeColorClearSync(
 
         AcquireReleaseInfo acqRelInfo = {};
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 767
         acqRelInfo.srcStageMask      = PipelineStageCs;
         acqRelInfo.dstStageMask      = PipelineStageColorTarget;
+#endif
         acqRelInfo.imageBarrierCount = 1;
         acqRelInfo.pImageBarriers    = &imgBarrier;
         acqRelInfo.reason            = Developer::BarrierReasonPostComputeColorClear;
@@ -5055,6 +5099,10 @@ void RsrcProcMgr::PostComputeDepthStencilClearSync(
         //               mode, so no need L2 flush/inv even if the metadata is misaligned. See
         //               WaRefreshTccOnMetadataMisalignment() for more details. Safe to pass 0 here, so no cache
         //               operation and PWS can wait at PreDepth.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+        imgBarrier.srcStageMask  = PipelineStageCs;
+        imgBarrier.dstStageMask  = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget;
+#endif
         imgBarrier.srcAccessMask = csFastClear ? 0 : CoherShader;
         imgBarrier.dstAccessMask = csFastClear ? 0 : CoherDepthStencilTarget;
         imgBarrier.subresRange   = subres;
@@ -5064,8 +5112,10 @@ void RsrcProcMgr::PostComputeDepthStencilClearSync(
 
         AcquireReleaseInfo acqRelInfo = {};
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 767
         acqRelInfo.srcStageMask      = PipelineStageCs;
         acqRelInfo.dstStageMask      = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget;
+#endif
         acqRelInfo.imageBarrierCount = 1;
         acqRelInfo.pImageBarriers    = &imgBarrier;
         acqRelInfo.reason            = Developer::BarrierReasonPostComputeDepthStencilClear;

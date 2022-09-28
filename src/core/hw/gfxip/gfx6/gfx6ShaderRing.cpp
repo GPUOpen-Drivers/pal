@@ -282,16 +282,18 @@ size_t ScratchRing::CalculateWaveSize() const
 // Overrides the base class' method for computing the scratch buffer size.
 gpusize ScratchRing::ComputeAllocationSize() const
 {
-    const GpuChipProperties&   chipProps = m_pDevice->Parent()->ChipProperties();
-    const GpuMemoryProperties& memProps  = m_pDevice->Parent()->MemoryProperties();
-    const PalSettings&         settings  = m_pDevice->Parent()->Settings();
+    const Pal::Device*         pParent   = m_pDevice->Parent();
+    const GpuChipProperties&   chipProps = pParent->ChipProperties();
+    const GpuMemoryProperties& memProps  = pParent->MemoryProperties();
+    const PalSettings&         settings  = pParent->Settings();
 
     // Compute the adjusted scratch size required by each wave.
     const size_t waveSize = AdjustScratchWaveSize(m_itemSizeMax * chipProps.gfx6.nativeWavefrontSize);
 
     // The ideal size to allocate for this Ring is: threadsPerWavefront * maxWaves * itemSize DWORDs.
     // We clamp this allocation to a maximum size to prevent the driver from using an unreasonable amount of scratch.
-    const gpusize totalLocalMemSize = memProps.localHeapSize + memProps.invisibleHeapSize;
+    const gpusize totalLocalMemSize =
+        pParent->HeapLogicalSize(GpuHeapLocal) + pParent->HeapLogicalSize(GpuHeapInvisible);
     const gpusize maxScaledSize     = (settings.maxScratchRingScalePct * totalLocalMemSize) / 100;
     const gpusize maxSize           = Max(settings.maxScratchRingSizeBaseline, maxScaledSize);
     const gpusize allocationSize    = static_cast<gpusize>(m_numMaxWaves) * waveSize * sizeof(uint32);

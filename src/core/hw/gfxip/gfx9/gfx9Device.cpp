@@ -181,6 +181,7 @@ Device::Device(
     m_msaaRate(1),
     m_presentResolution({ 0,0 }),
     m_pVrsDepthView(nullptr),
+    m_vrsDepthViewMayBeNeeded(false),
     m_gbAddrConfig(m_pParent->ChipProperties().gfx9.gbAddrConfig),
     m_gfxIpLevel(pDevice->ChipProperties().gfxLevel),
     m_varBlockSize(0)
@@ -229,11 +230,11 @@ Result Device::Cleanup()
         result = m_pParent->MemMgr()->FreeGpuMem(m_occlusionSrcMem.Memory(), m_occlusionSrcMem.Offset());
         m_occlusionSrcMem.Update(nullptr, 0);
 
-        if ((m_pParent->GetPlatform() != nullptr) && (m_pParent->GetPlatform()->GetEventProvider() != nullptr))
+        if ((m_pParent->GetPlatform() != nullptr) && (m_pParent->GetPlatform()->GetGpuMemoryEventProvider() != nullptr))
         {
             ResourceDestroyEventData destroyData = {};
             destroyData.pObj = &m_occlusionSrcMem;
-            m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(destroyData);
+            m_pParent->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceDestroyEvent(destroyData);
         }
     }
 
@@ -421,8 +422,8 @@ Result Device::Finalize()
             if (IsGfx10(*pParent))
             {
                 // GFX10 era-devices require a stand-alone hTile buffer to store the image-rate data when a client
-                // hTile buffer isn't bound.
-                result = CreateVrsDepthView();
+                // hTile buffer isn't bound. Defer allocation to on demand.
+                m_vrsDepthViewMayBeNeeded = true;
             }
         }
 
@@ -479,7 +480,7 @@ Result Device::InitOcclusionResetMem()
     {
         m_occlusionSrcMem.Update(pMemObj, memOffset);
 
-        if ((m_pParent->GetPlatform() != nullptr) && (m_pParent->GetPlatform()->GetEventProvider() != nullptr))
+        if ((m_pParent->GetPlatform() != nullptr) && (m_pParent->GetPlatform()->GetGpuMemoryEventProvider() != nullptr))
         {
             ResourceDescriptionMiscInternal desc;
             desc.type = MiscInternalAllocType::OcclusionQueryResetData;
@@ -490,14 +491,14 @@ Result Device::InitOcclusionResetMem()
             createData.pResourceDescData = &desc;
             createData.resourceDescSize = sizeof(ResourceDescriptionMiscInternal);
 
-            m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(createData);
+            m_pParent->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceCreateEvent(createData);
 
             GpuMemoryResourceBindEventData bindData = {};
             bindData.pGpuMemory = pMemObj;
             bindData.pObj = &m_occlusionSrcMem;
             bindData.offset = memOffset;
             bindData.requiredGpuMemSize = srcMemCreateInfo.size;
-            m_pParent->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+            m_pParent->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
         }
 
         result = m_occlusionSrcMem.Map(reinterpret_cast<void**>(&pData));
@@ -2243,9 +2244,11 @@ static Result ConvertAbiRegistersToMetadata(
                     PAL_SET_ABI_FLAG(pHwPs, scratchEn,    rsrc2.bits.SCRATCH_EN);
                     PAL_SET_ABI_FLAG(pHwPs, trapPresent,  rsrc2.bits.TRAP_PRESENT);
 
+                    const uint32 psExtraLdsDwGranularity = Gfx9PsExtraLdsDwGranularity;
+
                     PAL_SET_ABI_FIELD(pGfxRegisters,
                                       psExtraLdsSize,
-                                      rsrc2.bits.EXTRA_LDS_SIZE * Gfx9PsExtraLdsDwGranularity * sizeof(uint32));
+                                      rsrc2.bits.EXTRA_LDS_SIZE * psExtraLdsDwGranularity * sizeof(uint32));
 
                     PAL_SET_ABI_FLAG(pGfxRegisters, psWaveCntEn, rsrc2.bits.WAVE_CNT_EN);
 
@@ -5391,7 +5394,9 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
                     // The color image's meta-data always points at the DCC surface.  Any existing cMask or fMask
                     // meta-data is only required for compressed texture fetches of MSAA surfaces, and that feature
                     // requires enabling an extension and use of an fMask image view.
-                    srd.meta_data_address = image.GetDcc256BAddr(baseSubResId);
+                    {
+                        srd.meta_data_address = image.GetDcc256BAddr(baseSubResId);
+                    }
 
                     srd.max_compressed_block_size   = dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE;
 
@@ -9091,6 +9096,22 @@ uint32 Device::Gfx103PlusExclusiveGetNumActiveShaderArraysLog2() const
 }
 
 // =====================================================================================================================
+// Getter for the VRS Depth Stencil View.  Creates the allocation on demand on first use.
+const Gfx10DepthStencilView* Device::GetVrsDepthStencilView()
+{
+    // Alloc on demand to avoid creating this for apps which don't use VRS.
+    if ((m_pVrsDepthView == nullptr) && m_vrsDepthViewMayBeNeeded)
+    {
+        // The caller is responsible to handle this failing.
+        Result result = CreateVrsDepthView();
+        PAL_ASSERT(result == Result::Success);
+        PAL_ASSERT((result != Result::Success) ? (m_pVrsDepthView == nullptr) : true);
+    }
+
+    return m_pVrsDepthView;
+}
+
+// =====================================================================================================================
 // Undoes CreateVrsDepthView.  The supplied image pointer is the VRS image belonging to this device; the view (if it
 // was ever actually created) is implicitily destroyed as well.  It is the caller's responsibility to NULL out any
 // remaining view pointer.
@@ -9126,149 +9147,161 @@ void Device::DestroyVrsDepthImage(
 // consists only of hTile data.
 Result Device::CreateVrsDepthView()
 {
-    Pal::Device* pPalDevice = static_cast<Pal::Device*>(Parent());
-    const auto&  settings   = GetGfx9Settings(*pPalDevice);
-    Result       result     = Result::Success;
+    // Just re-using an already existing mutex. This call should only ever be hit once per device instance.
+    const MutexAuto lock(&m_ringSizesLock);
+    Result          result = Result::Success;
 
-    PAL_ASSERT(IsGfx103Plus(*pPalDevice));
-
-    // Create a stencil only image that can support VRS up to the size set in vrsImageSize. The worst-case size is
-    // 16k by 16k (the largest possible target size) and we expect to use that size by default. In general, clients
-    // don't know how big their render targets will be so we're more or less forced into the max size. 16k by 16k
-    // seems huge, but the prior limit of 4k by 4k was too small, you can reach that threshold by enabling super
-    // sampling on a 4K monitor.
-    //
-    // Note that the image doesn't actually contain any stencil data. We also do not need to initialize this image's
-    // metadata in any way because the app's draws won't read or write stencil and the VRS copy shader doesn't
-    // use meta equations.
-    ImageCreateInfo  imageCreateInfo = {};
-
-    imageCreateInfo.usageFlags.u32All        = 0;
-    imageCreateInfo.usageFlags.vrsDepth      = 1;   // indicate hTile needs to support VRS
-    imageCreateInfo.usageFlags.depthStencil  = 1;
-    imageCreateInfo.imageType                = ImageType::Tex2d;
-    imageCreateInfo.extent.width             = (settings.vrsImageSize & 0xFFFF);
-    imageCreateInfo.extent.height            = (settings.vrsImageSize >> 16);
-    imageCreateInfo.extent.depth             = 1;
-    imageCreateInfo.swizzledFormat.format    = ChNumFormat::X8_Uint;
-    imageCreateInfo.swizzledFormat.swizzle.r = ChannelSwizzle::X;
-    imageCreateInfo.swizzledFormat.swizzle.g = ChannelSwizzle::Zero;
-    imageCreateInfo.swizzledFormat.swizzle.b = ChannelSwizzle::Zero;
-    imageCreateInfo.swizzledFormat.swizzle.a = ChannelSwizzle::Zero;
-    imageCreateInfo.mipLevels                = 1;
-    imageCreateInfo.arraySize                = 1;
-    imageCreateInfo.samples                  = 1;
-    imageCreateInfo.fragments                = 1;
-    imageCreateInfo.tiling                   = ImageTiling::Optimal;
-
-    const size_t imageSize  = pPalDevice->GetImageSize(imageCreateInfo, &result);
-    size_t       dsViewSize = 0;
-
-    if (result == Result::Success)
+    // Double check in case multiple threads got past the caller's check to ensure we get one allocation.
+    if (m_pVrsDepthView == nullptr)
     {
-        dsViewSize = pPalDevice->GetDepthStencilViewSize(&result);
-    }
+        Pal::Device*       pPalDevice = static_cast<Pal::Device*>(Parent());
+        const auto&        settings   = GetGfx9Settings(*pPalDevice);
+        IDepthStencilView* pVrsDsView = nullptr;
 
-    if (result == Result::Success)
-    {
-        // Combine the allocation for the image and DS view
-        void* pPlacementAddr = PAL_MALLOC_BASE(imageSize + dsViewSize,
-                                                Pow2Pad(imageSize),
-                                                pPalDevice->GetPlatform(),
-                                                SystemAllocType::AllocInternal,
-                                                MemBlkType::Malloc);
+        PAL_ASSERT(IsGfx103Plus(*pPalDevice));
 
-        if (pPlacementAddr != nullptr)
+        // Create a stencil only image that can support VRS up to the size set in vrsImageSize. The worst-case size is
+        // 16k by 16k (the largest possible target size) and we expect to use that size by default. In general, clients
+        // don't know how big their render targets will be so we're more or less forced into the max size. 16k by 16k
+        // seems huge, but the prior limit of 4k by 4k was too small, you can reach that threshold by enabling super
+        // sampling on a 4K monitor.
+        //
+        // Note that the image doesn't actually contain any stencil data. We also do not need to initialize this
+        // image's metadata in any way because the app's draws won't read or write stencil and the VRS copy shader
+        // doesn't use meta equations.
+        ImageCreateInfo  imageCreateInfo = {};
+
+        imageCreateInfo.usageFlags.u32All        = 0;
+        imageCreateInfo.usageFlags.vrsDepth      = 1;   // indicate hTile needs to support VRS
+        imageCreateInfo.usageFlags.depthStencil  = 1;
+        imageCreateInfo.imageType                = ImageType::Tex2d;
+        imageCreateInfo.extent.width             = (settings.vrsImageSize & 0xFFFF);
+        imageCreateInfo.extent.height            = (settings.vrsImageSize >> 16);
+        imageCreateInfo.extent.depth             = 1;
+        imageCreateInfo.swizzledFormat.format    = ChNumFormat::X8_Uint;
+        imageCreateInfo.swizzledFormat.swizzle.r = ChannelSwizzle::X;
+        imageCreateInfo.swizzledFormat.swizzle.g = ChannelSwizzle::Zero;
+        imageCreateInfo.swizzledFormat.swizzle.b = ChannelSwizzle::Zero;
+        imageCreateInfo.swizzledFormat.swizzle.a = ChannelSwizzle::Zero;
+        imageCreateInfo.mipLevels                = 1;
+        imageCreateInfo.arraySize                = 1;
+        imageCreateInfo.samples                  = 1;
+        imageCreateInfo.fragments                = 1;
+        imageCreateInfo.tiling                   = ImageTiling::Optimal;
+
+        const size_t imageSize  = pPalDevice->GetImageSize(imageCreateInfo, &result);
+        size_t       dsViewSize = 0;
+
+        if (result == Result::Success)
         {
-            Pal::Image*              pVrsDepth          = nullptr;
-            ImageInternalCreateInfo  internalCreateInfo = {};
-            internalCreateInfo.flags.vrsOnlyDepth = (settings.privateDepthIsHtileOnly ? 1 : 0);
+            dsViewSize = pPalDevice->GetDepthStencilViewSize(&result);
+        }
 
-            result = pPalDevice->CreateInternalImage(imageCreateInfo,
-                                                     internalCreateInfo,
-                                                     pPlacementAddr,
-                                                     &pVrsDepth);
-            if (result != Result::Success)
+        if (result == Result::Success)
+        {
+            // Combine the allocation for the image and DS view
+            void* pPlacementAddr = PAL_MALLOC_BASE(imageSize + dsViewSize,
+                                                    Pow2Pad(imageSize),
+                                                    pPalDevice->GetPlatform(),
+                                                    SystemAllocType::AllocInternal,
+                                                    MemBlkType::Malloc);
+
+            if (pPlacementAddr != nullptr)
             {
-                PAL_SAFE_FREE(pPlacementAddr, pPalDevice->GetPlatform());
-            }
-            else
-            {
-                GpuMemoryRequirements  vrsDepthMemReqs = {};
-                pVrsDepth->GetGpuMemoryRequirements(&vrsDepthMemReqs);
+                Pal::Image*              pVrsDepth          = nullptr;
+                ImageInternalCreateInfo  internalCreateInfo = {};
+                internalCreateInfo.flags.vrsOnlyDepth = (settings.privateDepthIsHtileOnly ? 1 : 0);
 
-                // Allocate GPU backing memory for this image object.
-                GpuMemoryCreateInfo srcMemCreateInfo = { };
-                srcMemCreateInfo.alignment = vrsDepthMemReqs.alignment;
-                srcMemCreateInfo.size      = vrsDepthMemReqs.size;
-                srcMemCreateInfo.priority  = GpuMemPriority::Normal;
-
-                if (m_pParent->MemoryProperties().invisibleHeapSize > 0)
+                result = pPalDevice->CreateInternalImage(imageCreateInfo,
+                                                         internalCreateInfo,
+                                                         pPlacementAddr,
+                                                         &pVrsDepth);
+                if (result != Result::Success)
                 {
-                    srcMemCreateInfo.heapCount = 3;
-                    srcMemCreateInfo.heaps[0]  = GpuHeapInvisible;
-                    srcMemCreateInfo.heaps[1]  = GpuHeapLocal;
-                    srcMemCreateInfo.heaps[2]  = GpuHeapGartUswc;
+                    PAL_SAFE_FREE(pPlacementAddr, pPalDevice->GetPlatform());
                 }
                 else
                 {
-                    srcMemCreateInfo.heapCount = 2;
-                    srcMemCreateInfo.heaps[0]  = GpuHeapLocal;
-                    srcMemCreateInfo.heaps[1]  = GpuHeapGartUswc;
-                }
+                    GpuMemoryRequirements  vrsDepthMemReqs = {};
+                    pVrsDepth->GetGpuMemoryRequirements(&vrsDepthMemReqs);
 
-                GpuMemoryInternalCreateInfo internalInfo = { };
-                internalInfo.flags.alwaysResident = 1;
+                    // Allocate GPU backing memory for this image object.
+                    GpuMemoryCreateInfo srcMemCreateInfo = { };
+                    srcMemCreateInfo.alignment = vrsDepthMemReqs.alignment;
+                    srcMemCreateInfo.size      = vrsDepthMemReqs.size;
+                    srcMemCreateInfo.priority  = GpuMemPriority::Normal;
 
-                GpuMemory* pMemObj   = nullptr;
-                gpusize    memOffset = 0;
+                    if (m_pParent->HeapLogicalSize(GpuHeapInvisible) > 0)
+                    {
+                        srcMemCreateInfo.heapCount = 3;
+                        srcMemCreateInfo.heaps[0]  = GpuHeapInvisible;
+                        srcMemCreateInfo.heaps[1]  = GpuHeapLocal;
+                        srcMemCreateInfo.heaps[2]  = GpuHeapGartUswc;
+                    }
+                    else
+                    {
+                        srcMemCreateInfo.heapCount = 2;
+                        srcMemCreateInfo.heaps[0]  = GpuHeapLocal;
+                        srcMemCreateInfo.heaps[1]  = GpuHeapGartUswc;
+                    }
 
-                result = pPalDevice->MemMgr()->AllocateGpuMem(srcMemCreateInfo,
-                                                             internalInfo,
-                                                             false,    // data is written via RPM
-                                                             &pMemObj,
-                                                             &memOffset);
+                    GpuMemoryInternalCreateInfo internalInfo = { };
+                    internalInfo.flags.alwaysResident = 1;
 
+                    GpuMemory* pMemObj   = nullptr;
+                    gpusize    memOffset = 0;
+
+                    result = pPalDevice->MemMgr()->AllocateGpuMem(srcMemCreateInfo,
+                                                                 internalInfo,
+                                                                 false,    // data is written via RPM
+                                                                 &pMemObj,
+                                                                 &memOffset);
+
+                    if (result == Result::Success)
+                    {
+                        result = pVrsDepth->BindGpuMemory(pMemObj, memOffset);
+                    } // end check for GPU memory allocation
+                } // end check for internal image creation
+
+                // If we've succeeded in creating a hTile-only "depth" buffer, then create the view as well.
                 if (result == Result::Success)
                 {
-                    result = pVrsDepth->BindGpuMemory(pMemObj, memOffset);
-                } // end check for GPU memory allocation
-            } // end check for internal image creation
+                    DepthStencilViewCreateInfo  dsCreateInfo = {};
+                    dsCreateInfo.flags.readOnlyDepth         = 1; // Our non-existent depth and stencil buffers will never
+                    dsCreateInfo.flags.readOnlyStencil       = 1; //   be written...  or read for that matter.
+                    dsCreateInfo.flags.imageVaLocked         = 1; // image memory is never going to move
+                    dsCreateInfo.arraySize                   = imageCreateInfo.arraySize;
+                    dsCreateInfo.pImage                      = pVrsDepth;
 
-            // If we've succeeded in creating a hTile-only "depth" buffer, then create the view as well.
-            if (result == Result::Success)
-            {
-                IDepthStencilView**         ppDsView     = reinterpret_cast<IDepthStencilView**>(&m_pVrsDepthView);
-                DepthStencilViewCreateInfo  dsCreateInfo = {};
-                dsCreateInfo.flags.readOnlyDepth   = 1; // Our non-existent depth and stencil buffers will never
-                dsCreateInfo.flags.readOnlyStencil = 1; //   be written...  or read for that matter.
-                dsCreateInfo.flags.imageVaLocked   = 1; // image memory is never going to move
-                dsCreateInfo.arraySize             = imageCreateInfo.arraySize;
-                dsCreateInfo.pImage                = pVrsDepth;
+                    // Ok, we have our image, create a depth-stencil view for this image as well so we can bind our
+                    // hTile memory at draw time.
+                    result = pPalDevice->CreateDepthStencilView(dsCreateInfo,
+                                                                VoidPtrInc(pPlacementAddr, imageSize),
+                                                                &pVrsDsView);
+                }
 
-                // Ok, we have our image, create a depth-stencil view for this image as well so we can bind our
-                // hTile memory at draw time.
-                result = pPalDevice->CreateDepthStencilView(dsCreateInfo,
-                                                            VoidPtrInc(pPlacementAddr, imageSize),
-                                                            ppDsView);
+                if (result != Result::Success)
+                {
+                    // Ok, something went wrong and since m_pVrsDepthView was possibly never set, the "cleanup"
+                    // function might not do anything with respect to cleaning up our image.  We still need to
+                    // destroy whatever exists of our VRS image though to prevent memory leaks.
+                    DestroyVrsDepthImage(pVrsDepth);
+
+                    pVrsDepth       = nullptr;
+                    m_pVrsDepthView = nullptr;
+                }
+                else
+                {
+                    // Assign member last as the allocation check is key'd off this.
+                    m_pVrsDepthView = static_cast<Pal::Gfx9::Gfx10DepthStencilView*>(pVrsDsView);
+                }
             }
-
-            if (result != Result::Success)
+            else
             {
-                // Ok, something went wrong and since m_pVrsDepthView was possibly never set, the "cleanup"
-                // function might not do anything with respect to cleaning up our image.  We still need to
-                // destroy whatever exists of our VRS image though to prevent memory leaks.
-                DestroyVrsDepthImage(pVrsDepth);
-
-                pVrsDepth       = nullptr;
-                m_pVrsDepthView = nullptr;
+                result = Result::ErrorOutOfMemory;
             }
-        }
-        else
-        {
-            result = Result::ErrorOutOfMemory;
-        }
-    } // end check for getting the image size
+        } // end check for getting the image size
+    }
 
     return result;
 }

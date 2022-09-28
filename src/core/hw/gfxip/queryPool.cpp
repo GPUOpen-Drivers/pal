@@ -56,7 +56,7 @@ QueryPool::QueryPool(
     data.pResourceDescData = static_cast<void*>(&desc);
     data.resourceDescSize = sizeof(ResourceDescriptionQueryPool);
     data.pObj = this;
-    m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
+    m_device.GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceCreateEvent(data);
 }
 
 // =====================================================================================================================
@@ -64,7 +64,7 @@ QueryPool::~QueryPool()
 {
     ResourceDestroyEventData data = {};
     data.pObj = this;
-    m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(data);
+    m_device.GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceDestroyEvent(data);
 }
 
 // =====================================================================================================================
@@ -90,7 +90,7 @@ void QueryPool::GetGpuMemoryRequirements(
     }
     else
     {
-        const bool noInvisibleMem = (m_device.MemoryProperties().invisibleHeapSize == 0);
+        const bool noInvisibleMem = (m_device.HeapLogicalSize(GpuHeapInvisible) == 0);
 
         // Otherwise, the other heaps prefer query pools to reside in GPU memory, but safely get evicted back to
         // nonlocal memory in high memory-pressure situations.
@@ -230,7 +230,7 @@ Result QueryPool::BindGpuMemory(
         data.pGpuMemory = pGpuMemory;
         data.requiredGpuMemSize = m_boundSizeInBytes;
         data.offset = offset;
-        m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(data);
+        m_device.GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(data);
     }
 
     return result;

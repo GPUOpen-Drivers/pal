@@ -70,7 +70,6 @@ private:
 
     void EventReceiveThreadFunc();
 
-    DDEventStreamerCreateInfo   m_hStreamerContext;   /// Metadata for streaming initialization
     DDEventClient               m_hEventClient;       /// Client for communicating with the event server
     DDEventParser               m_hEventParser;       /// Parser for parsing event data
     DevDriver::Platform::Thread m_eventThread;        /// Thread spawned to receive events

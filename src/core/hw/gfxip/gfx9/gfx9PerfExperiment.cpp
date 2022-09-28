@@ -1516,7 +1516,7 @@ Result PerfExperiment::AllocateDfSpmBuffers(
     createInfo.flags.gl2Uncached  = 1;
     createInfo.flags.cpuInvisible = 1;
     // Ensure a fall back to local is available in case there is no Invisible Memory.
-    if (m_pDevice->MemoryProperties().invisibleHeapSize > 0)
+    if (m_pDevice->HeapLogicalSize(GpuHeapInvisible) > 0)
     {
         createInfo.heapCount = 3;
         createInfo.heaps[0] = GpuHeapInvisible;
@@ -2067,9 +2067,9 @@ void PerfExperiment::IssueBegin(
         cpPerfmonCntl.bits.SPM_PERFMON_STATE = STRM_PERFMON_STATE_DISABLE_AND_RESET;
         cpPerfmonCntl.bits.PERFMON_ENABLE_MODE = CP_PERFMON_ENABLE_MODE_ALWAYS_COUNT;
 
-        {
-            pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmCP_PERFMON_CNTL, cpPerfmonCntl.u32All, pCmdSpace);
+        pCmdSpace = pCmdStream->WriteSetOneConfigReg(mmCP_PERFMON_CNTL, cpPerfmonCntl.u32All, pCmdSpace);
 
+        {
             // The RLC controls perfmon clock gating. Before doing anything else we should turn on perfmon clocks.
             regRLC_PERFMON_CLK_CNTL rlcPerfmonClkCntl  = {};
             rlcPerfmonClkCntl.bits.PERFMON_CLOCK_STATE = 1;
@@ -4017,28 +4017,29 @@ uint32* PerfExperiment::WriteWaitIdle(
     ) const
 {
     const EngineType engineType = pCmdStream->GetEngineType();
+    Pm4CmdBuffer*    pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
 
-    if (m_pDevice->EngineSupportsGraphics(engineType))
+    if (flushCaches)
     {
-        if (flushCaches)
-        {
-            // We need to use a pipelined event to flush and invalidate all of the RB caches. This may require the
-            // CP to spin-loop on a timestamp in memory so it may be much slower than the non-flushing path.
-            pCmdSpace = pCmdStream->WriteWaitEopGfx(HwPipeTop, SyncGlxWbInvAll, SyncRbWbInv,
-                                                    pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
-        }
-        else
-        {
-            // Use a CS_PARTIAL_FLUSH and ACQUIRE_MEM to wait for CS and graphics work to complete.
-            //
-            // Note that this isn't a true wait-idle for the graphics engine. In order to wait for the very bottom of
-            // the pipeline we would have to wait for a EOP TS event. Doing that inflates the perf experiment overhead
-            // by a not-insignificant margin (~150ns or ~4K clocks on Vega10). Thus we go with this much faster waiting
-            // method which covers almost all of the same cases as the wait for EOP TS. If we run into issues with
-            // counters at the end of the graphics pipeline or counters that monitor the event pipeline we might need
-            // to change this.
-            pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(CS_PARTIAL_FLUSH, engineType, pCmdSpace);
+        // We need to use a pipelined event to flush and invalidate all of the RB caches. This may require the
+        // CP to spin-loop on a timestamp in memory so it may be much slower than the non-flushing path.
+        const SyncRbFlags rbSync = pPm4CmdBuf->IsGraphicsSupported() ? SyncRbWbInv : SyncRbNone;
+        pCmdSpace = pPm4CmdBuf->WriteWaitEop(HwPipeTop, SyncGlxWbInvAll, rbSync, pCmdSpace);
+    }
+    else
+    {
+        // Use a CS_PARTIAL_FLUSH to wait for CS work to complete.
+        //
+        // Note that this isn't a true wait-idle for the compute/gfx engine. In order to wait for the very bottom of
+        // the pipeline we would have to wait for a EOP TS event. Doing that inflates the perf experiment overhead
+        // by a not-insignificant margin (~150ns or ~4K clocks on Vega10). Thus we go with this much faster waiting
+        // method which covers almost all of the same cases as the wait for EOP TS. If we run into issues with
+        // counters at the end of the graphics pipeline or counters that monitor the event pipeline we might need
+        // to change this.
+        pCmdSpace = pPm4CmdBuf->WriteWaitCsIdle(pCmdSpace);
 
+        if (m_pDevice->EngineSupportsGraphics(engineType))
+        {
             AcquireMemGfxSurfSync acquireInfo = {};
             acquireInfo.flags.pfpWait       = 1;
             acquireInfo.flags.cbTargetStall = 1;
@@ -4049,27 +4050,6 @@ uint32* PerfExperiment::WriteWaitIdle(
             // NOTE: ACQUIRE_MEM has an implicit context roll if the current context is busy. Since we won't be aware
             //       of a busy context, we must assume all ACQUIRE_MEM's come with a context roll.
             pCmdStream->SetContextRollDetected<false>();
-        }
-    }
-    else
-    {
-        if (flushCaches)
-        {
-            // Wait for all work to be idle and use an ACQUIRE_MEM to flush any caches. This will require the
-            // CP to spin-loop on a timestamp in memory so it will be much slower than the non-flushing path.
-            pCmdSpace = pCmdStream->WriteWaitEopGeneric(SyncGlxWbInvAll, pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
-        }
-        else
-        {
-            // Use a CS_PARTIAL_FLUSH to wait for CS work to complete.
-            //
-            // Note that this isn't a true wait-idle for the compute engine. In order to wait for the very bottom of
-            // the pipeline we would have to wait for a EOP TS event. Doing that inflates the perf experiment overhead
-            // by a not-insignificant margin (~150ns or ~4K clocks on Vega10). Thus we go with this much faster waiting
-            // method which covers almost all of the same cases as the wait for EOP TS. If we run into issues with
-            // counters at the end of the graphics pipeline or counters that monitor the event pipeline we might need
-            // to change this.
-            pCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
         }
     }
 

@@ -117,6 +117,8 @@ public:
 
     virtual Result WaitForLastImagePresented() override;
 
+    virtual bool NeedWindowSizeChangedCheck() const override { return false; }
+
     const WaylandLoader&      GetWaylandLoader() const                      { return m_waylandLoader; }
 #if defined(PAL_DEBUG_PRINTS)
     const WaylandLoaderFuncsProxy& GetWaylandProcs()  const                 { return m_waylandProcs; }

@@ -25,20 +25,21 @@
 
 #pragma once
 
-#include "ddSettingsTypes.h"
+#include "ddSettings.h"
 #include <ddApi.h>
-#include <util/vector.h>
+#include <ddDefs.h>
 
 namespace DevDriver
 {
 
 struct SettingsUserOverride
 {
-    const char*  pName;
-    size_t       nameLength;
-    bool         isValid;
-    SettingsType type;
-    size_t       size;
+    const char*           pName;
+    size_t                nameLength;
+    DD_SETTINGS_NAME_HASH nameHash;
+    bool                  isValid;
+    DD_SETTINGS_TYPE      type;
+    uint32_t              size;
     union
     {
         bool        b;
@@ -67,7 +68,7 @@ struct SettingsUserOverride
 /// of this object is tied to that of SettingsConfig.
 class SettingsUserOverrideIter
 {
-    friend class SettingsConfig;
+    friend class SettingsUserOverridesLoader;
 
 private:
     // a pointer to `yaml_document_t`
@@ -89,23 +90,24 @@ public:
     SettingsUserOverride Next();
 };
 
-/// The Settings config is a YAML file on local disk, that holds Settings user
-/// overrides. The file must conform to the "Settings User Overrides Schema".
-/// This class helps load the user overrides from a Settings config file and use
-/// them to overwrite the existing values in a `SettingsBase` class.
-class SettingsConfig
+/// SettingsUserOverrides is a YAML file on local disk, that holds Settings
+/// user overrides. The file must conform to the "Settings User Overrides
+/// Schema". This class helps load the user overrides from a Settings
+/// useroverrides file and use them to overwrite the existing values in a
+/// `SettingsBase` class.
+class SettingsUserOverridesLoader
 {
 // ========================================================================
 // Member Data
 private:
-    Vector<char> m_buffer; // buffer of raw YAML text
+    char* m_pBuffer; // buffer of raw YAML text
     void* m_pParser; // a pointer to `yaml_parser_t`
     void* m_pDocument; // a pointer to `yaml_document_t`
     bool m_valid; // If loaded YAML data is valid.
 
 public:
-    SettingsConfig();
-    ~SettingsConfig();
+    SettingsUserOverridesLoader();
+    ~SettingsUserOverridesLoader();
 
     /// Load and store the content of a Settings UserOverrides file. The
     /// file must conform to the second version of "Settings User Overrides
@@ -115,8 +117,13 @@ public:
     /// Return an iterator that retrives all user-overrides in a component.
     SettingsUserOverrideIter GetUserOverridesIter(const char* pComponentName);
 
+    /// Return a user-override by its setting's name hash.
+    SettingsUserOverride GetUserOverrideByNameHash(
+        const char* pComponentName,
+        DD_SETTINGS_NAME_HASH nameHash);
+
 private:
-    DD_DISALLOW_COPY_AND_ASSIGN(SettingsConfig);
+    DD_DISALLOW_COPY_AND_ASSIGN(SettingsUserOverridesLoader);
 };
 
 } // namespace DevDriver

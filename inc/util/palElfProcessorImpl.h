@@ -738,7 +738,7 @@ void NoteProcessor<Allocator>::Get(
     size_t*      pDescSize
     ) const
 {
-    PAL_ASSERT((index >= 0) && (index < m_noteVector.NumElements()));
+    PAL_ASSERT(index < m_noteVector.NumElements());
 
     const uint8* pNoteReader = static_cast<const uint8*>(m_pNoteSection->GetData())
         + m_noteVector.At(index);

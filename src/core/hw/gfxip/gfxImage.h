@@ -62,7 +62,7 @@ enum UseComputeExpand : uint32
     UseComputeExpandDepth = 0x00000001,
     UseComputeExpandMsaaDepth = 0x00000002,
     UseComputeExpandDcc = 0x00000004,
-    UseComputeExpandMsaaDcc = 0x00000008,
+    UseComputeExpandDccWithFmask = 0x00000008,
     UseComputeExpandAlways = 0x00000010,
 
 };

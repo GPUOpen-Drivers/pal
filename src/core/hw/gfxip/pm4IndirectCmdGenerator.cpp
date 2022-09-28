@@ -151,7 +151,7 @@ IndirectCmdGenerator::IndirectCmdGenerator(
     data.pResourceDescData = nullptr;
     data.resourceDescSize = 0;
     data.pObj = this;
-    m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
+    m_device.GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceCreateEvent(data);
 }
 
 // =====================================================================================================================
@@ -159,7 +159,7 @@ void IndirectCmdGenerator::Destroy()
 {
     ResourceDestroyEventData data = {};
     data.pObj = this;
-    m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(data);
+    m_device.GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceDestroyEvent(data);
 
     this->~IndirectCmdGenerator();
 }
@@ -200,7 +200,7 @@ Result IndirectCmdGenerator::BindGpuMemory(
         data.pGpuMemory = pGpuMemory;
         data.requiredGpuMemSize = m_gpuMemSize;
         data.offset = offset;
-        m_device.GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(data);
+        m_device.GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(data);
     }
 
     return result;

@@ -137,10 +137,11 @@ protected:
 
 private:
     virtual void HwlFastColorClear(
-        GfxCmdBuffer*      pCmdBuffer,
-        const GfxImage&    dstImage,
-        const uint32*      pConvertedColor,
-        const SubresRange& clearRange) const override;
+        GfxCmdBuffer*         pCmdBuffer,
+        const GfxImage&       dstImage,
+        const uint32*         pConvertedColor,
+        const SwizzledFormat& clearFormat,
+        const SubresRange&    clearRange) const override;
 
     virtual void HwlFixupCopyDstImageMetaData(
         GfxCmdBuffer*           pCmdBuffer,

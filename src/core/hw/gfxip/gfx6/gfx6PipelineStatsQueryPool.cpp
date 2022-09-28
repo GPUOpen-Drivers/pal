@@ -343,8 +343,9 @@ void PipelineStatsQueryPool::OptimizedReset(
         // Before we initialize out the GPU's destination memory, make sure the ASIC has finished any previous writing
         // of pipeline stat data. Command buffers that do not support stats queries do not need to issue this wait
         // because the caller must use semaphores to make sure all queries are complete.
+        Pm4CmdBuffer* pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
         pCmdSpace += cmdUtil.BuildWaitOnGenericEopEvent(BOTTOM_OF_PIPE_TS,
-                                                        pCmdBuffer->TimestampGpuVirtAddr(),
+                                                        pPm4CmdBuf->TimestampGpuVirtAddr(),
                                                         pCmdBuffer->GetEngineType() == EngineTypeCompute,
                                                         pCmdSpace);
     }

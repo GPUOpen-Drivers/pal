@@ -275,6 +275,10 @@ struct MultiSubmitInfo
                                                   ///  once it is grown and only affects compute scratch ring.
 #endif
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 764
+    const IGpuMemory*       pFreeMuxMemory;       ///< The gpu memory object of the private flip primary surface for the
+                                                  ///  FreeMux feature.
+#endif
 };
 
 typedef MultiSubmitInfo SubmitInfo;

@@ -42,7 +42,12 @@ static_assert(false, "This header is for user mode windows, and it does not work
     #define NOMINMAX
 #endif
 
+// WIN32_NO_STATUS makes Windows.h not include macro definitions from winnt.h
+// which collide with those from ntstatus.h. This avoids compilation errors
+// when other files that include ntstatus.h also include this file.
+#define WIN32_NO_STATUS
 #include <Windows.h>
+#undef WIN32_NO_STATUS
 
 #include <intrin.h>
 

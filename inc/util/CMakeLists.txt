@@ -29,6 +29,7 @@ target_sources(pal PRIVATE
     CMakeLists.txt
     palArchiveFile.h
     palArchiveFileFmt.h
+    palArFile.h
     palAssert.h
     palAutoBuffer.h
     palBestFitAllocator.h

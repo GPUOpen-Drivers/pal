@@ -115,3 +115,49 @@ DD_RESULT ddEventParserParse(
 
     return result;
 }
+
+// =================================================================================================
+DD_RESULT ddEventParserCreateEx(DDEventParser* phParser)
+{
+    DD_RESULT result = DD_RESULT_SUCCESS;
+
+    EventParser* pParser = DD_NEW(EventParser, Platform::GenericAllocCb)();
+    if (pParser != nullptr)
+    {
+        *phParser = ToHandle(pParser);
+    }
+    else
+    {
+        result = DD_RESULT_COMMON_OUT_OF_HEAP_MEMORY;
+    }
+
+    return result;
+}
+
+// =================================================================================================
+DD_EVENT_PARSER_STATE ddEventParserParseNext(DDEventParser hParser)
+{
+    EventParser* pParser = FromHandle(hParser);
+    return pParser->Parse();
+}
+
+// =================================================================================================
+void ddEventParserSetBuffer(DDEventParser hParser, const void* pBuffer, size_t size)
+{
+    EventParser* pParser = FromHandle(hParser);
+    pParser->SetParsingBuffer(pBuffer, size);
+}
+
+// =================================================================================================
+DDEventParserEventInfo ddEventParserGetEventInfo(DDEventParser hParser)
+{
+    EventParser* pParser = FromHandle(hParser);
+    return pParser->GetEventInfo();
+}
+
+// =================================================================================================
+DDEventParserDataPayload ddEventParserGetDataPayload(DDEventParser hParser)
+{
+    EventParser* pParser = FromHandle(hParser);
+    return pParser->GetPayload();
+}

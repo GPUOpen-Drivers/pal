@@ -51,7 +51,6 @@ GfxCmdBuffer::GfxCmdBuffer(
     m_maxUploadFenceToken(0),
     m_device(device),
     m_pInternalEvent(nullptr),
-    m_timestampGpuVa(0),
     m_computeStateFlags(0),
     m_pDfSpmPerfmonInfo(nullptr),
     m_cmdBufPerfExptFlags{}
@@ -261,16 +260,6 @@ Result GfxCmdBuffer::BeginCommandStreams(
     }
 
     Result result = CmdBuffer::BeginCommandStreams(cmdStreamFlags, doReset);
-
-    if (result == Result::Success)
-    {
-        // Allocate timestamp GPU memory from the command allocator.
-        // AllocateGpuScratchMem() always returns a valid GPU address, even if we fail to obtain memory from the
-        // allocator.  In that scenario, the allocator returns a dummy chunk so we can always have a valid object
-        // to access, and sets m_status to a failure code.
-        m_timestampGpuVa = AllocateGpuScratchMem(sizeof(uint32), sizeof(uint32));
-        result = m_status;
-    }
 
     if (result == Result::Success)
     {
@@ -731,14 +720,15 @@ void GfxCmdBuffer::CmdClearBoundColorTargets(
 
 // =====================================================================================================================
 void GfxCmdBuffer::CmdClearColorImage(
-    const IImage&      image,
-    ImageLayout        imageLayout,
-    const ClearColor&  color,
-    uint32             rangeCount,
-    const SubresRange* pRanges,
-    uint32             boxCount,
-    const Box*         pBoxes,
-    uint32             flags)
+    const IImage&         image,
+    ImageLayout           imageLayout,
+    const ClearColor&     color,
+    const SwizzledFormat& clearFormat,
+    uint32                rangeCount,
+    const SubresRange*    pRanges,
+    uint32                boxCount,
+    const Box*            pBoxes,
+    uint32                flags)
 {
     PAL_ASSERT(pRanges != nullptr);
 
@@ -761,6 +751,7 @@ void GfxCmdBuffer::CmdClearColorImage(
                                                   static_cast<const Image&>(image),
                                                   imageLayout,
                                                   color,
+                                                  clearFormat,
                                                   splitRangeCount,
                                                   pSplitRanges,
                                                   boxCount,

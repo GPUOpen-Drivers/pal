@@ -44,6 +44,7 @@ class CmdStream;
 class GfxCmdBuffer;
 class GfxDevice;
 class GpuMemory;
+class Image;
 class Pipeline;
 class PerfExperiment;
 class IPerfExperiment;
@@ -176,6 +177,10 @@ public:
 
     const Pm4CmdBufferState& GetPm4CmdBufState() const { return m_pm4CmdBufState; }
 
+    // Note that this function only checks if BLT stall has been completed but not cache flushed.
+    bool AnyBltActive() const { return (m_pm4CmdBufState.flags.cpBltActive | m_pm4CmdBufState.flags.csBltActive |
+                                        m_pm4CmdBufState.flags.gfxBltActive) != 0; }
+
     // Helper functions
     void OptimizePipePoint(HwPipePoint* pPipePoint) const;
     void OptimizeSrcCacheMask(uint32* pCacheMask) const;
@@ -277,6 +282,15 @@ public:
         uint32                           maxCommands,
         uint32                           numChunkOutputs,
         ChunkOutput*                     pChunkOutputs) = 0;
+
+    gpusize TimestampGpuVirtAddr() const { return m_timestampGpuVa; }
+
+    // hwGlxSync/hwRbSync: opaque HWL cache sync flags. hwRbSync will be ignored for compute cmd buffer.
+    virtual uint32* WriteWaitEop(HwPipePoint waitPoint, uint32 hwGlxSync, uint32 hwRbSync, uint32* pCmdSpace)
+        { PAL_NEVER_CALLED(); return pCmdSpace; }
+
+    virtual uint32* WriteWaitCsIdle(uint32* pCmdSpace)
+        { PAL_NEVER_CALLED(); return pCmdSpace; }
 
 protected:
     Pm4CmdBuffer(
@@ -390,6 +404,7 @@ private:
     const GfxDevice&  m_device;
 
     gpusize m_acqRelFenceValGpuVa; // GPU virtual address of 3-dwords memory used for acquire/release pipe event sync.
+    gpusize m_timestampGpuVa;      // GPU virtual address of memory used for cache flush & inv timestamp events.
 
     // Number of active queries in this command buffer.
     uint32 m_numActiveQueries[static_cast<size_t>(QueryPoolType::Count)];

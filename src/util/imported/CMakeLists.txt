@@ -88,5 +88,6 @@ enable_language(C)
 target_link_libraries(pal
     PUBLIC
         ddSettings
+        ddSettingsRpcService
         devdriver
 )

@@ -32,6 +32,13 @@ namespace Util
 {
 
 // =====================================================================================================================
+// Static method to get current thread ID, only useful to give to ThreadIdEqual().
+ThreadId Thread::GetCurrentThreadId()
+{
+    return pthread_self();
+}
+
+// =====================================================================================================================
 Thread::Thread()
     :
     m_pfnStartFunction(nullptr),

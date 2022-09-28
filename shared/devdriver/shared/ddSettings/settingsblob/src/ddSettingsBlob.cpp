@@ -85,6 +85,7 @@ uint32_t SettingsBlobNode::GetAllSettingsBlobs(uint8_t* pBuffer, uint32_t buffer
                     SettingsBlob* pBlob = reinterpret_cast<SettingsBlob*>(pBlobBufCurrPos);
                     pBlob->size = blobSizeAligned;
                     pBlob->blobSize = blobSize;
+                    pBlob->encoded = pCurr->IsEncoded();
                     pBlob->blobHash = pCurr->GetBlobHash();
 
                     memcpy(pBlob->blob, pBlobData, blobSize);

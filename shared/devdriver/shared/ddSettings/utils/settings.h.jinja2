@@ -9,6 +9,7 @@
 #pragma once
 
 #include <ddSettingsBase.h>
+#include <ddSettingsBlob.h>
 
 {% macro prep_cond_begin(prep_cond) %}
 {% if prep_cond %}
@@ -22,7 +23,7 @@
 {% endif %}
 {% endmacro %}
 
-namespace {{ComponentName}}
+namespace {{Namespace}}
 {
 /// Enums /////////////////////////////////////////////////////////////////////
 {% for enum in Enums %}
@@ -37,7 +38,7 @@ enum {{enum.Name}} : uint32_t
 
 {% endfor %}
 
-struct {{ComponentName}}SettingsData : public DevDriver::SettingsData
+struct {{ComponentName}}Settings : public DevDriver::SettingsData
 {
 {% for setting in Settings %}
 {% if setting.GroupName %}
@@ -59,4 +60,29 @@ struct {{ComponentName}}SettingsData : public DevDriver::SettingsData
 
 const uint32_t g_{{ComponentNameLower}}NumSettings = {{NumSettings}};
 
-} // namespace Pal
+{% for setting in Settings %}
+{% if setting.GroupName %}
+{% for subs in setting.Subsettings %}
+{{ prep_cond_begin(subs.BuildFilters) -}}
+constexpr const char* p{{setting.GroupName}}_{{subs.Name}}HashStr = "#{{subs.NameHash}}";
+{{ prep_cond_end(subs.BuildFilters) -}}
+{% endfor %}
+{% else %}
+{{ prep_cond_begin(setting.BuildFilters) -}}
+constexpr const char* p{{setting.Name}}HashStr = "#{{setting.NameHash}}";
+{{ prep_cond_end(setting.BuildFilters) -}}
+{% endif %}
+{% endfor %}
+
+// =======================================================================================
+// SettingsBlob
+
+class {{ComponentName}}SettingsBlobNode : public DevDriver::SettingsBlobNode
+{
+public:
+    const uint8_t* GetBlob(uint32_t* pOutSize) override;
+    bool IsEncoded() override;
+    uint64_t GetBlobHash() override;
+};
+
+} // namespace {{Namespace}}

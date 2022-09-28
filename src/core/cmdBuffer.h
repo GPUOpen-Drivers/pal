@@ -136,6 +136,15 @@ enum class CmdBufferRecordState : uint32
     Reset      = 2,    // CmdBuffer has been reset and not re-begun
 };
 
+/// Used by tools like Radeon GPU Detective to mark command buffers
+/// with metadata that allows for post-mortem analysis of runtime & crash
+/// state of an application.
+struct CrashAnalysisMarkerHeader
+{
+    uint32 cmdBufferId; ///< Unique ID representing a command buffer
+    uint32 timestamp;   ///< Marker execution counter
+};
+
 // Differentiates between once-per-copy and once-per-chunk data in P2pBltWaInfo.
 enum class P2pBltWaInfoType : uint32
 {
@@ -473,14 +482,15 @@ public:
         { PAL_NEVER_CALLED(); }
 
     virtual void CmdClearColorImage(
-        const IImage&      image,
-        ImageLayout        imageLayout,
-        const ClearColor&  color,
-        uint32             rangeCount,
-        const SubresRange* pRanges,
-        uint32             boxCount,
-        const Box*         pBoxes,
-        uint32             flags) override
+        const IImage&         image,
+        ImageLayout           imageLayout,
+        const ClearColor&     color,
+        const SwizzledFormat& clearFormat,
+        uint32                rangeCount,
+        const SubresRange*    pRanges,
+        uint32                boxCount,
+        const Box*            pBoxes,
+        uint32                flags) override
         { PAL_NEVER_CALLED(); }
 
     virtual void CmdClearBoundDepthStencilTargets(
@@ -799,6 +809,8 @@ public:
 
     virtual uint32 CmdInsertExecutionMarker() override { PAL_NEVER_CALLED(); return UINT_MAX; }
 
+    void CmdInsertCrashAnalysisHeader();
+
     virtual void CmdXdmaWaitFlipPending() override { PAL_NEVER_CALLED(); }
 
     virtual void CmdUpdateHiSPretests(
@@ -1106,6 +1118,8 @@ protected:
 
     // Number of implicit ganged sub-queues.
     uint32 m_implicitGangSubQueueCount;
+
+    const uint32 m_resourceId; // Unique Id for this CmdBuffer
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     Ib2DumpInfoVec m_ib2DumpInfos; // Vector holding information needed to dump IB2s

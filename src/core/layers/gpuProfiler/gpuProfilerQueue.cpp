@@ -583,6 +583,9 @@ Result Queue::Submit(
         nextSubmitInfo.pDoppRefs            = &nextDoppRefs[0];
         nextSubmitInfo.blockIfFlippingCount = submitInfo.blockIfFlippingCount;
         nextSubmitInfo.ppBlockIfFlipping    = &pNextBlockIfFlipping[0];
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 764
+        nextSubmitInfo.pFreeMuxMemory       = NextGpuMemory(submitInfo.pFreeMuxMemory);
+#endif
 
         // In most cases, we want to release all newly acquired objects with each submit, since they are only used
         // by one command buffer.  However, when doing frame-granularity captures, we can't release resources used

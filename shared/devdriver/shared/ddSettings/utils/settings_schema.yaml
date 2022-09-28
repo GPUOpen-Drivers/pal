@@ -111,14 +111,19 @@ $defs:
               - string
               - number
               - boolean
-            description: Default value for Windows and all other platforms. Can be
-              overridden for non-Windows platforms.
+            description: Default value. Can be overridden for a specific platform.
+          Windows:
+            type:
+              - string
+              - number
+              - boolean
+            description: Default value for Windows, overridding the value in "Default".
           Linux:
             type:
               - string
               - number
               - boolean
-            description: Default value for Linux.
+            description: Default value for Linux, overridding the value in "Default".
         required:
           - Type
           - Default

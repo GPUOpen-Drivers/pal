@@ -34,6 +34,9 @@ $defs:
       Name:
         type: string
         description: Name of the setting.
+      NameHash:
+        type: number
+        description: The hash value of Name.
       Type:
         enum:
           - Bool
@@ -56,5 +59,6 @@ $defs:
         description: The actual user value of the setting.
     required:
       - Name
+      - NameHash
       - Type
       - Value

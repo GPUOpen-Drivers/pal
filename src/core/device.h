@@ -30,6 +30,7 @@
 #include "core/privateScreen.h"
 #include "core/hw/gfxip/gfxDevice.h"
 #include "core/hw/ossip/ossDevice.h"
+
 #include "core/addrMgr/addrMgr.h"
 #include "core/dmaUploadRing.h"
 #include "palCmdAllocator.h"
@@ -59,7 +60,6 @@ namespace Util { namespace MetroHash { struct Hash; } }
 
 namespace Pal
 {
-
 class  CmdAllocator;
 class  CmdBuffer;
 class  Fence;
@@ -252,14 +252,15 @@ struct GpuMemoryProperties
     // bandwidth is reduced by to get the true GPU memory bandwidth.
     uint32          apuBandwidthFactor;
 
-    gpusize localHeapSize;
-    gpusize invisibleHeapSize;
     gpusize nonLocalHeapSize;
     gpusize hbccSizeInBytes;    // Size of High Bandwidth Cache Controller (HBCC) memory segment.
                                 // HBCC memory segment comprises of system and local video memory, where HW/KMD
                                 // will ensure high performance by migrating pages accessed by hardware to local.
                                 // This HBCC memory segment is only available on certain platforms.
     gpusize busAddressableMemSize;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 766
+    gpusize barSize;            // Total VRAM which can be accessed by the CPU.
+#endif
 
     gpusize vaStart;        // Starting address of the GPU's virtual address space
     gpusize vaEnd;          // Ending address of the GPU's virtual address space
@@ -1721,7 +1722,16 @@ public:
     const AddrMgr* GetAddrMgr() const { return m_pAddrMgr;   }
 
     const GpuMemoryHeapProperties& HeapProperties(GpuHeap heap) const
-        { return m_heapProperties[static_cast<size_t>(heap)]; }
+    { return m_heapProperties[heap]; }
+
+    gpusize HeapLogicalSize(GpuHeap heap) const
+    {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 766
+        return HeapProperties(heap).logicalSize;
+#else
+        return HeapProperties(heap).heapSize;
+#endif
+    }
 
     const GpuMemoryProperties& MemoryProperties() const { return m_memoryProperties; }
     const GpuEngineProperties& EngineProperties() const { return m_engineProperties; }

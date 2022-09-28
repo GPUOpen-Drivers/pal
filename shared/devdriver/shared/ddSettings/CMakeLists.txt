@@ -32,11 +32,10 @@ add_subdirectory(settingsblob)
 target_link_libraries(ddSettings
     PUBLIC
         ddApi
-        ddSettingsRpcService
     PRIVATE
         devdriver
         ddCommon
-        dd_libyaml
+        ddYaml
         SettingsRpcClient
 )
 
@@ -47,10 +46,8 @@ target_include_directories(ddSettings
 target_sources(ddSettings PRIVATE
     base/inc/ddSettingsTypes.h
     base/inc/ddSettingsBase.h
-    base/inc/ddSettingsConfig.h
+    base/inc/ddSettingsUserOverrides.h
     base/inc/ddSettingsUtils.h
-    base/src/libyamlUtils.cpp
-    base/src/libyamlUtils.h
     base/src/ddSettingsBase.cpp
-    base/src/ddSettingsConfig.cpp
+    base/src/ddSettingsUserOverrides.cpp
 )

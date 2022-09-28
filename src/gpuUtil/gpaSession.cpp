@@ -147,6 +147,7 @@ static const SqttEngineType PalEngineTypeToSqttEngineType[] =
     SQTT_ENGINE_TYPE_COMPUTE,                 // EngineTypeCompute
     SQTT_ENGINE_TYPE_DMA,                     // EngineTypeDma
     SQTT_ENGINE_TYPE_UNKNOWN,                 // EngineTypeTimer
+
 };
 
 static_assert(Util::ArrayLen(PalEngineTypeToSqttEngineType) == Pal::EngineTypeCount,
@@ -2040,7 +2041,7 @@ Result GpaSession::GetResults(
                 PAL_ASSERT(pSizeInBytes != nullptr);
 
                 // Dump both thread trace and spm trace results in the RGP file.
-                result = DumpRgpData(pTraceSample, pData, pSizeInBytes);
+                result = DumpRgpData(&pSampleItem->sampleConfig, pTraceSample, pData, pSizeInBytes);
             }
         }
     }
@@ -3807,9 +3808,10 @@ Result GpaSession::AcquirePipeStatsQuery(
 // =====================================================================================================================
 // Dump SQ thread trace data and spm trace data, if available, in rgp format.
 Result GpaSession::DumpRgpData(
-    TraceSample* pTraceSample,
-    void*        pRgpOutput,
-    size_t*      pTraceSize   // [in|out] Size of the thread trace data and/or spm trace data.
+    const GpaSampleConfig* pTraceConfig,
+    TraceSample*           pTraceSample,
+    void*                  pRgpOutput,
+    size_t*                pTraceSize   // [in|out] Size of the thread trace data and/or spm trace data.
     ) const
 {
     ThreadTraceLayout* pThreadTraceLayout = nullptr;
@@ -3979,6 +3981,7 @@ Result GpaSession::DumpRgpData(
 
     case InstructionTraceMode::FullFrame:
         apiInfo.instructionTraceMode = SqttInstructionTraceMode::SQTT_INSTRUCTION_TRACE_FULL_FRAME;
+        apiInfo.instructionTraceData.shaderEngineFilter.mask = pTraceConfig->sqtt.seDetailedMask;
         break;
 
     case InstructionTraceMode::ApiPso:

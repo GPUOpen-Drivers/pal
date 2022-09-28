@@ -365,9 +365,9 @@ union TraceProfilingModeData
 /// Enumerates the different instruction level data modes for an RGP trace
 enum class InstructionTraceMode : Pal::uint32
 {
-    Disabled  = 0,    ///< Instruction level data was disabled for trace.
-    FullFrame = 1,    ///< Instruction level data was enabled for the full trace.
-    ApiPso    = 2,    ///< Instruction level data was enabled only for a single API PSO
+    Disabled  = 0, ///< Instruction level data was disabled for trace.
+    FullFrame = 1, ///< Instruction level data was enabled for the full trace.
+    ApiPso    = 2, ///< Instruction level data was enabled only for a single API PSO.
 };
 
 /// Defines the data used to control enabling of instruction level data.
@@ -983,7 +983,10 @@ private:
         Pal::IQueryPool**       ppQuery);
 
     // Dump SQ thread trace data in rgp format
-    Pal::Result DumpRgpData(TraceSample* pTraceSample, void* pRgpOutput, size_t* pTraceSize) const;
+    Pal::Result DumpRgpData(const GpaSampleConfig* pTraceConfig,
+                            TraceSample*           pTraceSample,
+                            void*                  pRgpOutput,
+                            size_t*                pTraceSize) const;
 
     // Dumps the spm trace data in the buffer provided.
     Pal::Result AppendSpmTraceData(TraceSample*  pTraceSample,

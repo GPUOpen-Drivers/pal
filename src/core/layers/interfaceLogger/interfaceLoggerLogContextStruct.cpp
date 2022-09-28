@@ -152,8 +152,13 @@ void LogContext::Struct(
     const AcquireReleaseInfo& value)
 {
     BeginMap(false);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+    KeyAndPipelineStageFlags("srcGlobalStageMask", value.srcGlobalStageMask);
+    KeyAndPipelineStageFlags("dstGlobalStageMask", value.dstGlobalStageMask);
+#else
     KeyAndPipelineStageFlags("srcStageMask", value.srcStageMask);
     KeyAndPipelineStageFlags("dstStageMask", value.dstStageMask);
+#endif
     KeyAndCacheCoherencyUsageFlags("srcGlobalAccessMask", value.srcGlobalAccessMask);
     KeyAndCacheCoherencyUsageFlags("dstGlobalAccessMask", value.dstGlobalAccessMask);
 
@@ -181,6 +186,11 @@ void LogContext::Struct(
         KeyAndValue("offset",      memoryBarrier.memory.offset);
         KeyAndValue("size",        memoryBarrier.memory.size);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+        KeyAndPipelineStageFlags("srcStageMask", memoryBarrier.srcStageMask);
+        KeyAndPipelineStageFlags("dstStageMask", memoryBarrier.dstStageMask);
+#endif
+
         KeyAndCacheCoherencyUsageFlags("srcAccessMask", memoryBarrier.srcAccessMask);
         KeyAndCacheCoherencyUsageFlags("dstAccessMask", memoryBarrier.dstAccessMask);
 
@@ -202,6 +212,10 @@ void LogContext::Struct(
         {
             KeyAndStruct("subresRange", imageBarrier.subresRange);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+            KeyAndPipelineStageFlags("srcStageMask", imageBarrier.srcStageMask);
+            KeyAndPipelineStageFlags("dstStageMask", imageBarrier.dstStageMask);
+#endif
             KeyAndCacheCoherencyUsageFlags("srcAccessMask", imageBarrier.srcAccessMask);
             KeyAndCacheCoherencyUsageFlags("dstAccessMask", imageBarrier.dstAccessMask);
             KeyAndStruct("box", imageBarrier.box);
@@ -683,7 +697,19 @@ void LogContext::Struct(
     }
 #endif
 
-    static_assert(CheckReservedBits<decltype(value.flags)>(32, 19), "Update interfaceLogger!");
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 763)
+    if (value.flags.optimizeContextStatesPerBin)
+    {
+        Value("optimizeContextStatesPerBin");
+    }
+
+    if (value.flags.optimizePersistentStatesPerBin)
+    {
+        Value("optimizePersistentStatesPerBin");
+    }
+#endif
+
+    static_assert(CheckReservedBits<decltype(value.flags)>(32, 16), "Update interfaceLogger!");
 
     EndList();
 

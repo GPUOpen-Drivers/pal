@@ -345,7 +345,7 @@ void OcclusionQueryPool::OptimizedReset(
 
             if (pPm4CmdBuf->GetPm4CmdBufState().flags.prevCmdBufActive || pActiveRanges->Overlap(&interval))
             {
-                pCmdSpace += cmdUtil.BuildWaitOnEopEvent(BOTTOM_OF_PIPE_TS, pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
+                pCmdSpace += cmdUtil.BuildWaitOnEopEvent(BOTTOM_OF_PIPE_TS, pPm4CmdBuf->TimestampGpuVirtAddr(), pCmdSpace);
 
                 // The previous EOP event and wait mean that anything prior to this point, including previous command
                 // buffers on this queue, have completed.

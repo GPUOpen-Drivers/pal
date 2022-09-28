@@ -61,7 +61,16 @@ dd_bp(DD_BP_BUILD_TESTS_EXAMPLES ${DEVDRIVER_IS_TOP_LEVEL})
 # Configure whether documentation is built
 dd_bp(DD_BP_BUILD_DOCS OFF)
 
+# Configure whether to enable MSVC Code Analysis. Code Analysis causes
+# significantly longer build time.
+dd_bp(DD_MSVC_CODE_ANALYZE ${DEVDRIVER_IS_TOP_LEVEL})
+
+# Currently rdf lib is only used by memory-trace and rgd modules. So enable it
+# when those modules are built.
+dd_bp(DD_BUILD_RDF ${DD_BP_BUILD_MODULES})
+
 add_subdirectory(third_party)
+add_subdirectory(imported)
 add_subdirectory(shared)
 add_subdirectory(apis)
 

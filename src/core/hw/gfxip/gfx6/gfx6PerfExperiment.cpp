@@ -3188,8 +3188,10 @@ uint32* PerfExperiment::WriteWaitIdle(
     }
     else
     {
+        Pm4CmdBuffer* pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+
         // Wait for all work to be idle and use an ACQUIRE_MEM to flush any caches.
-        pCmdSpace += m_cmdUtil.BuildWaitCsIdle(EngineTypeCompute, pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
+        pCmdSpace += m_cmdUtil.BuildWaitCsIdle(EngineTypeCompute, pPm4CmdBuf->TimestampGpuVirtAddr(), pCmdSpace);
 
         if (flushCaches)
         {

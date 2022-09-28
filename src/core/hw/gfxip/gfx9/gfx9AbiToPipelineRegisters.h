@@ -1096,8 +1096,11 @@ static uint32 SpiShaderPgmRsrc2Ps(
     spiShaderPgmRsrc2Ps.bits.USER_SGPR        = hwPs.userSgprs;
     spiShaderPgmRsrc2Ps.bits.TRAP_PRESENT     = hwPs.flags.trapPresent;
     spiShaderPgmRsrc2Ps.bits.WAVE_CNT_EN      = metadata.pipeline.graphicsRegister.flags.psWaveCntEn;
+
+    const uint32 psExtraLdsDwGranularityShift = Gfx9PsExtraLdsDwGranularityShift;
+
     spiShaderPgmRsrc2Ps.bits.EXTRA_LDS_SIZE   =
-        (metadata.pipeline.graphicsRegister.psExtraLdsSize / sizeof(uint32)) >> Gfx9PsExtraLdsDwGranularityShift;
+        (metadata.pipeline.graphicsRegister.psExtraLdsSize / sizeof(uint32)) >> psExtraLdsDwGranularityShift;
     spiShaderPgmRsrc2Ps.bits.EXCP_EN          = hwPs.excpEn;
 
     // These two bits are duplicated in PA_SC_SHADER_CONTROL.

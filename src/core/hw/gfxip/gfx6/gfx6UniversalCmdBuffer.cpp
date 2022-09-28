@@ -273,7 +273,7 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 755)
     // Recommended defaults for GFX8
-    m_tessDistributionFactors = { 8, 8, 8, 8, 8 };
+    m_tessDistributionFactors = { 8, 8, 8, 8, 7 };
 #endif
 
     m_sxPsDownconvert.u32All     = 0;

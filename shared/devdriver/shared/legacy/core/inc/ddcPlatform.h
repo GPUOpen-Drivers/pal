@@ -154,7 +154,7 @@ typedef void (*ThreadFunction)(void* pThreadParameter);
     #endif
 #endif
 
-#define DD_WILL_PRINT(lvl) ((lvl >= DD_OPT_LOG_LEVEL_VALUE) & (lvl < DevDriver::LogLevel::Count))
+#define DD_WILL_PRINT(lvl) ((lvl >= DD_OPT_LOG_LEVEL_VALUE) && (lvl < DevDriver::LogLevel::Count))
 #define DD_PRINT(lvl, ...) DevDriver::LogString<lvl>(__VA_ARGS__)
 
 #if defined(DD_OPT_ASSERTS_DEBUGBREAK)

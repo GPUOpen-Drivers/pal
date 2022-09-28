@@ -411,15 +411,6 @@ void SettingsLoader::ValidateSettings(
         pSettings->nonlocalDestGraphicsCopyRbs = UINT_MAX;
     }
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 744)
-    // if we allow > 1 Ctx or Persistent state / batch then the driver should BREAK_BATCH on new PS.
-    if ((pPalSettings->binningContextStatesPerBin > 1) || (pPalSettings->binningPersistentStatesPerBin > 1))
-    {
-        m_settings.batchBreakOnNewPixelShader = true;
-    }
-#else
-#endif
-
     m_state = SettingsLoaderState::Final;
 }
 

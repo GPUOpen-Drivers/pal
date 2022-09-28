@@ -126,6 +126,7 @@ CmdBuffer::CmdBuffer(
     m_p2pBltWaInfo(device.GetPlatform()),
     m_p2pBltWaLastChunkAddr(0),
     m_implicitGangSubQueueCount(0),
+    m_resourceId(device.GetPlatform()->GenerateResourceId()),
     m_device(device),
     m_recordState(CmdBufferRecordState::Reset)
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -303,6 +304,14 @@ Result CmdBuffer::Begin(
                 // longer to determine if its necessary than to just increment the variable.
                 m_numCmdBufsBegun++;
 #endif
+
+                // In crash analysis mode, a NOP with a special payload is inserted.
+                // Radeon GPU Detective & other tools parse this for post-mortem
+                // analysis & debugging of this buffer.
+                if (m_device.GetPlatform()->IsCrashAnalysisModeEnabled())
+                {
+                    CmdInsertCrashAnalysisHeader();
+                }
             }
 
             if (SupportsExecutionMarker() && (m_buildFlags.enableExecutionMarkerSupport == 1))
@@ -803,14 +812,24 @@ uint32 CmdBuffer::CmdRelease(
     const AcquireReleaseInfo& releaseInfo)
 {
     // Validate input data.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+    PAL_ASSERT(releaseInfo.dstGlobalStageMask == 0);
+#else
     PAL_ASSERT(releaseInfo.dstStageMask == 0);
+#endif
     PAL_ASSERT(releaseInfo.dstGlobalAccessMask == 0);
     for (uint32 i = 0; i < releaseInfo.memoryBarrierCount; i++)
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+        PAL_ASSERT(releaseInfo.pMemoryBarriers[i].dstStageMask == 0);
+#endif
         PAL_ASSERT(releaseInfo.pMemoryBarriers[i].dstAccessMask == 0);
     }
     for (uint32 i = 0; i < releaseInfo.imageBarrierCount; i++)
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+        PAL_ASSERT(releaseInfo.pImageBarriers[i].dstStageMask == 0);
+#endif
         PAL_ASSERT(releaseInfo.pImageBarriers[i].dstAccessMask == 0);
     }
 
@@ -828,14 +847,24 @@ void CmdBuffer::CmdAcquire(
     const uint32*             pSyncTokens)
 {
     // Validate input data.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+    PAL_ASSERT(acquireInfo.srcGlobalStageMask == 0);
+#else
     PAL_ASSERT(acquireInfo.srcStageMask == 0);
+#endif
     PAL_ASSERT(acquireInfo.srcGlobalAccessMask == 0);
     for (uint32 i = 0; i < acquireInfo.memoryBarrierCount; i++)
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+        PAL_ASSERT(acquireInfo.pMemoryBarriers[i].srcStageMask == 0);
+#endif
         PAL_ASSERT(acquireInfo.pMemoryBarriers[i].srcAccessMask == 0);
     }
     for (uint32 i = 0; i < acquireInfo.imageBarrierCount; i++)
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+        PAL_ASSERT(acquireInfo.pImageBarriers[i].srcStageMask == 0);
+#endif
         PAL_ASSERT(acquireInfo.pImageBarriers[i].srcAccessMask == 0);
     }
 
@@ -852,14 +881,24 @@ void CmdBuffer::CmdReleaseEvent(
     const IGpuEvent*          pGpuEvent)
 {
     // Validate input data.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+    PAL_ASSERT(releaseInfo.dstGlobalStageMask == 0);
+#else
     PAL_ASSERT(releaseInfo.dstStageMask == 0);
+#endif
     PAL_ASSERT(releaseInfo.dstGlobalAccessMask == 0);
     for (uint32 i = 0; i < releaseInfo.memoryBarrierCount; i++)
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+        PAL_ASSERT(releaseInfo.pMemoryBarriers[i].dstStageMask == 0);
+#endif
         PAL_ASSERT(releaseInfo.pMemoryBarriers[i].dstAccessMask == 0);
     }
     for (uint32 i = 0; i < releaseInfo.imageBarrierCount; i++)
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+        PAL_ASSERT(releaseInfo.pImageBarriers[i].dstStageMask == 0);
+#endif
         PAL_ASSERT(releaseInfo.pImageBarriers[i].dstAccessMask == 0);
     }
 
@@ -877,14 +916,24 @@ void CmdBuffer::CmdAcquireEvent(
     const IGpuEvent*const*    ppGpuEvents)
 {
     // Validate input data.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+    PAL_ASSERT(acquireInfo.srcGlobalStageMask == 0);
+#else
     PAL_ASSERT(acquireInfo.srcStageMask == 0);
+#endif
     PAL_ASSERT(acquireInfo.srcGlobalAccessMask == 0);
     for (uint32 i = 0; i < acquireInfo.memoryBarrierCount; i++)
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+        PAL_ASSERT(acquireInfo.pMemoryBarriers[i].srcStageMask == 0);
+#endif
         PAL_ASSERT(acquireInfo.pMemoryBarriers[i].srcAccessMask == 0);
     }
     for (uint32 i = 0; i < acquireInfo.imageBarrierCount; i++)
     {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+        PAL_ASSERT(acquireInfo.pImageBarriers[i].srcStageMask == 0);
+#endif
         PAL_ASSERT(acquireInfo.pImageBarriers[i].srcAccessMask == 0);
     }
 
@@ -1279,7 +1328,7 @@ static void DumpIb2ToFile(
     }
     else
     {
-        PAL_ALERT_ALWAYS_MSG("Unsupported Dump Format - Pal::Ib2DumpInfo::DumpToFile")
+        PAL_ALERT_ALWAYS_MSG("Unsupported Dump Format - Pal::Ib2DumpInfo::DumpToFile");
     }
 }
 
@@ -1706,4 +1755,16 @@ void CmdBuffer::CmdBindSampleRateImage(
 {
     PAL_NOT_IMPLEMENTED();
 }
+
+// =====================================================================================================================
+// Inserts a NOP packet with metadata used for port-mortem GPU crash analysis.
+void CmdBuffer::CmdInsertCrashAnalysisHeader()
+{
+    CrashAnalysisMarkerHeader header = { };
+    header.cmdBufferId = m_resourceId;
+    header.timestamp   = 0;
+
+    CmdNop(static_cast<const void*>(&header), sizeof(header));
+}
+
 } // Pal

@@ -284,8 +284,9 @@ struct ComputePipelineCreateInfo
                                                ///  interface. The Pipeline ELF contains pre-compiled shaders,
                                                ///  register values, and additional metadata.
     size_t              pipelineBinarySize;    ///< Size of Pipeline ELF binary in bytes.
-    uint32              maxFunctionCallDepth;  ///< Maximum depth for indirect function calls. Only used where the
-                                               ///  client driver uses IPipeline::LinkWithLibraries.
+    uint32              maxFunctionCallDepth;  ///< Maximum depth for indirect function calls. Not used for a new
+                                               ///  path ray-tracing pipeline as the compiler has pre-calculated
+                                               ///  stack requirements.
     bool disablePartialDispatchPreemption; ///< Prevents scenarios where a subset of the dispatched thread groups are
                                            ///  preempted and the remaining thread groups run to completion. This
                                            ///  can occur when thread group granularity preemption is available and

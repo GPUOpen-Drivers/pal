@@ -1097,8 +1097,13 @@ uint32 CmdBuffer::CmdRelease(
     const AcquireReleaseInfo& releaseInfo)
 {
     InsertToken(CmdBufCallId::CmdRelease);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+    InsertToken(releaseInfo.srcGlobalStageMask);
+    InsertToken(releaseInfo.dstGlobalStageMask);
+#else
     InsertToken(releaseInfo.srcStageMask);
     InsertToken(releaseInfo.dstStageMask);
+#endif
     InsertToken(releaseInfo.srcGlobalAccessMask);
     InsertToken(releaseInfo.dstGlobalAccessMask);
     InsertTokenArray(releaseInfo.pMemoryBarriers, releaseInfo.memoryBarrierCount);
@@ -1120,8 +1125,13 @@ void CmdBuffer::ReplayCmdRelease(
 {
     AcquireReleaseInfo releaseInfo;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+    releaseInfo.srcGlobalStageMask  = ReadTokenVal<uint32>();
+    releaseInfo.dstGlobalStageMask  = ReadTokenVal<uint32>();
+#else
     releaseInfo.srcStageMask        = ReadTokenVal<uint32>();
     releaseInfo.dstStageMask        = ReadTokenVal<uint32>();
+#endif
     releaseInfo.srcGlobalAccessMask = ReadTokenVal<uint32>();
     releaseInfo.dstGlobalAccessMask = ReadTokenVal<uint32>();
     releaseInfo.memoryBarrierCount  = ReadTokenArray(&releaseInfo.pMemoryBarriers);
@@ -1194,8 +1204,13 @@ void CmdBuffer::CmdAcquire(
     const uint32*             pSyncTokens)
 {
     InsertToken(CmdBufCallId::CmdAcquire);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+    InsertToken(acquireInfo.srcGlobalStageMask);
+    InsertToken(acquireInfo.dstGlobalStageMask);
+#else
     InsertToken(acquireInfo.srcStageMask);
     InsertToken(acquireInfo.dstStageMask);
+#endif
     InsertToken(acquireInfo.srcGlobalAccessMask);
     InsertToken(acquireInfo.dstGlobalAccessMask);
     InsertTokenArray(acquireInfo.pMemoryBarriers, acquireInfo.memoryBarrierCount);
@@ -1212,8 +1227,13 @@ void CmdBuffer::ReplayCmdAcquire(
 {
     AcquireReleaseInfo acquireInfo;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+    acquireInfo.srcGlobalStageMask  = ReadTokenVal<uint32>();
+    acquireInfo.dstGlobalStageMask  = ReadTokenVal<uint32>();
+#else
     acquireInfo.srcStageMask        = ReadTokenVal<uint32>();
     acquireInfo.dstStageMask        = ReadTokenVal<uint32>();
+#endif
     acquireInfo.srcGlobalAccessMask = ReadTokenVal<uint32>();
     acquireInfo.dstGlobalAccessMask = ReadTokenVal<uint32>();
     acquireInfo.memoryBarrierCount  = ReadTokenArray(&acquireInfo.pMemoryBarriers);
@@ -1298,8 +1318,13 @@ void CmdBuffer::CmdReleaseEvent(
     const IGpuEvent*          pGpuEvent)
 {
     InsertToken(CmdBufCallId::CmdReleaseEvent);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+    InsertToken(releaseInfo.srcGlobalStageMask);
+    InsertToken(releaseInfo.dstGlobalStageMask);
+#else
     InsertToken(releaseInfo.srcStageMask);
     InsertToken(releaseInfo.dstStageMask);
+#endif
     InsertToken(releaseInfo.srcGlobalAccessMask);
     InsertToken(releaseInfo.dstGlobalAccessMask);
     InsertTokenArray(releaseInfo.pMemoryBarriers, releaseInfo.memoryBarrierCount);
@@ -1316,8 +1341,13 @@ void CmdBuffer::CmdAcquireEvent(
     const IGpuEvent* const*   ppGpuEvents)
 {
     InsertToken(CmdBufCallId::CmdAcquireEvent);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+    InsertToken(acquireInfo.srcGlobalStageMask);
+    InsertToken(acquireInfo.dstGlobalStageMask);
+#else
     InsertToken(acquireInfo.srcStageMask);
     InsertToken(acquireInfo.dstStageMask);
+#endif
     InsertToken(acquireInfo.srcGlobalAccessMask);
     InsertToken(acquireInfo.dstGlobalAccessMask);
     InsertTokenArray(acquireInfo.pMemoryBarriers, acquireInfo.memoryBarrierCount);
@@ -1334,8 +1364,13 @@ void CmdBuffer::ReplayCmdReleaseEvent(
 {
     AcquireReleaseInfo releaseInfo;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+    releaseInfo.srcGlobalStageMask  = ReadTokenVal<uint32>();
+    releaseInfo.dstGlobalStageMask  = ReadTokenVal<uint32>();
+#else
     releaseInfo.srcStageMask        = ReadTokenVal<uint32>();
     releaseInfo.dstStageMask        = ReadTokenVal<uint32>();
+#endif
     releaseInfo.srcGlobalAccessMask = ReadTokenVal<uint32>();
     releaseInfo.dstGlobalAccessMask = ReadTokenVal<uint32>();
     releaseInfo.memoryBarrierCount  = ReadTokenArray(&releaseInfo.pMemoryBarriers);
@@ -1401,8 +1436,13 @@ void CmdBuffer::ReplayCmdAcquireEvent(
 {
     AcquireReleaseInfo acquireInfo;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+    acquireInfo.srcGlobalStageMask  = ReadTokenVal<uint32>();
+    acquireInfo.dstGlobalStageMask  = ReadTokenVal<uint32>();
+#else
     acquireInfo.srcStageMask        = ReadTokenVal<uint32>();
     acquireInfo.dstStageMask        = ReadTokenVal<uint32>();
+#endif
     acquireInfo.srcGlobalAccessMask = ReadTokenVal<uint32>();
     acquireInfo.dstGlobalAccessMask = ReadTokenVal<uint32>();
     acquireInfo.memoryBarrierCount  = ReadTokenArray(&acquireInfo.pMemoryBarriers);
@@ -1467,8 +1507,13 @@ void CmdBuffer::CmdReleaseThenAcquire(
     const AcquireReleaseInfo& barrierInfo)
 {
     InsertToken(CmdBufCallId::CmdReleaseThenAcquire);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+    InsertToken(barrierInfo.srcGlobalStageMask);
+    InsertToken(barrierInfo.dstGlobalStageMask);
+#else
     InsertToken(barrierInfo.srcStageMask);
     InsertToken(barrierInfo.dstStageMask);
+#endif
     InsertToken(barrierInfo.srcGlobalAccessMask);
     InsertToken(barrierInfo.dstGlobalAccessMask);
     InsertTokenArray(barrierInfo.pMemoryBarriers, barrierInfo.memoryBarrierCount);
@@ -1483,8 +1528,13 @@ void CmdBuffer::ReplayCmdReleaseThenAcquire(
 {
     AcquireReleaseInfo barrierInfo;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+    barrierInfo.srcGlobalStageMask  = ReadTokenVal<uint32>();
+    barrierInfo.dstGlobalStageMask  = ReadTokenVal<uint32>();
+#else
     barrierInfo.srcStageMask        = ReadTokenVal<uint32>();
     barrierInfo.dstStageMask        = ReadTokenVal<uint32>();
+#endif
     barrierInfo.srcGlobalAccessMask = ReadTokenVal<uint32>();
     barrierInfo.dstGlobalAccessMask = ReadTokenVal<uint32>();
     barrierInfo.memoryBarrierCount  = ReadTokenArray(&barrierInfo.pMemoryBarriers);
@@ -2674,19 +2724,21 @@ void CmdBuffer::ReplayCmdClearBoundColorTargets(
 
 // =====================================================================================================================
 void CmdBuffer::CmdClearColorImage(
-    const IImage&      image,
-    ImageLayout        imageLayout,
-    const ClearColor&  color,
-    uint32             rangeCount,
-    const SubresRange* pRanges,
-    uint32             boxCount,
-    const Box*         pBoxes,
-    uint32             flags)
+    const IImage&         image,
+    ImageLayout           imageLayout,
+    const ClearColor&     color,
+    const SwizzledFormat& clearFormat,
+    uint32                rangeCount,
+    const SubresRange*    pRanges,
+    uint32                boxCount,
+    const Box*            pBoxes,
+    uint32                flags)
 {
     InsertToken(CmdBufCallId::CmdClearColorImage);
     InsertToken(&image);
     InsertToken(imageLayout);
     InsertToken(color);
+    InsertToken(clearFormat);
     InsertTokenArray(pRanges, rangeCount);
     InsertTokenArray(pBoxes, boxCount);
     InsertToken(flags);
@@ -2700,6 +2752,7 @@ void CmdBuffer::ReplayCmdClearColorImage(
     auto               pImage      = ReadTokenVal<IImage*>();
     auto               imageLayout = ReadTokenVal<ImageLayout>();
     auto               color       = ReadTokenVal<ClearColor>();
+    auto               clearFormat = ReadTokenVal<SwizzledFormat>();
     const SubresRange* pRanges     = nullptr;
     auto               rangeCount  = ReadTokenArray(&pRanges);
     const Box*         pBoxes      = nullptr;
@@ -2709,7 +2762,15 @@ void CmdBuffer::ReplayCmdClearColorImage(
     LogItem logItem = { };
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdClearColorImage);
-    pTgtCmdBuffer->CmdClearColorImage(*pImage, imageLayout, color, rangeCount, pRanges, boxCount, pBoxes, flags);
+    pTgtCmdBuffer->CmdClearColorImage(*pImage,
+                                      imageLayout,
+                                      color,
+                                      clearFormat,
+                                      rangeCount,
+                                      pRanges,
+                                      boxCount,
+                                      pBoxes,
+                                      flags);
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 

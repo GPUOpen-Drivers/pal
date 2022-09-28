@@ -23,6 +23,7 @@
  *
  **********************************************************************************************************************/
 
+#include <Windows.h>
 #include "ddWinPipeMsgTransport.h"
 #include "protocols/systemProtocols.h"
 #include <win/ddWinPipeUtil.h>
@@ -329,8 +330,8 @@ namespace DevDriver
                 result = Result::VersionMismatch;
 
                 // check packet validity and set success if true
-                if (IsOutOfBandMessage(responseMessage) &
-                    IsValidOutOfBandMessage(responseMessage) &
+                if (IsOutOfBandMessage(responseMessage) &&
+                    IsValidOutOfBandMessage(responseMessage) &&
                     (responseMessage.header.messageId == static_cast<MessageCode>(ManagementMessage::KeepAlive)))
                 {
                     result = Result::Success;

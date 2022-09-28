@@ -939,19 +939,21 @@ void CmdBuffer::CmdClearBoundColorTargets(
 
 // =====================================================================================================================
 void CmdBuffer::CmdClearColorImage(
-    const IImage&      image,
-    ImageLayout        imageLayout,
-    const ClearColor&  color,
-    uint32             rangeCount,
-    const SubresRange* pRanges,
-    uint32             boxCount,
-    const Box*         pBoxes,
-    uint32             flags)
+    const IImage&         image,
+    ImageLayout           imageLayout,
+    const ClearColor&     color,
+    const SwizzledFormat& clearFormat,
+    uint32                rangeCount,
+    const SubresRange*    pRanges,
+    uint32                boxCount,
+    const Box*            pBoxes,
+    uint32                flags)
 {
     PreCall();
     CmdBufferFwdDecorator::CmdClearColorImage(image,
                                               imageLayout,
                                               color,
+                                              clearFormat,
                                               rangeCount,
                                               pRanges,
                                               boxCount,

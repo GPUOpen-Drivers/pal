@@ -53,7 +53,7 @@ GpuEvent::GpuEvent(
     data.pResourceDescData = static_cast<void*>(&desc);
     data.resourceDescSize = sizeof(ResourceDescriptionGpuEvent);
     data.pObj = this;
-    m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
+    m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceCreateEvent(data);
 }
 
 // =====================================================================================================================
@@ -61,7 +61,7 @@ GpuEvent::~GpuEvent()
 {
     ResourceDestroyEventData data = {};
     data.pObj = this;
-    m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(data);
+    m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceDestroyEvent(data);
 
     if (m_gpuMemory.IsBound())
     {
@@ -163,7 +163,7 @@ void GpuEvent::GetGpuMemoryRequirements(
     pGpuMemReqs->flags.u32All = 0;
     pGpuMemReqs->flags.cpuAccess = (m_createInfo.flags.gpuAccessOnly == 0);
 
-    const bool haveInvisibleMem = (m_pDevice->MemoryProperties().invisibleHeapSize > 0);
+    const bool haveInvisibleMem = (m_pDevice->HeapLogicalSize(GpuHeapInvisible) > 0);
     if (haveInvisibleMem && (m_createInfo.flags.gpuAccessOnly == 1))
     {
         pGpuMemReqs->heapCount = 4;
@@ -230,7 +230,7 @@ Result GpuEvent::BindGpuMemory(
         data.pGpuMemory = pGpuMemory;
         data.requiredGpuMemSize = gpuRequiredMemSizeInBytes;
         data.offset = offset;
-        m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceBindEvent(data);
+        m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(data);
     }
 
     return result;

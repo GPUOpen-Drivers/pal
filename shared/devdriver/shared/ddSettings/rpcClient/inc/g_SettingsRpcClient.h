@@ -72,6 +72,17 @@ public:
         size_t      paramBufferSize
     );
 
+    /// Queries the current Settings values for all components.
+    DD_RESULT GetCurrentValues(
+        const DDByteWriter& writer
+    );
+
+    /// Set a setting's value.
+    DD_RESULT SetValue(
+        const void* pParamBuffer,
+        size_t      paramBufferSize
+    );
+
 private:
     DDRpcClient m_hClient = DD_API_INVALID_HANDLE;
 };

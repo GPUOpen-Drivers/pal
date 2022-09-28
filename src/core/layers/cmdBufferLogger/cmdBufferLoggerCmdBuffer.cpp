@@ -673,6 +673,35 @@ static const void DumpClearColor(
 }
 
 // =====================================================================================================================
+static const void DumpClearFormat(
+    CmdBuffer*            pCmdBuffer,
+    const SwizzledFormat& clearFormat,
+    const char*           pTitle)
+{
+    ICmdBuffer* pNextCmdBuffer = pCmdBuffer->GetNextLayer();
+    LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
+    char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+
+    Snprintf(pString, StringLength, "%s = {", pTitle);
+    pNextCmdBuffer->CmdCommentString(pString);
+
+    Snprintf(pString,
+             StringLength,
+             "\t Format     = %s",
+             FormatToString(clearFormat.format));
+    pNextCmdBuffer->CmdCommentString(pString);
+
+    Snprintf(pString, StringLength, "\t Swizzle    = ");
+    SwizzleToString(clearFormat.swizzle, pString);
+    pNextCmdBuffer->CmdCommentString(pString);
+
+    Snprintf(pString, StringLength, "}");
+    pNextCmdBuffer->CmdCommentString(pString);
+
+    PAL_SAFE_DELETE_ARRAY(pString, &allocator);
+}
+
+// =====================================================================================================================
 static void PrintImageCreateInfo(
     CmdBuffer*             pCmdBuffer,
     const ImageCreateInfo& createInfo,
@@ -3014,6 +3043,15 @@ static void MemoryBarrierTransitionToString(
 
     pCmdBuffer->CmdCommentString("\t] // GpuMemSubAllocInfo");
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+    Snprintf(pString, StringLength, "srcStageMask->dstStageMask = { ");
+    PipelineStageFlagToString(pString, transition.srcStageMask);
+    AppendString(pString, " } -> { ");
+    PipelineStageFlagToString(pString, transition.dstStageMask);
+    AppendString(pString, " }");
+    pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
+#endif
+
     Snprintf(pString, StringLength, "\tsrcAccessMask->dstAccessMask = { ");
     CacheCoherencyUsageToString(pString, transition.srcAccessMask);
     AppendString(pString, " } -> { ");
@@ -3036,6 +3074,15 @@ static void ImageBarrierTransitionToString(
     ICmdBuffer* pNextCmdBuffer = pCmdBuffer->GetNextLayer();
     Snprintf(&string[0], StringLength, "barrierInfo.pImageBarriers[%u] = {", index);
     pNextCmdBuffer->CmdCommentString(&string[0]);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+    Snprintf(string, StringLength, "srcStageMask->dstStageMask = { ");
+    PipelineStageFlagToString(string, transition.srcStageMask);
+    AppendString(string, " } -> { ");
+    PipelineStageFlagToString(string, transition.dstStageMask);
+    AppendString(string, " }");
+    pNextCmdBuffer->CmdCommentString(string);
+#endif
 
     Snprintf(string, StringLength, "\t\tsrcAccessMask->dstAccessMask = ");
     CacheCoherencyUsageToString(string, transition.srcAccessMask);
@@ -3083,8 +3130,13 @@ static void CmdReleaseToString(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+    Snprintf(pString, StringLength, "releaseInfo.srcGlobalStageMask = ");
+    PipelineStageFlagToString(pString, barrierInfo.srcGlobalStageMask);
+#else
     Snprintf(pString, StringLength, "releaseInfo.srcStageMask = ");
     PipelineStageFlagToString(pString, barrierInfo.srcStageMask);
+#endif
     pNextCmdBuffer->CmdCommentString(pString);
 
     Snprintf(pString, StringLength, "releaseInfo.srcGlobalAccessMask = ");
@@ -3135,8 +3187,13 @@ static void CmdAcquireToString(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+    Snprintf(pString, StringLength, "acquireInfo.dstGlobalStageMask = ");
+    PipelineStageFlagToString(pString, barrierInfo.dstGlobalStageMask);
+#else
     Snprintf(pString, StringLength, "acquireInfo.dstStageMask = ");
     PipelineStageFlagToString(pString, barrierInfo.dstStageMask);
+#endif
     pNextCmdBuffer->CmdCommentString(pString);
 
     Snprintf(pString, StringLength, "acquireInfo.dstGlobalAccessMask = ");
@@ -3196,10 +3253,17 @@ static void CmdAcquireReleaseToString(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+    Snprintf(pString, StringLength, "acqRelInfo.srcGlobalStageMask->dstGlobalStageMask = { ");
+    PipelineStageFlagToString(pString, barrierInfo.srcGlobalStageMask);
+    AppendString(pString, " } -> { ");
+    PipelineStageFlagToString(pString, barrierInfo.dstGlobalStageMask);
+#else
     Snprintf(pString, StringLength, "acqRelInfo.srcStageMask->dstStageMask = { ");
     PipelineStageFlagToString(pString, barrierInfo.srcStageMask);
     AppendString(pString, " } -> { ");
     PipelineStageFlagToString(pString, barrierInfo.dstStageMask);
+#endif
     AppendString(pString, " }");
     pNextCmdBuffer->CmdCommentString(pString);
 
@@ -3369,8 +3433,13 @@ static void CmdReleaseEventToString(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+    Snprintf(pString, StringLength, "releaseInfo.srcGlobalStageMask = ");
+    PipelineStageFlagToString(pString, barrierInfo.srcGlobalStageMask);
+#else
     Snprintf(pString, StringLength, "releaseInfo.srcStageMask = ");
     PipelineStageFlagToString(pString, barrierInfo.srcStageMask);
+#endif
     pNextCmdBuffer->CmdCommentString(pString);
 
     Snprintf(pString, StringLength, "releaseInfo.srcGlobalAccessMask = ");
@@ -3480,8 +3549,13 @@ static void CmdAcquireEventToString(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+    Snprintf(pString, StringLength, "acquireInfo.dstGlobalStageMask = ");
+    PipelineStageFlagToString(pString, barrierInfo.dstGlobalStageMask);
+#else
     Snprintf(pString, StringLength, "acquireInfo.dstStageMask = ");
     PipelineStageFlagToString(pString, barrierInfo.dstStageMask);
+#endif
     pNextCmdBuffer->CmdCommentString(pString);
 
     Snprintf(pString, StringLength, "acquireInfo.dstGlobalAccessMask = ");
@@ -4814,14 +4888,15 @@ void CmdBuffer::CmdClearBoundColorTargets(
 
 // =====================================================================================================================
 void CmdBuffer::CmdClearColorImage(
-    const IImage&      image,
-    ImageLayout        imageLayout,
-    const ClearColor&  color,
-    uint32             rangeCount,
-    const SubresRange* pRanges,
-    uint32             boxCount,
-    const Box*         pBoxes,
-    uint32             flags)
+    const IImage&         image,
+    ImageLayout           imageLayout,
+    const ClearColor&     color,
+    const SwizzledFormat& clearFormat,
+    uint32                rangeCount,
+    const SubresRange*    pRanges,
+    uint32                boxCount,
+    const Box*            pBoxes,
+    uint32                flags)
 {
     if (m_annotations.logCmdBlts)
     {
@@ -4829,6 +4904,7 @@ void CmdBuffer::CmdClearColorImage(
         DumpImageInfo(this, &image, "image", "");
         DumpImageLayout(this, imageLayout, "imageLayout");
         DumpClearColor(this, color, "color");
+        DumpClearFormat(this, clearFormat, "clearFormat");
         DumpSubresRanges(this, rangeCount, pRanges);
         DumpBoxes(this, boxCount, pBoxes);
         DumpClearColorImageFlags(this, flags);
@@ -4837,6 +4913,7 @@ void CmdBuffer::CmdClearColorImage(
     GetNextLayer()->CmdClearColorImage(*NextImage(&image),
                                     imageLayout,
                                     color,
+                                    clearFormat,
                                     rangeCount,
                                     pRanges,
                                     boxCount,

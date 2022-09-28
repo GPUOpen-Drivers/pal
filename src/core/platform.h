@@ -28,11 +28,13 @@
 #include "palLib.h"
 #include "palPlatform.h"
 #include "platformSettingsLoader.h"
-#include "core/eventProvider.h"
+#include "core/gpuMemoryEventProvider.h"
 #include "g_coreSettings.h"
 #include "g_platformSettings.h"
 #include "ver.h"
 #include "ddApi.h"
+
+#include <atomic>
 
 #if PAL_BUILD_RDF
 // GpuUtil forward declarations.
@@ -204,7 +206,7 @@ public:
                             const char*     pFormat,
                             va_list         args) override;
 
-    EventProvider* GetEventProvider() { return &m_eventProvider; }
+    GpuMemoryEventProvider* GetGpuMemoryEventProvider() { return &m_gpuMemoryEventProvider; }
 
     virtual void LogEvent(
         PalEvent    eventId,
@@ -215,6 +217,9 @@ public:
 
     const uint16 GetClientApiMajorVer() const { return m_clientApiMajorVer; }
     const uint16 GetClientApiMinorVer() const { return m_clientApiMinorVer; }
+
+    // Generates an ID, unique within this Platform, for a generic resource
+    uint32 GenerateResourceId() { return m_resourceId.fetch_add(1, std::memory_order_relaxed); }
 
 #if PAL_ENABLE_LOGGING
     virtual void GetDbgLoggerFileSettings(
@@ -282,7 +287,8 @@ protected:
             uint32 gpuIsSpoofed                 : 1; // If set, ignores device properties reported by OS and pretends
                                                      // to be a given GPU instead.
             uint32 dontOpenPrimaryNode          : 1; // If set, no primary node is needed.
-            uint32 reserved                     : 23; // Reserved for future use.
+            uint32 disableDevDriver             : 1; // If set, no DevDriverServer will be created.
+            uint32 reserved                     : 22; // Reserved for future use.
         };
         uint32 u32All;
     } m_flags;
@@ -366,7 +372,8 @@ private:
     gpusize                m_svmRangeStart;
     gpusize                m_maxSvmSize;
     Util::LogCallbackInfo  m_logCb;
-    EventProvider          m_eventProvider;
+    GpuMemoryEventProvider m_gpuMemoryEventProvider;
+    std::atomic<uint32>    m_resourceId; // Seed for Resource Id generation
 
     PAL_DISALLOW_COPY_AND_ASSIGN(Platform);
 };

@@ -522,6 +522,7 @@ Result Queue::Init(
                 }
             }
             break;
+
             case QueueTypeTimer:
                 // For gang submit, we expect the queue type of any subQueue can be universalQueue,
                 // ComputeQueue or SDMAQueue. In case the queue type is not any of the three, it indicates

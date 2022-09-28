@@ -29,81 +29,108 @@
 #include <ddApi.h>
 #include <g_SettingsRpcService.h>
 #include <util/hashMap.h>
+#include <util/vector.h>
 #include <protocols/ddSettingsServiceTypes.h>
 
 using namespace DevDriver::SettingsURIService;
 
+namespace DevDriver
+{
+class SettingsBase;
+}
+
 namespace SettingsRpcService
 {
-    class SettingsService : public SettingsRpc::ISettingsRpcService
+
+class SettingsService : public SettingsRpc::ISettingsRpcService
+{
+public:
+    SettingsService(const DevDriver::AllocCb& allocCb);
+
+    virtual ~SettingsService() {}
+
+    // Queries the settings components
+    DD_RESULT GetComponents(const DDByteWriter& writer) override;
+
+    // Queries the settings for a component
+    DD_RESULT QueryComponentSettings(
+        const void*         pParamBuffer,
+        size_t              paramBufferSize,
+        const DDByteWriter& writer) override;
+
+    // Queries for the current settings values for a component
+    DD_RESULT QueryCurrentValues(
+        const void*         pParamBuffer,
+        size_t              paramBufferSize,
+        const DDByteWriter& writer) override;
+
+    // Gets the setting data hash of the component
+    DD_RESULT QuerySettingsDataHash(
+        const void*         pParamBuffer,
+        size_t              paramBufferSize,
+        const DDByteWriter& writer) override;
+
+    // Sends a setting to the driver
+    DD_RESULT SetData(const void* pParamBuffer, size_t paramBufferSize) override;
+
+    void RegisterComponent(const RegisteredComponent& component);
+
+    void UnregisterComponent(const char* pComponentName);
+
+    DevDriver::Result GetValue(
+        const RegisteredComponent& component,
+        const SettingNameHash      settingName,
+        SettingValue**             ppSettingValue,
+        bool*                      pNeedsCleanup);
+
+    inline bool IsSettingNameValid(const RegisteredComponent& component, SettingNameHash name)
     {
-    public:
-        SettingsService(const DevDriver::AllocCb& allocCb);
-
-        virtual ~SettingsService() {}
-
-        // Queries the settings components
-        virtual DD_RESULT GetComponents(const DDByteWriter& writer);
-
-        // Queries the settings for a component
-        virtual DD_RESULT QueryComponentSettings(
-            const void*         pParamBuffer,
-            size_t              paramBufferSize,
-            const DDByteWriter& writer);
-
-        // Queries for the current settings values for a component
-        virtual DD_RESULT QueryCurrentValues(
-            const void*         pParamBuffer,
-            size_t              paramBufferSize,
-            const DDByteWriter& writer);
-
-        // Gets the setting data hash of the component
-        virtual DD_RESULT QuerySettingsDataHash(
-            const void*         pParamBuffer,
-            size_t              paramBufferSize,
-            const DDByteWriter& writer);
-
-        // Sends a setting to the driver
-        virtual DD_RESULT SetData(const void* pParamBuffer, size_t paramBufferSize);
-
-        void RegisterComponent(const RegisteredComponent& component);
-
-        void UnregisterComponent(const char* pComponentName);
-
-        DevDriver::Result GetValue(
-            const RegisteredComponent& component,
-            SettingNameHash            settingName,
-            SettingValue**             ppSettingValue,
-            bool*                      pNeedsCleanup);
-
-        inline bool IsSettingNameValid(const RegisteredComponent& component, SettingNameHash name)
+        bool isValid = false;
+        if (component.pSettingsHashes != nullptr)
         {
-            if (component.pSettingsHashes != nullptr)
+            for (uint32_t i = 0; i < component.numSettings; i++)
             {
-                for (uint32_t i = 0; i < component.numSettings; i++)
+                if (component.pSettingsHashes[i] == name)
                 {
-                    if (component.pSettingsHashes[i] == name)
-                    {
-                        return true;
-                    }
+                    isValid = true;
+                    break;
                 }
             }
-            return false;
         }
+        return isValid;
+    }
 
-    private:
-        // A hash map of all the components that are currently available to the SettingsService.
-        DevDriver::HashMap<uint32_t, RegisteredComponent, 16> m_registeredComponents;
+    void RegisterSettings(DevDriver::SettingsBase* pSettingsBase);
 
-        DevDriver::AllocCb m_allocCb;
-        // Mutex to protect access to the registered components hash map which can be accessed asyncronously from separate threads
-        // from the URI calls (RegisterComponent vs. URI calls).
-        DevDriver::Platform::Mutex m_componentsMutex;
+    DD_RESULT GetCurrentValues(const DDByteWriter& writer) override;
 
-        static constexpr uint32_t kDefaultGetValueMaxDataSize = kSettingValueBufferSize - sizeof(SettingValue);
+    DD_RESULT SetValue(const void* pParamBuffer, size_t paramBufferSize) override;
 
-        // This buffer is used as temporary storage of SettingValue struct to avoid dynamically allocating memory for the common
-        // case of basic data types (bool, int, float, etc).
-        uint8_t m_pDefaultGetValueBuffer[kSettingValueBufferSize];
-    };
-}
+private:
+
+    /// A helper function to writer all values of a Settings component to a
+    /// buffer.
+    DevDriver::Vector<uint8_t> WriteAllComponentValues(
+        const DevDriver::HashMap<uint32_t, DDSettingsValueRef>& settingsMap);
+
+private:
+    // A hash map of all the components that are currently available to the SettingsService.
+    DevDriver::HashMap<uint32_t, RegisteredComponent, 16> m_registeredComponents;
+
+    // A map of all Settings components registered through `RegisterSettings`.
+    // The map key is component name.
+    DevDriver::HashMap<const char*, DevDriver::SettingsBase*> m_componentsMap;
+
+    DevDriver::AllocCb m_allocCb;
+    // Mutex to protect access to the registered components hash map which can be accessed asyncronously from separate threads
+    // from the URI calls (RegisterComponent vs. URI calls).
+    DevDriver::Platform::Mutex m_componentsMutex;
+
+    static constexpr uint32_t kDefaultGetValueMaxDataSize = kSettingValueBufferSize - sizeof(SettingValue);
+
+    // This buffer is used as temporary storage of SettingValue struct to avoid dynamically allocating memory for the common
+    // case of basic data types (bool, int, float, etc).
+    uint8_t m_pDefaultGetValueBuffer[kSettingValueBufferSize];
+};
+
+} // namespace SettingsRpcService

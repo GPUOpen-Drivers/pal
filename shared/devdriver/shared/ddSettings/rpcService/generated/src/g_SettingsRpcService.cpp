@@ -32,10 +32,10 @@ const DDRpcServerRegisterServiceInfo ISettingsRpcService::kServiceInfo = []() ->
     DDRpcServerRegisterServiceInfo info = {};
     info.id                             = 0x15375127;
     info.version.major                  = 1;
-    info.version.minor                  = 0;
+    info.version.minor                  = 1;
     info.version.patch                  = 0;
     info.pName                          = "SettingsRpc";
-    info.pDescription                   = "A service that provides functionalities for querying and modifying driver settings.";
+    info.pDescription                   = "A service that queries/modifies driver settings.";
 
     return info;
 }();
@@ -146,6 +146,48 @@ static DD_RESULT RegisterFunctions(
 
             // Execute the service implementation
             return pService->SetData(pCall->pParameterData, pCall->parameterDataSize);
+        };
+
+        result = ddRpcServerRegisterFunction(hServer, &info);
+    }
+
+    // Register "GetCurrentValues"
+    if (result == DD_RESULT_SUCCESS)
+    {
+        DDRpcServerRegisterFunctionInfo info = {};
+        info.serviceId                       = 0x15375127;
+        info.id                              = 0x6;
+        info.pName                           = "GetCurrentValues";
+        info.pDescription                    = "Queries the current Settings values for all components.";
+        info.pFuncUserdata                   = pService;
+        info.pfnFuncCb                       = [](
+            const DDRpcServerCallInfo* pCall) -> DD_RESULT
+        {
+            auto* pService = reinterpret_cast<ISettingsRpcService*>(pCall->pUserdata);
+
+            // Execute the service implementation
+            return pService->GetCurrentValues(*pCall->pWriter);
+        };
+
+        result = ddRpcServerRegisterFunction(hServer, &info);
+    }
+
+    // Register "SetValue"
+    if (result == DD_RESULT_SUCCESS)
+    {
+        DDRpcServerRegisterFunctionInfo info = {};
+        info.serviceId                       = 0x15375127;
+        info.id                              = 0x7;
+        info.pName                           = "SetValue";
+        info.pDescription                    = "Set a setting's value.";
+        info.pFuncUserdata                   = pService;
+        info.pfnFuncCb                       = [](
+            const DDRpcServerCallInfo* pCall) -> DD_RESULT
+        {
+            auto* pService = reinterpret_cast<ISettingsRpcService*>(pCall->pUserdata);
+
+            // Execute the service implementation
+            return pService->SetValue(pCall->pParameterData, pCall->parameterDataSize);
         };
 
         result = ddRpcServerRegisterFunction(hServer, &info);

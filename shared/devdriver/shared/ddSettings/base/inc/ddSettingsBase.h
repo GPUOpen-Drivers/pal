@@ -26,13 +26,25 @@
 #pragma once
 
 #include "../inc/ddSettingsTypes.h"
-#include "../inc/ddSettingsConfig.h"
-#include <settingsService.h>
+#include "../inc/ddSettingsUserOverrides.h"
 #include <stdint.h>
 #include <ddApi.h>
 #include <ddDefs.h>
 #include <util/hashMap.h>
 #include <protocols/ddSettingsServiceTypes.h>
+
+// For backwards compatibility. To be removed.
+namespace SettingsRpcService
+{
+    class SettingsService;
+}
+
+namespace Pal
+{
+class Device;
+} // namespace Pal
+
+class DdiAdapter;
 
 namespace DevDriver
 {
@@ -54,10 +66,11 @@ class SettingsBase
 // Member variables
 private:
     SettingsData* m_pSettingsData;
-    MetroHash::Hash m_settingsHash;
-    SettingsConfig m_useroverrides;
+    SettingsUserOverridesLoader m_useroverrides;
 protected:
-    HashMap<uint32_t, SettingsValueRef> m_settingValueRefsMap;
+    MetroHash::Hash m_settingsHash;
+    HashMap<DD_SETTINGS_NAME_HASH, SettingsValueRef> m_settingValueRefsMap;
+    HashMap<DD_SETTINGS_NAME_HASH, DDSettingsValueRef> m_settingsMap;
 
 public:
     SettingsBase(
@@ -66,6 +79,7 @@ public:
         size_t settingsBytes)
         : m_pSettingsData(pSettings)
         , m_settingValueRefsMap(DevDriver::Platform::GenericAllocCb)
+        , m_settingsMap(DevDriver::Platform::GenericAllocCb)
     {
         // Zero out the entire SettingsData. This ensure the struct paddings
         // are always zero, and is required for generating deterministic hashing
@@ -76,9 +90,7 @@ public:
 
     virtual ~SettingsBase() {}
 
-    virtual DD_RESULT Init(
-        const char* pUserOverridesFilePath,
-        SettingsRpcService::SettingsService* pRpcService) = 0;
+    virtual DD_RESULT Init(const char* pUserOverridesFilePath) = 0;
 
     MetroHash::Hash GetSettingsHash() const { return m_settingsHash; }
 
@@ -92,6 +104,26 @@ public:
         const SettingValue& settingValue,
         void*               pPrivateData);
 
+    /// Set the value of a setting by its name hash.
+    DD_RESULT SetValue(
+        DD_SETTINGS_NAME_HASH nameHash,
+        const DDSettingsValueRef& valPtr);
+
+    /// Get the value of a setting by its name hash.
+    DD_RESULT GetValue(
+        DD_SETTINGS_NAME_HASH nameHash,
+        DDSettingsValueRef* pOutValPtr) const;
+
+    /// Get the underlying settings map for iterating through all settings.
+    const HashMap<uint32_t, DDSettingsValueRef>& GetSettingsMap()
+    {
+        return m_settingsMap;
+    }
+
+    /// auto-generated
+    virtual const char* GetComponentName() const { return nullptr; }
+    virtual uint64_t GetComponentHash() const { return 0; }
+
 protected:
 
     /// This function is called in the static SetValue implementation, it is used
@@ -101,7 +133,7 @@ protected:
     /// value will be performed.  Success indicates the value was successfully
     /// updated, other error codes describe failures e.g. invalid parameters.
     virtual Result PerformSetValue(
-        uint32_t            hash,
+        DD_SETTINGS_NAME_HASH hash,
         const SettingValue& settingValue)
     {
         DD_UNUSED(hash);
@@ -110,32 +142,57 @@ protected:
         return DevDriver::Result::NotReady;
     }
 
+    /// This function is called in `SetValue` before actually setting the
+    /// value, giving derived classes a chance to intercept and perform
+    /// custom actions. If this function returns true, `SetValue` will stop
+    /// setting the value. Otherwise, `SetValue` sets the value as usual via memcpy.
+    virtual bool CustomSetValue(const uint32_t nameHash, const DDSettingsValueRef& valPtr)
+    {
+        DD_UNUSED(nameHash);
+        DD_UNUSED(valPtr);
+        return false;
+    }
+
     DD_RESULT LoadUserOverridesFile(const char* pFilepath)
     {
         return m_useroverrides.Load(pFilepath);
     }
 
-    /// Apply user-overrides of a specific component.
+    /// Apply all user-overrides from a file loaded by `LoadUserOverridesFile`.
     /// Return SUCCESS:
-    ///     1) The specified component is not found.
-    ///     2) The specified component found but doesn't contain any user-overrides.
-    ///     3) All user-overrides in the specified component are applied.
+    ///     1) No use-overrides file loaded.
+    ///     2) This Settings component is not found.
+    ///     3) The component found but doesn't contain any user-overrides.
+    ///     4) All user-overrides in the specified component are applied.
     /// Return SUCCESS_WITH_ERROR:
     ///     Some but not all user-overrides fail to be applied.
     /// Return other errors:
     ///     All other cases.
-    DD_RESULT ApplyUserOverridesByComponent(const char* pComponentName);
+    DD_RESULT ApplyAllUserOverrides();
+
+    /// Apply a specific user override from a file loaded by
+    /// `LoadUserOverridesFile`.
+    ///
+    /// Return SUCCESS when the specified user override is applied. Otherwise
+    /// return error.
+    DD_RESULT ApplyUserOverrideByNameHash(DD_SETTINGS_NAME_HASH nameHash);
 
     // auto-generated functions
-    virtual const char* GetComponentName() { return nullptr; }
     virtual void InitSettingsInfo() = 0;
     virtual void SetupDefaults() = 0;
+    // function signature for PAL related Settings, auto generated.
+    virtual void ReadSettings(Pal::Device* pDevice) { DD_UNUSED(pDevice); }
+    // function signature for DXC related Settings, auto generated.
+    virtual void ReadSettings(DdiAdapter* pAdapter) { DD_UNUSED(pAdapter); }
 
-    /// @deprecated, please use `SettingsRpcRegisterComponent`
+    /// @deprecated Use `SettingsService::RegisterSettings` instead.
     virtual void DevDriverRegister(SettingsRpcService::SettingsService* pRpcService)
     {
         DD_UNUSED(pRpcService);
     };
+
+private:
+    DD_RESULT ApplyUserOverrideImpl(const SettingsUserOverride& useroverride);
 
 private:
     DD_DISALLOW_COPY_AND_ASSIGN(SettingsBase);

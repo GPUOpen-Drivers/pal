@@ -25,6 +25,7 @@
 
 #include "g_platformSettings.h"
 #include "core/hw/gfxip/gfx9/gfx9BorderColorPalette.h"
+#include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9ColorBlendState.h"
 #include "core/hw/gfxip/gfx9/gfx9ColorTargetView.h"
@@ -336,14 +337,6 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.blendOptimizationsEnable   = settings.blendOptimizationsEnable;
     m_cachedSettings.outOfOrderPrimsEnable      = static_cast<uint32>(settings.enableOutOfOrderPrimitives);
     m_cachedSettings.scissorChangeWa            = settings.waMiscScissorRegisterChange;
-    m_cachedSettings.batchBreakOnNewPs         = settings.batchBreakOnNewPixelShader;
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 744)
-    m_cachedSettings.pbbMoreThanOneCtxState = (pPublicSettings->binningContextStatesPerBin > 1);
-#else
-    {
-        m_cachedSettings.pbbMoreThanOneCtxState = false;
-    }
-#endif
     m_cachedSettings.padParamCacheSpace        =
             ((pPublicSettings->contextRollOptimizationFlags & PadParamCacheSpace) != 0);
     m_cachedSettings.disableVertGrouping       = settings.disableGeCntlVtxGrouping;
@@ -386,12 +379,12 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     // The logic is based on formulas that account for the number of RBs and Channels on the ASIC.
     // The bin size is choosen from the minimum size for Depth, Color and Fmask.
     // See usage in Gfx10GetDepthBinSize() and Gfx10GetColorBinSize() for further details.
-    uint32 totalNumRbs   = chipProps.gfx9.numActiveRbs;
-    uint32 totalNumPipes = Max(totalNumRbs, chipProps.gfx9.numSdpInterfaces);
+    m_totalNumRbs        = chipProps.gfx9.numActiveRbs;
+    uint32 totalNumPipes = Max(m_totalNumRbs, chipProps.gfx9.numSdpInterfaces);
 
     if (settings.binningBinSizeRbOverride != 0)
     {
-        totalNumRbs = settings.binningBinSizeRbOverride;
+        m_totalNumRbs = settings.binningBinSizeRbOverride;
     }
 
     if (settings.binningBinSizePipesOverride != 0)
@@ -407,22 +400,22 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     constexpr uint32 FcReadTags = 44;
 
     // The logic given to calculate the Depth bin size is:
-    //   depthBinArea = ((ZsReadTags * totalNumRbs / totalNumPipes) * (ZsTagSize * totalNumPipes)) / cDepth
+    //   depthBinArea = ((ZsReadTags * m_totalNumRbs / totalNumPipes) * (ZsTagSize * totalNumPipes)) / cDepth
     // After we precalculate the constant terms, the formula becomes:
     //   depthBinArea = depthBinSizeTagPart / cDepth;
-    m_depthBinSizeTagPart   = ((ZsNumTags * totalNumRbs / totalNumPipes) * (ZsTagSize * totalNumPipes));
+    m_depthBinSizeTagPart   = ((ZsNumTags * m_totalNumRbs / totalNumPipes) * (ZsTagSize * totalNumPipes));
 
     // The logic given to calculate the Color bin size is:
-    //   colorBinArea = ((CcReadTags * totalNumRbs / totalNumPipes) * (CcTagSize * totalNumPipes)) / cColor
+    //   colorBinArea = ((CcReadTags * m_totalNumRbs / totalNumPipes) * (CcTagSize * totalNumPipes)) / cColor
     // After we precalculate the constant terms, the formula becomes:
     //   colorBinArea = colorBinSizeTagPart / cColor;
-    m_colorBinSizeTagPart   = ((CcReadTags * totalNumRbs / totalNumPipes) * (CcTagSize * totalNumPipes));
+    m_colorBinSizeTagPart   = ((CcReadTags * m_totalNumRbs / totalNumPipes) * (CcTagSize * totalNumPipes));
 
     // The logic given to calculate the Fmask bin size is:
-    //   fmaskBinArea =  ((FcReadTags * totalNumRbs / totalNumPipes) * (FcTagSize * totalNumPipes)) / cFmask
+    //   fmaskBinArea =  ((FcReadTags * m_totalNumRbs / totalNumPipes) * (FcTagSize * totalNumPipes)) / cFmask
     // After we precalculate the constant terms, the formula becomes:
     //   fmaskBinArea = fmaskBinSizeTagPart / cFmask;
-    m_fmaskBinSizeTagPart   = ((FcReadTags * totalNumRbs / totalNumPipes) * (FcTagSize * totalNumPipes));
+    m_fmaskBinSizeTagPart   = ((FcReadTags * m_totalNumRbs / totalNumPipes) * (FcTagSize * totalNumPipes));
 
     m_minBinSizeX = settings.minBatchBinSize.width;
     m_minBinSizeY = settings.minBatchBinSize.height;
@@ -449,11 +442,9 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 
     // Initialize defaults for some of the fields in PA_SC_BINNER_CNTL_0.
     m_pbbCntlRegs.paScBinnerCntl0.u32All                         = 0;
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 744)
-    m_pbbCntlRegs.paScBinnerCntl0.bits.CONTEXT_STATES_PER_BIN    = (pPublicSettings->binningContextStatesPerBin - 1);
-#else
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 744)
     {
-        m_pbbCntlRegs.paScBinnerCntl0.bits.CONTEXT_STATES_PER_BIN = 0;
+        m_contextStatesPerBin = 1;
     }
 #endif
     m_pbbCntlRegs.paScBinnerCntl0.bits.FPOVS_PER_BATCH           = settings.binningFpovsPerBatch;
@@ -469,11 +460,9 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_pbbCntlRegs.paScBinnerCntl1.u32All       = 0;
     m_cachedPbbSettings.maxAllocCountNgg       = (settings.binningMaxAllocCountNggOnChip - 1);
     m_cachedPbbSettings.maxAllocCountLegacy    = (settings.binningMaxAllocCountLegacy    - 1);
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 744)
-    m_cachedPbbSettings.persistentStatesPerBin = (pPublicSettings->binningPersistentStatesPerBin - 1);
-#else
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 744)
     {
-        m_cachedPbbSettings.persistentStatesPerBin = 0;
+        m_persistentStatesPerBin = 1;
     }
 #endif
     m_cachedPbbSettings.maxPrimsPerBatch       = (settings.binningMaxPrimPerBatch        - 1);
@@ -780,6 +769,13 @@ void UniversalCmdBuffer::ResetState()
     // PBB state at validate time.
     m_enabledPbb = false;
 
+    m_pbbCntlRegs.paScBinnerCntl0.bits.CONTEXT_STATES_PER_BIN = (m_contextStatesPerBin - 1);
+    m_cachedSettings.batchBreakOnNewPs                        = m_device.Settings().batchBreakOnNewPixelShader ||
+                                                                (m_contextStatesPerBin > 1) ||
+                                                                (m_persistentStatesPerBin > 1);
+    m_cachedSettings.pbbMoreThanOneCtxState                   = (m_contextStatesPerBin > 1);
+    m_cachedPbbSettings.persistentStatesPerBin                = (m_persistentStatesPerBin - 1);
+
     Extent2d binSize = {};
     binSize.width  = m_minBinSizeX;
     binSize.height = m_minBinSizeY;
@@ -1023,8 +1019,7 @@ void UniversalCmdBuffer::CmdBindPipeline(
             {
                 // Invalidate color caches so upcoming uav exports don't overlap previous normal exports
                 uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-                pDeCmdSpace = m_deCmdStream.WriteWaitEopGfx(HwPipePostPrefetch, SyncGlxNone, SyncCbWbInv,
-                                                            TimestampGpuVirtAddr(), pDeCmdSpace);
+                pDeCmdSpace = WriteWaitEop(HwPipePostPrefetch, SyncGlxNone, SyncCbWbInv, pDeCmdSpace);
                 m_deCmdStream.CommitCommands(pDeCmdSpace);
             }
         }
@@ -2296,8 +2291,7 @@ void UniversalCmdBuffer::CmdBindTargets(
 
     if (waitOnMetadataMipTail)
     {
-        pDeCmdSpace = m_deCmdStream.WriteWaitEopGfx(HwPipePostPrefetch, SyncGlxNone, SyncRbNone,
-                                                    TimestampGpuVirtAddr(), pDeCmdSpace);
+        pDeCmdSpace = WriteWaitEop(HwPipePostPrefetch, SyncGlxNone, SyncRbNone, pDeCmdSpace);
     }
 
     // If next draw(s) that only change D/S targets, don't program CB_RMI_GL2_CACHE_CONTROL and let the state remains.
@@ -4632,8 +4626,7 @@ Result UniversalCmdBuffer::AddPostamble()
         // by draws or dispatches. If we don't wait for idle then the driver might reset and write over that memory
         // before the shaders are done executing.
         didWaitForIdle = true;
-        pDeCmdSpace = m_deCmdStream.WriteWaitEopGfx(HwPipePostPrefetch, SyncGlxNone, SyncRbNone,
-                                                    TimestampGpuVirtAddr(), pDeCmdSpace);
+        pDeCmdSpace = WriteWaitEop(HwPipePostPrefetch, SyncGlxNone, SyncRbNone, pDeCmdSpace);
 
         // The following ATOMIC_MEM packet increments the done-count for the CE command stream, so that we can probe
         // when the command buffer has completed execution on the GPU.
@@ -4656,8 +4649,7 @@ Result UniversalCmdBuffer::AddPostamble()
         // If we didn't have a CE tracker we still need this wait-for-idle. See the comment above for the reason.
         if (didWaitForIdle == false)
         {
-            pDeCmdSpace = m_deCmdStream.WriteWaitEopGfx(HwPipePostPrefetch, SyncGlxNone, SyncRbNone,
-                                                        TimestampGpuVirtAddr(), pDeCmdSpace);
+            pDeCmdSpace = WriteWaitEop(HwPipePostPrefetch, SyncGlxNone, SyncRbNone, pDeCmdSpace);
         }
 
         pDeCmdSpace += CmdUtil::BuildAtomicMem(AtomicOp::AddInt32,
@@ -5874,56 +5866,59 @@ void UniversalCmdBuffer::ValidateVrsState()
                 rpm.CopyVrsIntoHtile(this, pClientDsView, pSubResInfo->extentTexels, m_graphicsState.pVrsImage);
             }
         }
-        else if (m_device.GetVrsDepthStencilView() != nullptr)
+        else
         {
-            // Ok, the client didn't provide a depth buffer :-( and we have source image data (that could be NULL)
-            // that's going to modify the final shading rate.  The device created a depth view for just this occassion,
-            // so get that pointer and bind it appropriately.
-            const auto*      pDsView         = m_device.GetVrsDepthStencilView();
-            const auto*      pDepthImg       = pDsView->GetImage();
-            const auto&      depthCreateInfo = pDepthImg->Parent()->GetImageCreateInfo();
-            BindTargetParams newBindParams   = GetGraphicsState().bindTargets;
-
-            // Worst case is that there are no bound color targets and we have to initialize the full dimensions
-            // of our hTile buffer with VRS data.
-            Extent3d  depthExtent = depthCreateInfo.extent;
-
-            // However, if there are bound color buffers, then set the depth extent to the dimensions of the last
-            // bound color target.  Each color target changed the scissor dimensions, so the last one should be
-            // the one that counts.
-            for (uint32  colorIdx = 0; colorIdx < newBindParams.colorTargetCount; colorIdx++)
+            const auto* pDsView = const_cast<Pal::Gfx9::Device&>(m_device).GetVrsDepthStencilView();
+            if (pDsView != nullptr)
             {
-                const auto&  colorBindInfo = newBindParams.colorTargets[colorIdx];
-                const auto*  pColorView    = static_cast<const ColorTargetView*>(colorBindInfo.pColorTargetView);
-                if (pColorView != nullptr)
+                // Ok, the client didn't provide a depth buffer :-( and we have source image data (that could be NULL)
+                // that's going to modify the final shading rate.  The device created a depth view for just this
+                // occassion, so get that pointer and bind it appropriately.
+                const auto*      pDepthImg       = pDsView->GetImage();
+                const auto&      depthCreateInfo = pDepthImg->Parent()->GetImageCreateInfo();
+                BindTargetParams newBindParams   = GetGraphicsState().bindTargets;
+
+                // Worst case is that there are no bound color targets and we have to initialize the full dimensions
+                // of our hTile buffer with VRS data.
+                Extent3d  depthExtent = depthCreateInfo.extent;
+
+                // However, if there are bound color buffers, then set the depth extent to the dimensions of the last
+                // bound color target.  Each color target changed the scissor dimensions, so the last one should be
+                // the one that counts.
+                for (uint32  colorIdx = 0; colorIdx < newBindParams.colorTargetCount; colorIdx++)
                 {
-                    const auto*  pColorImg = pColorView->GetImage();
-                    if (pColorImg != nullptr)
+                    const auto&  colorBindInfo = newBindParams.colorTargets[colorIdx];
+                    const auto*  pColorView    = static_cast<const ColorTargetView*>(colorBindInfo.pColorTargetView);
+                    if (pColorView != nullptr)
                     {
-                        depthExtent = pColorImg->Parent()->GetImageCreateInfo().extent;
-                    } // end check for a valid image bound to this view
-                } // end check for a valid view
-            } // end loop through all bound color targets
+                        const auto*  pColorImg = pColorView->GetImage();
+                        if (pColorImg != nullptr)
+                        {
+                            depthExtent = pColorImg->Parent()->GetImageCreateInfo().extent;
+                        } // end check for a valid image bound to this view
+                    } // end check for a valid view
+                } // end loop through all bound color targets
 
-            // This would be big trouble.  The HW assumes that the depth buffer is at least as big as the color
-            // buffer being rendered into...  this tripping means that the color target is larger than the depth
-            // buffer.  We're about to page fault.  Only "cure" is to recreate the device's depth buffer with
-            // a larger size.
-            PAL_ASSERT((depthExtent.width  <= depthCreateInfo.extent.width) &&
-                       (depthExtent.height <= depthCreateInfo.extent.height));
+                // This would be big trouble.  The HW assumes that the depth buffer is at least as big as the color
+                // buffer being rendered into...  this tripping means that the color target is larger than the depth
+                // buffer.  We're about to page fault.  Only "cure" is to recreate the device's depth buffer with
+                // a larger size.
+                PAL_ASSERT((depthExtent.width  <= depthCreateInfo.extent.width) &&
+                           (depthExtent.height <= depthCreateInfo.extent.height));
 
-            // Point the HW's registers to our new depth buffer.  The layout shouldn't matter much as this
-            // buffer only gets used for one thing.
-            newBindParams.depthTarget.pDepthStencilView = pDsView;
-            newBindParams.depthTarget.depthLayout       = { LayoutCopyDst, LayoutUniversalEngine };
-            CmdBindTargets(newBindParams);
+                // Point the HW's registers to our new depth buffer.  The layout shouldn't matter much as this
+                // buffer only gets used for one thing.
+                newBindParams.depthTarget.pDepthStencilView = pDsView;
+                newBindParams.depthTarget.depthLayout       = { LayoutCopyDst, LayoutUniversalEngine };
+                CmdBindTargets(newBindParams);
 
-            if (IsVrsCopyRedundant(pDsView, m_graphicsState.pVrsImage) == false)
-            {
-                AddVrsCopyMapping(pDsView, m_graphicsState.pVrsImage);
+                if (IsVrsCopyRedundant(pDsView, m_graphicsState.pVrsImage) == false)
+                {
+                    AddVrsCopyMapping(pDsView, m_graphicsState.pVrsImage);
 
-                // And copy our source data into the image associated with this new view.
-                rpm.CopyVrsIntoHtile(this, pDsView, depthExtent, m_graphicsState.pVrsImage);
+                    // And copy our source data into the image associated with this new view.
+                    rpm.CopyVrsIntoHtile(this, pDsView, depthExtent, m_graphicsState.pVrsImage);
+                }
             }
         } // end check for having a client depth buffer
     } // end check on dirty flags
@@ -6632,7 +6627,7 @@ void UniversalCmdBuffer::Gfx10GetColorBinSize(
     // this as the cases where it would impact the the suggested bin size are too few.
 
     // The logic given to calculate the Color bin size is:
-    //   colorBinArea = ((CcReadTags * totalNumRbs / totalNumPipes) * (CcTagSize * totalNumPipes)) / cColor
+    //   colorBinArea = ((CcReadTags * m_totalNumRbs / totalNumPipes) * (CcTagSize * totalNumPipes)) / cColor
     // The numerator has been pre-calculated as m_colorBinSizeTagPart.
     const uint32 colorLog2Pixels = Log2(m_colorBinSizeTagPart / cColor);
     const uint16 colorBinSizeX   = 1 << ((colorLog2Pixels + 1) / 2); // (Y_BIAS=false) round up width
@@ -6681,7 +6676,7 @@ void UniversalCmdBuffer::Gfx10GetDepthBinSize(
         // Note that final bin size is choosen from the minimum between Depth, Color and FMask.
 
         // The logic given to calculate the Depth bin size is:
-        //   depthBinArea = ((ZsReadTags * totalNumRbs / totalNumPipes) * (ZsTagSize * totalNumPipes)) / cDepth
+        //   depthBinArea = ((ZsReadTags * m_totalNumRbs / totalNumPipes) * (ZsTagSize * totalNumPipes)) / cDepth
         // The numerator has been pre-calculated as m_depthBinSizeTagPart.
         // Note that cDepth 0 to 1 falls into cDepth=1 bucket
         const uint32 depthLog2Pixels = Log2(m_depthBinSizeTagPart / Max(cDepth, 1u));
@@ -6693,7 +6688,6 @@ void UniversalCmdBuffer::Gfx10GetDepthBinSize(
         pBinSize->height = Max(depthBinSizeY, m_minBinSizeY);
     }
 }
-
 // =====================================================================================================================
 // Fills in paScBinnerCntl0/1(PA_SC_BINNER_CNTL_0/1 registers) with values that corresponds to the
 // specified binning mode and sizes.
@@ -10993,5 +10987,88 @@ void UniversalCmdBuffer::EraseVrsCopiesToDepthImage(
         }
     }
 }
+
+// =====================================================================================================================
+uint32* UniversalCmdBuffer::WriteWaitEop(
+    HwPipePoint waitPoint,
+    uint32      hwGlxSync,
+    uint32      hwRbSync,
+    uint32*     pCmdSpace)
+{
+    SyncGlxFlags glxSync = SyncGlxFlags(hwGlxSync);
+    SyncRbFlags  rbSync  = SyncRbFlags(hwRbSync);
+
+    bool waitAtPfpOrMe = true;
+
+    {
+        // We prefer to do our GCR in the release_mem if we can. This function always does an EOP wait so we don't have
+        // to worry about release_mem not supporting GCRs with EOS events. Any remaining sync flags must be handled in a
+        // trailing acquire_mem packet.
+        ReleaseMemGfx releaseInfo = {};
+        releaseInfo.vgtEvent  = m_cmdUtil.SelectEopEvent(rbSync);
+        releaseInfo.cacheSync = m_cmdUtil.SelectReleaseMemCaches(&glxSync);
+        releaseInfo.dstAddr   = AcqRelFenceValGpuVa(AcqRelEventType::Eop);
+        releaseInfo.dataSel   = data_sel__me_release_mem__send_32_bit_low;
+        releaseInfo.data      = GetNextAcqRelFenceVal(AcqRelEventType::Eop);
+
+        pCmdSpace += m_cmdUtil.BuildReleaseMemGfx(releaseInfo, pCmdSpace);
+        pCmdSpace += m_cmdUtil.BuildWaitRegMem(EngineTypeUniversal,
+                                               mem_space__me_wait_reg_mem__memory_space,
+                                               function__me_wait_reg_mem__equal_to_the_reference_value,
+                                               engine_sel__me_wait_reg_mem__micro_engine,
+                                               releaseInfo.dstAddr,
+                                               releaseInfo.data,
+                                               UINT32_MAX,
+                                               pCmdSpace);
+
+        // If we still have some caches to sync we require a final acquire_mem. It doesn't do any waiting, it just
+        // immediately does some full-range cache flush and invalidates. The previous WRM packet is the real wait.
+        if (glxSync != SyncGlxNone)
+        {
+            AcquireMemGfxSurfSync acquireInfo = {};
+            acquireInfo.cacheSync = glxSync;
+
+            pCmdSpace += m_cmdUtil.BuildAcquireMemGfxSurfSync(acquireInfo, pCmdSpace);
+
+            // acquire_mem may cause a context roll on gfx and gfx9 GPUs must be told about this.
+            m_deCmdStream.SetContextRollDetected<false>();
+        }
+
+        if (waitPoint == HwPipeTop)
+        {
+            pCmdSpace += m_cmdUtil.BuildPfpSyncMe(pCmdSpace);
+        }
+    }
+
+    if (waitAtPfpOrMe)
+    {
+        SetPm4CmdBufGfxBltState(false);
+        SetPm4CmdBufCsBltState(false);
+        SetPm4CmdBufRasterKillDrawsState(false);
+
+        if (rbSync == SyncRbWbInv)
+        {
+            SetPm4CmdBufGfxBltWriteCacheState(false);
+        }
+
+        // The previous EOP event and wait mean that anything prior to this point, including previous command
+        // buffers on this queue, have completed.
+        SetPrevCmdBufInactive();
+    }
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+uint32* UniversalCmdBuffer::WriteWaitCsIdle(
+    uint32* pCmdSpace)
+{
+    pCmdSpace += m_cmdUtil.BuildWaitCsIdle(GetEngineType(), TimestampGpuVirtAddr(), pCmdSpace);
+
+    SetPm4CmdBufCsBltState(false);
+
+    return pCmdSpace;
+}
+
 } // Gfx9
 } // Pal

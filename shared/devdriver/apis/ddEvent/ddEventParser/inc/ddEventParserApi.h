@@ -41,6 +41,19 @@ extern "C" {
                                                                     DD_EVENT_PARSER_API_MINOR_VERSION, \
                                                                     DD_EVENT_PARSER_API_PATCH_VERSION)
 
+/// This enum represents the state of a `DDEventParser`.
+typedef enum
+{
+    /// Invalid state.
+    DD_EVENT_PARSER_STATE_UNKNOWN,
+    /// The parser just parsed an event.
+    DD_EVENT_PARSER_STATE_EVENT_RECEIVED,
+    /// The parser just parsed data payload.
+    DD_EVENT_PARSER_STATE_PAYLOAD_RECEIVED,
+    /// The parser needs more data to parse the next event/payload.
+    DD_EVENT_PARSER_STATE_NEED_MORE_DATA,
+} DD_EVENT_PARSER_STATE;
+
 /// Opaque handle to an event parser
 typedef struct DDEventParser_t* DDEventParser;
 
@@ -54,7 +67,17 @@ typedef struct DDEventParserEventInfo
     uint32_t eventIndex;         /// Index of the event within the provider's event stream
                                  /// This can be used to verify that all events were correctly
                                  /// captured in the data stream.
+    uint64_t totalPayloadSize;   /// The total size of the data payload belonging to this event.
 } DDEventParserEventInfo;
+
+typedef struct DDEventParserDataPayload
+{
+    /// Pointer to the data payload.
+    const void* pData;
+    /// The size of the data payload. This is the size of the payload currently
+    /// parsed. This might not equal the total size.
+    uint64_t size;
+} DDEventParserDataPayload;
 
 /// Notifies the caller that a new event has been encountered during parsing
 ///

@@ -48,13 +48,13 @@ class Platform;
 class Queue;
 
 // =====================================================================================================================
-// The PalEventProvider class is a class derived from DevDriver EventProvider that is be responsible for logging
-// developer mode events in PAL.
-class EventProvider : public DevDriver::EventProtocol::BaseEventProvider
+// The GpuMemoryEventProvider class is a class derived from DevDriver EventProvider that is be responsible for
+// logging developer mode events in PAL.
+class GpuMemoryEventProvider final : public DevDriver::EventProtocol::BaseEventProvider
 {
 public:
-    EventProvider(Platform* pPlatform);
-    ~EventProvider() override {}
+    explicit GpuMemoryEventProvider(Platform* pPlatform);
+    ~GpuMemoryEventProvider() override {}
 
     Result Init();
     void Destroy();
@@ -113,7 +113,7 @@ public:
     static constexpr DevDriver::EventProtocol::EventProviderId kProviderId = 0x50616C45; // 'PalE'
     DevDriver::EventProtocol::EventProviderId GetId() const override { return kProviderId; }
 
-    const char* GetName() const override { return "PalEventProvider"; }
+    const char* GetName() const override { return "PalGpuMemoryEventProvider"; }
     const void* GetEventDescriptionData()     const override;
     uint32      GetEventDescriptionDataSize() const override;
 
@@ -148,7 +148,7 @@ private:
     DevDriver::Platform::Mutex m_providerLock;
     bool                       m_logRmtVersion;
 
-    PAL_DISALLOW_COPY_AND_ASSIGN(EventProvider);
+    PAL_DISALLOW_COPY_AND_ASSIGN(GpuMemoryEventProvider);
 };
 
 } // Pal

@@ -349,6 +349,9 @@ protected:
 
     TessDistributionFactors m_tessDistributionFactors;
 
+    uint8 m_contextStatesPerBin;
+    uint8 m_persistentStatesPerBin;
+
 private:
     const GfxDevice&     m_device;
     Pm4::CmdStream*const m_pDeCmdStream; // Draw engine command buffer stream.

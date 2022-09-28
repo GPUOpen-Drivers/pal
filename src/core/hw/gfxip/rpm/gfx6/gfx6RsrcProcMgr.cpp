@@ -948,11 +948,12 @@ bool RsrcProcMgr::ExpandDepthStencil(
             } // end loop through all the slices
         } // end loop through all the mip levels
 
+        Pm4CmdBuffer*    pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
         const EngineType engineType = pCmdBuffer->GetEngineType();
 
         // Allow the rewrite of depth data to complete
         uint32* pComputeCmdSpace = pComputeCmdStream->ReserveCommands();
-        pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pComputeCmdSpace);
+        pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pPm4CmdBuf->TimestampGpuVirtAddr(), pComputeCmdSpace);
         pComputeCmdStream->CommitCommands(pComputeCmdSpace);
 
         // Mark all the hTile data as fully expanded
@@ -960,7 +961,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
 
         // And wait for that to finish...
         pComputeCmdSpace  = pComputeCmdStream->ReserveCommands();
-        pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pComputeCmdSpace);
+        pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pPm4CmdBuf->TimestampGpuVirtAddr(), pComputeCmdSpace);
         pComputeCmdStream->CommitCommands(pComputeCmdSpace);
 
         pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
@@ -991,10 +992,11 @@ bool RsrcProcMgr::ExpandDepthStencil(
 // =====================================================================================================================
 // Performs a fast-clear on a Color Target Image by updating the Image's CMask buffer and/or DCC buffer.
 void RsrcProcMgr::HwlFastColorClear(
-    GfxCmdBuffer*      pCmdBuffer,
-    const GfxImage&    dstImage,
-    const uint32*      pConvertedColor,
-    const SubresRange& clearRange
+    GfxCmdBuffer*         pCmdBuffer,
+    const GfxImage&       dstImage,
+    const uint32*         pConvertedColor,
+    const SwizzledFormat& clearFormat,
+    const SubresRange&    clearRange
     ) const
 {
     PAL_ASSERT(clearRange.numPlanes == 1);
@@ -1041,8 +1043,11 @@ void RsrcProcMgr::HwlFastColorClear(
     // Restore the command buffer's state.
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
 
-    const SwizzledFormat planeFormat       = dstImage.Parent()->SubresourceInfo(clearRange.startSubres)->format;
-    uint32               swizzledColor[4]  = {};
+    const SwizzledFormat planeFormat = clearFormat.format == ChNumFormat::Undefined ?
+                                       dstImage.Parent()->SubresourceInfo(clearRange.startSubres)->format :
+                                       clearFormat;
+
+    uint32 swizzledColor[4] = {};
     Formats::SwizzleColor(planeFormat, pConvertedColor, &swizzledColor[0]);
 
     uint32 packedColor[4] = {};
@@ -1829,8 +1834,8 @@ void RsrcProcMgr::HwlDepthStencilClear(
             SlowClearCompute(pCmdBuffer,
                              *pParent,
                              isDepth ? depthLayout : stencilLayout,
-                             format,
                              &clearColor,
+                             format,
                              pRanges[idx],
                              boxCnt,
                              pBox);
@@ -2399,6 +2404,7 @@ void RsrcProcMgr::FastDepthStencilClearCompute(
         // We can't think of any efficient methods to handle cases like these and the inefficient methods are still
         // of questionable correctness.
 
+        Pm4CmdBuffer*    pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
         const EngineType engineType = pCmdBuffer->GetEngineType();
 
         regCP_COHER_CNTL cpCoherCntl;
@@ -2406,7 +2412,7 @@ void RsrcProcMgr::FastDepthStencilClearCompute(
 
         uint32*       pCmdSpace  = pCmdStream->ReserveCommands();
 
-        pCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
+        pCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pPm4CmdBuf->TimestampGpuVirtAddr(), pCmdSpace);
         pCmdSpace += m_cmdUtil.BuildGenericSync(cpCoherCntl,
                                                 SURFACE_SYNC_ENGINE_ME,
                                                 FullSyncBaseAddr,
@@ -2532,11 +2538,12 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     BindCommonGraphicsState(pCmdBuffer);
     pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
 
-    if (clearDepth && ((depth >= 0.0f) && (depth <= 1.0f)))
+    if (clearDepth)
     {
         // Enable viewport clamping if depth values are in the [0, 1] range. This avoids writing expanded depth
         // when using a float depth format. DepthExpand pipeline disables clamping by default.
-        static_cast<Pm4CmdBuffer*>(pCmdBuffer)->CmdOverwriteDisableViewportClampForBlits(false);
+        const bool disableClamp = ((depth < 0.0f) || (depth > 1.0f));
+        static_cast<Pm4CmdBuffer*>(pCmdBuffer)->CmdOverwriteDisableViewportClampForBlits(disableClamp);
     }
 
     // Select a depth/stencil state object for this clear:
@@ -3154,14 +3161,14 @@ void RsrcProcMgr::ClearHtilePlane(
     // is to add a CS_PARTIAL_FLUSH and a Texture Cache Flush after executing a single-plane initialization.
     if (pHtile->GetHtileContents() == HtileContents::DepthStencil)
     {
+        Pm4CmdBuffer*    pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
         const EngineType engineType = pCmdBuffer->GetEngineType();
 
         regCP_COHER_CNTL cpCoherCntl;
         cpCoherCntl.u32All = CpCoherCntlTexCacheMask;
 
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
-        pCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType,
-                                               pCmdBuffer->TimestampGpuVirtAddr(), pCmdSpace);
+        pCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pPm4CmdBuf->TimestampGpuVirtAddr(), pCmdSpace);
         pCmdSpace += m_cmdUtil.BuildGenericSync(cpCoherCntl,
                                                 SURFACE_SYNC_ENGINE_ME,
                                                 FullSyncBaseAddr,
@@ -3346,11 +3353,12 @@ void RsrcProcMgr::DccDecompressOnCompute(
         pComputeCmdStream->CommitCommands(pComputeCmdSpace);
     }
 
+    Pm4CmdBuffer*    pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
     const EngineType engineType = pCmdBuffer->GetEngineType();
 
     // Make sure that the decompressed image data has been written before we start fixing up DCC memory.
     pComputeCmdSpace  = pComputeCmdStream->ReserveCommands();
-    pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pComputeCmdSpace);
+    pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pPm4CmdBuf->TimestampGpuVirtAddr(), pComputeCmdSpace);
     pComputeCmdStream->CommitCommands(pComputeCmdSpace);
 
     // Put DCC memory itself back into a "fully decompressed" state.
@@ -3358,7 +3366,7 @@ void RsrcProcMgr::DccDecompressOnCompute(
 
     // And let the DCC fixup finish as well
     pComputeCmdSpace  = pComputeCmdStream->ReserveCommands();
-    pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pComputeCmdSpace);
+    pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pPm4CmdBuf->TimestampGpuVirtAddr(), pComputeCmdSpace);
     pComputeCmdStream->CommitCommands(pComputeCmdSpace);
 
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
@@ -3859,7 +3867,7 @@ void RsrcProcMgr::HwlDecodeImageViewSrd(
         pSubresRange->startSubres.arraySlice = srd.word5.bits.BASE_ARRAY;
     }
 
-    if (srd.word3.bits.TYPE == SQ_RSRC_IMG_2D_MSAA_ARRAY)
+    if (srd.word3.bits.TYPE >= SQ_RSRC_IMG_2D_MSAA)
     {
         // MSAA textures cannot be mipmapped; the BASE_LEVEL and LAST_LEVEL fields indicate the texture's sample count.
         pSubresRange->startSubres.mipLevel = 0;

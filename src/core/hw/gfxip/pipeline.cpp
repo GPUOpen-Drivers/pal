@@ -97,7 +97,7 @@ Pipeline::~Pipeline()
 
     ResourceDestroyEventData data = {};
     data.pObj = this;
-    m_pDevice->GetPlatform()->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(data);
+    m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceDestroyEvent(data);
 
     PAL_SAFE_FREE(m_pPipelineBinary, m_pDevice->GetPlatform());
 }

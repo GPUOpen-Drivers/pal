@@ -649,7 +649,7 @@ void PipelineAbiProcessor<Allocator>::RelocationHelper(
         uint64 addend      = 0;
         relocationProcessor.Get(index, &offset, &symbolIndex, &type, &addend);
 
-        uint64*const pReference = static_cast<uint64* const>(VoidPtrInc(pBuffer, static_cast<size_t>(offset)));
+        uint64*const pReference = static_cast<uint64*>(VoidPtrInc(pBuffer, static_cast<size_t>(offset)));
 
         if (pRelocationSection->GetType() == Elf::SectionHeaderType::Rel)
         {
@@ -993,6 +993,8 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
 
             symbolProcessor.Get(i, &pName, &binding, &type, &sectionIndex, &value, &size);
 
+            const Elf::Sections<Allocator>* pSections = m_elfProcessor.GetSections();
+
             AbiSectionType sectionType = AbiSectionType::Undefined;
 
             if (sectionIndex == m_pTextSection->GetIndex())
@@ -1014,6 +1016,13 @@ Result PipelineAbiProcessor<Allocator>::LoadFromBuffer(
             else if ((m_pLlvmIrSection != nullptr) && (sectionIndex == m_pLlvmIrSection->GetIndex()))
             {
                 sectionType = AbiSectionType::LlvmIr;
+            }
+            else if ((sectionIndex == pSections->GetSectionIndex(".rodata")) ||
+                     (sectionIndex == pSections->GetSectionIndex(".rodata.cached")) ||
+                     (sectionIndex == pSections->GetSectionIndex(".rodata.cst32")))
+            {
+                // NOTE: This is dummy check. Just to make sure symbols from .rodata section and its variants are
+                // valid and expected.
             }
             else if (sectionIndex != 0)
             {

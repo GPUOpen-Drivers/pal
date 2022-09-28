@@ -96,16 +96,16 @@ constexpr uint64 InternalApiPsoHash       = UINT64_MAX;  ///< Default Hash for P
 enum EngineType : uint32
 {
     /// Corresponds to the graphics hardware engine (a.k.a. graphcis ring a.k.a 3D).
-    EngineTypeUniversal        = 0x0,
+    EngineTypeUniversal,
 
     /// Corresponds to asynchronous compute engines (ACE).
-    EngineTypeCompute          = 0x1,
+    EngineTypeCompute,
 
     /// Corresponds to SDMA engines.
-    EngineTypeDma              = 0x2,
+    EngineTypeDma,
 
     /// Virtual engine that only supports inserting sleeps, used for implementing frame-pacing.
-    EngineTypeTimer            = 0x3,
+    EngineTypeTimer,
 
     /// Number of engine types.
     EngineTypeCount,
@@ -117,17 +117,17 @@ enum EngineType : uint32
 enum QueueType : uint32
 {
     /// Supports graphics commands (draws), compute commands (dispatches), and copy commands.
-    QueueTypeUniversal   = 0x0,
+    QueueTypeUniversal,
 
     /// Supports compute commands (dispatches), and copy commands.
-    QueueTypeCompute     = 0x1,
+    QueueTypeCompute,
 
     /// Supports copy commands.
-    QueueTypeDma         = 0x2,
+    QueueTypeDma,
 
     /// Virtual engine that only supports inserting sleeps, used for implementing frame pacing.
     /// This is a software-only queue.
-    QueueTypeTimer       = 0x3,
+    QueueTypeTimer,
 
     /// Number of queue types.
     QueueTypeCount,

@@ -54,7 +54,7 @@ PerfExperiment::~PerfExperiment()
 {
     ResourceDestroyEventData data = {};
     data.pObj = this;
-    m_pPlatform->GetEventProvider()->LogGpuMemoryResourceDestroyEvent(data);
+    m_pPlatform->GetGpuMemoryEventProvider()->LogGpuMemoryResourceDestroyEvent(data);
 }
 
 // =====================================================================================================================
@@ -67,7 +67,7 @@ void PerfExperiment::GetGpuMemoryRequirements(
 
     if (m_perfExperimentFlags.sqtTraceEnabled || m_perfExperimentFlags.spmTraceEnabled)
     {
-        const bool noInvisibleMem = (m_pDevice->MemoryProperties().invisibleHeapSize == 0);
+        const bool noInvisibleMem = (m_pDevice->HeapLogicalSize(GpuHeapInvisible) == 0);
 
         if (noInvisibleMem)
         {
@@ -124,7 +124,7 @@ Result PerfExperiment::BindGpuMemory(
     data.pResourceDescData = static_cast<void*>(&desc);
     data.resourceDescSize = sizeof(ResourceDescriptionPerfExperiment);
     data.pObj = this;
-    m_pPlatform->GetEventProvider()->LogGpuMemoryResourceCreateEvent(data);
+    m_pPlatform->GetGpuMemoryEventProvider()->LogGpuMemoryResourceCreateEvent(data);
 
     if (m_isFinalized == false)
     {
@@ -145,7 +145,7 @@ Result PerfExperiment::BindGpuMemory(
         bindData.pGpuMemory = pGpuMemory;
         bindData.requiredGpuMemSize = m_totalMemSize;
         bindData.offset = offset;
-        m_pPlatform->GetEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+        m_pPlatform->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
     }
 
     return result;

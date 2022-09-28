@@ -1580,6 +1580,9 @@ Result Device::InitMemInfo()
             // Linux don't support High Bandwidth Cache Controller (HBCC) memory segment
             m_memoryProperties.hbccSizeInBytes   = 0;
 
+            gpusize localHeapSize = 0;
+            gpusize invisibleHeapSize = 0;
+
             if (m_drmProcs.pfnAmdgpuQueryInfo(m_hDevice, AMDGPU_INFO_MEMORY, sizeof(memInfo), &memInfo) != 0)
             {
                 struct amdgpu_heap_info heap_info = {0};
@@ -1588,11 +1591,11 @@ Result Device::InitMemInfo()
                                                       AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED,
                                                       &heap_info) == 0)
                 {
-                    m_memoryProperties.localHeapSize     = heap_info.heap_size;
+                    localHeapSize = heap_info.heap_size;
                 }
                 if (m_drmProcs.pfnAmdgpuQueryHeapInfo(m_hDevice, AMDGPU_GEM_DOMAIN_VRAM, 0, &heap_info) == 0)
                 {
-                    m_memoryProperties.invisibleHeapSize = heap_info.heap_size;
+                    invisibleHeapSize = heap_info.heap_size;
                 }
                 if (m_drmProcs.pfnAmdgpuQueryHeapInfo(m_hDevice, AMDGPU_GEM_DOMAIN_GTT, 0, &heap_info) == 0)
                 {
@@ -1601,11 +1604,24 @@ Result Device::InitMemInfo()
             }
             else
             {
-                m_memoryProperties.localHeapSize     = memInfo.cpu_accessible_vram.total_heap_size;
-                m_memoryProperties.invisibleHeapSize = memInfo.vram.total_heap_size - m_memoryProperties.localHeapSize;
-                m_memoryProperties.nonLocalHeapSize  = Pow2AlignDown(memInfo.gtt.total_heap_size,
-                                                       m_memoryProperties.fragmentSize);
+                localHeapSize     = memInfo.cpu_accessible_vram.total_heap_size;
+                invisibleHeapSize = memInfo.vram.total_heap_size - localHeapSize;
+                m_memoryProperties.nonLocalHeapSize = Pow2AlignDown(memInfo.gtt.total_heap_size,
+                                                      m_memoryProperties.fragmentSize);
             }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 766
+            m_heapProperties[GpuHeapLocal].logicalSize      = localHeapSize;
+            m_heapProperties[GpuHeapLocal].physicalSize     = localHeapSize;
+            m_memoryProperties.barSize                      = localHeapSize;
+            m_heapProperties[GpuHeapInvisible].logicalSize  = invisibleHeapSize;
+            m_heapProperties[GpuHeapInvisible].physicalSize = invisibleHeapSize;
+#else
+            m_heapProperties[GpuHeapLocal].heapSize             = localHeapSize;
+            m_heapProperties[GpuHeapLocal].physicalHeapSize     = localHeapSize;
+            m_heapProperties[GpuHeapInvisible].heapSize         = invisibleHeapSize;
+            m_heapProperties[GpuHeapInvisible].physicalHeapSize = invisibleHeapSize;
+#endif
 
             SystemInfo systemInfo = {};
             if (QuerySystemInfo(&systemInfo) == Result::Success)

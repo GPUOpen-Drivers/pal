@@ -152,7 +152,7 @@ namespace DevDriver
         {
             Disconnect();
         }
-        else if (MsgTransport::RequiresClientRegistration() & MsgTransport::RequiresKeepAlive())
+        else if (MsgTransport::RequiresClientRegistration() && MsgTransport::RequiresKeepAlive())
         {
             // if keep alive is enabled and the last message read wasn't an error
             uint64 currentTime = Platform::GetCurrentTimeInMs();
@@ -409,7 +409,7 @@ namespace DevDriver
         using namespace DevDriver::ClientManagementProtocol;
 
         // todo: move this out into message reading loop so that it isn't getting done for every message
-        if (MsgTransport::RequiresClientRegistration() & MsgTransport::RequiresKeepAlive())
+        if (MsgTransport::RequiresClientRegistration() && MsgTransport::RequiresKeepAlive())
         {
             m_lastActivityTimeMs = Platform::GetCurrentTimeInMs();
         }
@@ -718,8 +718,8 @@ namespace DevDriver
                                 // @TODO: If we receive a regular broadcast packet here, we should ignore it instead of assuming that
                                 //        we have a version mismatch here.
 
-                                if (IsOutOfBandMessage(recvBuffer) &
-                                    IsValidOutOfBandMessage(recvBuffer) &
+                                if (IsOutOfBandMessage(recvBuffer) &&
+                                    IsValidOutOfBandMessage(recvBuffer) &&
                                     (static_cast<ManagementMessage>(recvBuffer.header.messageId) == ManagementMessage::ConnectResponse))
                                 {
                                     ConnectResponsePayload* DD_RESTRICT pConnectionResponse =

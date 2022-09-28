@@ -280,7 +280,7 @@ namespace DevDriver
                                     Result result = Result::Error;
 
                                     // Profiling can only be enabled before the server is finalized
-                                    if ((m_isFinalized == false) & (m_profilingStatus == ProfilingStatus::Available))
+                                    if ((m_isFinalized == false) && (m_profilingStatus == ProfilingStatus::Available))
                                     {
                                         m_profilingStatus = ProfilingStatus::Enabled;
                                         result = Result::Success;
@@ -627,8 +627,8 @@ namespace DevDriver
 
                         // Look for an abort request if necessary.
                         // Aborts are only supporting in the pending state if we're at an appropriate protocol version.
-                        if (((pSession->GetVersion() >= RGP_TRACE_PROGRESS_VERSION) & (!pSessionData->abortRequestedByClient)) &
-                            ((m_traceStatus != TraceStatus::Pending) | (pSession->GetVersion() >= RGP_PENDING_ABORT_VERSION)))
+                        if (((pSession->GetVersion() >= RGP_TRACE_PROGRESS_VERSION) && (!pSessionData->abortRequestedByClient)) &&
+                            ((m_traceStatus != TraceStatus::Pending) || (pSession->GetVersion() >= RGP_PENDING_ABORT_VERSION)))
                         {
                             uint32 bytesReceived = 0;
                             Result result = pSession->Receive(sizeof(pSessionData->payload), &pSessionData->payload, &bytesReceived, kNoWait);
@@ -662,7 +662,7 @@ namespace DevDriver
                                 ClearCurrentSession();
                             }
                         }
-                        else if ((m_traceStatus == TraceStatus::Running) | (m_traceStatus == TraceStatus::Finishing))
+                        else if ((m_traceStatus == TraceStatus::Running) || (m_traceStatus == TraceStatus::Finishing))
                         {
                             // We should only consider sending trace data if we're in the running or finishing states.
 
@@ -688,7 +688,7 @@ namespace DevDriver
                                     }
                                 }
 
-                                if ((result == Result::Success) &
+                                if ((result == Result::Success) &&
                                     (m_traceStatus == TraceStatus::Finishing))
                                 {
                                     // If we make it this far with a success result in the Finishing state, we've sent all the chunk data.
@@ -770,7 +770,7 @@ namespace DevDriver
             Platform::LockGuard<Platform::Mutex> lock(m_mutex);
 
             // Make sure we're not currently running a trace and that traces are currently disabled.
-            if ((m_traceStatus == TraceStatus::Idle) & (m_profilingStatus == ProfilingStatus::NotAvailable))
+            if ((m_traceStatus == TraceStatus::Idle) && (m_profilingStatus == ProfilingStatus::NotAvailable))
             {
                 m_profilingStatus = ProfilingStatus::Available;
                 result = Result::Success;
@@ -811,6 +811,15 @@ namespace DevDriver
             const bool isTraceRunning = (m_traceStatus == TraceStatus::Running);
 
             return isTraceRunning;
+        }
+
+        bool RGPServer::IsTraceOutputInProgress()
+        {
+            Platform::LockGuard<Platform::Mutex> lock(m_mutex);
+
+            const bool isTraceFinishing = (m_traceStatus == TraceStatus::Finishing);
+
+            return isTraceFinishing;
         }
 
         Result RGPServer::BeginTrace()

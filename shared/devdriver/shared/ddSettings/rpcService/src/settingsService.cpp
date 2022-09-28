@@ -25,8 +25,12 @@
 
 #include "../inc/settingsService.h"
 #include "../../base/inc/ddSettingsTypes.h"
+#include <ddSettingsBase.h>
 #include <util/vector.h>
 #include <util/ddJsonWriter.h>
+
+#define DDSETTINGS_OFFSETOF(struct_name, member) \
+    (size_t)&(((struct_name*)0)->member)
 
 using namespace DevDriver;
 
@@ -35,10 +39,10 @@ namespace SettingsRpcService
     // =====================================================================================================================
     SettingsService::SettingsService(
         const AllocCb& allocCb)
-        :
-        SettingsRpc::ISettingsRpcService(),
-        m_registeredComponents(allocCb),
-        m_allocCb(allocCb)
+        : SettingsRpc::ISettingsRpcService()
+        , m_registeredComponents(allocCb)
+        , m_componentsMap(allocCb)
+        , m_allocCb(allocCb)
     {
 
     }
@@ -438,4 +442,156 @@ namespace SettingsRpcService
         return result;
     }
 
-} // namespace
+// =============================================================================
+void SettingsService::RegisterSettings(SettingsBase* pSettingsBase)
+{
+    Platform::LockGuard<Platform::Mutex> componentsLock(m_componentsMutex);
+    m_componentsMap.Insert(pSettingsBase->GetComponentName(), pSettingsBase);
+}
+
+// =============================================================================
+DD_RESULT SettingsService::GetCurrentValues(const DDByteWriter& writer)
+{
+    DD_RESULT result = DD_RESULT_SUCCESS;
+
+    result = writer.pfnBegin(writer.pUserdata, nullptr);
+
+    if (result == DD_RESULT_SUCCESS)
+    {
+        Platform::LockGuard<Platform::Mutex> componentsLock(m_componentsMutex);
+
+        for (auto compIter = m_componentsMap.Begin();
+            compIter != m_componentsMap.End();
+            ++compIter)
+        {
+            SettingsComponentValues values = {};
+            strncpy(
+                values.componentName,
+                compIter->key,
+                strnlen(compIter->key, DevDriver::kMaxComponentNameStrLen)
+            );
+            values.componentName[DevDriver::kMaxComponentNameStrLen - 1] = '\0';
+
+            values.componentHash = compIter->value->GetComponentHash();
+
+            const HashMap<uint32_t, DDSettingsValueRef>& settingsMap =
+                compIter->value->GetSettingsMap();
+
+            Vector<uint8_t> pairsBuffer = WriteAllComponentValues(settingsMap);
+
+            size_t totalSize = sizeof(values) + pairsBuffer.Size();
+            DD_ASSERT(totalSize < UINT32_MAX);
+
+            values.nextOffset = (uint32_t)totalSize;
+
+            if (pairsBuffer.Size() > 0)
+            {
+                writer.pfnWriteBytes(writer.pUserdata, &values, sizeof(values));
+                writer.pfnWriteBytes(writer.pUserdata, pairsBuffer.Data(), pairsBuffer.Size());
+            }
+        }
+    }
+
+    writer.pfnEnd(writer.pUserdata, result);
+
+    return result;
+}
+
+// =============================================================================
+DevDriver::Vector<uint8_t> SettingsService::WriteAllComponentValues(
+    const HashMap<uint32_t, DDSettingsValueRef>& settingsMap)
+{
+    const size_t kMaxHashValuePairBufferSize =
+        sizeof(SettingsHashValuePair) + DevDriver::MaxSettingValueSize();
+
+    // This `tempBuffer` is used to store all `SettingsHashValuePair`s
+    // in a Settings component.
+    Vector<uint8_t> tempBuffer(Platform::GenericAllocCb);
+
+    // Reserve roughly enough memory.
+    tempBuffer.Reserve(kMaxHashValuePairBufferSize * settingsMap.Size());
+
+    // A big enough intermediate buffer to store a `SettingsHashValuePair`
+    // before writing it to `tempBuffer`.
+    uint8_t pairWriteBuffer[kMaxHashValuePairBufferSize] = {};
+
+    for (auto settingItr = settingsMap.Begin();
+        settingItr != settingsMap.End();
+        ++settingItr)
+    {
+        DD_ASSERT(sizeof(SettingsHashValuePair) + settingItr->value.size <= kMaxHashValuePairBufferSize);
+
+        SettingsHashValuePair* pHashValPair = (SettingsHashValuePair*)pairWriteBuffer;
+        pHashValPair->hash = settingItr->key;
+        pHashValPair->type = settingItr->value.type;
+        pHashValPair->valueBufSize = settingItr->value.size;
+
+        // Calculate aligned total size of `SettingsHashValuePair` plus the
+        // buffer storing the setting value.
+        size_t unalignedSize =
+            DDSETTINGS_OFFSETOF(SettingsHashValuePair, valueBuf[pHashValPair->valueBufSize]);
+
+        const size_t alignment = 4;
+        uint32_t totalAlignedSize = (unalignedSize + alignment - 1) & ~(alignment - 1);
+
+        pHashValPair->nextOffset = totalAlignedSize;
+
+        // write the individual setting's value to the intermediate buffer
+        memcpy(pHashValPair->valueBuf, settingItr->value.pVal, pHashValPair->valueBufSize);
+
+        size_t oldSize = tempBuffer.Size();
+        tempBuffer.Grow(totalAlignedSize);
+
+        // append a `SettingsHashValuePair` to the tempBuffer
+        memcpy(tempBuffer.Data() + oldSize, pairWriteBuffer, totalAlignedSize);
+    }
+
+    return tempBuffer;
+}
+// =============================================================================
+DD_RESULT SettingsService::SetValue(
+    const void* pParamBuffer,
+    size_t paramBufferSize)
+{
+    DD_RESULT result = DD_RESULT_SUCCESS;
+
+    if (pParamBuffer == nullptr)
+    {
+        result = DD_RESULT_COMMON_INVALID_PARAMETER;
+    }
+    else
+    {
+        const SettingsSetValueRequestParams* pParam =
+            (const SettingsSetValueRequestParams*)pParamBuffer;
+
+        size_t expectedParamBufSize =
+            DDSETTINGS_OFFSETOF(SettingsSetValueRequestParams, hashValPair) +
+            DDSETTINGS_OFFSETOF(SettingsHashValuePair, valueBuf[pParam->hashValPair.valueBufSize]);
+
+        if (expectedParamBufSize <= paramBufferSize)
+        {
+            Platform::LockGuard<Platform::Mutex> componentsLock(m_componentsMutex);
+            SettingsBase* settings = m_componentsMap.FindPointer(pParam->componentName);
+            if (settings)
+            {
+                DDSettingsValueRef valPtr = {};
+                valPtr.type = pParam->hashValPair.type;
+                valPtr.size = pParam->hashValPair.valueBufSize;
+                valPtr.pVal = (void*)(pParam->hashValPair.valueBuf);
+                result = settings->SetValue(pParam->hashValPair.hash, valPtr);
+            }
+            else
+            {
+                result = DD_RESULT_COMMON_INVALID_PARAMETER;
+            }
+        }
+        else
+        {
+            result = DD_RESULT_COMMON_INVALID_PARAMETER;
+        }
+    }
+
+    return result;
+}
+
+} // namespace SettingsRpcService
