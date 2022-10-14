@@ -479,6 +479,7 @@ Result Device::EarlyInit(
 // =====================================================================================================================
 Result Device::SetupPublicSettingDefaults()
 {
+    const GfxIpLevel gfxLevel = ChipProperties().gfxLevel;
     Result ret = Result::Success;
 
     m_publicSettings.fastDepthStencilClearMode                = FastDepthStencilClearMode::Default;
@@ -553,6 +554,17 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.trapezoidDistributionFactor              =   6;
 #endif
     m_publicSettings.nggLateAllocGs                           = 127;
+
+    if (false
+        )
+    {
+        m_publicSettings.optDepthOnlyExportRate    = true;
+    }
+    else
+    {
+        m_publicSettings.optDepthOnlyExportRate    = false;
+
+    }
 
     return ret;
 }

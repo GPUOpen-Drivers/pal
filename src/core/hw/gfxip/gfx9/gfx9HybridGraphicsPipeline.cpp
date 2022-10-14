@@ -147,7 +147,12 @@ uint32* HybridGraphicsPipeline::WriteTaskCommands(
     ) const
 {
     auto* pGfx9CmdStream = static_cast<CmdStream*>(pCmdStream);
-    pCmdSpace = m_task.WriteShCommands(pGfx9CmdStream, pCmdSpace, info, 0uLL, prefetch);
+    pCmdSpace = m_task.WriteShCommands(pGfx9CmdStream,
+                                       pCmdSpace,
+                                       info,
+                                       0uLL,
+                                       prefetch);
+
     return pCmdSpace;
 }
 

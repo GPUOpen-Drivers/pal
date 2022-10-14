@@ -495,7 +495,13 @@ uint32* ComputePipeline::WriteCommands(
     bool                            prefetch
     ) const
 {
-    return m_chunkCs.WriteShCommands(pCmdStream, pCmdSpace, csInfo, launchDescGpuVa, prefetch);
+    pCmdSpace =  m_chunkCs.WriteShCommands(pCmdStream,
+                                           pCmdSpace,
+                                           csInfo,
+                                           launchDescGpuVa,
+                                           prefetch);
+
+    return pCmdSpace;
 }
 
 // =====================================================================================================================
@@ -508,7 +514,15 @@ uint32* ComputePipeline::WriteLaunchDescriptor(
     ) const
 {
     PAL_ASSERT((launchDescGpuVa != 0uLL) && SupportDynamicDispatch());
-    return m_chunkCs.WriteShCommandsDynamic(pCmdStream, pCmdSpace, csInfo, launchDescGpuVa);
+
+    HwRegInfo::Dynamic dynamicRegs = m_chunkCs.HwInfo().dynamic;
+    pCmdSpace = m_chunkCs.UpdateDynamicRegInfo(pCmdStream, pCmdSpace, &dynamicRegs, csInfo, launchDescGpuVa);
+
+    {
+        pCmdSpace = m_chunkCs.WriteShCommandsDynamic(pCmdStream, pCmdSpace, dynamicRegs, launchDescGpuVa);
+    }
+
+    return pCmdSpace;
 }
 
 // =====================================================================================================================

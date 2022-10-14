@@ -566,7 +566,12 @@ Result GpuMemory::Init(
     // aligned addresses and sizes.
     if (createInfo.flags.sdiExternal == 0)
     {
-        m_desc.size      = Pow2Align(createInfo.size, allocGranularity);
+        const Pal::gpusize alignedSize = Pow2Align(createInfo.size, allocGranularity);
+        if (m_desc.size < alignedSize)
+        {
+            m_desc.size = alignedSize;
+        }
+
         m_desc.alignment = ((createInfo.alignment != 0) ?
                             Pow2Align(createInfo.alignment, allocGranularity) :
                             allocGranularity);
@@ -575,7 +580,11 @@ Result GpuMemory::Init(
     }
     else
     {
-        m_desc.size      = createInfo.size;
+        if (m_desc.size < createInfo.size)
+        {
+            m_desc.size = createInfo.size;
+        }
+
         m_desc.alignment = ((createInfo.alignment != 0) ? createInfo.alignment : allocGranularity);
     }
 

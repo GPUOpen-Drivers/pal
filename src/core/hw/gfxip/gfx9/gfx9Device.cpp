@@ -6498,6 +6498,9 @@ void InitializeGpuChipProperties(
     pInfo->gfx9.supportDonutTessDistribution     = 1;
     pInfo->gfx9.supportTrapezoidTessDistribution = 1;
 
+    pInfo->gfx9.supportReleaseAcquireInterface = 1;
+    pInfo->gfx9.supportSplitReleaseAcquire     = IsGfx10Plus(pInfo->gfxLevel);
+
     switch (pInfo->familyId)
     {
     // Gfx 9 APU's (Raven):
@@ -6508,8 +6511,6 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.parameterCacheLines            = 1024;
         pInfo->gfx9.rbPlus                         = 1;
         pInfo->gfx9.numSdpInterfaces               = 2;
-        pInfo->gfx9.supportReleaseAcquireInterface = 1;
-        pInfo->gfx9.supportSplitReleaseAcquire     = 0;
         pInfo->gfxip.supportCaptureReplay          = 0;
 
         if (ASICREV_IS_RAVEN(pInfo->eRevId))
@@ -6552,8 +6553,6 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.numShaderEngines               = 4;
         pInfo->gfx9.maxGsWavesPerVgt               = 32;
         pInfo->gfx9.parameterCacheLines            = 2048;
-        pInfo->gfx9.supportReleaseAcquireInterface = 1;
-        pInfo->gfx9.supportSplitReleaseAcquire     = 0;
 
         if (ASICREV_IS_VEGA10_P(pInfo->eRevId))
         {
@@ -6600,8 +6599,6 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.parameterCacheLines            = 1024;
         pInfo->gfx9.supportSpp                     = 1;
         pInfo->gfx9.supportMsaaCoverageOut         = 1;
-        pInfo->gfx9.supportReleaseAcquireInterface = 1;
-        pInfo->gfx9.supportSplitReleaseAcquire     = 1;
 
         // GFX10-specific image properties go here
         pInfo->imageProperties.flags.supportsCornerSampling = 1;

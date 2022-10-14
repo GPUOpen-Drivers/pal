@@ -215,11 +215,11 @@ Result GpuMemory::AllocateOrPinMemory(
                     // (2) Remote memory: just care about the first remote heap regardless of the second.
                     for (uint32 heap = 0; heap < m_heapCount; ++heap)
                     {
-                        const GpuHeap gpuHeap   = m_heaps[heap];
-                        const auto&   heapProps = m_pDevice->HeapProperties(gpuHeap);
+                        const GpuHeap gpuHeap  = m_heaps[heap];
+                        const gpusize heapSize = m_pDevice->HeapLogicalSize(gpuHeap);
 
                         // Make sure the requested heap exists
-                        if (heapProps.heapSize != 0)
+                        if (heapSize != 0)
                         {
                             validHeapFound = true;
 

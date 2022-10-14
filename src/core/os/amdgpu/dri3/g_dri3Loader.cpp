@@ -58,23 +58,531 @@ void Dri3LoaderFuncsProxy::Init(const char* pLogPath)
 }
 
 // =====================================================================================================================
-xcb_connection_t* Dri3LoaderFuncsProxy::pfnXGetXCBConnection(
-    Display*  pDisplay
+xcb_dri3_open_cookie_t Dri3LoaderFuncsProxy::pfnXcbDri3Open(
+    xcb_connection_t*  pConnection,
+    xcb_drawable_t     drawable,
+    uint32             provider
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    xcb_connection_t* pRet = m_pFuncs->pfnXGetXCBConnection(pDisplay);
+    xcb_dri3_open_cookie_t ret = m_pFuncs->pfnXcbDri3Open(pConnection,
+                                                          drawable,
+                                                          provider);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
-    m_timeLogger.Printf("XGetXCBConnection,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Printf("XcbDri3Open,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
     m_paramLogger.Printf(
-        "XGetXCBConnection(%p)\n",
-        pDisplay);
+        "XcbDri3Open(%p, %x, %x)\n",
+        pConnection,
+        drawable,
+        provider);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+xcb_dri3_open_reply_t* Dri3LoaderFuncsProxy::pfnXcbDri3OpenReply(
+    xcb_connection_t*       pConnection,
+    xcb_dri3_open_cookie_t  cookie,
+    xcb_generic_error_t**   ppError
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_dri3_open_reply_t* pRet = m_pFuncs->pfnXcbDri3OpenReply(pConnection,
+                                                                cookie,
+                                                                ppError);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbDri3OpenReply,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbDri3OpenReply(%p, %p, %p)\n",
+        pConnection,
+        &cookie,
+        ppError);
     m_paramLogger.Flush();
 
     return pRet;
+}
+
+// =====================================================================================================================
+int32* Dri3LoaderFuncsProxy::pfnXcbDri3OpenReplyFds(
+    xcb_connection_t*       pConnection,
+    xcb_dri3_open_reply_t*  pReply
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int32* pRet = m_pFuncs->pfnXcbDri3OpenReplyFds(pConnection,
+                                                   pReply);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbDri3OpenReplyFds,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbDri3OpenReplyFds(%p, %p)\n",
+        pConnection,
+        pReply);
+    m_paramLogger.Flush();
+
+    return pRet;
+}
+
+// =====================================================================================================================
+xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbDri3FenceFromFdChecked(
+    xcb_connection_t*  pConnection,
+    xcb_drawable_t     drawable,
+    uint32             fence,
+    uint8              initiallyTriggered,
+    int32              fenceFd
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_void_cookie_t ret = m_pFuncs->pfnXcbDri3FenceFromFdChecked(pConnection,
+                                                                   drawable,
+                                                                   fence,
+                                                                   initiallyTriggered,
+                                                                   fenceFd);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbDri3FenceFromFdChecked,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbDri3FenceFromFdChecked(%p, %x, %x, %x, %x)\n",
+        pConnection,
+        drawable,
+        fence,
+        initiallyTriggered,
+        fenceFd);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbDri3PixmapFromBufferChecked(
+    xcb_connection_t*  pConnection,
+    xcb_pixmap_t       pixmap,
+    xcb_drawable_t     drawable,
+    uint32             size,
+    uint16             width,
+    uint16             height,
+    uint16             stride,
+    uint8              depth,
+    uint8              bpp,
+    int32              pixmapFd
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_void_cookie_t ret = m_pFuncs->pfnXcbDri3PixmapFromBufferChecked(pConnection,
+                                                                        pixmap,
+                                                                        drawable,
+                                                                        size,
+                                                                        width,
+                                                                        height,
+                                                                        stride,
+                                                                        depth,
+                                                                        bpp,
+                                                                        pixmapFd);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbDri3PixmapFromBufferChecked,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbDri3PixmapFromBufferChecked(%p, %x, %x, %x, %x, %x, %x, %x, %x, %x)\n",
+        pConnection,
+        pixmap,
+        drawable,
+        size,
+        width,
+        height,
+        stride,
+        depth,
+        bpp,
+        pixmapFd);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+xcb_dri3_query_version_cookie_t Dri3LoaderFuncsProxy::pfnXcbDri3QueryVersion(
+    xcb_connection_t*  pConnection,
+    uint32             majorVersion,
+    uint32             minorVersion
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_dri3_query_version_cookie_t ret = m_pFuncs->pfnXcbDri3QueryVersion(pConnection,
+                                                                           majorVersion,
+                                                                           minorVersion);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbDri3QueryVersion,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbDri3QueryVersion(%p, %x, %x)\n",
+        pConnection,
+        majorVersion,
+        minorVersion);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+xcb_dri3_query_version_reply_t* Dri3LoaderFuncsProxy::pfnXcbDri3QueryVersionReply(
+    xcb_connection_t*                pConnection,
+    xcb_dri3_query_version_cookie_t  cookie,
+    xcb_generic_error_t**            ppError
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_dri3_query_version_reply_t* pRet = m_pFuncs->pfnXcbDri3QueryVersionReply(pConnection,
+                                                                                 cookie,
+                                                                                 ppError);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbDri3QueryVersionReply,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbDri3QueryVersionReply(%p, %p, %p)\n",
+        pConnection,
+        &cookie,
+        ppError);
+    m_paramLogger.Flush();
+
+    return pRet;
+}
+
+// =====================================================================================================================
+xcb_present_query_version_cookie_t Dri3LoaderFuncsProxy::pfnXcbPresentQueryVersion(
+    xcb_connection_t*  pConnection,
+    uint32             majorVersion,
+    uint32             minorVersion
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_present_query_version_cookie_t ret = m_pFuncs->pfnXcbPresentQueryVersion(pConnection,
+                                                                                 majorVersion,
+                                                                                 minorVersion);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbPresentQueryVersion,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbPresentQueryVersion(%p, %x, %x)\n",
+        pConnection,
+        majorVersion,
+        minorVersion);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+xcb_present_query_version_reply_t* Dri3LoaderFuncsProxy::pfnXcbPresentQueryVersionReply(
+    xcb_connection_t*                   pConnection,
+    xcb_present_query_version_cookie_t  cookie,
+    xcb_generic_error_t**               ppError
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_present_query_version_reply_t* pRet = m_pFuncs->pfnXcbPresentQueryVersionReply(pConnection,
+                                                                                       cookie,
+                                                                                       ppError);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbPresentQueryVersionReply,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbPresentQueryVersionReply(%p, %p, %p)\n",
+        pConnection,
+        &cookie,
+        ppError);
+    m_paramLogger.Flush();
+
+    return pRet;
+}
+
+// =====================================================================================================================
+xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbPresentSelectInputChecked(
+    xcb_connection_t*    pConnection,
+    xcb_present_event_t  eventId,
+    xcb_window_t         window,
+    uint32               eventMask
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_void_cookie_t ret = m_pFuncs->pfnXcbPresentSelectInputChecked(pConnection,
+                                                                      eventId,
+                                                                      window,
+                                                                      eventMask);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbPresentSelectInputChecked,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbPresentSelectInputChecked(%p, %x, %x, %x)\n",
+        pConnection,
+        eventId,
+        window,
+        eventMask);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbPresentPixmapChecked(
+    xcb_connection_t*            pConnection,
+    xcb_window_t                 window,
+    xcb_pixmap_t                 pixmap,
+    uint32                       serial,
+    xcb_xfixes_region_t          valid,
+    xcb_xfixes_region_t          update,
+    int16                        xOff,
+    int16                        yO_off,
+    xcb_randr_crtc_t             targetCrtc,
+    xcb_sync_fence_t             waitFence,
+    xcb_sync_fence_t             idleFence,
+    uint32                       options,
+    uint64                       targetMsc,
+    uint64                       divisor,
+    uint64                       remainder,
+    uint32                       notifiesLen,
+    const xcb_present_notify_t*  pNotifies
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_void_cookie_t ret = m_pFuncs->pfnXcbPresentPixmapChecked(pConnection,
+                                                                 window,
+                                                                 pixmap,
+                                                                 serial,
+                                                                 valid,
+                                                                 update,
+                                                                 xOff,
+                                                                 yO_off,
+                                                                 targetCrtc,
+                                                                 waitFence,
+                                                                 idleFence,
+                                                                 options,
+                                                                 targetMsc,
+                                                                 divisor,
+                                                                 remainder,
+                                                                 notifiesLen,
+                                                                 pNotifies);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbPresentPixmapChecked,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbPresentPixmapChecked(%p, %x, %x, %x, %x, %x, %x, %x, %x, %x, %x, %x, %lx, %lx, %lx, %x, %p)\n",
+        pConnection,
+        window,
+        pixmap,
+        serial,
+        valid,
+        update,
+        xOff,
+        yO_off,
+        targetCrtc,
+        waitFence,
+        idleFence,
+        options,
+        targetMsc,
+        divisor,
+        remainder,
+        notifiesLen,
+        pNotifies);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbSyncCreateFenceChecked(
+    xcb_connection_t*  pConnection,
+    xcb_drawable_t     drawable,
+    xcb_sync_fence_t   fence,
+    uint8              initially_triggered
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_void_cookie_t ret = m_pFuncs->pfnXcbSyncCreateFenceChecked(pConnection,
+                                                                   drawable,
+                                                                   fence,
+                                                                   initially_triggered);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbSyncCreateFenceChecked,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbSyncCreateFenceChecked(%p, %x, %x, %x)\n",
+        pConnection,
+        drawable,
+        fence,
+        initially_triggered);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbSyncTriggerFenceChecked(
+    xcb_connection_t*  pConnection,
+    xcb_sync_fence_t   fence
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_void_cookie_t ret = m_pFuncs->pfnXcbSyncTriggerFenceChecked(pConnection,
+                                                                    fence);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbSyncTriggerFenceChecked,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbSyncTriggerFenceChecked(%p, %x)\n",
+        pConnection,
+        fence);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbSyncResetFence(
+    xcb_connection_t*  pConnection,
+    xcb_sync_fence_t   fence
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_void_cookie_t ret = m_pFuncs->pfnXcbSyncResetFence(pConnection,
+                                                           fence);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbSyncResetFence,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbSyncResetFence(%p, %x)\n",
+        pConnection,
+        fence);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbSyncAwaitFenceChecked(
+    xcb_connection_t*  pConnection,
+    uint32             fence_list_len,
+    xcb_sync_fence_t*  fence_list
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_void_cookie_t ret = m_pFuncs->pfnXcbSyncAwaitFenceChecked(pConnection,
+                                                                  fence_list_len,
+                                                                  fence_list);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbSyncAwaitFenceChecked,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbSyncAwaitFenceChecked(%p, %x, %p)\n",
+        pConnection,
+        fence_list_len,
+        fence_list);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+xcb_sync_query_fence_cookie_t Dri3LoaderFuncsProxy::pfnXcbSyncQueryFence(
+    xcb_connection_t*  pConnection,
+    xcb_sync_fence_t   fence
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_sync_query_fence_cookie_t ret = m_pFuncs->pfnXcbSyncQueryFence(pConnection,
+                                                                       fence);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbSyncQueryFence,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbSyncQueryFence(%p, %x)\n",
+        pConnection,
+        fence);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+xcb_sync_query_fence_reply_t* Dri3LoaderFuncsProxy::pfnXcbSyncQueryFenceReply(
+    xcb_connection_t*              pConnection,
+    xcb_sync_query_fence_cookie_t  cookie,
+    xcb_generic_error_t**          ppError
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_sync_query_fence_reply_t* pRet = m_pFuncs->pfnXcbSyncQueryFenceReply(pConnection,
+                                                                             cookie,
+                                                                             ppError);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbSyncQueryFenceReply,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbSyncQueryFenceReply(%p, %p, %p)\n",
+        pConnection,
+        &cookie,
+        ppError);
+    m_paramLogger.Flush();
+
+    return pRet;
+}
+
+// =====================================================================================================================
+xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbSyncDestroyFenceChecked(
+    xcb_connection_t*  pConnection,
+    xcb_sync_fence_t   fence
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    xcb_void_cookie_t ret = m_pFuncs->pfnXcbSyncDestroyFenceChecked(pConnection,
+                                                                    fence);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("XcbSyncDestroyFenceChecked,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "XcbSyncDestroyFenceChecked(%p, %x)\n",
+        pConnection,
+        fence);
+    m_paramLogger.Flush();
+
+    return ret;
 }
 
 // =====================================================================================================================
@@ -884,209 +1392,95 @@ void Dri3LoaderFuncsProxy::pfnXshmfenceReset(
 }
 
 // =====================================================================================================================
-xcb_dri3_open_cookie_t Dri3LoaderFuncsProxy::pfnXcbDri3Open(
-    xcb_connection_t*  pConnection,
-    xcb_drawable_t     drawable,
-    uint32             provider
+xcb_connection_t* Dri3LoaderFuncsProxy::pfnXGetXCBConnection(
+    Display*  pDisplay
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    xcb_dri3_open_cookie_t ret = m_pFuncs->pfnXcbDri3Open(pConnection,
-                                                          drawable,
-                                                          provider);
+    xcb_connection_t* pRet = m_pFuncs->pfnXGetXCBConnection(pDisplay);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
-    m_timeLogger.Printf("XcbDri3Open,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Printf("XGetXCBConnection,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
     m_paramLogger.Printf(
-        "XcbDri3Open(%p, %x, %x)\n",
-        pConnection,
-        drawable,
-        provider);
-    m_paramLogger.Flush();
-
-    return ret;
-}
-
-// =====================================================================================================================
-xcb_dri3_open_reply_t* Dri3LoaderFuncsProxy::pfnXcbDri3OpenReply(
-    xcb_connection_t*       pConnection,
-    xcb_dri3_open_cookie_t  cookie,
-    xcb_generic_error_t**   ppError
-    ) const
-{
-    const int64 begin = Util::GetPerfCpuTime();
-    xcb_dri3_open_reply_t* pRet = m_pFuncs->pfnXcbDri3OpenReply(pConnection,
-                                                                cookie,
-                                                                ppError);
-    const int64 end = Util::GetPerfCpuTime();
-    const int64 elapse = end - begin;
-    m_timeLogger.Printf("XcbDri3OpenReply,%ld,%ld,%ld\n", begin, end, elapse);
-    m_timeLogger.Flush();
-
-    m_paramLogger.Printf(
-        "XcbDri3OpenReply(%p, %p, %p)\n",
-        pConnection,
-        &cookie,
-        ppError);
+        "XGetXCBConnection(%p)\n",
+        pDisplay);
     m_paramLogger.Flush();
 
     return pRet;
 }
 
 // =====================================================================================================================
-int32* Dri3LoaderFuncsProxy::pfnXcbDri3OpenReplyFds(
-    xcb_connection_t*       pConnection,
-    xcb_dri3_open_reply_t*  pReply
+XVisualInfo* Dri3LoaderFuncsProxy::pfnXGetVisualInfo(
+    Display*      pDisplay,
+    long          visualMask,
+    XVisualInfo*  pVisualInfoList,
+    int32*        count
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    int32* pRet = m_pFuncs->pfnXcbDri3OpenReplyFds(pConnection,
-                                                   pReply);
+    XVisualInfo* pRet = m_pFuncs->pfnXGetVisualInfo(pDisplay,
+                                                    visualMask,
+                                                    pVisualInfoList,
+                                                    count);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
-    m_timeLogger.Printf("XcbDri3OpenReplyFds,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Printf("XGetVisualInfo,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
     m_paramLogger.Printf(
-        "XcbDri3OpenReplyFds(%p, %p)\n",
-        pConnection,
-        pReply);
+        "XGetVisualInfo(%p, %x, %p, %p)\n",
+        pDisplay,
+        visualMask,
+        pVisualInfoList,
+        count);
     m_paramLogger.Flush();
 
     return pRet;
 }
 
 // =====================================================================================================================
-xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbDri3FenceFromFdChecked(
-    xcb_connection_t*  pConnection,
-    xcb_drawable_t     drawable,
-    uint32             fence,
-    uint8              initiallyTriggered,
-    int32              fenceFd
+int32 Dri3LoaderFuncsProxy::pfnXFree(
+    void*  pAddress
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    xcb_void_cookie_t ret = m_pFuncs->pfnXcbDri3FenceFromFdChecked(pConnection,
-                                                                   drawable,
-                                                                   fence,
-                                                                   initiallyTriggered,
-                                                                   fenceFd);
+    int32 ret = m_pFuncs->pfnXFree(pAddress);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
-    m_timeLogger.Printf("XcbDri3FenceFromFdChecked,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Printf("XFree,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
     m_paramLogger.Printf(
-        "XcbDri3FenceFromFdChecked(%p, %x, %x, %x, %x)\n",
-        pConnection,
-        drawable,
-        fence,
-        initiallyTriggered,
-        fenceFd);
+        "XFree(%p)\n",
+        pAddress);
     m_paramLogger.Flush();
 
     return ret;
 }
 
 // =====================================================================================================================
-xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbDri3PixmapFromBufferChecked(
-    xcb_connection_t*  pConnection,
-    xcb_pixmap_t       pixmap,
-    xcb_drawable_t     drawable,
-    uint32             size,
-    uint16             width,
-    uint16             height,
-    uint16             stride,
-    uint8              depth,
-    uint8              bpp,
-    int32              pixmapFd
+Window Dri3LoaderFuncsProxy::pfnXRootWindow(
+    Display*  pDisplay,
+    int       screenNum
     ) const
 {
     const int64 begin = Util::GetPerfCpuTime();
-    xcb_void_cookie_t ret = m_pFuncs->pfnXcbDri3PixmapFromBufferChecked(pConnection,
-                                                                        pixmap,
-                                                                        drawable,
-                                                                        size,
-                                                                        width,
-                                                                        height,
-                                                                        stride,
-                                                                        depth,
-                                                                        bpp,
-                                                                        pixmapFd);
+    Window ret = m_pFuncs->pfnXRootWindow(pDisplay,
+                                          screenNum);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
-    m_timeLogger.Printf("XcbDri3PixmapFromBufferChecked,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Printf("XRootWindow,%ld,%ld,%ld\n", begin, end, elapse);
     m_timeLogger.Flush();
 
     m_paramLogger.Printf(
-        "XcbDri3PixmapFromBufferChecked(%p, %x, %x, %x, %x, %x, %x, %x, %x, %x)\n",
-        pConnection,
-        pixmap,
-        drawable,
-        size,
-        width,
-        height,
-        stride,
-        depth,
-        bpp,
-        pixmapFd);
+        "XRootWindow(%p, %x)\n",
+        pDisplay,
+        screenNum);
     m_paramLogger.Flush();
 
     return ret;
-}
-
-// =====================================================================================================================
-xcb_dri3_query_version_cookie_t Dri3LoaderFuncsProxy::pfnXcbDri3QueryVersion(
-    xcb_connection_t*  pConnection,
-    uint32             majorVersion,
-    uint32             minorVersion
-    ) const
-{
-    const int64 begin = Util::GetPerfCpuTime();
-    xcb_dri3_query_version_cookie_t ret = m_pFuncs->pfnXcbDri3QueryVersion(pConnection,
-                                                                           majorVersion,
-                                                                           minorVersion);
-    const int64 end = Util::GetPerfCpuTime();
-    const int64 elapse = end - begin;
-    m_timeLogger.Printf("XcbDri3QueryVersion,%ld,%ld,%ld\n", begin, end, elapse);
-    m_timeLogger.Flush();
-
-    m_paramLogger.Printf(
-        "XcbDri3QueryVersion(%p, %x, %x)\n",
-        pConnection,
-        majorVersion,
-        minorVersion);
-    m_paramLogger.Flush();
-
-    return ret;
-}
-
-// =====================================================================================================================
-xcb_dri3_query_version_reply_t* Dri3LoaderFuncsProxy::pfnXcbDri3QueryVersionReply(
-    xcb_connection_t*                pConnection,
-    xcb_dri3_query_version_cookie_t  cookie,
-    xcb_generic_error_t**            ppError
-    ) const
-{
-    const int64 begin = Util::GetPerfCpuTime();
-    xcb_dri3_query_version_reply_t* pRet = m_pFuncs->pfnXcbDri3QueryVersionReply(pConnection,
-                                                                                 cookie,
-                                                                                 ppError);
-    const int64 end = Util::GetPerfCpuTime();
-    const int64 elapse = end - begin;
-    m_timeLogger.Printf("XcbDri3QueryVersionReply,%ld,%ld,%ld\n", begin, end, elapse);
-    m_timeLogger.Flush();
-
-    m_paramLogger.Printf(
-        "XcbDri3QueryVersionReply(%p, %p, %p)\n",
-        pConnection,
-        &cookie,
-        ppError);
-    m_paramLogger.Flush();
-
-    return pRet;
 }
 
 // =====================================================================================================================
@@ -1301,7 +1695,7 @@ xcb_randr_get_screen_resources_cookie_t Dri3LoaderFuncsProxy::pfnXcbRandrGetScre
 {
     const int64 begin = Util::GetPerfCpuTime();
     xcb_randr_get_screen_resources_cookie_t ret = m_pFuncs->pfnXcbRandrGetScreenResourcesCurrent(pConnection,
-                                                                                          window);
+                                                                                                 window);
     const int64 end = Util::GetPerfCpuTime();
     const int64 elapse = end - begin;
     m_timeLogger.Printf("XcbRandrGetScreenResourcesCurrent,%ld,%ld,%ld\n", begin, end, elapse);
@@ -1964,273 +2358,6 @@ xcb_get_window_attributes_reply_t* Dri3LoaderFuncsProxy::pfnXcbGetWindowAttribut
     return pRet;
 }
 
-// =====================================================================================================================
-xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbSyncTriggerFenceChecked(
-    xcb_connection_t*  pConnection,
-    xcb_sync_fence_t   fence
-    ) const
-{
-    const int64 begin = Util::GetPerfCpuTime();
-    xcb_void_cookie_t ret = m_pFuncs->pfnXcbSyncTriggerFenceChecked(pConnection,
-                                                                    fence);
-    const int64 end = Util::GetPerfCpuTime();
-    const int64 elapse = end - begin;
-    m_timeLogger.Printf("XcbSyncTriggerFenceChecked,%ld,%ld,%ld\n", begin, end, elapse);
-    m_timeLogger.Flush();
-
-    m_paramLogger.Printf(
-        "XcbSyncTriggerFenceChecked(%p, %x)\n",
-        pConnection,
-        fence);
-    m_paramLogger.Flush();
-
-    return ret;
-}
-
-// =====================================================================================================================
-xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbSyncDestroyFenceChecked(
-    xcb_connection_t*  pConnection,
-    xcb_sync_fence_t   fence
-    ) const
-{
-    const int64 begin = Util::GetPerfCpuTime();
-    xcb_void_cookie_t ret = m_pFuncs->pfnXcbSyncDestroyFenceChecked(pConnection,
-                                                                    fence);
-    const int64 end = Util::GetPerfCpuTime();
-    const int64 elapse = end - begin;
-    m_timeLogger.Printf("XcbSyncDestroyFenceChecked,%ld,%ld,%ld\n", begin, end, elapse);
-    m_timeLogger.Flush();
-
-    m_paramLogger.Printf(
-        "XcbSyncDestroyFenceChecked(%p, %x)\n",
-        pConnection,
-        fence);
-    m_paramLogger.Flush();
-
-    return ret;
-}
-
-// =====================================================================================================================
-XVisualInfo* Dri3LoaderFuncsProxy::pfnXGetVisualInfo(
-    Display*      pDisplay,
-    long          visualMask,
-    XVisualInfo*  pVisualInfoList,
-    int32*        count
-    ) const
-{
-    const int64 begin = Util::GetPerfCpuTime();
-    XVisualInfo* pRet = m_pFuncs->pfnXGetVisualInfo(pDisplay,
-                                                    visualMask,
-                                                    pVisualInfoList,
-                                                    count);
-    const int64 end = Util::GetPerfCpuTime();
-    const int64 elapse = end - begin;
-    m_timeLogger.Printf("XGetVisualInfo,%ld,%ld,%ld\n", begin, end, elapse);
-    m_timeLogger.Flush();
-
-    m_paramLogger.Printf(
-        "XGetVisualInfo(%p, %x, %p, %p)\n",
-        pDisplay,
-        visualMask,
-        pVisualInfoList,
-        count);
-    m_paramLogger.Flush();
-
-    return pRet;
-}
-
-// =====================================================================================================================
-int32 Dri3LoaderFuncsProxy::pfnXFree(
-    void*  pAddress
-    ) const
-{
-    const int64 begin = Util::GetPerfCpuTime();
-    int32 ret = m_pFuncs->pfnXFree(pAddress);
-    const int64 end = Util::GetPerfCpuTime();
-    const int64 elapse = end - begin;
-    m_timeLogger.Printf("XFree,%ld,%ld,%ld\n", begin, end, elapse);
-    m_timeLogger.Flush();
-
-    m_paramLogger.Printf(
-        "XFree(%p)\n",
-        pAddress);
-    m_paramLogger.Flush();
-
-    return ret;
-}
-
-// =====================================================================================================================
-Window Dri3LoaderFuncsProxy::pfnXRootWindow(
-    Display*  pDisplay,
-    int       screenNum
-    ) const
-{
-    const int64 begin = Util::GetPerfCpuTime();
-    Window ret = m_pFuncs->pfnXRootWindow(pDisplay,
-                                          screenNum);
-    const int64 end = Util::GetPerfCpuTime();
-    const int64 elapse = end - begin;
-    m_timeLogger.Printf("XRootWindow,%ld,%ld,%ld\n", begin, end, elapse);
-    m_timeLogger.Flush();
-
-    m_paramLogger.Printf(
-        "XRootWindow(%p, %x)\n",
-        pDisplay,
-        screenNum);
-    m_paramLogger.Flush();
-
-    return ret;
-}
-
-// =====================================================================================================================
-xcb_present_query_version_cookie_t Dri3LoaderFuncsProxy::pfnXcbPresentQueryVersion(
-    xcb_connection_t*  pConnection,
-    uint32             majorVersion,
-    uint32             minorVersion
-    ) const
-{
-    const int64 begin = Util::GetPerfCpuTime();
-    xcb_present_query_version_cookie_t ret = m_pFuncs->pfnXcbPresentQueryVersion(pConnection,
-                                                                                 majorVersion,
-                                                                                 minorVersion);
-    const int64 end = Util::GetPerfCpuTime();
-    const int64 elapse = end - begin;
-    m_timeLogger.Printf("XcbPresentQueryVersion,%ld,%ld,%ld\n", begin, end, elapse);
-    m_timeLogger.Flush();
-
-    m_paramLogger.Printf(
-        "XcbPresentQueryVersion(%p, %x, %x)\n",
-        pConnection,
-        majorVersion,
-        minorVersion);
-    m_paramLogger.Flush();
-
-    return ret;
-}
-
-// =====================================================================================================================
-xcb_present_query_version_reply_t* Dri3LoaderFuncsProxy::pfnXcbPresentQueryVersionReply(
-    xcb_connection_t*                   pConnection,
-    xcb_present_query_version_cookie_t  cookie,
-    xcb_generic_error_t**               ppError
-    ) const
-{
-    const int64 begin = Util::GetPerfCpuTime();
-    xcb_present_query_version_reply_t* pRet = m_pFuncs->pfnXcbPresentQueryVersionReply(pConnection,
-                                                                                       cookie,
-                                                                                       ppError);
-    const int64 end = Util::GetPerfCpuTime();
-    const int64 elapse = end - begin;
-    m_timeLogger.Printf("XcbPresentQueryVersionReply,%ld,%ld,%ld\n", begin, end, elapse);
-    m_timeLogger.Flush();
-
-    m_paramLogger.Printf(
-        "XcbPresentQueryVersionReply(%p, %p, %p)\n",
-        pConnection,
-        &cookie,
-        ppError);
-    m_paramLogger.Flush();
-
-    return pRet;
-}
-
-// =====================================================================================================================
-xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbPresentSelectInputChecked(
-    xcb_connection_t*    pConnection,
-    xcb_present_event_t  eventId,
-    xcb_window_t         window,
-    uint32               eventMask
-    ) const
-{
-    const int64 begin = Util::GetPerfCpuTime();
-    xcb_void_cookie_t ret = m_pFuncs->pfnXcbPresentSelectInputChecked(pConnection,
-                                                                      eventId,
-                                                                      window,
-                                                                      eventMask);
-    const int64 end = Util::GetPerfCpuTime();
-    const int64 elapse = end - begin;
-    m_timeLogger.Printf("XcbPresentSelectInputChecked,%ld,%ld,%ld\n", begin, end, elapse);
-    m_timeLogger.Flush();
-
-    m_paramLogger.Printf(
-        "XcbPresentSelectInputChecked(%p, %x, %x, %x)\n",
-        pConnection,
-        eventId,
-        window,
-        eventMask);
-    m_paramLogger.Flush();
-
-    return ret;
-}
-
-// =====================================================================================================================
-xcb_void_cookie_t Dri3LoaderFuncsProxy::pfnXcbPresentPixmapChecked(
-    xcb_connection_t*            pConnection,
-    xcb_window_t                 window,
-    xcb_pixmap_t                 pixmap,
-    uint32                       serial,
-    xcb_xfixes_region_t          valid,
-    xcb_xfixes_region_t          update,
-    int16                        xOff,
-    int16                        yO_off,
-    xcb_randr_crtc_t             targetCrtc,
-    xcb_sync_fence_t             waitFence,
-    xcb_sync_fence_t             idleFence,
-    uint32                       options,
-    uint64                       targetMsc,
-    uint64                       divisor,
-    uint64                       remainder,
-    uint32                       notifiesLen,
-    const xcb_present_notify_t*  pNotifies
-    ) const
-{
-    const int64 begin = Util::GetPerfCpuTime();
-    xcb_void_cookie_t ret = m_pFuncs->pfnXcbPresentPixmapChecked(pConnection,
-                                                                 window,
-                                                                 pixmap,
-                                                                 serial,
-                                                                 valid,
-                                                                 update,
-                                                                 xOff,
-                                                                 yO_off,
-                                                                 targetCrtc,
-                                                                 waitFence,
-                                                                 idleFence,
-                                                                 options,
-                                                                 targetMsc,
-                                                                 divisor,
-                                                                 remainder,
-                                                                 notifiesLen,
-                                                                 pNotifies);
-    const int64 end = Util::GetPerfCpuTime();
-    const int64 elapse = end - begin;
-    m_timeLogger.Printf("XcbPresentPixmapChecked,%ld,%ld,%ld\n", begin, end, elapse);
-    m_timeLogger.Flush();
-
-    m_paramLogger.Printf(
-        "XcbPresentPixmapChecked(%p, %x, %x, %x, %x, %x, %x, %x, %x, %x, %x, %x, %lx, %lx, %lx, %x, %p)\n",
-        pConnection,
-        window,
-        pixmap,
-        serial,
-        valid,
-        update,
-        xOff,
-        yO_off,
-        targetCrtc,
-        waitFence,
-        idleFence,
-        options,
-        targetMsc,
-        divisor,
-        remainder,
-        notifiesLen,
-        pNotifies);
-    m_paramLogger.Flush();
-
-    return ret;
-}
-
 #endif
 
 // =====================================================================================================================
@@ -2274,24 +2401,55 @@ Result Dri3Loader::Init(
     Result           result      = Result::Success;
     constexpr uint32 LibNameSize = 64;
     char LibNames[Dri3LoaderLibrariesCount][LibNameSize] = {
-        "libX11-xcb.so.1",
+        "libxcb-dri3.so.0",
+        "libxcb-present.so.0",
+        "libxcb-sync.so.1",
         "libxcb.so.1",
         "libxshmfence.so.1",
-        "libxcb-dri3.so.0",
+        "libX11-xcb.so.1",
+        "libX11.so.6",
         "libxcb-dri2.so.0",
         "libxcb-randr.so.0",
-        "libxcb-sync.so.1",
-        "libX11.so.6",
-        "libxcb-present.so.0",
     };
     if (m_initialized == false)
     {
-        // resolve symbols from libX11-xcb.so.1
-        result = m_library[LibX11Xcb].Load(LibNames[LibX11Xcb]);
-        PAL_ASSERT_MSG(result == Result::Success, "Failed to load LibX11Xcb library");
+        // resolve symbols from libxcb-dri3.so.0
+        result = m_library[LibXcbDri3].Load(LibNames[LibXcbDri3]);
+        PAL_ASSERT_MSG(result == Result::Success, "Failed to load LibXcbDri3 library");
         if (result == Result::Success)
         {
-            m_library[LibX11Xcb].GetFunction("XGetXCBConnection", &m_funcs.pfnXGetXCBConnection);
+            m_library[LibXcbDri3].GetFunction("xcb_dri3_open", &m_funcs.pfnXcbDri3Open);
+            m_library[LibXcbDri3].GetFunction("xcb_dri3_open_reply", &m_funcs.pfnXcbDri3OpenReply);
+            m_library[LibXcbDri3].GetFunction("xcb_dri3_open_reply_fds", &m_funcs.pfnXcbDri3OpenReplyFds);
+            m_library[LibXcbDri3].GetFunction("xcb_dri3_fence_from_fd_checked", &m_funcs.pfnXcbDri3FenceFromFdChecked);
+            m_library[LibXcbDri3].GetFunction("xcb_dri3_pixmap_from_buffer_checked", &m_funcs.pfnXcbDri3PixmapFromBufferChecked);
+            m_library[LibXcbDri3].GetFunction("xcb_dri3_query_version", &m_funcs.pfnXcbDri3QueryVersion);
+            m_library[LibXcbDri3].GetFunction("xcb_dri3_query_version_reply", &m_funcs.pfnXcbDri3QueryVersionReply);
+        }
+
+        // resolve symbols from libxcb-present.so.0
+        result = m_library[LibXcbPresent].Load(LibNames[LibXcbPresent]);
+        PAL_ASSERT_MSG(result == Result::Success, "Failed to load LibXcbPresent library");
+        if (result == Result::Success)
+        {
+            m_library[LibXcbPresent].GetFunction("xcb_present_query_version", &m_funcs.pfnXcbPresentQueryVersion);
+            m_library[LibXcbPresent].GetFunction("xcb_present_query_version_reply", &m_funcs.pfnXcbPresentQueryVersionReply);
+            m_library[LibXcbPresent].GetFunction("xcb_present_select_input_checked", &m_funcs.pfnXcbPresentSelectInputChecked);
+            m_library[LibXcbPresent].GetFunction("xcb_present_pixmap_checked", &m_funcs.pfnXcbPresentPixmapChecked);
+        }
+
+        // resolve symbols from libxcb-sync.so.1
+        result = m_library[LibXcbSync].Load(LibNames[LibXcbSync]);
+        PAL_ASSERT_MSG(result == Result::Success, "Failed to load LibXcbSync library");
+        if (result == Result::Success)
+        {
+            m_library[LibXcbSync].GetFunction("xcb_sync_create_fence_checked", &m_funcs.pfnXcbSyncCreateFenceChecked);
+            m_library[LibXcbSync].GetFunction("xcb_sync_trigger_fence_checked", &m_funcs.pfnXcbSyncTriggerFenceChecked);
+            m_library[LibXcbSync].GetFunction("xcb_sync_reset_fence", &m_funcs.pfnXcbSyncResetFence);
+            m_library[LibXcbSync].GetFunction("xcb_sync_await_fence_checked", &m_funcs.pfnXcbSyncAwaitFenceChecked);
+            m_library[LibXcbSync].GetFunction("xcb_sync_query_fence", &m_funcs.pfnXcbSyncQueryFence);
+            m_library[LibXcbSync].GetFunction("xcb_sync_query_fence_reply", &m_funcs.pfnXcbSyncQueryFenceReply);
+            m_library[LibXcbSync].GetFunction("xcb_sync_destroy_fence_checked", &m_funcs.pfnXcbSyncDestroyFenceChecked);
         }
 
         // resolve symbols from libxcb.so.1
@@ -2342,18 +2500,22 @@ Result Dri3Loader::Init(
             m_library[LibXshmFence].GetFunction("xshmfence_reset", &m_funcs.pfnXshmfenceReset);
         }
 
-        // resolve symbols from libxcb-dri3.so.0
-        result = m_library[LibXcbDri3].Load(LibNames[LibXcbDri3]);
-        PAL_ASSERT_MSG(result == Result::Success, "Failed to load LibXcbDri3 library");
+        // resolve symbols from libX11-xcb.so.1
+        result = m_library[LibX11Xcb].Load(LibNames[LibX11Xcb]);
+        PAL_ASSERT_MSG(result == Result::Success, "Failed to load LibX11Xcb library");
         if (result == Result::Success)
         {
-            m_library[LibXcbDri3].GetFunction("xcb_dri3_open", &m_funcs.pfnXcbDri3Open);
-            m_library[LibXcbDri3].GetFunction("xcb_dri3_open_reply", &m_funcs.pfnXcbDri3OpenReply);
-            m_library[LibXcbDri3].GetFunction("xcb_dri3_open_reply_fds", &m_funcs.pfnXcbDri3OpenReplyFds);
-            m_library[LibXcbDri3].GetFunction("xcb_dri3_fence_from_fd_checked", &m_funcs.pfnXcbDri3FenceFromFdChecked);
-            m_library[LibXcbDri3].GetFunction("xcb_dri3_pixmap_from_buffer_checked", &m_funcs.pfnXcbDri3PixmapFromBufferChecked);
-            m_library[LibXcbDri3].GetFunction("xcb_dri3_query_version", &m_funcs.pfnXcbDri3QueryVersion);
-            m_library[LibXcbDri3].GetFunction("xcb_dri3_query_version_reply", &m_funcs.pfnXcbDri3QueryVersionReply);
+            m_library[LibX11Xcb].GetFunction("XGetXCBConnection", &m_funcs.pfnXGetXCBConnection);
+        }
+
+        // resolve symbols from libX11.so.6
+        result = m_library[LibX11].Load(LibNames[LibX11]);
+        PAL_ASSERT_MSG(result == Result::Success, "Failed to load LibX11 library");
+        if (result == Result::Success)
+        {
+            m_library[LibX11].GetFunction("XGetVisualInfo", &m_funcs.pfnXGetVisualInfo);
+            m_library[LibX11].GetFunction("XFree", &m_funcs.pfnXFree);
+            m_library[LibX11].GetFunction("XRootWindow", &m_funcs.pfnXRootWindow);
         }
 
         // resolve symbols from libxcb-dri2.so.0
@@ -2406,36 +2568,6 @@ Result Dri3Loader::Init(
             m_library[LibXcbRandr].GetFunction("xcb_query_tree_reply", &m_funcs.pfnXcbQueryTreeReply);
             m_library[LibXcbRandr].GetFunction("xcb_get_window_attributes", &m_funcs.pfnXcbGetWindowAttributes);
             m_library[LibXcbRandr].GetFunction("xcb_get_window_attributes_reply", &m_funcs.pfnXcbGetWindowAttributesReply);
-        }
-
-        // resolve symbols from libxcb-sync.so.1
-        result = m_library[LibXcbSync].Load(LibNames[LibXcbSync]);
-        PAL_ASSERT_MSG(result == Result::Success, "Failed to load LibXcbSync library");
-        if (result == Result::Success)
-        {
-            m_library[LibXcbSync].GetFunction("xcb_sync_trigger_fence_checked", &m_funcs.pfnXcbSyncTriggerFenceChecked);
-            m_library[LibXcbSync].GetFunction("xcb_sync_destroy_fence_checked", &m_funcs.pfnXcbSyncDestroyFenceChecked);
-        }
-
-        // resolve symbols from libX11.so.6
-        result = m_library[LibX11].Load(LibNames[LibX11]);
-        PAL_ASSERT_MSG(result == Result::Success, "Failed to load LibX11 library");
-        if (result == Result::Success)
-        {
-            m_library[LibX11].GetFunction("XGetVisualInfo", &m_funcs.pfnXGetVisualInfo);
-            m_library[LibX11].GetFunction("XFree", &m_funcs.pfnXFree);
-            m_library[LibX11].GetFunction("XRootWindow", &m_funcs.pfnXRootWindow);
-        }
-
-        // resolve symbols from libxcb-present.so.0
-        result = m_library[LibXcbPresent].Load(LibNames[LibXcbPresent]);
-        PAL_ASSERT_MSG(result == Result::Success, "Failed to load LibXcbPresent library");
-        if (result == Result::Success)
-        {
-            m_library[LibXcbPresent].GetFunction("xcb_present_query_version", &m_funcs.pfnXcbPresentQueryVersion);
-            m_library[LibXcbPresent].GetFunction("xcb_present_query_version_reply", &m_funcs.pfnXcbPresentQueryVersionReply);
-            m_library[LibXcbPresent].GetFunction("xcb_present_select_input_checked", &m_funcs.pfnXcbPresentSelectInputChecked);
-            m_library[LibXcbPresent].GetFunction("xcb_present_pixmap_checked", &m_funcs.pfnXcbPresentPixmapChecked);
         }
 
         if (m_library[LibXcbDri3].IsLoaded() == false)

@@ -40,6 +40,32 @@ class  CmdStream;
 class  Device;
 struct GraphicsPipelineLoadInfo;
 
+// Registers used by the HsChunk.
+struct HsRegs
+{
+    struct Sh
+    {
+        regSPI_SHADER_PGM_LO_LS     spiShaderPgmLoLs;
+        regSPI_SHADER_PGM_RSRC1_HS  spiShaderPgmRsrc1Hs;
+        regSPI_SHADER_PGM_RSRC2_HS  spiShaderPgmRsrc2Hs;
+        regSPI_SHADER_PGM_CHKSUM_HS spiShaderPgmChksumHs;
+        uint32                      userDataInternalTable;
+    } sh;
+    struct Context
+    {
+        regVGT_HOS_MAX_TESS_LEVEL vgtHosMaxTessLevel;
+        regVGT_HOS_MIN_TESS_LEVEL vgtHosMinTessLevel;
+    } context;
+    struct Dynamic
+    {
+        regSPI_SHADER_PGM_RSRC3_HS spiShaderPgmRsrc3Hs;
+        regSPI_SHADER_PGM_RSRC4_HS spiShaderPgmRsrc4Hs;
+    } dynamic;
+
+    static constexpr uint32 NumContextReg = sizeof(Context) / sizeof(uint32_t);
+    static constexpr uint32 NumShReg      = sizeof(Sh)      / sizeof(uint32_t);
+};
+
 // =====================================================================================================================
 // Represents the chunk of a graphics pipeline object which contains all of the registers which setup the hardware LS
 // and HS stages.  This is sort of a PM4 "image" of the commands which write these registers, but with some intelligence
@@ -61,6 +87,10 @@ public:
         Util::MetroHash64*                      pHasher);
 
     uint32* WriteShCommands(
+        CmdStream* pCmdStream,
+        uint32*    pCmdSpace) const;
+
+    uint32* WriteDynamicRegs(
         CmdStream*              pCmdStream,
         uint32*                 pCmdSpace,
         const DynamicStageInfo& hsStageInfo) const;
@@ -79,27 +109,7 @@ public:
 private:
     const Device&  m_device;
 
-    struct
-    {
-        struct
-        {
-            regSPI_SHADER_PGM_LO_LS     spiShaderPgmLoLs;
-            regSPI_SHADER_PGM_RSRC1_HS  spiShaderPgmRsrc1Hs;
-            regSPI_SHADER_PGM_RSRC2_HS  spiShaderPgmRsrc2Hs;
-            regSPI_SHADER_PGM_CHKSUM_HS spiShaderPgmChksumHs;
-            uint32                      userDataInternalTable;
-        } sh;
-        struct
-        {
-            regVGT_HOS_MAX_TESS_LEVEL  vgtHosMaxTessLevel;
-            regVGT_HOS_MIN_TESS_LEVEL  vgtHosMinTessLevel;
-        } context;
-        struct
-        {
-            regSPI_SHADER_PGM_RSRC3_HS  spiShaderPgmRsrc3Hs;
-            regSPI_SHADER_PGM_RSRC4_HS  spiShaderPgmRsrc4Hs;
-        } dynamic;
-    }  m_regs;
+    HsRegs m_regs;
 
     const PerfDataInfo*const  m_pHsPerfDataInfo;   // HS performance data information.
     ShaderStageInfo           m_stageInfo;

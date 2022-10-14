@@ -405,6 +405,7 @@ public:
         Pm4Predicate                     predicate,
         const bool                       isGfx,
         const ExecuteIndirectPacketInfo& packetInfo,
+        const bool                       resetPktFilter,
         void*                            pBuffer);
     static size_t BuildDrawIndex2(
         uint32       indexCount,
@@ -795,7 +796,8 @@ private:
     const Device&    m_device;
     const GfxIpLevel m_gfxIpLevel;
     const uint32     m_cpUcodeVersion;
-    RegisterInfo     m_registerInfo;   // Addresses for registers whose addresses vary between hardware families.
+    const uint32     m_pfpUcodeVersion;
+    RegisterInfo     m_registerInfo;    // Addresses for registers whose addresses vary between hardware families.
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // If this is set, PAL will verify that all register writes fall within the ranges which get shadowed to GPU

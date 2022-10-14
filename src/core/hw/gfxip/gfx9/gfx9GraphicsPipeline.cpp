@@ -186,8 +186,7 @@ GraphicsPipeline::GraphicsPipeline(
     m_configRegHash(0),
     m_fastLaunchMode(GsFastLaunchMode::Disabled),
     m_nggSubgroupSize(0),
-    m_uavExportRequiresFlush(false),
-    m_binningAllowed(false),
+    m_flags{},
     m_fetchShaderRegAddr(UserDataNotMapped),
     m_primAmpFactor(1),
     m_chunkHs(*pDevice,
@@ -287,8 +286,9 @@ void GraphicsPipeline::LateInit(
     const GraphicsPipelineLoadInfo&   loadInfo,
     PipelineUploader*                 pUploader)
 {
-    const Gfx9PalSettings& settings = m_pDevice->Settings();
-    MetroHash64            hasher;
+    const Gfx9PalSettings&   settings        = m_pDevice->Settings();
+    const PalPublicSettings* pPublicSettings = m_pDevice->Parent()->GetPublicSettings();
+    MetroHash64              hasher;
 
     if (IsTessEnabled())
     {
@@ -305,8 +305,7 @@ void GraphicsPipeline::LateInit(
     SetupStereoRegisters();
     SetupFetchShaderInfo(pUploader);
 
-    if ((settings.rbPlusOptimizeDepthOnlyExportRate) &&
-        CanRbPlusOptimizeDepthOnly())
+    if (pPublicSettings->optDepthOnlyExportRate && CanRbPlusOptimizeDepthOnly())
     {
         m_regs.other.sxPsDownconvert.bits.MRT0                    = SX_RT_EXPORT_32_R;
         m_regs.context.spiShaderColFormat.bits.COL0_EXPORT_FORMAT = SPI_SHADER_32_R;
@@ -387,7 +386,7 @@ void GraphicsPipeline::DetermineBinningOnOff()
 
     disableBinning |= (GetBinningOverride() == BinningOverride::Disable);
 
-    m_binningAllowed =
+    m_flags.binningAllowed =
         ((disableBinning        == false) ||
          (GetBinningOverride()  == BinningOverride::Enable));
 }
@@ -609,28 +608,36 @@ uint32* GraphicsPipeline::WriteShCommands(
 {
     PAL_ASSERT(pCmdStream != nullptr);
 
-    DynamicStageInfos stageInfos = {};
-    CalcDynamicStageInfos(graphicsInfo, &stageInfos);
-
-    // If NGG is enabled, there is no hardware-VS, so there is no need to write the late-alloc VS limit.
-    if (IsNgg() == false)
     {
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(HasHwVs::mmSPI_SHADER_LATE_ALLOC_VS,
-                                                                    m_regs.sh.spiShaderLateAllocVs.u32All,
-                                                                    pCmdSpace);
+        // If NGG is enabled, there is no hardware-VS, so there is no need to write the late-alloc VS limit.
+        if (IsNgg() == false)
+        {
+            pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(HasHwVs::mmSPI_SHADER_LATE_ALLOC_VS,
+                                                                     m_regs.sh.spiShaderLateAllocVs.u32All,
+                                                                     pCmdSpace);
+        }
+
+        if (IsTessEnabled())
+        {
+            pCmdSpace = m_chunkHs.WriteShCommands(pCmdStream, pCmdSpace);
+        }
+        if (IsGsEnabled() || IsNgg())
+        {
+            pCmdSpace = m_chunkGs.WriteShCommands(pCmdStream, pCmdSpace, HasMeshShader());
+        }
+        pCmdSpace = m_chunkVsPs.WriteShCommands(pCmdStream, pCmdSpace, IsNgg());
+
+        if (m_fetchShaderRegAddr != UserDataNotMapped)
+        {
+            pCmdSpace = pCmdStream->WriteSetSeqShRegs(m_fetchShaderRegAddr,
+                                                      (m_fetchShaderRegAddr + 1),
+                                                      ShaderGraphics,
+                                                      &m_fetchShaderPgm,
+                                                      pCmdSpace);
+        }
     }
 
-    if (IsTessEnabled())
-    {
-        pCmdSpace = m_chunkHs.WriteShCommands(pCmdStream, pCmdSpace, stageInfos.hs);
-    }
-    if (IsGsEnabled() || IsNgg())
-    {
-        pCmdSpace = m_chunkGs.WriteShCommands(pCmdStream, pCmdSpace, stageInfos.gs, HasMeshShader());
-    }
-    pCmdSpace = m_chunkVsPs.WriteShCommands(pCmdStream, pCmdSpace, IsNgg(), stageInfos.vs, stageInfos.ps);
-
-    pCmdSpace = WriteFsShCommands(pCmdStream, pCmdSpace, m_fetchShaderRegAddr);
+    pCmdSpace = WriteDynamicRegisters(pCmdStream, pCmdSpace, graphicsInfo);
 
     return pCmdSpace;
 }
@@ -645,18 +652,43 @@ uint32* GraphicsPipeline::WriteContextCommands(
 {
     PAL_ASSERT(pCmdStream != nullptr);
 
-    pCmdSpace = WriteContextCommandsSetPath(pCmdStream, pCmdSpace);
+    {
+        pCmdSpace = WriteContextCommandsSetPath(pCmdStream, pCmdSpace);
+
+        if (IsTessEnabled())
+        {
+            pCmdSpace = m_chunkHs.WriteContextCommands(pCmdStream, pCmdSpace);
+        }
+        if (IsGsEnabled() || IsNgg())
+        {
+            pCmdSpace = m_chunkGs.WriteContextCommands(pCmdStream, pCmdSpace);
+        }
+
+        pCmdSpace = m_chunkVsPs.WriteContextCommands(pCmdStream, pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+uint32* GraphicsPipeline::WriteDynamicRegisters(
+    CmdStream*                        pCmdStream,
+    uint32*                           pCmdSpace,
+    const DynamicGraphicsShaderInfos& graphicsInfo
+    ) const
+{
+    DynamicStageInfos stageInfos = {};
+    CalcDynamicStageInfos(graphicsInfo, &stageInfos);
 
     if (IsTessEnabled())
     {
-        pCmdSpace = m_chunkHs.WriteContextCommands(pCmdStream, pCmdSpace);
+        pCmdSpace = m_chunkHs.WriteDynamicRegs(pCmdStream, pCmdSpace, stageInfos.hs);
     }
     if (IsGsEnabled() || IsNgg())
     {
-        pCmdSpace = m_chunkGs.WriteContextCommands(pCmdStream, pCmdSpace);
+        pCmdSpace = m_chunkGs.WriteDynamicRegs(pCmdStream, pCmdSpace, stageInfos.gs);
     }
-
-    pCmdSpace = m_chunkVsPs.WriteContextCommands(pCmdStream, pCmdSpace);
+    pCmdSpace = m_chunkVsPs.WriteDynamicRegs(pCmdStream, pCmdSpace, IsNgg(), stageInfos.vs, stageInfos.ps);
 
     return pCmdSpace;
 }
@@ -1410,7 +1442,7 @@ void GraphicsPipeline::SetupNonShaderRegisters(
 
     if (m_signature.uavExportTableAddr != UserDataNotMapped)
     {
-        m_uavExportRequiresFlush = (createInfo.cbState.uavExportSingleDraw == false);
+        m_flags.uavExportRequiresFlush = (createInfo.cbState.uavExportSingleDraw == false);
     }
 
     // Override some register settings based on toss points.  These toss points cannot be processed in the hardware
@@ -2158,8 +2190,8 @@ void GraphicsPipeline::OverrideRbPlusRegistersForRpm(
     if ((pTargetFormats[slot].format != swizzledFormat.format) &&
         (m_regs.context.cbColorControl.bits.DISABLE_DUAL_QUAD == 0))
     {
-        // This logic should not clash with the logic for rbPlusOptimizeDepthOnlyExportRate.
-        PAL_ASSERT(((m_pDevice->Settings().rbPlusOptimizeDepthOnlyExportRate) &&
+        // This logic should not clash with the logic for optDepthOnlyExportRate.
+        PAL_ASSERT((m_pDevice->Parent()->GetPublicSettings()->optDepthOnlyExportRate &&
                     CanRbPlusOptimizeDepthOnly()) == false);
 
         regSX_PS_DOWNCONVERT    sxPsDownconvert   = { };
@@ -2317,26 +2349,6 @@ void GraphicsPipeline::SetupFetchShaderInfo(
     {
         m_fetchShaderPgm = symbol.gpuVirtAddr;
     }
-}
-
-// =====================================================================================================================
-// Writes PM4 commands to program the fetch shader addr to user data registers.
-uint32* GraphicsPipeline::WriteFsShCommands(
-    CmdStream* pCmdStream,
-    uint32*    pCmdSpace,
-    uint32     fetchShaderRegAddr
-    )const
-{
-    if (m_fetchShaderRegAddr != UserDataNotMapped)
-    {
-        pCmdSpace = pCmdStream->WriteSetSeqShRegs(fetchShaderRegAddr,
-                                                  (fetchShaderRegAddr + 1),
-                                                  ShaderGraphics,
-                                                  &m_fetchShaderPgm,
-                                                  pCmdSpace);
-    }
-
-    return pCmdSpace;
 }
 
 } // Gfx9

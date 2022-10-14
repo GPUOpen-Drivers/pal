@@ -93,6 +93,15 @@ union AcqRelSyncToken
     uint32 u32All;
 };
 
+// Graphics draw status tracks in Pm4CmdBufferStateFlags.gfxDrawStatus. Only valid and used in universal cmd buffer.
+enum GfxDrawStatus : uint32
+{
+    GfxDrawActive = 0, // Gfx draws may be active.
+    GfxDrawPsVsDone,   // PS/VS waves of gfx draws have been done, confirmed by barrier Eop/PSPF/VSPF events.
+    GfxDrawEop,        // All gfx draws have been done, confirmed by barrier Eop event.
+    GfxDrawEopFlushed, // All gfx draws have been done, confirmed by barrier Eop event and RB cache is flushed.
+};
+
 union Pm4CmdBufferStateFlags
 {
     struct
@@ -116,8 +125,10 @@ union Pm4CmdBufferStateFlags
                                                 // set and will be cleared if/when an EOP wait is inserted in this
                                                 // command buffer.
         uint32 reserved1                 :  1;
-        uint32 rasterKillDrawsActive     :  1;  // Track if there are any rasterization kill draws in flight.
-        uint32 reserved                  : 17;
+        uint32 gfxDrawStatus             :  2;  // Track gfx draw status @ref GfxDrawStatus.
+        uint32 gfxCsActive               :  1;  // Track if any gfx CS (from universal queue) waves may be active.
+        uint32 gfxSrcCachesDirty         :  1;  // Track if any gfx shader source caches (L0/L1/M$) may be drity.
+        uint32 reserved                  : 14;
     };
 
     uint32 u32All;
@@ -134,8 +145,6 @@ struct Pm4CmdBufferState
                                             // written back to L2.
         uint32 csBltExecEopFenceVal;        // Earliest EOP fence value that can confirm all CS BLTs are complete.
         uint32 csBltExecCsDoneFenceVal;     // Earliest CS_DONE fence value that can confirm all CS BLTs are complete.
-        uint32 rasterKillDrawsExecFenceVal; // Earliest EOP fence value that can confirm all rasterization kill
-                                            // draws are complete.
     } fences;
 };
 
@@ -189,8 +198,6 @@ public:
     void SetPm4CmdBufGfxBltState(bool gfxBltActive) { m_pm4CmdBufState.flags.gfxBltActive = gfxBltActive; }
     void SetPm4CmdBufCsBltState(bool csBltActive) { m_pm4CmdBufState.flags.csBltActive = csBltActive; }
     void SetPm4CmdBufCpBltState(bool cpBltActive) { m_pm4CmdBufState.flags.cpBltActive = cpBltActive; }
-    void SetPm4CmdBufRasterKillDrawsState(bool rasterKillDrawsActive)
-        { m_pm4CmdBufState.flags.rasterKillDrawsActive = rasterKillDrawsActive; }
     void SetPm4CmdBufGfxBltWriteCacheState(bool gfxWriteCacheDirty)
         { m_pm4CmdBufState.flags.gfxWriteCachesDirty = gfxWriteCacheDirty; }
     void SetPm4CmdBufCsBltWriteCacheState(bool csWriteCacheDirty)
@@ -199,6 +206,18 @@ public:
         { m_pm4CmdBufState.flags.cpWriteCachesDirty = cpWriteCacheDirty; }
     void SetPm4CmdBufCpMemoryWriteL2CacheStaleState(bool cpMemoryWriteDirty)
         { m_pm4CmdBufState.flags.cpMemoryWriteL2CacheStale = cpMemoryWriteDirty; }
+
+    void SetGfxDrawState(GfxDrawStatus status)
+    {
+        m_pm4CmdBufState.flags.gfxDrawStatus      = uint32(status);
+        m_pm4CmdBufState.flags.gfxSrcCachesDirty |= (status == GfxDrawActive);
+    }
+    void SetGfxCsState(bool csActive)
+    {
+        m_pm4CmdBufState.flags.gfxCsActive        = csActive;
+        m_pm4CmdBufState.flags.gfxSrcCachesDirty |= csActive;
+    }
+    void SetGfxSrcCachesClean() { m_pm4CmdBufState.flags.gfxSrcCachesDirty = 0; }
 
     // Execution fence value is updated at every BLT. Set it to the next event because its completion indicates all
     // prior BLTs have completed.
@@ -210,15 +229,6 @@ public:
     {
         m_pm4CmdBufState.fences.csBltExecEopFenceVal    = GetCurAcqRelFenceVal(AcqRelEventType::Eop) + 1;
         m_pm4CmdBufState.fences.csBltExecCsDoneFenceVal = GetCurAcqRelFenceVal(AcqRelEventType::CsDone) + 1;
-    }
-    // Execution fence value is updated at every draw when rasterization kill state is dirtied.
-    // - If rasterization kill is enabled, set it UINT32_MAX to make rasterKillDrawsActive never to be cleared.
-    // - If rasterization kill is disabled, set it to the next EOP event because its completion indicates all
-    //   prior rasterization kill draws have completed.
-    void UpdatePm4CmdBufRasterKillDrawsExecEopFence(bool setMaxFenceVal)
-    {
-        m_pm4CmdBufState.fences.rasterKillDrawsExecFenceVal =
-            setMaxFenceVal ? UINT32_MAX : GetCurAcqRelFenceVal(AcqRelEventType::Eop) + 1;
     }
     // Cache write-back fence value is updated at every release event. Completion of current event indicates the cache
     // synchronization has completed too, so set it to current event fence value.

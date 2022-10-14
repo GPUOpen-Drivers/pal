@@ -121,9 +121,9 @@ extern ICmdAllocator*         NextCmdAllocator(const ICmdAllocator* pCmdAllocato
 extern ICmdBuffer*            NextCmdBuffer(const ICmdBuffer* pCmdBuffer);
 extern CmdBufferBuildInfo     NextCmdBufferBuildInfo(const CmdBufferBuildInfo& info);
 extern IColorBlendState*      NextColorBlendState(const IColorBlendState* pColorBlendState);
-extern IColorTargetView*      NextColorTargetView(const IColorTargetView* pView);
+extern const IColorTargetView*      NextColorTargetView(const IColorTargetView* pView);
 extern IDepthStencilState*    NextDepthStencilState(const IDepthStencilState* pDepthStencilState);
-extern IDepthStencilView*     NextDepthStencilView(const IDepthStencilView* pDepthStencilView);
+extern const IDepthStencilView*     NextDepthStencilView(const IDepthStencilView* pDepthStencilView);
 extern IDevice*               NextDevice(const IDevice* pDevice);
 extern IFence*                NextFence(const IFence* pFence);
 extern IGpuEvent*             NextGpuEvent(const IGpuEvent* pGpuEvent);
@@ -2390,19 +2390,23 @@ public:
         const ColorTargetViewCreateInfo& createInfo,
         const DeviceDecorator*           pNextDevice)
         :
-        m_pNextLayer(pNextView),
+        m_nextLayerOffset(Util::VoidPtrDiff( pNextView, this)),
         m_createInfo(createInfo),
         m_pDevice(pNextDevice)
     {}
 
     const IDevice*                    GetDevice()     const { return m_pDevice;    }
     const ColorTargetViewCreateInfo&  GetCreateInfo() const { return m_createInfo; }
-    IColorTargetView*                 GetNextLayer()  const { return m_pNextLayer; }
+
+    const IColorTargetView* GetNextLayer() const
+    {
+        return static_cast<const IColorTargetView*>(Util::VoidPtrInc(this, m_nextLayerOffset));
+    }
 
 protected:
     virtual ~ColorTargetViewDecorator() {}
 
-    IColorTargetView*const           m_pNextLayer;
+    const size_t                     m_nextLayerOffset;
     const ColorTargetViewCreateInfo  m_createInfo;
     const DeviceDecorator*const      m_pDevice;
 
@@ -2450,16 +2454,20 @@ class DepthStencilViewDecorator : public IDepthStencilView
 public:
     DepthStencilViewDecorator(IDepthStencilView* pNextView, const DeviceDecorator* pNextDevice)
         :
-        m_pNextLayer(pNextView), m_pDevice(pNextDevice)
+        m_nextLayerOffset(Util::VoidPtrDiff(pNextView, this)),
+        m_pDevice(pNextDevice)
     {}
 
     const IDevice*     GetDevice() const { return m_pDevice; }
-    IDepthStencilView* GetNextLayer() const { return m_pNextLayer; }
+    const IDepthStencilView* GetNextLayer() const
+    {
+        return static_cast<const IDepthStencilView*>(Util::VoidPtrInc(this, m_nextLayerOffset));
+    }
 
 protected:
     virtual ~DepthStencilViewDecorator() {}
 
-    IDepthStencilView*const     m_pNextLayer;
+    const size_t                m_nextLayerOffset;
     const DeviceDecorator*const m_pDevice;
 
 private:

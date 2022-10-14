@@ -123,10 +123,105 @@ ImageCopyEngine RsrcProcMgr::GetImageToImageCopyEngine(
 }
 
 // =====================================================================================================================
+// Builds commands to copy one or more regions from one image to another.
+void RsrcProcMgr::CmdCopyImage(
+    GfxCmdBuffer*          pCmdBuffer,
+    const Image&           srcImage,
+    ImageLayout            srcImageLayout,
+    const Image&           dstImage,
+    ImageLayout            dstImageLayout,
+    uint32                 regionCount,
+    const ImageCopyRegion* pRegions,
+    const Rect*            pScissorRect,
+    uint32                 flags
+    ) const
+{
+    const auto& srcInfo = srcImage.GetImageCreateInfo();
+    const auto& dstInfo = dstImage.GetImageCreateInfo();
+
+    // MSAA source and destination images must have the same number of samples.
+    PAL_ASSERT(srcInfo.samples == dstInfo.samples);
+
+    const ImageCopyEngine copyEngine =
+        GetImageToImageCopyEngine(pCmdBuffer, srcImage, dstImage, regionCount, pRegions, flags);
+
+    if (copyEngine == ImageCopyEngine::Graphics)
+    {
+        CopyImageGraphics(pCmdBuffer,
+                          srcImage,
+                          srcImageLayout,
+                          dstImage,
+                          dstImageLayout,
+                          regionCount,
+                          pRegions,
+                          pScissorRect,
+                          flags);
+    }
+    else
+    {
+        AutoBuffer<ImageFixupRegion, 32, Platform> fixupRegions(regionCount, m_pDevice->GetPlatform());
+        if (fixupRegions.Capacity() >= regionCount)
+        {
+            for (uint32 i = 0; i < regionCount; i++)
+            {
+                fixupRegions[i].subres    = pRegions[i].dstSubres;
+                fixupRegions[i].offset    = pRegions[i].dstOffset;
+                fixupRegions[i].extent    = pRegions[i].extent;
+                fixupRegions[i].numSlices = pRegions[i].numSlices;
+            }
+            FixupMetadataForComputeDst(pCmdBuffer, dstImage, dstImageLayout, regionCount, &fixupRegions[0], true);
+
+            CopyImageCompute(pCmdBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout,
+                             regionCount, pRegions, flags);
+
+            FixupMetadataForComputeDst(pCmdBuffer, dstImage, dstImageLayout, regionCount, &fixupRegions[0], false);
+
+            if (((Formats::IsBlockCompressed(srcInfo.swizzledFormat.format) ||
+                  Formats::IsMacroPixelPackedRgbOnly(srcInfo.swizzledFormat.format)) && (srcInfo.mipLevels > 1)) ||
+                ((Formats::IsBlockCompressed(dstInfo.swizzledFormat.format) ||
+                  Formats::IsMacroPixelPackedRgbOnly(dstInfo.swizzledFormat.format)) && (dstInfo.mipLevels > 1)))
+            {
+                // Insert a generic barrier to prevent write-after-write hazard between CS copy and per-pixel copy
+                BarrierInfo barrier = {};
+                barrier.waitPoint = HwPipePreCs;
+                barrier.reason = Developer::BarrierReasonUnknown;
+
+                constexpr HwPipePoint PostCs = HwPipePostCs;
+                barrier.pipePointWaitCount = 1;
+                barrier.pPipePoints = &PostCs;
+
+                BarrierTransition transition = {};
+                transition.srcCacheMask = CoherShader;
+                transition.dstCacheMask = CoherShader;
+                barrier.pTransitions = &transition;
+
+                pCmdBuffer->CmdBarrier(barrier);
+
+                for (uint32 regionIdx = 0; regionIdx < regionCount; regionIdx++)
+                {
+                    HwlImageToImageMissingPixelCopy(pCmdBuffer, srcImage, dstImage, pRegions[regionIdx]);
+                }
+            }
+        }
+        else
+        {
+            pCmdBuffer->NotifyAllocFailure();
+        }
+    }
+
+    if (copyEngine == ImageCopyEngine::ComputeVrsDirty)
+    {
+        // This copy destroyed the VRS data associated with the destination image.  Mark it as dirty so the
+        // next draw re-issues the VRS copy.
+        pCmdBuffer->DirtyVrsDepthImage(&dstImage);
+    }
+}
+
+// =====================================================================================================================
 // Builds commands to copy one or more regions from one image to another using a graphics pipeline.
 // This path only supports copies between single-sampled non-compressed 2D, 2D color, and 3D images for now.
 void RsrcProcMgr::CopyColorImageGraphics(
-    GfxCmdBuffer*          pCmdBuffer,
+    Pm4CmdBuffer*          pCmdBuffer,
     const Image&           srcImage,
     ImageLayout            srcImageLayout,
     const Image&           dstImage,
@@ -270,7 +365,10 @@ void RsrcProcMgr::CopyColorImageGraphics(
 
         // Give the gfxip layer a chance to optimize the hardware before we start copying.
         const uint32 bitsPerPixel = Formats::BitsPerPixel(dstFormat.format);
-        restoreMask              |= HwlBeginGraphicsCopy(pCmdBuffer, pPipeline, dstImage, bitsPerPixel);
+        restoreMask              |= HwlBeginGraphicsCopy(static_cast<Pm4CmdBuffer*>(pCmdBuffer),
+                                                         pPipeline,
+                                                         dstImage,
+                                                         bitsPerPixel);
 
         // When copying from 3D to 3D, the number of slices should be 1. When copying from
         // 1D to 1D or 2D to 2D, depth should be 1. Therefore when the src image type is identical
@@ -455,7 +553,7 @@ void RsrcProcMgr::CopyColorImageGraphics(
 // =====================================================================================================================
 // Copies multisampled depth-stencil images using a graphics pipeline.
 void RsrcProcMgr::CopyDepthStencilImageGraphics(
-    GfxCmdBuffer*          pCmdBuffer,
+    Pm4CmdBuffer*          pCmdBuffer,
     const Image&           srcImage,
     ImageLayout            srcImageLayout,
     const Image&           dstImage,
@@ -704,7 +802,7 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
                         { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One },
                     };
 
-                    viewRange        = { pRegions[secondSurface].srcSubres, 1, 1, 1 };
+                    viewRange = { pRegions[secondSurface].srcSubres, 1, 1, 1 };
 
                     viewRange.startSubres.arraySlice += slice;
 
@@ -789,7 +887,7 @@ void RsrcProcMgr::CopyImageGraphics(
 {
     if (dstImage.IsDepthStencilTarget())
     {
-        CopyDepthStencilImageGraphics(pCmdBuffer,
+        CopyDepthStencilImageGraphics(static_cast<Pm4CmdBuffer*>(pCmdBuffer),
                                       srcImage,
                                       srcImageLayout,
                                       dstImage,
@@ -801,7 +899,7 @@ void RsrcProcMgr::CopyImageGraphics(
     }
     else
     {
-        CopyColorImageGraphics(pCmdBuffer,
+        CopyColorImageGraphics(static_cast<Pm4CmdBuffer*>(pCmdBuffer),
                                srcImage,
                                srcImageLayout,
                                dstImage,
@@ -1358,7 +1456,10 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
 
         // Give the gfxip layer a chance to optimize the hardware before we start copying.
         const uint32 bitsPerPixel = Formats::BitsPerPixel(dstFormat.format);
-        restoreMask              |= HwlBeginGraphicsCopy(pCmdBuffer, pPipeline, *pDstImage, bitsPerPixel);
+        restoreMask              |= HwlBeginGraphicsCopy(static_cast<Pm4CmdBuffer*>(pCmdBuffer),
+                                                         pPipeline,
+                                                         *pDstImage,
+                                                         bitsPerPixel);
 
         // When copying from 3D to 3D, the number of slices should be 1. When copying from
         // 1D to 1D or 2D to 2D, depth should be 1. Therefore when the src image type is identical
@@ -1971,7 +2072,7 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
 // Adds commands to pCmdBuffer to copy data between srcGpuMemory and dstGpuMemory. Note that this function requires a
 // command buffer that supports CP DMA workloads.
 void RsrcProcMgr::CmdCopyMemory(
-    GfxCmdBuffer*           pCmdBuffer,
+    Pm4CmdBuffer*           pCmdBuffer,
     const GpuMemory&        srcGpuMemory,
     const GpuMemory&        dstGpuMemory,
     uint32                  regionCount,
@@ -2010,6 +2111,358 @@ void RsrcProcMgr::CmdCopyMemory(
 }
 
 // =====================================================================================================================
+bool RsrcProcMgr::SlowClearUseGraphics(
+    GfxCmdBuffer*      pCmdBuffer,
+    const Image&       dstImage,
+    const SubresRange& clearRange,
+    ClearMethod        method
+    ) const
+{
+    const SwizzledFormat& baseFormat = dstImage.SubresourceInfo(clearRange.startSubres)->format;
+    uint32                texelScale = 1;
+    RpmUtil::GetRawFormat(baseFormat.format, &texelScale, nullptr);
+
+    return (pCmdBuffer->IsGraphicsSupported() &&
+            // Force clears of scaled formats to the compute engine
+            (texelScale == 1)                 &&
+            (method == ClearMethod::NormalGraphics));
+}
+
+// =====================================================================================================================
+// Builds commands to slow clear a range of an image to the given raw color data using a pixel shader. Note that this
+// function can only clear color planes.
+void RsrcProcMgr::SlowClearGraphics(
+    GfxCmdBuffer*         pCmdBuffer,
+    const Image&          dstImage,
+    ImageLayout           dstImageLayout,
+    const ClearColor*     pColor,
+    const SwizzledFormat& clearFormat,
+    const SubresRange&    clearRange,
+    uint32                boxCount,
+    const Box*            pBoxes
+    ) const
+{
+    // Graphics slow clears only work on color planes.
+    PAL_ASSERT(dstImage.IsDepthStencilTarget() == false);
+
+    const auto& createInfo = dstImage.GetImageCreateInfo();
+    const auto& settings   = m_pDevice->Parent()->Settings();
+
+    for (SubresId subresId = clearRange.startSubres;
+         subresId.plane < (clearRange.startSubres.plane + clearRange.numPlanes);
+         subresId.plane++)
+    {
+        // Get some useful information about the image.
+        bool rawFmtOk = dstImage.GetGfxImage()->IsFormatReplaceable(subresId,
+                                                                    dstImageLayout,
+                                                                    true,
+                                                                    pColor->disabledChannelMask);
+
+        // Query the format of the image and determine which format to use for the color target view. If rawFmtOk is
+        // set the caller has allowed us to use a slightly more efficient raw format.
+        const SwizzledFormat baseFormat   = clearFormat.format == ChNumFormat::Undefined ?
+                                            dstImage.SubresourceInfo(subresId)->format :
+                                            clearFormat;
+        SwizzledFormat       viewFormat   = (rawFmtOk ? RpmUtil::GetRawFormat(baseFormat.format, nullptr, nullptr)
+                                                      : baseFormat);
+        uint32               xRightShift  = 0;
+        uint32               vpRightShift = 0;
+        // For packed YUV image use X32_Uint instead of X16_Uint to fill with YUYV.
+        if ((viewFormat.format == ChNumFormat::X16_Uint) && Formats::IsYuvPacked(baseFormat.format))
+        {
+            viewFormat.format  = ChNumFormat::X32_Uint;
+            viewFormat.swizzle = { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
+            rawFmtOk           = false;
+            // If clear color type isn't Yuv then the client is responsible for offset/extent adjustments.
+            xRightShift        = (pColor->type == ClearColorType::Yuv) ? 1 : 0;
+            // The viewport should always be adjusted regardless the clear color type, (however, since this is just clear,
+            // all pixels are the same and the scissor rect will clamp the rendering area, the result is still correct
+            // without this adjustment).
+            vpRightShift       = 1;
+        }
+
+        ViewportParams viewportInfo = { };
+        viewportInfo.count                 = 1;
+        viewportInfo.viewports[0].originX  = 0;
+        viewportInfo.viewports[0].originY  = 0;
+        viewportInfo.viewports[0].minDepth = 0.f;
+        viewportInfo.viewports[0].maxDepth = 1.f;
+        viewportInfo.viewports[0].origin   = PointOrigin::UpperLeft;
+        viewportInfo.horzClipRatio         = FLT_MAX;
+        viewportInfo.horzDiscardRatio      = 1.0f;
+        viewportInfo.vertClipRatio         = FLT_MAX;
+        viewportInfo.vertDiscardRatio      = 1.0f;
+        viewportInfo.depthRange            = DepthRange::ZeroToOne;
+
+        const bool  is3dImage  = (createInfo.imageType == ImageType::Tex3d);
+        ColorTargetViewCreateInfo colorViewInfo         = { };
+        colorViewInfo.swizzledFormat                    = viewFormat;
+        colorViewInfo.imageInfo.pImage                  = &dstImage;
+        colorViewInfo.imageInfo.arraySize               = (is3dImage ? 1 : clearRange.numSlices);
+        colorViewInfo.imageInfo.baseSubRes.plane        = subresId.plane;
+        colorViewInfo.imageInfo.baseSubRes.arraySlice   = subresId.arraySlice;
+        colorViewInfo.flags.bypassMall                  = TestAnyFlagSet(settings.rpmViewsBypassMall,
+                                                                         Gfx10RpmViewsBypassMallOnCbDbWrite);
+
+        BindTargetParams bindTargetsInfo = { };
+        bindTargetsInfo.colorTargets[0].imageLayout      = dstImageLayout;
+        bindTargetsInfo.colorTargets[0].pColorTargetView = nullptr;
+
+        // Save current command buffer state and bind graphics state which is common for all mipmap levels.
+        pCmdBuffer->CmdSaveGraphicsState();
+        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics,
+                                      GetGfxPipelineByTargetIndexAndFormat(SlowColorClear0_32ABGR, 0, viewFormat),
+                                      InternalApiPsoHash, });
+        BindCommonGraphicsState(pCmdBuffer);
+
+        if (pColor->disabledChannelMask != 0)
+        {
+            // Overwrite CbTargetMask for different writeMasks.
+            ColorWriteMaskParams params = {};
+            params.count = 1;
+            params.colorWriteMask[0] = ~pColor->disabledChannelMask;
+            pCmdBuffer->CmdSetColorWriteMask(params);
+        }
+
+        pCmdBuffer->CmdOverwriteRbPlusFormatForBlits(viewFormat, 0);
+        pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
+        pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
+        pCmdBuffer->CmdBindMsaaState(GetMsaaState(createInfo.samples, createInfo.fragments));
+
+        RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
+        RpmUtil::WriteVsFirstSliceOffset(pCmdBuffer, 0);
+
+        uint32 packedColor[4] = {0};
+
+        if (pColor->type == ClearColorType::Yuv)
+        {
+            // If clear color type is Yuv, the image format should used to determine the clear color swizzling and packing
+            // for planar YUV formats since the baseFormat is subresource's format which is not a YUV format.
+            // NOTE: if clear color type is Uint, the client is responsible for:
+            //       1. packing and swizzling clear color for packed YUV formats (e.g. packing in YUYV order for YUY2).
+            //       2. passing correct clear color for this plane for planar YUV formats (e.g. two uint32s for U and V if
+            //          current plane is CbCr).
+            const SwizzledFormat imgFormat = createInfo.swizzledFormat;
+            Formats::ConvertYuvColor(imgFormat, subresId.plane, &pColor->u32Color[0], &packedColor[0]);
+        }
+        else
+        {
+            uint32 convertedColor[4] = {0};
+
+            if (pColor->type == ClearColorType::Float)
+            {
+                Formats::ConvertColor(baseFormat, &pColor->f32Color[0], &convertedColor[0]);
+            }
+            else
+            {
+                memcpy(&convertedColor[0], &pColor->u32Color[0], sizeof(convertedColor));
+            }
+
+            RpmUtil::ConvertClearColorToNativeFormat(baseFormat, viewFormat, &convertedColor[0]);
+
+            // If we can clear with raw format replacement which is more efficient, swizzle it into the order
+            // required and then pack it.
+            if (rawFmtOk)
+            {
+                uint32 swizzledColor[4] = {0};
+                Formats::SwizzleColor(baseFormat, &convertedColor[0], &swizzledColor[0]);
+                Formats::PackRawClearColor(baseFormat, &swizzledColor[0], &packedColor[0]);
+            }
+            else
+            {
+                memcpy(&packedColor[0], &convertedColor[0], sizeof(packedColor));
+            }
+        }
+
+        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, RpmPsClearFirstUserData, 4, &packedColor[0]);
+
+        // Each mipmap needs to be cleared individually.
+        const uint32 lastMip = (subresId.mipLevel + clearRange.numMips - 1);
+
+        // Boxes are only meaningful if we're clearing a single mip.
+        PAL_ASSERT((boxCount == 0) || ((pBoxes != nullptr) && (clearRange.numMips == 1)));
+
+        for (uint32 mip = subresId.mipLevel; mip <= lastMip; ++mip)
+        {
+            const SubresId mipSubres  = { subresId.plane, mip, 0 };
+            const auto&    subResInfo = *dstImage.SubresourceInfo(mipSubres);
+
+            // All slices of the same mipmap level can re-use the same viewport state.
+            viewportInfo.viewports[0].width  = static_cast<float>(subResInfo.extentTexels.width >> vpRightShift);
+            viewportInfo.viewports[0].height = static_cast<float>(subResInfo.extentTexels.height);
+
+            pCmdBuffer->CmdSetViewports(viewportInfo);
+
+            colorViewInfo.imageInfo.baseSubRes.mipLevel = mip;
+            SlowClearGraphicsOneMip(static_cast<Pm4CmdBuffer*>(pCmdBuffer),
+                                    dstImage,
+                                    mipSubres,
+                                    boxCount,
+                                    pBoxes,
+                                    &colorViewInfo,
+                                    &bindTargetsInfo,
+                                    xRightShift);
+        }
+
+        // Restore original command buffer state.
+        pCmdBuffer->CmdRestoreGraphicsState();
+    }
+}
+
+// =====================================================================================================================
+// Builds commands to slow clear a range of an image for a given mip level.
+void RsrcProcMgr::SlowClearGraphicsOneMip(
+    Pm4CmdBuffer*              pCmdBuffer,
+    const Image&               dstImage,
+    const SubresId&            mipSubres,
+    uint32                     boxCount,
+    const Box*                 pBoxes,
+    ColorTargetViewCreateInfo* pColorViewInfo,
+    BindTargetParams*          pBindTargetsInfo,
+    uint32                     xRightShift
+    ) const
+{
+    PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
+    // Don't expect GFX Blts on Nested unless targets not inherited.
+    PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<Pm4::UniversalCmdBuffer*>(
+        pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
+
+    const auto& createInfo = dstImage.GetImageCreateInfo();
+    const bool  is3dImage  = (createInfo.imageType == ImageType::Tex3d);
+    ColorTargetViewInternalCreateInfo colorViewInfoInternal = {};
+
+    const auto&    subResInfo = *dstImage.SubresourceInfo(mipSubres);
+
+    // If rects were specified, then we'll create scissors to match the rects and do a Draw for each one. Otherwise
+    // we'll use the full image scissor and a single draw.
+    const bool   hasBoxes     = (boxCount > 0);
+    const uint32 scissorCount = hasBoxes ? boxCount : 1;
+
+    if (is3dImage == false)
+    {
+        LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
+
+        // Create and bind a color-target view for this mipmap level and slice.
+        IColorTargetView* pColorView = nullptr;
+        void* pColorViewMem =
+            PAL_MALLOC(m_pDevice->GetColorTargetViewSize(nullptr), &sliceAlloc, AllocInternalTemp);
+
+        if (pColorViewMem == nullptr)
+        {
+            pCmdBuffer->NotifyAllocFailure();
+        }
+        else
+        {
+            Result result = m_pDevice->CreateColorTargetView(*pColorViewInfo,
+                                                             colorViewInfoInternal,
+                                                             pColorViewMem,
+                                                             &pColorView);
+            PAL_ASSERT(result == Result::Success);
+
+            pBindTargetsInfo->colorTargets[0].pColorTargetView = pColorView;
+            pBindTargetsInfo->colorTargetCount = 1;
+            pCmdBuffer->CmdBindTargets(*pBindTargetsInfo);
+
+            for (uint32 i = 0; i < scissorCount; i++)
+            {
+                ClearImageOneBox(pCmdBuffer, subResInfo, &pBoxes[i], hasBoxes, xRightShift,
+                    pColorViewInfo->imageInfo.arraySize);
+            }
+
+            // Unbind the color-target view and destroy it.
+            pBindTargetsInfo->colorTargetCount = 0;
+            pCmdBuffer->CmdBindTargets(*pBindTargetsInfo);
+
+            PAL_SAFE_FREE(pColorViewMem, &sliceAlloc);
+        }
+    }
+    else
+    {
+        // For 3d image, the start and end slice is based on the z offset and depth extend of the boxes.
+        // The slices must be specified using the zRange because the imageInfo "slice" refers to image subresources.
+        pColorViewInfo->flags.zRangeValid = 1;
+
+        for (uint32 i = 0; i < scissorCount; i++)
+        {
+            LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
+
+            // Create and bind a color-target view for this mipmap level and z offset.
+            IColorTargetView* pColorView = nullptr;
+            void* pColorViewMem =
+                PAL_MALLOC(m_pDevice->GetColorTargetViewSize(nullptr), &sliceAlloc, AllocInternalTemp);
+
+            if (pColorViewMem == nullptr)
+            {
+                pCmdBuffer->NotifyAllocFailure();
+            }
+            else
+            {
+
+                const Box*   pBox     = hasBoxes ? &pBoxes[i]     : nullptr;
+                const uint32 maxDepth = subResInfo.extentTexels.depth;
+
+                pColorViewInfo->zRange.extent  = hasBoxes ? pBox->extent.depth : maxDepth;
+                pColorViewInfo->zRange.offset  = hasBoxes ? pBox->offset.z : 0;
+
+                PAL_ASSERT((hasBoxes == false) || (pBox->extent.depth <= maxDepth));
+
+                Result result = m_pDevice->CreateColorTargetView(*pColorViewInfo,
+                                                                 colorViewInfoInternal,
+                                                                 pColorViewMem,
+                                                                 &pColorView);
+                PAL_ASSERT(result == Result::Success);
+
+                pBindTargetsInfo->colorTargets[0].pColorTargetView = pColorView;
+                pBindTargetsInfo->colorTargetCount = 1;
+                pCmdBuffer->CmdBindTargets(*pBindTargetsInfo);
+
+                ClearImageOneBox(pCmdBuffer, subResInfo, pBox, hasBoxes, xRightShift, pColorViewInfo->zRange.extent);
+
+                // Unbind the color-target view and destroy it.
+                pBindTargetsInfo->colorTargetCount = 0;
+                pCmdBuffer->CmdBindTargets(*pBindTargetsInfo);
+
+                PAL_SAFE_FREE(pColorViewMem, &sliceAlloc);
+            }
+        }
+    }
+}
+
+// =====================================================================================================================
+// Builds commands to clear a range of an image for a given box.
+void RsrcProcMgr::ClearImageOneBox(
+    Pm4CmdBuffer*          pCmdBuffer,
+    const SubResourceInfo& subResInfo,
+    const Box*             pBox,
+    bool                   hasBoxes,
+    uint32                 xRightShift,
+    uint32                 numInstances
+    ) const
+{
+    // Create a scissor state for this mipmap level, slice, and current scissor.
+    ScissorRectParams scissorInfo = {};
+    scissorInfo.count = 1;
+
+    if (hasBoxes)
+    {
+        scissorInfo.scissors[0].offset.x      = pBox->offset.x >> xRightShift;
+        scissorInfo.scissors[0].offset.y      = pBox->offset.y;
+        scissorInfo.scissors[0].extent.width  = pBox->extent.width >> xRightShift;
+        scissorInfo.scissors[0].extent.height = pBox->extent.height;
+    }
+    else
+    {
+        scissorInfo.scissors[0].extent.width  = subResInfo.extentTexels.width >> xRightShift;
+        scissorInfo.scissors[0].extent.height = subResInfo.extentTexels.height;
+    }
+
+    pCmdBuffer->CmdSetScissorRects(scissorInfo);
+
+    // Draw a fullscreen quad.
+    pCmdBuffer->CmdDraw(0, 3, 0, numInstances, 0);
+}
+
+// =====================================================================================================================
 // Resolves a multisampled source Image into the single-sampled destination Image using the Image's resolve method.
 void RsrcProcMgr::CmdResolveImage(
     GfxCmdBuffer*             pCmdBuffer,
@@ -2023,13 +2476,15 @@ void RsrcProcMgr::CmdResolveImage(
     uint32                    flags
     ) const
 {
+    Pm4CmdBuffer* pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+
     const ResolveMethod srcMethod = srcImage.GetImageInfo().resolveMethod;
     const ResolveMethod dstMethod = dstImage.GetImageInfo().resolveMethod;
 
-    if (pCmdBuffer->GetEngineType() == EngineTypeCompute)
+    if (pPm4CmdBuffer->GetEngineType() == EngineTypeCompute)
     {
         PAL_ASSERT((srcMethod.shaderCsFmask == 1) || (srcMethod.shaderCs == 1));
-        ResolveImageCompute(pCmdBuffer,
+        ResolveImageCompute(pPm4CmdBuffer,
                             srcImage,
                             srcImageLayout,
                             dstImage,
@@ -2040,7 +2495,7 @@ void RsrcProcMgr::CmdResolveImage(
                             srcMethod,
                             flags);
 
-        HwlFixupResolveDstImage(pCmdBuffer,
+        HwlFixupResolveDstImage(pPm4CmdBuffer,
                                 *dstImage.GetGfxImage(),
                                 dstImageLayout,
                                 pRegions,
@@ -2057,7 +2512,7 @@ void RsrcProcMgr::CmdResolveImage(
         {
             PAL_ASSERT(resolveMode == ResolveMode::Average);
             // this only support color resolves.
-            ResolveImageFixedFunc(pCmdBuffer,
+            ResolveImageFixedFunc(pPm4CmdBuffer,
                                   srcImage,
                                   srcImageLayout,
                                   dstImage,
@@ -2066,7 +2521,7 @@ void RsrcProcMgr::CmdResolveImage(
                                   pRegions,
                                   flags);
 
-            HwlFixupResolveDstImage(pCmdBuffer,
+            HwlFixupResolveDstImage(pPm4CmdBuffer,
                                     *dstImage.GetGfxImage(),
                                     dstImageLayout,
                                     pRegions,
@@ -2078,7 +2533,7 @@ void RsrcProcMgr::CmdResolveImage(
                  (TestAnyFlagSet(flags, ImageResolveInvertY) == false) &&
                   HwlCanDoDepthStencilCopyResolve(srcImage, dstImage, regionCount, pRegions))
         {
-            ResolveImageDepthStencilCopy(pCmdBuffer,
+            ResolveImageDepthStencilCopy(pPm4CmdBuffer,
                                          srcImage,
                                          srcImageLayout,
                                          dstImage,
@@ -2087,12 +2542,12 @@ void RsrcProcMgr::CmdResolveImage(
                                          pRegions,
                                          flags);
 
-            HwlHtileCopyAndFixUp(pCmdBuffer, srcImage, dstImage, dstImageLayout, regionCount, pRegions, false);
+            HwlHtileCopyAndFixUp(pPm4CmdBuffer, srcImage, dstImage, dstImageLayout, regionCount, pRegions, false);
         }
         else if (dstMethod.shaderPs && (resolveMode == ResolveMode::Average))
         {
             // this only supports Depth/Stencil resolves.
-            ResolveImageDepthStencilGraphics(pCmdBuffer,
+            ResolveImageDepthStencilGraphics(pPm4CmdBuffer,
                                              srcImage,
                                              srcImageLayout,
                                              dstImage,
@@ -2101,11 +2556,11 @@ void RsrcProcMgr::CmdResolveImage(
                                              pRegions,
                                              flags);
         }
-        else if (pCmdBuffer->IsComputeSupported() &&
+        else if (pPm4CmdBuffer->IsComputeSupported() &&
                  ((srcMethod.shaderCsFmask == 1) ||
                   (srcMethod.shaderCs == 1)))
         {
-            ResolveImageCompute(pCmdBuffer,
+            ResolveImageCompute(pPm4CmdBuffer,
                                 srcImage,
                                 srcImageLayout,
                                 dstImage,
@@ -2116,7 +2571,7 @@ void RsrcProcMgr::CmdResolveImage(
                                 srcMethod,
                                 flags);
 
-            HwlFixupResolveDstImage(pCmdBuffer,
+            HwlFixupResolveDstImage(pPm4CmdBuffer,
                                     *dstImage.GetGfxImage(),
                                     dstImageLayout,
                                     pRegions,
@@ -2133,7 +2588,7 @@ void RsrcProcMgr::CmdResolveImage(
 // =====================================================================================================================
 // Executes a CB fixed function resolve.
 void RsrcProcMgr::ResolveImageFixedFunc(
-    GfxCmdBuffer*             pCmdBuffer,
+    Pm4CmdBuffer*             pCmdBuffer,
     const Image&              srcImage,
     ImageLayout               srcImageLayout,
     const Image&              dstImage,
@@ -2328,7 +2783,7 @@ void RsrcProcMgr::ResolveImageFixedFunc(
 // =====================================================================================================================
 // Resolves a multisampled depth-stencil source Image into the single-sampled destination Image using a pixel shader.
 void RsrcProcMgr::ResolveImageDepthStencilGraphics(
-    GfxCmdBuffer*             pCmdBuffer,
+    Pm4CmdBuffer*             pCmdBuffer,
     const Image&              srcImage,
     ImageLayout               srcImageLayout,
     const Image&              dstImage,
@@ -2362,7 +2817,7 @@ void RsrcProcMgr::ResolveImageDepthStencilGraphics(
                (Formats::IsDepthStencilOnly(srcCreateInfo.swizzledFormat.format) &&
                 Formats::IsDepthStencilOnly(dstCreateInfo.swizzledFormat.format)));
 
-    const StencilRefMaskParams       stencilRefMasks      = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF, };
+    const StencilRefMaskParams stencilRefMasks = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF, };
 
     // Initialize some structures we will need later on.
     ViewportParams viewportInfo = { };
@@ -2562,7 +3017,7 @@ void RsrcProcMgr::ResolveImageDepthStencilGraphics(
 // =====================================================================================================================
 // Executes a image resolve by performing fixed-func depth copy or stencil copy
 void RsrcProcMgr::ResolveImageDepthStencilCopy(
-    GfxCmdBuffer*             pCmdBuffer,
+    Pm4CmdBuffer*             pCmdBuffer,
     const Image&              srcImage,
     ImageLayout               srcImageLayout,
     const Image&              dstImage,
@@ -2773,7 +3228,7 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
 // GPU virtual address of an array of conditional DWORDs, one for each mip level in the image. RPM will use these
 // DWORDs to conditionally execute this blit on a per-mip basis.
 void RsrcProcMgr::GenericColorBlit(
-    GfxCmdBuffer*                pCmdBuffer,
+    Pm4CmdBuffer*                pCmdBuffer,
     const Image&                 dstImage,
     const SubresRange&           range,
     const MsaaQuadSamplePattern* pQuadSamplePattern,
@@ -2943,7 +3398,7 @@ void RsrcProcMgr::GenericColorBlit(
                         colorViewInfo.imageInfo.baseSubRes.arraySlice = arraySlice;
                     }
 
-                    colorViewInfo.imageInfo.baseSubRes.mipLevel   = mip;
+                    colorViewInfo.imageInfo.baseSubRes.mipLevel = mip;
 
                     Result result = m_pDevice->CreateColorTargetView(colorViewInfo,
                                                                      colorViewInfoInternal,
@@ -2988,7 +3443,7 @@ void RsrcProcMgr::GenericColorBlit(
 // =====================================================================================================================
 // Performs a depth/stencil expand (decompress) on the provided image.
 bool RsrcProcMgr::ExpandDepthStencil(
-    GfxCmdBuffer*                pCmdBuffer,
+    Pm4CmdBuffer*                pCmdBuffer,
     const Image&                 image,
     const MsaaQuadSamplePattern* pQuadSamplePattern,
     const SubresRange&           range
@@ -3137,7 +3592,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
 // Performs a depth/stencil resummarization on the provided image.  This operation recalculates the HiZ range in the
 // htile based on the z-buffer values.
 void RsrcProcMgr::ResummarizeDepthStencil(
-    GfxCmdBuffer*                pCmdBuffer,
+    Pm4CmdBuffer*                pCmdBuffer,
     const Image&                 image,
     ImageLayout                  imageLayout,
     const MsaaQuadSamplePattern* pQuadSamplePattern,
@@ -3461,7 +3916,7 @@ void RsrcProcMgr::FixupComputeResolveDst(
             subresRange.numPlanes              = 1;
             subresRange.numMips                = 1;
             subresRange.numSlices              = curRegion.numSlices;
-            HwlResummarizeHtileCompute(pCmdBuffer, *dstImage.GetGfxImage(), subresRange);
+            HwlResummarizeHtileCompute(static_cast<Pm4CmdBuffer*>(pCmdBuffer), *dstImage.GetGfxImage(), subresRange);
         }
 
         // There is a potential problem here because the htile is shared between

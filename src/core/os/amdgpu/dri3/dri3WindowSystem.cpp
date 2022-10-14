@@ -122,36 +122,63 @@ Result Dri3PresentFence::Init(
     m_syncFence   = m_windowSystem.m_dri3Procs.pfnXcbGenerateId(m_windowSystem.m_pConnection);
     Result result = (m_syncFence != 0) ? Result::Success : Result::ErrorUnknown;
 
-    int32 fenceFd = InvalidFd;
-
-    if (result == Result::Success)
+    if (m_windowSystem.Dri3Supported())
     {
-        fenceFd = m_windowSystem.m_dri3Procs.pfnXshmfenceAllocShm();
+        // Using shared memory fences is faster but requires DRI3
+        // This works even if we're using software compositing for everything else.
+        int32 fenceFd = InvalidFd;
 
-        if (fenceFd < 0)
+        if (result == Result::Success)
         {
-            result = Result::ErrorUnknown;
+            fenceFd = m_windowSystem.m_dri3Procs.pfnXshmfenceAllocShm();
+
+            if (fenceFd < 0)
+            {
+                result = Result::ErrorUnknown;
+            }
+        }
+
+        if (result == Result::Success)
+        {
+            m_pShmFence = m_windowSystem.m_dri3Procs.pfnXshmfenceMapShm(fenceFd);
+
+            if (m_pShmFence == nullptr)
+            {
+                result = Result::ErrorUnknown;
+            }
+        }
+
+        if (result == Result::Success)
+        {
+            const xcb_void_cookie_t cookie =
+                m_windowSystem.m_dri3Procs.pfnXcbDri3FenceFromFdChecked(m_windowSystem.m_pConnection,
+                                                                        m_windowSystem.m_hWindow,
+                                                                        m_syncFence,
+                                                                        initiallySignaled,
+                                                                        fenceFd);
+
+            xcb_generic_error_t*const pError =
+                m_windowSystem.m_dri3Procs.pfnXcbRequestCheck(m_windowSystem.m_pConnection, cookie);
+
+            if (pError != nullptr)
+            {
+                free(pError);
+                result = Result::ErrorUnknown;
+            }
+        }
+
+        if (initiallySignaled && (result == Result::Success))
+        {
+            m_windowSystem.m_dri3Procs.pfnXshmfenceTrigger(m_pShmFence);
         }
     }
-
-    if (result == Result::Success)
-    {
-        m_pShmFence = m_windowSystem.m_dri3Procs.pfnXshmfenceMapShm(fenceFd);
-
-        if (m_pShmFence == nullptr)
-        {
-            result = Result::ErrorUnknown;
-        }
-    }
-
-    if (result == Result::Success)
+    else
     {
         const xcb_void_cookie_t cookie =
-            m_windowSystem.m_dri3Procs.pfnXcbDri3FenceFromFdChecked(m_windowSystem.m_pConnection,
+            m_windowSystem.m_dri3Procs.pfnXcbSyncCreateFenceChecked(m_windowSystem.m_pConnection,
                                                                     m_windowSystem.m_hWindow,
                                                                     m_syncFence,
-                                                                    initiallySignaled,
-                                                                    fenceFd);
+                                                                    initiallySignaled);
 
         xcb_generic_error_t*const pError =
             m_windowSystem.m_dri3Procs.pfnXcbRequestCheck(m_windowSystem.m_pConnection, cookie);
@@ -163,20 +190,21 @@ Result Dri3PresentFence::Init(
         }
     }
 
-    if (initiallySignaled && (result == Result::Success))
-    {
-        m_windowSystem.m_dri3Procs.pfnXshmfenceTrigger(m_pShmFence);
-    }
-
     return result;
 }
 
 // =====================================================================================================================
 void Dri3PresentFence::Reset()
 {
-    PAL_ASSERT(m_pShmFence != nullptr);
-
-    m_windowSystem.m_dri3Procs.pfnXshmfenceReset(m_pShmFence);
+    if (m_pShmFence != nullptr)
+    {
+        m_windowSystem.m_dri3Procs.pfnXshmfenceReset(m_pShmFence);
+    }
+    else
+    {
+        PAL_ASSERT(m_syncFence != 0);
+        m_windowSystem.m_dri3Procs.pfnXcbSyncResetFence(m_windowSystem.m_pConnection, m_syncFence);
+    }
     m_presented = false;
 }
 
@@ -184,24 +212,31 @@ void Dri3PresentFence::Reset()
 // Trigger the SyncFence object.
 Result Dri3PresentFence::Trigger()
 {
-    PAL_ASSERT(m_syncFence != 0);
-
-    const xcb_void_cookie_t cookie =
-        m_windowSystem.m_dri3Procs.pfnXcbSyncTriggerFenceChecked(m_windowSystem.m_pConnection, m_syncFence);
-
-    xcb_generic_error_t*const pError =
-        m_windowSystem.m_dri3Procs.pfnXcbRequestCheck(m_windowSystem.m_pConnection, cookie);
-
     Result result = Result::Success;
 
-    if (pError != nullptr)
+    if (m_pShmFence != nullptr)
     {
-        free(pError);
-        result = Result::ErrorUnknown;
+        m_windowSystem.m_dri3Procs.pfnXshmfenceTrigger(m_pShmFence);
+        m_presented = true;
     }
     else
     {
-        m_presented = true;
+        PAL_ASSERT(m_syncFence != 0);
+        const xcb_void_cookie_t cookie =
+            m_windowSystem.m_dri3Procs.pfnXcbSyncTriggerFenceChecked(m_windowSystem.m_pConnection, m_syncFence);
+
+        xcb_generic_error_t*const pError =
+            m_windowSystem.m_dri3Procs.pfnXcbRequestCheck(m_windowSystem.m_pConnection, cookie);
+
+        if (pError != nullptr)
+        {
+            free(pError);
+            result = Result::ErrorUnknown;
+        }
+        else
+        {
+            m_presented = true;
+        }
     }
 
     return result;
@@ -212,7 +247,7 @@ Result Dri3PresentFence::Trigger()
 Result Dri3PresentFence::WaitForCompletion(
     bool doWait)
 {
-    Result          result   = Result::Success;
+    Result result = Result::Success;
 
     if (m_presented == false)
     {
@@ -223,23 +258,90 @@ Result Dri3PresentFence::WaitForCompletion(
     {
         if (doWait)
         {
-            if (m_windowSystem.m_dri3Procs.pfnXshmfenceAwait(m_pShmFence) != 0)
+            if (m_pShmFence != nullptr)
             {
-                result = Result::ErrorUnknown;
+                if (m_windowSystem.m_dri3Procs.pfnXshmfenceAwait(m_pShmFence) != 0)
+                {
+                    result = Result::ErrorUnknown;
+                }
+            }
+            else
+            {
+                PAL_ASSERT(m_syncFence != 0);
+                const xcb_void_cookie_t cookie =
+                    m_windowSystem.m_dri3Procs.pfnXcbSyncAwaitFenceChecked(m_windowSystem.m_pConnection,
+                                                                           1,
+                                                                           &m_syncFence);
+
+                xcb_generic_error_t*const pError =
+                    m_windowSystem.m_dri3Procs.pfnXcbRequestCheck(m_windowSystem.m_pConnection, cookie);
+
+                if (pError != nullptr)
+                {
+                    free(pError);
+                    result = Result::ErrorUnknown;
+                }
             }
         }
         else
         {
-            if (m_windowSystem.m_dri3Procs.pfnXshmfenceQuery(m_pShmFence) == 0)
-            {
-                result = Result::NotReady;
-            }
+            result = QueryRaw();
         }
     }
 
     if (result == Result::Success)
     {
         m_pImage->SetIdle(true);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Check status of the fence
+Result Dri3PresentFence::QueryRaw()
+{
+    Result result = Result::Success;
+
+    if (m_pShmFence != nullptr)
+    {
+        if (m_windowSystem.m_dri3Procs.pfnXshmfenceQuery(m_pShmFence) == 0)
+        {
+            result = Result::NotReady;
+        }
+    }
+    else
+    {
+        PAL_ASSERT(m_syncFence != 0);
+        const xcb_sync_query_fence_cookie_t cookie =
+            m_windowSystem.m_dri3Procs.pfnXcbSyncQueryFence(m_windowSystem.m_pConnection, m_syncFence);
+
+        xcb_generic_error_t* pError = nullptr;
+        xcb_sync_query_fence_reply_t*const pFenceReply =
+            m_windowSystem.m_dri3Procs.pfnXcbSyncQueryFenceReply(m_windowSystem.m_pConnection,
+                                                                 cookie,
+                                                                 &pError);
+
+        if (pError != nullptr)
+        {
+            // Some error occurred
+            result = Result::ErrorUnknown;
+        }
+        else if (pFenceReply != nullptr)
+        {
+            if (pFenceReply->triggered == 0)
+            {
+                result = Result::NotReady;
+            }
+        }
+        else
+        {
+            // No error but no result?!?
+            result = Result::ErrorUnknown;
+        }
+
+        free(pError);
+        free(pFenceReply);
     }
 
     return result;
@@ -291,6 +393,7 @@ Dri3WindowSystem::Dri3WindowSystem(
     m_needWindowSizeChangedCheck(false),
     m_pConnection(nullptr),
     m_dri2Supported(true),
+    m_dri3Supported(true),
     m_dri3MajorVersion(0),
     m_dri3MinorVersion(0),
     m_presentMajorVersion(0),
@@ -338,15 +441,22 @@ Result Dri3WindowSystem::Init()
         if (result == Result::Success)
         {
             int32 fd = OpenDri3();
-            if (fd == InvalidFd)
+            if (m_dri3Supported)
             {
-                result = Result::ErrorInitializationFailed;
+                if (fd != InvalidFd)
+                {
+                    result = m_device.IsSameGpu(fd, &m_presentOnSameGpu);
+
+                    close(fd);
+                }
+                else
+                {
+                    result = Result::ErrorInitializationFailed;
+                }
             }
             else
             {
-                result = m_device.IsSameGpu(fd, &m_presentOnSameGpu);
-
-                close(fd);
+                m_presentOnSameGpu = false;
             }
         }
 
@@ -434,7 +544,12 @@ bool Dri3WindowSystem::IsExtensionSupported()
     pReply = m_dri3Procs.pfnXcbGetExtensionData(m_pConnection, m_dri3Loader.GetXcbDri3Id());
     if ((pReply == nullptr) || (pReply->present == 0))
     {
-        result = false;
+        m_dri3Supported = false;
+        if (m_device.Settings().forcePresentViaCpuBlt == false)
+        {
+            // If not using CPU blits, this ext is required
+            result = false;
+        }
     }
 
     if (result == true)
@@ -442,6 +557,7 @@ bool Dri3WindowSystem::IsExtensionSupported()
         pReply = m_dri3Procs.pfnXcbGetExtensionData(m_pConnection, m_dri3Loader.GetXcbPresentId());
         if ((pReply == nullptr) || (pReply->present == 0))
         {
+            // This ext is required
             result = false;
         }
     }
@@ -453,18 +569,21 @@ bool Dri3WindowSystem::IsExtensionSupported()
 // Send DRI3-Open request to Xserver to get the related GPU file descriptor.
 int32 Dri3WindowSystem::OpenDri3()
 {
-    int32                        fd       = InvalidFd;
-    const xcb_randr_provider_t   provider = 0;
-    const xcb_dri3_open_cookie_t cookie   = m_dri3Procs.pfnXcbDri3Open(m_pConnection, m_hWindow, provider);
-    xcb_dri3_open_reply_t*const  pReply   = m_dri3Procs.pfnXcbDri3OpenReply(m_pConnection, cookie, NULL);
-    int32                        driverNameLength;
+    int32 fd = InvalidFd;
+    int32 driverNameLength;
 
-    m_windowSystemProperties.supportFreeSyncExtension = 0;
-
-    if (pReply != nullptr)
+    if (m_dri3Supported)
     {
-        fd = (pReply->nfd == 1) ? m_dri3Procs.pfnXcbDri3OpenReplyFds(m_pConnection, pReply)[0] : InvalidFd;
-        free(pReply);
+        const xcb_randr_provider_t   provider = 0;
+        const xcb_dri3_open_cookie_t cookie   = m_dri3Procs.pfnXcbDri3Open(m_pConnection, m_hWindow, provider);
+        xcb_dri3_open_reply_t*const  pReply   = m_dri3Procs.pfnXcbDri3OpenReply(m_pConnection, cookie, NULL);
+        m_windowSystemProperties.supportFreeSyncExtension = 0;
+
+        if (pReply != nullptr)
+        {
+            fd = (pReply->nfd == 1) ? m_dri3Procs.pfnXcbDri3OpenReplyFds(m_pConnection, pReply)[0] : InvalidFd;
+            free(pReply);
+        }
     }
 
     if (m_dri2Supported)
@@ -516,28 +635,31 @@ Result Dri3WindowSystem::QueryVersion()
 {
     Result result = Result::Success;
 
-    const xcb_dri3_query_version_cookie_t dri3Cookie =
-        m_dri3Procs.pfnXcbDri3QueryVersion(m_pConnection, XCB_DRI3_MAJOR_VERSION, XCB_DRI3_MINOR_VERSION);
-
-    const xcb_present_query_version_cookie_t presentCookie =
-        m_dri3Procs.pfnXcbPresentQueryVersion(m_pConnection, XCB_PRESENT_MAJOR_VERSION, XCB_PRESENT_MINOR_VERSION);
-
-    xcb_dri3_query_version_reply_t*const pDri3Reply =
-        m_dri3Procs.pfnXcbDri3QueryVersionReply(m_pConnection, dri3Cookie, NULL);
-
-    if (pDri3Reply != nullptr)
+    if (m_dri3Supported)
     {
-        m_dri3MajorVersion = pDri3Reply->major_version;
-        m_dri3MinorVersion = pDri3Reply->minor_version;
-        free(pDri3Reply);
-    }
-    else
-    {
-        result = Result::ErrorUnknown;
+        const xcb_dri3_query_version_cookie_t dri3Cookie =
+            m_dri3Procs.pfnXcbDri3QueryVersion(m_pConnection, XCB_DRI3_MAJOR_VERSION, XCB_DRI3_MINOR_VERSION);
+
+        xcb_dri3_query_version_reply_t*const pDri3Reply =
+            m_dri3Procs.pfnXcbDri3QueryVersionReply(m_pConnection, dri3Cookie, NULL);
+
+        if (pDri3Reply != nullptr)
+        {
+            m_dri3MajorVersion = pDri3Reply->major_version;
+            m_dri3MinorVersion = pDri3Reply->minor_version;
+            free(pDri3Reply);
+        }
+        else
+        {
+            result = Result::ErrorUnknown;
+        }
     }
 
     if (result == Result::Success)
     {
+        const xcb_present_query_version_cookie_t presentCookie =
+            m_dri3Procs.pfnXcbPresentQueryVersion(m_pConnection, XCB_PRESENT_MAJOR_VERSION, XCB_PRESENT_MINOR_VERSION);
+
         xcb_present_query_version_reply_t*const pPresentReply =
             m_dri3Procs.pfnXcbPresentQueryVersionReply(m_pConnection, presentCookie, NULL);
 
@@ -727,7 +849,7 @@ Result Dri3WindowSystem::Present(
     Image*                 pSrcImage      = static_cast<Image*>(presentInfo.pSrcImage);
     uint32                 pixmap         = pSrcImage->GetPresentImageHandle().hPixmap;
     PresentMode            presentMode    = presentInfo.presentMode;
-    PAL_ASSERT((pDri3IdleFence == nullptr) || (m_dri3Procs.pfnXshmfenceQuery(pDri3IdleFence->ShmFence()) == 0));
+    PAL_ASSERT((pDri3IdleFence == nullptr) || (pDri3IdleFence->QueryRaw() == Result::NotReady));
 
     if (m_device.Settings().forcePresentViaCpuBlt)
     {
@@ -848,6 +970,8 @@ Result Dri3WindowSystem::Present(
         while((pEvent = m_dri3Procs.pfnXcbPollForSpecialEvent(m_pConnection, m_pPresentEvent)) != nullptr)
         {
             HandlePresentEvent(reinterpret_cast<xcb_present_generic_event_t*>(pEvent));
+
+            free(pEvent);
         }
     }
 

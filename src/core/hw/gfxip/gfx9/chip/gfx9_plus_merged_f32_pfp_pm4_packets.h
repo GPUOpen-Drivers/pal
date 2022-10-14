@@ -1947,7 +1947,7 @@ typedef struct PM4_PFP_GEN_PDEPTE
     } ordinal10;
 } PM4_PFP_GEN_PDEPTE;
 
-constexpr unsigned int PM4_PFP_GEN_PDEPTE_SIZEDW__CORE = 10;
+constexpr unsigned int PM4_PFP_GEN_PDEPTE_SIZEDW__GFX09_10 = 10;
 
 // ---------------------------- PFP_INDEX_ATTRIBUTES_INDIRECT_mode_enum ----------------------------
 enum PFP_INDEX_ATTRIBUTES_INDIRECT_mode_enum
@@ -2753,13 +2753,13 @@ typedef struct PM4_PFP_REWIND
             {
                 uint32_t reserved1  : 31;
                 uint32_t valid      :  1;
-            } core;
+            } hasCe;
         } bitfields;
         uint32_t u32All;
     } ordinal2;
 } PM4_PFP_REWIND;
 
-constexpr unsigned int PM4_PFP_REWIND_SIZEDW__CORE = 2;
+constexpr unsigned int PM4_PFP_REWIND_SIZEDW__HASCE = 2;
 
 // --------------------------------- PFP_SET_BASE_base_index_enum ---------------------------------
 enum PFP_SET_BASE_base_index_enum
@@ -3323,16 +3323,22 @@ typedef struct PM4_PFP_EXECUTE_INDIRECT
         {
             struct
             {
-                uint32_t                              ib_size               : 20;
-                uint32_t                              chain                 :  1;
-                uint32_t                              pre_ena               :  1;
-                uint32_t                              reserved1             :  1;
-                uint32_t                              count_indirect_enable :  1;
-                uint32_t                              vmid                  :  4;
-                PFP_INDIRECT_BUFFER_cache_policy_enum cache_policy          :  2;
-                uint32_t                              pre_resume            :  1;
-                uint32_t                              reserved2             :  1;
+                uint32_t ib_size               : 20;
+                uint32_t chain                 :  1;
+                uint32_t pre_ena               :  1;
+                uint32_t reserved1             :  1;
+                uint32_t count_indirect_enable :  1;
+                uint32_t vmid                  :  4;
+                uint32_t reserved2             :  2;
+                uint32_t pre_resume            :  1;
+                uint32_t reserved3             :  1;
             } core;
+            struct
+            {
+                uint32_t                              reserved6    : 28;
+                PFP_INDIRECT_BUFFER_cache_policy_enum cache_policy :  2;
+                uint32_t                              reserved7    :  2;
+            } hasCe;
         } bitfields;
         uint32_t u32All;
     } ordinal4;

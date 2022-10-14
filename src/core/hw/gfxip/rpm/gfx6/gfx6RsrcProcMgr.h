@@ -51,7 +51,7 @@ public:
     virtual ~RsrcProcMgr() {}
 
     virtual void CmdCopyMemory(
-        GfxCmdBuffer*           pCmdBuffer,
+        Pm4CmdBuffer*           pCmdBuffer,
         const GpuMemory&        srcGpuMemory,
         const GpuMemory&        dstGpuMemory,
         uint32                  regionCount,
@@ -112,12 +112,12 @@ public:
         const SubresRange&           range) const;
 
     virtual void HwlResummarizeHtileCompute(
-        GfxCmdBuffer*      pCmdBuffer,
+        Pm4CmdBuffer*      pCmdBuffer,
         const GfxImage&    image,
         const SubresRange& range) const override;
 
     virtual bool ExpandDepthStencil(
-        GfxCmdBuffer*                pCmdBuffer,
+        Pm4CmdBuffer*                pCmdBuffer,
         const Pal::Image&            image,
         const MsaaQuadSamplePattern* pQuadSamplePattern,
         const SubresRange&           range) const override;
@@ -133,7 +133,7 @@ protected:
 
     virtual const Pal::ComputePipeline* GetCmdGenerationPipeline(
         const Pm4::IndirectCmdGenerator& generator,
-        const CmdBuffer&                 cmdBuffer) const override;
+        const Pm4CmdBuffer&              cmdBuffer) const override;
 
 private:
     virtual void HwlFastColorClear(
@@ -153,7 +153,7 @@ private:
         bool                    isFmaskCopyOptimized) const override;
 
     virtual void HwlHtileCopyAndFixUp(
-        GfxCmdBuffer*             pCmdBuffer,
+        Pm4CmdBuffer*             pCmdBuffer,
         const Pal::Image&         srcImage,
         const Pal::Image&         dstImage,
         ImageLayout               dstImageLayout,
@@ -177,7 +177,7 @@ private:
         const Box*         pBox) const override;
 
     virtual uint32 HwlBeginGraphicsCopy(
-        Pal::GfxCmdBuffer*           pCmdBuffer,
+        Pm4CmdBuffer*                pCmdBuffer,
         const Pal::GraphicsPipeline* pPipeline,
         const Pal::Image&            dstImage,
         uint32                       bpp) const override;
@@ -208,7 +208,7 @@ private:
         const ImageResolveRegion* pRegions) const override;
 
     virtual void HwlFixupResolveDstImage(
-        GfxCmdBuffer*             pCmdBuffer,
+        Pm4CmdBuffer*             pCmdBuffer,
         const GfxImage&           dstImage,
         ImageLayout               dstImageLayout,
         const ImageResolveRegion* pRegions,

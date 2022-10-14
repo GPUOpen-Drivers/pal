@@ -328,7 +328,11 @@ static ReleaseEvents GetReleaseEvents(
     // PFP sets IB base and size to register VGT_DMA_BASE & VGT_DMA_SIZE and send request to VGT for indices fetch,
     // which is done in GE. So need VsDone to make sure indices fetch done.
     constexpr uint32 VsWaitStageMask  = PipelineStageVs | PipelineStageHs | PipelineStageDs |
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 770
+                                        PipelineStageGs | PipelineStageFetchIndices | PipelineStageStreamOut;
+#else
                                         PipelineStageGs | PipelineStageFetchIndices;
+#endif
     constexpr uint32 PsWaitStageMask  = PipelineStagePs;
     constexpr uint32 CsWaitStageMask  = PipelineStageCs;
 
@@ -356,8 +360,6 @@ static ReleaseEvents GetReleaseEvents(
         0,
     };
 
-    const bool rasterKillDrawsActive = (pCmdBuf->GetPm4CmdBufState().flags.rasterKillDrawsActive != 0);
-
     ReleaseEvents release = {};
 
     if (TestAnyFlagSet(srcStageMask, StallReqStageMask[uint32(acquirePoint)]))
@@ -370,9 +372,7 @@ static ReleaseEvents GetReleaseEvents(
         {
             release.ps = TestAnyFlagSet(srcStageMask, PsWaitStageMask);
             release.cs = TestAnyFlagSet(srcStageMask, CsWaitStageMask);
-
-            const bool psDoneGuaranteeVsDone = release.ps && (rasterKillDrawsActive == false);
-            release.vs = (psDoneGuaranteeVsDone == false) && TestAnyFlagSet(srcStageMask, VsWaitStageMask);
+            release.vs = TestAnyFlagSet(srcStageMask, VsWaitStageMask);
         }
     }
 
@@ -388,27 +388,11 @@ static ReleaseEvents GetReleaseEvents(
     if (splitBarrier)
     {
         // No VS_DONE event support from HW yet. For ReleaseThenAcquire, can issue VS_PARTIAL_FLUSH instead and for
-        // split barrier, need bump to PsDone or Eop instead. However, if rasterKill is enabled (there is no Ps wave),
-        // PsDone can't guarantee Vs done where we have to convert to Eop instead.
-        if (release.vs)
-        {
-            release.vs = 0;
+        // split barrier, need bump to Eop instead.
+        release.eop |= release.vs;
 
-            if (rasterKillDrawsActive)
-            {
-                release.eop = 1;
-            }
-            else
-            {
-                release.ps = 1;
-            }
-        }
-
-        // Combine to single event
-        if (release.ps && release.cs)
-        {
-            release.eop = 1;
-        }
+        // Combine two events to single event
+        release.eop |= (release.ps & release.cs);
     }
 
     if (release.eop)
@@ -428,7 +412,17 @@ static AcquirePoint GetAcquirePoint(
     // Constants to map PAL interface pipe stage masks to HW acquire points.
     constexpr uint32 AcqPfpStages       = PipelineStageTopOfPipe | PipelineStageFetchIndirectArgs |
                                           PipelineStageFetchIndices;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 770
+    // In DX12 conformance test, a buffer is bound as color target, cleared, and then bound as stream out
+    // bufferFilledSizeLocation, where CmdLoadBufferFilledSizes() will be called to set this buffer with
+    // STRMOUT_BUFFER_FILLED_SIZE (e.g. from control buffer for NGG-SO) via CP ME.
+    // In CmdDrawOpaque(), bufferFilleSize allocation will be loaded by LOAD_CONTEXT_REG_INDEX packet via PFP to
+    // initialize register VGT_STRMOUT_DRAW_OPAQUE_BUFFER_FILLED_SIZE. PFP_SYNC_ME is issued before load packet so
+    // we're safe to acquire at ME stage here.
+    constexpr uint32 AcqMeStages        = PipelineStageBlt | PipelineStageStreamOut;
+#else
     constexpr uint32 AcqMeStages        = PipelineStageBlt;
+#endif
     constexpr uint32 AcqPreShaderStages = PipelineStageVs | PipelineStageHs | PipelineStageDs |
                                           PipelineStageGs | PipelineStageCs;
     constexpr uint32 AcqPreDepthStages  = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget;
@@ -613,6 +607,68 @@ static void GetBltStageAccessInfo(
     }
 }
 
+// =====================================================================================================================
+// Remove redundant stall and cache operations by modifying srcStageMask and srcAccessMask
+static void OptimizeStageAndAccessMask(
+    Pm4CmdBuffer* pCmdBuf,
+    uint32*       pSrcStageMask,
+    uint32*       pSrcAccessMask,
+    uint32*       pDstAccessMask)
+{
+    PAL_ASSERT((pSrcStageMask != nullptr) && (pSrcAccessMask != nullptr) && (pDstAccessMask != nullptr));
+
+    if (pCmdBuf->IsGraphicsSupported())
+    {
+        constexpr uint32 PipelineStageTargetMask = PipelineStageColorTarget | PipelineStageEarlyDsTarget |
+                                                   PipelineStageLateDsTarget;
+        constexpr uint32 PipelineStageVsPsMask   = PipelineStageVs | PipelineStageHs | PipelineStageDs |
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 770
+                                                   PipelineStageGs | PipelineStagePs | PipelineStageStreamOut |
+                                                   PipelineStageFetchIndices;
+#else
+                                                   PipelineStageGs | PipelineStagePs | PipelineStageFetchIndices;
+#endif
+
+        const auto          cmdBufStateFlags = pCmdBuf->GetPm4CmdBufState().flags;
+        const GfxDrawStatus gfxDrawStatus    = GfxDrawStatus(cmdBufStateFlags.gfxDrawStatus);
+
+        if ((gfxDrawStatus == GfxDrawEop) || (gfxDrawStatus == GfxDrawEopFlushed))
+        {
+            const uint32 oldSrcStageMask = *pSrcStageMask;
+
+            *pSrcStageMask &= ~(PipelineStageTargetMask | PipelineStageVsPsMask);
+
+            // If avoid an EOP event, try to set PipelineStageCs back if gfxCsActive=1 since gfxDrawStatus doesn't
+            // track CS. It's possible that new dispatch occurs since last GfxDrawEopFlushed.
+            if (TestAnyFlagSet(oldSrcStageMask, PipelineStageTargetMask))
+            {
+                *pSrcStageMask |= (cmdBufStateFlags.gfxCsActive ? PipelineStageCs : 0);
+            }
+
+            if (gfxDrawStatus == GfxDrawEopFlushed)
+            {
+                *pSrcAccessMask &= ~(CoherColorTarget | CoherDepthStencilTarget);
+            }
+        }
+        else if (gfxDrawStatus == GfxDrawPsVsDone)
+        {
+            *pSrcStageMask &= ~PipelineStageVsPsMask;
+        }
+
+        if (cmdBufStateFlags.gfxCsActive == 0)
+        {
+            *pSrcStageMask &= ~PipelineStageCs;
+        }
+
+        if (cmdBufStateFlags.gfxSrcCachesDirty == 0)
+        {
+            PAL_ASSERT((cmdBufStateFlags.gfxCsActive == 0) && (cmdBufStateFlags.gfxDrawStatus != GfxDrawActive));
+
+            *pDstAccessMask &= ~CacheCoherShaderAccessMask;
+        }
+    }
+}
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
 // =====================================================================================================================
 static bool IsReadOnlyTransition(
@@ -633,7 +689,11 @@ static uint32 GetOptimizedSrcStagesForReadOnlyBarrier(
     uint32        dstStageMask)
 {
     constexpr uint32 ReleaseVsStages = PipelineStageVs | PipelineStageHs |PipelineStageDs | PipelineStageGs |
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 770
+                                       PipelineStageFetchIndices | PipelineStageStreamOut;
+#else
                                        PipelineStageFetchIndices;
+#endif
 
     uint32 optSrcStageMask = (srcStageMask & ~dstStageMask);
 
@@ -1386,13 +1446,6 @@ void Device::IssueAcquireSync(
             // An EOP release sync that is issued after the latest CS BLT must have completed, so mark CS BLT idle.
             pCmdBuf->SetPm4CmdBufCsBltState(false);
         }
-
-        if (waitedEopFenceVal >= cmdBufState.fences.rasterKillDrawsExecFenceVal)
-        {
-            // An EOP release sync that is issued after the latest rasterization kill draws must have completed, so
-            // mark rasterization kill draws inactive.
-            pCmdBuf->SetPm4CmdBufRasterKillDrawsState(false);
-        }
     }
 
     const uint32 waitedCsDoneFenceVal = syncTokenToWait[uint32(AcqRelEventType::CsDone)];
@@ -1458,11 +1511,13 @@ void Device::IssueReleaseThenAcquireSync(
     AcquirePoint     acquirePoint  = GetAcquirePoint(dstStageMask);
     SyncGlxFlags     acquireCaches = GetReleaseThenAcquireCacheFlags(srcAccessMask, dstAccessMask,
                                                                      refreshTcc, mayHaveMetadata, pBarrierOps);
+    const bool       invSrcCaches  = TestAllFlagsSet(acquireCaches, SyncGlkInv | SyncGlvInv | SyncGlmInv);
     ReleaseEvents    releaseEvents = GetReleaseEvents(pCmdBuf, *this, srcStageMask, srcAccessMask,
                                                       false, acquireCaches, acquirePoint);
     ReleaseMemCaches releaseCaches = {};
 
-    const Pm4CmdBufferStateFlags cmdBufStateFlags = pCmdBuf->GetPm4CmdBufState().flags;
+    // Define as reference instead of value since the flags may be changed at running and we want the refresh value.
+    const Pm4CmdBufferStateFlags& cmdBufStateFlags = pCmdBuf->GetPm4CmdBufState().flags;
 
     // Preprocess release events, acquire caches and point for optimization or HW limitation before issue real packet.
     // Make no sense to process for (dstStageMask = PipelineStageBottomOfPipe) case so skip it.
@@ -1508,16 +1563,9 @@ void Device::IssueReleaseThenAcquireSync(
                 {
                     pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(PS_PARTIAL_FLUSH, engineType, pCmdSpace);
                     pBarrierOps->pipelineStalls.psPartialFlush = 1;
-
-                    // When rasterKillDrawsActive=1 (not accurate status but assumed worst case), PS_PARTIAL_FLUSH
-                    // complete can't make sure VS_PARTIAL_FLUSH complete. Need issue VS_PARTIAL_FLUSH as well.
-                    if (cmdBufStateFlags.rasterKillDrawsActive != 0)
-                    {
-                        pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(VS_PARTIAL_FLUSH, engineType, pCmdSpace);
-                        pBarrierOps->pipelineStalls.vsPartialFlush = 1;
-                    }
                 }
-                else if (releaseEvents.vs)
+
+                if (releaseEvents.vs)
                 {
                     pCmdSpace += m_cmdUtil.BuildNonSampleEventWrite(VS_PARTIAL_FLUSH, engineType, pCmdSpace);
                     pBarrierOps->pipelineStalls.vsPartialFlush = 1;
@@ -1580,21 +1628,29 @@ void Device::IssueReleaseThenAcquireSync(
         {
             pCmdBuf->SetPrevCmdBufInactive();
             pCmdBuf->SetPm4CmdBufGfxBltState(false);
+            pCmdBuf->SetGfxDrawState(releaseEvents.rbCache ? GfxDrawEopFlushed : GfxDrawEop);
             if (releaseEvents.rbCache)
             {
                 pCmdBuf->SetPm4CmdBufGfxBltWriteCacheState(false);
             }
         }
-
-        // PS release also issues VS_PARTIAL_FLUSH if (rasterKillDrawsActive != 0).
-        if (releaseEvents.eop || releaseEvents.ps || releaseEvents.vs)
+        else if (releaseEvents.ps && releaseEvents.vs)
         {
-            pCmdBuf->SetPm4CmdBufRasterKillDrawsState(false);
+            pCmdBuf->SetGfxDrawState(GfxDrawPsVsDone);
         }
 
         if (releaseEvents.eop || releaseEvents.cs)
         {
             pCmdBuf->SetPm4CmdBufCsBltState(false);
+            pCmdBuf->SetGfxCsState(false);
+        }
+
+        // Only set shader source caches clean if source caches are invalidated and no active CS or PS.
+        if (invSrcCaches &&
+            (cmdBufStateFlags.gfxCsActive == 0) &&
+            (cmdBufStateFlags.gfxDrawStatus != GfxDrawActive))
+        {
+            pCmdBuf->SetGfxSrcCachesClean();
         }
     }
 
@@ -1934,6 +1990,8 @@ AcqRelSyncToken Device::Release(
                                                              &unusedAccessMask,
                                                              pBarrierOps);
 
+        OptimizeStageAndAccessMask(pCmdBuf, &srcGlobalStageMask, &srcGlobalStageMask, &unusedAccessMask);
+
         // Issue BLTs if there exists transitions that require one.
         if (transInfo.bltCount > 0)
         {
@@ -2031,6 +2089,8 @@ void Device::Acquire(
 
         // Should have no L2 refresh for image barrier as this is done at Release().
         PAL_ASSERT(preBltRefreshTcc == false);
+
+        OptimizeStageAndAccessMask(pCmdBuf, &unusedStageMask, &unusedAccessMask, &dstGlobalAccessMask);
 
         // Issue acquire for global or pre-BLT sync. No need stall if wait at bottom of pipe
         const uint32 acquireDstStageMask  = (transInfo.bltCount > 0) ? transInfo.bltStageMask : dstGlobalStageMask;
@@ -2143,6 +2203,8 @@ void Device::ReleaseThenAcquire(
                                                              &dstGlobalAccessMask,
                                                              pBarrierOps);
         mayHaveMatadata |= transInfo.hasMetadata;
+
+        OptimizeStageAndAccessMask(pCmdBuf, &srcGlobalStageMask, &srcGlobalAccessMask, &dstGlobalAccessMask);
 
         // Issue BLTs if there exists transitions that require one.
         if (transInfo.bltCount > 0)
@@ -2682,6 +2744,8 @@ void Device::ReleaseEvent(
                                                              &unusedAccessMask,
                                                              pBarrierOps);
 
+        OptimizeStageAndAccessMask(pCmdBuf, &srcGlobalStageMask, &srcGlobalAccessMask, &unusedAccessMask);
+
         // Initialize an IGpuEvent* pEvent pointing at the client provided event.
         // If we have internal BLTs, use internal event to signal/wait.
         const IGpuEvent* pActiveEvent = (transInfo.bltCount > 0) ? pCmdBuf->GetInternalEvent() : pClientEvent;
@@ -2793,6 +2857,8 @@ void Device::AcquireEvent(
 
         // Should have no L2 refresh for image barrier as this is done at Release().
         PAL_ASSERT(preBltRefreshTcc == false);
+
+        OptimizeStageAndAccessMask(pCmdBuf, &unusedStageMask, &unusedAccessMask, &dstGlobalAccessMask);
 
         const IGpuEvent* const* ppActiveEvents   = ppGpuEvents;
         uint32                  activeEventCount = gpuEventCount;

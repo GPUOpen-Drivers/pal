@@ -52,8 +52,8 @@ Device::Device(
     DeviceDecorator(pPlatform, pNextDevice),
     m_id(id),
     m_fragmentSize(0),
-    m_nextColorViewSize(0),
-    m_nextDepthViewSize(0),
+    m_colorViewSize(0),
+    m_depthViewSize(0),
     m_bufferSrdDwords(0),
     m_imageSrdDwords(0),
     m_timestampFreq(0),
@@ -202,12 +202,12 @@ Result Device::CommitSettingsAndInit()
 
     if (result == Result::Success)
     {
-        m_nextColorViewSize = m_pNextLayer->GetColorTargetViewSize(&result);
+        m_colorViewSize = GetColorTargetViewSize(&result);
     }
 
     if (result == Result::Success)
     {
-        m_nextDepthViewSize = m_pNextLayer->GetDepthStencilViewSize(&result);
+        m_depthViewSize = GetDepthStencilViewSize(&result);
     }
 
     if (result == Result::Success)

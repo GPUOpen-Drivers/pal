@@ -27,6 +27,9 @@
 
 #pragma once
 #include "palArFile.h"
+#undef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS 1 // to get PRIx64 etc
+#include <inttypes.h>
 #include <stdio.h>
 
 namespace Util
@@ -115,7 +118,7 @@ public:
                 (isxdigit(name[0])))
             {
                 uint32 numCharsUsed = 0;
-                sscanf(name.Data(), "%16llx%n", &elfHash, &numCharsUsed);
+                sscanf(name.Data(), "%" SCNx64 "%n", &elfHash, &numCharsUsed);
                 if (numCharsUsed != 16)
                 {
                     elfHash = 0;
@@ -136,7 +139,7 @@ public:
             if ((name.NumElements() == 16 + 1 + 16) && (name[16] == '.') && (isxdigit(name[17])))
             {
                 uint32 numCharsUsed = 0;
-                sscanf(&name[17], "%16llx%n", &retentionId, &numCharsUsed);
+                sscanf(&name[17], "%" PRIx64 "%n", &retentionId, &numCharsUsed);
                 if (numCharsUsed != 16)
                 {
                     retentionId = 0;

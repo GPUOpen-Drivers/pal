@@ -206,10 +206,11 @@ union ImageCreateFlags
         uint32 tmzProtected            :  1; ///< Indicate this image is protected or not.
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 681
         uint32 sharedWithMesa          :  1; ///< Indicate this Image was opened from a Mesa shared Image
-        uint32 reserved                :  8; ///< Reserved for future use.
 #else
-        uint32 reserved                :  9; ///< Reserved for future use.
+        uint32 reserved681             :  1; ///< Reserved for future use.
 #endif
+        uint32 reserved769             :  1; ///< Reserved for future use.
+        uint32 reserved                :  7; ///< Reserved for future use.
     };
     uint32 u32All;                           ///< Flags packed as 32-bit uint.
 };

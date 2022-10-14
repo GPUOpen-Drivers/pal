@@ -124,7 +124,7 @@ public:
         const SubresRange&           range) const;
 
     virtual bool ExpandDepthStencil(
-        GfxCmdBuffer*                pCmdBuffer,
+        Pm4CmdBuffer*                pCmdBuffer,
         const Pal::Image&            image,
         const MsaaQuadSamplePattern* pQuadSamplePattern,
         const SubresRange&           range) const override;
@@ -199,7 +199,8 @@ protected:
 
     uint32 DecodeImageViewSrdPlane(
         const Pal::Image&  image,
-        gpusize            srdBaseAddr) const;
+        gpusize            srdBaseAddr,
+        uint32             slice) const;
 
     virtual void FastDepthStencilClearCompute(
         GfxCmdBuffer*      pCmdBuffer,
@@ -241,7 +242,7 @@ protected:
         bool                    isFmaskCopyOptimized) const override;
 
     virtual void HwlFixupResolveDstImage(
-        GfxCmdBuffer*             pCmdBuffer,
+        Pm4CmdBuffer*             pCmdBuffer,
         const GfxImage&           dstImage,
         ImageLayout               dstImageLayout,
         const ImageResolveRegion* pRegions,
@@ -278,7 +279,7 @@ protected:
 
 private:
     void CmdCopyMemoryFromToImageViaPixels(
-        GfxCmdBuffer*                 pCmdBuffer,
+        Pm4CmdBuffer*                 pCmdBuffer,
         const Pal::Image&             image,
         const GpuMemory&              memory,
         const MemoryImageCopyRegion&  region,
@@ -286,7 +287,7 @@ private:
         bool                          imageIsSrc) const;
 
     void CmdCopyImageToImageViaPixels(
-        GfxCmdBuffer*          pCmdBuffer,
+        Pm4CmdBuffer*          pCmdBuffer,
         const Pal::Image&      srcImage,
         const Pal::Image&      dstImage,
         const ImageCopyRegion& region) const;
@@ -454,12 +455,12 @@ public:
     virtual ~Gfx9RsrcProcMgr() {}
 
     void HwlResummarizeHtileCompute(
-        GfxCmdBuffer*      pCmdBuffer,
+        Pm4CmdBuffer*      pCmdBuffer,
         const GfxImage&    image,
         const SubresRange& range) const override;
 
     virtual void CmdCopyMemory(
-        GfxCmdBuffer*           pCmdBuffer,
+        Pm4CmdBuffer*           pCmdBuffer,
         const GpuMemory&        srcGpuMemory,
         const GpuMemory&        dstGpuMemory,
         uint32                  regionCount,
@@ -483,6 +484,16 @@ protected:
         uint32             clearMask,
         uint8              stencil) const override;
 
+    virtual void CopyImageCompute(
+        GfxCmdBuffer*          pCmdBuffer,
+        const Pal::Image&      srcImage,
+        ImageLayout            srcImageLayout,
+        const Pal::Image&      dstImage,
+        ImageLayout            dstImageLayout,
+        uint32                 regionCount,
+        const ImageCopyRegion* pRegions,
+        uint32                 flags) const override;
+
     virtual void CopyMemoryCs(
         GfxCmdBuffer*           pCmdBuffer,
         const GpuMemory&        srcGpuMemory,
@@ -500,7 +511,7 @@ protected:
 
     virtual const Pal::ComputePipeline* GetCmdGenerationPipeline(
         const Pm4::IndirectCmdGenerator& generator,
-        const CmdBuffer&                 cmdBuffer) const override;
+        const Pm4CmdBuffer&              cmdBuffer) const override;
 
     void HwlDecodeBufferViewSrd(
         const void*     pBufferViewSrd,
@@ -577,16 +588,6 @@ private:
         uint32             htileValue,
         uint32             htileMask) const;
 
-    virtual void CopyImageCompute(
-        GfxCmdBuffer*          pCmdBuffer,
-        const Pal::Image&      srcImage,
-        ImageLayout            srcImageLayout,
-        const Pal::Image&      dstImage,
-        ImageLayout            dstImageLayout,
-        uint32                 regionCount,
-        const ImageCopyRegion* pRegions,
-        uint32                 flags) const override;
-
     virtual void CopyBetweenMemoryAndImage(
         GfxCmdBuffer*                pCmdBuffer,
         const Pal::ComputePipeline*  pPipeline,
@@ -600,7 +601,7 @@ private:
         bool                         includePadding) const override;
 
     void HwlHtileCopyAndFixUp(
-        GfxCmdBuffer*             pCmdBuffer,
+        Pm4CmdBuffer*             pCmdBuffer,
         const Pal::Image&         srcImage,
         const Pal::Image&         dstImage,
         ImageLayout               dstImageLayout,
@@ -618,7 +619,7 @@ private:
         bool                    isFmaskCopyOptimized) const override;
 
     virtual uint32 HwlBeginGraphicsCopy(
-        Pal::GfxCmdBuffer*           pCmdBuffer,
+        Pm4CmdBuffer*                pCmdBuffer,
         const Pal::GraphicsPipeline* pPipeline,
         const Pal::Image&            dstImage,
         uint32                       bpp) const override;
@@ -647,7 +648,7 @@ public:
         const SubresRange& range) const override;
 
     virtual void HwlResummarizeHtileCompute(
-        GfxCmdBuffer*      pCmdBuffer,
+        Pm4CmdBuffer*      pCmdBuffer,
         const GfxImage&    image,
         const SubresRange& range) const override;
 
@@ -694,7 +695,7 @@ protected:
 
     virtual const Pal::ComputePipeline* GetCmdGenerationPipeline(
         const Pm4::IndirectCmdGenerator& generator,
-        const CmdBuffer&                 cmdBuffer) const override;
+        const Pm4CmdBuffer&              cmdBuffer) const override;
 
     virtual void HwlDecodeBufferViewSrd(
         const void*     pBufferViewSrd,
@@ -763,7 +764,7 @@ private:
         const ImageResolveRegion* pRegions) const override;
 
     virtual void HwlHtileCopyAndFixUp(
-        GfxCmdBuffer*             pCmdBuffer,
+        Pm4CmdBuffer*             pCmdBuffer,
         const Pal::Image&         srcImage,
         const Pal::Image&         dstImage,
         ImageLayout               dstImageLayout,
@@ -781,7 +782,7 @@ private:
         bool                    isFmaskCopyOptimized) const override;
 
     virtual uint32 HwlBeginGraphicsCopy(
-        Pal::GfxCmdBuffer*           pCmdBuffer,
+        Pm4CmdBuffer*                pCmdBuffer,
         const Pal::GraphicsPipeline* pPipeline,
         const Pal::Image&            dstImage,
         uint32                       bpp) const override;

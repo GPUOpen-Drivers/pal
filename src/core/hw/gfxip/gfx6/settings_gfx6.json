@@ -1506,22 +1506,6 @@
       "Name": "WaLogicOpDisablesOverwriteCombiner"
     },
     {
-      "Description": "If the workaround is enabled, then Depth Buffer EQAA Interpolate Comp Z will be disabled to prevent depth buffer corruption.",
-      "Tags": [
-        "Hardware Workarounds"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Flags": {
-        "RereadSetting": true
-      },
-      "Scope": "PrivatePalGfx6Key",
-      "Type": "bool",
-      "VariableName": "waDisableDbEqaaInterpolateCompZ",
-      "Name": "WaDisableDbEqaaInterpolateCompZ"
-    },
-    {
       "Description": "If we should use EOP timestamp waits on ACE engines instead of CS_PARTIAL_FLUSH events. This is intended to fix a HW bug/feature which breaks CS_PARTIAL_FLUSH when compute wave save restore (CWSR) is on.",
       "Tags": [
         "Volcanic Islands",

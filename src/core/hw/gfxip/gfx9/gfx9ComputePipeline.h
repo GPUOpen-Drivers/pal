@@ -118,11 +118,11 @@ protected:
 private:
     void UpdateRingSizes(uint32 scratchMemorySize);
 
-    Device*const  m_pDevice;
+    Device*const m_pDevice;
 
-    ComputePipelineSignature  m_signature;
-    PipelineChunkCs           m_chunkCs;
-    bool                      m_disablePartialPreempt;
+    ComputePipelineSignature m_signature;
+    PipelineChunkCs          m_chunkCs;
+    bool                     m_disablePartialPreempt;
 
     PAL_DISALLOW_DEFAULT_CTOR(ComputePipeline);
     PAL_DISALLOW_COPY_AND_ASSIGN(ComputePipeline);

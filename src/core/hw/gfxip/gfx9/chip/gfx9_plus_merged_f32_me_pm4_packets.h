@@ -2148,12 +2148,12 @@ enum ME_RELEASE_MEM_int_sel_enum
 // --------------------------------- ME_RELEASE_MEM_data_sel_enum ---------------------------------
 enum ME_RELEASE_MEM_data_sel_enum
 {
-    data_sel__me_release_mem__none                           =  0,
-    data_sel__me_release_mem__send_32_bit_low                =  1,
-    data_sel__me_release_mem__send_64_bit_data               =  2,
-    data_sel__me_release_mem__send_gpu_clock_counter         =  3,
-    data_sel__me_release_mem__send_system_clock_counter      =  4,
-    data_sel__me_release_mem__store_gds_data_to_memory__CORE =  5,
+    data_sel__me_release_mem__none                              =  0,
+    data_sel__me_release_mem__send_32_bit_low                   =  1,
+    data_sel__me_release_mem__send_64_bit_data                  =  2,
+    data_sel__me_release_mem__send_gpu_clock_counter            =  3,
+    data_sel__me_release_mem__send_system_clock_counter         =  4,
+    data_sel__me_release_mem__store_gds_data_to_memory__CORE    =  5,
 };
 
 // ------------------------------- ME_RELEASE_MEM_mes_action_id_enum -------------------------------

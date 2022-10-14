@@ -149,12 +149,8 @@ void MsaaState::Init(
     m_regs.dbEqaa.bits.HIGH_QUALITY_INTERSECTIONS = 1;
     m_regs.dbEqaa.bits.INCOHERENT_EQAA_READS      = 1;
 
-    // INTERPOLATE_COMP_Z was turned off at default as a workaround to prevent corruption in depth resources
-    // due to an issue in EQAA hardware implementation. When EQAA is on, the corruption can occur
-    // in any apps that use depth resources. This will have no performance impact,
-    // and it will only impact quality in the eqaa cases (when rasterization rate is greater than the number
-    // of depth samples this basically doesn't happen in our drivers today).
-    m_regs.dbEqaa.bits.INTERPOLATE_COMP_Z = (device.Settings().waDisableDbEqaaInterpolateCompZ) ? 0 : 1;
+    // INTERPOLATE_COMP_Z should always be set to 0
+    m_regs.dbEqaa.bits.INTERPOLATE_COMP_Z = 0;
 
     if ((msaaState.coverageSamples > 1) || (msaaState.flags.enable1xMsaaSampleLocations))
     {

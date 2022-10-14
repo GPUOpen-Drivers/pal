@@ -105,9 +105,8 @@ void PipelineChunkHs::LateInit(
 // Copies this pipeline chunk's sh commands into the specified command space. Returns the next unused DWORD in
 // pCmdSpace.
 uint32* PipelineChunkHs::WriteShCommands(
-    CmdStream*              pCmdStream,
-    uint32*                 pCmdSpace,
-    const DynamicStageInfo& hsStageInfo
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace
     ) const
 {
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
@@ -136,6 +135,25 @@ uint32* PipelineChunkHs::WriteShCommands(
                                                                  m_regs.sh.spiShaderPgmChksumHs.u32All,
                                                                  pCmdSpace);
     }
+
+    if (m_pHsPerfDataInfo->regOffset != UserDataNotMapped)
+    {
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(m_pHsPerfDataInfo->regOffset,
+                                                                 m_pHsPerfDataInfo->gpuVirtAddr,
+                                                                 pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+uint32* PipelineChunkHs::WriteDynamicRegs(
+    CmdStream*              pCmdStream,
+    uint32*                 pCmdSpace,
+    const DynamicStageInfo& hsStageInfo
+    ) const
+{
+    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
 
     auto dynamic = m_regs.dynamic;
 
@@ -172,13 +190,6 @@ uint32* PipelineChunkHs::WriteShCommands(
                                                       ShaderGraphics,
                                                       index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
                                                       pCmdSpace);
-    }
-
-    if (m_pHsPerfDataInfo->regOffset != UserDataNotMapped)
-    {
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(m_pHsPerfDataInfo->regOffset,
-                                                                 m_pHsPerfDataInfo->gpuVirtAddr,
-                                                                 pCmdSpace);
     }
 
     return pCmdSpace;

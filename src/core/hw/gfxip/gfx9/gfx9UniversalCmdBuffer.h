@@ -183,6 +183,21 @@ struct GuardbandPm4Img
     regPA_CL_GB_HORZ_DISC_ADJ paClGbHorzDiscAdj;
 };
 
+typedef regPA_SU_HARDWARE_SCREEN_OFFSET HwScreenOffsetPm4Img;
+
+struct VportRegs
+{
+    VportScaleOffsetPm4Img scaleOffsetImgs[MaxViewports];
+    VportZMinMaxPm4Img     zMinMaxImgs[MaxViewports];
+    GuardbandPm4Img        guardbandImg;
+    HwScreenOffsetPm4Img   hwScreenOffset;
+
+    static constexpr uint32 NumScaleOffsetRegsPerVport = sizeof(VportScaleOffsetPm4Img) / sizeof(uint32_t);
+    static constexpr uint32 NumZMinMaxRegsPerVport     = sizeof(VportZMinMaxPm4Img)     / sizeof(uint32_t);
+    static constexpr uint32 NumGuardbandRegs           = sizeof(GuardbandPm4Img)        / sizeof(uint32_t);
+    static constexpr uint32 NumHwScreenOffsetRegs      = sizeof(HwScreenOffsetPm4Img)   / sizeof(uint32_t);
+};
+
 // Register state for a single scissor rect.
 struct ScissorRectPm4Img
 {
@@ -264,13 +279,13 @@ union CachedSettings
         uint64 supportAceOffload                         :  1;
         uint64 useExecuteIndirectPacket                  :  2;
         uint64 disablePreamblePipelineStats              :  1;
-        uint64 reserved8                   : 15;
+        uint64 reserved8                   : 17;
         uint64 reserved10                 :  1;
 
         uint64 optimizeDepthOnlyFmt       :  1;
         uint64 has32bPred                 :  1;
         uint64 optimizeNullSourceImage    :  1;
-        uint64 reserved                   : 63;
+        uint64 reserved                   : 60;
     };
     uint64 u64All[3];
 };
@@ -630,9 +645,6 @@ public:
     virtual void DirtyVrsDepthImage(const IImage* pDepthImage) override;
 
     void CallNestedCmdBuffer(UniversalCmdBuffer* pCmdBuf);
-
-    bool IsRasterizationKilled() const
-        { return (m_pipelineState.flags.noRaster != 0) || m_graphicsState.rasterizerDiscardEnable; }
 
     regDB_DFSM_CONTROL* GetDbDfsmControl() { return &m_dbDfsmControl; }
     bool HasWaMiscPopsMissedOverlapBeenApplied() const { return m_hasWaMiscPopsMissedOverlapBeenApplied; }
@@ -1046,9 +1058,13 @@ private:
         return (m_pipelineState.flags.isNgg != 0);
     }
 
-    void UpdateRasterKillDrawsTrackedState();
-
     void WritePerDrawVrsRate(const VrsRateParams&  rateParams);
+
+    template <Pm4ShaderType ShaderType>
+    uint32* SetUserSgprReg(
+        uint16  registerOffset,
+        uint32  value,
+        uint32* pDeCmdSpace);
 
     const Device&   m_device;
     const CmdUtil&  m_cmdUtil;
@@ -1074,9 +1090,8 @@ private:
                 uint32  usesTess  :  1;
                 uint32  usesGs    :  1;
                 uint32  isNgg     :  1;
-                uint32  noRaster  :  1;
                 uint32  gsCutMode :  2;
-                uint32  reserved  : 26;
+                uint32  reserved  : 27;
             };
             uint32 u32All;
         } flags; // Flags describing the currently active pipeline stages.

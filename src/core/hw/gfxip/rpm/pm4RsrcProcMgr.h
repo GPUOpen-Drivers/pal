@@ -60,8 +60,19 @@ public:
         uint32*             pNumGenChunks
         ) const;
 
+    virtual void CmdCopyImage(
+        GfxCmdBuffer*          pCmdBuffer,
+        const Image&           srcImage,
+        ImageLayout            srcImageLayout,
+        const Image&           dstImage,
+        ImageLayout            dstImageLayout,
+        uint32                 regionCount,
+        const ImageCopyRegion* pRegions,
+        const Rect*            pScissorRect,
+        uint32                 flags) const override;
+
     virtual void CmdCopyMemory(
-        GfxCmdBuffer*           pCmdBuffer,
+        Pm4CmdBuffer*           pCmdBuffer,
         const GpuMemory&        srcGpuMemory,
         const GpuMemory&        dstGpuMemory,
         uint32                  regionCount,
@@ -79,20 +90,20 @@ public:
         uint32                    flags) const override;
 
     virtual bool ExpandDepthStencil(
-        GfxCmdBuffer*                pCmdBuffer,
+        Pm4CmdBuffer*                pCmdBuffer,
         const Image&                 image,
         const MsaaQuadSamplePattern* pQuadSamplePattern,
         const SubresRange&           range) const;
 
     void ResummarizeDepthStencil(
-        GfxCmdBuffer*                pCmdBuffer,
+        Pm4CmdBuffer*                pCmdBuffer,
         const Image&                 image,
         ImageLayout                  imageLayout,
         const MsaaQuadSamplePattern* pQuadSamplePattern,
         const SubresRange&           range) const;
 
     virtual void HwlResummarizeHtileCompute(
-        GfxCmdBuffer*      pCmdBuffer,
+        Pm4CmdBuffer*      pCmdBuffer,
         const GfxImage&    image,
         const SubresRange& range) const = 0;
 
@@ -106,16 +117,32 @@ protected:
         const Image&           dstImage,
         uint32                 regionCount,
         const ImageCopyRegion* pRegions,
-        uint32                 copyFlags) const override;
+        uint32                 copyFlags) const;
 
     virtual bool ScaledCopyImageUseGraphics(
         GfxCmdBuffer*           pCmdBuffer,
         const ScaledCopyInfo&   copyInfo) const override;
 
+    virtual bool SlowClearUseGraphics(
+        GfxCmdBuffer*      pCmdBuffer,
+        const Image&       dstImage,
+        const SubresRange& clearRange,
+        ClearMethod        method) const override;
+
+    virtual void SlowClearGraphics(
+        GfxCmdBuffer*         pCmdBuffer,
+        const Image&          dstImage,
+        ImageLayout           dstImageLayout,
+        const ClearColor*     pColor,
+        const SwizzledFormat& clearFormat,
+        const SubresRange&    clearRange,
+        uint32                boxCount,
+        const Box*            pBoxes) const override;
+
     // Generating indirect commands needs to choose different shaders based on the GFXIP version.
     virtual const ComputePipeline* GetCmdGenerationPipeline(
         const Pm4::IndirectCmdGenerator& generator,
-        const CmdBuffer&                 cmdBuffer) const = 0;
+        const Pm4CmdBuffer&              cmdBuffer) const = 0;
 
     virtual const bool IsGfxPipelineForFormatSupported(
         SwizzledFormat format) const = 0;
@@ -125,7 +152,7 @@ protected:
         { return false; }
 
     void GenericColorBlit(
-        GfxCmdBuffer*                pCmdBuffer,
+        Pm4CmdBuffer*                pCmdBuffer,
         const Image&                 dstImage,
         const SubresRange&           range,
         const MsaaQuadSamplePattern* pQuadSamplePattern,
@@ -164,6 +191,12 @@ private:
         const Rect*            pScissorRect,
         uint32                 flags) const override;
 
+    virtual void HwlImageToImageMissingPixelCopy(
+        GfxCmdBuffer*          pCmdBuffer,
+        const Pal::Image&      srcImage,
+        const Pal::Image&      dstImage,
+        const ImageCopyRegion& region) const = 0;
+
     virtual void ScaledCopyImageGraphics(
         GfxCmdBuffer*         pCmdBuffer,
         const ScaledCopyInfo& copyInfo) const override;
@@ -171,7 +204,7 @@ private:
     // The next two functions should be called before and after a graphics copy. They give the gfxip layer a chance
     // to optimize the hardware for the copy operation and restore to the previous state once the copy is done.
     virtual uint32 HwlBeginGraphicsCopy(
-        GfxCmdBuffer*           pCmdBuffer,
+        Pm4CmdBuffer*           pCmdBuffer,
         const GraphicsPipeline* pPipeline,
         const Image&            dstImage,
         uint32                  bpp) const = 0;
@@ -179,7 +212,7 @@ private:
     virtual void HwlEndGraphicsCopy(CmdStream* pCmdStream, uint32 restoreMask) const = 0;
 
     virtual void HwlHtileCopyAndFixUp(
-        GfxCmdBuffer*             pCmdBuffer,
+        Pm4CmdBuffer*             pCmdBuffer,
         const Pal::Image&         srcImage,
         const Pal::Image&         dstImage,
         ImageLayout               dstImageLayout,
@@ -188,7 +221,7 @@ private:
         bool                      computeResolve) const = 0;
 
     virtual void HwlFixupResolveDstImage(
-        GfxCmdBuffer*             pCmdBuffer,
+        Pm4CmdBuffer*             pCmdBuffer,
         const GfxImage&           dstImage,
         ImageLayout               dstImageLayout,
         const ImageResolveRegion* pRegions,
@@ -209,7 +242,7 @@ private:
         const ImageResolveRegion* pRegions) const = 0;
 
     void CopyDepthStencilImageGraphics(
-        GfxCmdBuffer*          pCmdBuffer,
+        Pm4CmdBuffer*          pCmdBuffer,
         const Image&           srcImage,
         ImageLayout            srcImageLayout,
         const Image&           dstImage,
@@ -220,7 +253,7 @@ private:
         uint32                 flags) const;
 
     void CopyColorImageGraphics(
-        GfxCmdBuffer*          pCmdBuffer,
+        Pm4CmdBuffer*          pCmdBuffer,
         const Image&           srcImage,
         ImageLayout            srcImageLayout,
         const Image&           dstImage,
@@ -230,8 +263,26 @@ private:
         const Rect*            pScissorRect,
         uint32                 flags) const;
 
+    void SlowClearGraphicsOneMip(
+        Pm4CmdBuffer*              pCmdBuffer,
+        const Image&               dstImage,
+        const SubresId&            mipSubres,
+        uint32                     boxCount,
+        const Box*                 pBoxes,
+        ColorTargetViewCreateInfo* pColorViewInfo,
+        BindTargetParams*          pBindTargetsInfo,
+        uint32                     xRightShift) const;
+
+    void ClearImageOneBox(
+        Pm4CmdBuffer*          pCmdBuffer,
+        const SubResourceInfo& subResInfo,
+        const Box*             pBox,
+        bool                   hasBoxes,
+        uint32                 xRightShift,
+        uint32                 numInstances) const;
+
     void ResolveImageDepthStencilGraphics(
-        GfxCmdBuffer*             pCmdBuffer,
+        Pm4CmdBuffer*             pCmdBuffer,
         const Image&              srcImage,
         ImageLayout               srcImageLayout,
         const Image&              dstImage,
@@ -241,7 +292,7 @@ private:
         uint32                    flags) const;
 
     void ResolveImageFixedFunc(
-        GfxCmdBuffer*             pCmdBuffer,
+        Pm4CmdBuffer*             pCmdBuffer,
         const Image&              srcImage,
         ImageLayout               srcImageLayout,
         const Image&              dstImage,
@@ -251,7 +302,7 @@ private:
         uint32                    flags) const;
 
     void ResolveImageDepthStencilCopy(
-        GfxCmdBuffer*             pCmdBuffer,
+        Pm4CmdBuffer*             pCmdBuffer,
         const Image&              srcImage,
         ImageLayout               srcImageLayout,
         const Image&              dstImage,

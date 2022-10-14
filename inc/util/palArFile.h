@@ -113,6 +113,11 @@ private:
 
 // =====================================================================================================================
 /// Class for reading a Unix ar (archive) file.
+/// The obvious way to write a loop to read all members of an archive is
+///   for (auto it = arFileReader.Begin(); it.IsEnd() == false; it.Next())
+/// If the archive is malformed, this asserts (or just terminates on a release build). If you want to
+/// programmatically diagnose a malformed archive yourself and avoid the assert, you need to call
+/// IsMalformed() before calling IsEnd(), Next() or any member accessor method.
 class ArFileReader : private ArFileFormat
 {
 public:

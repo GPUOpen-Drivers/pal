@@ -50,7 +50,7 @@ public:
     bool IsTessEnabled() const { return m_flags.tessEnabled; }
     bool HasMeshShader() const { return m_flags.meshShader; }
     bool HasTaskShader() const { return m_flags.taskShader; }
-    bool NonPsShaderUsesUavs() const { return m_flags.nonPsShaderUsesUavs; }
+    bool NonPsShaderWritesUavs() const { return m_flags.nonPsShaderWritesUavs; }
     bool PsUsesUavs() const { return m_flags.psUsesUavs; }
     bool PsWritesUavs() const { return m_flags.psWritesUavs; }
     bool PsUsesRovs() const { return m_flags.psUsesRovs; }
@@ -110,7 +110,7 @@ private:
             uint32 meshShader            :  1; // Mesh shader is active.
             uint32 taskShader            :  1; // Task shader is active.
             uint32 vportArrayIdx         :  1; // GS outputs a viewport array index parameter.
-            uint32 nonPsShaderUsesUavs   :  1; // Any shader other than PS reads/writes at least one UAV.
+            uint32 nonPsShaderWritesUavs :  1; // Any shader other than PS writes at least one UAV.
             uint32 psUsesUavs            :  1; // PS reads/writes at least one UAV.
             uint32 psUsesRovs            :  1; // PS reads/writes at least one ROV.
             uint32 fastClearElim         :  1; // Internal pipeline for RPM fast-clear eliminate BLTs.

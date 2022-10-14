@@ -166,7 +166,10 @@ int32 CWP_CALL MsgPackWriter::GrowBuffer(
         void*const pOldMemory      = pContext->start;
         const size_t currentOffset = Util::VoidPtrDiff(pContext->current, pContext->start);
 
-        memcpy(pNewMemory, pOldMemory, currentOffset);
+        if (currentOffset > 0)
+        {
+            memcpy(pNewMemory, pOldMemory, currentOffset);
+        }
 
         pContext->start   = static_cast<uint8*>(pNewMemory);
         pContext->current = static_cast<uint8*>(Util::VoidPtrInc(pNewMemory, currentOffset));

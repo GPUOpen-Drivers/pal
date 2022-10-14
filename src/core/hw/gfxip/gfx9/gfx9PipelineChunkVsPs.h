@@ -40,6 +40,56 @@ class  CmdStream;
 class  Device;
 struct GraphicsPipelineLoadInfo;
 
+struct VsPsRegs
+{
+    struct Sh
+    {
+        regSPI_SHADER_PGM_LO_VS     spiShaderPgmLoVs;
+        regSPI_SHADER_PGM_HI_VS     spiShaderPgmHiVs;
+        regSPI_SHADER_PGM_RSRC1_VS  spiShaderPgmRsrc1Vs;
+        regSPI_SHADER_PGM_RSRC2_VS  spiShaderPgmRsrc2Vs;
+        regSPI_SHADER_PGM_CHKSUM_VS spiShaderPgmChksumVs;
+
+        regSPI_SHADER_PGM_LO_PS     spiShaderPgmLoPs;
+        regSPI_SHADER_PGM_HI_PS     spiShaderPgmHiPs;
+        regSPI_SHADER_PGM_RSRC1_PS  spiShaderPgmRsrc1Ps;
+        regSPI_SHADER_PGM_RSRC2_PS  spiShaderPgmRsrc2Ps;
+        regSPI_SHADER_PGM_CHKSUM_PS spiShaderPgmChksumPs;
+
+        regSPI_SHADER_USER_DATA_VS_0 userDataInternalTableVs;
+        regSPI_SHADER_USER_DATA_PS_0 userDataInternalTablePs;
+    } sh;
+
+    struct Context
+    {
+        regSPI_BARYC_CNTL       spiBarycCntl;
+        regSPI_PS_INPUT_ENA     spiPsInputEna;
+        regSPI_PS_INPUT_ADDR    spiPsInputAddr;
+        regDB_SHADER_CONTROL    dbShaderControl;
+        regPA_SC_SHADER_CONTROL paScShaderControl;
+        regPA_CL_VS_OUT_CNTL    paClVsOutCntl;
+        regVGT_PRIMITIVEID_EN   vgtPrimitiveIdEn;
+
+        regVGT_STRMOUT_CONFIG        vgtStrmoutConfig;
+        regVGT_STRMOUT_BUFFER_CONFIG vgtStrmoutBufferConfig;
+        regVGT_STRMOUT_VTX_STRIDE_0  vgtStrmoutVtxStride[MaxStreamOutTargets];
+
+        uint32  interpolatorCount;
+        regSPI_PS_INPUT_CNTL_0   spiPsInputCntl[MaxPsInputSemantics];
+    } context;
+
+    struct Dynamic
+    {
+        regSPI_SHADER_PGM_RSRC3_PS spiShaderPgmRsrc3Ps;
+        regSPI_SHADER_PGM_RSRC4_PS spiShaderPgmRsrc4Ps;
+        regSPI_SHADER_PGM_RSRC3_VS spiShaderPgmRsrc3Vs;
+        regSPI_SHADER_PGM_RSRC4_VS spiShaderPgmRsrc4Vs;
+    } dynamic;
+
+    static constexpr uint32 NumContextReg = sizeof(Context) / sizeof(uint32_t);
+    static constexpr uint32 NumShReg      = sizeof(Sh)      / sizeof(uint32_t);
+};
+
 // =====================================================================================================================
 // Manages the chunk of a graphics pipeline which contains the registers associated with the hardware VS and PS stages.
 // Many of the registers for the hardware VS stage are not required when running in NGG mode.
@@ -65,6 +115,10 @@ public:
         Util::MetroHash64*                      pHasher);
 
     uint32* WriteShCommands(
+        CmdStream* pCmdStream,
+        uint32*    pCmdSpace,
+        bool       isNgg) const;
+    uint32* WriteDynamicRegs(
         CmdStream*              pCmdStream,
         uint32*                 pCmdSpace,
         bool                    isNgg,
@@ -110,52 +164,7 @@ private:
 
     const Device&  m_device;
 
-    struct
-    {
-        struct
-        {
-            regSPI_SHADER_PGM_LO_VS     spiShaderPgmLoVs;
-            regSPI_SHADER_PGM_HI_VS     spiShaderPgmHiVs;
-            regSPI_SHADER_PGM_RSRC1_VS  spiShaderPgmRsrc1Vs;
-            regSPI_SHADER_PGM_RSRC2_VS  spiShaderPgmRsrc2Vs;
-            regSPI_SHADER_PGM_CHKSUM_VS spiShaderPgmChksumVs;
-
-            regSPI_SHADER_PGM_LO_PS     spiShaderPgmLoPs;
-            regSPI_SHADER_PGM_HI_PS     spiShaderPgmHiPs;
-            regSPI_SHADER_PGM_RSRC1_PS  spiShaderPgmRsrc1Ps;
-            regSPI_SHADER_PGM_RSRC2_PS  spiShaderPgmRsrc2Ps;
-            regSPI_SHADER_PGM_CHKSUM_PS spiShaderPgmChksumPs;
-
-            regSPI_SHADER_USER_DATA_VS_0  userDataInternalTableVs;
-            regSPI_SHADER_USER_DATA_PS_0  userDataInternalTablePs;
-        } sh;
-
-        struct
-        {
-            regSPI_BARYC_CNTL         spiBarycCntl;
-            regSPI_PS_INPUT_ENA       spiPsInputEna;
-            regSPI_PS_INPUT_ADDR      spiPsInputAddr;
-            regDB_SHADER_CONTROL      dbShaderControl;
-            regPA_SC_SHADER_CONTROL   paScShaderControl;
-            regPA_CL_VS_OUT_CNTL      paClVsOutCntl;
-            regVGT_PRIMITIVEID_EN     vgtPrimitiveIdEn;
-
-            regVGT_STRMOUT_CONFIG         vgtStrmoutConfig;
-            regVGT_STRMOUT_BUFFER_CONFIG  vgtStrmoutBufferConfig;
-            regVGT_STRMOUT_VTX_STRIDE_0   vgtStrmoutVtxStride[MaxStreamOutTargets];
-
-            uint32  interpolatorCount;
-            regSPI_PS_INPUT_CNTL_0   spiPsInputCntl[MaxPsInputSemantics];
-        } context;
-
-        struct
-        {
-            regSPI_SHADER_PGM_RSRC3_PS  spiShaderPgmRsrc3Ps;
-            regSPI_SHADER_PGM_RSRC4_PS  spiShaderPgmRsrc4Ps;
-            regSPI_SHADER_PGM_RSRC3_VS  spiShaderPgmRsrc3Vs;
-            regSPI_SHADER_PGM_RSRC4_VS  spiShaderPgmRsrc4Vs;
-        } dynamic;
-    }  m_regs;
+    VsPsRegs m_regs;
 
     const PerfDataInfo*const  m_pVsPerfDataInfo;   // VS performance data information.
     const PerfDataInfo*const  m_pPsPerfDataInfo;   // PS performance data information.

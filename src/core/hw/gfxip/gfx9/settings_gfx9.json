@@ -1509,17 +1509,20 @@
       }
     },
     {
-      "Description": "If true, preamble will issue PIPELINESTAT_STOP, and a subsequent UniversalCmdBuffer::AddQuery() call with QueryPoolType::PipelineStats will start stats again. If false, preamble will start pipeline stats and subsequent pipeline queries will be ignored.",
+      "Description": "If true, preamble will start pipeline stats and subsequent pipeline queries will be ignored. If false, preamble will issue PIPELINESTAT_STOP, and a subsequent UniversalCmdBuffer::AddQuery() call with QueryPoolType::PipelineStats will start stats again.",
       "Tags": [
         "Graphics Pipelines"
       ],
+      "Flags": {
+        "RereadSetting": true
+      },
       "Defaults": {
-        "Default": false
+        "Default": true
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "disablePreamblePipelineStats",
-      "Name": "DisablePreamblePipelineStats"
+      "VariableName": "enablePreamblePipelineStats",
+      "Name": "EnablePreamblePipelineStats"
     },
     {
       "Description": "Maximum shader prefetch size in bytes.  Set arbitrarily large to use driver default.  Set to zero to disable",
@@ -2926,23 +2929,6 @@
       "Description": "Prefer compute for non-local copies on gfx10.2+. This can increase PCIe throughput."
     },
     {
-      "Name": "RbPlusOptimizeDepthOnlyExportRate",
-      "Tags": [
-        "General",
-        "Performance"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Flags": {
-        "RereadSetting": true
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "rbPlusOptimizeDepthOnlyExportRate",
-      "Description": "Optimize color export format for depth only rendering. Only applicable for RB+ parts."
-    },
-    {
       "Name": "Gfx103DisableAsymmetricWgpForPs",
       "Tags": [
         "General",
@@ -2971,22 +2957,6 @@
       "Type": "bool",
       "VariableName": "waNeverStopSqCounters",
       "Name": "WaNeverStopSqCounters"
-    },
-    {
-      "Description": "If the workaround is enabled, then Depth Buffer EQAA Interpolate Comp Z will be disabled to prevent depth buffer corruption.",
-      "Tags": [
-        "Hardware Workarounds"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Flags": {
-        "RereadSetting": true
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "waDisableDbEqaaInterpolateCompZ",
-      "Name": "WaDisableDbEqaaInterpolateCompZ"
     }
   ]
 }

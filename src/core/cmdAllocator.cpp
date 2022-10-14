@@ -220,7 +220,8 @@ CmdAllocator::CmdAllocator(
             //
             // Note that we must also use the cache if we require busy tracking because some queues use L2 atomics
             // to increment the busy tracker counters.
-            if ((m_flags.localCmdData == 1) && (m_flags.trackBusyChunks == 0))
+            if (((m_flags.localCmdData == 1) || (m_pDevice->Settings().cmdBufForceUc == 1)) &&
+                (m_flags.trackBusyChunks == 0))
             {
                 m_gpuAllocInfo[i].allocCreateInfo.memObjInternalInfo.mtype = MType::Uncached;
             }

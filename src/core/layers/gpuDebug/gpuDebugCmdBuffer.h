@@ -647,13 +647,13 @@ private:
     }
 
     // Insert a copy of an arbitrary buffer into the token stream.
-    const void* InsertTokenBuffer(const void* token, gpusize size)
+    const void* InsertTokenBuffer(const void* token, gpusize size, size_t align=1)
     {
         InsertToken(size);
         const void* pRet = nullptr;
         if (size > 0)
         {
-            void*const pDst = AllocTokenSpace(size, 1);
+            void*const pDst = AllocTokenSpace(size, align);
             if (pDst != nullptr)
             {
                 memcpy(pDst, token, size);
@@ -693,12 +693,12 @@ private:
 
     // Retrieves a pointer to an abitrary buffer in the token stream then advances the read pointer.  Returns
     // the number size of the buffer stored in the array.  Complement of InsertTokenBuffer().
-    gpusize ReadTokenBuffer(const void** ppToken)
+    gpusize ReadTokenBuffer(const void** ppToken, size_t align=1)
     {
         auto size = ReadTokenVal<gpusize>();
         if (size != 0)
         {
-            m_tokenReadOffset = Util::Pow2Align(m_tokenReadOffset, 1);
+            m_tokenReadOffset = Util::Pow2Align(m_tokenReadOffset, align);
             *ppToken = static_cast<void*>(Util::VoidPtrInc(m_pTokenStream, m_tokenReadOffset));
             m_tokenReadOffset += size;
         }

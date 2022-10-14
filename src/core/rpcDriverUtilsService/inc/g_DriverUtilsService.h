@@ -43,6 +43,11 @@ public:
     // Informs driver to enable crash analysis mode
     virtual DD_RESULT EnableCrashAnalysisMode() = 0;
 
+    // Queries for PAL driver info
+    virtual DD_RESULT QueryPalDriverInfo(
+        const DDByteWriter& writer
+    ) = 0;
+
 protected:
     IDriverUtilsService() {}
 };

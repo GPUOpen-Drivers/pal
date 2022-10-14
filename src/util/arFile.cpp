@@ -135,8 +135,10 @@ void ArFileWriter::Write(
             *pWrite++ = '\n';
         }
     }
+    const char* pExtendedNamesEnd = pExtendedNamesStart + m_extendedNamesLen;
     PAL_ASSERT((pExtendedNamesWrite == nullptr) ||
-               (pExtendedNamesWrite == pExtendedNamesStart + m_extendedNamesLen));
+               (pExtendedNamesWrite == pExtendedNamesEnd) ||
+               (pExtendedNamesWrite == pExtendedNamesEnd - 1));
     PAL_ASSERT(pWrite == pBufferEnd);
 }
 

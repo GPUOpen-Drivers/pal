@@ -135,8 +135,10 @@ public:
         uint32           chunkIdx,
         uint32           chunkOffsetLo,
         uint32           chunkOffsetHi,
-        gpusize          patchSize = 0,
-        PatchType        patchType = PatchType::None);
+        gpusize          patchSize   = 0,
+        PatchType        patchType   = PatchType::None,
+        CmdAllocType     patchBuffer = CmdAllocType::CommandDataAlloc,
+        GpuMemory*       pPatchBufferGpuMem = nullptr);
 
     uint32 NumMemoryRefs() const { return m_gpuMemoryRefs.NumElements(); }
     uint32 NumPatchEntries() const { return m_patchEntries.NumElements(); }

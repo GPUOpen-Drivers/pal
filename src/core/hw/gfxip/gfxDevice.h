@@ -192,12 +192,12 @@ struct RegisterRange
     uint32 regCount;    // Number of registers to load.
 };
 
-// Defines a register and its associated value
+// Defines a register and its associated offset and value.
 struct RegisterValuePair
 {
-    uint32 offset;   // Offset to the register to load.  Relative to the base address of the register type.
-                     // E.g., PERSISTENT_SPACE_START for SH registers, etc.
-    uint32 value;    // Register data to write
+    uint32 offset; // Offset to the register to load.  Relative to the base address of the register type.
+                   // E.g., PERSISTENT_SPACE_START for SH registers, etc.
+    uint32 value;  // Register data to write
 };
 
 enum LateAllocVsMode : uint32
@@ -278,6 +278,9 @@ constexpr uint32 PipelineStagesGraphicsOnly = PipelineStageVs            |
                                               PipelineStageEarlyDsTarget |
                                               PipelineStageLateDsTarget  |
                                               PipelineStageColorTarget   |
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 770
+                                              PipelineStageStreamOut     |
+#endif
                                               PipelineStageFetchIndices;
 
 constexpr uint32 CacheCoherencyGraphicsOnly = CoherColorTarget        |

@@ -53,12 +53,16 @@ struct HwRegInfo
     regCOMPUTE_USER_DATA_0         userDataInternalTable;
     regCOMPUTE_SHADER_CHKSUM       computeShaderChksum;
 
-    struct
+    struct Dynamic
     {
         regCOMPUTE_PGM_RSRC2        computePgmRsrc2;
         regCOMPUTE_RESOURCE_LIMITS  computeResourceLimits;
     } dynamic; // Contains state which depends on bind-time parameters.
 };
+
+constexpr uint32 NumHwRegInfoRegs = sizeof(HwRegInfo) / sizeof(uint32);
+constexpr uint32 NumDynamicRegs   = sizeof(HwRegInfo::Dynamic) / sizeof(uint32);
+constexpr uint32 NumShRegs        = NumHwRegInfoRegs - NumDynamicRegs;
 
 // =====================================================================================================================
 // Represents the chunk of a pipeline object which contains all of the registers which setup the hardware CS stage.
@@ -92,6 +96,13 @@ public:
         uint32*                pThreadsPerTgZ,
         PipelineUploader*      pUploader);
 
+    uint32* UpdateDynamicRegInfo(
+        CmdStream*                      pCmdStream,
+        uint32*                         pCmdSpace,
+        HwRegInfo::Dynamic*             pDynamicRegs,
+        const DynamicComputeShaderInfo& csInfo,
+        gpusize                         launchDescGpuVa) const;
+
     uint32* WriteShCommands(
         CmdStream*                      pCmdStream,
         uint32*                         pCmdSpace,
@@ -100,10 +111,15 @@ public:
         bool                            prefetch) const;
 
     uint32* WriteShCommandsDynamic(
-        CmdStream*                      pCmdStream,
-        uint32*                         pCmdSpace,
-        const DynamicComputeShaderInfo& csInfo,
-        gpusize                         launchDescGpuVa) const;
+        CmdStream*         pCmdStream,
+        uint32*            pCmdSpace,
+        HwRegInfo::Dynamic dynamicRegs,
+        gpusize            launchDescGpuVa) const;
+
+    uint32* WriteShCommandsSetPath(
+        CmdStream* pCmdStream,
+        uint32*    pCmdSpace,
+        bool       usingLauncDesc) const;
 
     gpusize CsProgramGpuVa() const
         { return GetOriginalAddress(m_regs.computePgmLo.bits.DATA, 0); }
@@ -126,16 +142,14 @@ private:
         ComputeShaderSignature* pSignature,
         const RegisterVector&   registers);
 
-    uint32* WriteShCommandsSetPath(CmdStream* pCmdStream, uint32* pCmdSpace, bool usingLauncDesc) const;
+    const Device& m_device;
 
-    const Device&  m_device;
+    HwRegInfo m_regs;
 
-    HwRegInfo  m_regs;
+    PipelinePrefetchPm4 m_prefetch;
 
-    PipelinePrefetchPm4  m_prefetch;
-
-    PerfDataInfo*const  m_pCsPerfDataInfo;   // CS performance data information.
-    ShaderStageInfo*    m_pStageInfo;
+    PerfDataInfo*const m_pCsPerfDataInfo; // CS performance data information.
+    ShaderStageInfo*   m_pStageInfo;
 
     PAL_DISALLOW_DEFAULT_CTOR(PipelineChunkCs);
     PAL_DISALLOW_COPY_AND_ASSIGN(PipelineChunkCs);

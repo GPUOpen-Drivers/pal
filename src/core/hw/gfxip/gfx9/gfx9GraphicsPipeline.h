@@ -63,6 +63,77 @@ struct DynamicStageInfos
     DynamicStageInfo hs;
 };
 
+// We need two copies of IA_MULTI_VGT_PARAM to cover all possible register combinations depending on whether or not
+// WD_SWITCH_ON_EOP is required.
+constexpr uint32 NumIaMultiVgtParam = 2;
+
+struct GfxPipelineRegs
+{
+    struct Sh
+    {
+        regSPI_SHADER_LATE_ALLOC_VS  spiShaderLateAllocVs;
+    } sh;
+
+    struct Context
+    {
+        regVGT_SHADER_STAGES_EN         vgtShaderStagesEn;
+        regVGT_GS_MODE                  vgtGsMode;
+        regVGT_REUSE_OFF                vgtReuseOff;
+        regVGT_TF_PARAM                 vgtTfParam;
+        regCB_COLOR_CONTROL             cbColorControl;
+        regCB_TARGET_MASK               cbTargetMask;
+        regCB_SHADER_MASK               cbShaderMask;
+        regPA_CL_CLIP_CNTL              paClClipCntl;
+        regPA_SU_VTX_CNTL               paSuVtxCntl;
+        regPA_CL_VTE_CNTL               paClVteCntl;
+        regPA_SC_LINE_CNTL              paScLineCntl;
+        regPA_SC_EDGERULE               paScEdgerule;
+        regPA_STEREO_CNTL               paStereoCntl;
+        regSPI_INTERP_CONTROL_0         spiInterpControl0;
+        regVGT_VERTEX_REUSE_BLOCK_CNTL  vgtVertexReuseBlockCntl;
+        regCB_COVERAGE_OUT_CONTROL      cbCoverageOutCntl;
+        regVGT_GS_ONCHIP_CNTL           vgtGsOnchipCntl;
+        regVGT_DRAW_PAYLOAD_CNTL        vgtDrawPayloadCntl;
+        regSPI_SHADER_IDX_FORMAT        spiShaderIdxFormat;
+        regSPI_SHADER_POS_FORMAT        spiShaderPosFormat;
+        regSPI_SHADER_Z_FORMAT          spiShaderZFormat;
+        regSPI_SHADER_COL_FORMAT        spiShaderColFormat;
+    } context;
+
+    struct
+    {
+        // The registers below are written by the command buffer during draw-time validation, so they are not
+        // written in WriteContextCommandsSetPath nor uploaded as part of the LOAD_INDEX path.
+        regSX_PS_DOWNCONVERT     sxPsDownconvert;
+        regSX_BLEND_OPT_EPSILON  sxBlendOptEpsilon;
+        regSX_BLEND_OPT_CONTROL  sxBlendOptControl;
+        regVGT_LS_HS_CONFIG      vgtLsHsConfig;
+        regPA_SC_MODE_CNTL_1     paScModeCntl1;
+        regIA_MULTI_VGT_PARAM    iaMultiVgtParam[NumIaMultiVgtParam];
+
+        // This register is written by the command buffer at draw-time validation. Only some fields are used.
+        regDB_RENDER_OVERRIDE    dbRenderOverride;
+
+        // Note that SPI_VS_OUT_CONFIG and SPI_PS_IN_CONTROL are not written in WriteContextCommands nor
+        // uploaded as part of the LOAD_INDEX path.  The reason for this is that the command buffer performs
+        // an optimization to avoid context rolls by sometimes sacrificing param-cache space to avoid cases
+        // where these two registers' values change at a high frequency between draws.
+        regSPI_VS_OUT_CONFIG  spiVsOutConfig;
+        regSPI_PS_IN_CONTROL  spiPsInControl;
+    } other;
+
+    struct
+    {
+        regGE_STEREO_CNTL        geStereoCntl;
+        regGE_PC_ALLOC           gePcAlloc;
+        regGE_USER_VGPR_EN       geUserVgprEn;
+        regVGT_GS_OUT_PRIM_TYPE  vgtGsOutPrimType;
+    } uconfig;
+
+    static constexpr uint32 NumContextReg = sizeof(Context) / sizeof(uint32_t);
+    static constexpr uint32 NumShReg      = sizeof(Sh)      / sizeof(uint32_t);
+};
+
 // =====================================================================================================================
 // GFX9 graphics pipeline class: implements common GFX9-specific functionality for the GraphicsPipeline class.  Details
 // specific to a particular pipeline configuration (GS-enabled, tessellation-enabled, etc) are offloaded to appropriate
@@ -132,7 +203,7 @@ public:
     bool UsesMultipleViewports() const { return UsesViewportArrayIndex() || HwStereoRenderingUsesMultipleViewports(); }
     bool UsesViewInstancing() const { return (m_signature.viewIdRegAddr[0] != UserDataNotMapped); }
     bool UsesUavExport() const { return (m_signature.uavExportTableAddr != UserDataNotMapped); }
-    bool NeedsUavExportFlush() const { return m_uavExportRequiresFlush; }
+    bool NeedsUavExportFlush() const { return m_flags.uavExportRequiresFlush; }
     bool IsLineStippleTexEnabled() const { return m_chunkVsPs.SpiPsInputEna().bits.LINE_STIPPLE_TEX_ENA != 0; }
     uint32* WriteShCommands(
         CmdStream*                        pCmdStream,
@@ -166,7 +237,7 @@ public:
 
     bool IsRasterizationKilled() const { return (m_regs.context.paClClipCntl.bits.DX_RASTERIZATION_KILL != 0); }
 
-    bool BinningAllowed() const { return m_binningAllowed; }
+    bool BinningAllowed() const { return m_flags.binningAllowed; }
 
     uint32 GetPrimAmpFactor() const { return m_primAmpFactor; }
 
@@ -213,6 +284,10 @@ private:
         const DynamicGraphicsShaderInfos& graphicsInfo,
         DynamicStageInfos*                pStageInfos) const;
 
+    uint32* WriteDynamicRegisters(
+        CmdStream*                        pCmdStream,
+        uint32*                           pCmdSpace,
+        const DynamicGraphicsShaderInfos& graphicsInfo) const;
     uint32* WriteContextCommandsSetPath(CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
     void UpdateRingSizes(
@@ -239,11 +314,6 @@ private:
 
     void SetupFetchShaderInfo(const PipelineUploader* pUploader);
 
-    uint32* WriteFsShCommands(
-        CmdStream* pCmdStream,
-        uint32*    pCmdSpace,
-        uint32     fetchShaderRegAddr) const;
-
     void SetupIaMultiVgtParam(
         const Util::PalAbi::CodeObjectMetadata& metadata);
     void FixupIaMultiVgtParam(
@@ -267,17 +337,22 @@ private:
     uint32            m_configRegHash;
     GsFastLaunchMode  m_fastLaunchMode;
     uint32            m_nggSubgroupSize;
-    bool              m_uavExportRequiresFlush; // If false, must flush after each draw when UAV export is enabled
-    bool              m_binningAllowed;
+    union
+    {
+        struct
+        {
+            uint8 uavExportRequiresFlush      : 1; // If false, must flush after each draw when UAV export is enabled
+            uint8 binningAllowed              : 1;
+            uint8 placeholder                 : 2;
+            uint8 reserved                    : 4;
+        };
+        uint8 u8All;
+    } m_flags;
 
     uint16            m_fetchShaderRegAddr; // The user data register which fetch shader address will be writen to.
     gpusize           m_fetchShaderPgm;     // The GPU virtual address of fetch shader entry.
 
     uint32            m_primAmpFactor;      // Only valid on GFX10 and later with NGG enabled.
-
-    // We need two copies of IA_MULTI_VGT_PARAM to cover all possible register combinations depending on whether or not
-    // WD_SWITCH_ON_EOP is required.
-    static constexpr uint32  NumIaMultiVgtParam = 2;
 
     // Each pipeline object contains all possibly pipeline chunk sub-objects, even though not every pipeline will
     // actually end up needing them.
@@ -285,69 +360,7 @@ private:
     PipelineChunkGs    m_chunkGs;
     PipelineChunkVsPs  m_chunkVsPs;
 
-    struct
-    {
-        struct
-        {
-            regSPI_SHADER_LATE_ALLOC_VS  spiShaderLateAllocVs;
-        } sh;
-
-        struct
-        {
-            regVGT_SHADER_STAGES_EN         vgtShaderStagesEn;
-            regVGT_GS_MODE                  vgtGsMode;
-            regVGT_REUSE_OFF                vgtReuseOff;
-            regVGT_TF_PARAM                 vgtTfParam;
-            regCB_COLOR_CONTROL             cbColorControl;
-            regCB_TARGET_MASK               cbTargetMask;
-            regCB_SHADER_MASK               cbShaderMask;
-            regPA_CL_CLIP_CNTL              paClClipCntl;
-            regPA_SU_VTX_CNTL               paSuVtxCntl;
-            regPA_CL_VTE_CNTL               paClVteCntl;
-            regPA_SC_LINE_CNTL              paScLineCntl;
-            regPA_SC_EDGERULE               paScEdgerule;
-            regPA_STEREO_CNTL               paStereoCntl;
-            regSPI_INTERP_CONTROL_0         spiInterpControl0;
-            regVGT_VERTEX_REUSE_BLOCK_CNTL  vgtVertexReuseBlockCntl;
-            regCB_COVERAGE_OUT_CONTROL      cbCoverageOutCntl;
-            regVGT_GS_ONCHIP_CNTL           vgtGsOnchipCntl;
-            regVGT_DRAW_PAYLOAD_CNTL        vgtDrawPayloadCntl;
-            regSPI_SHADER_IDX_FORMAT        spiShaderIdxFormat;
-            regSPI_SHADER_POS_FORMAT        spiShaderPosFormat;
-            regSPI_SHADER_Z_FORMAT          spiShaderZFormat;
-            regSPI_SHADER_COL_FORMAT        spiShaderColFormat;
-        } context;
-
-        struct
-        {
-            // The registers below are written by the command buffer during draw-time validation, so they are not
-            // written in WriteContextCommandsSetPath nor uploaded as part of the LOAD_INDEX path.
-            regSX_PS_DOWNCONVERT     sxPsDownconvert;
-            regSX_BLEND_OPT_EPSILON  sxBlendOptEpsilon;
-            regSX_BLEND_OPT_CONTROL  sxBlendOptControl;
-            regVGT_LS_HS_CONFIG      vgtLsHsConfig;
-            regPA_SC_MODE_CNTL_1     paScModeCntl1;
-            regIA_MULTI_VGT_PARAM    iaMultiVgtParam[NumIaMultiVgtParam];
-
-            // This register is written by the command buffer at draw-time validation. Only some fields are used.
-            regDB_RENDER_OVERRIDE    dbRenderOverride;
-
-            // Note that SPI_VS_OUT_CONFIG and SPI_PS_IN_CONTROL are not written in WriteContextCommands nor
-            // uploaded as part of the LOAD_INDEX path.  The reason for this is that the command buffer performs
-            // an optimization to avoid context rolls by sometimes sacrificing param-cache space to avoid cases
-            // where these two registers' values change at a high frequency between draws.
-            regSPI_VS_OUT_CONFIG  spiVsOutConfig;
-            regSPI_PS_IN_CONTROL  spiPsInControl;
-        } other;
-
-        struct
-        {
-            regGE_STEREO_CNTL        geStereoCntl;
-            regGE_PC_ALLOC           gePcAlloc;
-            regGE_USER_VGPR_EN       geUserVgprEn;
-            regVGT_GS_OUT_PRIM_TYPE  vgtGsOutPrimType;
-        } uconfig;
-    }  m_regs;
+    GfxPipelineRegs m_regs;
 
     PipelinePrefetchPm4        m_prefetch;
     GraphicsPipelineSignature  m_signature;

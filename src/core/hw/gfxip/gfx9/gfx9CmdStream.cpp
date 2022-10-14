@@ -612,7 +612,7 @@ uint32* CmdStream::WriteSetSeqShRegsIndex(
 }
 
 // =====================================================================================================================
-// Helper function for writing the user-SGPR's mapped to user-data entries for a graphics or compute shader stage.
+// Helper function for writing user-SGPRs mapped to user-data entries for a graphics or compute shader stage.
 template <bool IgnoreDirtyFlags, Pm4ShaderType shaderType>
 uint32* CmdStream::WriteUserDataEntriesToSgprs(
     const UserDataEntryMap& entryMap,
@@ -654,14 +654,14 @@ uint32* CmdStream::WriteUserDataEntriesToSgprs<true, ShaderCompute>(
     uint32* pCmdSpace);
 
 // =====================================================================================================================
-// Helper function for writing the user-SGPR's mapped to user-data entries for a graphics or compute shader stage.
+// Helper function for writing user-SGPRs mapped to user-data entries for a graphics or compute shader stage.
 template <bool IgnoreDirtyFlags, Pm4ShaderType shaderType, bool Pm4OptEnabled>
 uint32* CmdStream::WriteUserDataEntriesToSgprs(
     const UserDataEntryMap& entryMap,
     const UserDataEntries&  entries,
     uint32*                 pCmdSpace)
 {
-    // Virtualized user-data entries are always remapped to a consecutive sequence of user-SGPR's.  Because of this
+    // Virtualized user-data entries are always remapped to a consecutive sequence of user-SGPR's. Because of this
     // mapping, we can always assume that this operation will result in a series of zero or more consecutive registers
     // being written, except in the case where we skip entries which aren't dirty (i.e., IgnoreDirtyFlags is false).
     const uint16 firstUserSgpr = entryMap.firstUserSgprRegAddr;

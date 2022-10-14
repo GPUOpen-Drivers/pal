@@ -257,4 +257,39 @@ void Vector<T, defaultCapacity, Allocator>::Clear()
     m_numElements = 0;
 }
 
+// =====================================================================================================================
+template<typename T, uint32 defaultCapacity, typename Allocator>
+void Vector<T, defaultCapacity, Allocator>::Erase(
+    Iter it)
+{
+    PAL_ASSERT(it.IsValid());
+
+    // call the iterator version of the method
+    Erase(&it.Get());
+}
+
+// =====================================================================================================================
+template<typename T, uint32 defaultCapacity, typename Allocator>
+void Vector<T, defaultCapacity, Allocator>::Erase(
+    iterator it)
+{
+    PAL_ASSERT(m_pData <= it);
+    PAL_ASSERT(it < (m_pData + m_numElements));
+
+    // call the index version of the method
+    Erase(it - m_pData);
+}
+
+// =====================================================================================================================
+template<typename T, uint32 defaultCapacity, typename Allocator>
+void Vector<T, defaultCapacity, Allocator>::Erase(
+    uint32 index)
+{
+    PAL_ASSERT(index < m_numElements);
+
+    m_pData[index].~T();
+    std::memmove(m_pData + index, m_pData + index + 1, m_numElements - index);
+    m_numElements--;
+}
+
 } // Util

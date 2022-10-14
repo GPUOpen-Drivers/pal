@@ -185,9 +185,40 @@ void PipelineChunkVsPs::LateInit(
 }
 
 // =====================================================================================================================
-// Copies this pipeline chunk's sh commands into the specified command space. Returns the next unused DWORD in
+// Copies this pipeline chunk's SH commands into the specified command space. Returns the next unused DWORD in
 // pCmdSpace.
 uint32* PipelineChunkVsPs::WriteShCommands(
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace,
+    bool       isNgg
+    ) const
+{
+    pCmdSpace = WriteShCommandsSetPathPs(pCmdStream, pCmdSpace);
+
+    if (m_pPsPerfDataInfo->regOffset != UserDataNotMapped)
+    {
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(m_pPsPerfDataInfo->regOffset,
+                                                                 m_pPsPerfDataInfo->gpuVirtAddr,
+                                                                 pCmdSpace);
+    }
+
+    if (isNgg == false)
+    {
+        pCmdSpace = WriteShCommandsSetPathVs(pCmdStream, pCmdSpace);
+
+        if (m_pVsPerfDataInfo->regOffset != UserDataNotMapped)
+        {
+            pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(m_pVsPerfDataInfo->regOffset,
+                                                                     m_pVsPerfDataInfo->gpuVirtAddr,
+                                                                     pCmdSpace);
+        }
+    } // if isNgg == false
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+uint32* PipelineChunkVsPs::WriteDynamicRegs(
     CmdStream*              pCmdStream,
     uint32*                 pCmdSpace,
     bool                    isNgg,
@@ -197,10 +228,7 @@ uint32* PipelineChunkVsPs::WriteShCommands(
 {
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
 
-    pCmdSpace = WriteShCommandsSetPathPs(pCmdStream, pCmdSpace);
-
     auto dynamic = m_regs.dynamic;
-
     if (psStageInfo.wavesPerSh > 0)
     {
         dynamic.spiShaderPgmRsrc3Ps.bits.WAVE_LIMIT = psStageInfo.wavesPerSh;
@@ -221,32 +249,8 @@ uint32* PipelineChunkVsPs::WriteShCommands(
             Device::AdjustCuEnHi(dynamic.spiShaderPgmRsrc4Ps.bits.CU_EN, psStageInfo.cuEnableMask);
     }
 
-    pCmdSpace = pCmdStream->WriteSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC3_PS,
-                                                  dynamic.spiShaderPgmRsrc3Ps.u32All,
-                                                  ShaderGraphics,
-                                                  index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
-                                                  pCmdSpace);
-
-    if (IsGfx10Plus(chipProps.gfxLevel))
-    {
-        pCmdSpace = pCmdStream->WriteSetOneShRegIndex(Gfx10Plus::mmSPI_SHADER_PGM_RSRC4_PS,
-                                                      dynamic.spiShaderPgmRsrc4Ps.u32All,
-                                                      ShaderGraphics,
-                                                      index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
-                                                      pCmdSpace);
-    }
-
-    if (m_pPsPerfDataInfo->regOffset != UserDataNotMapped)
-    {
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(m_pPsPerfDataInfo->regOffset,
-                                                                 m_pPsPerfDataInfo->gpuVirtAddr,
-                                                                 pCmdSpace);
-    }
-
     if (isNgg == false)
     {
-        pCmdSpace = WriteShCommandsSetPathVs(pCmdStream, pCmdSpace);
-
         if (vsStageInfo.wavesPerSh != 0)
         {
             dynamic.spiShaderPgmRsrc3Vs.bits.WAVE_LIMIT = vsStageInfo.wavesPerSh;
@@ -263,10 +267,28 @@ uint32* PipelineChunkVsPs::WriteShCommands(
         if (vsStageInfo.cuEnableMask != 0)
         {
             dynamic.spiShaderPgmRsrc3Vs.bits.CU_EN &= vsStageInfo.cuEnableMask;
-            dynamic.spiShaderPgmRsrc4Vs.bits.CU_EN  =
+            dynamic.spiShaderPgmRsrc4Vs.bits.CU_EN =
                 Device::AdjustCuEnHi(dynamic.spiShaderPgmRsrc4Vs.bits.CU_EN, vsStageInfo.cuEnableMask);
         }
+    }
 
+    pCmdSpace = pCmdStream->WriteSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC3_PS,
+                                                  dynamic.spiShaderPgmRsrc3Ps.u32All,
+                                                  ShaderGraphics,
+                                                  index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
+                                                  pCmdSpace);
+
+    if (IsGfx10Plus(chipProps.gfxLevel))
+    {
+        pCmdSpace = pCmdStream->WriteSetOneShRegIndex(Gfx10Plus::mmSPI_SHADER_PGM_RSRC4_PS,
+                                                      dynamic.spiShaderPgmRsrc4Ps.u32All,
+                                                      ShaderGraphics,
+                                                      index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
+                                                      pCmdSpace);
+    }
+
+    if (isNgg == false)
+    {
         pCmdSpace = pCmdStream->WriteSetOneShRegIndex(HasHwVs::mmSPI_SHADER_PGM_RSRC3_VS,
                                                       dynamic.spiShaderPgmRsrc3Vs.u32All,
                                                       ShaderGraphics,
@@ -281,14 +303,7 @@ uint32* PipelineChunkVsPs::WriteShCommands(
                                                           index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
                                                           pCmdSpace);
         }
-
-        if (m_pVsPerfDataInfo->regOffset != UserDataNotMapped)
-        {
-            pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(m_pVsPerfDataInfo->regOffset,
-                                                                     m_pVsPerfDataInfo->gpuVirtAddr,
-                                                                     pCmdSpace);
-        }
-    } // if isNgg == false
+    }
 
     return pCmdSpace;
 }
@@ -354,7 +369,7 @@ uint32* PipelineChunkVsPs::WriteContextCommands(
 }
 
 // =====================================================================================================================
-// Writes PM4 commands to program the SH registers for the VS.
+// Writes PM4 commands to program the SH registers for the VS. Returns the next unused DWORD in pCmdSpace.
 uint32* PipelineChunkVsPs::WriteShCommandsSetPathVs(
     CmdStream* pCmdStream,
     uint32*    pCmdSpace
@@ -387,7 +402,7 @@ uint32* PipelineChunkVsPs::WriteShCommandsSetPathVs(
 }
 
 // =====================================================================================================================
-// Writes PM4 commands to program the SH registers for the PS.
+// Writes PM4 commands to program the SH registers for the PS. Returns the next unused DWORD in pCmdSpace.
 uint32* PipelineChunkVsPs::WriteShCommandsSetPathPs(
     CmdStream* pCmdStream,
     uint32*    pCmdSpace

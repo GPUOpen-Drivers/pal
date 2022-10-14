@@ -29,6 +29,8 @@
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "g_gfx9Settings.h"
 #include "marker_payload.h"
+#include "palInlineFuncs.h"
+#include "palIterator.h"
 #include "palMath.h"
 
 using namespace Util;
@@ -326,7 +328,8 @@ CmdUtil::CmdUtil(
     :
     m_device(device),
     m_gfxIpLevel(device.Parent()->ChipProperties().gfxLevel),
-    m_cpUcodeVersion(device.Parent()->EngineProperties().cpUcodeVersion)
+    m_cpUcodeVersion(device.Parent()->EngineProperties().cpUcodeVersion),
+    m_pfpUcodeVersion(device.Parent()->ChipProperties().pfpUcodeVersion)
 #if PAL_ENABLE_PRINTS_ASSERTS
     , m_verifyShadowedRegisters(device.Parent()->Settings().cmdUtilVerifyShadowedRegRanges)
 #endif
@@ -1472,17 +1475,20 @@ size_t CmdUtil::BuildDispatchIndirectGfx(
 
 // =====================================================================================================================
 // Builds execute indirect packet for the GFX engine. Returns the size of the PM4 command assembled, in DWORDs.
+// This function only supports Graphics Queue usage.
 size_t CmdUtil::BuildExecuteIndirect(
     Pm4Predicate                     predicate,
     const bool                       isGfx,
     const ExecuteIndirectPacketInfo& packetInfo,
+    const bool                       resetPktFilter,
     void*                            pBuffer)       // [out] Build the PM4 packet in this buffer.
 {
     constexpr uint32 PacketSize                  = PM4_PFP_EXECUTE_INDIRECT_SIZEDW__CORE;
     const GraphicsPipelineSignature* pSignature  = packetInfo.pipelineSignature.pSignatureGfx;
     PM4_PFP_EXECUTE_INDIRECT  packet             = {};
+
     packet.ordinal1.header.u32All =
-        (Type3Header(IT_EXECUTE_INDIRECT__EXECINDIRECT, PacketSize, false, ShaderGraphics, predicate)).u32All;
+        (Type3Header(IT_EXECUTE_INDIRECT__EXECINDIRECT, PacketSize, resetPktFilter, ShaderGraphics, predicate)).u32All;
     packet.ordinal2.bitfields.core.cmd_base_lo           = LowPart(packetInfo.commandBufferAddr) >> 2;
     packet.ordinal3.cmd_base_hi                          = HighPart(packetInfo.commandBufferAddr);
     packet.ordinal4.bitfields.core.count_indirect_enable = (packetInfo.countBufferAddr != 0);
@@ -1852,10 +1858,11 @@ size_t CmdUtil::BuildTaskStateInit(
 // The ME issues multiple sub-draws with the data fetched.
 template <bool IssueSqttMarkerEvent>
 size_t CmdUtil::BuildDispatchTaskMeshGfx(
-    uint32       tgDimOffset,  // First of 3 user-SGPRs where the thread group dimensions (x, y, z) are written.
-    uint32       ringEntryLoc, // User-SGPR offset for the ring entry value received for the draw.
-    Pm4Predicate predicate,    // Predication enable control.
-    void*        pBuffer)      // [out] Build the PM4 packet in this buffer.
+    uint32       tgDimOffset,            // First of 3 user-SGPRs where the thread group dimensions (x, y, z) are
+                                         // written.
+    uint32       ringEntryLoc,           // User-SGPR offset for the ring entry value received for the draw.
+    Pm4Predicate predicate,              // Predication enable control.
+    void*        pBuffer)                // [out] Build the PM4 packet in this buffer.
 {
     static_assert(PM4_ME_DISPATCH_TASKMESH_GFX_SIZEDW__GFX10COREPLUS ==
                   PM4_PFP_DISPATCH_TASKMESH_GFX_SIZEDW__GFX10COREPLUS,
@@ -1904,14 +1911,15 @@ size_t CmdUtil::BuildDispatchTaskMeshGfx<false>(
 // =====================================================================================================================
 // Builds a PM4_ME_DISPATCH_MESH_INDIRECT_MULTI packet for the PFP & ME engines.
 size_t CmdUtil::BuildDispatchMeshIndirectMulti(
-    gpusize      dataOffset,     // Byte offset of the indirect buffer.
-    uint32       xyzOffset,      // First of three consecutive user-SGPRs specifying the dimension.
-    uint32       drawIndexOffset,// Draw index user-SGPR offset.
-    uint32       count,          // Number of draw calls to loop through, or max draw calls if count is in GPU memory.
-    uint32       stride,         // Stride from one indirect args data structure to the next.
-    gpusize      countGpuAddr,   // GPU address containing the count.
-    Pm4Predicate predicate,      // Predication enable control.
-    void*        pBuffer)        // [out] Build the PM4 packet in this buffer.
+    gpusize      dataOffset,             // Byte offset of the indirect buffer.
+    uint32       xyzOffset,              // First of three consecutive user-SGPRs specifying the dimension.
+    uint32       drawIndexOffset,        // Draw index user-SGPR offset.
+    uint32       count,                  // Number of draw calls to loop through, or max draw calls if count is in GPU
+                                         // memory.
+    uint32       stride,                 // Stride from one indirect args data structure to the next.
+    gpusize      countGpuAddr,           // GPU address containing the count.
+    Pm4Predicate predicate,              // Predication enable control.
+    void*        pBuffer)                // [out] Build the PM4 packet in this buffer.
 {
     static_assert(PM4_ME_DISPATCH_MESH_INDIRECT_MULTI_SIZEDW__GFX10COREPLUS ==
                   PM4_PFP_DISPATCH_MESH_INDIRECT_MULTI_SIZEDW__GFX10COREPLUS,
@@ -2345,8 +2353,6 @@ size_t CmdUtil::BuildSampleEventWrite(
     void*                                    pBuffer     // [out] Build the PM4 packet in this buffer.
     ) const
 {
-    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
-
     // Verify the event index enumerations match between the ME and MEC engines.  Note that ME (gfx) has more
     // events than MEC does.  We assert below if this packet is meant for compute and a gfx-only index is selected.
     static_assert(
@@ -2357,6 +2363,9 @@ size_t CmdUtil::BuildSampleEventWrite(
          (static_cast<uint32>(event_index__mec_event_write__sample_pipelinestat)    ==
           static_cast<uint32>(event_index__me_event_write__sample_pipelinestat))),
         "event index enumerations don't match between gfx and compute!");
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
 
     // Make sure the supplied VGT event is legal.
     PAL_ASSERT(vgtEvent < (sizeof(VgtEventIndex) / sizeof(VGT_EVENT_TYPE)));
@@ -2378,32 +2387,39 @@ size_t CmdUtil::BuildSampleEventWrite(
 
     const bool vsPartialFlushEventIndexValid = false;
 
-    PAL_ASSERT(
-        (VgtEventIndex[vgtEvent] == event_index__me_event_write__pixel_pipe_stat_control_or_dump) ||
-        (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_pipelinestat)             ||
-        (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_streamoutstats__GFX09_10) ||
-        vsPartialFlushEventIndexValid);
+    PAL_ASSERT((VgtEventIndex[vgtEvent] == event_index__me_event_write__pixel_pipe_stat_control_or_dump) ||
+               (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_pipelinestat)             ||
+               (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_streamoutstats__GFX09_10) ||
+               vsPartialFlushEventIndexValid);
 
     // Event-write packets destined for the compute queue can only use some events.
     PAL_ASSERT((engineType != EngineTypeCompute) ||
                (static_cast<uint32>(eventIndex) ==
                 static_cast<uint32>(event_index__mec_event_write__sample_pipelinestat)));
 
-    constexpr uint32 PacketSize = PM4_ME_EVENT_WRITE_SIZEDW__CORE;
-    PM4_ME_EVENT_WRITE  packet  = {};
+    // All samples are 64-bit and must meet that address alignment.
+    PAL_ASSERT(IsPow2Aligned(gpuAddr, sizeof(uint64)));
+#endif
 
-    packet.ordinal1.header                = Type3Header(IT_EVENT_WRITE, PacketSize);
-    packet.ordinal2.u32All                = 0;
-    packet.ordinal2.bitfields.event_type  = vgtEvent;
-    packet.ordinal2.bitfields.event_index = eventIndex;
+    // Here's where packet building actually starts.
+    uint32 packetSize;
 
-    packet.ordinal3.u32All                = LowPart(gpuAddr);
-    PAL_ASSERT(packet.ordinal3.bitfieldsA.reserved1 == 0);
-    packet.ordinal4.address_hi            = HighPart(gpuAddr);
+    {
+        packetSize = PM4_ME_EVENT_WRITE_SIZEDW__CORE;
 
-    memcpy(pBuffer, &packet, sizeof(PM4_ME_EVENT_WRITE));
+        PM4_ME_EVENT_WRITE packet = {};
+        packet.ordinal1.header                = Type3Header(IT_EVENT_WRITE, packetSize);
+        packet.ordinal2.u32All                = 0;
+        packet.ordinal2.bitfields.event_type  = vgtEvent;
+        packet.ordinal2.bitfields.event_index = eventIndex;
 
-    return PacketSize;
+        packet.ordinal3.u32All = LowPart(gpuAddr);
+        packet.ordinal4.u32All = HighPart(gpuAddr);
+
+        memcpy(pBuffer, &packet, sizeof(packet));
+    }
+
+    return packetSize;
 }
 
 // =====================================================================================================================

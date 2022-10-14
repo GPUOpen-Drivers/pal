@@ -235,6 +235,21 @@ enum PipelineStageFlag : uint32
     PipelineStageTopOfPipe         = 0x00000001,
     PipelineStageFetchIndirectArgs = 0x00000002,
     PipelineStageFetchIndices      = 0x00000004,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 770
+    PipelineStageStreamOut         = 0x00000008,
+    PipelineStageVs                = 0x00000010,
+    PipelineStageHs                = 0x00000020,
+    PipelineStageDs                = 0x00000040,
+    PipelineStageGs                = 0x00000080,
+    PipelineStagePs                = 0x00000100,
+    PipelineStageEarlyDsTarget     = 0x00000200,
+    PipelineStageLateDsTarget      = 0x00000400,
+    PipelineStageColorTarget       = 0x00000800,
+    PipelineStageCs                = 0x00001000,
+    PipelineStageBlt               = 0x00002000,
+    PipelineStageBottomOfPipe      = 0x00004000,
+    PipelineStageAllStages         = 0x00007FFF
+#else
     PipelineStageVs                = 0x00000008,
     PipelineStageHs                = 0x00000010,
     PipelineStageDs                = 0x00000020,
@@ -247,6 +262,7 @@ enum PipelineStageFlag : uint32
     PipelineStageBlt               = 0x00001000,
     PipelineStageBottomOfPipe      = 0x00002000,
     PipelineStageAllStages         = 0x00003FFF
+#endif
 };
 
 /// Bitmask values that can be ORed together to specify all potential usages of an image at a point in time.  Such a

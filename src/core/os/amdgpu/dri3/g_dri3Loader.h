@@ -50,6 +50,7 @@
 #include <xcb/dri3.h>
 #include <xcb/dri2.h>
 #include <xcb/xcb.h>
+#include <xcb/sync.h>
 #include <xcb/present.h>
 #include <xcb/randr.h>
 extern "C"
@@ -68,9 +69,118 @@ namespace Pal
 {
 namespace Amdgpu
 {
-// symbols from libX11-xcb.so.1
-typedef xcb_connection_t* (*XGetXCBConnection)(
-            Display*  pDisplay);
+// symbols from libxcb-dri3.so.0
+typedef xcb_dri3_open_cookie_t (*XcbDri3Open)(
+            xcb_connection_t*     pConnection,
+            xcb_drawable_t        drawable,
+            uint32                provider);
+
+typedef xcb_dri3_open_reply_t* (*XcbDri3OpenReply)(
+            xcb_connection_t*         pConnection,
+            xcb_dri3_open_cookie_t    cookie,
+            xcb_generic_error_t**     ppError);
+
+typedef int32* (*XcbDri3OpenReplyFds)(
+            xcb_connection_t*         pConnection,
+            xcb_dri3_open_reply_t*    pReply);
+
+typedef xcb_void_cookie_t (*XcbDri3FenceFromFdChecked)(
+            xcb_connection_t*     pConnection,
+            xcb_drawable_t        drawable,
+            uint32                fence,
+            uint8                 initiallyTriggered,
+            int32                 fenceFd);
+
+typedef xcb_void_cookie_t (*XcbDri3PixmapFromBufferChecked)(
+            xcb_connection_t*     pConnection,
+            xcb_pixmap_t          pixmap,
+            xcb_drawable_t        drawable,
+            uint32                size,
+            uint16                width,
+            uint16                height,
+            uint16                stride,
+            uint8                 depth,
+            uint8                 bpp,
+            int32                 pixmapFd);
+
+typedef xcb_dri3_query_version_cookie_t (*XcbDri3QueryVersion)(
+            xcb_connection_t*     pConnection,
+            uint32                majorVersion,
+            uint32                minorVersion);
+
+typedef xcb_dri3_query_version_reply_t* (*XcbDri3QueryVersionReply)(
+            xcb_connection_t*                 pConnection,
+            xcb_dri3_query_version_cookie_t   cookie,
+            xcb_generic_error_t**             ppError);
+
+// symbols from libxcb-present.so.0
+typedef xcb_present_query_version_cookie_t (*XcbPresentQueryVersion)(
+            xcb_connection_t*     pConnection,
+            uint32                majorVersion,
+            uint32                minorVersion);
+
+typedef xcb_present_query_version_reply_t* (*XcbPresentQueryVersionReply)(
+            xcb_connection_t*                     pConnection,
+            xcb_present_query_version_cookie_t    cookie,
+            xcb_generic_error_t**                 ppError);
+
+typedef xcb_void_cookie_t (*XcbPresentSelectInputChecked)(
+            xcb_connection_t*     pConnection,
+            xcb_present_event_t   eventId,
+            xcb_window_t          window,
+            uint32                eventMask);
+
+typedef xcb_void_cookie_t (*XcbPresentPixmapChecked)(
+            xcb_connection_t*             pConnection,
+            xcb_window_t                  window,
+            xcb_pixmap_t                  pixmap,
+            uint32                        serial,
+            xcb_xfixes_region_t           valid,
+            xcb_xfixes_region_t           update,
+            int16                         xOff,
+            int16                         yO_off,
+            xcb_randr_crtc_t              targetCrtc,
+            xcb_sync_fence_t              waitFence,
+            xcb_sync_fence_t              idleFence,
+            uint32                        options,
+            uint64                        targetMsc,
+            uint64                        divisor,
+            uint64                        remainder,
+            uint32                        notifiesLen,
+            const xcb_present_notify_t*   pNotifies);
+
+// symbols from libxcb-sync.so.1
+typedef xcb_void_cookie_t (*XcbSyncCreateFenceChecked)(
+            xcb_connection_t*     pConnection,
+            xcb_drawable_t        drawable,
+            xcb_sync_fence_t      fence,
+            uint8                 initially_triggered);
+
+typedef xcb_void_cookie_t (*XcbSyncTriggerFenceChecked)(
+            xcb_connection_t*     pConnection,
+            xcb_sync_fence_t      fence);
+
+typedef xcb_void_cookie_t (*XcbSyncResetFence)(
+            xcb_connection_t*     pConnection,
+            xcb_sync_fence_t      fence);
+
+typedef xcb_void_cookie_t (*XcbSyncAwaitFenceChecked)(
+            xcb_connection_t*     pConnection,
+            uint32                fence_list_len,
+            xcb_sync_fence_t*     fence_list);
+
+typedef xcb_sync_query_fence_cookie_t (*XcbSyncQueryFence)(
+            xcb_connection_t*     pConnection,
+            xcb_sync_fence_t      fence);
+
+typedef xcb_sync_query_fence_reply_t* (*XcbSyncQueryFenceReply)(
+            xcb_connection_t*                 pConnection,
+            xcb_sync_query_fence_cookie_t     cookie,
+            xcb_generic_error_t**             ppError);
+
+typedef xcb_void_cookie_t (*XcbSyncDestroyFenceChecked)(
+            xcb_connection_t*     pConnection,
+            xcb_sync_fence_t      fence);
 
 // symbols from libxcb.so.1
 typedef uint32 (*XcbGenerateId)(
@@ -223,49 +333,23 @@ typedef int32 (*XshmfenceTrigger)(
 typedef void (*XshmfenceReset)(
             struct xshmfence*     pFence);
 
-// symbols from libxcb-dri3.so.0
-typedef xcb_dri3_open_cookie_t (*XcbDri3Open)(
-            xcb_connection_t*     pConnection,
-            xcb_drawable_t        drawable,
-            uint32                provider);
+// symbols from libX11-xcb.so.1
+typedef xcb_connection_t* (*XGetXCBConnection)(
+            Display*  pDisplay);
 
-typedef xcb_dri3_open_reply_t* (*XcbDri3OpenReply)(
-            xcb_connection_t*         pConnection,
-            xcb_dri3_open_cookie_t    cookie,
-            xcb_generic_error_t**     ppError);
+// symbols from libX11.so.6
+typedef XVisualInfo* (*XGetVisualInfo)(
+            Display*      pDisplay,
+            long          visualMask,
+            XVisualInfo*  pVisualInfoList,
+            int32*        count);
 
-typedef int32* (*XcbDri3OpenReplyFds)(
-            xcb_connection_t*         pConnection,
-            xcb_dri3_open_reply_t*    pReply);
+typedef int32 (*XFree)(
+            void*     pAddress);
 
-typedef xcb_void_cookie_t (*XcbDri3FenceFromFdChecked)(
-            xcb_connection_t*     pConnection,
-            xcb_drawable_t        drawable,
-            uint32                fence,
-            uint8                 initiallyTriggered,
-            int32                 fenceFd);
-
-typedef xcb_void_cookie_t (*XcbDri3PixmapFromBufferChecked)(
-            xcb_connection_t*     pConnection,
-            xcb_pixmap_t          pixmap,
-            xcb_drawable_t        drawable,
-            uint32                size,
-            uint16                width,
-            uint16                height,
-            uint16                stride,
-            uint8                 depth,
-            uint8                 bpp,
-            int32                 pixmapFd);
-
-typedef xcb_dri3_query_version_cookie_t (*XcbDri3QueryVersion)(
-            xcb_connection_t*     pConnection,
-            uint32                majorVersion,
-            uint32                minorVersion);
-
-typedef xcb_dri3_query_version_reply_t* (*XcbDri3QueryVersionReply)(
-            xcb_connection_t*                 pConnection,
-            xcb_dri3_query_version_cookie_t   cookie,
-            xcb_generic_error_t**             ppError);
+typedef Window (*XRootWindow)(
+            Display*  pDisplay,
+            int       screenNum);
 
 // symbols from libxcb-dri2.so.0
 typedef xcb_dri2_connect_cookie_t (*XcbDri2Connect)(
@@ -430,85 +514,128 @@ typedef xcb_get_window_attributes_reply_t* (*XcbGetWindowAttributesReply)(
             xcb_get_window_attributes_cookie_t    cookie,
             xcb_generic_error_t **                e);
 
-// symbols from libxcb-sync.so.1
-typedef xcb_void_cookie_t (*XcbSyncTriggerFenceChecked)(
-            xcb_connection_t*     pConnection,
-            xcb_sync_fence_t      fence);
-
-typedef xcb_void_cookie_t (*XcbSyncDestroyFenceChecked)(
-            xcb_connection_t*     pConnection,
-            xcb_sync_fence_t      fence);
-
-// symbols from libX11.so.6
-typedef XVisualInfo* (*XGetVisualInfo)(
-            Display*      pDisplay,
-            long          visualMask,
-            XVisualInfo*  pVisualInfoList,
-            int32*        count);
-
-typedef int32 (*XFree)(
-            void*     pAddress);
-
-typedef Window (*XRootWindow)(
-            Display*  pDisplay,
-            int       screenNum);
-
-// symbols from libxcb-present.so.0
-typedef xcb_present_query_version_cookie_t (*XcbPresentQueryVersion)(
-            xcb_connection_t*     pConnection,
-            uint32                majorVersion,
-            uint32                minorVersion);
-
-typedef xcb_present_query_version_reply_t* (*XcbPresentQueryVersionReply)(
-            xcb_connection_t*                     pConnection,
-            xcb_present_query_version_cookie_t    cookie,
-            xcb_generic_error_t**                 ppError);
-
-typedef xcb_void_cookie_t (*XcbPresentSelectInputChecked)(
-            xcb_connection_t*     pConnection,
-            xcb_present_event_t   eventId,
-            xcb_window_t          window,
-            uint32                eventMask);
-
-typedef xcb_void_cookie_t (*XcbPresentPixmapChecked)(
-            xcb_connection_t*             pConnection,
-            xcb_window_t                  window,
-            xcb_pixmap_t                  pixmap,
-            uint32                        serial,
-            xcb_xfixes_region_t           valid,
-            xcb_xfixes_region_t           update,
-            int16                         xOff,
-            int16                         yO_off,
-            xcb_randr_crtc_t              targetCrtc,
-            xcb_sync_fence_t              waitFence,
-            xcb_sync_fence_t              idleFence,
-            uint32                        options,
-            uint64                        targetMsc,
-            uint64                        divisor,
-            uint64                        remainder,
-            uint32                        notifiesLen,
-            const xcb_present_notify_t*   pNotifies);
-
 enum Dri3LoaderLibraries : uint32
 {
-    LibX11Xcb = 0,
-    LibXcb = 1,
-    LibXshmFence = 2,
-    LibXcbDri3 = 3,
-    LibXcbDri2 = 4,
-    LibXcbRandr = 5,
-    LibXcbSync = 6,
-    LibX11 = 7,
-    LibXcbPresent = 8,
+    LibXcbDri3 = 0,
+    LibXcbPresent = 1,
+    LibXcbSync = 2,
+    LibXcb = 3,
+    LibXshmFence = 4,
+    LibX11Xcb = 5,
+    LibX11 = 6,
+    LibXcbDri2 = 7,
+    LibXcbRandr = 8,
     Dri3LoaderLibrariesCount = 9
 };
 
 struct Dri3LoaderFuncs
 {
-    XGetXCBConnection                     pfnXGetXCBConnection;
-    bool pfnXGetXCBConnectionisValid() const
+    XcbDri3Open                           pfnXcbDri3Open;
+    bool pfnXcbDri3OpenisValid() const
     {
-        return (pfnXGetXCBConnection != nullptr);
+        return (pfnXcbDri3Open != nullptr);
+    }
+
+    XcbDri3OpenReply                      pfnXcbDri3OpenReply;
+    bool pfnXcbDri3OpenReplyisValid() const
+    {
+        return (pfnXcbDri3OpenReply != nullptr);
+    }
+
+    XcbDri3OpenReplyFds                   pfnXcbDri3OpenReplyFds;
+    bool pfnXcbDri3OpenReplyFdsisValid() const
+    {
+        return (pfnXcbDri3OpenReplyFds != nullptr);
+    }
+
+    XcbDri3FenceFromFdChecked             pfnXcbDri3FenceFromFdChecked;
+    bool pfnXcbDri3FenceFromFdCheckedisValid() const
+    {
+        return (pfnXcbDri3FenceFromFdChecked != nullptr);
+    }
+
+    XcbDri3PixmapFromBufferChecked        pfnXcbDri3PixmapFromBufferChecked;
+    bool pfnXcbDri3PixmapFromBufferCheckedisValid() const
+    {
+        return (pfnXcbDri3PixmapFromBufferChecked != nullptr);
+    }
+
+    XcbDri3QueryVersion                   pfnXcbDri3QueryVersion;
+    bool pfnXcbDri3QueryVersionisValid() const
+    {
+        return (pfnXcbDri3QueryVersion != nullptr);
+    }
+
+    XcbDri3QueryVersionReply              pfnXcbDri3QueryVersionReply;
+    bool pfnXcbDri3QueryVersionReplyisValid() const
+    {
+        return (pfnXcbDri3QueryVersionReply != nullptr);
+    }
+
+    XcbPresentQueryVersion                pfnXcbPresentQueryVersion;
+    bool pfnXcbPresentQueryVersionisValid() const
+    {
+        return (pfnXcbPresentQueryVersion != nullptr);
+    }
+
+    XcbPresentQueryVersionReply           pfnXcbPresentQueryVersionReply;
+    bool pfnXcbPresentQueryVersionReplyisValid() const
+    {
+        return (pfnXcbPresentQueryVersionReply != nullptr);
+    }
+
+    XcbPresentSelectInputChecked          pfnXcbPresentSelectInputChecked;
+    bool pfnXcbPresentSelectInputCheckedisValid() const
+    {
+        return (pfnXcbPresentSelectInputChecked != nullptr);
+    }
+
+    XcbPresentPixmapChecked               pfnXcbPresentPixmapChecked;
+    bool pfnXcbPresentPixmapCheckedisValid() const
+    {
+        return (pfnXcbPresentPixmapChecked != nullptr);
+    }
+
+    XcbSyncCreateFenceChecked             pfnXcbSyncCreateFenceChecked;
+    bool pfnXcbSyncCreateFenceCheckedisValid() const
+    {
+        return (pfnXcbSyncCreateFenceChecked != nullptr);
+    }
+
+    XcbSyncTriggerFenceChecked            pfnXcbSyncTriggerFenceChecked;
+    bool pfnXcbSyncTriggerFenceCheckedisValid() const
+    {
+        return (pfnXcbSyncTriggerFenceChecked != nullptr);
+    }
+
+    XcbSyncResetFence                     pfnXcbSyncResetFence;
+    bool pfnXcbSyncResetFenceisValid() const
+    {
+        return (pfnXcbSyncResetFence != nullptr);
+    }
+
+    XcbSyncAwaitFenceChecked              pfnXcbSyncAwaitFenceChecked;
+    bool pfnXcbSyncAwaitFenceCheckedisValid() const
+    {
+        return (pfnXcbSyncAwaitFenceChecked != nullptr);
+    }
+
+    XcbSyncQueryFence                     pfnXcbSyncQueryFence;
+    bool pfnXcbSyncQueryFenceisValid() const
+    {
+        return (pfnXcbSyncQueryFence != nullptr);
+    }
+
+    XcbSyncQueryFenceReply                pfnXcbSyncQueryFenceReply;
+    bool pfnXcbSyncQueryFenceReplyisValid() const
+    {
+        return (pfnXcbSyncQueryFenceReply != nullptr);
+    }
+
+    XcbSyncDestroyFenceChecked            pfnXcbSyncDestroyFenceChecked;
+    bool pfnXcbSyncDestroyFenceCheckedisValid() const
+    {
+        return (pfnXcbSyncDestroyFenceChecked != nullptr);
     }
 
     XcbGenerateId                         pfnXcbGenerateId;
@@ -715,46 +842,28 @@ struct Dri3LoaderFuncs
         return (pfnXshmfenceReset != nullptr);
     }
 
-    XcbDri3Open                           pfnXcbDri3Open;
-    bool pfnXcbDri3OpenisValid() const
+    XGetXCBConnection                     pfnXGetXCBConnection;
+    bool pfnXGetXCBConnectionisValid() const
     {
-        return (pfnXcbDri3Open != nullptr);
+        return (pfnXGetXCBConnection != nullptr);
     }
 
-    XcbDri3OpenReply                      pfnXcbDri3OpenReply;
-    bool pfnXcbDri3OpenReplyisValid() const
+    XGetVisualInfo                        pfnXGetVisualInfo;
+    bool pfnXGetVisualInfoisValid() const
     {
-        return (pfnXcbDri3OpenReply != nullptr);
+        return (pfnXGetVisualInfo != nullptr);
     }
 
-    XcbDri3OpenReplyFds                   pfnXcbDri3OpenReplyFds;
-    bool pfnXcbDri3OpenReplyFdsisValid() const
+    XFree                                 pfnXFree;
+    bool pfnXFreeisValid() const
     {
-        return (pfnXcbDri3OpenReplyFds != nullptr);
+        return (pfnXFree != nullptr);
     }
 
-    XcbDri3FenceFromFdChecked             pfnXcbDri3FenceFromFdChecked;
-    bool pfnXcbDri3FenceFromFdCheckedisValid() const
+    XRootWindow                           pfnXRootWindow;
+    bool pfnXRootWindowisValid() const
     {
-        return (pfnXcbDri3FenceFromFdChecked != nullptr);
-    }
-
-    XcbDri3PixmapFromBufferChecked        pfnXcbDri3PixmapFromBufferChecked;
-    bool pfnXcbDri3PixmapFromBufferCheckedisValid() const
-    {
-        return (pfnXcbDri3PixmapFromBufferChecked != nullptr);
-    }
-
-    XcbDri3QueryVersion                   pfnXcbDri3QueryVersion;
-    bool pfnXcbDri3QueryVersionisValid() const
-    {
-        return (pfnXcbDri3QueryVersion != nullptr);
-    }
-
-    XcbDri3QueryVersionReply              pfnXcbDri3QueryVersionReply;
-    bool pfnXcbDri3QueryVersionReplyisValid() const
-    {
-        return (pfnXcbDri3QueryVersionReply != nullptr);
+        return (pfnXRootWindow != nullptr);
     }
 
     XcbDri2Connect                        pfnXcbDri2Connect;
@@ -807,7 +916,7 @@ struct Dri3LoaderFuncs
         return (pfnXcbRandrGetScreenResources != nullptr);
     }
 
-    XcbRandrGetScreenResourcesCurrent            pfnXcbRandrGetScreenResourcesCurrent;
+    XcbRandrGetScreenResourcesCurrent     pfnXcbRandrGetScreenResourcesCurrent;
     bool pfnXcbRandrGetScreenResourcesCurrentisValid() const
     {
         return (pfnXcbRandrGetScreenResourcesCurrent != nullptr);
@@ -975,60 +1084,6 @@ struct Dri3LoaderFuncs
         return (pfnXcbGetWindowAttributesReply != nullptr);
     }
 
-    XcbSyncTriggerFenceChecked            pfnXcbSyncTriggerFenceChecked;
-    bool pfnXcbSyncTriggerFenceCheckedisValid() const
-    {
-        return (pfnXcbSyncTriggerFenceChecked != nullptr);
-    }
-
-    XcbSyncDestroyFenceChecked            pfnXcbSyncDestroyFenceChecked;
-    bool pfnXcbSyncDestroyFenceCheckedisValid() const
-    {
-        return (pfnXcbSyncDestroyFenceChecked != nullptr);
-    }
-
-    XGetVisualInfo                        pfnXGetVisualInfo;
-    bool pfnXGetVisualInfoisValid() const
-    {
-        return (pfnXGetVisualInfo != nullptr);
-    }
-
-    XFree                                 pfnXFree;
-    bool pfnXFreeisValid() const
-    {
-        return (pfnXFree != nullptr);
-    }
-
-    XRootWindow                           pfnXRootWindow;
-    bool pfnXRootWindowisValid() const
-    {
-        return (pfnXRootWindow != nullptr);
-    }
-
-    XcbPresentQueryVersion                pfnXcbPresentQueryVersion;
-    bool pfnXcbPresentQueryVersionisValid() const
-    {
-        return (pfnXcbPresentQueryVersion != nullptr);
-    }
-
-    XcbPresentQueryVersionReply           pfnXcbPresentQueryVersionReply;
-    bool pfnXcbPresentQueryVersionReplyisValid() const
-    {
-        return (pfnXcbPresentQueryVersionReply != nullptr);
-    }
-
-    XcbPresentSelectInputChecked          pfnXcbPresentSelectInputChecked;
-    bool pfnXcbPresentSelectInputCheckedisValid() const
-    {
-        return (pfnXcbPresentSelectInputChecked != nullptr);
-    }
-
-    XcbPresentPixmapChecked               pfnXcbPresentPixmapChecked;
-    bool pfnXcbPresentPixmapCheckedisValid() const
-    {
-        return (pfnXcbPresentPixmapChecked != nullptr);
-    }
-
 };
 
 // =====================================================================================================================
@@ -1044,12 +1099,204 @@ public:
 
     void Init(const char* pPath);
 
-    xcb_connection_t* pfnXGetXCBConnection(
-            Display*  pDisplay) const;
+    xcb_dri3_open_cookie_t pfnXcbDri3Open(
+            xcb_connection_t*     pConnection,
+            xcb_drawable_t        drawable,
+            uint32                provider) const;
 
-    bool pfnXGetXCBConnectionisValid() const
+    bool pfnXcbDri3OpenisValid() const
     {
-        return (m_pFuncs->pfnXGetXCBConnection != nullptr);
+        return (m_pFuncs->pfnXcbDri3Open != nullptr);
+    }
+
+    xcb_dri3_open_reply_t* pfnXcbDri3OpenReply(
+            xcb_connection_t*         pConnection,
+            xcb_dri3_open_cookie_t    cookie,
+            xcb_generic_error_t**     ppError) const;
+
+    bool pfnXcbDri3OpenReplyisValid() const
+    {
+        return (m_pFuncs->pfnXcbDri3OpenReply != nullptr);
+    }
+
+    int32* pfnXcbDri3OpenReplyFds(
+            xcb_connection_t*         pConnection,
+            xcb_dri3_open_reply_t*    pReply) const;
+
+    bool pfnXcbDri3OpenReplyFdsisValid() const
+    {
+        return (m_pFuncs->pfnXcbDri3OpenReplyFds != nullptr);
+    }
+
+    xcb_void_cookie_t pfnXcbDri3FenceFromFdChecked(
+            xcb_connection_t*     pConnection,
+            xcb_drawable_t        drawable,
+            uint32                fence,
+            uint8                 initiallyTriggered,
+            int32                 fenceFd) const;
+
+    bool pfnXcbDri3FenceFromFdCheckedisValid() const
+    {
+        return (m_pFuncs->pfnXcbDri3FenceFromFdChecked != nullptr);
+    }
+
+    xcb_void_cookie_t pfnXcbDri3PixmapFromBufferChecked(
+            xcb_connection_t*     pConnection,
+            xcb_pixmap_t          pixmap,
+            xcb_drawable_t        drawable,
+            uint32                size,
+            uint16                width,
+            uint16                height,
+            uint16                stride,
+            uint8                 depth,
+            uint8                 bpp,
+            int32                 pixmapFd) const;
+
+    bool pfnXcbDri3PixmapFromBufferCheckedisValid() const
+    {
+        return (m_pFuncs->pfnXcbDri3PixmapFromBufferChecked != nullptr);
+    }
+
+    xcb_dri3_query_version_cookie_t pfnXcbDri3QueryVersion(
+            xcb_connection_t*     pConnection,
+            uint32                majorVersion,
+            uint32                minorVersion) const;
+
+    bool pfnXcbDri3QueryVersionisValid() const
+    {
+        return (m_pFuncs->pfnXcbDri3QueryVersion != nullptr);
+    }
+
+    xcb_dri3_query_version_reply_t* pfnXcbDri3QueryVersionReply(
+            xcb_connection_t*                 pConnection,
+            xcb_dri3_query_version_cookie_t   cookie,
+            xcb_generic_error_t**             ppError) const;
+
+    bool pfnXcbDri3QueryVersionReplyisValid() const
+    {
+        return (m_pFuncs->pfnXcbDri3QueryVersionReply != nullptr);
+    }
+
+    xcb_present_query_version_cookie_t pfnXcbPresentQueryVersion(
+            xcb_connection_t*     pConnection,
+            uint32                majorVersion,
+            uint32                minorVersion) const;
+
+    bool pfnXcbPresentQueryVersionisValid() const
+    {
+        return (m_pFuncs->pfnXcbPresentQueryVersion != nullptr);
+    }
+
+    xcb_present_query_version_reply_t* pfnXcbPresentQueryVersionReply(
+            xcb_connection_t*                     pConnection,
+            xcb_present_query_version_cookie_t    cookie,
+            xcb_generic_error_t**                 ppError) const;
+
+    bool pfnXcbPresentQueryVersionReplyisValid() const
+    {
+        return (m_pFuncs->pfnXcbPresentQueryVersionReply != nullptr);
+    }
+
+    xcb_void_cookie_t pfnXcbPresentSelectInputChecked(
+            xcb_connection_t*     pConnection,
+            xcb_present_event_t   eventId,
+            xcb_window_t          window,
+            uint32                eventMask) const;
+
+    bool pfnXcbPresentSelectInputCheckedisValid() const
+    {
+        return (m_pFuncs->pfnXcbPresentSelectInputChecked != nullptr);
+    }
+
+    xcb_void_cookie_t pfnXcbPresentPixmapChecked(
+            xcb_connection_t*             pConnection,
+            xcb_window_t                  window,
+            xcb_pixmap_t                  pixmap,
+            uint32                        serial,
+            xcb_xfixes_region_t           valid,
+            xcb_xfixes_region_t           update,
+            int16                         xOff,
+            int16                         yO_off,
+            xcb_randr_crtc_t              targetCrtc,
+            xcb_sync_fence_t              waitFence,
+            xcb_sync_fence_t              idleFence,
+            uint32                        options,
+            uint64                        targetMsc,
+            uint64                        divisor,
+            uint64                        remainder,
+            uint32                        notifiesLen,
+            const xcb_present_notify_t*   pNotifies) const;
+
+    bool pfnXcbPresentPixmapCheckedisValid() const
+    {
+        return (m_pFuncs->pfnXcbPresentPixmapChecked != nullptr);
+    }
+
+    xcb_void_cookie_t pfnXcbSyncCreateFenceChecked(
+            xcb_connection_t*     pConnection,
+            xcb_drawable_t        drawable,
+            xcb_sync_fence_t      fence,
+            uint8                 initially_triggered) const;
+
+    bool pfnXcbSyncCreateFenceCheckedisValid() const
+    {
+        return (m_pFuncs->pfnXcbSyncCreateFenceChecked != nullptr);
+    }
+
+    xcb_void_cookie_t pfnXcbSyncTriggerFenceChecked(
+            xcb_connection_t*     pConnection,
+            xcb_sync_fence_t      fence) const;
+
+    bool pfnXcbSyncTriggerFenceCheckedisValid() const
+    {
+        return (m_pFuncs->pfnXcbSyncTriggerFenceChecked != nullptr);
+    }
+
+    xcb_void_cookie_t pfnXcbSyncResetFence(
+            xcb_connection_t*     pConnection,
+            xcb_sync_fence_t      fence) const;
+
+    bool pfnXcbSyncResetFenceisValid() const
+    {
+        return (m_pFuncs->pfnXcbSyncResetFence != nullptr);
+    }
+
+    xcb_void_cookie_t pfnXcbSyncAwaitFenceChecked(
+            xcb_connection_t*     pConnection,
+            uint32                fence_list_len,
+            xcb_sync_fence_t*     fence_list) const;
+
+    bool pfnXcbSyncAwaitFenceCheckedisValid() const
+    {
+        return (m_pFuncs->pfnXcbSyncAwaitFenceChecked != nullptr);
+    }
+
+    xcb_sync_query_fence_cookie_t pfnXcbSyncQueryFence(
+            xcb_connection_t*     pConnection,
+            xcb_sync_fence_t      fence) const;
+
+    bool pfnXcbSyncQueryFenceisValid() const
+    {
+        return (m_pFuncs->pfnXcbSyncQueryFence != nullptr);
+    }
+
+    xcb_sync_query_fence_reply_t* pfnXcbSyncQueryFenceReply(
+            xcb_connection_t*                 pConnection,
+            xcb_sync_query_fence_cookie_t     cookie,
+            xcb_generic_error_t**             ppError) const;
+
+    bool pfnXcbSyncQueryFenceReplyisValid() const
+    {
+        return (m_pFuncs->pfnXcbSyncQueryFenceReply != nullptr);
+    }
+
+    xcb_void_cookie_t pfnXcbSyncDestroyFenceChecked(
+            xcb_connection_t*     pConnection,
+            xcb_sync_fence_t      fence) const;
+
+    bool pfnXcbSyncDestroyFenceCheckedisValid() const
+    {
+        return (m_pFuncs->pfnXcbSyncDestroyFenceChecked != nullptr);
     }
 
     uint32 pfnXcbGenerateId(
@@ -1366,82 +1613,40 @@ public:
         return (m_pFuncs->pfnXshmfenceReset != nullptr);
     }
 
-    xcb_dri3_open_cookie_t pfnXcbDri3Open(
-            xcb_connection_t*     pConnection,
-            xcb_drawable_t        drawable,
-            uint32                provider) const;
+    xcb_connection_t* pfnXGetXCBConnection(
+            Display*  pDisplay) const;
 
-    bool pfnXcbDri3OpenisValid() const
+    bool pfnXGetXCBConnectionisValid() const
     {
-        return (m_pFuncs->pfnXcbDri3Open != nullptr);
+        return (m_pFuncs->pfnXGetXCBConnection != nullptr);
     }
 
-    xcb_dri3_open_reply_t* pfnXcbDri3OpenReply(
-            xcb_connection_t*         pConnection,
-            xcb_dri3_open_cookie_t    cookie,
-            xcb_generic_error_t**     ppError) const;
+    XVisualInfo* pfnXGetVisualInfo(
+            Display*      pDisplay,
+            long          visualMask,
+            XVisualInfo*  pVisualInfoList,
+            int32*        count) const;
 
-    bool pfnXcbDri3OpenReplyisValid() const
+    bool pfnXGetVisualInfoisValid() const
     {
-        return (m_pFuncs->pfnXcbDri3OpenReply != nullptr);
+        return (m_pFuncs->pfnXGetVisualInfo != nullptr);
     }
 
-    int32* pfnXcbDri3OpenReplyFds(
-            xcb_connection_t*         pConnection,
-            xcb_dri3_open_reply_t*    pReply) const;
+    int32 pfnXFree(
+            void*     pAddress) const;
 
-    bool pfnXcbDri3OpenReplyFdsisValid() const
+    bool pfnXFreeisValid() const
     {
-        return (m_pFuncs->pfnXcbDri3OpenReplyFds != nullptr);
+        return (m_pFuncs->pfnXFree != nullptr);
     }
 
-    xcb_void_cookie_t pfnXcbDri3FenceFromFdChecked(
-            xcb_connection_t*     pConnection,
-            xcb_drawable_t        drawable,
-            uint32                fence,
-            uint8                 initiallyTriggered,
-            int32                 fenceFd) const;
+    Window pfnXRootWindow(
+            Display*  pDisplay,
+            int       screenNum) const;
 
-    bool pfnXcbDri3FenceFromFdCheckedisValid() const
+    bool pfnXRootWindowisValid() const
     {
-        return (m_pFuncs->pfnXcbDri3FenceFromFdChecked != nullptr);
-    }
-
-    xcb_void_cookie_t pfnXcbDri3PixmapFromBufferChecked(
-            xcb_connection_t*     pConnection,
-            xcb_pixmap_t          pixmap,
-            xcb_drawable_t        drawable,
-            uint32                size,
-            uint16                width,
-            uint16                height,
-            uint16                stride,
-            uint8                 depth,
-            uint8                 bpp,
-            int32                 pixmapFd) const;
-
-    bool pfnXcbDri3PixmapFromBufferCheckedisValid() const
-    {
-        return (m_pFuncs->pfnXcbDri3PixmapFromBufferChecked != nullptr);
-    }
-
-    xcb_dri3_query_version_cookie_t pfnXcbDri3QueryVersion(
-            xcb_connection_t*     pConnection,
-            uint32                majorVersion,
-            uint32                minorVersion) const;
-
-    bool pfnXcbDri3QueryVersionisValid() const
-    {
-        return (m_pFuncs->pfnXcbDri3QueryVersion != nullptr);
-    }
-
-    xcb_dri3_query_version_reply_t* pfnXcbDri3QueryVersionReply(
-            xcb_connection_t*                 pConnection,
-            xcb_dri3_query_version_cookie_t   cookie,
-            xcb_generic_error_t**             ppError) const;
-
-    bool pfnXcbDri3QueryVersionReplyisValid() const
-    {
-        return (m_pFuncs->pfnXcbDri3QueryVersionReply != nullptr);
+        return (m_pFuncs->pfnXRootWindow != nullptr);
     }
 
     xcb_dri2_connect_cookie_t pfnXcbDri2Connect(
@@ -1783,107 +1988,6 @@ public:
     bool pfnXcbGetWindowAttributesReplyisValid() const
     {
         return (m_pFuncs->pfnXcbGetWindowAttributesReply != nullptr);
-    }
-
-    xcb_void_cookie_t pfnXcbSyncTriggerFenceChecked(
-            xcb_connection_t*     pConnection,
-            xcb_sync_fence_t      fence) const;
-
-    bool pfnXcbSyncTriggerFenceCheckedisValid() const
-    {
-        return (m_pFuncs->pfnXcbSyncTriggerFenceChecked != nullptr);
-    }
-
-    xcb_void_cookie_t pfnXcbSyncDestroyFenceChecked(
-            xcb_connection_t*     pConnection,
-            xcb_sync_fence_t      fence) const;
-
-    bool pfnXcbSyncDestroyFenceCheckedisValid() const
-    {
-        return (m_pFuncs->pfnXcbSyncDestroyFenceChecked != nullptr);
-    }
-
-    XVisualInfo* pfnXGetVisualInfo(
-            Display*      pDisplay,
-            long          visualMask,
-            XVisualInfo*  pVisualInfoList,
-            int32*        count) const;
-
-    bool pfnXGetVisualInfoisValid() const
-    {
-        return (m_pFuncs->pfnXGetVisualInfo != nullptr);
-    }
-
-    int32 pfnXFree(
-            void*     pAddress) const;
-
-    bool pfnXFreeisValid() const
-    {
-        return (m_pFuncs->pfnXFree != nullptr);
-    }
-
-    Window pfnXRootWindow(
-            Display*  pDisplay,
-            int       screenNum) const;
-
-    bool pfnXRootWindowisValid() const
-    {
-        return (m_pFuncs->pfnXRootWindow != nullptr);
-    }
-
-    xcb_present_query_version_cookie_t pfnXcbPresentQueryVersion(
-            xcb_connection_t*     pConnection,
-            uint32                majorVersion,
-            uint32                minorVersion) const;
-
-    bool pfnXcbPresentQueryVersionisValid() const
-    {
-        return (m_pFuncs->pfnXcbPresentQueryVersion != nullptr);
-    }
-
-    xcb_present_query_version_reply_t* pfnXcbPresentQueryVersionReply(
-            xcb_connection_t*                     pConnection,
-            xcb_present_query_version_cookie_t    cookie,
-            xcb_generic_error_t**                 ppError) const;
-
-    bool pfnXcbPresentQueryVersionReplyisValid() const
-    {
-        return (m_pFuncs->pfnXcbPresentQueryVersionReply != nullptr);
-    }
-
-    xcb_void_cookie_t pfnXcbPresentSelectInputChecked(
-            xcb_connection_t*     pConnection,
-            xcb_present_event_t   eventId,
-            xcb_window_t          window,
-            uint32                eventMask) const;
-
-    bool pfnXcbPresentSelectInputCheckedisValid() const
-    {
-        return (m_pFuncs->pfnXcbPresentSelectInputChecked != nullptr);
-    }
-
-    xcb_void_cookie_t pfnXcbPresentPixmapChecked(
-            xcb_connection_t*             pConnection,
-            xcb_window_t                  window,
-            xcb_pixmap_t                  pixmap,
-            uint32                        serial,
-            xcb_xfixes_region_t           valid,
-            xcb_xfixes_region_t           update,
-            int16                         xOff,
-            int16                         yO_off,
-            xcb_randr_crtc_t              targetCrtc,
-            xcb_sync_fence_t              waitFence,
-            xcb_sync_fence_t              idleFence,
-            uint32                        options,
-            uint64                        targetMsc,
-            uint64                        divisor,
-            uint64                        remainder,
-            uint32                        notifiesLen,
-            const xcb_present_notify_t*   pNotifies) const;
-
-    bool pfnXcbPresentPixmapCheckedisValid() const
-    {
-        return (m_pFuncs->pfnXcbPresentPixmapChecked != nullptr);
     }
 
 private:

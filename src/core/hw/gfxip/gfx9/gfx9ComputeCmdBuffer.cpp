@@ -893,7 +893,7 @@ void ComputeCmdBuffer::CmdBindBorderColorPalette(
 
 // =====================================================================================================================
 // Helper function which is responsible for making sure all user-data entries are written to either the spill table or
-// to user-SGPR's, as well as making sure that all indirect user-data tables are up-to-date in GPU memory.  Part of
+// to user-SGPR's, as well as making sure that all indirect user-data tables are up-to-date in GPU memory. Part of
 // Dispatch-time validation.
 template <bool HasPipelineChanged>
 uint32* ComputeCmdBuffer::ValidateUserData(
@@ -919,9 +919,11 @@ uint32* ComputeCmdBuffer::ValidateUserData(
 
     if (alreadyWritten == false)
     {
-        pCmdSpace = m_cmdStream.WriteUserDataEntriesToSgprs<false, ShaderCompute>(m_pSignatureCs->stage,
-                                                                                  *pUserData,
-                                                                                  pCmdSpace);
+        {
+            pCmdSpace = m_cmdStream.WriteUserDataEntriesToSgprs<false, ShaderCompute>(m_pSignatureCs->stage,
+                                                                                      *pUserData,
+                                                                                      pCmdSpace);
+        }
     }
 
     const uint16 spillThreshold = m_pSignatureCs->spillThreshold;
@@ -1285,7 +1287,7 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
 
 // =====================================================================================================================
 // Helper function responsible for handling user-SGPR updates during Dispatch-time validation when the active pipeline
-// has changed since the previous Dispathc operation.  It is expected that this will be called only when the pipeline
+// has changed since the previous Dispatch operation. It is expected that this will be called only when the pipeline
 // is changing and immediately before a call to WriteUserDataEntriesToSgprs<false, ..>().
 bool ComputeCmdBuffer::FixupUserSgprsOnPipelineSwitch(
     const UserDataEntries&          userData,
@@ -1305,12 +1307,16 @@ bool ComputeCmdBuffer::FixupUserSgprsOnPipelineSwitch(
 
     if (m_pSignatureCs->userDataHash != pPrevSignature->userDataHash)
     {
-        pCmdSpace = m_cmdStream.WriteUserDataEntriesToSgprs<true, ShaderCompute>(m_pSignatureCs->stage,
-                                                                                 userData,
-                                                                                 pCmdSpace);
+        {
+            pCmdSpace = m_cmdStream.WriteUserDataEntriesToSgprs<true, ShaderCompute>(m_pSignatureCs->stage,
+                                                                                     userData,
+                                                                                     pCmdSpace);
+        }
+
         written = true;
         (*ppCmdSpace) = pCmdSpace;
     }
+
     return written;
 }
 

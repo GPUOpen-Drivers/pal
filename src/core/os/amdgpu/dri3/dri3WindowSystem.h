@@ -33,6 +33,7 @@
 
 #include <xcb/xcb.h>
 #include <xcb/present.h>
+#include <xcb/sync.h>
 
 namespace Pal
 {
@@ -61,6 +62,7 @@ public:
     virtual Result Trigger() override;
 
     virtual Result WaitForCompletion(bool doWait) override;
+    Result QueryRaw();
 
     virtual Result AssociatePriorRenderFence(IQueue* pQueue) override { return Result::Success; }
 
@@ -68,7 +70,6 @@ public:
     void AttachImage(Image* pImage) { m_pImage = pImage; }
 
     xcb_sync_fence_t  SyncFence() const { return m_syncFence; }
-    struct xshmfence* ShmFence()  const { return m_pShmFence; }
 
 private:
     Dri3PresentFence(const Dri3WindowSystem& windowSystem);
@@ -160,6 +161,8 @@ public:
 
     virtual bool NeedWindowSizeChangedCheck() const override { return m_needWindowSizeChangedCheck; }
 
+    bool Dri3Supported() const { return m_dri3Supported; }
+
 private:
     Dri3WindowSystem(const Device& device, const WindowSystemCreateInfo& createInfo);
     virtual ~Dri3WindowSystem();
@@ -210,6 +213,7 @@ private:
     bool                   m_needWindowSizeChangedCheck; // need client to check if window is resized
     xcb_connection_t*      m_pConnection;                // xcb connection created by App
     bool                   m_dri2Supported;
+    bool                   m_dri3Supported;
     int32                  m_dri3MajorVersion;
     int32                  m_dri3MinorVersion;
     int32                  m_presentMajorVersion;

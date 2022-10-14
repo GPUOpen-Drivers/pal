@@ -324,6 +324,15 @@ public:
     size_type          size()   const noexcept { return m_numElements; }
     ///@}
 
+    /// Erases the element at the specified iterator.
+    void Erase(Iter it);
+
+    /// Erases the element at the specified iterator.
+    void Erase(iterator it);
+
+    /// Erases the element at the specified index.
+    void Erase(uint32 index);
+
 private:
     // This is a POD-type that exactly fits one T value.
     typedef typename std::aligned_storage<sizeof(T), alignof(T)>::type ValueStorage;

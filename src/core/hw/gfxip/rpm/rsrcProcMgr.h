@@ -111,7 +111,7 @@ public:
         bool                    preferWideFormatCopy,
         const gpusize*          pP2pBltInfoChunks) const;
 
-    void CmdCopyImage(
+    virtual void CmdCopyImage(
         GfxCmdBuffer*          pCmdBuffer,
         const Image&           srcImage,
         ImageLayout            srcImageLayout,
@@ -314,15 +314,6 @@ protected:
     //  If need to access single zRange for each subres independantly.
     virtual bool HwlNeedSinglezRangeAccess() const { return false; }
 
-    virtual ImageCopyEngine GetImageToImageCopyEngine(
-        const GfxCmdBuffer*    pCmdBuffer,
-        const Image&           srcImage,
-        const Image&           dstImage,
-        uint32                 regionCount,
-        const ImageCopyRegion* pRegions,
-        uint32                 copyFlags) const
-        { return ImageCopyEngine::Compute; }
-
     virtual bool ScaledCopyImageUseGraphics(
         GfxCmdBuffer*           pCmdBuffer,
         const ScaledCopyInfo&   copyInfo) const
@@ -349,7 +340,14 @@ protected:
         gpusize         rowPitch,
         gpusize         depthPitch);
 
-    void SlowClearGraphics(
+    virtual bool SlowClearUseGraphics(
+        GfxCmdBuffer*      pCmdBuffer,
+        const Image&       dstImage,
+        const SubresRange& clearRange,
+        ClearMethod        method) const
+        { return false; }
+
+    virtual void SlowClearGraphics(
         GfxCmdBuffer*         pCmdBuffer,
         const Image&          dstImage,
         ImageLayout           dstImageLayout,
@@ -357,7 +355,8 @@ protected:
         const SwizzledFormat& clearFormat,
         const SubresRange&    clearRange,
         uint32                boxCount,
-        const Box*            pBoxes) const;
+        const Box*            pBoxes) const
+        { PAL_NEVER_CALLED(); }
 
     void SlowClearCompute(
         GfxCmdBuffer*         pCmdBuffer,
@@ -387,6 +386,16 @@ protected:
         bool                   useMipInSrd,
         bool*                  pIsFmaskCopy,
         bool*                  pIsFmaskCopyOptimized) const;
+
+    virtual void CopyImageCompute(
+        GfxCmdBuffer*          pCmdBuffer,
+        const Image&           srcImage,
+        ImageLayout            srcImageLayout,
+        const Image&           dstImage,
+        ImageLayout            dstImageLayout,
+        uint32                 regionCount,
+        const ImageCopyRegion* pRegions,
+        uint32                 flags) const;
 
     void CopyImageCs(
         GfxCmdBuffer*          pCmdBuffer,
@@ -546,12 +555,6 @@ private:
         const void*     pBufferViewSrd,
         BufferViewInfo* pViewInfo) const = 0;
 
-    virtual void HwlImageToImageMissingPixelCopy(
-        GfxCmdBuffer*          pCmdBuffer,
-        const Pal::Image&      srcImage,
-        const Pal::Image&      dstImage,
-        const ImageCopyRegion& region) const = 0;
-
     virtual void CopyImageGraphics(
         GfxCmdBuffer*          pCmdBuffer,
         const Image&           srcImage,
@@ -573,16 +576,6 @@ private:
         GfxCmdBuffer*           pCmdBuffer,
         const ScaledCopyInfo&   copyInfo) const;
 
-    virtual void CopyImageCompute(
-        GfxCmdBuffer*          pCmdBuffer,
-        const Image&           srcImage,
-        ImageLayout            srcImageLayout,
-        const Image&           dstImage,
-        ImageLayout            dstImageLayout,
-        uint32                 regionCount,
-        const ImageCopyRegion* pRegions,
-        uint32                 flags) const;
-
     virtual void CopyBetweenMemoryAndImage(
         GfxCmdBuffer*                pCmdBuffer,
         const ComputePipeline*       pPipeline,
@@ -594,24 +587,6 @@ private:
         uint32                       regionCount,
         const MemoryImageCopyRegion* pRegions,
         bool                         includePadding) const;
-
-    void SlowClearGraphicsOneMip(
-        GfxCmdBuffer*              pCmdBuffer,
-        const Image&               dstImage,
-        const SubresId&            mipSubres,
-        uint32                     boxCount,
-        const Box*                 pBoxes,
-        ColorTargetViewCreateInfo* pColorViewInfo,
-        BindTargetParams*          pBindTargetsInfo,
-        uint32                     xRightShift) const;
-
-    void ClearImageOneBox(
-        GfxCmdBuffer*          pCmdBuffer,
-        const SubResourceInfo& subResInfo,
-        const Box*             pBox,
-        bool                   hasBoxes,
-        uint32                 xRightShift,
-        uint32                 numInstances) const;
 
     void ConvertYuvToRgb(
         GfxCmdBuffer*                     pCmdBuffer,

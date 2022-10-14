@@ -83,7 +83,7 @@ IColorBlendState* NextColorBlendState(
 }
 
 // =====================================================================================================================
-IColorTargetView* NextColorTargetView(
+const IColorTargetView* NextColorTargetView(
     const IColorTargetView* pView)
 {
     return (pView != nullptr) ?
@@ -101,7 +101,7 @@ IDepthStencilState* NextDepthStencilState(
 }
 
 // =====================================================================================================================
-IDepthStencilView* NextDepthStencilView(
+const IDepthStencilView* NextDepthStencilView(
     const IDepthStencilView* pDepthStencilView)
 {
     return (pDepthStencilView != nullptr) ?

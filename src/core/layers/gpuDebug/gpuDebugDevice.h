@@ -50,6 +50,9 @@ class Device final : public DeviceDecorator
 public:
     Device(PlatformDecorator* pPlatform, IDevice* pNextDevice);
 
+    size_t ColorViewSize() const { return m_colorViewSize; }
+    size_t DepthViewSize() const { return m_depthViewSize; }
+
     static bool SupportsCommentString(QueueType queueType)
         { return ((queueType == QueueTypeUniversal) || (queueType == QueueTypeCompute)); }
 
@@ -192,7 +195,10 @@ private:
     const PalPublicSettings* m_pPublicSettings;
     DeviceProperties         m_deviceProperties;
 
-    bool m_initialized;
+    bool                   m_initialized;
+
+    size_t                 m_colorViewSize;
+    size_t                 m_depthViewSize;
 
     PAL_DISALLOW_DEFAULT_CTOR(Device);
     PAL_DISALLOW_COPY_AND_ASSIGN(Device);

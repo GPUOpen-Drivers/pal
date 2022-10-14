@@ -112,9 +112,13 @@ Result GpuMemoryPatchList::AddWidePatchEntry(
     uint32           chunkOffsetLo,
     uint32           chunkOffsetHi,
     gpusize          resourceSize,
-    PatchType        resourceType)
+    PatchType        resourceType,
+    CmdAllocType     patchBuffer,
+    GpuMemory*       pPatchBufferGpuMem)
+
 {
     PAL_ASSERT((patchOpLo != GpuMemoryPatchOp::Count) && (patchOpHi != GpuMemoryPatchOp::Count));
+    PAL_ASSERT((patchBuffer != CmdAllocType::CommandDataAlloc) && (patchBuffer != CmdAllocType::EmbeddedDataAlloc));
 
     Result result = Result::Success;
 

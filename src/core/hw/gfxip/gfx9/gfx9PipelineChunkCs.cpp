@@ -323,6 +323,62 @@ void PipelineChunkCs::SetupSignatureFromRegisters(
 }
 
 // =====================================================================================================================
+// Helper to write DynamicLaunchDesc registers and update dynamic register state. This function must be called
+// immediately before any dynamic register writes. Returns the next unused DWORD in pCmdSpace.
+uint32* PipelineChunkCs::UpdateDynamicRegInfo(
+    CmdStream*                      pCmdStream,
+    uint32*                         pCmdSpace,
+    HwRegInfo::Dynamic*             pDynamicRegs,
+    const DynamicComputeShaderInfo& csInfo,
+    gpusize                         launchDescGpuVa
+    ) const
+{
+    if (launchDescGpuVa != 0uLL)
+    {
+        pCmdSpace = pCmdStream->WriteDynamicLaunchDesc(launchDescGpuVa, pCmdSpace);
+    }
+
+    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
+
+    // TG_PER_CU: Sets the CS threadgroup limit per CU. Range is 1 to 15, 0 disables the limit.
+    constexpr uint32 Gfx9MaxTgPerCu = 15;
+    pDynamicRegs->computeResourceLimits.bits.TG_PER_CU = Min(csInfo.maxThreadGroupsPerCu, Gfx9MaxTgPerCu);
+    if (csInfo.maxWavesPerCu > 0)
+    {
+        pDynamicRegs->computeResourceLimits.bits.WAVES_PER_SH = IsGfx10Plus(chipProps.gfxLevel) ?
+                            ComputePipeline::CalcMaxWavesPerSe(chipProps, csInfo.maxWavesPerCu) :
+                            ComputePipeline::CalcMaxWavesPerSh(chipProps, csInfo.maxWavesPerCu);
+    }
+#if PAL_AMDGPU_BUILD
+    else if (IsGfx9(chipProps.gfxLevel) && (pDynamicRegs->computeResourceLimits.bits.WAVES_PER_SH == 0))
+    {
+        // GFX9 GPUs have a HW bug where a wave limit size of 0 does not correctly map to "no limit",
+        // potentially breaking high-priority compute.
+        pDynamicRegs->computeResourceLimits.bits.WAVES_PER_SH = m_device.GetMaxWavesPerSh(chipProps, true);
+    }
+#endif
+
+    // CU_GROUP_COUNT: Sets the number of CS threadgroups to attempt to send to a single CU before moving to the next CU.
+    // Range is 1 to 8, 0 disables the limit.
+    constexpr uint32 Gfx9MaxCuGroupCount = 8;
+    if (csInfo.tgScheduleCountPerCu > 0)
+    {
+        pDynamicRegs->computeResourceLimits.bits.CU_GROUP_COUNT =
+            Min(csInfo.tgScheduleCountPerCu, Gfx9MaxCuGroupCount) - 1;
+    }
+
+    if (csInfo.ldsBytesPerTg > 0)
+    {
+        // Round to nearest multiple of the LDS granularity, then convert to the register value.
+        // NOTE: Granularity for the LDS_SIZE field is 128, range is 0->128 which allocates 0 to 16K DWORDs.
+        pDynamicRegs->computePgmRsrc2.bits.LDS_SIZE =
+            Pow2Align((csInfo.ldsBytesPerTg / sizeof(uint32)), Gfx9LdsDwGranularity) >> Gfx9LdsDwGranularityShift;
+    }
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
 // Copies this pipeline chunk's sh commands into the specified command space. Returns the next unused DWORD in
 // pCmdSpace.
 uint32* PipelineChunkCs::WriteShCommands(
@@ -333,17 +389,20 @@ uint32* PipelineChunkCs::WriteShCommands(
     bool                            prefetch
     ) const
 {
-    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
+    HwRegInfo::Dynamic dynamicRegs = m_regs.dynamic; // "Dynamic" bind-time register state.
+    pCmdSpace = UpdateDynamicRegInfo(pCmdStream, pCmdSpace, &dynamicRegs, csInfo, launchDescGpuVa);
 
-    pCmdSpace = WriteShCommandsSetPath(pCmdStream, pCmdSpace, (launchDescGpuVa != 0uLL));
-
-    pCmdSpace = WriteShCommandsDynamic(pCmdStream, pCmdSpace, csInfo, launchDescGpuVa);
-
-    if (m_pCsPerfDataInfo->regOffset != UserDataNotMapped)
     {
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(m_pCsPerfDataInfo->regOffset,
-                                                                m_pCsPerfDataInfo->gpuVirtAddr,
-                                                                pCmdSpace);
+        pCmdSpace = WriteShCommandsSetPath(pCmdStream, pCmdSpace, (launchDescGpuVa != 0uLL));
+
+        pCmdSpace = WriteShCommandsDynamic(pCmdStream, pCmdSpace, dynamicRegs, launchDescGpuVa);
+
+        if (m_pCsPerfDataInfo->regOffset != UserDataNotMapped)
+        {
+            pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(m_pCsPerfDataInfo->regOffset,
+                                                                    m_pCsPerfDataInfo->gpuVirtAddr,
+                                                                    pCmdSpace);
+        }
     }
 
     if (prefetch)
@@ -357,66 +416,23 @@ uint32* PipelineChunkCs::WriteShCommands(
 
 // =====================================================================================================================
 // Writes PM4 set commands to the specified command stream.  This is used for writing pipeline state registers whose
-// values are not known until pipeline bind time.
+// values are not known until pipeline bind time. Returns the next unused DWORD in pCmdSpace.
 uint32* PipelineChunkCs::WriteShCommandsDynamic(
     CmdStream*                      pCmdStream,
     uint32*                         pCmdSpace,
-    const DynamicComputeShaderInfo& csInfo,
+    HwRegInfo::Dynamic              dynamicRegs,
     gpusize                         launchDescGpuVa
     ) const
 {
-    if (launchDescGpuVa != 0uLL)
-    {
-        pCmdSpace = pCmdStream->WriteDynamicLaunchDesc(launchDescGpuVa, pCmdSpace);
-    }
-
-    auto dynamic = m_regs.dynamic; // "Dynamic" bind-time register state
-
-    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
-
-    // TG_PER_CU: Sets the CS threadgroup limit per CU. Range is 1 to 15, 0 disables the limit.
-    constexpr uint32 Gfx9MaxTgPerCu = 15;
-    dynamic.computeResourceLimits.bits.TG_PER_CU = Min(csInfo.maxThreadGroupsPerCu, Gfx9MaxTgPerCu);
-    if (csInfo.maxWavesPerCu > 0)
-    {
-        dynamic.computeResourceLimits.bits.WAVES_PER_SH = IsGfx10Plus(chipProps.gfxLevel) ?
-            ComputePipeline::CalcMaxWavesPerSe(chipProps, csInfo.maxWavesPerCu) :
-            ComputePipeline::CalcMaxWavesPerSh(chipProps, csInfo.maxWavesPerCu);
-    }
-#if PAL_AMDGPU_BUILD
-    else if (IsGfx9(chipProps.gfxLevel) && (dynamic.computeResourceLimits.bits.WAVES_PER_SH == 0))
-    {
-        // GFX9 GPUs have a HW bug where a wave limit size of 0 does not correctly map to "no limit",
-        // potentially breaking high-priority compute.
-        dynamic.computeResourceLimits.bits.WAVES_PER_SH = m_device.GetMaxWavesPerSh(chipProps, true);
-    }
-#endif
-
-    // CU_GROUP_COUNT: Sets the number of CS threadgroups to attempt to send to a single CU before moving to the next CU.
-    // Range is 1 to 8, 0 disables the limit.
-    constexpr uint32 Gfx9MaxCuGroupCount = 8;
-    if (csInfo.tgScheduleCountPerCu > 0)
-    {
-        dynamic.computeResourceLimits.bits.CU_GROUP_COUNT = Min(csInfo.tgScheduleCountPerCu, Gfx9MaxCuGroupCount) - 1;
-    }
-
-    if (csInfo.ldsBytesPerTg > 0)
-    {
-        // Round to nearest multiple of the LDS granularity, then convert to the register value.
-        // NOTE: Granularity for the LDS_SIZE field is 128, range is 0->128 which allocates 0 to 16K DWORDs.
-        dynamic.computePgmRsrc2.bits.LDS_SIZE =
-            Pow2Align((csInfo.ldsBytesPerTg / sizeof(uint32)), Gfx9LdsDwGranularity) >> Gfx9LdsDwGranularityShift;
-    }
-
     if (launchDescGpuVa == 0uLL)
     {
         pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_RSRC2,
-                                                                dynamic.computePgmRsrc2.u32All,
+                                                                dynamicRegs.computePgmRsrc2.u32All,
                                                                 pCmdSpace);
     }
 
     pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_RESOURCE_LIMITS,
-                                                            dynamic.computeResourceLimits.u32All,
+                                                            dynamicRegs.computeResourceLimits.u32All,
                                                             pCmdSpace);
 
     return pCmdSpace;
@@ -424,7 +440,7 @@ uint32* PipelineChunkCs::WriteShCommandsDynamic(
 
 // =====================================================================================================================
 // Writes PM4 SET commands to the specified command stream.  This is only expected to be called when the LOAD path is
-// not in use and we need to use the SET path fallback.
+// not in use and we need to use the SET path fallback. Returns the next unused DWORD in pCmdSpace.
 uint32* PipelineChunkCs::WriteShCommandsSetPath(
     CmdStream* pCmdStream,
     uint32*    pCmdSpace,
@@ -432,7 +448,6 @@ uint32* PipelineChunkCs::WriteShCommandsSetPath(
     ) const
 {
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
-    const RegisterInfo&      regInfo   = m_device.CmdUtil().GetRegInfo();
 
     pCmdSpace = pCmdStream->WriteSetSeqShRegs(mmCOMPUTE_NUM_THREAD_X,
                                               mmCOMPUTE_NUM_THREAD_Z,
@@ -464,6 +479,7 @@ uint32* PipelineChunkCs::WriteShCommandsSetPath(
 
     if (chipProps.gfx9.supportSpp != 0)
     {
+        const RegisterInfo& regInfo = m_device.CmdUtil().GetRegInfo();
         pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(regInfo.mmComputeShaderChksum,
                                                                 m_regs.computeShaderChksum.u32All,
                                                                 pCmdSpace);

@@ -402,7 +402,9 @@ void AddrMgr2::InitTilingCaps(
     const bool varSwizzleNotRtOrDs = TestAnyFlagSet(settings.addr2UseVarSwizzleMode, Addr2UseVarSwizzleNotRtOrDs);
 
     pBlockSettings->value = 0; // All modes (256B, 4kb, 64kb) are valid
-    pBlockSettings->var   = 1; // but don't allow variable-size block modes.
+    {
+        pBlockSettings->var = 1; // but don't allow variable-size block modes.
+    }
 
     // Check if flag to disable micro mode is true
     pBlockSettings->micro = settings.addr2Disable256BSwizzleMode;

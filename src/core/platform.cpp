@@ -605,7 +605,7 @@ Result Platform::EarlyInitDevDriver()
                 PAL_ASSERT(m_pSettingsService != nullptr);
 #endif
 
-                m_pDriverUtilsService = PAL_NEW(DriverUtilsService::DriverUtilsService, this, AllocInternal)();
+                m_pDriverUtilsService = PAL_NEW(DriverUtilsService::DriverUtilsService, this, AllocInternal)(this);
             }
         }
         else

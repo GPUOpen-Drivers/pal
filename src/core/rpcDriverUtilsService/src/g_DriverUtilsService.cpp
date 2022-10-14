@@ -88,6 +88,27 @@ static DD_RESULT RegisterFunctions(
         result = ddRpcServerRegisterFunction(hServer, &info);
     }
 
+    // Register "QueryPalDriverInfo"
+    if (result == DD_RESULT_SUCCESS)
+    {
+        DDRpcServerRegisterFunctionInfo info = {};
+        info.serviceId                       = 0x24815012;
+        info.id                              = 0x3;
+        info.pName                           = "QueryPalDriverInfo";
+        info.pDescription                    = "Queries for PAL driver info";
+        info.pFuncUserdata                   = pService;
+        info.pfnFuncCb                       = [](
+            const DDRpcServerCallInfo* pCall) -> DD_RESULT
+        {
+            auto* pService = reinterpret_cast<IDriverUtilsService*>(pCall->pUserdata);
+
+            // Execute the service implementation
+            return pService->QueryPalDriverInfo(*pCall->pWriter);
+        };
+
+        result = ddRpcServerRegisterFunction(hServer, &info);
+    }
+
     return result;
 }
 

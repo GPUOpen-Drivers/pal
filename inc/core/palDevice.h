@@ -739,6 +739,8 @@ struct PalPublicSettings
     /// Controls GS LateAlloc val (for pos/prim allocations NOT param cache) on NGG pipelines. Can be no more than 127.
     uint32 nggLateAllocGs;
 
+    // Optimize color export format for depth only rendering. Only applicable for RB+ parts
+    bool optDepthOnlyExportRate;
 };
 
 /// Defines the modes that the GPU Profiling layer can use when its buffer fills.

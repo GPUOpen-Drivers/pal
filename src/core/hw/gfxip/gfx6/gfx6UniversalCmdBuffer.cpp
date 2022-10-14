@@ -2768,15 +2768,11 @@ void UniversalCmdBuffer::WriteEventCmd(
 
         pDeCmdSpace += m_cmdUtil.BuildWriteData(writeData, data, pDeCmdSpace);
     }
-    else if ((pipePoint == HwPipePostCs) ||
-             (pipePoint == HwPipePostPs) ||
-             ((pipePoint == HwPipePreRasterization) && (GetPm4CmdBufState().flags.rasterKillDrawsActive == 0)))
+    else if ((pipePoint == HwPipePostCs) || (pipePoint == HwPipePostPs))
     {
         PAL_ASSERT((pipePoint != HwPipePostCs) || IsComputeSupported());
 
-        // Implement set/reset with an EOS event waiting for VS waves to complete.  Unfortunately, there is no VS_DONE
-        // event with which to implement HwPipePreRasterization, so it has to conservatively use PS_DONE if
-        // rasterizationKill is inactive.
+        // Implement set/reset with an EOS event waiting for PS/VS waves to complete.
         pDeCmdSpace += m_cmdUtil.BuildEventWriteEos((pipePoint == HwPipePostCs) ? CS_DONE : PS_DONE,
                                                     boundMemObj.GpuVirtAddr(),
                                                     EVENT_WRITE_EOS_CMD_STORE_32BIT_DATA_TO_MEMORY,
@@ -2785,11 +2781,10 @@ void UniversalCmdBuffer::WriteEventCmd(
                                                     0,
                                                     pDeCmdSpace);
     }
-    else if ((pipePoint == HwPipeBottom) ||
-             ((pipePoint == HwPipePreRasterization) && (GetPm4CmdBufState().flags.rasterKillDrawsActive != 0)))
+    else if ((pipePoint == HwPipeBottom) || (pipePoint == HwPipePreRasterization))
     {
         // Implement set/reset with an EOP event written when all prior GPU work completes or VS waves to complete
-        // if rasterizationKill is active since there is no VS_DONE event.
+        // since there is no VS_DONE event.
         pDeCmdSpace += m_cmdUtil.BuildEventWriteEop(BOTTOM_OF_PIPE_TS,
                                                     boundMemObj.GpuVirtAddr(),
                                                     EVENTWRITEEOP_DATA_SEL_SEND_DATA32,
@@ -5553,6 +5548,12 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
             m_sxBlendOptEpsilon = cmdBuffer.m_sxBlendOptEpsilon;
             m_sxBlendOptControl = cmdBuffer.m_sxBlendOptControl;
         }
+    }
+
+    // If the nested command buffer updated PA_SU_SC_MODE_CNTL, leak its state back to the caller.
+    if (cmdBuffer.m_graphicsState.leakFlags.validationBits.triangleRasterState)
+    {
+        m_paSuScModeCntl.u32All = cmdBuffer.m_paSuScModeCntl.u32All;
     }
 
     if (cmdBuffer.HasStreamOutBeenSet())

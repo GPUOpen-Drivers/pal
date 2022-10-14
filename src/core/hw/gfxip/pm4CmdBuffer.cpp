@@ -279,23 +279,33 @@ void Pm4CmdBuffer::ResetState()
 
     // It's possible that another of our command buffers still has blts in flight, except for CP blts which must be
     // flushed in each command buffer postamble.
-    m_pm4CmdBufState.flags.gfxBltActive        = IsGraphicsSupported();
-    m_pm4CmdBufState.flags.gfxWriteCachesDirty = IsGraphicsSupported();
-    m_pm4CmdBufState.flags.csBltActive         = IsComputeSupported();
-    m_pm4CmdBufState.flags.csWriteCachesDirty  = IsComputeSupported();
-
-    // It's possible that another of our command buffers still has rasterization kill draws in flight.
-    m_pm4CmdBufState.flags.rasterKillDrawsActive = IsGraphicsSupported();
-
-    // A previous, chained command buffer could have used a CP blt which may have accessed L2 or the memory directly.
-    // By convention, our CP blts will only use L2 if the HW supports it so we only need to set one bit here.
-    if (m_device.Parent()->ChipProperties().gfxLevel > GfxIpLevel::GfxIp6)
+    if (IsGraphicsSupported())
     {
-        m_pm4CmdBufState.flags.cpWriteCachesDirty = IsCpDmaSupported();
+        m_pm4CmdBufState.flags.gfxBltActive        = 1;
+        m_pm4CmdBufState.flags.gfxWriteCachesDirty = 1;
+        m_pm4CmdBufState.flags.gfxDrawStatus       = GfxDrawActive;
+        m_pm4CmdBufState.flags.gfxCsActive         = 1;
+        m_pm4CmdBufState.flags.gfxSrcCachesDirty   = 1;
     }
-    else
+
+    if (IsComputeSupported())
     {
-        m_pm4CmdBufState.flags.cpMemoryWriteL2CacheStale = IsCpDmaSupported();
+        m_pm4CmdBufState.flags.csBltActive        = 1;
+        m_pm4CmdBufState.flags.csWriteCachesDirty = 1;
+    }
+
+    if (IsCpDmaSupported())
+    {
+        // A previous, chained command buffer could have used a CP blt which may have accessed L2 or memory directly.
+        // By convention, our CP blts will only use L2 if the HW supports it so we only need to set one bit here.
+        if (m_device.Parent()->ChipProperties().gfxLevel > GfxIpLevel::GfxIp6)
+        {
+            m_pm4CmdBufState.flags.cpWriteCachesDirty = 1;
+        }
+        else
+        {
+            m_pm4CmdBufState.flags.cpMemoryWriteL2CacheStale = 1;
+        }
     }
 
     memset(m_acqRelFenceVals, 0, sizeof(m_acqRelFenceVals));
@@ -304,7 +314,6 @@ void Pm4CmdBuffer::ResetState()
     // Set a impossible waited fence until IssueReleaseSync assigns a meaningful value when sync RB cache.
     UpdatePm4CmdBufGfxBltWbEopFence(UINT32_MAX);
     UpdatePm4CmdBufCsBltExecFence();
-    UpdatePm4CmdBufRasterKillDrawsExecEopFence(true);
 
     PAL_SAFE_FREE(m_computeState.pKernelArguments, m_device.GetPlatform());
     memset(&m_computeState, 0, sizeof(m_computeState));

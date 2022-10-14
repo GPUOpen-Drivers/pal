@@ -276,6 +276,7 @@ void SettingsLoader::ValidateSettings(
     if (gfx6Props.rbPlus == 0)
     {
         m_settings.gfx8RbPlusEnable = false;
+        pPalSettings->optDepthOnlyExportRate = false;
     }
 
     if (pSettings->nonlocalDestGraphicsCopyRbs >= static_cast<int32>(gfx6Props.numActiveRbs))
@@ -331,13 +332,6 @@ void SettingsLoader::ValidateSettings(
 void SettingsLoader::OverrideDefaults(
     PalSettings* pSettings)
 {
-    // INTERPOLATE_COMP_Z was turned off at default as a workaround to prevent corruption in depth resources
-    // due to an issue in EQAA hardware implementation. When EQAA is on, the corruption can occur
-    // in any apps that use depth resources. This will have no performance impact,
-    // and it will only impact quality in the eqaa cases (when rasterization rate is greater than the number
-    // of depth samples this basically doesn't happen in our drivers today).
-    m_settings.waDisableDbEqaaInterpolateCompZ = true;
-
     if (IsGfx6(*m_pDevice))
     {
         // Tahiti & Pitcairn workarounds:

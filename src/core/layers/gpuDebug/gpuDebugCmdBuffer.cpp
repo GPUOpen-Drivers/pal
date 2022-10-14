@@ -1341,6 +1341,20 @@ void CmdBuffer::CmdBindTargets(
 
     InsertToken(CmdBufCallId::CmdBindTargets);
     InsertToken(params);
+
+    // Views don't guarantee they'll outlive the submit, so copy them in.
+    for (uint32 i = 0; i < params.colorTargetCount; i++)
+    {
+        if (params.colorTargets[i].pColorTargetView != nullptr)
+        {
+            InsertTokenBuffer(params.colorTargets[i].pColorTargetView, m_pDevice->ColorViewSize(), alignof(void*));
+        }
+    }
+
+    if (params.depthTarget.pDepthStencilView != nullptr)
+    {
+        InsertTokenBuffer(params.depthTarget.pDepthStencilView, m_pDevice->DepthViewSize(), alignof(void*));
+    }
 }
 
 // =====================================================================================================================
@@ -1348,7 +1362,22 @@ void CmdBuffer::ReplayCmdBindTargets(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
-    pTgtCmdBuffer->CmdBindTargets(ReadTokenVal<BindTargetParams>());
+    BindTargetParams params = ReadTokenVal<BindTargetParams>();
+
+    for (uint32 i = 0; i < params.colorTargetCount; i++)
+    {
+        if (params.colorTargets[i].pColorTargetView != nullptr)
+        {
+            ReadTokenBuffer(reinterpret_cast<const void**>(&params.colorTargets[i].pColorTargetView), alignof(void*));
+        }
+    }
+
+    if (params.depthTarget.pDepthStencilView != nullptr)
+    {
+        ReadTokenBuffer(reinterpret_cast<const void**>(&params.depthTarget.pDepthStencilView), alignof(void*));
+    }
+
+    pTgtCmdBuffer->CmdBindTargets(params);
 }
 
 // =====================================================================================================================

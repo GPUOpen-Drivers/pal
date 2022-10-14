@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include "palPlatform.h"
+#include "platform.h"
 #include "g_DriverUtilsService.h"
 
 namespace DriverUtilsService
@@ -36,12 +36,13 @@ namespace DriverUtilsService
 class DriverUtilsService : public DriverUtils::IDriverUtilsService
 {
 public:
-    DriverUtilsService();
+    DriverUtilsService(Pal::Platform* pPlatform);
     virtual ~DriverUtilsService();
 
     // Attempts to enable tracing
     virtual DD_RESULT EnableTracing() override;
     virtual DD_RESULT EnableCrashAnalysisMode() override;
+    virtual DD_RESULT QueryPalDriverInfo(const DDByteWriter& writer) override;
 
     bool IsTracingEnabled() const { return m_isTracingEnabled; }
     bool IsCrashAnalysisModeEnabled() const { return m_crashAnalysisModeEnabled; }
@@ -49,5 +50,6 @@ public:
 private:
     bool m_isTracingEnabled;
     bool m_crashAnalysisModeEnabled;
+    Pal::Platform* m_pPlatform;
 };
 }

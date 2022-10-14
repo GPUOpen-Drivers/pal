@@ -858,6 +858,9 @@ Result Device::InitGpuProperties()
 {
     uint32 version = 0;
     uint32 feature = 0;
+    uint32 pfpFwVersion = 0;
+    uint32 pfpFwFeature = 0;
+    int32  drmRet = 0;
 
     m_chipProperties.familyId   = m_gpuInfo.family_id;
     m_chipProperties.eRevId     = m_gpuInfo.chip_external_rev;
@@ -877,13 +880,23 @@ Result Device::InitGpuProperties()
     m_chipProperties.maxEngineClock      = m_gpuInfo.max_engine_clk / 1000;
     m_chipProperties.maxMemoryClock      = m_gpuInfo.max_memory_clk / 1000;
 
-    m_drmProcs.pfnAmdgpuQueryFirmwareVersion(m_hDevice,
-                                  AMDGPU_INFO_FW_GFX_ME,
-                                  0,
-                                  0,
-                                  &version,
-                                  &feature);
+    drmRet = m_drmProcs.pfnAmdgpuQueryFirmwareVersion(m_hDevice,
+                                                      AMDGPU_INFO_FW_GFX_ME,
+                                                      0,
+                                                      0,
+                                                      &version,
+                                                      &feature);
+    PAL_ASSERT(drmRet == 0);
     m_engineProperties.cpUcodeVersion = feature;
+
+    drmRet = m_drmProcs.pfnAmdgpuQueryFirmwareVersion(m_hDevice,
+                                                      AMDGPU_INFO_FW_GFX_PFP,
+                                                      0,
+                                                      0,
+                                                      &pfpFwVersion,
+                                                      &pfpFwFeature);
+    PAL_ASSERT(drmRet == 0);
+    m_chipProperties.pfpUcodeVersion = pfpFwVersion;
 
     const char* pMarketingName = m_drmProcs.pfnAmdgpuGetMarketingNameisValid() ?
                                  m_drmProcs.pfnAmdgpuGetMarketingName(m_hDevice) : nullptr;

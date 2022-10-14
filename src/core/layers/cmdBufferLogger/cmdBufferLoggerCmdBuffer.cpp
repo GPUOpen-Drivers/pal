@@ -2144,6 +2144,9 @@ static void PipelineStageFlagToString(
         "Top",          // PipelineStageTopOfPipe
         "IndirectArgs", // PipelineStageFetchIndirectArgs
         "Indices",      // PipelineStageFetchIndices
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 770
+        "StreamOut",      // PipelineStageStreamOut
+#endif
         "Vs",           // PipelineStageVs
         "Hs",           // PipelineStageHs
         "Ds",           // PipelineStageDs

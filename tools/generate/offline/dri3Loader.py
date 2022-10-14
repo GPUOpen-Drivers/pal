@@ -63,6 +63,7 @@ def main(fileName, outputDir="./"):
     fp.write("#include <xcb/dri3.h>\n")
     fp.write("#include <xcb/dri2.h>\n")
     fp.write("#include <xcb/xcb.h>\n")
+    fp.write("#include <xcb/sync.h>\n")
     fp.write("#include <xcb/present.h>\n")
     fp.write("#include <xcb/randr.h>\n")
     fp.write("extern \"C\"\n")

@@ -1175,11 +1175,11 @@ const bool RsrcProcMgr::IsGfxPipelineForFormatSupported(
 // Returns the image plane that corresponds to the supplied base address.
 uint32 RsrcProcMgr::DecodeImageViewSrdPlane(
     const Pal::Image&  image,
-    gpusize            srdBaseAddr
+    gpusize            srdBaseAddr,
+    uint32             slice
     ) const
 {
     uint32  plane = 0;
-
     const auto& imageCreateInfo = image.GetImageCreateInfo();
 
     if (Formats::IsYuvPlanar(imageCreateInfo.swizzledFormat.format))
@@ -1187,17 +1187,16 @@ uint32 RsrcProcMgr::DecodeImageViewSrdPlane(
         const auto*  pGfxImage = image.GetGfxImage();
         const auto&  imageInfo = image.GetImageInfo();
 
-        // For Planar YUV, loop through each plane and compare the address with SRD to determine which subresrouce
-        // this SRD represents. On Gfx9, the base address (as programmed into the SRD) is always the address of
-        // mip 0 / slice 0 for the plane. Therefore, we only need to loop through each Plane.
-        for (uint32 planeIdx = 0; planeIdx < imageInfo.numPlanes; ++planeIdx)
+        // For Planar YUV, loop through each plane of the slice and compare the address with SRD to determine which
+        // subresrouce this SRD represents.
+        for (uint32 planeIdx = 0; (planeIdx < imageInfo.numPlanes); ++planeIdx)
         {
-            const gpusize  planeBaseAddr = pGfxImage->GetPlaneBaseAddr(planeIdx);
+            const gpusize  planeBaseAddr = pGfxImage->GetPlaneBaseAddr(planeIdx, slice);
             const auto     subResAddr    = Get256BAddrLo(planeBaseAddr);
 
             if (srdBaseAddr == subResAddr)
             {
-                plane = planeIdx;
+                plane      = planeIdx;
                 break;
             }
         }
@@ -1211,7 +1210,7 @@ uint32 RsrcProcMgr::DecodeImageViewSrdPlane(
 // queue expand for ASICs that support texture compatability of depth surfaces.  Falls back to the independent layer
 // implementation for other ASICs
 bool RsrcProcMgr::ExpandDepthStencil(
-    GfxCmdBuffer*                pCmdBuffer,
+    Pm4CmdBuffer*                pCmdBuffer,
     const Pal::Image&            image,
     const MsaaQuadSamplePattern* pQuadSamplePattern,
     const SubresRange&           range
@@ -1312,11 +1311,9 @@ bool RsrcProcMgr::ExpandDepthStencil(
             } // end loop through all the slices
         } // end loop through all the mip levels
 
-        Pm4CmdBuffer* pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
-
         // Allow the rewrite of depth data to complete
         uint32* pComputeCmdSpace = pComputeCmdStream->ReserveCommands();
-        pComputeCmdSpace = pPm4CmdBuf->WriteWaitCsIdle(pComputeCmdSpace);
+        pComputeCmdSpace = pCmdBuffer->WriteWaitCsIdle(pComputeCmdSpace);
         pComputeCmdStream->CommitCommands(pComputeCmdSpace);
 
         // Restore the compute state here as the "initHtile" function is going to push the compute state again
@@ -1333,7 +1330,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
 
             // And wait for that to finish...
             pComputeCmdSpace = pComputeCmdStream->ReserveCommands();
-            pComputeCmdSpace = pPm4CmdBuf->WriteWaitCsIdle(pComputeCmdSpace);
+            pComputeCmdSpace = pCmdBuffer->WriteWaitCsIdle(pComputeCmdSpace);
             pComputeCmdStream->CommitCommands(pComputeCmdSpace);
         }
 
@@ -2063,7 +2060,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
                 // Expand first if depth plane is not fully expanded.
                 if (ImageLayoutToDepthCompressionState(layoutToState, depthLayout) != DepthStencilDecomprNoHiZ)
                 {
-                    ExpandDepthStencil(pCmdBuffer, *pParent, nullptr, pRanges[idx]);
+                    ExpandDepthStencil(static_cast<Pm4CmdBuffer*>(pCmdBuffer), *pParent, nullptr, pRanges[idx]);
                 }
 
                 // For Depth slow clears, we use a float clear color.
@@ -2077,7 +2074,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
                 // Expand first if stencil plane is not fully expanded.
                 if (ImageLayoutToDepthCompressionState(layoutToState, stencilLayout) != DepthStencilDecomprNoHiZ)
                 {
-                    ExpandDepthStencil(pCmdBuffer, *pParent, nullptr, pRanges[idx]);
+                    ExpandDepthStencil(static_cast<Pm4CmdBuffer*>(pCmdBuffer), *pParent, nullptr, pRanges[idx]);
                 }
 
                 // For Stencil plane we use the stencil value directly.
@@ -2310,7 +2307,7 @@ bool RsrcProcMgr::HwlCanDoDepthStencilCopyResolve(
 // fully overwritten in the comming resolve. It means the DCC of dst image needs to be fixed up to expand state after
 // the resolve.
 void RsrcProcMgr::HwlFixupResolveDstImage(
-    GfxCmdBuffer*             pCmdBuffer,
+    Pm4CmdBuffer*             pCmdBuffer,
     const GfxImage&           dstImage,
     ImageLayout               dstImageLayout,
     const ImageResolveRegion* pRegions,
@@ -3388,7 +3385,7 @@ void RsrcProcMgr::PfpCopyMetadataHeader(
 // so if we detect a write to non-local memory here, then disable RBs for the duration of the copy.  They will get
 // restored in the HwlEndGraphicsCopy function.
 uint32 Gfx9RsrcProcMgr::HwlBeginGraphicsCopy(
-    Pal::GfxCmdBuffer*           pCmdBuffer,
+    Pm4CmdBuffer*                pCmdBuffer,
     const Pal::GraphicsPipeline* pPipeline,
     const Pal::Image&            dstImage,
     uint32                       bpp
@@ -3545,7 +3542,7 @@ void RsrcProcMgr::HwlImageToImageMissingPixelCopy(
 {
     if (UsePixelCopyForCmdCopyImage(srcImage, dstImage, region))
     {
-        CmdCopyImageToImageViaPixels(pCmdBuffer, srcImage, dstImage, region);
+        CmdCopyImageToImageViaPixels(static_cast<Pm4CmdBuffer*>(pCmdBuffer), srcImage, dstImage, region);
     }
 }
 
@@ -3553,7 +3550,7 @@ void RsrcProcMgr::HwlImageToImageMissingPixelCopy(
 // Implement a horribly inefficient copy on a pixel-by-pixel basis of the pixels that were missed by the standard
 // copy algorithm.
 void RsrcProcMgr::CmdCopyMemoryFromToImageViaPixels(
-    GfxCmdBuffer*                 pCmdBuffer,
+    Pm4CmdBuffer*                 pCmdBuffer,
     const Pal::Image&             image,
     const GpuMemory&              memory,
     const MemoryImageCopyRegion&  region,
@@ -3661,7 +3658,7 @@ bool RsrcProcMgr::UsePixelCopy(
 // Implement a horribly inefficient copy on a pixel-by-pixel basis of the pixels that were missed by the standard
 // copy algorithm.
 void RsrcProcMgr::CmdCopyImageToImageViaPixels(
-    GfxCmdBuffer*          pCmdBuffer,
+    Pm4CmdBuffer*          pCmdBuffer,
     const Pal::Image&      srcImage,
     const Pal::Image&      dstImage,
     const ImageCopyRegion& region) const
@@ -3851,6 +3848,8 @@ void RsrcProcMgr::CmdCopyMemoryToImage(
                                            pRegions,
                                            includePadding);
 
+    Pm4CmdBuffer* pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+
     const ImageCreateInfo& createInfo = dstImage.GetImageCreateInfo();
 
     if (Formats::IsBlockCompressed(createInfo.swizzledFormat.format) &&
@@ -3864,13 +3863,13 @@ void RsrcProcMgr::CmdCopyMemoryToImage(
         // The default copy-memory-to-image algorithm copies BCn images as 32-32-uint.  This leads to the SRDs
         // being setup in terms of block dimensions (as opposed to expanded pixel dimensions), which in turn can
         // ultimately lead to a mismatch of mip level sizes.
-        for (uint32  regionIdx = 0; regionIdx < regionCount; regionIdx++)
+        for (uint32 regionIdx = 0; regionIdx < regionCount; regionIdx++)
         {
-            const auto&  region = pRegions[regionIdx];
+            const auto& region = pRegions[regionIdx];
 
             if (UsePixelCopy(dstImage, region))
             {
-                CmdCopyMemoryFromToImageViaPixels(pCmdBuffer, dstImage, srcGpuMemory, region, includePadding, false);
+                CmdCopyMemoryFromToImageViaPixels(pPm4CmdBuf, dstImage, srcGpuMemory, region, includePadding, false);
             }
         } // end loop through copy regions
     } // end check for trivial case
@@ -3883,7 +3882,7 @@ void RsrcProcMgr::CmdCopyMemoryToImage(
             if (dstImage.IsStencilPlane(pRegions[regionIdx].imageSubres.plane))
             {
                 // Mark the VRS dest image as dirty to force an update of Htile on the next draw.
-                static_cast<Pm4CmdBuffer*>(pCmdBuffer)->DirtyVrsDepthImage(&dstImage);
+                pPm4CmdBuf->DirtyVrsDepthImage(&dstImage);
 
                 // No need to loop through all the regions; they all affect the same image.
                 break;
@@ -3920,14 +3919,16 @@ void RsrcProcMgr::CmdCopyImageToMemory(
     if (Formats::IsBlockCompressed(createInfo.swizzledFormat.format) &&
         (createInfo.mipLevels > 1))
     {
-        bool  issuedCsPartialFlush = false;
+        bool issuedCsPartialFlush = false;
 
-        for (uint32  regionIdx = 0; regionIdx < regionCount; regionIdx++)
+        for (uint32 regionIdx = 0; regionIdx < regionCount; regionIdx++)
         {
-            const auto&  region = pRegions[regionIdx];
+            const auto& region = pRegions[regionIdx];
 
             if (UsePixelCopy(srcImage, region))
             {
+                Pm4CmdBuffer* pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+
                 // We have to wait for the compute shader invoked above to finish...  Otherwise, it will be writing
                 // zeroes into the destination memory that correspond to pixels that it couldn't read.  This only
                 // needs to be done once before the first pixel-level copy.
@@ -3935,7 +3936,6 @@ void RsrcProcMgr::CmdCopyImageToMemory(
                 {
                     Pal::CmdStream*  pPalCmdStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute);
                     CmdStream*       pGfxCmdStream = static_cast<CmdStream*>(pPalCmdStream);
-                    Pm4CmdBuffer*    pPm4CmdBuf    = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
                     uint32*          pCmdSpace     = pGfxCmdStream->ReserveCommands();
                     const EngineType engineType    = pGfxCmdStream->GetEngineType();
 
@@ -3966,7 +3966,7 @@ void RsrcProcMgr::CmdCopyImageToMemory(
                     issuedCsPartialFlush = true;
                 }
 
-                CmdCopyMemoryFromToImageViaPixels(pCmdBuffer, srcImage, dstGpuMemory, region, includePadding, true);
+                CmdCopyMemoryFromToImageViaPixels(pPm4CmdBuf, srcImage, dstGpuMemory, region, includePadding, true);
             }
         } // end loop through copy regions
     } // end check for trivial case
@@ -4016,7 +4016,7 @@ void RsrcProcMgr::EchoGlobalInternalTableAddr(
 // Adds commands to pCmdBuffer to copy data between srcGpuMemory and dstGpuMemory. Note that this function requires a
 // command buffer that supports CP DMA workloads.
 void Gfx9RsrcProcMgr::CmdCopyMemory(
-    GfxCmdBuffer*           pCmdBuffer,
+    Pm4CmdBuffer*           pCmdBuffer,
     const GpuMemory&        srcGpuMemory,
     const GpuMemory&        dstGpuMemory,
     uint32                  regionCount,
@@ -5296,7 +5296,7 @@ void Gfx9RsrcProcMgr::ExecuteHtileEquation(
 // =====================================================================================================================
 const Pal::ComputePipeline* Gfx9RsrcProcMgr::GetCmdGenerationPipeline(
     const Pm4::IndirectCmdGenerator& generator,
-    const CmdBuffer&                 cmdBuffer
+    const Pm4CmdBuffer&              cmdBuffer
     ) const
 {
     RpmComputePipeline pipeline = RpmComputePipeline::Count;
@@ -5325,7 +5325,7 @@ const Pal::ComputePipeline* Gfx9RsrcProcMgr::GetCmdGenerationPipeline(
 // Performs a "fast" depth and stencil resummarize operation by updating the Image's HTile buffer to represent a fully
 // open HiZ range and set ZMask and SMem to expanded state.
 void Gfx9RsrcProcMgr::HwlResummarizeHtileCompute(
-    GfxCmdBuffer*      pCmdBuffer,
+    Pm4CmdBuffer*      pCmdBuffer,
     const GfxImage&    image,
     const SubresRange& range
     ) const
@@ -5357,7 +5357,7 @@ void Gfx9RsrcProcMgr::HwlResummarizeHtileCompute(
 // expanded. Depth part and stencil part share same htile. So the depth part and stencil part will be merged (if
 // necessary) and one cs blt will be launched for each merged region to copy and fixup the htile.
 void Gfx9RsrcProcMgr::HwlHtileCopyAndFixUp(
-    GfxCmdBuffer*             pCmdBuffer,
+    Pm4CmdBuffer*             pCmdBuffer,
     const Pal::Image&         srcImage,
     const Pal::Image&         dstImage,
     ImageLayout               dstImageLayout,
@@ -5949,6 +5949,7 @@ void Gfx9RsrcProcMgr::HwlDecodeImageViewSrd(
     ) const
 {
     const Gfx9ImageSrd&  srd = *static_cast<const Gfx9ImageSrd*>(pImageViewSrd);
+    const ImageCreateInfo& createInfo = dstImage.GetImageCreateInfo();
 
     // Verify that we have an image view SRD.
     PAL_ASSERT((srd.word3.bits.TYPE >= SQ_RSRC_IMG_1D) && (srd.word3.bits.TYPE <= SQ_RSRC_IMG_2D_MSAA_ARRAY));
@@ -5971,9 +5972,6 @@ void Gfx9RsrcProcMgr::HwlDecodeImageViewSrd(
     // that it's looking at the color plane and that it's not block compressed.
     PAL_ASSERT(Formats::IsBlockCompressed(pSwizzledFormat->format) == false);
 
-    pSubresRange->startSubres.plane = DecodeImageViewSrdPlane(dstImage, srdBaseAddr);
-    pSubresRange->numPlanes         = 1;
-
     // The PAL interface can not individually address the slices of a 3D resource.  "numSlices==1" is assumed to
     // mean all of them and we have to start from the first slice.
     if (dstImage.GetImageCreateInfo().imageType == ImageType::Tex3d)
@@ -5983,9 +5981,29 @@ void Gfx9RsrcProcMgr::HwlDecodeImageViewSrd(
     }
     else
     {
-        pSubresRange->numSlices              = srd.word4.bitfields.DEPTH - srd.word5.bits.BASE_ARRAY + 1;
-        pSubresRange->startSubres.arraySlice = srd.word5.bits.BASE_ARRAY;
+        const uint32 depth     = srd.word4.bitfields.DEPTH;
+        const uint32 baseArray = srd.word5.bits.BASE_ARRAY;
+        const bool isYuvPlanar = Formats::IsYuvPlanar(createInfo.swizzledFormat.format);
+        // Becuase of the way the HW needs to index YuvPlanar images, BASE_ARRAY is forced to 0, even if we
+        // aren't indexing slice 0.  Additionally, numSlices must be 1 for any operation other than direct image loads.
+        // When creating SRD, DEPTH == subresRange.startSubres.arraySlice + subresRange.numSlices - 1;
+        // Since we know numSlices == 1, startSubres.arraySlice == DEPTH.
+        if (isYuvPlanar)
+        {
+            PAL_ASSERT(baseArray == 0);
+            pSubresRange->numSlices              = 1;
+            pSubresRange->startSubres.arraySlice = depth;
+        }
+        else
+        {
+            pSubresRange->numSlices              = depth - baseArray + 1;
+            pSubresRange->startSubres.arraySlice = baseArray;
+        }
     }
+    pSubresRange->startSubres.plane = DecodeImageViewSrdPlane(dstImage,
+                                                              srdBaseAddr,
+                                                              pSubresRange->startSubres.arraySlice);
+    pSubresRange->numPlanes = 1;
 
     if (srd.word3.bits.TYPE >= SQ_RSRC_IMG_2D_MSAA)
     {
@@ -6477,7 +6495,7 @@ void Gfx10RsrcProcMgr::ClearDccComputeSetFirstPixelOfBlock(
 // Performs a "fast" depth and stencil resummarize operation by updating the Image's HTile buffer to represent a fully
 // open HiZ range and set ZMask and SMem to expanded state.
 void Gfx10RsrcProcMgr::HwlResummarizeHtileCompute(
-    GfxCmdBuffer*      pCmdBuffer,
+    Pm4CmdBuffer*      pCmdBuffer,
     const GfxImage&    image,
     const SubresRange& range
     ) const
@@ -6810,7 +6828,7 @@ void Gfx10RsrcProcMgr::FastDepthStencilClearCompute(
 // =====================================================================================================================
 const Pal::ComputePipeline* Gfx10RsrcProcMgr::GetCmdGenerationPipeline(
     const Pm4::IndirectCmdGenerator& generator,
-    const CmdBuffer&                 cmdBuffer
+    const Pm4CmdBuffer&              cmdBuffer
     ) const
 {
     RpmComputePipeline pipeline   = RpmComputePipeline::Count;
@@ -6910,6 +6928,7 @@ void Gfx10RsrcProcMgr::HwlDecodeImageViewSrd(
     ) const
 {
     const ImageCreateInfo&  createInfo = dstImage.GetImageCreateInfo();
+    const GfxIpLevel        gfxLevel   = m_pDevice->Parent()->ChipProperties().gfxLevel;
 
     const auto*    pSrd  = static_cast<const sq_img_rsrc_t*>(pImageViewSrd);
     const IMG_FMT  hwFmt = static_cast<IMG_FMT>(RetrieveHwFmtFromSrd(*(m_pDevice->Parent()), pSrd));
@@ -6919,7 +6938,7 @@ void Gfx10RsrcProcMgr::HwlDecodeImageViewSrd(
 
     const gpusize  srdBaseAddr = pSrd->base_address;
 
-    pSwizzledFormat->format    = FmtFromHwImgFmt(hwFmt, m_pDevice->Parent()->ChipProperties().gfxLevel);
+    pSwizzledFormat->format    = FmtFromHwImgFmt(hwFmt, gfxLevel);
     pSwizzledFormat->swizzle.r = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_x));
     pSwizzledFormat->swizzle.g = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_y));
     pSwizzledFormat->swizzle.b = ChannelSwizzleFromHwSwizzle(static_cast<SQ_SEL_XYZW01>(pSrd->dst_sel_z));
@@ -6932,9 +6951,6 @@ void Gfx10RsrcProcMgr::HwlDecodeImageViewSrd(
     // that it's looking at the color plane and that it's not block compressed.
     PAL_ASSERT(Formats::IsBlockCompressed(pSwizzledFormat->format) == false);
 
-    pSubresRange->startSubres.plane = DecodeImageViewSrdPlane(dstImage, srdBaseAddr);
-    pSubresRange->numPlanes         = 1;
-
     // The PAL interface can not individually address the slices of a 3D resource.  "numSlices==1" is assumed to
     // mean all of them and we have to start from the first slice.
     if (createInfo.imageType == ImageType::Tex3d)
@@ -6944,9 +6960,39 @@ void Gfx10RsrcProcMgr::HwlDecodeImageViewSrd(
     }
     else
     {
-        pSubresRange->numSlices              = LowPart(pSrd->gfx10.depth - pSrd->gfx10.base_array + 1);
-        pSubresRange->startSubres.arraySlice = LowPart(pSrd->gfx10.base_array);
+        uint32 depth     = 0;
+        uint32 baseArray = 0;
+        if (IsGfx10(gfxLevel))
+        {
+            depth     = LowPart(pSrd->gfx10.depth);
+            baseArray = LowPart(pSrd->gfx10.base_array);
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS();
+        }
+
+        const bool isYuvPlanar = Formats::IsYuvPlanar(createInfo.swizzledFormat.format);
+        // Becuase of the way the HW needs to index YuvPlanar images, pSrd->*.base_array is forced to 0, even if we
+        // aren't indexing slice 0.  Additionally, numSlices must be 1 for any operation other than direct image loads.
+        // When creating SRD, pSrd->*.depth == subresRange.startSubres.arraySlice + subresRange.numSlices - 1;
+        // Since we know numSlices == 1, startSubres.arraySlice == pSrd->*.depth.
+        if (isYuvPlanar)
+        {
+            PAL_ASSERT(baseArray == 0);
+            pSubresRange->numSlices              = 1;
+            pSubresRange->startSubres.arraySlice = depth;
+        }
+        else
+        {
+            pSubresRange->numSlices              = depth - baseArray + 1;
+            pSubresRange->startSubres.arraySlice = baseArray;
+        }
     }
+    pSubresRange->startSubres.plane = DecodeImageViewSrdPlane(dstImage,
+                                                              srdBaseAddr,
+                                                              pSubresRange->startSubres.arraySlice);
+    pSubresRange->numPlanes = 1;
 
     if (pSrd->type >= SQ_RSRC_IMG_2D_MSAA)
     {
@@ -7118,7 +7164,7 @@ bool Gfx10RsrcProcMgr::HwlCanDoDepthStencilCopyResolve(
 // expanded. Depth part and stencil part share same htile. So the depth part and stencil part will be merged (if
 // necessary) and one cs blt will be launched for each merged region to copy and fixup the htile.
 void Gfx10RsrcProcMgr::HwlHtileCopyAndFixUp(
-    GfxCmdBuffer*             pCmdBuffer,
+    Pm4CmdBuffer*             pCmdBuffer,
     const Pal::Image&         srcImage,
     const Pal::Image&         dstImage,
     ImageLayout               dstImageLayout,
@@ -7271,7 +7317,7 @@ void Gfx10RsrcProcMgr::HwlFixupCopyDstImageMetaData(
 // so if we detect a write to non-local memory here, then disable RBs for the duration of the copy.  They will get
 // restored in the HwlEndGraphicsCopy function.
 uint32 Gfx10RsrcProcMgr::HwlBeginGraphicsCopy(
-    Pal::GfxCmdBuffer*           pCmdBuffer,
+    Pm4CmdBuffer*                pCmdBuffer,
     const Pal::GraphicsPipeline* pPipeline,
     const Pal::Image&            dstImage,
     uint32                       bpp
@@ -7488,10 +7534,10 @@ void Gfx10RsrcProcMgr::LaunchOptimizedVrsCopyShader(
 {
     const Pal::Device*const pPalDevice = m_pDevice->Parent();
     const Gfx9MetaEqGenerator* pEqGenerator = pHtile->GetMetaEqGenerator();
+    const auto& createInfo = pSrcVrsImg->GetImageCreateInfo();
 
     // The shader we're about to execute makes these assumptions in its source. If these trip we can add more support.
     PAL_ASSERT(pHtile->PipeAligned() != 0);
-    PAL_ASSERT(pPalDevice->ChipProperties().gfx9.rbPlus != 0);
 
     // Step 1.5: Pack the shader's user-data.
     // This shader has a carefully packed user-data layout that keeps everything in fast user-data entires.
@@ -7588,7 +7634,9 @@ void Gfx10RsrcProcMgr::LaunchOptimizedVrsCopyShader(
     // Note that we pass our values through RpmUtil::PackBits to make sure that they actually fit.
     // An assert will trip if one of the assumptions outlined above is actually false.
     userData.pipeInterleaveLog2 = RpmUtil::PackBits<3>(gbAddrConfig.bits.PIPE_INTERLEAVE_SIZE);
-    userData.packersLog2        = RpmUtil::PackBits<3>(gbAddrConfig.gfx103PlusExclusive.NUM_PKRS);
+    {
+        userData.packersLog2    = RpmUtil::PackBits<3>(gbAddrConfig.gfx103PlusExclusive.NUM_PKRS);
+    }
     userData.pipesLog2          = RpmUtil::PackBits<3>(gbAddrConfig.bits.NUM_PIPES);
     userData.capPipeLog2        = RpmUtil::PackBits<5>(pEqGenerator->CapPipe());
     userData.metaBlkWidthLog2   = RpmUtil::PackBits<5>(metaBlkExtentLog2.width);
@@ -7601,7 +7649,11 @@ void Gfx10RsrcProcMgr::LaunchOptimizedVrsCopyShader(
                                    VrsHtileEncoding::Gfx10VrsHtileEncodingFourBit);
 
     // Step 2: Execute the rate image to VRS copy shader.
-    const Pal::ComputePipeline*const pPipeline = GetPipeline(RpmComputePipeline::Gfx10VrsHtile);
+    const Pal::ComputePipeline* pPipeline = nullptr;
+    {
+        PAL_ASSERT(pPalDevice->ChipProperties().gfx9.rbPlus != 0);
+        pPipeline = GetPipeline(RpmComputePipeline::Gfx10VrsHtile);
+    }
 
     uint32  threadsPerGroup[3] = {};
     pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
@@ -7696,11 +7748,9 @@ void Gfx10RsrcProcMgr::CopyVrsIntoHtile(
     const Image*const          pDepthImg    = pDsView->GetImage();
     const Gfx9Htile*const      pHtile       = pDepthImg->GetHtile();
     PAL_ASSERT(pHtile->HasMetaEqGenerator());
-    const Gfx9MetaEqGenerator* pEqGenerator = pHtile->GetMetaEqGenerator();
 
     PAL_ASSERT((pHtile != nullptr) && (pHtile->GetHtileUsage().vrs != 0));
 
-    const Pal::Device*const pPalDevice = m_pDevice->Parent();
     auto*const pCmdStream = static_cast<CmdStream*>(pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics));
 
     // Step 1: The internal pre-CS barrier. The depth image is already bound as a depth view so if we just launch the

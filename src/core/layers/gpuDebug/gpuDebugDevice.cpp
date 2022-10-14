@@ -65,6 +65,8 @@ Device::Device(
     IDevice*           pNextDevice)
     :
     DeviceDecorator(pPlatform, pNextDevice),
+    m_colorViewSize(0),
+    m_depthViewSize(0),
     m_pPublicSettings(nullptr),
     m_deviceProperties{},
     m_initialized(false)
@@ -82,6 +84,16 @@ Result Device::CommitSettingsAndInit()
     Result result = DeviceDecorator::CommitSettingsAndInit();
 
     m_pPublicSettings = GetNextLayer()->GetPublicSettings();
+
+    if (result == Result::Success)
+    {
+        m_colorViewSize = GetColorTargetViewSize(&result);
+    }
+
+    if (result == Result::Success)
+    {
+        m_depthViewSize = GetDepthStencilViewSize(&result);
+    }
 
     return result;
 }

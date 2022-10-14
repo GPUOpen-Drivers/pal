@@ -215,6 +215,39 @@ constexpr bool BitfieldIsSet(
     return (bitfield & (static_cast<T>(1) << bit));
 }
 
+///@{
+/// Counts the number of one bits (population count) in an unsigned integer using some bitwise magic explained in the
+/// Software Optimization Guide for AMD64 Processors.
+///
+/// @param [in] value  The value need to be counted.
+///
+/// @returns Number of one bits in the input
+template <typename T>
+constexpr uint32 CountSetBits(
+    T  value)
+{
+    uint32 x = static_cast<uint32>(value);
+
+    x = x - ((x >> 1) & 0x55555555);
+    x = (x & 0x33333333) + ((x >> 2) & 0x33333333);
+    x = (((x + (x >> 4)) & 0x0F0F0F0F) * 0x01010101) >> ((sizeof(uint32) - 1) << 3);
+
+    return x;
+}
+
+constexpr uint32 CountSetBits(
+    uint64  value)
+{
+    uint64 x = value;
+
+    x = x - ((x >> 1) & 0x5555555555555555ull);
+    x = (x & 0x3333333333333333ull) + ((x >> 2) & 0x3333333333333333ull);
+    x = (((x + (x >> 4)) & 0x0F0F0F0F0F0F0F0Full) * 0x0101010101010101ull) >> ((sizeof(uint64) - 1) << 3);
+
+    return static_cast<uint32>(x);
+}
+///@}
+
 /// Update a subfield of a bitfield.
 ///
 /// @param [in] bitFieldToUpdate  Bitfield being updated
@@ -248,6 +281,25 @@ constexpr bool WideBitfieldIsSet(
     const T      mask  = (static_cast<T>(1) << (bit & ((sizeof(T) << 3) - 1)));
 
     return (0 != (bitfield[index] & mask));
+}
+
+/// Checks if any bit is set in a wide bitfield. A "wide bitfield" is a bitfield which spans an array of
+/// integers because there are more flags than bits in one integer.
+///
+/// @param [in] bitfield  Wide bitfield to count.
+///
+/// @returns True if the wide bitfield is non-zero; false otherwise.
+template <typename T, size_t N>
+bool WideBitfieldIsAnyBitSet(
+    const T(&bitfield)[N])
+{
+    bool isBitSet = false;
+    for (uint32 i = 0; i < N; i++)
+    {
+        isBitSet |= (bitfield[i] != 0);
+    }
+
+    return isBitSet;
 }
 
 /// Sets a single bit in a "wide bitfield" to one. A "wide bifield" is a bitfield which spans an array of
@@ -349,6 +401,25 @@ void WideBitfieldAndBits(
     {
         pOut[i] = (bitfield1[i] & bitfield2[i]);
     }
+}
+
+/// Counts the number of one bits (population count) in a wide bitfield. A "wide bitfield" is a bitfield which spans
+/// an array of integers because there are more flags than bits in one integer.
+///
+/// @param [in] bitfield  Wide bitfield to count.
+///
+/// @returns Number of one bits in the input
+template <typename T, size_t N>
+uint32 WideBitfieldCountSetBits(
+    const T(&bitfield)[N])
+{
+    uint32 count = 0;
+    for (uint32 i = 0; i < N; i++)
+    {
+        count += CountSetBits(bitfield[i]);
+    }
+
+    return count;
 }
 
 /// Unsets the least-significant '1' bit in the given number.
@@ -981,39 +1052,6 @@ constexpr uint32 HashString(
 
     return hash;
 }
-
-///@{
-/// Counts the number of one bits (population count) in an unsigned integer using some bitwise magic explained in the
-/// Software Optimization Guide for AMD64 Processors.
-///
-/// @param [in] value  The value need to be counted.
-///
-/// @returns Number of one bits in the input
-template <typename T>
-constexpr uint32 CountSetBits(
-    T  value)
-{
-    uint32 x = static_cast<uint32>(value);
-
-    x = x - ((x >> 1) & 0x55555555);
-    x = (x & 0x33333333) + ((x >> 2) & 0x33333333);
-    x = (((x + (x >> 4)) & 0x0F0F0F0F) * 0x01010101) >> ((sizeof(uint32) - 1) << 3);
-
-    return x;
-}
-
-constexpr uint32 CountSetBits(
-    uint64  value)
-{
-    uint64 x = value;
-
-    x = x - ((x >> 1) & 0x5555555555555555ull);
-    x = (x & 0x3333333333333333ull) + ((x >> 2) & 0x3333333333333333ull);
-    x = (((x + (x >> 4)) & 0x0F0F0F0F0F0F0F0Full) * 0x0101010101010101ull) >> ((sizeof(uint64) - 1) << 3);
-
-    return static_cast<uint32>(x);
-}
-///@}
 
 /// Indicates that an object may be moved from.
 /// Can be understood as preparation for possible move operation.

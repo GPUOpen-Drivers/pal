@@ -2004,6 +2004,10 @@ public:
         size_t                 codeObjectLen) const;
 #endif
 
+    bool IsFinalized() const { return m_deviceFinalized; }
+    size_t NumQueues() const { return m_queues.NumElements(); }
+    uint32 AttachedScreenCount() const { return m_attachedScreenCount; }
+
 protected:
     Device(
         Platform*              pPlatform,

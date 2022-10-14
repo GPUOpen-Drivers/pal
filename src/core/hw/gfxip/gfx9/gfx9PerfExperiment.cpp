@@ -1667,8 +1667,8 @@ Result PerfExperiment::AddSpmTrace(
             if (m_pMuxselRams[segment] != nullptr)
             {
                 // Figure out where this entire segment starts in sample memory. The RLC hardware hard-codes this
-                // order: Global, SE0, SE1, SE2, SE3. Add up the sizes of those segments in order until we find our
-                // segment.
+                // order: Global, SE0, SE1, ... , SEN. Add up the sizes of those segments in order until
+                // we find our segment.
                 //
                 // Note that our layout interface expects offsets in units of 16-bit counters instead of bytes.
                 // To meet that expectation our offsets are also in units of 16-bit counters.

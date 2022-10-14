@@ -353,7 +353,7 @@ const bool RsrcProcMgr::IsGfxPipelineForFormatSupported(
 // =====================================================================================================================
 const Pal::ComputePipeline* RsrcProcMgr::GetCmdGenerationPipeline(
     const Pm4::IndirectCmdGenerator& generator,
-    const CmdBuffer&                 cmdBuffer
+    const Pm4CmdBuffer&              cmdBuffer
     ) const
 {
     RpmComputePipeline pipeline = RpmComputePipeline::Count;
@@ -443,7 +443,7 @@ void RsrcProcMgr::CmdCloneImageData(
 // Adds commands to pCmdBuffer to copy data between srcGpuMemory and dstGpuMemory. Note that this function requires a
 // command buffer that supports CP DMA workloads.
 void RsrcProcMgr::CmdCopyMemory(
-    GfxCmdBuffer*           pCmdBuffer,
+    Pm4CmdBuffer*           pCmdBuffer,
     const GpuMemory&        srcGpuMemory,
     const GpuMemory&        dstGpuMemory,
     uint32                  regionCount,
@@ -851,7 +851,7 @@ void RsrcProcMgr::CmdResolveQueryComputeShader(
 // queue expand for ASICs that support texture compatability of depth surfaces.  Falls back to the independent layer
 // implementation for other ASICs
 bool RsrcProcMgr::ExpandDepthStencil(
-    GfxCmdBuffer*                pCmdBuffer,
+    Pm4CmdBuffer*                pCmdBuffer,
     const Pal::Image&            image,
     const MsaaQuadSamplePattern* pQuadSamplePattern,
     const SubresRange&           range
@@ -948,12 +948,11 @@ bool RsrcProcMgr::ExpandDepthStencil(
             } // end loop through all the slices
         } // end loop through all the mip levels
 
-        Pm4CmdBuffer*    pPm4CmdBuf = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
         const EngineType engineType = pCmdBuffer->GetEngineType();
 
         // Allow the rewrite of depth data to complete
         uint32* pComputeCmdSpace = pComputeCmdStream->ReserveCommands();
-        pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pPm4CmdBuf->TimestampGpuVirtAddr(), pComputeCmdSpace);
+        pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pComputeCmdSpace);
         pComputeCmdStream->CommitCommands(pComputeCmdSpace);
 
         // Mark all the hTile data as fully expanded
@@ -961,7 +960,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
 
         // And wait for that to finish...
         pComputeCmdSpace  = pComputeCmdStream->ReserveCommands();
-        pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pPm4CmdBuf->TimestampGpuVirtAddr(), pComputeCmdSpace);
+        pComputeCmdSpace += m_cmdUtil.BuildWaitCsIdle(engineType, pCmdBuffer->TimestampGpuVirtAddr(), pComputeCmdSpace);
         pComputeCmdStream->CommitCommands(pComputeCmdSpace);
 
         pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
@@ -1153,7 +1152,7 @@ void RsrcProcMgr::HwlFixupCopyDstImageMetaData(
 // fully overwritten in the comming resolve. It means the DCC of dst image needs to be fixed up to expand state after
 // the resolve.
 void RsrcProcMgr::HwlFixupResolveDstImage(
-    GfxCmdBuffer*             pCmdBuffer,
+    Pm4CmdBuffer*             pCmdBuffer,
     const GfxImage&           dstImage,
     ImageLayout               dstImageLayout,
     const ImageResolveRegion* pRegions,
@@ -1222,7 +1221,7 @@ void RsrcProcMgr::HwlFixupResolveDstImage(
 // expanded. Depth part and stencil part share same htile. So the depth part and stencil part will be merged (if
 // necessary) and one cs blt will be launched for each merged region to copy and fixup the htile.
 void RsrcProcMgr::HwlHtileCopyAndFixUp(
-    GfxCmdBuffer*             pCmdBuffer,
+    Pm4CmdBuffer*             pCmdBuffer,
     const Pal::Image&         srcImage,
     const Pal::Image&         dstImage,
     ImageLayout               dstImageLayout,
@@ -1798,7 +1797,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
                 // Expand first if depth plane is not fully expanded.
                 if (ImageLayoutToDepthCompressionState(layoutToState, depthLayout) != DepthStencilDecomprNoHiZ)
                 {
-                    ExpandDepthStencil(pCmdBuffer, *pParent, nullptr, pRanges[idx]);
+                    ExpandDepthStencil(static_cast<Pm4CmdBuffer*>(pCmdBuffer), *pParent, nullptr, pRanges[idx]);
                 }
 
                 // For Depth slow clears, we use a float clear color.
@@ -1813,7 +1812,7 @@ void RsrcProcMgr::HwlDepthStencilClear(
                 // Expand first if stencil plane is not fully expanded.
                 if (ImageLayoutToDepthCompressionState(layoutToState, stencilLayout) != DepthStencilDecomprNoHiZ)
                 {
-                    ExpandDepthStencil(pCmdBuffer, *pParent, nullptr, pRanges[idx]);
+                    ExpandDepthStencil(static_cast<Pm4CmdBuffer*>(pCmdBuffer), *pParent, nullptr, pRanges[idx]);
                 }
 
                 // For the stencil plane we use the stencil value directly.
@@ -2057,7 +2056,7 @@ bool RsrcProcMgr::HwlCanDoDepthStencilCopyResolve(
 // Performs a "fast" depth and stencil resummarize operation by updating the Image's HTile buffer to represent a fully
 // open HiZ range and set ZMask and SMem to expanded state.
 void RsrcProcMgr::HwlResummarizeHtileCompute(
-    GfxCmdBuffer*      pCmdBuffer,
+    Pm4CmdBuffer*      pCmdBuffer,
     const GfxImage&    image,
     const SubresRange& range
     ) const
@@ -3584,7 +3583,7 @@ void RsrcProcMgr::FmaskColorExpand(
 // Optimize some registers to make the graphics copy run faster. Returns a mask that tells HwlEndGraphicsCopy what
 // registers to restore.
 uint32 RsrcProcMgr::HwlBeginGraphicsCopy(
-    Pal::GfxCmdBuffer*           pCmdBuffer,
+    Pm4CmdBuffer*                pCmdBuffer,
     const Pal::GraphicsPipeline* pPipeline,
     const Pal::Image&            dstImage,
     uint32                       bpp

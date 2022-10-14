@@ -28,6 +28,7 @@
 #include "core/hw/gfxip/gfx9/gfx9Pm4Optimizer.h"
 #include "core/hw/gfxip/pm4CmdBuffer.h"
 #include "palAutoBuffer.h"
+#include "palIterator.h"
 
 using namespace Util;
 
@@ -41,35 +42,37 @@ namespace Gfx9
 // and updates the register state. Returns true if the given register value must be written to HW.
 template <size_t RegisterCount>
 static bool UpdateRegState(
-    uint32                        newRegVal,
-    uint32                        regOffset,
-    bool                          tempDisableOptimizer,
-    RegGroupState<RegisterCount>* pCurRegState) // [in,out] Current state of register being set, will be updated.
+    uint32 newRegVal,
+    uint32 regOffset,
+    bool   tempDisableOptimizer,
+    void*  pCurRegState) // [in,out] Current state of register being set, will be updated.
 {
     bool mustKeep = false;
+
+    RegGroupState<RegisterCount>* pRegState = static_cast<RegGroupState<RegisterCount>*>(pCurRegState);
 
     // We must issue the write if:
     // - The new value is different than the old value.
     // - The previous state is invalid.
     // - We must always write this register.
     // - Optimizer is temporarily disabled.
-    if ((pCurRegState->state[regOffset].value           != newRegVal) ||
-        (pCurRegState->state[regOffset].flags.valid     == 0)         ||
-        (pCurRegState->state[regOffset].flags.mustWrite == 1)         ||
+    if ((pRegState->state[regOffset].value           != newRegVal) ||
+        (pRegState->state[regOffset].flags.valid     == 0)         ||
+        (pRegState->state[regOffset].flags.mustWrite == 1)         ||
         tempDisableOptimizer)
     {
 #if PAL_DEVELOPER_BUILD
-        pCurRegState->keptSets[regOffset]++;
+        pRegState->keptSets[regOffset]++;
 #endif
 
-        pCurRegState->state[regOffset].flags.valid = 1;
-        pCurRegState->state[regOffset].value       = newRegVal;
+        pRegState->state[regOffset].flags.valid = 1;
+        pRegState->state[regOffset].value       = newRegVal;
 
         mustKeep = true;
     }
 
 #if PAL_DEVELOPER_BUILD
-    pCurRegState->totalSets[regOffset]++;
+    pRegState->totalSets[regOffset]++;
 #endif
 
     return mustKeep;
@@ -154,7 +157,8 @@ bool Pm4Optimizer::MustKeepSetContextReg(
 {
     PAL_ASSERT(m_cmdUtil.IsContextReg(regAddr));
 
-    const bool mustKeep = UpdateRegState(regData, (regAddr - CONTEXT_SPACE_START), m_isTempDisabled, &m_cntxRegs);
+    const bool mustKeep =
+        UpdateRegState<CntxRegUsedRangeSize>(regData, (regAddr - CONTEXT_SPACE_START), m_isTempDisabled, &m_cntxRegs);
 
     m_contextRollDetected |= mustKeep;
 
@@ -169,7 +173,7 @@ bool Pm4Optimizer::MustKeepSetShReg(
     uint32 regData)
 {
     PAL_ASSERT(m_cmdUtil.IsShReg(regAddr));
-    return UpdateRegState(regData, (regAddr - PERSISTENT_SPACE_START), m_isTempDisabled, &m_shRegs);
+    return UpdateRegState<ShRegUsedRangeSize>(regData, (regAddr - PERSISTENT_SPACE_START), m_isTempDisabled, &m_shRegs);
 }
 
 // =====================================================================================================================
@@ -194,7 +198,7 @@ bool Pm4Optimizer::MustKeepContextRegRmw(
         // Computed according to the formula stated in the definition of CmdUtil::BuildContextRegRmw.
         const uint32 newRegVal = (m_cntxRegs.state[regOffset].value & ~regMask) | (regData & regMask);
 
-        mustKeep = UpdateRegState(newRegVal, regOffset, m_isTempDisabled, &m_cntxRegs);
+        mustKeep = UpdateRegState<CntxRegUsedRangeSize>(newRegVal, regOffset, m_isTempDisabled, &m_cntxRegs);
     }
 
     m_contextRollDetected |= mustKeep;
@@ -307,7 +311,7 @@ uint32* Pm4Optimizer::OptimizePm4SetReg(
     uint32 keepRegMask  = 0;
     for (uint32 i = 0; i < numRegs; i++)
     {
-        if (UpdateRegState(pRegData[i], (regOffset + i), m_isTempDisabled, pRegState))
+        if (UpdateRegState<RegisterCount>(pRegData[i], (regOffset + i), m_isTempDisabled, pRegState))
         {
             keepRegCount++;
             keepRegMask |= 1 << i;

@@ -1390,12 +1390,10 @@ void Image::InitLayoutStateMasks()
                 compressedLayouts.engines |= LayoutComputeEngine;
             }
 
-            if (((IsGfx10(m_device) && (supportsDepth ^ supportsStencil))
-                )
-                && (isMsaa == false))
+            if (IsGfx10Plus(m_device) && (supportsDepth ^ supportsStencil) && (isMsaa == false))
             {
-                // GFX10 supports compressed writes to HTILE with an HTILE resummarize blt after so we
-                // can add this here as long as we do the resummarize blt as well.
+                // GFX10+ supports compressed writes to HTILE, so it should be safe to add ShaderWrite to the
+                // compressed usages (LayoutCopyDst was already added as above).
                 compressedLayouts.usages |= LayoutShaderWrite;
             }
         }
@@ -3208,8 +3206,7 @@ gpusize Image::GetPlaneBaseAddr(
     uint32 arraySlice
     ) const
 {
-    // On GFX9, the registers are programmed to select the proper mip level and slice, the base address *always*
-    // points to mip 0 / slice 0.  We still have to take into account the plane though.
+    // On GFX9, the registers are programmed to select the proper mip level and slice
     const SubresId subresId = { plane, 0, arraySlice };
     return GetMipAddr(subresId);
 }

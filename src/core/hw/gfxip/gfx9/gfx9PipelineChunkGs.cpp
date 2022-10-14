@@ -164,7 +164,6 @@ void PipelineChunkGs::LateInit(
 uint32* PipelineChunkGs::WriteShCommands(
     CmdStream*              pCmdStream,
     uint32*                 pCmdSpace,
-    const DynamicStageInfo& gsStageInfo,
     const bool              hasMeshShader
     ) const
 {
@@ -209,8 +208,26 @@ uint32* PipelineChunkGs::WriteShCommands(
                                                                     pCmdSpace);
     }
 
-    auto dynamic = m_regs.dynamic;
+    if (m_pPerfDataInfo->regOffset != UserDataNotMapped)
+    {
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(m_pPerfDataInfo->regOffset,
+                                                                 m_pPerfDataInfo->gpuVirtAddr,
+                                                                 pCmdSpace);
+    }
 
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+uint32* PipelineChunkGs::WriteDynamicRegs(
+    CmdStream*              pCmdStream,
+    uint32*                 pCmdSpace,
+    const DynamicStageInfo& gsStageInfo
+    ) const
+{
+    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
+
+    auto dynamic = m_regs.dynamic;
     if (gsStageInfo.wavesPerSh > 0)
     {
         dynamic.spiShaderPgmRsrc3Gs.bits.WAVE_LIMIT = gsStageInfo.wavesPerSh;
@@ -254,13 +271,6 @@ uint32* PipelineChunkGs::WriteShCommands(
                                                       ShaderGraphics,
                                                       index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
                                                       pCmdSpace);
-    }
-
-    if (m_pPerfDataInfo->regOffset != UserDataNotMapped)
-    {
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(m_pPerfDataInfo->regOffset,
-                                                                 m_pPerfDataInfo->gpuVirtAddr,
-                                                                 pCmdSpace);
     }
 
     return pCmdSpace;

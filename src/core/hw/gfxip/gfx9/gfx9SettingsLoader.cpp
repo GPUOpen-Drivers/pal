@@ -115,8 +115,9 @@ Result SettingsLoader::Init()
 void SettingsLoader::ValidateSettings(
     PalSettings* pSettings)
 {
-    const auto& chipProps = m_pDevice->ChipProperties();
-    const auto& gfx9Props = chipProps.gfx9;
+    const auto& chipProps   = m_pDevice->ChipProperties();
+    const auto& engineProps = m_pDevice->EngineProperties();
+    const auto& gfx9Props   = chipProps.gfx9;
 
     auto* pPalSettings = m_pDevice->GetPublicSettings();
 
@@ -252,6 +253,7 @@ void SettingsLoader::ValidateSettings(
     if (gfx9Props.rbPlus == 0)
     {
         m_settings.gfx9RbPlusEnable = false;
+        pPalSettings->optDepthOnlyExportRate = false;
     }
 
     if (gfx9Props.supportOutOfOrderPrimitives == 0)
@@ -685,13 +687,6 @@ void SettingsLoader::OverrideDefaults(
 
         m_settings.waDisableSCompressSOnly = true;
 
-        // INTERPOLATE_COMP_Z was turned off at default as a workaround to prevent corruption in depth resources
-        // due to an issue in EQAA hardware implementation. When EQAA is on, the corruption can occur
-        // in any apps that use depth resources. This will have no performance impact,
-        // and it will only impact quality in the eqaa cases (when rasterization rate is greater than the number
-        // of depth samples this basically doesn't happen in our drivers today).
-        m_settings.waDisableDbEqaaInterpolateCompZ = true;
-
         if (IsVega10(device) || IsRaven(device))
         {
             m_settings.waHtilePipeBankXorMustBeZero = true;
@@ -717,13 +712,6 @@ void SettingsLoader::OverrideDefaults(
     }
     else if (IsGfx10(device))
     {
-        // INTERPOLATE_COMP_Z was turned off at default as a workaround to prevent corruption in depth resources
-        // due to an issue in EQAA hardware implementation. When EQAA is on, the corruption can occur
-        // in any apps that use depth resources. This will have no performance impact,
-        // and it will only impact quality in the eqaa cases (when rasterization rate is greater than the number
-        // of depth samples this basically doesn't happen in our drivers today).
-        m_settings.waDisableDbEqaaInterpolateCompZ = true;
-
         if (IsNavi10(device))
         {
             SetupNavi10Workarounds(device, &m_settings, pSettings);

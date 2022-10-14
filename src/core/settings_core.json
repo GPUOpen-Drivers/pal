@@ -35,6 +35,19 @@
   ],
   "Settings": [
     {
+      "Name": "cmdBufForceUc",
+      "Tags": [
+        "Command Buffer"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "cmdBufForceUc",
+      "Description": "Controls whether command buffers are uncached"
+    },
+    {
       "Name": "TFQ",
       "Tags": [
         "Public CCC Options"
