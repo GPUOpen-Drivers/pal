@@ -242,10 +242,8 @@ private:
 
     template <bool HsaAbi, bool IssueSqttMarkerEvent>
     static void PAL_STDCALL CmdDispatch(
-        ICmdBuffer* pCmdBuffer,
-        uint32      x,
-        uint32      y,
-        uint32      z);
+        ICmdBuffer*  pCmdBuffer,
+        DispatchDims size);
     template <bool IssueSqttMarkerEvent>
     static void PAL_STDCALL CmdDispatchIndirect(
         ICmdBuffer*       pCmdBuffer,
@@ -253,40 +251,29 @@ private:
         gpusize           offset);
     template <bool HsaAbi, bool IssueSqttMarkerEvent>
     static void PAL_STDCALL CmdDispatchOffset(
-        ICmdBuffer* pCmdBuffer,
-        uint32      xOffset,
-        uint32      yOffset,
-        uint32      zOffset,
-        uint32      xDim,
-        uint32      yDim,
-        uint32      zDim);
+        ICmdBuffer*  pCmdBuffer,
+        DispatchDims offset,
+        DispatchDims launchSize,
+        DispatchDims logicalSize);
     template <bool IssueSqttMarkerEvent>
     static void PAL_STDCALL CmdDispatchDynamic(
-        ICmdBuffer* pCmdBuffer,
-        gpusize     gpuVa,
-        uint32      x,
-        uint32      y,
-        uint32      z);
+        ICmdBuffer*  pCmdBuffer,
+        gpusize      gpuVa,
+        DispatchDims size);
 
     virtual void ActivateQueryType(QueryPoolType queryPoolType) override;
     virtual void DeactivateQueryType(QueryPoolType queryPoolType) override;
 
     uint32* ValidateDispatchPalAbi(
-        gpusize indirectGpuVirtAddr,
-        gpusize launchDescGpuVirtAddr,
-        uint32  xDim,
-        uint32  yDim,
-        uint32  zDim,
-        uint32* pCmdSpace);
+        gpusize      indirectGpuVirtAddr,
+        gpusize      launchDescGpuVirtAddr,
+        DispatchDims logicalSize,
+        uint32*      pCmdSpace);
 
     uint32* ValidateDispatchHsaAbi(
-        uint32  xOffset,
-        uint32  yOffset,
-        uint32  zOffset,
-        uint32  xDim,
-        uint32  yDim,
-        uint32  zDim,
-        uint32* pCmdSpace);
+        DispatchDims offset,
+        DispatchDims logicalSize,
+        uint32*      pCmdSpace);
 
     template <bool HasPipelineChanged>
     uint32* ValidateUserData(

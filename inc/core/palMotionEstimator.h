@@ -69,13 +69,9 @@ struct MotionEstimatorCreateInfo
         struct
         {
             uint32  protectedSession            : 1; ///< Indicator set by Dx12 Motion Estimator to enable IP TMZ mode
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 654)
             uint32  ampEnabled                  : 1; ///< Indicator set to Enable Assymetric Partiton (AMP) for Interprediction
             uint32  strongIntraSmoothingEnabled : 1; ///< Indicator set to Enable Strong Intra Smoothing/Deblocking Filter
             uint32  reserved                    : 29;
-#else
-            uint32  reserved                    : 31;
-#endif
 
         };
         uint32  u32All;

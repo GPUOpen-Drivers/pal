@@ -30,17 +30,20 @@
 #include "palBuddyAllocatorImpl.h"
 #include "palGpuMemoryBindable.h"
 #include "palListImpl.h"
+#include "palLiterals.h"
 #include "palSysMemory.h"
 #include <stdio.h>
 
 using namespace Util;
+using namespace Util::Literals;
 
 namespace Pal
 {
 
-static constexpr gpusize DefaultPoolAllocationSize    = 1ull << 22; // 4 megabytes
-static constexpr gpusize DefaultPoolAllocationMinSize = 1ull << 16; // 64 kilobytes
-static constexpr gpusize PoolMinSuballocationSize     = 1ull << 4;  // 16 bytes
+static constexpr gpusize DefaultPoolAllocationSize    = 4_MiB;
+static constexpr gpusize DefaultPoolAllocationMinSize = 64_KiB;
+static constexpr gpusize PoolMinSuballocationSize     = 16;
+static constexpr gpusize DefaultPoolAlignment         = 64_KiB;
 
 // =====================================================================================================================
 // Determines whether a base allocation matches the requested parameters
@@ -234,7 +237,7 @@ Result InternalMemMgr::AllocateGpuMemNoAllocLock(
     if ((result                    == Result::Success)             &&
         (pOffset                   != nullptr)                     &&
         (localCreateInfo.size      <= DefaultPoolAllocationSize / 2) &&
-        (localCreateInfo.alignment <= DefaultPoolAllocationSize / 2))
+        (localCreateInfo.alignment <= DefaultPoolAlignment))
     {
         // Calculate GPU memory flags based on the creation information
         const GpuMemoryFlags requestedMemFlags = ConvertGpuMemoryFlags(localCreateInfo, internalInfo);
@@ -308,7 +311,7 @@ Result InternalMemMgr::AllocateGpuMemNoAllocLock(
             nextPoolAllocationSize = Util::Min(DefaultPoolAllocationSize, nextPoolAllocationSize);
 
             localCreateInfo.size                   = nextPoolAllocationSize;
-            localCreateInfo.alignment              = nextPoolAllocationSize / 2;
+            localCreateInfo.alignment              = DefaultPoolAlignment;
             localInternalInfo.flags.buddyAllocated = 1;
 
             GpuMemory* pGpuMemory = nullptr;

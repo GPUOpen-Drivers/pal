@@ -193,6 +193,12 @@ public:
     WsiPlatform PlatformType() const { return m_platform; }
     const WindowSystemProperties& GetWindowSystemProperties() const { return m_windowSystemProperties; }
     bool PresentOnSameGpu() const { return m_presentOnSameGpu; }
+    virtual void GoThroughEvent() { return; }
+    virtual void WaitOnIdleEvent(WindowSystemImageHandle* pImage) { return; }
+    virtual bool SupportIdleEvent() { return false; }
+    virtual bool CheckIdleImage(
+        WindowSystemImageHandle* pIdleImage,
+        PresentFence*            pFence) { return false; }
 
 protected:
     WindowSystem(WsiPlatform platform);

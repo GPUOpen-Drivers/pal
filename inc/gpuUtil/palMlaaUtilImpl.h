@@ -389,7 +389,8 @@ void MlaaUtil<Allocator>::FindSepEdge(
 
     const Pal::uint32 threadGroupsX = (m_width  + Mlaa::ThreadsPerGroupX - 1) / Mlaa::ThreadsPerGroupX;
     const Pal::uint32 threadGroupsY = (m_height + Mlaa::ThreadsPerGroupY - 1) / Mlaa::ThreadsPerGroupY;
-    pCmdBuffer->CmdDispatch(threadGroupsX, threadGroupsY, 1);
+
+    pCmdBuffer->CmdDispatch({threadGroupsX, threadGroupsY, 1});
 }
 
 // =====================================================================================================================
@@ -456,7 +457,8 @@ void MlaaUtil<Allocator>::CalcSepEdgeLength(
 
     const Pal::uint32 threadGroupsX = (m_width  + Mlaa::ThreadsPerGroupX - 1) / Mlaa::ThreadsPerGroupX;
     const Pal::uint32 threadGroupsY = (m_height + Mlaa::ThreadsPerGroupY - 1) / Mlaa::ThreadsPerGroupY;
-    pCmdBuffer->CmdDispatch(threadGroupsX, threadGroupsY, 1);
+
+    pCmdBuffer->CmdDispatch({threadGroupsX, threadGroupsY, 1});
 }
 
 // =====================================================================================================================
@@ -498,7 +500,8 @@ void MlaaUtil<Allocator>::CalcSepEdgeLengthFast(
 
     const Pal::uint32 threadGroupsX = (m_width  + Mlaa::ThreadsPerGroupX - 1) / Mlaa::ThreadsPerGroupX;
     const Pal::uint32 threadGroupsY = (m_height + Mlaa::ThreadsPerGroupY - 1) / Mlaa::ThreadsPerGroupY;
-    pCmdBuffer->CmdDispatch(threadGroupsX, threadGroupsY, 1);
+
+    pCmdBuffer->CmdDispatch({threadGroupsX, threadGroupsY, 1});
 }
 
 // =====================================================================================================================
@@ -551,7 +554,8 @@ void MlaaUtil<Allocator>::FinalBlend(
 
     const Pal::uint32 threadGroupsX = (m_width  + Mlaa::ThreadsPerGroupX - 1) / Mlaa::ThreadsPerGroupX;
     const Pal::uint32 threadGroupsY = (m_height + Mlaa::ThreadsPerGroupY - 1) / Mlaa::ThreadsPerGroupY;
-    pCmdBuffer->CmdDispatch(threadGroupsX, threadGroupsY, 1);
+
+    pCmdBuffer->CmdDispatch({threadGroupsX, threadGroupsY, 1});
 }
 
 // =====================================================================================================================
@@ -594,9 +598,11 @@ void MlaaUtil<Allocator>::FinalBlendFast(
     pCmdBuffer->CmdBindPipeline({Pal::PipelineBindPoint::Compute,
         m_pPipelines[static_cast<Pal::uint32>(Mlaa::MlaaComputePipeline::MlaaFinalBlendFast)],
         Pal::InternalApiPsoHash});
+
     const Pal::uint32 threadGroupsX = (m_width  + Mlaa::ThreadsPerGroupX - 1) / Mlaa::ThreadsPerGroupX;
     const Pal::uint32 threadGroupsY = (m_height + Mlaa::ThreadsPerGroupY - 1) / Mlaa::ThreadsPerGroupY;
-    pCmdBuffer->CmdDispatch(threadGroupsX, threadGroupsY, 1);
+
+    pCmdBuffer->CmdDispatch({threadGroupsX, threadGroupsY, 1});
 }
 
 // =====================================================================================================================

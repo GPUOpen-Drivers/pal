@@ -28,7 +28,7 @@
 #include "core/image.h"
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "core/hw/gfxip/gfx9/gfx9MaskRam.h"
-#include "core/hw/gfxip/gfxImage.h"
+#include "core/hw/gfxip/pm4Image.h"
 #include "core/addrMgr/addrMgr2/addrMgr2.h"
 #include "palCmdBuffer.h"
 
@@ -205,7 +205,7 @@ inline DepthStencilCompressionState ImageLayoutToDepthCompressionState(
 // =====================================================================================================================
 // This is the Gfx9 Image class which is derived from GfxImage.  It is responsible for hardware specific Image
 // functionality such as setting up mask ram, metadata, tile info, etc.
-class Image final : public GfxImage
+class Image final : public Pm4Image
 {
 public:
     static constexpr uint32 FastClearAllTcCompatColorSurfs = (FastClearAllTcCompatColorSurfsNoAa |

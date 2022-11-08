@@ -266,14 +266,12 @@ struct MultiSubmitInfo
                                                   ///  command buffers used in this submit.
     void*                   pUserData;            ///< Client provided data to be passed to callback.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 663
     uint32                  stackSizeInDwords;    ///< 0, or the max of stack frame size for indirect shaders of the
                                                   ///  pipelines referenced in the command buffers of this submission.
                                                   ///  The size is per native thread. So that the client will have to
                                                   ///  multiply by 2 if a Wave64 shader that needs scratch is used.
                                                   ///  Note that the size will not shrink for the lifetime of the queue
                                                   ///  once it is grown and only affects compute scratch ring.
-#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 764
     const IGpuMemory*       pFreeMuxMemory;       ///< The gpu memory object of the private flip primary surface for the
@@ -285,25 +283,6 @@ typedef MultiSubmitInfo SubmitInfo;
 
 /// The value of blockIfFlippingCount in @ref SubmitInfo cannot be greater than this value.
 constexpr uint32 MaxBlockIfFlippingCount = 16;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 686
-/// The value of imageCount in @ref MgpuSlsInfo cannot be greater than this value.
-constexpr uint32 MaxMgpuSlsImageCount = 3;
-
-/// MGpu Sls Present Info.
-/// The on-screen of MGpu Sls consists of multiple allocations located on different Gpus. Take the simplest
-/// (Master-Monitor0, Slave-Monitor1) case as an example, Monitor0 shows part of an allocation on Master, Monitor1
-/// shows part of another allocation on Slave. Umd has to notify Kmd both allocations. PAL's pSrcImage is the Master
-/// allocation and this structure contains the Slave allocations.
-struct MgpuSlsInfo
-{
-    uint32        vidPnSourceId;                ///< VidPN source ID, required by Kmd to process Sls present.
-    uint32        imageCount;                   ///< number of allocations to be displayed.
-    const IImage* pImage[MaxMgpuSlsImageCount]; ///< allocation per visible Slave Gpu, having the same
-                                                /// property/dimensions. MgpuSlsInfo is provided to the Master's flip
-                                                /// engine, so pImage[i] is a peer image.
-};
-#endif
 
 /// Specifies properties for the presentation of an image to the screen.  Input structure to IQueue::PresentDirect().
 struct PresentDirectInfo
@@ -342,9 +321,6 @@ struct PresentDirectInfo
                                         ///  but PAL may still call into the OS on certain platforms that expect it.
     };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 686
-    MgpuSlsInfo     mgpuSlsInfo;    ///< Optional, MGpu Sls Present Info. imageCount = 0 if not a Mgpu Sls present.
-#endif
 };
 
 /// Media stream counter information.

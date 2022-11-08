@@ -600,33 +600,24 @@ private:
         uint32            maximumCount,
         gpusize           countGpuAddr);
     static void PAL_STDCALL CmdDispatch(
-        ICmdBuffer* pCmdBuffer,
-        uint32      x,
-        uint32      y,
-        uint32      z);
+        ICmdBuffer*  pCmdBuffer,
+        DispatchDims size);
     static void PAL_STDCALL CmdDispatchIndirect(
         ICmdBuffer*       pCmdBuffer,
         const IGpuMemory& gpuMemory,
         gpusize           offset);
     static void PAL_STDCALL CmdDispatchOffset(
-        ICmdBuffer* pCmdBuffer,
-        uint32      xOffset,
-        uint32      yOffset,
-        uint32      zOffset,
-        uint32      xDim,
-        uint32      yDim,
-        uint32      zDim);
+        ICmdBuffer*  pCmdBuffer,
+        DispatchDims offset,
+        DispatchDims launchSize,
+        DispatchDims logicalSize);
     static void PAL_STDCALL CmdDispatchDynamic(
-        ICmdBuffer* pCmdBuffer,
-        gpusize     gpuVa,
-        uint32      xDim,
-        uint32      yDim,
-        uint32      zDim);
+        ICmdBuffer*  pCmdBuffer,
+        gpusize      gpuVa,
+        DispatchDims size);
     static void PAL_STDCALL CmdDispatchMesh(
-        ICmdBuffer* pCmdBuffer,
-        uint32      xDim,
-        uint32      yDim,
-        uint32      zDim);
+        ICmdBuffer*  pCmdBuffer,
+        DispatchDims size);
     static void PAL_STDCALL CmdDispatchMeshIndirectMulti(
         ICmdBuffer*       pCmdBuffer,
         const IGpuMemory& gpuMemory,

@@ -194,6 +194,9 @@ private:
     Result AppendResourceToList(
         GpuMemory* pGpuMemory);
 
+    Result AppendGlobalResourceToList(
+        GpuMemory* pGpuMemory);
+
     Result AddCmdStream(
         const CmdStream& cmdStream,
         bool             isDummySubmission,

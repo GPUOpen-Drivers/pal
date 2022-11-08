@@ -1512,6 +1512,21 @@ Result Device::CreateComputePipeline(
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
         pLogContext->KeyAndObject("createdObj", *ppPipeline);
+
+        size_t numEntries;
+        GpuMemSubAllocInfo subAllocInfo{ };
+        Result allocResult = pNextPipeline->QueryAllocationInfo(&numEntries, nullptr);
+        if (allocResult == Result::Success)
+        {
+            // pipelines always return 1
+            PAL_ASSERT(numEntries == 1);
+            allocResult = pNextPipeline->QueryAllocationInfo(&numEntries, &subAllocInfo);
+        }
+        if (allocResult == Result::Success)
+        {
+            pLogContext->KeyAndStruct("gpuMemSubAllocInfo", subAllocInfo);
+        }
+
         pLogContext->EndOutput();
 
         pPlatform->LogEndFunc(pLogContext);
@@ -1567,6 +1582,21 @@ Result Device::CreateGraphicsPipeline(
         pLogContext->BeginOutput();
         pLogContext->KeyAndEnum("result", result);
         pLogContext->KeyAndObject("createdObj", *ppPipeline);
+
+        size_t numEntries;
+        GpuMemSubAllocInfo subAllocInfo{ };
+        Result allocResult = pNextPipeline->QueryAllocationInfo(&numEntries, nullptr);
+        if (allocResult == Result::Success)
+        {
+            // pipelines always return 1
+            PAL_ASSERT(numEntries == 1);
+            allocResult = pNextPipeline->QueryAllocationInfo(&numEntries, &subAllocInfo);
+        }
+        if (allocResult == Result::Success)
+        {
+            pLogContext->KeyAndStruct("gpuMemSubAllocInfo", subAllocInfo);
+        }
+
         pLogContext->EndOutput();
 
         pPlatform->LogEndFunc(pLogContext);

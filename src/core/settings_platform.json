@@ -2117,7 +2117,7 @@
           "Description": "Indicates the hash of the pipeline or shader to capture. If this is zero, then all pipelines will be captured. This value is checked against both the shader and pipeline hash upper and lower portions."
         },
         {
-          "Name": "SurfaceCaptureDrawStart",
+          "Name": "SurfaceCaptureStart",
           "Tags": [
             "GPU Debugging"
           ],
@@ -2126,11 +2126,11 @@
           },
           "Scope": "PrivatePalKey",
           "Type": "uint32",
-          "VariableName": "surfaceCaptureDrawStart",
-          "Description": "First draw call in the selected command buffer from which to capture output surfaces"
+          "VariableName": "surfaceCaptureStart",
+          "Description": "First draw/blit image call in the selected command buffer from which to capture output surfaces"
         },
         {
-          "Name": "SurfaceCaptureDrawCount",
+          "Name": "SurfaceCaptureCount",
           "Tags": [
             "GPU Debugging"
           ],
@@ -2139,8 +2139,53 @@
           },
           "Scope": "PrivatePalKey",
           "Type": "uint32",
-          "VariableName": "surfaceCaptureDrawCount",
-          "Description": "Number of draw calls in the selected command buffer from which to capture output surfaces"
+          "VariableName": "surfaceCaptureCount",
+          "Description": "Number of draw/blit image calls in the selected command buffer from which to capture output surfaces"
+        },
+        {
+          "ValidValues": {
+            "IsEnum": true,
+            "Values": [
+              {
+                "Name": "NoBlitCapture",
+                "Value": 0,
+                "Description": "No blit capture is enabled."
+              },
+              {
+                "Name": "EnableCmdCopyMemoryToImage",
+                "Value": 1,
+                "Description": "Enable capture image in CmdCopyMemoryToImage."
+              },
+              {
+                "Name": "EnableCmdClearColorImage",
+                "Value": 2,
+                "Description": "Enable capture the image after clear."
+              },
+              {
+                "Name": "EnableCmdClearDepthStencil",
+                "Value": 4,
+                "Description": "Enable capture the image after clear."
+              },
+              {
+                "Name": "EnableCmdCopyImageToMemory",
+                "Value": 8,
+                "Description": "Enable capture image in CmdCopyImageToMemory."
+              }
+            ],
+            "Name": "EnabledBlitOperations"
+          },
+          "Defaults": {
+            "Default": 0
+          },
+          "Flags": {
+            "IsBitmask": true,
+            "IsHex": true
+          },
+          "Scope": "PrivatePalKey",
+          "Type": "uint32",
+          "VariableName": "blitSurfaceCaptureBitmask",
+          "Description": "Enable blit image capture along with the draw surface capture.",
+          "Name": "BlitSurfaceCaptureBitmask"
         },
         {
           "Name": "SurfaceCaptureLogDirectory",

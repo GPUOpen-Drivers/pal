@@ -40,8 +40,8 @@ extern "C"
 {
 #endif
 
-#define ADDRLIB_VERSION_MAJOR 6
-#define ADDRLIB_VERSION_MINOR 2
+#define ADDRLIB_VERSION_MAJOR 8
+#define ADDRLIB_VERSION_MINOR 0
 #define ADDRLIB_VERSION ((ADDRLIB_VERSION_MAJOR << 16) | ADDRLIB_VERSION_MINOR)
 
 /// Virtually all interface functions need ADDR_HANDLE as first parameter
@@ -1698,6 +1698,28 @@ typedef enum _AddrSwizzleGenOption
     ADDR_SWIZZLE_GEN_DEFAULT    = 0,    ///< As is in client driver implemention for swizzle
     ADDR_SWIZZLE_GEN_LINEAR     = 1,    ///< Using a linear increment of swizzle
 } AddrSwizzleGenOption;
+
+/**
+****************************************************************************************************
+*   AddrBlockType
+*
+*   @brief
+*       Macro define resource block type
+****************************************************************************************************
+*/
+enum AddrBlockType
+{
+    AddrBlockLinear = 0, // Resource uses linear swizzle mode
+    AddrBlockMicro = 1, // Resource uses 256B block
+    AddrBlockThin4KB = 2, // Resource uses thin 4KB block
+    AddrBlockThick4KB = 3, // Resource uses thick 4KB block
+    AddrBlockThin64KB = 4, // Resource uses thin 64KB block
+    AddrBlockThick64KB = 5, // Resource uses thick 64KB block
+    AddrBlockThinVar = 6, // Resource uses thin var block
+    AddrBlockThickVar = 7, // Resource uses thick var block
+    AddrBlockMaxTiledType,
+
+};
 
 /**
 ****************************************************************************************************
@@ -3786,6 +3808,20 @@ ADDR_E_RETURNCODE ADDR_API Addr2GetPreferredSurfaceSetting(
 
 /**
 ****************************************************************************************************
+*   Addr2GetPossibleSwizzleModes
+*
+*   @brief
+*       Returns a list of swizzle modes that are valid from the hardware's perspective for the
+*       client to choose from
+****************************************************************************************************
+*/
+ADDR_E_RETURNCODE ADDR_API Addr2GetPossibleSwizzleModes(
+    ADDR_HANDLE                                   hLib,
+    const ADDR2_GET_PREFERRED_SURF_SETTING_INPUT* pIn,
+    ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT*      pOut);
+
+/**
+****************************************************************************************************
 *   Addr2IsValidDisplaySwizzleMode
 *
 *   @brief
@@ -3797,6 +3833,60 @@ ADDR_E_RETURNCODE ADDR_API Addr2IsValidDisplaySwizzleMode(
     AddrSwizzleMode swizzleMode,
     UINT_32         bpp,
     BOOL_32         *pResult);
+
+/**
+****************************************************************************************************
+*   Addr2GetAllowedBlockSet
+*
+*   @brief
+*       Returns the set of allowed block sizes given the allowed swizzle modes and resource type
+****************************************************************************************************
+*/
+ADDR_E_RETURNCODE ADDR_API Addr2GetAllowedBlockSet(
+    ADDR_HANDLE      hLib,
+    ADDR2_SWMODE_SET allowedSwModeSet,
+    AddrResourceType rsrcType,
+    ADDR2_BLOCK_SET* pAllowedBlockSet);
+
+/**
+****************************************************************************************************
+*   Addr2GetAllowedSwSet
+*
+*   @brief
+*       Returns the set of allowed swizzle types given the allowed swizzle modes
+****************************************************************************************************
+*/
+ADDR_E_RETURNCODE ADDR_API Addr2GetAllowedSwSet(
+    ADDR_HANDLE       hLib,
+    ADDR2_SWMODE_SET  allowedSwModeSet,
+    ADDR2_SWTYPE_SET* pAllowedSwSet);
+
+/**
+****************************************************************************************************
+*   Addr2IsBlockTypeAvailable
+*
+*   @brief
+*       Determine whether a block type is allowed in a given blockSet
+****************************************************************************************************
+*/
+BOOL_32 Addr2IsBlockTypeAvailable(ADDR2_BLOCK_SET blockSet, AddrBlockType blockType);
+
+/**
+****************************************************************************************************
+*   Addr2BlockTypeWithinMemoryBudget
+*
+*   @brief
+*       Determine whether a new block type is acceptable based on memory waste ratio. Will favor
+*       larger block types.
+****************************************************************************************************
+*/
+BOOL_32 Addr2BlockTypeWithinMemoryBudget(
+    UINT_64 minSize,
+    UINT_64 newBlockTypeSize,
+    UINT_32 ratioLow,
+    UINT_32 ratioHi,
+    DOUBLE  memoryBudget = 0.0f,
+    BOOL_32 newBlockTypeBigger = TRUE);
 
 #if defined(__cplusplus)
 }

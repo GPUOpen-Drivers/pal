@@ -289,6 +289,8 @@ public:
 
     static bool IsValidToOverride(AddrSwizzleMode primarySwMode, ADDR2_SWMODE_SET validSwModeSet);
 
+    static AddrResourceType GetAddrResourceType(const Pal::Image*  pImage);
+
     virtual uint32 GetBlockSize(AddrSwizzleMode swizzleMode) const override;
 
 protected:
@@ -320,8 +322,6 @@ private:
         TileInfo*                          pBaseTileInfo,   // Base subresource tiling info for the plane
         AddrSwizzleMode                    swizzleMode,
         ADDR2_COMPUTE_SURFACE_INFO_OUTPUT* pOut) const;
-
-    static AddrResourceType GetAddrResourceType(const Pal::Image*  pImage);
 
     Result InitSubresourceInfo(
         Image*                                         pImage,

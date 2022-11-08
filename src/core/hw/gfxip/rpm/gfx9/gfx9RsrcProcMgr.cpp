@@ -164,10 +164,6 @@ Result RsrcProcMgr::LateInit()
     if (result == Result::Success)
     {
         ComputePipelineCreateInfo pipeInfo = {};
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631
-        pipeInfo.flags.overrideGpuHeap = 1;
-        pipeInfo.preferredHeapType     = GpuHeap::GpuHeapLocal;
-#endif
         const bool supportsHsaAbi = (m_pDevice->Parent()->ChipProperties().gfxip.supportHsaAbi == 1);
 
         // For now we only expect to support this on a subset of gfx10 ASICs due to missing CP support.
@@ -715,7 +711,7 @@ void RsrcProcMgr::CmdResolveQueryComputeShader(
 
     // Issue a dispatch with one thread per query slot.
     const uint32 threadGroups = RpmUtil::MinThreadGroups(queryCount, pPipeline->ThreadsPerGroup());
-    pCmdBuffer->CmdDispatch(threadGroups, 1, 1);
+    pCmdBuffer->CmdDispatch({threadGroups, 1, 1});
 
     // Restore the command buffer's state.
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
@@ -797,12 +793,12 @@ uint32 RsrcProcMgr::GetClearDepth(
 // =====================================================================================================================
 // Issues the dispatch call for the specified dimensions
 void RsrcProcMgr::MetaDataDispatch(
-    GfxCmdBuffer*       pCmdBuffer,        // command buffer used for the dispatch call
-    const Gfx9MaskRam*  pMaskRam,          // mask ram the dispatch will access
-    uint32              width,             // width of the mip level being cleared
-    uint32              height,            // height of the mip-level being cleared
-    uint32              depth,             // number of slices (either array or volume slices) being cleared
-    const uint32*       pThreadsPerGroup)  // three-deep array indicating the number of threads per group
+    GfxCmdBuffer*      pCmdBuffer,       // command buffer used for the dispatch call
+    const Gfx9MaskRam* pMaskRam,         // mask ram the dispatch will access
+    uint32             width,            // width of the mip level being cleared
+    uint32             height,           // height of the mip-level being cleared
+    uint32             depth,            // number of slices (either array or volume slices) being cleared
+    DispatchDims       threadsPerGroup)  // The number of threads per group in each dimension.
 {
     // The compression ratio of image pixels into mask-ram blocks changes based on the mask-ram
     // type and image info.
@@ -821,9 +817,7 @@ void RsrcProcMgr::MetaDataDispatch(
 
     // Now that we have the dimensions in terms of compressed pixels, launch as many thread groups as we need to
     // get to them all.
-    pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(x, pThreadsPerGroup[0]),
-                            RpmUtil::MinThreadGroups(y, pThreadsPerGroup[1]),
-                            RpmUtil::MinThreadGroups(z, pThreadsPerGroup[2]));
+    pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz({x, y, z}, threadsPerGroup));
 }
 
 // =====================================================================================================================
@@ -1037,16 +1031,14 @@ void RsrcProcMgr::BuildHtileLookupTable(
         (log2MetaBlkWidth + log2MetaBlkHeight);
     const uint32    effectiveSamples = pEqGenerator->GetNumEffectiveSamples();
     BufferSrd       bufferSrds[2] = {};
-    uint32          threadsPerGroup[3] = {};
 
     if (m_pDevice->GetHwStencilFmt(createInfo.swizzledFormat.format) != STENCIL_INVALID)
     {
         PAL_ASSERT(pipeBankXor == pEqGenerator->CalcPipeXorMask(dstImage.GetStencilPlane()));
     }
 
-    const Pal::ComputePipeline* pPipeline = GetPipeline(RpmComputePipeline::Gfx9BuildHtileLookupTable);
-
-    pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+    const Pal::ComputePipeline* pPipeline       = GetPipeline(RpmComputePipeline::Gfx9BuildHtileLookupTable);
+    const DispatchDims          threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
     // Save the command buffer's state
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
@@ -1116,12 +1108,7 @@ void RsrcProcMgr::BuildHtileLookupTable(
         // Provide the shader with all kinds of fun dimension info
         memcpy(pSrdTable, &constData[0], sizeof(constData));
 
-        MetaDataDispatch(pCmdBuffer,
-                         pBaseHtile,
-                         mipLevelWidth,
-                         mipLevelHeight,
-                         range.numSlices,
-                         threadsPerGroup);
+        MetaDataDispatch(pCmdBuffer, pBaseHtile, mipLevelWidth, mipLevelHeight, range.numSlices, threadsPerGroup);
     }
 
     // Restore the command buffer's state.
@@ -1242,8 +1229,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
 
         // Compute the number of thread groups needed to launch one thread per texel.
-        uint32 threadsPerGroup[3] = {};
-        pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+        const DispatchDims threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
         bool earlyExit = false;
         for (uint32  mipIdx = 0; ((earlyExit == false) && (mipIdx < range.numMips)); mipIdx++)
@@ -1257,10 +1243,12 @@ bool RsrcProcMgr::ExpandDepthStencil(
                 break;
             }
 
-            const uint32  threadGroupsX = RpmUtil::MinThreadGroups(pBaseSubResInfo->extentElements.width,
-                                                                   threadsPerGroup[0]);
-            const uint32  threadGroupsY = RpmUtil::MinThreadGroups(pBaseSubResInfo->extentElements.height,
-                                                                   threadsPerGroup[1]);
+            const DispatchDims threadGroups =
+            {
+                RpmUtil::MinThreadGroups(pBaseSubResInfo->extentElements.width,  threadsPerGroup.x),
+                RpmUtil::MinThreadGroups(pBaseSubResInfo->extentElements.height, threadsPerGroup.y),
+                1
+            };
 
             const uint32 constData[] =
             {
@@ -1307,7 +1295,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
                 memcpy(pSrdTable, constData, sizeof(constData));
 
                 // Execute the dispatch.
-                pCmdBuffer->CmdDispatch(threadGroupsX, threadGroupsY, 1);
+                pCmdBuffer->CmdDispatch(threadGroups);
             } // end loop through all the slices
         } // end loop through all the mip levels
 
@@ -1376,7 +1364,7 @@ bool RsrcProcMgr::WillDecompressWithCompute(
 // =====================================================================================================================
 // Performs a fast-clear on a color image by updating the image's DCC buffer.
 void RsrcProcMgr::HwlFastColorClear(
-    GfxCmdBuffer*         pCmdBuffer,
+    Pm4CmdBuffer*         pCmdBuffer,
     const GfxImage&       dstImage,
     const uint32*         pConvertedColor,
     const SwizzledFormat& clearFormat,
@@ -1778,7 +1766,7 @@ void RsrcProcMgr::PreComputeDepthStencilClearSync(
     ) const
 {
     {
-        Pal::RsrcProcMgr::PreComputeDepthStencilClearSync(pCmdBuffer, gfxImage, subres, layout);
+        Pal::Pm4::RsrcProcMgr::PreComputeDepthStencilClearSync(pCmdBuffer, gfxImage, subres, layout);
     }
 }
 
@@ -2829,8 +2817,7 @@ void RsrcProcMgr::DccDecompressOnCompute(
     PAL_ASSERT(pComputeCmdStream != nullptr);
 
     // Compute the number of thread groups needed to launch one thread per texel.
-    uint32 threadsPerGroup[3] = {};
-    pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+    const DispatchDims threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
@@ -2846,10 +2833,13 @@ void RsrcProcMgr::DccDecompressOnCompute(
         // Blame the caller if this trips...
         PAL_ASSERT(pBaseSubResInfo->flags.supportMetaDataTexFetch);
 
-        const uint32  threadGroupsX = RpmUtil::MinThreadGroups(pBaseSubResInfo->extentElements.width,
-                                                               threadsPerGroup[0]);
-        const uint32  threadGroupsY = RpmUtil::MinThreadGroups(pBaseSubResInfo->extentElements.height,
-                                                               threadsPerGroup[1]);
+        const DispatchDims threadGroups =
+        {
+            RpmUtil::MinThreadGroups(pBaseSubResInfo->extentElements.width,  threadsPerGroup.x),
+            RpmUtil::MinThreadGroups(pBaseSubResInfo->extentElements.height, threadsPerGroup.y),
+            1
+        };
+
         const uint32 constData[] =
         {
             // start cb0[0]
@@ -2896,7 +2886,7 @@ void RsrcProcMgr::DccDecompressOnCompute(
             memcpy(pSrdTable, constData, sizeof(constData));
 
             // Execute the dispatch.
-            pCmdBuffer->CmdDispatch(threadGroupsX, threadGroupsY, 1);
+            pCmdBuffer->CmdDispatch(threadGroups);
         } // end loop through all the slices
     }
 
@@ -3058,14 +3048,11 @@ void RsrcProcMgr::ClearFmask(
 {
     PAL_ASSERT(clearRange.numPlanes == 1);
 
-    const auto*  pParent            = dstImage.Parent();
-    const auto*  pFmask             = dstImage.GetFmask();
-    const auto&  fMaskAddrOutput    = pFmask->GetAddrOutput();
-    const auto&  imageCreateInfo    = pParent->GetImageCreateInfo();
-    const auto   pPipeline          = GetPipeline(RpmComputePipeline::ClearImage2d);
-    uint32       threadsPerGroup[3] = {};
-
-    pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+    const Pal::Image*const                 pParent         = dstImage.Parent();
+    const ADDR2_COMPUTE_FMASK_INFO_OUTPUT& fMaskAddrOutput = dstImage.GetFmask()->GetAddrOutput();
+    const ImageCreateInfo&                 imageCreateInfo = pParent->GetImageCreateInfo();
+    const Pal::ComputePipeline*const       pPipeline       = GetPipeline(RpmComputePipeline::ClearImage2d);
+    const DispatchDims                     threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
     // NOTE: MSAA Images do not support multiple mipmpap levels, so we can make some assumptions here.
     PAL_ASSERT(imageCreateInfo.mipLevels == 1);
@@ -3111,9 +3098,9 @@ void RsrcProcMgr::ClearFmask(
     memcpy(pSrdTable, &userData[0], sizeof(userData));
 
     // And hit the "go" button...
-    pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(imageCreateInfo.extent.width,  threadsPerGroup[0]),
-                            RpmUtil::MinThreadGroups(imageCreateInfo.extent.height, threadsPerGroup[1]),
-                            RpmUtil::MinThreadGroups(clearRange.numSlices,          threadsPerGroup[2]));
+    const DispatchDims threads = {imageCreateInfo.extent.width, imageCreateInfo.extent.height, clearRange.numSlices};
+
+    pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(threads, threadsPerGroup));
 }
 
 // =====================================================================================================================
@@ -3171,11 +3158,13 @@ void RsrcProcMgr::FmaskColorExpand(
         PAL_ASSERT(pPipeline != nullptr);
 
         // Compute the number of thread groups needed to launch one thread per texel.
-        uint32 threadsPerGroup[3] = {};
-        pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
-
-        const uint32 threadGroupsX = RpmUtil::MinThreadGroups(createInfo.extent.width,  threadsPerGroup[0]);
-        const uint32 threadGroupsY = RpmUtil::MinThreadGroups(createInfo.extent.height, threadsPerGroup[1]);
+        const DispatchDims threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
+        const DispatchDims threadGroups =
+        {
+            RpmUtil::MinThreadGroups(createInfo.extent.width,  threadsPerGroup.x),
+            RpmUtil::MinThreadGroups(createInfo.extent.height, threadsPerGroup.y),
+            1
+        };
 
         // Save current command buffer state and bind the pipeline.
 
@@ -3238,7 +3227,7 @@ void RsrcProcMgr::FmaskColorExpand(
             m_pDevice->CreateFmaskViewSrdsInternal(1, &fmaskView, &fmaskViewInternal, pSrdTable);
 
             // Execute the dispatch.
-            pCmdBuffer->CmdDispatch(threadGroupsX, threadGroupsY, 1);
+            pCmdBuffer->CmdDispatch(threadGroups);
         }
     }
 
@@ -3855,7 +3844,7 @@ void RsrcProcMgr::CmdCopyMemoryToImage(
     if (Formats::IsBlockCompressed(createInfo.swizzledFormat.format) &&
         (createInfo.mipLevels > 1)                                   &&
         ((m_pDevice->Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9) ||
-         (createInfo.imageType !=  ImageType::Tex2d)))
+         ((createInfo.imageType == ImageType::Tex3d) && (createInfo.flags.prt == 1))))
     {
         // Unlike in the image-to-memory counterpart function, we don't have to wait for the above compute shader
         // to finish because the unaddressable image pixels can not be written, so there's no write conflicts.
@@ -3991,7 +3980,7 @@ void RsrcProcMgr::EchoGlobalInternalTableAddr(
 
     const uint32 userData[2] = { LowPart(dstAddr), HighPart(dstAddr) };
     pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, 2, userData );
-    pCmdBuffer->CmdDispatch(1, 1, 1);
+    pCmdBuffer->CmdDispatch({1, 1, 1});
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
 
     // We need a CS wait-for-idle before we try to restore the global internal table user data. There are a few ways
@@ -4182,11 +4171,8 @@ void Gfx9RsrcProcMgr::ClearHtileAllBytes(
     if ((metaClearConstEqParam.metaInterleaved == false) && (createInfo.mipLevels == 1))
     {
         // Bind the GFX9 Fill 4x4 Dword pipeline
-        uint32 threadsPerGroup[3] = {};
-
-        const auto*const pPipeline = GetPipeline(RpmComputePipeline::Gfx9Fill4x4Dword);
-
-        pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+        const Pal::ComputePipeline*const pPipeline       = GetPipeline(RpmComputePipeline::Gfx9Fill4x4Dword);
+        const DispatchDims               threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
         // Bind Compute Pipeline used for the clear.
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
@@ -4241,13 +4227,14 @@ void Gfx9RsrcProcMgr::ClearHtileAllBytes(
         // Pass to shader all kinds of Information related to meta data equation
         memcpy(pSrdTable, &constData[0], sizeof(constData));
 
-        uint32 numThreadGroupsX = 1;
+        DispatchDims numThreadGroups = { 1, 1, 1 };
+
         if (metaThreadX != 0)
         {
-            numThreadGroupsX = RpmUtil::MinThreadGroups(metaThreadX, threadsPerGroup[0]);
+            numThreadGroups.x = RpmUtil::MinThreadGroups(metaThreadX, threadsPerGroup.x);
         }
 
-        pCmdBuffer->CmdDispatch(numThreadGroupsX, 1, 1);
+        pCmdBuffer->CmdDispatch(numThreadGroups);
     }
     else
     {
@@ -4256,11 +4243,8 @@ void Gfx9RsrcProcMgr::ClearHtileAllBytes(
 
         // Bind the optimized dcc pipeline which clears 4Dwords of data given a meta data addressing
         // parameters
-        uint32        threadsPerGroup[3] = {};
-
-        const auto*const pPipeline = GetPipeline(RpmComputePipeline::Gfx9ClearDccOptimized2d);
-
-        pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+        const Pal::ComputePipeline*const pPipeline       = GetPipeline(RpmComputePipeline::Gfx9ClearDccOptimized2d);
+        const DispatchDims               threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
         // Bind Compute Pipeline used for the clear.
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
@@ -4361,18 +4345,14 @@ void Gfx9RsrcProcMgr::ClearHtileAllBytes(
         // Pass to shader all kinds of Information realted to meta data equation
         memcpy(pSrdTable, &constData[0], sizeof(constData));
 
-        uint32 numThreadGroupsX = 1;
-        uint32 numThreadGroupsY = 1;
-        uint32 numThreadGroupsZ = 1;
+        DispatchDims numThreadGroups = { 1, 1, 1 };
 
         if (metaThreadX != 0)
         {
-            numThreadGroupsX = RpmUtil::MinThreadGroups(metaThreadX, threadsPerGroup[0]);
-            numThreadGroupsY = RpmUtil::MinThreadGroups(metaThreadY, threadsPerGroup[1]);
-            numThreadGroupsZ = RpmUtil::MinThreadGroups(metaThreadZ, threadsPerGroup[2]);
+            numThreadGroups = RpmUtil::MinThreadGroupsXyz({metaThreadX, metaThreadY, metaThreadZ}, threadsPerGroup);
         }
 
-        pCmdBuffer->CmdDispatch(numThreadGroupsX, numThreadGroupsY, numThreadGroupsZ);
+        pCmdBuffer->CmdDispatch(numThreadGroups);
     }
 }
 
@@ -4406,11 +4386,8 @@ void Gfx9RsrcProcMgr::ClearHtileSelectedBytes(
     if ((metaClearConstEqParam.metaInterleaved == false) && (createInfo.mipLevels == 1))
     {
         // Bind the simple pipeline since all offsetbits are under metablock bits
-        uint32 threadsPerGroup[3] = {};
-
-        const auto*const pPipeline = GetPipeline(RpmComputePipeline::Gfx9ClearHtileFast);
-
-        pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+        const Pal::ComputePipeline*const pPipeline       = GetPipeline(RpmComputePipeline::Gfx9ClearHtileFast);
+        const DispatchDims               threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
         // Bind Compute Pipeline used for the clear.
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
@@ -4466,24 +4443,22 @@ void Gfx9RsrcProcMgr::ClearHtileSelectedBytes(
         // Pass to shader all kinds of Information realted to meta data equation
         memcpy(pSrdTable, &constData[0], sizeof(constData));
 
-        uint32 numThreadGroupsX = 1;
+        DispatchDims numThreadGroups = { 1, 1, 1 };
+
         if (metaThreadX != 0)
         {
-            numThreadGroupsX = RpmUtil::MinThreadGroups(metaThreadX, threadsPerGroup[0]);
+            numThreadGroups.x = RpmUtil::MinThreadGroups(metaThreadX, threadsPerGroup.x);
         }
 
-        pCmdBuffer->CmdDispatch(numThreadGroupsX, 1, 1);
+        pCmdBuffer->CmdDispatch(numThreadGroups);
     }
     else
     {
         // In this case metablock is mixed in memory which means it is split into metaBlock[Hi] and metaBlock[Lo]
         PAL_ASSERT(metaClearConstEqParam.metaInterleaved);
 
-        uint32        threadsPerGroup[3] = {};
-
-        const auto*const pPipeline = GetPipeline(RpmComputePipeline::Gfx9ClearHtileOptimized2d);
-
-        pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+        const Pal::ComputePipeline*const pPipeline       = GetPipeline(RpmComputePipeline::Gfx9ClearHtileOptimized2d);
+        const DispatchDims               threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
         // Bind Compute Pipeline used for the clear.
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
@@ -4589,18 +4564,14 @@ void Gfx9RsrcProcMgr::ClearHtileSelectedBytes(
         // Pass to shader all kinds of Information realted to meta data equation
         memcpy(pSrdTable, &constData[0], sizeof(constData));
 
-        uint32 numThreadGroupsX = 1;
-        uint32 numThreadGroupsY = 1;
-        uint32 numThreadGroupsZ = 1;
+        DispatchDims numThreadGroups = { 1, 1, 1 };
 
         if (metaThreadX != 0)
         {
-            numThreadGroupsX = RpmUtil::MinThreadGroups(metaThreadX, threadsPerGroup[0]);
-            numThreadGroupsY = RpmUtil::MinThreadGroups(metaThreadY, threadsPerGroup[1]);
-            numThreadGroupsZ = RpmUtil::MinThreadGroups(metaThreadZ, threadsPerGroup[2]);
+            numThreadGroups = RpmUtil::MinThreadGroupsXyz({metaThreadX, metaThreadY, metaThreadZ}, threadsPerGroup);
         }
 
-        pCmdBuffer->CmdDispatch(numThreadGroupsX, numThreadGroupsY, numThreadGroupsZ);
+        pCmdBuffer->CmdDispatch(numThreadGroups);
     }
 }
 
@@ -4649,8 +4620,7 @@ void Gfx9RsrcProcMgr::DoFastClear(
     uint32        zInc = 0;
     pDcc->GetXyzInc(&xInc, &yInc, &zInc);
 
-    uint32        threadsPerGroup[3] = {};
-    pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+    const DispatchDims threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
     // Bind Compute Pipeline used for the clear.
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
@@ -4723,12 +4693,7 @@ void Gfx9RsrcProcMgr::DoFastClear(
         // And give the shader all kinds of useful dimension info
         memcpy(pSrdTable, &constData[0], sizeof(constData));
 
-        MetaDataDispatch(pCmdBuffer,
-                         pDcc,
-                         mipLevelWidth,
-                         mipLevelHeight,
-                         depthToClear,
-                         threadsPerGroup);
+        MetaDataDispatch(pCmdBuffer, pDcc, mipLevelWidth, mipLevelHeight, depthToClear, threadsPerGroup);
     }
 }
 
@@ -4769,9 +4734,8 @@ void Gfx9RsrcProcMgr::DoOptimizedCmaskInit(
     if (metaClearConstEqParam.metaInterleaved == false)
     {
         // Bind the GFX9 Fill 4x4 Dword pipeline
-        uint32 threadsPerGroup[3] = {};
-        const auto*const pPipeline = GetPipeline(RpmComputePipeline::Gfx9Fill4x4Dword);
-        pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+        const Pal::ComputePipeline*const pPipeline       = GetPipeline(RpmComputePipeline::Gfx9Fill4x4Dword);
+        const DispatchDims               threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
         // Bind Compute Pipeline used for the clear.
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
@@ -4826,12 +4790,13 @@ void Gfx9RsrcProcMgr::DoOptimizedCmaskInit(
         // Pass to shader all kinds of Information related to meta data equation
         memcpy(pSrdTable, &constData[0], sizeof(constData));
 
-        uint32 numThreadGroupsX = 1;
+        DispatchDims numThreadGroups = { 1, 1, 1 };
+
         if (metaThreadX != 0)
         {
-            numThreadGroupsX = RpmUtil::MinThreadGroups(metaThreadX, threadsPerGroup[0]);
+            numThreadGroups.x = RpmUtil::MinThreadGroups(metaThreadX, threadsPerGroup.x);
         }
-        pCmdBuffer->CmdDispatch(numThreadGroupsX, 1, 1);
+        pCmdBuffer->CmdDispatch(numThreadGroups);
     }
     else
     {
@@ -4839,9 +4804,8 @@ void Gfx9RsrcProcMgr::DoOptimizedCmaskInit(
         PAL_ASSERT(metaClearConstEqParam.metaInterleaved);
 
         // Bind the Optimized DCC Pipeline which writes 4 Dwords to destination memory
-        uint32  threadsPerGroup[3] = {};
-        const auto*const pPipeline = GetPipeline(RpmComputePipeline::Gfx9ClearDccOptimized2d);
-        pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+        const Pal::ComputePipeline*const pPipeline       = GetPipeline(RpmComputePipeline::Gfx9ClearDccOptimized2d);
+        const DispatchDims               threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
         // Bind Compute Pipeline used for the clear.
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
@@ -4904,14 +4868,14 @@ void Gfx9RsrcProcMgr::DoOptimizedCmaskInit(
         // Pass to shader all kinds of Information realted to meta data equation
         memcpy(pSrdTable, &constData[0], sizeof(constData));
 
-        uint32 numThreadGroupsX = 1;
+        DispatchDims numThreadGroups = { 1, 1, 1 };
 
         if (metaThreadX != 0)
         {
-            numThreadGroupsX = RpmUtil::MinThreadGroups(metaThreadX, threadsPerGroup[0]);
+            numThreadGroups.x = RpmUtil::MinThreadGroups(metaThreadX, threadsPerGroup.x);
         }
 
-        pCmdBuffer->CmdDispatch(numThreadGroupsX, 1, 1);
+        pCmdBuffer->CmdDispatch(numThreadGroups);
     }
 }
 
@@ -4963,9 +4927,8 @@ void Gfx9RsrcProcMgr::DoOptimizedFastClear(
     if ((metaClearConstEqParam.metaInterleaved == false) && (createInfo.mipLevels == 1))
     {
         // Bind the GFX9 Fill 4x4 Dword pipeline
-        uint32 threadsPerGroup[3]  = {};
-        const auto*const pPipeline = GetPipeline(RpmComputePipeline::Gfx9Fill4x4Dword);
-        pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+        const Pal::ComputePipeline*const pPipeline       = GetPipeline(RpmComputePipeline::Gfx9Fill4x4Dword);
+        const DispatchDims               threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
         // Bind Compute Pipeline used for the clear.
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
@@ -5020,12 +4983,14 @@ void Gfx9RsrcProcMgr::DoOptimizedFastClear(
         // Pass to shader all kinds of Information related to meta data equation
         memcpy(pSrdTable, &constData[0], sizeof(constData));
 
-        uint32 numThreadGroupsX = 1;
+        DispatchDims numThreadGroups = { 1, 1, 1 };
+
         if (metaThreadX != 0)
         {
-            numThreadGroupsX = RpmUtil::MinThreadGroups(metaThreadX, threadsPerGroup[0]);
+            numThreadGroups.x = RpmUtil::MinThreadGroups(metaThreadX, threadsPerGroup.x);
         }
-        pCmdBuffer->CmdDispatch(numThreadGroupsX, 1, 1);
+
+        pCmdBuffer->CmdDispatch(numThreadGroups);
     }
     else
     {
@@ -5033,9 +4998,8 @@ void Gfx9RsrcProcMgr::DoOptimizedFastClear(
         PAL_ASSERT(metaClearConstEqParam.metaInterleaved);
 
         // Bind the Optimized DCC Pipeline
-        uint32  threadsPerGroup[3] = {};
-        const auto*const pPipeline = GetPipeline(RpmComputePipeline::Gfx9ClearDccOptimized2d);
-        pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+        const Pal::ComputePipeline*const pPipeline       = GetPipeline(RpmComputePipeline::Gfx9ClearDccOptimized2d);
+        const DispatchDims               threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
         // Bind Compute Pipeline used for the clear.
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
@@ -5136,18 +5100,14 @@ void Gfx9RsrcProcMgr::DoOptimizedFastClear(
         // Pass to shader all kinds of Information realted to meta data equation
         memcpy(pSrdTable, &constData[0], sizeof(constData));
 
-        uint32 numThreadGroupsX = 1;
-        uint32 numThreadGroupsY = 1;
-        uint32 numThreadGroupsZ = 1;
+        DispatchDims numThreadGroups = { 1, 1, 1 };
 
         if (metaThreadX != 0)
         {
-            numThreadGroupsX = RpmUtil::MinThreadGroups(metaThreadX, threadsPerGroup[0]);
-            numThreadGroupsY = RpmUtil::MinThreadGroups(metaThreadY, threadsPerGroup[1]);
-            numThreadGroupsZ = RpmUtil::MinThreadGroups(metaThreadZ, threadsPerGroup[2]);
+            numThreadGroups = RpmUtil::MinThreadGroupsXyz({metaThreadX, metaThreadY, metaThreadZ}, threadsPerGroup);
         }
 
-        pCmdBuffer->CmdDispatch(numThreadGroupsX, numThreadGroupsY, numThreadGroupsZ);
+        pCmdBuffer->CmdDispatch(numThreadGroups);
     }
 }
 
@@ -5209,14 +5169,13 @@ void Gfx9RsrcProcMgr::ExecuteHtileEquation(
                                          (log2MetaBlkWidth + log2MetaBlkHeight);
     const uint32    effectiveSamples   = pEqGenerator->GetNumEffectiveSamples();
     BufferSrd       bufferSrds[2]      = {};
-    uint32          threadsPerGroup[3] = {};
 
     // TODO: need to obey the "dbPerTileExpClearEnable" setting here.
     const Pal::ComputePipeline* pPipeline = GetPipeline((effectiveSamples > 1)
                                                    ? RpmComputePipeline::Gfx9ClearHtileMultiSample
                                                    : RpmComputePipeline::Gfx9ClearHtileSingleSample);
 
-    pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+    const DispatchDims threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
     // Save the command buffer's state
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
@@ -5281,12 +5240,7 @@ void Gfx9RsrcProcMgr::ExecuteHtileEquation(
         // Provide the shader with all kinds of fun dimension info
         memcpy(pSrdTable, &constData[0], sizeof(constData));
 
-        MetaDataDispatch(pCmdBuffer,
-                         pBaseHtile,
-                         mipLevelWidth,
-                         mipLevelHeight,
-                         range.numSlices,
-                         threadsPerGroup);
+        MetaDataDispatch(pCmdBuffer, pBaseHtile, mipLevelWidth, mipLevelHeight, range.numSlices, threadsPerGroup);
     }
 
     // Restore the command buffer's state.
@@ -5342,13 +5296,9 @@ void Gfx9RsrcProcMgr::HwlResummarizeHtileCompute(
         splitRange.startSubres.plane < (range.startSubres.plane + range.numPlanes);
         splitRange.startSubres.plane++)
     {
-        const uint32 hTileMask  = pHtile->GetPlaneMask(splitRange);
+        const uint32 hTileMask = pHtile->GetPlaneMask(splitRange);
 
-        ExecuteHtileEquation(pCmdBuffer,
-                             gfx9Image,
-                             splitRange,
-                             hTileValue,
-                             hTileMask);
+        ExecuteHtileEquation(pCmdBuffer, gfx9Image, splitRange, hTileValue, hTileMask);
     }
 }
 
@@ -5457,10 +5407,8 @@ void Gfx9RsrcProcMgr::HwlHtileCopyAndFixUp(
         // Save the command buffer's state
         pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
 
-        const Pal::ComputePipeline* pPipeline = GetPipeline(RpmComputePipeline::Gfx9HtileCopyAndFixUp);
-
-        uint32 threadsPerGroup[3] = {};
-        pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+        const Pal::ComputePipeline*const pPipeline       = GetPipeline(RpmComputePipeline::Gfx9HtileCopyAndFixUp);
+        const DispatchDims               threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
         // Bind Compute Pipeline used for the clear.
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
@@ -5562,9 +5510,9 @@ void Gfx9RsrcProcMgr::HwlHtileCopyAndFixUp(
 
             // Now that we have the dimensions in terms of compressed pixels, launch as many thread groups as we need to
             // get to them all.
-            pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(htileExtentX, threadsPerGroup[0]),
-                RpmUtil::MinThreadGroups(htileExtentY, threadsPerGroup[1]),
-                RpmUtil::MinThreadGroups(htileExtentZ, threadsPerGroup[2]));
+            const DispatchDims threads = {htileExtentX, htileExtentY, htileExtentZ};
+
+            pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(threads, threadsPerGroup));
         } // End of for
 
         pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
@@ -6066,13 +6014,12 @@ void Gfx9RsrcProcMgr::InitCmask(
         const uint32  sliceSize          = (cMaskAddrOutput.pitch * cMaskAddrOutput.height) >>
                                            (log2MetaBlkWidth + log2MetaBlkHeight);
         const uint32  pipeBankXor        = pEqGenerator->CalcPipeXorMask(initRange.startSubres.plane);
-        uint32        threadsPerGroup[3] = {};
 
         // Does cMask *ever* depend on the number of samples?  If so, our shader is going to need some tweaking.
         PAL_ASSERT (pEqGenerator->GetNumEffectiveSamples() == 1);
-        const auto*const pPipeline  = GetPipeline(RpmComputePipeline::Gfx9InitCmask);
 
-        pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+        const Pal::ComputePipeline*const pPipeline       = GetPipeline(RpmComputePipeline::Gfx9InitCmask);
+        const DispatchDims               threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
         // Save the command buffer's state.
         pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
@@ -6116,8 +6063,7 @@ void Gfx9RsrcProcMgr::InitCmask(
         pSrdTable += SrdDwordAlignment();
         memcpy(pSrdTable, &constData[0], sizeof(constData));
 
-        MetaDataDispatch(pCmdBuffer,
-                         pCmask,
+        MetaDataDispatch(pCmdBuffer, pCmask,
                          createInfo.extent.width,
                          createInfo.extent.height,
                          initRange.numSlices,
@@ -6153,12 +6099,7 @@ void Gfx9RsrcProcMgr::InitHtile(
 
         // We pass a dummy stencil value as the last parameter.
         // The dummy stencil value won't be used in Gfx9RsrcProcMgr::FastDepthStencilClearCompute.
-        FastDepthStencilClearCompute(pCmdBuffer,
-                                     dstImage,
-                                     clearRange,
-                                     initValue,
-                                     clearMask,
-                                     0);
+        FastDepthStencilClearCompute(pCmdBuffer, dstImage, clearRange, initValue, clearMask, 0);
     }
 }
 
@@ -6416,8 +6357,7 @@ void Gfx10RsrcProcMgr::ClearDccComputeSetFirstPixelOfBlock(
         PAL_ASSERT_ALWAYS();
     }
 
-    uint32 threadsPerGroup[3] = {};
-    pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+    const DispatchDims threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
     const auto*    pSubResInfo    = pPalImage->SubresourceInfo(subResId);
     const uint32   mipLevelWidth  = pSubResInfo->extentTexels.width;
@@ -6484,11 +6424,7 @@ void Gfx10RsrcProcMgr::ClearDccComputeSetFirstPixelOfBlock(
     // And give the shader all kinds of useful dimension info
     memcpy(pSrdTable, &constData[0], sizeof(constData));
 
-    uint32 numThreadGroupsX = RpmUtil::MinThreadGroups(numBlockX, threadsPerGroup[0]);
-    uint32 numThreadGroupsY = RpmUtil::MinThreadGroups(numBlockY, threadsPerGroup[1]);
-    uint32 numThreadGroupsZ = RpmUtil::MinThreadGroups(numBlockZ, threadsPerGroup[2]);
-
-    pCmdBuffer->CmdDispatch(numThreadGroupsX, numThreadGroupsY, numThreadGroupsZ);
+    pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz({numBlockX, numBlockY, numBlockZ}, threadsPerGroup));
 }
 
 // =====================================================================================================================
@@ -6603,7 +6539,7 @@ void Gfx10RsrcProcMgr::InitHtileData(
                 // Issue a dispatch with one thread per HTile DWORD.
                 const uint32 hTileDwords  = static_cast<uint32>(hTileBufferView.range / sizeof(uint32));
                 const uint32 threadGroups = RpmUtil::MinThreadGroups(hTileDwords, pPipeline->ThreadsPerGroup());
-                pCmdBuffer->CmdDispatch(threadGroups, 1, 1);
+                pCmdBuffer->CmdDispatch({threadGroups, 1, 1});
             } // end loop through slices
         }
         else
@@ -6781,7 +6717,7 @@ void Gfx10RsrcProcMgr::WriteHtileData(
 
                 // Issue a dispatch with one thread per HTile DWORD or a dispatch every 4 Htile DWORD.
                 const uint32 threadGroups = RpmUtil::MinThreadGroups(minThreads, pPipeline->ThreadsPerGroup());
-                pCmdBuffer->CmdDispatch(threadGroups, 1, 1);
+                pCmdBuffer->CmdDispatch({threadGroups, 1, 1});
 
             } // end loop through slices
         }
@@ -7655,8 +7591,7 @@ void Gfx10RsrcProcMgr::LaunchOptimizedVrsCopyShader(
         pPipeline = GetPipeline(RpmComputePipeline::Gfx10VrsHtile);
     }
 
-    uint32  threadsPerGroup[3] = {};
-    pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+    const DispatchDims threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
@@ -7713,9 +7648,8 @@ void Gfx10RsrcProcMgr::LaunchOptimizedVrsCopyShader(
         pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 2, 4, hTileSrd);
 
         // Launch one thread per HTile element we're copying in this slice.
-        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(copyWidth,  threadsPerGroup[0]),
-                                RpmUtil::MinThreadGroups(copyHeight, threadsPerGroup[1]),
-                                1);
+        pCmdBuffer->CmdDispatch({RpmUtil::MinThreadGroups(copyWidth,  threadsPerGroup.x),
+                                 RpmUtil::MinThreadGroups(copyHeight, threadsPerGroup.y), 1});
     }
 
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
@@ -7864,19 +7798,14 @@ void Gfx10RsrcProcMgr::HwlGfxDccToDisplayDcc(
         pSrdTable += bufferSrdDwords * BufferViewCount;
         memcpy(pSrdTable, &inlineConstData[0], sizeof(inlineConstData));
 
-        uint32 threadsPerGroup[3] = {};
-        pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+        const DispatchDims threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
         // How many tiles in X/Y/Z dimension. One thread for each tile.
         const uint32 numBlockX = (pSubResInfo->extentTexels.width  + xInc - 1) / xInc;
         const uint32 numBlockY = (pSubResInfo->extentTexels.height + yInc - 1) / yInc;
         const uint32 numBlockZ = 1;
 
-        uint32 numThreadGroupsX = RpmUtil::MinThreadGroups(numBlockX, threadsPerGroup[0]);
-        uint32 numThreadGroupsY = RpmUtil::MinThreadGroups(numBlockY, threadsPerGroup[1]);
-        uint32 numThreadGroupsZ = RpmUtil::MinThreadGroups(numBlockZ, threadsPerGroup[2]);
-
-        pCmdBuffer->CmdDispatch(numThreadGroupsX, numThreadGroupsY, numThreadGroupsZ);
+        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz({numBlockX, numBlockY, numBlockZ}, threadsPerGroup));
     }
 
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
@@ -8002,8 +7931,7 @@ void Gfx10RsrcProcMgr::CmdResolvePrtPlusImage(
 
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
 
-    uint32  threadsPerGroup[3] = {};
-    pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+    const DispatchDims threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
     // Bind compute pipeline used for the resolve.
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute,
@@ -8090,9 +8018,14 @@ void Gfx10RsrcProcMgr::CmdResolvePrtPlusImage(
         // And give the shader all kinds of useful dimension info
         memcpy(pSrdTable, &constData[0], sizeof(constData));
 
-        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(resolveRegion.extent.width,  threadsPerGroup[0]),
-                                RpmUtil::MinThreadGroups(resolveRegion.extent.height, threadsPerGroup[1]),
-                                RpmUtil::MinThreadGroups(resolveRegion.extent.depth,  threadsPerGroup[2]));
+        const DispatchDims threads =
+        {
+            resolveRegion.extent.width,
+            resolveRegion.extent.height,
+            resolveRegion.extent.depth
+        };
+
+        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(threads, threadsPerGroup));
     } // end loop through the regions
 
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
@@ -8125,10 +8058,8 @@ void Gfx10RsrcProcMgr::BuildDccLookupTable(
 
     pBaseDcc->GetXyzInc(&xInc, &yInc, &zInc);
 
-    const Pal::ComputePipeline* pPipeline = GetPipeline(RpmComputePipeline::Gfx10BuildDccLookupTable);
-
-    uint32 threadsPerGroup[3] = {};
-    pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+    const Pal::ComputePipeline*const pPipeline       = GetPipeline(RpmComputePipeline::Gfx10BuildDccLookupTable);
+    const DispatchDims               threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
     pCmdBuffer->CmdBindPipeline({PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
@@ -8189,9 +8120,7 @@ void Gfx10RsrcProcMgr::BuildDccLookupTable(
     pSrdTable += sizeBufferSrdDwords * BufferViewCount;
     memcpy(pSrdTable, &eqConstData[0], sizeof(eqConstData));
 
-    pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(worksX, threadsPerGroup[0]),
-                            RpmUtil::MinThreadGroups(worksY, threadsPerGroup[1]),
-                            RpmUtil::MinThreadGroups(worksZ, threadsPerGroup[2]));
+    pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz({worksX, worksY, worksZ}, threadsPerGroup));
 
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
 }

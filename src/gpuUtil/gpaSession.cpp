@@ -1016,15 +1016,9 @@ Pal::Result GpaSession::TimedSubmit(
                 {
                     // The gpu memory pointer should never be null.
                     PAL_ASSERT(pPreTimestampMemoryInfo->pGpuMemory != nullptr);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 697
                     pPreCmdBuffer->CmdWriteTimestamp(Pal::HwPipePostPrefetch,
                                                      *pPreTimestampMemoryInfo->pGpuMemory,
                                                      preTimestampOffset);
-#else
-                    pPreCmdBuffer->CmdWriteTimestamp(Pal::HwPipeTop,
-                                                     *pPreTimestampMemoryInfo->pGpuMemory,
-                                                     preTimestampOffset);
-#endif
 
                     result = pPreCmdBuffer->End();
                 }
@@ -1290,11 +1284,7 @@ Pal::Result GpaSession::TimedQueuePresent(
         // The gpu memory pointer should never be null.
         PAL_ASSERT(timestampMemoryInfo.pGpuMemory != nullptr);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 697
         pCmdBuffer->CmdWriteTimestamp(Pal::HwPipePostPrefetch, *timestampMemoryInfo.pGpuMemory, timestampMemoryOffset);
-#else
-        pCmdBuffer->CmdWriteTimestamp(Pal::HwPipeTop, *timestampMemoryInfo.pGpuMemory, timestampMemoryOffset);
-#endif
 
         result = pCmdBuffer->End();
     }
@@ -1393,13 +1383,8 @@ Pal::Result GpaSession::SampleGpuClocks(
         const float maxEngineClock = m_deviceProps.gfxipProperties.performance.maxGpuClock;
         const float maxMemoryClock = m_deviceProps.gpuMemoryProperties.performance.maxMemClock;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 674
         const uint32 engineClock = clockModeOutput.engineClockFrequency;
         const uint32 memoryClock = clockModeOutput.memoryClockFrequency;
-#else
-        const uint32 engineClock = static_cast<uint32>(maxEngineClock * clockModeOutput.engineClockRatioToPeak);
-        const uint32 memoryClock = static_cast<uint32>(maxMemoryClock * clockModeOutput.memoryClockRatioToPeak);
-#endif
 
         pGpuClocksSample->gpuEngineClockSpeed = engineClock;
         pGpuClocksSample->gpuMemoryClockSpeed = memoryClock;

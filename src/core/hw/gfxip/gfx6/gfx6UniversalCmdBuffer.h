@@ -513,10 +513,8 @@ private:
 
     template <bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDispatch(
-        ICmdBuffer* pCmdBuffer,
-        uint32      x,
-        uint32      y,
-        uint32      z);
+        ICmdBuffer*  pCmdBuffer,
+        DispatchDims size);
     template <bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDispatchIndirect(
         ICmdBuffer*       pCmdBuffer,
@@ -524,13 +522,10 @@ private:
         gpusize           offset);
     template <bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDispatchOffset(
-        ICmdBuffer* pCmdBuffer,
-        uint32      xOffset,
-        uint32      yOffset,
-        uint32      zOffset,
-        uint32      xDim,
-        uint32      yDim,
-        uint32      zDim);
+        ICmdBuffer*  pCmdBuffer,
+        DispatchDims offset,
+        DispatchDims launchSize,
+        DispatchDims logicalSize);
 
     virtual void DeactivateQueryType(QueryPoolType queryPoolType) override;
     virtual void ActivateQueryType(QueryPoolType queryPoolType) override;
@@ -580,11 +575,9 @@ private:
     void SetUserDataValidationFunctions(bool tessEnabled, bool gsEnabled);
 
     uint32* ValidateDispatch(
-        gpusize indirectGpuVirtAddr,
-        uint32  xDim,
-        uint32  yDim,
-        uint32  zDim,
-        uint32* pDeCmdSpace);
+        gpusize      indirectGpuVirtAddr,
+        DispatchDims logicalSize,
+        uint32*      pDeCmdSpace);
 
     uint32* SwitchGraphicsPipeline(
         const GraphicsPipelineSignature* pPrevSignature,

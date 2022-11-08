@@ -31,20 +31,9 @@
 
 namespace Util
 {
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 676
-namespace PalAbi = Abi;
-namespace Abi
-{
-struct CodeObjectMetadata;
-using PalCodeObjectMetadata = CodeObjectMetadata;
-namespace CodeObjectMetadataKey { }
-namespace PalCodeObjectMetadataKey = CodeObjectMetadataKey;
-
-#else
 namespace PalAbi
 {
-#endif
+
 using MsgPackOffset  = uint32;
 using StringViewType = StringView<char>;
 
@@ -2318,9 +2307,5 @@ Result SerializeEnumBitflags(MsgPackWriter* pWriter, uint32 bitflags);
 
 } // Metadata
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 676
-} // Abi
-#else
 } // PalAbi
-#endif
 } // Util

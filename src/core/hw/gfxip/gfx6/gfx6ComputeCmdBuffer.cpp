@@ -139,7 +139,7 @@ void ComputeCmdBuffer::CmdBarrier(
 
     bool splitMemAllocated;
     BarrierInfo splitBarrierInfo = barrierInfo;
-    Result result = m_device.Parent()->SplitBarrierTransitions(&splitBarrierInfo, &splitMemAllocated);
+    Result result = Pal::Device::SplitBarrierTransitions(m_device.GetPlatform(), &splitBarrierInfo, &splitMemAllocated);
 
     if (result == Result::ErrorOutOfMemory)
     {
@@ -168,26 +168,27 @@ void ComputeCmdBuffer::CmdBarrier(
 // or z are zero. To avoid branching, we will rely on the HW to discard the dispatch for us.
 template <bool issueSqttMarkerEvent>
 void PAL_STDCALL ComputeCmdBuffer::CmdDispatch(
-    ICmdBuffer* pCmdBuffer,
-    uint32      x,
-    uint32      y,
-    uint32      z)
+    ICmdBuffer*  pCmdBuffer,
+    DispatchDims size)
 {
     auto* pThis = static_cast<ComputeCmdBuffer*>(pCmdBuffer);
 
     if (issueSqttMarkerEvent)
     {
-        pThis->DescribeDispatch(Developer::DrawDispatchType::CmdDispatch, x, y, z);
+        pThis->DescribeDispatch(Developer::DrawDispatchType::CmdDispatch, size);
     }
 
     uint32* pCmdSpace = pThis->m_cmdStream.ReserveCommands();
 
-    pCmdSpace = pThis->ValidateDispatch(0uLL, x, y, z, pCmdSpace);
+    pCmdSpace = pThis->ValidateDispatch(0uLL, size, pCmdSpace);
 
     const bool dimInThreads = pThis->NeedFixupMoreThan4096ThreadGroups();
+
     if (dimInThreads)
     {
-        pThis->ConvertThreadGroupsToThreads(&x, &y, &z);
+        const auto*const pPipeline = static_cast<const ComputePipeline*>(pThis->m_computeState.pipelineState.pPipeline);
+
+        size *= pPipeline->ThreadsPerGroupXyz();
     }
 
     if (pThis->m_pm4CmdBufState.flags.packetPredicate != 0)
@@ -196,7 +197,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatch(
     }
 
     constexpr bool ForceStartAt000 = true;
-    pCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect(x, y, z, dimInThreads, ForceStartAt000, PredDisable, pCmdSpace);
+    pCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect(size, dimInThreads, ForceStartAt000, PredDisable, pCmdSpace);
 
     if (issueSqttMarkerEvent)
     {
@@ -229,7 +230,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchIndirect(
     uint32* pCmdSpace = pThis->m_cmdStream.ReserveCommands();
 
     gpusize gpuVirtAddr = (gpuMemory.Desc().gpuVirtAddr + offset);
-    pCmdSpace = pThis->ValidateDispatch(gpuVirtAddr, 0, 0, 0, pCmdSpace);
+    pCmdSpace = pThis->ValidateDispatch(gpuVirtAddr, {}, pCmdSpace);
 
     if (gfxLevel == GfxIpLevel::GfxIp6)
     {
@@ -305,40 +306,37 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchIndirect(
 // zero. To avoid branching, we will rely on the HW to discard the dispatch for us.
 template <bool issueSqttMarkerEvent>
 void PAL_STDCALL ComputeCmdBuffer::CmdDispatchOffset(
-    ICmdBuffer* pCmdBuffer,
-    uint32      xOffset,
-    uint32      yOffset,
-    uint32      zOffset,
-    uint32      xDim,
-    uint32      yDim,
-    uint32      zDim)
+    ICmdBuffer*  pCmdBuffer,
+    DispatchDims offset,
+    DispatchDims launchSize,
+    DispatchDims logicalSize)
 {
     auto* pThis = static_cast<ComputeCmdBuffer*>(pCmdBuffer);
 
     if (issueSqttMarkerEvent)
     {
-        pThis->DescribeDispatchOffset(xOffset, yOffset, zOffset, xDim, yDim, zDim);
+        pThis->DescribeDispatchOffset(offset, launchSize, logicalSize);
     }
 
     uint32* pCmdSpace = pThis->m_cmdStream.ReserveCommands();
 
-    pCmdSpace = pThis->ValidateDispatch(0uLL, xDim, yDim, zDim, pCmdSpace);
+    pCmdSpace = pThis->ValidateDispatch(0uLL, logicalSize, pCmdSpace);
 
-    const uint32 starts[3] = { xOffset, yOffset, zOffset };
     pCmdSpace  = pThis->m_cmdStream.WriteSetSeqShRegs(mmCOMPUTE_START_X,
                                                       mmCOMPUTE_START_Z,
                                                       ShaderCompute,
-                                                      starts,
+                                                      &offset,
                                                       pCmdSpace);
 
-    xDim += xOffset;
-    yDim += yOffset;
-    zDim += zOffset;
+    launchSize += offset;
 
     const bool dimInThreads = pThis->NeedFixupMoreThan4096ThreadGroups();
+
     if (dimInThreads)
     {
-        pThis->ConvertThreadGroupsToThreads(&xDim, &yDim, &zDim);
+        const auto*const pPipeline = static_cast<const ComputePipeline*>(pThis->m_computeState.pipelineState.pPipeline);
+
+        launchSize *= pPipeline->ThreadsPerGroupXyz();
     }
 
     if (pThis->m_pm4CmdBufState.flags.packetPredicate != 0)
@@ -349,9 +347,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchOffset(
     // The DIM_X/Y/Z in DISPATCH_DIRECT packet are used to program COMPUTE_DIM_X/Y/Z registers, which are actually the
     // end block positions instead of execution block dimensions. So we need to use the dimensions plus offsets.
     constexpr bool ForceStartAt000 = false;
-    pCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect(xDim,
-                                                      yDim,
-                                                      zDim,
+    pCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect(launchSize,
                                                       dimInThreads,
                                                       ForceStartAt000,
                                                       PredDisable,
@@ -435,11 +431,7 @@ void ComputeCmdBuffer::CmdWriteTimestamp(
     const gpusize address   = dstGpuMemory.Desc().gpuVirtAddr + dstOffset;
     uint32*       pCmdSpace = m_cmdStream.ReserveCommands();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 697
     if (pipePoint <= HwPipePreCs)
-#else
-    if (pipePoint == HwPipeTop)
-#endif
     {
         pCmdSpace += m_cmdUtil.BuildCopyData(COPY_DATA_SEL_DST_ASYNC_MEMORY,
                                              address,
@@ -477,11 +469,7 @@ void ComputeCmdBuffer::CmdWriteImmediate(
 {
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 697
     if (pipePoint <= HwPipePreCs)
-#else
-    if (pipePoint == HwPipeTop)
-#endif
     {
         pCmdSpace += m_cmdUtil.BuildCopyData(COPY_DATA_SEL_DST_ASYNC_MEMORY,
                                              address,
@@ -650,11 +638,9 @@ uint32* ComputeCmdBuffer::ValidateUserData(
 // =====================================================================================================================
 // Performs Dispatch-time validation of pipeline state and user-data entries.
 uint32* ComputeCmdBuffer::ValidateDispatch(
-    gpusize indirectGpuVirtAddr,
-    uint32  xDim,
-    uint32  yDim,
-    uint32  zDim,
-    uint32* pCmdSpace)
+    gpusize      indirectGpuVirtAddr,
+    DispatchDims logicalSize,
+    uint32*      pCmdSpace)
 {
 #if PAL_DEVELOPER_BUILD
     const bool enablePm4Instrumentation = m_device.GetPlatform()->PlatformSettings().pm4InstrumentorEnabled;
@@ -709,9 +695,9 @@ uint32* ComputeCmdBuffer::ValidateDispatch(
         if (indirectGpuVirtAddr == 0uLL) // This is a direct Dispatch.
         {
             uint32*const pData = CmdAllocateEmbeddedData(3, 4, &indirectGpuVirtAddr);
-            pData[0] = xDim;
-            pData[1] = yDim;
-            pData[2] = zDim;
+            pData[0] = logicalSize.x;
+            pData[1] = logicalSize.y;
+            pData[2] = logicalSize.z;
         }
 
         pCmdSpace = m_cmdStream.WriteSetSeqShRegs(m_pSignatureCs->numWorkGroupsRegAddr,
@@ -1114,7 +1100,7 @@ void ComputeCmdBuffer::CmdExecuteIndirectCmds(
 
         // Just like a normal direct/indirect dispatch, we need to perform state validation before executing the
         // generated command chunks.
-        pCmdSpace = ValidateDispatch(0uLL, 0, 0, 0, pCmdSpace);
+        pCmdSpace = ValidateDispatch(0uLL, {}, pCmdSpace);
         m_cmdStream.CommitCommands(pCmdSpace);
 
         CommandGeneratorTouchedUserData(m_computeState.csUserDataEntries.touched, gfx6Generator, *m_pSignatureCs);
@@ -1221,26 +1207,6 @@ bool ComputeCmdBuffer::NeedFixupMoreThan4096ThreadGroups() const
     // asic might hang as well. As we don't know the exact number of thread groups currently being launched, we always
     // use thread dimension mode for async compute dispatches when the workaround bit is set.
     return m_device.WaAsyncComputeMoreThan4096ThreadGroups();
-}
-
-// =====================================================================================================================
-// Converting dimensions from numbers of thread groups to numbers of threads.
-void ComputeCmdBuffer::ConvertThreadGroupsToThreads(
-    uint32* pX,
-    uint32* pY,
-    uint32* pZ
-    ) const
-{
-    PAL_ASSERT((pX != nullptr) && (pY != nullptr) && (pZ != nullptr));
-
-    const auto*const pPipeline = static_cast<const ComputePipeline*>(m_computeState.pipelineState.pPipeline);
-
-    uint32 threadsPerGroup[3] = {};
-    pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
-
-    (*pX) *= threadsPerGroup[0];
-    (*pY) *= threadsPerGroup[1];
-    (*pZ) *= threadsPerGroup[2];
 }
 
 // =====================================================================================================================

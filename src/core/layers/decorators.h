@@ -553,8 +553,9 @@ public:
         DeviceProperties* pInfo) const override
         { return m_pNextLayer->GetProperties(pInfo); }
 
-    virtual Result CheckExecutionState() const override
-        { return m_pNextLayer->CheckExecutionState(); }
+    virtual Result CheckExecutionState(
+        PageFaultStatus* pPageFaultStatus) const override
+        { return m_pNextLayer->CheckExecutionState(pPageFaultStatus); }
 
     virtual PalPublicSettings* GetPublicSettings() override
         { return m_pNextLayer->GetPublicSettings(); }
@@ -1200,10 +1201,18 @@ public:
         size_t bufferLength) const override
         { return m_pNextLayer->QueryRadeonSoftwareVersion(pBuffer, bufferLength); }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 774
+    virtual Result QueryReleaseVersion(
+#else
     virtual Result QueryDriverVersion(
+#endif
         char* pBuffer,
         size_t bufferLength) const override
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 774
+        { return m_pNextLayer->QueryReleaseVersion(pBuffer, bufferLength); }
+#else
         { return m_pNextLayer->QueryDriverVersion(pBuffer, bufferLength); }
+#endif
 
     const DeviceFinalizeInfo& GetFinalizeInfo() const { return m_finalizeInfo; }
     IDevice*                  GetNextLayer() const { return m_pNextLayer; }
@@ -2277,13 +2286,11 @@ private:
     }
 
     static void PAL_STDCALL CmdDispatchDecorator(
-        ICmdBuffer* pCmdBuffer,
-        uint32      x,
-        uint32      y,
-        uint32      z)
+        ICmdBuffer*  pCmdBuffer,
+        DispatchDims size)
     {
         ICmdBuffer* pNextLayer = static_cast<CmdBufferFwdDecorator*>(pCmdBuffer)->m_pNextLayer;
-        pNextLayer->CmdDispatch(x, y, z);
+        pNextLayer->CmdDispatch(size);
     }
 
     static void PAL_STDCALL CmdDispatchIndirectDecorator(
@@ -2296,37 +2303,30 @@ private:
     }
 
     static void PAL_STDCALL CmdDispatchOffsetDecorator(
-        ICmdBuffer* pCmdBuffer,
-        uint32      xOffset,
-        uint32      yOffset,
-        uint32      zOffset,
-        uint32      xDim,
-        uint32      yDim,
-        uint32      zDim)
+        ICmdBuffer*  pCmdBuffer,
+        DispatchDims offset,
+        DispatchDims launchSize,
+        DispatchDims logicalSize)
     {
         ICmdBuffer* pNextLayer = static_cast<CmdBufferFwdDecorator*>(pCmdBuffer)->m_pNextLayer;
-        pNextLayer->CmdDispatchOffset(xOffset, yOffset, zOffset, xDim, yDim, zDim);
+        pNextLayer->CmdDispatchOffset(offset, launchSize, logicalSize);
     }
 
     static void PAL_STDCALL CmdDispatchDynamicDecorator(
-        ICmdBuffer* pCmdBuffer,
-        gpusize     gpuVa,
-        uint32      xDim,
-        uint32      yDim,
-        uint32      zDim)
+        ICmdBuffer*  pCmdBuffer,
+        gpusize      gpuVa,
+        DispatchDims size)
     {
         ICmdBuffer* pNextLayer = static_cast<CmdBufferFwdDecorator*>(pCmdBuffer)->m_pNextLayer;
-        pNextLayer->CmdDispatchDynamic(gpuVa, xDim, yDim, zDim);
+        pNextLayer->CmdDispatchDynamic(gpuVa, size);
     }
 
     static void PAL_STDCALL CmdDispatchMeshDecorator(
-        ICmdBuffer* pCmdBuffer,
-        uint32      xDim,
-        uint32      yDim,
-        uint32      zDim)
+        ICmdBuffer*  pCmdBuffer,
+        DispatchDims size)
     {
         ICmdBuffer* pNextLayer = static_cast<CmdBufferFwdDecorator*>(pCmdBuffer)->m_pNextLayer;
-        pNextLayer->CmdDispatchMesh(xDim, yDim, zDim);
+        pNextLayer->CmdDispatchMesh(size);
     }
 
     static void PAL_STDCALL CmdDispatchMeshIndirectMultiDecorator(

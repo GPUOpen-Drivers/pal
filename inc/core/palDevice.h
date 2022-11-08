@@ -232,10 +232,6 @@ enum class OssIpLevel : uint32
     None     = _None, ///< The device does not have an OSSIP block, or its level cannot be determined
 #endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 699
-    OssIp1 = 0x1,
-    OssIp2 = 0x2,
-#endif
 #if PAL_BUILD_OSS2_4
     OssIp2_4 = 0x3,
 #endif
@@ -550,18 +546,8 @@ struct PalPublicSettings
 {
     /// Maximum border color palette size supported by any queue.
     uint32 borderColorPaletteSizeLimit;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 669
-    union
-    {
-        /// Whether to use graphics or compute for performing fast clears on depth stencil views.
-        FastDepthStencilClearMode fastDepthStencilClearMode;
-        /// Legacy: True will tell PAL to use graphics, false lets PAL decide.
-        bool useGraphicsFastDepthStencilClear;
-    };
-#else
     /// Whether to use graphics or compute for performing fast clears on depth stencil views.
     FastDepthStencilClearMode fastDepthStencilClearMode;
-#endif
     /// Forces all serialized loads (LoadPipeline or LoadCompoundState) to fail.
     bool forceLoadObjectFailure;
     /// Controls the distribution mode for tessellation, which affects how patches are processed by different VGT
@@ -669,21 +655,15 @@ struct PalPublicSettings
 #else
     bool forceWaitPointPreColorToPostPrefetch;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 662
     /// Allows the client to disable debug overlay visual confirm after DebugOverlay::Platform is created when the
     /// panel setting DebugOverlayEnabled is globally set but a certain application might need to turn off visual
     /// confirm to make the screen not too noisy.
     bool disableDebugOverlayVisualConfirm;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 680
     bool enableExecuteIndirectPacket;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 691
     /// Offers flexibility to the client to choose Graphics vs Compute engine for Indirect Command Generation
     /// (Shader path) based on performance and other factors. The default is false since we have seen perf gains using
     /// the ACE.
     bool disableExecuteIndirectAceOffload;
-#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 706
     /// Value to initialize metadata for DCC surfaces to, if they are compressable. This has no effect on non-DCC
     /// images. Images whose initial layout is not compressable are only affected if this is "forced".
@@ -1103,8 +1083,12 @@ struct DeviceProperties
                 /// Memory allocations on this device support MALL (memory access last level); essentially
                 /// the lowest level cache possible.
                 uint32 supportsMall                     : 1;
+
+                /// Support for querying page fault information
+                uint32 supportPageFaultInfo             : 1;
+
                 /// Reserved for future use.
-                uint32 reserved                         : 20;
+                uint32 reserved                         : 19;
             };
             uint32 u32All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< GPU memory property flags.
@@ -1376,7 +1360,7 @@ struct DeviceProperties
                 uint32     u32All;                ///< Flags packed as a 32-bit unsigned integer.
             } flags;
 
-            uint32 numShaderEngines;        ///< Number of shader engines.
+            uint32 numShaderEngines;        ///< Number of non-harvested shader engines.
             uint32 numShaderArrays;         ///< Number of shader arrays.
             uint32 numCusPerShaderArray;    ///< Number of CUs per shader array that are actually usable.
             uint32 maxCusPerShaderArray;    ///< Maximum number of CUs per shader array. Count of physical CUs prior to
@@ -1425,7 +1409,7 @@ struct DeviceProperties
             /// Mask of active pixel packers. The mask is 128 bits wide, assuming a max of 32 SEs and a max of 4 pixel
             /// packers (indicated by a single bit each) per SE.
             uint32 activePixelPackerMask[ActivePixelPackerMaskDwords];
-            /// Mask of present, non-harvested CUs (physical layout)
+            /// Mask of present, non-harvested CUs (Virtual Layout)
             uint32 activeCuMask[MaxShaderEngines][MaxShaderArraysPerSe];
         } shaderCore;                       ///< Properties of computational power of the shader engine.
 
@@ -1453,7 +1437,8 @@ struct DeviceProperties
                                                            ///  the capture frame rate in the Streaming SDK project.
                 uint32 flipQueueSupportsDecodeDst :  1;    ///< If set, Decode destination images are supported
                                                            ///  in the OS flip-queue.
-                uint32 reserved                   : 21;    ///< Reserved for future use.
+                uint32 supportFreeMux             :  1;    ///< Whether FreeMux is supported by KMD
+                uint32 reserved                   : 20;    ///< Reserved for future use.
             };
             uint32 u32All;                        ///< Flags packed as 32-bit uint.
         } flags;                                  ///< OS-specific property flags.
@@ -2097,18 +2082,13 @@ struct BvhInfo
     gpusize            numNodes;     ///< Number of nodes in the view
     uint32             boxGrowValue; ///< Number of ULPs (unit in last place) to be added during ray-box test.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 668
     BoxSortHeuristic   boxSortHeuristic;   ///< Specifies which heuristic should be utilized for
                                            ///< sorting children when box sorting is enabled
-#endif
 
     union
     {
         struct
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 668
-            uint32    findNearest           :  1; ///< Enable sorting the box intersect results
-#endif
             uint32    useZeroOffset         :  1; ///< If set, SRD address is programmed to zero
             uint32    returnBarycentrics    :  1; ///< When enabled, ray intersection will return triangle barycentrics.
                                                   ///< Note: Only valid if @see supportIntersectRayBarycentrics is true.
@@ -2122,11 +2102,7 @@ struct BvhInfo
 
             uint32    placeholder2          :  3;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 668
-            uint32    reserved              :  23; ///< Reserved for future HW
-#else
             uint32    reserved              :  24; ///< Reserved for future HW
-#endif
         };
 
         uint32  u32All; ///< Flags packed as 32-bit uint.
@@ -2377,15 +2353,8 @@ enum class DeviceClockMode : uint32
 /// running by querying using the mode DeviceClockMode::DeviceClockModeQuery.
 struct SetClockModeOutput
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 674
-    uint32 memoryClockFrequency;   /// Current mem clock (absolute) value in Mhz
+    uint32 memoryClockFrequency; /// Current mem clock (absolute) value in Mhz
     uint32 engineClockFrequency; /// Current gpu core clock (absolute) value in Mhz
-#else
-    float memoryClockRatioToPeak;  ///< Ratio of current mem clock to peak clock as obtained from
-                                   ///  DeviceProperties::maxMemClock.
-    float engineClockRatioToPeak;  ///< Ratio of current gpu core clock to peak clock as obtained from
-                                   ///  DeviceProperties::maxGpuClock.
-#endif
 };
 
 /// Specifies input argument to IDeive::SetClockMode. The caller must specify the mode in which to set the device.
@@ -2686,6 +2655,23 @@ enum class ReclaimResult : uint8
     Count
 };
 
+/// Contains the page fault status of the GPU.
+struct PageFaultStatus
+{
+    union
+    {
+        struct
+        {
+            uint32 pageFault :  1;  ///< Set if there was a GPU page fault.
+            uint32 readFault :  1;  ///< Set if the page fault was during a read operation.
+            uint32 reserved  :  30; ///< Reserved for future use.
+        };
+        uint32 u32All;
+    } flags;
+
+    gpusize faultAddress; ///< GPU virtual address where page fault occurred.  Ignored if @ref pageFault is not set.
+};
+
 /**
  ***********************************************************************************************************************
  * @interface IDevice
@@ -2729,11 +2715,20 @@ public:
     /// Checks and returns execution state of the device. Currently unsupported for DX and Linux clients and
     /// will return Unavailable if called by those clients.
     ///
+    /// @param [out] pPageFaultStatus   Page fault status that can be queried when the Result is ErrorGpuPageFaultDetected
+    ///
     /// @returns Success if device is operational and running.  Otherwise, one of the following errors may be
     ///          + ErrorDeviceLost if device is lost, reset or not responding,
     ///          + ErrorOutOfGpuMemory if ran out of GPU memory,
+    ///          + ErrorGpuPageFaultDetected if page fault was detected,
     ///          + ErrorUnknown if device is in unknown state.
-    virtual Result CheckExecutionState() const = 0;
+    virtual Result CheckExecutionState(
+        PageFaultStatus* pPageFaultStatus) const = 0;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 772
+    inline Result CheckExecutionState() const
+        { return CheckExecutionState(nullptr); }
+#endif
 
     /// Returns this devices client-visible settings structure initialized with appropriate defaults.  Clients can
     /// modify parameters in this structure as they wish in order to modify PAL's behavior for this device.  After
@@ -5070,7 +5065,11 @@ public:
         char*  pBuffer,
         size_t bufferLength) const = 0;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 774
+    /// Queries the base Driver Release Version string.
+#else
     /// Queries the base Driver Version string.
+#endif
     ///
     /// @param [out]  pBuffer           A non-null pointer to the buffer where the string will be written.
     /// @param [in]   bufferLength      The byte size of the string buffer (must be non-zero).
@@ -5078,9 +5077,17 @@ public:
     /// @returns Success if the string was successfully retrieved. Otherwise, one of the following errors
     ///          may be returned:
     ///          + Unsupported if this function is not available on this environment.
-    ///          + NotFound if the Widnows Driver Version string is not present.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 774
+    ///          + NotFound if the Release Version string is not present.
+#else
+    ///          + NotFound if the Windows Driver Version string is not present.
+#endif
     ///          + ErrorInvalidValue if nullptr was passed for pBuffer or 0 for bufferLength.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 774
+    virtual Result QueryReleaseVersion(
+#else
     virtual Result QueryDriverVersion(
+#endif
         char* pBuffer,
         size_t bufferLength) const = 0;
 

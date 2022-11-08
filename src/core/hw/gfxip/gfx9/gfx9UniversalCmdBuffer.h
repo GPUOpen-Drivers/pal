@@ -285,7 +285,9 @@ union CachedSettings
         uint64 optimizeDepthOnlyFmt       :  1;
         uint64 has32bPred                 :  1;
         uint64 optimizeNullSourceImage    :  1;
-        uint64 reserved                   : 60;
+        uint64 waitAfterCbFlush           :  1;
+        uint64 waitAfterDbFlush           :  1;
+        uint64 reserved                   : 58;
     };
     uint64 u64All[3];
 };
@@ -593,10 +595,7 @@ public:
         uint32                       maximumCount,
         gpusize                      countGpuAddr) override;
 
-    virtual void CmdDispatchAce(
-        uint32 xDim,
-        uint32 yDim,
-        uint32 zDim) override;
+    virtual void CmdDispatchAce(DispatchDims size) override;
 
     virtual void GetChunkForCmdGeneration(
         const Pm4::IndirectCmdGenerator& generator,
@@ -778,10 +777,8 @@ private:
 
     template <bool HsaAbi, bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDispatch(
-        ICmdBuffer* pCmdBuffer,
-        uint32      x,
-        uint32      y,
-        uint32      z);
+        ICmdBuffer*  pCmdBuffer,
+        DispatchDims size);
     template <bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDispatchIndirect(
         ICmdBuffer*       pCmdBuffer,
@@ -789,29 +786,22 @@ private:
         gpusize           offset);
     template <bool HsaAbi, bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDispatchOffset(
-        ICmdBuffer* pCmdBuffer,
-        uint32      xOffset,
-        uint32      yOffset,
-        uint32      zOffset,
-        uint32      xDim,
-        uint32      yDim,
-        uint32      zDim);
+        ICmdBuffer*  pCmdBuffer,
+        DispatchDims offset,
+        DispatchDims launchSize,
+        DispatchDims logicalSize);
     template <bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDispatchDynamic(
-        ICmdBuffer* pCmdBuffer,
-        gpusize     gpuVa,
-        uint32      xDim,
-        uint32      yDim,
-        uint32      zDim);
+        ICmdBuffer*  pCmdBuffer,
+        gpusize      gpuVa,
+        DispatchDims size);
     template <bool IssueSqttMarkerEvent,
               bool HasUavExport,
               bool ViewInstancingEnable,
               bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDispatchMeshAmpFastLaunch(
-        ICmdBuffer* pCmdBuffer,
-        uint32      xDim,
-        uint32      yDim,
-        uint32      zDim);
+        ICmdBuffer*  pCmdBuffer,
+        DispatchDims size);
     template <bool IssueSqttMarkerEvent,
               bool ViewInstancingEnable,
               bool DescribeDrawDispatch>
@@ -827,10 +817,8 @@ private:
               bool ViewInstancingEnable,
               bool DescribeDrawDispatch>
     static void PAL_STDCALL CmdDispatchMeshTask(
-        ICmdBuffer* pCmdBuffer,
-        uint32      xDim,
-        uint32      yDim,
-        uint32      zDim);
+        ICmdBuffer*  pCmdBuffer,
+        DispatchDims size);
     template <bool IssueSqttMarkerEvent,
               bool ViewInstancingEnable,
               bool DescribeDrawDispatch>
@@ -922,19 +910,13 @@ private:
         CmdStream*    pCmdStream,
         gpusize       indirectGpuVirtAddr,
         gpusize       launchDescGpuVirtAddr,
-        uint32        xDim,
-        uint32        yDim,
-        uint32        zDim);
+        DispatchDims  logicalSize);
 
     void ValidateDispatchHsaAbi(
         ComputeState* pComputeState,
         CmdStream*    pCmdStream,
-        uint32        xOffset,
-        uint32        yOffset,
-        uint32        zOffset,
-        uint32        xDim,
-        uint32        yDim,
-        uint32        zDim);
+        DispatchDims  offset,
+        DispatchDims  logicalSize);
 
     uint32* SwitchGraphicsPipeline(
         const GraphicsPipelineSignature* pPrevSignature,
@@ -1030,7 +1012,7 @@ private:
     void       IssueGangedBarrierAceWaitDeIncr();
     void       IssueGangedBarrierDeWaitAceIncr();
     void       UpdateTaskMeshRingSize();
-    void       ValidateTaskMeshDispatch(gpusize indirectGpuVirtAddr, uint32 xDim, uint32 yDim, uint32 zDim);
+    void       ValidateTaskMeshDispatch(gpusize indirectGpuVirtAddr, DispatchDims size);
 
     void        ValidateExecuteNestedCmdBuffer();
 
@@ -1062,9 +1044,16 @@ private:
 
     template <Pm4ShaderType ShaderType>
     uint32* SetUserSgprReg(
-        uint16  registerOffset,
-        uint32  value,
+        uint16  regAddr,
+        uint32  regValue,
         uint32* pDeCmdSpace);
+
+    template <Pm4ShaderType ShaderType>
+    uint32* SetSeqUserSgprRegs(
+        uint16      startAddr,
+        uint16      endAddr,
+        const void* pValues,
+        uint32*     pDeCmdSpace);
 
     const Device&   m_device;
     const CmdUtil&  m_cmdUtil;
@@ -1231,6 +1220,8 @@ private:
     gpusize m_gangedCmdStreamSemAddr;
     uint32  m_semCountAceWaitDe;
     uint32  m_semCountDeWaitAce;
+
+    uint16 m_baseUserDataReg[HwShaderStage::Last];
 
     // MS/TS pipeline stats query is emulated by shader. A 6-DWORD scratch memory chunk is needed to store for shader
     // to store the three counter values.

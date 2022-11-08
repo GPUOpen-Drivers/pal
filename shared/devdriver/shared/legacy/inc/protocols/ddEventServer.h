@@ -57,6 +57,9 @@ class EventServer final : public BaseProtocolServer
     friend class EventServerSession;
 
 public:
+    using SessionMapIterator = HashMap<EventProviderId, BaseEventProvider*, 16u>::Iterator;
+
+public:
     explicit EventServer(IMsgChannel* pMsgChannel);
     ~EventServer();
 
@@ -64,31 +67,28 @@ public:
     void SessionEstablished(const SharedPointer<ISession>& pSession) override;
     void UpdateSession(const SharedPointer<ISession>& pSession) override;
     void SessionTerminated(const SharedPointer<ISession>& pSession, Result terminationReason) override;
-    void GetEventProviders(Vector<EventProviderInfo>& eventProviders);
 
     Result RegisterProvider(BaseEventProvider* pProvider);
     Result UnregisterProvider(BaseEventProvider* pProvider);
 
 private:
-    Result AllocateEventChunk(EventChunk** ppChunk);
-    void FreeEventChunk(EventChunk* pChunk);
-    void EnqueueEventChunks(size_t numChunks, EventChunk** ppChunks);
-    EventChunk* DequeueEventChunk();
+    struct PendingConnection
+    {
+        DevDriver::SharedPointer<DevDriver::ISession> pSession;
+    };
+
     Result BuildQueryProvidersResponse(BlockId* pBlockId);
     Result ApplyProviderUpdate(const ProviderUpdateHeader* pUpdate);
-    bool IsTargetMemoryUsageExceeded() const;
-    void TrimEventChunkMemory();
+    Result AssignSessionToProvider(EventServerSession* pEventSession, EventProviderId providerId);
+    void   UnassignSessionFromProvider(EventServerSession* pEventSession, EventProviderId providerId);
+
+    Vector<EventServerSession*, 16u>::Iterator FindPendingSessionById(SessionId id);
+    SessionMapIterator FindProviderBySessionId(SessionId sessionId);
 
     HashMap<EventProviderId, BaseEventProvider*, 16u> m_eventProviders;
-    Platform::AtomicLock                              m_eventProvidersMutex;
-    Platform::AtomicLock                              m_eventPoolMutex;
-    Vector<EventChunk*>                               m_eventChunkPool;
-    Platform::AtomicLock                              m_eventQueueMutex;
-    Vector<EventChunk*>                               m_eventChunkQueue;
-    EventServerSession*                               m_pActiveSession;
-    uint64                                            m_nextTrimTime;
+    Vector<EventServerSession*, 16u>                  m_pendingSessions;
+    Platform::AtomicLock                              m_updateMutex;
 };
 
 } // EventProtocol
-
 } // DevDriver

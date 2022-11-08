@@ -178,7 +178,7 @@ void ComputeCmdBuffer::CmdBarrier(
 
     bool splitMemAllocated;
     BarrierInfo splitBarrierInfo = barrierInfo;
-    Result result = m_device.Parent()->SplitBarrierTransitions(&splitBarrierInfo, &splitMemAllocated);
+    Result result = Pal::Device::SplitBarrierTransitions(m_device.GetPlatform(), &splitBarrierInfo, &splitMemAllocated);
 
     if (result == Result::ErrorOutOfMemory)
     {
@@ -237,7 +237,7 @@ uint32 ComputeCmdBuffer::CmdRelease(
 
     bool splitMemAllocated;
     AcquireReleaseInfo splitReleaseInfo = releaseInfo;
-    Result result = m_device.Parent()->SplitImgBarriers(&splitReleaseInfo, &splitMemAllocated);
+    Result result = Pal::Device::SplitImgBarriers(m_device.GetPlatform(), &splitReleaseInfo, &splitMemAllocated);
 
     Developer::BarrierOperations barrierOps = {};
     AcqRelSyncToken syncToken = {};
@@ -285,7 +285,7 @@ void ComputeCmdBuffer::CmdAcquire(
 
     bool splitMemAllocated;
     AcquireReleaseInfo splitAcquireInfo = acquireInfo;
-    Result result = m_device.Parent()->SplitImgBarriers(&splitAcquireInfo, &splitMemAllocated);
+    Result result = Pal::Device::SplitImgBarriers(m_device.GetPlatform(), &splitAcquireInfo, &splitMemAllocated);
 
     Developer::BarrierOperations barrierOps = {};
     if (result == Result::ErrorOutOfMemory)
@@ -333,7 +333,7 @@ void ComputeCmdBuffer::CmdReleaseEvent(
 
     bool splitMemAllocated;
     AcquireReleaseInfo splitReleaseInfo = releaseInfo;
-    Result result = m_device.Parent()->SplitImgBarriers(&splitReleaseInfo, &splitMemAllocated);
+    Result result = Pal::Device::SplitImgBarriers(m_device.GetPlatform(), &splitReleaseInfo, &splitMemAllocated);
 
     Developer::BarrierOperations barrierOps = {};
     if (result == Result::ErrorOutOfMemory)
@@ -377,7 +377,7 @@ void ComputeCmdBuffer::CmdAcquireEvent(
 
     bool splitMemAllocated;
     AcquireReleaseInfo splitAcquireInfo = acquireInfo;
-    Result result = m_device.Parent()->SplitImgBarriers(&splitAcquireInfo, &splitMemAllocated);
+    Result result = Pal::Device::SplitImgBarriers(m_device.GetPlatform(), &splitAcquireInfo, &splitMemAllocated);
 
     Developer::BarrierOperations barrierOps = {};
     if (result == Result::ErrorOutOfMemory)
@@ -419,7 +419,7 @@ void ComputeCmdBuffer::CmdReleaseThenAcquire(
 
     bool splitMemAllocated;
     AcquireReleaseInfo splitBarrierInfo = barrierInfo;
-    Result result = m_device.Parent()->SplitImgBarriers(&splitBarrierInfo, &splitMemAllocated);
+    Result result = Pal::Device::SplitImgBarriers(m_device.GetPlatform(), &splitBarrierInfo, &splitMemAllocated);
 
     Developer::BarrierOperations barrierOps = {};
     if (result == Result::ErrorOutOfMemory)
@@ -502,27 +502,25 @@ void ComputeCmdBuffer::SetDispatchFunctions(
 // or z are zero. To avoid branching, we will rely on the HW to discard the dispatch for us.
 template <bool HsaAbi, bool IssueSqttMarkerEvent>
 void PAL_STDCALL ComputeCmdBuffer::CmdDispatch(
-    ICmdBuffer* pCmdBuffer,
-    uint32      x,
-    uint32      y,
-    uint32      z)
+    ICmdBuffer*  pCmdBuffer,
+    DispatchDims size)
 {
     auto* pThis = static_cast<ComputeCmdBuffer*>(pCmdBuffer);
 
     if (IssueSqttMarkerEvent)
     {
-        pThis->DescribeDispatch(Developer::DrawDispatchType::CmdDispatch, x, y, z);
+        pThis->DescribeDispatch(Developer::DrawDispatchType::CmdDispatch, size);
     }
 
     uint32* pCmdSpace = pThis->m_cmdStream.ReserveCommands();
 
     if (HsaAbi)
     {
-        pCmdSpace = pThis->ValidateDispatchHsaAbi(0, 0, 0, x, y, z, pCmdSpace);
+        pCmdSpace = pThis->ValidateDispatchHsaAbi({}, size, pCmdSpace);
     }
     else
     {
-        pCmdSpace = pThis->ValidateDispatchPalAbi(0uLL, 0uLL, x, y, z, pCmdSpace);
+        pCmdSpace = pThis->ValidateDispatchPalAbi(0uLL, 0uLL, size, pCmdSpace);
     }
 
     if (pThis->m_pm4CmdBufState.flags.packetPredicate != 0)
@@ -530,7 +528,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatch(
         pCmdSpace += pThis->m_cmdUtil.BuildCondExec(pThis->m_predGpuAddr, CmdUtil::DispatchDirectSize, pCmdSpace);
     }
 
-    pCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect<false, true>(x, y, z,
+    pCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect<false, true>(size,
                                                                    PredDisable,
                                                                    pThis->m_pSignatureCs->flags.isWave32,
                                                                    pThis->UsesDispatchTunneling(),
@@ -568,7 +566,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchIndirect(
 
     const gpusize gpuVirtAddr = (gpuMemory.Desc().gpuVirtAddr + offset);
 
-    pCmdSpace = pThis->ValidateDispatchPalAbi(gpuVirtAddr, 0uLL, 0, 0, 0, pCmdSpace);
+    pCmdSpace = pThis->ValidateDispatchPalAbi(gpuVirtAddr, 0uLL, {}, pCmdSpace);
 
     if (pThis->m_pm4CmdBufState.flags.packetPredicate != 0)
     {
@@ -594,39 +592,33 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchIndirect(
 // zero. To avoid branching, we will rely on the HW to discard the dispatch for us.
 template <bool HsaAbi, bool IssueSqttMarkerEvent>
 void PAL_STDCALL ComputeCmdBuffer::CmdDispatchOffset(
-    ICmdBuffer* pCmdBuffer,
-    uint32      xOffset,
-    uint32      yOffset,
-    uint32      zOffset,
-    uint32      xDim,
-    uint32      yDim,
-    uint32      zDim)
+    ICmdBuffer*  pCmdBuffer,
+    DispatchDims offset,
+    DispatchDims launchSize,
+    DispatchDims logicalSize)
 {
     auto* pThis = static_cast<ComputeCmdBuffer*>(pCmdBuffer);
 
     if (IssueSqttMarkerEvent)
     {
-        pThis->DescribeDispatchOffset(xOffset, yOffset, zOffset, xDim, yDim, zDim);
+        pThis->DescribeDispatchOffset(offset, launchSize, logicalSize);
     }
-
-    const uint32  starts[3] = { xOffset, yOffset, zOffset };
-    uint32          ends[3] = { xOffset + xDim, yOffset + yDim, zOffset + zDim };
 
     uint32* pCmdSpace = pThis->m_cmdStream.ReserveCommands();
 
     if (HsaAbi)
     {
-        pCmdSpace = pThis->ValidateDispatchHsaAbi(xOffset, yOffset, zOffset, xDim, yDim, zDim, pCmdSpace);
+        pCmdSpace = pThis->ValidateDispatchHsaAbi(offset, logicalSize, pCmdSpace);
     }
     else
     {
-        pCmdSpace = pThis->ValidateDispatchPalAbi(0uLL, 0uLL, xDim, yDim, zDim, pCmdSpace);
+        pCmdSpace = pThis->ValidateDispatchPalAbi(0uLL, 0uLL, logicalSize, pCmdSpace);
     }
 
     pCmdSpace = pThis->m_cmdStream.WriteSetSeqShRegs(mmCOMPUTE_START_X,
                                                      mmCOMPUTE_START_Z,
                                                      ShaderCompute,
-                                                     starts,
+                                                     &offset,
                                                      pCmdSpace);
 
     if (pThis->m_pm4CmdBufState.flags.packetPredicate != 0)
@@ -636,7 +628,7 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchOffset(
 
     // The DIM_X/Y/Z in DISPATCH_DIRECT packet are used to program COMPUTE_DIM_X/Y/Z registers, which are actually the
     // end block positions instead of execution block dimensions. So we need to use the dimensions plus offsets.
-    pCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect<false, false>(ends[0], ends[1], ends[2],
+    pCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect<false, false>(offset + launchSize,
                                                                     PredDisable,
                                                                     pThis->m_pSignatureCs->flags.isWave32,
                                                                     pThis->UsesDispatchTunneling(),
@@ -654,11 +646,9 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchOffset(
 // =====================================================================================================================
 template <bool IssueSqttMarkerEvent>
 void PAL_STDCALL ComputeCmdBuffer::CmdDispatchDynamic(
-    ICmdBuffer* pCmdBuffer,
-    gpusize     gpuVa,
-    uint32      x,
-    uint32      y,
-    uint32      z)
+    ICmdBuffer*  pCmdBuffer,
+    gpusize      gpuVa,
+    DispatchDims size)
 {
     auto* pThis = static_cast<ComputeCmdBuffer*>(pCmdBuffer);
 
@@ -666,19 +656,19 @@ void PAL_STDCALL ComputeCmdBuffer::CmdDispatchDynamic(
 
     if (IssueSqttMarkerEvent)
     {
-        pThis->DescribeDispatch(Developer::DrawDispatchType::CmdDispatchDynamic, x, y, z);
+        pThis->DescribeDispatch(Developer::DrawDispatchType::CmdDispatchDynamic, size);
     }
 
     uint32* pCmdSpace = pThis->m_cmdStream.ReserveCommands();
 
-    pCmdSpace = pThis->ValidateDispatchPalAbi(0uLL, gpuVa, x, y, z, pCmdSpace);
+    pCmdSpace = pThis->ValidateDispatchPalAbi(0uLL, gpuVa, size, pCmdSpace);
 
     if (pThis->m_pm4CmdBufState.flags.packetPredicate != 0)
     {
         pCmdSpace += pThis->m_cmdUtil.BuildCondExec(pThis->m_predGpuAddr, CmdUtil::DispatchDirectSize, pCmdSpace);
     }
 
-    pCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect<false, true>(x, y, z,
+    pCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect<false, true>(size,
                                                                    PredDisable,
                                                                    pThis->m_pSignatureCs->flags.isWave32,
                                                                    pThis->UsesDispatchTunneling(),
@@ -782,11 +772,7 @@ void ComputeCmdBuffer::CmdWriteTimestamp(
     const gpusize address   = dstGpuMemory.Desc().gpuVirtAddr + dstOffset;
     uint32*       pCmdSpace = m_cmdStream.ReserveCommands();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 697
     if (pipePoint <= HwPipePreCs)
-#else
-    if (pipePoint == HwPipeTop)
-#endif
     {
         pCmdSpace += m_cmdUtil.BuildCopyData(EngineTypeCompute,
                                              0,
@@ -825,11 +811,7 @@ void ComputeCmdBuffer::CmdWriteImmediate(
 
     uint32* pCmdSpace = m_cmdStream.ReserveCommands();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 697
     if (pipePoint <= HwPipePreCs)
-#else
-    if (pipePoint == HwPipeTop)
-#endif
     {
         pCmdSpace += m_cmdUtil.BuildCopyData(EngineTypeCompute,
                                              0,
@@ -1004,12 +986,10 @@ uint32* ComputeCmdBuffer::ValidateUserData(
 // =====================================================================================================================
 // Performs PAL ABI dispatch-time validation.
 uint32* ComputeCmdBuffer::ValidateDispatchPalAbi(
-    gpusize indirectGpuVirtAddr,
-    gpusize launchDescGpuVirtAddr,
-    uint32  xDim,
-    uint32  yDim,
-    uint32  zDim,
-    uint32* pCmdSpace)
+    gpusize      indirectGpuVirtAddr,
+    gpusize      launchDescGpuVirtAddr,
+    DispatchDims logicalSize,
+    uint32*      pCmdSpace)
 {
 #if PAL_DEVELOPER_BUILD
     const bool enablePm4Instrumentation = m_device.GetPlatform()->PlatformSettings().pm4InstrumentorEnabled;
@@ -1092,10 +1072,7 @@ uint32* ComputeCmdBuffer::ValidateDispatchPalAbi(
         // information.
         if (indirectGpuVirtAddr == 0uLL) // This is a direct Dispatch.
         {
-            uint32*const pData = CmdAllocateEmbeddedData(3, 4, &indirectGpuVirtAddr);
-            pData[0] = xDim;
-            pData[1] = yDim;
-            pData[2] = zDim;
+            *reinterpret_cast<DispatchDims*>(CmdAllocateEmbeddedData(3, 4, &indirectGpuVirtAddr)) = logicalSize;
         }
 
         pCmdSpace = m_cmdStream.WriteSetSeqShRegs(m_pSignatureCs->numWorkGroupsRegAddr,
@@ -1119,13 +1096,9 @@ uint32* ComputeCmdBuffer::ValidateDispatchPalAbi(
 // =====================================================================================================================
 // Performs PAL ABI dispatch-time validation.
 uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
-    uint32  xOffset,
-    uint32  yOffset,
-    uint32  zOffset,
-    uint32  xDim,
-    uint32  yDim,
-    uint32  zDim,
-    uint32* pCmdSpace)
+    DispatchDims offset,
+    DispatchDims logicalSize,
+    uint32*      pCmdSpace)
 {
 #if PAL_DEVELOPER_BUILD
     const bool enablePm4Instrumentation = m_device.GetPlatform()->PlatformSettings().pm4InstrumentorEnabled;
@@ -1160,15 +1133,10 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
 #endif
 
     // PAL thinks in terms of threadgroups but the HSA ABI thinks in terms of global threads, we need to convert.
-    uint32 xThreads, yThreads, zThreads;
-    pPipeline->ThreadsPerGroupXyz(&xThreads, &yThreads, &zThreads);
+    const DispatchDims threads = pPipeline->ThreadsPerGroupXyz();
 
-    xOffset *= xThreads;
-    yOffset *= yThreads;
-    zOffset *= zThreads;
-    xDim    *= xThreads;
-    yDim    *= yThreads;
-    zDim    *= zThreads;
+    offset      *= threads;
+    logicalSize *= threads;
 
     // Now we write the required SGPRs. These depend on per-dispatch state so we don't have dirty bit tracking.
     const HsaAbi::CodeObjectMetadata&        metadata = pPipeline->HsaMetadata();
@@ -1195,12 +1163,12 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
         // Zero everything out then fill in certain fields the shader is likely to read.
         memset(pAqlPacket, 0, sizeof(sizeof(hsa_kernel_dispatch_packet_t)));
 
-        pAqlPacket->workgroup_size_x     = xThreads;
-        pAqlPacket->workgroup_size_y     = yThreads;
-        pAqlPacket->workgroup_size_z     = zThreads;
-        pAqlPacket->grid_size_x          = xDim;
-        pAqlPacket->grid_size_y          = yDim;
-        pAqlPacket->grid_size_z          = zDim;
+        pAqlPacket->workgroup_size_x     = static_cast<uint16>(threads.x);
+        pAqlPacket->workgroup_size_y     = static_cast<uint16>(threads.y);
+        pAqlPacket->workgroup_size_z     = static_cast<uint16>(threads.z);
+        pAqlPacket->grid_size_x          = logicalSize.x;
+        pAqlPacket->grid_size_y          = logicalSize.y;
+        pAqlPacket->grid_size_z          = logicalSize.z;
         pAqlPacket->private_segment_size = metadata.PrivateSegmentFixedSize();
         pAqlPacket->group_segment_size   = ((m_computeState.dynamicCsInfo.ldsBytesPerTg > 0)
                                                 ? m_computeState.dynamicCsInfo.ldsBytesPerTg
@@ -1233,15 +1201,15 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
 
             if (arg.valueKind == HsaAbi::ValueKind::HiddenGlobalOffsetX)
             {
-                memcpy(pParams + arg.offset, &xOffset, Min<size_t>(sizeof(xOffset), arg.size));
+                memcpy(pParams + arg.offset, &offset.x, Min<size_t>(sizeof(offset.x), arg.size));
             }
             else if (arg.valueKind == HsaAbi::ValueKind::HiddenGlobalOffsetY)
             {
-                memcpy(pParams + arg.offset, &yOffset, Min<size_t>(sizeof(yOffset), arg.size));
+                memcpy(pParams + arg.offset, &offset.y, Min<size_t>(sizeof(offset.y), arg.size));
             }
             else if (arg.valueKind == HsaAbi::ValueKind::HiddenGlobalOffsetZ)
             {
-                memcpy(pParams + arg.offset, &zOffset, Min<size_t>(sizeof(zOffset), arg.size));
+                memcpy(pParams + arg.offset, &offset.z, Min<size_t>(sizeof(offset.z), arg.size));
             }
         }
 
@@ -1919,7 +1887,7 @@ void ComputeCmdBuffer::CmdExecuteIndirectCmds(
 
         // Just like a normal direct/indirect dispatch, we need to perform state validation before executing the
         // generated command chunks.
-        pCmdSpace = ValidateDispatchPalAbi(0uLL, 0uLL, 0, 0, 0, pCmdSpace);
+        pCmdSpace = ValidateDispatchPalAbi(0uLL, 0uLL, {}, pCmdSpace);
         m_cmdStream.CommitCommands(pCmdSpace);
 
         CommandGeneratorTouchedUserData(m_computeState.csUserDataEntries.touched, gfx9Generator, *m_pSignatureCs);

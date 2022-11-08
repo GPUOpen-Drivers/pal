@@ -45,8 +45,9 @@ class GfxCmdBuffer;
 class GfxDevice;
 class GpuMemory;
 class Image;
-class Pipeline;
 class PerfExperiment;
+class Pipeline;
+class Pm4Image;
 class IPerfExperiment;
 
 namespace Pm4
@@ -93,15 +94,6 @@ union AcqRelSyncToken
     uint32 u32All;
 };
 
-// Graphics draw status tracks in Pm4CmdBufferStateFlags.gfxDrawStatus. Only valid and used in universal cmd buffer.
-enum GfxDrawStatus : uint32
-{
-    GfxDrawActive = 0, // Gfx draws may be active.
-    GfxDrawPsVsDone,   // PS/VS waves of gfx draws have been done, confirmed by barrier Eop/PSPF/VSPF events.
-    GfxDrawEop,        // All gfx draws have been done, confirmed by barrier Eop event.
-    GfxDrawEopFlushed, // All gfx draws have been done, confirmed by barrier Eop event and RB cache is flushed.
-};
-
 union Pm4CmdBufferStateFlags
 {
     struct
@@ -125,10 +117,7 @@ union Pm4CmdBufferStateFlags
                                                 // set and will be cleared if/when an EOP wait is inserted in this
                                                 // command buffer.
         uint32 reserved1                 :  1;
-        uint32 gfxDrawStatus             :  2;  // Track gfx draw status @ref GfxDrawStatus.
-        uint32 gfxCsActive               :  1;  // Track if any gfx CS (from universal queue) waves may be active.
-        uint32 gfxSrcCachesDirty         :  1;  // Track if any gfx shader source caches (L0/L1/M$) may be drity.
-        uint32 reserved                  : 14;
+        uint32 reserved                  : 18;
     };
 
     uint32 u32All;
@@ -207,18 +196,6 @@ public:
     void SetPm4CmdBufCpMemoryWriteL2CacheStaleState(bool cpMemoryWriteDirty)
         { m_pm4CmdBufState.flags.cpMemoryWriteL2CacheStale = cpMemoryWriteDirty; }
 
-    void SetGfxDrawState(GfxDrawStatus status)
-    {
-        m_pm4CmdBufState.flags.gfxDrawStatus      = uint32(status);
-        m_pm4CmdBufState.flags.gfxSrcCachesDirty |= (status == GfxDrawActive);
-    }
-    void SetGfxCsState(bool csActive)
-    {
-        m_pm4CmdBufState.flags.gfxCsActive        = csActive;
-        m_pm4CmdBufState.flags.gfxSrcCachesDirty |= csActive;
-    }
-    void SetGfxSrcCachesClean() { m_pm4CmdBufState.flags.gfxSrcCachesDirty = 0; }
-
     // Execution fence value is updated at every BLT. Set it to the next event because its completion indicates all
     // prior BLTs have completed.
     void UpdatePm4CmdBufGfxBltExecEopFence()
@@ -263,7 +240,7 @@ public:
     virtual void CmdOverwriteDisableViewportClampForBlits(
         bool disableViewportClamp) = 0;
 
-    void AddFceSkippedImageCounter(GfxImage* pGfxImage);
+    void AddFceSkippedImageCounter(Pm4Image* pPm4Image);
 
     static void SetBarrierOperationsRbCacheSynced(Developer::BarrierOperations* pOperations)
     {

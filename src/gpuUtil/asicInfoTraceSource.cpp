@@ -137,13 +137,8 @@ Result AsicInfoTraceSource::SampleGpuClocks(
         const float maxEngineClock = deviceProps.gfxipProperties.performance.maxGpuClock;
         const float maxMemoryClock = deviceProps.gpuMemoryProperties.performance.maxMemClock;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 674
         const uint32 engineClock = clockModeOutput.engineClockFrequency;
         const uint32 memoryClock = clockModeOutput.memoryClockFrequency;
-#else
-        const uint32 engineClock = static_cast<uint32>(maxEngineClock * clockModeOutput.engineClockRatioToPeak);
-        const uint32 memoryClock = static_cast<uint32>(maxMemoryClock * clockModeOutput.memoryClockRatioToPeak);
-#endif
 
         pGpuClocksSample->gpuEngineClockSpeed = engineClock;
         pGpuClocksSample->gpuMemoryClockSpeed = memoryClock;

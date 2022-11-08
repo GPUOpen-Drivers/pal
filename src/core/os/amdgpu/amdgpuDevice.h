@@ -463,7 +463,8 @@ public:
         return Result::ErrorUnavailable;
     }
 
-    virtual Result CheckExecutionState() const override;
+    virtual Result CheckExecutionState(
+        PageFaultStatus* pPageFaultStatus) const override;
 
     virtual Result QueryRadeonSoftwareVersion(
         char*  pBuffer,
@@ -473,7 +474,11 @@ public:
         return Result::Unsupported;
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 774
+    virtual Result QueryReleaseVersion(
+#else
     virtual Result QueryDriverVersion(
+#endif
         char* pBuffer,
         size_t bufferLength) const override
     {

@@ -122,89 +122,64 @@ public:
     /// Packs a scalar element.
     ///
     /// @param [in] value  The value to write.
-    ///
-    /// @returns Success if successful, ErrorOutOfMemory if memory allocation fails.
-    Result Pack(bool value)
+    void Pack(bool value)
     {
         cw_pack_boolean(&m_context, value);
-        return CountAndStatus(1);
+        CountItems(1);
     }
 
-    Result Pack(char   value) { return PackSigned(value);   }
-    Result Pack(uint8  value) { return PackUnsigned(value); }
-    Result Pack(uint16 value) { return PackUnsigned(value); }
-    Result Pack(uint32 value) { return PackUnsigned(value); }
-    Result Pack(uint64 value) { return PackUnsigned(value); }
-    Result Pack(int8   value) { return PackSigned(value);   }
-    Result Pack(int16  value) { return PackSigned(value);   }
-    Result Pack(int32  value) { return PackSigned(value);   }
-    Result Pack(int64  value) { return PackSigned(value);   }
+    void Pack(char   value) { PackSigned(value);   }
+    void Pack(uint8  value) { PackUnsigned(value); }
+    void Pack(uint16 value) { PackUnsigned(value); }
+    void Pack(uint32 value) { PackUnsigned(value); }
+    void Pack(uint64 value) { PackUnsigned(value); }
+    void Pack(int8   value) { PackSigned(value);   }
+    void Pack(int16  value) { PackSigned(value);   }
+    void Pack(int32  value) { PackSigned(value);   }
+    void Pack(int64  value) { PackSigned(value);   }
 
-    Result Pack(float value)
+    void Pack(float value)
     {
         cw_pack_float(&m_context, value);
-        return CountAndStatus(1);
+        CountItems(1);
     }
 
-    Result Pack(double value)
+    void Pack(double value)
     {
         cw_pack_double(&m_context, value);
-        return CountAndStatus(1);
+        CountItems(1);
     }
     ///@}
 
     /// Packs a scalar element.
     ///
     /// @param [in]     value   The value to write.
-    /// @param [in,out] pResult Result code returned from this function if Success is passed in.
     template <typename T>
-    void Pack(T value, Result* pResult)
+    void Pack(T value)
     {
-        if (*pResult == Result::Success)
-        {
-            *pResult = Pack(value);
-        }
+        Pack(value);
     }
 
     /// Packs a string element.
     ///
     /// @param [in] pString  The null-terminated string to write.
     /// @param [in] length   Length of the string, excluding null-terminator.
-    ///
-    /// @returns Success if successful, ErrorOutOfMemory if memory allocation fails.
-    Result PackString(const char* pString, uint32 length)
+    void PackString(const char* pString, uint32 length)
     {
         cw_pack_str(&m_context, pString, length);
-        return CountAndStatus(1);
+        CountItems(1);
     }
 
     /// Packs a string element from a @ref StringView object.
     ///
     /// @param [in] string  The StringView to pack.
-    ///
-    /// @returns Success if successful, ErrorOutOfMemory if memory allocation fails.
-    Result PackString(const StringView<char>& string) { return PackString(string.Data(), string.Length()); }
+    void PackString(const StringView<char>& string) { PackString(string.Data(), string.Length()); }
 
     /// Packs a string element from a string literal as input.
     ///
     /// @param [in] str  The null-terminated string to write.
-    ///
-    /// @returns Success if successful, ErrorOutOfMemory if memory allocation fails.
     template <size_t N>
-    Result Pack(const char (&string)[N]) { return PackString(&string[0], N - 1); }
-
-    /// Packs a string element from a string literal as input.
-    ///
-    /// @param [in]     str     The null-terminated string to write.
-    /// @param [in,out] pResult Result code returned from this function if Success is passed in.
-    template <size_t N>
-    void Pack(const char(&string)[N], Result* pResult)
-    {
-        if (*pResult == Result::Success)
-        {
-            *pResult = PackString(string);
-        }
-    }
+    void Pack(const char (&string)[N]) { PackString(&string[0], N - 1); }
 
     /// Packs an array of scalar elements.
     ///
@@ -219,7 +194,6 @@ public:
     ///
     /// @param [in] pArray       The beginning of the array to write.
     /// @param [in] numElements  How many elements wide the array is.
-    /// @param [in,out] pResult Result code returned from this function if Success is passed in.
     template <typename T>
     void PackArray(const T* pArray, uint32 numElements, Result* pResult)
     {
@@ -232,65 +206,42 @@ public:
     /// Packs an array of scalar elements (bools, ints, uints, or floats) from a C-style array as input.
     ///
     /// @param [in] array  Reference to the C-style source array.
-    ///
-    /// @returns Success if successful, ErrorOutOfMemory if memory allocation fails.
     template <typename T, size_t N>
-    Result Pack(const T (&array)[N]) { return PackArray(&array[0], static_cast<uint32>(N)); }
-
-    /// Packs an array of scalar elements (bools, ints, uints, or floats) from a C-style array as input.
-    ///
-    /// @param [in] array  Reference to the C-style source array.
-    /// @param [in,out] pResult Result code returned from this function if Success is passed in.
-    template <typename T, size_t N>
-    void Pack(const T (&array)[N], Result* pResult)
-    {
-        if (*pResult == Result::Success)
-        {
-            *pResult = PackArray(&array[0], static_cast<uint32>(N));
-        }
-    }
+    void Pack(const T (&array)[N]) { PackArray(&array[0], static_cast<uint32>(N)); }
 
     /// Packs a binary blob element.
     ///
     /// @param [in] pBuffer      Pointer to a buffer with data to be written.
     /// @param [in] sizeInBytes  Size of the buffer in bytes.
-    ///
-    /// @returns Success if successful, ErrorOutOfMemory if memory allocation fails.
-    Result Pack(const void* pBuffer, uint32 sizeInBytes)
+    void Pack(const void* pBuffer, uint32 sizeInBytes)
     {
         cw_pack_bin(&m_context, pBuffer, sizeInBytes);
-        return CountAndStatus(1);
+        CountItems(1);
     }
 
     /// Packs an object as a raw binary encoding.
     ///
     /// @param [in] src  Object to pack as binary.
-    ///
-    /// @returns Success if successful, ErrorOutOfMemory if memory allocation fails.
     template <typename T>
-    Result PackBinary(const T& src) { return Pack(static_cast<const void*>(&src), sizeof(src)); }
+    void PackBinary(const T& src) { Pack(static_cast<const void*>(&src), sizeof(src)); }
 
     /// Packs a user-extended typed blob element.
     ///
     /// @param [in] type         User-extended type ID as an 8-bit signed integer.
     /// @param [in] pBuffer      Pointer to a buffer with data to be written.
     /// @param [in] sizeInBytes  Size of the buffer in bytes.
-    ///
-    /// @returns Success if successful, ErrorOutOfMemory if memory allocation fails.
-    Result Pack(int8 type, const void* pBuffer, uint32 sizeInBytes)
+    void Pack(int8 type, const void* pBuffer, uint32 sizeInBytes)
     {
         cw_pack_ext(&m_context, type, pBuffer, sizeInBytes);
-        return CountAndStatus(1);
+        CountItems(1);
     }
 
     /// Packs an object as a user-extended typed element.
     ///
     /// @param [in] type  User-extended type ID as an 8-bit signed integer.
     /// @param [in] src   Object to pack.
-    ///
-    /// @returns Success if successful, ErrorOutOfMemory if memory allocation fails.
     template <typename T>
-    Result Pack(int8 type, const T& src) { return Pack(type, static_cast<const void*>(&src), sizeof(src)); }
+    void Pack(int8 type, const T& src) { Pack(type, static_cast<const void*>(&src), sizeof(src)); }
 
     /// Packs an array element from a Vector.
     ///
@@ -298,7 +249,7 @@ public:
     ///
     /// @returns Success if successful, ErrorOutOfMemory if memory allocation fails.
     template <typename T, uint32 DefaultCapacity, typename Allocator>
-    Result Pack(const Vector<T, DefaultCapacity, Allocator>& vector);
+    void Pack(const Vector<T, DefaultCapacity, Allocator>& vector);
 
     /// Packs a map element from a HashMap.
     ///
@@ -343,46 +294,15 @@ public:
     /// @returns Success if successful, ErrorOutOfMemory if memory allocation fails.
     Result AppendMap(const MsgPackWriter& src);
 
-    /// Creates a map from the contents of an existing MsgPack token stream which was created by another
-    /// MsgPackWriter object.
-    ///
-    /// @param [in] src  Reference to the other MsgPackWriter to copy from.
-    /// @param [in,out] pResult Result code returned from this function if Success is passed in.
-    ///
-    /// @returns Success if successful, ErrorOutOfMemory if memory allocation fails.
-    void AppendMap(const MsgPackWriter& src, Result* pResult)
-    {
-        if (*pResult == Result::Success)
-        {
-            *pResult = AppendMap(src);
-        }
-    }
-
     /// Convenience function that combines two Pack() calls. Useful for manually packing a map.
     ///
     /// @param [in] first   First element to pack (key).
     /// @param [in] second  Second element to pack (value).
-    ///
-    /// @returns Success if successful, ErrorOutOfMemory if memory allocation fails.
     template <typename T1, typename T2>
-    Result PackPair(const T1& first, const T2& second)
+    void PackPair(const T1& first, const T2& second)
     {
         Pack(first);
-        return Pack(second);
-    }
-
-    /// Convenience function that combines two Pack() calls. Useful for manually packing a map.
-    ///
-    /// @param [in]     first   First element to pack (key).
-    /// @param [in]     second  Second element to pack (value).
-    /// @param [in,out] pResult Result code returned from this function if Success is passed in.
-    template <typename T1, typename T2>
-    void PackPair(const T1& first, const T2& second, Result* pResult)
-    {
-        if (*pResult == Result::Success)
-        {
-            *pResult = PackPair(first, second);
-        }
+        Pack(second);
     }
 
     /// Declares the beginning of a fixed-size array, with the exact number of elements specified.
@@ -441,7 +361,7 @@ private:
     static int32 CWP_CALL GrowBuffer(cw_pack_context* pContext, unsigned long requestedNumBytesToAdd);
 
     /// Writer buffer is allocated with, and grown in multiples of, this size.
-    static constexpr uint32 BufferAllocSize = 1024;
+    static constexpr uint32 BufferAllocSize = 8192;
 
     cw_pack_context  m_context;
     FreeBufferFunc*  m_pfnFree;

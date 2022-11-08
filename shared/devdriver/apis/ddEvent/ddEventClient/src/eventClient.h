@@ -44,13 +44,6 @@ public:
     DD_RESULT ReadEventData(
         uint32_t timeoutInMs);
 
-    DD_RESULT QueryProviders(
-        const DDEventProviderVisitor* pVisitor);
-
-    DD_RESULT ConfigureProviders(
-        size_t                     numProviders,
-        const DDEventProviderDesc* pProviders);
-
     DD_RESULT EnableProviders(
         size_t          numProviderIds,
         const uint32_t* pProviderIds);
@@ -58,6 +51,8 @@ public:
     DD_RESULT DisableProviders(
         size_t          numProviderIds,
         const uint32_t* pProviderIds);
+
+    DD_RESULT SubscribeToProvider(uint32_t providerId);
 
 private:
     DD_RESULT BulkUpdateProviders(
@@ -69,6 +64,7 @@ private:
 
     DevDriver::EventProtocol::EventClient m_legacyClient;
     DDEventDataCallback                   m_dataCb;
+    uint8_t                               m_eventProviderVersion;
 };
 
 } // namespace Event

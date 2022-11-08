@@ -371,16 +371,14 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexedIndirectMultiDecorator(
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDispatchDecorator(
-    ICmdBuffer* pCmdBuffer,
-    uint32      xDim,
-    uint32      yDim,
-    uint32      zDim)
+    ICmdBuffer*  pCmdBuffer,
+    DispatchDims size)
 {
     CmdBuffer*const  pThis = static_cast<CmdBuffer*>(pCmdBuffer);
     ICmdBuffer*const pNext = pThis->GetNextLayer();
 
     pThis->PreDispatchCall();
-    pNext->CmdDispatch(xDim, yDim, zDim);
+    pNext->CmdDispatch(size);
     pThis->PostDispatchCall(CmdBufCallId::CmdDispatch);
 }
 
@@ -400,35 +398,30 @@ void PAL_STDCALL CmdBuffer::CmdDispatchIndirectDecorator(
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDispatchOffsetDecorator(
-    ICmdBuffer* pCmdBuffer,
-    uint32      xOffset,
-    uint32      yOffset,
-    uint32      zOffset,
-    uint32      xDim,
-    uint32      yDim,
-    uint32      zDim)
+    ICmdBuffer*  pCmdBuffer,
+    DispatchDims offset,
+    DispatchDims launchSize,
+    DispatchDims logicalSize)
 {
     CmdBuffer*const  pThis = static_cast<CmdBuffer*>(pCmdBuffer);
     ICmdBuffer*const pNext = pThis->GetNextLayer();
 
     pThis->PreDispatchCall();
-    pNext->CmdDispatchOffset(xOffset, yOffset, zOffset, xDim, yDim, zDim);
+    pNext->CmdDispatchOffset(offset, launchSize, logicalSize);
     pThis->PostDispatchCall(CmdBufCallId::CmdDispatchOffset);
 }
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDispatchDynamicDecorator(
-    ICmdBuffer* pCmdBuffer,
-    gpusize     gpuVa,
-    uint32      xDim,
-    uint32      yDim,
-    uint32      zDim)
+    ICmdBuffer*  pCmdBuffer,
+    gpusize      gpuVa,
+    DispatchDims size)
 {
     CmdBuffer* const  pThis = static_cast<CmdBuffer*>(pCmdBuffer);
     ICmdBuffer* const pNext = pThis->GetNextLayer();
 
     pThis->PreDispatchCall();
-    pNext->CmdDispatchDynamic(gpuVa, xDim, yDim, zDim);
+    pNext->CmdDispatchDynamic(gpuVa, size);
     pThis->PostDispatchCall(CmdBufCallId::CmdDispatchDynamic);
 }
 

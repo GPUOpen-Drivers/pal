@@ -25,7 +25,7 @@
 
 #include "ddVersion.h"
 
-#define DD_VERSION_STRING "v22.09.13"
+#define DD_VERSION_STRING "v22.10.31"
 
 namespace DevDriver
 {

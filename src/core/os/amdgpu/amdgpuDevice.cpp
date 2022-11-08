@@ -1589,6 +1589,7 @@ Result Device::InitMemInfo()
             m_memoryProperties.flags.globalGpuVaSupport      = 0; // Not supported
             m_memoryProperties.flags.svmSupport              = 1; // Supported
             m_memoryProperties.flags.autoPrioritySupport     = 0; // Not supported
+            m_memoryProperties.flags.supportPageFaultInfo    = 0; // Not supported
 
             // Linux don't support High Bandwidth Cache Controller (HBCC) memory segment
             m_memoryProperties.hbccSizeInBytes   = 0;
@@ -3527,7 +3528,6 @@ void Device::UpdateImageInfo(
                 }
             }
         }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 681
         else if (IsMesaMetadata(info.metadata))
         {
             if (ChipProperties().gfxLevel < GfxIpLevel::GfxIp9)
@@ -3553,7 +3553,6 @@ void Device::UpdateImageInfo(
                 pTileInfo->tileSplitBytes   = tilingFlags.tileSplit;
             }
         }
-#endif
     }
 }
 
@@ -4781,9 +4780,7 @@ Result Device::OpenExternalSharedGpuMemory(
 {
     Result result = Result::ErrorInvalidPointer;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 696
     PAL_ASSERT(openInfo.resourceInfo.flags.globalGpuVa == 0);
-#endif
 
     if ((pPlacementAddr != nullptr) && (pMemCreateInfo != nullptr) && (ppGpuMemory != nullptr))
     {
@@ -5072,13 +5069,8 @@ Result Device::SetClockMode(
 
         if (result == Result::Success)
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 674
             pSetClockModeOutput->engineClockFrequency = requiredSclkVal;
             pSetClockModeOutput->memoryClockFrequency = requiredMclkVal;
-#else
-            pSetClockModeOutput->engineClockRatioToPeak = requiredSclkVal / maxSclkVal;
-            pSetClockModeOutput->memoryClockRatioToPeak = requiredMclkVal / maxMclkVal;
-#endif
         }
     }
 
@@ -5222,7 +5214,9 @@ Result Device::InitClkInfo()
 }
 
 // =====================================================================================================================
-Result Device::CheckExecutionState() const
+Result Device::CheckExecutionState(
+    PageFaultStatus* pPageFaultStatus
+    ) const
 {
     // linux don't have device level interface to query the device state.
     // just query the gpu timestamp
@@ -5349,9 +5343,7 @@ Result Device::OpenExternalSharedImage(
 {
     Result result = Result::ErrorInvalidPointer;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 696
     PAL_ASSERT(openInfo.resourceInfo.flags.globalGpuVa == 0);
-#endif
 
     if ((pImagePlacementAddr     != nullptr) &&
         (pGpuMemoryPlacementAddr != nullptr) &&
@@ -5427,12 +5419,10 @@ Result Device::CreateGpuMemoryFromExternalShare(
         {
             pCreateInfo->heaps[pCreateInfo->heapCount++] = GpuHeapInvisible;
         }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 681
         else if (imageCreateInfo.flags.sharedWithMesa != 0)
         {
             pCreateInfo->heaps[pCreateInfo->heapCount++] = GpuHeapLocal;
         }
-#endif
     }
 
     if (pCreateInfo->heapCount == 0)

@@ -91,9 +91,7 @@ public:
         const AbiReader&       abiReader,
         const RegisterVector&  registers,
         uint32                 wavefrontSize,
-        uint32*                pThreadsPerTgX,
-        uint32*                pThreadsPerTgY,
-        uint32*                pThreadsPerTgZ,
+        DispatchDims*          pThreadsPerTg,
         PipelineUploader*      pUploader);
 
     uint32* UpdateDynamicRegInfo(

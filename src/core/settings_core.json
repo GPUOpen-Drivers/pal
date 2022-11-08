@@ -947,6 +947,24 @@
       "Description": "Disables SyncObject support for semaphores which means semaphores will be based on ProOnly or Legacy interfaces according to the system configuration."
     },
     {
+      "Name": "NativeAcquirePresentImageOpt",
+      "Tags": [
+        "Performance"
+      ],
+      "Defaults": {
+        "Default": true
+      },
+      "DependsOn": {
+        "OS": [
+          "Linux"
+        ]
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "nativeAcquirePresentImageOpt",
+      "Description": "Whether to take the optimized path based on specific function provided by the native window system when acquiring present image."
+    },
+    {
       "ValidValues": {
         "IsEnum": true,
         "IsExclusive": true,

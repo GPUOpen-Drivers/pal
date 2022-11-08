@@ -53,7 +53,7 @@ namespace Pal
 // Static asserts to check that the client's AddrLib and VAM libraries are compatible with PAL.  If one of these
 // asserts trips, then PAL will likely need an update in order to support a breaking change in one of these library's
 // interfaces.
-static_assert(ADDRLIB_VERSION_MAJOR == 6, "Unexpected AddrLib major version.");
+static_assert(((ADDRLIB_VERSION_MAJOR >= 6) && (ADDRLIB_VERSION_MAJOR <= 8)), "Unexpected AddrLib major version.");
 static_assert(VAM_VERSION_MAJOR == 1, "Unexpected VAM major version.");
 
 // Static asserts to ensure clients have defined PAL_CLIENT_INTERFACE_MAJOR_VERSION and that it falls in the supported

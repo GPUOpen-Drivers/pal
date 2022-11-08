@@ -32,6 +32,7 @@
 #include "core/hw/gfxip/gfxDevice.h"
 #include "core/hw/gfxip/pipeline.h"
 #include "core/hw/gfxip/pm4CmdBuffer.h"
+#include "core/hw/gfxip/pm4Image.h"
 #include "palAutoBuffer.h"
 #include "palDequeImpl.h"
 #include "palHsaAbiMetadata.h"
@@ -283,9 +284,6 @@ void Pm4CmdBuffer::ResetState()
     {
         m_pm4CmdBufState.flags.gfxBltActive        = 1;
         m_pm4CmdBufState.flags.gfxWriteCachesDirty = 1;
-        m_pm4CmdBufState.flags.gfxDrawStatus       = GfxDrawActive;
-        m_pm4CmdBufState.flags.gfxCsActive         = 1;
-        m_pm4CmdBufState.flags.gfxSrcCachesDirty   = 1;
     }
 
     if (IsComputeSupported())
@@ -1020,17 +1018,17 @@ void Pm4CmdBuffer::UpdateUserDataTableCpu(
 //       buffer and for each time the fast clear eliminate was skipped. This cost of looping through the list is
 //       outweighed by all the work that was skipped for setting up the FCE.
 void Pm4CmdBuffer::AddFceSkippedImageCounter(
-    GfxImage* pGfxImage)
+    Pm4Image* pPm4Image)
 {
-    PAL_ASSERT(pGfxImage != nullptr);
-    PAL_ASSERT(pGfxImage->IsFceOptimizationEnabled());
+    PAL_ASSERT(pPm4Image != nullptr);
+    PAL_ASSERT(pPm4Image->IsFceOptimizationEnabled());
 
-    const Result result = m_fceRefCountVec.PushBack(pGfxImage->GetFceRefCounter());
+    const Result result = m_fceRefCountVec.PushBack(pPm4Image->GetFceRefCounter());
     if (result != Result::Success)
     {
         SetCmdRecordingError(result);
     }
 
-    pGfxImage->IncrementFceRefCount();
+    pPm4Image->IncrementFceRefCount();
 }
 } // Pal

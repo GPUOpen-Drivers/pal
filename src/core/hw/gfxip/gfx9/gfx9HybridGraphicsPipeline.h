@@ -72,9 +72,7 @@ private:
     ComputeShaderSignature m_taskSignature;
 
     // Number of threads per threadgroup in each dimension as determined by parsing the input IL.
-    uint32  m_threadsPerTgX;
-    uint32  m_threadsPerTgY;
-    uint32  m_threadsPerTgZ;
+    DispatchDims m_threadsPerTg;
 
     PAL_DISALLOW_DEFAULT_CTOR(HybridGraphicsPipeline);
     PAL_DISALLOW_COPY_AND_ASSIGN(HybridGraphicsPipeline);

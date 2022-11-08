@@ -122,7 +122,6 @@ IndirectCmdGenerator::IndirectCmdGenerator(
     memcpy(&m_properties.indexTypeTokens[0], &createInfo.indexTypeTokens[0], sizeof(createInfo.indexTypeTokens));
     memcpy(m_pCreationParam, createInfo.pParams, sizeof(IndirectParam)*createInfo.paramCount);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 680
     const auto& settings = m_device.CoreSettings();
     bool canUseExecuteIndirectPacket = true;
 
@@ -147,7 +146,6 @@ IndirectCmdGenerator::IndirectCmdGenerator(
             m_usingExecuteIndirectPacket = true;
         }
     }
-#endif
 
     InitParamBuffer(createInfo);
 

@@ -262,7 +262,7 @@ protected:
         uint32              width,
         uint32              height,
         uint32              depth,
-        const uint32*       pThreadsPerGroup);
+        DispatchDims        threadsPerGroup);
 
     void CommitBeginEndGfxCopy(
         Pal::CmdStream*  pCmdStream,
@@ -307,7 +307,7 @@ private:
         const ImageCopyRegion& region);
 
     virtual void HwlFastColorClear(
-        GfxCmdBuffer*         pCmdBuffer,
+        Pm4CmdBuffer*         pCmdBuffer,
         const GfxImage&       dstImage,
         const uint32*         pConvertedColor,
         const SwizzledFormat& clearFormat,

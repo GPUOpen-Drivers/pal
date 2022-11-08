@@ -68,6 +68,7 @@ public:
 
     void SetPresented(bool set) { m_presented = set; }
     void AttachImage(Image* pImage) { m_pImage = pImage; }
+    Image* GetImage() { return m_pImage; }
 
     xcb_sync_fence_t  SyncFence() const { return m_syncFence; }
 
@@ -162,6 +163,12 @@ public:
     virtual bool NeedWindowSizeChangedCheck() const override { return m_needWindowSizeChangedCheck; }
 
     bool Dri3Supported() const { return m_dri3Supported; }
+    virtual void WaitOnIdleEvent(WindowSystemImageHandle* pImage) override;
+    virtual void GoThroughEvent() override;
+    virtual bool SupportIdleEvent() override { return true; }
+    virtual bool CheckIdleImage(
+        WindowSystemImageHandle* pIdleImage,
+        PresentFence*            pFence) override;
 
 private:
     Dri3WindowSystem(const Device& device, const WindowSystemCreateInfo& createInfo);
@@ -176,7 +183,9 @@ private:
     Result QueryVersion();
     Result SelectEvent();
 
-    Result HandlePresentEvent(xcb_present_generic_event_t* pPresentEvent);
+    Result HandlePresentEvent(
+        xcb_present_generic_event_t* pPresentEvent,
+        WindowSystemImageHandle*     pImage);
 
     void SetAdaptiveSyncProperty(bool enable);
 
@@ -223,6 +232,7 @@ private:
     uint32                 m_localSerial;         // Latest local present serial number that was sent to Xserver.
     uint32                 m_remoteSerial;        // The serial number of the latest present completed by Xserver.
     xcb_gcontext_t         m_graphicsContext;     // Graphics context (only used for CPU presents)
+    Util::Mutex            m_eventMutex;          // Mutex for dri3/present event checking, protects 'm_pPresentEvent'
 
     // The DRI3 present fence is tightly coupled to its windowing system. We declare it as a friend to make it easy to
     // call DRI3 functions within the fence.

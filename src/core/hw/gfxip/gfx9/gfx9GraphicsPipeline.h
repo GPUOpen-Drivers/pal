@@ -328,7 +328,7 @@ private:
         regSX_BLEND_OPT_EPSILON* pSxBlendOptEpsilon,
         regSX_BLEND_OPT_CONTROL* pSxBlendOptControl) const;
 
-    SX_DOWNCONVERT_FORMAT SxDownConvertFormat(ChNumFormat format) const;
+    SX_DOWNCONVERT_FORMAT SxDownConvertFormat(SwizzledFormat swizzledFormat) const;
     void DetermineBinningOnOff();
 
     const GfxIpLevel  m_gfxLevel;

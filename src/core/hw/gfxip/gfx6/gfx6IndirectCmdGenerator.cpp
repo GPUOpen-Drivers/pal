@@ -405,10 +405,12 @@ void IndirectCmdGenerator::PopulateInvocationBuffer(
 
     if (pCmdBuffer->GetEngineType() == EngineTypeCompute)
     {
-        const auto*const pCsPipeline = static_cast<const ComputePipeline*>(pPipeline);
-        pCsPipeline->ThreadsPerGroupXyz(&pData->gfx6.threadsPerGroup[0],
-                                        &pData->gfx6.threadsPerGroup[1],
-                                        &pData->gfx6.threadsPerGroup[2]);
+        const auto*const   pCsPipeline = static_cast<const ComputePipeline*>(pPipeline);
+        const DispatchDims threads     = pCsPipeline->ThreadsPerGroupXyz();
+
+        pData->gfx6.threadsPerGroup[0] = threads.x;
+        pData->gfx6.threadsPerGroup[1] = threads.y;
+        pData->gfx6.threadsPerGroup[2] = threads.z;
 
         pData->gfx6.dimInThreads =
             ((static_cast<const Pal::Gfx6::Device&>(m_device).WaAsyncComputeMoreThan4096ThreadGroups() != false) &&

@@ -440,6 +440,7 @@ void LogContext::Enum(
         "P012",
         "P212",
         "P412",
+        "X10Y10Z10W2_Float",
     };
 
     static_assert(ArrayLen(StringTable) == static_cast<uint32>(ChNumFormat::Count),
@@ -982,7 +983,6 @@ void LogContext::Enum(
 void LogContext::Enum(
     NullGpuId value)
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 672
     const char* const StringTable[] =
     {
         "Polaris10",
@@ -1024,71 +1024,6 @@ void LogContext::Enum(
         "Max",
         "All",
     };
-#else // #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 672
-    const char* const StringTable[] =
-    {
-        "Tahiti",
-        "Pitcairn",
-        "Capeverde",
-        "Oland",
-        "Hainan",
-
-        "Spectre",
-        "Spooky",
-        nullptr,
-        "Hawaii",
-        "Kalindi",
-        "Godavari",
-        "Bonaire",
-
-        "Carrizo",
-        "Bristol",
-        "Iceland",
-        "Tonga",
-        "TongaPro",
-        "Fiji",
-        "Polaris10",
-        "Polaris11",
-        "Polaris12",
-        nullptr,
-        "Stoney",
-
-        "Vega10",
-        "Raven",
-        "Vega12",
-        "Vega20",
-        "Raven2",
-        "Renoir",
-
-        "Navi10",
-        "Navi12",
-        nullptr,
-        "Navi14",
-        nullptr,
-        "Navi21",
-        "Navi22",
-        "Navi23",
-        "Navi24",
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-
-        "Max",
-        "All",
-    };
-#endif
 
     static_assert(ArrayLen(StringTable) == static_cast<uint32>(NullGpuId::All) + 1,
                   "The NullGpuId string table needs to be updated.");

@@ -39,6 +39,7 @@
 #include "core/hw/gfxip/gfxDevice.h"
 #include "core/hw/gfxip/gfxCmdBuffer.h"
 #include "core/hw/gfxip/graphicsPipeline.h"
+#include "core/hw/gfxip/pm4Image.h"
 #include "core/hw/gfxip/pm4IndirectCmdGenerator.h"
 #include "core/hw/gfxip/pm4UniversalCmdBuffer.h"
 #include "core/hw/gfxip/rpm/rpmUtil.h"
@@ -1757,6 +1758,526 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
 }
 
 // =====================================================================================================================
+// Builds commands to clear the specified ranges of an image to the given color data.
+void RsrcProcMgr::CmdClearColorImage(
+    GfxCmdBuffer*         pCmdBuffer,
+    const Image&          dstImage,
+    ImageLayout           dstImageLayout,
+    const ClearColor&     color,
+    const SwizzledFormat& clearFormat,
+    uint32                rangeCount,
+    const SubresRange*    pRanges,
+    uint32                boxCount,
+    const Box*            pBoxes,
+    uint32                flags
+    ) const
+{
+    Pm4CmdBuffer*               pPm4CmdBuffer = static_cast<Pm4CmdBuffer*>(pCmdBuffer);
+    Pm4Image*                   pPm4Image     = static_cast<Pm4Image*>(dstImage.GetGfxImage());
+    const auto&                 createInfo    = dstImage.GetImageCreateInfo();
+    const SubResourceInfo*const pStartSubRes  = dstImage.SubresourceInfo(pRanges[0].startSubres);
+    const bool                  hasBoxes      = (boxCount > 0);
+
+    // If a clearFormat has been specified, assert that it is compatible with the image's selected DCC encoding. This
+    // should guard against compression-related corruption, and should always be true if the clearFormat is one of the
+    // pViewFormat's specified at image-creation time.
+    PAL_ASSERT((clearFormat.format == ChNumFormat::Undefined) ||
+               (m_pDevice->ComputeDccFormatEncoding(createInfo.swizzledFormat, &clearFormat, 1) >=
+                dstImage.GetImageInfo().dccFormatEncoding));
+
+    const bool clearBoxCoversWholeImage = ((hasBoxes == false)                                    ||
+                                           ((boxCount                 == 1)                       &&
+                                            (pBoxes[0].offset.x       == 0)                       &&
+                                            (pBoxes[0].offset.y       == 0)                       &&
+                                            (pBoxes[0].offset.z       == 0)                       &&
+                                            (createInfo.extent.width  == pBoxes[0].extent.width)  &&
+                                            (createInfo.extent.height == pBoxes[0].extent.height) &&
+                                            (createInfo.extent.depth  == pBoxes[0].extent.depth)));
+
+    bool needPreComputeSync  = TestAnyFlagSet(flags, ColorClearAutoSync);
+    bool needPostComputeSync = false;
+    bool csFastClear         = false;
+
+    for (uint32 rangeIdx = 0; rangeIdx < rangeCount; ++rangeIdx)
+    {
+        PAL_ASSERT(pRanges[rangeIdx].numPlanes == 1);
+
+        SubresRange minSlowClearRange = {};
+        const auto* pSlowClearRange   = &minSlowClearRange;
+        const auto& clearRange        = pRanges[rangeIdx];
+        ClearMethod slowClearMethod   = Image::DefaultSlowClearMethod;
+
+        uint32 convertedColor[4] = { 0 };
+        if (color.type == ClearColorType::Float)
+        {
+            const SwizzledFormat& baseFormat = dstImage.SubresourceInfo(clearRange.startSubres)->format;
+            Formats::ConvertColor(baseFormat, &color.f32Color[0], &convertedColor[0]);
+        }
+        else
+        {
+            memcpy(&convertedColor[0], &color.u32Color[0], sizeof(convertedColor));
+        }
+
+        // Note that fast clears don't support sub-rect clears so we skip them if we have any boxes.  Futher, we only
+        // can store one fast clear color per mip level, and therefore can only support fast clears when a range covers
+        // all slices.
+        // Fast clear is only usable when all channels of the color are being written.
+        if ((color.disabledChannelMask == 0) &&
+            clearBoxCoversWholeImage         &&
+            pPm4Image->IsFastColorClearSupported(pPm4CmdBuffer, dstImageLayout, &convertedColor[0], clearRange))
+        {
+            // Assume that all portions of the original range can be fast cleared.
+            SubresRange fastClearRange = clearRange;
+
+            // Assume that no portion of the original range needs to be slow cleared.
+            minSlowClearRange.startSubres = clearRange.startSubres;
+            minSlowClearRange.numPlanes   = clearRange.numPlanes;
+            minSlowClearRange.numSlices   = clearRange.numSlices;
+            minSlowClearRange.numMips     = 0;
+
+            for (uint32 mipIdx = 0; mipIdx < clearRange.numMips; ++mipIdx)
+            {
+                const SubresId    subres      = { clearRange.startSubres.plane,
+                                                  clearRange.startSubres.mipLevel + mipIdx,
+                                                  0 };
+                const ClearMethod clearMethod = dstImage.SubresourceInfo(subres)->clearMethod;
+
+                if (clearMethod != ClearMethod::Fast)
+                {
+                    fastClearRange.numMips = mipIdx;
+
+                    minSlowClearRange.startSubres.mipLevel = subres.mipLevel;
+                    minSlowClearRange.numMips              = clearRange.numMips - mipIdx;
+                    slowClearMethod                        = clearMethod;
+                    break;
+                }
+            }
+
+            if (fastClearRange.numMips != 0)
+            {
+                if (needPreComputeSync)
+                {
+                    PreComputeColorClearSync(pPm4CmdBuffer,
+                                             &dstImage,
+                                             pRanges[rangeIdx],
+                                             dstImageLayout);
+
+                    needPostComputeSync = true;
+                    csFastClear         = true;
+                }
+
+                // Hand off to the HWL to perform the fast-clear.
+                PAL_ASSERT(dstImage.IsRenderTarget());
+
+                HwlFastColorClear(pPm4CmdBuffer,
+                                  *pPm4Image,
+                                  &convertedColor[0],
+                                  clearFormat,
+                                  fastClearRange);
+            }
+        }
+        else
+        {
+            // Since fast clears aren't available, the slow-clear range is everything the caller asked for.
+            pSlowClearRange = &clearRange;
+        }
+
+        // If we couldn't fast clear every range, then we need to slow clear whatever is left over.
+        if (pSlowClearRange->numMips != 0)
+        {
+            if (SlowClearUseGraphics(pPm4CmdBuffer,
+                                     dstImage,
+                                     *pSlowClearRange,
+                                     slowClearMethod))
+            {
+                SlowClearGraphics(pPm4CmdBuffer,
+                                  dstImage,
+                                  dstImageLayout,
+                                  &color,
+                                  clearFormat,
+                                  *pSlowClearRange,
+                                  boxCount,
+                                  pBoxes);
+            }
+            else
+            {
+                if (needPreComputeSync)
+                {
+                    PreComputeColorClearSync(pPm4CmdBuffer,
+                                             &dstImage,
+                                             pRanges[rangeIdx],
+                                             dstImageLayout);
+
+                    needPostComputeSync = true;
+                }
+
+                // Raw format clears are ok on the compute engine because these won't affect the state of DCC memory.
+                SlowClearCompute(pPm4CmdBuffer,
+                                 dstImage,
+                                 dstImageLayout,
+                                 &color,
+                                 clearFormat,
+                                 *pSlowClearRange,
+                                 boxCount,
+                                 pBoxes);
+            }
+        }
+
+        if (needPostComputeSync)
+        {
+            PostComputeColorClearSync(pPm4CmdBuffer, &dstImage, pRanges[rangeIdx], dstImageLayout, csFastClear);
+
+            needPostComputeSync = false;
+        }
+    }
+}
+
+// =====================================================================================================================
+// Inserts barrier needed before issuing a compute clear when the target image is currently bound as a color target.
+// Only necessary when the client specifies the ColorClearAutoSync flag for a color clear.
+void RsrcProcMgr::PreComputeColorClearSync(
+    ICmdBuffer*        pCmdBuffer,
+    const IImage*      pImage,
+    const SubresRange& subres,
+    ImageLayout        layout
+    ) const
+{
+    if (m_releaseAcquireSupported)
+    {
+        ImgBarrier imgBarrier = {};
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+        imgBarrier.srcStageMask  = PipelineStageColorTarget;
+        // Fast clear path may have CP to update metadata state/values, wait at BLT/ME stage for safe.
+        imgBarrier.dstStageMask  = PipelineStageBlt;
+#endif
+        imgBarrier.srcAccessMask = CoherColorTarget;
+        imgBarrier.dstAccessMask = CoherShader;
+        imgBarrier.subresRange   = subres;
+        imgBarrier.pImage        = pImage;
+        imgBarrier.oldLayout     = layout;
+        imgBarrier.newLayout     = layout;
+
+        AcquireReleaseInfo acqRelInfo = {};
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 767
+        acqRelInfo.srcStageMask      = PipelineStageColorTarget;
+        // Fast clear path may have CP to update metadata state/values, wait at BLT/ME stage for safe.
+        acqRelInfo.dstStageMask      = PipelineStageBlt;
+#endif
+        acqRelInfo.imageBarrierCount = 1;
+        acqRelInfo.pImageBarriers    = &imgBarrier;
+        acqRelInfo.reason            = Developer::BarrierReasonPreComputeColorClear;
+
+        pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
+    }
+    else
+    {
+        BarrierInfo preBarrier           = { };
+        preBarrier.waitPoint             = HwPipePreCs;
+
+        constexpr HwPipePoint Eop        = HwPipeBottom;
+        preBarrier.pipePointWaitCount    = 1;
+        preBarrier.pPipePoints           = &Eop;
+
+        BarrierTransition transition     = { };
+        transition.srcCacheMask          = CoherColorTarget;
+        transition.dstCacheMask          = CoherShader;
+        transition.imageInfo.pImage      = pImage;
+        transition.imageInfo.subresRange = subres;
+        transition.imageInfo.oldLayout   = layout;
+        transition.imageInfo.newLayout   = layout;
+
+        preBarrier.transitionCount       = 1;
+        preBarrier.pTransitions          = &transition;
+        preBarrier.reason                = Developer::BarrierReasonPreComputeColorClear;
+
+        pCmdBuffer->CmdBarrier(preBarrier);
+    }
+}
+
+// =====================================================================================================================
+// Inserts barrier needed after issuing a compute clear when the target image will be immediately re-bound as a
+// color target.  Only necessary when the client specifies the ColorClearAutoSync flag for a color clear.
+void RsrcProcMgr::PostComputeColorClearSync(
+    ICmdBuffer*        pCmdBuffer,
+    const IImage*      pImage,
+    const SubresRange& subres,
+    ImageLayout        layout,
+    bool               csFastClear
+    ) const
+{
+    if (m_releaseAcquireSupported)
+    {
+        ImgBarrier imgBarrier = {};
+
+        // Optimization: For post CS fast Clear to ColorTarget transition, no need flush DST caches and invalidate
+        //               SRC caches. Both cs fast clear and ColorTarget access metadata in direct mode, so no need
+        //               L2 flush/inv even if the metadata is misaligned. See WaRefreshTccOnMetadataMisalignment()
+        //               for more details. Safe to pass 0 here, so no cache operation and PWS can wait at PreColor.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+        imgBarrier.srcStageMask  = PipelineStageCs;
+        imgBarrier.dstStageMask  = PipelineStageColorTarget;
+#endif
+        imgBarrier.srcAccessMask = csFastClear ? 0 : CoherShader;
+        imgBarrier.dstAccessMask = csFastClear ? 0 : CoherColorTarget;
+        imgBarrier.subresRange   = subres;
+        imgBarrier.pImage        = pImage;
+        imgBarrier.oldLayout     = layout;
+        imgBarrier.newLayout     = layout;
+
+        AcquireReleaseInfo acqRelInfo = {};
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 767
+        acqRelInfo.srcStageMask      = PipelineStageCs;
+        acqRelInfo.dstStageMask      = PipelineStageColorTarget;
+#endif
+        acqRelInfo.imageBarrierCount = 1;
+        acqRelInfo.pImageBarriers    = &imgBarrier;
+        acqRelInfo.reason            = Developer::BarrierReasonPostComputeColorClear;
+
+        pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
+    }
+    else
+    {
+        BarrierInfo postBarrier          = { };
+        postBarrier.waitPoint            = HwPipePreColorTarget;
+        constexpr HwPipePoint PostCs     = HwPipePostCs;
+        postBarrier.pipePointWaitCount   = 1;
+        postBarrier.pPipePoints          = &PostCs;
+
+        BarrierTransition transition     = { };
+        transition.srcCacheMask          = CoherShader;
+        transition.dstCacheMask          = CoherColorTarget;
+        transition.imageInfo.pImage      = pImage;
+        transition.imageInfo.subresRange = subres;
+        transition.imageInfo.oldLayout   = layout;
+        transition.imageInfo.newLayout   = layout;
+
+        postBarrier.transitionCount      = 1;
+        postBarrier.pTransitions         = &transition;
+        postBarrier.reason               = Developer::BarrierReasonPostComputeColorClear;
+
+        pCmdBuffer->CmdBarrier(postBarrier);
+    }
+}
+
+// =====================================================================================================================
+// Inserts barrier needed before issuing a compute clear when the target image is currently bound as a depth/stencil
+// target.  Only necessary when the client specifies the DsClearAutoSync flag for a depth/stencil clear.
+void RsrcProcMgr::PreComputeDepthStencilClearSync(
+    ICmdBuffer*        pCmdBuffer,
+    const GfxImage&    gfxImage,
+    const SubresRange& subres,
+    ImageLayout        layout
+    ) const
+{
+    PAL_ASSERT(subres.numPlanes == 1);
+
+    BarrierInfo preBarrier                 = { };
+    preBarrier.waitPoint                   = HwPipePreCs;
+
+    const IImage* pImage                   = gfxImage.Parent();
+
+    // The most efficient way to wait for DB-idle and flush and invalidate the DB caches is an acquire_mem.
+    // Acquire release doesn't support ranged stall and cache F/I via acquire_mem.
+    preBarrier.rangeCheckedTargetWaitCount = 1;
+    preBarrier.ppTargets                   = &pImage;
+
+    BarrierTransition transition           = { };
+    transition.srcCacheMask                = CoherDepthStencilTarget;
+    transition.dstCacheMask                = CoherShader;
+    transition.imageInfo.pImage            = pImage;
+    transition.imageInfo.subresRange       = subres;
+    transition.imageInfo.oldLayout         = layout;
+    transition.imageInfo.newLayout         = layout;
+
+    preBarrier.transitionCount             = 1;
+    preBarrier.pTransitions                = &transition;
+    preBarrier.reason                      = Developer::BarrierReasonPreComputeDepthStencilClear;
+
+    pCmdBuffer->CmdBarrier(preBarrier);
+}
+
+// =====================================================================================================================
+// Inserts barrier needed after issuing a compute clear when the target image will be immediately re-bound as a
+// depth/stencil target.  Only necessary when the client specifies the DsClearAutoSync flag for a depth/stencil clear.
+void RsrcProcMgr::PostComputeDepthStencilClearSync(
+    ICmdBuffer*        pCmdBuffer,
+    const GfxImage&    gfxImage,
+    const SubresRange& subres,
+    ImageLayout        layout,
+    bool               csFastClear
+    ) const
+{
+    const IImage* pImage = gfxImage.Parent();
+
+    if (m_releaseAcquireSupported)
+    {
+        ImgBarrier imgBarrier = {};
+
+        // Optimization: For post CS fast Clear to DepthStencilTarget transition, no need flush DST caches and
+        //               invalidate SRC caches. Both cs fast clear and DepthStencilTarget access metadata in direct
+        //               mode, so no need L2 flush/inv even if the metadata is misaligned. See
+        //               WaRefreshTccOnMetadataMisalignment() for more details. Safe to pass 0 here, so no cache
+        //               operation and PWS can wait at PreDepth.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+        imgBarrier.srcStageMask  = PipelineStageCs;
+        imgBarrier.dstStageMask  = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget;
+#endif
+        imgBarrier.srcAccessMask = csFastClear ? 0 : CoherShader;
+        imgBarrier.dstAccessMask = csFastClear ? 0 : CoherDepthStencilTarget;
+        imgBarrier.subresRange   = subres;
+        imgBarrier.pImage        = pImage;
+        imgBarrier.oldLayout     = layout;
+        imgBarrier.newLayout     = layout;
+
+        AcquireReleaseInfo acqRelInfo = {};
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 767
+        acqRelInfo.srcStageMask      = PipelineStageCs;
+        acqRelInfo.dstStageMask      = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget;
+#endif
+        acqRelInfo.imageBarrierCount = 1;
+        acqRelInfo.pImageBarriers    = &imgBarrier;
+        acqRelInfo.reason            = Developer::BarrierReasonPostComputeDepthStencilClear;
+
+        pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
+    }
+    else
+    {
+        BarrierInfo postBarrier          = { };
+        postBarrier.waitPoint            = HwPipePreRasterization;
+
+        constexpr HwPipePoint PostCs     = HwPipePostCs;
+        postBarrier.pipePointWaitCount   = 1;
+        postBarrier.pPipePoints          = &PostCs;
+
+        BarrierTransition transition     = { };
+        transition.srcCacheMask          = CoherShader;
+        transition.dstCacheMask          = CoherDepthStencilTarget;
+        transition.imageInfo.pImage      = pImage;
+        transition.imageInfo.subresRange = subres;
+        transition.imageInfo.oldLayout   = layout;
+        transition.imageInfo.newLayout   = layout;
+
+        postBarrier.transitionCount      = 1;
+        postBarrier.pTransitions         = &transition;
+        postBarrier.reason               = Developer::BarrierReasonPostComputeDepthStencilClear;
+
+        pCmdBuffer->CmdBarrier(postBarrier);
+    }
+}
+
+// =====================================================================================================================
+// Builds commands to clear the specified ranges of a depth/stencil image to the specified values.
+void RsrcProcMgr::CmdClearDepthStencil(
+    GfxCmdBuffer*      pCmdBuffer,
+    const Image&       dstImage,
+    ImageLayout        depthLayout,
+    ImageLayout        stencilLayout,
+    float              depth,
+    uint8              stencil,
+    uint8              stencilWriteMask,
+    uint32             rangeCount,
+    const SubresRange* pRanges,
+    uint32             rectCount,
+    const Rect*        pRects,
+    uint32             flags
+    ) const
+{
+    const Pm4Image& pm4Image   = static_cast<Pm4Image&>(*dstImage.GetGfxImage());
+    const bool      hasRects   = (rectCount > 0);
+    const auto&     createInfo = dstImage.GetImageCreateInfo();
+
+    PAL_ASSERT((hasRects == false) || (pRects != nullptr));
+
+    // Clear groups of ranges on "this group is fast clearable = true/false" boundaries
+    uint32 rangesCleared = 0;
+
+    // Convert the Rects to Boxes. We use an AutoBuffer instead of the virtual linear allocator because
+    // we may need to allocate more boxes than will fit in the fixed virtual space.
+    AutoBuffer<Box, 16, Platform> boxes(rectCount, m_pDevice->GetPlatform());
+
+    // Notify the command buffer if AutoBuffer allocation has failed.
+    if (boxes.Capacity() < rectCount)
+    {
+        pCmdBuffer->NotifyAllocFailure();
+    }
+    else
+    {
+        for (uint32 i = 0; i < rectCount; i++)
+        {
+            boxes[i].offset.x      = pRects[i].offset.x;
+            boxes[i].offset.y      = pRects[i].offset.y;
+            boxes[i].offset.z      = 0;
+            boxes[i].extent.width  = pRects[i].extent.width;
+            boxes[i].extent.height = pRects[i].extent.height;
+            boxes[i].extent.depth  = 1;
+        }
+
+        const bool clearRectCoversWholeImage = ((hasRects                  == false)                  ||
+                                                ((rectCount                == 1)                      &&
+                                                 (pRects[0].offset.x       == 0)                      &&
+                                                 (pRects[0].offset.y       == 0)                      &&
+                                                 (createInfo.extent.width  == pRects[0].extent.width) &&
+                                                 (createInfo.extent.height == pRects[0].extent.height)));
+
+        while (rangesCleared < rangeCount)
+        {
+            const uint32 groupBegin = rangesCleared;
+
+            // Note that fast clears don't support sub-rect clears so we skip them if we have any boxes. Further,
+            // we only can store one fast clear color per mip level, and therefore can only support fast clears
+            // when a range covers all slices.
+            const bool groupFastClearable = (clearRectCoversWholeImage &&
+                                             pm4Image.IsFastDepthStencilClearSupported(
+                                                 depthLayout,
+                                                 stencilLayout,
+                                                 depth,
+                                                 stencil,
+                                                 stencilWriteMask,
+                                                 pRanges[groupBegin]));
+
+            // Find as many other ranges that also support/don't support fast clearing so that they can be grouped
+            // together into a single clear operation.
+            uint32 groupEnd = groupBegin + 1;
+
+            while ((groupEnd < rangeCount)     &&
+                   ((clearRectCoversWholeImage &&
+                     pm4Image.IsFastDepthStencilClearSupported(depthLayout,
+                                                               stencilLayout,
+                                                               depth,
+                                                               stencil,
+                                                               stencilWriteMask,
+                                                               pRanges[groupEnd]))
+                    == groupFastClearable))
+            {
+                ++groupEnd;
+            }
+
+            // Either fast clear or slow clear this group of ranges.
+            rangesCleared = groupEnd;
+            const uint32 clearRangeCount = groupEnd - groupBegin; // NOTE: end equals one past the last range in group.
+
+            HwlDepthStencilClear(pCmdBuffer,
+                                 pm4Image,
+                                 depthLayout,
+                                 stencilLayout,
+                                 depth,
+                                 stencil,
+                                 stencilWriteMask,
+                                 clearRangeCount,
+                                 &pRanges[groupBegin],
+                                 groupFastClearable,
+                                 TestAnyFlagSet(flags, DsClearAutoSync),
+                                 rectCount,
+                                 &boxes[0]);
+        }
+    }
+}
+
+// =====================================================================================================================
 // Executes a compute shader which generates a PM4 command buffer which can later be executed. If the number of indirect
 // commands being generated will not fit into a single command-stream chunk, this will issue multiple dispatches, one
 // for each command chunk to generate.
@@ -1779,9 +2300,7 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
     uint32                      maximumCount   = genInfo.maximumCount;
 
     const ComputePipeline* pGenerationPipeline = GetCmdGenerationPipeline(generator, *pCmdBuffer);
-
-    uint32 threadsPerGroup[3] = { };
-    pGenerationPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+    const DispatchDims     threadsPerGroup     = pGenerationPipeline->ThreadsPerGroupXyz();
 
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pGenerationPipeline, InternalApiPsoHash, });
@@ -2014,22 +2533,18 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
         // ganged ACE is supported, and we are not using the ACE for Task Shader work.
         bool cmdGenUseAce = pCmdBuffer->IsGraphicsSupported() &&
                             (chipProps.gfxip.supportAceOffload != 0) &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 691
                             (publicSettings->disableExecuteIndirectAceOffload != true) &&
-#endif
                             (taskShaderEnabled == false);
 
         if (cmdGenUseAce)
         {
-            pCmdBuffer->CmdDispatchAce(RpmUtil::MinThreadGroups(generator.ParameterCount(), threadsPerGroup[0]),
-                                       RpmUtil::MinThreadGroups(mainChunk.commandsInChunk, threadsPerGroup[1]),
-                                       1);
+            pCmdBuffer->CmdDispatchAce({RpmUtil::MinThreadGroups(generator.ParameterCount(), threadsPerGroup.x),
+                                        RpmUtil::MinThreadGroups(mainChunk.commandsInChunk,  threadsPerGroup.y), 1});
         }
         else
         {
-            pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(generator.ParameterCount(), threadsPerGroup[0]),
-                                    RpmUtil::MinThreadGroups(mainChunk.commandsInChunk, threadsPerGroup[1]),
-                                    1);
+            pCmdBuffer->CmdDispatch({RpmUtil::MinThreadGroups(generator.ParameterCount(), threadsPerGroup.x),
+                                     RpmUtil::MinThreadGroups(mainChunk.commandsInChunk,  threadsPerGroup.y), 1});
         }
 
         (*pNumGenChunks)++;
@@ -2112,7 +2627,7 @@ void RsrcProcMgr::CmdCopyMemory(
 
 // =====================================================================================================================
 bool RsrcProcMgr::SlowClearUseGraphics(
-    GfxCmdBuffer*      pCmdBuffer,
+    Pm4CmdBuffer*      pCmdBuffer,
     const Image&       dstImage,
     const SubresRange& clearRange,
     ClearMethod        method
@@ -2132,7 +2647,7 @@ bool RsrcProcMgr::SlowClearUseGraphics(
 // Builds commands to slow clear a range of an image to the given raw color data using a pixel shader. Note that this
 // function can only clear color planes.
 void RsrcProcMgr::SlowClearGraphics(
-    GfxCmdBuffer*         pCmdBuffer,
+    Pm4CmdBuffer*         pCmdBuffer,
     const Image&          dstImage,
     ImageLayout           dstImageLayout,
     const ClearColor*     pColor,
@@ -3327,16 +3842,16 @@ void RsrcProcMgr::GenericColorBlit(
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
 
-    const uint32 lastMip                = (range.startSubres.mipLevel + range.numMips - 1);
-    gpusize      mipCondDwordsOffset    = metaDataOffset;
-    bool         needDisablePredication = false;
+    const uint32    lastMip                = (range.startSubres.mipLevel + range.numMips - 1);
+    const Pm4Image* pPm4Image              = static_cast<Pm4Image*>(dstImage.GetGfxImage());
+    gpusize         mipCondDwordsOffset    = metaDataOffset;
+    bool            needDisablePredication = false;
 
     for (uint32 mip = range.startSubres.mipLevel; mip <= lastMip; ++mip)
     {
         // If this is a decompress operation of some sort, then don't bother continuing unless this
         // subresource supports expansion.
-        if ((isDecompress == false) ||
-            (dstImage.GetGfxImage()->CanMipSupportMetaData(mip)))
+        if ((isDecompress == false) || (pPm4Image->CanMipSupportMetaData(mip)))
         {
             // Use predication to skip this operation based on the image's conditional dwords.
             // We can only perform this optimization if the client is not currently using predication.
@@ -3518,14 +4033,15 @@ bool RsrcProcMgr::ExpandDepthStencil(
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
 
-    const uint32 lastMip   = (range.startSubres.mipLevel   + range.numMips   - 1);
-    const uint32 lastSlice = (range.startSubres.arraySlice + range.numSlices - 1);
+    const Pm4Image* pPm4Image = static_cast<Pm4Image*>(image.GetGfxImage());
+    const uint32    lastMip   = (range.startSubres.mipLevel   + range.numMips   - 1);
+    const uint32    lastSlice = (range.startSubres.arraySlice + range.numSlices - 1);
 
     for (depthViewInfo.mipLevel  = range.startSubres.mipLevel;
          depthViewInfo.mipLevel <= lastMip;
          ++depthViewInfo.mipLevel)
     {
-        if (image.GetGfxImage()->CanMipSupportMetaData(depthViewInfo.mipLevel))
+        if (pPm4Image->CanMipSupportMetaData(depthViewInfo.mipLevel))
         {
             LinearAllocatorAuto<VirtualLinearAllocator> mipAlloc(pCmdBuffer->Allocator(), false);
 
@@ -3667,14 +4183,15 @@ void RsrcProcMgr::ResummarizeDepthStencil(
 
     RpmUtil::WriteVsZOut(pCmdBuffer, 1.0f);
 
-    const uint32 lastMip   = range.startSubres.mipLevel   + range.numMips   - 1;
-    const uint32 lastSlice = range.startSubres.arraySlice + range.numSlices - 1;
+    const Pm4Image* pPm4Image = static_cast<Pm4Image*>(image.GetGfxImage());
+    const uint32    lastMip   = range.startSubres.mipLevel   + range.numMips   - 1;
+    const uint32    lastSlice = range.startSubres.arraySlice + range.numSlices - 1;
 
     for (depthViewInfo.mipLevel  = range.startSubres.mipLevel;
          depthViewInfo.mipLevel <= lastMip;
          ++depthViewInfo.mipLevel)
     {
-        if (image.GetGfxImage()->CanMipSupportMetaData(depthViewInfo.mipLevel))
+        if (pPm4Image->CanMipSupportMetaData(depthViewInfo.mipLevel))
         {
             LinearAllocatorAuto<VirtualLinearAllocator> mipAlloc(pCmdBuffer->Allocator(), false);
 
@@ -3807,10 +4324,10 @@ void RsrcProcMgr::FixupMetadataForComputeDst(
     bool                    beforeCopy
     ) const
 {
-    const GfxImage* pGfxImage = dstImage.GetGfxImage();
+    const Pm4Image* pPm4Image = static_cast<Pm4Image*>(dstImage.GetGfxImage());
 
     // TODO: unify all RPM metadata fixup here; currently only depth image is handled.
-    if (pGfxImage->HasHtileData())
+    if (pPm4Image->HasHtileData())
     {
         // There is a Hiz issue on gfx10 with compressed depth writes so we need an htile resummarize blt.
         const bool enableCompressedDepthWriteTempWa = IsGfx10(*m_pDevice->Parent());
@@ -3819,7 +4336,7 @@ void RsrcProcMgr::FixupMetadataForComputeDst(
         bool needBarrier = enableCompressedDepthWriteTempWa;
         for (uint32 i = 0; (needBarrier == false) && (i < regionCount); i++)
         {
-            needBarrier = pGfxImage->ShaderWriteIncompatibleWithLayout(pRegions[i].subres, dstImageLayout);
+            needBarrier = pPm4Image->ShaderWriteIncompatibleWithLayout(pRegions[i].subres, dstImageLayout);
         }
 
         if (needBarrier)
@@ -3902,7 +4419,9 @@ void RsrcProcMgr::FixupComputeResolveDst(
     const ImageResolveRegion* pRegions
     ) const
 {
-    if (dstImage.GetGfxImage()->HasHtileData())
+    const Pm4Image* pPm4Image = static_cast<Pm4Image*>(dstImage.GetGfxImage());
+
+    if (pPm4Image->HasHtileData())
     {
         PAL_ASSERT((regionCount > 0) && (pRegions != nullptr));
 

@@ -337,7 +337,7 @@ void RsrcProcMgr::CopyMemoryCs(
 
             const uint32 regionUserData[3] = { 0, 0, copySectionSize };
             pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, 3, regionUserData);
-            pCmdBuffer->CmdDispatch(numThreadGroups, 1, 1);
+            pCmdBuffer->CmdDispatch({numThreadGroups, 1, 1});
         }
     }
 
@@ -383,14 +383,11 @@ void RsrcProcMgr::CopyImageCs(
     const CopyImageCsInfo& copyImageCsInfo
     ) const
 {
-    const auto&     device        = *m_pDevice->Parent();
-    const auto&     dstCreateInfo = copyImageCsInfo.pDstImage->GetImageCreateInfo();
-    const auto&     srcCreateInfo = copyImageCsInfo.pSrcImage->GetImageCreateInfo();
-    const ImageType imageType     = copyImageCsInfo.pSrcImage->GetGfxImage()->GetOverrideImageType();
-
-    // Get number of threads per groups in each dimension, we will need this data later.
-    uint32 threadsPerGroup[3] = {};
-    copyImageCsInfo.pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+    const auto&        device          = *m_pDevice->Parent();
+    const auto&        dstCreateInfo   = copyImageCsInfo.pDstImage->GetImageCreateInfo();
+    const auto&        srcCreateInfo   = copyImageCsInfo.pSrcImage->GetImageCreateInfo();
+    const ImageType    imageType       = copyImageCsInfo.pSrcImage->GetGfxImage()->GetOverrideImageType();
+    const DispatchDims threadsPerGroup = copyImageCsInfo.pPipeline->ThreadsPerGroupXyz();
 
     // Save current command buffer state and bind the pipeline.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
@@ -542,9 +539,9 @@ void RsrcProcMgr::CopyImageCs(
         memcpy(pUserData, &copyImageInfo, sizeof(copyImageInfo));
 
         // Execute the dispatch, we need one thread per texel.
-        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(copyRegion.extent.width,  threadsPerGroup[0]),
-                                RpmUtil::MinThreadGroups(copyRegion.extent.height, threadsPerGroup[1]),
-                                RpmUtil::MinThreadGroups(numSlices,                threadsPerGroup[2]));
+        const DispatchDims threads = {copyRegion.extent.width, copyRegion.extent.height, numSlices};
+
+        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(threads, threadsPerGroup));
     }
 
     if (copyImageCsInfo.pP2pBltInfoChunks != nullptr)
@@ -1088,8 +1085,7 @@ void RsrcProcMgr::CopyBetweenMemoryAndImageCs(
     const bool  is3d          = (imgCreateInfo.imageType == ImageType::Tex3d);
 
     // Get number of threads per groups in each dimension, we will need this data later.
-    uint32 threadsPerGroup[3] = {};
-    pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+    const DispatchDims threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
     // Save current command buffer state and bind the pipeline.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
@@ -1271,9 +1267,9 @@ void RsrcProcMgr::CopyBetweenMemoryAndImageCs(
             memcpy(pUserData, &copyData[0], sizeof(copyData));
 
             // Execute the dispatch, we need one thread per texel.
-            pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(bufferBox.width,  threadsPerGroup[0]),
-                                    RpmUtil::MinThreadGroups(bufferBox.height, threadsPerGroup[1]),
-                                    RpmUtil::MinThreadGroups(bufferBox.depth,  threadsPerGroup[2]));
+            const DispatchDims threads = {bufferBox.width, bufferBox.height, bufferBox.depth};
+
+            pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(threads, threadsPerGroup));
 
             // Offset the buffer view to the next iteration's starting slice.
             bufferView.gpuAddr += copyRegion.gpuMemoryDepthPitch;
@@ -1337,9 +1333,9 @@ void RsrcProcMgr::CmdCopyTypedBuffer(
 
     // We may have to bind a new pipeline for each region, we can optimize out redundant binds by tracking the previous
     // pipeline and only updating the pipeline binding when it must change.
-    const ComputePipeline* pPipeline          = nullptr;
-    const ComputePipeline* pPrevPipeline      = nullptr;
-    uint32                 threadsPerGroup[3] = {};
+    const ComputePipeline* pPipeline       = nullptr;
+    const ComputePipeline* pPrevPipeline   = nullptr;
+    DispatchDims           threadsPerGroup = {};
 
     // Now begin processing the list of copy regions.
     for (uint32 idx = 0; idx < regionCount; ++idx)
@@ -1407,8 +1403,8 @@ void RsrcProcMgr::CmdCopyTypedBuffer(
         // Change pipeline bindings if necessary.
         if (pPrevPipeline != pPipeline)
         {
-            pPrevPipeline = pPipeline;
-            pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+            pPrevPipeline   = pPipeline;
+            threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
             pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
         }
 
@@ -1443,9 +1439,9 @@ void RsrcProcMgr::CmdCopyTypedBuffer(
         memcpy(pUserDataTable, userData, numUserData * sizeof(uint32));
 
         // Execute the dispatch, we need one thread per texel.
-        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(copyExtent.width,  threadsPerGroup[0]),
-                                RpmUtil::MinThreadGroups(copyExtent.height, threadsPerGroup[1]),
-                                RpmUtil::MinThreadGroups(copyExtent.depth,  threadsPerGroup[2]));
+        const DispatchDims threads = {copyExtent.width, copyExtent.height, copyExtent.depth};
+
+        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(threads, threadsPerGroup));
     }
 
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
@@ -1621,7 +1617,7 @@ void RsrcProcMgr::GenerateMipmapsFast(
                                                  ? genInfo.swizzledFormat : subresInfo.format;
                 SwizzledFormat dstFormat = srcFormat;
 
-                const uint32 numWorkGroupsPerDim[] =
+                DispatchDims numWorkGroupsPerDim =
                 {
                     RpmUtil::MinThreadGroups(subresInfo.extentTexels.width,  64),
                     RpmUtil::MinThreadGroups(subresInfo.extentTexels.height, 64),
@@ -1638,7 +1634,7 @@ void RsrcProcMgr::GenerateMipmapsFast(
                 const uint32 copyData[] =
                 {
                     numMipsToGenerate,                                               // numMips
-                    (numWorkGroupsPerDim[0] * numWorkGroupsPerDim[1] * numWorkGroupsPerDim[2]),
+                    numWorkGroupsPerDim.x * numWorkGroupsPerDim.y * numWorkGroupsPerDim.z,
                     reinterpret_cast<const uint32&>(invInputDims[0]),
                     reinterpret_cast<const uint32&>(invInputDims[1]),
                     samplerType,
@@ -1731,7 +1727,7 @@ void RsrcProcMgr::GenerateMipmapsFast(
                 device.CreateUntypedBufferViewSrds(1, &bufferView, pUserData);
 
                 // Execute the dispatch.
-                pCmdBuffer->CmdDispatch(numWorkGroupsPerDim[0], numWorkGroupsPerDim[1], numWorkGroupsPerDim[2]);
+                pCmdBuffer->CmdDispatch(numWorkGroupsPerDim);
             }
 
             srcSubres.arraySlice = genInfo.range.startSubres.arraySlice;
@@ -1940,8 +1936,7 @@ void RsrcProcMgr::ScaledCopyImageCompute(
     }
 
     // Get number of threads per groups in each dimension, we will need this data later.
-    uint32 threadsPerGroup[3] = { 0 };
-    pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+    const DispatchDims threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
     PAL_ASSERT(pCmdBuffer->IsComputeStateSaved());
 
@@ -2292,9 +2287,9 @@ void RsrcProcMgr::ScaledCopyImageCompute(
             const uint32 zGroups = is3d ? absDstExtentD : copyRegion.numSlices;
 
             // Execute the dispatch, we need one thread per texel.
-            pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(absDstExtentW, threadsPerGroup[0]),
-                                    RpmUtil::MinThreadGroups(absDstExtentH, threadsPerGroup[1]),
-                                    RpmUtil::MinThreadGroups(zGroups, threadsPerGroup[2]));
+            const DispatchDims threads = {absDstExtentW, absDstExtentH, zGroups};
+
+            pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(threads, threadsPerGroup));
         }
     }
 
@@ -2406,10 +2401,8 @@ void RsrcProcMgr::ConvertYuvToRgb(
         dstFormat.format = Formats::ConvertToUnorm(dstFormat.format);
     }
 
-    const ComputePipeline*const pPipeline = GetPipeline(cscInfo.pipelineYuvToRgb);
-
-    uint32 threadsPerGroup[3] = { };
-    pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+    const ComputePipeline*const pPipeline       = GetPipeline(cscInfo.pipelineYuvToRgb);
+    const DispatchDims          threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
     pCmdBuffer->CmdSaveComputeState(ComputeStateFlags::ComputeStatePipelineAndUserData);
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
@@ -2504,9 +2497,9 @@ void RsrcProcMgr::ConvertYuvToRgb(
         memcpy(pUserData, &copyInfo, sizeof(copyInfo));
 
         // Finally, issue the dispatch. The shaders need one thread per texel.
-        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(copyInfo.dstExtent.width,  threadsPerGroup[0]),
-                                RpmUtil::MinThreadGroups(copyInfo.dstExtent.height, threadsPerGroup[1]),
-                                RpmUtil::MinThreadGroups(region.sliceCount,         threadsPerGroup[2]));
+        const DispatchDims threads = {copyInfo.dstExtent.width, copyInfo.dstExtent.height, region.sliceCount};
+
+        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(threads, threadsPerGroup));
     } // End loop over regions
 
     pCmdBuffer->CmdRestoreComputeState(ComputeStateFlags::ComputeStatePipelineAndUserData);
@@ -2544,10 +2537,8 @@ void RsrcProcMgr::ConvertRgbToYuv(
     // the planes can sample the source Image at different rates (because planes often have differing dimensions).
     const uint32 passCount = static_cast<uint32>(dstImage.GetImageInfo().numPlanes);
 
-    const ComputePipeline*const pPipeline = GetPipeline(cscInfo.pipelineRgbToYuv);
-
-    uint32 threadsPerGroup[3] = { };
-    pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+    const ComputePipeline*const pPipeline       = GetPipeline(cscInfo.pipelineRgbToYuv);
+    const DispatchDims          threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
     pCmdBuffer->CmdSaveComputeState(ComputeStateFlags::ComputeStatePipelineAndUserData);
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
@@ -2691,9 +2682,9 @@ void RsrcProcMgr::ConvertRgbToYuv(
             memcpy(pUserData, &copyInfo, sizeof(copyInfo));
 
             // Finally, issue the dispatch. The shaders need one thread per texel.
-            pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(copyInfo.dstExtent.width,  threadsPerGroup[0]),
-                                    RpmUtil::MinThreadGroups(copyInfo.dstExtent.height, threadsPerGroup[1]),
-                                    RpmUtil::MinThreadGroups(region.sliceCount,         threadsPerGroup[2]));
+            const DispatchDims threads = {copyInfo.dstExtent.width, copyInfo.dstExtent.height, region.sliceCount};
+
+            pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(threads, threadsPerGroup));
         } // End loop over per-plane passes
     } // End loop over regions
 
@@ -2787,7 +2778,7 @@ void RsrcProcMgr::CmdFillMemory(
         // Issue a dispatch with one thread per DWORD.
         const uint32 minThreads   = (is4xOptimized) ? (numDwords / 4) : numDwords;
         const uint32 threadGroups = RpmUtil::MinThreadGroups(minThreads, pPipeline->ThreadsPerGroup());
-        pCmdBuffer->CmdDispatch(threadGroups, 1, 1);
+        pCmdBuffer->CmdDispatch({threadGroups, 1, 1});
     }
     if (saveRestoreComputeState)
     {
@@ -2888,114 +2879,6 @@ void RsrcProcMgr::CmdClearBoundDepthStencilTargets(
 
     // Restore original command buffer state and destroy the depth/stencil state.
     pCmdBuffer->CmdRestoreGraphicsState();
-}
-
-// =====================================================================================================================
-// Builds commands to clear the specified ranges of a depth/stencil image to the specified values.
-void RsrcProcMgr::CmdClearDepthStencil(
-    GfxCmdBuffer*      pCmdBuffer,
-    const Image&       dstImage,
-    ImageLayout        depthLayout,
-    ImageLayout        stencilLayout,
-    float              depth,
-    uint8              stencil,
-    uint8              stencilWriteMask,
-    uint32             rangeCount,
-    const SubresRange* pRanges,
-    uint32             rectCount,
-    const Rect*        pRects,
-    uint32             flags
-    ) const
-{
-    const GfxImage& gfxImage   = *dstImage.GetGfxImage();
-    const bool      hasRects   = (rectCount > 0);
-    const auto&     createInfo = dstImage.GetImageCreateInfo();
-
-    PAL_ASSERT((hasRects == false) || (pRects != nullptr));
-
-    // Clear groups of ranges on "this group is fast clearable = true/false" boundaries
-    uint32 rangesCleared = 0;
-
-    // Convert the Rects to Boxes. We use an AutoBuffer instead of the virtual linear allocator because
-    // we may need to allocate more boxes than will fit in the fixed virtual space.
-    AutoBuffer<Box, 16, Platform> boxes(rectCount, m_pDevice->GetPlatform());
-
-    // Notify the command buffer if AutoBuffer allocation has failed.
-    if (boxes.Capacity() < rectCount)
-    {
-        pCmdBuffer->NotifyAllocFailure();
-    }
-    else
-    {
-        for (uint32 i = 0; i < rectCount; i++)
-        {
-            boxes[i].offset.x      = pRects[i].offset.x;
-            boxes[i].offset.y      = pRects[i].offset.y;
-            boxes[i].offset.z      = 0;
-            boxes[i].extent.width  = pRects[i].extent.width;
-            boxes[i].extent.height = pRects[i].extent.height;
-            boxes[i].extent.depth  = 1;
-        }
-
-        const bool clearRectCoversWholeImage = ((hasRects                  == false)                  ||
-                                                ((rectCount                == 1)                      &&
-                                                 (pRects[0].offset.x       == 0)                      &&
-                                                 (pRects[0].offset.y       == 0)                      &&
-                                                 (createInfo.extent.width  == pRects[0].extent.width) &&
-                                                 (createInfo.extent.height == pRects[0].extent.height)));
-
-        while (rangesCleared < rangeCount)
-        {
-            const uint32 groupBegin = rangesCleared;
-
-            // Note that fast clears don't support sub-rect clears so we skip them if we have any boxes. Further,
-            // we only can store one fast clear color per mip level, and therefore can only support fast clears
-            // when a range covers all slices.
-            const bool groupFastClearable = (clearRectCoversWholeImage &&
-                                             gfxImage.IsFastDepthStencilClearSupported(
-                                                 depthLayout,
-                                                 stencilLayout,
-                                                 depth,
-                                                 stencil,
-                                                 stencilWriteMask,
-                                                 pRanges[groupBegin]));
-
-            // Find as many other ranges that also support/don't support fast clearing so that they can be grouped
-            // together into a single clear operation.
-            uint32 groupEnd = groupBegin + 1;
-
-            while ((groupEnd < rangeCount)     &&
-                   ((clearRectCoversWholeImage &&
-                     gfxImage.IsFastDepthStencilClearSupported(depthLayout,
-                                                               stencilLayout,
-                                                               depth,
-                                                               stencil,
-                                                               stencilWriteMask,
-                                                               pRanges[groupEnd]))
-                    == groupFastClearable))
-            {
-                ++groupEnd;
-            }
-
-            // Either fast clear or slow clear this group of ranges.
-            rangesCleared = groupEnd;
-            const uint32 clearRangeCount = groupEnd - groupBegin; // NOTE: end equals one past the last range in group.
-
-            HwlDepthStencilClear(pCmdBuffer,
-                                 gfxImage,
-                                 depthLayout,
-                                 stencilLayout,
-                                 depth,
-                                 stencil,
-                                 stencilWriteMask,
-                                 clearRangeCount,
-                                 &pRanges[groupBegin],
-                                 groupFastClearable,
-                                 TestAnyFlagSet(flags, DsClearAutoSync),
-                                 rectCount,
-                                 &boxes[0]);
-        }
-    }
 }
 
 // =====================================================================================================================
@@ -3111,164 +2994,175 @@ void RsrcProcMgr::CmdClearColorImage(
     uint32                flags
     ) const
 {
-    Pal::GfxImage*              pGfxImage     = dstImage.GetGfxImage();
-    const auto&                 createInfo    = dstImage.GetImageCreateInfo();
-    const SubResourceInfo*const pStartSubRes  = dstImage.SubresourceInfo(pRanges[0].startSubres);
-    const bool                  hasBoxes      = (boxCount > 0);
+    const bool needComputeClearSync = TestAnyFlagSet(flags, ColorClearAutoSync);
 
-    // If a clearFormat has been specified, assert that it is compatible with the image's selected DCC encoding. This
-    // should guard against compression-related corruption, and should always be true if the clearFormat is one of the
-    // pViewFormat's specified at image-creation time.
-    PAL_ASSERT((clearFormat.format == ChNumFormat::Undefined) ||
-               (m_pDevice->ComputeDccFormatEncoding(createInfo.swizzledFormat, &clearFormat, 1) >=
-                dstImage.GetImageInfo().dccFormatEncoding));
+    if (needComputeClearSync)
+    {
+        AcquireReleaseInfo acqRelInfo = {};
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+        acqRelInfo.srcGlobalStageMask  = PipelineStageColorTarget;
+        acqRelInfo.dstGlobalStageMask  = PipelineStageCs;
+#else
+        acqRelInfo.srcStageMask        = PipelineStageColorTarget;
+        acqRelInfo.dstStageMask        = PipelineStageCs;
+#endif
+        acqRelInfo.srcGlobalAccessMask = CoherColorTarget;
+        acqRelInfo.dstGlobalAccessMask = CoherShader;
+        acqRelInfo.reason              = Developer::BarrierReasonPreComputeColorClear;
 
-    const bool clearBoxCoversWholeImage = ((hasBoxes == false)                                    ||
-                                           ((boxCount                 == 1)                       &&
-                                            (pBoxes[0].offset.x       == 0)                       &&
-                                            (pBoxes[0].offset.y       == 0)                       &&
-                                            (pBoxes[0].offset.z       == 0)                       &&
-                                            (createInfo.extent.width  == pBoxes[0].extent.width)  &&
-                                            (createInfo.extent.height == pBoxes[0].extent.height) &&
-                                            (createInfo.extent.depth  == pBoxes[0].extent.depth)));
-
-    bool needPreComputeSync  = TestAnyFlagSet(flags, ColorClearAutoSync);
-    bool needPostComputeSync = false;
-    bool csFastClear         = false;
+        pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
+    }
 
     for (uint32 rangeIdx = 0; rangeIdx < rangeCount; ++rangeIdx)
     {
         PAL_ASSERT(pRanges[rangeIdx].numPlanes == 1);
 
-        SubresRange minSlowClearRange = {};
-        const auto* pSlowClearRange   = &minSlowClearRange;
-        const auto& clearRange        = pRanges[rangeIdx];
-        ClearMethod slowClearMethod   = Image::DefaultSlowClearMethod;
-
-        uint32 convertedColor[4] = { 0 };
-        if (color.type == ClearColorType::Float)
+        if (pRanges[rangeIdx].numMips != 0)
         {
-            const SwizzledFormat& baseFormat = dstImage.SubresourceInfo(clearRange.startSubres)->format;
-            Formats::ConvertColor(baseFormat, &color.f32Color[0], &convertedColor[0]);
+            SlowClearCompute(pCmdBuffer,
+                             dstImage,
+                             dstImageLayout,
+                             &color,
+                             clearFormat,
+                             pRanges[rangeIdx],
+                             boxCount,
+                             pBoxes);
         }
-        else
+    }
+
+    if (needComputeClearSync)
+    {
+        AcquireReleaseInfo acqRelInfo = {};
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+        acqRelInfo.srcGlobalStageMask  = PipelineStageCs;
+        acqRelInfo.dstGlobalStageMask  = PipelineStageColorTarget;
+#else
+        acqRelInfo.srcStageMask        = PipelineStageCs;
+        acqRelInfo.dstStageMask        = PipelineStageColorTarget;
+#endif
+        acqRelInfo.srcGlobalAccessMask = CoherShader;
+        acqRelInfo.dstGlobalAccessMask = CoherColorTarget;
+        acqRelInfo.reason              = Developer::BarrierReasonPostComputeColorClear;
+
+        pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
+    }
+}
+
+// =====================================================================================================================
+// Builds commands to clear the specified ranges of a depth/stencil image to the specified values.
+void RsrcProcMgr::CmdClearDepthStencil(
+    GfxCmdBuffer*      pCmdBuffer,
+    const Image&       dstImage,
+    ImageLayout        depthLayout,
+    ImageLayout        stencilLayout,
+    float              depth,
+    uint8              stencil,
+    uint8              stencilWriteMask,
+    uint32             rangeCount,
+    const SubresRange* pRanges,
+    uint32             rectCount,
+    const Rect*        pRects,
+    uint32             flags
+    ) const
+{
+    PAL_ASSERT((rectCount == 0) || (pRects != nullptr));
+
+    // Convert the Rects to Boxes. We use an AutoBuffer instead of the virtual linear allocator because
+    // we may need to allocate more boxes than will fit in the fixed virtual space.
+    AutoBuffer<Box, 16, Platform> boxes(rectCount, m_pDevice->GetPlatform());
+
+    // Notify the command buffer if AutoBuffer allocation has failed.
+    if (boxes.Capacity() < rectCount)
+    {
+        pCmdBuffer->NotifyAllocFailure();
+    }
+    else
+    {
+        const bool         needComputeClearSync = TestAnyFlagSet(flags, ColorClearAutoSync);
+        const ChNumFormat& imageFormat          = dstImage.GetImageCreateInfo().swizzledFormat.format;
+        const bool         supportsDepth        = m_pDevice->Parent()->SupportsDepth(imageFormat, ImageTiling::Optimal);
+
+        if (needComputeClearSync)
         {
-            memcpy(&convertedColor[0], &color.u32Color[0], sizeof(convertedColor));
+            AcquireReleaseInfo acqRelInfo = {};
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+            acqRelInfo.srcGlobalStageMask  = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget;
+            acqRelInfo.dstGlobalStageMask  = PipelineStageCs;
+#else
+            acqRelInfo.srcStageMask        = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget;
+            acqRelInfo.dstStageMask        = PipelineStageCs;
+#endif
+            acqRelInfo.srcGlobalAccessMask = CoherDepthStencilTarget;
+            acqRelInfo.dstGlobalAccessMask = CoherShader;
+            acqRelInfo.reason              = Developer::BarrierReasonPreComputeDepthStencilClear;
+
+            pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
         }
 
-        // Note that fast clears don't support sub-rect clears so we skip them if we have any boxes.  Futher, we only
-        // can store one fast clear color per mip level, and therefore can only support fast clears when a range covers
-        // all slices.
-        // Fast clear is only usable when all channels of the color are being written.
-        if ((color.disabledChannelMask == 0) &&
-             clearBoxCoversWholeImage        &&
-            pGfxImage->IsFastColorClearSupported(pCmdBuffer,
-                                                 dstImageLayout,
-                                                 &convertedColor[0],
-                                                 clearRange))
+        for (uint32 i = 0; i < rectCount; i++)
         {
-            // Assume that all portions of the original range can be fast cleared.
-            SubresRange fastClearRange = clearRange;
+            boxes[i].offset.x      = pRects[i].offset.x;
+            boxes[i].offset.y      = pRects[i].offset.y;
+            boxes[i].offset.z      = 0;
+            boxes[i].extent.width  = pRects[i].extent.width;
+            boxes[i].extent.height = pRects[i].extent.height;
+            boxes[i].extent.depth  = 1;
+        }
 
-            // Assume that no portion of the original range needs to be slow cleared.
-            minSlowClearRange.startSubres = clearRange.startSubres;
-            minSlowClearRange.numPlanes   = clearRange.numPlanes;
-            minSlowClearRange.numSlices   = clearRange.numSlices;
-            minSlowClearRange.numMips     = 0;
+        for (uint32 rangeIdx = 0; rangeIdx < rangeCount; rangeIdx++)
+        {
+            PAL_ASSERT(pRanges[rangeIdx].numPlanes == 1);
 
-            for (uint32 mipIdx = 0; mipIdx < clearRange.numMips; ++mipIdx)
+            const bool            isDepth       = (pRanges[rangeIdx].startSubres.plane == 0) && supportsDepth;
+            const SwizzledFormat& subresFormat  = dstImage.SubresourceInfo(pRanges[rangeIdx].startSubres)->format;
+
+            ClearColor clearColor = {};
+
+            if (isDepth)
             {
-                const SubresId    subres      = { clearRange.startSubres.plane,
-                                                  clearRange.startSubres.mipLevel + mipIdx,
-                                                  0 };
-                const ClearMethod clearMethod = dstImage.SubresourceInfo(subres)->clearMethod;
-
-                if (clearMethod != ClearMethod::Fast)
-                {
-                    fastClearRange.numMips = mipIdx;
-
-                    minSlowClearRange.startSubres.mipLevel = subres.mipLevel;
-                    minSlowClearRange.numMips              = clearRange.numMips - mipIdx;
-                    slowClearMethod                        = clearMethod;
-                    break;
-                }
-            }
-
-            if (fastClearRange.numMips != 0)
-            {
-                if (needPreComputeSync)
-                {
-                    PreComputeColorClearSync(pCmdBuffer,
-                                             &dstImage,
-                                             pRanges[rangeIdx],
-                                             dstImageLayout);
-
-                    needPostComputeSync = true;
-                    csFastClear         = true;
-                }
-
-                // Hand off to the HWL to perform the fast-clear.
-                PAL_ASSERT(dstImage.IsRenderTarget());
-
-                HwlFastColorClear(pCmdBuffer,
-                                  *pGfxImage,
-                                  &convertedColor[0],
-                                  clearFormat,
-                                  fastClearRange);
-            }
-        }
-        else
-        {
-            // Since fast clears aren't available, the slow-clear range is everything the caller asked for.
-            pSlowClearRange = &clearRange;
-        }
-
-        // If we couldn't fast clear every range, then we need to slow clear whatever is left over.
-        if (pSlowClearRange->numMips != 0)
-        {
-            if (SlowClearUseGraphics(pCmdBuffer,
-                                     dstImage,
-                                     *pSlowClearRange,
-                                     slowClearMethod))
-            {
-                SlowClearGraphics(pCmdBuffer,
-                                  dstImage,
-                                  dstImageLayout,
-                                  &color,
-                                  clearFormat,
-                                  *pSlowClearRange,
-                                  boxCount,
-                                  pBoxes);
+                // For Depth slow clears, we use a float clear color.
+                clearColor.type        = ClearColorType::Float;
+                clearColor.f32Color[0] = depth;
             }
             else
             {
-                if (needPreComputeSync)
-                {
-                    PreComputeColorClearSync(pCmdBuffer,
-                                             &dstImage,
-                                             pRanges[rangeIdx],
-                                             dstImageLayout);
+                PAL_ASSERT(m_pDevice->Parent()->SupportsStencil(imageFormat, ImageTiling::Optimal));
 
-                    needPostComputeSync = true;
-                }
-
-                // Raw format clears are ok on the compute engine because these won't affect the state of DCC memory.
-                SlowClearCompute(pCmdBuffer,
-                                 dstImage,
-                                 dstImageLayout,
-                                 &color,
-                                 clearFormat,
-                                 *pSlowClearRange,
-                                 boxCount,
-                                 pBoxes);
+                // For Stencil plane we use the stencil value directly.
+                clearColor.type        = ClearColorType::Uint;
+                clearColor.u32Color[0] = stencil;
             }
+
+            // This avoids an assert in the generic clear function below.  I think it's safe to add here without
+            // a real transition because, by the time we get here, there is no htile.
+            depthLayout.usages |= LayoutShaderWrite;
+
+            SlowClearCompute(pCmdBuffer,
+                             dstImage,
+                             isDepth ? depthLayout : stencilLayout,
+                             &clearColor,
+                             subresFormat,
+                             pRanges[rangeIdx],
+                             rectCount,
+                             &boxes[0]);
         }
 
-        if (needPostComputeSync)
+        if (needComputeClearSync)
         {
-            PostComputeColorClearSync(pCmdBuffer, &dstImage, pRanges[rangeIdx], dstImageLayout, csFastClear);
+            AcquireReleaseInfo acqRelInfo = {};
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+            acqRelInfo.srcGlobalStageMask  = PipelineStageCs;
+            acqRelInfo.dstGlobalStageMask  = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget;
+#else
+            acqRelInfo.srcStageMask        = PipelineStageCs;
+            acqRelInfo.dstStageMask        = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget;
+#endif
 
-            needPostComputeSync = false;
+            acqRelInfo.srcGlobalAccessMask = CoherShader;
+            acqRelInfo.dstGlobalAccessMask = CoherDepthStencilTarget;
+            acqRelInfo.reason              = Developer::BarrierReasonPostComputeDepthStencilClear;
+
+            pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
         }
     }
 }
@@ -3336,11 +3230,8 @@ void RsrcProcMgr::SlowClearCompute(
         break;
     }
 
-    const ComputePipeline*  pPipeline  = GetPipeline(pipelineEnum);
-
-    // Get number of threads per group in each dimension.
-    uint32 threadsPerGroup[3] = {0};
-    pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+    const ComputePipeline*  pPipeline       = GetPipeline(pipelineEnum);
+    const DispatchDims      threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
     // Save current command buffer state and bind the pipeline.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
@@ -3464,7 +3355,8 @@ void RsrcProcMgr::SlowClearCompute(
 
                 // Compute the minimum number of threads to dispatch. Note that only 2D images can have multiple
                 // samples and 3D images cannot have multiple slices.
-                uint32 minThreads[3] = { clearExtent.width, 1, 1, };
+                DispatchDims threads = { clearExtent.width, 1, 1 };
+
                 switch (imageType)
                 {
                 case ImageType::Tex1d:
@@ -3474,23 +3366,25 @@ void RsrcProcMgr::SlowClearCompute(
                     userData[6] = clearExtent.width;
 
                     // 1D images can only have a single-sample, but they can have multiple slices.
-                    minThreads[2] = singleMipRange.numSlices;
+                    threads.z = singleMipRange.numSlices;
                     break;
 
                 case ImageType::Tex2d:
-                    minThreads[1] = clearExtent.height;
-                    minThreads[2] = singleMipRange.numSlices * createInfo.samples;
+                    threads.y = clearExtent.height;
+                    threads.z = singleMipRange.numSlices * createInfo.samples;
+
                     // For 2d the shader expects x offset, y offset, clear width then clear height.
-                    userData[4]  = clearOffset.x;
-                    userData[5]  = clearOffset.y;
-                    userData[6]  = clearExtent.width;
-                    userData[7]  = clearExtent.height;
+                    userData[4] = clearOffset.x;
+                    userData[5] = clearOffset.y;
+                    userData[6] = clearExtent.width;
+                    userData[7] = clearExtent.height;
                     break;
 
                 default:
                     // 3d image
-                    minThreads[1] = clearExtent.height;
-                    minThreads[2] = clearExtent.depth;
+                    threads.y = clearExtent.height;
+                    threads.z = clearExtent.depth;
+
                     // For 3d the shader expects x, y z offsets, an unused dword then the width, height and depth.
                     userData[4]  = clearOffset.x;
                     userData[5]  = clearOffset.y;
@@ -3505,10 +3399,7 @@ void RsrcProcMgr::SlowClearCompute(
                 // Copy the user-data values into the descriptor table memory.
                 memcpy(pSrdTable, &userData[0], sizeof(userData));
 
-                // Execute the dispatch.
-                pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(minThreads[0], threadsPerGroup[0]),
-                                        RpmUtil::MinThreadGroups(minThreads[1], threadsPerGroup[1]),
-                                        RpmUtil::MinThreadGroups(minThreads[2], threadsPerGroup[2]));
+                pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(threads, threadsPerGroup));
             }
         }
     }
@@ -3657,7 +3548,7 @@ void RsrcProcMgr::CmdClearColorBuffer(
             // Execute the dispatch.
             const uint32 numThreadGroups = RpmUtil::MinThreadGroups(pDispatchRanges[i].extent, threadsPerGroup);
 
-            pCmdBuffer->CmdDispatch(numThreadGroups, 1, 1);
+            pCmdBuffer->CmdDispatch({numThreadGroups, 1, 1});
         }
     }
 
@@ -3897,8 +3788,7 @@ void RsrcProcMgr::ResolveImageCompute(
                                                                      resolveMode,
                                                                      method);
 
-        uint32 threadsPerGroup[3] = {};
-        pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+        const DispatchDims threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
         // Bind the pipeline.
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
@@ -4038,9 +3928,9 @@ void RsrcProcMgr::ResolveImageCompute(
         memcpy(pUserData, &regionData[0], sizeof(regionData));
 
         // Execute the dispatch. Resolves can only be done on 2D images so the Z dimension of the dispatch is always 1.
-        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(pRegions[idx].extent.width,  threadsPerGroup[0]),
-                                RpmUtil::MinThreadGroups(pRegions[idx].extent.height, threadsPerGroup[1]),
-                                RpmUtil::MinThreadGroups(pRegions[idx].numSlices,  threadsPerGroup[2]));
+        const DispatchDims threads = {pRegions[idx].extent.width, pRegions[idx].extent.height, pRegions[idx].numSlices};
+
+        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(threads, threadsPerGroup));
     }
 
     // Restore the command buffer's state.
@@ -4504,243 +4394,6 @@ gpusize RsrcProcMgr::ComputeTypedBufferRange(
 }
 
 // =====================================================================================================================
-// Inserts barrier needed before issuing a compute clear when the target image is currently bound as a color target.
-// Only necessary when the client specifies the ColorClearAutoSync flag for a color clear.
-void RsrcProcMgr::PreComputeColorClearSync(
-    ICmdBuffer*        pCmdBuffer,
-    const IImage*      pImage,
-    const SubresRange& subres,
-    ImageLayout        layout
-    ) const
-{
-    if (m_releaseAcquireSupported)
-    {
-        ImgBarrier imgBarrier = {};
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
-        imgBarrier.srcStageMask  = PipelineStageColorTarget;
-        // Fast clear path may have CP to update metadata state/values, wait at BLT/ME stage for safe.
-        imgBarrier.dstStageMask  = PipelineStageBlt;
-#endif
-        imgBarrier.srcAccessMask = CoherColorTarget;
-        imgBarrier.dstAccessMask = CoherShader;
-        imgBarrier.subresRange   = subres;
-        imgBarrier.pImage        = pImage;
-        imgBarrier.oldLayout     = layout;
-        imgBarrier.newLayout     = layout;
-
-        AcquireReleaseInfo acqRelInfo = {};
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 767
-        acqRelInfo.srcStageMask      = PipelineStageColorTarget;
-        // Fast clear path may have CP to update metadata state/values, wait at BLT/ME stage for safe.
-        acqRelInfo.dstStageMask      = PipelineStageBlt;
-#endif
-        acqRelInfo.imageBarrierCount = 1;
-        acqRelInfo.pImageBarriers    = &imgBarrier;
-        acqRelInfo.reason            = Developer::BarrierReasonPreComputeColorClear;
-
-        pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
-    }
-    else
-    {
-        BarrierInfo preBarrier           = { };
-        preBarrier.waitPoint             = HwPipePreCs;
-
-        constexpr HwPipePoint Eop        = HwPipeBottom;
-        preBarrier.pipePointWaitCount    = 1;
-        preBarrier.pPipePoints           = &Eop;
-
-        BarrierTransition transition     = { };
-        transition.srcCacheMask          = CoherColorTarget;
-        transition.dstCacheMask          = CoherShader;
-        transition.imageInfo.pImage      = pImage;
-        transition.imageInfo.subresRange = subres;
-        transition.imageInfo.oldLayout   = layout;
-        transition.imageInfo.newLayout   = layout;
-
-        preBarrier.transitionCount       = 1;
-        preBarrier.pTransitions          = &transition;
-        preBarrier.reason                = Developer::BarrierReasonPreComputeColorClear;
-
-        pCmdBuffer->CmdBarrier(preBarrier);
-    }
-}
-
-// =====================================================================================================================
-// Inserts barrier needed after issuing a compute clear when the target image will be immediately re-bound as a
-// color target.  Only necessary when the client specifies the ColorClearAutoSync flag for a color clear.
-void RsrcProcMgr::PostComputeColorClearSync(
-    ICmdBuffer*        pCmdBuffer,
-    const IImage*      pImage,
-    const SubresRange& subres,
-    ImageLayout        layout,
-    bool               csFastClear
-    ) const
-{
-    if (m_releaseAcquireSupported)
-    {
-        ImgBarrier imgBarrier = {};
-
-        // Optimization: For post CS fast Clear to ColorTarget transition, no need flush DST caches and invalidate
-        //               SRC caches. Both cs fast clear and ColorTarget access metadata in direct mode, so no need
-        //               L2 flush/inv even if the metadata is misaligned. See WaRefreshTccOnMetadataMisalignment()
-        //               for more details. Safe to pass 0 here, so no cache operation and PWS can wait at PreColor.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
-        imgBarrier.srcStageMask  = PipelineStageCs;
-        imgBarrier.dstStageMask  = PipelineStageColorTarget;
-#endif
-        imgBarrier.srcAccessMask = csFastClear ? 0 : CoherShader;
-        imgBarrier.dstAccessMask = csFastClear ? 0 : CoherColorTarget;
-        imgBarrier.subresRange   = subres;
-        imgBarrier.pImage        = pImage;
-        imgBarrier.oldLayout     = layout;
-        imgBarrier.newLayout     = layout;
-
-        AcquireReleaseInfo acqRelInfo = {};
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 767
-        acqRelInfo.srcStageMask      = PipelineStageCs;
-        acqRelInfo.dstStageMask      = PipelineStageColorTarget;
-#endif
-        acqRelInfo.imageBarrierCount = 1;
-        acqRelInfo.pImageBarriers    = &imgBarrier;
-        acqRelInfo.reason            = Developer::BarrierReasonPostComputeColorClear;
-
-        pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
-    }
-    else
-    {
-        BarrierInfo postBarrier          = { };
-        postBarrier.waitPoint            = HwPipePreColorTarget;
-        constexpr HwPipePoint PostCs     = HwPipePostCs;
-        postBarrier.pipePointWaitCount   = 1;
-        postBarrier.pPipePoints          = &PostCs;
-
-        BarrierTransition transition     = { };
-        transition.srcCacheMask          = CoherShader;
-        transition.dstCacheMask          = CoherColorTarget;
-        transition.imageInfo.pImage      = pImage;
-        transition.imageInfo.subresRange = subres;
-        transition.imageInfo.oldLayout   = layout;
-        transition.imageInfo.newLayout   = layout;
-
-        postBarrier.transitionCount      = 1;
-        postBarrier.pTransitions         = &transition;
-        postBarrier.reason               = Developer::BarrierReasonPostComputeColorClear;
-
-        pCmdBuffer->CmdBarrier(postBarrier);
-    }
-}
-
-// =====================================================================================================================
-// Inserts barrier needed before issuing a compute clear when the target image is currently bound as a depth/stencil
-// target.  Only necessary when the client specifies the DsClearAutoSync flag for a depth/stencil clear.
-void RsrcProcMgr::PreComputeDepthStencilClearSync(
-    ICmdBuffer*        pCmdBuffer,
-    const GfxImage&    gfxImage,
-    const SubresRange& subres,
-    ImageLayout        layout
-    ) const
-{
-    PAL_ASSERT(subres.numPlanes == 1);
-
-    BarrierInfo preBarrier                 = { };
-    preBarrier.waitPoint                   = HwPipePreCs;
-
-    const IImage* pImage                   = gfxImage.Parent();
-
-    // The most efficient way to wait for DB-idle and flush and invalidate the DB caches is an acquire_mem.
-    // Acquire release doesn't support ranged stall and cache F/I via acquire_mem.
-    preBarrier.rangeCheckedTargetWaitCount = 1;
-    preBarrier.ppTargets                   = &pImage;
-
-    BarrierTransition transition           = { };
-    transition.srcCacheMask                = CoherDepthStencilTarget;
-    transition.dstCacheMask                = CoherShader;
-    transition.imageInfo.pImage            = pImage;
-    transition.imageInfo.subresRange       = subres;
-    transition.imageInfo.oldLayout         = layout;
-    transition.imageInfo.newLayout         = layout;
-
-    preBarrier.transitionCount             = 1;
-    preBarrier.pTransitions                = &transition;
-    preBarrier.reason                      = Developer::BarrierReasonPreComputeDepthStencilClear;
-
-    pCmdBuffer->CmdBarrier(preBarrier);
-}
-
-// =====================================================================================================================
-// Inserts barrier needed after issuing a compute clear when the target image will be immediately re-bound as a
-// depth/stencil target.  Only necessary when the client specifies the DsClearAutoSync flag for a depth/stencil clear.
-void RsrcProcMgr::PostComputeDepthStencilClearSync(
-    ICmdBuffer*        pCmdBuffer,
-    const GfxImage&    gfxImage,
-    const SubresRange& subres,
-    ImageLayout        layout,
-    bool               csFastClear
-    ) const
-{
-    const IImage* pImage = gfxImage.Parent();
-
-    if (m_releaseAcquireSupported)
-    {
-        ImgBarrier imgBarrier = {};
-
-        // Optimization: For post CS fast Clear to DepthStencilTarget transition, no need flush DST caches and
-        //               invalidate SRC caches. Both cs fast clear and DepthStencilTarget access metadata in direct
-        //               mode, so no need L2 flush/inv even if the metadata is misaligned. See
-        //               WaRefreshTccOnMetadataMisalignment() for more details. Safe to pass 0 here, so no cache
-        //               operation and PWS can wait at PreDepth.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
-        imgBarrier.srcStageMask  = PipelineStageCs;
-        imgBarrier.dstStageMask  = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget;
-#endif
-        imgBarrier.srcAccessMask = csFastClear ? 0 : CoherShader;
-        imgBarrier.dstAccessMask = csFastClear ? 0 : CoherDepthStencilTarget;
-        imgBarrier.subresRange   = subres;
-        imgBarrier.pImage        = pImage;
-        imgBarrier.oldLayout     = layout;
-        imgBarrier.newLayout     = layout;
-
-        AcquireReleaseInfo acqRelInfo = {};
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 767
-        acqRelInfo.srcStageMask      = PipelineStageCs;
-        acqRelInfo.dstStageMask      = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget;
-#endif
-        acqRelInfo.imageBarrierCount = 1;
-        acqRelInfo.pImageBarriers    = &imgBarrier;
-        acqRelInfo.reason            = Developer::BarrierReasonPostComputeDepthStencilClear;
-
-        pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
-    }
-    else
-    {
-        BarrierInfo postBarrier          = { };
-        postBarrier.waitPoint            = HwPipePreRasterization;
-
-        constexpr HwPipePoint PostCs     = HwPipePostCs;
-        postBarrier.pipePointWaitCount   = 1;
-        postBarrier.pPipePoints          = &PostCs;
-
-        BarrierTransition transition     = { };
-        transition.srcCacheMask          = CoherShader;
-        transition.dstCacheMask          = CoherDepthStencilTarget;
-        transition.imageInfo.pImage      = pImage;
-        transition.imageInfo.subresRange = subres;
-        transition.imageInfo.oldLayout   = layout;
-        transition.imageInfo.newLayout   = layout;
-
-        postBarrier.transitionCount      = 1;
-        postBarrier.pTransitions         = &transition;
-        postBarrier.reason               = Developer::BarrierReasonPostComputeDepthStencilClear;
-
-        pCmdBuffer->CmdBarrier(postBarrier);
-    }
-}
-
-// =====================================================================================================================
 // Binds common graphics state.
 void RsrcProcMgr::BindCommonGraphicsState(
     GfxCmdBuffer* pCmdBuffer
@@ -5104,11 +4757,8 @@ void RsrcProcMgr::CopyImageToPackedPixelImage(
     const BltMonitorDesc* pMonDesc      = GetMonitorDesc(packPixelType);
 
     // Get the appropriate pipeline object.
-    const ComputePipeline* pPipeline = GetPipeline(RpmComputePipeline::PackedPixelComposite);
-
-    // Get number of threads per groups in each dimension, we will need this data later.
-    uint32 threadsPerGroup[3] = {};
-    pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+    const ComputePipeline* pPipeline       = GetPipeline(RpmComputePipeline::PackedPixelComposite);
+    const DispatchDims     threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
     // Save current command buffer state and bind the pipeline.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
@@ -5244,10 +4894,11 @@ void RsrcProcMgr::CopyImageToPackedPixelImage(
         memcpy(pUserData, &constantData, sizeof(constantData));
 
         // Execute the dispatch, we need one thread per texel.
-        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroups(region.extent.width,  threadsPerGroup[0]),
-                                RpmUtil::MinThreadGroups(region.extent.height, threadsPerGroup[1]),
-                                RpmUtil::MinThreadGroups(1,  threadsPerGroup[2]));
+        const DispatchDims threads = {region.extent.width, region.extent.height, 1};
+
+        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(threads, threadsPerGroup));
     }
+
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
 }
 

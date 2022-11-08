@@ -108,9 +108,7 @@ Result Queue::Submit(
 
         pLogContext->EndList();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 663
         pLogContext->KeyAndValue("stackSizeInDwords", submitInfo.stackSizeInDwords);
-#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 764
     pLogContext->KeyAndBeginList("freeMuxMemory", false);

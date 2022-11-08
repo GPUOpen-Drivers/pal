@@ -857,9 +857,7 @@ size_t CmdUtil::BuildCopyData(
 // =====================================================================================================================
 // Builds a DISPATCH_DIRECT packet. Returns the size of the PM4 command assembled, in DWORDs.
 size_t CmdUtil::BuildDispatchDirect(
-    uint32       xDim,              // Thread groups (or threads) to launch (X dimension).
-    uint32       yDim,              // Thread groups (or threads) to launch (Y dimension).
-    uint32       zDim,              // Thread groups (or threads) to launch (Z dimension).
+    DispatchDims size,              // Thread groups (or threads) to launch in the X, Y, and Z dimensions.
     bool         dimInThreads,      // X/Y/Z dimensions are in unit of threads if true.
     bool         forceStartAt000,   // Forces COMPUTE_START_X/Y/Z at (0, 0, 0)
     PM4Predicate predicate,
@@ -873,9 +871,9 @@ size_t CmdUtil::BuildDispatchDirect(
     auto*const       pPacket    = static_cast<PM4CMDDISPATCHDIRECT*>(pBuffer);
 
     pPacket->header.u32All = Type3Header(IT_DISPATCH_DIRECT, PacketSize, ShaderCompute, predicate);
-    pPacket->dimX          = xDim;
-    pPacket->dimY          = yDim;
-    pPacket->dimZ          = zDim;
+    pPacket->dimX          = size.x;
+    pPacket->dimY          = size.y;
+    pPacket->dimZ          = size.z;
 
     pPacket->dispatchInitiator.u32All                             = 0;
     pPacket->dispatchInitiator.bits.COMPUTE_SHADER_EN             = 1;

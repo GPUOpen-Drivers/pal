@@ -66,9 +66,7 @@ void PipelineChunkCs::LateInit(
     const AbiReader&       abiReader,
     const RegisterVector&  registers,
     uint32                 wavefrontSize,
-    uint32*                pThreadsPerTgX,
-    uint32*                pThreadsPerTgY,
-    uint32*                pThreadsPerTgZ,
+    DispatchDims*          pThreadsPerTg,
     PipelineUploader*      pUploader)
 {
     InitRegisters(registers, wavefrontSize);
@@ -87,9 +85,9 @@ void PipelineChunkCs::LateInit(
         m_regs.userDataInternalTable.bits.DATA = LowPart(symbol.gpuVirtAddr);
     }
 
-    *pThreadsPerTgX = m_regs.computeNumThreadX.bits.NUM_THREAD_FULL;
-    *pThreadsPerTgY = m_regs.computeNumThreadY.bits.NUM_THREAD_FULL;
-    *pThreadsPerTgZ = m_regs.computeNumThreadZ.bits.NUM_THREAD_FULL;
+    pThreadsPerTg->x = m_regs.computeNumThreadX.bits.NUM_THREAD_FULL;
+    pThreadsPerTg->y = m_regs.computeNumThreadY.bits.NUM_THREAD_FULL;
+    pThreadsPerTg->z = m_regs.computeNumThreadZ.bits.NUM_THREAD_FULL;
 
     m_device.CmdUtil().BuildPipelinePrefetchPm4(*pUploader, &m_prefetch);
 }

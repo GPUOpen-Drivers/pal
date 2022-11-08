@@ -1972,6 +1972,17 @@ const FormatInfo FormatInfoTable[] =
          BitCountInaccurate),               // Format Properties
         NumericSupportFlags::Yuv,
     },
+    // X10Y10Z10W2_Float
+    {
+        32,  4,                             // 32 bpp, 4 components
+        { 10, 10, 10,  2, },                // # of bits-per-component
+        (ChannelFlags::X |
+         ChannelFlags::Y |
+         ChannelFlags::Z |
+         ChannelFlags::W),                  // Channel Mask: XYZW
+        0,                                  // Format Properties
+        NumericSupportFlags::Float,
+    },
 };
 
 } // Formats

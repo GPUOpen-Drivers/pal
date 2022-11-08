@@ -201,9 +201,9 @@ Result ComputePipeline::HwlInit(
         m_regs.computeNumThreadY.u32All       = registers.At(mmCOMPUTE_NUM_THREAD_Y);
         m_regs.computeNumThreadZ.u32All       = registers.At(mmCOMPUTE_NUM_THREAD_Z);
 
-        m_threadsPerTgX = m_regs.computeNumThreadX.bits.NUM_THREAD_FULL;
-        m_threadsPerTgY = m_regs.computeNumThreadY.bits.NUM_THREAD_FULL;
-        m_threadsPerTgZ = m_regs.computeNumThreadZ.bits.NUM_THREAD_FULL;
+        m_threadsPerTg.x = m_regs.computeNumThreadX.bits.NUM_THREAD_FULL;
+        m_threadsPerTg.y = m_regs.computeNumThreadY.bits.NUM_THREAD_FULL;
+        m_threadsPerTg.z = m_regs.computeNumThreadZ.bits.NUM_THREAD_FULL;
 
         PAL_ASSERT(m_uploadFenceToken == 0);
         result = uploader.End(&m_uploadFenceToken);
@@ -211,8 +211,8 @@ Result ComputePipeline::HwlInit(
         if (result == Result::Success)
         {
             registers.HasEntry(mmCOMPUTE_RESOURCE_LIMITS, &m_regs.dynamic.computeResourceLimits.u32All);
-            const uint32 threadsPerGroup = (m_threadsPerTgX * m_threadsPerTgY * m_threadsPerTgZ);
-            const uint32 wavesPerGroup   = RoundUpQuotient(threadsPerGroup, chipProps.gfx6.nativeWavefrontSize);
+
+            const uint32 wavesPerGroup = RoundUpQuotient(ThreadsPerGroup(), chipProps.gfx6.nativeWavefrontSize);
 
             // SIMD_DEST_CNTL: Controls whichs SIMDs thread groups get scheduled on.  If the number of
             // waves-per-TG is a multiple of 4, this should be 1, otherwise 0.
@@ -403,13 +403,17 @@ Result ComputePipeline::GetShaderStats(
         result = GetShaderStatsForStage(m_stageInfo, nullptr, pShaderStats);
         if (result == Result::Success)
         {
-            pShaderStats->shaderStageMask        = ApiShaderStageCompute;
-            pShaderStats->palShaderHash          = m_info.shader[static_cast<uint32>(shaderType)].hash;
-            pShaderStats->cs.numThreadsPerGroupX = m_threadsPerTgX;
-            pShaderStats->cs.numThreadsPerGroupY = m_threadsPerTgY;
-            pShaderStats->cs.numThreadsPerGroupZ = m_threadsPerTgZ;
-            pShaderStats->common.gpuVirtAddress  = GetOriginalAddress(m_regs.computePgmLo.bits.DATA,
-                                                                      m_regs.computePgmHi.bits.DATA);
+            pShaderStats->shaderStageMask       = ApiShaderStageCompute;
+            pShaderStats->palShaderHash         = m_info.shader[static_cast<uint32>(shaderType)].hash;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 771
+            pShaderStats->cs.numThreadsPerGroup = m_threadsPerTg;
+#else
+            pShaderStats->cs.numThreadsPerGroupX = m_threadsPerTg.x;
+            pShaderStats->cs.numThreadsPerGroupY = m_threadsPerTg.y;
+            pShaderStats->cs.numThreadsPerGroupZ = m_threadsPerTg.z;
+#endif
+            pShaderStats->common.gpuVirtAddress = GetOriginalAddress(m_regs.computePgmLo.bits.DATA,
+                                                                     m_regs.computePgmHi.bits.DATA);
 
             pShaderStats->common.ldsSizePerThreadGroup = chipProps.gfxip.ldsSizePerThreadGroup;
         }

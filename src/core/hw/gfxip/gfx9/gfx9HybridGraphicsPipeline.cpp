@@ -41,7 +41,8 @@ HybridGraphicsPipeline::HybridGraphicsPipeline(
     GraphicsPipeline(pDevice, false),
     m_task(*pDevice, &m_taskStageInfo, &m_perfDataInfo[static_cast<uint32>(Abi::HardwareStage::Cs)]),
     m_taskStageInfo(),
-    m_taskSignature{NullCsSignature}
+    m_taskSignature{NullCsSignature},
+    m_threadsPerTg{}
 {
 }
 
@@ -83,9 +84,7 @@ Result HybridGraphicsPipeline::HwlInit(
             m_task.LateInit(abiReader,
                             registers,
                             wavefrontSize,
-                            &m_threadsPerTgX,
-                            &m_threadsPerTgY,
-                            &m_threadsPerTgZ,
+                            &m_threadsPerTg,
                             &uploader);
 
             const auto* pElfSymbol = abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::CsDisassembly);

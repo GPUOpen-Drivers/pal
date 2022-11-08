@@ -37,35 +37,11 @@ namespace Pal
 class      CmdBuffer;
 class      Device;
 class      Image;
-class      GfxCmdBuffer;
 class      SubResIterator;
 struct     GpuMemoryRequirements;
 struct     ImageInfo;
 struct     SubresId;
 struct     SubResourceInfo;
-enum class ImageAspect : uint32;
-enum class ClearMethod : uint32;
-
-// Mask of all image usage layout flags which are valid to use on depth/stencil Images.
-constexpr uint32 AllDepthImageLayoutFlags = LayoutUninitializedTarget |
-                                            LayoutDepthStencilTarget  |
-                                            LayoutShaderRead          |
-                                            LayoutShaderWrite         |
-                                            LayoutCopySrc             |
-                                            LayoutCopyDst             |
-                                            LayoutResolveSrc          |
-                                            LayoutResolveDst          |
-                                            LayoutSampleRate;
-
-enum UseComputeExpand : uint32
-{
-    UseComputeExpandDepth = 0x00000001,
-    UseComputeExpandMsaaDepth = 0x00000002,
-    UseComputeExpandDcc = 0x00000004,
-    UseComputeExpandDccWithFmask = 0x00000008,
-    UseComputeExpandAlways = 0x00000010,
-
-};
 
 // Internal flags set for opening shared metadata path.
 union SharedMetadataFlags
@@ -127,8 +103,6 @@ struct DccState
 class GfxImage
 {
 public:
-    static constexpr uint32 UseComputeExpand = UseComputeExpandDepth | UseComputeExpandDcc;
-
     virtual ~GfxImage() {}
 
     Image* Parent() const { return m_pParent; }
@@ -137,21 +111,7 @@ public:
 
     virtual bool HasFmaskData() const = 0;
 
-    virtual bool HasHtileData() const = 0;
-
     virtual bool HasDisplayDccData() const { return false; }
-
-    virtual bool IsFastColorClearSupported(GfxCmdBuffer*      pCmdBuffer,
-                                           ImageLayout        colorLayout,
-                                           const uint32*      pColor,
-                                           const SubresRange& range) = 0;
-
-    virtual bool IsFastDepthStencilClearSupported(ImageLayout        depthLayout,
-                                                  ImageLayout        stencilLayout,
-                                                  float              depth,
-                                                  uint8              stencil,
-                                                  uint8              stencilWriteMask,
-                                                  const SubresRange& range) const = 0;
 
     virtual bool IsFormatReplaceable(const SubresId& subresId,
                                      ImageLayout     layout,
@@ -169,14 +129,6 @@ public:
     // would return true if we promised that CopyDst would be compressed but tried to use a compute copy path.
     virtual bool ShaderWriteIncompatibleWithLayout(const SubresId& subresId, ImageLayout layout) const = 0;
 
-    bool HasFastClearMetaData(uint32 plane) const
-        { return m_fastClearMetaDataOffset[GetFastClearIndex(plane)] != 0; }
-    bool HasFastClearMetaData(const SubresRange& range) const;
-
-    gpusize FastClearMetaDataAddr(const SubresId&  subResId) const;
-    gpusize FastClearMetaDataOffset(const SubresId&  subResId) const;
-    gpusize FastClearMetaDataSize(uint32 plane, uint32 numMips) const;
-
     bool HasHiSPretestsMetaData() const { return m_hiSPretestsMetaDataOffset != 0; }
     gpusize HiSPretestsMetaDataAddr(uint32 mipLevel) const;
     gpusize HiSPretestsMetaDataOffset(uint32 mipLevel) const;
@@ -192,14 +144,14 @@ public:
 
     virtual gpusize GetPlaneBaseAddr(uint32 plane, uint32 arraySlice = 0) const { PAL_NEVER_CALLED(); return 0; }
 
-    uint32 TranslateClearCodeOneToNativeFmt(uint32 cmpIdx) const;
-
     // Returns an integer that represents the tiling mode associated with the specified subresource.
     virtual uint32 GetSwTileMode(const SubResourceInfo* pSubResInfo) const = 0;
 
     virtual uint32 GetTileSwizzle(const SubresId& subResId) const = 0;
 
     uint32 GetStencilPlane() const;
+
+    void PadYuvPlanarViewActualExtent(SubresId subresource, Extent3d* pActualExtent) const;
 
     // Initializes the metadata in the given subresource range using CmdFillMemory calls. It may not be possible
     // for some gfxip layers to implement this function.
@@ -247,30 +199,13 @@ public:
         gpusize*           pGpuMemSize,
         gpusize*           pGpuMemAlignment) = 0;
 
-    void PadYuvPlanarViewActualExtent(
-        SubresId  subresource,
-        Extent3d* pActualExtent) const;
-
-    // Returns true if the specified mip level supports having a meta-data surface for the given mip level
-    virtual bool CanMipSupportMetaData(uint32  mip) const { return true; }
-
     virtual Result GetDefaultGfxLayout(SubresId subresId, ImageLayout* pLayout) const = 0;
-
-    // Returns true if a clear operation was ever performed with a non-TC compatible clear color.
-    bool    HasSeenNonTcCompatibleClearColor() const { return (m_hasSeenNonTcCompatClearColor == true); }
-    void    SetNonTcCompatClearFlag(bool value) { m_hasSeenNonTcCompatClearColor = value; }
-    bool    IsFceOptimizationEnabled() const { return (m_pNumSkippedFceCounter!= nullptr); };
-    uint32* GetFceRefCounter() const { return m_pNumSkippedFceCounter; }
-    uint32  GetFceRefCount() const;
-    void    IncrementFceRefCount();
 
 protected:
     GfxImage(
         Image*        pParentImage,
         ImageInfo*    pImageInfo,
         const Device& device);
-
-    uint32 GetDepthStencilStateIndex(ImageAspect dsAspect) const;
 
     static void UpdateMetaDataLayout(
         ImageMemoryLayout* pGpuMemLayout,
@@ -280,12 +215,6 @@ protected:
         ImageMemoryLayout* pGpuMemLayout,
         gpusize            offset,
         gpusize            alignment);
-    void InitFastClearMetaData(
-        ImageMemoryLayout* pGpuMemLayout,
-        gpusize*           pGpuMemSize,
-        size_t             sizePerMipLevel,
-        gpusize            alignment,
-        uint32             planeIndex = 0);
 
     void InitHiSPretestsMetaData(
         ImageMemoryLayout* pGpuMemLayout,
@@ -293,30 +222,15 @@ protected:
         size_t             sizePerMipLevel,
         gpusize            alignment);
 
-    void UpdateClearMethod(
-        SubResourceInfo* pSubResInfoList,
-        uint32           plane,
-        uint32           mipLevel,
-        ClearMethod      method);
-
-    uint32 GetFastClearIndex(uint32 plane) const;
-
-    void Destroy();
+    virtual void Destroy() {}
 
     Image*const            m_pParent;
     const Device&          m_device;
     const ImageCreateInfo& m_createInfo;
     ImageInfo*const        m_pImageInfo;
 
-    gpusize  m_fastClearMetaDataOffset[MaxNumPlanes];      // Offset to beginning of fast-clear metadata.
-    gpusize  m_fastClearMetaDataSizePerMip[MaxNumPlanes];  // Size of fast-clear metadata per mip level.
-
     gpusize m_hiSPretestsMetaDataOffset;     // Offset to beginning of HiSPretest metadata
     gpusize m_hiSPretestsMetaDataSizePerMip; // Size of HiSPretest metadata per mip level.
-
-    bool   m_hasSeenNonTcCompatClearColor;  // True if this image has been cleared with non TC-compatible color.
-
-    uint32* m_pNumSkippedFceCounter;
 
 private:
     PAL_DISALLOW_DEFAULT_CTOR(GfxImage);

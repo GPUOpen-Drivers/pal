@@ -78,6 +78,13 @@ namespace DevDriver
             // Returns new event data from the server
             EventDataUpdate,
 
+            // EventClient requests to subscribe to a provider.
+            SubscribeToProviderRequest,
+            SubscribeToProviderResponse,
+
+            // EventClient requests to unsubscribe from its previously subscribed provider.
+            UnsubscribeFromProviderRequest,
+
             Count
         };
 
@@ -101,13 +108,25 @@ namespace DevDriver
             uint32 numEvents;
             uint32 eventDescriptionDataSize;
             bool   isEnabled;
-            uint8  padding[3] = {};
+            // This is a hack. The original ddEventProtocol didn't have a way
+            // to communicate to EventClient the version of EventServer. Here
+            // we re-purpose the first uint8 padding to be the version data.
+            // Luckily all paddings are zeroed, so for old EventServer,
+            // this field is 0.
+            uint8  version = 0;
+            uint8  padding[2] = {};
 
-            ProviderDescriptionHeader(uint32 providerId, uint32 numEvents, uint32 eventDescriptionDataSize, bool isEnabled)
+            ProviderDescriptionHeader(
+                uint32 providerId,
+                uint32 numEvents,
+                uint32 eventDescriptionDataSize,
+                bool isEnabled,
+                uint8_t version)
                 : providerId(providerId)
                 , numEvents(numEvents)
                 , eventDescriptionDataSize(eventDescriptionDataSize)
                 , isEnabled(isEnabled)
+                , version(version)
             {
             }
 
@@ -303,6 +322,42 @@ namespace DevDriver
         };
 
         DD_CHECK_SIZE(EventDataUpdatePayload, kMaxEventDataSize + sizeof(EventHeader));
+
+        DD_NETWORK_STRUCT(SubscribeToProviderRequest, 4)
+        {
+            EventHeader header;
+            uint32 providerId;
+
+            SubscribeToProviderRequest(EventProviderId id)
+                : header(EventMessage::SubscribeToProviderRequest)
+                , providerId(id)
+            {}
+
+        };
+        DD_CHECK_SIZE(SubscribeToProviderRequest, 8);
+
+        DD_NETWORK_STRUCT(SubscribeToProviderResponse, 4)
+        {
+            EventHeader header;
+            Result      result;
+
+            SubscribeToProviderResponse(Result result)
+                : header(EventMessage::SubscribeToProviderResponse)
+                , result(result)
+            {}
+        };
+        DD_CHECK_SIZE(SubscribeToProviderResponse, 8);
+
+        DD_NETWORK_STRUCT(UnsubscribeFromProviderRequest, 4)
+        {
+            EventHeader header;
+
+            UnsubscribeFromProviderRequest()
+                : header(EventMessage::UnsubscribeFromProviderRequest)
+            {}
+
+        };
+        DD_CHECK_SIZE(UnsubscribeFromProviderRequest, 4);
 
         enum class EventTokenType : uint8
         {

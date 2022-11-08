@@ -203,10 +203,8 @@ protected:
 private:
     template <bool issueSqttMarkerEvent>
     static void PAL_STDCALL CmdDispatch(
-        ICmdBuffer* pCmdBuffer,
-        uint32      x,
-        uint32      y,
-        uint32      z);
+        ICmdBuffer*  pCmdBuffer,
+        DispatchDims size);
     template <bool issueSqttMarkerEvent>
     static void PAL_STDCALL CmdDispatchIndirect(
         ICmdBuffer*       pCmdBuffer,
@@ -214,23 +212,18 @@ private:
         gpusize           offset);
     template <bool issueSqttMarkerEvent>
     static void PAL_STDCALL CmdDispatchOffset(
-        ICmdBuffer* pCmdBuffer,
-        uint32      xOffset,
-        uint32      yOffset,
-        uint32      zOffset,
-        uint32      xDim,
-        uint32      yDim,
-        uint32      zDim);
+        ICmdBuffer*  pCmdBuffer,
+        DispatchDims offset,
+        DispatchDims launchSize,
+        DispatchDims logicalSize);
 
     virtual void ActivateQueryType(QueryPoolType queryPoolType) override;
     virtual void DeactivateQueryType(QueryPoolType queryPoolType) override;
 
     uint32* ValidateDispatch(
-        gpusize indirectGpuVirtAddr,
-        uint32  xDim,
-        uint32  yDim,
-        uint32  zDim,
-        uint32* pCmdSpace);
+        gpusize      indirectGpuVirtAddr,
+        DispatchDims logicalSize,
+        uint32*      pCmdSpace);
 
     template <bool HasPipelineChanged>
     uint32* ValidateUserData(
@@ -245,7 +238,6 @@ private:
         const ComputeCmdBuffer& cmdBuffer);
 
     bool NeedFixupMoreThan4096ThreadGroups() const;
-    void ConvertThreadGroupsToThreads(uint32* pX, uint32* pY, uint32* pZ) const;
 
     const Device&   m_device;
     const CmdUtil&  m_cmdUtil;

@@ -142,7 +142,7 @@ void MsaaImageCopyUtil<Allocator>::MsaaImageCopy(
     Pal::ICmdBuffer*            pCmdBuffer,
     const Pal::IImage&          srcImage,
     const Pal::IImage&          dstImage,
-    uint32                      regionCount,
+    Pal::uint32                 regionCount,
     const Pal::ImageCopyRegion* pRegions
     ) const
 {
@@ -220,9 +220,8 @@ void MsaaImageCopyUtil<Allocator>::MsaaImageCopy(
 
         memcpy(pUserData, constantData, sizeof(constantData));
 
-        pCmdBuffer->CmdDispatch(Util::RoundUpQuotient(copyRegion.extent.width,  MsaaImageCopy::ThreadsPerGroupX),
-                                Util::RoundUpQuotient(copyRegion.extent.height, MsaaImageCopy::ThreadsPerGroupY),
-                                1);
+        pCmdBuffer->CmdDispatch({Util::RoundUpQuotient(copyRegion.extent.width,  MsaaImageCopy::ThreadsPerGroupX),
+                                 Util::RoundUpQuotient(copyRegion.extent.height, MsaaImageCopy::ThreadsPerGroupY), 1});
     }
 
     pCmdBuffer->CmdRestoreComputeState(Pal::ComputeStatePipelineAndUserData);

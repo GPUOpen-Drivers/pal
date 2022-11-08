@@ -91,9 +91,7 @@ public:
         Hash(info.metadataMode);
         Hash(info.metadataTcCompatMode);
         Hash(info.maxBaseAlign);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 694
         Hash(info.imageMemoryBudget);
-#endif
         Hash(info.prtPlus.mapType);
         Hash(info.prtPlus.lodRegion);
         Hash(info.rowPitch);
@@ -119,9 +117,7 @@ public:
         Hash(info.depthClampMode);
         Hash(info.clipDistMask);
         Hash(info.forcedShadingRate);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 665
         Hash(info.dx10DiamondTestDisable);
-#endif
     }
     void Hash(const ViewportInfo& info)
     {
@@ -139,9 +135,6 @@ public:
     void Hash(const GraphicsPipelineCreateInfo& info)
     {
         Hash(info.flags);
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 631)
-        Hash(info.preferredHeapType);
-#endif
         Hash(info.useLateAllocVsLimit);
 
         if (info.useLateAllocVsLimit)
@@ -155,9 +148,7 @@ public:
         Hash(info.cbState.dualSourceBlendEnable);
         Hash(info.cbState.logicOp);
         Hash(info.cbState.uavExportSingleDraw);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 629
         Hash(info.viewportInfo);
-#endif
         for (uint32_t i = 0; i < Pal::MaxColorTargets; ++i)
         {
             if (info.cbState.target[i].swizzledFormat.format != Pal::ChNumFormat::Undefined)

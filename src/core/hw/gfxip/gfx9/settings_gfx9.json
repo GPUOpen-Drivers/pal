@@ -375,6 +375,23 @@
       "Name": "ForceGraphicsFillMemoryPath"
     },
     {
+      "Description": "The allocated padding dwords of task control buffer. This can assist task shader debugging.",
+      "Tags": [
+        "General",
+        "Gfx10"
+      ],
+      "Flags": {
+        "IsHex": true
+      },
+      "Defaults": {
+        "Default": 0
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "uint32",
+      "VariableName": "taskControlBufferPadDWords",
+      "Name": "TaskControlBufferPadDWords"
+    },
+    {
       "Description": "Controls whether to wait after F/I when changing targets within a Metadata mip tail region. This can resolve corruptions related to metadata cache conflicts.",
       "Tags": [
         "Cache flush",
@@ -387,6 +404,46 @@
       "Type": "bool",
       "VariableName": "waitOnMetadataMipTail",
       "Name": "WaitOnMetadataMipTail"
+    },
+    {
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "WaitAfterCbFlush",
+            "Value": 1,
+            "Description": "Wait after CB flush events."
+          },
+          {
+            "Name": "WaitBeforeBarrierEopWithCbFlush",
+            "Value": 2,
+            "Description": "Wait before barrier EOP which includes CB flush."
+          },
+          {
+            "Name": "WaitAfterDbFlush",
+            "Value": 4,
+            "Description": "Wait after DB flush events."
+          }
+        ],
+        "Name": "WaitOnFlush"
+      },
+      "Description": "Bitmask of cases to add waits around F/I events. These options can help to diagnose and potentially workaround some deadlock or corruption issues, although will likely have some performance impact.",
+      "Tags": [
+        "Cache flush",
+        "Gfx9"
+      ],
+      "Flags": {
+        "IsBitmask": true,
+        "IsHex": true,
+        "RereadSetting": true
+      },
+      "Defaults": {
+        "Default": 0
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "uint32",
+      "VariableName": "waitOnFlush",
+      "Name": "WaitOnFlush"
     },
     {
       "Description": "If true, writes the COLOR_SRC_OPT and COLOR_DST_OPT bits of theSX_MRT#_BLEND_OPT for Blend States.",
@@ -2941,6 +2998,23 @@
       "Type": "bool",
       "VariableName": "gfx103DisableAsymmetricWgpForPs",
       "Description": "On WGP harvesting asymmetric configuration, we scan all of the SAs to find the minimal number of WGPs to override the psCuEnLimitMask setting for performance."
+    },
+    {
+      "Name": "EnableHoleyOptimization",
+      "Tags": [
+        "General",
+        "Performance"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": false
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "enableHoleyOptimization",
+      "Description": "Enable the 'holey' optimization to minimize CP overhead. Unnecessary for ASICs running F32 cores."
     },
     {
       "Description": "Perfcounter workaround which samples all counters in the running state if SQ counters are on.",

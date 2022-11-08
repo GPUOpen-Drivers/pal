@@ -92,12 +92,6 @@ static_assert(PAL_CPLUSPLUS_AT_LEAST(PAL_CPLUSPLUS_14), "C++14 is required to bu
 #define PAL_WEAK_LINK __attribute__((weak))
 #endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 675
-/// Used for defining a function inline with a header. This gives it weak linkage.
-/// The compiler may also use this as a hint to merge the function into calling functions.
-#define PAL_INLINE inline
-#endif
-
 /// Platform cache line size in bytes.
 #define PAL_CACHE_LINE_BYTES 64
 /// Platform system memory page size in bytes.

@@ -75,6 +75,11 @@ namespace EventProtocol
             return GetHeader().isEnabled;
         }
 
+        uint8 GetVersion() const
+        {
+            return GetHeader().version;
+        }
+
         uint32 GetNumEvents() const
         {
             return GetHeader().numEvents;
@@ -158,9 +163,10 @@ namespace EventProtocol
 
         EventProviderIterator GetFirstProvider()
         {
-            return EventProviderIterator(0,
-                                            GetNumProviders(),
-                                            reinterpret_cast<const uint8*>(m_pResponseData) + sizeof(QueryProvidersResponseHeader));
+            return EventProviderIterator(
+                0,
+                GetNumProviders(),
+                reinterpret_cast<const uint8*>(m_pResponseData) + sizeof(QueryProvidersResponseHeader));
         }
 
     private:
@@ -183,6 +189,9 @@ namespace EventProtocol
         EventProviderId id;
         bool enabled;
 
+        // Deprecated. `pEventData` was used to configure which events are
+        // enabled on an EventProvider. Now when an EventProvider is enabled,
+        // all of its events are enabled.
         const void* pEventData;
         size_t eventDataSize;
     };
@@ -214,6 +223,12 @@ namespace EventProtocol
         // Frees the memory allocated as part of a previous event provider query operation
         void FreeProvidersDescription(EventProvidersDescription* pProvidersDescription);
 
+        // Subscribe to an EventProvider to receive events.
+        Result SubscribeToProvider(EventProviderId providerId);
+
+        // Unsubscribe from the provider it previously subscribed to.
+        void UnsubscribeFromProvider();
+
     private:
         void EmitEventData(const void* pEventData, size_t eventDataSize);
         Result ReceiveResponsePayload(SizedPayloadContainer* pContainer, EventMessage responseType);
@@ -221,5 +236,5 @@ namespace EventProtocol
         EventCallbackInfo m_callback;
     };
 
-}
-} // DevDriver
+} // namespace EventProtocol
+} // namespace DevDriver

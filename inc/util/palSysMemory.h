@@ -588,10 +588,6 @@ private:
 using GenericAllocatorTracked = GenericAllocator;
 #endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 660
-using GenericAllocatorAuto = GenericAllocatorTracked;
-#endif
-
 /// Returns the OS-specific page size.
 ///
 /// @note    All virtual reservations/commits/decommits/releases must be aligned to the value returned by this function.

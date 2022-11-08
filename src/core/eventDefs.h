@@ -395,9 +395,6 @@ static void SerializeCreateGpuMemoryData(
     pJsonWriter->KeyAndValue("GpuMemHandle", data.handle);
     pJsonWriter->KeyAndValue("Size", data.size);
     pJsonWriter->KeyAndValue("Alignment", data.alignment);
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 667)
-    pJsonWriter->KeyAndValue("PreferredHeap", data.heaps[0]);
-#endif
     pJsonWriter->KeyAndValue("HeapCount", data.heapCount);
     pJsonWriter->KeyAndBeginList("Heaps", false);
     for (uint32 i = 0; i < static_cast<uint32>(data.heapCount); i++)
@@ -686,10 +683,8 @@ static void SerializeResourceDescriptionPipeline(
     {
         pJsonWriter->KeyAndBeginMap("CreateFlags", false);
         pJsonWriter->KeyAndValue("ClientInternal", static_cast<bool>(data.pCreateFlags->clientInternal));
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 673
         pJsonWriter->KeyAndValue("SupportDynamicDispatch",
             static_cast<bool>(data.pCreateFlags->supportDynamicDispatch));
-#endif
         pJsonWriter->EndMap();
 
         pJsonWriter->KeyAndValue("InternalPipelineHashStable", data.pPipelineInfo->internalPipelineHash.stable);

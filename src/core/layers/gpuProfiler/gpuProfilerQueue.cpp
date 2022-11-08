@@ -737,16 +737,12 @@ Result Queue::Submit(
                                     pNextCmdBufInfoList->pDirectCapMemory =
                                         NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[i].pDirectCapMemory);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 677
                                     if (pNextCmdBufInfoList->privateFlip)
                                     {
                                         pNextCmdBufInfoList->pPrivFlipMemory =
                                             NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[i].pPrivFlipMemory);
                                     }
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 695
                                     pNextCmdBufInfoList->frameIndex = origSubQueueInfo.pCmdBufInfoList[i].frameIndex;
-#endif
                                 }
                             }
                         }

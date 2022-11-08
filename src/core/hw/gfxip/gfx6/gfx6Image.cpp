@@ -57,7 +57,7 @@ Image::Image(
     ImageInfo*         pImageInfo,
     const Pal::Device& device)
     :
-    GfxImage(pParentImage, pImageInfo, device),
+    Pm4Image(pParentImage, pImageInfo, device),
     m_pHtile(nullptr),
     m_pCmask(nullptr),
     m_pFmask(nullptr),
@@ -2090,7 +2090,7 @@ bool Image::IsFastColorClearSupported(
     {
         // A count of 1 indicates that no command buffer has skipped a fast clear eliminate and hence holds a reference
         // to this image's ref counter. 0 indicates that the optimization is disabled.
-        const bool noSkippedFastClearElim   = (Pal::GfxImage::GetFceRefCount() <= 1);
+        const bool noSkippedFastClearElim   = (GetFceRefCount() <= 1);
         const bool isClearColorTcCompatible = IsFastClearColorMetaFetchable(pColor);
 
         SetNonTcCompatClearFlag(isClearColorTcCompatible == false);

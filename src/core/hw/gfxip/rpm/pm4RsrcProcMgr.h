@@ -89,6 +89,32 @@ public:
         const ImageResolveRegion* pRegions,
         uint32                    flags) const override;
 
+    virtual void CmdClearColorImage(
+        GfxCmdBuffer*         pCmdBuffer,
+        const Image&          dstImage,
+        ImageLayout           dstImageLayout,
+        const ClearColor&     color,
+        const SwizzledFormat& clearFormat,
+        uint32                rangeCount,
+        const SubresRange*    pRanges,
+        uint32                boxCount,
+        const Box*            pBoxes,
+        uint32                flags) const override;
+
+    virtual void CmdClearDepthStencil(
+        GfxCmdBuffer*      pCmdBuffer,
+        const Image&       dstImage,
+        ImageLayout        depthLayout,
+        ImageLayout        stencilLayout,
+        float              depth,
+        uint8              stencil,
+        uint8              stencilWriteMask,
+        uint32             rangeCount,
+        const SubresRange* pRanges,
+        uint32             rectCount,
+        const Rect*        pRects,
+        uint32             flags) const override;
+
     virtual bool ExpandDepthStencil(
         Pm4CmdBuffer*                pCmdBuffer,
         const Image&                 image,
@@ -123,21 +149,15 @@ protected:
         GfxCmdBuffer*           pCmdBuffer,
         const ScaledCopyInfo&   copyInfo) const override;
 
-    virtual bool SlowClearUseGraphics(
-        GfxCmdBuffer*      pCmdBuffer,
-        const Image&       dstImage,
-        const SubresRange& clearRange,
-        ClearMethod        method) const override;
-
-    virtual void SlowClearGraphics(
-        GfxCmdBuffer*         pCmdBuffer,
+    void SlowClearGraphics(
+        Pm4CmdBuffer*         pCmdBuffer,
         const Image&          dstImage,
         ImageLayout           dstImageLayout,
         const ClearColor*     pColor,
         const SwizzledFormat& clearFormat,
         const SubresRange&    clearRange,
         uint32                boxCount,
-        const Box*            pBoxes) const override;
+        const Box*            pBoxes) const;
 
     // Generating indirect commands needs to choose different shaders based on the GFXIP version.
     virtual const ComputePipeline* GetCmdGenerationPipeline(
@@ -179,6 +199,32 @@ protected:
         bool   isDepthStencil,
         uint32 numSamples) const;
 
+    void PreComputeColorClearSync(
+        ICmdBuffer*        pCmdBuffer,
+        const IImage*      pImage,
+        const SubresRange& subres,
+        ImageLayout        layout) const;
+
+    void PostComputeColorClearSync(
+        ICmdBuffer*        pCmdBuffer,
+        const IImage*      pImage,
+        const SubresRange& subres,
+        ImageLayout        layout,
+        bool               csFastClear) const;
+
+    virtual void PreComputeDepthStencilClearSync(
+        ICmdBuffer*        pCmdBuffer,
+        const GfxImage&    gfxImage,
+        const SubresRange& subres,
+        ImageLayout        layout) const;
+
+    void PostComputeDepthStencilClearSync(
+        ICmdBuffer*        pCmdBuffer,
+        const GfxImage&    gfxImage,
+        const SubresRange& subres,
+        ImageLayout        layout,
+        bool               csFastClear) const;
+
 private:
     virtual void CopyImageGraphics(
         GfxCmdBuffer*          pCmdBuffer,
@@ -190,6 +236,12 @@ private:
         const ImageCopyRegion* pRegions,
         const Rect*            pScissorRect,
         uint32                 flags) const override;
+
+    bool SlowClearUseGraphics(
+        Pm4CmdBuffer*      pCmdBuffer,
+        const Image&       dstImage,
+        const SubresRange& clearRange,
+        ClearMethod        method) const;
 
     virtual void HwlImageToImageMissingPixelCopy(
         GfxCmdBuffer*          pCmdBuffer,
@@ -210,6 +262,28 @@ private:
         uint32                  bpp) const = 0;
 
     virtual void HwlEndGraphicsCopy(CmdStream* pCmdStream, uint32 restoreMask) const = 0;
+
+    virtual void HwlFastColorClear(
+        Pm4CmdBuffer*         pCmdBuffer,
+        const GfxImage&       dstImage,
+        const uint32*         pConvertedColor,
+        const SwizzledFormat& clearFormat,
+        const SubresRange&    clearRange) const = 0;
+
+    virtual void HwlDepthStencilClear(
+        GfxCmdBuffer*      pCmdBuffer,
+        const GfxImage&    dstImage,
+        ImageLayout        depthLayout,
+        ImageLayout        stencilLayout,
+        float              depth,
+        uint8              stencil,
+        uint8              stencilWriteMask,
+        uint32             rangeCount,
+        const SubresRange* pRanges,
+        bool               fastClear,
+        bool               needComputeSync,
+        uint32             boxCnt,
+        const Box*         pBox) const = 0;
 
     virtual void HwlHtileCopyAndFixUp(
         Pm4CmdBuffer*             pCmdBuffer,

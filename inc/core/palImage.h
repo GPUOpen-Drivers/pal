@@ -204,11 +204,7 @@ union ImageCreateFlags
                                              ///  return error if we fail to create a compatible image.
 
         uint32 tmzProtected            :  1; ///< Indicate this image is protected or not.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 681
         uint32 sharedWithMesa          :  1; ///< Indicate this Image was opened from a Mesa shared Image
-#else
-        uint32 reserved681             :  1; ///< Reserved for future use.
-#endif
         uint32 reserved769             :  1; ///< Reserved for future use.
         uint32 reserved                :  7; ///< Reserved for future use.
     };
@@ -297,7 +293,6 @@ struct ImageCreateInfo
     MetadataTcCompatMode metadataTcCompatMode; ///< TC compat mode for this image.
     uint32             maxBaseAlign;      ///< Maximum address alignment for this image or zero for an unbounded
                                           ///  alignment.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 694
     float              imageMemoryBudget; ///< The memoryBudget value used in SW addrlib to determine the minSizeBlk for
                                           ///  textures. It must be >= 0.0.
                                           ///  When in [0.0, 1.0), addrlib uses legacy logic to decide minSizeBlk.
@@ -306,7 +301,6 @@ struct ImageCreateInfo
                                           ///  Despite 1.5 in tests show significant texture allocation size reduction,
                                           ///  default value 0.0 (legacy behavior) is recommended if not specified by
                                           ///  client.
-#endif
 
     struct
     {
@@ -439,9 +433,7 @@ struct ExternalImageOpenInfo
     ImageCreateFlags         flags;          ///< Image Creation flags.
     ImageUsageFlags          usage;          ///< Image usage flags.
     IPrivateScreen*          pScreen;        ///< Private screen this image is created on, or null.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 681
     gpusize                  gpuMemOffset;   ///< GpuMemory offset
-#endif
 };
 
 /// Reports the overall GPU memory layout of the entire image.  Output structure for IImage::GetMemoryLayout(). Unused

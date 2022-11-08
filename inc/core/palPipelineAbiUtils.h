@@ -390,12 +390,10 @@ inline Result GetMetadataVersion(
     return result;
 }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 676
 } //Abi
 
 namespace PalAbi
 {
-#endif
 
 /// Helper function to parse the PalMetadata section of a pipeline ELF.
 ///

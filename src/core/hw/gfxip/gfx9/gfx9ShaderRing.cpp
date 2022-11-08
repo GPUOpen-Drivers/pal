@@ -730,7 +730,9 @@ TaskMeshControlRing::TaskMeshControlRing(
     BufferSrd* pSrdTable,
     bool       isTmz)
     :
-    ShaderRing(pDevice, pSrdTable, isTmz, ShaderRingType::TaskMeshControl)
+    ShaderRing(pDevice, pSrdTable, isTmz, ShaderRingType::TaskMeshControl),
+    m_taskControlBufferPaddingSize(
+        pDevice->Settings().taskControlBufferPadDWords * sizeof(uint32))
 {
     const GpuChipProperties& chipProps   = m_pDevice->Parent()->ChipProperties();
     BufferSrd*const          pGenericSrd = &m_pSrdTable[static_cast<size_t>(ShaderRingSrd::TaskMeshControl)];
@@ -774,6 +776,7 @@ void TaskMeshControlRing::InitializeControlBuffer(
         if (result == Result::Success)
         {
             memcpy(pData, &controlBuffer, sizeof(ControlBufferLayout));
+            memset(VoidPtrInc(pData, sizeof(ControlBufferLayout)), 0, m_taskControlBufferPaddingSize);
             m_ringMem.Unmap();
         }
         else

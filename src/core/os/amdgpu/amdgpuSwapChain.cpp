@@ -287,5 +287,117 @@ Result SwapChain::ReclaimUnusedImages(
     return result;
 }
 
+// =====================================================================================================================
+bool SwapChain::OptimizedHandlingForNativeWindowSystem(
+    uint32* pImageIndex)
+{
+    Result ret = Result::ErrorUnavailable;
+
+    if (m_pWindowSystem->SupportIdleEvent())
+    {
+        m_pWindowSystem->GoThroughEvent(); // Handle all events for the window system.
+
+        // Only optimize the immediate mode
+        // Don't take this path for Cpu present case
+        if ((m_pDevice->Settings().nativeAcquirePresentImageOpt == true) &&
+            (m_createInfo.swapChainMode == SwapChainMode::Immediate) &&
+            (m_pDevice->Settings().forcePresentViaCpuBlt == false))
+        {
+            ret = Result::Success;
+        }
+
+        if (ret == Result::Success)
+        {
+            bool found = false;
+
+            // Go through all images first
+            {
+                MutexAuto lock(&m_unusedImageMutex);
+                for(uint32 i = 0; i < m_unusedImageCount; i++)
+                {
+                    Result status = m_pPresentIdle[m_unusedImageQueue[i]]->WaitForCompletion(false);
+                    if ((status == Result::Success) ||
+                        (status == Result::ErrorFenceNeverSubmitted))
+                    {
+                        *pImageIndex = m_unusedImageQueue[i];
+                        found = true;
+                        break;
+                    }
+                }
+            }
+
+            // Wait on idle event to find an available image,
+            // The thread will be blocked in WaitOnIdleEvent()
+            if (found == false)
+            {
+                WindowSystemImageHandle idleImage = NullImageHandle;
+                // AcquireNextImage and Present might be called in different threads,
+                // make sure they will not be blocked together.
+                m_pWindowSystem->WaitOnIdleEvent(&idleImage);
+
+                MutexAuto lock(&m_unusedImageMutex);
+
+                for (uint32 i = 0; i < m_unusedImageCount; i++)
+                {
+                    if (m_pWindowSystem->CheckIdleImage(
+                        &idleImage, m_pPresentIdle[m_unusedImageQueue[i]]) == true)
+                    {
+                        *pImageIndex = m_unusedImageQueue[i];
+                        found = true;
+                        break;
+                    }
+                }
+            }
+
+            if (found)
+            {
+                m_pPresentIdle[*pImageIndex]->Reset();
+
+                MutexAuto lock(&m_unusedImageMutex);
+
+                for (uint32 i = 0; i < m_unusedImageCount; i++)
+                {
+                    if (m_unusedImageQueue[i] == *pImageIndex)
+                    {
+                        m_unusedImageCount--;
+                        for (uint32 j = i; j < m_unusedImageCount; j ++)
+                        {
+                            m_unusedImageQueue[j] =  m_unusedImageQueue[j+1];
+                        }
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                ret = Result::ErrorUnknown;
+            }
+        }
+    }
+
+    return (ret == Result::Success);
+}
+
+// =====================================================================================================================
+Result SwapChain::AcquireNextImage(
+    const AcquireNextImageInfo& acquireInfo,
+    uint32*                     pImageIndex)
+{
+    Result ret = Result::Success;
+
+    if (OptimizedHandlingForNativeWindowSystem(pImageIndex) == false)
+    {
+        ret = Pal::SwapChain::AcquireNextImage(acquireInfo, pImageIndex);
+    }
+    else if (m_createInfo.swapChainMode != SwapChainMode::Mailbox)
+    {
+        ret = m_pScheduler->SignalOnAcquire(m_pPresentComplete[*pImageIndex],
+                                            acquireInfo.pSemaphore,
+                                            acquireInfo.pFence);
+    }
+
+    return ret;
+}
+
 } // Amdgpu
 } // Pal

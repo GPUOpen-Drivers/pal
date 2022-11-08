@@ -41,9 +41,7 @@ ComputePipeline::ComputePipeline(
     Pipeline(pDevice, isInternal),
     m_pHsaMeta(nullptr),
     m_pKernelDescriptor(nullptr),
-    m_threadsPerTgX(0),
-    m_threadsPerTgY(0),
-    m_threadsPerTgZ(0),
+    m_threadsPerTg{},
     m_useCps(false),
     m_maxFunctionCallDepth(0),
     m_stackSizeInBytes(0),
@@ -91,7 +89,6 @@ Result ComputePipeline::Init(
 
     if (result == Result::Success)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 673
         if (createInfo.flags.supportDynamicDispatch == 1)
         {
             // Dynamic dispatch support can only be requested on supported hardware
@@ -104,7 +101,6 @@ Result ComputePipeline::Init(
                 SetDynamicDispatchSupported();
             }
         }
-#endif
     }
 
     if (result == Result::Success)

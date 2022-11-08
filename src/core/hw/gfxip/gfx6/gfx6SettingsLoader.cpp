@@ -52,10 +52,10 @@ SettingsLoader::SettingsLoader(
                          static_cast<DriverSettings*>(&m_settings),
                          g_gfx6PalNumSettings),
     m_pDevice(pDevice),
-    m_settings(),
+    m_settings{},
     m_pComponentName("Gfx6_Pal")
 {
-    memset(&m_settings, 0, sizeof(Gfx6PalSettings));
+
 }
 
 // =====================================================================================================================

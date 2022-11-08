@@ -1521,6 +1521,7 @@ Result Device::InitMemoryProperties()
     m_memoryProperties.flags.globalGpuVaSupport      = false;
     m_memoryProperties.flags.svmSupport              = 0;
     m_memoryProperties.flags.autoPrioritySupport     = 0;
+    m_memoryProperties.flags.supportPageFaultInfo    = 0;
 
     m_memoryProperties.flags.iommuv2Support = 0;
 

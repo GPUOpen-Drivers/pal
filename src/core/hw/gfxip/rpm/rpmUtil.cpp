@@ -851,6 +851,20 @@ void ConvertX9YZ9E5ToFloat(
 }
 
 // =====================================================================================================================
+// Input data is the output of the ConvertColorToX10Y10Z10W2 function; output data is the equivalent color data expressed
+// as 32-bit IEEE-1394 floating point numbers.
+void ConvertX10Y10Z10W2ToFloat(
+    const uint32*  pColorIn,
+    uint32*        pColorOut)
+{
+    for (uint32 i = 0; i < 3; i++) // RGB coversion
+    {
+        pColorOut[i] = Float10_6e4ToFloat32(pColorIn[i]);
+    }
+
+    pColorOut[3] = UFixedToFloat(pColorIn[3], 2, 0); // Alpha
+}
+// =====================================================================================================================
 // Converts a color from clearFormat to its native format. The color array must contain four DWORDs in RGBA order.
 void ConvertClearColorToNativeFormat(
     SwizzledFormat baseFormat,
@@ -865,6 +879,10 @@ void ConvertClearColorToNativeFormat(
     if (clearFormat.format == ChNumFormat::X9Y9Z9E5_Float)
     {
         ConvertX9YZ9E5ToFloat(pColor, pColor);
+    }
+    else if (clearFormat.format == ChNumFormat::X10Y10Z10W2_Float)
+    {
+        ConvertX10Y10Z10W2ToFloat(pColor, pColor);
     }
     else
     {

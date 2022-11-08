@@ -450,7 +450,6 @@ Result Image::ValidateCreateInfo(
         }
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 694
     // imageMemoryBudget should be nonnegative.
     if (ret == Result::Success)
     {
@@ -459,7 +458,6 @@ Result Image::ValidateCreateInfo(
             ret = Result::ErrorInvalidValue;
         }
     }
-#endif
 
     return ret;
 }
@@ -1229,6 +1227,9 @@ AddrFormat Image::GetAddrFormat(
             break;
         case ChNumFormat::X9Y9Z9E5_Float:
             ret = ADDR_FMT_5_9_9_9_SHAREDEXP;
+            break;
+        case ChNumFormat::X10Y10Z10W2_Float:
+            ret = ADDR_FMT_10_10_10_2;
             break;
         case ChNumFormat::Bc1_Unorm:
         case ChNumFormat::Bc1_Srgb:

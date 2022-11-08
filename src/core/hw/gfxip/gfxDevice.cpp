@@ -573,25 +573,28 @@ void GfxDevice::DescribeDispatch(
     GfxCmdBuffer*               pCmdBuf,
     RgpMarkerSubQueueFlags      subQueueFlags,
     Developer::DrawDispatchType cmdType,
-    uint32                      xOffset,
-    uint32                      yOffset,
-    uint32                      zOffset,
-    uint32                      xDim,
-    uint32                      yDim,
-    uint32                      zDim
+    DispatchDims                offset,
+    DispatchDims                launchSize,
+    DispatchDims                logicalSize
     ) const
 {
     Developer::DrawDispatchData data { };
 
-    data.pCmdBuffer             = pCmdBuf;
-    data.subQueueFlags          = subQueueFlags;
-    data.cmdType                = cmdType;
-    data.dispatch.groupStart[0] = xOffset;
-    data.dispatch.groupStart[1] = yOffset;
-    data.dispatch.groupStart[2] = zOffset;
-    data.dispatch.groupDims[0]  = xDim;
-    data.dispatch.groupDims[1]  = yDim;
-    data.dispatch.groupDims[2]  = zDim;
+    data.pCmdBuffer           = pCmdBuf;
+    data.subQueueFlags        = subQueueFlags;
+    data.cmdType              = cmdType;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 771
+    data.dispatch.groupStart  = offset;
+    data.dispatch.groupDims   = launchSize;
+    data.dispatch.logicalSize = logicalSize;
+#else
+    data.dispatch.groupStart[0] = offset.x;
+    data.dispatch.groupStart[1] = offset.y;
+    data.dispatch.groupStart[2] = offset.z;
+    data.dispatch.groupDims[0]  = launchSize.x;
+    data.dispatch.groupDims[1]  = launchSize.y;
+    data.dispatch.groupDims[2]  = launchSize.z;
+#endif
 
     m_pParent->DeveloperCb(Developer::CallbackType::DrawDispatch, &data);
 }

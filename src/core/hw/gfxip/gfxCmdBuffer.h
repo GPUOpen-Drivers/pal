@@ -337,11 +337,7 @@ public:
     const GfxCmdBufferStateFlags& GetGfxCmdBufStateFlags() const { return m_gfxCmdBufStateFlags; }
 
     // CmdDispatch on the ACE CmdStream for Gfx10+ UniversalCmdBuffer only when multi-queue is supported by the engine.
-    virtual void CmdDispatchAce(
-        uint32      xDim,
-        uint32      yDim,
-        uint32      zDim)
-    { PAL_NEVER_CALLED(); }
+    virtual void CmdDispatchAce(DispatchDims size) { PAL_NEVER_CALLED(); }
 
     virtual void AddPerPresentCommands(
         gpusize frameCountGpuAddr,
@@ -414,8 +410,8 @@ protected:
 
     virtual void ResetState() override;
 
-    void DescribeDispatch(Developer::DrawDispatchType cmdType, uint32 xDim, uint32 yDim, uint32 zDim);
-    void DescribeDispatchOffset(uint32 xOffset, uint32 yOffset, uint32 zOffset, uint32 xDim, uint32 yDim, uint32 zDim);
+    void DescribeDispatch(Developer::DrawDispatchType cmdType, DispatchDims size);
+    void DescribeDispatchOffset(DispatchDims offset, DispatchDims launchSize, DispatchDims logicalSize);
     void DescribeDispatchIndirect();
 
     virtual bool SupportsExecutionMarker() override { return true; }

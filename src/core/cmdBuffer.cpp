@@ -91,16 +91,13 @@ static void PAL_STDCALL CmdDrawIndexedIndirectMultiInvalid(
     uint32            stride,
     uint32            maximumCount,
     gpusize           countGpuAddr);
-static void PAL_STDCALL CmdDispatchInvalid(ICmdBuffer* pCmdBuffer, uint32 x, uint32 y, uint32 z);
+static void PAL_STDCALL CmdDispatchInvalid(ICmdBuffer* pCmdBuffer, DispatchDims size);
 static void PAL_STDCALL CmdDispatchIndirectInvalid(ICmdBuffer* pCmdBuffer, const IGpuMemory& gpuMemory, gpusize offset);
 static void PAL_STDCALL CmdDispatchOffsetInvalid(
-    ICmdBuffer* pCmdBuffer,
-    uint32      xOffset,
-    uint32      yOffset,
-    uint32      zOffset,
-    uint32      xDim,
-    uint32      yDim,
-    uint32      zDim);
+    ICmdBuffer*  pCmdBuffer,
+    DispatchDims offset,
+    DispatchDims launchSize,
+    DispatchDims logicalSize);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
 uint32 CmdBuffer::s_numCreated[QueueTypeCount] = {};
@@ -1537,10 +1534,8 @@ static void PAL_STDCALL CmdDrawIndexedIndirectMultiInvalid(
 // =====================================================================================================================
 // Default implementation of CmdDispatch is unimplemented, derived CmdBuffer classes should override it if supported.
 void PAL_STDCALL CmdBuffer::CmdDispatchInvalid(
-    ICmdBuffer* pCmdBuffer,
-    uint32      x,
-    uint32      y,
-    uint32      z)
+    ICmdBuffer*  pCmdBuffer,
+    DispatchDims size)
 {
     PAL_NEVER_CALLED();
 }
@@ -1560,13 +1555,10 @@ void PAL_STDCALL CmdBuffer::CmdDispatchIndirectInvalid(
 // Default implementation of CmdDispatchOffset is unimplemented, derived CmdBuffer classes should override it if
 // supported.
 void PAL_STDCALL CmdBuffer::CmdDispatchOffsetInvalid(
-    ICmdBuffer* pCmdBuffer,
-    uint32      xOffset,
-    uint32      yOffset,
-    uint32      zOffset,
-    uint32      xDim,
-    uint32      yDim,
-    uint32      zDim)
+    ICmdBuffer*  pCmdBuffer,
+    DispatchDims offset,
+    DispatchDims launchSize,
+    DispatchDims logicalSize)
 {
     PAL_NEVER_CALLED();
 }
@@ -1575,11 +1567,9 @@ void PAL_STDCALL CmdBuffer::CmdDispatchOffsetInvalid(
 // Default implementation of CmdDispatchDynamic is unimplemented, derived CmdBuffer classes should override it if
 // supported.
 void PAL_STDCALL CmdBuffer::CmdDispatchDynamicInvalid(
-    ICmdBuffer* pCmdBuffer,
-    gpusize     gpuVa,
-    uint32      xDim,
-    uint32      yDim,
-    uint32      zDim)
+    ICmdBuffer*  pCmdBuffer,
+    gpusize      gpuVa,
+    DispatchDims size)
 {
     PAL_NEVER_CALLED();
 }
@@ -1588,10 +1578,8 @@ void PAL_STDCALL CmdBuffer::CmdDispatchDynamicInvalid(
 // Default implementation of CmdDispatchMesh is unimplemented, derived CmdBuffer classes should override it if
 // supported.
 void PAL_STDCALL CmdBuffer::CmdDispatchMeshInvalid(
-    ICmdBuffer* pCmdBuffer,
-    uint32      xDim,
-    uint32      yDim,
-    uint32      zDim)
+    ICmdBuffer*  pCmdBuffer,
+    DispatchDims size)
 {
     PAL_NEVER_CALLED();
 }

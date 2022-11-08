@@ -247,6 +247,10 @@ Result EventClient::ReadEventData(uint32 timeoutInMs)
             const EventDataUpdatePayload& payload = container.GetPayload<EventDataUpdatePayload>();
             EmitEventData(payload.GetEventDataBuffer(), payload.GetEventDataSize());
         }
+        else if (container.GetPayload<EventHeader>().command == EventMessage::SubscribeToProviderResponse)
+        {
+            result = container.GetPayload<SubscribeToProviderResponse>().result;
+        }
         else
         {
             // Return an error if we get an unexpected payload
@@ -261,6 +265,29 @@ Result EventClient::ReadEventData(uint32 timeoutInMs)
 void EventClient::FreeProvidersDescription(EventProvidersDescription* pProvidersDescription)
 {
     DD_DELETE(pProvidersDescription, m_pMsgChannel->GetAllocCb());
+}
+
+// =====================================================================================================================
+Result EventClient::SubscribeToProvider(EventProviderId providerId)
+{
+    SizedPayloadContainer payload = {};
+    payload.CreatePayload<SubscribeToProviderRequest>(providerId);
+
+    Result result = TransactPayloadContainer(&payload);
+    if (result == Result::Success)
+    {
+        result = payload.GetPayload<SubscribeToProviderResponse>().result;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+void EventClient::UnsubscribeFromProvider()
+{
+    SizedPayloadContainer payload = {};
+    payload.CreatePayload<UnsubscribeFromProviderRequest>();
+    SendPayloadContainer(payload);
 }
 
 // =====================================================================================================================
@@ -298,5 +325,5 @@ Result EventClient::ReceiveResponsePayload(SizedPayloadContainer* pContainer, Ev
     return result;
 }
 
-} // EventProtocol
-} // DevDriver
+} // namespace EventProtocol
+} // namespace DevDriver

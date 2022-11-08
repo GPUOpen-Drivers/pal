@@ -66,6 +66,8 @@ target_sources(pal PRIVATE
     pm4CmdStream.h
     pm4ComputeCmdBuffer.cpp
     pm4ComputeCmdBuffer.h
+    pm4Image.cpp
+    pm4Image.h
     pm4IndirectCmdGenerator.cpp
     pm4IndirectCmdGenerator.h
     pm4UniversalCmdBuffer.cpp

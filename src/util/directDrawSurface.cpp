@@ -351,6 +351,11 @@ Result GetDdsPixelFormat(
                 result = Result::Unsupported;
                 break;
             }
+            case Pal::ChNumFormat::X10Y10Z10W2_Float:
+            {
+                result = Result::Unsupported;
+                break;
+            }
             case Pal::ChNumFormat::X10Y10Z10W2Bias_Unorm:
             {
                 *pDdspf = DDSPF_DX10;
@@ -1135,7 +1140,7 @@ Result GetDdsPixelFormat(
             }
         }
 
-        static_assert(static_cast<uint32>(Pal::ChNumFormat::Count) == 0xB9,
+        static_assert(static_cast<uint32>(Pal::ChNumFormat::Count) == 0xBA,
                       "Format table needs updating!");
 
 #if !DXGI_FORMAT_DEFINED

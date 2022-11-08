@@ -1852,6 +1852,61 @@ ADDR_E_RETURNCODE Lib::Addr2GetPreferredSurfaceSetting(
 
 /**
 ************************************************************************************************************************
+*   Lib::GetPossibleSwizzleModes
+*
+*   @brief
+*       Returns a list of swizzle modes that are valid from the hardware's perspective for the client to choose from
+*
+*   @return
+*       ADDR_E_RETURNCODE
+************************************************************************************************************************
+*/
+ADDR_E_RETURNCODE Lib::GetPossibleSwizzleModes(
+    const ADDR2_GET_PREFERRED_SURF_SETTING_INPUT* pIn,
+    ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT*      pOut) const
+{
+    return HwlGetPossibleSwizzleModes(pIn, pOut);
+}
+
+/**
+************************************************************************************************************************
+*   Lib::GetAllowedBlockSet
+*
+*   @brief
+*       Returns the set of allowed block sizes given the allowed swizzle modes and resource type
+*
+*   @return
+*       ADDR_E_RETURNCODE
+************************************************************************************************************************
+*/
+ADDR_E_RETURNCODE Lib::GetAllowedBlockSet(
+    ADDR2_SWMODE_SET allowedSwModeSet,
+    AddrResourceType rsrcType,
+    ADDR2_BLOCK_SET* pAllowedBlockSet) const
+{
+    return HwlGetAllowedBlockSet(allowedSwModeSet, rsrcType, pAllowedBlockSet);
+}
+
+/**
+************************************************************************************************************************
+*   Lib::GetAllowedSwSet
+*
+*   @brief
+*       Returns the set of allowed swizzle types given the allowed swizzle modes
+*
+*   @return
+*       ADDR_E_RETURNCODE
+************************************************************************************************************************
+*/
+ADDR_E_RETURNCODE Lib::GetAllowedSwSet(
+    ADDR2_SWMODE_SET  allowedSwModeSet,
+    ADDR2_SWTYPE_SET* pAllowedSwSet) const
+{
+    return HwlGetAllowedSwSet(allowedSwModeSet, pAllowedSwSet);
+}
+
+/**
+************************************************************************************************************************
 *   Lib::ComputeBlock256Equation
 *
 *   @brief
@@ -2026,94 +2081,6 @@ VOID Lib::FilterInvalidEqSwizzleMode(
             allowedSwModeSet.value = allowedSwModeSetVal;
         }
     }
-}
-
-/**
-************************************************************************************************************************
-*   Lib::IsBlockTypeAvaiable
-*
-*   @brief
-*       Determine whether a block type is allowed in a given blockSet
-*
-*   @return
-*       N/A
-************************************************************************************************************************
-*/
-BOOL_32 Lib::IsBlockTypeAvaiable(
-    ADDR2_BLOCK_SET blockSet,
-    AddrBlockType   blockType)
-{
-    BOOL_32 avail;
-
-    if (blockType == AddrBlockLinear)
-    {
-        avail = blockSet.linear ? TRUE : FALSE;
-    }
-    else
-    {
-        avail = blockSet.value & (1 << (static_cast<UINT_32>(blockType) - 1)) ? TRUE : FALSE;
-    }
-
-    return avail;
-}
-
-/**
-************************************************************************************************************************
-*   Lib::BlockTypeWithinMemoryBudget
-*
-*   @brief
-*       Determine whether a new block type is acceptable based on memory waste ratio. Will favor larger block types.
-*
-*   @return
-*       N/A
-************************************************************************************************************************
-*/
-BOOL_32 Lib::BlockTypeWithinMemoryBudget(
-    UINT_64 minSize,
-    UINT_64 newBlockTypeSize,
-    UINT_32 ratioLow,
-    UINT_32 ratioHi,
-    DOUBLE  memoryBudget,
-    BOOL_32 newBlockTypeBigger)
-{
-    BOOL_32 accept = FALSE;
-
-    if (memoryBudget >= 1.0)
-    {
-        if (newBlockTypeBigger)
-        {
-            if ((static_cast<DOUBLE>(newBlockTypeSize) / minSize) <= memoryBudget)
-            {
-                accept = TRUE;
-            }
-        }
-        else
-        {
-            if ((static_cast<DOUBLE>(minSize) / newBlockTypeSize) > memoryBudget)
-            {
-                accept = TRUE;
-            }
-        }
-    }
-    else
-    {
-        if (newBlockTypeBigger)
-        {
-            if ((newBlockTypeSize * ratioHi) <= (minSize * ratioLow))
-            {
-                accept = TRUE;
-            }
-        }
-        else
-        {
-            if ((newBlockTypeSize * ratioLow) < (minSize * ratioHi))
-            {
-                accept = TRUE;
-            }
-        }
-    }
-
-    return accept;
 }
 
 #if DEBUG

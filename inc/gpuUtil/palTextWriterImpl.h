@@ -330,7 +330,7 @@ void TextWriter<Allocator>::DrawDebugText(
 
         // Bind the pipeline and issue one thread group per letter.
         pCmdBuffer->CmdBindPipeline({ Pal::PipelineBindPoint::Compute, m_pPipeline, Pal::InternalApiPsoHash, });
-        pCmdBuffer->CmdDispatch(stringLen, 1, 1);
+        pCmdBuffer->CmdDispatch({stringLen, 1, 1});
     }
 }
 

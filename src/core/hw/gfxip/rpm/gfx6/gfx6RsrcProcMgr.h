@@ -137,7 +137,7 @@ protected:
 
 private:
     virtual void HwlFastColorClear(
-        GfxCmdBuffer*         pCmdBuffer,
+        Pm4CmdBuffer*         pCmdBuffer,
         const GfxImage&       dstImage,
         const uint32*         pConvertedColor,
         const SwizzledFormat& clearFormat,

@@ -31,47 +31,76 @@
 
 namespace DevDriver
 {
-    namespace EventProtocol
+namespace EventProtocol
+{
+
+enum class SessionState
+{
+    ReceivePayload = 0,
+    ProcessPayload,
+    SendPayload,
+};
+
+class EventServerSession
+{
+public:
+    EventServerSession(
+        const AllocCb& allocCb,
+        SharedPointer<ISession> pSession,
+        EventServer* pServer,
+        TransferProtocol::TransferManager* pTransferManager);
+
+    ~EventServerSession();
+
+    void UpdateSession();
+
+    SessionId GetSessionId() { return m_pSession->GetSessionId(); }
+
+    Result AllocateEventChunk(EventChunk** ppChunk);
+    void FreeEventChunk(EventChunk* pChunk);
+    void EnqueueEventChunks(size_t numChunks, EventChunk** ppChunks);
+
+    void SetProviderId(EventProviderId providerId);
+
+private:
+    struct EventChunkInfo
     {
-        enum class SessionState
-        {
-            ReceivePayload = 0,
-            ProcessPayload,
-            SendPayload,
-        };
+        EventChunk* pChunk;
+        size_t      bytesSent;
+    };
 
-        class EventServerSession
-        {
-        public:
-            EventServerSession(const AllocCb& allocCb, SharedPointer<ISession> pSession, EventServer* pServer, TransferProtocol::TransferManager* pTransferManager);
-            ~EventServerSession();
+    // Protocol message handlers
+    SessionState HandleQueryProvidersRequest(SizedPayloadContainer& container);
+    SessionState HandleAllocateProviderUpdatesRequest(SizedPayloadContainer& container);
+    SessionState HandleApplyProviderUpdatesRequest(SizedPayloadContainer& container);
+    SessionState HandleSubscribeToProviderRequest(SizedPayloadContainer& container);
+    SessionState HandleUnsubscribeFromProviderRequest();
 
-            void UpdateSession();
+    EventChunk* DequeueEventChunk();
+    bool IsTargetMemoryUsageExceeded() const;
+    void TrimEventChunkMemory();
 
-        private:
-            struct EventChunkInfo
-            {
-                EventChunk* pChunk;
-                size_t      bytesSent;
-            };
+    void SendEventData();
 
-            // Protocol message handlers
-            SessionState HandleQueryProvidersRequest(SizedPayloadContainer& container);
-            SessionState HandleAllocateProviderUpdatesRequest(SizedPayloadContainer& container);
-            SessionState HandleApplyProviderUpdatesRequest(SizedPayloadContainer& container);
+    EventServer*                                 m_pServer;
+    SharedPointer<ISession>                      m_pSession;
+    AllocCb                                      m_allocCb;
+    SizedPayloadContainer                        m_payloadContainer;
+    SessionState                                 m_state;
+    TransferProtocol::TransferManager*           m_pTransferManager;
+    SharedPointer<TransferProtocol::ServerBlock> m_pUpdateBlock;
+    SizedPayloadContainer                        m_eventPayloadContainer;
+    bool                                         m_eventPayloadPending;
+    EventChunkInfo                               m_eventChunkInfo;
+    EventProviderId                              m_assignedProviderId;
 
-            void SendEventData();
+    Platform::AtomicLock                         m_eventPoolMutex;
+    Vector<EventChunk*>                          m_eventChunkPool;
+    Platform::AtomicLock                         m_eventQueueMutex;
+    Vector<EventChunk*>                          m_eventChunkQueue;
+    uint64                                       m_nextTrimTime;
+};
 
-            EventServer*                                 m_pServer;
-            SharedPointer<ISession>                      m_pSession;
-            AllocCb                                      m_allocCb;
-            SizedPayloadContainer                        m_payloadContainer;
-            SessionState                                 m_state;
-            TransferProtocol::TransferManager*           m_pTransferManager;
-            SharedPointer<TransferProtocol::ServerBlock> m_pUpdateBlock;
-            SizedPayloadContainer                        m_eventPayloadContainer;
-            bool                                         m_eventPayloadPending;
-            EventChunkInfo                               m_eventChunkInfo;
-        };
-    }
-}
+} // namespace EventProtocol
+} // namespace DevDriver
+

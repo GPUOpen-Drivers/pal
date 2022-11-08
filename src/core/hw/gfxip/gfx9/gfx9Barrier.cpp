@@ -772,6 +772,13 @@ void Device::IssueSyncs(
         pOperations->pipelineStalls.eopTsBottomOfPipe = 1;
         pOperations->pipelineStalls.waitOnTs          = 1;
 
+        // Handle cases where a stall is needed as a workaround before EOP with CB Flush event
+        if (isGfxSupported && TestAnyFlagSet(Settings().waitOnFlush, WaitBeforeBarrierEopWithCbFlush) &&
+            TestAnyFlagSet(syncReqs.rbCaches, SyncCbWbInv))
+        {
+            pCmdSpace = pCmdBuf->WriteWaitEop(HwPipePreColorTarget, SyncGlxNone, SyncRbNone, pCmdSpace);
+        }
+
         pCmdSpace = pCmdBuf->WriteWaitEop(waitPoint, syncReqs.glxCaches, syncReqs.rbCaches, pCmdSpace);
         syncReqs.glxCaches = SyncGlxNone;
 

@@ -477,6 +477,7 @@ constexpr MergedFormatPropertiesTable Gfx6MergedFormatPropertiesTable =
         { None,                           None                           }, // ChNumFormat::P012
         { None,                           None                           }, // ChNumFormat::P212
         { None,                           None                           }, // ChNumFormat::P412
+        { IrXsIwXdIflIfmmTrTwCBXP,        IrXsIwXdIflIfmmTrTwCBMXP       }, // ChNumFormat::X10Y10Z10W2_Float
     }
 };
 
@@ -2704,6 +2705,18 @@ constexpr MergedFmtInfo Gfx6MergedChannelFmtInfoTbl[] =
         Chip::Z_INVALID,                   // ZFormat
         Chip::STENCIL_INVALID,             // StencilFormat
     },
+    // ChNumFormat::X10Y10Z10W2_Float
+    {
+        ChNumFormat::X10Y10Z10W2_Float,    // ChNumFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
 };
 
 // Stores a MergedImgDataFmtInfo struct for each HW image format up to the last format known to the spreadsheet.
@@ -3330,7 +3343,7 @@ constexpr MergedImgDataFmtInfo Gfx6MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
           },
           { // IMG_NUM_FORMAT_FLOAT
-               ChNumFormat::Undefined,
+               ChNumFormat::X10Y10Z10W2_Float,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -7530,6 +7543,7 @@ constexpr MergedFormatPropertiesTable Gfx7MergedFormatPropertiesTable =
         { None,                           None                           }, // ChNumFormat::P012
         { None,                           None                           }, // ChNumFormat::P212
         { None,                           None                           }, // ChNumFormat::P412
+        { IrXsIwXdIflIfmmTrTwCBXP,        IrXsIwXdIflIfmmTrTwCBMXP       }, // ChNumFormat::X10Y10Z10W2_Float
     }
 };
 
@@ -9757,6 +9771,18 @@ constexpr MergedFmtInfo Gfx7MergedChannelFmtInfoTbl[] =
         Chip::Z_INVALID,                   // ZFormat
         Chip::STENCIL_INVALID,             // StencilFormat
     },
+    // ChNumFormat::X10Y10Z10W2_Float
+    {
+        ChNumFormat::X10Y10Z10W2_Float,    // ChNumFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
 };
 
 // Stores a MergedImgDataFmtInfo struct for each HW image format up to the last format known to the spreadsheet.
@@ -10383,7 +10409,7 @@ constexpr MergedImgDataFmtInfo Gfx7MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
           },
           { // IMG_NUM_FORMAT_FLOAT
-               ChNumFormat::Undefined,
+               ChNumFormat::X10Y10Z10W2_Float,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -14583,6 +14609,7 @@ constexpr MergedFormatPropertiesTable Gfx8MergedFormatPropertiesTable =
         { None,                           None                           }, // ChNumFormat::P012
         { None,                           None                           }, // ChNumFormat::P212
         { None,                           None                           }, // ChNumFormat::P412
+        { IrXsIwXdIflIfmmTrTwCBXP,        IrXsIwXdIflIfmmTrTwCBMXP       }, // ChNumFormat::X10Y10Z10W2_Float
     }
 };
 
@@ -16810,6 +16837,18 @@ constexpr MergedFmtInfo Gfx8MergedChannelFmtInfoTbl[] =
         Chip::Z_INVALID,                   // ZFormat
         Chip::STENCIL_INVALID,             // StencilFormat
     },
+    // ChNumFormat::X10Y10Z10W2_Float
+    {
+        ChNumFormat::X10Y10Z10W2_Float,    // ChNumFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
 };
 
 // Stores a MergedImgDataFmtInfo struct for each HW image format up to the last format known to the spreadsheet.
@@ -17436,7 +17475,7 @@ constexpr MergedImgDataFmtInfo Gfx8MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
           },
           { // IMG_NUM_FORMAT_FLOAT
-               ChNumFormat::Undefined,
+               ChNumFormat::X10Y10Z10W2_Float,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
@@ -21636,6 +21675,7 @@ constexpr MergedFormatPropertiesTable Gfx8_1MergedFormatPropertiesTable =
         { None,                           None                           }, // ChNumFormat::P012
         { None,                           None                           }, // ChNumFormat::P212
         { None,                           None                           }, // ChNumFormat::P412
+        { IrXsIwXdIflIfmmTrTwCBXP,        IrXsIwXdIflIfmmTrTwCBMXP       }, // ChNumFormat::X10Y10Z10W2_Float
     }
 };
 
@@ -23863,6 +23903,18 @@ constexpr MergedFmtInfo Gfx8_1MergedChannelFmtInfoTbl[] =
         Chip::Z_INVALID,                   // ZFormat
         Chip::STENCIL_INVALID,             // StencilFormat
     },
+    // ChNumFormat::X10Y10Z10W2_Float
+    {
+        ChNumFormat::X10Y10Z10W2_Float,    // ChNumFormat
+        Chip::COLOR_2_10_10_10,            // CB Channel Format
+        Chip::NUMBER_FLOAT,                // CB Numeric Format
+        Chip::IMG_DATA_FORMAT_2_10_10_10,  // Image Channel Format
+        Chip::IMG_NUM_FORMAT_FLOAT,        // Image Numeric Format
+        Chip::BUF_DATA_FORMAT_INVALID,     // Buffer Image Format
+        Chip::BUF_NUM_FORMAT_FLOAT,        // Buffer Numeric Format
+        Chip::Z_INVALID,                   // ZFormat
+        Chip::STENCIL_INVALID,             // StencilFormat
+    },
 };
 
 // Stores a MergedImgDataFmtInfo struct for each HW image format up to the last format known to the spreadsheet.
@@ -24489,7 +24541,7 @@ constexpr MergedImgDataFmtInfo Gfx8_1MergedImgDataFmtTbl[] =
                ChNumFormat::Undefined,
           },
           { // IMG_NUM_FORMAT_FLOAT
-               ChNumFormat::Undefined,
+               ChNumFormat::X10Y10Z10W2_Float,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,
                ChNumFormat::Undefined,

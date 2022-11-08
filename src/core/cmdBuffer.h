@@ -1009,34 +1009,25 @@ protected:
     void P2pBltWaCopyNextRegion(CmdStream* pCmdStream, gpusize chunkAddr);
 
     static void PAL_STDCALL CmdDispatchInvalid(
-        ICmdBuffer* pCmdBuffer,
-        uint32      x,
-        uint32      y,
-        uint32      z);
+        ICmdBuffer*  pCmdBuffer,
+        DispatchDims size);
     static void PAL_STDCALL CmdDispatchIndirectInvalid(
         ICmdBuffer*       pCmdBuffer,
         const IGpuMemory& gpuMemory,
         gpusize           offset);
     static void PAL_STDCALL CmdDispatchOffsetInvalid(
-        ICmdBuffer* pCmdBuffer,
-        uint32      xOffset,
-        uint32      yOffset,
-        uint32      zOffset,
-        uint32      xDim,
-        uint32      yDim,
-        uint32      zDim);
+        ICmdBuffer*  pCmdBuffer,
+        DispatchDims offset,
+        DispatchDims launchSize,
+        DispatchDims logicalSize);
     static void PAL_STDCALL CmdDispatchDynamicInvalid(
-        ICmdBuffer* pCmdBuffer,
-        gpusize     gpuVa,
-        uint32      xDim,
-        uint32      yDim,
-        uint32      zDim);
+        ICmdBuffer*  pCmdBuffer,
+        gpusize      gpuVa,
+        DispatchDims size);
 
     static void PAL_STDCALL CmdDispatchMeshInvalid(
-        ICmdBuffer* pCmdBuffer,
-        uint32      xDim,
-        uint32      yDim,
-        uint32      zDim);
+        ICmdBuffer*  pCmdBuffer,
+        DispatchDims size);
     static void PAL_STDCALL CmdDispatchMeshIndirectMultiInvalid(
         ICmdBuffer*       pCmdBuffer,
         const IGpuMemory& gpuMemory,

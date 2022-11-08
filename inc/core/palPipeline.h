@@ -212,13 +212,9 @@ union PipelineCreateFlags
     struct
     {
         uint32 clientInternal         : 1;  ///< Internal pipeline not created by the application.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 673
         uint32 supportDynamicDispatch : 1;  ///< Pipeline will be used with @ref ICmdBuffer::CmdDynamicDispatch.
                                             ///  This flag must only be set if the device reports support
                                             ///  via DeviceProperties.
-#else
-        uint32 placeHolder0           : 1;
-#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 728
         uint32 useCps                 : 1;  ///< Uses CPS (Continuation Passing Shader).
 #else
@@ -306,8 +302,8 @@ struct ViewportInfo
 {
     bool       depthClipNearEnable; ///< Enable clipping based on Near Z coordinate.
     bool       depthClipFarEnable;  ///< Enable clipping based on Far Z coordinate.
-    DepthRange depthRange;      ///< Specifies Z dimensions of screen space (i.e., post viewport transform:
-                                ///  0 to 1 or -1 to 1).
+    DepthRange depthRange;          ///< Specifies Z dimensions of screen space (i.e., post viewport transform:
+                                    ///  0 to 1 or -1 to 1).
 };
 
 /// Specifies Rasterizer state in properties for creation of a graphics
@@ -315,26 +311,18 @@ struct RasterizerState
 {
     PointOrigin     pointCoordOrigin;          ///< Controls texture coordinate orientation for point sprites.
     bool            expandLineWidth;           ///< If true, line primitives will have their width expanded by 1/cos(a)
-                                                ///  where a is the minimum angle from horizontal or vertical.
-                                                ///  This can be used in conjunction with PS patching for a client to
-                                                ///  implement line antialiasing.
+                                               ///  where a is the minimum angle from horizontal or vertical.
+                                               ///  This can be used in conjunction with PS patching for a client to
+                                               ///  implement line antialiasing.
     ShadeMode       shadeMode;                 ///< Specifies shading mode, Gouraud or Flat
     bool            rasterizeLastLinePixel;    ///< Specifies whether to draw last pixel in a line.
     bool            outOfOrderPrimsEnable;     ///< Enables out-of-order primitive rasterization.  PAL silently
-                                                ///  ignores this if it is unsupported in hardware.
+                                               ///  ignores this if it is unsupported in hardware.
     bool            perpLineEndCapsEnable;     ///< Forces the use of perpendicular line end caps as opposed to
-                                                ///  axis-aligned line end caps during line rasterization.
+                                               ///  axis-aligned line end caps during line rasterization.
     BinningOverride binningOverride;           ///< Binning setting for this pipeline.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 693
-    union
-    {
-#endif
-        DepthClampMode depthClampMode;         ///< Depth clamping behavior
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 693
-        bool depthClampDisable;                ///< Disable depth clamping to viewport min/max depth
-    };
-#endif
+    DepthClampMode  depthClampMode;            ///< Depth clamping behavior
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 733
     union
     {
@@ -351,9 +339,7 @@ struct RasterizerState
     uint8           clipDistMask;              ///< Mask of which clipDistance exports to leave enabled.
     PsShadingRate   forcedShadingRate;         ///< Forced PS shading rate
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 665
     bool            dx10DiamondTestDisable;     ///< Disable DX10 diamond test during line rasterization.
-#endif
 
 };
 
@@ -495,6 +481,58 @@ struct PipelineInfo
 
 };
 
+/// A structure that represents any 3D arrangement of threads or thread groups as part of a compute shader dispatch.
+///
+/// This structure is halfway between Extent3d and Offset3d, depending on the context it may represent an offset or
+/// an extent. Essentially it's meaning is tied to the concept of 3D thread or thread group grids rather than generic
+/// contexts like "extent" or "offset". Whether it represents threads or thread groups is also context specific.
+struct DispatchDims
+{
+    uint32 x; ///< Threads or thread groups in the X dimension.
+    uint32 y; ///< Threads or thread groups in the Y dimension.
+    uint32 z; ///< Threads or thread groups in the Z dimension.
+
+    /// Computes the volume of this 3D arrangement of threads or thread groups.
+    ///
+    /// @returns the total number of threads or threads groups this struct represents.
+    uint32 Flatten() const { return x * y * z; }
+};
+
+// There are some places where we'd like to directly cast DispatchDims to an array of three uint32s.
+static_assert(sizeof(DispatchDims) == sizeof(uint32) * 3, "DispatchDims not castable to uint32*");
+
+/// Component-wise addition of two DispatchDims.
+///
+/// @param [in] l  The left-hand argument.
+/// @param [in] r  The right-hand argument.
+///
+/// @returns A new DispatchDims which contains the sum of 'l' and 'r' along each dimension.
+inline DispatchDims operator+(DispatchDims l, DispatchDims r) { return {l.x + r.x, l.y + r.y, l.z + r.z}; }
+
+/// Component-wise addition of one DispatchDims into another.
+///
+/// @param [in] l  The left-hand argument.
+/// @param [in] r  The right-hand argument.
+///
+/// @returns A reference to 'l' after it is updated to the sum of 'l' and 'r'.
+inline DispatchDims& operator+=(DispatchDims& l, DispatchDims r) { return l = (l + r); }
+
+/// Component-wise multiplication of two DispatchDims.
+///
+/// @param [in] l  The left-hand argument.
+/// @param [in] r  The right-hand argument.
+///
+/// @returns A new DispatchDims which contains the product of 'l' and 'r' along each dimension.
+inline DispatchDims operator*(DispatchDims l, DispatchDims r) { return {l.x * r.x, l.y * r.y, l.z * r.z}; }
+
+/// Component-wise multiplication of one DispatchDims into another.
+///
+/// @param [in] l  The left-hand argument.
+/// @param [in] r  The right-hand argument.
+///
+/// @returns A reference to 'l' after it is updated to the product of 'l' and 'r'.
+inline DispatchDims& operator*=(DispatchDims& l, DispatchDims r) { return l = (l * r); }
+
 /// Used to represent API level shader stage.
 enum ShaderStageFlagBits : uint32
 {
@@ -538,26 +576,30 @@ struct ShaderStats
         };
         uint32 u32All;                  ///< All flags combined as a single uint32.
 
-    } shaderOperations;                       ///< Flags depicting shader operations.
+    } shaderOperations;                 ///< Flags depicting shader operations.
 
     struct
     {
-        uint32 numThreadsPerGroupX;           ///< Number of compute threads per thread group in X dimension.
-        uint32 numThreadsPerGroupY;           ///< Number of compute threads per thread group in Y dimension.
-        uint32 numThreadsPerGroupZ;           ///< Number of compute threads per thread group in Z dimension.
-    } cs;                                     ///< Parameters specific to compute shader only.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 771
+        DispatchDims numThreadsPerGroup; ///< Number of compute threads per thread group in X, Y, and Z dimensions.
+#else
+        uint32 numThreadsPerGroupX;      ///< Number of compute threads per thread group in X dimension.
+        uint32 numThreadsPerGroupY;      ///< Number of compute threads per thread group in Y dimension.
+        uint32 numThreadsPerGroupZ;      ///< Number of compute threads per thread group in Z dimension.
+#endif
+    } cs;                                ///< Parameters specific to compute shader only.
 
     union
     {
         struct
         {
-            uint8 copyShaderPresent : 1;      ///< Indicates that the copy shader data is valid.
-            uint8 reserved          : 7;      ///< Reserved for future use.
+            uint8 copyShaderPresent : 1; ///< Indicates that the copy shader data is valid.
+            uint8 reserved          : 7; ///< Reserved for future use.
         };
-        uint8 u8All;                          ///< All the flags as a single value.
-    } flags;                                  ///< Flags related to this shader data.
+        uint8 u8All;                     ///< All the flags as a single value.
+    } flags;                             ///< Flags related to this shader data.
 
-    CommonShaderStats  copyShader;            ///< This data is valid only when the copyShaderPresent flag above is set.
+    CommonShaderStats  copyShader;       ///< This data is valid only when the copyShaderPresent flag above is set.
 };
 
  /**

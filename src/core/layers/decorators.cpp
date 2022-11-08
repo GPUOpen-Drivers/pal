@@ -2836,17 +2836,13 @@ Result QueueDecorator::Submit(
                             pNextCmdBufInfoList->pDirectCapMemory =
                                 NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].pDirectCapMemory);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 677
                             if (pNextCmdBufInfoList->privateFlip)
                             {
                                 pNextCmdBufInfoList->pPrivFlipMemory =
                                     NextGpuMemory(origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].pPrivFlipMemory);
                             }
-#endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 695
                             pNextCmdBufInfoList->frameIndex = origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].frameIndex;
-#endif
                         }
                     }
                 }

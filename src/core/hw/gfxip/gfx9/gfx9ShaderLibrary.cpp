@@ -114,13 +114,11 @@ Result ShaderLibrary::HwlInit(
         // Update the pipeline signature with user-mapping data contained in the ELF:
         m_chunkCs.SetupSignatureFromElf(&m_signature, metadata, registers);
 
-        Extent3d threadsPerTg { };
+        DispatchDims threadsPerTg;
         m_chunkCs.LateInit(abiReader,
                            registers,
                            (IsWave32() ? 32 : 64),
-                           &threadsPerTg.width,
-                           &threadsPerTg.height,
-                           &threadsPerTg.depth,
+                           &threadsPerTg,
                            &uploader);
 
         GetFunctionGpuVirtAddrs(uploader, createInfo.pFuncList, createInfo.funcCount);

@@ -33,24 +33,31 @@
 
 namespace DevDriver
 {
-
 namespace EventProtocol
 {
 
 class EventServer;
+class EventServerSession;
 
 class BaseEventProvider
 {
     friend class EventServer;
 
 public:
-    uint32      GetNumEvents() const { return static_cast<uint32>(m_eventState.SizeInBits()); }
+    uint32 GetNumEvents() const { return m_numEvents; }
+
+    /// @deprecated EventData was used to represent the enablement of events in
+    /// a provider. A provider's events can no longer be enabled individually,
+    /// so this variable is meaningless now. Now enabling a provider enables
+    /// all of its events.
     const void* GetEventData() const { return m_eventState.Data(); }
+
+    /// @deprecated See `GetEventData`.
     size_t      GetEventDataSize() const { return m_eventState.SizeInBytes(); }
 
     bool IsProviderEnabled() const { return m_isEnabled; }
-    bool IsEventEnabled(uint32 eventId) const { return m_eventState[eventId]; }
     bool IsProviderRegistered() const { return (m_pServer != nullptr); }
+    bool IsSessionAcquired() const { return (m_pSession != nullptr); }
 
     virtual EventProviderId GetId() const = 0;
 
@@ -93,9 +100,6 @@ protected:
     virtual void OnDisable() {}
 
 private:
-    void EnableEvent(uint32 eventId) { m_eventState.SetBit(eventId); }
-    void DisableEvent(uint32 eventId) { m_eventState.ResetBit(eventId); }
-
     void Update();
 
     // This function must only be called while the chunk mutex is held!
@@ -127,15 +131,14 @@ private:
         }
     }
 
-    void UpdateEventData(const void* pEventData, size_t eventDataSize)
-    {
-        m_eventState.UpdateBitData(pEventData, eventDataSize);
-    }
-
     Result AcquireEventChunks(size_t numBytesRequired, Vector<EventChunk*>* pChunks);
 
     void Register(EventServer* pServer);
     void Unregister();
+
+    void AcquireSession(EventServerSession* pSession);
+    EventServerSession* GetAcquiredSession();
+    EventServerSession* ResetSession();
 
     Result AllocateEventChunk(EventChunk** ppChunk);
     void   FreeEventChunk(EventChunk* pChunk);
@@ -149,7 +152,8 @@ private:
 
     AllocCb              m_allocCb;
     EventServer*         m_pServer;
-    DynamicBitSet<>      m_eventState;
+    EventServerSession*  m_pSession;
+    uint32               m_numEvents;
     bool                 m_isEnabled;
     EventTimer           m_eventTimer;
     uint32               m_flushFrequencyInMs;
@@ -157,8 +161,10 @@ private:
     Platform::AtomicLock m_chunkMutex;
     uint64               m_nextFlushTime;
     Vector<EventChunk*>  m_eventChunks;
+
+    // Deprecated.
+    DynamicBitSet<>      m_eventState;
 };
 
 } // namespace EventProtocol
-
 } // namespace DevDriver

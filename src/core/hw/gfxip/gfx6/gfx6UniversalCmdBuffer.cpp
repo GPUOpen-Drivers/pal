@@ -1023,7 +1023,7 @@ void UniversalCmdBuffer::CmdBarrier(
 
     bool splitMemAllocated;
     BarrierInfo splitBarrierInfo = barrierInfo;
-    Result result = m_device.Parent()->SplitBarrierTransitions(&splitBarrierInfo, &splitMemAllocated);
+    Result result = Pal::Device::SplitBarrierTransitions(m_device.GetPlatform(), &splitBarrierInfo, &splitMemAllocated);
 
     if (result == Result::ErrorOutOfMemory)
     {
@@ -2031,23 +2031,21 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
 // rely on the HW to discard the dispatch for us.
 template <bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDispatch(
-    ICmdBuffer* pCmdBuffer,
-    uint32      x,
-    uint32      y,
-    uint32      z)
+    ICmdBuffer*  pCmdBuffer,
+    DispatchDims size)
 {
     auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
     if (DescribeDrawDispatch)
     {
-        pThis->DescribeDispatch(Developer::DrawDispatchType::CmdDispatch, x, y, z);
+        pThis->DescribeDispatch(Developer::DrawDispatchType::CmdDispatch, size);
     }
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
-    pDeCmdSpace  = pThis->ValidateDispatch(0uLL, x, y, z, pDeCmdSpace);
+    pDeCmdSpace  = pThis->ValidateDispatch(0uLL, size, pDeCmdSpace);
     pDeCmdSpace  = pThis->WaitOnCeCounter(pDeCmdSpace);
-    pDeCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect(x, y, z, false, true, pThis->PacketPredicate(), pDeCmdSpace);
+    pDeCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect(size, false, true, pThis->PacketPredicate(), pDeCmdSpace);
 
     if (IssueSqttMarkerEvent)
     {
@@ -2082,7 +2080,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchIndirect(
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
-    pDeCmdSpace  = pThis->ValidateDispatch((gpuMemBaseAddr + offset), 0, 0, 0, pDeCmdSpace);
+    pDeCmdSpace  = pThis->ValidateDispatch((gpuMemBaseAddr + offset), {}, pDeCmdSpace);
     pDeCmdSpace  = pThis->m_deCmdStream.WriteSetBase(
         ShaderCompute, BASE_INDEX_DISPATCH_INDIRECT, gpuMemBaseAddr, pDeCmdSpace);
     pDeCmdSpace  = pThis->WaitOnCeCounter(pDeCmdSpace);
@@ -2105,41 +2103,31 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchIndirect(
 // zero. To avoid branching, we will rely on the HW to discard the dispatch for us.
 template <bool IssueSqttMarkerEvent, bool DescribeDrawDispatch>
 void PAL_STDCALL UniversalCmdBuffer::CmdDispatchOffset(
-    ICmdBuffer* pCmdBuffer,
-    uint32      xOffset,
-    uint32      yOffset,
-    uint32      zOffset,
-    uint32      xDim,
-    uint32      yDim,
-    uint32      zDim)
+    ICmdBuffer*  pCmdBuffer,
+    DispatchDims offset,
+    DispatchDims launchSize,
+    DispatchDims logicalSize)
 {
     auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
     if (DescribeDrawDispatch)
     {
-        pThis->DescribeDispatchOffset(xOffset, yOffset, zOffset, xDim, yDim, zDim);
+        pThis->DescribeDispatchOffset(offset, launchSize, logicalSize);
     }
 
     uint32* pDeCmdSpace = pThis->m_deCmdStream.ReserveCommands();
 
-    pDeCmdSpace = pThis->ValidateDispatch(0uLL, xDim, yDim, zDim, pDeCmdSpace);
-
-    const uint32 starts[3] = {xOffset, yOffset, zOffset};
+    pDeCmdSpace = pThis->ValidateDispatch(0uLL, logicalSize, pDeCmdSpace);
     pDeCmdSpace = pThis->m_deCmdStream.WriteSetSeqShRegs(mmCOMPUTE_START_X,
                                                          mmCOMPUTE_START_Z,
                                                          ShaderCompute,
-                                                         starts,
+                                                         &offset,
                                                          pDeCmdSpace);
 
-    // xDim, yDim, zDim are end positions instead of numbers of threadgroups to execute.
-    xDim += xOffset;
-    yDim += yOffset;
-    zDim += zOffset;
+    pDeCmdSpace = pThis->WaitOnCeCounter(pDeCmdSpace);
 
-    pDeCmdSpace  = pThis->WaitOnCeCounter(pDeCmdSpace);
-    pDeCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect(xDim,
-                                                        yDim,
-                                                        zDim,
+    // The dispatch packet's size is an end position instead of the number of threadgroups to execute.
+    pDeCmdSpace += pThis->m_cmdUtil.BuildDispatchDirect(offset + launchSize,
                                                         false,
                                                         false,
                                                         pThis->PacketPredicate(),
@@ -2150,7 +2138,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDispatchOffset(
         pDeCmdSpace += pThis->m_cmdUtil.BuildEventWrite(THREAD_TRACE_MARKER, pDeCmdSpace);
     }
 
-    pDeCmdSpace  = pThis->IncrementDeCounter(pDeCmdSpace);
+    pDeCmdSpace = pThis->IncrementDeCounter(pDeCmdSpace);
 
     pThis->m_deCmdStream.CommitCommands(pDeCmdSpace);
 }
@@ -2237,11 +2225,7 @@ void UniversalCmdBuffer::CmdWriteTimestamp(
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 697
     if (pipePoint == HwPipePostPrefetch)
-#else
-    if (pipePoint == HwPipeTop)
-#endif
     {
         pDeCmdSpace += m_cmdUtil.BuildCopyData(COPY_DATA_SEL_DST_ASYNC_MEMORY,
                                                address,
@@ -2279,7 +2263,6 @@ void UniversalCmdBuffer::CmdWriteImmediate(
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
     if (pipePoint == HwPipeTop)
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 697
     {
         pDeCmdSpace += m_cmdUtil.BuildCopyData(COPY_DATA_SEL_DST_ASYNC_MEMORY,
                                                address,
@@ -2293,7 +2276,6 @@ void UniversalCmdBuffer::CmdWriteImmediate(
                                                pDeCmdSpace);
     }
     else if (pipePoint == HwPipePostPrefetch)
-#endif
     {
         pDeCmdSpace += m_cmdUtil.BuildCopyData(COPY_DATA_SEL_DST_ASYNC_MEMORY,
                                                address,
@@ -4142,11 +4124,9 @@ uint32* UniversalCmdBuffer::ValidateDrawTimeHwState(
 // =====================================================================================================================
 // Performs dispatch-time dirty state validation.
 uint32* UniversalCmdBuffer::ValidateDispatch(
-    gpusize indirectGpuVirtAddr,
-    uint32  xDim,
-    uint32  yDim,
-    uint32  zDim,
-    uint32* pDeCmdSpace)
+    gpusize      indirectGpuVirtAddr,
+    DispatchDims logicalSize,
+    uint32*      pDeCmdSpace)
 {
 #if PAL_DEVELOPER_BUILD
     uint32 startingCmdLen = 0;
@@ -4211,10 +4191,7 @@ uint32* UniversalCmdBuffer::ValidateDispatch(
         // information.
         if (indirectGpuVirtAddr == 0uLL) // This is a direct Dispatch.
         {
-            uint32*const pData = CmdAllocateEmbeddedData(3, 4, &indirectGpuVirtAddr);
-            pData[0] = xDim;
-            pData[1] = yDim;
-            pData[2] = zDim;
+            *reinterpret_cast<DispatchDims*>(CmdAllocateEmbeddedData(3, 4, &indirectGpuVirtAddr)) = logicalSize;
         }
 
         pDeCmdSpace = m_deCmdStream.WriteSetSeqShRegs(m_pSignatureCs->numWorkGroupsRegAddr,
@@ -5347,7 +5324,7 @@ void UniversalCmdBuffer::CmdExecuteIndirectCmds(
             else
             {
                 pDeCmdSpace = m_deCmdStream.ReserveCommands();
-                pDeCmdSpace = ValidateDispatch(0uLL, 0, 0, 0, pDeCmdSpace);
+                pDeCmdSpace = ValidateDispatch(0uLL, {}, pDeCmdSpace);
                 m_deCmdStream.CommitCommands(pDeCmdSpace);
 
                 CommandGeneratorTouchedUserData(m_computeState.csUserDataEntries.touched,

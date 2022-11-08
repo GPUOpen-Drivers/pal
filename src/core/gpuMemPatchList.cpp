@@ -118,7 +118,7 @@ Result GpuMemoryPatchList::AddWidePatchEntry(
 
 {
     PAL_ASSERT((patchOpLo != GpuMemoryPatchOp::Count) && (patchOpHi != GpuMemoryPatchOp::Count));
-    PAL_ASSERT((patchBuffer != CmdAllocType::CommandDataAlloc) && (patchBuffer != CmdAllocType::EmbeddedDataAlloc));
+    PAL_ASSERT((patchBuffer == CmdAllocType::CommandDataAlloc) || (patchBuffer == CmdAllocType::EmbeddedDataAlloc));
 
     Result result = Result::Success;
 

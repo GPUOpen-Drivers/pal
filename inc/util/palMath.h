@@ -159,6 +159,12 @@ extern uint32 Float32ToFloat11(float f);
 /// Converts a 32-bit IEEE floating point number to a 10-bit signed floating point number.
 extern uint32 Float32ToFloat10(float f);
 
+/// Converts a 32-bit IEEE floating-point number to a 10-bit unsigned floating-point number.
+extern uint32 Float32ToFloat10_6e4(float f);
+
+/// Converts a 10-bit signed floating point number to a 32-bit IEEE floating point number.
+extern float Float10_6e4ToFloat32(uint32 fBits);
+
 /// Converts a 32-bit IEEE floating point number to a N-bit signed floating point number.
 extern uint32 Float32ToNumBits(float float32, uint32 numBits);
 

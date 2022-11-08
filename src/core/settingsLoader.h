@@ -44,7 +44,7 @@ public:
     virtual Result Init() override;
     void FinalizeSettings();
 
-    const PalSettings& GetSettings() const { return m_settings; };
+    const PalSettings& GetSettings() const { return m_settings; }
     PalSettings* GetSettingsPtr() { return &m_settings; }
 
 protected:

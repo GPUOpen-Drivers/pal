@@ -85,6 +85,26 @@ target_compile_definitions(devdriver
 target_include_directories(devdriver PUBLIC inc)
 target_include_directories(devdriver PRIVATE src)
 
+# if devdriver is located as a submodule in amdlog then we can auto-detect
+# the include paths. otherwise, DEVDRIVER_DRIVERS_ROOT must be defined
+if(DEFINED ENV{DEVDRIVER_DRIVERS_ROOT})
+    # verify the given DEVDRIVER_DRIVERS_ROOT looks reasonable
+    if(NOT EXISTS "$ENV{DEVDRIVER_DRIVERS_ROOT}/amdlog")
+        message(FATAL_ERROR "DEVDRIVER_DRIVERS_ROOT was given but does not appear to be a valid drivers root")
+    endif()
+    # PDC_TODO: remove this define when the ifdef guards are removed
+    add_definitions(-DAMDLOG_SUPPORT_DEVDRIVER=1)
+else()
+    if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/../../../../../amdlog")
+        set(ENV{DEVDRIVER_DRIVERS_ROOT} "${CMAKE_CURRENT_LIST_DIR}/../../../../..")
+        # PDC_TODO: remove this define when the ifdef guards are removed
+        add_definitions(-DAMDLOG_SUPPORT_DEVDRIVER=1)
+    endif()
+endif() # defined DEVDRIVER_DRIVERS_ROOT
+
+target_include_directories(devdriver PRIVATE "$ENV{DEVDRIVER_DRIVERS_ROOT}/amdlog/inc")
+target_include_directories(devdriver PRIVATE "$ENV{DEVDRIVER_DRIVERS_ROOT}/inc")
+
 ### Sources ############################################################################################################
 
 ### Core Components ###

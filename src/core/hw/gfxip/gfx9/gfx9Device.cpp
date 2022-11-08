@@ -4943,9 +4943,10 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             extent.height = Clamp((pMipSubResInfo->extentElements.height << firstMipLevel),
                                   pBaseSubResInfo->extentElements.height,
                                   pBaseSubResInfo->actualExtentElements.height);
-            if ((imageCreateInfo.imageType == ImageType::Tex2d) &&
-                (viewInfo.subresRange.numMips == 1) &&
-                (viewInfo.subresRange.numSlices == 1) &&
+            if (((imageCreateInfo.imageType == ImageType::Tex2d) ||
+                 ((imageCreateInfo.imageType == ImageType::Tex3d) && (imageCreateInfo.flags.prt == 0))) &&
+                (viewInfo.subresRange.numMips == 1)                                                     &&
+                (viewInfo.subresRange.numSlices == 1)                                                   &&
                 ((Max(1u, extent.width >> firstMipLevel) < pMipSubResInfo->extentElements.width) ||
                  (Max(1u, extent.height >> firstMipLevel) < pMipSubResInfo->extentElements.height)))
 
@@ -6189,12 +6190,7 @@ void PAL_STDCALL Device::CreateBvhSrds(
 
         bvhSrd.triangle_return_mode = bvhInfo.flags.returnBarycentrics;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 668
-        //    boolean to enable sorting the box intersect results
-        bvhSrd.box_sort_en  = bvhInfo.flags.findNearest;
-#else
         bvhSrd.box_sort_en = (bvhInfo.boxSortHeuristic == BoxSortHeuristic::Disabled) ? false : true;
-#endif
 
         //    MSB must be set-- 0x8
         bvhSrd.type         = 0x8;
@@ -6889,9 +6885,12 @@ void FinalizeGpuChipProperties(
     // eg. if an ASIC has 2 pixel packers per SE with 4 shader engines, then packerMask = ... 0011 0011 0011 0011
     for (uint32 se = 0; se < pInfo->gfx9.numShaderEngines; ++se)
     {
-        for (uint32 packer = 0; packer < numPixelPackersPerSe; ++packer)
+        if (TestAnyFlagSet(pInfo->gfx9.activeSeMask, 1u << se))
         {
-            WideBitfieldSetBit(pInfo->gfxip.activePixelPackerMask, packer + (MaxPixelPackerPerSe * se));
+            for (uint32 packer = 0; packer < numPixelPackersPerSe; ++packer)
+            {
+                WideBitfieldSetBit(pInfo->gfxip.activePixelPackerMask, packer + (MaxPixelPackerPerSe * se));
+            }
         }
     }
 

@@ -297,8 +297,12 @@ protected:
     static_assert(sizeof(ControlBufferLayout) == sizeof(uint32) * 9,
                   "Control buffer is a different size than expected!");
 
-    virtual gpusize ComputeAllocationSize() const override { return sizeof(ControlBufferLayout); }
+    virtual gpusize ComputeAllocationSize() const override
+        { return sizeof(ControlBufferLayout) + m_taskControlBufferPaddingSize; }
     virtual void UpdateSrds() const override {};
+
+    // These bytes of zeros by panel setting will be written to control buffer as padding for FW counter writes.
+    uint32 m_taskControlBufferPaddingSize;
 
 private:
     PAL_DISALLOW_DEFAULT_CTOR(TaskMeshControlRing);

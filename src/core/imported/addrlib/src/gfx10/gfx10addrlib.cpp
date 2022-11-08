@@ -2223,9 +2223,9 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeNonBlockCompressedView(
 {
     ADDR_E_RETURNCODE returnCode = ADDR_OK;
 
-    if (pIn->resourceType != ADDR_RSRC_TEX_2D)
+    if (IsThin(pIn->resourceType, pIn->swizzleMode) == FALSE)
     {
-        // Only 2D resource can have a NonBC view...
+        // Only thin swizzle mode can have a NonBC view...
         returnCode = ADDR_INVALIDPARAMS;
     }
     else if (((pIn->format < ADDR_FMT_ASTC_4x4) || (pIn->format > ADDR_FMT_ETC2_128BPP)) &&
@@ -2732,7 +2732,7 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
                     padSize[i] = PowTwoAlign(padSize[i], sizeAlignInElement);
                 }
 
-                if (BlockTypeWithinMemoryBudget(padSize[0],
+                if (Addr2BlockTypeWithinMemoryBudget(padSize[0],
                                                 padSize[1],
                                                 ratioLow,
                                                 ratioHi,
@@ -3028,7 +3028,7 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
                         // Iterate through all block types
                         for (UINT_32 i = AddrBlockLinear; i < AddrBlockMaxTiledType; i++)
                         {
-                            if (IsBlockTypeAvaiable(allowedBlockSet, static_cast<AddrBlockType>(i)))
+                            if (Addr2IsBlockTypeAvailable(allowedBlockSet, static_cast<AddrBlockType>(i)))
                             {
                                 localIn.swizzleMode = swMode[i];
 
@@ -3053,7 +3053,7 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
                                     else
                                     {
                                         // Checks if the block type is within the memory budget but favors larger blocks
-                                        if (BlockTypeWithinMemoryBudget(
+                                        if (Addr2BlockTypeWithinMemoryBudget(
                                                 minSize,
                                                 padSize[i],
                                                 ratioLow,
@@ -3102,9 +3102,9 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlGetPreferredSurfaceSetting(
                             for (UINT_32 i = AddrBlockMicro; i < AddrBlockMaxTiledType; i++)
                             {
                                 if ((i != minSizeBlk) &&
-                                    IsBlockTypeAvaiable(allowedBlockSet, static_cast<AddrBlockType>(i)))
+                                    Addr2IsBlockTypeAvailable(allowedBlockSet, static_cast<AddrBlockType>(i)))
                                 {
-                                    if (BlockTypeWithinMemoryBudget(
+                                    if (Addr2BlockTypeWithinMemoryBudget(
                                             minSize,
                                             padSize[i],
                                             0,

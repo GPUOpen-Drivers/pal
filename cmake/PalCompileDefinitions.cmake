@@ -54,9 +54,7 @@ endfunction()
 function(pal_compile_definitions_gfx9 TARGET)
     target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_GFX9=1)
 
-if(PAL_CLIENT_INTERFACE_MAJOR_VERSION LESS 683)
     target_compile_definitions(${TARGET} INTERFACE PAL_BUILD_GFX10=1)
-endif()
 
     if(PAL_BUILD_NAVI12)
         target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI12=1)

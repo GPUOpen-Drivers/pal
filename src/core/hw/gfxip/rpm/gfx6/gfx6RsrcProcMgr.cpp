@@ -840,7 +840,7 @@ void RsrcProcMgr::CmdResolveQueryComputeShader(
 
     // Issue a dispatch with one thread per query slot.
     const uint32 threadGroups = RpmUtil::MinThreadGroups(queryCount, pPipeline->ThreadsPerGroup());
-    pCmdBuffer->CmdDispatch(threadGroups, 1, 1);
+    pCmdBuffer->CmdDispatch({threadGroups, 1, 1});
 
     // Restore the command buffer's state.
     pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
@@ -882,9 +882,9 @@ bool RsrcProcMgr::ExpandDepthStencil(
 
         pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
         pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
+
         // Compute the number of thread groups needed to launch one thread per texel.
-        uint32 threadsPerGroup[3] = {};
-        pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+        const DispatchDims threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
         bool earlyExit = false;
         for (uint32  mipIdx = 0; ((earlyExit == false) && (mipIdx < range.numMips)); mipIdx++)
@@ -894,10 +894,12 @@ bool RsrcProcMgr::ExpandDepthStencil(
 
             PAL_ASSERT(pBaseSubResInfo->flags.supportMetaDataTexFetch);
 
-            const uint32  threadGroupsX = RpmUtil::MinThreadGroups(pBaseSubResInfo->extentElements.width,
-                                                                   threadsPerGroup[0]);
-            const uint32  threadGroupsY = RpmUtil::MinThreadGroups(pBaseSubResInfo->extentElements.height,
-                                                                   threadsPerGroup[1]);
+            const DispatchDims threadGroups =
+            {
+                RpmUtil::MinThreadGroups(pBaseSubResInfo->extentElements.width,  threadsPerGroup.x),
+                RpmUtil::MinThreadGroups(pBaseSubResInfo->extentElements.height, threadsPerGroup.y),
+                1
+            };
 
             const uint32 constData[] =
             {
@@ -944,7 +946,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
                 memcpy(pSrdTable, constData, sizeof(constData));
 
                 // Execute the dispatch.
-                pCmdBuffer->CmdDispatch(threadGroupsX, threadGroupsY, 1);
+                pCmdBuffer->CmdDispatch(threadGroups);
             } // end loop through all the slices
         } // end loop through all the mip levels
 
@@ -991,7 +993,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
 // =====================================================================================================================
 // Performs a fast-clear on a Color Target Image by updating the Image's CMask buffer and/or DCC buffer.
 void RsrcProcMgr::HwlFastColorClear(
-    GfxCmdBuffer*         pCmdBuffer,
+    Pm4CmdBuffer*         pCmdBuffer,
     const GfxImage&       dstImage,
     const uint32*         pConvertedColor,
     const SwizzledFormat& clearFormat,
@@ -1410,7 +1412,7 @@ void RsrcProcMgr::HwlHtileCopyAndFixUp(
             // We'll launch cs thread that does not check boundary. So let the driver be the safe guard.
             PAL_ASSERT(IsPow2Aligned(htileDwords, 64) && (htileDwords >= 64));
             const uint32 threadGroups = RpmUtil::MinThreadGroups(htileDwords, pPipeline->ThreadsPerGroup());
-            pCmdBuffer->CmdDispatch(threadGroups, 1, 1);
+            pCmdBuffer->CmdDispatch({threadGroups, 1, 1});
         } // End of for
 
         // Restore the command buffer's state.
@@ -2137,7 +2139,7 @@ void RsrcProcMgr::HwlResummarizeHtileCompute(
             // Issue a dispatch with one thread per HTile DWORD.
             const uint32 htileDwords  = static_cast<uint32>(htileBufferView.range / sizeof(uint32));
             const uint32 threadGroups = RpmUtil::MinThreadGroups(htileDwords, pPipeline->ThreadsPerGroup());
-            pCmdBuffer->CmdDispatch(threadGroups, 1, 1);
+            pCmdBuffer->CmdDispatch({threadGroups, 1, 1});
         }
     }
 
@@ -2239,7 +2241,7 @@ void RsrcProcMgr::FastDepthStencilClearCompute(
             // Issue a dispatch with one thread per HTile DWORD.
             const uint32 htileDwords = static_cast<uint32>(htileBufferView.range / sizeof(uint32));
             const uint32 threadGroups = RpmUtil::MinThreadGroups(htileDwords, pPipeline->ThreadsPerGroup());
-            pCmdBuffer->CmdDispatch(threadGroups, 1, 1);
+            pCmdBuffer->CmdDispatch({threadGroups, 1, 1});
         }
     }
     else if (pBaseHtile->TileStencilDisabled() == false)
@@ -2320,7 +2322,7 @@ void RsrcProcMgr::FastDepthStencilClearCompute(
                 pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 8, 4, &metadataSrd.word0.u32All);
 
                 uint32 threadGroups = RpmUtil::MinThreadGroups(threads, pPipeline->ThreadsPerGroup());
-                pCmdBuffer->CmdDispatch(threadGroups, 1, 1);
+                pCmdBuffer->CmdDispatch({threadGroups, 1, 1});
             }
         }
         // Depth only clear if there's HiStencil meta data. Otherwise, this branch will handle any clear.
@@ -2369,7 +2371,7 @@ void RsrcProcMgr::FastDepthStencilClearCompute(
                 // Issue a dispatch with one thread per HTile DWORD.
                 const uint32 htileDwords = static_cast<uint32>(htileBufferView.range / sizeof(uint32));
                 const uint32 threadGroups = RpmUtil::MinThreadGroups(htileDwords, pPipeline->ThreadsPerGroup());
-                pCmdBuffer->CmdDispatch(threadGroups, 1, 1);
+                pCmdBuffer->CmdDispatch({threadGroups, 1, 1});
             }
         }
     }
@@ -3150,7 +3152,7 @@ void RsrcProcMgr::ClearHtilePlane(
         // Issue a dispatch with one thread per HTile DWORD.
         const uint32 htileDwords  = static_cast<uint32>(htileBufferView.range / sizeof(uint32));
         const uint32 threadGroups = RpmUtil::MinThreadGroups(htileDwords, pPipeline->ThreadsPerGroup());
-        pCmdBuffer->CmdDispatch(threadGroups, 1, 1);
+        pCmdBuffer->CmdDispatch({threadGroups, 1, 1});
     }
 
     // Note: When performing a stencil-only or depth-only initialization on an Image which has both planes, we have a
@@ -3271,8 +3273,7 @@ void RsrcProcMgr::DccDecompressOnCompute(
     PAL_ASSERT(pComputeCmdStream != nullptr);
 
     // Compute the number of thread groups needed to launch one thread per texel.
-    uint32 threadsPerGroup[3] = {};
-    pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
+    const DispatchDims threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
 
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
@@ -3288,10 +3289,13 @@ void RsrcProcMgr::DccDecompressOnCompute(
         // Blame the caller if this trips...
         PAL_ASSERT(pBaseSubResInfo->flags.supportMetaDataTexFetch);
 
-        const uint32  threadGroupsX = RpmUtil::MinThreadGroups(pBaseSubResInfo->extentElements.width,
-                                                               threadsPerGroup[0]);
-        const uint32  threadGroupsY = RpmUtil::MinThreadGroups(pBaseSubResInfo->extentElements.height,
-                                                               threadsPerGroup[1]);
+        const DispatchDims threadGroups =
+        {
+            RpmUtil::MinThreadGroups(pBaseSubResInfo->extentElements.width,  threadsPerGroup.x),
+            RpmUtil::MinThreadGroups(pBaseSubResInfo->extentElements.height, threadsPerGroup.y),
+            1
+        };
+
         const uint32 constData[] =
         {
             // start cb0[0]
@@ -3336,7 +3340,7 @@ void RsrcProcMgr::DccDecompressOnCompute(
             memcpy(pSrdTable, constData, sizeof(constData));
 
             // Execute the dispatch.
-            pCmdBuffer->CmdDispatch(threadGroupsX, threadGroupsY, 1);
+            pCmdBuffer->CmdDispatch(threadGroups);
         } // end loop through all the slices
 
         // We have to mark this mip level as actually being DCC decompressed
@@ -3504,11 +3508,13 @@ void RsrcProcMgr::FmaskColorExpand(
         PAL_ASSERT(pPipeline != nullptr);
 
         // Compute the number of thread groups needed to launch one thread per texel.
-        uint32 threadsPerGroup[3] = {};
-        pPipeline->ThreadsPerGroupXyz(&threadsPerGroup[0], &threadsPerGroup[1], &threadsPerGroup[2]);
-
-        const uint32 threadGroupsX = RpmUtil::MinThreadGroups(createInfo.extent.width,  threadsPerGroup[0]);
-        const uint32 threadGroupsY = RpmUtil::MinThreadGroups(createInfo.extent.height, threadsPerGroup[1]);
+        const DispatchDims threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
+        const DispatchDims threadGroups =
+        {
+            RpmUtil::MinThreadGroups(createInfo.extent.width,  threadsPerGroup.x),
+            RpmUtil::MinThreadGroups(createInfo.extent.height, threadsPerGroup.y),
+            1
+        };
 
         // Save current command buffer state and bind the pipeline.
         pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
@@ -3572,7 +3578,7 @@ void RsrcProcMgr::FmaskColorExpand(
             m_pDevice->CreateFmaskViewSrds(1, &fmaskView, &fmaskViewInternal, pSrdTable);
 
             // Execute the dispatch.
-            pCmdBuffer->CmdDispatch(threadGroupsX, threadGroupsY, 1);
+            pCmdBuffer->CmdDispatch(threadGroups);
         }
 
         pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);

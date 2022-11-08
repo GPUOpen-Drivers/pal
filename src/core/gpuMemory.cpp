@@ -508,9 +508,7 @@ Result GpuMemory::Init(
     m_flags.mallRangeActive      = createInfo.flags.mallRangeActive;
     m_flags.dfSpmTraceBuffer     = internalInfo.flags.dfSpmTraceBuffer;
     m_flags.explicitSync         = createInfo.flags.explicitSync;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 677
     m_flags.privPrimary          = createInfo.flags.privPrimary;
-#endif
     m_flags.isClient             = internalInfo.flags.isClient;
     m_flags.pageDirectory        = internalInfo.flags.pageDirectory;
     m_flags.pageTableBlock       = internalInfo.flags.pageTableBlock;
@@ -661,10 +659,6 @@ Result GpuMemory::Init(
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 746
     m_flags.deferCpuVaReservation = (m_flags.cpuVisible != false) && createInfo.flags.deferCpuVaReservation;
-#endif
-
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 667)
-    m_desc.preferredHeap = m_heaps[0];
 #endif
 
     m_flags.isLocalPreferred = ((m_heaps[0] == GpuHeapLocal) || (m_heaps[0] == GpuHeapInvisible));
@@ -910,9 +904,6 @@ Result GpuMemory::Init(
         }
 
         m_desc.heapCount = static_cast<uint32>(m_heapCount);
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 667)
-        m_desc.preferredHeap = m_heaps[0];
-#endif
 
         m_flags.isLocalPreferred = ((m_heaps[0] == GpuHeapLocal) || (m_heaps[0] == GpuHeapInvisible));
 
@@ -968,9 +959,6 @@ Result GpuMemory::Init(
     }
 
     m_desc.heapCount = static_cast<uint32>(m_heapCount);
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 667)
-    m_desc.preferredHeap = m_heaps[0];
-#endif
 
     m_flags.isLocalPreferred = ((m_heaps[0] == GpuHeapLocal) || (m_heaps[0] == GpuHeapInvisible));
 
@@ -1010,9 +998,6 @@ Result GpuMemory::Init(
     }
 
     m_desc.heapCount         = static_cast<uint32>(m_heapCount);
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 667)
-    m_desc.preferredHeap     = m_heaps[0];
-#endif
     m_desc.flags.isShared    = 1;
     m_flags.isShareable      = m_pOriginalMem->m_flags.isShareable;
     m_flags.isFlippable      = m_pOriginalMem->m_flags.isFlippable;
@@ -1083,9 +1068,6 @@ Result GpuMemory::Init(
     }
 
     m_desc.heapCount         = static_cast<uint32>(m_heapCount);
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 667)
-    m_desc.preferredHeap     = m_heaps[0];
-#endif
     m_desc.flags.isPeer      = 1;
     m_flags.isShareable      = m_pOriginalMem->m_flags.isShareable;
     m_flags.isFlippable      = m_pOriginalMem->m_flags.isFlippable;

@@ -738,9 +738,6 @@ void LogContext::Struct(
     }
 #endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 661
-#endif
-
     KeyAndValue("execMarkerClientHandle", value.execMarkerClientHandle);
 
     EndMap();
@@ -820,7 +817,6 @@ void LogContext::Struct(
         Value("rayTracingExecuted");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 677
     if (value.preflip)
     {
         Value("preflip");
@@ -835,7 +831,6 @@ void LogContext::Struct(
     {
         Value("privateFlip");
     }
-#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 741
     if (value.disableDccRejected)
@@ -851,16 +846,12 @@ void LogContext::Struct(
     {
         KeyAndObject("directCaptureMemory", value.pDirectCapMemory);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 677
         if (value.privateFlip)
         {
             KeyAndObject("pPrivFlipMemory", value.pPrivFlipMemory);
         }
-#endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 695
         KeyAndValue("frameIndex", value.frameIndex);
-#endif
     }
 
     EndMap();
@@ -1076,12 +1067,8 @@ void LogContext::Struct(
     const DirectCaptureInfo& value)
 {
     BeginMap(false);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 677
-    KeyAndValue("gpuVirtAddr", value.gpuVirtAddr);
-#endif
     KeyAndValue("vidPnSourceId", value.vidPnSourceId);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 677
     KeyAndBeginList("usageFlags", true);
     if (value.usageFlags.preflip)
     {
@@ -1107,8 +1094,18 @@ void LogContext::Struct(
     EndList();
 
     KeyAndValue("hPreFlipEvent", value.hPreFlipEvent);
-#endif
 
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
+    DispatchDims value)
+{
+    BeginMap(false);
+    KeyAndValue("x", value.x);
+    KeyAndValue("y", value.y);
+    KeyAndValue("z", value.z);
     EndMap();
 }
 
@@ -1251,7 +1248,6 @@ void LogContext::Struct(
         KeyAndStruct("directCaptureInfo", value.directCaptureInfo);
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 696
     KeyAndBeginList("flags", true);
 
     if (value.flags.globalGpuVa)
@@ -1260,7 +1256,6 @@ void LogContext::Struct(
     }
 
     EndList();
-#endif
     static_assert(CheckReservedBits<decltype(value.flags)>(32, 27), "Update interfaceLogger!");
     EndMap();
 }
@@ -1592,12 +1587,10 @@ void LogContext::Struct(
         Value("explicitSync");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 677
     if (value.privPrimary)
     {
         Value("privPrimary");
     }
-#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 723
     if (value.privateScreen)
@@ -2451,9 +2444,7 @@ void LogContext::Struct(
 {
     BeginMap(false);
     KeyAndValue("clientInternal", value.clientInternal);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 673
     KeyAndValue("supportDynamicDispatch", value.supportDynamicDispatch);
-#endif
     EndMap();
 }
 
@@ -3010,18 +3001,9 @@ void LogContext::Struct(
     KeyAndValue("numNodes", value.numNodes);
     KeyAndValue("boxGrowValue", value.boxGrowValue);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 668
     KeyAndEnum("boxSortHeuristic", value.boxSortHeuristic);
-#endif
 
     KeyAndBeginList("flags", true);
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 668
-    if (value.flags.findNearest)
-    {
-        Value("findNearest");
-    }
-#endif
 
     if (value.flags.useZeroOffset)
     {
@@ -3181,13 +3163,8 @@ void LogContext::Struct(
     const SetClockModeOutput& value)
 {
     BeginMap(false);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 674
     KeyAndValue("memoryClockFrequency", value.memoryClockFrequency);
     KeyAndValue("engineClockFrequency", value.engineClockFrequency);
-#else
-    KeyAndValue("memoryClockRatioToPeak", value.memoryClockRatioToPeak);
-    KeyAndValue("engineClockRatioToPeak", value.engineClockRatioToPeak);
-#endif
     EndMap();
 }
 
@@ -3693,6 +3670,17 @@ void LogContext::Struct(
         Value("isReference");
     }
     EndList();
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
+    const GpuMemSubAllocInfo& value)
+{
+    BeginMap(false);
+    KeyAndValue("address", value.address);
+    KeyAndValue("offset", value.offset);
+    KeyAndValue("size", value.size);
     EndMap();
 }
 

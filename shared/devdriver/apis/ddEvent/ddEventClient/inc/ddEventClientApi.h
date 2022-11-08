@@ -68,7 +68,8 @@ typedef struct DDEventDataCallback
 typedef struct DDEventClientCreateInfo
 {
     DDNetConnection     hConnection; /// A handle to an existing connection object
-    DDClientId          clientId;    /// The ClientId on the network to connect to
+    DDClientId          clientId;    /// The ClientId on the network to connect
+    uint32_t            providerId;  /// The ID of a provider on this event server to subscribe to
     DDEventDataCallback dataCb;      /// Callback used to return event data to the application
     uint32_t            timeoutInMs; /// The maximum time that will be spent attempting to connect to the remote server
                                      //< Connection occurs at creation time and creation will fail if a timeout is
@@ -101,51 +102,6 @@ typedef DD_RESULT (*PFN_ddEventClientReadEventData)(
     DDEventClient hClient,      /// [in] Handle to an existing client object
     uint32_t      timeoutInMs); /// Timeout in milliseconds
 
-/// Structure that generically describes enablement status
-typedef struct DDEventEnabledStatus
-{
-    uint8_t isEnabled : 1; /// Non-zero if enabled
-
-    uint8_t reserved  : 7; /// Reserved for future use
-} DDEventEnabledStatus;
-
-/// Structure that describes a remote event provider
-typedef struct DDEventProviderDesc
-{
-    uint32_t                    providerId;     /// Unique identifier
-    DDEventEnabledStatus        providerStatus; /// Overall enablement status
-    uint32_t                    numEvents;      /// Number of items in pEventStatus array
-    const DDEventEnabledStatus* pEventStatus;   /// Enablement status for each event in the provider
-} DDEventProviderDesc;
-
-/// Used by "QueryProviders()" to return data about an individual provider to the caller
-///
-/// This callback will be called once per provider returned by the server
-/// If this function returns non-success, iteration will be aborted
-typedef DD_RESULT(*PFN_ddEventVisitProvider)(
-    void*                      pUserdata,  /// [in] Userdata pointer
-    const DDEventProviderDesc* pProvider); /// [in] Pointer to a provider description
-
-/// Helper structure for PFN_ddEventVisitProvider
-typedef struct DDEventProviderVisitor
-{
-    void*                    pUserdata; /// [in] Userdata pointer
-    PFN_ddEventVisitProvider pfnVisit;  /// [in] Pointer to a visitor function that will be called once per provider
-} DDEventProviderVisitor;
-
-/// Attempts to query and return all known providers from the remote server
-typedef DD_RESULT (*PFN_ddEventClientQueryProviders)(
-    DDEventClient                 hClient,   /// [in] Handle to an existing client object
-    const DDEventProviderVisitor* pVisitor); /// [in] Provider visitor to return provider data through
-
-/// Attempts to configure the state of the providers on the remote server
-///
-/// Providers on the remote server will be updated to reflect the new configuration
-typedef DD_RESULT (*PFN_ddEventClientConfigureProviders)(
-    DDEventClient                 hClient,      /// [in] Handle to an existing client object
-    size_t                        numProviders, /// Number of items in the pProviders array
-    const DDEventProviderDesc*    pProviders);  /// [in] Array of provider descriptions to send to the server
-
 /// Attempts to fully enable all specified providers on the remote server
 ///
 /// This will enable the providers themselves and all individual events supported by them
@@ -170,8 +126,6 @@ typedef struct DDEventClientApi
     PFN_ddEventClientCreate             pfnCreateClient;
     PFN_ddEventClientDestroy            pfnDestroyClient;
     PFN_ddEventClientReadEventData      pfnReadEventData;
-    PFN_ddEventClientQueryProviders     pfnQueryProviders;
-    PFN_ddEventClientConfigureProviders pfnConfigureProviders;
     PFN_ddEventClientEnableProviders    pfnEnableProviders;
     PFN_ddEventClientDisableProviders   pfnDisableProviders;
 } DDEventClientApi;

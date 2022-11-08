@@ -678,9 +678,7 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
     surfSettingInput.resourceType    = GetAddrResourceType(pImage);
     surfSettingInput.resourceLoction = ADDR_RSRC_LOC_UNDEF;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 694
     surfSettingInput.memoryBudget    = createInfo.imageMemoryBudget;
-#endif
 
     // Note: This is used by the AddrLib as an additional clamp on 4kB vs. 64kB swizzle modes. It can be set to zero
     // to force the AddrLib to chose the most optimal mode.
@@ -701,6 +699,16 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
     if (createInfo.imageType == ImageType::Tex3d)
     {
         surfSettingInput.flags.view3dAs2dArray = createInfo.flags.view3dAs2dArray;
+    }
+
+    // Enable view3dAs2dArray for mipmapped 3d bc images on gfx9+
+    // view3dAs2dArray can't support prt.
+    if (((createInfo.imageType == ImageType::Tex3d) && (createInfo.flags.prt == 0)) &&
+        Formats::IsBlockCompressed(createInfo.swizzledFormat.format)                &&
+        (createInfo.mipLevels > 1)                                                  &&
+        (m_gfxLevel > GfxIpLevel::GfxIp9))
+    {
+        surfSettingInput.flags.view3dAs2dArray = 1;
     }
 
     // Start by building a permitted set of swizzle types. From there we will apply performance optimizations to come

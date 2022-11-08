@@ -646,9 +646,6 @@ struct CmdBufferBuildInfo
     uint8 persistentStatesPerBin;
 #endif
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 661)
-#endif
-
     uint64 execMarkerClientHandle; ///< Client/app data handle. This can have an arbitrary value and is used to uniquely
                                    ///  identify this command buffer.
 };
@@ -1562,10 +1559,8 @@ typedef void (PAL_STDCALL *CmdDrawIndexedIndirectMultiFunc)(
 ///
 /// @see ICmdBuffer::CmdDispatch().
 typedef void (PAL_STDCALL *CmdDispatchFunc)(
-    ICmdBuffer* pCmdBuffer,
-    uint32      xDim,
-    uint32      yDim,
-    uint32      zDim);
+    ICmdBuffer*  pCmdBuffer,
+    DispatchDims size);
 
 /// @internal Function pointer type definition for issuing indirect dispatches.
 ///
@@ -1579,32 +1574,25 @@ typedef void (PAL_STDCALL *CmdDispatchIndirectFunc)(
 ///
 /// @see ICmdBuffer::CmdDispatchOffset().
 typedef void (PAL_STDCALL *CmdDispatchOffsetFunc)(
-    ICmdBuffer* pCmdBuffer,
-    uint32      xOffset,
-    uint32      yOffset,
-    uint32      zOffset,
-    uint32      xDim,
-    uint32      yDim,
-    uint32      zDim);
+    ICmdBuffer*  pCmdBuffer,
+    DispatchDims offset,
+    DispatchDims launchSize,
+    DispatchDims logicalSize);
 
 /// @internal Function pointer type definition for issuing dynamic compute dispatches.
 ///
 /// @see ICmdBuffer::CmdDispatchDynamic().
 typedef void (PAL_STDCALL* CmdDispatchDynamicFunc)(
-    ICmdBuffer* pCmdBuffer,
-    gpusize     gpuVa,
-    uint32      xDim,
-    uint32      yDim,
-    uint32      zDim);
+    ICmdBuffer*  pCmdBuffer,
+    gpusize      gpuVa,
+    DispatchDims size);
 
 /// @internal Function pointer type definition for issuing direct mesh dispatches.
 ///
 /// @see ICmdBuffer::CmdDispatchMesh().
 typedef void (PAL_STDCALL *CmdDispatchMeshFunc)(
-    ICmdBuffer* pCmdBuffer,
-    uint32      xDim,
-    uint32      yDim,
-    uint32      zDim);
+    ICmdBuffer*  pCmdBuffer,
+    DispatchDims size);
 
 /// @internal Function pointer type definition for issuing indirect mesh dispatches.
 ///
@@ -1987,18 +1975,10 @@ struct CmdBufInfo
             uint32 captureBegin       : 1;  ///< This command buffer begins a Direct Capture frame capture.
             uint32 captureEnd         : 1;  ///< This command buffer ends a Direct Capture frame capture.
             uint32 rayTracingExecuted : 1;  ///< This command buffer contains ray tracing work.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 677
             uint32 preflip            : 1;  ///< This command buffer has pre-flip access to DirectCapture resource
             uint32 postflip           : 1;  ///< This command buffer has post-flip access to DirectCapture resource
             uint32 privateFlip        : 1;  ///< Need to flip to a private primary surface for DirectCapture feature
-#else
-            uint32 reserved677        : 3;  ///< Reserved for future usage.
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 698
             uint32 vpBltExecuted      : 1;  ///< This command buffer comtains VP Blt work.
-#else
-            uint32 reserved698        : 1;  ///< Reserved for future usage.
-#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 741
             uint32 disableDccRejected : 1;  ///< Reject KMD's DisableDcc request to avoid writing to front buffer.
 #else
@@ -2017,14 +1997,10 @@ struct CmdBufInfo
 
     const IGpuMemory* pDirectCapMemory; ///< The Direct Capture gpu memory object. It should be set if flag
                                         ///  captureBegin or captureEnd is set. Otherwise set this to nullptr.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 677
     const IGpuMemory* pPrivFlipMemory;  ///< The gpu memory object of the private flip primary surface for the
                                         ///  DirectCapture feature.
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 695
     uint64            frameIndex;       ///< The frame index of this command buffer. It is only required for the
                                         ///  DirectCapture feature
-#endif
 };
 
 /// Specifies rotation angle between two images.  Used as input to ICmdBuffer::CmdScaledCopyImage.
@@ -2900,16 +2876,22 @@ public:
     ///
     /// Supports PAL ABI and HSA ABI pipelines.
     ///
-    /// @param [in] xDim Thread groups to dispatch in the X dimension.  If zero, the dispatch will be discarded.
-    /// @param [in] yDim Thread groups to dispatch in the Y dimension.  If zero, the dispatch will be discarded.
-    /// @param [in] zDim Thread groups to dispatch in the Z dimension.  If zero, the dispatch will be discarded.
+    /// @param [in] size Thread groups to dispatch. If any components are zero the dispatch will be discarded.
+    void CmdDispatch(
+        DispatchDims size)
+    {
+        m_funcTable.pfnCmdDispatch(this, size);
+    }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 771
     void CmdDispatch(
         uint32 xDim,
         uint32 yDim,
         uint32 zDim)
     {
-        m_funcTable.pfnCmdDispatch(this, xDim, yDim, zDim);
+        m_funcTable.pfnCmdDispatch(this, {xDim, yDim, zDim});
     }
+#endif
 
     /// Dispatches a compute workload using the command buffer's currently bound compute state.  The dimensions of the
     /// workload come from GPU memory.  The dispatch will be discarded if any of its dimensions are zero.
@@ -2933,19 +2915,34 @@ public:
     }
 
     /// Dispatches a compute workload of the given dimensions and offsets using the command buffer's currently bound
-    /// compute state. This command allows targeting regions of threadgroups without adding the offset computations in
+    /// compute state. This command allows targeting regions of thread groups without adding the offset computations in
     /// the shader.
+    ///
+    /// The caller may also provide a logical thread group count which is larger than the number of groups actually
+    /// launched. If the shader reads the dispatch's thread group count from PAL metadata it will see the logical size,
+    /// not the launch size.
+    ///
+    /// The combination of an offset, launch size, and logical size give the caller enough flexibility to take an
+    /// incoming dispatch, split it up into sub-dispatches, and execute those sub-dispatches using multiple
+    /// CmdDispatchOffset calls in whatever execution pattern they would like. Note that such an optimization
+    /// would not work if the shader has global logic that does make assumptions about thread group launch order.
     ///
     /// The thread group size is defined in the compute shader.
     ///
     /// Supports PAL ABI and HSA ABI pipelines.
     ///
-    /// @param [in] xOffset Thread groups offset in X direction.
-    /// @param [in] yOffset Thread groups offset in Y direction.
-    /// @param [in] zOffset Thread groups offset in Z direction.
-    /// @param [in] xDim    Thread groups to dispatch in the X dimension.  If zero, the dispatch will be discarded.
-    /// @param [in] yDim    Thread groups to dispatch in the Y dimension.  If zero, the dispatch will be discarded.
-    /// @param [in] zDim    Thread groups to dispatch in the Z dimension.  If zero, the dispatch will be discarded.
+    /// @param [in] offset      The thread groups offsets. Set them to zero if you don't want an offset.
+    /// @param [in] launchSize  Thread groups to dispatch. If any components are zero the dispatch will be discarded.
+    /// @param [in] logicalSize The thread group dimensions reported to the shader via metadata.
+    void CmdDispatchOffset(
+        DispatchDims offset,
+        DispatchDims launchSize,
+        DispatchDims logicalSize)
+    {
+        m_funcTable.pfnCmdDispatchOffset(this, offset, launchSize, logicalSize);
+    }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 771
     void CmdDispatchOffset(
         uint32 xOffset,
         uint32 yOffset,
@@ -2954,8 +2951,9 @@ public:
         uint32 yDim,
         uint32 zDim)
     {
-        m_funcTable.pfnCmdDispatchOffset(this, xOffset, yOffset, zOffset, xDim, yDim, zDim);
+        m_funcTable.pfnCmdDispatchOffset(this, {xOffset, yOffset, zOffset}, {xDim, yDim, zDim}, {xDim, yDim, zDim});
     }
+#endif
 
     /// Dispatches a compute workload of the given dimensions using the command buffer's currently bound compute state
     /// and dynamic pipeline state from GPU memory. The memory address provided contains the gpuVa of the pipeline
@@ -2969,33 +2967,46 @@ public:
     /// @note DynamicComputeShaderInfo.ldsBytesPerTg is not applicable to dynamic launch descriptors.
     ///
     /// @param [in] gpuVa GPU virtual address of memory containing pipeline launch descriptor address.
-    /// @param [in] xDim  Thread groups to dispatch in the X dimension.  If zero, the dispatch will be discarded.
-    /// @param [in] yDim  Thread groups to dispatch in the Y dimension.  If zero, the dispatch will be discarded.
-    /// @param [in] zDim  Thread groups to dispatch in the Z dimension.  If zero, the dispatch will be discarded.
+    /// @param [in] size  Thread groups to dispatch. If any components are zero the dispatch will be discarded.
+    void CmdDispatchDynamic(
+        gpusize      gpuVa,
+        DispatchDims size)
+    {
+        m_funcTable.pfnCmdDispatchDynamic(this, gpuVa, size);
+    }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 771
     void CmdDispatchDynamic(
         gpusize gpuVa,
         uint32  xDim,
         uint32  yDim,
         uint32  zDim)
     {
-        m_funcTable.pfnCmdDispatchDynamic(this, gpuVa, xDim, yDim, zDim);
+        m_funcTable.pfnCmdDispatchDynamic(this, gpuVa, {xDim, yDim, zDim});
     }
+#endif
 
     /// Dispatches a mesh shader workload using the command buffer's currently bound graphics state.  It is an error if
     /// the currently bound graphics pipeline does not contain a mesh and/or task shader.
     ///
     /// The thread group size is defined in the mesh shader or task shader.
     ///
-    /// @param [in] xDim Thread groups to dispatch in the x dimension.  If zero, the dispatch will be discarded.
-    /// @param [in] yDim Thread groups to dispatch in the y dimension.  If zero, the dispatch will be discarded.
-    /// @param [in] zDim Thread groups to dispatch in the z dimension.  If zero, the dispatch will be discarded.
+    /// @param [in] size Thread groups to dispatch. If any components are zero the dispatch will be discarded.
+    void CmdDispatchMesh(
+        DispatchDims size)
+    {
+        m_funcTable.pfnCmdDispatchMesh(this, size);
+    }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 771
     void CmdDispatchMesh(
         uint32 xDim,
         uint32 yDim,
         uint32 zDim)
     {
-        m_funcTable.pfnCmdDispatchMesh(this, xDim, yDim, zDim);
+        m_funcTable.pfnCmdDispatchMesh(this, {xDim, yDim, zDim});
     }
+#endif
 
     /// Dispatches a mesh shader workload using the command buffer's currently bound graphics state.  It is an error if
     /// the currently bound graphics pipeline does not contain a mesh shader.  The dimensions of the workload come from

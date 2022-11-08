@@ -380,6 +380,7 @@ static const char* FormatToString(
         "P012",
         "P212",
         "P412",
+        "X10Y10Z10W2_Float",
     };
 
     static_assert(ArrayLen(FormatStrings) == static_cast<size_t>(ChNumFormat::Count),
@@ -470,6 +471,17 @@ static void SignedExtent3dToString(
 
     Snprintf(string + currentLength, StringLength - currentLength, "{ width = 0x%d, height = 0x%d, depth = 0x%d }",
         extent.width, extent.height, extent.depth);
+}
+
+// =====================================================================================================================
+static void DispatchDimsToString(
+    DispatchDims dims,
+    char         string[StringLength])
+{
+    const size_t currentLength = strlen(string);
+
+    Snprintf(string + currentLength, StringLength - currentLength, "{ x = 0x%x, y = 0x%x, z = 0x%x }",
+             dims.x, dims.y, dims.z);
 }
 
 // =====================================================================================================================
@@ -3943,10 +3955,8 @@ void PAL_STDCALL CmdBuffer::CmdDrawIndexedIndirectMulti(
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDispatch(
-    ICmdBuffer* pCmdBuffer,
-    uint32      xDim,
-    uint32      yDim,
-    uint32      zDim)
+    ICmdBuffer*  pCmdBuffer,
+    DispatchDims size)
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
@@ -3957,17 +3967,14 @@ void PAL_STDCALL CmdBuffer::CmdDispatch(
         LinearAllocatorAuto<VirtualLinearAllocator> allocator(pThis->Allocator(), false);
         char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
-        Snprintf(pString, StringLength, "XDim = 0x%08x", xDim);
-        pThis->GetNextLayer()->CmdCommentString(pString);
-        Snprintf(pString, StringLength, "YDim = 0x%08x", yDim);
-        pThis->GetNextLayer()->CmdCommentString(pString);
-        Snprintf(pString, StringLength, "ZDim = 0x%08x", zDim);
+        Snprintf(pString, StringLength, "size = ");
+        DispatchDimsToString(size, pString);
         pThis->GetNextLayer()->CmdCommentString(pString);
 
         PAL_SAFE_DELETE_ARRAY(pString, &allocator);
     }
 
-    pThis->GetNextLayer()->CmdDispatch(xDim, yDim, zDim);
+    pThis->GetNextLayer()->CmdDispatch(size);
 
     pThis->AddDrawDispatchInfo(Developer::DrawDispatchType::CmdDispatch);
 }
@@ -3994,13 +4001,10 @@ void PAL_STDCALL CmdBuffer::CmdDispatchIndirect(
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDispatchOffset(
-    ICmdBuffer* pCmdBuffer,
-    uint32      xOffset,
-    uint32      yOffset,
-    uint32      zOffset,
-    uint32      xDim,
-    uint32      yDim,
-    uint32      zDim)
+    ICmdBuffer*  pCmdBuffer,
+    DispatchDims offset,
+    DispatchDims launchSize,
+    DispatchDims logicalSize)
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
@@ -4008,21 +4012,34 @@ void PAL_STDCALL CmdBuffer::CmdDispatchOffset(
     {
         pThis->GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdDispatchOffset));
 
-        // TODO: Add comment string.
+        LinearAllocatorAuto<VirtualLinearAllocator> allocator(pThis->Allocator(), false);
+        char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+
+        Snprintf(pString, StringLength, "offset = ");
+        DispatchDimsToString(offset, pString);
+        pThis->GetNextLayer()->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "launchSize = ");
+        DispatchDimsToString(launchSize, pString);
+        pThis->GetNextLayer()->CmdCommentString(pString);
+
+        Snprintf(pString, StringLength, "logicalSize = ");
+        DispatchDimsToString(logicalSize, pString);
+        pThis->GetNextLayer()->CmdCommentString(pString);
+
+        PAL_SAFE_DELETE_ARRAY(pString, &allocator);
     }
 
-    pThis->GetNextLayer()->CmdDispatchOffset(xOffset, yOffset, zOffset, xDim, yDim, zDim);
+    pThis->GetNextLayer()->CmdDispatchOffset(offset, launchSize, logicalSize);
 
     pThis->AddDrawDispatchInfo(Developer::DrawDispatchType::CmdDispatchOffset);
 }
 
 // =====================================================================================================================
 void CmdBuffer::CmdDispatchDynamic(
-    ICmdBuffer* pCmdBuffer,
-    gpusize     gpuVa,
-    uint32      xDim,
-    uint32      yDim,
-    uint32      zDim)
+    ICmdBuffer*  pCmdBuffer,
+    gpusize      gpuVa,
+    DispatchDims size)
 {
     auto pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
@@ -4033,29 +4050,25 @@ void CmdBuffer::CmdDispatchDynamic(
         LinearAllocatorAuto<VirtualLinearAllocator> allocator(pThis->Allocator(), false);
         char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
-        Snprintf(pString, StringLength, "VA = 0x%016x", gpuVa);
+        Snprintf(pString, StringLength, "gpuVa = 0x%016x", gpuVa);
         pThis->GetNextLayer()->CmdCommentString(pString);
-        Snprintf(pString, StringLength, "XDim = 0x%08x", xDim);
-        pThis->GetNextLayer()->CmdCommentString(pString);
-        Snprintf(pString, StringLength, "YDim = 0x%08x", yDim);
-        pThis->GetNextLayer()->CmdCommentString(pString);
-        Snprintf(pString, StringLength, "ZDim = 0x%08x", zDim);
+
+        Snprintf(pString, StringLength, "size = ");
+        DispatchDimsToString(size, pString);
         pThis->GetNextLayer()->CmdCommentString(pString);
 
         PAL_SAFE_DELETE_ARRAY(pString, &allocator);
     }
 
-    pThis->GetNextLayer()->CmdDispatchDynamic(gpuVa, xDim, yDim, zDim);
+    pThis->GetNextLayer()->CmdDispatchDynamic(gpuVa, size);
 
     pThis->AddDrawDispatchInfo(Developer::DrawDispatchType::CmdDispatchDynamic);
 }
 
 // =====================================================================================================================
 void CmdBuffer::CmdDispatchMesh(
-    ICmdBuffer* pCmdBuffer,
-    uint32      xDim,
-    uint32      yDim,
-    uint32      zDim)
+    ICmdBuffer*  pCmdBuffer,
+    DispatchDims size)
 {
     auto pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
@@ -4066,17 +4079,14 @@ void CmdBuffer::CmdDispatchMesh(
         LinearAllocatorAuto<VirtualLinearAllocator> allocator(pThis->Allocator(), false);
         char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
-        Snprintf(pString, StringLength, "XDim = 0x%08x", xDim);
-        pThis->GetNextLayer()->CmdCommentString(pString);
-        Snprintf(pString, StringLength, "YDim = 0x%08x", yDim);
-        pThis->GetNextLayer()->CmdCommentString(pString);
-        Snprintf(pString, StringLength, "ZDim = 0x%08x", zDim);
+        Snprintf(pString, StringLength, "size = ");
+        DispatchDimsToString(size, pString);
         pThis->GetNextLayer()->CmdCommentString(pString);
 
         PAL_SAFE_DELETE_ARRAY(pString, &allocator);
     }
 
-    pThis->GetNextLayer()->CmdDispatchMesh(xDim, yDim, zDim);
+    pThis->GetNextLayer()->CmdDispatchMesh(size);
 
     pThis->AddDrawDispatchInfo(Developer::DrawDispatchType::CmdDispatchMesh);
 }

@@ -199,7 +199,7 @@ Result MsgPackWriter::PackArray(
 
 // =====================================================================================================================
 template <typename T, uint32 DefaultCapacity, typename Allocator>
-Result MsgPackWriter::Pack(
+void MsgPackWriter::Pack(
     const Vector<T, DefaultCapacity, Allocator>& vector)
 {
     DeclareArray(vector.NumElements());
@@ -208,8 +208,6 @@ Result MsgPackWriter::Pack(
     {
         Pack(iter.Get());
     }
-
-    return GetStatus();
 }
 
 // =====================================================================================================================

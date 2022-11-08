@@ -84,7 +84,7 @@ public:
         Pal::ICmdBuffer*            pCmdBuffer,
         const Pal::IImage&          srcImage,
         const Pal::IImage&          dstImage,
-        uint32                      regionCount,
+        Pal::uint32                 regionCount,
         const Pal::ImageCopyRegion* pRegions) const;
 
 private:

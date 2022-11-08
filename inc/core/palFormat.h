@@ -348,15 +348,9 @@ enum class ChNumFormat : Util::uint32
                                         ///  identical to @ref ChNumFormat::P210, except that the lowest 4 bits of each
                                         ///  luma and chroma sample are ignored.
     P412                     = 0xB8,    ///< YUV 4:4:4 planar format, with 12 bits per luma and chroma sample.
+    X10Y10Z10W2_Float        = 0xB9,    ///< RGBA format with three 10-bit floats (6e4) and a 2-bit unorm as alpha.
     Count,
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 689
-    // Legacy aliases
-    X16_MM_Unorm    = X16_MM10_Unorm,
-    X16_MM_Uint     = X16_MM10_Uint,
-    X16Y16_MM_Unorm = X16Y16_MM10_Unorm,
-    X16Y16_MM_Uint  = X16Y16_MM10_Uint,
-#endif
 };
 
 /// Specifies which channel of a resource should be mapped to a particular component of an image view.

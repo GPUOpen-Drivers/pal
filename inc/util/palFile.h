@@ -168,17 +168,6 @@ public:
     /// @param  offset      Number of bytes to offset
     void Rseek(size_t offset) { Seek(-static_cast<int64>(offset), SeekPosition::End); }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 685
-    /// Sets the position indicator to a new position.
-    ///
-    /// @param  offset      Number of bytes to offset
-    /// @param  fromOrigin  Whether we're seeking from the start of the file or the current file pointer
-    void Seek(int64 offset, bool fromOrigin)
-    {
-        return Seek(offset, (fromOrigin ? SeekPosition::Start : SeekPosition::Current));
-    }
-#endif
-
     /// Sets the file position to the end of the file.
     void FastForward() { Rseek(0); }
 

@@ -1908,17 +1908,13 @@ void CmdBuffer::ReplayCmdDrawIndexedIndirectMulti(
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDispatch(
-    ICmdBuffer* pCmdBuffer,
-    uint32      x,
-    uint32      y,
-    uint32      z)
+    ICmdBuffer*  pCmdBuffer,
+    DispatchDims size)
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
     pThis->InsertToken(CmdBufCallId::CmdDispatch);
-    pThis->InsertToken(x);
-    pThis->InsertToken(y);
-    pThis->InsertToken(z);
+    pThis->InsertToken(size);
 }
 
 // =====================================================================================================================
@@ -1926,16 +1922,14 @@ void CmdBuffer::ReplayCmdDispatch(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
-    auto x = ReadTokenVal<uint32>();
-    auto y = ReadTokenVal<uint32>();
-    auto z = ReadTokenVal<uint32>();
+    const auto size = ReadTokenVal<DispatchDims>();
 
     LogItem logItem = { };
     logItem.cmdBufCall.flags.dispatch            = 1;
-    logItem.cmdBufCall.dispatch.threadGroupCount = x * y * z;
+    logItem.cmdBufCall.dispatch.threadGroupCount = size.x * size.y * size.z;
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdDispatch);
-    pTgtCmdBuffer->CmdDispatch(x, y, z);
+    pTgtCmdBuffer->CmdDispatch(size);
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 
@@ -1957,8 +1951,8 @@ void CmdBuffer::ReplayCmdDispatchIndirect(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
-    auto pGpuMemory = ReadTokenVal<IGpuMemory*>();
-    auto offset     = ReadTokenVal<gpusize>();
+    const auto pGpuMemory = ReadTokenVal<IGpuMemory*>();
+    const auto offset     = ReadTokenVal<gpusize>();
 
     LogItem logItem = { };
     logItem.cmdBufCall.flags.dispatch = 1;
@@ -1970,23 +1964,17 @@ void CmdBuffer::ReplayCmdDispatchIndirect(
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDispatchOffset(
-    ICmdBuffer* pCmdBuffer,
-    uint32      xOffset,
-    uint32      yOffset,
-    uint32      zOffset,
-    uint32      xDim,
-    uint32      yDim,
-    uint32      zDim)
+    ICmdBuffer*  pCmdBuffer,
+    DispatchDims offset,
+    DispatchDims launchSize,
+    DispatchDims logicalSize)
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
     pThis->InsertToken(CmdBufCallId::CmdDispatchOffset);
-    pThis->InsertToken(xOffset);
-    pThis->InsertToken(yOffset);
-    pThis->InsertToken(zOffset);
-    pThis->InsertToken(xDim);
-    pThis->InsertToken(yDim);
-    pThis->InsertToken(zDim);
+    pThis->InsertToken(offset);
+    pThis->InsertToken(launchSize);
+    pThis->InsertToken(logicalSize);
 }
 
 // =====================================================================================================================
@@ -1994,37 +1982,30 @@ void CmdBuffer::ReplayCmdDispatchOffset(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
-    auto xOffset = ReadTokenVal<uint32>();
-    auto yOffset = ReadTokenVal<uint32>();
-    auto zOffset = ReadTokenVal<uint32>();
-    auto xDim    = ReadTokenVal<uint32>();
-    auto yDim    = ReadTokenVal<uint32>();
-    auto zDim    = ReadTokenVal<uint32>();
+    const auto offset      = ReadTokenVal<DispatchDims>();
+    const auto launchSize  = ReadTokenVal<DispatchDims>();
+    const auto logicalSize = ReadTokenVal<DispatchDims>();
 
     LogItem logItem = { };
     logItem.cmdBufCall.flags.dispatch            = 1;
-    logItem.cmdBufCall.dispatch.threadGroupCount = xDim * yDim * zDim;
+    logItem.cmdBufCall.dispatch.threadGroupCount = launchSize.x * launchSize.y * launchSize.z;
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdDispatchOffset);
-    pTgtCmdBuffer->CmdDispatchOffset(xOffset, yOffset, zOffset, xDim, yDim, zDim);
+    pTgtCmdBuffer->CmdDispatchOffset(offset, launchSize, logicalSize);
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 
 // =====================================================================================================================
 void CmdBuffer::CmdDispatchDynamic(
-    ICmdBuffer* pCmdBuffer,
-    gpusize     gpuVa,
-    uint32      xDim,
-    uint32      yDim,
-    uint32      zDim)
+    ICmdBuffer*  pCmdBuffer,
+    gpusize      gpuVa,
+    DispatchDims size)
 {
-    CmdBuffer* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
+    auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
     pThis->InsertToken(CmdBufCallId::CmdDispatchDynamic);
     pThis->InsertToken(gpuVa);
-    pThis->InsertToken(xDim);
-    pThis->InsertToken(yDim);
-    pThis->InsertToken(zDim);
+    pThis->InsertToken(size);
 }
 
 // =====================================================================================================================
@@ -2032,33 +2013,43 @@ void CmdBuffer::ReplayCmdDispatchDynamic(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
-    auto gpuVa = ReadTokenVal<gpusize>();
-    auto x     = ReadTokenVal<uint32>();
-    auto y     = ReadTokenVal<uint32>();
-    auto z     = ReadTokenVal<uint32>();
+    const auto gpuVa = ReadTokenVal<gpusize>();
+    const auto size  = ReadTokenVal<DispatchDims>();
 
     LogItem logItem = { };
     logItem.cmdBufCall.flags.dispatch            = 1;
-    logItem.cmdBufCall.dispatch.threadGroupCount = x * y * z;
+    logItem.cmdBufCall.dispatch.threadGroupCount = size.x * size.y * size.z;
 
     LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdDispatchDynamic);
-    pTgtCmdBuffer->CmdDispatchDynamic(gpuVa, x, y, z);
+    pTgtCmdBuffer->CmdDispatchDynamic(gpuVa, size);
     LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 
 // =====================================================================================================================
 void CmdBuffer::CmdDispatchMesh(
-    ICmdBuffer* pCmdBuffer,
-    uint32      xDim,
-    uint32      yDim,
-    uint32      zDim)
+    ICmdBuffer*  pCmdBuffer,
+    DispatchDims size)
 {
-    CmdBuffer* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
+    auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
     pThis->InsertToken(CmdBufCallId::CmdDispatchMesh);
-    pThis->InsertToken(xDim);
-    pThis->InsertToken(yDim);
-    pThis->InsertToken(zDim);
+    pThis->InsertToken(size);
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdDispatchMesh(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    const auto size = ReadTokenVal<DispatchDims>();
+
+    LogItem logItem                              = { };
+    logItem.cmdBufCall.flags.taskmesh            = 1;
+    logItem.cmdBufCall.taskmesh.threadGroupCount = size.x * size.y * size.z;
+
+    LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdDispatchMesh);
+    pTgtCmdBuffer->CmdDispatchMesh(size);
+    LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 
 // =====================================================================================================================
@@ -2070,7 +2061,7 @@ void CmdBuffer::CmdDispatchMeshIndirectMulti(
     uint32            maximumCount,
     gpusize           countGpuAddr)
 {
-    CmdBuffer* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
+    auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
     pThis->InsertToken(CmdBufCallId::CmdDispatchMeshIndirectMulti);
     pThis->InsertToken(&gpuMemory);
@@ -2078,24 +2069,6 @@ void CmdBuffer::CmdDispatchMeshIndirectMulti(
     pThis->InsertToken(stride);
     pThis->InsertToken(maximumCount);
     pThis->InsertToken(countGpuAddr);
-}
-
-// =====================================================================================================================
-void CmdBuffer::ReplayCmdDispatchMesh(
-    Queue*           pQueue,
-    TargetCmdBuffer* pTgtCmdBuffer)
-{
-    auto x = ReadTokenVal<uint32>();
-    auto y = ReadTokenVal<uint32>();
-    auto z = ReadTokenVal<uint32>();
-
-    LogItem logItem                              = { };
-    logItem.cmdBufCall.flags.taskmesh            = 1;
-    logItem.cmdBufCall.taskmesh.threadGroupCount = x * y * z;
-
-    LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdDispatchMesh);
-    pTgtCmdBuffer->CmdDispatchMesh(x, y, z);
-    LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 
 // =====================================================================================================================
@@ -4754,6 +4727,7 @@ static const char* FormatToString(
         "P012",
         "P212",
         "P412",
+        "X10Y10Z10W2_Float",
     };
 
     static_assert(ArrayLen(FormatStrings) == static_cast<size_t>(ChNumFormat::Count),

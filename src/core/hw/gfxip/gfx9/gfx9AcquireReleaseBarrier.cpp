@@ -607,68 +607,6 @@ static void GetBltStageAccessInfo(
     }
 }
 
-// =====================================================================================================================
-// Remove redundant stall and cache operations by modifying srcStageMask and srcAccessMask
-static void OptimizeStageAndAccessMask(
-    Pm4CmdBuffer* pCmdBuf,
-    uint32*       pSrcStageMask,
-    uint32*       pSrcAccessMask,
-    uint32*       pDstAccessMask)
-{
-    PAL_ASSERT((pSrcStageMask != nullptr) && (pSrcAccessMask != nullptr) && (pDstAccessMask != nullptr));
-
-    if (pCmdBuf->IsGraphicsSupported())
-    {
-        constexpr uint32 PipelineStageTargetMask = PipelineStageColorTarget | PipelineStageEarlyDsTarget |
-                                                   PipelineStageLateDsTarget;
-        constexpr uint32 PipelineStageVsPsMask   = PipelineStageVs | PipelineStageHs | PipelineStageDs |
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 770
-                                                   PipelineStageGs | PipelineStagePs | PipelineStageStreamOut |
-                                                   PipelineStageFetchIndices;
-#else
-                                                   PipelineStageGs | PipelineStagePs | PipelineStageFetchIndices;
-#endif
-
-        const auto          cmdBufStateFlags = pCmdBuf->GetPm4CmdBufState().flags;
-        const GfxDrawStatus gfxDrawStatus    = GfxDrawStatus(cmdBufStateFlags.gfxDrawStatus);
-
-        if ((gfxDrawStatus == GfxDrawEop) || (gfxDrawStatus == GfxDrawEopFlushed))
-        {
-            const uint32 oldSrcStageMask = *pSrcStageMask;
-
-            *pSrcStageMask &= ~(PipelineStageTargetMask | PipelineStageVsPsMask);
-
-            // If avoid an EOP event, try to set PipelineStageCs back if gfxCsActive=1 since gfxDrawStatus doesn't
-            // track CS. It's possible that new dispatch occurs since last GfxDrawEopFlushed.
-            if (TestAnyFlagSet(oldSrcStageMask, PipelineStageTargetMask))
-            {
-                *pSrcStageMask |= (cmdBufStateFlags.gfxCsActive ? PipelineStageCs : 0);
-            }
-
-            if (gfxDrawStatus == GfxDrawEopFlushed)
-            {
-                *pSrcAccessMask &= ~(CoherColorTarget | CoherDepthStencilTarget);
-            }
-        }
-        else if (gfxDrawStatus == GfxDrawPsVsDone)
-        {
-            *pSrcStageMask &= ~PipelineStageVsPsMask;
-        }
-
-        if (cmdBufStateFlags.gfxCsActive == 0)
-        {
-            *pSrcStageMask &= ~PipelineStageCs;
-        }
-
-        if (cmdBufStateFlags.gfxSrcCachesDirty == 0)
-        {
-            PAL_ASSERT((cmdBufStateFlags.gfxCsActive == 0) && (cmdBufStateFlags.gfxDrawStatus != GfxDrawActive));
-
-            *pDstAccessMask &= ~CacheCoherShaderAccessMask;
-        }
-    }
-}
-
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
 // =====================================================================================================================
 static bool IsReadOnlyTransition(
@@ -829,6 +767,18 @@ bool Device::GetAcqRelLayoutTransitionBltInfo(
         // Can safely skip transition between depth read and depth write.
         bool skipTransition = (imageBarrier.srcAccessMask == CoherDepthStencilTarget) &&
                               (imageBarrier.dstAccessMask == CoherDepthStencilTarget);
+
+        // No need acquire at PFP for image barriers. Image may have metadata that's accessed by PFP by
+        // it's handled properly internally and no need concern here.
+        if (TestAnyFlagSet(imageBarrier.dstStageMask, PipelineStagePfpMask))
+        {
+            imageBarrier.dstStageMask &= ~PipelineStagePfpMask;
+            // If no dstStageMask flag after removing PFP flags, force waiting at ME.
+            if (imageBarrier.dstStageMask == 0)
+            {
+                imageBarrier.dstStageMask = PipelineStageBlt;
+            }
+        }
 
         if (IsReadOnlyTransition(imageBarrier.srcAccessMask, imageBarrier.dstAccessMask) &&
             (layoutTransInfo.blt[0] == HwLayoutTransition::None) &&
@@ -1511,13 +1461,11 @@ void Device::IssueReleaseThenAcquireSync(
     AcquirePoint     acquirePoint  = GetAcquirePoint(dstStageMask);
     SyncGlxFlags     acquireCaches = GetReleaseThenAcquireCacheFlags(srcAccessMask, dstAccessMask,
                                                                      refreshTcc, mayHaveMetadata, pBarrierOps);
-    const bool       invSrcCaches  = TestAllFlagsSet(acquireCaches, SyncGlkInv | SyncGlvInv | SyncGlmInv);
     ReleaseEvents    releaseEvents = GetReleaseEvents(pCmdBuf, *this, srcStageMask, srcAccessMask,
                                                       false, acquireCaches, acquirePoint);
     ReleaseMemCaches releaseCaches = {};
 
-    // Define as reference instead of value since the flags may be changed at running and we want the refresh value.
-    const Pm4CmdBufferStateFlags& cmdBufStateFlags = pCmdBuf->GetPm4CmdBufState().flags;
+    const Pm4CmdBufferStateFlags cmdBufStateFlags = pCmdBuf->GetPm4CmdBufState().flags;
 
     // Preprocess release events, acquire caches and point for optimization or HW limitation before issue real packet.
     // Make no sense to process for (dstStageMask = PipelineStageBottomOfPipe) case so skip it.
@@ -1628,29 +1576,16 @@ void Device::IssueReleaseThenAcquireSync(
         {
             pCmdBuf->SetPrevCmdBufInactive();
             pCmdBuf->SetPm4CmdBufGfxBltState(false);
-            pCmdBuf->SetGfxDrawState(releaseEvents.rbCache ? GfxDrawEopFlushed : GfxDrawEop);
+
             if (releaseEvents.rbCache)
             {
                 pCmdBuf->SetPm4CmdBufGfxBltWriteCacheState(false);
             }
         }
-        else if (releaseEvents.ps && releaseEvents.vs)
-        {
-            pCmdBuf->SetGfxDrawState(GfxDrawPsVsDone);
-        }
 
         if (releaseEvents.eop || releaseEvents.cs)
         {
             pCmdBuf->SetPm4CmdBufCsBltState(false);
-            pCmdBuf->SetGfxCsState(false);
-        }
-
-        // Only set shader source caches clean if source caches are invalidated and no active CS or PS.
-        if (invSrcCaches &&
-            (cmdBufStateFlags.gfxCsActive == 0) &&
-            (cmdBufStateFlags.gfxDrawStatus != GfxDrawActive))
-        {
-            pCmdBuf->SetGfxSrcCachesClean();
         }
     }
 
@@ -1990,8 +1925,6 @@ AcqRelSyncToken Device::Release(
                                                              &unusedAccessMask,
                                                              pBarrierOps);
 
-        OptimizeStageAndAccessMask(pCmdBuf, &srcGlobalStageMask, &srcGlobalStageMask, &unusedAccessMask);
-
         // Issue BLTs if there exists transitions that require one.
         if (transInfo.bltCount > 0)
         {
@@ -2089,8 +2022,6 @@ void Device::Acquire(
 
         // Should have no L2 refresh for image barrier as this is done at Release().
         PAL_ASSERT(preBltRefreshTcc == false);
-
-        OptimizeStageAndAccessMask(pCmdBuf, &unusedStageMask, &unusedAccessMask, &dstGlobalAccessMask);
 
         // Issue acquire for global or pre-BLT sync. No need stall if wait at bottom of pipe
         const uint32 acquireDstStageMask  = (transInfo.bltCount > 0) ? transInfo.bltStageMask : dstGlobalStageMask;
@@ -2203,8 +2134,6 @@ void Device::ReleaseThenAcquire(
                                                              &dstGlobalAccessMask,
                                                              pBarrierOps);
         mayHaveMatadata |= transInfo.hasMetadata;
-
-        OptimizeStageAndAccessMask(pCmdBuf, &srcGlobalStageMask, &srcGlobalAccessMask, &dstGlobalAccessMask);
 
         // Issue BLTs if there exists transitions that require one.
         if (transInfo.bltCount > 0)
@@ -2744,8 +2673,6 @@ void Device::ReleaseEvent(
                                                              &unusedAccessMask,
                                                              pBarrierOps);
 
-        OptimizeStageAndAccessMask(pCmdBuf, &srcGlobalStageMask, &srcGlobalAccessMask, &unusedAccessMask);
-
         // Initialize an IGpuEvent* pEvent pointing at the client provided event.
         // If we have internal BLTs, use internal event to signal/wait.
         const IGpuEvent* pActiveEvent = (transInfo.bltCount > 0) ? pCmdBuf->GetInternalEvent() : pClientEvent;
@@ -2857,8 +2784,6 @@ void Device::AcquireEvent(
 
         // Should have no L2 refresh for image barrier as this is done at Release().
         PAL_ASSERT(preBltRefreshTcc == false);
-
-        OptimizeStageAndAccessMask(pCmdBuf, &unusedStageMask, &unusedAccessMask, &dstGlobalAccessMask);
 
         const IGpuEvent* const* ppActiveEvents   = ppGpuEvents;
         uint32                  activeEventCount = gpuEventCount;

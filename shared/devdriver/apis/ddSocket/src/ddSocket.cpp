@@ -279,7 +279,10 @@ DD_RESULT ddSocketAccept(
         result = DevDriverToDDResult(pServerContext->server.AcceptConnection(&pSession, timeoutInMs));
         if (result == DD_RESULT_SUCCESS)
         {
-            ClientSocketContext* pClientContext = DD_NEW(ClientSocketContext, pServerContext->stub.pMsgChannel->GetAllocCb())(pServerContext->stub.pMsgChannel);
+            ClientSocketContext* pClientContext =
+                DD_NEW(ClientSocketContext, pServerContext->stub.pMsgChannel->GetAllocCb())(
+                    pServerContext->stub.pMsgChannel);
+
             if (pClientContext != nullptr)
             {
                 pClientContext->pSession = pSession;

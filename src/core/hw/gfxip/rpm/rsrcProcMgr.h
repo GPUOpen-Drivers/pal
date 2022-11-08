@@ -191,7 +191,7 @@ public:
         uint32                        regionCount,
         const ClearBoundTargetRegion* pClearRegions) const;
 
-    void CmdClearDepthStencil(
+    virtual void CmdClearDepthStencil(
         GfxCmdBuffer*      pCmdBuffer,
         const Image&       dstImage,
         ImageLayout        depthLayout,
@@ -222,7 +222,7 @@ public:
         uint32                          regionCount,
         const ClearBoundTargetRegion*   pBoxes) const;
 
-    void CmdClearColorImage(
+    virtual void CmdClearColorImage(
         GfxCmdBuffer*         pCmdBuffer,
         const Image&          dstImage,
         ImageLayout           dstImageLayout,
@@ -347,17 +347,6 @@ protected:
         ClearMethod        method) const
         { return false; }
 
-    virtual void SlowClearGraphics(
-        GfxCmdBuffer*         pCmdBuffer,
-        const Image&          dstImage,
-        ImageLayout           dstImageLayout,
-        const ClearColor*     pColor,
-        const SwizzledFormat& clearFormat,
-        const SubresRange&    clearRange,
-        uint32                boxCount,
-        const Box*            pBoxes) const
-        { PAL_NEVER_CALLED(); }
-
     void SlowClearCompute(
         GfxCmdBuffer*         pCmdBuffer,
         const Image&          dstImage,
@@ -460,32 +449,6 @@ protected:
         uint32*                pTexelScale,
         bool*                  pSingleSubres) const;
 
-    void PreComputeColorClearSync(
-        ICmdBuffer*        pCmdBuffer,
-        const IImage*      pImage,
-        const SubresRange& subres,
-        ImageLayout        layout) const;
-
-    void PostComputeColorClearSync(
-        ICmdBuffer*        pCmdBuffer,
-        const IImage*      pImage,
-        const SubresRange& subres,
-        ImageLayout        layout,
-        bool               csFastClear) const;
-
-    virtual void PreComputeDepthStencilClearSync(
-        ICmdBuffer*        pCmdBuffer,
-        const GfxImage&    gfxImage,
-        const SubresRange& subres,
-        ImageLayout        layout) const;
-
-    void PostComputeDepthStencilClearSync(
-        ICmdBuffer*        pCmdBuffer,
-        const GfxImage&    gfxImage,
-        const SubresRange& subres,
-        ImageLayout        layout,
-        bool               csFastClear) const;
-
     GfxDevice*const     m_pDevice;
     ColorBlendState*    m_pBlendDisableState;               // Blend state object with all blending disabled.
     ColorBlendState*    m_pColorBlendState;                 // Blend state object with rt0 blending enabled.
@@ -500,16 +463,10 @@ protected:
     MsaaState*          m_pMsaaState[MaxLog2AaSamples + 1]
                                     [MaxLog2AaFragments + 1]; // MSAA state objects for all AA sample rates.
     DepthStencilState*  m_pDepthStencilResolveState;        // DS state object for depth/stencil resolves.
+    bool                m_releaseAcquireSupported;          // If acquire release interface is supported.
 
 private:
     virtual Result CreateCommonStateObjects();
-
-    virtual void HwlFastColorClear(
-        GfxCmdBuffer*         pCmdBuffer,
-        const GfxImage&       dstImage,
-        const uint32*         pConvertedColor,
-        const SwizzledFormat& clearFormat,
-        const SubresRange&    clearRange) const = 0;
 
     virtual void HwlFixupCopyDstImageMetaData(
         GfxCmdBuffer*           pCmdBuffer,
@@ -529,21 +486,6 @@ private:
         GfxCmdBuffer*      pCmdBuffer,
         const Pal::Image&  image) const
         { PAL_NEVER_CALLED(); }
-
-    virtual void HwlDepthStencilClear(
-        GfxCmdBuffer*      pCmdBuffer,
-        const GfxImage&    dstImage,
-        ImageLayout        depthLayout,
-        ImageLayout        stencilLayout,
-        float              depth,
-        uint8              stencil,
-        uint8              stencilWriteMask,
-        uint32             rangeCount,
-        const SubresRange* pRanges,
-        bool               fastClear,
-        bool               needComputeSync,
-        uint32             boxCnt,
-        const Box*         pBox) const = 0;
 
     virtual void HwlDecodeImageViewSrd(
         const void*     pImageViewSrd,
@@ -642,8 +584,7 @@ private:
         GfxCmdBuffer*         pCmdBuffer,
         const GenMipmapsInfo& genInfo) const;
 
-    uint32             m_srdAlignment;             // All SRDs must be offset and size aligned to this many DWORDs.
-    bool               m_releaseAcquireSupported;  // If acquire release interface is supported.
+    uint32             m_srdAlignment;  // All SRDs must be offset and size aligned to this many DWORDs.
 
     // All internal RPM pipelines are stored here.
     ComputePipeline*   m_pComputePipelines[static_cast<size_t>(RpmComputePipeline::Count)];

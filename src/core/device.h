@@ -335,7 +335,8 @@ struct GpuMemoryProperties
                                                     // priority management.
             uint32 supportsTmz                :  1; // Indicates TMZ (or HSFB) protected memory is supported.
             uint32 supportsMall               :  1; // Indicates that this device supports the MALL.
-            uint32 reserved                   : 16;
+            uint32 supportPageFaultInfo       :  1; // Indicates support for querying page fault information
+            uint32 reserved                   : 15;
         };
         uint32 u32All;
     } flags;
@@ -742,7 +743,7 @@ struct GpuChipProperties
         uint32 maxGsTotalOutputComponents;           // Maximum number of GS output components totally.
         uint32 dynamicLaunchDescSize;                // Dynamic compute pipeline launch descriptor size in bytes
         // Mask of active pixel packers. The mask is 128 bits wide, assuming a max of 32 SEs and a max of 4 pixel
-        // packers (indicated by a single bit each) per SE.
+        // packers (indicated by a single bit each) per physical SE (includes harvested SEs).
         uint32 activePixelPackerMask[ActivePixelPackerMaskDwords];
 
         struct
@@ -866,9 +867,9 @@ struct GpuChipProperties
             uint32 gbAddrConfig;
             uint32 spiConfigCntl;
             uint32 paScTileSteeringOverride;
-            uint32 numShaderEngines;
+            uint32 numShaderEngines;        // Max Possible SEs on this GPU
             uint32 activeSeMask;
-            uint32 numActiveShaderEngines;
+            uint32 numActiveShaderEngines;  // Number of Non-harvested SEs
             uint32 numShaderArrays;
             uint32 maxNumRbPerSe;
             uint32 activeNumRbPerSe;
@@ -903,8 +904,8 @@ struct GpuChipProperties
             uint32 sdmaDefaultRdL2Policy;
             uint32 sdmaDefaultWrL2Policy;
             bool   sdmaL2PolicyValid;
-            uint32 activeCuMask  [Gfx9MaxShaderEngines] [MaxShaderArraysPerSe];
-            uint32 alwaysOnCuMask[Gfx9MaxShaderEngines] [MaxShaderArraysPerSe];
+            uint32 activeCuMask  [Gfx9MaxShaderEngines] [MaxShaderArraysPerSe]; // Indexed using the physical SE
+            uint32 alwaysOnCuMask[Gfx9MaxShaderEngines] [MaxShaderArraysPerSe]; // Indexed using the physical SE
 
             uint32 numSdpInterfaces;          // Number of Synchronous Data Port interfaces to memory.
 
@@ -922,8 +923,8 @@ struct GpuChipProperties
 
                 uint32  minNumWgpPerSa;
                 uint32  maxNumWgpPerSa;
-                uint16  activeWgpMask  [Gfx9MaxShaderEngines] [MaxShaderArraysPerSe];
-                uint16  alwaysOnWgpMask[Gfx9MaxShaderEngines] [MaxShaderArraysPerSe];
+                uint16  activeWgpMask  [Gfx9MaxShaderEngines] [MaxShaderArraysPerSe];   // Indexed using the physical SE
+                uint16  alwaysOnWgpMask[Gfx9MaxShaderEngines] [MaxShaderArraysPerSe];   // Indexed using the physical SE
             } gfx10;
 
             struct
@@ -1116,7 +1117,8 @@ public:
     virtual Result GetProperties(
         DeviceProperties* pInfo) const override;
 
-    virtual Result CheckExecutionState() const override;
+    virtual Result CheckExecutionState(
+        PageFaultStatus* pPageFaultStatus) const override;
 
     // NOTE: PAL internals can access the same information more directly via the HeapProperties() getter.
     virtual Result GetGpuMemoryHeapProperties(
@@ -1172,13 +1174,15 @@ public:
         const SubresRange** ppSplitRanges,
         bool*               pMemAllocated) const;
 
-    Result SplitBarrierTransitions(
+    static Result SplitBarrierTransitions(
+        Platform*    pPlatform,
         BarrierInfo* pBarrier,
-        bool*        pMemAllocated) const;
+        bool*        pMemAllocated);
 
-    Result SplitImgBarriers(
+    static Result SplitImgBarriers(
+        Platform*           pPlatform,
         AcquireReleaseInfo* pBarrier,
-        bool*               pMemAllocated) const;
+        bool*               pMemAllocated);
 
     virtual Result QueryRawApplicationProfile(
         const wchar_t*           pFilename,

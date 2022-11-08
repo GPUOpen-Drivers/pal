@@ -327,9 +327,8 @@ CmdUtil::CmdUtil(
     const Device& device)
     :
     m_device(device),
-    m_gfxIpLevel(device.Parent()->ChipProperties().gfxLevel),
-    m_cpUcodeVersion(device.Parent()->EngineProperties().cpUcodeVersion),
-    m_pfpUcodeVersion(device.Parent()->ChipProperties().pfpUcodeVersion)
+    m_chipProps(device.Parent()->ChipProperties()),
+    m_cpUcodeVersion(device.Parent()->EngineProperties().cpUcodeVersion)
 #if PAL_ENABLE_PRINTS_ASSERTS
     , m_verifyShadowedRegisters(device.Parent()->Settings().cmdUtilVerifyShadowedRegRanges)
 #endif
@@ -338,7 +337,7 @@ CmdUtil::CmdUtil(
 
     memset(&m_registerInfo, 0, sizeof(m_registerInfo));
 
-    if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
+    if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp9)
     {
         if (IsVega10(parent) || IsRaven(parent))
         {
@@ -442,28 +441,28 @@ bool CmdUtil::CanUseCsPartialFlush(
     bool useCspf = true;
 
     // We will only try to disable cspf if this is an async compute engine on an ASIC that at some point had the bug.
-    if ((Pal::Device::EngineSupportsGraphics(engineType) == false) && (m_gfxIpLevel <= GfxIpLevel::GfxIp10_3))
+    if ((Pal::Device::EngineSupportsGraphics(engineType) == false) && (m_chipProps.gfxLevel <= GfxIpLevel::GfxIp10_3))
     {
         if (m_device.Settings().disableAceCsPartialFlush)
         {
             // Always disable ACE support if someone set the debug setting.
             useCspf = false;
         }
-        else if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
+        else if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp9)
         {
             // Disable ACE support on gfx9 if the ucode doesn't have the fix.
             constexpr uint32 MinUcodeVerForCsPartialFlushGfx9 = 52;
 
             useCspf = (m_cpUcodeVersion >= MinUcodeVerForCsPartialFlushGfx9);
         }
-        else if (m_gfxIpLevel == GfxIpLevel::GfxIp10_1)
+        else if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp10_1)
         {
             // Disable ACE support on gfx10.1 if the ucode doesn't have the fix.
             constexpr uint32 MinUcodeVerForCsPartialFlushGfx10_1 = 32;
 
             useCspf = (m_cpUcodeVersion >= MinUcodeVerForCsPartialFlushGfx10_1);
         }
-        else if (m_gfxIpLevel == GfxIpLevel::GfxIp10_3)
+        else if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp10_3)
         {
             // Disable ACE support on gfx10.3 if the ucode doesn't have the fix.
             constexpr uint32 MinUcodeVerForCsPartialFlushGfx10_3 = 35;
@@ -488,7 +487,8 @@ bool CmdUtil::HasEnhancedLoadShRegIndex() const
     {
         // This was only implemented on gfx10.3+.
         hasEnhancedLoadShRegIndex =
-            ((m_cpUcodeVersion >= Gfx103UcodeVersionLoadShRegIndexIndirectAddr) && IsGfx103CorePlus(m_gfxIpLevel));
+            ((m_cpUcodeVersion >= Gfx103UcodeVersionLoadShRegIndexIndirectAddr)
+             && IsGfx103CorePlus(m_chipProps.gfxLevel));
     }
 
     return hasEnhancedLoadShRegIndex;
@@ -659,7 +659,7 @@ size_t CmdUtil::BuildAcquireMemGeneric(
 {
     size_t totalSize;
 
-    if (IsGfx10Plus(m_gfxIpLevel))
+    if (IsGfx10Plus(m_chipProps.gfxLevel))
     {
         totalSize = BuildAcquireMemInternalGfx10(info, info.engineType, {}, pBuffer);
     }
@@ -679,7 +679,7 @@ size_t CmdUtil::BuildAcquireMemGfxSurfSync(
 {
     size_t totalSize;
 
-    if (IsGfx10Plus(m_gfxIpLevel))
+    if (IsGfx10Plus(m_chipProps.gfxLevel))
     {
         totalSize = BuildAcquireMemInternalGfx10(info, EngineTypeUniversal, info.flags, pBuffer);
     }
@@ -732,7 +732,7 @@ size_t CmdUtil::BuildAcquireMemInternalGfx9(
     ) const
 {
     // This path only works on gfx9.
-    PAL_ASSERT(IsGfx10Plus(m_gfxIpLevel) == false);
+    PAL_ASSERT(IsGfx10Plus(m_chipProps.gfxLevel) == false);
 
     // The surf sync dest_base stalling feature is only supported on graphics engines. ACE acquires are immediate.
     // The RB caches can only be flushed and invalidated on graphics queues as well. This assert should never fire
@@ -851,7 +851,7 @@ size_t CmdUtil::BuildAcquireMemInternalGfx10(
     ) const
 {
     // This function is named "BuildGfx10..." so don't call it on gfx9.
-    PAL_ASSERT(IsGfx10Plus(m_gfxIpLevel));
+    PAL_ASSERT(IsGfx10Plus(m_chipProps.gfxLevel));
 
     // The surf sync dest_base stalling feature is only supported on graphics engines. ACE acquires are immediate.
     // The RB caches can only be flushed and invalidated on graphics queues as well. This assert should never fire
@@ -1367,14 +1367,12 @@ size_t CmdUtil::BuildPerfmonControl(
 // Builds a DISPATCH_DIRECT packet. Returns the size of the PM4 command assembled, in DWORDs.
 template <bool dimInThreads, bool forceStartAt000>
 size_t CmdUtil::BuildDispatchDirect(
-    uint32          xDim,         // Thread groups (or threads) to launch (X dimension).
-    uint32          yDim,         // Thread groups (or threads) to launch (Y dimension).
-    uint32          zDim,         // Thread groups (or threads) to launch (Z dimension).
-    Pm4Predicate    predicate,    // Predication enable control. Must be PredDisable on the Compute Engine.
-    bool            isWave32,     // Meaningful for GFX10 only, set if wave-size is 32 for bound compute shader
-    bool            useTunneling, // Meaningful for GFX10 only, set if dispatch tunneling should be used (VR)
-    bool            disablePartialPreempt, // Avoid preemption at thread group level without CWSR. Only affects GFX10.
-    void*           pBuffer                // [out] Build the PM4 packet in this buffer.
+    DispatchDims size,                  // Thread groups (or threads) to launch.
+    Pm4Predicate predicate,             // Predication enable control. Must be PredDisable on the Compute Engine.
+    bool         isWave32,              // Meaningful for GFX10 only, set if wave-size is 32 for bound compute shader
+    bool         useTunneling,          // Meaningful for GFX10 only, set if dispatch tunneling should be used (VR)
+    bool         disablePartialPreempt, // Avoid preemption at thread group level without CWSR. Only affects GFX10.
+    void*        pBuffer                // [out] Build the PM4 packet in this buffer.
     ) const
 {
     regCOMPUTE_DISPATCH_INITIATOR dispatchInitiator;
@@ -1383,7 +1381,7 @@ size_t CmdUtil::BuildDispatchDirect(
     dispatchInitiator.bits.FORCE_START_AT_000    = forceStartAt000;
     dispatchInitiator.bits.USE_THREAD_DIMENSIONS = dimInThreads;
     dispatchInitiator.gfx10Plus.CS_W32_EN        = isWave32;
-    if (IsGfx10Plus(m_gfxIpLevel))
+    if (IsGfx10Plus(m_chipProps.gfxLevel))
     {
         dispatchInitiator.gfx10Plus.TUNNEL_ENABLE = useTunneling;
     }
@@ -1405,9 +1403,9 @@ size_t CmdUtil::BuildDispatchDirect(
 
     pPacket->ordinal1.header.u32All      = (Type3Header(IT_DISPATCH_DIRECT, PacketSize,
                                                         false, ShaderCompute, predicate)).u32All;
-    pPacket->ordinal2.dim_x              = xDim;
-    pPacket->ordinal3.dim_y              = yDim;
-    pPacket->ordinal4.dim_z              = zDim;
+    pPacket->ordinal2.dim_x              = size.x;
+    pPacket->ordinal3.dim_y              = size.y;
+    pPacket->ordinal4.dim_z              = size.z;
     pPacket->ordinal5.dispatch_initiator = dispatchInitiator.u32All;
 
     return PacketSize;
@@ -1415,34 +1413,28 @@ size_t CmdUtil::BuildDispatchDirect(
 
 template
 size_t CmdUtil::BuildDispatchDirect<true, true>(
-    uint32          xDim,
-    uint32          yDim,
-    uint32          zDim,
-    Pm4Predicate    predicate,
-    bool            isWave32,
-    bool            useTunneling,
-    bool            disablePartialPreempt,
-    void*           pBuffer) const;
+    DispatchDims size,
+    Pm4Predicate predicate,
+    bool         isWave32,
+    bool         useTunneling,
+    bool         disablePartialPreempt,
+    void*        pBuffer) const;
 template
 size_t CmdUtil::BuildDispatchDirect<false, false>(
-    uint32          xDim,
-    uint32          yDim,
-    uint32          zDim,
-    Pm4Predicate    predicate,
-    bool            isWave32,
-    bool            useTunneling,
-    bool            disablePartialPreempt,
-    void*           pBuffer) const;
+    DispatchDims size,
+    Pm4Predicate predicate,
+    bool         isWave32,
+    bool         useTunneling,
+    bool         disablePartialPreempt,
+    void*        pBuffer) const;
 template
 size_t CmdUtil::BuildDispatchDirect<false, true>(
-    uint32          xDim,
-    uint32          yDim,
-    uint32          zDim,
-    Pm4Predicate    predicate,
-    bool            isWave32,
-    bool            useTunneling,
-    bool            disablePartialPreempt,
-    void*           pBuffer) const;
+    DispatchDims size,
+    Pm4Predicate predicate,
+    bool         isWave32,
+    bool         useTunneling,
+    bool         disablePartialPreempt,
+    void*        pBuffer) const;
 
 // =====================================================================================================================
 // Builds a DISPATCH_INDIRECT packet for the GFX engine. Returns the size of the PM4 command assembled, in DWORDs.
@@ -1540,7 +1532,7 @@ size_t CmdUtil::BuildDispatchIndirectMec(
     dispatchInitiator.bits.FORCE_START_AT_000  = 1;
     dispatchInitiator.bits.ORDER_MODE          = 1;
     dispatchInitiator.gfx10Plus.CS_W32_EN      = isWave32;
-    if (IsGfx10Plus(m_gfxIpLevel))
+    if (IsGfx10Plus(m_chipProps.gfxLevel))
     {
         dispatchInitiator.gfx10Plus.TUNNEL_ENABLE = useTunneling;
     }
@@ -1876,7 +1868,7 @@ size_t CmdUtil::BuildDispatchTaskMeshGfx(
 
     pPacket->ordinal1.header = Type3Header(IT_DISPATCH_TASKMESH_GFX__GFX101,
                                            PacketSize,
-                                           false,
+                                           true,
                                            ShaderGraphics,
                                            predicate);
 
@@ -1935,7 +1927,7 @@ size_t CmdUtil::BuildDispatchMeshIndirectMulti(
 
     packet.ordinal1.header = Type3Header(IT_DISPATCH_MESH_INDIRECT_MULTI__GFX101,
                                          PacketSize,
-                                         false,
+                                         true,
                                          ShaderGraphics,
                                          predicate);
 
@@ -2052,13 +2044,11 @@ size_t CmdUtil::BuildDispatchTaskMeshIndirectMultiAce(
 // Builds a PM4_MEC_DISPATCH_TASKMESH_DIRECT_ACE packet for the compute engine, which directly starts the task/mesh
 // workload.
 size_t CmdUtil::BuildDispatchTaskMeshDirectAce(
-    uint32          xDim,         // Thread groups (or threads) to launch (X dimension).
-    uint32          yDim,         // Thread groups (or threads) to launch (Y dimension).
-    uint32          zDim,         // Thread groups (or threads) to launch (Z dimension).
-    uint32          ringEntryLoc, // User data offset where CP writes the payload WPTR.
-    Pm4Predicate    predicate,    // Predication enable control. Must be PredDisable on the Compute Engine.
-    bool            isWave32,     // Meaningful for GFX10 only, set if wave-size is 32 for bound compute shader
-    void*           pBuffer)       // [out] Build the PM4 packet in this buffer.
+    DispatchDims size,         // Thread groups (or threads) to launch.
+    uint32       ringEntryLoc, // User data offset where CP writes the payload WPTR.
+    Pm4Predicate predicate,    // Predication enable control. Must be PredDisable on the Compute Engine.
+    bool         isWave32,     // Meaningful for GFX10 only, set if wave-size is 32 for bound compute shader
+    void*        pBuffer)      // [out] Build the PM4 packet in this buffer.
 {
     constexpr uint32 PacketSize = CmdUtil::DispatchTaskMeshDirectMecSize;
     auto*const       pPacket    = static_cast<PM4_MEC_DISPATCH_TASKMESH_DIRECT_ACE*>(pBuffer);
@@ -2069,9 +2059,9 @@ size_t CmdUtil::BuildDispatchTaskMeshDirectAce(
                                                    ShaderCompute,
                                                    predicate)).u32All;
 
-    pPacket->ordinal2.x_dim                                  = xDim;
-    pPacket->ordinal3.y_dim                                  = yDim;
-    pPacket->ordinal4.z_dim                                  = zDim;
+    pPacket->ordinal2.x_dim                                  = size.x;
+    pPacket->ordinal3.y_dim                                  = size.y;
+    pPacket->ordinal4.z_dim                                  = size.z;
     pPacket->ordinal6.u32All                                 = 0;
     pPacket->ordinal6.bitfields.gfx10CorePlus.ring_entry_loc = ringEntryLoc - PERSISTENT_SPACE_START;
 
@@ -2365,8 +2355,6 @@ size_t CmdUtil::BuildSampleEventWrite(
         "event index enumerations don't match between gfx and compute!");
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
-
     // Make sure the supplied VGT event is legal.
     PAL_ASSERT(vgtEvent < (sizeof(VgtEventIndex) / sizeof(VGT_EVENT_TYPE)));
 
@@ -3354,7 +3342,7 @@ ReleaseMemCaches CmdUtil::SelectReleaseMemCaches(
     SyncGlxFlags releaseSyncs = *pGlxSync & ReleaseMask;
     SyncGlxFlags acquireSyncs = *pGlxSync & ~ReleaseMask;
 
-    if (IsGfx9(m_gfxIpLevel))
+    if (IsGfx9(m_chipProps.gfxLevel))
     {
         // Gfx9 has restrictions on which combinations of flags it can issue in one cache operation. It would be
         // legal to fill out ReleaseMemCaches with every flag on gfx9, but CmdUtil would internally unroll that into
@@ -3421,7 +3409,7 @@ size_t CmdUtil::BuildReleaseMemGeneric(
 {
     size_t totalSize;
 
-    if (IsGfx10Plus(m_gfxIpLevel))
+    if (IsGfx10Plus(m_chipProps.gfxLevel))
     {
         totalSize = BuildReleaseMemInternalGfx10(info, BOTTOM_OF_PIPE_TS, pBuffer);
     }
@@ -3442,7 +3430,7 @@ size_t CmdUtil::BuildReleaseMemGfx(
 {
     size_t totalSize;
 
-    if (IsGfx10Plus(m_gfxIpLevel))
+    if (IsGfx10Plus(m_chipProps.gfxLevel))
     {
         totalSize = BuildReleaseMemInternalGfx10(info, info.vgtEvent, pBuffer);
     }
@@ -3490,7 +3478,7 @@ size_t CmdUtil::BuildReleaseMemInternalGfx9(
     ) const
 {
     // This path only works on gfx9.
-    PAL_ASSERT(IsGfx10Plus(m_gfxIpLevel) == false);
+    PAL_ASSERT(IsGfx10Plus(m_chipProps.gfxLevel) == false);
 
     size_t totalSize = 0;
     const bool isEop = VgtEventHasTs[vgtEvent];
@@ -3616,7 +3604,7 @@ size_t CmdUtil::BuildReleaseMemInternalGfx10(
     ) const
 {
     // This function is named "BuildGfx10..." so don't call it on gfx9.
-    PAL_ASSERT(IsGfx10Plus(m_gfxIpLevel));
+    PAL_ASSERT(IsGfx10Plus(m_chipProps.gfxLevel));
 
     const bool isEop = VgtEventHasTs[vgtEvent];
 
@@ -3769,7 +3757,7 @@ size_t CmdUtil::BuildSetOneConfigReg(
                ((regAddr != mmVGT_NUM_INSTANCES) ||
                 (index == index__pfp_set_uconfig_reg_index__num_instances)));
 
-    PAL_ASSERT((m_gfxIpLevel != GfxIpLevel::GfxIp9) ||
+    PAL_ASSERT((m_chipProps.gfxLevel != GfxIpLevel::GfxIp9) ||
                 (((regAddr != mmVGT_PRIMITIVE_TYPE)        ||
                   (index == index__pfp_set_uconfig_reg_index__prim_type__GFX09))     &&
                  ((regAddr != Gfx09::mmIA_MULTI_VGT_PARAM) ||
@@ -3805,7 +3793,7 @@ size_t CmdUtil::BuildSetSeqConfigRegs(
 #endif
 
     // resetFilterCam is not valid for Gfx9.
-    PAL_ASSERT((m_gfxIpLevel != GfxIpLevel::GfxIp9) || (resetFilterCam == false));
+    PAL_ASSERT((m_chipProps.gfxLevel != GfxIpLevel::GfxIp9) || (resetFilterCam == false));
 
     const uint32 packetSize = ConfigRegSizeDwords + endRegAddr - startRegAddr + 1;
     auto*const   pPacket    = static_cast<PM4_PFP_SET_UCONFIG_REG*>(pBuffer);
@@ -3815,7 +3803,7 @@ size_t CmdUtil::BuildSetSeqConfigRegs(
     {
         // GFX9 started supporting uconfig-reg-index as of ucode version 26.
         if ((m_cpUcodeVersion >= 26)
-            || IsGfx10Plus(m_gfxIpLevel)
+            || IsGfx10Plus(m_chipProps.gfxLevel)
             )
         {
             //    SW needs to change from using the IT_SET_UCONFIG_REG to IT_SET_UCONFIG_REG_INDEX when using the
@@ -3930,7 +3918,7 @@ size_t CmdUtil::BuildSetSeqShRegsIndex(
     size_t packetSize = 0;
 
     // Switch to the SET_SH_REG opcode for setting the registers if SET_SH_REG_INDEX opcode is not supported.
-    if ((m_gfxIpLevel == GfxIpLevel::GfxIp9) && (m_cpUcodeVersion < MinUcodeFeatureVersionForSetShRegIndex))
+    if ((m_chipProps.gfxLevel == GfxIpLevel::GfxIp9) && (m_cpUcodeVersion < MinUcodeFeatureVersionForSetShRegIndex))
     {
         packetSize = BuildSetSeqShRegs(startRegAddr, endRegAddr, shaderType, pBuffer);
     }

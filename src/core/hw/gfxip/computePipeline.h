@@ -48,14 +48,8 @@ public:
 
     virtual Result Init(const ComputePipelineCreateInfo& createInfo);
 
-    uint32 ThreadsPerGroup() const { return m_threadsPerTgX * m_threadsPerTgY * m_threadsPerTgZ; }
-
-    void ThreadsPerGroupXyz(uint32* pNumThreadsX, uint32* pNumThreadsY, uint32* pNumThreadsZ) const
-    {
-        *pNumThreadsX = m_threadsPerTgX;
-        *pNumThreadsY = m_threadsPerTgY;
-        *pNumThreadsZ = m_threadsPerTgZ;
-    }
+    uint32       ThreadsPerGroup()    const { return m_threadsPerTg.Flatten(); }
+    DispatchDims ThreadsPerGroupXyz() const { return m_threadsPerTg; }
 
     virtual const Util::HsaAbi::KernelArgument* GetKernelArgument(uint32 index) const override;
 
@@ -86,9 +80,7 @@ protected:
     const llvm::amdhsa::kernel_descriptor_t* m_pKernelDescriptor;
 
     // Number of threads per threadgroup in each dimension as determined by parsing the input IL.
-    uint32  m_threadsPerTgX;
-    uint32  m_threadsPerTgY;
-    uint32  m_threadsPerTgZ;
+    DispatchDims m_threadsPerTg;
 
     bool    m_useCps;                // Use continuation passing shader
     uint32  m_maxFunctionCallDepth;  // Maximum depth for indirect function calls

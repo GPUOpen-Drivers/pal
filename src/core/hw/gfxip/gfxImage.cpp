@@ -47,12 +47,9 @@ GfxImage::GfxImage(
     m_createInfo(m_pParent->GetImageCreateInfo()),
     m_pImageInfo(pImageInfo),
     m_hiSPretestsMetaDataOffset(0),
-    m_hiSPretestsMetaDataSizePerMip(0),
-    m_hasSeenNonTcCompatClearColor(false),
-    m_pNumSkippedFceCounter(nullptr)
+    m_hiSPretestsMetaDataSizePerMip(0)
 {
-    memset(&m_fastClearMetaDataOffset[0],     0, sizeof(m_fastClearMetaDataOffset));
-    memset(&m_fastClearMetaDataSizePerMip[0], 0, sizeof(m_fastClearMetaDataSizePerMip));
+
 }
 
 // =====================================================================================================================
@@ -93,109 +90,6 @@ void GfxImage::UpdateMetaDataHeaderLayout(
     {
         pGpuMemLayout->metadataHeaderAlignment = alignment;
     }
-}
-
-// =====================================================================================================================
-// Returns an index into the m_fastClearMetaData* arrays.
-uint32 GfxImage::GetFastClearIndex(
-    uint32 plane
-    ) const
-{
-    // Depth/stencil images only have one hTile allocation despite having two planes.
-    if ((plane == 1) && m_pParent->IsDepthStencilTarget())
-    {
-        plane = 0;
-    }
-
-    PAL_ASSERT (plane < MaxNumPlanes);
-
-    return plane;
-}
-
-// =====================================================================================================================
-bool GfxImage::HasFastClearMetaData(
-    const SubresRange& range
-    ) const
-{
-    bool result = false;
-    for (uint32 plane = range.startSubres.plane; (plane < (range.startSubres.plane + range.numPlanes)); plane++)
-    {
-        result |= HasFastClearMetaData(plane);
-    }
-    return result;
-}
-
-// =====================================================================================================================
-// Returns the GPU virtual address of the fast-clear metadata for the specified mip level.
-gpusize GfxImage::FastClearMetaDataAddr(
-    const SubresId&  subResId
-    ) const
-{
-    gpusize  metaDataAddr = 0;
-
-    if (HasFastClearMetaData(subResId.plane))
-    {
-        const uint32 planeIndex = GetFastClearIndex(subResId.plane);
-
-        metaDataAddr = Parent()->GetBoundGpuMemory().GpuVirtAddr() +
-                       m_fastClearMetaDataOffset[planeIndex]       +
-                       (m_fastClearMetaDataSizePerMip[planeIndex] * subResId.mipLevel);
-    }
-
-    return metaDataAddr;
-}
-
-// =====================================================================================================================
-// Returns the offset relative to the bound GPU memory of the fast-clear metadata for the specified mip level.
-gpusize GfxImage::FastClearMetaDataOffset(
-    const SubresId&  subResId
-    ) const
-{
-    gpusize  metaDataOffset = 0;
-
-    if (HasFastClearMetaData(subResId.plane))
-    {
-        const uint32 planeIndex = GetFastClearIndex(subResId.plane);
-
-        metaDataOffset = Parent()->GetBoundGpuMemory().Offset() +
-                         m_fastClearMetaDataOffset[planeIndex] +
-                         (m_fastClearMetaDataSizePerMip[planeIndex] * subResId.mipLevel);
-    }
-
-    return metaDataOffset;
-}
-
-// =====================================================================================================================
-// Returns the GPU memory size of the fast-clear metadata for the specified num mips.
-gpusize GfxImage::FastClearMetaDataSize(
-    uint32 plane,
-    uint32 numMips
-    ) const
-{
-    PAL_ASSERT(HasFastClearMetaData(plane));
-
-    return (m_fastClearMetaDataSizePerMip[GetFastClearIndex(plane)] * numMips);
-}
-
-// =====================================================================================================================
-// Initializes the size and GPU offset for this Image's fast-clear metadata.
-void GfxImage::InitFastClearMetaData(
-    ImageMemoryLayout* pGpuMemLayout,
-    gpusize*           pGpuMemSize,
-    size_t             sizePerMipLevel,
-    gpusize            alignment,
-    uint32             planeIndex)
-{
-    // Fast-clear metadata must be DWORD aligned so LOAD_CONTEXT_REG commands will function properly.
-    static constexpr gpusize Alignment = 4;
-
-    m_fastClearMetaDataOffset[planeIndex]     = Pow2Align(*pGpuMemSize, alignment);
-    m_fastClearMetaDataSizePerMip[planeIndex] = sizePerMipLevel;
-    *pGpuMemSize                              = (m_fastClearMetaDataOffset[planeIndex] +
-                                                 (m_fastClearMetaDataSizePerMip[planeIndex] * m_createInfo.mipLevels));
-
-    // Update the layout information against the fast-clear metadata.
-    UpdateMetaDataHeaderLayout(pGpuMemLayout, m_fastClearMetaDataOffset[planeIndex], Alignment);
 }
 
 // =====================================================================================================================
@@ -254,76 +148,25 @@ void GfxImage::InitHiSPretestsMetaData(
 }
 
 // =====================================================================================================================
-// Sets the clear method for all subresources associated with the specified miplevel.
-void GfxImage::UpdateClearMethod(
-    SubResourceInfo* pSubResInfoList,
-    uint32           plane,
-    uint32           mipLevel,
-    ClearMethod      method)
+// By default, the image type does not require any override.
+ImageType GfxImage::GetOverrideImageType() const
 {
-    SubresId subRes = { plane, mipLevel, 0, };
-
-    for (subRes.arraySlice = 0; subRes.arraySlice < m_createInfo.arraySize; ++subRes.arraySlice)
-    {
-        const uint32 subResId = Parent()->CalcSubresourceId(subRes);
-        pSubResInfoList[subResId].clearMethod = method;
-    }
+    return Parent()->GetImageCreateInfo().imageType;
 }
 
 // =====================================================================================================================
-// Calculates the uint representation of clear code 1 in the numeric-format / bit-width that corresponds to the native
-// format of this image.
-uint32 GfxImage::TranslateClearCodeOneToNativeFmt(
-    uint32  cmpIdx
-    ) const
+// Helper method to check if the surface is a multimedia surface and have some tile mode restrictions.
+bool GfxImage::IsRestrictedTiledMultiMediaSurface() const
 {
-    const ChNumFormat format            = m_createInfo.swizzledFormat.format;
-    const uint32*     pBitCounts        = ComponentBitCounts(format);
-    const uint32      maxComponentValue = (1ull << pBitCounts[cmpIdx]) - 1;
+    return ((m_createInfo.swizzledFormat.format == ChNumFormat::NV12) ||
+            (m_createInfo.swizzledFormat.format == ChNumFormat::P010) ||
+            (m_createInfo.swizzledFormat.format == ChNumFormat::P016));
+}
 
-    // This is really a problem on the caller's end, as this function won't work for 9-9-9-5 format.
-    // The fractional 9-bit portion of 1.0f is zero...  the same as the fractional 9-bit portion of 0.0f.
-    PAL_ASSERT(format != ChNumFormat::X9Y9Z9E5_Float);
-
-    uint32  maxColorValue = 0;
-
-    switch (FormatInfoTable[static_cast<size_t>(format)].numericSupport)
-    {
-    case NumericSupportFlags::Uint:
-        // For integers, 1 means all positive bits are set.
-        maxColorValue = maxComponentValue;
-        break;
-
-    case NumericSupportFlags::Sint:
-        // For integers, 1 means all positive bits are set.
-        maxColorValue = maxComponentValue >> 1;
-        break;
-
-    case NumericSupportFlags::Unorm:
-    case NumericSupportFlags::Srgb:  // should be the same as UNORM
-        maxColorValue = maxComponentValue;
-        break;
-
-    case NumericSupportFlags::Snorm:
-        // The MSB of the "maxComponentValue" is the sign bit, so whack that off
-        // here to get the maximum data value.
-        maxColorValue = maxComponentValue & ~(1 << (ComponentBitCounts(format)[cmpIdx] - 1));
-        break;
-
-    case NumericSupportFlags::Float:
-        // Need to get 1.0f in the correct bit-width
-        maxColorValue = Math::Float32ToNumBits(1.0f, ComponentBitCounts(format)[cmpIdx]);
-        break;
-
-    case NumericSupportFlags::DepthStencil:
-    case NumericSupportFlags::Yuv:
-    default:
-        // Should never see depth surfaces here...
-        PAL_ASSERT_ALWAYS();
-        break;
-    }
-
-    return maxColorValue;
+// =====================================================================================================================
+uint32 GfxImage::GetStencilPlane() const
+{
+    return ((m_pImageInfo->numPlanes == 1) ? 0 : 1);
 }
 
 // =====================================================================================================================
@@ -352,60 +195,6 @@ void GfxImage::PadYuvPlanarViewActualExtent(
     // The pseudo actualHeight is the stride between slices in pixels divided by the actualPitch of each row.
     PAL_ASSERT((arraySliceStride % pActualExtent->width) == 0);
     pActualExtent->height = static_cast<uint32>(arraySliceStride / pActualExtent->width);
-}
-
-// =====================================================================================================================
-// By default, the image type does not require any override.
-ImageType GfxImage::GetOverrideImageType() const
-{
-    return Parent()->GetImageCreateInfo().imageType;
-}
-
-// =====================================================================================================================
-// Helper method to check if the surface is a multimedia surface and have some tile mode restrictions.
-bool GfxImage::IsRestrictedTiledMultiMediaSurface() const
-{
-    return ((m_createInfo.swizzledFormat.format == ChNumFormat::NV12) ||
-            (m_createInfo.swizzledFormat.format == ChNumFormat::P010));
-}
-
-// =====================================================================================================================
-uint32 GfxImage::GetFceRefCount() const
-{
-    uint32 refCount = 0;
-
-    if (m_pNumSkippedFceCounter != nullptr)
-    {
-        refCount = *m_pNumSkippedFceCounter;
-    }
-
-    return refCount;
-}
-
-// =====================================================================================================================
-// Increments the FCE ref count.
-void GfxImage::IncrementFceRefCount()
-{
-    if (m_pNumSkippedFceCounter != nullptr)
-    {
-        Util::AtomicIncrement(m_pNumSkippedFceCounter);
-    }
-}
-
-// =====================================================================================================================
-void GfxImage::Destroy()
-{
-    if (m_pNumSkippedFceCounter != nullptr)
-    {
-        // Give up the allocation.
-        Util::AtomicDecrement(m_pNumSkippedFceCounter);
-    }
-}
-
-// =====================================================================================================================
-uint32 GfxImage::GetStencilPlane() const
-{
-    return ((m_pImageInfo->numPlanes == 1) ? 0 : 1);
 }
 
 } // Pal

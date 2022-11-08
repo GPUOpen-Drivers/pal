@@ -490,6 +490,7 @@ public:
     void Struct(const DeviceFinalizeInfo& value);
     void Struct(const DirectCaptureInfo& value);
 
+    void Struct(DispatchDims value);
     void Struct(const DoppDesktopInfo& value);
     void Struct(const DoppRef& value);
     void Struct(const DynamicComputeShaderInfo& value);
@@ -605,6 +606,7 @@ public:
     void Struct(const VrsRateParams&  rateParams);
     void Struct(const FenceCreateInfo& value);
     void Struct(const FenceOpenInfo& value);
+    void Struct(const GpuMemSubAllocInfo& value);
 
     // These functions create a string value for a PAL interface enumeration.
     void Enum(AtomicOp value);

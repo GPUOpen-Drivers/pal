@@ -552,30 +552,25 @@ private:
         uint32            stride,
         uint32            maximumCount,
         gpusize           countGpuAddr);
-
     static void PAL_STDCALL CmdDispatchDecorator(
-        ICmdBuffer* pCmdBuffer,
-        uint32      xDim,
-        uint32      yDim,
-        uint32      zDim);
+        ICmdBuffer*  pCmdBuffer,
+        DispatchDims size);
     static void PAL_STDCALL CmdDispatchIndirectDecorator(
         ICmdBuffer*       pCmdBuffer,
         const IGpuMemory& gpuMemory,
         gpusize           offset);
     static void PAL_STDCALL CmdDispatchOffsetDecorator(
-        ICmdBuffer* pCmdBuffer,
-        uint32      xOffset,
-        uint32      yOffset,
-        uint32      zOffset,
-        uint32      xDim,
-        uint32      yDim,
-        uint32      zDim);
+        ICmdBuffer*  pCmdBuffer,
+        DispatchDims offset,
+        DispatchDims launchSize,
+        DispatchDims logicalSize);
     static void PAL_STDCALL CmdDispatchDynamicDecorator(
-        ICmdBuffer* pCmdBuffer,
-        gpusize     gpuVa,
-        uint32      xDim,
-        uint32      yDim,
-        uint32      zDim);
+        ICmdBuffer*  pCmdBuffer,
+        gpusize      gpuVa,
+        DispatchDims size);
+    static void PAL_STDCALL CmdDispatchMeshDecorator(
+        ICmdBuffer*  pCmdBuffer,
+        DispatchDims size);
 
     Pm4Statistics  m_stats;
 

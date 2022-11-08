@@ -40,103 +40,147 @@ namespace DevDriver
 namespace EventProtocol
 {
 
-/// Specify a memory usage target for the set of allocated event chunks
-/// The implementation will attempt to keep memory usage at or below this level at all times.
-/// This level may be exceeded when large events are logged, but memory usage will eventually return to the target
-/// level over time.
-static constexpr size_t kMemoryUsageTargetInBytes = (4 * 1024 * 1024); // 4 MB
-static constexpr size_t kTargetAllocatedChunks = (kMemoryUsageTargetInBytes / sizeof(EventChunk));
-static constexpr size_t kTrimFrequencyInMs = 16;
-static constexpr size_t kMaxChunksPerTrim = 16;
+static constexpr size_t kMaxSessionNum = 4;
 
 EventServer::EventServer(IMsgChannel* pMsgChannel)
     : BaseProtocolServer(pMsgChannel, Protocol::Event, EVENT_SERVER_MIN_VERSION, EVENT_SERVER_MAX_VERSION)
     , m_eventProviders(pMsgChannel->GetAllocCb())
-    , m_eventChunkPool(pMsgChannel->GetAllocCb())
-    , m_eventChunkQueue(pMsgChannel->GetAllocCb())
-    , m_pActiveSession(nullptr)
-    , m_nextTrimTime(0)
+    , m_pendingSessions(pMsgChannel->GetAllocCb())
 {
     DD_ASSERT(m_pMsgChannel != nullptr);
+
+    m_pendingSessions.Reserve(kMaxSessionNum);
 }
 
 EventServer::~EventServer()
 {
+    // delete any remaining `EventServerSession`s.
+    for (auto sessionIter : m_pendingSessions)
+    {
+        DD_DELETE(sessionIter, m_pMsgChannel->GetAllocCb());
+    }
+
     // All providers should be unregistered before the event server is destroyed.
     // If this is not the case, event chunks may leak because they're still owned by the providers
     // and now they can't be returned to the event server!
     DD_ASSERT(m_eventProviders.IsEmpty());
-
-    // Free any event chunks that are still in the pool before we destroy the server.
-    for (EventChunk* pChunk : m_eventChunkPool)
-    {
-        DD_FREE(pChunk, m_pMsgChannel->GetAllocCb());
-    }
 }
 
 bool EventServer::AcceptSession(const SharedPointer<ISession>& pSession)
 {
     DD_UNUSED(pSession);
 
-    return (m_pActiveSession == nullptr);
+    bool acceptable = false;
+
+    Platform::LockGuard<Platform::AtomicLock> providersLock(m_updateMutex);
+
+    // Only accept fixed amount (`kMaxSessionNum`) of connections.
+    if (m_pendingSessions.Size() < m_pendingSessions.Capacity())
+    {
+        for (auto providerIter : m_eventProviders)
+        {
+            // If there is a provider who hasn't acquired a session.
+            if (providerIter.value->IsSessionAcquired() == false)
+            {
+                acceptable = true;
+                break;
+            }
+        }
+    }
+
+    return acceptable;
 }
 
 void EventServer::SessionEstablished(const SharedPointer<ISession>& pSession)
 {
+    Platform::LockGuard<Platform::AtomicLock> providersLock(m_updateMutex);
+
     // Allocate session data for the newly established session
-    EventServerSession* pEventSession = DD_NEW(EventServerSession, m_pMsgChannel->GetAllocCb())(m_pMsgChannel->GetAllocCb(), pSession, this, &m_pMsgChannel->GetTransferManager());
+    EventServerSession* pEventSession = DD_NEW(EventServerSession, m_pMsgChannel->GetAllocCb())(
+        m_pMsgChannel->GetAllocCb(),
+        pSession,
+        this,
+        &m_pMsgChannel->GetTransferManager());
+
     pSession->SetUserData(pEventSession);
 
-    m_pActiveSession = pEventSession;
+    m_pendingSessions.PushBack(pEventSession);
 }
 
 void EventServer::UpdateSession(const SharedPointer<ISession>& pSession)
 {
-    EventServerSession* pEventSession = reinterpret_cast<EventServerSession*>(pSession->GetUserData());
-    DD_ASSERT(pEventSession == m_pActiveSession);
+    Platform::LockGuard<Platform::AtomicLock> providersLock(m_updateMutex);
 
-    m_eventProvidersMutex.Lock();
-
-    for (auto providerIter : m_eventProviders)
+    SessionMapIterator providerIter = FindProviderBySessionId(pSession->GetSessionId());
+    if (providerIter != m_eventProviders.End())
     {
-        providerIter.value->Update();
+        // If this session has already been acquired by a provider, update the
+        // provider and the session.
+
+        providerIter->value->Update();
+        providerIter->value->GetAcquiredSession()->UpdateSession();
     }
-
-    m_eventProvidersMutex.Unlock();
-
-    pEventSession->UpdateSession();
-
-    // Run a trim operation every once in a while to make sure we give up memory we don't need anymore.
-    const uint64 currentTime = Platform::GetCurrentTimeInMs();
-    if (currentTime >= m_nextTrimTime)
+    else
     {
-        m_nextTrimTime = currentTime + kTrimFrequencyInMs;
+        // If this session hasn't been acquired by any provider, it's either in
+        // the pending list, or its original provider unregistered.
 
-        TrimEventChunkMemory();
+        auto sessionIter = FindPendingSessionById(pSession->GetSessionId());
+        if (sessionIter != m_pendingSessions.End())
+        {
+            (*sessionIter)->UpdateSession();
+        }
+        else
+        {
+            // The requested provider unregistered itself.
+            SubscribeToProviderResponse resp(Result::Unavailable);
+            Result result = pSession->Send(sizeof(resp), &resp, kNoWait);
+            DD_UNHANDLED_RESULT(result);
+        }
     }
 }
 
 void EventServer::SessionTerminated(const SharedPointer<ISession>& pSession, Result terminationReason)
 {
     DD_UNUSED(terminationReason);
-    EventServerSession* pEventSession = reinterpret_cast<EventServerSession*>(pSession->SetUserData(nullptr));
-    DD_ASSERT(pEventSession == m_pActiveSession);
 
-    m_eventProvidersMutex.Lock();
+    bool eventSessionDeleted = false;
 
-    for (auto providerIter : m_eventProviders)
+    Platform::LockGuard<Platform::AtomicLock> providersLock(m_updateMutex);
+
+    // Find the session by id.
+    auto sessionIter = FindPendingSessionById(pSession->GetSessionId());
+    if (sessionIter != m_pendingSessions.End())
     {
-        providerIter.value->Disable();
+        // Delete the EventServerSession object referencing this `pSession`.
+        DD_DELETE(*sessionIter, m_pMsgChannel->GetAllocCb());
+        m_pendingSessions.Remove(sessionIter);
+        eventSessionDeleted = true;
     }
 
-    m_eventProvidersMutex.Unlock();
-
-    // Free the session data
-    if (pEventSession != nullptr)
+#if defined(DD_OPT_ASSERTS_ENABLE)
+    // If the session is in the pending list, it couldn't have been acquired by
+    // a provider.
+    if (eventSessionDeleted)
     {
-        DD_DELETE(pEventSession, m_pMsgChannel->GetAllocCb());
+        DD_ASSERT(FindProviderBySessionId(pSession->GetSessionId()) == m_eventProviders.End());
+    }
+#endif
 
-        m_pActiveSession = nullptr;
+    if (eventSessionDeleted == false)
+    {
+        SessionMapIterator providerIter = FindProviderBySessionId(pSession->GetSessionId());
+        if (providerIter != m_eventProviders.End())
+        {
+            // Disable the provider who acquired this session.
+            providerIter->value->Disable();
+
+            EventServerSession* pEventSession = providerIter->value->GetAcquiredSession();
+            // Delete the EventServerSession object referencing this `pSession`.
+            DD_DELETE(pEventSession, m_pMsgChannel->GetAllocCb());
+
+            providerIter->value->ResetSession();
+        }
     }
 }
 
@@ -148,7 +192,7 @@ Result EventServer::RegisterProvider(BaseEventProvider* pProvider)
     {
         const EventProviderId providerId = pProvider->GetId();
 
-        Platform::LockGuard<Platform::AtomicLock> providersLock(m_eventProvidersMutex);
+        Platform::LockGuard<Platform::AtomicLock> providersLock(m_updateMutex);
 
         if (m_eventProviders.Contains(providerId) == false)
         {
@@ -175,13 +219,20 @@ Result EventServer::UnregisterProvider(BaseEventProvider* pProvider)
     {
         const EventProviderId providerId = pProvider->GetId();
 
-        Platform::LockGuard<Platform::AtomicLock> providersLock(m_eventProvidersMutex);
+        Platform::LockGuard<Platform::AtomicLock> providersLock(m_updateMutex);
 
         const auto providerIter = m_eventProviders.Find(providerId);
         if (providerIter != m_eventProviders.End())
         {
-            m_eventProviders.Remove(providerIter);
             providerIter->value->Unregister();
+
+            EventServerSession* pEventSession = providerIter->value->ResetSession();
+            if (pEventSession)
+            {
+                DD_DELETE(pEventSession, m_pMsgChannel->GetAllocCb());
+            }
+
+            m_eventProviders.Remove(providerIter);
 
             result = Result::Success;
         }
@@ -194,123 +245,6 @@ Result EventServer::UnregisterProvider(BaseEventProvider* pProvider)
     return result;
 }
 
-void EventServer::GetEventProviders(Vector<EventProviderInfo>& eventProviders)
-{
-    Platform::LockGuard<Platform::AtomicLock> providersLock(m_eventProvidersMutex);
-
-    for (const auto& providerPair : m_eventProviders)
-    {
-        const BaseEventProvider* pProvider = providerPair.value;
-        EventProviderInfo        info      = {};
-        info.id                            = pProvider->GetId();
-        info.enabled                       = pProvider->IsProviderEnabled();
-        info.registered                    = pProvider->IsProviderRegistered();
-        strncpy(info.name, pProvider->GetName(), kEventProviderMaxNameLen);
-        eventProviders.PushBack(info);
-    }
-}
-
-Result EventServer::AllocateEventChunk(EventChunk** ppChunk)
-{
-    DD_ASSERT(ppChunk != nullptr);
-
-    Platform::LockGuard<Platform::AtomicLock> poolLock(m_eventPoolMutex);
-
-    Result result = Result::Success;
-
-    if (m_eventChunkPool.IsEmpty() == false)
-    {
-        EventChunk* pChunk = nullptr;
-        m_eventChunkPool.PopBack(&pChunk);
-
-        // Reset the chunk before we hand it back to the caller
-        pChunk->dataSize = 0;
-
-        *ppChunk = pChunk;
-    }
-    else
-    {
-        EventChunk* pChunk = reinterpret_cast<EventChunk*>(DD_CALLOC(sizeof(EventChunk),
-                                                                     alignof(EventChunk),
-                                                                     m_pMsgChannel->GetAllocCb()));
-        if (pChunk != nullptr)
-        {
-            *ppChunk = pChunk;
-        }
-        else
-        {
-            result = Result::InsufficientMemory;
-        }
-    }
-
-    return result;
-}
-
-void EventServer::FreeEventChunk(EventChunk* pChunk)
-{
-    DD_ASSERT(pChunk != nullptr);
-
-    Platform::LockGuard<Platform::AtomicLock> poolLock(m_eventPoolMutex);
-
-    if (IsTargetMemoryUsageExceeded())
-    {
-        // Free the chunk's memory immediately if we're already past our target memory usage
-        DD_FREE(pChunk, m_pMsgChannel->GetAllocCb());
-    }
-    else
-    {
-        // Return the chunk's memory to the pool if we're under our usage budget
-        DD_UNHANDLED_RESULT(m_eventChunkPool.PushBack(pChunk) ? Result::Success : Result::InsufficientMemory);
-    }
-}
-
-void EventServer::EnqueueEventChunks(size_t numChunks, EventChunk** ppChunks)
-{
-    DD_ASSERT(ppChunks != nullptr);
-
-    Platform::LockGuard<Platform::AtomicLock> queueLock(m_eventQueueMutex);
-
-    Result result = Result::Success;
-
-    for (size_t chunkIndex = 0; chunkIndex < numChunks; ++chunkIndex)
-    {
-        EventChunk* pChunk = ppChunks[chunkIndex];
-
-        // Due to the fact that the event providers never know exactly how much data they'll need, they may over-allocate event
-        // chunks in some cases. This can lead to them submitting empty chunks to the server. We just filter them out here since
-        // we know they don't contain any useful data.
-        if (pChunk->IsEmpty() == false)
-        {
-            result = (m_eventChunkQueue.PushBack(pChunk) ? Result::Success : Result::InsufficientMemory);
-        }
-        else
-        {
-            FreeEventChunk(pChunk);
-        }
-
-        if (result != Result::Success)
-        {
-            // The only way PushBack will fail is if we run out of memory.  We can't do anything useful at that point
-            // so just assert and break out of the loop.
-            DD_ASSERT_ALWAYS();
-            break;
-        }
-    }
-}
-
-EventChunk* EventServer::DequeueEventChunk()
-{
-    Platform::LockGuard<Platform::AtomicLock> queueLock(m_eventQueueMutex);
-
-    EventChunk* pChunk = nullptr;
-
-    // Attempt to pop the next chunk from the queue.
-    // It's okay if this fails since it just means we don't have any chunks available and we should return nullptr.
-    m_eventChunkQueue.PopFront(&pChunk);
-
-    return pChunk;
-}
-
 Result EventServer::BuildQueryProvidersResponse(BlockId* pBlockId)
 {
     Result result = Result::InvalidParameter;
@@ -320,7 +254,8 @@ Result EventServer::BuildQueryProvidersResponse(BlockId* pBlockId)
         auto pServerBlock = m_pMsgChannel->GetTransferManager().OpenServerBlock();
         if (pServerBlock.IsNull() == false)
         {
-            Platform::LockGuard<Platform::AtomicLock> providersLock(m_eventProvidersMutex);
+            // Don't need to lock here, because this function is called inside
+            // `EventServer::UpdateSession()`;
 
             // Write the response header
             const QueryProvidersResponseHeader responseHeader(static_cast<uint32>(m_eventProviders.Size()));
@@ -334,7 +269,10 @@ Result EventServer::BuildQueryProvidersResponse(BlockId* pBlockId)
                 const ProviderDescriptionHeader providerHeader = pProvider->GetHeader();
                 pServerBlock->Write(&providerHeader, sizeof(providerHeader));
 
-                // Write the event data
+                // For backwards compatibility, we still need to send EventData
+                // because `ProviderDescriptionHeader` exposes APIs that
+                // implicitly assume there is always EventData following
+                // immediately.
                 pServerBlock->Write(pProvider->GetEventData(), pProvider->GetEventDataSize());
 
                 // Write the event description data
@@ -366,7 +304,8 @@ Result EventServer::ApplyProviderUpdate(const ProviderUpdateHeader* pUpdate)
     {
         const EventProviderId providerId = pUpdate->providerId;
 
-        Platform::LockGuard<Platform::AtomicLock> providersLock(m_eventProvidersMutex);
+        // Don't need to lock here, because this function is called inside
+        // `EventServer::UpdateSession()`;
 
         const auto providerIter = m_eventProviders.Find(providerId);
         if (providerIter != m_eventProviders.End())
@@ -382,22 +321,6 @@ Result EventServer::ApplyProviderUpdate(const ProviderUpdateHeader* pUpdate)
             {
                 pProvider->Disable();
             }
-
-            // If the client provides a valid event data update, attempt to apply it.
-            if (pUpdate->GetEventDataSize() > 0)
-            {
-                // Calculate the number of bits in the event data update
-                // The client should have sent at least enough bits
-                const size_t numEventDataBits = (pUpdate->GetEventDataSize() * 8);
-                if (numEventDataBits >= pProvider->GetNumEvents())
-                {
-                    pProvider->UpdateEventData(VoidPtrInc(pUpdate, pUpdate->GetEventDataOffset()), pUpdate->GetEventDataSize());
-                }
-                else
-                {
-                    result = Result::Error;
-                }
-            }
         }
         else
         {
@@ -408,34 +331,79 @@ Result EventServer::ApplyProviderUpdate(const ProviderUpdateHeader* pUpdate)
     return result;
 }
 
-bool EventServer::IsTargetMemoryUsageExceeded() const
+Result EventServer::AssignSessionToProvider(EventServerSession* pEventSession, EventProviderId providerId)
 {
-    return (m_eventChunkPool.Size() > kTargetAllocatedChunks);
+    Result result = Result::Success;
+
+    // Don't need to lock here, because this function is called inside
+    // `EventServer::UpdateSession()`;
+
+    auto requestedProviderIter = m_eventProviders.Find(providerId);
+    if (requestedProviderIter != m_eventProviders.End())
+    {
+        if (requestedProviderIter->value->GetAcquiredSession() == nullptr)
+        {
+            requestedProviderIter->value->AcquireSession(pEventSession);
+            requestedProviderIter->value->Enable();
+            pEventSession->SetProviderId(providerId);
+
+            auto sessionIter = FindPendingSessionById(pEventSession->GetSessionId());
+            DD_ASSERT(sessionIter != m_pendingSessions.End());
+            m_pendingSessions.Remove(sessionIter);
+        }
+        else
+        {
+            // The requested provider has already acquired a session.
+            result = Result::Unavailable;
+        }
+    }
+    else
+    {
+        // No registered provider matches the requested provider id.
+        result = Result::Unavailable;
+    }
+
+    return result;
 }
 
-void EventServer::TrimEventChunkMemory()
+void EventServer::UnassignSessionFromProvider(EventServerSession* pEventSession, EventProviderId providerId)
 {
-    // Trimming should only happen in the background if there's no contention for the event chunk pool.
-    // When an application is making heavy use of the memory pool, we shouldn't waste time trying to trim it.
-    if (m_eventPoolMutex.TryLock())
+    DD_UNUSED(pEventSession);
+
+    auto providerIter = m_eventProviders.Find(providerId);
+    DD_ASSERT(providerIter != m_eventProviders.End());
+    DD_ASSERT(pEventSession == providerIter->value->GetAcquiredSession());
+
+    providerIter->value->Disable();
+    providerIter->value->ResetSession();
+}
+
+Vector<EventServerSession*, 16u>::Iterator EventServer::FindPendingSessionById(SessionId id)
+{
+    auto sessionIter = m_pendingSessions.Begin();
+    for (; sessionIter != m_pendingSessions.End(); ++sessionIter)
     {
-        // If we have more chunks allocated than we should, we'll attempt to deallocate a few of them here.
-        // We limit the amount of chunks we free in a single trim cycle to reduce the runtime overhead of this operation.
-        size_t numChunksTrimmed = 0;
-        while (IsTargetMemoryUsageExceeded() && (numChunksTrimmed < kMaxChunksPerTrim))
+        if ((*sessionIter)->GetSessionId() == id)
         {
-            EventChunk* pChunk = nullptr;
-            m_eventChunkPool.PopBack(&pChunk);
-
-            DD_FREE(pChunk, m_pMsgChannel->GetAllocCb());
-
-            ++numChunksTrimmed;
+            break;
         }
-
-        m_eventPoolMutex.Unlock();
     }
+    return sessionIter;
+}
+
+EventServer::SessionMapIterator EventServer::FindProviderBySessionId(SessionId sessionId)
+{
+    auto providerIter = m_eventProviders.Begin();
+    for (; providerIter != m_eventProviders.End(); ++providerIter)
+    {
+        EventServerSession* pEventSession = providerIter->value->GetAcquiredSession();
+        if (pEventSession != nullptr && pEventSession->GetSessionId() == sessionId)
+        {
+            break;
+        }
+    }
+    return providerIter;
 }
 
 } // EventProtocol
-
 } // DevDriver

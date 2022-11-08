@@ -401,11 +401,7 @@ struct DoppDesktopInfo
 /// primary directly. This is only supported on Windows.
 struct DirectCaptureInfo
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 677
-    gpusize gpuVirtAddr;    ///< The VA of the Direct Capture resource. Used by legacy DXXP DirectCapture.
-#endif
     uint32  vidPnSourceId;  ///< VidPnSource ID of the on-screen primary.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 677
     union
     {
         struct
@@ -419,7 +415,6 @@ struct DirectCaptureInfo
         uint32 u32All;
     } usageFlags;
     OsExternalHandle hPreFlipEvent;         ///< Event handle to notify a new frame available for pre-flip access
-#endif
 };
 
 /// Specifies parameters for opening a shared GPU resource from a non-PAL device or non-local process.
@@ -440,11 +435,7 @@ struct ExternalResourceOpenInfo
                                             ///  instead of fd.
             uint32 isDopp             :  1; ///< This is a Dopp texture, doppDesktopInfo is in use.
             uint32 isDirectCapture    :  1; ///< This is a Direct Capture resource, directCaptureInfo is in use.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 696
-            uint32 globalGpuVa        : 1;  ///< The GPU virtual address must be visible to all devices.
-#else
-            uint32 placeholder695     : 1;
-#endif
+            uint32 globalGpuVa        :  1; ///< The GPU virtual address must be visible to all devices.
             uint32 reserved           : 27; ///< Reserved for future use.
         };
         uint32 u32All;            ///< Flags packed as 32-bit uint.

@@ -26,8 +26,8 @@
 [CsIl]
 il_cs_2_0
 dcl_global_flags refactoringAllowed
-; UAV0 - DST MSAA Image 2/4/8x
-; UAV1 - SRC MSAA Image 2/4/8x
+; UAV0 - DST MSAA Image 1/2/4/8x
+; UAV1 - SRC MSAA Image 1/2/4/8x
 dcl_typed_uav_id(0)_type(2dmsaa)_fmtx(uint)
 dcl_typed_uav_id(1)_type(2dmsaa)_fmtx(uint)
 
@@ -52,6 +52,68 @@ if_logicalnz r0.z
     iadd r9.xyz, vAbsTid0.xyz, cb0[1].xy0
 
     switch cb0[1].z
+    case 1
+
+        mov r0.w, l0.x
+        uav_load_id(1) r1, r0
+
+        switch cb0[1].w
+        case 2
+
+        mov r9.w, l0.x
+        uav_store_id(0) r9, r1
+
+        mov r9.w, l0.y
+        uav_store_id(0) r9, r1
+        break
+
+        case 4
+
+        mov r9.w, l0.x
+        uav_store_id(0) r9, r1
+
+        mov r9.w, l0.y
+        uav_store_id(0) r9, r1
+
+        mov r9.w, l0.z
+        uav_store_id(0) r9, r1
+
+        mov r9.w, l0.w
+        uav_store_id(0) r9, r1
+        break
+
+        case 8
+
+        mov r9.w, l0.x
+        uav_store_id(0) r9, r1
+
+        mov r9.w, l0.y
+        uav_store_id(0) r9, r1
+
+        mov r9.w, l0.z
+        uav_store_id(0) r9, r1
+
+        mov r9.w, l0.w
+        uav_store_id(0) r9, r1
+
+        mov r9.w, l1.x
+        uav_store_id(0) r9, r1
+
+        mov r9.w, l1.y
+        uav_store_id(0) r9, r1
+
+        mov r9.w, l1.z
+        uav_store_id(0) r9, r1
+
+        mov r9.w, l1.w
+        uav_store_id(0) r9, r1
+        break
+
+        default
+        break
+        endswitch
+    break
+
     case 2
 
         mov r0.w, l0.x
@@ -60,6 +122,13 @@ if_logicalnz r0.z
         uav_load_id(1) r2, r0
 
         switch cb0[1].w
+        case 1
+
+        add_d2 r1, r1, r2
+        mov r9.w, l0.x
+        uav_store_id(0) r9, r1
+        break
+
         case 4
 
         mov r9.w, l0.x
@@ -106,6 +175,7 @@ if_logicalnz r0.z
         break
         endswitch
     break
+
     case 4
         mov r0.w, l0.x
         uav_load_id(1) r1, r0
@@ -117,6 +187,16 @@ if_logicalnz r0.z
         uav_load_id(1) r4, r0
 
         switch cb0[1].w
+        case 1
+
+        add_d2 r1, r1, r2
+        add_d2 r3, r3, r4
+        add_d2 r1, r1, r3
+
+        mov r9.w, l0.x
+        uav_store_id(0) r9, r1
+        break
+
         case 2
 
         add_d2 r1, r1, r2
@@ -179,6 +259,20 @@ if_logicalnz r0.z
         uav_load_id(1) r8, r0
 
         switch cb0[1].w
+        case 1
+
+        add_d2 r1, r1, r2
+        add_d2 r3, r3, r4
+        add_d2 r5, r5, r6
+        add_d2 r7, r7, r8
+        add_d2 r1, r1, r3
+        add_d2 r5, r5, r7
+        add_d2 r1, r1, r5
+
+        mov r9.w, l0.x
+        uav_store_id(0) r9, r1
+        break
+
         case 2
 
         add_d2 r1, r1, r2

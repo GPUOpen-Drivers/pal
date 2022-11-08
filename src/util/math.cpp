@@ -85,8 +85,8 @@ static constexpr NBitFloatInfo Float11Info =
     (1 << (5 - 1)) - 1,                                       // expBias
     (1 << (5 - 1)) - 1,                                       // eMax
     -((1 << (5 - 1)) - 1)+1,                                  // eMin
-    ((((1 << (5 - 1)) - 1) + 127) << 23) | 0x7E0000,        // maxNormal
-    ((-((1 << (5 - 1)) - 1) + 1) + 127) << 23,              // minNormal
+    ((((1 << (5 - 1)) - 1) + 127) << 23) | 0x7E0000,          // maxNormal
+    ((-((1 << (5 - 1)) - 1) + 1) + 127) << 23,                // minNormal
     (((1U << (5 - 1)) - 1) - 127) << 23,                      // biasDiff
     23 - 6,                                                   // fracBitsDiff
 };
@@ -103,10 +103,28 @@ static constexpr NBitFloatInfo Float10Info =
     (1 << (5 - 1)) - 1,                                       // expBias
     (1 << (5 - 1)) - 1,                                       // eMax
     -((1 << (5 - 1)) - 1)+1,                                  // eMin
-    ((((1 << (5 - 1)) - 1) + 127) << 23) | 0x7C0000,        // maxNormal
-    ((-((1 << (5 - 1)) - 1) + 1) + 127) << 23,              // minNormal
+    ((((1 << (5 - 1)) - 1) + 127) << 23) | 0x7C0000,          // maxNormal
+    ((-((1 << (5 - 1)) - 1) + 1) + 127) << 23,                // minNormal
     (((1U << (5 - 1)) - 1) - 127) << 23,                      // biasDiff
     23 - 5,                                                   // fracBitsDiff
+};
+
+static constexpr NBitFloatInfo Float10_6e4Info =
+{
+    10,                                                       // numBits
+    6,                                                        // numFracBits
+    4,                                                        // numExpBits
+    0,                                                        // signBit
+    0,                                                        // signMask
+    (1 << 6) - 1,                                             // fracMask
+    ((1 << 4) - 1) << 6,                                      // expMask
+    (1 << (4 - 1)) - 1,                                       // expBias
+    (1 << (4 - 1)) - 1,                                       // eMax
+    -((1 << (4 - 1)) - 1)+1,                                  // eMin
+    ((((1 << (4 - 1)) - 1) + 127) << 23) | 0x7E0000,          // maxNormal
+    ((-((1 << (4 - 1)) - 1) + 1) + 127) << 23,                // minNormal
+    (((1U << (4 - 1)) - 1) - 127) << 23,                      // biasDiff
+    23 - 6,                                                   // fracBitsDiff
 };
 
 // =====================================================================================================================
@@ -527,6 +545,20 @@ uint32 Float32ToFloat10(
     float f)
 {
     return Float32ToFloatN(f, Float10Info);
+}
+
+// =====================================================================================================================
+// Converts a 32-bit IEEE floating-point number to a 10-bit unsigned floating-point number.
+uint32 Float32ToFloat10_6e4(float f)
+{
+    return Float32ToFloatN(f, Float10_6e4Info);
+}
+// =====================================================================================================================
+// Converts an 10-bit unsigned floating-point number to a 32-bit IEEE floating point number.
+float Float10_6e4ToFloat32(
+    uint32 fBits)
+{
+    return FloatNToFloat32(fBits, Float10_6e4Info);
 }
 
 // =====================================================================================================================

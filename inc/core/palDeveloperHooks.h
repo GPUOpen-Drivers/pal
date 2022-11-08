@@ -412,8 +412,14 @@ struct DrawDispatchDrawArgs
 /// Dispatch-specific information for DrawDispatch callbacks
 struct DrawDispatchDispatchArgs
 {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 771
+    DispatchDims groupStart;  ///< Thread/workgroup start offsets in X/Y/Z dimensions. Only valid for CmdDispatchOffset.
+    DispatchDims groupDims;   ///< Thread/workgroup counts in X/Y/Z dimensions. Only valid for CmdDispatch[Offset].
+    DispatchDims logicalSize; ///< Thread/workgroup counts as seen by the shader. Only valid for CmdDispatchOffset.
+#else
     uint32 groupStart[3]; ///< Thread/workgroup start offsets in X/Y/Z dimensions.  Only valid for CmdDispatchOffset.
     uint32 groupDims[3];  ///< Thread/workgroup counts in X/Y/Z dimensions.  Only valid for CmdDispatch[Offset].
+#endif
 };
 
 /// Information for DrawDispatch callbacks

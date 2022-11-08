@@ -697,7 +697,8 @@ Result Dri3WindowSystem::SelectEvent()
                                                     eventId,
                                                     m_hWindow,
                                                     XCB_PRESENT_EVENT_MASK_COMPLETE_NOTIFY |
-                                                    XCB_PRESENT_EVENT_MASK_CONFIGURE_NOTIFY);
+                                                    XCB_PRESENT_EVENT_MASK_CONFIGURE_NOTIFY |
+                                                    XCB_PRESENT_EVENT_MASK_IDLE_NOTIFY);
 
     xcb_generic_error_t*const pError = m_dri3Procs.pfnXcbRequestCheck(m_pConnection, cookie);
 
@@ -812,6 +813,23 @@ Result Dri3WindowSystem::CreatePresentableImage(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+void Dri3WindowSystem::WaitOnIdleEvent(
+    WindowSystemImageHandle* pImage)
+{
+    WindowSystemImageHandle image = NullImageHandle;
+
+    MutexAuto lock(&m_eventMutex);
+    while (image.hPixmap == 0)
+    {
+        xcb_present_generic_event_t*const pPresentEvent = reinterpret_cast<xcb_present_generic_event_t*>(
+            m_dri3Procs.pfnXcbWaitForSpecialEvent(m_pConnection, m_pPresentEvent));
+        HandlePresentEvent(pPresentEvent, &image);
+    }
+
+    pImage->hPixmap = image.hPixmap;
 }
 
 // =====================================================================================================================
@@ -963,16 +981,6 @@ Result Dri3WindowSystem::Present(
         pSrcImage->SetIdle(false); // From now on, the image/buffer is owned by Xorg
 
         m_dri3Procs.pfnXcbFlush(m_pConnection);
-
-        // Poll the event to check if the window is resized
-        xcb_generic_event_t* pEvent = nullptr;
-
-        while((pEvent = m_dri3Procs.pfnXcbPollForSpecialEvent(m_pConnection, m_pPresentEvent)) != nullptr)
-        {
-            HandlePresentEvent(reinterpret_cast<xcb_present_generic_event_t*>(pEvent));
-
-            free(pEvent);
-        }
     }
 
     return result;
@@ -981,7 +989,8 @@ Result Dri3WindowSystem::Present(
 // =====================================================================================================================
 // Handle the present event received from Xserver, so far just registered the present-complete event.
 Result Dri3WindowSystem::HandlePresentEvent(
-    xcb_present_generic_event_t* pPresentEvent)
+    xcb_present_generic_event_t* pPresentEvent,
+    WindowSystemImageHandle*     pImage)
 {
     Result result = Result::Success;
 
@@ -1022,7 +1031,18 @@ Result Dri3WindowSystem::HandlePresentEvent(
 
         break;
     }
+    case  XCB_PRESENT_EVENT_IDLE_NOTIFY:
+    {
+        xcb_present_idle_notify_event_t *ie =
+            reinterpret_cast<xcb_present_idle_notify_event_t*>(pPresentEvent);
 
+        if (pImage)
+        {
+            pImage->hPixmap = ie->pixmap;
+        }
+
+        break;
+    }
     default:
         result = Result::ErrorUnknown;
         break;
@@ -1041,6 +1061,7 @@ Result Dri3WindowSystem::WaitForLastImagePresented()
 
     PAL_ASSERT(m_swapChainMode == SwapChainMode::Fifo);
 
+    MutexAuto lock(&m_eventMutex);
     while ((lastSerial > m_remoteSerial) && (result == Result::Success))
     {
         m_dri3Procs.pfnXcbFlush(m_pConnection);
@@ -1055,7 +1076,7 @@ Result Dri3WindowSystem::WaitForLastImagePresented()
         }
         else
         {
-            result = HandlePresentEvent(pPresentEvent);
+            result = HandlePresentEvent(pPresentEvent, nullptr);
             free(pPresentEvent);
         }
     }
@@ -1109,14 +1130,12 @@ Result Dri3WindowSystem::GetWindowProperties(
 
     pSwapChainProperties->minImageCount = 2;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 684
     // XWayland is a transition from Xorg to Wayland, which has poor performance in fullscreen present
     // mode, so windowed mode is preferred on XWayland.
     pSwapChainProperties->preferredPresentModes =
         IsXWayland(hDisplay, pDevice) ?
         static_cast<uint32>(PreferredPresentModeFlags::PreferWindowedPresentMode) :
         static_cast<uint32>(PreferredPresentModeFlags::NoPreference);
-#endif
 
     if (pReply != nullptr)
     {
@@ -1759,6 +1778,38 @@ void Dri3WindowSystem::SetAdaptiveSyncProperty(
         free(pReply);
     }
 
+}
+
+// =====================================================================================================================
+// Go through all existing events
+void Dri3WindowSystem::GoThroughEvent()
+{
+    xcb_generic_event_t* pEvent = nullptr;
+
+    MutexAuto lock(&m_eventMutex);
+    while ((pEvent = m_dri3Procs.pfnXcbPollForSpecialEvent(m_pConnection, m_pPresentEvent)) != nullptr)
+    {
+        HandlePresentEvent(reinterpret_cast<xcb_present_generic_event_t*>(pEvent), nullptr);
+        free(pEvent);
+    }
+}
+
+// =====================================================================================================================
+// Check whether the idle image is the one attched to the fence
+bool Dri3WindowSystem::CheckIdleImage(
+    WindowSystemImageHandle* pIdleImage,
+    PresentFence*            pFence)
+{
+    Dri3PresentFence* pDri3Fence = reinterpret_cast<Dri3PresentFence*>(pFence);
+    bool ret = false;
+
+    if (pIdleImage->hPixmap == pDri3Fence->GetImage()->GetPresentImageHandle().hPixmap)
+    {
+        pDri3Fence->GetImage()->SetIdle(true);
+        ret = true;
+    }
+
+    return ret;
 }
 
 } // Amdgpu

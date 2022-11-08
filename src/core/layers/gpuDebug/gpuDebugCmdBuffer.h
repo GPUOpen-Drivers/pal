@@ -38,6 +38,9 @@
 
 namespace Pal
 {
+
+enum EnabledBlitOperations : uint32;
+
 namespace GpuDebug
 {
 
@@ -598,34 +601,26 @@ private:
         uint32            stride,
         uint32            maximumCount,
         gpusize           countGpuAddr);
+
     static void PAL_STDCALL CmdDispatch(
-        ICmdBuffer* pCmdBuffer,
-        uint32      x,
-        uint32      y,
-        uint32      z);
+        ICmdBuffer*  pCmdBuffer,
+        DispatchDims size);
     static void PAL_STDCALL CmdDispatchIndirect(
         ICmdBuffer*       pCmdBuffer,
         const IGpuMemory& gpuMemory,
         gpusize           offset);
     static void PAL_STDCALL CmdDispatchOffset(
-        ICmdBuffer* pCmdBuffer,
-        uint32      xOffset,
-        uint32      yOffset,
-        uint32      zOffset,
-        uint32      xDim,
-        uint32      yDim,
-        uint32      zDim);
+        ICmdBuffer*  pCmdBuffer,
+        DispatchDims offset,
+        DispatchDims launchSize,
+        DispatchDims logicalSize);
     static void PAL_STDCALL CmdDispatchDynamic(
-        ICmdBuffer* pCmdBuffer,
-        gpusize     gpuVa,
-        uint32      xDim,
-        uint32      yDim,
-        uint32      zDim);
+        ICmdBuffer*  pCmdBuffer,
+        gpusize      gpuVa,
+        DispatchDims size);
     static void PAL_STDCALL CmdDispatchMesh(
-        ICmdBuffer* pCmdBuffer,
-        uint32      xDim,
-        uint32      yDim,
-        uint32      zDim);
+        ICmdBuffer*  pCmdBuffer,
+        DispatchDims size);
     static void PAL_STDCALL CmdDispatchMeshIndirectMulti(
         ICmdBuffer*       pCmdBuffer,
         const IGpuMemory& gpuMemory,
@@ -863,16 +858,20 @@ private:
     void VerifyBoundDrawState() const;
 
     bool IsSurfaceCaptureEnabled() const { return m_surfaceCapture.actionIdCount > 0; }
-    bool IsSurfaceCaptureActive() const;
+    bool IsSurfaceCaptureActive(EnabledBlitOperations checkMask) const;
     void SurfaceCaptureHashMatch();
     void CaptureSurfaces();
     void DestroySurfaceCaptureData();
 
-    Result CaptureImageSurface(
-        const IImage*   pSrcImage,
-        const SubresId& baseSubres,
-        uint32          arraySize,
-        IImage**        ppDstImage);
+    Result CaptureImageSurface(const IImage*                  pSrcImage,
+                               const ImageLayoutUsageFlags    srcLayoutUsages,
+                               const ImageLayoutEngineFlags   srcLayoutEngine,
+                               const CacheCoherencyUsageFlags srcCoher,
+                               const SubresId&                baseSubres,
+                               const uint32                   arraySize,
+                               bool                           isDraw,
+                               IImage**                       ppDstImage);
+
     void OverrideDepthFormat(SwizzledFormat* pSwizzledFormat, const IImage* pSrcImage, uint32 plane);
     void SyncSurfaceCapture();
     void OutputSurfaceCaptureImage(Image* pImage, const char* pFilePath, const char* pFileName) const;
@@ -900,21 +899,27 @@ private:
 
     struct
     {
-        uint32          actionId;           // Count of the number of actions seen
-        bool            pipelineMatch;      // true if the current pipeline matches the surface capture hash
-        uint32          actionIdStart;      // First action to capture results
-        uint32          actionIdCount;      // Number of action to capture results
-        uint64          hash;               // value of shader and pipeline hashes that enable surface capture
-        Image**         ppColorTargetDsts;  // Array of Image*s of color target copy destinations
-                                            // There are (MaxColorTargets * m_actionCount) elements
-                                            // This is arranged such that the pointers are grouped by draw ID.
-                                            // Draw0Mrt0, Draw0Mrt1, ..., Draw0Mrt7, Draw1Mrt0, ...
-        Image**         ppDepthTargetDsts;  // Array of Image*s of depth target copy destinations
-                                            // There are (2 * m_actionCount) elements
-                                            // This is arranged such that the pointers are grouped by draw ID.
-                                            // Draw0Z, Draw0S, Draw1Z, Draw1S, ...
-        IGpuMemory**    ppGpuMem;           // Gpu memory to make resident for this command buffer's surface capture
-        uint32          gpuMemObjsCount;    // Number of gpu memory objects in the ppGpuMem list
+        uint32                 actionId;             // Count of the number of actions seen
+        bool                   pipelineMatch;        // true if the current pipeline matches the surface capture hash
+        uint32                 actionIdStart;        // First action to capture results
+        uint32                 actionIdCount;        // Number of action to capture results
+        uint64                 hash;                 // value of shader and pipeline hashes that enable surface capture
+        Image**                ppColorTargetDsts;    // Array of Image*s of color target copy destinations
+                                                     // There are (MaxColorTargets * m_actionCount) elements
+                                                     // This is arranged such that the pointers are grouped by draw ID.
+                                                     // Draw0Mrt0, Draw0Mrt1, ..., Draw0Mrt7, Draw1Mrt0, ...
+        Image**                ppDepthTargetDsts;    // Array of Image*s of depth target copy destinations
+                                                     // There are (2 * m_actionCount) elements
+                                                     // This is arranged such that the pointers are grouped by draw ID.
+                                                     // Draw0Z, Draw0S, Draw1Z, Draw1S, ...
+        Image**                ppBlitImgs;           // Array of Image*s of blit images recorded.
+        EnabledBlitOperations* pBlitOpMask;          // Record the blit operations corresponding to the images above.
+        uint32                 blitImgOpEnabledMask; // Enabled Blit Image Capture Mask. Match settings_platform.json
+                                                     // 0 - None. 1 - CmdCopyMemoryToImage enabled.
+                                                     // 2 - CmdClearColorImage enabled. 4 - CmdClearDepthStencil enabled.
+                                                     // 8 - CmdCopyImageToMemory enabled.
+        IGpuMemory**           ppGpuMem;             // Gpu memory to make resident for this command buffer's surface capture
+        uint32                 gpuMemObjsCount;      // Number of gpu memory objects in the ppGpuMem list
     } m_surfaceCapture;
 
     // The token stream is a single block of memory that doubles in size each time it runs out of space.

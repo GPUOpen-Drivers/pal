@@ -35,13 +35,6 @@ using namespace Event;
 DD_DEFINE_HANDLE(DDEventClient, EventClient*);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// Helper function used to verify if an event provider visitor contains all necessary fields
-bool ValidateVisitor(const DDEventProviderVisitor& visitor)
-{
-    return (visitor.pfnVisit != nullptr);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 DDApiVersion ddEventClientQueryVersion()
 {
     DDApiVersion version = {};
@@ -76,6 +69,11 @@ DD_RESULT ddEventClientCreate(
         if (pClient != nullptr)
         {
             result = pClient->Connect(pInfo->clientId, pInfo->timeoutInMs);
+
+            if (result == DD_RESULT_SUCCESS)
+            {
+                result = pClient->SubscribeToProvider(pInfo->providerId);
+            }
 
             if (result != DD_RESULT_SUCCESS)
             {
@@ -119,43 +117,6 @@ DD_RESULT ddEventClientReadEventData(
     {
         EventClient* pClient = FromHandle(hClient);
         result = pClient->ReadEventData(timeoutInMs);
-    }
-
-    return result;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-DD_RESULT ddEventClientQueryProviders(
-    DDEventClient                 hClient,
-    const DDEventProviderVisitor* pVisitor)
-{
-    DD_RESULT result = DD_RESULT_COMMON_INVALID_PARAMETER;
-
-    if ((hClient != DD_API_INVALID_HANDLE) &&
-        (pVisitor != nullptr)              &&
-        ValidateVisitor(*pVisitor))
-    {
-        EventClient* pClient = FromHandle(hClient);
-        result = pClient->QueryProviders(pVisitor);
-    }
-
-    return result;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-DD_RESULT ddEventClientConfigureProviders(
-    DDEventClient              hClient,
-    size_t                     numProviders,
-    const DDEventProviderDesc* pProviders)
-{
-    DD_RESULT result = DD_RESULT_COMMON_INVALID_PARAMETER;
-
-    if ((hClient != DD_API_INVALID_HANDLE) &&
-        (numProviders > 0)                 &&
-        (pProviders != nullptr))
-    {
-        EventClient* pClient = FromHandle(hClient);
-        result = pClient->ConfigureProviders(numProviders, pProviders);
     }
 
     return result;

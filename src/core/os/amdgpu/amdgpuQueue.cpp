@@ -1239,7 +1239,7 @@ Result Queue::UpdateResourceList(
                 {
                     auto*const pGpuMemory = static_cast<GpuMemory*>(iter.Get()->key);
 
-                    result = AppendResourceToList(pGpuMemory);
+                    result = AppendGlobalResourceToList(pGpuMemory);
 
                     if (result != Result::_Success)
                     {
@@ -1280,6 +1280,27 @@ Result Queue::UpdateResourceList(
 }
 
 // =====================================================================================================================
+// Appends a global resident bo to the list of buffer objects which get submitted with a set of command buffers.
+Result Queue::AppendGlobalResourceToList(
+    GpuMemory* pGpuMemory)
+{
+    PAL_ASSERT(pGpuMemory != nullptr);
+
+    Result result = Result::Success;
+
+    Image* pImage = static_cast<Image*>(pGpuMemory->GetImage());
+    // Skip presentable image which is already owned by Window System from globalRefBOs.
+    // Designed for Vulkan, because Vulkan cannot figure out per-submission BO residency.
+    if ((pGpuMemory->IsVmAlwaysValid() == false) &&
+        ((pImage == nullptr) || (pImage->IsPresentable() == false) || pImage->GetIdle()))
+    {
+        result = AppendResourceToList(pGpuMemory);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // Appends a bo to the list of buffer objects which get submitted with a set of command buffers.
 Result Queue::AppendResourceToList(
     GpuMemory* pGpuMemory)
@@ -1290,13 +1311,15 @@ Result Queue::AppendResourceToList(
 
     if ((m_numResourcesInList + 1) <= m_resourceListSize)
     {
-        Image* pImage = static_cast<Image*>(pGpuMemory->GetImage());
-
         // If VM is always valid, not necessary to add into the resource list.
-        // Presentable image which is already owned by Window System can't be added into reference list.
-        if ((pGpuMemory->IsVmAlwaysValid() == false) &&
-            ((pImage == nullptr) || (pImage->IsPresentable() == false) || pImage->GetIdle()))
+        if (pGpuMemory->IsVmAlwaysValid() == false)
         {
+            Image* pImage = static_cast<Image*>(pGpuMemory->GetImage());
+            PAL_ALERT_MSG((pImage != nullptr) && (pImage->IsPresentable() == true) && (pImage->GetIdle() == false),
+                "BO of presentable image which is currently owned by Window System is referenced. "
+                "VA %llx, explicitSync %d. If not explicitSynced, it may trigger kernel implicit sync.",
+                pGpuMemory->Desc().gpuVirtAddr, pGpuMemory->IsExplicitSync());
+
             auto*const pDevice  = static_cast<Device*>(m_pDevice);
             // Use raw2 submit.
             if (pDevice->IsRaw2SubmitSupported())

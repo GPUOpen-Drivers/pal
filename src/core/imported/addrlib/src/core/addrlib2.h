@@ -89,21 +89,6 @@ struct Dim3d
     UINT_32 d;
 };
 
-// Macro define resource block type
-enum AddrBlockType
-{
-    AddrBlockLinear    = 0, // Resource uses linear swizzle mode
-    AddrBlockMicro     = 1, // Resource uses 256B block
-    AddrBlockThin4KB   = 2, // Resource uses thin 4KB block
-    AddrBlockThick4KB  = 3, // Resource uses thick 4KB block
-    AddrBlockThin64KB  = 4, // Resource uses thin 64KB block
-    AddrBlockThick64KB = 5, // Resource uses thick 64KB block
-    AddrBlockThinVar   = 6, // Resource uses thin var block
-    AddrBlockThickVar  = 7, // Resource uses thick var block
-    AddrBlockMaxTiledType,
-
-};
-
 enum AddrSwSet
 {
     AddrSwSetZ = 1 << ADDR_SW_Z,
@@ -304,12 +289,25 @@ public:
         const ADDR2_GET_PREFERRED_SURF_SETTING_INPUT* pIn,
         ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT*      pOut) const;
 
+    ADDR_E_RETURNCODE GetPossibleSwizzleModes(
+        const ADDR2_GET_PREFERRED_SURF_SETTING_INPUT* pIn,
+        ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT* pOut) const;
+
     virtual BOOL_32 IsValidDisplaySwizzleMode(
         const ADDR2_COMPUTE_SURFACE_INFO_INPUT* pIn) const
     {
         ADDR_NOT_IMPLEMENTED();
         return ADDR_NOTIMPLEMENTED;
     }
+
+    ADDR_E_RETURNCODE GetAllowedBlockSet(
+        ADDR2_SWMODE_SET allowedSwModeSet,
+        AddrResourceType rsrcType,
+        ADDR2_BLOCK_SET* pAllowedBlockSet) const;
+
+    ADDR_E_RETURNCODE GetAllowedSwSet(
+        ADDR2_SWMODE_SET  allowedSwModeSet,
+        ADDR2_SWTYPE_SET* pAllowedSwSet) const;
 
 protected:
     Lib();  // Constructor is protected
@@ -668,6 +666,31 @@ protected:
         return ADDR_NOTSUPPORTED;
     }
 
+    virtual ADDR_E_RETURNCODE HwlGetPossibleSwizzleModes(
+        const ADDR2_GET_PREFERRED_SURF_SETTING_INPUT* pIn,
+        ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT*      pOut) const
+    {
+        ADDR_NOT_IMPLEMENTED();
+        return ADDR_NOTSUPPORTED;
+    }
+
+    virtual ADDR_E_RETURNCODE HwlGetAllowedBlockSet(
+        ADDR2_SWMODE_SET allowedSwModeSet,
+        AddrResourceType rsrcType,
+        ADDR2_BLOCK_SET* pAllowedBlockSet) const
+    {
+        ADDR_NOT_IMPLEMENTED();
+        return ADDR_NOTIMPLEMENTED;
+    }
+
+    virtual ADDR_E_RETURNCODE HwlGetAllowedSwSet(
+        ADDR2_SWMODE_SET  allowedSwModeSet,
+        ADDR2_SWTYPE_SET* pAllowedSwSet) const
+    {
+        ADDR_NOT_IMPLEMENTED();
+        return ADDR_NOTIMPLEMENTED;
+    }
+
     virtual ADDR_E_RETURNCODE HwlComputeSurfaceInfoSanityCheck(
         const ADDR2_COMPUTE_SURFACE_INFO_INPUT* pIn) const
     {
@@ -922,16 +945,6 @@ protected:
         ADDR2_SWMODE_SET& allowedSwModeSet,
         AddrResourceType  resourceType,
         UINT_32           elemLog2) const;
-
-    static BOOL_32 IsBlockTypeAvaiable(ADDR2_BLOCK_SET blockSet, AddrBlockType blockType);
-
-    static BOOL_32 BlockTypeWithinMemoryBudget(
-        UINT_64 minSize,
-        UINT_64 newBlockTypeSize,
-        UINT_32 ratioLow,
-        UINT_32 ratioHi,
-        DOUBLE  memoryBudget = 0.0f,
-        BOOL_32 newBlockTypeBigger = TRUE);
 
 #if DEBUG
     VOID ValidateStereoInfo(

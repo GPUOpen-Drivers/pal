@@ -80,7 +80,7 @@ Result CmdStream::Begin(
         flags.optimizeCommands &= (pMemAllocator != nullptr);
 
         // We may want to modify prefetchCommands based on this setting.
-        switch (static_cast<const Gfx9::Device&>(m_device).Settings().prefetchCommandBuffers)
+        switch (GetGfx9Settings(*m_device.Parent()).prefetchCommandBuffers)
         {
         case Gfx9PrefetchCommandsDisabled:
             flags.prefetchCommands = false;

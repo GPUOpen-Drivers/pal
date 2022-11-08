@@ -190,9 +190,7 @@ public:
         void*   pBuffer) const;
 
     size_t BuildDispatchDirect(
-        uint32       xDim,
-        uint32       yDim,
-        uint32       zDim,
+        DispatchDims size,
         bool         dimInThreads,
         bool         forceStartAt000,
         PM4Predicate predicate,

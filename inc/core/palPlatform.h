@@ -124,46 +124,6 @@ struct PlatformProperties
     };
 };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 682
-/// Enumerates the GPU affinity modes which can be selected by an application profile. This determines the preference
-/// of which Device(s) an application profile would like us to use for a specific application.
-///
-/// @see IPlatform::QueryApplocationProfile
-enum class PxGpuAffinity : uint32
-{
-    Default = 0,      ///< No GPU affinity preference exists
-    PowerSaving,      ///< Prefer running on a low-power device (such as an APU)
-    HighPerformance,  ///< Prefer running on a high-performance device (such as the dGPU in a PX configuration).
-    Global,           ///< Prefer running on whichever device is selected by the current dynamic power state.
-};
-
-/// Enumerates the dynamic power state of a PX configuration. This can determine the preference of which Devices(s) an
-/// application runs on when the GPU affinity is 'Global'.
-///
-/// @see IPlatform::QueryApplicationProfile
-enum class PxPowerState : uint32
-{
-    Unknown = 0,         ///< Power state is unknown due to a profile not being present or the configuration not
-                         ///  being Power Express.
-    PowerSaving,         ///< Prefer battery life savings over raw performance
-    Balanced,            ///< Prefer neither battery life savings nor raw performance
-    HighPerformance,     ///< Prefer raw performance over battery life savings
-    ExtremePerformance,  ///< Strongly prefer raw performance over battery life savings
-};
-
-/// Reports information contained in an application-specific profile.
-///
-/// This covers Power Express specific information like GPU affinity for a specific title, etc.
-///
-/// @see IPlatform::QueryApplicationProfile()
-struct ApplicationProfile
-{
-    PxGpuAffinity  affinity;    ///< Power Express GPU affinity mode requested by the application profile
-    PxPowerState   powerState;  ///< Global Power Express power state. This is used in combination with the profile's
-                                ///  GPU affinity to determine which GPU's should be utilized by an application.
-};
-#endif
-
 /// The client that Pal may query profile for. the order is the same as SHARED_AP_AREA in KMD escape interface
 enum class ApplicationProfileClient : uint32
 {
@@ -172,10 +132,6 @@ enum class ApplicationProfileClient : uint32
     Udx,
     Cfx,
     Ogl,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 682
-    Px,
-    PxDynamic,
-#endif
     User3D,
     Ocl,
     Mmd,
@@ -327,38 +283,6 @@ public:
         uint32*  pScreenCount,
         void*    pStorage[MaxScreens],
         IScreen* pScreens[MaxScreens]) = 0;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 682
-    /// Queries an application-specific profile for Power Express configurations.
-    ///
-    /// This function queries the kernel-mode driver to determine if there is a platform-wide profile for a specific
-    /// application that the client would like to honor. It is optional, and doesn't need to be called if the client
-    /// does not wish to support application profiles.
-    ///
-    /// This function may be called multiple times with different filename and pathname strings. This is useful because
-    /// a particular application may be referenced by one or more identifier strings that the client wishes to query.
-    ///
-    /// @ingroup LibInit
-    ///
-    /// @param [in]  pFilename Filename of the application to query for its profile.
-    /// @param [in]  pPathname Optional. Allows the caller to specify a pathname in addition to a filename if they wish.
-    /// @param [out] pOut      Will be filled with the application profile parameters if the profile exists and was
-    ///                        successfully queried.
-    ///
-    /// @returns Success if the application profile exists for the specified string(s) and the profile was successfully
-    ///          retrieved, or Unsupported if the profile does not exist (or for non-PX configurations) and the query
-    ///          was successfully performed. In this way, a client does not need to know whether or not their
-    ///          configuration is PX before issuing this call. Otherwise, one of the following error codes may be
-    ///          returned:
-    ///          + ErrorInvalidPointer will be returned if pFilename or pOut is null.
-    ///          + ErrorUnavailable if this is called before IPlatform::EnumerateDevices(), or if there were no Devices
-    ///            discovered.
-    Result QueryApplicationProfile(
-        const char*         pFilename,
-        const char*         pPathname,
-        ApplicationProfile* pOut)
-        { return Result::Unsupported; }
-#endif
 
     /// Queries a client specified application profile in raw format.
     ///

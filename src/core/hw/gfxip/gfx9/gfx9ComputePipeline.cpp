@@ -92,7 +92,6 @@ Result ComputePipeline::HwlInit(
     // Pick a thread group size for this pipeline. It may come from the create info or from the HSA metadata.
     Extent3d groupSize;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 700
     // These always have to be all non-zero or all zero.
     PAL_ASSERT(((createInfo.threadsPerGroup.width  == 0) &&
                 (createInfo.threadsPerGroup.height == 0) &&
@@ -116,9 +115,6 @@ Result ComputePipeline::HwlInit(
         }
     }
     else if (hasRequiredSize)
-#else
-    if (hasRequiredSize)
-#endif
     {
         groupSize.width  = metadata.RequiredWorkgroupSizeX();
         groupSize.height = metadata.RequiredWorkgroupSizeY();
@@ -255,9 +251,7 @@ Result ComputePipeline::HwlInit(
         m_chunkCs.LateInit(abiReader,
                            registers,
                            wavefrontSize,
-                           &m_threadsPerTgX,
-                           &m_threadsPerTgY,
-                           &m_threadsPerTgZ,
+                           &m_threadsPerTg,
                            &uploader);
         PAL_ASSERT(m_uploadFenceToken == 0);
         result = uploader.End(&m_uploadFenceToken);
@@ -313,9 +307,7 @@ Result ComputePipeline::HwlInit(
         m_chunkCs.LateInit(abiReader,
                            registers,
                            wavefrontSize,
-                           &m_threadsPerTgX,
-                           &m_threadsPerTgY,
-                           &m_threadsPerTgZ,
+                           &m_threadsPerTg,
                            &uploader);
         PAL_ASSERT(m_uploadFenceToken == 0);
         result = uploader.End(&m_uploadFenceToken);
@@ -545,9 +537,13 @@ Result ComputePipeline::GetShaderStats(
         {
             pShaderStats->shaderStageMask              = ApiShaderStageCompute;
             pShaderStats->palShaderHash                = m_info.shader[static_cast<uint32>(shaderType)].hash;
-            pShaderStats->cs.numThreadsPerGroupX       = m_threadsPerTgX;
-            pShaderStats->cs.numThreadsPerGroupY       = m_threadsPerTgY;
-            pShaderStats->cs.numThreadsPerGroupZ       = m_threadsPerTgZ;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 771
+            pShaderStats->cs.numThreadsPerGroup        = m_threadsPerTg;
+#else
+            pShaderStats->cs.numThreadsPerGroupX       = m_threadsPerTg.x;
+            pShaderStats->cs.numThreadsPerGroupY       = m_threadsPerTg.y;
+            pShaderStats->cs.numThreadsPerGroupZ       = m_threadsPerTg.z;
+#endif
             pShaderStats->common.gpuVirtAddress        = m_chunkCs.CsProgramGpuVa();
             pShaderStats->common.ldsSizePerThreadGroup = chipProps.gfxip.ldsSizePerThreadGroup;
         }

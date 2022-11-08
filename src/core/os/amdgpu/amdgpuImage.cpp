@@ -439,12 +439,10 @@ Result Image::GetExternalSharedImageCreateInfo(
         pCreateInfo->viewFormatCount = AllCompatibleFormats;
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 681
     if ((result == Result::Success) && IsMesaMetadata(sharedInfo.info.metadata))
     {
         pCreateInfo->flags.sharedWithMesa = 1;
     }
-#endif
     // If the width and height passed by pMetadata is not the same as expected, the buffer may still be valid:
     // E.g. Planar YUV images are allocated as a single block of memory and passed in by one handle. We can not
     //      figure out the width and height settled in Metadata points to which plane or maybe it just means the
@@ -454,18 +452,16 @@ Result Image::GetExternalSharedImageCreateInfo(
         (openInfo.extent.width != 0) && (openInfo.extent.height != 0) && (openInfo.extent.depth != 0) &&
         ((openInfo.extent.width != pMetadata->width_in_pixels) || (openInfo.extent.height != pMetadata->height)))
     {
-        if (Formats::IsYuv(pCreateInfo->swizzledFormat.format)
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 681
+        if (Formats::IsYuv(pCreateInfo->swizzledFormat.format) ||
             // In VDPAU case(metadata comes from mesa), we need to update width/height/depth accordingly,
             // which were acquired from vdpau handle and passed by openInfo.extent
-            || pCreateInfo->flags.sharedWithMesa
-#endif
+            pCreateInfo->flags.sharedWithMesa                  ||
             // If the bo has different importing format than the format in Metadata, width/height are taken from
             // openInfo to match the new format view.
-            || changeFormat
+            changeFormat                                       ||
             // If the bo is shared from another device, it would not have metadata. Width/height/depth are passed
             // from application.
-            || (hasMetadata == false))
+            (hasMetadata == false))
         {
             pCreateInfo->extent.width = openInfo.extent.width;
             pCreateInfo->extent.height = openInfo.extent.height;
@@ -487,11 +483,7 @@ Result Image::GetExternalSharedImageCreateInfo(
 
     if (result == Result::Success)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 681
         if (hasMetadata && (pCreateInfo->flags.sharedWithMesa == 0))
-#else
-        if (hasMetadata)
-#endif
         {
             pCreateInfo->imageType = static_cast<ImageType>(pMetadata->flags.resource_type);
         }
@@ -506,14 +498,10 @@ Result Image::GetExternalSharedImageCreateInfo(
             if (device.ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9)
             {
                 const AMDGPU_SWIZZLE_MODE swizzleMode =
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 681
                     (pCreateInfo->flags.sharedWithMesa
                         ? static_cast<AMDGPU_SWIZZLE_MODE>(
                           AMDGPU_TILING_GET(sharedInfo.info.metadata.swizzle_info, SWIZZLE_MODE))
                         : pMetadata->swizzleMode);
-#else
-                    pMetadata->swizzleMode;
-#endif
 
                 isLinearTiled = (swizzleMode == AMDGPU_SWIZZLE_MODE_LINEAR) ||
                                 (swizzleMode == AMDGPU_SWIZZLE_MODE_LINEAR_GENERAL);
@@ -521,14 +509,10 @@ Result Image::GetExternalSharedImageCreateInfo(
             else
             {
                 const uint32 tileMode =
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 681
                     (pCreateInfo->flags.sharedWithMesa
                         ? static_cast<uint32>(AddrMgr1::AddrTileModeFromHwArrayMode(
                           AMDGPU_TILING_GET(sharedInfo.info.metadata.tiling_info, ARRAY_MODE)))
                         : pMetadata->tile_mode);
-#else
-                    pMetadata->tile_mode;
-#endif
 
                 isLinearTiled = (tileMode == AMDGPU_TILE_MODE__LINEAR_GENERAL) ||
                                 (tileMode == AMDGPU_TILE_MODE__LINEAR_ALIGNED);
@@ -542,10 +526,10 @@ Result Image::GetExternalSharedImageCreateInfo(
 
         if (hasMetadata)
         {
-            //for the bo created by other driver(display), the miplevels and
-            //arraySize might not be initialized as 1, which will cause seqfault,
-            //set the default value as 1 here to provide the robustness when mipLevels and
-            //arraySize are zero
+            // For the bo created by other driver(display), the miplevels and
+            // arraySize might not be initialized as 1, which will cause seqfault,
+            // set the default value as 1 here to provide the robustness when mipLevels and
+            // arraySize are zero
             pCreateInfo->mipLevels = Util::Max(1u, static_cast<uint32>(pMetadata->flags.mip_levels));
             pCreateInfo->arraySize = Util::Max(1u, static_cast<uint32>(pMetadata->array_size));
 
@@ -559,7 +543,16 @@ Result Image::GetExternalSharedImageCreateInfo(
             pCreateInfo->usageFlags.depthStencil |= pMetadata->flags.depth_stencil;
 
             pCreateInfo->flags.optimalShareable = pMetadata->flags.optimal_shareable;
-            pCreateInfo->flags.flippable        = false;
+            if (device.ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9)
+            {
+                pCreateInfo->flags.presentable  = AMDGPU_TILING_GET(sharedInfo.info.metadata.tiling_info, SCANOUT);
+            }
+            else
+            {
+                pCreateInfo->flags.presentable  = (pMetadata->micro_tile_mode == AMDGPU_MICRO_TILE_MODE__DISPLAYABLE);
+            }
+            pCreateInfo->flags.flippable        = pCreateInfo->flags.presentable;
+
         }
         else
         {
@@ -820,11 +813,7 @@ Result Image::CreateExternalSharedImage(
     if (result == Result::Success)
     {
         result = pImage->BindGpuMemory(pGpuMemory,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 681
                                        openInfo.gpuMemOffset
-#else
-                                       0
-#endif
                                       );
     }
     else if (pGpuMemory != nullptr)

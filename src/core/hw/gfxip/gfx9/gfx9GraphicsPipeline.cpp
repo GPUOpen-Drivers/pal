@@ -825,7 +825,7 @@ void GraphicsPipeline::SetupRbPlusRegistersForSlot(
 {
     const uint32 bitShift = (4 * slot);
 
-    const SX_DOWNCONVERT_FORMAT downConvertFormat = SxDownConvertFormat(swizzledFormat.format);
+    const SX_DOWNCONVERT_FORMAT downConvertFormat = SxDownConvertFormat(swizzledFormat);
     const uint32                blendOptControl   = Gfx9::SxBlendOptControl(writeMask);
     const uint32                blendOptEpsilon   =
         (downConvertFormat == SX_RT_EXPORT_NO_CONVERSION) ? 0 : Gfx9::SxBlendOptEpsilon(downConvertFormat);
@@ -1262,11 +1262,7 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     m_regs.context.cbShaderMask.u32All = AbiRegisters::CbShaderMask(metadata);
 
     m_regs.context.paScLineCntl.bits.EXPAND_LINE_WIDTH        = createInfo.rsState.expandLineWidth;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 665
     m_regs.context.paScLineCntl.bits.DX10_DIAMOND_TEST_ENA    = createInfo.rsState.dx10DiamondTestDisable ? 0 : 1;
-#else
-    m_regs.context.paScLineCntl.bits.DX10_DIAMOND_TEST_ENA    = 1;
-#endif
     m_regs.context.paScLineCntl.bits.LAST_PIXEL               = createInfo.rsState.rasterizeLastLinePixel;
     m_regs.context.paScLineCntl.bits.PERPENDICULAR_ENDCAP_ENA = createInfo.rsState.perpLineEndCapsEnable;
 
@@ -1974,12 +1970,12 @@ bool GraphicsPipeline::CanRbPlusOptimizeDepthOnly() const
 // Returns the SX "downconvert" format with respect to the channel format of the color buffer target.
 // This method is for the RbPlus feature which is identical to the gfx8.1 implementation.
 SX_DOWNCONVERT_FORMAT GraphicsPipeline::SxDownConvertFormat(
-    ChNumFormat format
+    SwizzledFormat swizzledFormat
     ) const
 {
     SX_DOWNCONVERT_FORMAT sxDownConvertFormat = SX_RT_EXPORT_NO_CONVERSION;
 
-    switch (format)
+    switch (swizzledFormat.format)
     {
     case ChNumFormat::X4Y4Z4W4_Unorm:
     case ChNumFormat::X4Y4Z4W4_Uscaled:
@@ -2043,12 +2039,14 @@ SX_DOWNCONVERT_FORMAT GraphicsPipeline::SxDownConvertFormat(
     case ChNumFormat::X16Y16_Uint:
     case ChNumFormat::X16Y16_Sint:
     case ChNumFormat::X16Y16_Float:
-        sxDownConvertFormat = SX_RT_EXPORT_16_16_GR;
+        sxDownConvertFormat =
+            (swizzledFormat.swizzle.a == ChannelSwizzle::Y) ? SX_RT_EXPORT_16_16_AR : SX_RT_EXPORT_16_16_GR;
         break;
     case ChNumFormat::X32_Uint:
     case ChNumFormat::X32_Sint:
     case ChNumFormat::X32_Float:
-        sxDownConvertFormat = SX_RT_EXPORT_32_R;
+        sxDownConvertFormat =
+            (swizzledFormat.swizzle.a == ChannelSwizzle::X) ? SX_RT_EXPORT_32_A : SX_RT_EXPORT_32_R;
         break;
     case ChNumFormat::X9Y9Z9E5_Float:
         //  When doing 8 pixels per clock transfers (in RB+ mode) on a render target using the 999e5 format, the

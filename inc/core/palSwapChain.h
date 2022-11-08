@@ -116,7 +116,6 @@ enum class CompositeAlphaMode : uint32
                            ///  system commands.
 };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 684
 /// Defines flag for the preferred present modes of the swap chain.
 enum class PreferredPresentModeFlags : uint32
 {
@@ -126,7 +125,6 @@ enum class PreferredPresentModeFlags : uint32
                                         ///< the compositor does the BLT during the composite.
     PreferFullscreenPresentMode = 0x2,  ///< Preferred FullScreen mode for the swap chain.
 };
-#endif
 
 /// This structure specifies the information needed by client to create swap chain and to present an image. Surface
 /// here is an abstraction for a window and a physical output device.
@@ -148,9 +146,7 @@ struct SwapChainProperties
     SwizzledFormat        imageFormat[MaxPresentableImageFormat];  ///< Supported image formats for the swap chain.
     ScreenColorSpace      colorSpace[MaxNativeColorSpaceSupport];  ///< Supported native colorspaces.
     uint32                compositeAlphaMode;  ///< Supported composite alpha mode for the swap chain.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 684
     uint32                preferredPresentModes; ///< Set of preferred present modes for the swap chain.
-#endif
 };
 
 /// Specifies all the information needed by local window system to present. Input structure to IDevice::CreateSwapChain

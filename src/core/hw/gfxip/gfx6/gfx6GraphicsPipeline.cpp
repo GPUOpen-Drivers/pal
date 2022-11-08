@@ -58,7 +58,7 @@ const GraphicsPipelineSignature NullGfxSignature =
 static_assert(UserDataNotMapped == 0, "Unexpected value for indicating unmapped user-data entries!");
 
 static uint8 Rop3(LogicOp logicOp);
-static SX_DOWNCONVERT_FORMAT SxDownConvertFormat(ChNumFormat format);
+static SX_DOWNCONVERT_FORMAT SxDownConvertFormat(SwizzledFormat swizzledFormat);
 static uint32 SxBlendOptEpsilon(SX_DOWNCONVERT_FORMAT sxDownConvertFormat);
 static uint32 SxBlendOptControl(uint32 writeMask);
 
@@ -651,7 +651,7 @@ void GraphicsPipeline::SetupRbPlusRegistersForSlot(
 {
     const uint32 bitShift = (4 * slot);
 
-    const SX_DOWNCONVERT_FORMAT downConvertFormat = SxDownConvertFormat(swizzledFormat.format);
+    const SX_DOWNCONVERT_FORMAT downConvertFormat = SxDownConvertFormat(swizzledFormat);
     const uint32                blendOptControl   = Gfx6::SxBlendOptControl(writeMask);
     const uint32                blendOptEpsilon   =
         (downConvertFormat == SX_RT_EXPORT_NO_CONVERSION) ? 0 : Gfx6::SxBlendOptEpsilon(downConvertFormat);
@@ -678,11 +678,7 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     const Gfx6PalSettings&   settings  = m_pDevice->Settings();
 
     m_regs.context.paScLineCntl.bits.EXPAND_LINE_WIDTH        = createInfo.rsState.expandLineWidth;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 665
     m_regs.context.paScLineCntl.bits.DX10_DIAMOND_TEST_ENA    = createInfo.rsState.dx10DiamondTestDisable ? 0 : 1;
-#else
-    m_regs.context.paScLineCntl.bits.DX10_DIAMOND_TEST_ENA    = 1;
-#endif
     m_regs.context.paScLineCntl.bits.LAST_PIXEL               = createInfo.rsState.rasterizeLastLinePixel;
     m_regs.context.paScLineCntl.bits.PERPENDICULAR_ENDCAP_ENA = createInfo.rsState.perpLineEndCapsEnable;
 
@@ -1594,11 +1590,11 @@ static uint8 Rop3(
 // Returns the SX "downconvert" format with respect to the channel format of the color buffer target.  This method is
 // for the RbPlus feature.
 static SX_DOWNCONVERT_FORMAT SxDownConvertFormat(
-    ChNumFormat format)
+    SwizzledFormat swizzledFormat)
 {
     SX_DOWNCONVERT_FORMAT sxDownConvertFormat = SX_RT_EXPORT_NO_CONVERSION;
 
-    switch (format)
+    switch (swizzledFormat.format)
     {
     case ChNumFormat::X4Y4Z4W4_Unorm:
     case ChNumFormat::X4Y4Z4W4_Uscaled:
@@ -1662,12 +1658,14 @@ static SX_DOWNCONVERT_FORMAT SxDownConvertFormat(
     case ChNumFormat::X16Y16_Uint:
     case ChNumFormat::X16Y16_Sint:
     case ChNumFormat::X16Y16_Float:
-        sxDownConvertFormat = SX_RT_EXPORT_16_16_GR;
+        sxDownConvertFormat =
+            (swizzledFormat.swizzle.a == ChannelSwizzle::Y) ? SX_RT_EXPORT_16_16_AR : SX_RT_EXPORT_16_16_GR;
         break;
     case ChNumFormat::X32_Uint:
     case ChNumFormat::X32_Sint:
     case ChNumFormat::X32_Float:
-        sxDownConvertFormat = SX_RT_EXPORT_32_R;
+        sxDownConvertFormat =
+            (swizzledFormat.swizzle.a == ChannelSwizzle::X) ? SX_RT_EXPORT_32_A : SX_RT_EXPORT_32_R;
         break;
     default:
         break;

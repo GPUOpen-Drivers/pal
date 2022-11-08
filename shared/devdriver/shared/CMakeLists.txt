@@ -44,6 +44,7 @@ if (DD_BP_ENABLE_DD_MODULE_APIS)
     add_subdirectory(ddModuleLoader)
     add_subdirectory(ddModuleUtil)
     add_subdirectory(protocols/info/g_client)
+    add_subdirectory(ddRmtEventTracer)
 endif()
 
 add_subdirectory(legacy)

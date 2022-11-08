@@ -55,11 +55,11 @@ SettingsLoader::SettingsLoader(
                          static_cast<DriverSettings*>(&m_settings),
                          g_gfx9PalNumSettings),
     m_pDevice(pDevice),
-    m_settings(),
+    m_settings{},
     m_gfxLevel(pDevice->ChipProperties().gfxLevel),
     m_pComponentName("Gfx9_Pal")
 {
-    memset(&m_settings, 0, sizeof(Gfx9PalSettings));
+
 }
 
 // =====================================================================================================================

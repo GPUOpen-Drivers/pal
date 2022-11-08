@@ -520,12 +520,8 @@ Result Device::SetupPublicSettingDefaults()
 #else
     m_publicSettings.forceWaitPointPreColorToPostPrefetch     = false;
 #endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 680
     m_publicSettings.enableExecuteIndirectPacket              = false;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 691
     m_publicSettings.disableExecuteIndirectAceOffload         = false;
-#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 706
     m_publicSettings.dccInitialClearKind                      = static_cast<uint32>(DccInitialClearKind::Uncompressed);
 #endif
@@ -1761,6 +1757,7 @@ Result Device::SplitSubresRanges(
 // planes specified into BarrierTransitions with a single plane SubresRange specified. If the this function allocates
 // memory pMemAllocated is set to true and the caller is responsible for deleting the memory.
 Result Device::SplitBarrierTransitions(
+    Platform*    pPlatform,
     BarrierInfo* pBarrier,      // Copy of a BarrierInfo struct that can have its pTransitions replaced.
                                 // If pTransitions contains imageInfos with SubresRanges that contain
                                 // multiple planes then a new list of transitions will be allocated,
@@ -1768,9 +1765,8 @@ Result Device::SplitBarrierTransitions(
                                 // memory is allocated for a new list of transitions true is returned
                                 // (false otherwise), and the caller is responsible for deleting the
                                 // memory.
-    bool*        pMemAllocated  // If the this function allocates memory true is set and the caller is
+    bool*        pMemAllocated) // If the this function allocates memory true is set and the caller is
                                 // responsible for deleting the memory.
-    ) const
 {
     PAL_ASSERT(pBarrier != nullptr);
 
@@ -1790,7 +1786,7 @@ Result Device::SplitBarrierTransitions(
     if (splitCount > pBarrier->transitionCount)
     {
         BarrierTransition* pNewSplitTransitions =
-            PAL_NEW_ARRAY(BarrierTransition, splitCount, GetPlatform(), AllocInternalTemp);
+            PAL_NEW_ARRAY(BarrierTransition, splitCount, pPlatform, AllocInternalTemp);
         if (pNewSplitTransitions == nullptr)
         {
             result = Result::ErrorOutOfMemory;
@@ -1841,6 +1837,7 @@ Result Device::SplitBarrierTransitions(
 // planes specified into ImgBarriers with a single plane SubresRanges specified. If the this function allocates memory
 // pMemAllocated is set to true and the caller is responsible for deleting the memory.
 Result Device::SplitImgBarriers(
+    Platform*           pPlatform,
     AcquireReleaseInfo* pBarrier,      // Copy of a AcquireReleaseInfo struct that can have its pImageBarriers
                                        // replaced. If pImageBarriers has SubresRanges that contain
                                        // multiple planes then a new list of image barriers will be allocated,
@@ -1848,9 +1845,8 @@ Result Device::SplitImgBarriers(
                                        // memory is allocated for a new list of barriers true is returned
                                        // (false otherwise), and the caller is responsible for deleting the
                                        // memory.
-    bool*               pMemAllocated  // If the this function allocates memory true is set and the caller is
+    bool*               pMemAllocated) // If the this function allocates memory true is set and the caller is
                                        // responsible for deleting the memory.
-    ) const
 {
     PAL_ASSERT(pBarrier != nullptr);
 
@@ -1868,7 +1864,7 @@ Result Device::SplitImgBarriers(
 
     if (splitCount > pBarrier->imageBarrierCount)
     {
-        ImgBarrier* pNewSplitTransitions = PAL_NEW_ARRAY(ImgBarrier, splitCount, GetPlatform(), AllocInternalTemp);
+        ImgBarrier* pNewSplitTransitions = PAL_NEW_ARRAY(ImgBarrier, splitCount, pPlatform, AllocInternalTemp);
         if (pNewSplitTransitions == nullptr)
         {
             result = Result::ErrorOutOfMemory;
@@ -2196,6 +2192,7 @@ Result Device::GetProperties(
         pInfo->gpuMemoryProperties.flags.pageMigrationEnabled    = m_memoryProperties.flags.intraSubmitMigration;
         pInfo->gpuMemoryProperties.flags.supportsTmz             = m_memoryProperties.flags.supportsTmz;
         pInfo->gpuMemoryProperties.flags.supportsMall            = m_memoryProperties.flags.supportsMall;
+        pInfo->gpuMemoryProperties.flags.supportPageFaultInfo    = m_memoryProperties.flags.supportPageFaultInfo;
 
         pInfo->gpuMemoryProperties.realMemAllocGranularity    = m_memoryProperties.realMemAllocGranularity;
         pInfo->gpuMemoryProperties.virtualMemAllocGranularity = m_memoryProperties.virtualMemAllocGranularity;
@@ -2368,6 +2365,13 @@ Result Device::GetProperties(
                     pInfo->gfxipProperties.shaderCore.activeCuMask[se][0] = gfx6Props.activeCuMaskGfx7[se];
                 }
             }
+
+            static_assert(sizeof(m_chipProperties.gfxip.activePixelPackerMask) ==
+                sizeof(pInfo->gfxipProperties.shaderCore.activePixelPackerMask),
+                "PAL Device and interface active pixel packer mask sizes do not match!");
+            memcpy(pInfo->gfxipProperties.shaderCore.activePixelPackerMask, m_chipProperties.gfxip.activePixelPackerMask,
+                sizeof(pInfo->gfxipProperties.shaderCore.activePixelPackerMask));
+
             break;
         }
 
@@ -2418,7 +2422,11 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportReleaseAcquireInterface   = gfx9Props.supportReleaseAcquireInterface;
             pInfo->gfxipProperties.flags.supportSplitReleaseAcquire       = gfx9Props.supportSplitReleaseAcquire;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 776
+            pInfo->gfxipProperties.shaderCore.numShaderEngines     = gfx9Props.numActiveShaderEngines;
+#else
             pInfo->gfxipProperties.shaderCore.numShaderEngines     = gfx9Props.numShaderEngines;
+#endif
             pInfo->gfxipProperties.shaderCore.numShaderArrays      = gfx9Props.numShaderArrays;
             pInfo->gfxipProperties.shaderCore.numCusPerShaderArray = gfx9Props.numCuPerSh;
             pInfo->gfxipProperties.shaderCore.maxCusPerShaderArray = gfx9Props.maxNumCuPerSh;
@@ -2471,6 +2479,31 @@ Result Device::GetProperties(
             PAL_ASSERT((gfx9Props.numShaderEngines <= MaxShaderEngines) &&
                        (gfx9Props.numShaderArrays  <= MaxShaderArraysPerSe));
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 776
+            // Remove any holes in the CuMask and PixelPacker before passing it up to the client
+            const uint32 pixelPackersPerSe = m_chipProperties.gfx9.numScPerSe * m_chipProperties.gfx9.numPackerPerSc;
+            uint32 activeSe = 0;
+            for (uint32 se = 0; se < gfx9Props.numShaderEngines; ++se)
+            {
+                if (TestAnyFlagSet(gfx9Props.activeSeMask, 1u << se))
+                {
+                    for (uint32 sa = 0; sa < gfx9Props.numShaderArrays; ++sa)
+                    {
+                        pInfo->gfxipProperties.shaderCore.activeCuMask[activeSe][sa] = gfx9Props.activeCuMask[se][sa];
+                    }
+                    for (uint32 packer = 0; packer < pixelPackersPerSe; ++packer)
+                    {
+                        if (WideBitfieldIsSet(m_chipProperties.gfxip.activePixelPackerMask,
+                            packer + (MaxPixelPackerPerSe * se)))
+                        {
+                            WideBitfieldSetBit(pInfo->gfxipProperties.shaderCore.activePixelPackerMask,
+                                packer + (MaxPixelPackerPerSe * activeSe));
+                        }
+                    }
+                    activeSe++;
+                }
+            }
+#else
             for (uint32 se = 0; se < gfx9Props.numShaderEngines; ++se)
             {
                 for (uint32 sa = 0; sa < gfx9Props.numShaderArrays; ++sa)
@@ -2478,6 +2511,13 @@ Result Device::GetProperties(
                     pInfo->gfxipProperties.shaderCore.activeCuMask[se][sa] = gfx9Props.activeCuMask[se][sa];
                 }
             }
+
+            static_assert(sizeof(m_chipProperties.gfxip.activePixelPackerMask) ==
+                sizeof(pInfo->gfxipProperties.shaderCore.activePixelPackerMask),
+                "PAL Device and interface active pixel packer mask sizes do not match!");
+            memcpy(pInfo->gfxipProperties.shaderCore.activePixelPackerMask, m_chipProperties.gfxip.activePixelPackerMask,
+                sizeof(pInfo->gfxipProperties.shaderCore.activePixelPackerMask));
+#endif
 
             pInfo->gfxipProperties.flags.supportInt8Dot    = gfx9Props.supportInt8Dot;
             pInfo->gfxipProperties.flags.supportInt4Dot    = gfx9Props.supportInt4Dot;
@@ -2525,12 +2565,6 @@ Result Device::GetProperties(
         pInfo->gfxipProperties.shaderCore.instCacheSizePerCu     = m_chipProperties.gfxip.instCacheSizePerCu;
         pInfo->gfxipProperties.shaderCore.scalarCacheSizePerCu   = m_chipProperties.gfxip.scalarCacheSizePerCu;
 
-        static_assert(sizeof(m_chipProperties.gfxip.activePixelPackerMask) ==
-                      sizeof(pInfo->gfxipProperties.shaderCore.activePixelPackerMask),
-                      "PAL Device and interface active pixel packer mask sizes do not match!");
-        memcpy(pInfo->gfxipProperties.shaderCore.activePixelPackerMask, m_chipProperties.gfxip.activePixelPackerMask,
-               sizeof(pInfo->gfxipProperties.shaderCore.activePixelPackerMask));
-
         pInfo->gfxipProperties.gl2UncachedCpuCoherency           = m_chipProperties.gfxip.gl2UncachedCpuCoherency;
         pInfo->gfxipProperties.flags.supportGl2Uncached          = m_chipProperties.gfxip.supportGl2Uncached;
         pInfo->gfxipProperties.flags.supportCaptureReplay        = m_chipProperties.gfxip.supportCaptureReplay;
@@ -2565,7 +2599,9 @@ Result Device::GetProperties(
 // ability to query the GPU execution state from OS or KMD. Returns Success for platforms that can't detect the GPU
 // state, which is equivalent to GPU being active.
 // NOTE: Part of the IDevice public interface.
-Result Device::CheckExecutionState() const
+Result Device::CheckExecutionState(
+    PageFaultStatus* pPageFaultStatus
+    ) const
 {
     return Result::Success;
 }

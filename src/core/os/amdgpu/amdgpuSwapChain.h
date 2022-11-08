@@ -57,6 +57,10 @@ public:
 
     virtual bool NeedWindowSizeChangedCheck() const override;
 
+    virtual Result AcquireNextImage(
+        const AcquireNextImageInfo& acquireInfo,
+        uint32*                     pImageIndex) override;
+
 private:
     SwapChain(const SwapChainCreateInfo& createInfo, Device* pDevice);
     virtual ~SwapChain();
@@ -64,6 +68,8 @@ private:
     virtual Result Init(void* pPlacementMem) override;
 
     virtual Result ReclaimUnusedImages(uint64 timeout) override;
+
+    bool OptimizedHandlingForNativeWindowSystem(uint32* pImageIndex);
 
     WindowSystem* m_pWindowSystem;
     PresentFence* m_pPresentIdle[MaxSwapChainLength]; // Signaled when each image is idle in the windowing system.

@@ -47,11 +47,6 @@ constexpr uint8  ElfAbiVersionAmdgpuHsaV3 = 1;  ///< ELFABIVERSION_AMDGPU_HSA_V3
 constexpr uint8  ElfAbiVersionAmdgpuHsaV4 = 2;  ///< ELFABIVERSION_AMDGPU_HSA_V4
 constexpr uint8  ElfAbiVersionAmdgpuPal   = 0;  ///< ELFABIVERSION_AMDGPU_PAL
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 676
-constexpr uint8 ElfOsAbiVersion = ElfOsAbiAmdgpuPal;
-constexpr uint8 ElfAbiVersion   = ElfAbiVersionAmdgpuPal;
-#endif
-
 constexpr uint32 MetadataNoteType                = 32;   ///< NT_AMDGPU_METADATA
 constexpr uint64 PipelineShaderBaseAddrAlignment = 256;  ///< Base address alignment for shader stage entry points on
                                                          ///  AMD GPUs.
@@ -716,11 +711,9 @@ enum class CoverageToShaderSel : uint32
     Raw,                    ///< Output the scan converter's internal mask, unchanged.
 };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 676
  } //Abi
  namespace PalAbi
  {
- #endif
 
  constexpr uint32 PipelineMetadataMajorVersion = 3;  ///< Pipeline Metadata Major Version
  constexpr uint32 PipelineMetadataMinorVersion = 0;  ///< Pipeline Metadata Minor Version
@@ -728,9 +721,5 @@ enum class CoverageToShaderSel : uint32
  constexpr uint32 PipelineMetadataBase = 0x10000000; ///< Deprecated - Pipeline Metadata base value to be OR'd with the
                                                      ///  PipelineMetadataEntry value when saving to ELF.
 
- #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 676
  } //PalAbi
- #else
- } //Abi
- #endif
  } //Pal

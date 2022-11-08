@@ -573,12 +573,9 @@ public:
         GfxCmdBuffer*               pCmdBuf,
         RgpMarkerSubQueueFlags      subQueueFlags,
         Developer::DrawDispatchType cmdType,
-        uint32                      xOffset,
-        uint32                      yOffset,
-        uint32                      zOffset,
-        uint32                      xDim,
-        uint32                      yDim,
-        uint32                      zDim) const;
+        DispatchDims                offset,
+        DispatchDims                launchSize,
+        DispatchDims                logicalSize) const;
 
     void DescribeDraw(
         GfxCmdBuffer*               pCmdBuf,

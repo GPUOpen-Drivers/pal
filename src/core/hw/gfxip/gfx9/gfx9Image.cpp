@@ -92,7 +92,7 @@ Image::Image(
     ImageInfo*         pImageInfo,
     const Pal::Device& device)
     :
-    GfxImage(pParentImage, pImageInfo, device),
+    Pm4Image(pParentImage, pImageInfo, device),
     m_totalPlaneSize(0),
     m_gfxDevice(static_cast<const Device&>(*device.GetGfxDevice())),
     m_pHtile(nullptr),
@@ -1767,7 +1767,7 @@ bool Image::IsFastColorClearSupported(
         {
             // A count of 1 indicates that no command buffer has skipped a fast clear eliminate and hence holds a
             // reference to this image's ref counter. 0 indicates that the optimzation is not enabled for this image.
-            const bool noSkippedFastClearElim   = (Pal::GfxImage::GetFceRefCount() <= 1);
+            const bool noSkippedFastClearElim   = (GetFceRefCount() <= 1);
             const bool isClearColorTcCompatible = IsFastClearColorMetaFetchable(pColor);
 
             SetNonTcCompatClearFlag(isClearColorTcCompatible == false);
@@ -3681,8 +3681,9 @@ gpusize Image::ComputeNonBlockCompressedView(
     const auto&                            surfSetting     = GetAddrSettings(pBaseSubResInfo);
     const auto*                            pTileInfo       = Pal::AddrMgr2::GetTileInfo(pParent, pBaseSubResInfo->subresId);
 
-    // 2D image only
-    PAL_ASSERT(surfSetting.resourceType == ADDR_RSRC_TEX_2D);
+    // 2D image or non-prt 3D image
+    PAL_ASSERT((surfSetting.resourceType == ADDR_RSRC_TEX_2D) ||
+               ((surfSetting.resourceType == ADDR_RSRC_TEX_3D) && (imageCreateInfo.flags.prt == 0)));
 
     ADDR2_COMPUTE_NONBLOCKCOMPRESSEDVIEW_INPUT nbcIn = {};
     nbcIn.size         = sizeof(nbcIn);

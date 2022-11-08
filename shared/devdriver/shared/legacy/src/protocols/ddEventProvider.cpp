@@ -25,6 +25,7 @@
 
 #include <protocols/ddEventProvider.h>
 #include <protocols/ddEventServer.h>
+#include <protocols/ddEventServerSession.h>
 
 namespace DevDriver
 {
@@ -49,12 +50,14 @@ size_t CalculateWorstCaseSize(size_t eventDataSize)
 BaseEventProvider::BaseEventProvider(const AllocCb& allocCb, uint32 numEvents, uint32 flushFrequencyInMs)
     : m_allocCb(allocCb)
     , m_pServer(nullptr)
-    , m_eventState(allocCb)
+    , m_pSession(nullptr)
+    , m_numEvents(numEvents)
     , m_isEnabled(false)
     , m_flushFrequencyInMs(flushFrequencyInMs)
     , m_eventDataIndex(0)
     , m_nextFlushTime(0)
     , m_eventChunks(allocCb)
+    , m_eventState(allocCb)
 {
     DD_UNHANDLED_RESULT(m_eventState.Resize(numEvents));
 }
@@ -65,19 +68,25 @@ BaseEventProvider::~BaseEventProvider()
 
 Result BaseEventProvider::QueryEventWriteStatus(uint32 eventId) const
 {
+    DD_UNUSED(eventId);
+
     Result result = IsProviderRegistered() ? Result::Success
                                            : Result::Unavailable;
 
     if (result == Result::Success)
     {
-        result = (IsProviderEnabled() && IsEventEnabled(eventId)) ? Result::Success
-                                                                  : Result::Rejected;
+        result = IsProviderEnabled() ? Result::Success : Result::Rejected;
     }
 
     return result;
 }
 
-Result BaseEventProvider::WriteEventWithHeader(uint32 eventId, const void* pHeaderData, size_t headerSize, const void* pEventData, size_t eventDataSize)
+Result BaseEventProvider::WriteEventWithHeader(
+    uint32 eventId,
+    const void* pHeaderData,
+    size_t headerSize,
+    const void* pEventData,
+    size_t eventDataSize)
 {
     Result result = QueryEventWriteStatus(eventId);
 
@@ -155,10 +164,12 @@ Result BaseEventProvider::WriteEventWithHeader(uint32 eventId, const void* pHead
 
 ProviderDescriptionHeader BaseEventProvider::GetHeader() const
 {
+    uint8_t version = 1;
     return ProviderDescriptionHeader(GetId(),
-                                     static_cast<uint32>(m_eventState.SizeInBits()),
+                                     m_numEvents,
                                      static_cast<uint32>(GetEventDescriptionDataSize()),
-                                     m_isEnabled);
+                                     m_isEnabled,
+                                     version);
 }
 
 void BaseEventProvider::Update()
@@ -197,7 +208,7 @@ void BaseEventProvider::Flush()
     if (m_eventChunks.IsEmpty() == false)
     {
         // Flush all chunks in our current stream into the event server's queue
-        m_pServer->EnqueueEventChunks(m_eventChunks.Size(), m_eventChunks.Data());
+        m_pSession->EnqueueEventChunks(m_eventChunks.Size(), m_eventChunks.Data());
         m_eventChunks.Reset();
     }
 }
@@ -285,6 +296,24 @@ void BaseEventProvider::Register(EventServer* pServer)
     m_pServer = pServer;
 }
 
+void BaseEventProvider::AcquireSession(EventServerSession* pSession)
+{
+    DD_ASSERT(m_pSession == nullptr);
+    m_pSession = pSession;
+}
+
+EventServerSession* BaseEventProvider::GetAcquiredSession()
+{
+    return m_pSession;
+}
+
+EventServerSession* BaseEventProvider::ResetSession()
+{
+    EventServerSession* pOldEventSession = m_pSession;
+    m_pSession = nullptr;
+    return pOldEventSession;
+}
+
 void BaseEventProvider::Unregister()
 {
     // Flush any remaining chunks before the provider is unregistered
@@ -298,13 +327,13 @@ void BaseEventProvider::Unregister()
 Result BaseEventProvider::AllocateEventChunk(EventChunk** ppChunk)
 {
     EventChunk* pChunk = nullptr;
-    Result result = m_pServer->AllocateEventChunk(&pChunk);
+    Result result = m_pSession->AllocateEventChunk(&pChunk);
     if (result == Result::Success)
     {
         if (m_eventChunks.PushBack(pChunk) == false)
         {
             result = Result::InsufficientMemory;
-            m_pServer->FreeEventChunk(pChunk);
+            m_pSession->FreeEventChunk(pChunk);
         }
         else
         {
@@ -318,7 +347,7 @@ Result BaseEventProvider::AllocateEventChunk(EventChunk** ppChunk)
 void BaseEventProvider::FreeEventChunk(EventChunk* pChunk)
 {
     m_eventChunks.Remove(pChunk);
-    m_pServer->FreeEventChunk(pChunk);
+    m_pSession->FreeEventChunk(pChunk);
 }
 
 Result BaseEventProvider::BeginEventStream(EventChunk** ppChunk)

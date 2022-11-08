@@ -107,9 +107,11 @@ CmdBuffer::CmdBuffer(
     m_flags.nested = createInfo.flags.nested;
 
     memset(&m_surfaceCapture, 0, sizeof(m_surfaceCapture));
-    m_surfaceCapture.actionIdStart = pDevice->GetPlatform()->PlatformSettings().gpuDebugConfig.surfaceCaptureDrawStart;
-    m_surfaceCapture.actionIdCount = pDevice->GetPlatform()->PlatformSettings().gpuDebugConfig.surfaceCaptureDrawCount;
-    m_surfaceCapture.hash          = pDevice->GetPlatform()->PlatformSettings().gpuDebugConfig.surfaceCaptureHash;
+    m_surfaceCapture.actionIdStart        = pDevice->GetPlatform()->PlatformSettings().gpuDebugConfig.surfaceCaptureStart;
+    m_surfaceCapture.actionIdCount        = pDevice->GetPlatform()->PlatformSettings().gpuDebugConfig.surfaceCaptureCount;
+    m_surfaceCapture.hash                 = pDevice->GetPlatform()->PlatformSettings().gpuDebugConfig.surfaceCaptureHash;
+    m_surfaceCapture.blitImgOpEnabledMask = pDevice->GetPlatform()->PlatformSettings().\
+                                            gpuDebugConfig.blitSurfaceCaptureBitmask;
 }
 
 // =====================================================================================================================
@@ -127,6 +129,16 @@ CmdBuffer::~CmdBuffer()
     if (m_surfaceCapture.ppDepthTargetDsts != nullptr)
     {
         PAL_SAFE_FREE(m_surfaceCapture.ppDepthTargetDsts, m_pDevice->GetPlatform());
+    }
+
+    if (m_surfaceCapture.ppBlitImgs != nullptr)
+    {
+        PAL_SAFE_FREE(m_surfaceCapture.ppBlitImgs, m_pDevice->GetPlatform());
+    }
+
+    if (m_surfaceCapture.pBlitOpMask != nullptr)
+    {
+        PAL_SAFE_FREE(m_surfaceCapture.pBlitOpMask, m_pDevice->GetPlatform());
     }
 
     if (m_surfaceCapture.ppGpuMem != nullptr)
@@ -269,7 +281,35 @@ Result CmdBuffer::Init()
             }
         }
 
-        const uint32 totalSurfCount = colorSurfCount + depthSurfCount;
+        const uint32 maxBlitImgCaptureNum = m_surfaceCapture.actionIdCount; // The max number of blit image captured
+                                                                            // in a command buffer.
+        if (result == Result::Success)
+        {
+            m_surfaceCapture.ppBlitImgs = static_cast<Image**>(
+                PAL_CALLOC(sizeof(Image*) * maxBlitImgCaptureNum,
+                           m_pDevice->GetPlatform(),
+                           AllocInternal));
+
+            if (m_surfaceCapture.ppBlitImgs == nullptr)
+            {
+                result = Result::ErrorOutOfMemory;
+            }
+        }
+
+        if (result == Result::Success)
+        {
+            m_surfaceCapture.pBlitOpMask = static_cast<EnabledBlitOperations*>(
+                PAL_CALLOC(sizeof(uint32) * maxBlitImgCaptureNum,
+                           m_pDevice->GetPlatform(),
+                           AllocInternal));
+
+            if (m_surfaceCapture.pBlitOpMask == nullptr)
+            {
+                result = Result::ErrorOutOfMemory;
+            }
+        }
+
+        const uint32 totalSurfCount = colorSurfCount + depthSurfCount + maxBlitImgCaptureNum;
         if (result == Result::Success)
         {
             m_surfaceCapture.ppGpuMem = static_cast<IGpuMemory**>(
@@ -371,12 +411,28 @@ void CmdBuffer::AddCacheFlushInv()
 }
 
 // =====================================================================================================================
-// Returns true if surface capture is active at the current point of recording in this command buffer
-bool CmdBuffer::IsSurfaceCaptureActive() const
+// Returns true if surface capture is active at the current point of recording in this command buffer.
+// If checkMask is 0, then it means we want to check whether the draw capture is active.
+// If checkMask is not 0, then we would check whether it matches an active blt capture option.
+bool CmdBuffer::IsSurfaceCaptureActive(
+    EnabledBlitOperations checkMask) const
 {
-    return ((m_surfaceCapture.actionId >= m_surfaceCapture.actionIdStart) &&
-            (m_surfaceCapture.actionId < (m_surfaceCapture.actionIdStart + m_surfaceCapture.actionIdCount)) &&
-            m_surfaceCapture.pipelineMatch);
+    bool res = false;
+
+    if (checkMask == NoBlitCapture)
+    {
+        res = ((m_surfaceCapture.actionId >= m_surfaceCapture.actionIdStart) &&
+               (m_surfaceCapture.actionId < (m_surfaceCapture.actionIdStart + m_surfaceCapture.actionIdCount)) &&
+               m_surfaceCapture.pipelineMatch);
+    }
+    else
+    {
+        res = ((m_surfaceCapture.actionId >= m_surfaceCapture.actionIdStart) &&
+               (m_surfaceCapture.actionId < (m_surfaceCapture.actionIdStart + m_surfaceCapture.actionIdCount)) &&
+               (checkMask & m_surfaceCapture.blitImgOpEnabledMask));
+    }
+
+    return res;
 }
 
 // =====================================================================================================================
@@ -423,8 +479,12 @@ void CmdBuffer::CaptureSurfaces()
                 IImage* pDstImage = nullptr;
                 Result result = CaptureImageSurface(
                     pSrcImage,
+                    LayoutColorTarget,
+                    LayoutUniversalEngine,
+                    CoherColorTarget,
                     ctvCreateInfo.imageInfo.baseSubRes,
                     ctvCreateInfo.imageInfo.arraySize,
+                    true,
                     &pDstImage);
 
                 if (result == Result::Success)
@@ -484,8 +544,12 @@ void CmdBuffer::CaptureSurfaces()
 
                 result = CaptureImageSurface(
                     pSrcImage,
+                    LayoutDepthStencilTarget,
+                    LayoutUniversalEngine,
+                    CoherDepthStencilTarget,
                     subresId,
                     dsvCreateInfo.arraySize,
+                    true,
                     &pDstImage);
 
                 if (result == Result::Success)
@@ -515,10 +579,14 @@ void CmdBuffer::CaptureSurfaces()
 // This function captures a single plane and mip level.
 // All array slices included in the baseSubres and arraySize are captured
 Result CmdBuffer::CaptureImageSurface(
-    const IImage*   pSrcImage,      // [in] pointer to the surface to capture
-    const SubresId& baseSubres,     // Specifies the plane, mip level, and base array slice.
-    uint32          arraySize,
-    IImage**        ppDstImage)     // [out] pointer to the surface that has the capture data
+    const IImage*                  pSrcImage,      // [in] pointer to the surface to capture.
+    const ImageLayoutUsageFlags    srcLayoutUsages,
+    const ImageLayoutEngineFlags   srcLayoutEngine,
+    const CacheCoherencyUsageFlags srcCoher,
+    const SubresId&                baseSubres,     // Specifies the plane, mip level, and base array slice.
+    const uint32                   arraySize,
+    bool                           isDraw,
+    IImage**                       ppDstImage)
 {
     PAL_ASSERT(pSrcImage != nullptr);
 
@@ -615,13 +683,8 @@ Result CmdBuffer::CaptureImageSurface(
     // Copy
     if (result == Result::Success)
     {
-        const ImageLayoutUsageFlags srcLayoutColorDepth =
-            (pSrcImage->GetImageCreateInfo().usageFlags.depthStencil) ? LayoutDepthStencilTarget : LayoutColorTarget;
-        const CacheCoherencyUsageFlags srcCoher =
-            (pSrcImage->GetImageCreateInfo().usageFlags.depthStencil) ? CoherDepthStencilTarget : CoherColorTarget;
-
         // Send Barrier to prepare for upcoming copy
-        // Transition 0 : Src from Color/Depth Target to Copy Src
+        // Transition 0 : Src from the given Target to Copy Src
         // Transition 1 : Dst from Uninitialized to Copy Dst
         BarrierInfo preCopyBarrier = {};
 
@@ -633,8 +696,8 @@ Result CmdBuffer::CaptureImageSurface(
         preCopyTransitions[0].imageInfo.subresRange.numPlanes   = 1;
         preCopyTransitions[0].imageInfo.subresRange.numMips     = 1;
         preCopyTransitions[0].imageInfo.subresRange.numSlices   = arraySize;
-        preCopyTransitions[0].imageInfo.oldLayout.usages        = srcLayoutColorDepth;
-        preCopyTransitions[0].imageInfo.oldLayout.engines       = LayoutUniversalEngine;
+        preCopyTransitions[0].imageInfo.oldLayout.usages        = srcLayoutUsages;
+        preCopyTransitions[0].imageInfo.oldLayout.engines       = srcLayoutEngine;
         preCopyTransitions[0].imageInfo.newLayout.usages        = LayoutCopySrc;
         preCopyTransitions[0].imageInfo.newLayout.engines       = LayoutUniversalEngine;
 
@@ -653,8 +716,17 @@ Result CmdBuffer::CaptureImageSurface(
 
         preCopyBarrier.waitPoint            = HwPipePreBlt;
 
-        preCopyBarrier.rangeCheckedTargetWaitCount = 1;
-        preCopyBarrier.ppTargets = &pSrcImage;
+        const HwPipePoint blitWaitForPipePoint = HwPipePostBlt;
+        if (isDraw)
+        {
+            preCopyBarrier.rangeCheckedTargetWaitCount = 1;
+            preCopyBarrier.ppTargets = &pSrcImage;
+        }
+        else
+        {
+            preCopyBarrier.pipePointWaitCount = 1;
+            preCopyBarrier.pPipePoints = &blitWaitForPipePoint;
+        }
 
         preCopyBarrier.transitionCount  = 2;
         preCopyBarrier.pTransitions     = &preCopyTransitions[0];
@@ -663,7 +735,7 @@ Result CmdBuffer::CaptureImageSurface(
 
         // Send Copy Cmd
         ImageLayout srcLayout = { 0 };
-        srcLayout.usages  = srcLayoutColorDepth | LayoutCopySrc;
+        srcLayout.usages  = isDraw ? (srcLayoutUsages | LayoutCopySrc) : LayoutCopySrc;
         srcLayout.engines = LayoutUniversalEngine;
 
         ImageLayout dstLayout = { 0 };
@@ -706,10 +778,10 @@ Result CmdBuffer::CaptureImageSurface(
         postCopyTransition.imageInfo.subresRange.numSlices   = arraySize;
         postCopyTransition.imageInfo.oldLayout.usages        = LayoutCopySrc;
         postCopyTransition.imageInfo.oldLayout.engines       = LayoutUniversalEngine;
-        postCopyTransition.imageInfo.newLayout.usages        = srcLayoutColorDepth;
-        postCopyTransition.imageInfo.newLayout.engines       = LayoutUniversalEngine;
+        postCopyTransition.imageInfo.newLayout.usages        = srcLayoutUsages;
+        postCopyTransition.imageInfo.newLayout.engines       = srcLayoutEngine;
 
-        postCopyBarrier.waitPoint           = HwPipePreRasterization;
+        postCopyBarrier.waitPoint           = isDraw ? HwPipePreRasterization : HwPipePreBlt;
 
         const HwPipePoint postCopyPipePoint = HwPipePostBlt;
         postCopyBarrier.pipePointWaitCount  = 1;
@@ -836,6 +908,23 @@ void CmdBuffer::SyncSurfaceCapture()
              }
         }
     }
+
+    if (m_surfaceCapture.ppBlitImgs != nullptr)
+    {
+        for (uint32 action = 0; action < m_surfaceCapture.actionIdCount; action++)
+        {
+            Image* pImage = m_surfaceCapture.ppBlitImgs[action];
+            if (pImage != nullptr)
+            {
+                ImageCreateInfo imageInfo                   = pImage->GetImageCreateInfo();
+
+                transition.imageInfo.pImage                 = pImage;
+                transition.imageInfo.subresRange.numMips    = imageInfo.mipLevels;
+                transition.imageInfo.subresRange.numSlices  = imageInfo.arraySize;
+                CmdBarrier(barrierInfo);
+            }
+        }
+    }
 }
 
 // =====================================================================================================================
@@ -843,7 +932,9 @@ void CmdBuffer::SyncSurfaceCapture()
 // This function must be called only after this command buffer has finished execution.
 void CmdBuffer::OutputSurfaceCapture()
 {
-    Result result = Result::Success;
+    Result result    = Result::Success;
+    int64  captureTS = GetPerfCpuTime();
+
     char filePath[256] = {};
 
     result = m_pDevice->GetPlatform()->CreateLogDir(
@@ -876,10 +967,10 @@ void CmdBuffer::OutputSurfaceCapture()
                     {
                         Snprintf(fileName,
                                  sizeof(fileName),
-                                 "Draw%d_RT%d__TS0x%llx",
+                                 "TS0x%llx_ID%d_Draw_RT%d",
+                                 captureTS,
                                  m_surfaceCapture.actionIdStart + action,
-                                 mrt,
-                                 GetPerfCpuTime());
+                                 mrt);
 
                         OutputSurfaceCaptureImage(
                             pImage,
@@ -901,16 +992,58 @@ void CmdBuffer::OutputSurfaceCapture()
                     {
                         Snprintf(fileName,
                                  sizeof(fileName),
-                                 "Draw%d_DSV%d__TS0x%llx",
+                                 "TS0x%llx_ID%d_Draw_DSV%d",
+                                 captureTS,
                                  m_surfaceCapture.actionIdStart + action,
-                                 plane,
-                                 GetPerfCpuTime());
+                                 plane);
 
                         OutputSurfaceCaptureImage(
                             pImage,
                             &filePath[0],
                             &fileName[0]);
                     }
+                }
+            }
+
+            if (m_surfaceCapture.ppBlitImgs != nullptr)
+            {
+                // Output blit images capture
+                Image* pImage = m_surfaceCapture.ppBlitImgs[action];
+
+                if (pImage != nullptr)
+                {
+                    char opNameStr[256] = {};
+                    switch (m_surfaceCapture.pBlitOpMask[action])
+                    {
+                    case EnableCmdCopyMemoryToImage:
+                        Snprintf(opNameStr, sizeof(opNameStr), "%s", "CmdCopyMemoryToImage");
+                        break;
+                    case EnableCmdClearColorImage:
+                        Snprintf(opNameStr, sizeof(opNameStr), "%s", "CmdClearColorImage");
+                        break;
+                    case EnableCmdClearDepthStencil:
+                        Snprintf(opNameStr, sizeof(opNameStr), "%s", "CmdClearDepthStencil");
+                        break;
+                    case EnableCmdCopyImageToMemory:
+                        Snprintf(opNameStr, sizeof(opNameStr), "%s", "CmdCopyImageToMemory");
+                        break;
+                    default:
+                        // An unidentified blit operation mask.
+                        PAL_ASSERT_ALWAYS();
+                        break;
+                    }
+
+                    Snprintf(fileName,
+                             sizeof(fileName),
+                             "TS0x%llx_ID%d_%s",
+                             captureTS,
+                             m_surfaceCapture.actionIdStart + action,
+                             opNameStr);
+
+                    OutputSurfaceCaptureImage(
+                        pImage,
+                        &filePath[0],
+                        &fileName[0]);
                 }
             }
         }
@@ -1017,6 +1150,18 @@ void CmdBuffer::DestroySurfaceCaptureData()
             {
                 m_surfaceCapture.ppDepthTargetDsts[i]->Destroy();
                 PAL_SAFE_FREE(m_surfaceCapture.ppDepthTargetDsts[i], m_pDevice->GetPlatform());
+            }
+        }
+    }
+
+    if (m_surfaceCapture.ppBlitImgs != nullptr)
+    {
+        for (uint32 i = 0; i < m_surfaceCapture.actionIdCount; i++)
+        {
+            if (m_surfaceCapture.ppBlitImgs[i] != nullptr)
+            {
+                m_surfaceCapture.ppBlitImgs[i]->Destroy();
+                PAL_SAFE_FREE(m_surfaceCapture.ppBlitImgs[i], m_pDevice->GetPlatform());
             }
         }
     }
@@ -2411,7 +2556,7 @@ void CmdBuffer::HandleDrawDispatch(
 
         if (isDraw)
         {
-            if (IsSurfaceCaptureActive())
+            if (IsSurfaceCaptureActive(NoBlitCapture))
             {
                 cacheFlushInv = true;
             }
@@ -2422,7 +2567,7 @@ void CmdBuffer::HandleDrawDispatch(
             AddCacheFlushInv();
         }
 
-        if (IsSurfaceCaptureActive())
+        if (IsSurfaceCaptureActive(NoBlitCapture))
         {
             CaptureSurfaces();
         }
@@ -2703,19 +2848,15 @@ void CmdBuffer::ReplayCmdDrawIndexedIndirectMulti(
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDispatch(
-    ICmdBuffer* pCmdBuffer,
-    uint32      x,
-    uint32      y,
-    uint32      z)
+    ICmdBuffer*  pCmdBuffer,
+    DispatchDims size)
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
     pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDispatch, true);
 
     pThis->InsertToken(CmdBufCallId::CmdDispatch);
-    pThis->InsertToken(x);
-    pThis->InsertToken(y);
-    pThis->InsertToken(z);
+    pThis->InsertToken(size);
 
     pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDispatch, false);
 }
@@ -2725,10 +2866,9 @@ void CmdBuffer::ReplayCmdDispatch(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
-    auto x = ReadTokenVal<uint32>();
-    auto y = ReadTokenVal<uint32>();
-    auto z = ReadTokenVal<uint32>();
-    pTgtCmdBuffer->CmdDispatch(x, y, z);
+    const auto size = ReadTokenVal<DispatchDims>();
+
+    pTgtCmdBuffer->CmdDispatch(size);
 }
 
 // =====================================================================================================================
@@ -2753,32 +2893,27 @@ void CmdBuffer::ReplayCmdDispatchIndirect(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
-    auto pGpuMemory = ReadTokenVal<IGpuMemory*>();
-    auto offset     = ReadTokenVal<gpusize>();
+    const auto pGpuMemory = ReadTokenVal<IGpuMemory*>();
+    const auto offset     = ReadTokenVal<gpusize>();
+
     pTgtCmdBuffer->CmdDispatchIndirect(*pGpuMemory, offset);
 }
 
 // =====================================================================================================================
 void PAL_STDCALL CmdBuffer::CmdDispatchOffset(
-    ICmdBuffer* pCmdBuffer,
-    uint32      xOffset,
-    uint32      yOffset,
-    uint32      zOffset,
-    uint32      xDim,
-    uint32      yDim,
-    uint32      zDim)
+    ICmdBuffer*  pCmdBuffer,
+    DispatchDims offset,
+    DispatchDims launchSize,
+    DispatchDims logicalSize)
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
     pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDispatchOffset, true);
 
     pThis->InsertToken(CmdBufCallId::CmdDispatchOffset);
-    pThis->InsertToken(xOffset);
-    pThis->InsertToken(yOffset);
-    pThis->InsertToken(zOffset);
-    pThis->InsertToken(xDim);
-    pThis->InsertToken(yDim);
-    pThis->InsertToken(zDim);
+    pThis->InsertToken(offset);
+    pThis->InsertToken(launchSize);
+    pThis->InsertToken(logicalSize);
 
     pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDispatchOffset, false);
 }
@@ -2788,22 +2923,18 @@ void CmdBuffer::ReplayCmdDispatchOffset(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
-    auto xOffset = ReadTokenVal<uint32>();
-    auto yOffset = ReadTokenVal<uint32>();
-    auto zOffset = ReadTokenVal<uint32>();
-    auto xDim    = ReadTokenVal<uint32>();
-    auto yDim    = ReadTokenVal<uint32>();
-    auto zDim    = ReadTokenVal<uint32>();
-    pTgtCmdBuffer->CmdDispatchOffset(xOffset, yOffset, zOffset, xDim, yDim, zDim);
+    const auto offset      = ReadTokenVal<DispatchDims>();
+    const auto launchSize  = ReadTokenVal<DispatchDims>();
+    const auto logicalSize = ReadTokenVal<DispatchDims>();
+
+    pTgtCmdBuffer->CmdDispatchOffset(offset, launchSize, logicalSize);
 }
 
 // =====================================================================================================================
 void CmdBuffer::CmdDispatchDynamic(
-    ICmdBuffer* pCmdBuffer,
-    gpusize     gpuVa,
-    uint32      xDim,
-    uint32      yDim,
-    uint32      zDim)
+    ICmdBuffer*  pCmdBuffer,
+    gpusize      gpuVa,
+    DispatchDims size)
 {
     auto* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
@@ -2811,9 +2942,7 @@ void CmdBuffer::CmdDispatchDynamic(
 
     pThis->InsertToken(CmdBufCallId::CmdDispatchDynamic);
     pThis->InsertToken(gpuVa);
-    pThis->InsertToken(xDim);
-    pThis->InsertToken(yDim);
-    pThis->InsertToken(zDim);
+    pThis->InsertToken(size);
 
     pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDispatchDynamic, false);
 }
@@ -2823,28 +2952,23 @@ void CmdBuffer::ReplayCmdDispatchDynamic(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
-    auto gpuVa = ReadTokenVal<gpusize>();
-    auto x     = ReadTokenVal<uint32>();
-    auto y     = ReadTokenVal<uint32>();
-    auto z     = ReadTokenVal<uint32>();
-    pTgtCmdBuffer->CmdDispatchDynamic(gpuVa, x, y, z);
+    const auto gpuVa = ReadTokenVal<gpusize>();
+    const auto size  = ReadTokenVal<DispatchDims>();
+
+    pTgtCmdBuffer->CmdDispatchDynamic(gpuVa, size);
 }
 
 // =====================================================================================================================
 void CmdBuffer::CmdDispatchMesh(
-    ICmdBuffer* pCmdBuffer,
-    uint32      xDim,
-    uint32      yDim,
-    uint32      zDim)
+    ICmdBuffer*  pCmdBuffer,
+    DispatchDims size)
 {
     CmdBuffer* pThis = static_cast<CmdBuffer*>(pCmdBuffer);
 
     pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDispatchMesh, true);
 
     pThis->InsertToken(CmdBufCallId::CmdDispatchMesh);
-    pThis->InsertToken(xDim);
-    pThis->InsertToken(yDim);
-    pThis->InsertToken(zDim);
+    pThis->InsertToken(size);
 
     pThis->HandleDrawDispatch(Developer::DrawDispatchType::CmdDispatchMesh, false);
 }
@@ -2854,10 +2978,9 @@ void CmdBuffer::ReplayCmdDispatchMesh(
     Queue*           pQueue,
     TargetCmdBuffer* pTgtCmdBuffer)
 {
-    auto x = ReadTokenVal<uint32>();
-    auto y = ReadTokenVal<uint32>();
-    auto z = ReadTokenVal<uint32>();
-    pTgtCmdBuffer->CmdDispatchMesh(x, y, z);
+    const auto size = ReadTokenVal<DispatchDims>();
+
+    pTgtCmdBuffer->CmdDispatchMesh(size);
 }
 
 // =====================================================================================================================
@@ -3315,6 +3438,52 @@ void CmdBuffer::CmdCopyMemoryToImage(
     InsertTokenArray(pRegions, regionCount);
 
     HandleBarrierBlt(false, false);
+
+    if (IsSurfaceCaptureActive(EnableCmdCopyMemoryToImage))
+    {
+        SubresId  blitImgBaseSubres;
+        blitImgBaseSubres.arraySlice = 0;
+        blitImgBaseSubres.mipLevel   = 0;
+        blitImgBaseSubres.plane      = 0;
+
+        IImage* pDstImage = nullptr;
+        Result result = CaptureImageSurface(&dstImage,
+                static_cast<ImageLayoutUsageFlags>(dstImageLayout.usages),
+                static_cast<ImageLayoutEngineFlags>(dstImageLayout.engines),
+                CoherCopyDst,
+                blitImgBaseSubres,
+                dstImage.GetImageCreateInfo().arraySize,
+                false,
+                &pDstImage);
+
+        if (result == Result::Success)
+        {
+            PAL_ASSERT(m_surfaceCapture.actionId >= m_surfaceCapture.actionIdStart);
+            const uint32 actionIndex = m_surfaceCapture.actionId - m_surfaceCapture.actionIdStart;
+            PAL_ASSERT(actionIndex < m_surfaceCapture.actionIdCount);
+
+            m_surfaceCapture.pBlitOpMask[actionIndex] = EnableCmdCopyMemoryToImage;
+
+            PAL_ASSERT(m_surfaceCapture.ppBlitImgs[actionIndex] == nullptr);
+            m_surfaceCapture.ppBlitImgs[actionIndex] = static_cast<Image*>(pDstImage);
+
+            m_surfaceCapture.actionId++;
+        }
+        else
+        {
+            PAL_DPWARN("Failed to capture CmdCopyMemoryToImage, Error:0x%x", result);
+        }
+
+        // Warning user if the image has multiple planes or the region has multiple mips
+        SubresRange dstImgSubresRange = {};
+        dstImage.GetFullSubresourceRange(&dstImgSubresRange);
+
+        if ((dstImgSubresRange.numPlanes > 1) || (dstImgSubresRange.numMips > 1))
+        {
+            PAL_DPWARN("Dst image in CmdCopyMemoryToImage has multiple planes or mipmaps. \
+                        Only capture plane 0, mip 0.");
+        }
+    }
 }
 
 // =====================================================================================================================
@@ -3348,6 +3517,52 @@ void CmdBuffer::CmdCopyImageToMemory(
     InsertTokenArray(pRegions, regionCount);
 
     HandleBarrierBlt(false, false);
+
+    if (IsSurfaceCaptureActive(EnableCmdCopyImageToMemory))
+    {
+        SubresId  blitImgBaseSubres;
+        blitImgBaseSubres.arraySlice = 0;
+        blitImgBaseSubres.mipLevel   = 0;
+        blitImgBaseSubres.plane      = 0;
+
+        IImage* pDstImage = nullptr;
+        Result result = CaptureImageSurface(&srcImage,
+                static_cast<ImageLayoutUsageFlags>(srcImageLayout.usages),
+                static_cast<ImageLayoutEngineFlags>(srcImageLayout.engines),
+                CoherCopyDst,
+                blitImgBaseSubres,
+                srcImage.GetImageCreateInfo().arraySize,
+                false,
+                &pDstImage);
+
+        if (result == Result::Success)
+        {
+            PAL_ASSERT(m_surfaceCapture.actionId >= m_surfaceCapture.actionIdStart);
+            const uint32 actionIndex = m_surfaceCapture.actionId - m_surfaceCapture.actionIdStart;
+            PAL_ASSERT(actionIndex < m_surfaceCapture.actionIdCount);
+
+            m_surfaceCapture.pBlitOpMask[actionIndex] = EnableCmdCopyImageToMemory;
+
+            PAL_ASSERT(m_surfaceCapture.ppBlitImgs[actionIndex] == nullptr);
+            m_surfaceCapture.ppBlitImgs[actionIndex] = static_cast<Image*>(pDstImage);
+
+            m_surfaceCapture.actionId++;
+        }
+        else
+        {
+            PAL_DPWARN("Failed to capture CmdCopyMemoryToImage, Error:0x%x", result);
+        }
+
+        // Warning user if the image has multiple planes or the region has multiple mips
+        SubresRange srcImgSubresRange = {};
+        srcImage.GetFullSubresourceRange(&srcImgSubresRange);
+
+        if ((srcImgSubresRange.numPlanes > 1) || (srcImgSubresRange.numMips > 1))
+        {
+            PAL_DPWARN("Src image in CmdCopyImageToMemory has multiple planes or mipmaps. \
+                        Only capture plane 0, mip 0.");
+        }
+    }
 }
 
 // =====================================================================================================================
@@ -3525,6 +3740,52 @@ void CmdBuffer::CmdClearColorImage(
     InsertToken(flags);
 
     HandleBarrierBlt(false, false);
+
+    if (IsSurfaceCaptureActive(EnableCmdClearColorImage))
+    {
+        SubresId  blitImgBaseSubres;
+        blitImgBaseSubres.arraySlice = 0;
+        blitImgBaseSubres.mipLevel   = 0;
+        blitImgBaseSubres.plane      = 0;
+
+        IImage* pDstImage = nullptr;
+        Result result = CaptureImageSurface(&image,
+            static_cast<ImageLayoutUsageFlags>(imageLayout.usages),
+            static_cast<ImageLayoutEngineFlags>(imageLayout.engines),
+            CoherColorTarget,
+            blitImgBaseSubres,
+            image.GetImageCreateInfo().arraySize,
+            false,
+            &pDstImage);
+
+        if (result == Result::Success)
+        {
+            PAL_ASSERT(m_surfaceCapture.actionId >= m_surfaceCapture.actionIdStart);
+            const uint32 actionIndex = m_surfaceCapture.actionId - m_surfaceCapture.actionIdStart;
+            PAL_ASSERT(actionIndex < m_surfaceCapture.actionIdCount);
+
+            m_surfaceCapture.pBlitOpMask[actionIndex] = EnableCmdClearColorImage;
+
+            PAL_ASSERT(m_surfaceCapture.ppBlitImgs[actionIndex] == nullptr);
+            m_surfaceCapture.ppBlitImgs[actionIndex] = static_cast<Image*>(pDstImage);
+
+            m_surfaceCapture.actionId++;
+        }
+        else
+        {
+            PAL_DPWARN("Failed to capture CmdClearColorImage, Error:0x%x", result);
+        }
+
+        // Warning user if the image has multiple planes or the region has multiple mips
+        SubresRange imgSubresRange = {};
+        image.GetFullSubresourceRange(&imgSubresRange);
+
+        if ((imgSubresRange.numPlanes > 1) || (imgSubresRange.numMips > 1))
+        {
+            PAL_DPWARN("Image in CmdClearColorImage has multiple planes or mipmaps. \
+                        Only capture plane 0, mip 0.");
+        }
+    }
 }
 
 // =====================================================================================================================
@@ -3630,6 +3891,52 @@ void CmdBuffer::CmdClearDepthStencil(
     InsertToken(flags);
 
     HandleBarrierBlt(false, false);
+
+    if (IsSurfaceCaptureActive(EnableCmdClearDepthStencil))
+    {
+        SubresId  blitImgBaseSubres;
+        blitImgBaseSubres.arraySlice = 0;
+        blitImgBaseSubres.mipLevel   = 0;
+        blitImgBaseSubres.plane      = 0;
+
+        IImage* pDstImage = nullptr;
+        Result result = CaptureImageSurface(&image,
+            static_cast<ImageLayoutUsageFlags>(depthLayout.usages),
+            static_cast<ImageLayoutEngineFlags>(depthLayout.engines),
+            CoherClear,
+            blitImgBaseSubres,
+            image.GetImageCreateInfo().arraySize,
+            false,
+            &pDstImage);
+
+        if (result == Result::Success)
+        {
+            PAL_ASSERT(m_surfaceCapture.actionId >= m_surfaceCapture.actionIdStart);
+            const uint32 actionIndex = m_surfaceCapture.actionId - m_surfaceCapture.actionIdStart;
+            PAL_ASSERT(actionIndex < m_surfaceCapture.actionIdCount);
+
+            m_surfaceCapture.pBlitOpMask[actionIndex] = EnableCmdClearDepthStencil;
+
+            PAL_ASSERT(m_surfaceCapture.ppBlitImgs[actionIndex] == nullptr);
+            m_surfaceCapture.ppBlitImgs[actionIndex] = static_cast<Image*>(pDstImage);
+
+            m_surfaceCapture.actionId++;
+        }
+        else
+        {
+            PAL_DPWARN("Failed to capture CmdClearDepthStencil, Error:0x%x", result);
+        }
+
+        // Warning user if the image has multiple planes or the region has multiple mips
+        SubresRange imgSubresRange = {};
+        image.GetFullSubresourceRange(&imgSubresRange);
+
+        if ((imgSubresRange.numPlanes > 1) || (imgSubresRange.numMips > 1))
+        {
+            PAL_DPWARN("Image in CmdClearDepthStencil has multiple planes or mipmaps. \
+                        Only capture plane 0, mip 0.");
+        }
+    }
 }
 
 // =====================================================================================================================

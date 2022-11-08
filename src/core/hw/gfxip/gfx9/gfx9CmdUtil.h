@@ -382,14 +382,12 @@ public:
         void*      pBuffer);
     template <bool dimInThreads, bool forceStartAt000>
     size_t BuildDispatchDirect(
-        uint32          xDim,
-        uint32          yDim,
-        uint32          zDim,
-        Pm4Predicate    predicate,
-        bool            isWave32,
-        bool            useTunneling,
-        bool            disablePartialPreempt,
-        void*           pBuffer) const;
+        DispatchDims size,
+        Pm4Predicate predicate,
+        bool         isWave32,
+        bool         useTunneling,
+        bool         disablePartialPreempt,
+        void*        pBuffer) const;
     static size_t BuildDispatchIndirectGfx(
         gpusize      byteOffset,
         Pm4Predicate predicate,
@@ -488,13 +486,11 @@ public:
         Pm4Predicate predicate,
         void*        pBuffer);
     static size_t BuildDispatchTaskMeshDirectAce(
-        uint32          xDim,
-        uint32          yDim,
-        uint32          zDim,
-        uint32          ringEntryLoc,
-        Pm4Predicate    predicate,
-        bool            isWave32,
-        void*           pBuffer);
+        DispatchDims size,
+        uint32       ringEntryLoc,
+        Pm4Predicate predicate,
+        bool         isWave32,
+        void*        pBuffer);
 
     template<bool indirectAddress>
     static size_t BuildDmaData(
@@ -793,11 +789,10 @@ private:
     void CheckShadowedUserConfigRegs(uint32 startRegAddr, uint32 endRegAddr) const;
 #endif
 
-    const Device&    m_device;
-    const GfxIpLevel m_gfxIpLevel;
-    const uint32     m_cpUcodeVersion;
-    const uint32     m_pfpUcodeVersion;
-    RegisterInfo     m_registerInfo;    // Addresses for registers whose addresses vary between hardware families.
+    const Device&            m_device;
+    const GpuChipProperties& m_chipProps;
+    const uint32             m_cpUcodeVersion;
+    RegisterInfo             m_registerInfo;    // Addresses for registers whose addresses vary between hardware families.
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // If this is set, PAL will verify that all register writes fall within the ranges which get shadowed to GPU

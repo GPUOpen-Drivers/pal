@@ -168,11 +168,7 @@ union GpuMemoryCreateFlags
                                                   ///  to either "always" or "never".
         uint64 explicitSync                 :  1; ///< If set, shared memory will skip syncs in the kernel and all
                                                   ///  drivers that use this memory must handle syncs explicitly.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 677
         uint64 privPrimary                  :  1; ///< This is a private primary surface gpu memory.
-#else
-        uint64 placeholder677               :  1;
-#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 723
         uint64 privateScreen                :  1; // GPU memory will be used for a private screen image.
 #else
@@ -371,9 +367,6 @@ struct GpuMemoryDesc
     gpusize alignment;              ///< Required GPU virtual address alignment, in bytes.
     uint32  heapCount;              ///< Number of entries in heaps[].  Must be 0 for virtual allocations.
     GpuHeap heaps[GpuHeapCount];    ///< List of preferred memory heaps, in order of preference.
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 667)
-    GpuHeap preferredHeap;          ///< The preferred heap of the GPU memory.
-#endif
     gpusize surfaceBusAddr;         ///< Bus Address of SDI memory surface and marker. These will not be initialized
     gpusize markerBusAddr;          ///  until the memory is made resident. Client needs to call
                                     ///  InitBusAddressableGpuMemory() to query and update before this is valid.

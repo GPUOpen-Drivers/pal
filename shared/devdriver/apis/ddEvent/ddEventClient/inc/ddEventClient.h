@@ -49,19 +49,6 @@ DD_RESULT ddEventClientReadEventData(
     DDEventClient hClient,      /// [in] Handle to an existing client object
     uint32_t      timeoutInMs); /// Timeout in milliseconds
 
-/// Attempts to query and return all known providers from the remote server
-DD_RESULT ddEventClientQueryProviders(
-    DDEventClient                 hClient,   /// [in] Handle to an existing client object
-    const DDEventProviderVisitor* pVisitor); /// [in] Provider visitor to return provider data through
-
-/// Attempts to configure the state of the providers on the remote server
-///
-/// Providers on the remote server will be updated to reflect the new configuration
-DD_RESULT ddEventClientConfigureProviders(
-    DDEventClient                 hClient,      /// [in] Handle to an existing client object
-    size_t                        numProviders, /// Number of items in the pProviders array
-    const DDEventProviderDesc*    pProviders);  /// [in] Array of provider descriptions to send to the server
-
 /// Attempts to fully enable all specified providers on the remote server
 ///
 /// This will enable the providers themselves and all individual events supported by them

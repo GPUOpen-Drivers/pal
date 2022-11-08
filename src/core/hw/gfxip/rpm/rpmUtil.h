@@ -45,7 +45,15 @@ namespace RpmUtil
 
 // Returns the minimum number of thread groups needed to launch at least minThreads.
 constexpr uint32 MinThreadGroups(uint32 minThreads, uint32 threadsPerGroup)
-    { return (minThreads + threadsPerGroup - 1) / threadsPerGroup; }
+    { return Util::RoundUpQuotient(minThreads, threadsPerGroup); }
+
+// Returns the minimum number of thread groups needed in each dimension to launch at least minThreads.
+constexpr DispatchDims MinThreadGroupsXyz(DispatchDims minThreads, DispatchDims threadsPerGroup)
+{
+    return {Util::RoundUpQuotient(minThreads.x, threadsPerGroup.x),
+            Util::RoundUpQuotient(minThreads.y, threadsPerGroup.y),
+            Util::RoundUpQuotient(minThreads.z, threadsPerGroup.z)};
+}
 
 extern void BuildRawBufferViewInfo(BufferViewInfo* pInfo,
                                    const Device&   device,

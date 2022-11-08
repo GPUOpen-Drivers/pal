@@ -41,7 +41,7 @@ DD_RESULT ddEventServerCreate(
 void ddEventServerDestroy(
     DDEventServer hServer); /// [in] Handle to the existing server object
 
-/// Attempts to create a new server object with the provided creation information
+/// Attempts to create a new provider object with the provided creation information
 DD_RESULT ddEventServerCreateProvider(
     const DDEventProviderCreateInfo* pInfo,       /// [in]  Create info
     DDEventProvider*                 phProvider); /// [out] Handle to the new provider object
