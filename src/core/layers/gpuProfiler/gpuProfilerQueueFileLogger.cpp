@@ -199,6 +199,10 @@ void Queue::OpenLogFile(
         m_logFile.Printf("TraceId,");
     }
 
+    // Add last column for misc trace info
+    const char* pCsvInfoHeader = "TraceNote";
+    m_logFile.Write(pCsvInfoHeader, strlen(pCsvInfoHeader));
+
     m_logFile.Printf("\n");
 }
 
@@ -604,6 +608,10 @@ void Queue::OutputFrameToFile(
             m_logFile.Printf("ThreadTraceId,");
         }
 
+        // Add last column for misc trace info
+        const char* pCsvInfoHeader = "TraceNote";
+        m_logFile.Write(pCsvInfoHeader, strlen(pCsvInfoHeader));
+
         m_logFile.Printf("\n");
     }
 
@@ -784,11 +792,11 @@ void Queue::OutputTraceDataToFile(
                 GpuProfilerGranularity::GpuProfilerGranularityFrame)
             {
                 OutputRgpFile(*logItem.pGpaSession, logItem.gpaSampleId);
-                m_logFile.Printf("%u,", m_curLogFrame);
+                m_logFile.Printf("%u", m_curLogFrame);
             }
             else
             {
-                m_logFile.Printf("USE FRAME-GRANULARITY FOR RGP,");
+                m_logFile.Printf("USE FRAME-GRANULARITY FOR RGP");
             }
         }
         else if (m_pDevice->GetProfilerMode() == GpuProfilerTraceEnabledTtv)
@@ -900,7 +908,7 @@ void Queue::OutputTraceDataToFile(
                 }
 
                 // The main spreadsheet records the trace IDs to help correlate traces to the execution timeline.
-                m_logFile.Printf("%u,", m_curLogTraceIdx++);
+                m_logFile.Printf("%u", m_curLogTraceIdx++);
             }
 
             PAL_SAFE_FREE(pResult, m_pDevice->GetPlatform());
@@ -910,15 +918,11 @@ void Queue::OutputTraceDataToFile(
     {
         // TODO: this error is set under none case yet.
         // GpaSession::BeginSample hits an ASSERT if this error happens.
-        m_logFile.Printf("ERROR: OUT OF MEMORY,");
+        m_logFile.Printf("ERROR: OUT OF MEMORY");
     }
     else if (logItem.errors.perfExpUnsupported != 0)
     {
-        m_logFile.Printf("ERROR: THREAD TRACE UNSUPPORTED,");
-    }
-    else
-    {
-        m_logFile.Printf(",");
+        m_logFile.Printf("ERROR: THREAD TRACE UNSUPPORTED");
     }
 }
 

@@ -210,6 +210,8 @@ void Device::TransitionDepthStencil(
             // this same barrier, we have just initialized the htile to known values.
             if (TestAnyFlagSet(transition.imageInfo.oldLayout.usages, LayoutUninitializedTarget) == false)
             {
+                const auto* pPublicSettings = m_pParent->GetPublicSettings();
+
                 // Use compute if:
                 //   - We're on the compute engine
                 //   - or we should force ExpandHiZRange for resummarize and we support compute operations
@@ -222,7 +224,7 @@ void Device::TransitionDepthStencil(
                       (createInfo.swizzledFormat.format == ChNumFormat::D16_Unorm_S8_Uint)));
                 const bool  useCompute = ((pCmdBuf->GetEngineType() == EngineTypeCompute) ||
                                           (pCmdBuf->IsComputeSupported() &&
-                                           (Pal::Image::ForceExpandHiZRangeForResummarize ||
+                                           (pPublicSettings->expandHiZRangeForResummarize ||
                                             z16Unorm1xAaDecompressUninitializedActive)));
 
                 if (useCompute)

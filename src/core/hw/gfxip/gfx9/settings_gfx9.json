@@ -1881,7 +1881,7 @@
       "Name": "BinningDisableBinningAppendConsume"
     },
     {
-      "Description": "Select method of shader prefetching:  0: CP DMA (primes UTCL2 and TCC) 1: PRIME_UTCL2 (primes the UTCL2) ",
+      "Description": "Use this prefetch method when the client sets prefetchShaders on a graphics command stream.",
       "Tags": [
         "Prefetching (L2 Cache Warming)"
       ],
@@ -1889,60 +1889,122 @@
         "Default": "PrefetchCpDma"
       },
       "ValidValues": {
+        "IsExclusive": true,
         "Values": [
           {
-            "Name": "PrefetchCpDma",
+            "Name": "PrefetchDisabled",
             "Value": 0,
-            "Description": "CP DMA prefetching."
+            "Description": "Never prefetch."
+          },
+          {
+            "Name": "PrefetchCpDma",
+            "Value": 1,
+            "Description": "Use CP DMA to stream data into the L2."
           },
           {
             "Name": "PrefetchPrimeUtcL2",
-            "Value": 1,
-            "Description": "PRIME_UTCL2 (primes the UTCL2)."
+            "Value": 2,
+            "Description": "Just prime the UTCL2, not the data L2."
           }
         ],
         "Name": "PrefetchMethod"
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "enum",
-      "VariableName": "shaderPrefetchMethod",
-      "Name": "ShaderPrefetchMethod"
+      "VariableName": "shaderPrefetchMethodGfx",
+      "Name": "ShaderPrefetchMethodGfx"
     },
     {
-      "ValidValues": {
-        "IsEnum": true,
-        "Values": [
-          {
-            "Name": "Gfx9PrefetchCommandsDisabled",
-            "Value": 0
-          },
-          {
-            "Name": "Gfx9PrefetchCommandsBuildInfo",
-            "Value": 1
-          },
-          {
-            "Name": "Gfx9PrefetchCommandsForceAllDe",
-            "Value": 2
-          },
-          {
-            "Name": "Gfx9PrefetchCommandsForceAllDeAce",
-            "Value": 3
-          }
-        ],
-        "Name": "Gfx9PrefetchCommands"
-      },
-      "Description": "Controls whether CP command buffers are prefetched into the Gfx L2.",
+      "Description": "Use this prefetch method when the client sets prefetchShaders on an async compute command stream.",
       "Tags": [
-        "Prefetching (L2 Cache Warming)",
-        "Gfx9"
+        "Prefetching (L2 Cache Warming)"
       ],
       "Defaults": {
-        "Default": "Gfx9PrefetchCommandsBuildInfo"
+        "Default": "PrefetchPrimeUtcL2"
+      },
+      "ValidValues": {
+        "IsExclusive": true,
+        "Values": [
+          {
+            "Name": "PrefetchDisabled",
+            "Value": 0,
+            "Description": "Never prefetch."
+          },
+          {
+            "Name": "PrefetchCpDma",
+            "Value": 1,
+            "Description": "Use CP DMA to stream data into the L2."
+          },
+          {
+            "Name": "PrefetchPrimeUtcL2",
+            "Value": 2,
+            "Description": "Just prime the UTCL2, not the data L2."
+          }
+        ],
+        "Name": "PrefetchMethod"
       },
       "Scope": "PrivatePalGfx9Key",
       "Type": "enum",
-      "VariableName": "prefetchCommandBuffers",
-      "Name": "PrefetchCommandBuffers"
+      "VariableName": "shaderPrefetchMethodAce",
+      "Name": "ShaderPrefetchMethodAce"
+    },
+    {
+      "Description": "Use this prefetch method when the client sets prefetchCommands on a graphics command stream.",
+      "Tags": [
+        "Prefetching (L2 Cache Warming)"
+      ],
+      "Defaults": {
+        "Default": "PrefetchCpDma"
+      },
+      "ValidValues": {
+        "IsExclusive": true,
+        "Values": [
+          {
+            "Name": "PrefetchDisabled",
+            "Value": 0,
+            "Description": "Never prefetch."
+          },
+          {
+            "Name": "PrefetchCpDma",
+            "Value": 1,
+            "Description": "Use CP DMA to stream data into the L2."
+          }
+        ],
+        "Name": "PrefetchMethod"
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "enum",
+      "VariableName": "commandPrefetchMethodGfx",
+      "Name": "CommandPrefetchMethodGfx"
+    },
+    {
+      "Description": "Use this prefetch method when the client sets prefetchCommands on an async compute command stream.",
+      "Tags": [
+        "Prefetching (L2 Cache Warming)"
+      ],
+      "Defaults": {
+        "Default": "PrefetchDisabled"
+      },
+      "ValidValues": {
+        "IsExclusive": true,
+        "Values": [
+          {
+            "Name": "PrefetchDisabled",
+            "Value": 0,
+            "Description": "Never prefetch."
+          },
+          {
+            "Name": "PrefetchCpDma",
+            "Value": 1,
+            "Description": "Use CP DMA to stream data into the L2."
+          }
+        ],
+        "Name": "PrefetchMethod"
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "enum",
+      "VariableName": "commandPrefetchMethodAce",
+      "Name": "CommandPrefetchMethodAce"
     },
     {
       "Description": "Controls whether anisotropic filtering optimizations are enabled.",
@@ -2398,22 +2460,6 @@
       "Type": "bool",
       "VariableName": "waMetaAliasingFixEnabled",
       "Name": "WaMetaAliasingFixEnabled"
-    },
-    {
-      "Description": "If set PAL sets CB_COLOR_ATTRIB.LIMIT_COLOR_FETCH_TO_256B_MAX = 1 for mip levels in the tail that aren't the largest.",
-      "Tags": [
-        "Hardware Workarounds"
-      ],
-      "Defaults": {
-        "Default": false
-      },
-      "Flags": {
-        "RereadSetting": true
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "waForce256bCbFetch",
-      "Name": "WaForce256bCbFetch"
     },
     {
       "Description": "If set, align image allocation size up to fragment size when Cmask is present, but continue to issue GCN ranged syncs operations using the original, unpadded size.",

@@ -225,6 +225,8 @@ protected:
         ImageLayout        layout,
         bool               csFastClear) const;
 
+    const bool m_releaseAcquireSupported; // If acquire release interface is supported.
+
 private:
     virtual void CopyImageGraphics(
         GfxCmdBuffer*          pCmdBuffer,

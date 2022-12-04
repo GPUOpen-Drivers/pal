@@ -1684,6 +1684,173 @@ static uint32 PaScAaConfig(
     return paScAaConfig.u32All;
 }
 
+// =====================================================================================================================
+static uint32 ComputeNumThreadX(
+    const Util::PalAbi::CodeObjectMetadata& metadata)
+{
+    const auto& hwCs = metadata.pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Cs)];
+    COMPUTE_NUM_THREAD_X computeNumThreadX = { };
+
+    computeNumThreadX.bits.NUM_THREAD_FULL = hwCs.threadgroupDimensions[0];
+    return computeNumThreadX.u32All;
+}
+
+// =====================================================================================================================
+static uint32 ComputeNumThreadY(
+    const Util::PalAbi::CodeObjectMetadata& metadata)
+{
+    const auto& hwCs = metadata.pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Cs)];
+    COMPUTE_NUM_THREAD_X computeNumThreadY = { };
+
+    computeNumThreadY.bits.NUM_THREAD_FULL = hwCs.threadgroupDimensions[1];
+    return computeNumThreadY.u32All;
+}
+
+// =====================================================================================================================
+static uint32 ComputeNumThreadZ(
+    const Util::PalAbi::CodeObjectMetadata& metadata)
+{
+    const auto& hwCs = metadata.pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Cs)];
+    COMPUTE_NUM_THREAD_Z computeNumThreadZ = { };
+
+    computeNumThreadZ.bits.NUM_THREAD_FULL = hwCs.threadgroupDimensions[2];
+    return computeNumThreadZ.u32All;
+}
+
+// =====================================================================================================================
+static uint32 ComputePgmRsrc1(
+    const Util::PalAbi::CodeObjectMetadata& metadata,
+    GfxIpLevel                              gfxLevel)
+{
+    COMPUTE_PGM_RSRC1 computePgmRsrc1 = { };
+
+    const auto& hwCs = metadata.pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Cs)];
+    const bool isWave32 = hwCs.hasEntry.wavefrontSize && (hwCs.wavefrontSize == 32);
+
+    if (hwCs.hasEntry.vgprCount)
+    {
+        const uint32 calcVgprs = (hwCs.vgprCount == 0)
+            ? 0
+            : ((hwCs.vgprCount - 1) / ((isWave32) ? 8 : 4));
+        computePgmRsrc1.bits.VGPRS = calcVgprs;
+    }
+
+    if (hwCs.hasEntry.sgprCount)
+    {
+        const uint32 calcSgprs = (hwCs.sgprCount == 0) ? 0 : ((hwCs.sgprCount - 1) / 8);
+        computePgmRsrc1.bits.SGPRS = calcSgprs;
+    }
+
+    computePgmRsrc1.bits.FLOAT_MODE = hwCs.floatMode;
+    computePgmRsrc1.bits.FP16_OVFL  = hwCs.flags.fp16Overflow;
+    computePgmRsrc1.bits.IEEE_MODE  = hwCs.flags.ieeeMode;
+    computePgmRsrc1.bits.DEBUG_MODE = hwCs.flags.debugMode;
+    computePgmRsrc1.bits.DX10_CLAMP = 1;
+
+    if (IsGfx10Plus(gfxLevel))
+    {
+        computePgmRsrc1.gfx10Plus.WGP_MODE     = hwCs.flags.wgpMode;
+        computePgmRsrc1.gfx10Plus.MEM_ORDERED  = hwCs.flags.memOrdered;
+        computePgmRsrc1.gfx10Plus.FWD_PROGRESS = hwCs.flags.forwardProgress;
+    }
+
+    return computePgmRsrc1.u32All;
+}
+
+// =====================================================================================================================
+static uint32 ComputePgmRsrc2(
+    const Util::PalAbi::CodeObjectMetadata& metadata)
+{
+    COMPUTE_PGM_RSRC2 computePgmRsrc2 = { };
+
+    Util::PalAbi::PipelineMetadata pipeline                 = metadata.pipeline;
+    Util::PalAbi::ComputeRegisterMetadata pComputeRegisters = pipeline.computeRegister;
+    const auto& hwCs = pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Cs)];
+
+    computePgmRsrc2.bits.USER_SGPR      = hwCs.userSgprs;
+
+    computePgmRsrc2.bits.EXCP_EN        = hwCs.excpEn;
+    computePgmRsrc2.bits.EXCP_EN_MSB    = (hwCs.excpEn >= COMPUTE_PGM_RSRC2__EXCP_EN_MSB_MASK);
+
+    computePgmRsrc2.bits.SCRATCH_EN     = hwCs.flags.scratchEn;
+    computePgmRsrc2.bits.TRAP_PRESENT   = hwCs.flags.trapPresent;
+
+    computePgmRsrc2.bits.TIDIG_COMP_CNT = pComputeRegisters.tidigCompCnt;
+
+    computePgmRsrc2.bits.TGID_X_EN = pComputeRegisters.flags.tgidXEn;
+    computePgmRsrc2.bits.TGID_Y_EN = pComputeRegisters.flags.tgidYEn;
+    computePgmRsrc2.bits.TGID_Z_EN = pComputeRegisters.flags.tgidZEn;
+
+    uint32 allocateLdsSize = hwCs.ldsSize;
+    computePgmRsrc2.bits.LDS_SIZE = allocateLdsSize / (sizeof(uint32) * Gfx9LdsDwGranularity);
+
+    return computePgmRsrc2.u32All;
+}
+
+// =====================================================================================================================
+static uint32 ComputePgmRsrc3(
+    const Util::PalAbi::CodeObjectMetadata& metadata,
+    GfxIpLevel                              gfxLevel)
+{
+    COMPUTE_PGM_RSRC3 computePgmRsrc3 = {};
+
+    const auto& hwCs = metadata.pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Cs)];
+    if (IsGfx10Plus(gfxLevel))
+    {
+        computePgmRsrc3.bits.SHARED_VGPR_CNT = (hwCs.sharedVgprCnt) / 8;
+    }
+
+    return computePgmRsrc3.u32All;
+}
+
+// =====================================================================================================================
+static uint32 ComputeShaderChkSum(
+    const Util::PalAbi::CodeObjectMetadata& metadata,
+    const Device&                           device)
+{
+    COMPUTE_SHADER_CHKSUM chkSum = {};
+    const auto& hwCs = metadata.pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Cs)];
+    const GpuChipProperties& chipProps = device.Parent()->ChipProperties();
+    const GfxIpLevel         gfxLevel  = chipProps.gfxLevel;
+
+    if (chipProps.gfx9.supportSpp && hwCs.hasEntry.checksumValue)
+    {
+        if (IsGfx9(gfxLevel))
+        {
+            chkSum.bits.CHECKSUM = hwCs.checksumValue;
+        }
+        else if (IsGfx10Plus(gfxLevel))
+        {
+            chkSum.bits.CHECKSUM = hwCs.checksumValue;
+        }
+    }
+    return chkSum.u32All;
+}
+
+// =====================================================================================================================
+static uint32 ComputeResourceLimits(
+    const Util::PalAbi::CodeObjectMetadata& metadata,
+    const Device&                           device)
+{
+    COMPUTE_RESOURCE_LIMITS computeResourceLimits = {};
+    const GpuChipProperties& chipProps = device.Parent()->ChipProperties();
+    const GfxIpLevel         gfxLevel  = chipProps.gfxLevel;
+
+    const auto& hwCs = metadata.pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Cs)];
+
+    if (IsGfx10Plus(gfxLevel))
+    {
+        computeResourceLimits.bits.WAVES_PER_SH = hwCs.wavesPerSe;
+    }
+    else
+    {
+        const uint32 numSaPerSe = chipProps.gfx9.numShaderArrays;
+        computeResourceLimits.bits.WAVES_PER_SH = hwCs.wavesPerSe / numSaPerSe;
+    }
+
+    return computeResourceLimits.u32All;
+}
+
 } // namespace AbiRegisters
 } // namespace Gfx9
 } // namespace Pal

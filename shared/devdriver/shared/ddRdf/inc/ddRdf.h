@@ -26,6 +26,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <ddDefs.h>
 
 #define DD_RDF_USERSTREAM_INTERFACE_VERSION_MAJOR 1
 #define DD_RDF_USERSTREAM_INTERFACE_VERSION_MINOR 0
@@ -76,3 +77,15 @@ struct DDRdfFileWriter
     PFN_ddFileSeek         pfnFileSeek;
     PFN_ddFileGetSize      pfnFileGetSize;
 };
+
+// Validate a DDRdfFileWriter object
+// This can handle NULL and should be checked before using the writer.
+// Note that GetSize is currently not required by RDF and isn't check here.
+inline bool IsValidDDRdfFileWriter(const DDRdfFileWriter* pRdfFileWriter)
+{
+    return ((pRdfFileWriter != nullptr)              &&
+        (pRdfFileWriter->pfnFileRead  != nullptr)    &&
+        (pRdfFileWriter->pfnFileWrite != nullptr)    &&
+        (pRdfFileWriter->pfnFileTell  != nullptr)    &&
+        (pRdfFileWriter->pfnFileSeek  != nullptr));
+}

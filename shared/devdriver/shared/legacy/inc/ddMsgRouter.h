@@ -28,6 +28,10 @@
 #include <gpuopen.h>
 #include <ddRouterInterface.h>
 #include <router/ddRouterContext.h>
+#if defined(DD_PLATFORM_WINDOWS_KM)
+#include <wdm.h>
+#include <devdriver_shared.h>
+#endif
 
 namespace DevDriver
 {
@@ -48,12 +52,19 @@ namespace DevDriver
 
 		Kmd::KContext* GetContext() { return &m_context; }
 
+#if defined(DD_PLATFORM_WINDOWS_KM)
+        void MsgRouter::SendNotificationToKmd(DEVDRIVER_CBOBJ_NOTIFICATION notification,
+                                              void *notificationData);
+#endif
         Result ProcessDevModeCmd(ProcessId processId, DevModeCmd cmd, size_t bufferSize, void* pBuffer) override;
 
     private:
         AllocCb           m_allocCb;
         Kmd::KContext     m_context;
         Vector<IService*> m_servicesToRegister;
+#if defined(DD_PLATFORM_WINDOWS_KM)
+        PCALLBACK_OBJECT  m_stateChangeCallbackObject;
+#endif
     };
 
 } // DevDriver

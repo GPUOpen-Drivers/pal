@@ -891,14 +891,16 @@ void Gfx10ColorTargetView::InitRegisters(
         m_extent.width  = extent.width;
         m_extent.height = extent.height;
 
-        //  Not setting this can lead to functional issues.   It's not a performance measure.   Due to multiple mip
-        //  levels possibly being within same 1K address space, CB can get confused
+        // Note that we set CB_COLORn_ATTRIB.LIMIT_COLOR_FETCH_TO_256B_MAX to 0 below for clarity, because
+        // there have been some conflicting notes in reg specs.
+        // Prior to gfx10.1 it was necessary to set LIMIT_COLOR_FETCH_TO_256B_MAX if in miptail, to workaround
+        // possible corruptions when multiple mip levels in same 1k address space.
+        // A fix for this was applied to gfx10.1 and newer asics, so the workaround is no longer needed.
         {
             m_regs.cbColorAttrib.most.NUM_SAMPLES       = Log2(imageCreateInfo.samples);
             m_regs.cbColorAttrib.most.NUM_FRAGMENTS     = Log2(imageCreateInfo.fragments);
             m_regs.cbColorAttrib.most.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(m_swizzledFormat);
-            m_regs.cbColorAttrib.gfx10Core.LIMIT_COLOR_FETCH_TO_256B_MAX =
-                settings.waForce256bCbFetch && (m_subresource.mipLevel >= pAddrOutput->firstMipIdInTail);
+            m_regs.cbColorAttrib.gfx10Core.LIMIT_COLOR_FETCH_TO_256B_MAX = 0;
         }
 
         m_regs.cbColorAttrib3.bits.MIP0_DEPTH    =

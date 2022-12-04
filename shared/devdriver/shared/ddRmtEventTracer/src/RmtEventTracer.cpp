@@ -28,107 +28,120 @@
 #include <ddCommon.h>
 #include <ddPlatform.h>
 #include <string>
+#include <system_info_writer.h>
 
 using namespace DevDriver;
 
-namespace
+namespace DevDriver
 {
-
-RmtMemoryType RmtMemoryTypeFromString(const char* pString)
-{
-    // TODO: Replace this with a hash based lookup instead
-
-    RmtMemoryType memoryType = RMT_MEMORY_TYPE_UNKNOWN;
-
-    if (pString != nullptr)
-    {
-        if (Platform::Strcmpi(pString, "DDR2") == 0)
-        {
-            memoryType = RMT_MEMORY_TYPE_DDR2;
-        }
-        else if (Platform::Strcmpi(pString, "DDR3") == 0)
-        {
-            memoryType = RMT_MEMORY_TYPE_DDR3;
-        }
-        else if (Platform::Strcmpi(pString, "DDR4") == 0)
-        {
-            memoryType = RMT_MEMORY_TYPE_DDR4;
-        }
-        else if (Platform::Strcmpi(pString, "GDDR5") == 0)
-        {
-            memoryType = RMT_MEMORY_TYPE_GDDR5;
-        }
-        else if (Platform::Strcmpi(pString, "GDDR6") == 0)
-        {
-            memoryType = RMT_MEMORY_TYPE_GDDR6;
-        }
-        else if (Platform::Strcmpi(pString, "HBM") == 0)
-        {
-            memoryType = RMT_MEMORY_TYPE_HBM;
-        }
-        else if (Platform::Strcmpi(pString, "HBM2") == 0)
-        {
-            memoryType = RMT_MEMORY_TYPE_HBM2;
-        }
-        else if (Platform::Strcmpi(pString, "HBM3") == 0)
-        {
-            memoryType = RMT_MEMORY_TYPE_HBM3;
-        }
-        else if (Platform::Strcmpi(pString, "LPDDR4") == 0)
-        {
-            memoryType = RMT_MEMORY_TYPE_LPDDR4;
-        }
-        else if (Platform::Strcmpi(pString, "LPDDR5") == 0)
-        {
-            memoryType = RMT_MEMORY_TYPE_LPDDR5;
-        }
-        else if (Platform::Strcmpi(pString, "DDR5") == 0)
-        {
-            memoryType = RMT_MEMORY_TYPE_DDR5;
-        }
-    }
-
-    return memoryType;
-}
 
 // =================================================================================================
-// Utility to help transfer data from a file into the transfer callback. This
-// function will move exactly `bufferSize` bytes per call, or fail. If more
-// bytes are needed this should be called in a loop.
-//
-// Returns Result::FileIoError if something goes wrong
-DD_RESULT TransferFileData(
-    void*               pBuffer,
-    size_t              bufferSize,
-    FILE*               pSourceFile,
-    const DDByteWriter* pWriter)
+DD_RESULT RdfResultToDDResult(int rResult)
 {
-    DD_ASSERT(pBuffer != nullptr);
-    DD_ASSERT(bufferSize > 0);
-    DD_ASSERT(pSourceFile != nullptr);
-    DD_ASSERT(pWriter != nullptr);
+    DD_RESULT result;
 
-    const size_t bytesRead = fread(pBuffer, 1, bufferSize, pSourceFile);
-    DD_RESULT result =
-        (bytesRead == bufferSize) ? DD_RESULT_SUCCESS : DD_RESULT_DD_GENERIC_FILE_IO_ERROR;
-
-    if (result == DD_RESULT_SUCCESS)
+    switch (rResult)
     {
-        result = pWriter->pfnWriteBytes(pWriter->pUserdata, pBuffer, bufferSize);
+    case rdfResult::rdfResultOk:
+        result = DD_RESULT_SUCCESS;
+        break;
+    case rdfResult::rdfResultInvalidArgument:
+        result = DD_RESULT_COMMON_INVALID_PARAMETER;
+        break;
+    case rdfResult::rdfResultError:
+    default:
+        // The default case is being included here, since more error codes may be added to rdf in the future.
+        result = DD_RESULT_UNKNOWN;
+        break;
     }
 
     return result;
 }
 
-// =================================================================================================
-// Utility to reset an RmtWriter object to a ready-to-write state
-void ResetRmtWriter(
-    RmtWriter* pRmtWriter)
-{
-    DD_ASSERT(pRmtWriter != nullptr);
+} // namespace DevDriver
 
-    pRmtWriter->Reset();
-    pRmtWriter->Init();
+namespace
+{
+
+/// An enumeration of the memory types.
+typedef enum
+{
+    DD_MEMORY_TYPE_UNKNOWN = 0,
+    DD_MEMORY_TYPE_DDR2,
+    DD_MEMORY_TYPE_DDR3,
+    DD_MEMORY_TYPE_DDR4,
+    DD_MEMORY_TYPE_GDDR5,
+    DD_MEMORY_TYPE_GDDR6,
+    DD_MEMORY_TYPE_HBM,
+    DD_MEMORY_TYPE_HBM2,
+    DD_MEMORY_TYPE_HBM3,
+    DD_MEMORY_TYPE_LPDDR4,
+    DD_MEMORY_TYPE_LPDDR5,
+    DD_MEMORY_TYPE_DDR5,
+    DD_MEMORY_TYPE_COUNT
+} DD_MEMORY_TYPE;
+
+constexpr char kAdapterChunkId[RDF_IDENTIFIER_SIZE]  = "AdapterInfo";
+constexpr char kHeapChunkId[RDF_IDENTIFIER_SIZE]     = "GpuMemSegment";
+constexpr char kStreamChunkId[RDF_IDENTIFIER_SIZE]   = "RmtData";
+constexpr char kSnapshotChunkId[RDF_IDENTIFIER_SIZE] = "RmvSnapshotData";
+
+// =================================================================================================
+DD_MEMORY_TYPE DDMemoryTypeFromString(const char* pString)
+{
+    // TODO: Replace this with a hash based lookup instead
+
+    DD_MEMORY_TYPE memoryType = DD_MEMORY_TYPE_UNKNOWN;
+
+    if (pString != nullptr)
+    {
+        if (Platform::Strcmpi(pString, "DDR2") == 0)
+        {
+            memoryType = DD_MEMORY_TYPE_DDR2;
+        }
+        else if (Platform::Strcmpi(pString, "DDR3") == 0)
+        {
+            memoryType = DD_MEMORY_TYPE_DDR3;
+        }
+        else if (Platform::Strcmpi(pString, "DDR4") == 0)
+        {
+            memoryType = DD_MEMORY_TYPE_DDR4;
+        }
+        else if (Platform::Strcmpi(pString, "GDDR5") == 0)
+        {
+            memoryType = DD_MEMORY_TYPE_GDDR5;
+        }
+        else if (Platform::Strcmpi(pString, "GDDR6") == 0)
+        {
+            memoryType = DD_MEMORY_TYPE_GDDR6;
+        }
+        else if (Platform::Strcmpi(pString, "HBM") == 0)
+        {
+            memoryType = DD_MEMORY_TYPE_HBM;
+        }
+        else if (Platform::Strcmpi(pString, "HBM2") == 0)
+        {
+            memoryType = DD_MEMORY_TYPE_HBM2;
+        }
+        else if (Platform::Strcmpi(pString, "HBM3") == 0)
+        {
+            memoryType = DD_MEMORY_TYPE_HBM3;
+        }
+        else if (Platform::Strcmpi(pString, "LPDDR4") == 0)
+        {
+            memoryType = DD_MEMORY_TYPE_LPDDR4;
+        }
+        else if (Platform::Strcmpi(pString, "LPDDR5") == 0)
+        {
+            memoryType = DD_MEMORY_TYPE_LPDDR5;
+        }
+        else if (Platform::Strcmpi(pString, "DDR5") == 0)
+        {
+            memoryType = DD_MEMORY_TYPE_DDR5;
+        }
+    }
+
+    return memoryType;
 }
 
 // =================================================================================================
@@ -156,10 +169,11 @@ RmtEventTracer::RmtEventTracer(
     , m_ddAlloc({static_cast<void*>(&m_apiAlloc), ddApiAlloc, ddApiFree})
     , m_traceState(TraceState::NotStarted)
     , m_dataStreams(m_ddAlloc)
-    , m_rmtWriter(m_ddAlloc)
+    , m_heaps()
+    , m_adapterInfo()
+    , m_snapshots(m_ddAlloc)
     , m_logger(logger)
 {
-
     m_pKmdStreamer = DD_NEW(RmtEventStreamer, m_ddAlloc)(this, logger);
     m_pUmdStreamer = DD_NEW(RmtEventStreamer, m_ddAlloc)(this, logger);
     m_pRouterStreamer = DD_NEW(RmtEventStreamer, m_ddAlloc)(this, logger);
@@ -170,6 +184,43 @@ RmtEventTracer::~RmtEventTracer()
     DD_DELETE(m_pKmdStreamer, m_ddAlloc);
     DD_DELETE(m_pUmdStreamer, m_ddAlloc);
     DD_DELETE(m_pRouterStreamer, m_ddAlloc);
+}
+
+// =================================================================================================
+// Appends data from a file into a previously started chunk
+// This function will move exactly `bufferSize` bytes per call, or fail.
+// If more bytes are needed this should be called in a loop.
+//
+// Returns Result::FileIoError if something goes wrong
+DD_RESULT RmtEventTracer::TransferFileData(
+    void*                pBuffer,
+    size_t               bufferSize,
+    FILE*                pSourceFile,
+    const DDIOHeartbeat* pIoCb,
+    rdfChunkCreateInfo*  pChunkInfo,
+    rdfChunkFileWriter*  pRdfChunkWriter)
+{
+    DD_ASSERT(pBuffer != nullptr);
+    DD_ASSERT(bufferSize > 0);
+    DD_ASSERT(pSourceFile != nullptr);
+
+    const size_t bytesRead = fread(pBuffer, 1, bufferSize, pSourceFile);
+    DD_RESULT    result =
+        (bytesRead == bufferSize) ? DD_RESULT_SUCCESS : DD_RESULT_DD_GENERIC_FILE_IO_ERROR;
+
+    if (result == DD_RESULT_SUCCESS)
+    {
+        result = RdfResultToDDResult(rdfChunkFileWriterWriteChunk(
+            pRdfChunkWriter,
+            pChunkInfo,
+            bufferSize,
+            pBuffer,
+            &m_currentChunkIndex));
+
+        pIoCb->pfnWriteHeartbeat(pIoCb->pUserdata, result, DD_IO_STATUS_WRITE, bufferSize);
+    }
+
+    return result;
 }
 
 // =================================================================================================
@@ -185,8 +236,8 @@ DD_RESULT RmtEventTracer::BeginTrace(
     DD_RESULT result = DD_RESULT_SUCCESS;
 
     system_info_utils::SystemInfo systemInfo{};
-    std::string jsonStr(reinterpret_cast<const char*>(systemInfoBuffer.Data()), systemInfoBuffer.Size());
-    system_info_utils::SystemInfoReader::Parse(jsonStr, systemInfo);
+    m_sysInfoJson = std::string(reinterpret_cast<const char*>(systemInfoBuffer.Data()), systemInfoBuffer.Size());
+    system_info_utils::SystemInfoReader::Parse(m_sysInfoJson, systemInfo);
 
     bool isTargetLinux = IsTargetSystemLinux(systemInfo);
 
@@ -439,116 +490,160 @@ DD_RESULT RmtEventTracer::EndTrace(EndTraceReason endReason, bool isClientInitia
 }
 
 // =================================================================================================
-DD_RESULT RmtEventTracer::TransferTraceData(
-    const DDByteWriter* pWriter)
+DD_RESULT RmtEventTracer::WriteSavedChunks(rdfChunkFileWriter* pRdfChunkWriter)
 {
-    DD_RESULT result = DD_RESULT_COMMON_INVALID_PARAMETER;
+    DD_RESULT result = DD_RESULT_SUCCESS;
 
-    if (IsValidDDByteWriter(pWriter))
+    // Write heap info chunks here
     {
-        // We can transfer data during the Ended state or while the trace is still running
-        if ((m_traceState == TraceState::Ended) || (m_traceState == TraceState::Running))
+        rdfChunkCreateInfo info = {};
+        memcpy(info.identifier, kHeapChunkId, RDF_IDENTIFIER_SIZE);
+        info.pHeader     = nullptr;
+        info.headerSize  = 0;
+        info.version     = 1;
+        info.compression = rdfCompression::rdfCompressionNone;
+
+        result = RdfResultToDDResult(rdfChunkFileWriterWriteChunk(
+            pRdfChunkWriter,
+            &info,
+            sizeof(TraceHeapInfo) * DD_HEAP_TYPE_COUNT,
+            &m_heaps,
+            &m_currentChunkIndex));
+    }
+
+    // Write the adapter info here
+    if (result == DD_RESULT_SUCCESS)
+    {
+        rdfChunkCreateInfo info = {};
+        memcpy(info.identifier, kAdapterChunkId, RDF_IDENTIFIER_SIZE);
+        info.pHeader     = nullptr;
+        info.headerSize  = 0;
+        info.version     = 1;
+        info.compression = rdfCompression::rdfCompressionNone;
+
+        result = RdfResultToDDResult(rdfChunkFileWriterWriteChunk(
+            pRdfChunkWriter,
+            &info,
+            sizeof(TraceAdapterInfo),
+            &m_adapterInfo,
+            &m_currentChunkIndex));
+    }
+
+    if (result == DD_RESULT_SUCCESS)
+    {
+        for (size_t idx = 0; idx < m_snapshots.Size(); ++idx)
         {
-            // Create a temporary RMT writer to write a new file header for the trace
-            // This will also be used to write trace data chunk headers later in the transfer process
-            RmtWriter tempRmtWriter(m_ddAlloc);
-            tempRmtWriter.Init();
-            tempRmtWriter.WriteFileHeader();
+            TraceSnapShot*     pSnapshot = &m_snapshots[idx];
+            rdfChunkCreateInfo info      = {};
+            memcpy(info.identifier, kSnapshotChunkId, RDF_IDENTIFIER_SIZE);
+            info.pHeader     = nullptr;
+            info.headerSize  = 0;
+            info.version     = pSnapshot->version;
+            info.compression = rdfCompression::rdfCompressionNone;
 
-            // Compute the total size of the data that we need to transfer
-            // We need to account for the file header in the temp rmt writer, the chunks already written into the main
-            // rmt writer during the trace, and the total size of all data streams.
-            const size_t totalTransferSize = static_cast<size_t>(tempRmtWriter.GetRmtDataSize() +
-                                                                 m_rmtWriter.GetRmtDataSize()   +
-                                                                 static_cast<size_t>(m_totalDataSize));
+            result = RdfResultToDDResult(rdfChunkFileWriterWriteChunk(
+                pRdfChunkWriter,
+                &info,
+                sizeof(TraceSnapShot),
+                pSnapshot,
+                &m_currentChunkIndex));
 
-            // Signal to the caller that a transfer is beginning
-            result = pWriter->pfnBegin(pWriter->pUserdata, &totalTransferSize);
-
-            if (result == DD_RESULT_SUCCESS)
+            if (result != DD_RESULT_SUCCESS)
             {
-                // Transfer the initial file header for our trace
-                result = pWriter->pfnWriteBytes(
-                    pWriter->pUserdata,
-                    tempRmtWriter.GetRmtData(),
-                    tempRmtWriter.GetRmtDataSize());
+                break;
             }
+        }
+    }
 
-            if (result == DD_RESULT_SUCCESS)
+    if (result == DD_RESULT_SUCCESS)
+    {
+        result = system_info_utils::SystemInfoWriter::WriteRdfChunk(pRdfChunkWriter, m_sysInfoJson);
+    }
+
+    return result;
+}
+
+// =================================================================================================
+DD_RESULT RmtEventTracer::TransferTraceData(
+    const DDIOHeartbeat* pIoCb,
+    rdfChunkFileWriter*  pRdfChunkWriter,
+    bool                 useCompression)
+{
+    DD_RESULT result = DD_RESULT_SUCCESS;
+
+    // We can transfer data during the Ended state or while the trace is still running
+    if ((m_traceState == TraceState::Ended) || (m_traceState == TraceState::Running))
+    {
+        // We saved Asic data, Heap info, and snapshots, so write them out now:
+        result = WriteSavedChunks(pRdfChunkWriter);
+
+        if (result == DD_RESULT_SUCCESS)
+        {
+            // Transfer all data streams
+
+            // Allocate a temporary scratch buffer on the heap to store data being read back from disk
+            // We read data into memory in large chunks to avoid file IO overhead
+            constexpr size_t kTransferChunkSizeInBytes = (4 * 1024 * 1024); // 4 MiB
+            Vector<uint8> scratchBuffer(m_ddAlloc);
+            scratchBuffer.Resize(kTransferChunkSizeInBytes);
+
+            for (uint32 streamIndex = 0; streamIndex < static_cast<uint32>(m_dataStreams.Size()); ++streamIndex)
             {
-                // Transfer the segment info, adapter info, and snapshot chunks that we've collected during the trace.
-                result = pWriter->pfnWriteBytes(
-                    pWriter->pUserdata,
-                    m_rmtWriter.GetRmtData(),
-                    m_rmtWriter.GetRmtDataSize());
-            }
+                TraceDataStream* pStream = &m_dataStreams[streamIndex];
+                DD_ASSERT(pStream != nullptr);
 
-            if (result == DD_RESULT_SUCCESS)
-            {
-                // Transfer all data streams
-
-                // Allocate a temporary scratch buffer on the heap to store
-                // data being read back from disk We read data into memory in
-                // large chunks to avoid file IO overhead
-                constexpr size_t kTransferChunkSizeInBytes = (4 * 1024 * 1024); // 4 MiB
-                Vector<uint8> scratchBuffer(m_ddAlloc);
-                scratchBuffer.Resize(kTransferChunkSizeInBytes);
-
-                for (uint32 streamIndex = 0;
-                    streamIndex < static_cast<uint32>(m_dataStreams.Size());
-                    ++streamIndex)
+                if (ferror(pStream->pFileHandle) == 0)
                 {
-                    TraceDataStream* pStream = &m_dataStreams[streamIndex];
-                    DD_ASSERT(pStream != nullptr);
+                    pStream->streamMutex.Lock();
 
-                    if (ferror(pStream->pFileHandle) == 0)
-                    {
-                        pStream->streamMutex.Lock();
-                        // Create an RMT chunk header for the stream in memory
-                        ResetRmtWriter(&tempRmtWriter);
-                        tempRmtWriter.WriteDataChunkHeader(
-                            pStream->processId,
-                            pStream->threadId,
-                            pStream->totalDataSize,
-                            streamIndex,
-                            pStream->rmtMajorVersion,
-                            pStream->rmtMinorVersion);
+                    // Create a chunk RDF header for each stream:
+                    //      Streams are broken into multiple chunks and each chunk from a given stream will have the same header.
+                    //      The streamIndex field links the separate chunks that comprise a single data stream together.
+                    //      The size of the individual chunks is capped at the scratch buffer size.
+                    TraceStreamHeader header = {};
+                    header.processId         = pStream->processId;
+                    header.threadId          = pStream->threadId;
+                    header.totalDataSize     = pStream->totalDataSize;
+                    header.streamIndex       = streamIndex;
+                    header.rmtMajorVersion   = pStream->rmtMajorVersion;
+                    header.rmtMinorVersion   = pStream->rmtMinorVersion;
 
-                        // Write out the header to the output file
-                        result = pWriter->pfnWriteBytes(
-                            pWriter->pUserdata,
-                            tempRmtWriter.GetRmtData(),
-                            tempRmtWriter.GetRmtDataSize());
+                    rdfChunkCreateInfo chunkInfo = {};
+                    memcpy(chunkInfo.identifier, kStreamChunkId, RDF_IDENTIFIER_SIZE);
+                    chunkInfo.headerSize  = sizeof(TraceStreamHeader);
+                    chunkInfo.pHeader     = &header;
+                    chunkInfo.compression = useCompression ? rdfCompressionZstd : rdfCompressionNone;
+                    chunkInfo.version     = 1;
 
-                        if (result == DD_RESULT_SUCCESS)
-                        {
-                            // Transfer the data from the current stream
-                            result = TransferDataStream(
-                                pStream,
-                                streamIndex,
-                                scratchBuffer.Data(),
-                                scratchBuffer.Size(),
-                                pWriter);
+                    // Transfer the data from the current stream into chunks
+                    LogInfo("stream (%u) total data size: %llu", streamIndex, pStream->totalDataSize);
 
-                            DD_ASSERT(result == DD_RESULT_SUCCESS);
-                        }
-                        pStream->streamMutex.Unlock();
-                    }
-                    else
-                    {
-                        result = DD_RESULT_DD_GENERIC_FILE_IO_ERROR;
-                    }
+                    result = TransferDataStream(
+                        pRdfChunkWriter,
+                        pStream,
+                        scratchBuffer.Data(),
+                        scratchBuffer.Size(),
+                        pIoCb,
+                        &chunkInfo);
 
-                    if (result != DD_RESULT_SUCCESS)
-                    {
-                        break;
-                    }
+                    pStream->streamMutex.Unlock();
+                }
+                else
+                {
+                    result = DD_RESULT_DD_GENERIC_FILE_IO_ERROR;
+                }
+
+                if (result != DD_RESULT_SUCCESS)
+                {
+                    break;
                 }
             }
-
-            // Signal to the user that the transfer is ending
-            pWriter->pfnEnd(pWriter->pUserdata, result);
         }
+    }
+    else
+    {
+        result = DD_RESULT_DD_GENERIC_NOT_READY;
+        LogError("Trace must be running or have ended");
     }
 
     return result;
@@ -577,7 +672,19 @@ DD_RESULT RmtEventTracer::InsertSnapshot(
 
     if (m_traceState == TraceState::Running)
     {
-        m_rmtWriter.WriteSnapshot(pSnapshotName, snapshotTimestamp);
+        DD_ASSERT(pSnapshotName != nullptr);
+
+        const uint32 snapshotNameLength = static_cast<uint32>(strlen(pSnapshotName));
+
+        // The identifier name needs to fit
+        DD_ASSERT(snapshotNameLength < kMaxSnapshotNameLen);
+
+        TraceSnapShot snapshot = {};
+        memcpy(snapshot.name, pSnapshotName, snapshotNameLength + 1);
+        snapshot.snapshotPoint = (snapshotTimestamp == 0) ? Platform::QueryTimestamp() : snapshotTimestamp;
+        snapshot.nameLength    = snapshotNameLength + 1;
+        snapshot.version       = 1;
+        m_snapshots.PushBack(snapshot);
     }
     else
     {
@@ -776,39 +883,37 @@ void RmtEventTracer::ProcessSystemInfo(const system_info_utils::SystemInfo& syst
 
     auto gpu = systemInfo.gpus[0];
 
-    RmtFileChunkSegmentInfo localHeap{};
-    RmtFileChunkSegmentInfo invisibleHeap = {};
-    RmtFileChunkSegmentInfo systemHeap    = {};
+    memset(m_heaps, 0, sizeof(TraceHeapInfo) * DD_HEAP_TYPE_COUNT);
+    TraceHeapInfo& localHeap     = m_heaps[DD_HEAP_TYPE_LOCAL];
+    TraceHeapInfo& invisibleHeap = m_heaps[DD_HEAP_TYPE_INVISIBLE];
+    TraceHeapInfo& systemHeap    = m_heaps[DD_HEAP_TYPE_SYSTEM];
+
     for (const auto& heap : gpu.memory.heaps)
     {
         if (heap.heap_type == "local")
         {
-            localHeap.heapType            = RMT_HEAP_TYPE_LOCAL;
+            localHeap.type                = DD_HEAP_TYPE_LOCAL;
             localHeap.physicalBaseAddress = heap.phys_addr;
             localHeap.size                = heap.size;
         }
         else if (heap.heap_type == "invisible")
         {
-            invisibleHeap.heapType            = RMT_HEAP_TYPE_INVISIBLE;
+            invisibleHeap.type                = DD_HEAP_TYPE_INVISIBLE;
             invisibleHeap.physicalBaseAddress = heap.phys_addr;
             invisibleHeap.size                = heap.size;
         }
     }
 
-    systemHeap.heapType = RMT_HEAP_TYPE_SYSTEM;
-    systemHeap.size     = systemInfo.os.memory.physical;
+    systemHeap.type = DD_HEAP_TYPE_SYSTEM;
+    systemHeap.size = systemInfo.os.memory.physical;
 
-    m_rmtWriter.WriteSegmentInfo(localHeap);
-    m_rmtWriter.WriteSegmentInfo(invisibleHeap);
-    m_rmtWriter.WriteSegmentInfo(systemHeap);
+    // Init Adapter Info
 
-    // Write Adapter chunk
-
-    RmtFileChunkAdapterInfo adapterInfo = {};
-    Platform::Strncpy(adapterInfo.name, gpu.name.data(), 128);
-    adapterInfo.familyId   = gpu.asic.id_info.family;
-    adapterInfo.revisionId = gpu.asic.id_info.revision;
-    adapterInfo.deviceId   = gpu.asic.id_info.device;
+    m_adapterInfo = {};
+    Platform::Strncpy(m_adapterInfo.name, gpu.name.data(), 128);
+    m_adapterInfo.familyId   = gpu.asic.id_info.family;
+    m_adapterInfo.revisionId = gpu.asic.id_info.revision;
+    m_adapterInfo.deviceId   = gpu.asic.id_info.device;
 
     constexpr uint32 kHzToMhzDivisor        = (1000 * 1000);
     constexpr uint32 kByteToMegabyteDivisor = (1024 * 1024);
@@ -816,44 +921,45 @@ void RmtEventTracer::ProcessSystemInfo(const system_info_utils::SystemInfo& syst
     uint64 minEngineClock = gpu.asic.engine_clock_hz.min;
     uint64 maxEngineClock = gpu.asic.engine_clock_hz.max;
 
-    adapterInfo.minEngineClock = static_cast<uint32>(minEngineClock / kHzToMhzDivisor);
-    adapterInfo.maxEngineClock = static_cast<uint32>(maxEngineClock / kHzToMhzDivisor);
+    m_adapterInfo.minEngineClock = static_cast<uint32>(minEngineClock / kHzToMhzDivisor);
+    m_adapterInfo.maxEngineClock = static_cast<uint32>(maxEngineClock / kHzToMhzDivisor);
 
-    const RmtMemoryType memoryType = RmtMemoryTypeFromString(gpu.memory.type.c_str());
-    if (memoryType == RMT_MEMORY_TYPE_UNKNOWN)
+    const DD_MEMORY_TYPE memoryType = DDMemoryTypeFromString(gpu.memory.type.c_str());
+    if (memoryType == DD_MEMORY_TYPE_UNKNOWN)
     {
         LogError("[RmtEventTracer] Invalid memory type: %s", gpu.memory.type.c_str());
     }
 
-    adapterInfo.memoryType        = memoryType;
-    adapterInfo.memoryOpsPerClock = gpu.memory.mem_ops_per_clock;
-    adapterInfo.memoryBusWidth    = gpu.memory.bus_bit_width;
-    adapterInfo.memoryBandwidth   = static_cast<uint32>(gpu.memory.bandwidth / kByteToMegabyteDivisor);
+    m_adapterInfo.memoryType        = memoryType;
+    m_adapterInfo.memoryOpsPerClock = gpu.memory.mem_ops_per_clock;
+    m_adapterInfo.memoryBusWidth    = gpu.memory.bus_bit_width;
+    m_adapterInfo.memoryBandwidth   = static_cast<uint32>(gpu.memory.bandwidth / kByteToMegabyteDivisor);
 
     uint64 minMemoryClock = gpu.memory.mem_clock_hz.min;
     uint64 maxMemoryClock = gpu.memory.mem_clock_hz.max;
 
-    adapterInfo.minMemoryClock = static_cast<uint32>(minMemoryClock / kHzToMhzDivisor);
-    adapterInfo.maxMemoryClock = static_cast<uint32>(maxMemoryClock / kHzToMhzDivisor);
-
-    m_rmtWriter.WriteAdapterInfo(adapterInfo);
+    m_adapterInfo.minMemoryClock = static_cast<uint32>(minMemoryClock / kHzToMhzDivisor);
+    m_adapterInfo.maxMemoryClock = static_cast<uint32>(maxMemoryClock / kHzToMhzDivisor);
 }
 
 // =================================================================================================
 // Transfers the data from the provided stream, it is assumed that the caller
 // has taken the stream mutex lock
 DD_RESULT RmtEventTracer::TransferDataStream(
+    rdfChunkFileWriter*    pRdfChunkWriter,
     TraceDataStream*       pStream,
-    uint32_t               streamIndex,
     uint8_t*               pScratchBuffer,
     size_t                 scratchBufferSize,
-    const DDByteWriter*    pBinaryStream)
+    const DDIOHeartbeat*   pIoCb,
+    rdfChunkCreateInfo*    pChunkInfo)
 {
+    DD_ASSERT(pRdfChunkWriter != nullptr);
     DD_ASSERT(pStream != nullptr);
     DD_ASSERT(pScratchBuffer != nullptr);
     DD_ASSERT(scratchBufferSize > 1);
-    DD_ASSERT(pBinaryStream != nullptr);
+    DD_ASSERT(pIoCb != nullptr);
     DD_ASSERT(pStream->pFileHandle != nullptr);
+    DD_ASSERT(pChunkInfo != nullptr);
 
     const uint32_t currPosition = ftell(pStream->pFileHandle);
 
@@ -861,8 +967,6 @@ DD_RESULT RmtEventTracer::TransferDataStream(
     rewind(pStream->pFileHandle);
 
     DD_RESULT result = DD_RESULT_SUCCESS;
-
-    LogInfo("stream (%u) total data size: %llu", streamIndex, pStream->totalDataSize);
 
     size_t bytesRemaining = pStream->totalDataSize;
     while ((result == DD_RESULT_SUCCESS) && (bytesRemaining > 0))
@@ -873,7 +977,13 @@ DD_RESULT RmtEventTracer::TransferDataStream(
         const size_t transferSize = Platform::Min(bytesRemaining, scratchBufferSize);
 
         // Read a chunk of the data stream into scratch memory.
-        result = TransferFileData(pScratchBuffer, transferSize, pStream->pFileHandle, pBinaryStream);
+        result = TransferFileData(
+            pScratchBuffer,
+            transferSize,
+            pStream->pFileHandle,
+            pIoCb,
+            pChunkInfo,
+            pRdfChunkWriter);
 
         if (result == DD_RESULT_SUCCESS)
         {
@@ -917,7 +1027,7 @@ void RmtEventTracer::Clear()
     m_traceState    = TraceState::NotStarted;
     m_endReason     = EndTraceReason::Unknown;
 
-    ResetRmtWriter(&m_rmtWriter);
+    m_snapshots.Reset();
 
     DiscardDataStreams();
 }

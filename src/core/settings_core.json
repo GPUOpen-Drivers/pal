@@ -557,44 +557,6 @@
       "Name": "Addr2UseVarSwizzleMode"
     },
     {
-      "ValidValues": {
-        "IsEnum": true,
-        "Values": [
-          {
-            "Name": "Gfx10RpmViewsBypassMallOnRead",
-            "Value": 1,
-            "Description": "Skip MALL for read access of views created in RPM"
-          },
-          {
-            "Name": "Gfx10RpmViewsBypassMallOnWrite",
-            "Value": 2,
-            "Description": "Skip MALL for write access of views created in RPM"
-          },
-          {
-            "Name": "Gfx10RpmViewsBypassMallOnCbDbWrite",
-            "Value": 4,
-            "Description": "Control the CB/DB MALL noalloc bits in the CB_RMI_GL2_CACHE_CONTROL and DB_RMI_L2_CACHE_CONTROL registers"
-          }
-        ],
-        "Name": "Gfx10RpmViewsBypassMall"
-      },
-      "Description": "Bitmask of cases where RPM view memory accesses will bypass the MALL",
-      "Tags": [
-        "General"
-      ],
-      "Flags": {
-        "IsBitmask": true,
-        "IsHex": true
-      },
-      "Defaults": {
-        "Default": 0
-      },
-      "Scope": "PrivatePalKey",
-      "Type": "uint32",
-      "VariableName": "rpmViewsBypassMall",
-      "Name": "RpmViewsBypassMall"
-    },
-    {
       "Description": "Enable big-page alignment on resources which are yet to be bound",
       "Tags": [
         "General"
@@ -1719,7 +1681,7 @@
       "Description": "If true, attempt to prefetch pipeline shader code and data into L2 before executing the pipeline."
     },
     {
-      "Name": "ShaderPrefetchClampSize",
+      "Name": "PrefetchClampSize",
       "Tags": [
         "Prefetching (L2 Cache Warming)"
       ],
@@ -1728,8 +1690,8 @@
       },
       "Scope": "PrivatePalKey",
       "Type": "uint32",
-      "VariableName": "shaderPrefetchClampSize",
-      "Description": "When this setting is non-zero, clamp shader prefetching to this many bytes."
+      "VariableName": "prefetchClampSize",
+      "Description": "When this setting is non-zero, clamp L2 prefetching to this many bytes."
     },
     {
       "Name": "MaxScratchRingSizeBaseline",

@@ -821,7 +821,6 @@ void Dri3WindowSystem::WaitOnIdleEvent(
 {
     WindowSystemImageHandle image = NullImageHandle;
 
-    MutexAuto lock(&m_eventMutex);
     while (image.hPixmap == 0)
     {
         xcb_present_generic_event_t*const pPresentEvent = reinterpret_cast<xcb_present_generic_event_t*>(
@@ -981,6 +980,12 @@ Result Dri3WindowSystem::Present(
         pSrcImage->SetIdle(false); // From now on, the image/buffer is owned by Xorg
 
         m_dri3Procs.pfnXcbFlush(m_pConnection);
+
+        if (m_swapChainMode != SwapChainMode::Immediate)
+        {
+            // For other modes like FIFO, handle events in the present thread only.
+            GoThroughEvent();
+        }
     }
 
     return result;
@@ -1061,7 +1066,6 @@ Result Dri3WindowSystem::WaitForLastImagePresented()
 
     PAL_ASSERT(m_swapChainMode == SwapChainMode::Fifo);
 
-    MutexAuto lock(&m_eventMutex);
     while ((lastSerial > m_remoteSerial) && (result == Result::Success))
     {
         m_dri3Procs.pfnXcbFlush(m_pConnection);
@@ -1786,7 +1790,6 @@ void Dri3WindowSystem::GoThroughEvent()
 {
     xcb_generic_event_t* pEvent = nullptr;
 
-    MutexAuto lock(&m_eventMutex);
     while ((pEvent = m_dri3Procs.pfnXcbPollForSpecialEvent(m_pConnection, m_pPresentEvent)) != nullptr)
     {
         HandlePresentEvent(reinterpret_cast<xcb_present_generic_event_t*>(pEvent), nullptr);

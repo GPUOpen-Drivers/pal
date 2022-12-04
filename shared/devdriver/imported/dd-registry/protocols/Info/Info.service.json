@@ -1,0 +1,27 @@
+{
+  "name": "Info",
+  "description": "A service that provides arbitrary information",
+  "version": "0.1.0",
+  "id": "0x6f66_6e69",
+  "functions": [
+    {
+      "name": "QuerySources",
+      "description": "Queries the list of all available info sources",
+      "id": "1",
+      "returns": true
+    },
+    {
+      "name": "QueryInfo",
+      "description": "Queries information from a specific info source",
+      "id": "2",
+      "param": true,
+      "returns": true
+    },
+    {
+      "name": "QueryInfoAll",
+      "description": "Queries information from all available info sources",
+      "id": "3",
+      "returns": true
+    }
+  ]
+}

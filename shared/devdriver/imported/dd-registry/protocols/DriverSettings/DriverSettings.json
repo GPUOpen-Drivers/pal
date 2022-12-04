@@ -1,0 +1,56 @@
+{
+  "name": "SettingsRpc",
+  "description": "A service that queries/modifies driver settings.",
+  "id": "0x1537_5127",
+  "version": "1.1.0",
+  "copyright_start_year": "2021",
+  "functions": [
+    {
+      "name": "GetComponents",
+      "description": "Queries the settings components",
+      "id": "1",
+      "returns": true
+    },
+    {
+      "name": "QueryComponentSettings",
+      "description": "Queries the settings for a component",
+      "id": "2",
+      "param": true,
+      "returns": true
+    },
+    {
+      "name": "QueryCurrentValues",
+      "description": "Queries for the current settings values for a compent",
+      "id": "3",
+      "param": true,
+      "returns": true
+    },
+    {
+      "name": "QuerySettingsDataHash",
+      "description": "Getts the setting data hash of the component",
+      "id": "4",
+      "param": true,
+      "returns": true
+    },
+    {
+      "name": "SetData",
+      "description": "Sends a setting to the driver",
+      "id": "5",
+      "param": true
+    },
+    {
+      "name": "GetCurrentValues",
+      "description": "Queries the current Settings values for all components.",
+      "id": "6",
+      "param": false,
+      "returns": true
+    },
+    {
+      "name": "SetValue",
+      "description": "Set a setting's value.",
+      "id": "7",
+      "param": true,
+      "returns": false
+    }
+  ]
+}

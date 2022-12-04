@@ -43,6 +43,17 @@ struct     ImageInfo;
 struct     SubresId;
 struct     SubResourceInfo;
 
+// Mask of all image usage layout flags which are valid to use on depth/stencil Images.
+constexpr uint32 AllDepthImageLayoutFlags = LayoutUninitializedTarget |
+                                            LayoutDepthStencilTarget  |
+                                            LayoutShaderRead          |
+                                            LayoutShaderWrite         |
+                                            LayoutCopySrc             |
+                                            LayoutCopyDst             |
+                                            LayoutResolveSrc          |
+                                            LayoutResolveDst          |
+                                            LayoutSampleRate;
+
 // Internal flags set for opening shared metadata path.
 union SharedMetadataFlags
 {
@@ -113,10 +124,12 @@ public:
 
     virtual bool HasDisplayDccData() const { return false; }
 
-    virtual bool IsFormatReplaceable(const SubresId& subresId,
-                                     ImageLayout     layout,
-                                     bool            isDst,
-                                     uint8           disabledChannelMask = 0) const = 0;
+    virtual bool IsFormatReplaceable(
+        const SubresId& subresId,
+        ImageLayout     layout,
+        bool            isDst,
+        uint8           disabledChannelMask = 0) const = 0;
+
     virtual bool IsSubResourceLinear(const SubresId& subresource) const = 0;
 
     virtual bool IsIterate256Meaningful(const SubResourceInfo* subResInfo) const { return false; }
@@ -128,11 +141,6 @@ public:
     // Answers the question: "If I do shader writes in this layout, will it break my metadata?". For example, this
     // would return true if we promised that CopyDst would be compressed but tried to use a compute copy path.
     virtual bool ShaderWriteIncompatibleWithLayout(const SubresId& subresId, ImageLayout layout) const = 0;
-
-    bool HasHiSPretestsMetaData() const { return m_hiSPretestsMetaDataOffset != 0; }
-    gpusize HiSPretestsMetaDataAddr(uint32 mipLevel) const;
-    gpusize HiSPretestsMetaDataOffset(uint32 mipLevel) const;
-    gpusize HiSPretestsMetaDataSize(uint32 numMips) const;
 
     virtual void GetSharedMetadataInfo(SharedMetadataInfo* pMetadataInfo) const = 0;
     virtual void GetDisplayDccState(DccState* pState) const { PAL_NEVER_CALLED(); }
@@ -159,19 +167,6 @@ public:
         CmdBuffer*         pCmdBuffer,
         const SubresRange& range,
         ImageLayout        layout) const = 0;
-
-    // Helper function for AddrMgr1 to initialize the AddrLib surface info strucutre for a subresource.
-    virtual Result Addr1InitSurfaceInfo(
-        uint32                           subResIdx,
-        ADDR_COMPUTE_SURFACE_INFO_INPUT* pSurfInfo) { return Result::ErrorUnavailable; }
-
-    // Helper function for AddrMgr1 to finalize the subresource and tiling info for a subresource after
-    // calling AddrLib.
-    virtual void Addr1FinalizeSubresource(
-        uint32                                  subResIdx,
-        SubResourceInfo*                        pSubResInfoList,
-        void*                                   pTileInfoList,
-        const ADDR_COMPUTE_SURFACE_INFO_OUTPUT& surfInfo) { PAL_NEVER_CALLED(); }
 
     virtual void Addr2InitSubResInfo(
         const SubResIterator&  subResIt,
@@ -211,16 +206,6 @@ protected:
         ImageMemoryLayout* pGpuMemLayout,
         gpusize            offset,
         gpusize            alignment);
-    static void UpdateMetaDataHeaderLayout(
-        ImageMemoryLayout* pGpuMemLayout,
-        gpusize            offset,
-        gpusize            alignment);
-
-    void InitHiSPretestsMetaData(
-        ImageMemoryLayout* pGpuMemLayout,
-        gpusize*           pGpuMemSize,
-        size_t             sizePerMipLevel,
-        gpusize            alignment);
 
     virtual void Destroy() {}
 
@@ -228,9 +213,6 @@ protected:
     const Device&          m_device;
     const ImageCreateInfo& m_createInfo;
     ImageInfo*const        m_pImageInfo;
-
-    gpusize m_hiSPretestsMetaDataOffset;     // Offset to beginning of HiSPretest metadata
-    gpusize m_hiSPretestsMetaDataSizePerMip; // Size of HiSPretest metadata per mip level.
 
 private:
     PAL_DISALLOW_DEFAULT_CTOR(GfxImage);

@@ -33,7 +33,6 @@ namespace Pal
 {
 
 class      CmdStream;
-class      PipelineUploader;
 enum class IndexType : uint32;
 
 namespace Gfx9
@@ -205,18 +204,6 @@ struct RegisterInfo
     uint16  mmComputeShaderChksum;
 };
 
-// Pre-baked commands to prefetch (prime caches) for a pipeline.  This can either be done with a PRIME_UTCL2 packet,
-// which will prime the UTCL2 (L2 TLB) or with a DMA_DATA packet, which will also prime GL2.
-struct PipelinePrefetchPm4
-{
-    union
-    {
-        PM4_PFP_DMA_DATA    dmaData;
-        PM4_PFP_PRIME_UTCL2 primeUtcl2;
-    };
-    uint32 spaceNeeded;
-};
-
 // Parameters for building an EXECUTE_INDIRECT PM4 packet.
 struct ExecuteIndirectPacketInfo
 {
@@ -260,10 +247,9 @@ public:
     static constexpr uint32 CondIndirectBufferSize        = PM4_PFP_COND_INDIRECT_BUFFER_SIZEDW__CORE;
     static constexpr uint32 DispatchDirectSize            = PM4_PFP_DISPATCH_DIRECT_SIZEDW__CORE;
     static constexpr uint32 DispatchIndirectMecSize       = PM4_MEC_DISPATCH_INDIRECT_SIZEDW__CORE;
-    static constexpr uint32 DrawIndirectSize              = PM4_PFP_DRAW_INDEX_INDIRECT_SIZEDW__CORE;
-    static constexpr uint32 DrawIndirectMultiSize         = PM4_PFP_DRAW_INDEX_INDIRECT_MULTI_SIZEDW__CORE;
+    static constexpr uint32 DrawIndirectSize              = PM4_PFP_DRAW_INDIRECT_SIZEDW__CORE;
     static constexpr uint32 SetIndexAttributesSize        = PM4_PFP_INDEX_ATTRIBUTES_INDIRECT_SIZEDW__CORE;
-    static constexpr uint32 SetUserDataIndirectSize       = PM4_PFP_LOAD_SH_REG_INDEX_SIZEDW__CORE;
+    static constexpr uint32 LoadShRegIndexSize            = PM4_PFP_LOAD_SH_REG_INDEX_SIZEDW__CORE;
     static constexpr uint32 BuildUntypedSrdSize           = PM4_PFP_BUILD_UNTYPED_SRD_SIZEDW__CORE;
     static constexpr uint32 DrawIndexAutoSize             = PM4_PFP_DRAW_INDEX_AUTO_SIZEDW__CORE;
     static constexpr uint32 DrawIndex2Size                = PM4_PFP_DRAW_INDEX_2_SIZEDW__CORE;
@@ -293,6 +279,9 @@ public:
     static constexpr uint32 WaitRegMem64SizeDwords    = PM4_ME_WAIT_REG_MEM64_SIZEDW__CORE;
     static constexpr uint32 WriteDataSizeDwords       = PM4_ME_WRITE_DATA_SIZEDW__CORE;
     static constexpr uint32 WriteNonSampleEventDwords = (sizeof(PM4_ME_NON_SAMPLE_EVENT_WRITE) / sizeof(uint32));
+
+    // This can't be a precomputed constant, we have to look at some device state.
+    uint32 DrawIndexIndirectSize() const;
 
     // The INDIRECT_BUFFER and COND_INDIRECT_BUFFER packet have a hard-coded IB size of 20 bits.
     static constexpr uint32 MaxIndirectBufferSizeDwords = (1 << 20) - 1;
@@ -588,13 +577,6 @@ public:
         uint32        count,
         Pm4ShaderType shaderType,
         void*         pBuffer);
-    template <bool directAddress>
-    size_t BuildLoadShRegsIndex(
-        gpusize       gpuVirtAddrOrAddrOffset,
-        uint32        startRegAddr,
-        uint32        count,
-        Pm4ShaderType shaderType,
-        void*         pBuffer) const;
     size_t BuildLoadShRegsIndex(
         PFP_LOAD_SH_REG_INDEX_index_enum       index,
         PFP_LOAD_SH_REG_INDEX_data_format_enum dataFormat,
@@ -743,10 +725,9 @@ public:
 
     size_t BuildNopPayload(const void* pPayload, uint32 payloadSize, void* pBuffer) const;
 
-    void BuildPipelinePrefetchPm4(const PipelineUploader& uploader, PipelinePrefetchPm4* pOutput) const;
-
     size_t BuildPrimeGpuCaches(
         const PrimeGpuCacheRange& primeGpuCacheRange,
+        EngineType                engineType,
         void*                     pBuffer) const;
 
     static bool IsIndexedRegister(uint32 regAddr);
@@ -791,7 +772,6 @@ private:
 
     const Device&            m_device;
     const GpuChipProperties& m_chipProps;
-    const uint32             m_cpUcodeVersion;
     RegisterInfo             m_registerInfo;    // Addresses for registers whose addresses vary between hardware families.
 
 #if PAL_ENABLE_PRINTS_ASSERTS

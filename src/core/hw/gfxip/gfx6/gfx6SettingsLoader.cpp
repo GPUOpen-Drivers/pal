@@ -158,7 +158,7 @@ void SettingsLoader::ValidateSettings(
     // the user tried to enable it through the panel.
     if ((gfx6Props.supportLoadRegIndexPkt == 0) ||
         (gfx6Props.supportPreemptionWithChaining == 0) ||
-        (m_pDevice->EngineProperties().cpUcodeVersion < MinUcodeFeatureVersionMcbpFix))
+        (m_pDevice->ChipProperties().cpUcodeVersion < MinUcodeFeatureVersionMcbpFix))
     {
         // We don't have a fully correct path to enable in this case. The KMD needs us to respect their MCBP enablement
         // but we can't support state shadowing without these features.

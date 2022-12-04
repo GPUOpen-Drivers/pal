@@ -389,6 +389,7 @@ enum ClearColorImageFlags : uint32
                                        ///  ready for rendering as a color target (as is required by API convention in
                                        ///  DX12).  Allows reduced sync costs in some situations since PAL knows
                                        ///  the details of how the clear will be performed.
+    ColorClearForceSlow = 0x00000002,  ///< Force these to use slow clears.
 };
 
 /// Bitmask values for the flags parameter of ICmdBuffer::CmdClearDepthStencil().
@@ -2130,7 +2131,7 @@ struct PrimeGpuCacheRange
 constexpr uint32 CmdBufferPayloadSignature = 0x1337F77D;
 
 /// Maximum size, in DWORDs, of payload data in command buffer dumps.
-constexpr uint32 MaxPayloadSize = 256;
+constexpr uint32 MaxPayloadSize = 254;
 
 /// Payload types used in special embedded NOP packets.
 enum class CmdBufferPayloadType : uint32
@@ -2160,7 +2161,7 @@ struct CmdBufferPayload
 };
 
 /// Flags controlling which sub-queue(s) of a command buffer should insert an RGP trace marker.  Zeroing out this
-/// union is invalid, because RGP makrers must be sent to at least one sub-queue.
+/// union is invalid, because RGP markers must be sent to at least one sub-queue.
 union RgpMarkerSubQueueFlags
 {
     struct
@@ -3440,6 +3441,8 @@ public:
     ///
     /// This requires regionCount being specified since resource size is for sure to be known.
     ///
+    /// The bound color targets shouldn't have UndefinedSwizzledFormat as their swizzle format.
+    ///
     /// @param [in] colorTargetCount      Number of bound color target that needs to be cleared.
     /// @param [in] pBoundColorTargets    Color target information for the bound color targets.
     /// @param [in] regionCount           Number of volumes within the image to clear; size of the pClearRegions array.
@@ -4266,7 +4269,7 @@ public:
     /// dumps.
     ///
     /// @param [in] pPayload    Pointer to binary data to embed.
-    /// @param [in] payloadSize Size of the payload, in DWORDs.
+    /// @param [in] payloadSize Size of the payload in DWORDs, expected to be under MaxPayloadSize.
     virtual void CmdNop(
         const void* pPayload,
         uint32      payloadSize) = 0;

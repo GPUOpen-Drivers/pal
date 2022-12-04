@@ -36,7 +36,7 @@ namespace DbgOverlay
 class Device;
 class Image;
 
-static constexpr size_t MaxTextLines      = 22;                // Maximum number of text lines
+static constexpr size_t MaxTextLines      = 24;                // Maximum number of text lines
 static constexpr size_t MaxTextLength     = 61;                // Maximum characters per line
 static constexpr size_t MaxTextLengthComb = 48;                // Maximum characters per line for combined case
 static constexpr size_t BufSize           = MaxTextLength + 1; // String buffer length per line

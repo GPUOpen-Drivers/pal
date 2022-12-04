@@ -3604,7 +3604,8 @@ uint32 RsrcProcMgr::HwlBeginGraphicsCopy(
     auto*const           pGfx6CmdStream = static_cast<CmdStream*>(pCmdStream);
     uint32*              pCmdSpace      = pGfx6CmdStream->ReserveCommands();
 
-    if (pGpuMem != nullptr)
+    // Virtual memory objects don't have a defined heap preference, so skip this optimization for virtual memory.
+    if ((pGpuMem != nullptr) && (pGpuMem->IsVirtual() == false))
     {
         const GpuHeap preferredHeap = pGpuMem->PreferredHeap();
 

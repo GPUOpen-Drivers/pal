@@ -128,6 +128,8 @@ CmdStream::CmdStream(
         // the KMD/CP that we want preemption disabled for our submit.
         m_flags.enablePreemption = ((m_subEngineType == SubEngineType::ConstantEngine) ||
                                     (m_pDevice->Settings().cmdBufPreemptionMode == CmdBufPreemptModeEnable));
+
+        m_flags.supportPreemption = m_flags.enablePreemption;
     }
 
 }
@@ -157,6 +159,8 @@ Result CmdStream::Begin(
 
     // Save the caller's memory allocator for later use.
     m_pMemAllocator = pMemAllocator;
+
+    m_flags.enablePreemption = m_flags.supportPreemption;
 
     return Result::Success;
 }

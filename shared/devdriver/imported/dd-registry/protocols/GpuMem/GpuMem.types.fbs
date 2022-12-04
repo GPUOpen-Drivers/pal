@@ -1,0 +1,47 @@
+// Namespaces require extra work in the generator, so they are not supported right now.
+// namespace DevDriver.GpuMem;
+
+enum GpuMemSpace : ubyte
+{
+    Unknown,
+    Pci,
+    Physical,
+    Virtual
+}
+
+struct GpuMemAddressRaw
+{
+    address: uint64;
+}
+
+struct GpuMemAddressPci
+{
+    bus: ubyte;
+    device: ubyte;
+    function: ubyte;
+    offset: uint32;
+}
+
+union GpuMemAddress
+{
+    raw: GpuMemAddressRaw,
+    pci: GpuMemAddressPci,
+}
+
+table GpuMemRange
+{
+    address: GpuMemAddress;
+    size: uint64;
+    space: GpuMemSpace;
+    pid: uint32;
+}
+
+table GpuMemRead
+{
+    data: [ubyte];
+}
+
+table GpuMemWriteResponse
+{
+    bytes_written: uint64;
+}

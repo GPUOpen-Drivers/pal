@@ -25,6 +25,7 @@
 
 #include "core/device.h"
 #include "core/addrMgr/addrMgr1/addrMgr1.h"
+#include "core/hw/gfxip/pm4Image.h"
 #include "palFormatInfo.h"
 
 using namespace Util;
@@ -550,7 +551,7 @@ ADDR_E_RETURNCODE AddrMgr1::CalcSurfInfoOut(
     }
 
     // The GfxIp HWL needs to be able to override or initialize some parts of the AddrLib surface info.
-    Result result = pImage->GetGfxImage()->Addr1InitSurfaceInfo(subResIdx, pSurfInfoInput);
+    Result result = static_cast<Pm4Image*>(pImage->GetGfxImage())->Addr1InitSurfaceInfo(subResIdx, pSurfInfoInput);
     PAL_ALERT(result != Result::Success); // This should never happen under normal circumstances.
 
     // The matchStencilTileCfg flag is only valid for depth/stencil Images!
@@ -792,7 +793,8 @@ Result AddrMgr1::ComputeSubResourceInfo(
         }
 
         // The GfxIp HWL needs to initialize some tiling properties specific to itself.
-        pImage->GetGfxImage()->Addr1FinalizeSubresource(subResIdx, pSubResInfoList, pSubResTileInfoList, surfInfoOut);
+        Pm4Image* pPm4Image = static_cast<Pm4Image*>(pImage->GetGfxImage());
+        pPm4Image->Addr1FinalizeSubresource(subResIdx, pSubResInfoList, pSubResTileInfoList, surfInfoOut);
 
         BuildTileToken(pSubResInfo, pTileInfo);
 

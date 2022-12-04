@@ -1764,6 +1764,8 @@ LayoutTransitionInfo Device::PrepareDepthStencilBlt(
     // state to something that uses HiZ.
     else if ((oldState == DepthStencilDecomprNoHiZ) && (newState != DepthStencilDecomprNoHiZ))
     {
+        const auto* pPublicSettings = m_pParent->GetPublicSettings();
+
         // Use compute if:
         //   - We're on the compute engine
         //   - or we should force ExpandHiZRange for resummarize and we support compute operations
@@ -1776,7 +1778,7 @@ LayoutTransitionInfo Device::PrepareDepthStencilBlt(
               (createInfo.swizzledFormat.format == ChNumFormat::D16_Unorm_S8_Uint)));
         const bool  useCompute = ((pCmdBuf->GetEngineType() == EngineTypeCompute) ||
                                   (pCmdBuf->IsComputeSupported() &&
-                                   (Pal::Image::ForceExpandHiZRangeForResummarize ||
+                                   (pPublicSettings->expandHiZRangeForResummarize ||
                                     z16Unorm1xAaDecompressUninitializedActive)));
         if (useCompute)
         {

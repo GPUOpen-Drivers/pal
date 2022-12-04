@@ -79,7 +79,8 @@ union CmdStreamFlags
         uint32 optimizeCommands  :  1; // The command stream contents should be optimized.
         uint32 buildInSysMem     :  1; // Command data will be allocated using system memory chunks instead of the
                                        // usual GPU memory chunks.
-        uint32 enablePreemption  :  1; // This command stream can be preempted.
+        uint32 enablePreemption  :  1; // Indicate that whether this command stream can be preempted currently.
+        uint32 supportPreemption :  1; // Indicate that whether this command stream supports preemption.
         uint32 addressDependent  :  1; // One or more commands are dependent on the command chunk's GPU address. This
                                        // disables optimizations that copy commands and execute them without patching.
         uint32 autoMemoryReuse   :  1; // If autoMemoryReuse is enabled the client must not destroy a command allocator
@@ -87,7 +88,7 @@ union CmdStreamFlags
                                        // destroy a non-autoMemoryReuse allocator first. Dereferencing a deleted
                                        // allocator to see if it has autoMemoryReuse enabled is illegal, so we must
                                        // cache that state in the command stream.
-        uint32 reserved          : 25;
+        uint32 reserved          : 24;
     };
     uint32     value;
 };
@@ -250,6 +251,8 @@ public:
     bool Pm4OptimizerEnabled() const { return m_flags.optimizeCommands; }
 
     uint32 GetUsedCmdMemorySize() const;
+
+    void DisablePreemption() { m_flags.enablePreemption = 0; }
 
 protected:
     // Internal chunk memory interface:

@@ -463,7 +463,6 @@ protected:
     MsaaState*          m_pMsaaState[MaxLog2AaSamples + 1]
                                     [MaxLog2AaFragments + 1]; // MSAA state objects for all AA sample rates.
     DepthStencilState*  m_pDepthStencilResolveState;        // DS state object for depth/stencil resolves.
-    bool                m_releaseAcquireSupported;          // If acquire release interface is supported.
 
 private:
     virtual Result CreateCommonStateObjects();

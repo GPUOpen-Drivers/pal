@@ -1,0 +1,21 @@
+{
+  "name": "DriverUtils",
+  "description": "A utilities service for modifying the driver.",
+  "id": "0x2481_5012",
+  "version": "1.1.0",
+  "copyright_start_year": "2022",
+  "functions": [
+    {
+      "name": "EnableTracing",
+      "description": "Informs driver we are collecting trace data",
+      "id": "1",
+      "returns": false
+    },
+    {
+      "name": "EnableCrashAnalysisMode",
+      "description": "Informs driver to enable crash analysis mode",
+      "id": "2",
+      "returns": false
+    }
+  ]
+}

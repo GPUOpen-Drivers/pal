@@ -431,6 +431,28 @@ void HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>:
 }
 
 // =====================================================================================================================
+// Ensures that the hash table has been allocated, then returns pointer to start group of the bucket
+// corresponding to the specified key. A return of nullptr means out of memory.
+template<
+    typename Key,
+    typename Entry,
+    typename Allocator,
+    typename HashFunc,
+    typename EqualFunc,
+    typename AllocFunc,
+    size_t   GroupSize>
+Entry* HashBase<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::InitAndFindBucket(
+    const Key& key
+    )
+{
+    if (m_pMemory == nullptr)
+    {
+        Init();
+    }
+    return FindBucket(key);
+}
+
+// =====================================================================================================================
 // Returns pointer to start group of the bucket corresponding to the specified key.
 template<
     typename Key,

@@ -273,9 +273,9 @@ uint32 DmaCmdBuffer::CmdInsertExecutionMarker()
         uint32* pCmdSpace = m_cmdStream.ReserveCommands();
         BuildNops(pCmdSpace, MarkerPayloadSize + NopSizeDwords);
 
-        auto* pPayload          = reinterpret_cast<RgdExecutionMarker*>(pCmdSpace + NopSizeDwords);
-        pPayload->guard         = RGD_EXECUTION_MARKER_GUARD;
-        pPayload->counter       = m_executionMarkerCount;
+        auto* pPayload    = reinterpret_cast<RgdExecutionMarker*>(pCmdSpace + NopSizeDwords);
+        pPayload->guard   = RGD_EXECUTION_MARKER_GUARD;
+        pPayload->counter = m_executionMarkerCount;
 
         pCmdSpace += MarkerPayloadSize + NopSizeDwords;
         m_cmdStream.CommitCommands(pCmdSpace);
@@ -283,6 +283,26 @@ uint32 DmaCmdBuffer::CmdInsertExecutionMarker()
         returnVal = m_executionMarkerCount;
     }
     return returnVal;
+}
+
+// =====================================================================================================================
+void DmaCmdBuffer::CmdNop(
+    const void* pPayload,
+    uint32      payloadSize)
+{
+    const size_t NopPktDwords = Util::NumBytesToNumDwords(sizeof(SDMA_PKT_NOP));
+    uint32*      pCmdSpace    = m_cmdStream.ReserveCommands();
+
+    const size_t packetSize = NopPktDwords + payloadSize;
+    auto*const   pPacket    = reinterpret_cast<SDMA_PKT_NOP*>(pCmdSpace);
+    uint32*      pData      = reinterpret_cast<uint32*>(pPacket + 1);
+
+    BuildNops(pCmdSpace, uint32(packetSize));
+
+    // Append data
+    memcpy(pData, pPayload, payloadSize * sizeof(uint32));
+
+    m_cmdStream.CommitCommands(pCmdSpace + packetSize);
 }
 
 // =====================================================================================================================

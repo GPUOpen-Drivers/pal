@@ -29,6 +29,7 @@
 #include "core/hw/gfxip/rpm/g_rpmGfxPipelineInit.h"
 #include "core/hw/gfxip/rpm/rpmUtil.h"
 #include "palFormatInfo.h"
+#include "palGpuMemory.h"
 #include "palMath.h"
 
 #include <limits.h>
@@ -653,15 +654,17 @@ void BuildRawBufferViewInfo(
     gpusize         gpuVirtAddr,
     gpusize         sizeInBytes)
 {
-    const auto& settings = device.Settings();
+    const auto* pPublicSettings = device.GetPublicSettings();
 
     pInfo->gpuAddr = gpuVirtAddr;
     pInfo->range   = sizeInBytes;
     pInfo->stride  = 1;
     pInfo->swizzledFormat = UndefinedSwizzledFormat;
 
-    pInfo->flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnRead);
-    pInfo->flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnWrite);
+    pInfo->flags.bypassMallRead =
+        TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnRead);
+    pInfo->flags.bypassMallWrite =
+        TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnWrite);
 }
 
 // =====================================================================================================================
@@ -705,9 +708,9 @@ void BuildImageViewInfo(
     static_assert(static_cast<uint32>(ImageType::Tex3d) == static_cast<uint32>(ImageViewType::Tex3d),
                   "RPM assumes that ImageType::Tex3d == ImageViewType::Tex3d");
 
-    const ImageType  imageType = image.GetGfxImage()->GetOverrideImageType();
-    const Device*    pDevice   = image.GetDevice();
-    const auto&      settings  = pDevice->Settings();
+    const ImageType  imageType       = image.GetGfxImage()->GetOverrideImageType();
+    const Device*    pDevice         = image.GetDevice();
+    const auto*      pPublicSettings = pDevice->GetPublicSettings();
 
     pInfo->pImage               = &image;
     pInfo->viewType             = static_cast<ImageViewType>(imageType);
@@ -717,8 +720,10 @@ void BuildImageViewInfo(
     pInfo->texOptLevel          = texOptLevel;
     pInfo->possibleLayouts      = imgLayout;
 
-    pInfo->flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnRead);
-    pInfo->flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnWrite);
+    pInfo->flags.bypassMallRead =
+        TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnRead);
+    pInfo->flags.bypassMallWrite =
+        TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnWrite);
 
     pInfo->possibleLayouts.usages |= (isShaderWriteable ? LayoutShaderWrite : 0u);
 }

@@ -543,16 +543,10 @@ Result Image::GetExternalSharedImageCreateInfo(
             pCreateInfo->usageFlags.depthStencil |= pMetadata->flags.depth_stencil;
 
             pCreateInfo->flags.optimalShareable = pMetadata->flags.optimal_shareable;
-            if (device.ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9)
-            {
-                pCreateInfo->flags.presentable  = AMDGPU_TILING_GET(sharedInfo.info.metadata.tiling_info, SCANOUT);
-            }
-            else
-            {
-                pCreateInfo->flags.presentable  = (pMetadata->micro_tile_mode == AMDGPU_MICRO_TILE_MODE__DISPLAYABLE);
-            }
+            pCreateInfo->flags.presentable      = (device.ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9)
+                                                    ? AMDGPU_TILING_GET(sharedInfo.info.metadata.tiling_info, SCANOUT)
+                                                    : false;
             pCreateInfo->flags.flippable        = pCreateInfo->flags.presentable;
-
         }
         else
         {

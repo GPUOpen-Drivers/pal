@@ -295,6 +295,15 @@
           "Name": "TimeGraphEnabled"
         },
         {
+          "Description": "Include important command processor versions.",
+          "Defaults": {
+            "Default": false
+          },
+          "Type": "bool",
+          "VariableName": "cpVersionEnabled",
+          "Name": "CpVersionEnabled"
+        },
+        {
           "ValidValues": {
             "IsEnum": true,
             "Values": [

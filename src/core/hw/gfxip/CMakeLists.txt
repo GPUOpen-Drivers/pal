@@ -56,7 +56,6 @@ target_sources(pal PRIVATE
     gfxImage.h
     graphicsPipeline.cpp
     graphicsPipeline.h
-    maskRam.h
     msaaState.h
     pipeline.cpp
     pipeline.h
@@ -70,6 +69,7 @@ target_sources(pal PRIVATE
     pm4Image.h
     pm4IndirectCmdGenerator.cpp
     pm4IndirectCmdGenerator.h
+    pm4MaskRam.h
     pm4UniversalCmdBuffer.cpp
     pm4UniversalCmdBuffer.h
     queryPool.cpp

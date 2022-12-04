@@ -40,8 +40,10 @@ target_include_directories(ddRmtEventTracer
 target_link_libraries(ddRmtEventTracer
     PUBLIC
         system_info
+        ddRdf
     PRIVATE
         ddCommon
         ddEventClient
         ddEventParser
+        amdrdf
 )

@@ -257,6 +257,7 @@ inline Result ConvertErrno(
         case ENOSPC:
             result = Result::ErrorDiskFull;
             break;
+        case EISDIR:
         case EINVAL:
         case EBADF:
         case ENAMETOOLONG:

@@ -204,6 +204,20 @@ constexpr bool IsXorSwizzle(
 }
 
 // =====================================================================================================================
+// Returns true if it is non BC view compatible swizzle mode.
+constexpr bool IsNonBcViewCompatible(
+    AddrSwizzleMode swizzleMode,
+    ImageType       imageType)
+{
+    //2D or 3D with 3dThin swizzle mode.
+    return ((imageType == ImageType::Tex2d) ||
+            ((imageType == ImageType::Tex3d) &&
+             ((swizzleMode == ADDR_SW_64KB_Z_X)
+              || (swizzleMode == ADDR_SW_64KB_R_X)
+            )));
+}
+
+// =====================================================================================================================
 // Returns the swizzle type for a given swizzle modes.
 inline AddrSwType GetSwizzleType(
     AddrSwizzleMode swizzleMode)
@@ -309,6 +323,12 @@ private:
         const Image*        pImage,
         ADDR2_SURFACE_FLAGS surfaceFlags,
         ADDR2_BLOCK_SET*    pBlockSettings) const;
+
+    ADDR_E_RETURNCODE GetPreferredSurfaceSetting(
+        const SubResourceInfo*                        pBaseSubRes,
+        bool                                          newSwizzleModeDetermination,
+        const ADDR2_GET_PREFERRED_SURF_SETTING_INPUT* pIn,
+        ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT*      pOut) const;
 
     Result ComputePlaneSwizzleMode(
         const Image*                             pImage,

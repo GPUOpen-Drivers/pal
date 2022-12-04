@@ -756,7 +756,7 @@ Result PerfExperiment::AddCounter(
             mapping.general.dataType = PerfCounterDataType::Uint64;
 
             // If CP supports PERFMON_CONTROL packet then that is preferred to avoid security access issues.
-            m_select.df.usePerfmonControlPacket = (m_pDevice->EngineProperties().cpUcodeVersion > 29);
+            m_select.df.usePerfmonControlPacket = (m_pDevice->ChipProperties().cpUcodeVersion > 29);
 
             // Find the next unused global counter in the special DF state.
             bool searching = true;

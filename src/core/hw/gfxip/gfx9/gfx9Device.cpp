@@ -157,9 +157,7 @@ static uint32 GetFrameCountRegister(
     // which indicates that it will be written by KMD.
     if (IsVega10(*pDevice) && pDevice->ShouldWriteFrameCounterRegister())
     {
-        const auto&  engineProps = pDevice->EngineProperties();
-
-        if (engineProps.cpUcodeVersion >= 31)
+        if (pDevice->ChipProperties().cpUcodeVersion >= 31)
         {
             frameCountRegister = Vg10_Vg12_Rn::mmMP1_SMN_FPS_CNT;
         }
@@ -4943,8 +4941,7 @@ void PAL_STDCALL Device::Gfx10CreateImageViewSrds(
             extent.height = Clamp((pMipSubResInfo->extentElements.height << firstMipLevel),
                                   pBaseSubResInfo->extentElements.height,
                                   pBaseSubResInfo->actualExtentElements.height);
-            if (((imageCreateInfo.imageType == ImageType::Tex2d) ||
-                 ((imageCreateInfo.imageType == ImageType::Tex3d) && (imageCreateInfo.flags.prt == 0))) &&
+            if (AddrMgr2::IsNonBcViewCompatible(surfSetting.swizzleMode, imageCreateInfo.imageType)     &&
                 (viewInfo.subresRange.numMips == 1)                                                     &&
                 (viewInfo.subresRange.numSlices == 1)                                                   &&
                 ((Max(1u, extent.width >> firstMipLevel) < pMipSubResInfo->extentElements.width) ||
@@ -6398,11 +6395,13 @@ void InitializeGpuChipProperties(
         }
     }
 
-    if (IsGfx103(pInfo->gfxLevel) && (cpUcodeVersion >= Gfx103UcodeVersionLoadShRegIndexIndirectAddr))
+    if ((IsGfx103(pInfo->gfxLevel) && (cpUcodeVersion >= Gfx103UcodeVersionLoadShRegIndexIndirectAddr))
+       )
     {
         // PAL implements almost all of its HSA ABI support in a generic gfx9-10.3 way but we require LOAD_SH_REG_INDEX
         // packet support on compute queues. That was only implemented on gfx10.3+ for dynamic launch support.
         // If CP ever expands support to earlier HW we can expand HSA support too.
+
         pInfo->gfxip.supportHsaAbi = 1;
     }
 
@@ -6978,8 +6977,8 @@ void InitializeGpuEngineProperties(
     pUniversal->minTimestampAlignment                 = 8; // The CP spec requires 8-byte alignment.
     pUniversal->queueSupport                          = SupportQueueTypeUniversal;
 
-    if ((IsGfx9(gfxIpLevel) && (pInfo->cpUcodeVersion >= 52))      ||
-        (IsGfx10Plus(gfxIpLevel) && (pInfo->cpUcodeVersion >= 32))
+    if ((IsGfx9(gfxIpLevel)      && (chipProps.cpUcodeVersion >= 52)) ||
+        (IsGfx10Plus(gfxIpLevel) && (chipProps.cpUcodeVersion >= 32))
         )
     {
         pUniversal->flags.memory32bPredicationSupport = 1;

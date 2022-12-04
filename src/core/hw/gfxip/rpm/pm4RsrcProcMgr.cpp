@@ -32,6 +32,7 @@
 #include "palMsaaState.h"
 #include "palFormatInfo.h"
 #include "palInlineFuncs.h"
+#include "palGpuMemory.h"
 #include "core/hw/gfxip/colorBlendState.h"
 #include "core/hw/gfxip/computePipeline.h"
 #include "core/hw/gfxip/depthStencilState.h"
@@ -59,8 +60,10 @@ namespace Pm4
 RsrcProcMgr::RsrcProcMgr(
     GfxDevice* pDevice)
     :
-    Pal::RsrcProcMgr(pDevice)
+    Pal::RsrcProcMgr(pDevice),
+    m_releaseAcquireSupported(m_pDevice->Parent()->ChipProperties().gfx9.supportReleaseAcquireInterface)
 {
+
 }
 
 // =====================================================================================================================
@@ -239,10 +242,10 @@ void RsrcProcMgr::CopyColorImageGraphics(
         pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
 
     // Get some useful information about the image.
-    const auto& dstCreateInfo = dstImage.GetImageCreateInfo();
-    const auto& srcCreateInfo = srcImage.GetImageCreateInfo();
-    const auto& device        = *m_pDevice->Parent();
-    const auto& settings      = device.Settings();
+    const auto& dstCreateInfo   = dstImage.GetImageCreateInfo();
+    const auto& srcCreateInfo   = srcImage.GetImageCreateInfo();
+    const auto& device          = *m_pDevice->Parent();
+    const auto* pPublicSettings = device.GetPublicSettings();
 
     Pal::CmdStream*const pStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics);
     PAL_ASSERT(pStream != nullptr);
@@ -268,8 +271,7 @@ void RsrcProcMgr::CopyColorImageGraphics(
     ColorTargetViewCreateInfo colorViewInfo = { };
     colorViewInfo.imageInfo.pImage    = &dstImage;
     colorViewInfo.imageInfo.arraySize = 1;
-    colorViewInfo.flags.bypassMall    = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                       Gfx10RpmViewsBypassMallOnCbDbWrite);
+    colorViewInfo.flags.bypassMall = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnCbDbWrite);
 
     if (dstCreateInfo.imageType == ImageType::Tex3d)
     {
@@ -570,11 +572,11 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
     PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<UniversalCmdBuffer*>(
         pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
 
-    const auto& device        = *m_pDevice->Parent();
-    const auto& settings      = device.Settings();
-    const auto& texOptLevel   = device.TexOptLevel();
-    const auto& dstCreateInfo = dstImage.GetImageCreateInfo();
-    const auto& srcCreateInfo = srcImage.GetImageCreateInfo();
+    const auto& device          = *m_pDevice->Parent();
+    const auto* pPublicSettings = device.GetPublicSettings();
+    const auto& texOptLevel     = device.TexOptLevel();
+    const auto& dstCreateInfo   = dstImage.GetImageCreateInfo();
+    const auto& srcCreateInfo   = srcImage.GetImageCreateInfo();
 
     const StencilRefMaskParams stencilRefMasks = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF, };
 
@@ -597,7 +599,7 @@ void RsrcProcMgr::CopyDepthStencilImageGraphics(
     DepthStencilViewCreateInfo               depthViewInfo           = { };
     depthViewInfo.pImage           = &dstImage;
     depthViewInfo.arraySize        = 1;
-    depthViewInfo.flags.bypassMall = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnCbDbWrite);
+    depthViewInfo.flags.bypassMall = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnCbDbWrite);
 
     // Save current command buffer state and bind graphics state which is common for all regions.
     pCmdBuffer->CmdSaveGraphicsState();
@@ -975,10 +977,10 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
     uint32 regionCount                    = copyInfo.regionCount;
     const ImageScaledCopyRegion* pRegions = copyInfo.pRegions;
 
-    const auto& dstCreateInfo   = pDstImage->GetImageCreateInfo();
-    const auto& srcCreateInfo   = pSrcImage->GetImageCreateInfo();
-    const auto& device          = *m_pDevice->Parent();
-    const auto& settings        = device.Settings();
+    const auto& dstCreateInfo    = pDstImage->GetImageCreateInfo();
+    const auto& srcCreateInfo    = pSrcImage->GetImageCreateInfo();
+    const auto& device           = *m_pDevice->Parent();
+    const auto* pPublicSettings  = device.GetPublicSettings();
     const bool isSrcTex3d = srcCreateInfo.imageType == ImageType::Tex3d;
     const bool isDstTex3d = dstCreateInfo.imageType == ImageType::Tex3d;
     const bool depthStencilCopy = ((srcCreateInfo.usageFlags.depthStencil != 0) ||
@@ -1025,8 +1027,8 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
     const DepthStencilViewInternalCreateInfo noDepthViewInfoInternal = {};
     DepthStencilViewCreateInfo depthViewInfo                         = {};
 
-    colorViewInfo.flags.bypassMall = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnCbDbWrite);
-    depthViewInfo.flags.bypassMall = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnCbDbWrite);
+    colorViewInfo.flags.bypassMall = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnCbDbWrite);
+    depthViewInfo.flags.bypassMall = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnCbDbWrite);
 
     if (!depthStencilCopy)
     {
@@ -1824,6 +1826,8 @@ void RsrcProcMgr::CmdClearColorImage(
         // Fast clear is only usable when all channels of the color are being written.
         if ((color.disabledChannelMask == 0) &&
             clearBoxCoversWholeImage         &&
+            // If the client is requesting slow clears, then we don't want to do a fast clear here.
+            (TestAnyFlagSet(flags, ClearColorImageFlags::ColorClearForceSlow) == false) &&
             pPm4Image->IsFastColorClearSupported(pPm4CmdBuffer, dstImageLayout, &convertedColor[0], clearRange))
         {
             // Assume that all portions of the original range can be fast cleared.
@@ -2288,16 +2292,15 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
     uint32*             pNumGenChunks
     ) const
 {
-    const auto&                 settings       = m_pDevice->Parent()->Settings();
-    const auto&                 publicSettings = m_pDevice->Parent()->GetPublicSettings();
-    const auto&                 chipProps      = m_pDevice->Parent()->ChipProperties();
-    const gpusize               argsGpuAddr    = genInfo.argsGpuAddr;
-    const gpusize               countGpuAddr   = genInfo.countGpuAddr;
-    const Pipeline*             pPipeline      = genInfo.pPipeline;
-    const Pm4::IndirectCmdGenerator& generator = genInfo.generator;
-    Pm4CmdBuffer*               pCmdBuffer     = static_cast<Pm4CmdBuffer*>(genInfo.pCmdBuffer);
-    uint32                      indexBufSize   = genInfo.indexBufSize;
-    uint32                      maximumCount   = genInfo.maximumCount;
+    const auto*                 pPublicSettings = m_pDevice->Parent()->GetPublicSettings();
+    const auto&                 chipProps       = m_pDevice->Parent()->ChipProperties();
+    const gpusize               argsGpuAddr     = genInfo.argsGpuAddr;
+    const gpusize               countGpuAddr    = genInfo.countGpuAddr;
+    const Pipeline*             pPipeline       = genInfo.pPipeline;
+    const Pm4::IndirectCmdGenerator& generator  = genInfo.generator;
+    Pm4CmdBuffer*               pCmdBuffer      = static_cast<Pm4CmdBuffer*>(genInfo.pCmdBuffer);
+    uint32                      indexBufSize    = genInfo.indexBufSize;
+    uint32                      maximumCount    = genInfo.maximumCount;
 
     const ComputePipeline* pGenerationPipeline = GetCmdGenerationPipeline(generator, *pCmdBuffer);
     const DispatchDims     threadsPerGroup     = pGenerationPipeline->ThreadsPerGroupXyz();
@@ -2341,10 +2344,8 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
     viewInfo.swizzledFormat = UndefinedSwizzledFormat;
     viewInfo.range          = (generator.Properties().argBufStride * maximumCount);
     viewInfo.stride         = 1;
-    viewInfo.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                    Gfx10RpmViewsBypassMallOnRead);
-    viewInfo.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                    Gfx10RpmViewsBypassMallOnWrite);
+    viewInfo.flags.bypassMallRead  = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnRead);
+    viewInfo.flags.bypassMallWrite = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnWrite);
     m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &viewInfo, pTableMem);
     pTableMem += SrdDwords;
 
@@ -2533,7 +2534,7 @@ void RsrcProcMgr::CmdGenerateIndirectCmds(
         // ganged ACE is supported, and we are not using the ACE for Task Shader work.
         bool cmdGenUseAce = pCmdBuffer->IsGraphicsSupported() &&
                             (chipProps.gfxip.supportAceOffload != 0) &&
-                            (publicSettings->disableExecuteIndirectAceOffload != true) &&
+                            (pPublicSettings->disableExecuteIndirectAceOffload != true) &&
                             (taskShaderEnabled == false);
 
         if (cmdGenUseAce)
@@ -2660,8 +2661,8 @@ void RsrcProcMgr::SlowClearGraphics(
     // Graphics slow clears only work on color planes.
     PAL_ASSERT(dstImage.IsDepthStencilTarget() == false);
 
-    const auto& createInfo = dstImage.GetImageCreateInfo();
-    const auto& settings   = m_pDevice->Parent()->Settings();
+    const auto& createInfo      = dstImage.GetImageCreateInfo();
+    const auto* pPublicSettings = m_pDevice->Parent()->GetPublicSettings();
 
     for (SubresId subresId = clearRange.startSubres;
          subresId.plane < (clearRange.startSubres.plane + clearRange.numPlanes);
@@ -2716,8 +2717,8 @@ void RsrcProcMgr::SlowClearGraphics(
         colorViewInfo.imageInfo.arraySize               = (is3dImage ? 1 : clearRange.numSlices);
         colorViewInfo.imageInfo.baseSubRes.plane        = subresId.plane;
         colorViewInfo.imageInfo.baseSubRes.arraySlice   = subresId.arraySlice;
-        colorViewInfo.flags.bypassMall                  = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                                         Gfx10RpmViewsBypassMallOnCbDbWrite);
+        colorViewInfo.flags.bypassMall = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                        RpmViewsBypassMallOnCbDbWrite);
 
         BindTargetParams bindTargetsInfo = { };
         bindTargetsInfo.colorTargets[0].imageLayout      = dstImageLayout;
@@ -3113,7 +3114,7 @@ void RsrcProcMgr::ResolveImageFixedFunc(
     uint32                    flags
     ) const
 {
-    const auto& settings = m_pDevice->Parent()->Settings();
+    const auto* pPublicSettings = m_pDevice->Parent()->GetPublicSettings();
 
     PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
     // Don't expect GFX Blts on Nested unless targets not inherited.
@@ -3142,14 +3143,14 @@ void RsrcProcMgr::ResolveImageFixedFunc(
     ColorTargetViewCreateInfo srcColorViewInfo = { };
     srcColorViewInfo.imageInfo.pImage    = &srcImage;
     srcColorViewInfo.imageInfo.arraySize = 1;
-    srcColorViewInfo.flags.bypassMall    = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                          Gfx10RpmViewsBypassMallOnCbDbWrite);
+    srcColorViewInfo.flags.bypassMall = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                       RpmViewsBypassMallOnCbDbWrite);
 
     ColorTargetViewCreateInfo dstColorViewInfo = { };
     dstColorViewInfo.imageInfo.pImage    = &dstImage;
     dstColorViewInfo.imageInfo.arraySize = 1;
-    dstColorViewInfo.flags.bypassMall    = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                          Gfx10RpmViewsBypassMallOnCbDbWrite);
+    dstColorViewInfo.flags.bypassMall = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                       RpmViewsBypassMallOnCbDbWrite);
 
     BindTargetParams bindTargetsInfo = {};
     bindTargetsInfo.colorTargetCount                    = 2;
@@ -3313,11 +3314,11 @@ void RsrcProcMgr::ResolveImageDepthStencilGraphics(
     PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<Pm4::UniversalCmdBuffer*>(
         pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
 
-    const auto& device        = *m_pDevice->Parent();
-    const auto& settings      = device.Settings();
-    const auto& dstCreateInfo = dstImage.GetImageCreateInfo();
-    const auto& srcCreateInfo = srcImage.GetImageCreateInfo();
-    const auto& srcImageInfo  = srcImage.GetImageInfo();
+    const auto& device          = *m_pDevice->Parent();
+    const auto* pPublicSettings = device.GetPublicSettings();
+    const auto& dstCreateInfo   = dstImage.GetImageCreateInfo();
+    const auto& srcCreateInfo   = srcImage.GetImageCreateInfo();
+    const auto& srcImageInfo    = srcImage.GetImageInfo();
 
     LateExpandShaderResolveSrc(pCmdBuffer,
                                srcImage,
@@ -3353,7 +3354,7 @@ void RsrcProcMgr::ResolveImageDepthStencilGraphics(
     DepthStencilViewCreateInfo               depthViewInfo           = { };
     depthViewInfo.pImage           = &dstImage;
     depthViewInfo.arraySize        = 1;
-    depthViewInfo.flags.bypassMall = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnCbDbWrite);
+    depthViewInfo.flags.bypassMall = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnCbDbWrite);
 
     // Save current command buffer state and bind graphics state which is common for all regions.
     pCmdBuffer->CmdSaveGraphicsState();
@@ -3547,9 +3548,9 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
     PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<Pm4::UniversalCmdBuffer*>(
         pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
 
-    const auto& settings      = m_pDevice->Parent()->Settings();
-    const auto& srcCreateInfo = srcImage.GetImageCreateInfo();
-    const auto& dstCreateInfo = dstImage.GetImageCreateInfo();
+    const auto* pPublicSettings = m_pDevice->Parent()->GetPublicSettings();
+    const auto& srcCreateInfo   = srcImage.GetImageCreateInfo();
+    const auto& dstCreateInfo   = dstImage.GetImageCreateInfo();
 
     ViewportParams viewportInfo = {};
     viewportInfo.count = 1;
@@ -3572,14 +3573,14 @@ void RsrcProcMgr::ResolveImageDepthStencilCopy(
     srcDepthViewInfo.arraySize             = 1;
     srcDepthViewInfo.flags.readOnlyDepth   = 1;
     srcDepthViewInfo.flags.readOnlyStencil = 1;
-    srcDepthViewInfo.flags.bypassMall      = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                            Gfx10RpmViewsBypassMallOnCbDbWrite);
+    srcDepthViewInfo.flags.bypassMall = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                       RpmViewsBypassMallOnCbDbWrite);
 
     ColorTargetViewCreateInfo dstColorViewInfo = {};
     dstColorViewInfo.imageInfo.pImage    = &dstImage;
     dstColorViewInfo.imageInfo.arraySize = 1;
-    dstColorViewInfo.flags.bypassMall    = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                          Gfx10RpmViewsBypassMallOnCbDbWrite);
+    dstColorViewInfo.flags.bypassMall = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                       RpmViewsBypassMallOnCbDbWrite);
 
     BindTargetParams bindTargetsInfo = {};
     bindTargetsInfo.colorTargetCount = 1;
@@ -3759,12 +3760,12 @@ void RsrcProcMgr::GenericColorBlit(
     PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<Pm4::UniversalCmdBuffer*>(
         pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
 
-    const auto& settings        = m_pDevice->Parent()->Settings();
-    const auto& imageCreateInfo = dstImage.GetImageCreateInfo();
-    const bool  is3dImage       = (imageCreateInfo.imageType == ImageType::Tex3d);
-    const bool  isDecompress    = ((pipeline == RpmGfxPipeline::DccDecompress) ||
-                                   (pipeline == RpmGfxPipeline::FastClearElim) ||
-                                   (pipeline == RpmGfxPipeline::FmaskDecompress));
+    const auto* pPublicSettings  = m_pDevice->Parent()->GetPublicSettings();
+    const auto& imageCreateInfo  = dstImage.GetImageCreateInfo();
+    const bool  is3dImage        = (imageCreateInfo.imageType == ImageType::Tex3d);
+    const bool  isDecompress     = ((pipeline == RpmGfxPipeline::DccDecompress) ||
+                                    (pipeline == RpmGfxPipeline::FastClearElim) ||
+                                    (pipeline == RpmGfxPipeline::FmaskDecompress));
 
     ViewportParams viewportInfo = { };
     viewportInfo.count                 = 1;
@@ -3794,8 +3795,7 @@ void RsrcProcMgr::GenericColorBlit(
     colorViewInfo.imageInfo.pImage    = &dstImage;
     colorViewInfo.imageInfo.arraySize = 1;
     colorViewInfo.imageInfo.baseSubRes.plane = range.startSubres.plane;
-    colorViewInfo.flags.bypassMall           = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                              Gfx10RpmViewsBypassMallOnCbDbWrite);
+    colorViewInfo.flags.bypassMall = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnCbDbWrite);
 
     if (is3dImage)
     {
@@ -3971,8 +3971,8 @@ bool RsrcProcMgr::ExpandDepthStencil(
     PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<Pm4::UniversalCmdBuffer*>(
         pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
 
-    const auto&                 settings        = m_pDevice->Parent()->Settings();
-    const StencilRefMaskParams  stencilRefMasks = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF };
+    const auto*                pPublicSettings  = m_pDevice->Parent()->GetPublicSettings();
+    const StencilRefMaskParams stencilRefMasks  = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF };
 
     ViewportParams viewportInfo = { };
     viewportInfo.count                 = 1;
@@ -3998,7 +3998,7 @@ bool RsrcProcMgr::ExpandDepthStencil(
     DepthStencilViewCreateInfo depthViewInfo = { };
     depthViewInfo.pImage           = &image;
     depthViewInfo.arraySize        = 1;
-    depthViewInfo.flags.bypassMall = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnCbDbWrite);
+    depthViewInfo.flags.bypassMall = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnCbDbWrite);
 
     if (image.IsDepthPlane(range.startSubres.plane))
     {
@@ -4122,8 +4122,8 @@ void RsrcProcMgr::ResummarizeDepthStencil(
     PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<Pm4::UniversalCmdBuffer*>(
         pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
 
-    const auto&                 settings        = m_pDevice->Parent()->Settings();
-    const StencilRefMaskParams  stencilRefMasks = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF };
+    const auto*                pPublicSettings  = m_pDevice->Parent()->GetPublicSettings();
+    const StencilRefMaskParams stencilRefMasks  = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF };
 
     ViewportParams viewportInfo = { };
     viewportInfo.count                 = 1;
@@ -4149,8 +4149,7 @@ void RsrcProcMgr::ResummarizeDepthStencil(
     depthViewInfo.pImage    = &image;
     depthViewInfo.arraySize = 1;
     depthViewInfo.flags.resummarizeHiZ = 1;
-    depthViewInfo.flags.bypassMall     = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                        Gfx10RpmViewsBypassMallOnCbDbWrite);
+    depthViewInfo.flags.bypassMall = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnCbDbWrite);
 
     if (image.IsDepthPlane(range.startSubres.plane))
     {

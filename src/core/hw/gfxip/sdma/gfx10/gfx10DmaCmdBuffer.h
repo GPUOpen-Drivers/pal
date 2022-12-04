@@ -61,6 +61,8 @@ public:
 
     virtual uint32 CmdInsertExecutionMarker() override;
 
+    virtual void CmdNop(const void* pPayload, uint32 payloadSize) override;
+
 protected:
     virtual ~DmaCmdBuffer() {}
 

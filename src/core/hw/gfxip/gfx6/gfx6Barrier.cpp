@@ -216,11 +216,14 @@ bool Device::GetDepthStencilBltPerSubres(
                  (oldState == DepthStencilDecomprNoHiZ) &&
                  (newState != DepthStencilDecomprNoHiZ))
         {
+            const auto* pPublicSettings = m_pParent->GetPublicSettings();
+
             // If we are transitioning from uninitialized, resummarization is redundant.  This is because within
             // this same barrier, we have just initialized the htile to known values.
             if (TestAnyFlagSet(transition.imageInfo.oldLayout.usages, LayoutUninitializedTarget) == false)
             {
-                if ((pCmdBuf->GetEngineType() == EngineTypeCompute) || Pal::Image::ForceExpandHiZRangeForResummarize)
+                if ((pCmdBuf->GetEngineType() == EngineTypeCompute) ||
+                    (pCmdBuf->IsComputeSupported() && pPublicSettings->expandHiZRangeForResummarize))
                 {
                     pBlt[mip] |= DepthStencilBlt::ExpandHiZRange;
                 }

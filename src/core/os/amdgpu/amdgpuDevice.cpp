@@ -856,11 +856,6 @@ Result Device::GetProperties(
 // properties, Queue properties, Chip properties and GPU name string.
 Result Device::InitGpuProperties()
 {
-    uint32 version = 0;
-    uint32 feature = 0;
-    uint32 pfpFwVersion = 0;
-    uint32 pfpFwFeature = 0;
-    int32  drmRet = 0;
 
     m_chipProperties.familyId   = m_gpuInfo.family_id;
     m_chipProperties.eRevId     = m_gpuInfo.chip_external_rev;
@@ -880,15 +875,18 @@ Result Device::InitGpuProperties()
     m_chipProperties.maxEngineClock      = m_gpuInfo.max_engine_clk / 1000;
     m_chipProperties.maxMemoryClock      = m_gpuInfo.max_memory_clk / 1000;
 
-    drmRet = m_drmProcs.pfnAmdgpuQueryFirmwareVersion(m_hDevice,
-                                                      AMDGPU_INFO_FW_GFX_ME,
-                                                      0,
-                                                      0,
-                                                      &version,
-                                                      &feature);
+    uint32 meFwVersion = 0;
+    uint32 meFwFeature = 0;
+    int32 drmRet = m_drmProcs.pfnAmdgpuQueryFirmwareVersion(m_hDevice,
+                                                             AMDGPU_INFO_FW_GFX_ME,
+                                                             0,
+                                                             0,
+                                                             &meFwVersion,
+                                                             &meFwFeature);
     PAL_ASSERT(drmRet == 0);
-    m_engineProperties.cpUcodeVersion = feature;
 
+    uint32 pfpFwVersion = 0;
+    uint32 pfpFwFeature = 0;
     drmRet = m_drmProcs.pfnAmdgpuQueryFirmwareVersion(m_hDevice,
                                                       AMDGPU_INFO_FW_GFX_PFP,
                                                       0,
@@ -896,7 +894,10 @@ Result Device::InitGpuProperties()
                                                       &pfpFwVersion,
                                                       &pfpFwFeature);
     PAL_ASSERT(drmRet == 0);
-    m_chipProperties.pfpUcodeVersion = pfpFwVersion;
+
+    // Feature versions are assumed to be the same within the CP.
+    m_chipProperties.cpUcodeVersion    = meFwFeature;
+    m_chipProperties.pfpUcodeVersion   = pfpFwVersion;
 
     const char* pMarketingName = m_drmProcs.pfnAmdgpuGetMarketingNameisValid() ?
                                  m_drmProcs.pfnAmdgpuGetMarketingName(m_hDevice) : nullptr;
@@ -941,9 +942,7 @@ Result Device::InitGpuProperties()
         m_chipProperties.gfxEngineId = CIASICIDGFXENGINE_SOUTHERNISLAND;
         m_pFormatPropertiesTable     = Gfx6::GetFormatPropertiesTable(m_chipProperties.gfxLevel);
         InitGfx6ChipProperties();
-        Gfx6::InitializeGpuEngineProperties(m_chipProperties.gfxLevel,
-                                            m_chipProperties.familyId,
-                                            m_chipProperties.eRevId,
+        Gfx6::InitializeGpuEngineProperties(m_chipProperties,
                                             &m_engineProperties);
         break;
     case GfxIpLevel::GfxIp10_1:
@@ -1087,7 +1086,7 @@ void Device::InitGfx6ChipProperties()
     memcpy(&pChipInfo->gbTileMode[0], &m_gpuInfo.gb_tile_mode[0], sizeof(pChipInfo->gbTileMode));
     memcpy(&pChipInfo->gbMacroTileMode[0], &m_gpuInfo.gb_macro_tile_mode[0], sizeof(pChipInfo->gbMacroTileMode));
 
-    Gfx6::InitializeGpuChipProperties(m_engineProperties.cpUcodeVersion, &m_chipProperties);
+    Gfx6::InitializeGpuChipProperties(m_chipProperties.cpUcodeVersion, &m_chipProperties);
 
     // Any chip info from the KMD does not apply to a spoofed chip and should be ignored
     if (IsSpoofed() == false)
@@ -1211,7 +1210,7 @@ void Device::InitGfx9ChipProperties()
     struct drm_amdgpu_info_device deviceInfo = {};
 
     // Call into the HWL to initialize the default values for many properties of the hardware (based on chip ID).
-    Gfx9::InitializeGpuChipProperties(GetPlatform(), m_engineProperties.cpUcodeVersion, &m_chipProperties);
+    Gfx9::InitializeGpuChipProperties(GetPlatform(), m_chipProperties.cpUcodeVersion, &m_chipProperties);
 
     // Any chip info from the KMD does not apply to a spoofed chip and should be ignored
     if (IsSpoofed() == false)

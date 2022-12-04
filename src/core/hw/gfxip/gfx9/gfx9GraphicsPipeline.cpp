@@ -339,7 +339,14 @@ void GraphicsPipeline::LateInit(
 
     DetermineBinningOnOff();
 
-    m_pDevice->CmdUtil().BuildPipelinePrefetchPm4(*pUploader, &m_prefetch);
+    if (m_pDevice->CoreSettings().pipelinePrefetchEnable &&
+        (settings.shaderPrefetchMethodGfx != PrefetchDisabled))
+    {
+        m_prefetch.gpuVirtAddr         = pUploader->PrefetchAddr();
+        m_prefetch.size                = pUploader->PrefetchSize();
+        m_prefetch.usageMask           = CoherShaderRead;
+        m_prefetch.addrTranslationOnly = (settings.shaderPrefetchMethodGfx == PrefetchPrimeUtcL2);
+    }
 
     // Updating the ring sizes expects that all of the register state has been setup.
     UpdateRingSizes(metadata);
@@ -722,8 +729,12 @@ uint32* GraphicsPipeline::Prefetch(
     uint32* pCmdSpace
     ) const
 {
-    memcpy(pCmdSpace, &m_prefetch, m_prefetch.spaceNeeded * sizeof(uint32));
-    return (pCmdSpace + m_prefetch.spaceNeeded);
+    if (m_prefetch.gpuVirtAddr != 0)
+    {
+        pCmdSpace += m_pDevice->CmdUtil().BuildPrimeGpuCaches(m_prefetch, EngineTypeUniversal, pCmdSpace);
+    }
+
+    return pCmdSpace;
 }
 
 // =====================================================================================================================

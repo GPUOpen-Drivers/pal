@@ -344,7 +344,9 @@ public:
     /// Convenience typedef for iterators of this templated HashBase.
     typedef HashIterator<Key, Entry, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize> Iterator;
 
-    /// Initializes the hash container.
+    /// Initializes the hash container. This no longer needs to be called by a client of this API; instead
+    /// subclasses call InitAndFindBucket() instead of FindBucket() in any method that might insert a
+    /// new entry.
     ///
     /// @returns @ref Success if the initialization completed successfully, or ErrorOutOfMemory if the operation failed
     ///          due to an internal failure to allocate system memory.
@@ -368,7 +370,17 @@ protected:
     explicit HashBase(uint32 numBuckets, Allocator*const pAllocator);
     virtual ~HashBase() { PAL_SAFE_FREE(m_pMemory, &m_allocator); }
 
-    /// @internal Finds the bucket that matches the specified key
+    /// @internal Ensures that the hash table has been allocated, then finds the bucket that matches
+    /// the specified key
+    ///
+    /// @param [in] key Key to find matching bucket for.
+    ///
+    /// @returns Pointer to the bucket corresponding to the specified key.
+    Entry* InitAndFindBucket(const Key& key);
+
+    /// @internal Finds the bucket that matches the specified key. A subclass should use this only if it
+    /// is searching for an entry. If it might want to insert a new entry, it should use InitAndFindBucket()
+    /// instead.
     ///
     /// @param [in] key Key to find matching bucket for.
     ///

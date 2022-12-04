@@ -35,6 +35,7 @@
 #include "palDestroyable.h"
 #include "palFence.h"
 #include "palFile.h"
+#include "palGpuMemory.h"
 #include "palImage.h"
 #include "palInlineFuncs.h"
 #include "palPerfExperiment.h"
@@ -719,8 +720,20 @@ struct PalPublicSettings
     /// Controls GS LateAlloc val (for pos/prim allocations NOT param cache) on NGG pipelines. Can be no more than 127.
     uint32 nggLateAllocGs;
 
+    // Bitmask of cases where RPM view memory accesses will bypass the MALL
+    // RpmViewsBypassMallOff (0x0): Disable MALL bypass
+    // RpmViewsBypassMallOnRead (0x1): Skip MALL for read access of views created in RPM
+    // RpmViewsBypassMallOnWrite (0x2): Skip MALL for write access of views created in RPM
+    // RpmViewsBypassMallOnCbDbWrite (0x4): Control the RPM CB/DB behavior
+    RpmViewsBypassMall rpmViewsBypassMall;
+
     // Optimize color export format for depth only rendering. Only applicable for RB+ parts
     bool optDepthOnlyExportRate;
+
+    // Controls whether or not we should expand Hi-Z to full range rather than doing fine-grain resummarize
+    // operations.  Expanding Hi-Z leaves the Hi-Z data in a less optimal state but is a much faster operation
+    // than the fine-grain resummarize.
+    bool expandHiZRangeForResummarize;
 };
 
 /// Defines the modes that the GPU Profiling layer can use when its buffer fills.
@@ -1212,6 +1225,9 @@ struct DeviceProperties
                                         ///  supported. @ref IPipeline::CreateLaunchDescriptor()
 
         RayTracingIpLevel       rayTracingIp;       ///< HW RayTracing IP version
+
+        uint32                  cpUcodeVersion;   ///< Command processor feature version.
+        uint32                  pfpUcodeVersion;  ///< Command processor, graphics prefetch firmware version.
 
         union
         {

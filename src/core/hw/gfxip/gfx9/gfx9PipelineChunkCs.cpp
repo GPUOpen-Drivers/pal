@@ -49,7 +49,8 @@ PipelineChunkCs::PipelineChunkCs(
     :
     m_device(device),
     m_regs{},
-    m_prefetch{},
+    m_prefetchAddr(0),
+    m_prefetchSize(0),
     m_pCsPerfDataInfo(pPerfDataInfo),
     m_pStageInfo(pStageInfo)
 {
@@ -89,7 +90,11 @@ void PipelineChunkCs::LateInit(
     pThreadsPerTg->y = m_regs.computeNumThreadY.bits.NUM_THREAD_FULL;
     pThreadsPerTg->z = m_regs.computeNumThreadZ.bits.NUM_THREAD_FULL;
 
-    m_device.CmdUtil().BuildPipelinePrefetchPm4(*pUploader, &m_prefetch);
+    if (m_device.CoreSettings().pipelinePrefetchEnable)
+    {
+        m_prefetchAddr = pUploader->PrefetchAddr();
+        m_prefetchSize = pUploader->PrefetchSize();
+    }
 }
 
 // =====================================================================================================================
@@ -403,10 +408,23 @@ uint32* PipelineChunkCs::WriteShCommands(
         }
     }
 
-    if (prefetch)
+    if (prefetch && (m_prefetchAddr != 0))
     {
-        memcpy(pCmdSpace, &m_prefetch, m_prefetch.spaceNeeded * sizeof(uint32));
-        pCmdSpace += m_prefetch.spaceNeeded;
+        const EngineType       engine   = pCmdStream->GetEngineType();
+        const Gfx9PalSettings& settings = m_device.Settings();
+        const PrefetchMethod   method   = (engine == EngineTypeCompute) ? settings.shaderPrefetchMethodAce
+                                                                        : settings.shaderPrefetchMethodGfx;
+
+        if (method != PrefetchDisabled)
+        {
+            PrimeGpuCacheRange cacheInfo;
+            cacheInfo.gpuVirtAddr         = m_prefetchAddr;
+            cacheInfo.size                = m_prefetchSize;
+            cacheInfo.usageMask           = CoherShaderRead;
+            cacheInfo.addrTranslationOnly = (method == PrefetchPrimeUtcL2);
+
+            pCmdSpace += m_device.CmdUtil().BuildPrimeGpuCaches(cacheInfo, engine, pCmdSpace);
+        }
     }
 
     return pCmdSpace;

@@ -89,6 +89,16 @@ enum class GpuMemMallPolicy : uint32
     Always  = 0x2,  ///< This allocation is always put through the MALL.
 };
 
+/// Bitmask of cases where RPM view memory accesses will bypass the MALL.
+enum RpmViewsBypassMall : uint32
+{
+    RpmViewsBypassMallOff         = 0x0, ///< Disable MALL bypass
+    RpmViewsBypassMallOnRead      = 0x1, ///< Skip MALL for read access of views created in RPM
+    RpmViewsBypassMallOnWrite     = 0x2, ///< Skip MALL for write access of views created in RPM
+    RpmViewsBypassMallOnCbDbWrite = 0x4, ///< Control the RPM CB/DB behavior
+
+};
+
 /// Used for specifying a subregion of the allocation as having a different mall policy from the rest of the
 /// allocation.
 struct GpuMemMallRange

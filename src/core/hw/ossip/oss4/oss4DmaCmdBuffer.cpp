@@ -1087,6 +1087,26 @@ uint32* DmaCmdBuffer::WriteNops(
 }
 
 // =====================================================================================================================
+void DmaCmdBuffer::CmdNop(
+    const void* pPayload,
+    uint32      payloadSize)
+{
+    const size_t NopPktDwords = Util::NumBytesToNumDwords(sizeof(SDMA_PKT_NOP));
+    uint32*      pCmdSpace    = m_cmdStream.ReserveCommands();
+
+    const size_t packetSize = NopPktDwords + payloadSize;
+    auto*const   pPacket    = reinterpret_cast<SDMA_PKT_NOP*>(pCmdSpace);
+    uint32*      pData      = reinterpret_cast<uint32*>(pPacket + 1);
+
+    BuildNops(pCmdSpace, uint32(packetSize));
+
+    // Append data
+    memcpy(pData, pPayload, payloadSize * sizeof(uint32));
+
+    m_cmdStream.CommitCommands(pCmdSpace + packetSize);
+}
+
+// =====================================================================================================================
 // Either copies a linear image into a tiled one (deTile == false) or vice versa. Returns the next unused DWORD in
 // pCmdSpace.
 //

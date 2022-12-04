@@ -913,8 +913,14 @@ void UniversalQueueContext::WritePerSubmitPreamble(
                 const auto* pRegRange = m_pDevice->GetRegisterRange(RegRangeUserConfig, &numEntries);
                 pCmdSpace += CmdUtil::BuildLoadUserConfigRegs(userCfgRegGpuAddr, pRegRange, numEntries, pCmdSpace);
 
+                pCmdStream->CommitCommands(pCmdSpace);
+                pCmdSpace = pCmdStream->ReserveCommands();
+
                 pRegRange = m_pDevice->GetRegisterRange(RegRangeSh, &numEntries);
                 pCmdSpace += CmdUtil::BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderGraphics, pCmdSpace);
+
+                pCmdStream->CommitCommands(pCmdSpace);
+                pCmdSpace = pCmdStream->ReserveCommands();
 
                 pRegRange = m_pDevice->GetRegisterRange(RegRangeCsSh, &numEntries);
                 pCmdSpace += CmdUtil::BuildLoadShRegs(shRegGpuAddr, pRegRange, numEntries, ShaderCompute, pCmdSpace);

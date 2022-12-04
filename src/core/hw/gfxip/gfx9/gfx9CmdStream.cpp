@@ -71,23 +71,17 @@ Result CmdStream::Begin(
     // Note that we don't support command optimization or command prefetch for CE.
     if (m_subEngineType == SubEngineType::ConstantEngine)
     {
-        flags.optimizeCommands = false;
-        flags.prefetchCommands = false;
+        flags.optimizeCommands = 0;
+        flags.prefetchCommands = 0;
     }
     else
     {
         // We can't enable PM4 optimization without an allocator because we need to dynamically allocate a Pm4Optimizer.
         flags.optimizeCommands &= (pMemAllocator != nullptr);
 
-        // We may want to modify prefetchCommands based on this setting.
-        switch (GetGfx9Settings(*m_device.Parent()).prefetchCommandBuffers)
+        if (flags.prefetchCommands != 0)
         {
-        case Gfx9PrefetchCommandsDisabled:
-            flags.prefetchCommands = false;
-            break;
-
-        case Gfx9PrefetchCommandsBuildInfo:
-            // The prefetchCommands flag was set according to the client's command buffer build info.
+            // The prefetchCommands flag was already set according to the client's command buffer build info.
             // However, we really should force prefetching off if the command data is in local memory because:
             // 1. Local memory is fast enough that cold reads are no problem. Prefetching the whole command chunk
             //    ahead of time might evict things from the L2 cache that we need right now, hurting performance.
@@ -95,21 +89,21 @@ Result CmdStream::Begin(
             //    L2 cache pollution but also makes prefetching completely useless because it only prefetches to L2.
             if (m_pCmdAllocator->LocalCommandData())
             {
-                flags.prefetchCommands = false;
+                flags.prefetchCommands = 0;
             }
-            break;
+            else
+            {
+                const Gfx9PalSettings& settings = GetGfx9Settings(*m_device.Parent());
+                const PrefetchMethod   method   = (GetEngineType() == EngineTypeCompute)
+                                                        ? settings.commandPrefetchMethodAce
+                                                        : settings.commandPrefetchMethodGfx;
 
-        case Gfx9PrefetchCommandsForceAllDe:
-            flags.prefetchCommands = (GetEngineType() == EngineTypeUniversal);
-            break;
+                // We also should force off prefetching if the per-engine setting says it's disabled. Note that we
+                // only support CP DMA command prefetching.
+                PAL_ASSERT(method != PrefetchPrimeUtcL2);
 
-        case Gfx9PrefetchCommandsForceAllDeAce:
-            flags.prefetchCommands = true;
-            break;
-
-        default:
-            PAL_ASSERT_ALWAYS();
-            break;
+                flags.prefetchCommands = (method == PrefetchCpDma);
+            }
         }
     }
 
@@ -155,7 +149,7 @@ uint32 CmdStream::GetChainSizeInDwords(
     constexpr uint32 UcodeVersionWithIb2ChainingFix = 31;
     if (isNested &&
         (pPalDevice->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9) &&
-        (pPalDevice->EngineProperties().cpUcodeVersion < UcodeVersionWithIb2ChainingFix))
+        (pPalDevice->ChipProperties().cpUcodeVersion < UcodeVersionWithIb2ChainingFix))
     {
         // Disable chaining for nested command buffers if the microcode version does not support the IB2 chaining fix.
         chainSize = 0;
@@ -1061,7 +1055,8 @@ void CmdStream::EndCurrentChunk(
         dmaInfo.srcSel       = src_sel__pfp_dma_data__src_addr_using_l2;
         dmaInfo.dstSel       = dst_sel__pfp_dma_data__dst_nowhere;
         dmaInfo.numBytes     = m_chunkList.Back()->DwordsAllocated() * sizeof(uint32);
-        dmaInfo.usePfp       = true;
+        dmaInfo.usePfp       = (GetEngineType() == EngineTypeUniversal);
+        dmaInfo.disWc        = true;
 
         m_cmdUtil.BuildDmaData<false>(dmaInfo, m_pChunkPreamble);
         m_pChunkPreamble = nullptr;

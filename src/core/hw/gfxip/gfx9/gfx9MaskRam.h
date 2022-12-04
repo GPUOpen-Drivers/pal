@@ -26,7 +26,7 @@
 #pragma once
 
 #include "pal.h"
-#include "core/hw/gfxip/maskRam.h"
+#include "core/hw/gfxip/pm4MaskRam.h"
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "core/hw/gfxip/gfx9/gfx9MetaEq.h"
 #include "core/addrMgr/addrMgr2/addrMgr2.h"

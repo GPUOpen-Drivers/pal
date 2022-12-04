@@ -33,6 +33,7 @@
 #include "palMath.h"
 #include "palAutoBuffer.h"
 #include "palIterator.h"
+#include "palGpuMemory.h"
 
 #include <limits.h>
 
@@ -119,14 +120,16 @@ void Gfx9MaskRam::BuildSurfBufferView(
     BufferViewInfo*  pViewInfo    // [out] The buffer view
     ) const
 {
-    const auto& settings = m_pGfxDevice->Parent()->Settings();
+    const auto* pPublicSettings = m_pGfxDevice->Parent()->GetPublicSettings();
 
     pViewInfo->gpuAddr        = m_image.Parent()->GetBoundGpuMemory().GpuVirtAddr() + MemoryOffset();
     pViewInfo->range          = TotalSize();
     pViewInfo->stride         = 1;
     pViewInfo->swizzledFormat = UndefinedSwizzledFormat;
-    pViewInfo->flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnRead);
-    pViewInfo->flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnWrite);
+    pViewInfo->flags.bypassMallRead =
+        TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnRead);
+    pViewInfo->flags.bypassMallWrite =
+        TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnWrite);
 }
 
 // =====================================================================================================================
@@ -306,7 +309,7 @@ void Gfx9MetaEqGenerator::BuildEqBufferView(
     ) const
 {
     PAL_ASSERT (m_eqGpuAccess.size != 0);
-    const auto& settings = m_pParent->GetGfxDevice()->Parent()->Settings();
+    const auto* pPublicSettings = m_pParent->GetGfxDevice()->Parent()->GetPublicSettings();
 
     pBufferView->swizzledFormat = UndefinedSwizzledFormat;
     pBufferView->stride         = MetaDataAddrCompNumTypes * sizeof(uint32);
@@ -314,8 +317,10 @@ void Gfx9MetaEqGenerator::BuildEqBufferView(
                                   MetaDataAddrCompNumTypes                      *
                                   sizeof (uint32);
     pBufferView->gpuAddr        = m_pParent->GetImage().Parent()->GetGpuVirtualAddr() + m_eqGpuAccess.offset;
-    pBufferView->flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnRead);
-    pBufferView->flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnWrite);
+    pBufferView->flags.bypassMallRead =
+        TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnRead);
+    pBufferView->flags.bypassMallWrite =
+        TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnWrite);
 }
 
 // =====================================================================================================================

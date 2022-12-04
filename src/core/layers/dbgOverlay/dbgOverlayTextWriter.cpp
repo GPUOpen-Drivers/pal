@@ -132,8 +132,17 @@ void TextWriter::WriteVisualConfirm(
         Util::Snprintf(&overlayText[textLines++][0], BufSize, "Powered by Ray Tracing");
     }
 
-    // Add the name of the GPU that is presenting.
     Util::Snprintf(&overlayText[textLines++][0], BufSize, "GPU: %s", gpuProps.gpuName);
+
+    // Optionally include command processor subversion info
+    if (settings.debugOverlayConfig.cpVersionEnabled)
+    {
+        Util::Snprintf(&overlayText[textLines++][0],
+                       BufSize,
+                       "CP Feature %d, PFP Firmware 0x%x",
+                       gpuProps.gfxipProperties.cpUcodeVersion,
+                       gpuProps.gfxipProperties.pfpUcodeVersion);
+    }
 
     // Add the index of the GPU that is presenting. This is formatted like this:
     // Presenting GPU:    1    2    3    4

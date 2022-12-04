@@ -1,0 +1,28 @@
+{
+  "name": "GpuClocks",
+  "description": "A service that provides remote clock manipulation functionality",
+  "id": "0x6b6c_6367",
+  "imports": [
+    "GpuClocks.types.fbs"
+  ],
+  "functions": [
+    {
+      "name": "QueryClockModes",
+      "description": "Queries the list of supported clock modes",
+      "id": "1",
+      "returns": "ClockModeList"
+    },
+    {
+      "name": "QueryCurrentClockMode",
+      "description": "Queries which clock mode is currently active",
+      "id": "2",
+      "returns": "ClockModeId"
+    },
+    {
+      "name": "RequestClockMode",
+      "description": "Requests that the current clock mode be changed to the provided one",
+      "id": "3",
+      "param": "ClockModeId"
+    }
+  ]
+}

@@ -31,9 +31,12 @@
 #include <util/vector.h>
 #include <util/rmtWriter.h>
 #include <system_info_reader.h>
+#include <amdrdf.h>
 
 namespace DevDriver
 {
+
+DD_RESULT RdfResultToDDResult(int rResult);
 
 class RmtEventStreamer;
 
@@ -42,10 +45,12 @@ class RmtEventTracer
     friend class RmtEventStreamer;
 
 private:
-    DD_STATIC_CONST uint32 kKmdProviderId    = 0x60183;
+    DD_STATIC_CONST uint32 kKmdProviderId      = 0x60183;
     DD_STATIC_CONST uint32 kAmdLogProviderId = 0x71294;
-    DD_STATIC_CONST uint32 kRouterProviderId = 0x21777465;
-    DD_STATIC_CONST uint32 kUmdProviderId    = 0x50616C45;
+    DD_STATIC_CONST uint32 kRouterProviderId   = 0x21777465;
+    DD_STATIC_CONST uint32 kUmdProviderId      = 0x50616C45;
+    DD_STATIC_CONST uint32 kGpuNameMaxLen      = 128; // GPU name max length including null terminator
+    DD_STATIC_CONST uint32 kMaxSnapshotNameLen = 128; // Snapshot name length including null terminator
 
 public:
     enum class TraceState : uint32_t
@@ -63,6 +68,74 @@ public:
         AppExited,
         UserRequestedContinue,
         Abort
+    };
+
+    struct TraceAdapterInfo
+    {
+        /// Name of the gpu
+        char name[kGpuNameMaxLen];
+
+        /// PCI Family
+        uint32_t familyId;
+        /// PCI Revision
+        uint32_t revisionId;
+        /// PCI Device
+        uint32_t deviceId;
+        /// Minumum engine clock in Mhz
+        uint32_t minEngineClock;
+        /// Maximum engine clock in Mhz
+        uint32_t maxEngineClock;
+        /// Type of memory
+        uint32_t memoryType;
+        /// Number of memory operations per clock
+        uint32_t memoryOpsPerClock;
+        /// Bus width of memory interface in bits
+        uint32_t memoryBusWidth;
+        /// Bandwidth of memory in MB/s
+        uint32_t memoryBandwidth;
+        /// Minumum memory clock in Mhz
+        uint32_t minMemoryClock;
+        /// Minumum memory clock in Mhz
+        uint32_t maxMemoryClock;
+    };
+
+    /// Data for the snapshots
+    struct TraceSnapShot
+    {
+        char     name[kMaxSnapshotNameLen];
+        /// 64bit timestamp of the snapshot.
+        uint64_t snapshotPoint;
+        /// Size in bytes of the snapshot name.
+        uint32_t nameLength;
+        uint32_t version;
+    };
+
+    /// Header written for each stream
+    struct TraceStreamHeader
+    {
+        DevDriver::ProcessId processId;
+        uint32_t             threadId;
+        size_t               totalDataSize;
+        uint32_t             streamIndex;
+        uint16_t             rmtMajorVersion;
+        uint16_t             rmtMinorVersion;
+    };
+
+    /// Enums representing the various heap types
+    enum DDHeapType
+    {
+        DD_HEAP_TYPE_LOCAL     = 0,
+        DD_HEAP_TYPE_INVISIBLE = 1,
+        DD_HEAP_TYPE_SYSTEM    = 2,
+        DD_HEAP_TYPE_COUNT     = 3,
+    };
+
+    /// Info for a heap
+    struct TraceHeapInfo
+    {
+        DDHeapType type;
+        uint64_t   physicalBaseAddress;
+        uint64_t   size;
     };
 
 public:
@@ -91,7 +164,10 @@ public:
         /// was taken.
         uint64_t snapshotTimestamp);
 
-    DD_RESULT TransferTraceData(const DDByteWriter* pStream);
+    DD_RESULT TransferTraceData(
+        const DDIOHeartbeat* pIoCb,
+        rdfChunkFileWriter*  pRdfChunkWriter,
+        bool                 useCompression);
 
     /// Clears the internal contents of the data context and resets it back to
     /// its initial state
@@ -124,6 +200,8 @@ private:
     /// Ends a memory trace
     DD_RESULT EndTraceInternal(EndTraceReason reason, bool isDataValid);
 
+    DD_RESULT WriteSavedChunks(rdfChunkFileWriter* pRdfChunkWriter);
+
     /// Returns true if there's currently running
     bool IsTraceRunning() const { return (m_traceState == TraceState::Running); }
 
@@ -144,11 +222,20 @@ private:
     void ProcessSystemInfo(const system_info_utils::SystemInfo& systemInfo);
 
     DD_RESULT TransferDataStream(
+        rdfChunkFileWriter*    pRdfStream,
         TraceDataStream*       pStream,
-        uint32_t               streamIndex,
         uint8_t*               pScratchBuffer,
         size_t                 scratchBufferSize,
-        const DDByteWriter*    pBinaryStream);
+        const DDIOHeartbeat*   pIoCb,
+        rdfChunkCreateInfo*    pChunkInfo);
+
+    DD_RESULT TransferFileData(
+        void*                pBuffer,
+        size_t               bufferSize,
+        FILE*                pSourceFile,
+        const DDIOHeartbeat* pIoCb,
+        rdfChunkCreateInfo*  pChunkInfo,
+        rdfChunkFileWriter*  pRdfChunkWriter);
 
     void DiscardDataStreams();
     void UpdateTraceResult(DD_RESULT result);
@@ -156,14 +243,18 @@ private:
     void LogInfo(const char* pFmt, ...);
     void LogError(const char* pFmt, ...);
 
-    DDAllocCallbacks        m_apiAlloc;      /// Api allocation callbacks
-    AllocCb                 m_ddAlloc;       /// DevDriver allocation callbacks
-    TraceState              m_traceState;    /// Current state of the memory trace
-    EndTraceReason          m_endReason;     /// Reason for the end of the trace
-    Vector<TraceDataStream> m_dataStreams;   /// Array of data streams that are part of the trace
-    RmtWriter               m_rmtWriter;     /// Used to generate chunk headers and misc file info
-    Platform::Atomic64      m_totalDataSize; /// Total data size of the memory trace in bytes
-    DD_RESULT               m_traceResult;   /// The final result value for the trace operation
+    DDAllocCallbacks                 m_apiAlloc;                  /// Api allocation callbacks
+    AllocCb                          m_ddAlloc;                   /// DevDriver allocation callbacks
+    TraceState                       m_traceState;                /// Current state of the memory trace
+    EndTraceReason                   m_endReason;                 /// Reason for the end of the trace
+    Vector<TraceDataStream>          m_dataStreams;               /// Array of data streams that are part of the trace
+    Platform::Atomic64               m_totalDataSize;             /// Total data size of the memory trace in bytes
+    DD_RESULT                        m_traceResult;               /// The final result value for the trace operation
+    int                              m_currentChunkIndex;         /// The chunk idx used in calls to Create/Begin chunks
+    TraceHeapInfo                    m_heaps[DD_HEAP_TYPE_COUNT]; /// The heap info
+    TraceAdapterInfo                 m_adapterInfo;               /// The adapter info
+    DevDriver::Vector<TraceSnapShot> m_snapshots;                 /// A vector containing each snapshot taken
+    std::string                      m_sysInfoJson;               /// SysInfo as Json
 
     RmtEventStreamer* m_pKmdStreamer;
     RmtEventStreamer* m_pUmdStreamer;

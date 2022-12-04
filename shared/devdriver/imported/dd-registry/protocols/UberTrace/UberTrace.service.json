@@ -1,0 +1,41 @@
+{
+  "name": "UberTrace",
+  "description": "A service that provides generic trace functionality",
+  "version": "0.2.0",
+  "id": "0x6372_7461",
+  "functions": [
+    {
+      "name": "EnableTracing",
+      "description": "Attempts to enable tracing",
+      "id": "1"
+    },
+    {
+      "name": "QueryTraceParams",
+      "description": "Queries the current set of trace parameters",
+      "id": "2",
+      "returns": true
+    },
+    {
+      "name": "ConfigureTraceParams",
+      "description": "Configures the current set of trace parameters",
+      "id": "3",
+      "param": true
+    },
+    {
+      "name": "RequestTrace",
+      "description": "Requests execution of a trace",
+      "id": "4"
+    },
+    {
+      "name": "CancelTrace",
+      "description": "Cancels a previously requested trace before it starts or after it completes",
+      "id": "5"
+    },
+    {
+      "name": "CollectTrace",
+      "description": "Collects the data created by a previously executed trace",
+      "id": "6",
+      "returns": true
+    }
+  ]
+}

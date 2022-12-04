@@ -76,7 +76,7 @@ struct DepthStencilStateCreateInfo
             uint8 depthEnable       :  1; ///< Enable depth testing.
             uint8 depthWriteEnable  :  1; ///< Enable depth writes.
             uint8 depthBoundsEnable :  1; ///< Enables depth bounds testing.
-            uint8 stencilEnable     :  1; ///< Enables depth bounds testing.
+            uint8 stencilEnable     :  1; ///< Enables stencil testing.
             uint8 reserved          :  4; ///< Reserved for future.
         };
     };

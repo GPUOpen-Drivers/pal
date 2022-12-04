@@ -1239,6 +1239,16 @@ Result GpuMemory::Unmap()
 }
 
 // =====================================================================================================================
+// Returns the preferred heap.
+GpuHeap GpuMemory::PreferredHeap() const
+{
+    // Virtual memory is not backed by a heap, so there can be no preferred heap.
+    PAL_ASSERT_MSG((IsVirtual() == false), "Getting preferred heap of virtual memory is invalid");
+    PAL_ASSERT(m_heapCount > 0);
+    return m_heaps[0];
+}
+
+// =====================================================================================================================
 // Describes the GPU memory allocation to the above layers
 void GpuMemory::DescribeGpuMemory(
     Developer::GpuMemoryAllocationMethod allocMethod

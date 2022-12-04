@@ -243,7 +243,8 @@ void SettingsLoader::OverrideDefaults()
         m_settings.addr2UseVarSwizzleMode = Addr2UseVarSwizzle::Addr2UseVarSwizzleDisable;
     }
 
-    if (m_pDevice->ChipProperties().vcnLevel > VcnIpLevel::VcnIp1)
+    if ((m_pDevice->ChipProperties().vcnLevel > VcnIpLevel::VcnIp1)
+        )
     {
 
         m_settings.waForceLinearHeight16Alignment = true;

@@ -188,7 +188,6 @@ protected:
 
     BoundGpuMemory  m_gpuMemory;
     gpusize         m_gpuMemSize;
-    gpusize         m_paddingDwords;
 
     uint32  m_propertiesSrd[4]; // Buffer SRD for the GeneratorProperties structure
     uint32  m_paramBufSrd[4];   // Buffer SRD for the Indirect-Parameter array

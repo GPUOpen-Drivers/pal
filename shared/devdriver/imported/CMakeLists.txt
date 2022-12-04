@@ -25,6 +25,7 @@
 
 set(CMAKE_FOLDER ${CMAKE_FOLDER}/imported)
 
+# RDF
 if (DD_BUILD_RDF)
     set(RDF_ENABLE_CXX_BINDINGS OFF)
     set(RDF_STATIC ON)
@@ -34,6 +35,7 @@ if (DD_BUILD_RDF)
     endif ()
 endif ()
 
+# system_info_utils
 if (DD_BP_ENABLE_TOOL_LIBRARIES)
     if (NOT TARGET system_info)
         set(SYSTEM_INFO_BUILD_WRITER ON)
@@ -45,3 +47,6 @@ if (DD_BP_ENABLE_TOOL_LIBRARIES)
         endif ()
     endif ()
 endif ()
+
+# dd-registry is used in both PAL (server) and Tools (clients).
+add_subdirectory(dd-registry/events)

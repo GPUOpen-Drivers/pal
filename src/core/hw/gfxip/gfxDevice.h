@@ -242,8 +242,9 @@ enum CsSimdDestCntlMode : uint32
 
 enum PrefetchMethod : uint32
 {
-    PrefetchCpDma = 0,
-    PrefetchPrimeUtcL2 = 1,
+    PrefetchDisabled   = 0,
+    PrefetchCpDma      = 1,
+    PrefetchPrimeUtcL2 = 2,
 };
 
 enum OffchipLdsBufferSize : uint32

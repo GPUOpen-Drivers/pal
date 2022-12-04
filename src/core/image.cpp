@@ -1504,4 +1504,12 @@ void Image::SetPrivateScreen(
     m_privateScreenIndex = pPrivateScreen->Index();
 }
 
+// =====================================================================================================================
+// Returns whether or not this image prefers CB fixed function resolve
+bool Image::PreferCbResolve() const
+{
+    return ((m_createInfo.flags.repetitiveResolve != 0)
+           );
+}
+
 } // Pal

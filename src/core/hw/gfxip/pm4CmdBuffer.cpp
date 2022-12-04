@@ -843,6 +843,9 @@ void Pm4CmdBuffer::CmdBeginPerfExperiment(
     PAL_ASSERT(pExperiment != nullptr);
     CmdStream* pCmdStream = GetCmdStreamByEngine(GetPerfExperimentEngine());
 
+    // Preemption needs to be disabled during any perf experiment for accuracy.
+    pCmdStream->DisablePreemption();
+
     // Indicates that this command buffer is used for enabling a perf experiment. This is used to write any VCOPs that
     // may be needed during submit time.
     const PerfExperimentFlags tracesEnabled = pExperiment->TracesEnabled();
@@ -883,6 +886,8 @@ void Pm4CmdBuffer::CmdUpdatePerfExperimentSqttTokenMask(
     const PerfExperiment*const pExperiment = static_cast<PerfExperiment*>(pPerfExperiment);
     PAL_ASSERT(pExperiment != nullptr);
     CmdStream* pCmdStream = GetCmdStreamByEngine(GetPerfExperimentEngine());
+    // Preemption needs to be disabled during any perf experiment for accuracy.
+    pCmdStream->DisablePreemption();
     pExperiment->UpdateSqttTokenMask(pCmdStream, sqttTokenConfig);
 }
 
@@ -897,6 +902,9 @@ void Pm4CmdBuffer::CmdEndPerfExperiment(
     // when gathering full-frame SQ thread traces, an experiment could be opened in one command buffer and ended in
     // another.
     PAL_ASSERT((pPerfExperiment == m_pCurrentExperiment) || (m_pCurrentExperiment == nullptr));
+
+    // Preemption needs to be disabled during any perf experiment for accuracy.
+    pCmdStream->DisablePreemption();
 
     pExperiment->IssueEnd(this, pCmdStream);
 

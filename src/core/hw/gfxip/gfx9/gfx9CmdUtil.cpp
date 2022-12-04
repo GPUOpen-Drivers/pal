@@ -327,8 +327,7 @@ CmdUtil::CmdUtil(
     const Device& device)
     :
     m_device(device),
-    m_chipProps(device.Parent()->ChipProperties()),
-    m_cpUcodeVersion(device.Parent()->EngineProperties().cpUcodeVersion)
+    m_chipProps(device.Parent()->ChipProperties())
 #if PAL_ENABLE_PRINTS_ASSERTS
     , m_verifyShadowedRegisters(device.Parent()->Settings().cmdUtilVerifyShadowedRegRanges)
 #endif
@@ -453,21 +452,21 @@ bool CmdUtil::CanUseCsPartialFlush(
             // Disable ACE support on gfx9 if the ucode doesn't have the fix.
             constexpr uint32 MinUcodeVerForCsPartialFlushGfx9 = 52;
 
-            useCspf = (m_cpUcodeVersion >= MinUcodeVerForCsPartialFlushGfx9);
+            useCspf = (m_chipProps.cpUcodeVersion >= MinUcodeVerForCsPartialFlushGfx9);
         }
         else if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp10_1)
         {
             // Disable ACE support on gfx10.1 if the ucode doesn't have the fix.
             constexpr uint32 MinUcodeVerForCsPartialFlushGfx10_1 = 32;
 
-            useCspf = (m_cpUcodeVersion >= MinUcodeVerForCsPartialFlushGfx10_1);
+            useCspf = (m_chipProps.cpUcodeVersion >= MinUcodeVerForCsPartialFlushGfx10_1);
         }
         else if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp10_3)
         {
             // Disable ACE support on gfx10.3 if the ucode doesn't have the fix.
             constexpr uint32 MinUcodeVerForCsPartialFlushGfx10_3 = 35;
 
-            useCspf = (m_cpUcodeVersion >= MinUcodeVerForCsPartialFlushGfx10_3);
+            useCspf = (m_chipProps.cpUcodeVersion >= MinUcodeVerForCsPartialFlushGfx10_3);
         }
         else
         {
@@ -487,8 +486,8 @@ bool CmdUtil::HasEnhancedLoadShRegIndex() const
     {
         // This was only implemented on gfx10.3+.
         hasEnhancedLoadShRegIndex =
-            ((m_cpUcodeVersion >= Gfx103UcodeVersionLoadShRegIndexIndirectAddr)
-             && IsGfx103CorePlus(m_chipProps.gfxLevel));
+            ((m_chipProps.cpUcodeVersion >= Gfx103UcodeVersionLoadShRegIndexIndirectAddr) &&
+             IsGfx103CorePlus(m_chipProps.gfxLevel));
     }
 
     return hasEnhancedLoadShRegIndex;
@@ -1665,6 +1664,15 @@ size_t CmdUtil::BuildDrawIndirect(
 
     pPacket->ordinal5.draw_initiator = drawInitiator.u32All;
     return PacketSize;
+}
+
+// =====================================================================================================================
+// Returns the size needed by BuildDrawIndexIndirect in DWORDs.
+uint32 CmdUtil::DrawIndexIndirectSize() const
+{
+    uint32 packetSize = PM4_PFP_DRAW_INDEX_INDIRECT_SIZEDW__CORE;
+
+    return packetSize;
 }
 
 // =====================================================================================================================
@@ -3110,69 +3118,6 @@ size_t CmdUtil::BuildLoadShRegs(
 }
 
 // =====================================================================================================================
-// Builds a PM4 packet which issues a load_sh_reg_index command to load a single group of consecutive persistent-state
-// registers from indirect video memory offset.  Returns the size of the PM4 command assembled, in DWORDs.
-template <bool directAddress>
-size_t CmdUtil::BuildLoadShRegsIndex(
-    gpusize       gpuVirtAddrOrAddrOffset,
-    uint32        startRegAddr,
-    uint32        count,
-    Pm4ShaderType shaderType,
-    void* pBuffer       // [out] Build the PM4 packet in this buffer.
-    ) const
-{
-#if PAL_ENABLE_PRINTS_ASSERTS
-    CheckShadowedShReg(shaderType, startRegAddr);
-#endif
-
-    constexpr uint32 PacketSize = PM4_PFP_LOAD_SH_REG_INDEX_SIZEDW__CORE;
-    auto* const       pPacket   = static_cast<PM4_PFP_LOAD_SH_REG_INDEX*>(pBuffer);
-
-    pPacket->ordinal1.header.u32All = (Type3Header(IT_LOAD_SH_REG_INDEX, PacketSize, false, shaderType)).u32All;
-    pPacket->ordinal2.u32All        = 0;
-    if (directAddress)
-    {
-        {
-            pPacket->ordinal2.bitfields.gfx103CorePlus.index = index__pfp_load_sh_reg_index__direct_addr;
-        }
-        pPacket->ordinal2.bitfields.mem_addr_lo          = LowPart(gpuVirtAddrOrAddrOffset);
-        pPacket->ordinal3.mem_addr_hi                    = HighPart(gpuVirtAddrOrAddrOffset);
-        // Only the low 16 bits of addrOffset are honored for the high portion of the GPU virtual address!
-        PAL_ASSERT((HighPart(gpuVirtAddrOrAddrOffset) & 0xFFFF0000) == 0);
-    }
-    else
-    {
-        pPacket->ordinal2.bitfields.gfx103CorePlus.index = index__pfp_load_sh_reg_index__offset;
-        pPacket->ordinal3.addr_offset                    = LowPart(gpuVirtAddrOrAddrOffset);
-    }
-    pPacket->ordinal4.u32All                = 0;
-    pPacket->ordinal4.bitfields.reg_offset  = (startRegAddr - PERSISTENT_SPACE_START);
-    pPacket->ordinal4.bitfields.data_format = data_format__pfp_load_sh_reg_index__offset_and_size;
-    pPacket->ordinal5.u32All                = 0;
-    pPacket->ordinal5.bitfields.num_dwords  = count;
-
-    return PacketSize;
-}
-
-template
-size_t CmdUtil::BuildLoadShRegsIndex<true>(
-    gpusize       addrOffset,
-    uint32        startRegAddr,
-    uint32        count,
-    Pm4ShaderType shaderType,
-    void* pBuffer
-    ) const;
-
-template
-size_t CmdUtil::BuildLoadShRegsIndex<false>(
-    gpusize       addrOffset,
-    uint32        startRegAddr,
-    uint32        count,
-    Pm4ShaderType shaderType,
-    void* pBuffer
-    ) const;
-
-// =====================================================================================================================
 // Builds a PM4 packet which issues a load_sh_reg_index command to load a series of individual persistent-state
 // registers stored in GPU memory.  Returns the size of the PM4 command assembled, in DWORDs.
 //
@@ -3182,7 +3127,7 @@ size_t CmdUtil::BuildLoadShRegsIndex<false>(
 size_t CmdUtil::BuildLoadShRegsIndex(
     PFP_LOAD_SH_REG_INDEX_index_enum       index,
     PFP_LOAD_SH_REG_INDEX_data_format_enum dataFormat,
-    gpusize                                gpuVirtAddr,
+    gpusize                                gpuVirtAddr,  // Actually an offset in "offset" mode.
     uint32                                 startRegAddr, // Only used if dataFormat is offset_and_data.
     uint32                                 count,        // This changes meaning depending on dataFormat.
     Pm4ShaderType                          shaderType,
@@ -3201,16 +3146,10 @@ size_t CmdUtil::BuildLoadShRegsIndex(
                     static_cast<uint32>(data_format__mec_load_sh_reg_index__offset_and_data__GFX103COREPLUS))),
                   "LOAD_SH_REG_INDEX data format enumerations don't match between PFP and MEC!");
 
-    // Index '1' is not implemented.
-    PAL_ASSERT(index != index__pfp_load_sh_reg_index__offset);
-
     constexpr uint32 PacketSize = PM4_PFP_LOAD_SH_REG_INDEX_SIZEDW__CORE;
-    auto*const       pPacket    = static_cast<PM4_PFP_LOAD_SH_REG_INDEX*>(pBuffer);
-    PM4_PFP_LOAD_SH_REG_INDEX packet = { 0 };
+    PM4_PFP_LOAD_SH_REG_INDEX packet = {};
 
-    PM4_PFP_TYPE_3_HEADER header;
-    header.u32All          = (Type3Header(IT_LOAD_SH_REG_INDEX, PacketSize, false, shaderType)).u32All;
-    packet.ordinal1.header = header;
+    packet.ordinal1.header.u32All = Type3Header(IT_LOAD_SH_REG_INDEX, PacketSize, false, shaderType).u32All;
     packet.ordinal2.u32All = 0;
 
     if (HasEnhancedLoadShRegIndex())
@@ -3222,10 +3161,21 @@ size_t CmdUtil::BuildLoadShRegsIndex(
         packet.ordinal2.bitfields.gfx09.index = index;
     }
 
-    packet.ordinal2.bitfields.mem_addr_lo = LowPart(gpuVirtAddr) >> 2;
-    packet.ordinal3.mem_addr_hi           = HighPart(gpuVirtAddr);
-    // Only the low 16 bits are honored for the high portion of the GPU virtual address!
-    PAL_ASSERT((HighPart(gpuVirtAddr) & 0xFFFF0000) == 0);
+    if (index == index__pfp_load_sh_reg_index__offset)
+    {
+        packet.ordinal3.addr_offset = LowPart(gpuVirtAddr);
+
+        // The offset is only 32 bits.
+        PAL_ASSERT(HighPart(gpuVirtAddr) == 0);
+    }
+    else
+    {
+        packet.ordinal2.bitfields.mem_addr_lo = LowPart(gpuVirtAddr) >> 2;
+        packet.ordinal3.mem_addr_hi           = HighPart(gpuVirtAddr);
+
+        // Only the low 16 bits are honored for the high portion of the GPU virtual address!
+        PAL_ASSERT((HighPart(gpuVirtAddr) & 0xFFFF0000) == 0);
+    }
 
     packet.ordinal4.u32All                = 0;
     packet.ordinal4.bitfields.data_format = dataFormat;
@@ -3239,7 +3189,7 @@ size_t CmdUtil::BuildLoadShRegsIndex(
     packet.ordinal5.u32All                = 0;
     packet.ordinal5.bitfields.num_dwords  = count;
 
-    *pPacket = packet;
+    *static_cast<PM4_PFP_LOAD_SH_REG_INDEX*>(pBuffer) = packet;
 
     return PacketSize;
 }
@@ -3802,7 +3752,7 @@ size_t CmdUtil::BuildSetSeqConfigRegs(
     if (index != index__pfp_set_uconfig_reg_index__default)
     {
         // GFX9 started supporting uconfig-reg-index as of ucode version 26.
-        if ((m_cpUcodeVersion >= 26)
+        if ((m_chipProps.cpUcodeVersion >= 26)
             || IsGfx10Plus(m_chipProps.gfxLevel)
             )
         {
@@ -3918,7 +3868,8 @@ size_t CmdUtil::BuildSetSeqShRegsIndex(
     size_t packetSize = 0;
 
     // Switch to the SET_SH_REG opcode for setting the registers if SET_SH_REG_INDEX opcode is not supported.
-    if ((m_chipProps.gfxLevel == GfxIpLevel::GfxIp9) && (m_cpUcodeVersion < MinUcodeFeatureVersionForSetShRegIndex))
+    if ((m_chipProps.gfxLevel == GfxIpLevel::GfxIp9) &&
+        (m_chipProps.cpUcodeVersion < MinUcodeFeatureVersionForSetShRegIndex))
     {
         packetSize = BuildSetSeqShRegs(startRegAddr, endRegAddr, shaderType, pBuffer);
     }
@@ -4642,77 +4593,18 @@ size_t CmdUtil::BuildNopPayload(
 }
 
 // =====================================================================================================================
-// Issue commands to prime caches for access of a new pipeline.  This can be done with two methods:
-//
-// 1. Issue a CPDMA operation that will read the pipeline data through L2 then write it to "nowhere" (a new feature
-//    with GFX9).  This will prime the VM translation cache (UTCL2) as well as the L2 data cache.
-// 2. Issue a new packet that will only prime the VM translation cache (UTCL2).
-void CmdUtil::BuildPipelinePrefetchPm4(
-    const PipelineUploader& uploader,
-    PipelinePrefetchPm4*    pOutput
-    ) const
-{
-    const PalSettings&     coreSettings = m_device.Parent()->Settings();
-    const Gfx9PalSettings& hwlSettings  = m_device.Settings();
-
-    if (coreSettings.pipelinePrefetchEnable)
-    {
-        uint32 prefetchSize = static_cast<uint32>(uploader.PrefetchSize());
-
-        if (coreSettings.shaderPrefetchClampSize != 0)
-        {
-            prefetchSize = Min(prefetchSize, coreSettings.shaderPrefetchClampSize);
-        }
-
-        if (hwlSettings.shaderPrefetchMethod == PrefetchCpDma)
-        {
-            DmaDataInfo dmaDataInfo  = { };
-            dmaDataInfo.dstAddr      = 0;
-            dmaDataInfo.dstAddrSpace = das__pfp_dma_data__memory;
-            dmaDataInfo.dstSel       = dst_sel__pfp_dma_data__dst_nowhere;
-            dmaDataInfo.srcAddr      = uploader.PrefetchAddr();
-            dmaDataInfo.srcAddrSpace = sas__pfp_dma_data__memory;
-            dmaDataInfo.srcSel       = src_sel__pfp_dma_data__src_addr_using_l2;
-            dmaDataInfo.numBytes     = prefetchSize;
-            dmaDataInfo.disWc        = true;
-
-            pOutput->spaceNeeded = static_cast<uint32>(BuildDmaData<false>(dmaDataInfo, &pOutput->dmaData));
-        }
-        else
-        {
-            PAL_ASSERT(hwlSettings.shaderPrefetchMethod == PrefetchPrimeUtcL2);
-
-            const gpusize firstPage = Pow2AlignDown(uploader.PrefetchAddr(), PrimeUtcL2MemAlignment);
-            const gpusize lastPage  = Pow2AlignDown(uploader.PrefetchAddr() + prefetchSize - 1, PrimeUtcL2MemAlignment);
-            const size_t  numPages  = 1 + static_cast<size_t>((lastPage - firstPage) / PrimeUtcL2MemAlignment);
-
-            pOutput->spaceNeeded =
-                static_cast<uint32>(BuildPrimeUtcL2(firstPage,
-                                                    cache_perm__pfp_prime_utcl2__execute,
-                                                    prime_mode__pfp_prime_utcl2__dont_wait_for_xack,
-                                                    engine_sel__pfp_prime_utcl2__prefetch_parser,
-                                                    numPages,
-                                                    &pOutput->primeUtcl2));
-        }
-    }
-    else
-    {
-        pOutput->spaceNeeded = 0;
-    }
-}
-
-// =====================================================================================================================
 size_t CmdUtil::BuildPrimeGpuCaches(
     const PrimeGpuCacheRange& primeGpuCacheRange,
+    EngineType                engineType,
     void*                     pBuffer
     ) const
 {
-    const PalSettings&     coreSettings = m_device.Parent()->Settings();
-    const Gfx9PalSettings& hwlSettings  = m_device.Settings();
-    uint32                 prefetchSize = static_cast<uint32>(primeGpuCacheRange.size);
-    if (coreSettings.shaderPrefetchClampSize != 0)
+    const gpusize clampSize    = m_device.CoreSettings().prefetchClampSize;
+    gpusize       prefetchSize = primeGpuCacheRange.size;
+
+    if (clampSize != 0)
     {
-        prefetchSize = Min(prefetchSize, coreSettings.shaderPrefetchClampSize);
+        prefetchSize = Min(prefetchSize, clampSize);
     }
 
     size_t packetSize = 0;
@@ -4720,12 +4612,12 @@ size_t CmdUtil::BuildPrimeGpuCaches(
     // examine the usageFlags to determine if GL2 is relevant to that usage's data path, and addrTranslationOnly
     // is false
     // DDN said, the mask of GL2 usages for GFX9 should be everything but CoherCpu and CoherMemory.
-    if ((TestAnyFlagSet(primeGpuCacheRange.usageMask, CoherCpu) == false)    &&
-        (TestAnyFlagSet(primeGpuCacheRange.usageMask, CoherMemory) == false) &&
-        (primeGpuCacheRange.addrTranslationOnly == false)                    &&
-        (hwlSettings.shaderPrefetchMethod == PrefetchCpDma))
+    if ((TestAnyFlagSet(primeGpuCacheRange.usageMask, CoherCpu | CoherMemory) == false) &&
+        (primeGpuCacheRange.addrTranslationOnly == false))
     {
-        // DMA DATA to "nowhere" should be performed
+        PAL_ASSERT(prefetchSize <= UINT32_MAX);
+
+        // DMA DATA to "nowhere" should be performed, ideally using the PFP.
         DmaDataInfo dmaDataInfo  = { };
         dmaDataInfo.dstAddr      = 0;
         dmaDataInfo.dstAddrSpace = das__pfp_dma_data__memory;
@@ -4733,7 +4625,8 @@ size_t CmdUtil::BuildPrimeGpuCaches(
         dmaDataInfo.srcAddr      = primeGpuCacheRange.gpuVirtAddr;
         dmaDataInfo.srcAddrSpace = sas__pfp_dma_data__memory;
         dmaDataInfo.srcSel       = src_sel__pfp_dma_data__src_addr_using_l2;
-        dmaDataInfo.numBytes     = prefetchSize;
+        dmaDataInfo.numBytes     = static_cast<uint32>(prefetchSize);
+        dmaDataInfo.usePfp       = (engineType == EngineTypeUniversal);
         dmaDataInfo.disWc        = true;
 
         packetSize = BuildDmaData<false>(dmaDataInfo, pBuffer);

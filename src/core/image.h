@@ -262,10 +262,9 @@ struct ImageInfo
 class Image : public IImage
 {
 public:
-    static constexpr ClearMethod DefaultSlowClearMethod = ClearMethod::NormalGraphics;
-    static constexpr bool PreferGraphicsCopy = true;
-    static constexpr bool ForceExpandHiZRangeForResummarize = false;
-    static constexpr bool UseCpPacketOcclusionQuery = true;
+    static constexpr ClearMethod DefaultSlowClearMethod    = ClearMethod::NormalGraphics;
+    static constexpr bool        PreferGraphicsCopy        = true;
+    static constexpr bool        UseCpPacketOcclusionQuery = true;
 
     static Result ValidateCreateInfo(
         const Device*                  pDevice,
@@ -531,8 +530,7 @@ public:
         uint32          plane) const;
 
     // Returns whether or not this image prefers CB fixed function resolve
-    bool PreferCbResolve() const
-        { return (m_createInfo.flags.repetitiveResolve != 0); }
+    bool PreferCbResolve() const;
 
     bool PreferGraphicsScaledCopy() const { return m_preferGraphicsScaledCopy; }
     void SetPreferGraphicsScaledCopy(bool val) { m_preferGraphicsScaledCopy = val; }

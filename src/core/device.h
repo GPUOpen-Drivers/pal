@@ -372,7 +372,6 @@ struct GpuEngineProperties
     // Maximum number of user and internal memory references allowed with a single Queue submission.
     uint32 maxUserMemRefsPerSubmission;
     uint32 maxInternalRefsPerSubmission;
-    uint32 cpUcodeVersion;               // Version number of the CP microcode.
 
     struct
     {
@@ -667,7 +666,9 @@ struct GpuChipProperties
     uint32   vcnEncodeFwInterfaceVersionMinor;  // VCN Video encode firmware interface minor version
     uint32   vcnFwVersionSubMinor;              // VCN Video firmware sub-minor version (revision)
 
-    uint32   pfpUcodeVersion;                   // PFP ucode version for some features
+    uint32 cpUcodeVersion;      // Command Processor feature version.
+                                // Assume all blocks in the CP share the same feature version.
+    uint32 pfpUcodeVersion;     // Command Processor, compute engine firmware version.
 
     struct
     {
@@ -2301,9 +2302,7 @@ extern void InitializePerfExperimentProperties(
 
 // Initialize default values for the GPU engine properties for GFXIP 6/7/8 hardware.
 extern void InitializeGpuEngineProperties(
-    GfxIpLevel           gfxIpLevel,
-    uint32               familyId,
-    uint32               eRevId,
+    const GpuChipProperties& chipProps,
     GpuEngineProperties* pInfo);
 
 } // Gfx6

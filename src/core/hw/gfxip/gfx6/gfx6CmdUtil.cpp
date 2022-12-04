@@ -2498,7 +2498,7 @@ size_t CmdUtil::BuildReleaseMem(
 
     if (dataSel == RELEASEMEM_DATA_SEL_STORE_GDS_DATA)
     {
-        const uint32 cpUcodeVersion = m_device.EngineProperties().cpUcodeVersion;
+        const uint32 cpUcodeVersion = m_device.ChipProperties().cpUcodeVersion;
         if (((m_chipFamily == GfxIpLevel::GfxIp7) && (cpUcodeVersion < 29)) ||
             ((m_chipFamily >= GfxIpLevel::GfxIp8) && (cpUcodeVersion < 39)))
         {
@@ -2891,7 +2891,7 @@ size_t CmdUtil::BuildStrmoutBufferUpdate(
     pPacket->ordinal5           = 0;
 
     // The dataType field was added in uCode version #26 to support stream-out size in bytes.
-    PAL_ASSERT(m_device.EngineProperties().cpUcodeVersion >= 26);
+    PAL_ASSERT(m_device.ChipProperties().cpUcodeVersion >= 26);
     constexpr uint32 DataType = 1; // 1 Indicates the GPU memory buffer-filled-size is in bytes.
 
     switch (sourceSelect)
@@ -3472,9 +3472,9 @@ void CmdUtil::BuildPipelinePrefetchPm4(
         const gpusize prefetchAddr = uploader.PrefetchAddr();
         uint32        prefetchSize = static_cast<uint32>(uploader.PrefetchSize());
 
-        if (coreSettings.shaderPrefetchClampSize != 0)
+        if (coreSettings.prefetchClampSize != 0)
         {
-            prefetchSize = Min(prefetchSize, coreSettings.shaderPrefetchClampSize);
+            prefetchSize = Min(prefetchSize, coreSettings.prefetchClampSize);
         }
 
         // The .text section of the code object should be well aligned, but the prefetched data may not be.  In that

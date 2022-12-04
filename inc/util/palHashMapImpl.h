@@ -58,7 +58,7 @@ Result HashMap<Key, Value, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>
     Result result = Result::ErrorOutOfMemory;
 
     // Get the bucket base address....
-    Entry* pGroup = this->FindBucket(key);
+    Entry* pGroup = this->InitAndFindBucket(key);
 
     *pExisted = false;
     *ppValue  = nullptr;

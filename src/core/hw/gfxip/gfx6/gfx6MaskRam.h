@@ -26,7 +26,7 @@
 #pragma once
 
 #include "pal.h"
-#include "core/hw/gfxip/maskRam.h"
+#include "core/hw/gfxip/pm4MaskRam.h"
 #include "core/hw/gfxip/gfx6/gfx6Chip.h"
 
 namespace Pal

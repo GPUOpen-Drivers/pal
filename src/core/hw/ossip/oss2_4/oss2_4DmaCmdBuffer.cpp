@@ -917,6 +917,15 @@ uint32* DmaCmdBuffer::WriteNops(
 }
 
 // =====================================================================================================================
+void DmaCmdBuffer::CmdNop(
+    const void* pPayload,
+    uint32      payloadSize)
+{
+    // See BuildNops() above, on OSS_2_4, NOP packet is fixed length with 1 DWORD and can't carry payload.
+    PAL_ALERT_ALWAYS_MSG("Unsupported CmdNop with payload on OSS_2_4!");
+}
+
+// =====================================================================================================================
 // Either copies a linear image into a tiled one (deTile == false) or vice versa. Returns the next unused DWORD in
 // pCmdSpace.
 //

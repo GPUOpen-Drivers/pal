@@ -46,6 +46,7 @@
 #include "core/hw/gfxip/rpm/rpmUtil.h"
 #include "palAutoBuffer.h"
 #include "palDepthStencilView.h"
+#include "palGpuMemory.h"
 
 #include <float.h>
 
@@ -167,10 +168,13 @@ Result RsrcProcMgr::LateInit()
         const bool supportsHsaAbi = (m_pDevice->Parent()->ChipProperties().gfxip.supportHsaAbi == 1);
 
         // For now we only expect to support this on a subset of gfx10 ASICs due to missing CP support.
-        if (supportsHsaAbi && IsGfx10(*m_pDevice->Parent()))
+        if (supportsHsaAbi)
         {
-            pipeInfo.pPipelineBinary    = Gfx10EchoGlobalTableElfBinary;
-            pipeInfo.pipelineBinarySize = sizeof(Gfx10EchoGlobalTableElfBinary);
+            if (IsGfx10(*m_pDevice->Parent()))
+            {
+                pipeInfo.pPipelineBinary = Gfx10EchoGlobalTableElfBinary;
+                pipeInfo.pipelineBinarySize = sizeof(Gfx10EchoGlobalTableElfBinary);
+            }
         }
 
         if (pipeInfo.pPipelineBinary != nullptr)
@@ -406,22 +410,28 @@ void RsrcProcMgr::CmdCloneImageData(
 
     // dstImgMemLayout metadata size comparison to srcImgMemLayout is checked by caller.
     const ImageMemoryLayout& srcImgMemLayout = srcParent.GetMemoryLayout();
+    const bool               hasMetadata     = (srcImgMemLayout.metadataSize != 0);
 
-    // First copy header by PFP
-    // We always read and write the metadata header using the PFP so the copy must also use the PFP.
-    PfpCopyMetadataHeader(pCmdBuffer,
-                          dstParent.GetBoundGpuMemory().GpuVirtAddr() + srcImgMemLayout.metadataHeaderOffset,
-                          srcParent.GetBoundGpuMemory().GpuVirtAddr() + srcImgMemLayout.metadataHeaderOffset,
-                          static_cast<uint32>(srcImgMemLayout.metadataHeaderSize),
-                          srcImage.HasDccLookupTable());
+    if (hasMetadata)
+    {
+        // If has metadata
+        // First copy header by PFP
+        // We always read and write the metadata header using the PFP so the copy must also use the PFP.
+        PfpCopyMetadataHeader(pCmdBuffer,
+                              dstParent.GetBoundGpuMemory().GpuVirtAddr() + srcImgMemLayout.metadataHeaderOffset,
+                              srcParent.GetBoundGpuMemory().GpuVirtAddr() + srcImgMemLayout.metadataHeaderOffset,
+                              static_cast<uint32>(srcImgMemLayout.metadataHeaderSize),
+                              srcImage.HasDccLookupTable());
+    }
 
     // Do the rest copy
-    // Copy all of the source image (including metadata, excluding metadata header) to the destination image.
+    // If has metadata, copy all of the source image (including metadata, excluding metadata header) to the dest image.
+    // If no metadata, copy the whole memory.
     Pal::MemoryCopyRegion copyRegion = {};
 
     copyRegion.srcOffset = srcParent.GetBoundGpuMemory().Offset();
     copyRegion.dstOffset = dstParent.GetBoundGpuMemory().Offset();
-    copyRegion.copySize  = srcImgMemLayout.metadataHeaderOffset;
+    copyRegion.copySize  = hasMetadata ? srcImgMemLayout.metadataHeaderOffset : dstParent.GetGpuMemSize();
 
     pCmdBuffer->CmdCopyMemory(*srcParent.GetBoundGpuMemory().Memory(),
                               *dstParent.GetBoundGpuMemory().Memory(),
@@ -2520,9 +2530,9 @@ void RsrcProcMgr::DepthStencilClearGraphics(
                                                                                   stencilWriteMask,
                                                                                   range));
 
-    const auto& settings     = m_pDevice->Parent()->Settings();
-    const bool  clearDepth   = TestAnyFlagSet(clearMask, HtilePlaneDepth);
-    const bool  clearStencil = TestAnyFlagSet(clearMask, HtilePlaneStencil);
+    const auto* pPublicSettings = m_pDevice->Parent()->GetPublicSettings();
+    const bool  clearDepth      = TestAnyFlagSet(clearMask, HtilePlaneDepth);
+    const bool  clearStencil    = TestAnyFlagSet(clearMask, HtilePlaneStencil);
     PAL_ASSERT(clearDepth || clearStencil); // How did we get here if there's nothing to clear!?
 
     const StencilRefMaskParams stencilRefMasks =
@@ -2588,7 +2598,7 @@ void RsrcProcMgr::DepthStencilClearGraphics(
     DepthStencilViewCreateInfo depthViewInfo = { };
     depthViewInfo.pImage           = dstImage.Parent();
     depthViewInfo.arraySize        = 1;
-    depthViewInfo.flags.bypassMall = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnCbDbWrite);
+    depthViewInfo.flags.bypassMall = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnCbDbWrite);
 
     // Depth-stencil targets must be used on the universal engine.
     PAL_ASSERT((clearDepth   == false) || TestAnyFlagSet(depthLayout.engines,   LayoutUniversalEngine));
@@ -3386,7 +3396,8 @@ uint32 Gfx9RsrcProcMgr::HwlBeginGraphicsCopy(
     const auto&          settings     = m_pDevice->Settings();
     uint32               modifiedMask = 0;
 
-    if (pGpuMem != nullptr)
+    // Virtual memory objects don't have a defined heap preference, so skip this optimization for virtual memory.
+    if ((pGpuMem != nullptr) && (pGpuMem->IsVirtual() == false))
     {
         const GpuHeap preferredHeap = pGpuMem->PreferredHeap();
 
@@ -3632,13 +3643,30 @@ bool RsrcProcMgr::UsePixelCopy(
     const Pal::Image&             image,
     const MemoryImageCopyRegion&  region)
 {
-    const Extent3d  hwCopyDims = GetCopyViaSrdCopyDims(image, region.imageSubres, true);
+    bool usePixelCopy = true;
 
-    // If the default implementation copy dimensions did not cover the region specified by this region, then
-    // we need to copy the remaining pixels the slow way.
-    const bool  usePixelCopy = ((hwCopyDims.width  < (region.imageOffset.x + region.imageExtent.width))  ||
-                                (hwCopyDims.height < (region.imageOffset.y + region.imageExtent.height)) ||
-                                (hwCopyDims.depth  < (region.imageOffset.z + region.imageExtent.depth)));
+    // gfx10+
+    if (image.GetDevice()->ChipProperties().gfxLevel > GfxIpLevel::GfxIp9)
+    {
+        const ImageCreateInfo& createInfo  = image.GetImageCreateInfo();
+        const AddrSwizzleMode  swizzleMode =
+                    static_cast<AddrSwizzleMode>(image.GetGfxImage()->GetSwTileMode(image.SubresourceInfo(0)));
+        if (AddrMgr2::IsNonBcViewCompatible(swizzleMode, createInfo.imageType))
+        {
+            usePixelCopy = false;
+        }
+    }
+
+    if (usePixelCopy)
+    {
+        const Extent3d  hwCopyDims = GetCopyViaSrdCopyDims(image, region.imageSubres, true);
+
+        // If the default implementation copy dimensions did not cover the region specified by this region, then
+        // we need to copy the remaining pixels the slow way.
+        usePixelCopy = ((hwCopyDims.width  < (region.imageOffset.x + region.imageExtent.width))  ||
+                        (hwCopyDims.height < (region.imageOffset.y + region.imageExtent.height)) ||
+                        (hwCopyDims.depth  < (region.imageOffset.z + region.imageExtent.depth)));
+    }
 
     return usePixelCopy;
 }
@@ -3842,9 +3870,7 @@ void RsrcProcMgr::CmdCopyMemoryToImage(
     const ImageCreateInfo& createInfo = dstImage.GetImageCreateInfo();
 
     if (Formats::IsBlockCompressed(createInfo.swizzledFormat.format) &&
-        (createInfo.mipLevels > 1)                                   &&
-        ((m_pDevice->Parent()->ChipProperties().gfxLevel == GfxIpLevel::GfxIp9) ||
-         ((createInfo.imageType == ImageType::Tex3d) && (createInfo.flags.prt == 1))))
+        (createInfo.mipLevels > 1))
     {
         // Unlike in the image-to-memory counterpart function, we don't have to wait for the above compute shader
         // to finish because the unaddressable image pixels can not be written, so there's no write conflicts.
@@ -6334,8 +6360,8 @@ void Gfx10RsrcProcMgr::ClearDccComputeSetFirstPixelOfBlock(
         // With an 8bpp format, one DCC byte covers a 16x16 pixel region.  However, for reasons
         // of GFX10 addressing weirdness, writing the clear color once for every (16,16) region
         // isn't sufficient...  so write it every (8,8) instead
-        xInc = 8;
-        yInc = 8;
+        xInc = Util::Min(8u, xInc);
+        yInc = Util::Min(8u, yInc);
         break;
     case 2:
         planeFormat.format = ChNumFormat::X16_Uint;
@@ -6467,11 +6493,11 @@ void Gfx10RsrcProcMgr::InitHtileData(
     uint32             hTileMask
     ) const
 {
-    const Pal::Image*  pPalImage     = dstImage.Parent();
-    const auto*        pHtile        = dstImage.GetHtile();
-    const auto&        hTileAddrOut  = pHtile->GetAddrOutput();
-    const gpusize      hTileBaseAddr = dstImage.GetMaskRamBaseAddr(pHtile, 0);
-    const auto&        settings      = m_pDevice->Parent()->Settings();
+    const Pal::Image*  pPalImage       = dstImage.Parent();
+    const auto*        pHtile          = dstImage.GetHtile();
+    const auto&        hTileAddrOut    = pHtile->GetAddrOutput();
+    const gpusize      hTileBaseAddr   = dstImage.GetMaskRamBaseAddr(pHtile, 0);
+    const auto*        pPublicSettings = m_pDevice->Parent()->GetPublicSettings();
 
     PAL_ASSERT(pCmdBuffer->IsComputeSupported());
 
@@ -6523,10 +6549,10 @@ void Gfx10RsrcProcMgr::InitHtileData(
                 hTileBufferView.swizzledFormat.format  = ChNumFormat::X32_Uint;
                 hTileBufferView.swizzledFormat.swizzle =
                     { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
-                hTileBufferView.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                                       Gfx10RpmViewsBypassMallOnRead);
-                hTileBufferView.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                                       Gfx10RpmViewsBypassMallOnWrite);
+                hTileBufferView.flags.bypassMallRead  = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                                       RpmViewsBypassMallOnRead);
+                hTileBufferView.flags.bypassMallWrite = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                                       RpmViewsBypassMallOnWrite);
 
                 BufferSrd srd = { };
                 m_pDevice->Parent()->CreateTypedBufferViewSrds(1, &hTileBufferView, &srd);
@@ -6562,11 +6588,11 @@ void Gfx10RsrcProcMgr::WriteHtileData(
     uint8              stencil
     ) const
 {
-    const Pal::Image*  pPalImage     = dstImage.Parent();
-    const auto*        pHtile        = dstImage.GetHtile();
-    const auto&        hTileAddrOut  = pHtile->GetAddrOutput();
-    const gpusize      hTileBaseAddr = dstImage.GetMaskRamBaseAddr(pHtile, range.startSubres.arraySlice);
-    const auto&        settings      = m_pDevice->Parent()->Settings();
+    const Pal::Image*  pPalImage       = dstImage.Parent();
+    const auto*        pHtile          = dstImage.GetHtile();
+    const auto&        hTileAddrOut    = pHtile->GetAddrOutput();
+    const gpusize      hTileBaseAddr   = dstImage.GetMaskRamBaseAddr(pHtile, range.startSubres.arraySlice);
+    const auto*        pPublicSettings = m_pDevice->Parent()->GetPublicSettings();
 
     PAL_ASSERT(pCmdBuffer->IsComputeSupported());
 
@@ -6604,10 +6630,10 @@ void Gfx10RsrcProcMgr::WriteHtileData(
                 hTileBufferView.swizzledFormat.format  = ChNumFormat::X32_Uint;
                 hTileBufferView.swizzledFormat.swizzle =
                     { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
-                hTileBufferView.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                                       Gfx10RpmViewsBypassMallOnRead);
-                hTileBufferView.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                                       Gfx10RpmViewsBypassMallOnWrite);
+                hTileBufferView.flags.bypassMallRead  = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                                      RpmViewsBypassMallOnRead);
+                hTileBufferView.flags.bypassMallWrite = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                                       RpmViewsBypassMallOnWrite);
                 BufferSrd htileSurfSrd                 = { };
                 uint32 hTileUserData[4]                = { };
                 uint32 numConstDwords                  = 4;
@@ -6703,10 +6729,10 @@ void Gfx10RsrcProcMgr::WriteHtileData(
                     metadataView.range          = dstImage.HiSPretestsMetaDataSize(1);
                     metadataView.stride         = 1;
                     metadataView.swizzledFormat = UndefinedSwizzledFormat;
-                    metadataView.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                                        Gfx10RpmViewsBypassMallOnRead);
-                    metadataView.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                                        Gfx10RpmViewsBypassMallOnWrite);
+                    metadataView.flags.bypassMallRead = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                                       RpmViewsBypassMallOnRead);
+                    metadataView.flags.bypassMallWrite = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                                        RpmViewsBypassMallOnWrite);
                     m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &metadataView, &metadataSrd);
 
                     pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute,
@@ -7265,8 +7291,7 @@ uint32 Gfx10RsrcProcMgr::HwlBeginGraphicsCopy(
     const auto&          coreSettings = palDevice.Settings();
     uint32               modifiedMask = 0;
 
-    // For virtual GPU memory allocations,
-    // there are no heaps because there are no physical memory pages backing the allocation.
+    // Virtual memory objects don't have a defined heap preference, so skip this optimization for virtual memory.
     if ((pGpuMem != nullptr) && (pGpuMem->IsVirtual() == false))
     {
         const GpuHeap preferredHeap = pGpuMem->PreferredHeap();
@@ -7447,12 +7472,17 @@ bool Gfx10RsrcProcMgr::PreferComputeForNonLocalDestCopy(
         (isMgpu == false))
     {
         const GpuMemory* pGpuMem       = dstImage.GetBoundGpuMemory().Memory();
-        const GpuHeap    preferredHeap = pGpuMem->PreferredHeap();
 
-        if (((preferredHeap == GpuHeapGartUswc) || (preferredHeap == GpuHeapGartCacheable)) ||
-            pGpuMem->IsPeer())
+        // Virtual memory objects don't have a defined heap preference, so skip this optimization for virtual memory.
+        if (pGpuMem->IsVirtual() == false)
         {
-            preferCompute = true;
+            const GpuHeap    preferredHeap = pGpuMem->PreferredHeap();
+
+            if (((preferredHeap == GpuHeapGartUswc) || (preferredHeap == GpuHeapGartCacheable)) ||
+                pGpuMem->IsPeer())
+            {
+                preferCompute = true;
+            }
         }
     }
 

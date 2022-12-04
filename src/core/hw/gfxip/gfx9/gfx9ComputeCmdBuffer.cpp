@@ -64,6 +64,7 @@ ComputeCmdBuffer::ComputeCmdBuffer(
                 CmdStreamUsage::Workload,
                 IsNested()),
     m_pSignatureCs(&NullCsSignature),
+    m_baseUserDataRegCs(device.GetBaseUserDataReg(HwShaderStage::Cs)),
     m_predGpuAddr(0),
     m_inheritedPredication(false),
     m_globalInternalTableAddr(0)
@@ -874,6 +875,44 @@ void ComputeCmdBuffer::CmdBindBorderColorPalette(
 }
 
 // =====================================================================================================================
+// Helper function to write a single user-sgpr. This function should always be preferred for user data writes over
+// WriteSetOneShReg() if the SGPR is written before or during draw/dispatch validation.
+// Returns the next unused DWORD in pDeCmdSpace.
+uint32* ComputeCmdBuffer::SetUserSgprReg(
+    uint16  regAddr,
+    uint32  regValue,
+    uint32* pCmdSpace)
+{
+    pCmdSpace = SetSeqUserSgprRegs(regAddr,
+                                   regAddr,
+                                   &regValue,
+                                   pCmdSpace);
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+// Helper function to write a sequence of user-sgprs. This function should always be preferred for user data writes over
+// WriteSetSeqShRegs() if the SGPRs are written before or during draw/dispatch validation.
+// Returns the next unused DWORD in pCmdSpace.
+uint32* ComputeCmdBuffer::SetSeqUserSgprRegs(
+    uint16      startAddr,
+    uint16      endAddr,
+    const void* pValues,
+    uint32*     pCmdSpace)
+{
+    // This function is exclusively meant for writing user-SGPR regs. Use the regular WriteSetSeqShRegs/OneShReg() for
+    // non user-SGPR SH reg writes.
+    PAL_ASSERT(InRange<uint16>(startAddr, m_baseUserDataRegCs, m_baseUserDataRegCs + NumUserDataRegistersCompute));
+
+    {
+        pCmdSpace = m_cmdStream.WriteSetSeqShRegs(startAddr, endAddr, ShaderCompute, pValues, pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
 // Helper function which is responsible for making sure all user-data entries are written to either the spill table or
 // to user-SGPR's, as well as making sure that all indirect user-data tables are up-to-date in GPU memory. Part of
 // Dispatch-time validation.
@@ -969,9 +1008,9 @@ uint32* ComputeCmdBuffer::ValidateUserData(
         {
             if (m_pSignatureCs->stage.spillTableRegAddr != UserDataNotMapped)
             {
-                pCmdSpace = m_cmdStream.WriteSetOneShReg<ShaderCompute>(m_pSignatureCs->stage.spillTableRegAddr,
-                                                                        LowPart(pSpillTable->gpuVirtAddr),
-                                                                        pCmdSpace);
+                pCmdSpace = SetUserSgprReg(m_pSignatureCs->stage.spillTableRegAddr,
+                                           LowPart(pSpillTable->gpuVirtAddr),
+                                           pCmdSpace);
             }
         }
     } // if current pipeline spills user-data
@@ -1075,11 +1114,10 @@ uint32* ComputeCmdBuffer::ValidateDispatchPalAbi(
             *reinterpret_cast<DispatchDims*>(CmdAllocateEmbeddedData(3, 4, &indirectGpuVirtAddr)) = logicalSize;
         }
 
-        pCmdSpace = m_cmdStream.WriteSetSeqShRegs(m_pSignatureCs->numWorkGroupsRegAddr,
-                                                  (m_pSignatureCs->numWorkGroupsRegAddr + 1),
-                                                  ShaderCompute,
-                                                  &indirectGpuVirtAddr,
-                                                  pCmdSpace);
+        pCmdSpace = SetSeqUserSgprRegs(m_pSignatureCs->numWorkGroupsRegAddr,
+                                       (m_pSignatureCs->numWorkGroupsRegAddr + 1),
+                                       &indirectGpuVirtAddr,
+                                       pCmdSpace);
     }
 
 #if PAL_DEVELOPER_BUILD
@@ -1174,11 +1212,7 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
                                                 ? m_computeState.dynamicCsInfo.ldsBytesPerTg
                                                 : metadata.GroupSegmentFixedSize());
 
-        pCmdSpace = m_cmdStream.WriteSetSeqShRegs(startReg,
-                                                  startReg + 1,
-                                                  ShaderCompute,
-                                                  &aqlPacketGpu,
-                                                  pCmdSpace);
+        pCmdSpace = SetSeqUserSgprRegs(startReg, (startReg + 1), &aqlPacketGpu, pCmdSpace);
         startReg += 2;
     }
 
@@ -1213,11 +1247,7 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
             }
         }
 
-        pCmdSpace = m_cmdStream.WriteSetSeqShRegs(startReg,
-                                                  startReg + 1,
-                                                  ShaderCompute,
-                                                  &gpuVa,
-                                                  pCmdSpace);
+        pCmdSpace = SetSeqUserSgprRegs(startReg, (startReg + 1), &gpuVa, pCmdSpace);
         startReg += 2;
     }
 
@@ -1981,7 +2011,7 @@ void ComputeCmdBuffer::CmdPrimeGpuCaches(
     {
         uint32* pCmdSpace = m_cmdStream.ReserveCommands();
 
-        pCmdSpace += m_cmdUtil.BuildPrimeGpuCaches(pRanges[i], pCmdSpace);
+        pCmdSpace += m_cmdUtil.BuildPrimeGpuCaches(pRanges[i], EngineTypeCompute, pCmdSpace);
 
         m_cmdStream.CommitCommands(pCmdSpace);
     }

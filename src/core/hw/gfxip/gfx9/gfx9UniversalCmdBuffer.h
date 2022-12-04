@@ -562,6 +562,11 @@ public:
         uint32 vertexBufTableDwords,
         uint32 maxCmdCnt) const;
 
+    uint32 BuildExecuteIndirectIb2Packets(
+        const IndirectCmdGenerator& gfx9Generator,
+        const GraphicsPipeline&     gfxPipeline,
+        uint32*                     pDeCmdIb2Space);
+
     gpusize ConstructExecuteIndirectIb2(
         const IndirectCmdGenerator& gfx9Generator,
         PipelineBindPoint           bindPoint,

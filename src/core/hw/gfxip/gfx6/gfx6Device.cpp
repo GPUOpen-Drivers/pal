@@ -3344,9 +3344,7 @@ void InitializePerfExperimentProperties(
 // =====================================================================================================================
 // Initialize default values for the GPU engine properties for GFXIP 6/7/8 hardware.
 void InitializeGpuEngineProperties(
-    GfxIpLevel           gfxIpLevel,
-    uint32               familyId,
-    uint32               eRevId,
+    const GpuChipProperties& chipProps,
     GpuEngineProperties* pInfo)
 {
     auto*const pUniversal = &pInfo->perEngine[EngineTypeUniversal];
@@ -3385,9 +3383,9 @@ void InitializeGpuEngineProperties(
     // GFX6 supports compute queue control flow for free because it doesn't have ACEs.
     // GFX7 supports it starting with feature version 27.
     // GFX8 and GFX8.1 support it starting with feature version 32.
-    if ((gfxIpLevel == GfxIpLevel::GfxIp6) ||
-        ((gfxIpLevel == GfxIpLevel::GfxIp7) && (pInfo->cpUcodeVersion >= 27)) ||
-        ((gfxIpLevel >= GfxIpLevel::GfxIp8) && (pInfo->cpUcodeVersion >= 32)))
+    if ((chipProps.gfxLevel == GfxIpLevel::GfxIp6) ||
+        ((chipProps.gfxLevel == GfxIpLevel::GfxIp7) && (chipProps.cpUcodeVersion >= 27)) ||
+        ((chipProps.gfxLevel >= GfxIpLevel::GfxIp8) && (chipProps.cpUcodeVersion >= 32)))
     {
         pCompute->flags.conditionalExecutionSupport = 1;
         pCompute->flags.loopExecutionSupport        = 1;

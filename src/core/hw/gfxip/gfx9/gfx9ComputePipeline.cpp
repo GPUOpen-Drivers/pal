@@ -163,6 +163,7 @@ Result ComputePipeline::HwlInit(
             (metadata.PrivateSegmentFixedSize() != 0) ||
             (metadata.KernelKind() != HsaAbi::Kind::Normal))
         {
+            PAL_ASSERT_ALWAYS_MSG("unsupported scratch memory usage!");
             result = Result::Unsupported;
         }
         else

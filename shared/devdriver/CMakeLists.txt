@@ -69,6 +69,9 @@ dd_bp(DD_MSVC_CODE_ANALYZE ${DEVDRIVER_IS_TOP_LEVEL})
 # when those modules are built.
 dd_bp(DD_BUILD_RDF ${DD_BP_BUILD_MODULES})
 
+# Flag for building RDF versions of MemoryModule, GPUDetective, and RMV Streamer, default off for now:
+dd_bp(DD_BUILD_RDF_MODULES OFF)
+
 add_subdirectory(third_party)
 add_subdirectory(imported)
 add_subdirectory(shared)

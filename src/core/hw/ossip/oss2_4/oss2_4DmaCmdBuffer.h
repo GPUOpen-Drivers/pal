@@ -58,6 +58,8 @@ public:
         gpusize           dataSize,
         const uint32*     pData) override;
 
+    virtual void CmdNop(const void* pPayload, uint32 payloadSize) override;
+
     static uint32* BuildNops(uint32* pCmdSpace, uint32 numDwords);
 
 protected:

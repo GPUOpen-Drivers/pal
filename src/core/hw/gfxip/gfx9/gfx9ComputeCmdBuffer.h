@@ -275,6 +275,17 @@ private:
         DispatchDims logicalSize,
         uint32*      pCmdSpace);
 
+    uint32* SetUserSgprReg(
+        uint16  regAddr,
+        uint32  regValue,
+        uint32* pCmdSpace);
+
+    uint32* SetSeqUserSgprRegs(
+        uint16      startAddr,
+        uint16      endAddr,
+        const void* pValues,
+        uint32*     pCmdSpace);
+
     template <bool HasPipelineChanged>
     uint32* ValidateUserData(
         const ComputePipelineSignature* pPrevSignature,
@@ -302,6 +313,8 @@ private:
 
     // Tracks the user-data signature of the currently active compute pipeline.
     const ComputePipelineSignature*  m_pSignatureCs;
+
+    const uint16 m_baseUserDataRegCs;
 
     // SET_PREDICATION is not supported on compute queue so what we work out here is an emulation using cond exec
     // Note m_gfxCmdBuff.clientPredicate and m_gfxCmdBuff.packetPredicate bits are 0 when:

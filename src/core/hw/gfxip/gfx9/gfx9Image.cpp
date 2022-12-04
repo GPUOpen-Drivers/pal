@@ -36,6 +36,7 @@
 #include "palHasher.h"
 #include "palMath.h"
 #include "palLiterals.h"
+#include "palGpuMemory.h"
 
 #include <atomic>
 #include <limits.h>
@@ -2369,10 +2370,12 @@ void Image::BuildDccLookupTableBufferView(
     pViewInfo->stride         = 1;
     pViewInfo->swizzledFormat = UndefinedSwizzledFormat;
 
-    const auto& settings = m_device.Settings();
+    const auto* pPublicSettings = m_device.GetPublicSettings();
 
-    pViewInfo->flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnRead);
-    pViewInfo->flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnWrite);
+    pViewInfo->flags.bypassMallRead =
+        TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnRead);
+    pViewInfo->flags.bypassMallWrite =
+        TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnWrite);
 }
 
 // =====================================================================================================================
@@ -3262,14 +3265,16 @@ void Image::BuildMetadataLookupTableBufferView(
     uint32 mipLevel
     ) const
 {
-    const auto& settings = m_device.Settings();
+    const auto* pPublicSettings = m_device.GetPublicSettings();
 
     pViewInfo->gpuAddr        = Parent()->GetGpuVirtualAddr() + m_metaDataLookupTableOffsets[mipLevel];
     pViewInfo->range          = m_metaDataLookupTableSizes[mipLevel];
     pViewInfo->stride         = 1;
     pViewInfo->swizzledFormat = UndefinedSwizzledFormat;
-    pViewInfo->flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnRead);
-    pViewInfo->flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall, Gfx10RpmViewsBypassMallOnWrite);
+    pViewInfo->flags.bypassMallRead =
+        TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnRead);
+    pViewInfo->flags.bypassMallWrite =
+        TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall, RpmViewsBypassMallOnWrite);
 }
 
 // =====================================================================================================================
@@ -3681,9 +3686,8 @@ gpusize Image::ComputeNonBlockCompressedView(
     const auto&                            surfSetting     = GetAddrSettings(pBaseSubResInfo);
     const auto*                            pTileInfo       = Pal::AddrMgr2::GetTileInfo(pParent, pBaseSubResInfo->subresId);
 
-    // 2D image or non-prt 3D image
-    PAL_ASSERT((surfSetting.resourceType == ADDR_RSRC_TEX_2D) ||
-               ((surfSetting.resourceType == ADDR_RSRC_TEX_3D) && (imageCreateInfo.flags.prt == 0)));
+    // It should be non BC view compatible
+    PAL_ASSERT(AddrMgr2::IsNonBcViewCompatible(surfSetting.swizzleMode, imageCreateInfo.imageType));
 
     ADDR2_COMPUTE_NONBLOCKCOMPRESSEDVIEW_INPUT nbcIn = {};
     nbcIn.size         = sizeof(nbcIn);

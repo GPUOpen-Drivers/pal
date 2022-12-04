@@ -295,7 +295,11 @@ bool SwapChain::OptimizedHandlingForNativeWindowSystem(
 
     if (m_pWindowSystem->SupportIdleEvent())
     {
-        m_pWindowSystem->GoThroughEvent(); // Handle all events for the window system.
+        if (m_createInfo.swapChainMode == SwapChainMode::Immediate)
+        {
+            // For immediate mode, handle all window system events here
+            m_pWindowSystem->GoThroughEvent();
+        }
 
         // Only optimize the immediate mode
         // Don't take this path for Cpu present case

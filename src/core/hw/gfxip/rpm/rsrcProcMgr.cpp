@@ -46,6 +46,7 @@
 #include "palMsaaState.h"
 #include "palInlineFuncs.h"
 #include "palLiterals.h"
+#include "palGpuMemory.h"
 
 #include <float.h>
 #include <math.h>
@@ -187,8 +188,6 @@ Result RsrcProcMgr::EarlyInit()
 
     // Round up to the size of a DWORD.
     m_srdAlignment = Util::NumBytesToNumDwords(m_srdAlignment);
-
-    m_releaseAcquireSupported = chipProps.gfx9.supportReleaseAcquireInterface;
 
     return Result::Success;
 }
@@ -1079,10 +1078,10 @@ void RsrcProcMgr::CopyBetweenMemoryAndImageCs(
     const gpusize*               pP2pBltInfoChunks
     ) const
 {
-    const auto& imgCreateInfo = image.GetImageCreateInfo();
-    const auto& device        = *m_pDevice->Parent();
-    const auto& settings      = device.Settings();
-    const bool  is3d          = (imgCreateInfo.imageType == ImageType::Tex3d);
+    const auto& imgCreateInfo   = image.GetImageCreateInfo();
+    const auto& device          = *m_pDevice->Parent();
+    const auto* pPublicSettings = device.GetPublicSettings();
+    const bool  is3d            = (imgCreateInfo.imageType == ImageType::Tex3d);
 
     // Get number of threads per groups in each dimension, we will need this data later.
     const DispatchDims threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
@@ -1213,10 +1212,10 @@ void RsrcProcMgr::CopyBetweenMemoryAndImageCs(
                                                             viewBpp * imgCreateInfo.fragments,
                                                             copyRegion.gpuMemoryRowPitch,
                                                             copyRegion.gpuMemoryDepthPitch);
-        bufferView.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                          Gfx10RpmViewsBypassMallOnRead);
-        bufferView.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                          Gfx10RpmViewsBypassMallOnWrite);
+        bufferView.flags.bypassMallRead  = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                          RpmViewsBypassMallOnRead);
+        bufferView.flags.bypassMallWrite = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                          RpmViewsBypassMallOnWrite);
 
         for (;
             copyRegion.imageSubres.arraySlice <= lastArraySlice;
@@ -1325,8 +1324,8 @@ void RsrcProcMgr::CmdCopyTypedBuffer(
     const TypedBufferCopyRegion* pRegions
     ) const
 {
-    const auto& device   = *m_pDevice->Parent();
-    const auto& settings = device.Settings();
+    const auto& device          = *m_pDevice->Parent();
+    const auto* pPublicSettings = device.GetPublicSettings();
 
     // Save current command buffer state.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
@@ -1421,10 +1420,10 @@ void RsrcProcMgr::CmdCopyTypedBuffer(
         bufferView.range          = ComputeTypedBufferRange(copyExtent, rawBpp, dstInfo.rowPitch, dstInfo.depthPitch);
         bufferView.stride         = rawBpp;
         bufferView.swizzledFormat = rawFormat;
-        bufferView.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                          Gfx10RpmViewsBypassMallOnRead);
-        bufferView.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                          Gfx10RpmViewsBypassMallOnWrite);
+        bufferView.flags.bypassMallRead  = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                          RpmViewsBypassMallOnRead);
+        bufferView.flags.bypassMallWrite = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                          RpmViewsBypassMallOnWrite);
 
         device.CreateTypedBufferViewSrds(1, &bufferView, pUserDataTable);
         pUserDataTable += SrdDwordAlignment();
@@ -1536,10 +1535,11 @@ void RsrcProcMgr::GenerateMipmapsFast(
     const GenMipmapsInfo& genInfo
     ) const
 {
-    const auto& device    = *m_pDevice->Parent();
-    const auto& settings  = device.Settings();
-    const auto& image     = *static_cast<const Image*>(genInfo.pImage);
-    const auto& imageInfo = image.GetImageCreateInfo();
+    const auto& device          = *m_pDevice->Parent();
+    const auto& settings        = device.Settings();
+    const auto* pPublicSettings = device.GetPublicSettings();
+    const auto& image           = *static_cast<const Image*>(genInfo.pImage);
+    const auto& imageInfo       = image.GetImageCreateInfo();
 
     // The shader can only generate up to 12 mips in one pass.
     constexpr uint32 MaxNumMips = 12;
@@ -1720,10 +1720,10 @@ void RsrcProcMgr::GenerateMipmapsFast(
                 bufferView.stride         = 0;
                 bufferView.range          = sizeof(uint32);
                 bufferView.swizzledFormat = UndefinedSwizzledFormat;
-                bufferView.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                                  Gfx10RpmViewsBypassMallOnRead);
-                bufferView.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                                  Gfx10RpmViewsBypassMallOnWrite);
+                bufferView.flags.bypassMallRead  = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                                  RpmViewsBypassMallOnRead);
+                bufferView.flags.bypassMallWrite = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                                  RpmViewsBypassMallOnWrite);
                 device.CreateUntypedBufferViewSrds(1, &bufferView, pUserData);
 
                 // Execute the dispatch.
@@ -2723,8 +2723,8 @@ void RsrcProcMgr::CmdFillMemory(
 
     constexpr gpusize FillSizeLimit = 256_MiB;
 
-    const Device*const pDevice  = m_pDevice->Parent();
-    const PalSettings& settings = pDevice->Settings();
+    const Device*const pDevice               = m_pDevice->Parent();
+    const PalPublicSettings* pPublicSettings = pDevice->GetPublicSettings();
 
     if (saveRestoreComputeState)
     {
@@ -2766,10 +2766,10 @@ void RsrcProcMgr::CmdFillMemory(
             dstBufferView.swizzledFormat.swizzle =
             { ChannelSwizzle::X, ChannelSwizzle::Zero, ChannelSwizzle::Zero, ChannelSwizzle::One };
         }
-        dstBufferView.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                             Gfx10RpmViewsBypassMallOnRead);
-        dstBufferView.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                             Gfx10RpmViewsBypassMallOnWrite);
+        dstBufferView.flags.bypassMallRead  = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                             RpmViewsBypassMallOnRead);
+        dstBufferView.flags.bypassMallWrite = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                             RpmViewsBypassMallOnWrite);
         pDevice->CreateTypedBufferViewSrds(1, &dstBufferView, &srd[0]);
 
         pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 0, 4, &srd[0]);
@@ -3111,40 +3111,46 @@ void RsrcProcMgr::CmdClearDepthStencil(
 
         for (uint32 rangeIdx = 0; rangeIdx < rangeCount; rangeIdx++)
         {
-            PAL_ASSERT(pRanges[rangeIdx].numPlanes == 1);
-
-            const bool            isDepth       = (pRanges[rangeIdx].startSubres.plane == 0) && supportsDepth;
-            const SwizzledFormat& subresFormat  = dstImage.SubresourceInfo(pRanges[rangeIdx].startSubres)->format;
-
-            ClearColor clearColor = {};
-
-            if (isDepth)
+            for (uint32 plane = 0; plane < pRanges[rangeIdx].numPlanes; plane++)
             {
-                // For Depth slow clears, we use a float clear color.
-                clearColor.type        = ClearColorType::Float;
-                clearColor.f32Color[0] = depth;
+                SubresRange range = pRanges[rangeIdx];
+
+                range.startSubres.plane += plane;
+                range.numPlanes          = 1;
+
+                const bool            isDepth       = (range.startSubres.plane == 0) && supportsDepth;
+                const SwizzledFormat& subresFormat  = dstImage.SubresourceInfo(range.startSubres)->format;
+
+                ClearColor clearColor = {};
+
+                if (isDepth)
+                {
+                    // For Depth slow clears, we use a float clear color.
+                    clearColor.type        = ClearColorType::Float;
+                    clearColor.f32Color[0] = depth;
+                }
+                else
+                {
+                    PAL_ASSERT(m_pDevice->Parent()->SupportsStencil(imageFormat, ImageTiling::Optimal));
+
+                    // For Stencil plane we use the stencil value directly.
+                    clearColor.type        = ClearColorType::Uint;
+                    clearColor.u32Color[0] = stencil;
+                }
+
+                // This avoids an assert in the generic clear function below.  I think it's safe to add here without
+                // a real transition because, by the time we get here, there is no htile.
+                depthLayout.usages |= LayoutShaderWrite;
+
+                SlowClearCompute(pCmdBuffer,
+                                 dstImage,
+                                 isDepth ? depthLayout : stencilLayout,
+                                 &clearColor,
+                                 subresFormat,
+                                 range,
+                                 rectCount,
+                                 &boxes[0]);
             }
-            else
-            {
-                PAL_ASSERT(m_pDevice->Parent()->SupportsStencil(imageFormat, ImageTiling::Optimal));
-
-                // For Stencil plane we use the stencil value directly.
-                clearColor.type        = ClearColorType::Uint;
-                clearColor.u32Color[0] = stencil;
-            }
-
-            // This avoids an assert in the generic clear function below.  I think it's safe to add here without
-            // a real transition because, by the time we get here, there is no htile.
-            depthLayout.usages |= LayoutShaderWrite;
-
-            SlowClearCompute(pCmdBuffer,
-                             dstImage,
-                             isDepth ? depthLayout : stencilLayout,
-                             &clearColor,
-                             subresFormat,
-                             pRanges[rangeIdx],
-                             rectCount,
-                             &boxes[0]);
         }
 
         if (needComputeClearSync)
@@ -3450,7 +3456,7 @@ void RsrcProcMgr::CmdClearColorBuffer(
     const Range*      pRanges
     ) const
 {
-    const auto& settings  = m_pDevice->Parent()->Settings();
+    const auto* pPublicSettings = m_pDevice->Parent()->GetPublicSettings();
 
     ClearColor clearColor = color;
 
@@ -3493,10 +3499,10 @@ void RsrcProcMgr::CmdClearColorBuffer(
         dstViewInfo.range          = bpp * texelScale * bufferExtent;
         dstViewInfo.stride         = bpp * texelScale;
         dstViewInfo.swizzledFormat = texelScale == 1 ? rawFormat : UndefinedSwizzledFormat;
-        dstViewInfo.flags.bypassMallRead  = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                           Gfx10RpmViewsBypassMallOnRead);
-        dstViewInfo.flags.bypassMallWrite = TestAnyFlagSet(settings.rpmViewsBypassMall,
-                                                           Gfx10RpmViewsBypassMallOnWrite);
+        dstViewInfo.flags.bypassMallRead  = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                           RpmViewsBypassMallOnRead);
+        dstViewInfo.flags.bypassMallWrite = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                           RpmViewsBypassMallOnWrite);
 
         uint32 dstSrd[4] = {0};
         PAL_ASSERT(m_pDevice->Parent()->ChipProperties().srdSizes.bufferView == sizeof(dstSrd));

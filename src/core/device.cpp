@@ -51,6 +51,7 @@
 #include "palSysUtil.h"
 #include "palTextWriterImpl.h"
 #include "palDepthStencilView.h"
+#include "palGpuMemory.h"
 
 #include <limits.h>
 
@@ -550,6 +551,8 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.trapezoidDistributionFactor              =   6;
 #endif
     m_publicSettings.nggLateAllocGs                           = 127;
+    m_publicSettings.rpmViewsBypassMall                       = RpmViewsBypassMallOff;
+    m_publicSettings.expandHiZRangeForResummarize             = false;
 
     if (false
         )
@@ -559,7 +562,6 @@ Result Device::SetupPublicSettingDefaults()
     else
     {
         m_publicSettings.optDepthOnlyExportRate    = false;
-
     }
 
     return ret;
@@ -2099,6 +2101,7 @@ Result Device::GetProperties(
         pInfo->vcnLevel    = m_chipProperties.vcnLevel;
         pInfo->spuLevel    = m_chipProperties.spuLevel;
         pInfo->pspLevel    = m_chipProperties.pspLevel;
+
         Strncpy(&pInfo->gpuName[0], &m_gpuName[0], sizeof(pInfo->gpuName));
 
         pInfo->attachedScreenCount         = m_attachedScreenCount;
@@ -2272,6 +2275,9 @@ Result Device::GetProperties(
         pInfo->pciProperties.flags.gpuConnectedViaThunderbolt = m_chipProperties.gpuConnectedViaThunderbolt ? 1 : 0;
         pInfo->pciProperties.flags.gpuEmulatedInSoftware      = GetPlatform()->IsEmulationEnabled() ? 1 : 0;
         pInfo->pciProperties.flags.gpuEmulatedInHardware      = IsHwEmulationEnabled() ? 1 : 0;
+
+        pInfo->gfxipProperties.cpUcodeVersion    = m_chipProperties.cpUcodeVersion;
+        pInfo->gfxipProperties.pfpUcodeVersion   = m_chipProperties.pfpUcodeVersion;
 
 #if PAL_BUILD_GFX
         pInfo->gfxipProperties.maxUserDataEntries = m_chipProperties.gfxip.maxUserDataEntries;

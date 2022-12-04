@@ -51,7 +51,7 @@ Result HashSet<Key, Allocator, HashFunc, EqualFunc, AllocFunc, GroupSize>::Inser
     Result result = Result::ErrorOutOfMemory;
 
     // Get the bucket base address.
-    Entry* pGroup = this->FindBucket(key);
+    Entry* pGroup = this->InitAndFindBucket(key);
 
     Entry* pMatchingEntry = nullptr;
 

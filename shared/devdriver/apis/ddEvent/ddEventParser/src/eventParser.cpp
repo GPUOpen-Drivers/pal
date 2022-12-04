@@ -25,6 +25,7 @@
 
 #include <eventParser.h>
 #include <ddCommon.h>
+#include <util/ddEventTimer.h>
 
 using namespace DevDriver;
 using namespace EventProtocol;
@@ -477,7 +478,9 @@ DDEventParserEventInfo EventParser::GetEventInfo()
     info.eventIndex = pDataToken->index;
     info.totalPayloadSize = pDataToken->size;
     info.timestampFrequency = m_currTimestampFrequency;
-    info.timestamp = m_currTimestamp;
+
+    const EventTokenHeader* pHeader = (const EventTokenHeader*)(m_tokenBuffer);
+    info.timestamp = m_currTimestamp + pHeader->delta * DevDriver::kEventTimeUnit;
 
     return info;
 }

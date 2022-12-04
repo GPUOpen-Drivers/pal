@@ -30,6 +30,7 @@
 #include "core/settingsLoader.h"
 
 using namespace Util;
+using namespace Literals;
 
 namespace Pal
 {
@@ -646,6 +647,24 @@ uint32 AddrMgr2::GetNoXorStatus(
 }
 
 // =====================================================================================================================
+//  Determines a swizzle mode on GFX9/10 by calling Addr2GetPreferredSurfaceSetting
+ADDR_E_RETURNCODE AddrMgr2::GetPreferredSurfaceSetting(
+    const SubResourceInfo*                        pBaseSubRes,
+    bool                                          newSwizzleModeDetermination,
+    const ADDR2_GET_PREFERRED_SURF_SETTING_INPUT* pIn,
+    ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT*      pOut
+    ) const
+{
+    ADDR_E_RETURNCODE addrRet = {};
+
+    {
+        addrRet = Addr2GetPreferredSurfaceSetting(AddrLibHandle(), pIn, pOut);
+    }
+
+    return addrRet;
+}
+
+// =====================================================================================================================
 // Computes the swizzling mode for all subresources for the plane associated with the specified subresource.
 Result AddrMgr2::ComputePlaneSwizzleMode(
     const Image*                             pImage,
@@ -699,16 +718,6 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
     if (createInfo.imageType == ImageType::Tex3d)
     {
         surfSettingInput.flags.view3dAs2dArray = createInfo.flags.view3dAs2dArray;
-    }
-
-    // Enable view3dAs2dArray for mipmapped 3d bc images on gfx9+
-    // view3dAs2dArray can't support prt.
-    if (((createInfo.imageType == ImageType::Tex3d) && (createInfo.flags.prt == 0)) &&
-        Formats::IsBlockCompressed(createInfo.swizzledFormat.format)                &&
-        (createInfo.mipLevels > 1)                                                  &&
-        (m_gfxLevel > GfxIpLevel::GfxIp9))
-    {
-        surfSettingInput.flags.view3dAs2dArray = 1;
     }
 
     // Start by building a permitted set of swizzle types. From there we will apply performance optimizations to come
@@ -794,13 +803,15 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
         surfSettingInput.preferredSwSet.sw_D = 0;
     }
 
-    ADDR_E_RETURNCODE addrRet = Addr2GetPreferredSurfaceSetting(AddrLibHandle(), &surfSettingInput, pOut);
+    bool newMethod = false;
+    ADDR_E_RETURNCODE addrRet = GetPreferredSurfaceSetting(pBaseSubRes, newMethod, &surfSettingInput, pOut);
 
     // It's possible that we can't get what we preferr so retry using the full permitted mask.
     if ((addrRet != ADDR_OK) && (surfSettingInput.preferredSwSet.value != permittedSwSet.value))
     {
         surfSettingInput.preferredSwSet = permittedSwSet;
-        addrRet = Addr2GetPreferredSurfaceSetting(AddrLibHandle(), &surfSettingInput, pOut);
+        addrRet = GetPreferredSurfaceSetting(pBaseSubRes, newMethod, &surfSettingInput, pOut);
+
     }
 
     if (addrRet == ADDR_OK)

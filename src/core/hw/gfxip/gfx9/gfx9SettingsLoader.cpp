@@ -38,6 +38,7 @@
 #include "settingsService.h"
 
 using namespace Util;
+using namespace Util::Literals;
 
 namespace Pal
 {
@@ -194,7 +195,7 @@ void SettingsLoader::ValidateSettings(
     // We also need to make sure any microcode versions which are before the microcode fix disable preemption, even if
     // the user tried to enable it through the panel.
     if ((m_gfxLevel == GfxIpLevel::GfxIp9) &&
-        (m_pDevice->EngineProperties().cpUcodeVersion < MinUcodeFeatureVersionMcbpFix))
+        (m_pDevice->ChipProperties().cpUcodeVersion < MinUcodeFeatureVersionMcbpFix))
     {
         // We don't have a fully correct path to enable in this case. The KMD needs us to respect their MCBP enablement
         // but we can't support state shadowing without these features.
@@ -246,7 +247,7 @@ void SettingsLoader::ValidateSettings(
         m_settings.dbPerTileExpClearEnable = true;
     }
 
-    pSettings->shaderPrefetchClampSize = Pow2Align(pSettings->shaderPrefetchClampSize, 4096);
+    pSettings->prefetchClampSize = Pow2Align(pSettings->prefetchClampSize, 4096);
 
     // By default, gfx9RbPlusEnable is true, and it should be overridden to false
     // if the ASIC doesn't support Rb+.
@@ -426,7 +427,7 @@ static void SetupGfx10Workarounds(
 
     // GCR ranged sync operations cause page faults for Cmask without the uCode fix that properly converts the
     // ACQUIRE_MEM packet's COHER_SIZE to the correct GCR_DATA_INDEX.
-    pSettings->waCmaskImageSyncs = (device.EngineProperties().cpUcodeVersion < 28);
+    pSettings->waCmaskImageSyncs = (device.ChipProperties().cpUcodeVersion < 28);
 
     // We can't use CP_PERFMON_STATE_STOP_COUNTING when using an SQ counters or they can get stuck off until we reboot.
     pSettings->waNeverStopSqCounters = true;

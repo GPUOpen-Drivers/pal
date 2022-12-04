@@ -235,8 +235,7 @@ public:
     VaPartition VirtAddrPartition() const { return m_vaPartition; }
     MType Mtype() const { return m_mtype; }
 
-    // Returns the preferred heap.
-    GpuHeap PreferredHeap() const { PAL_ASSERT(m_heapCount > 0); return m_heaps[0]; }
+    GpuHeap PreferredHeap() const;
 
     bool IsVirtual()             const { return (m_desc.flags.isVirtual           != 0); }
     bool IsPeer()                const { return (m_desc.flags.isPeer              != 0); }

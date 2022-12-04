@@ -1223,10 +1223,7 @@ Result Device::EarlyInit(
         m_pFormatPropertiesTable    = Gfx6::GetFormatPropertiesTable(m_chipProperties.gfxLevel);
 
         InitGfx6ChipProperties();
-        Gfx6::InitializeGpuEngineProperties(m_chipProperties.gfxLevel,
-                                            m_chipProperties.familyId,
-                                            m_chipProperties.eRevId,
-                                            &m_engineProperties);
+        Gfx6::InitializeGpuEngineProperties(m_chipProperties, &m_engineProperties);
         break;
     case GfxIpLevel::GfxIp10_1:
     case GfxIpLevel::GfxIp9:

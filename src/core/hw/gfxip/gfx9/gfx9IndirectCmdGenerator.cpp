@@ -151,22 +151,13 @@ IndirectCmdGenerator::IndirectCmdGenerator(
 
     if (m_usingExecuteIndirectPacket)
     {
-        // We use this to calculate the maximum required size for IB2.
-        uint32 cmdSize         = 0;
-        uint32 sizeAlignDwords = device.Parent()->EngineProperties().perEngine[EngineTypeUniversal].sizeAlignInDwords;
-        uint32 cmdCount        = ParameterCount();
+        // Just add up the maximum sizes of each parameter.
+        m_gpuMemSize = 0;
 
-        for (uint32 indx = 0; indx < cmdCount; indx++)
+        for (uint32 indx = 0; indx < ParameterCount(); indx++)
         {
-            if (&m_pParamData[indx] != nullptr)
-            {
-                cmdSize += m_pParamData[indx].cmdBufSize;
-            }
+            m_gpuMemSize += m_pParamData[indx].cmdBufSize;
         }
-        uint32 cmdDwords = cmdSize / sizeof(uint32);
-        m_paddingDwords = Pow2Align(cmdDwords, sizeAlignDwords) - cmdDwords;
-
-        m_gpuMemSize = (cmdDwords + m_paddingDwords) * sizeof(uint32);
     }
     else
     {
@@ -253,6 +244,8 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
     const uint32 shaderStageCount = ((type == Pm4::GeneratorType::Dispatch) ? 1 : numHwStages);
     PAL_ASSERT((type != Pm4::GeneratorType::Dispatch) || (param.userDataShaderUsage == ApiShaderStageCompute));
 
+    const CmdUtil& cmdUtil = static_cast<const Device&>(m_device).CmdUtil();
+
     uint32 size = 0;
     switch (opType)
     {
@@ -278,7 +271,7 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
     case IndirectOpType::DrawIndex2:
         if (m_usingExecuteIndirectPacket)
         {
-            size = CmdUtil::DrawIndirectSize + CmdUtil::SetIndexAttributesSize;
+            size = cmdUtil.DrawIndexIndirectSize() + CmdUtil::SetIndexAttributesSize;
         }
         else
         {
@@ -288,7 +281,7 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
     case IndirectOpType::DrawIndexOffset2:
         if (m_usingExecuteIndirectPacket)
         {
-            size = CmdUtil::DrawIndirectSize;
+            size = cmdUtil.DrawIndexIndirectSize();
         }
         else
         {
@@ -301,7 +294,12 @@ uint32 IndirectCmdGenerator::DetermineMaxCmdBufSize(
     case IndirectOpType::SetUserData:
         if (m_usingExecuteIndirectPacket)
         {
-            size = CmdUtil::SetUserDataIndirectSize * NumHwShaderStagesGfx;
+            // The absolute worst case scenario is that every SGPR is sparsely mapped into the virtual user-data range
+            // so we need entryCount packets. We should also assume we either always load or always spill depending on
+            // which of those paths uses the bigger packet.
+            constexpr uint32 BiggestPacket = Max(CmdUtil::LoadShRegIndexSize, CmdUtil::DmaDataSizeDwords);
+
+            size = BiggestPacket * param.userData.entryCount * NumHwShaderStagesGfx;
         }
         else
         {
@@ -781,6 +779,38 @@ void IndirectCmdGenerator::PopulateUserDataMappingBuffer(
         pStage     = &signature.stage[0];
         stageCount = NumHwShaderStagesGfx;
     }
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    // The command generator shaders assume the compiler will always map virtual user-data to contiguous physical
+    // user-data in ascending order. For example, this is handled by the shaders:
+    //   virtual_user_data[0] -> USER_DATA_REG[2]
+    //   virtual_user_data[1] -> USER_DATA_REG[3]
+    //   virtual_user_data[2] -> X (This shader stage doesn't use it.)
+    //   virtual_user_data[3] -> USER_DATA_REG[4]
+    //   virtual_user_data[4] -> Spilled
+    //   virtual_user_data[5] -> Spilled
+    //   virtual_user_data[6] -> USER_DATA_REG[5]
+    // However, if any pair of user-data values are remapped into descending order the shaders will break:
+    //   virtual_user_data[0] -> USER_DATA_REG[3]
+    //   virtual_user_data[1] -> USER_DATA_REG[2]
+    //   ...
+    // A sparse mapping is also broken, but it should technically be impossible under current ABI rules:
+    //   virtual_user_data[0] -> USER_DATA_REG[2]
+    //   virtual_user_data[1] -> USER_DATA_REG[5]
+    // For now we satisfy these assumptions but the PAL ABI is more generic and permits the middle case.
+    // This assert will trip if any user-data are actually in descending order. We can't detect the sparse mapping
+    // case because the ABI doesn't define an "unmapped" sentinel value for the mappedEntry array, if we see a zero
+    // we have to assume it means it maps to virtual user-data index zero.
+    for (uint32 stage = 0; stage < stageCount; ++stage)
+    {
+        const UserDataEntryMap*const pAssertStage = pStage + stage;
+
+        for (uint32 i = 1; i < pAssertStage->userSgprCount; ++i)
+        {
+            PAL_ASSERT(pAssertStage->mappedEntry[i - 1] < pAssertStage->mappedEntry[i]);
+        }
+    }
+#endif
 
     // Number of DWORD's in the embedded-data buffer per hardware shader stage: one for the spill table address, and
     // one for each user-data entry's register mapping.

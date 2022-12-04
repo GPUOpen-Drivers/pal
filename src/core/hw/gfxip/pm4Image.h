@@ -34,26 +34,14 @@ namespace Pal
 class      GfxCmdBuffer;
 enum class ClearMethod : uint32;
 
-// Mask of all image usage layout flags which are valid to use on depth/stencil Images.
-constexpr uint32 AllDepthImageLayoutFlags = LayoutUninitializedTarget |
-                                            LayoutDepthStencilTarget  |
-                                            LayoutShaderRead          |
-                                            LayoutShaderWrite         |
-                                            LayoutCopySrc             |
-                                            LayoutCopyDst             |
-                                            LayoutResolveSrc          |
-                                            LayoutResolveDst          |
-                                            LayoutSampleRate;
-
 // Compute expand methods
 enum UseComputeExpand : uint32
 {
-    UseComputeExpandDepth = 0x00000001,
-    UseComputeExpandMsaaDepth = 0x00000002,
-    UseComputeExpandDcc = 0x00000004,
+    UseComputeExpandDepth        = 0x00000001,
+    UseComputeExpandMsaaDepth    = 0x00000002,
+    UseComputeExpandDcc          = 0x00000004,
     UseComputeExpandDccWithFmask = 0x00000008,
-    UseComputeExpandAlways = 0x00000010,
-
+    UseComputeExpandAlways       = 0x00000010,
 };
 
 // =====================================================================================================================
@@ -93,6 +81,11 @@ public:
     // Returns true if the specified mip level supports having a meta-data surface for the given mip level
     virtual bool CanMipSupportMetaData(uint32  mip) const { return true; }
 
+    bool HasHiSPretestsMetaData() const { return m_hiSPretestsMetaDataOffset != 0; }
+    gpusize HiSPretestsMetaDataAddr(uint32 mipLevel) const;
+    gpusize HiSPretestsMetaDataOffset(uint32 mipLevel) const;
+    gpusize HiSPretestsMetaDataSize(uint32 numMips) const;
+
     // Returns true if a clear operation was ever performed with a non-TC compatible clear color.
     bool    HasSeenNonTcCompatibleClearColor() const { return (m_hasSeenNonTcCompatClearColor == true); }
     void    SetNonTcCompatClearFlag(bool value) { m_hasSeenNonTcCompatClearColor = value; }
@@ -101,11 +94,35 @@ public:
     uint32  GetFceRefCount() const;
     void    IncrementFceRefCount();
 
+    // Helper function for AddrMgr1 to initialize the AddrLib surface info strucutre for a subresource.
+    virtual Result Addr1InitSurfaceInfo(
+        uint32                           subResIdx,
+        ADDR_COMPUTE_SURFACE_INFO_INPUT* pSurfInfo) { return Result::ErrorUnavailable; }
+
+    // Helper function for AddrMgr1 to finalize the subresource and tiling info for a subresource after
+    // calling AddrLib.
+    virtual void Addr1FinalizeSubresource(
+        uint32                                  subResIdx,
+        SubResourceInfo*                        pSubResInfoList,
+        void*                                   pTileInfoList,
+        const ADDR_COMPUTE_SURFACE_INFO_OUTPUT& surfInfo) { PAL_NEVER_CALLED(); }
+
 protected:
     Pm4Image(
         Image*        pParentImage,
         ImageInfo*    pImageInfo,
         const Device& device);
+
+    static void UpdateMetaDataHeaderLayout(
+        ImageMemoryLayout* pGpuMemLayout,
+        gpusize            offset,
+        gpusize            alignment);
+
+    void InitHiSPretestsMetaData(
+        ImageMemoryLayout* pGpuMemLayout,
+        gpusize*           pGpuMemSize,
+        size_t             sizePerMipLevel,
+        gpusize            alignment);
 
     void InitFastClearMetaData(
         ImageMemoryLayout* pGpuMemLayout,
@@ -126,6 +143,9 @@ protected:
 
     gpusize  m_fastClearMetaDataOffset[MaxNumPlanes];      // Offset to beginning of fast-clear metadata.
     gpusize  m_fastClearMetaDataSizePerMip[MaxNumPlanes];  // Size of fast-clear metadata per mip level.
+
+    gpusize  m_hiSPretestsMetaDataOffset;     // Offset to beginning of HiSPretest metadata
+    gpusize  m_hiSPretestsMetaDataSizePerMip; // Size of HiSPretest metadata per mip level.
 
     bool     m_hasSeenNonTcCompatClearColor;  // True if this image has been cleared with non TC-compatible color.
 

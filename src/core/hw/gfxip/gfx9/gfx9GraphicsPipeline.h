@@ -362,7 +362,7 @@ private:
 
     GfxPipelineRegs m_regs;
 
-    PipelinePrefetchPm4        m_prefetch;
+    PrimeGpuCacheRange         m_prefetch;
     GraphicsPipelineSignature  m_signature;
 
     // Returns the target mask of the specified CB target.

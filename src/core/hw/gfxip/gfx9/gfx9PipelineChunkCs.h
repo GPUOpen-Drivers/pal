@@ -143,8 +143,8 @@ private:
     const Device& m_device;
 
     HwRegInfo m_regs;
-
-    PipelinePrefetchPm4 m_prefetch;
+    gpusize   m_prefetchAddr;
+    gpusize   m_prefetchSize;
 
     PerfDataInfo*const m_pCsPerfDataInfo; // CS performance data information.
     ShaderStageInfo*   m_pStageInfo;
