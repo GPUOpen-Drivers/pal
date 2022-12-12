@@ -50,6 +50,20 @@ constexpr uint32 Gfx10DispatchMeshCmdBufSize = (CmdUtil::ShRegSizeDwords + 3) +
                                                (CmdUtil::ShRegSizeDwords + 1) +
                                                CmdUtil::NumInstancesDwords    +
                                                CmdUtil::DrawIndexAutoSize;
+#if PAL_BUILD_GFX11
+// DISPATCH_MESH operations handle both mesh-only pipelines and task+mesh pipelines.
+// In the case of mesh-only piplines we generate the following in the worst case:
+//  + SET_SH_REG (1 register)
+//  + NUM_INSTANCES
+//  + DISPATCH_MESH_DIRECT
+// For task+mesh pipelines, we generate the following on the gfx cmdStream:
+//  + DISPATCH_TASKMESH_GFX
+// For the ace cmdStream, we generate the following:
+//  + SET_SH_REG (3 registers)
+//  + DISPATCH_TASKMESH_DIRECT_ACE
+constexpr uint32 Gfx11DispatchMeshCmdBufSize = (CmdUtil::ShRegSizeDwords + 3) +
+                                               CmdUtil::DispatchTaskMeshDirectMecSize;
+#endif
 // DRAW_INDEX_AUTO operations generate the following PM4 packets in the worst case:
 //  + SET_SH_REG (2 registers)
 //  + SET_SH_REG (1 register)

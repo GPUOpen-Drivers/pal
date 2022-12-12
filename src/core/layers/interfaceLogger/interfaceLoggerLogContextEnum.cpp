@@ -125,6 +125,30 @@ void LogContext::Enum(
     }
 }
 
+#if PAL_BUILD_GFX11
+// =====================================================================================================================
+void LogContext::Enum(
+    DispatchInterleaveSize value)
+{
+    const char*const StringTable[] =
+    {
+        "Default", // 0x0,
+        "Disable", // 0x1,
+        "128",     // 0x2,
+        "256",     // 0x3,
+        "512",     // 0x4,
+    };
+
+    static_assert(ArrayLen32(StringTable) == static_cast<uint32>(DispatchInterleaveSize::Count),
+                  "The DispatchInterleaveSize string table needs to be updated.");
+
+    const uint32 idx = static_cast<uint32>(value);
+    PAL_ASSERT(idx < static_cast<uint32>(DispatchInterleaveSize::Count));
+
+    Value(StringTable[idx]);
+}
+#endif
+
 // =====================================================================================================================
 void LogContext::Enum(
     BinningOverride value)
@@ -1014,7 +1038,11 @@ void LogContext::Enum(
         nullptr,
         nullptr,
         nullptr,
+#if PAL_BUILD_NAVI31
+        "Navi31",
+#else
         nullptr,
+#endif
         nullptr,
         nullptr,
         nullptr,

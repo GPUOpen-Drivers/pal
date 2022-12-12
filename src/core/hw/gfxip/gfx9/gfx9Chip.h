@@ -132,6 +132,9 @@ using RegisterVector = Util::SparseVector<
     Gfx09::mmIA_MULTI_VGT_PARAM,   Gfx09::mmIA_MULTI_VGT_PARAM,
     Gfx10Plus::mmGE_STEREO_CNTL,   Gfx10Plus::mmGE_STEREO_CNTL,
     Gfx10Plus::mmGE_USER_VGPR_EN,  Gfx10Plus::mmGE_USER_VGPR_EN
+#if PAL_BUILD_GFX11
+    , Gfx11::mmVGT_GS_OUT_PRIM_TYPE, Gfx11::mmVGT_GS_OUT_PRIM_TYPE
+#endif
     >;
 
 // Number of SGPRs available to each wavefront.  Note that while only 104 SGPRs are available for use by a particular
@@ -186,6 +189,17 @@ constexpr Util::Abi::HardwareStage PalToAbiHwShaderStage[] =
 static_assert(Util::ArrayLen(PalToAbiHwShaderStage) == uint32(HwShaderStage::Last),
               "Translation table is not sized properly!");
 
+#if PAL_BUILD_GFX11
+// Maximum number of registers that may be written with packed register pairs.
+constexpr uint32 Gfx11RegPairMaxRegCount = 128;
+// Maximum number of packed register pairs that may be written in a single packed register pair packet.
+constexpr uint32 Gfx11MaxRegPairCount    = Gfx11RegPairMaxRegCount / 2;
+// Number of graphics stages supported by packed register pairs (HS, GS, and PS).
+constexpr uint32 Gfx11NumRegPairSupportedStagesGfx = 3;
+// Number of compute stages supported by packed register pairs.
+constexpr uint32 Gfx11NumRegPairSupportedStagesCs  = 1;
+#endif
+
 // Number of user-data registers per shader stage on the chip. PAL reserves a number of these for internal use, making
 // them unusable from the client. The registers PAL reserves are:
 //
@@ -202,6 +216,15 @@ constexpr uint16 InternalTblStartReg  = 0;
 // (internal CBs) for the shader(s) are written.
 constexpr uint16 ConstBufTblStartReg = (InternalTblStartReg + 1);
 
+#if PAL_BUILD_GFX11
+// Maximum number of user-data entries that can be packed into packed register pairs for all supported graphics stages.
+constexpr uint32 Gfx11NumUserDataGfx             = Gfx11NumRegPairSupportedStagesGfx * NumUserDataRegisters;
+constexpr uint32 Gfx11MaxUserDataIndexCountGfx   = Gfx11NumUserDataGfx;
+// Maximum number of graphics user-data entry packed register pairs.
+constexpr uint32 Gfx11MaxPackedUserEntryCountGfx = Gfx11NumUserDataGfx / 2;
+static_assert(Gfx11MaxPackedUserEntryCountGfx <= Gfx11MaxRegPairCount, "Packing too many registers!");
+#endif
+
 // Compute still only has 16 user data registers.  Compute also uses a fixed user data layout, and does not support
 // remapping.
 //
@@ -213,6 +236,15 @@ constexpr uint16 ConstBufTblStartReg = (InternalTblStartReg + 1);
 // Slot [14-15] is only reserved for Vulkan as the corresponding feature isn't supported by other clients, and in that
 // case the spill table address will be in slot [15].
 constexpr uint32 NumUserDataRegistersCompute = 16;
+
+#if PAL_BUILD_GFX11
+// Maximum number of user-data entries that can be packed into packed register pairs for the compute stage.
+constexpr uint32 Gfx11MaxUserDataIndexCountCs   = NumUserDataRegistersCompute;
+// Maximum number of compute user-data entry packed register pairs.
+constexpr uint32 Gfx11MaxPackedUserEntryCountCs = NumUserDataRegistersCompute / 2;
+
+static_assert(Gfx11MaxPackedUserEntryCountCs <= Gfx11MaxRegPairCount, "Packing too many registers!");
+#endif
 
 // Starting user data register index where the client's graphics fast user-data 'entries' are written for shaders.
 constexpr uint16 FastUserDataStartReg = (ConstBufTblStartReg + 1);
@@ -263,6 +295,10 @@ enum class GsFastLaunchMode : uint32
     VertInLane = 1, // - Emulates threadgroups where each subgroup has 1 vert/prim and we use the primitive
                     //   amplification factor to "grow" the subgroup up to the threadgroup sizes required by the
                     //   shader.
+#if PAL_BUILD_GFX11
+    PrimInLane = 2  // - Uses X, Y, and Z dimensions programmed into registers to appropriately size the subgroup
+                    //   explicitely.
+#endif
 };
 
 // Memory alignment requirement in bytes for shader and immediate constant buffer memory.
@@ -417,8 +453,13 @@ constexpr uint32 Gfx10MaxImageArraySlices = 8192;
 static_assert ((1 << (MaxImageMipLevels - 1)) == MaxImageWidth,
                "Max image dimensions don't match max mip levels!");
 
+#if PAL_BUILD_GFX11
+// GFX11 increases the max possible number of RB's to 24; round up to give us some wiggle room.
+constexpr uint32 MaxNumRbs = 32;
+#else
 // No current ASICs have more than 16 active RBs.
 constexpr uint32 MaxNumRbs = 16;
+#endif
 
 // Occlusion query data has to be 16 bytes aligned for CP access
 static constexpr gpusize OcclusionQueryMemoryAlignment = 16;
@@ -536,6 +577,11 @@ struct GraphicsPipelineSignature
     // Register address for the GPU virtual address of the stream-output table used by this pipeline. Zero indicates
     // that stream-output is not used by this pipeline.
     uint16  streamOutTableRegAddr;
+#if PAL_BUILD_GFX11
+    // Register address for the GPU virtual address of the stream-output control buffer used by this pipeline. Zero
+    // indicates that stream-output is not used by this pipeline.
+    uint16  streamoutCntlBufRegAddr;
+#endif
     // Register address for the GPU virtual address of the uav-export SRD table used by this pipeline. Zero indicates
     // that UAV export is not used by this pipeline.
     uint16  uavExportTableAddr;
@@ -590,6 +636,19 @@ enum class TexPerfModulation : uint32
 
 // This flag in COMPUTE_DISPATCH_INITIATOR tells the CP to not preempt mid-dispatch when CWSR is disabled.
 constexpr uint32 ComputeDispatchInitiatorDisablePartialPreemptMask = (1 << 17);
+
+#if PAL_BUILD_GFX11
+// Memory alignment and size requires for the Vertex Attribute Ring
+constexpr uint32 Gfx11VertexAttributeRingAlignmentBytes     = (64 * Util::OneKibibyte);
+constexpr uint32 Gfx11VertexAttributeRingMaxSizeBytes       = (16 * Util::OneMebibyte);
+constexpr uint32 Gfx11PsExtraLdsDwGranularity               = 256;
+constexpr uint32 Gfx11PsExtraLdsDwGranularityShift          = 8;
+#endif
+
+#if PAL_BUILD_GFX11
+// Maximum number of PWS-enabled pipeline events that PWS+ supported engine (currently universal engine) can track.
+constexpr uint32 MaxNumPwsSyncEvents = 64;
+#endif
 
 constexpr uint32 Gfx103UcodeVersionLoadShRegIndexIndirectAddr = 39;
 

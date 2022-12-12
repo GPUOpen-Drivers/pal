@@ -169,6 +169,10 @@ uint32* ColorTargetView::WriteUpdateFastClearColor(
     uint32*      pCmdSpace
     ) const
 {
+#if PAL_BUILD_GFX11
+    // These registers physically exist on GFX11 (for now...) but don't do anything.
+    if (IsGfx11(m_gfxLevel) == false)
+#endif
     {
         const uint32 slotOffset = (slot * CbRegsPerSlot);
 
@@ -232,6 +236,12 @@ regCB_COLOR0_INFO ColorTargetView::InitCbColorInfo(
         cbColorInfo.gfx09_10.ENDIAN  = ENDIAN_NONE;
         cbColorInfo.gfx09_10.FORMAT  = Formats::Gfx9::HwColorFmt(pFmtInfo, m_swizzledFormat.format);
     }
+#if PAL_BUILD_GFX11
+    else
+    {
+        cbColorInfo.gfx11.FORMAT     = Formats::Gfx9::HwColorFmt(pFmtInfo, m_swizzledFormat.format);
+    }
+#endif
 
     cbColorInfo.bits.NUMBER_TYPE = Formats::Gfx9::ColorSurfNum(pFmtInfo, m_swizzledFormat.format);
     cbColorInfo.bits.COMP_SWAP   = Formats::Gfx9::ColorCompSwap(m_swizzledFormat);
@@ -301,6 +311,9 @@ void ColorTargetView::InitCommonImageView(
         regCB_COLOR0_DCC_CONTROL dccControl = m_pImage->GetDcc(m_subresource.plane)->GetControlReg();
         const SubResourceInfo*const pSubResInfo = m_pImage->Parent()->SubresourceInfo(m_subresource);
         if (IsGfx091xPlus(palDevice)      &&
+#if PAL_BUILD_GFX11
+            (IsGfx11(palDevice) == false) &&
+#endif
             (internalInfo.flags.fastClearElim || pSubResInfo->flags.supportMetaDataTexFetch))
         {
             // Without this, the CB will not expand the compress-to-register (0x20) keys.
@@ -377,6 +390,9 @@ void ColorTargetView::UpdateImageVa(
 
                 if (m_pImage->HasFastClearMetaData(m_subresource.plane))
                 {
+#if PAL_BUILD_GFX11
+                    PAL_ASSERT(IsGfx11(palDevice) == false);
+#endif
 
                     // Invariant: On Gfx10 (and gfx9), if we have DCC we also have fast clear metadata.
                     pRegs->fastClearMetadataGpuVa = m_pImage->FastClearMetaDataAddr(m_subresource);
@@ -402,6 +418,9 @@ void ColorTargetView::UpdateImageVa(
             {
                 if (m_pImage->HasFastClearMetaData(m_subresource.plane))
                 {
+#if PAL_BUILD_GFX11
+                    PAL_ASSERT(IsGfx11(palDevice) == false);
+#endif
 
                     // Invariant: On Gfx10 (and gfx9), if we have DCC we also have fast clear metadata.
                     pRegs->fastClearMetadataGpuVa = m_pImage->FastClearMetaDataAddr(m_subresource);
@@ -477,6 +496,12 @@ uint32* ColorTargetView::WriteCommandsCommon(
                 // CB_COLOR_DCC_CONTROL.
                 pRegs->cbColorInfo.u32All      &= ~CbColorInfoDecompressedMask;
             }
+#if PAL_BUILD_GFX11
+            else
+            {
+                // GFX11 doesn't have fmask or a "compression" field; DCC_ENABLE has moved to CB_COLOR_FDCC_CONTROL.
+            }
+#endif
         }
     } // if isBufferView == 0
 
@@ -1075,6 +1100,256 @@ bool Gfx10ColorTargetView::IsFmaskBigPage() const
     return IsVaLocked() ? (m_flags.fmaskBigPage != 0)
                         : IsFmaskBigPageCompatible(*m_pImage, Gfx10AllowBigPageRenderTarget);
 }
+
+#if PAL_BUILD_GFX11
+// =====================================================================================================================
+Gfx11ColorTargetView::Gfx11ColorTargetView(
+    const Device*                     pDevice,
+    const ColorTargetViewCreateInfo&  createInfo,
+    ColorTargetViewInternalCreateInfo internalInfo)
+    :
+    ColorTargetView(pDevice, createInfo, internalInfo)
+{
+    memset(&m_regs, 0, sizeof(m_regs));
+    memset(&m_uavExportSrd, 0, sizeof(m_uavExportSrd));
+    InitRegisters(*pDevice, createInfo, internalInfo);
+
+    m_flags.bypassMall = createInfo.flags.bypassMall;
+
+    if (m_flags.isBufferView != 0)
+    {
+        const auto& bufferInfo = createInfo.bufferInfo;
+        m_flags.colorBigPage = IsBufferBigPageCompatible(*static_cast<const GpuMemory*>(bufferInfo.pGpuMemory),
+                                                         bufferInfo.offset,
+                                                         bufferInfo.extent,
+                                                         Gfx10AllowBigPageBuffers);
+    }
+    else if (IsVaLocked())
+    {
+        m_flags.colorBigPage = IsImageBigPageCompatible(*m_pImage, Gfx10AllowBigPageRenderTarget);
+
+        UpdateImageVa(&m_regs);
+        if (m_pImage->Parent()->GetImageCreateInfo().imageType == ImageType::Tex2d)
+        {
+            UpdateImageSrd(*pDevice, &m_uavExportSrd);
+        }
+    }
+}
+
+// =====================================================================================================================
+// Finalizes the PM4 packet image by setting up the register values used to write this View object to hardware.
+void Gfx11ColorTargetView::InitRegisters(
+    const Device&                     device,
+    const ColorTargetViewCreateInfo&  createInfo,
+    ColorTargetViewInternalCreateInfo internalInfo)
+{
+    const Pal::Device&       palDevice = *device.Parent();
+    const GpuChipProperties& chipProps = palDevice.ChipProperties();
+    const Gfx9PalSettings&   settings  = device.Settings();
+
+    const MergedFlatFmtInfo*const pFmtInfoTbl =
+        MergedChannelFlatFmtInfoTbl(chipProps.gfxLevel, &device.GetPlatform()->PlatformSettings());
+
+    m_regs.cbColorInfo = InitCbColorInfo(device, pFmtInfoTbl);
+
+    // Most register values are simple to compute but vary based on whether or not this is a buffer view. Let's set
+    // them all up-front before we get on to the harder register values.
+    if (m_flags.isBufferView)
+    {
+        InitCommonBufferView(device, createInfo, &m_regs, &m_regs.cbColorView.gfx10Plus);
+
+        m_extent.width  = createInfo.bufferInfo.extent;
+        m_extent.height = 1;
+
+        // Setup GFX10-specific registers here
+        m_regs.cbColorAttrib3.bits.MIP0_DEPTH    = 0;
+        m_regs.cbColorAttrib3.bits.COLOR_SW_MODE = SW_LINEAR;
+        m_regs.cbColorAttrib3.bits.RESOURCE_TYPE = static_cast<uint32>(ImageType::Tex1d); // no HW enums
+
+        m_regs.cbColorAttrib3.bits.META_LINEAR   = 1;         // no meta-data, but should be set for linear surfaces
+
+        // Specifying a non-zero buffer offset only works with linear-general surfaces
+        m_regs.cbColorInfo.gfx10Plus.LINEAR_GENERAL  = 1;
+        m_regs.cbColorAttrib.gfx11.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(m_swizzledFormat);
+        m_regs.cbColorAttrib.gfx11.NUM_FRAGMENTS     = 0;
+    }
+    else
+    {
+        const auto*const            pImage          = m_pImage->Parent();
+        const auto*                 pAddrMgr        = static_cast<const AddrMgr2::AddrMgr2*>(palDevice.GetAddrMgr());
+        const SubresId              baseSubRes      = { m_subresource.plane, 0, 0 };
+        const Gfx9Dcc*              pDcc            = m_pImage->GetDcc(m_subresource.plane);
+        const SubResourceInfo*const pBaseSubResInfo = pImage->SubresourceInfo(baseSubRes);
+        const SubResourceInfo*const pSubResInfo     = pImage->SubresourceInfo(m_subresource);
+        const auto*                 pAddrOutput     = m_pImage->GetAddrOutput(pSubResInfo);
+        const auto&                 surfSetting     = m_pImage->GetAddrSettings(pSubResInfo);
+        const auto&                 imageCreateInfo = pImage->GetImageCreateInfo();
+        const ImageType             imageType       = m_pImage->GetOverrideImageType();
+
+        PAL_ASSERT((m_pImage->GetCmask() == nullptr) && (m_pImage->GetFmask() == nullptr));
+
+        // Extents are one of the things that could be changing on GFX10 with respect to certain surface formats,
+        // so go with the simple approach here for now.
+        Extent3d baseExtent        = pBaseSubResInfo->extentTexels;
+        Extent3d extent            = pSubResInfo->extentTexels;
+        bool     modifiedYuvExtent = false;
+
+        // baseExtent, extent and modifiedYuvExtent are outputs.
+        SetupExtents(baseSubRes,
+                     createInfo,
+                     &baseExtent,
+                     &extent,
+                     &modifiedYuvExtent);
+
+        InitCommonImageView(device,
+                            createInfo,
+                            internalInfo,
+                            baseExtent,
+                            &m_regs,
+                            &m_regs.cbColorView.gfx10Plus);
+
+        if (m_flags.hasDcc != 0)
+        {
+            m_regs.cbColorDccControl.gfx11.FDCC_ENABLE = 1;
+
+            // We should never see a fast-clear-elimiante request on GFX11
+            PAL_ASSERT(internalInfo.flags.fastClearElim == 0);
+
+            // If this surface can't be read by the texture pipe (and that's always a possibility given that any
+            // surface can be the source of a CmdCopyXXX operation), then don't allow this surface to be compressed.
+            if (pSubResInfo->flags.supportMetaDataTexFetch == 0)
+            {
+                m_regs.cbColorDccControl.gfx11.DCC_COMPRESS_DISABLE = 1;
+            }
+        }
+
+        m_extent.width  = extent.width;
+        m_extent.height = extent.height;
+
+        m_regs.cbColorAttrib.gfx11.NUM_FRAGMENTS     = Log2(imageCreateInfo.fragments);
+        m_regs.cbColorAttrib.gfx11.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(m_swizzledFormat);
+
+        m_regs.cbColorAttrib3.bits.MIP0_DEPTH    =
+            ((imageType == ImageType::Tex3d) ? imageCreateInfo.extent.depth : imageCreateInfo.arraySize) - 1;
+        m_regs.cbColorAttrib3.bits.COLOR_SW_MODE = pAddrMgr->GetHwSwizzleMode(surfSetting.swizzleMode);
+        m_regs.cbColorAttrib3.bits.RESOURCE_TYPE = static_cast<uint32>(imageType); // no HW enums
+        m_regs.cbColorAttrib3.bits.META_LINEAR   = m_pImage->IsSubResourceLinear(createInfo.imageInfo.baseSubRes);
+
+        m_regs.cbColorAttrib3.bits.DCC_PIPE_ALIGNED   = ((pDcc != nullptr) ? pDcc->PipeAligned() : 0);
+    }
+}
+
+// =====================================================================================================================
+// Writes the PM4 commands required to bind to a certain slot.  Returns the next unused DWORD in pCmdSpace.
+uint32* Gfx11ColorTargetView::WriteCommands(
+    uint32             slot,        // Bind slot
+    ImageLayout        imageLayout, // Current image layout
+    CmdStream*         pCmdStream,
+    uint32*            pCmdSpace,
+    regCB_COLOR0_INFO* pCbColorInfo // Device's copy of CB_COLORn_INFO to update
+    ) const
+{
+    Gfx11ColorTargetViewRegs regs = m_regs;
+    pCmdSpace = WriteCommandsCommon(slot, imageLayout, pCmdStream, pCmdSpace, &regs);
+
+    static_assert(mmCB_COLOR0_BASE + 15 == mmCB_COLOR1_BASE, "CbRegsPerSlot has changed!");
+    const uint32 slotOffset = (slot * CbRegsPerSlot);
+
+    pCmdSpace = pCmdStream->WriteSetOneContextReg((mmCB_COLOR0_BASE + slotOffset),
+                                                  regs.cbColorBase.u32All,
+                                                  pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs((mmCB_COLOR0_VIEW + slotOffset),
+                                                   mmCB_COLOR0_DCC_CONTROL + slotOffset,
+                                                   &regs.cbColorView,
+                                                   pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg((mmCB_COLOR0_DCC_BASE + slotOffset),
+                                                  regs.cbColorDccBase.u32All,
+                                                  pCmdSpace);
+
+    // Registers above this point are grouped by slot index (e.g., all of slot0 then all of slot1, etc.).  Registers
+    // below this point are grouped by register (e.g., all of CB_COLOR*_ATTRIB2, and so on).
+
+    pCmdSpace = pCmdStream->WriteSetOneContextReg((Gfx10Plus::mmCB_COLOR0_ATTRIB2 + slot),
+                                                  regs.cbColorAttrib2.u32All,
+                                                  pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg((Gfx10Plus::mmCB_COLOR0_ATTRIB3 + slot),
+                                                  regs.cbColorAttrib3.u32All,
+                                                  pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg((Gfx10Plus::mmCB_COLOR0_BASE_EXT + slot),
+                                                  regs.cbColorBaseExt.u32All,
+                                                  pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg((Gfx10Plus::mmCB_COLOR0_DCC_BASE_EXT + slot),
+                                                  regs.cbColorDccBaseExt.u32All,
+                                                  pCmdSpace);
+
+    // Update just the portion owned by RTV.
+    BitfieldUpdateSubfield(&(pCbColorInfo->u32All), regs.cbColorInfo.u32All, CbColorInfoMask);
+
+#if PAL_DEVELOPER_BUILD
+    if (m_pImage != nullptr)
+    {
+        Developer::SurfRegDataInfo data = {};
+        data.type    = Developer::SurfRegDataType::RenderTargetView;
+        data.regData = regs.cbColorBase.u32All;
+        m_pImage->Parent()->GetDevice()->DeveloperCb(Developer::CallbackType::SurfRegData, &data);
+    }
+#endif
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+// Writes an image SRD (for UAV exports) to the given memory location
+void Gfx11ColorTargetView::GetImageSrd(
+    const Device& device,
+    void*         pOut
+    ) const
+{
+    if (m_flags.viewVaLocked == 0)
+    {
+        UpdateImageSrd(device, pOut);
+    }
+    else
+    {
+        memcpy(pOut, &m_uavExportSrd, sizeof(m_uavExportSrd));
+    }
+}
+
+// =====================================================================================================================
+// Updates the cached image SRD (for UAV exports). This may need to get called at draw-time if viewVaLocked is false
+void Gfx11ColorTargetView::UpdateImageSrd(
+    const Device& device,
+    void*         pOut
+    ) const
+{
+    PAL_ASSERT(m_flags.isBufferView == 0);
+    PAL_ASSERT(m_pImage->Parent()->GetImageCreateInfo().imageType == ImageType::Tex2d);
+
+    ImageViewInfo viewInfo = {};
+    viewInfo.pImage          = GetImage()->Parent();
+    viewInfo.viewType        = ImageViewType::Tex2d;
+    viewInfo.possibleLayouts =
+    {
+        Pal::LayoutShaderWrite | Pal::LayoutColorTarget,
+        Pal::LayoutUniversalEngine
+    };
+    viewInfo.swizzledFormat       = m_swizzledFormat;
+    viewInfo.subresRange          = { m_subresource, 1, 1, m_arraySize };
+
+    device.Parent()->CreateImageViewSrds(1, &viewInfo, pOut);
+}
+
+// =====================================================================================================================
+// Reports if the color target view can support setting COLOR_BIG_PAGE in CB_RMI_GLC2_CACHE_CONTROL.
+bool Gfx11ColorTargetView::IsColorBigPage() const
+{
+    // Buffer views and viewVaLocked image views have already computed whether they can support BIG_PAGE or not.  Other
+    // cases have to check now in case the bound memory has changed.
+    return ((m_flags.viewVaLocked | m_flags.isBufferView) != 0)
+                ? m_flags.colorBigPage
+                : IsImageBigPageCompatible(*m_pImage, Gfx10AllowBigPageRenderTarget);
+}
+#endif
 
 } // Gfx9
 } // Pal

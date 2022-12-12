@@ -1509,6 +1509,9 @@ void Image::SetPrivateScreen(
 bool Image::PreferCbResolve() const
 {
     return ((m_createInfo.flags.repetitiveResolve != 0)
+#if PAL_BUILD_GFX11
+            && (IsGfx11(*m_pDevice) == false)
+#endif
            );
 }
 

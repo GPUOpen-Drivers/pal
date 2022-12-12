@@ -38,6 +38,10 @@ namespace Gfx9
 
 constexpr size_t ScratchWaveSizeGranularityShift     = 8;
 constexpr size_t ScratchWaveSizeGranularity          = (1ull << ScratchWaveSizeGranularityShift);
+#if PAL_BUILD_GFX11
+constexpr size_t ScratchWaveSizeGranularityShiftNv31 = 6;
+constexpr size_t ScratchWaveSizeGranularityNv31      = (1ull << ScratchWaveSizeGranularityShiftNv31);
+#endif
 
 // =====================================================================================================================
 // On GFXIP 9 hardware, buffer SRD's which set the ADD_TID_ENABLE bit in word3 changes the meaning of the DATA_FORMAT
@@ -79,6 +83,10 @@ ShaderRing::ShaderRing(
 ShaderRing::~ShaderRing()
 {
     if (m_ringMem.IsBound()
+#if PAL_BUILD_GFX11
+        // The ShaderRing class does not own the memory for VertexAttributes
+        && (m_ringType != ShaderRingType::VertexAttributes)
+#endif
             )
     {
         m_pDevice->Parent()->MemMgr()->FreeGpuMem(m_ringMem.Memory(), m_ringMem.Offset());
@@ -206,6 +214,14 @@ ScratchRing::ScratchRing(
 {
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
 
+#if PAL_BUILD_GFX11
+    if (IsGfx11(m_gfxLevel))
+    {
+        m_scratchWaveSizeGranularityShift = ScratchWaveSizeGranularityShiftNv31;
+        m_scratchWaveSizeGranularity      = ScratchWaveSizeGranularityNv31;
+    }
+    else
+#endif
     {
         m_scratchWaveSizeGranularityShift = ScratchWaveSizeGranularityShift;
         m_scratchWaveSizeGranularity      = ScratchWaveSizeGranularity;
@@ -252,6 +268,16 @@ ScratchRing::ScratchRing(
         pSrd->index_stride         = BUF_INDEX_STRIDE_64B;
         pSrd->add_tid_enable       = 1;
     }
+#if PAL_BUILD_GFX11
+    else if (IsGfx11(m_gfxLevel))
+    {
+        auto*const  pSrd = &pGenericSrd->gfx10;
+
+        pSrd->gfx11.swizzle_enable = 1;
+        pSrd->index_stride         = BUF_INDEX_STRIDE_64B;
+        pSrd->add_tid_enable       = 1;
+    }
+#endif
     else
     {
         PAL_ASSERT_ALWAYS();
@@ -277,6 +303,15 @@ size_t ScratchRing::CalculateWaves() const
         size_t allocSize   = static_cast<size_t>(m_allocSize);
         size_t numMaxWaves = m_numMaxWaves;
 
+#if PAL_BUILD_GFX11
+        // On Gfx11+, the scratch ring registers describe the number of waves per SE rather than per-chip,
+        // as with previous architectures.
+        if (IsGfx11(chipProps.gfxLevel))
+        {
+            allocSize   /= chipProps.gfx9.numShaderEngines;
+            numMaxWaves /= chipProps.gfx9.numShaderEngines;
+        }
+#endif
         numWaves = Min(static_cast<size_t>(allocSize) / (waveSize * sizeof(uint32)), numMaxWaves);
     }
 
@@ -402,6 +437,16 @@ GsVsRing::GsVsRing(
             pSrdWr->index_stride         = BUF_INDEX_STRIDE_16B;
             pSrdWr->add_tid_enable       = 1;
         }
+#if PAL_BUILD_GFX11
+        else if (IsGfx11(m_gfxLevel))
+        {
+            auto*const  pSrdWr = &pBufferSrdWr->gfx10;
+
+            pSrdWr->gfx11.swizzle_enable = 1;
+            pSrdWr->index_stride         = BUF_INDEX_STRIDE_16B;
+            pSrdWr->add_tid_enable       = 1;
+        }
+#endif
         else
         {
             PAL_ASSERT_ALWAYS();
@@ -498,6 +543,14 @@ uint32 TessFactorBuffer::TfRingSize() const
 {
     uint32 tfRingSize = static_cast<uint32>(MemorySizeDwords());
 
+#if PAL_BUILD_GFX11
+    if (IsGfx11(*m_pDevice->Parent()))
+    {
+        const uint32 numShaderEngines = m_pDevice->Parent()->ChipProperties().gfx9.numShaderEngines;
+        tfRingSize /= numShaderEngines;
+    }
+#endif
+
     return tfRingSize;
 }
 
@@ -546,6 +599,14 @@ void OffchipLdsBuffer::UpdateSrds() const
 uint32 OffchipLdsBuffer::OffchipBuffering() const
 {
     uint32 offchipBuffering = static_cast<uint32>(m_itemSizeMax);
+
+#if PAL_BUILD_GFX11
+    if (IsGfx11(*m_pDevice->Parent()))
+    {
+        const uint32 numShaderEngines = m_pDevice->Parent()->ChipProperties().gfx9.numShaderEngines;
+        offchipBuffering /= numShaderEngines;
+    }
+#endif
 
     // OFFCHIP_BUFFERING setting is biased by one (i.e., 0=1, 511=512, etc.).
     return offchipBuffering - 1;
@@ -785,6 +846,70 @@ void TaskMeshControlRing::InitializeControlBuffer(
         }
     }
 }
+
+#if PAL_BUILD_GFX11
+// =====================================================================================================================
+VertexAttributeRing::VertexAttributeRing(
+    Device*     pDevice,
+    BufferSrd*  pSrdTable,
+    bool        isTmz)
+    :
+    ShaderRing(pDevice, pSrdTable, isTmz, ShaderRingType::VertexAttributes)
+{
+    const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
+
+    BufferSrd*const pSrd = &m_pSrdTable[static_cast<size_t>(ShaderRingSrd::VertexAttributes)];
+
+    // Set-up static SRD fields:
+    pDevice->InitBufferSrd(pSrd, 0, Stride);
+
+    AdjustRingDataFormat(chipProps, pSrd);
+    pSrd->gfx10.index_stride          = BUF_INDEX_STRIDE_32B;
+    pSrd->gfx10.gfx104Plus.format     = BUF_FMT_32_32_32_32_FLOAT__GFX104PLUS;
+    pSrd->gfx10.gfx11.swizzle_enable  = 3;
+}
+
+// =====================================================================================================================
+Result VertexAttributeRing::AllocateVideoMemory(
+    gpusize             memorySizeBytes,
+    ShaderRingMemory*   pDeferredMem)
+{
+    m_pDevice->AllocateVertexAttributesMem(m_tmzEnabled);
+    const BoundGpuMemory& vertexAttributesMem = m_pDevice->VertexAttributesMem(m_tmzEnabled);
+
+    m_ringMem.Update(vertexAttributesMem.Memory(), vertexAttributesMem.Offset());
+
+    return Result::Success;
+}
+
+// =====================================================================================================================
+// Overrides the base class's function for computing the ring size.
+// Returns the allocation size in bytes.
+gpusize VertexAttributeRing::ComputeAllocationSize() const
+{
+    const uint32 numSes = m_pDevice->Parent()->ChipProperties().gfx9.numShaderEngines;
+
+    gpusize sizeBytes = m_itemSizeMax * numSes;
+
+    // The size of this allocation must be aligned per SE
+    PAL_ASSERT((sizeBytes / numSes) % Gfx11VertexAttributeRingAlignmentBytes == 0);
+    PAL_ASSERT(sizeBytes < Gfx11VertexAttributeRingMaxSizeBytes);
+
+    return sizeBytes;
+}
+
+// =====================================================================================================================
+void VertexAttributeRing::UpdateSrds() const
+{
+    PAL_ASSERT(m_ringMem.IsBound());
+
+    const gpusize gpuVirtAddr = m_ringMem.GpuVirtAddr();
+
+    BufferSrd*const pSrd = &m_pSrdTable[static_cast<size_t>(ShaderRingSrd::VertexAttributes)];
+    m_pDevice->SetBaseAddress(pSrd, gpuVirtAddr);
+    m_pDevice->SetNumRecords(pSrd, Device::CalcNumRecords(static_cast<size_t>(m_allocSize), Stride));
+}
+#endif
 
 } // Gfx9
 } // Pal

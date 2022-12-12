@@ -41,6 +41,41 @@ namespace Pal
 namespace Gfx9
 {
 
+#if PAL_BUILD_GFX11
+constexpr uint32 DispatchInterleaveSizeLookupTable[] =
+{
+    64u,  // Default
+    1u,   // Disable
+    128u, // _128
+    256u, // _256
+    512u, // _512
+};
+static_assert((ArrayLen32(DispatchInterleaveSizeLookupTable) == static_cast<uint32>(DispatchInterleaveSize::Count)),
+              "DispatchInterleaveSizeLookupTable and DispatchInterleaveSize do not have the same number of elements.");
+static_assert((DispatchInterleaveSizeLookupTable[static_cast<uint32>(DispatchInterleaveSize::Default)] ==
+               Gfx11::mmCOMPUTE_DISPATCH_INTERLEAVE_DEFAULT),
+              "DispatchInterleaveSizeLookupTable looks up incorrect value for DispatchInterleaveSize::Default.");
+static_assert((DispatchInterleaveSizeLookupTable[static_cast<uint32>(DispatchInterleaveSize::_128)] == 128u),
+              "DispatchInterleaveSizeLookupTable looks up incorrect value for DispatchInterleaveSize::_128.");
+static_assert((DispatchInterleaveSizeLookupTable[static_cast<uint32>(DispatchInterleaveSize::_256)] == 256u),
+              "DispatchInterleaveSizeLookupTable looks up incorrect value for DispatchInterleaveSize::_128.");
+static_assert((DispatchInterleaveSizeLookupTable[static_cast<uint32>(DispatchInterleaveSize::_512)] == 512u),
+              "DispatchInterleaveSizeLookupTable looks up incorrect value for DispatchInterleaveSize::_128.");
+// Panel setting validation for OverrideCsDispatchInterleaveSize
+static_assert((static_cast<uint32>(OverrideCsDispatchInterleaveSizeDisabled) ==
+               static_cast<uint32>(DispatchInterleaveSize::Disable)),
+              "OverrideCsDispatchInterleaveSizeDisabled and DispatchInterleaveSize::Disable do not match.");
+static_assert((static_cast<uint32>(OverrideCsDispatchInterleaveSize128) ==
+               static_cast<uint32>(DispatchInterleaveSize::_128)),
+              "OverrideCsDispatchInterleaveSize128 and DispatchInterleaveSize::_128 do not match.");
+static_assert((static_cast<uint32>(OverrideCsDispatchInterleaveSize256) ==
+               static_cast<uint32>(DispatchInterleaveSize::_256)),
+              "OverrideCsDispatchInterleaveSize256 and DispatchInterleaveSize::_256 do not match.");
+static_assert((static_cast<uint32>(OverrideCsDispatchInterleaveSize512) ==
+               static_cast<uint32>(DispatchInterleaveSize::_512)),
+              "OverrideCsDispatchInterleaveSize512 and DispatchInterleaveSize::_512 do not match.");
+#endif
+
 // =====================================================================================================================
 PipelineChunkCs::PipelineChunkCs(
     const Device&    device,
@@ -68,9 +103,16 @@ void PipelineChunkCs::LateInit(
     const RegisterVector&  registers,
     uint32                 wavefrontSize,
     DispatchDims*          pThreadsPerTg,
+#if PAL_BUILD_GFX11
+    DispatchInterleaveSize interleaveSize,
+#endif
     PipelineUploader*      pUploader)
 {
+#if PAL_BUILD_GFX11
+    InitRegisters(registers, interleaveSize, wavefrontSize);
+#else
     InitRegisters(registers, wavefrontSize);
+#endif
 
     GpuSymbol symbol = { };
     if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::CsMainEntry, &symbol) == Result::Success)
@@ -101,6 +143,9 @@ void PipelineChunkCs::LateInit(
 // Helper method which initializes registers from the register vector extraced from an ELF metadata blob.
 void PipelineChunkCs::InitRegisters(
     const RegisterVector&  registers,
+#if PAL_BUILD_GFX11
+    DispatchInterleaveSize interleaveSize,
+#endif
     uint32                  wavefrontSize)
 {
     const RegisterInfo&      regInfo   = m_device.CmdUtil().GetRegInfo();
@@ -118,6 +163,24 @@ void PipelineChunkCs::InitRegisters(
     {
         m_regs.computePgmRsrc3.u32All = registers.At(Gfx10Plus::mmCOMPUTE_PGM_RSRC3);
 
+#if  PAL_BUILD_GFX11
+        if (IsGfx104Plus(chipProps.gfxLevel))
+        {
+            m_regs.computePgmRsrc3.gfx104Plus.INST_PREF_SIZE =
+                m_device.GetShaderPrefetchSize(m_pStageInfo->codeLength);
+        }
+#endif
+
+#if PAL_BUILD_GFX11
+        // PWS+ only support pre-shader waits if the IMAGE_OP bit is set. Theoretically we only set it for shaders that
+        // do an image operation. However that would mean that our use of the pre-shader PWS+ wait is dependent on us
+        // only waiting on image resources, which we don't know in our interface. For now always set the IMAGE_OP bit
+        // for corresponding shaders, making the pre-shader waits global.
+        if (IsGfx11(chipProps.gfxLevel))
+        {
+            m_regs.computePgmRsrc3.gfx11.IMAGE_OP = 1;
+        }
+#endif
     }
 
     if (chipProps.gfx9.supportSpp == 1)
@@ -163,6 +226,13 @@ void PipelineChunkCs::InitRegisters(
     constexpr uint32 Gfx9MaxLockThreshold = 252;
     PAL_ASSERT(settings.csLockThreshold <= Gfx9MaxLockThreshold);
 
+#if PAL_BUILD_GFX11
+    if (settings.waForceLockThresholdZero)
+    {
+        m_regs.dynamic.computeResourceLimits.bits.LOCK_THRESHOLD = 0;
+    }
+    else
+#endif
     {
        m_regs.dynamic.computeResourceLimits.bits.LOCK_THRESHOLD = Min((settings.csLockThreshold >> 2),
                                                                       (Gfx9MaxLockThreshold >> 2));
@@ -183,6 +253,15 @@ void PipelineChunkCs::InitRegisters(
         break;
     }
 
+#if PAL_BUILD_GFX11
+    if (IsGfx11(chipProps.gfxLevel))
+    {
+        const uint32 lookup = (settings.overrideCsDispatchInterleaveSize != CsDispatchInterleaveSizeHonorClient)
+                              ? static_cast<uint32>(settings.overrideCsDispatchInterleaveSize)
+                              : static_cast<uint32>(interleaveSize);
+        m_regs.computeDispatchInterleave.bits.INTERLEAVE = DispatchInterleaveSizeLookupTable[lookup];
+    }
+#endif
 }
 
 // =====================================================================================================================
@@ -381,12 +460,107 @@ uint32* PipelineChunkCs::UpdateDynamicRegInfo(
     return pCmdSpace;
 }
 
+#if PAL_BUILD_GFX11
+// =====================================================================================================================
+// Accumulates a set of registers into an array of packed register pairs, analagous to WriteShCommandsSetPath().
+void PipelineChunkCs::AccumulateShCommandsDynamic(
+    PackedRegisterPair* pRegPairs,
+    uint32*             pNumRegs,
+    HwRegInfo::Dynamic  dynamicRegs,
+    gpusize             launchDescGpuVa
+    ) const
+{
+#if PAL_ENABLE_PRINTS_ASSERTS
+    const uint32 startingIdx = *pNumRegs;
+#endif
+
+    if (launchDescGpuVa == 0uLL)
+    {
+        SetOneShRegValPairPacked(pRegPairs, pNumRegs, mmCOMPUTE_PGM_RSRC2, dynamicRegs.computePgmRsrc2.u32All);
+    }
+
+    SetOneShRegValPairPacked(pRegPairs,
+                             pNumRegs,
+                             mmCOMPUTE_RESOURCE_LIMITS,
+                             dynamicRegs.computeResourceLimits.u32All);
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    PAL_ASSERT(InRange(*pNumRegs, startingIdx, startingIdx + NumDynamicRegs));
+#endif
+}
+
+// =====================================================================================================================
+// Accumulates a set of registers into an array of packed register pairs, analagous to WriteShCommandsDynamic().
+void PipelineChunkCs::AccumulateShCommandsSetPath(
+    PackedRegisterPair* pRegPairs,
+    uint32*             pNumRegs,
+    bool                usingLaunchDesc
+    ) const
+{
+#if PAL_ENABLE_PRINTS_ASSERTS
+    const uint32 startingIdx = *pNumRegs;
+#endif
+
+    SetSeqShRegValPairPacked(pRegPairs,
+                             pNumRegs,
+                             mmCOMPUTE_NUM_THREAD_X,
+                             mmCOMPUTE_NUM_THREAD_Z,
+                             &m_regs.computeNumThreadX);
+
+    if (usingLaunchDesc == false)
+    {
+        SetOneShRegValPairPacked(pRegPairs,
+                                 pNumRegs,
+                                 mmCOMPUTE_PGM_LO,
+                                 m_regs.computePgmLo.u32All);
+
+        SetOneShRegValPairPacked(pRegPairs,
+                                 pNumRegs,
+                                 mmCOMPUTE_PGM_RSRC1,
+                                 m_regs.computePgmRsrc1.u32All);
+
+        SetOneShRegValPairPacked(pRegPairs,
+                                 pNumRegs,
+                                 Gfx10Plus::mmCOMPUTE_PGM_RSRC3,
+                                 m_regs.computePgmRsrc3.u32All);
+
+        SetOneShRegValPairPacked(pRegPairs,
+                                 pNumRegs,
+                                 mmCOMPUTE_USER_DATA_0 + ConstBufTblStartReg,
+                                 m_regs.userDataInternalTable.u32All);
+    }
+
+    SetOneShRegValPairPacked(pRegPairs,
+                             pNumRegs,
+                             Gfx11::mmCOMPUTE_DISPATCH_INTERLEAVE,
+                             m_regs.computeDispatchInterleave.u32All);
+
+    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
+    if (chipProps.gfx9.supportSpp != 0)
+    {
+        const RegisterInfo& regInfo = m_device.CmdUtil().GetRegInfo();
+
+        SetOneShRegValPairPacked(pRegPairs,
+                                 pNumRegs,
+                                 regInfo.mmComputeShaderChksum,
+                                 m_regs.computeShaderChksum.u32All);
+    }
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    PAL_ASSERT(InRange(*pNumRegs, startingIdx, startingIdx + NumShRegs));
+#endif
+}
+#endif
+
 // =====================================================================================================================
 // Copies this pipeline chunk's sh commands into the specified command space. Returns the next unused DWORD in
 // pCmdSpace.
 uint32* PipelineChunkCs::WriteShCommands(
     CmdStream*                      pCmdStream,
     uint32*                         pCmdSpace,
+#if PAL_BUILD_GFX11
+    bool                            regPairsSupported,
+#endif
     const DynamicComputeShaderInfo& csInfo,
     gpusize                         launchDescGpuVa,
     bool                            prefetch
@@ -395,6 +569,28 @@ uint32* PipelineChunkCs::WriteShCommands(
     HwRegInfo::Dynamic dynamicRegs = m_regs.dynamic; // "Dynamic" bind-time register state.
     pCmdSpace = UpdateDynamicRegInfo(pCmdStream, pCmdSpace, &dynamicRegs, csInfo, launchDescGpuVa);
 
+#if PAL_BUILD_GFX11
+    if (regPairsSupported)
+    {
+        PackedRegisterPair regPairs[NumHwRegInfoRegs] = {};
+        uint32             numRegs = 0;
+
+        static_assert(NumHwRegInfoRegs <= Gfx11RegPairMaxRegCount, "Requesting too many registers!");
+
+        AccumulateShCommandsSetPath(regPairs, &numRegs, (launchDescGpuVa != 0uLL));
+        AccumulateShCommandsDynamic(regPairs, &numRegs, dynamicRegs, launchDescGpuVa);
+
+        if (m_pCsPerfDataInfo->regOffset != UserDataNotMapped)
+        {
+            SetOneShRegValPairPacked(regPairs, &numRegs, m_pCsPerfDataInfo->regOffset, m_pCsPerfDataInfo->gpuVirtAddr);
+        }
+
+        PAL_ASSERT(numRegs <= NumHwRegInfoRegs);
+
+        pCmdSpace = pCmdStream->WriteSetShRegPairs<ShaderCompute>(regPairs, numRegs, pCmdSpace);
+    }
+    else
+#endif
     {
         pCmdSpace = WriteShCommandsSetPath(pCmdStream, pCmdSpace, (launchDescGpuVa != 0uLL));
 
@@ -492,6 +688,15 @@ uint32* PipelineChunkCs::WriteShCommandsSetPath(
                                                                 m_regs.userDataInternalTable.u32All,
                                                                 pCmdSpace);
     }
+
+#if PAL_BUILD_GFX11
+    if (IsGfx11(chipProps.gfxLevel))
+    {
+        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(Gfx11::mmCOMPUTE_DISPATCH_INTERLEAVE,
+                                                                m_regs.computeDispatchInterleave.u32All,
+                                                                pCmdSpace);
+    }
+#endif
 
     if (chipProps.gfx9.supportSpp != 0)
     {

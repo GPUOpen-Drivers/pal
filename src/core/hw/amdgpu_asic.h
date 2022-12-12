@@ -43,6 +43,9 @@
 #define FAMILY_AI      0x8D
 #define FAMILY_RV      0x8E
 #define FAMILY_NV      0x8F
+#if PAL_BUILD_NAVI3X
+#define FAMILY_NV3     0x91
+#endif
 
 // AMDGPU_FAMILY_IS(familyId, familyName)
 #define FAMILY_IS(f, fn)     (f == FAMILY_##fn)
@@ -56,6 +59,11 @@
 #define FAMILY_IS_AI(f)      FAMILY_IS(f, AI)
 #define FAMILY_IS_RV(f)      FAMILY_IS(f, RV)
 #define FAMILY_IS_NV(f)      FAMILY_IS(f, NV)
+#if PAL_BUILD_GFX11
+#if PAL_BUILD_NAVI3X
+#define FAMILY_IS_NV3(f)     FAMILY_IS(f, NV3)
+#endif
+#endif
 
 #define AMDGPU_UNKNOWN          0xFF
 
@@ -100,6 +108,9 @@
 #define AMDGPU_NAVI22_RANGE        0x32, 0x3C
 #define AMDGPU_NAVI23_RANGE        0x3C, 0x46
 #define AMDGPU_NAVI24_RANGE        0x46, 0x50
+#if PAL_BUILD_NAVI31
+#define AMDGPU_NAVI31_RANGE        0x01, 0x10
+#endif
 
 #define AMDGPU_EXPAND_FIX(x) x
 #define AMDGPU_RANGE_HELPER(val, min, max) ((val >= min) && (val < max))
@@ -150,6 +161,9 @@
 #define ASICREV_IS_NAVI22(r)           ASICREV_IS(r, NAVI22)
 #define ASICREV_IS_NAVI23(r)           ASICREV_IS(r, NAVI23)
 #define ASICREV_IS_NAVI24(r)           ASICREV_IS(r, NAVI24)
+#if PAL_BUILD_NAVI31
+#define ASICREV_IS_NAVI31(r)           ASICREV_IS(r, NAVI31)
+#endif
 
 // AMDGPU_IS(familyId, eRevisionId, familyName, revisionName)
 #define AMDGPU_IS(f, r, fn, rn)    (FAMILY_IS(f, fn) && ASICREV_IS(r, rn))
@@ -195,6 +209,9 @@
 #define AMDGPU_IS_NAVI22(f, r)        AMDGPU_IS(f, r, NV, NAVI22)
 #define AMDGPU_IS_NAVI23(f, r)        AMDGPU_IS(f, r, NV, NAVI23)
 #define AMDGPU_IS_NAVI24(f, r)        AMDGPU_IS(f, r, NV, NAVI24)
+#if PAL_BUILD_NAVI31
+#define AMDGPU_IS_NAVI31(f, r)        AMDGPU_IS(f, r, NV3, NAVI31)
+#endif
 
 // Device IDs
 #define DEVICE_ID_SI_TAHITI_P_6780      0x6780
@@ -236,6 +253,9 @@
 #define DEVICE_ID_NV_NAVI10_P_7310      0x7310
 #define DEVICE_ID_NV_NAVI12_P_7360      0x7360
 #define DEVICE_ID_NV_NAVI14_M_7340      0x7340
+#if PAL_BUILD_NAVI31
+#define DEVICE_ID_NV3_NAVI31_P_73BF     0x73BF
+#endif
 
 // Revision IDs
 #define SI_TAHITI_P_A21              5
@@ -276,6 +296,9 @@
 #define NV_NAVI22_P_A0              50
 #define NV_NAVI23_P_A0              60
 #define NV_NAVI24_P_A0              70
+#if PAL_BUILD_NAVI31
+#define NAVI31_P_A0               0x01
+#endif
 
 // PRIDs
 #define PRID_SI_TAHITI              0x00
@@ -313,4 +336,13 @@
 #define PRID_NV_NAVI10_00           0x00
 #define PRID_NV_NAVI12_00           0x00
 #define PRID_NV_NAVI14_00           0x00
+#if PAL_BUILD_NAVI31
+#define PRID_NV3_NAVI31_00          0x00
+#define PRID_NV3_NAVI31_D2          0xD2
+#define PRID_NV3_NAVI31_D4          0xD4
+#define PRID_NV3_NAVI31_D5          0xD5
+#define PRID_NV3_NAVI31_D9          0xD9
+#define PRID_NV3_NAVI31_DA          0xDA
+#define PRID_NV3_NAVI31_DB          0xDB
+#endif
 #endif

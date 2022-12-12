@@ -127,6 +127,14 @@ PipelineStatsQueryPool::PipelineStatsQueryPool(
     }
 }
 
+#if PAL_BUILD_GFX11
+// =====================================================================================================================
+bool PipelineStatsQueryPool::RequiresHybridCmdStream() const
+{
+    return (IsGfx11(*m_device.Parent()) && TestAnyFlagSet(m_createInfo.enabledStats, QueryPipelineStatsTsInvocations));
+}
+#endif
+
 // =====================================================================================================================
 // The SAMPLE_PIPELINESTAT event on the Compute engine only writes csInvocation, so we must write dummy zero's to other
 // slots on a compute command buffer.
@@ -197,9 +205,35 @@ void PipelineStatsQueryPool::Begin(
         pCmdSpace += cmdUtil.BuildSampleEventWrite(SAMPLE_PIPELINESTAT,
                                                    event_index__me_event_write__sample_pipelinestat,
                                                    engineType,
+#if PAL_BUILD_GFX11
+                                                   samp_plst_cntr_mode__mec_event_write__legacy_mode__GFX11,
+#endif
                                                    gpuAddr,
                                                    pCmdSpace);
 
+#if PAL_BUILD_GFX11
+        if (IsGfx11(*(m_device.Parent())))
+        {
+            if (pHybridCmdStream != nullptr)
+            {
+                uint32* pAceCmdSpace = pHybridCmdStream->ReserveCommands();
+
+                gpuAddr += offsetof(Gfx9PipelineStatsData, tsInvocations);
+
+                // Setting the countermode to samp_plst_cntr_mode__mec_event_write__new_mode__GFX11 will
+                // have the CP only write the tsInvocations.
+                pAceCmdSpace += cmdUtil.BuildSampleEventWrite(SAMPLE_PIPELINESTAT,
+                                                              event_index__me_event_write__sample_pipelinestat,
+                                                              EngineTypeCompute,
+                                                              samp_plst_cntr_mode__mec_event_write__new_mode__GFX11,
+                                                              gpuAddr,
+                                                              pAceCmdSpace);
+
+                pHybridCmdStream->CommitCommands(pAceCmdSpace);
+            }
+        }
+        else
+#endif
         {
             // Navi2X requires software emulation for Mesh and Task Shader pipeline stats.
             gpuAddr   = beginQueryAddr + offsetof(Gfx9PipelineStatsData, msInvocations);
@@ -251,9 +285,35 @@ void PipelineStatsQueryPool::End(
         pCmdSpace += cmdUtil.BuildSampleEventWrite(SAMPLE_PIPELINESTAT,
                                                    event_index__me_event_write__sample_pipelinestat,
                                                    engineType,
+#if PAL_BUILD_GFX11
+                                                   samp_plst_cntr_mode__mec_event_write__legacy_mode__GFX11,
+#endif
                                                    gpuAddr,
                                                    pCmdSpace);
 
+#if PAL_BUILD_GFX11
+        if (IsGfx11(*(m_device.Parent())))
+        {
+            if (pHybridCmdStream != nullptr)
+            {
+                uint32* pAceCmdSpace = pHybridCmdStream->ReserveCommands();
+
+                gpuAddr += offsetof(Gfx9PipelineStatsData, tsInvocations);
+
+                // Setting the countermode to samp_plst_cntr_mode__mec_event_write__new_mode__GFX11 will
+                // have the CP only write the tsInvocations.
+                pAceCmdSpace += cmdUtil.BuildSampleEventWrite(SAMPLE_PIPELINESTAT,
+                                                              event_index__me_event_write__sample_pipelinestat,
+                                                              EngineTypeCompute,
+                                                              samp_plst_cntr_mode__mec_event_write__new_mode__GFX11,
+                                                              gpuAddr,
+                                                              pAceCmdSpace);
+
+                pHybridCmdStream->CommitCommands(pAceCmdSpace);
+            }
+        }
+        else
+#endif
         {
             // Navi2X requires software emulation for Mesh and Task Shader pipeline stats.
             gpuAddr   = endQueryAddr + offsetof(Gfx9PipelineStatsData, msInvocations);

@@ -210,6 +210,21 @@ constexpr size_t AtomicOpConversionTableSize = ArrayLen(AtomicOpConversionTable)
 static_assert((AtomicOpConversionTableSize == static_cast<size_t>(AtomicOp::Count)),
               "AtomicOp conversion table has too many/few entries");
 
+#if PAL_BUILD_GFX11
+constexpr size_t PackedRegPairPacketSize = PM4_PFP_SET_SH_REG_PAIRS_PACKED_SIZEDW__GFX11;
+static_assert((PackedRegPairPacketSize == PM4_PFP_SET_SH_REG_PAIRS_PACKED_SIZEDW__GFX11)      &&
+              (PackedRegPairPacketSize == PM4_PFP_SET_CONTEXT_REG_PAIRS_PACKED_SIZEDW__GFX11) &&
+              (PackedRegPairPacketSize == PM4_PFP_SET_SH_REG_PAIRS_PACKED_N_SIZEDW__GFX11),
+              "PAIR_PACKED packet sizes do not match!");
+// Maximum number of registers that may be written with a fixed length packed register pair packet.
+constexpr uint32 MaxNumPackedFixLengthRegs            = 8;
+// Minimum FW version required to use the expanded fixed length range. Prior FW versions only support up to 8 registers.
+constexpr uint32 MinExpandedPackedFixLengthPfpVersion = 1463;
+constexpr uint32 MaxNumPackedFixLengthRegsExpanded    = 14;
+// Minimum number of registers that may be written with a fixed length packed register pair packet.
+constexpr uint32 MinNumPackedFixLengthRegs            = 2;
+#endif
+
 // GCR_CNTL bit fields for ACQUIRE_MEM and RELEASE_MEM are slightly different.
 union Gfx10AcquireMemGcrCntl
 {
@@ -249,7 +264,11 @@ union Gfx10ReleaseMemGcrCntl
         uint32  gl2Inv     :  1;
         uint32  gl2Wb      :  1;
         uint32  seq        :  2;
+#if PAL_BUILD_GFX11
+        uint32  gfx11GlkWb :  1;
+#else
         uint32  reserved1  :  1;
+#endif
         uint32  reserved   : 19;
     } bits;
 
@@ -402,6 +421,31 @@ CmdUtil::CmdUtil(
             m_registerInfo.mmDbDfsmControl                  = Gfx10Core::mmDB_DFSM_CONTROL;
             m_registerInfo.mmRpbPerfResultCntl              = Gfx10Core::mmRPB_PERFCOUNTER_RSLT_CNTL;
         }
+#if PAL_BUILD_GFX11
+        else if (IsGfx11(parent))
+        {
+            m_registerInfo.mmEaPerfResultCntl               = Gfx103CorePlus::mmGCEA_PERFCOUNTER_RSLT_CNTL;
+            m_registerInfo.mmAtcPerfResultCntl              = 0;
+            m_registerInfo.mmAtcL2PerfResultCntl            = 0;
+
+#if PAL_BUILD_NAVI3X
+            if (IsNavi3x(parent))
+            {
+#if PAL_BUILD_NAVI31
+                if (IsNavi31(parent))
+                {
+                    m_registerInfo.mmRpbPerfResultCntl      = Nv31::mmRPB_PERFCOUNTER_RSLT_CNTL;
+                }
+#endif
+            }
+#endif
+
+            m_registerInfo.mmRlcSpmGlobalMuxselAddr         = Gfx11::mmRLC_SPM_GLOBAL_MUXSEL_ADDR;
+            m_registerInfo.mmRlcSpmGlobalMuxselData         = Gfx11::mmRLC_SPM_GLOBAL_MUXSEL_DATA;
+            m_registerInfo.mmRlcSpmSeMuxselAddr             = Gfx11::mmRLC_SPM_SE_MUXSEL_ADDR;
+            m_registerInfo.mmRlcSpmSeMuxselData             = Gfx11::mmRLC_SPM_SE_MUXSEL_DATA;
+        }
+#endif
         else
         {
             PAL_ASSERT_ALWAYS();
@@ -483,6 +527,14 @@ bool CmdUtil::CanUseCsPartialFlush(
 bool CmdUtil::HasEnhancedLoadShRegIndex() const
 {
     bool hasEnhancedLoadShRegIndex = false;
+#if PAL_BUILD_GFX11
+    if (IsGfx11(m_chipProps.gfxLevel))
+    {
+        // This function should return true for Gfx11 by default.
+        hasEnhancedLoadShRegIndex = true;
+    }
+    else
+#endif
     {
         // This was only implemented on gfx10.3+.
         hasEnhancedLoadShRegIndex =
@@ -561,6 +613,10 @@ bool CmdUtil::CanUseAcquireMem(
 
     // Can't flush or invalidate CB metadata using an ACQUIRE_MEM as not supported.
     if (TestAnyFlagSet(rbSync, SyncCbMetaWbInv)
+#if PAL_BUILD_GFX11
+        // GFX11 doesn't support phase-II RB cache flush.
+        || (IsGfx11(m_chipProps.gfxLevel) && (rbSync != 0))
+#endif
         )
     {
         canUse = false;
@@ -861,6 +917,11 @@ size_t CmdUtil::BuildAcquireMemInternalGfx10(
     const bool cbDataWbInv = surfSyncFlags.gfx9Gfx10CbDataWbInv != 0;
     const bool dbWbInv     = surfSyncFlags.gfx9Gfx10DbWbInv != 0;
 
+#if PAL_BUILD_GFX11
+    // Gfx11 removed support for flushing and invalidating RB caches in an acquire_mem.
+    PAL_ASSERT((IsGfx11(m_chipProps.gfxLevel) == false) || ((cbDataWbInv == false) && (dbWbInv == false)));
+#endif
+
     constexpr uint32   PacketSize = PM4_ME_ACQUIRE_MEM_SIZEDW__GFX10PLUS;
     PM4_ME_ACQUIRE_MEM packet     = {};
 
@@ -902,6 +963,13 @@ size_t CmdUtil::BuildAcquireMemInternalGfx10(
 
     packet.ordinal3.coher_size = Get256BAddrLo(coherSize);
 
+#if PAL_BUILD_GFX11
+    if (IsGfx11(m_chipProps.gfxLevel))
+    {
+        packet.ordinal4.bitfieldsA.gfx11.coher_size_hi = Get256BAddrHi(coherSize);
+    }
+    else
+#endif
     {
         packet.ordinal4.bitfieldsA.gfx09_10.coher_size_hi = Get256BAddrHi(coherSize);
     }
@@ -941,6 +1009,92 @@ size_t CmdUtil::BuildAcquireMemInternalGfx10(
 
     return PacketSize;
 }
+
+#if PAL_BUILD_GFX11
+// =====================================================================================================================
+size_t CmdUtil::BuildAcquireMemGfxPws(
+    const AcquireMemGfxPws& info,
+    void*                   pBuffer
+    ) const
+{
+    // PWS isn't going to work on pre-gfx11 hardware.
+    PAL_ASSERT(IsGfx11(m_chipProps.gfxLevel));
+
+    // There are a couple of cases where we need to modify the caller's stage select before applying it.
+    ME_ACQUIRE_MEM_pws_stage_sel_enum stageSel = info.stageSel;
+
+    if (m_device.Settings().waForcePrePixShaderWaitPoint &&
+        (stageSel == pws_stage_sel__me_acquire_mem__pre_color__HASPWS))
+    {
+        stageSel = pws_stage_sel__me_acquire_mem__pre_pix_shader__HASPWS;
+    }
+
+    // We need to wait at one of the CP stages if we want it to do a GCR after waiting. Rather than force the caller
+    // to get this right we just silently handle it. It can't cause any correctness issues, it's just a perf hit.
+    if ((info.cacheSync != 0) &&
+        (stageSel != pws_stage_sel__me_acquire_mem__cp_me__HASPWS) &&
+        (stageSel != pws_stage_sel__me_acquire_mem__cp_pfp__HASPWS))
+    {
+        stageSel = pws_stage_sel__me_acquire_mem__cp_me__HASPWS;
+    }
+
+    constexpr uint32   PacketSize = PM4_ME_ACQUIRE_MEM_SIZEDW__GFX10PLUS;
+    PM4_ME_ACQUIRE_MEM packet     = {};
+
+    packet.ordinal1.header                           = Type3Header(IT_ACQUIRE_MEM, PacketSize);
+    packet.ordinal2.bitfieldsB.gfx11.pws_stage_sel   = stageSel;
+    packet.ordinal2.bitfieldsB.gfx11.pws_counter_sel = info.counterSel;
+    packet.ordinal2.bitfieldsB.gfx11.pws_ena2        = pws_ena2__me_acquire_mem__pixel_wait_sync_enable__HASPWS;
+    packet.ordinal2.bitfieldsB.gfx11.pws_count       = info.syncCount;
+
+    // The GCR base and size are in units of 128 bytes. Rather than require the caller to align them to 128 bytes we
+    // just expand the base and size to the next 128-byte multiple if they're not already aligned.
+    //
+    // Note that we're required to set every bit in base to '0' and every bit in size to '1' for a full range acquire.
+    // AcquireMemCore requires the caller to use base = 0 and size = 0 for a full range acquire so the math just works
+    // for gcr_base, but gcr_size requires us to substitute a special constant.
+    const gpusize gcrBase = Pow2AlignDown(info.rangeBase, 128);
+    const gpusize padSize = info.rangeSize + info.rangeBase % 128;
+    const gpusize gcrSize = (info.rangeSize == 0) ? Pow2AlignDown(UINT64_MAX, 128) : Pow2Align(padSize, 128);
+
+    packet.ordinal3.gcr_size                     = Get128BAddrLo(gcrSize);
+    packet.ordinal4.bitfieldsB.gfx11.gcr_size_hi = Get128BAddrHi(gcrSize);
+    packet.ordinal5.gcr_base_lo                  = Get128BAddrLo(gcrBase);
+    packet.ordinal6.bitfieldsB.gfx11.gcr_base_hi = Get128BAddrHi(gcrBase);
+    packet.ordinal7.bitfieldsB.gfx11.pws_ena     = pws_ena__me_acquire_mem__pixel_wait_sync_enable__HASPWS;
+
+    if (info.cacheSync != 0)
+    {
+        // Note that glmWb is unimplemented in HW so we don't both setting it. Everything else we want zeroed.
+        //
+        // We always prefer parallel cache ops but must force sequential (L0->L1->L2) mode when we're writing back a
+        // non-write-through L0 before an L2 writeback. The only writeable L0 that a PWS acquire can flush is the K$.
+        Gfx10AcquireMemGcrCntl cntl = {};
+        cntl.bits.gliInv = TestAnyFlagSet(info.cacheSync, SyncGliInv);
+        cntl.bits.glmInv = TestAnyFlagSet(info.cacheSync, SyncGlmInv);
+        cntl.bits.glkWb  = TestAnyFlagSet(info.cacheSync, SyncGlkWb);
+        cntl.bits.glkInv = TestAnyFlagSet(info.cacheSync, SyncGlkInv);
+        cntl.bits.glvInv = TestAnyFlagSet(info.cacheSync, SyncGlvInv);
+        cntl.bits.gl1Inv = TestAnyFlagSet(info.cacheSync, SyncGl1Inv);
+        cntl.bits.gl2Inv = TestAnyFlagSet(info.cacheSync, SyncGl2Inv);
+        cntl.bits.gl2Wb  = TestAnyFlagSet(info.cacheSync, SyncGl2Wb);
+        cntl.bits.seq    = cntl.bits.gl2Wb & cntl.bits.glkWb;
+
+        // We default to whole-cache operations unless this heuristic says we should do a range-based GCR.
+        if (UseRangeBasedGcr(info.rangeBase, info.rangeSize))
+        {
+            cntl.bits.gl1Range = 2;
+            cntl.bits.gl2Range = 2;
+        }
+
+        packet.ordinal8.bitfields.gfx10Plus.gcr_cntl = cntl.u32All;
+    }
+
+    memcpy(pBuffer, &packet, PacketSize * sizeof(uint32));
+
+    return PacketSize;
+}
+#endif
 
 // =====================================================================================================================
 // True if the specified atomic operation acts on 32-bit values.
@@ -1862,6 +2016,9 @@ size_t CmdUtil::BuildDispatchTaskMeshGfx(
                                          // written.
     uint32       ringEntryLoc,           // User-SGPR offset for the ring entry value received for the draw.
     Pm4Predicate predicate,              // Predication enable control.
+#if PAL_BUILD_GFX11
+    bool         usesLegacyMsFastLaunch, // Use legacy MS fast launch.
+#endif
     void*        pBuffer)                // [out] Build the PM4 packet in this buffer.
 {
     static_assert(PM4_ME_DISPATCH_TASKMESH_GFX_SIZEDW__GFX10COREPLUS ==
@@ -1886,6 +2043,10 @@ size_t CmdUtil::BuildDispatchTaskMeshGfx(
     pPacket->ordinal3.u32All                                             = 0;
     pPacket->ordinal3.bitfields.gfx10CorePlus.thread_trace_marker_enable = (IssueSqttMarkerEvent) ? 1 : 0;
 
+#if PAL_BUILD_GFX11
+    pPacket->ordinal3.bitfields.gfx11.mode1_enable = (usesLegacyMsFastLaunch) ? 1 : 0;
+#endif
+
     regVGT_DRAW_INITIATOR drawInitiator = {};
     drawInitiator.u32All                = 0;
     drawInitiator.bits.SOURCE_SELECT    = DI_SRC_SEL_AUTO_INDEX;
@@ -1900,13 +2061,49 @@ size_t CmdUtil::BuildDispatchTaskMeshGfx<true>(
     uint32       tgDimOffset,
     uint32       ringEntryLoc,
     Pm4Predicate predicate,
+#if PAL_BUILD_GFX11
+    bool         usesLegacyMsFastLaunch,
+#endif
     void*        pBuffer);
 template
 size_t CmdUtil::BuildDispatchTaskMeshGfx<false>(
     uint32       tgDimOffset,
     uint32       ringEntryLoc,
     Pm4Predicate predicate,
+#if PAL_BUILD_GFX11
+    bool         usesLegacyMsFastLaunch,
+#endif
     void*        pBuffer);
+
+#if PAL_BUILD_GFX11
+// =====================================================================================================================
+// Builds a PM4_ME_DISPATCH_MESH_DIRECT packet for the PFP & ME engines.
+size_t CmdUtil::BuildDispatchMeshDirect(
+    DispatchDims size,
+    Pm4Predicate predicate,
+    void*        pBuffer)
+{
+    constexpr uint32 PacketSize = PM4_ME_DISPATCH_MESH_DIRECT_SIZEDW__GFX11;
+    auto* const pPacket         = static_cast<PM4_ME_DISPATCH_MESH_DIRECT*>(pBuffer);
+
+    pPacket->ordinal1.header = Type3Header(IT_DISPATCH_MESH_DIRECT__GFX11,
+                                           PacketSize,
+                                           false,
+                                           ShaderGraphics,
+                                           predicate);
+
+    pPacket->ordinal2.dim_x = size.x;
+    pPacket->ordinal3.dim_y = size.y;
+    pPacket->ordinal4.dim_z = size.z;
+
+    regVGT_DRAW_INITIATOR drawInitiator = {};
+    drawInitiator.bits.SOURCE_SELECT    = DI_SRC_SEL_AUTO_INDEX;
+    drawInitiator.bits.MAJOR_MODE       = DI_MAJOR_MODE_0;
+    pPacket->ordinal5.draw_initiator    = drawInitiator.u32All;
+
+    return PacketSize;
+}
+#endif
 
 // =====================================================================================================================
 // Builds a PM4_ME_DISPATCH_MESH_INDIRECT_MULTI packet for the PFP & ME engines.
@@ -1919,6 +2116,9 @@ size_t CmdUtil::BuildDispatchMeshIndirectMulti(
     uint32       stride,                 // Stride from one indirect args data structure to the next.
     gpusize      countGpuAddr,           // GPU address containing the count.
     Pm4Predicate predicate,              // Predication enable control.
+#if PAL_BUILD_GFX11
+    bool         usesLegacyMsFastLaunch, // Use legacy MS fast launch.
+#endif
     void*        pBuffer)                // [out] Build the PM4 packet in this buffer.
 {
     static_assert(PM4_ME_DISPATCH_MESH_INDIRECT_MULTI_SIZEDW__GFX10COREPLUS ==
@@ -1947,6 +2147,10 @@ size_t CmdUtil::BuildDispatchMeshIndirectMulti(
         packet.ordinal3.bitfields.gfx10CorePlus.draw_index_loc    = drawIndexOffset - PERSISTENT_SPACE_START;
         packet.ordinal4.bitfields.gfx10CorePlus.draw_index_enable = 1;
     }
+
+#if PAL_BUILD_GFX11
+    packet.ordinal4.bitfields.gfx11.mode1_enable = (usesLegacyMsFastLaunch) ? 1 : 0;
+#endif
 
     if (countGpuAddr != 0)
     {
@@ -2042,6 +2246,9 @@ size_t CmdUtil::BuildDispatchTaskMeshIndirectMultiAce(
     dispatchInitiator.bits.FORCE_START_AT_000        = 0;
     dispatchInitiator.bits.ORDER_MODE                = 1;
     dispatchInitiator.gfx10Plus.CS_W32_EN            = isWave32;
+#if PAL_BUILD_GFX11
+    dispatchInitiator.gfx11.AMP_SHADER_EN            = 1;
+#endif
     dispatchInitiator.u32All                        |= ComputeDispatchInitiatorDisablePartialPreemptMask;
     pPacket->ordinal11.dispatch_initiator            = dispatchInitiator.u32All;
 
@@ -2078,6 +2285,9 @@ size_t CmdUtil::BuildDispatchTaskMeshDirectAce(
     dispatchInitiator.bits.FORCE_START_AT_000        = 0;
     dispatchInitiator.bits.ORDER_MODE                = 1;
     dispatchInitiator.gfx10Plus.CS_W32_EN            = isWave32;
+#if PAL_BUILD_GFX11
+    dispatchInitiator.gfx11.AMP_SHADER_EN            = 1;
+#endif
     dispatchInitiator.u32All                        |= ComputeDispatchInitiatorDisablePartialPreemptMask;
     pPacket->ordinal5.dispatch_initiator             = dispatchInitiator.u32All;
 
@@ -2200,6 +2410,11 @@ size_t CmdUtil::BuildUntypedSrd(
     const uint32 PacketSize = PM4_PFP_BUILD_UNTYPED_SRD_SIZEDW__CORE;
     auto* const  pPacket = static_cast<PM4_PFP_BUILD_UNTYPED_SRD*>(pBuffer);
 
+#if PAL_BUILD_GFX11
+    static_assert(IT_BUILD_UNTYPED_SRD__GFX101 == IT_BUILD_UNTYPED_SRD__GFX11,
+                  "The BuildUntyped SRD opcodes for Gfx10 and Gfx11 are supposed to be the same by definition.");
+#endif
+
     pPacket->ordinal1.header.u32All =
         (Type3Header(IT_BUILD_UNTYPED_SRD__GFX101, PacketSize, predicate, shaderType)).u32All;
     pPacket->ordinal2.u32All                      = 0;
@@ -2314,6 +2529,29 @@ size_t CmdUtil::BuildNonSampleEventWrite(
 
     size_t totalSize = 0;
 
+#if PAL_BUILD_NAVI3X
+    if (Pal::Device::EngineSupportsGraphics(engineType) &&
+        m_device.Settings().waReplaceEventsWithTsEvents &&
+        ((vgtEvent == CACHE_FLUSH_AND_INV_EVENT) ||
+         (vgtEvent == FLUSH_AND_INV_DB_META)     ||
+         (vgtEvent == DB_CACHE_FLUSH_AND_INV)    ||
+         (vgtEvent == CACHE_FLUSH)))
+    {
+        // There are a few events which flush DB caches which must not be used when this workaround is active.
+        // Instead, we must use an event that does a flush and invalidate with an EOP TS signal. The timestamp
+        // doesn't actually need to be written, it just needs to be a TS event (the DB doesn't know the difference).
+        // We should use a release_mem packet to handle this because event_write doesn't support TS events. Note that:
+        // 1. This is limited to graphics engines because only they can touch the DB caches.
+        // 2. Despite being a heavy hammer, CACHE_FLUSH_AND_INV_TS_EVENT is the smallest impact event that covers
+        //    the necessary DB caches in all cases.
+        ReleaseMemGfx releaseInfo = {};
+        releaseInfo.vgtEvent = CACHE_FLUSH_AND_INV_TS_EVENT;
+        releaseInfo.dataSel  = data_sel__me_release_mem__none;
+
+        totalSize = BuildReleaseMemGfx(releaseInfo, pBuffer);
+    }
+    else
+#endif
     {
         // Don't use PM4_ME_EVENT_WRITE_SIZEDW__CORE here!  The official packet definition contains extra dwords
         // for functionality that is only required for "sample" type events.
@@ -2347,6 +2585,9 @@ size_t CmdUtil::BuildSampleEventWrite(
     VGT_EVENT_TYPE                           vgtEvent,
     ME_EVENT_WRITE_event_index_enum          eventIndex,
     EngineType                               engineType,
+#if PAL_BUILD_GFX11
+    MEC_EVENT_WRITE_samp_plst_cntr_mode_enum counterMode,
+#endif
     gpusize                                  gpuAddr,
     void*                                    pBuffer     // [out] Build the PM4 packet in this buffer.
     ) const
@@ -2366,7 +2607,11 @@ size_t CmdUtil::BuildSampleEventWrite(
     // Make sure the supplied VGT event is legal.
     PAL_ASSERT(vgtEvent < (sizeof(VgtEventIndex) / sizeof(VGT_EVENT_TYPE)));
 
+#if ( PAL_BUILD_GFX11)
+    const bool vsPartialFlushValid = (vgtEvent == VS_PARTIAL_FLUSH) && (m_chipProps.gfxip.supportsSwStrmout != 0);
+#else
     const bool vsPartialFlushValid = false;
+#endif
 
     // Note that ZPASS_DONE is marked as deprecated in gfx9 but still works and is required for at least one workaround.
     PAL_ASSERT((vgtEvent == PIXEL_PIPE_STAT_CONTROL) ||
@@ -2381,7 +2626,13 @@ size_t CmdUtil::BuildSampleEventWrite(
 
     PAL_ASSERT(vgtEvent != 0x9);
 
+#if ( PAL_BUILD_GFX11)
+    const bool vsPartialFlushEventIndexValid =
+        ((VgtEventIndex[vgtEvent] == event_index__me_event_write__cs_vs_ps_partial_flush) &&
+         (m_chipProps.gfxip.supportsSwStrmout != 0));
+#else
     const bool vsPartialFlushEventIndexValid = false;
+#endif
 
     PAL_ASSERT((VgtEventIndex[vgtEvent] == event_index__me_event_write__pixel_pipe_stat_control_or_dump) ||
                (VgtEventIndex[vgtEvent] == event_index__me_event_write__sample_pipelinestat)             ||
@@ -2400,6 +2651,22 @@ size_t CmdUtil::BuildSampleEventWrite(
     // Here's where packet building actually starts.
     uint32 packetSize;
 
+#if PAL_BUILD_GFX11
+    if ((vgtEvent          == PIXEL_PIPE_STAT_DUMP)                                         &&
+        (eventIndex        == event_index__me_event_write__pixel_pipe_stat_control_or_dump) &&
+        m_device.Settings().gfx11EnableZpassPacketOptimization)
+    {
+        packetSize = PM4_ME_EVENT_WRITE_ZPASS_SIZEDW__GFX11;
+
+        PM4_ME_EVENT_WRITE_ZPASS packet = {};
+        packet.ordinal1.header = Type3Header(IT_EVENT_WRITE_ZPASS__GFX11, packetSize);
+        packet.ordinal2.u32All = LowPart(gpuAddr);
+        packet.ordinal3.u32All = HighPart(gpuAddr);
+
+        memcpy(pBuffer, &packet, sizeof(packet));
+    }
+    else
+#endif
     {
         packetSize = PM4_ME_EVENT_WRITE_SIZEDW__CORE;
 
@@ -2408,6 +2675,14 @@ size_t CmdUtil::BuildSampleEventWrite(
         packet.ordinal2.u32All                = 0;
         packet.ordinal2.bitfields.event_type  = vgtEvent;
         packet.ordinal2.bitfields.event_index = eventIndex;
+
+#if PAL_BUILD_GFX11
+        if ((engineType == EngineTypeCompute) && IsGfx11(m_chipProps.gfxLevel) && (vgtEvent == SAMPLE_PIPELINESTAT))
+        {
+            auto*const pPacketMec = reinterpret_cast<PM4_MEC_EVENT_WRITE*>(&packet);
+            pPacketMec->ordinal2.bitfields.gfx11.samp_plst_cntr_mode = counterMode;
+        }
+#endif
 
         packet.ordinal3.u32All = LowPart(gpuAddr);
         packet.ordinal4.u32All = HighPart(gpuAddr);
@@ -3316,6 +3591,17 @@ ReleaseMemCaches CmdUtil::SelectReleaseMemCaches(
     caches.gl1Inv = TestAnyFlagSet(releaseSyncs, SyncGl1Inv);
     caches.glvInv = TestAnyFlagSet(releaseSyncs, SyncGlvInv);
 
+#if PAL_BUILD_GFX11
+    if (IsGfx11(m_chipProps.gfxLevel))
+    {
+        // Gfx11 added release_mem support for the glk, pull them back out of the acquire mask.
+        caches.gfx11GlkInv = TestAnyFlagSet(acquireSyncs, SyncGlkInv);
+        caches.gfx11GlkWb  = TestAnyFlagSet(acquireSyncs, SyncGlkWb);
+
+        acquireSyncs &= ~(SyncGlkInv | SyncGlkWb);
+    }
+#endif
+
     // Pass the extra flags back out to the caller so they know they need to handle them in an acquire_mem.
     *pGlxSync = acquireSyncs;
 
@@ -3335,6 +3621,14 @@ SyncGlxFlags CmdUtil::GetSyncGlxFlagsFromReleaseMemCaches(
     syncGlx |= releaseCaches.glmInv ? SyncGlmInv : SyncGlxNone;
     syncGlx |= releaseCaches.gl1Inv ? SyncGl1Inv : SyncGlxNone;
     syncGlx |= releaseCaches.glvInv ? SyncGlvInv : SyncGlxNone;
+
+#if PAL_BUILD_GFX11
+    if (IsGfx11(m_chipProps.gfxLevel))
+    {
+        syncGlx |= releaseCaches.gfx11GlkInv ? SyncGlkInv : SyncGlxNone;
+        syncGlx |= releaseCaches.gfx11GlkWb  ? SyncGlkWb : SyncGlxNone;
+    }
+#endif
 
     return syncGlx;
 }
@@ -3361,7 +3655,11 @@ size_t CmdUtil::BuildReleaseMemGeneric(
 
     if (IsGfx10Plus(m_chipProps.gfxLevel))
     {
+#if PAL_BUILD_GFX11
+        totalSize = BuildReleaseMemInternalGfx10(info, BOTTOM_OF_PIPE_TS, false, pBuffer);
+#else
         totalSize = BuildReleaseMemInternalGfx10(info, BOTTOM_OF_PIPE_TS, pBuffer);
+#endif
     }
     else
     {
@@ -3382,10 +3680,18 @@ size_t CmdUtil::BuildReleaseMemGfx(
 
     if (IsGfx10Plus(m_chipProps.gfxLevel))
     {
+#if PAL_BUILD_GFX11
+        totalSize = BuildReleaseMemInternalGfx10(info, info.vgtEvent, info.usePws, pBuffer);
+#else
         totalSize = BuildReleaseMemInternalGfx10(info, info.vgtEvent, pBuffer);
+#endif
     }
     else
     {
+#if PAL_BUILD_GFX11
+        // PWS is only supported on gfx11.
+        PAL_ASSERT(info.usePws == false);
+#endif
 
         totalSize = BuildReleaseMemInternalGfx9(info, EngineTypeUniversal, info.vgtEvent, pBuffer);
     }
@@ -3446,6 +3752,11 @@ size_t CmdUtil::BuildReleaseMemInternalGfx9(
     PAL_ASSERT(isEop || (info.dataSel == data_sel__me_release_mem__send_32_bit_low)
                      || (info.dataSel == data_sel__me_release_mem__send_64_bit_data));
 
+#if PAL_BUILD_GFX11
+    // These bits are only supported on gfx11+.
+    PAL_ASSERT((info.cacheSync.gfx11GlkWb == 0) && (info.cacheSync.gfx11GlkInv == 0));
+#endif
+
     // Add a dummy ZPASS_DONE event before EOP timestamp events to avoid a DB hang.
     if (isEop && Pal::Device::EngineSupportsGraphics(engineType) && m_device.Settings().waDummyZpassDoneBeforeTs)
     {
@@ -3455,6 +3766,9 @@ size_t CmdUtil::BuildReleaseMemInternalGfx9(
         const size_t size = BuildSampleEventWrite(ZPASS_DONE__GFX09_10,
                                                   event_index__me_event_write__pixel_pipe_stat_control_or_dump,
                                                   engineType,
+#if PAL_BUILD_GFX11
+                                                  samp_plst_cntr_mode__mec_event_write__legacy_mode__GFX11,
+#endif
                                                   dummyMemory.GpuVirtAddr(),
                                                   pBuffer);
 
@@ -3550,11 +3864,22 @@ size_t CmdUtil::BuildReleaseMemInternalGfx9(
 size_t CmdUtil::BuildReleaseMemInternalGfx10(
     const ReleaseMemCore& info,
     VGT_EVENT_TYPE        vgtEvent,
+#if PAL_BUILD_GFX11
+    bool                  usePws,
+#endif
     void*                 pBuffer
     ) const
 {
     // This function is named "BuildGfx10..." so don't call it on gfx9.
     PAL_ASSERT(IsGfx10Plus(m_chipProps.gfxLevel));
+
+#if PAL_BUILD_NAVI3X
+    if ((vgtEvent == CACHE_FLUSH_TS) && m_device.Settings().waReplaceEventsWithTsEvents)
+    {
+        // If this workaround is enabled we need to upgrade to a flush and invalidate to avoid a hang.
+        vgtEvent = CACHE_FLUSH_AND_INV_TS_EVENT;
+    }
+#endif
 
     const bool isEop = VgtEventHasTs[vgtEvent];
 
@@ -3568,6 +3893,9 @@ size_t CmdUtil::BuildReleaseMemInternalGfx10(
     PAL_ASSERT(isEop || (info.cacheSync.u8All == 0));
 
     // The EOS path also only supports constant timestamps; that's right, it doesn't support "none".
+#if PAL_BUILD_GFX11
+    // Yes, that means you have to provide a valid dstAddr even when using PWS if the event is an EOS event.
+#endif
     PAL_ASSERT(isEop || (info.dataSel == data_sel__me_release_mem__send_32_bit_low)
                      || (info.dataSel == data_sel__me_release_mem__send_64_bit_data));
 
@@ -3602,7 +3930,38 @@ size_t CmdUtil::BuildReleaseMemInternalGfx10(
         packet.ordinal3.bitfields.int_sel = int_sel__me_release_mem__send_data_and_write_confirm;
     }
 
+#if PAL_BUILD_GFX11
+    if (IsGfx11(m_chipProps.gfxLevel))
     {
+        packet.ordinal2.bitfields.gfx11.pws_enable = usePws;
+
+        if (info.cacheSync.u8All != 0)
+        {
+            // Note that glmWb is unimplemented in HW so we don't both setting it. Everything else we want zeroed.
+            //
+            // We always prefer parallel cache ops but must force sequential (L0->L1->L2) mode when we're writing
+            // back one of the non-write-through L0s before an L2 writeback. Any L0 flush/inv ops in our release_mem's
+            // event are already sequential with the CP's GCR request so we only have to worry about K$ writes.
+            Gfx10ReleaseMemGcrCntl cntl = {};
+            cntl.bits.glmInv     = info.cacheSync.glmInv;
+            cntl.bits.glvInv     = info.cacheSync.glvInv;
+            cntl.bits.gl1Inv     = info.cacheSync.gl1Inv;
+            cntl.bits.gl2Inv     = info.cacheSync.gl2Inv;
+            cntl.bits.gl2Wb      = info.cacheSync.gl2Wb;
+            cntl.bits.seq        = info.cacheSync.gl2Wb & info.cacheSync.gfx11GlkWb;
+            cntl.bits.gfx11GlkWb = info.cacheSync.gfx11GlkWb;
+
+            packet.ordinal2.bitfields.gfx11.gcr_cntl = cntl.u32All;
+            packet.ordinal2.bitfields.gfx11.glk_inv  = info.cacheSync.gfx11GlkInv;
+        }
+    }
+    else
+    {
+        // These bits are only supported on gfx11+.
+        PAL_ASSERT((usePws == false) && (info.cacheSync.gfx11GlkWb == 0) && (info.cacheSync.gfx11GlkInv == 0));
+#else
+    {
+#endif
         if (info.cacheSync.u8All != 0)
         {
             // Note that glmWb is unimplemented in HW so we don't both setting it. Everything else we want zeroed.
@@ -3821,6 +4180,269 @@ size_t CmdUtil::BuildSetOneShRegIndex(
     return BuildSetSeqShRegsIndex(regAddr, regAddr, shaderType, index, pBuffer);
 }
 
+#if PAL_BUILD_GFX11
+// =====================================================================================================================
+// Builds a Type 3 header for various packed register pair packets and places it in pPacket's first DWORD + places count
+// of registers in the second. Also updates the packet size passed in. Returns the next unused DWORD in pPacket.
+template <Pm4ShaderType ShaderType>
+uint32* CmdUtil::FillPackedRegPairsHeaderAndCount(
+    uint32  numRegs,
+    bool    isShReg,
+    size_t* pPacketSize,
+    uint32* pPacket
+    ) const
+{
+    // Every 2 registers comprises a pair with:
+    //  - 1 DW containing both offsets
+    //  - 1 DW containing data for offset0
+    //  - 1 DW containing data for offset1
+    const uint32 roundedNumRegs      = Pow2Align(numRegs, 2);
+    const uint32 numPackedPairDwords = ((roundedNumRegs / 2) - 1) * 3;
+    *pPacketSize                     = numPackedPairDwords + PackedRegPairPacketSize;
+    // Currently the fixed length optimization for packed register packets is only supported for SH regs. This and
+    // following checks must be updated when fixed length support is either made generic or expanded.
+    const uint32 maxFixedLengthRange = (m_chipProps.pfpUcodeVersion >= MinExpandedPackedFixLengthPfpVersion)
+                                       ? MaxNumPackedFixLengthRegsExpanded : MaxNumPackedFixLengthRegs;
+    const bool  isFixedLength        = isShReg && (roundedNumRegs >= MinNumPackedFixLengthRegs)
+                                               && (roundedNumRegs <= maxFixedLengthRange);
+
+    const IT_OpCodeType packetOpcode = isFixedLength ? IT_SET_SH_REG_PAIRS_PACKED_N__GFX11 :
+                                       isShReg       ? IT_SET_SH_REG_PAIRS_PACKED__GFX11   :
+                                                       IT_SET_CONTEXT_REG_PAIRS_PACKED__GFX11;
+
+    *pPacket = (Type3Header(packetOpcode,
+                            uint32(*pPacketSize),
+                            true,                 // Required as this is handled entirely in ucode.
+                            ShaderType)).u32All;
+
+    // Packed reg pair packets require the raw count of packed registers be placed in the DWORD following the header.
+    (*++pPacket) = roundedNumRegs;
+
+    return ++pPacket;
+}
+
+// =====================================================================================================================
+// Builds a PM4 packet which sets a sequence of context/SH registers as ([offset1 << 16 | offset0], val0, val1) groups,
+// skipping those not set in the associated mask. *The mask must be nonzero*. It is expected this function is only used
+// when PM4 optimization is enabled. Returns the size of the PM4 command assembled, in DWORDs.
+template <Pm4ShaderType ShaderType, size_t N>
+size_t CmdUtil::BuildSetMaskedPackedRegPairs(
+    const PackedRegisterPair* pRegPairs,
+    uint32                    (&validMask)[N],
+    bool                      isShReg,
+    void*                     pBuffer          // [out] Build the PM4 packet in this buffer.
+    ) const
+{
+    WideBitIter<uint32, N> validIter(validMask);
+    const uint32 numRegs = validIter.Size();
+
+    PAL_ASSERT(numRegs > 0);
+
+    size_t packetSize = 0;
+    if (numRegs >= 2)
+    {
+        uint32* pPacket = static_cast<uint32*>(pBuffer);
+        pPacket = FillPackedRegPairsHeaderAndCount<ShaderType>(numRegs, isShReg, &packetSize, pPacket);
+
+        uint32 i = 0;
+        while (validIter.IsValid())
+        {
+            const uint32 index = validIter.Get();
+
+            const uint32 pairIndex = index / 2;
+            const auto&  regPair   = pRegPairs[pairIndex];
+
+            const uint16 offset = ((index % 2) == 0) ? regPair.offset0 : regPair.offset1;
+            const uint32 value  = ((index % 2) == 0) ? regPair.value0  : regPair.value1;
+
+            PackedRegisterPair* pPacketPair = &reinterpret_cast<PackedRegisterPair*>(pPacket)[i / 2];
+
+            if ((i % 2) == 0)
+            {
+                pPacketPair->offset0 = offset;
+                pPacketPair->value0  = value;
+            }
+            else
+            {
+                pPacketPair->offset1 = offset;
+                pPacketPair->value1  = value;
+            }
+
+            i++;
+            validIter.Next();
+        }
+
+        // We have one extra we have to handle.
+        // We have been advised that if we have an odd number of registers to write, we should reuse the first one
+        // to avoid corrupting random registers.
+        if ((i % 2) != 0)
+        {
+            uint32     index = 0;
+            const bool found = WideBitMaskScanForward(&index, validMask);
+            PAL_ASSERT(found);
+
+            const uint32 pairIndex = index / 2;
+            const auto&  regPair   = pRegPairs[pairIndex];
+
+            const uint16 offset = regPair.offset0;
+            const uint32 value  = regPair.value0;
+
+            PackedRegisterPair* pPacketPair = &reinterpret_cast<PackedRegisterPair*>(pPacket)[i / 2];
+
+            pPacketPair->offset1 = offset;
+            pPacketPair->value1  = value;
+
+            i++;
+        }
+
+        // Ensure the odd case is handled.
+        PAL_ASSERT(i == Pow2Align(numRegs, 2));
+    }
+    else
+    {
+        // We only have a single register to write, use the normal SET_*_REG packet.
+        uint32     index = 0;
+        const bool found = WideBitMaskScanForward(&index, validMask);
+        PAL_ASSERT(found);
+
+        const uint32 pairIndex = index / 2;
+        const auto&  regPair   = pRegPairs[pairIndex];
+
+        const uint16 offset = ((index % 2) == 0) ? regPair.offset0 : regPair.offset1;
+        const uint32 value  = ((index % 2) == 0) ? regPair.value0  : regPair.value1;
+
+        uint32* pPacket = static_cast<uint32*>(pBuffer);
+        packetSize = isShReg ? BuildSetOneShReg(offset + PERSISTENT_SPACE_START, ShaderType, pPacket)
+                             : BuildSetOneContextReg(offset + CONTEXT_SPACE_START, pPacket);
+
+        static_assert(ContextRegSizeDwords == ShRegSizeDwords, "Context and Sh packet sizes do not match!");
+
+        pPacket[ShRegSizeDwords] = value;
+    }
+
+    return packetSize;
+}
+
+template
+size_t CmdUtil::BuildSetMaskedPackedRegPairs<ShaderGraphics, Gfx11NumRegPairSupportedStagesGfx>(
+    const PackedRegisterPair* pRegPairs,
+    uint32                    (&validMask)[Gfx11NumRegPairSupportedStagesGfx],
+    bool                      isShReg,
+    void*                     pBuffer
+    ) const;
+template
+size_t CmdUtil::BuildSetMaskedPackedRegPairs<ShaderCompute, Gfx11NumRegPairSupportedStagesCs>(
+    const PackedRegisterPair* pRegPairs,
+    uint32                    (&validMask)[Gfx11NumRegPairSupportedStagesCs],
+    bool                      isShReg,
+    void*                     pBuffer
+    ) const;
+
+// =====================================================================================================================
+// Builds a PM4 packet which sets a sequence of context/SH registers as ([offset1 << 16 | offset0], val0, val1) groups.
+// Note, if given an odd number of 'numRegs', the function will modify pRegPairs to place pRegPairs[0].offset1/val1
+// into the last regpair's offset1/val1.
+// Returns the size of the PM4 command assembled, in DWORDs.
+template <Pm4ShaderType ShaderType>
+size_t CmdUtil::BuildSetPackedRegPairs(
+    PackedRegisterPair* pRegPairs,
+    uint32              numRegs,
+    bool                isShReg,
+    void*               pBuffer    // [out] Build the PM4 packet in this buffer.
+    ) const
+{
+    PAL_ASSERT(numRegs > 0);
+
+    size_t packetSize = 0;
+
+    if (numRegs >= 2)
+    {
+        uint32* pPacket = static_cast<uint32*>(pBuffer);
+        pPacket = FillPackedRegPairsHeaderAndCount<ShaderType>(numRegs, isShReg, &packetSize, pPacket);
+
+        if ((numRegs % 2) != 0)
+        {
+            // We have one extra we have to handle.
+            // We have been advised that if we have an odd number of registers to write, we should reuse the first one
+            // to avoid corrupting random registers.
+            pRegPairs[numRegs / 2].offset1 = pRegPairs[0].offset0;
+            pRegPairs[numRegs / 2].value1  = pRegPairs[0].value0;
+        }
+
+        memcpy(pPacket, pRegPairs, (packetSize - 1) * sizeof(uint32));
+    }
+    else
+    {
+        // We only have a single register to write, use the normal SET_*_REG packet.
+        const uint32 offset = pRegPairs[0].offset0;
+        const uint32 value  = pRegPairs[0].value0;
+
+        uint32* pPacket = static_cast<uint32*>(pBuffer);
+        packetSize = isShReg ? BuildSetOneShReg(offset + PERSISTENT_SPACE_START, ShaderType, pPacket)
+                             : BuildSetOneContextReg(offset + CONTEXT_SPACE_START, pPacket);
+
+        static_assert(ContextRegSizeDwords == ShRegSizeDwords, "Context and Sh packet sizes do not match!");
+
+        pPacket[ShRegSizeDwords] = value;
+    }
+
+    return packetSize;
+}
+
+template
+size_t CmdUtil::BuildSetPackedRegPairs<ShaderGraphics>(
+    PackedRegisterPair* pRegPairs,
+    uint32              numRegs,
+    bool                isShReg,
+    void*               pBuffer
+    ) const;
+template
+size_t CmdUtil::BuildSetPackedRegPairs<ShaderCompute>(
+    PackedRegisterPair* pRegPairs,
+    uint32              numRegs,
+    bool                isShReg,
+    void*               pBuffer
+    ) const;
+
+//=====================================================================================================================
+// Builds a PM4 packet which sets a sequence of SH reg using the optimized pairs packed packet.
+// Returns the size of the PM4 command assembled, in DWORDs.
+template <Pm4ShaderType ShaderType>
+size_t CmdUtil::BuildSetShRegPairsPacked(
+    PackedRegisterPair* pRegPairs,
+    uint32              numRegs,
+    void*               pBuffer
+    ) const
+{
+    return BuildSetPackedRegPairs<ShaderType>(pRegPairs, numRegs, true, pBuffer);
+}
+
+template
+size_t CmdUtil::BuildSetShRegPairsPacked<ShaderGraphics>(
+    PackedRegisterPair* pRegPairs,
+    uint32              numRegs,
+    void* pBuffer
+    ) const;
+template
+size_t CmdUtil::BuildSetShRegPairsPacked<ShaderCompute>(
+    PackedRegisterPair* pRegPairs,
+    uint32              numRegs,
+    void* pBuffer
+    ) const;
+
+// =====================================================================================================================
+// Builds a PM4 packet which sets a sequence of context regs using the optimized SET_CONTEXT_REG_PAIRS_PACKED packet.
+// Returns the size of the PM4 command assembled, in DWORDs.
+size_t CmdUtil::BuildSetContextRegPairsPacked(
+    PackedRegisterPair* pRegPairs,
+    uint32              numRegs,
+    void*               pBuffer
+    ) const
+{
+    return BuildSetPackedRegPairs<ShaderGraphics>(pRegPairs, numRegs, false, pBuffer);
+}
+#endif
+
 // =====================================================================================================================
 // Builds a PM4 packet which sets a sequence of Graphics SH registers starting with startRegAddr and ending with
 // endRegAddr (inclusive). Returns the size of the PM4 command assembled, in DWORDs.
@@ -4015,6 +4637,11 @@ size_t CmdUtil::BuildStrmoutBufferUpdate(
                             // will be written-to.
     gpusize srcGpuVirtAddr, // When sourceSelect = READ_SRC_ADDRESS, this is the GPU virtual address where the buffer
                             // filled size will be read from.
+#if PAL_BUILD_GFX11
+    gpusize controlBufAddr, // On ASICs with software streamout, this is the GPU virtual address of the streamout
+                            // control buffer which contains the offsets and buffer-filled-sizes for the different
+                            // buffers.
+#endif
     void*   pBuffer)        // [out] Build the PM4 packet in this buffer.
 {
     static_assert(PM4_PFP_STRMOUT_BUFFER_UPDATE_SIZEDW__CORE == PM4_ME_STRMOUT_BUFFER_UPDATE_SIZEDW__CORE,
@@ -4057,6 +4684,50 @@ size_t CmdUtil::BuildStrmoutBufferUpdate(
 
     constexpr PFP_STRMOUT_BUFFER_UPDATE_data_type_enum DataType = data_type__pfp_strmout_buffer_update__bytes;
 
+#if PAL_BUILD_GFX11
+    // We can make the assumption that if the streamout control buffer address is non-zero that we need to utilize
+    // the newer version of the packet that requires the control buffer address.
+    if (controlBufAddr != 0)
+    {
+        pPacket->ordinal5.u32All             = LowPart(controlBufAddr);
+#if PAL_BUILD_GFX11
+        PAL_ASSERT(pPacket->ordinal5.bitfields.gfx11.reserved1 == 0);
+#endif
+        pPacket->ordinal6.control_address_hi = HighPart(controlBufAddr);
+
+        switch (sourceSelect)
+        {
+        case source_select__pfp_strmout_buffer_update__use_buffer_offset:
+            pPacket->ordinal3.offset = explicitOffset;
+            break;
+        case source_select__pfp_strmout_buffer_update__read_strmout_buffer_filled_size:
+            // No additional members need to be set for this operation.
+            break;
+        case source_select__pfp_strmout_buffer_update__from_src_address:
+            pPacket->ordinal3.u32All               = LowPart(srcGpuVirtAddr);
+#if PAL_BUILD_GFX11
+            PAL_ASSERT(pPacket->ordinal3.bitfieldsB.gfx11.reserved2 == 0);
+#endif
+            pPacket->ordinal4.src_address_hi       = HighPart(srcGpuVirtAddr);
+            pPacket->ordinal2.bitfields.data_type  = DataType;
+            break;
+        case source_select__pfp_strmout_buffer_update__none__GFX09_10:
+            pPacket->ordinal2.bitfields.update_memory =
+                update_memory__pfp_strmout_buffer_update__update_memory_at_dst_address;
+            pPacket->ordinal3.u32All                  = LowPart(dstGpuVirtAddr);
+#if PAL_BUILD_GFX11
+            PAL_ASSERT(pPacket->ordinal3.bitfieldsC.gfx11.reserved3 == 0);
+#endif
+            pPacket->ordinal4.dst_address_hi          = HighPart(dstGpuVirtAddr);
+            pPacket->ordinal2.bitfields.data_type     = DataType;
+            break;
+        default:
+            PAL_ASSERT_ALWAYS();
+            break;
+        }
+    }
+    else
+#endif
     {
         switch (sourceSelect)
         {
@@ -4195,6 +4866,74 @@ size_t CmdUtil::BuildWaitOnDeCounterDiff(
 
     return PacketSize;
 }
+
+#if PAL_BUILD_GFX11
+// =====================================================================================================================
+// Builds a set of PM4 commands that writes a PWS-enabled EOP event then waits for the event to complete.
+// Requested cache operations trigger after the release but before the wait clears. The actual wait point may be more
+// strict (e.g., ME wait instead of pre_color wait) if PAL needs to adjust things to make the cache operations work.
+// An ME wait and EOP release would emulate a non-PWS wait for idle.
+//
+// Returns the size of the PM4 command built, in DWORDs. Only supported on gfx11+.
+size_t CmdUtil::BuildWaitEopPws(
+    HwPipePoint  waitPoint,
+    SyncGlxFlags glxSync,
+    SyncRbFlags  rbSync,
+    void*        pBuffer
+    ) const
+{
+    ReleaseMemGfx releaseInfo = {};
+    releaseInfo.vgtEvent  = SelectEopEvent(rbSync);
+    releaseInfo.cacheSync = SelectReleaseMemCaches(&glxSync);
+    releaseInfo.dataSel   = data_sel__me_release_mem__none;
+    releaseInfo.usePws    = true;
+
+    size_t totalSize = BuildReleaseMemGfx(releaseInfo, pBuffer);
+
+    // This will set syncCount = 0 to wait for the most recent PWS release_mem (the one we just wrote).
+    AcquireMemGfxPws acquireInfo = {};
+
+    // Practically speaking, SelectReleaseMemCaches should consume all of our cache flags on gfx11. If the caller
+    // asked for an I$ invalidate then it will get passed to the acquire_mem here but that sync should be rare.
+    acquireInfo.cacheSync  = glxSync;
+    acquireInfo.counterSel = pws_counter_sel__me_acquire_mem__ts_select__HASPWS;
+
+    switch (waitPoint)
+    {
+    case HwPipeTop:
+        acquireInfo.stageSel = pws_stage_sel__me_acquire_mem__cp_pfp__HASPWS;
+        break;
+    case HwPipePostPrefetch:
+    case HwPipePostCs:
+    case HwPipePostBlt:
+        // HwPipePostPrefetch, HwPipePreCs, HwPipePreBlt, even though implies more specific destination states, share
+        // the same wait stage enum. HwPipePostCs has to go here too because there is no place to wait after compute
+        // shaders, we have to upgrade it to a CP wait. HwPipePostBlt needs to wait after draws and dispatches, the
+        // most conservative of those are dispatches so it goes here with HwPipePostCs.
+        acquireInfo.stageSel = pws_stage_sel__me_acquire_mem__cp_me__HASPWS;
+        break;
+    case HwPipePreRasterization:
+        acquireInfo.stageSel = pws_stage_sel__me_acquire_mem__pre_depth__HASPWS;
+        break;
+    case HwPipePostPs:
+    case HwPipePreColorTarget:
+    case HwPipeBottom:
+        // HwPipePostPs and HwPipePreColorTarget are essentially the same pipe point with only a minor semantic
+        // difference. They both map to pre_color. The last wait stage we can get is pre_color so that's also the best
+        // choice for bottom of pipe waits.
+        acquireInfo.stageSel = pws_stage_sel__me_acquire_mem__pre_color__HASPWS;
+        break;
+    default:
+        // What is this?
+        PAL_ASSERT_ALWAYS();
+        break;
+    }
+
+    totalSize += BuildAcquireMemGfxPws(acquireInfo, VoidPtrInc(pBuffer, totalSize * sizeof(uint32)));
+
+    return totalSize;
+}
+#endif
 
 // =====================================================================================================================
 // Builds a WAIT_REG_MEM PM4 packet. Returns the size of the PM4 command assembled, in DWORDs.

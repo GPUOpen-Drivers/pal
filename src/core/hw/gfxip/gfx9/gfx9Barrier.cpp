@@ -764,6 +764,19 @@ void Device::IssueSyncs(
         syncReqs.waitOnEopTs = 1;
     }
 
+#if PAL_BUILD_GFX11
+    // CmdBarrier as a whole assumes that cache operations are either synchronous with the CP or fully asynchronous.
+    // If PWS is enabled, the HW can actually wait further down the pipeline (e.g., before rasterization) which creates
+    // a race condition between this IssueSyncs call and other IssueSyncs calls before or after this one. For example,
+    // we could flush and invalidate the CB caches using a PWS wait at pre_depth, that would be an awesome optimization
+    // but it would race against the GL2 invalidate in the FlushAndInvL2IfNeeded helper function. For now we avoid
+    // the race conditions by conservatively forcing our wait point up to the ME in every IssueSyncs call.
+    if ((waitPoint != HwPipeTop) && (waitPoint != HwPipeBottom))
+    {
+        waitPoint = HwPipePostPrefetch;
+    }
+#endif
+
     if (syncReqs.waitOnEopTs)
     {
         // Issue a pipelined event that will write a timestamp value to GPU memory when finished. Then, stall the CP ME

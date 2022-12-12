@@ -276,6 +276,12 @@ typedef enum _AddrSwizzleMode
     ADDR_SW_VAR_Z_X         = ADDR_SW_MISCDEF28,
     ADDR_SW_VAR_R_X         = ADDR_SW_MISCDEF31,
 
+#if ADDR_GFX11_BUILD
+    ADDR_SW_256KB_Z_X       = ADDR_SW_MISCDEF28,
+    ADDR_SW_256KB_S_X       = ADDR_SW_MISCDEF29,
+    ADDR_SW_256KB_D_X       = ADDR_SW_MISCDEF30,
+    ADDR_SW_256KB_R_X       = ADDR_SW_MISCDEF31,
+#endif
 } AddrSwizzleMode;
 
 /**

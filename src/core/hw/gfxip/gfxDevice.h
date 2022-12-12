@@ -200,6 +200,119 @@ struct RegisterValuePair
     uint32 value;  // Register data to write
 };
 
+#if PAL_BUILD_GFX11
+// =====================================================================================================================
+// Defines two registers and their associated offsets and values.
+struct PackedRegisterPair
+{
+    struct
+    {
+        uint32 offset0 : 16; // Offset to the register. Relative to the base address of the register type.
+        uint32 offset1 : 16; // Offset to the register. Relative to the base address of the register type.
+    };
+
+    uint32 value0; // Register data to write for offset0.
+    uint32 value1; // Register data to write for offset1.
+};
+
+// =====================================================================================================================
+// Sets an offset and value in a packed register pair.
+template <uint32 RegSpace>
+static void SetOneRegValPairPacked(
+    PackedRegisterPair* pRegPairs,
+    uint32*             pIndex,
+    uint16              regAddr,
+    uint32              value)
+{
+    const uint32        regPairIndex = (*pIndex) / 2;
+    PackedRegisterPair* pRegPair     = &pRegPairs[regPairIndex];
+
+    if (((*pIndex) % 2) == 0)
+    {
+        pRegPair->offset0 = regAddr - RegSpace;
+        pRegPair->value0  = value;
+    }
+    else
+    {
+        pRegPair->offset1 = regAddr - RegSpace;
+        pRegPair->value1  = value;
+    }
+
+    *pIndex = *pIndex + 1;
+}
+
+// =====================================================================================================================
+// Sets offsets and values for a sequence of consecutive registers in packed register pairs.
+template <uint32 RegSpace>
+static void SetSeqRegValPairPacked(
+    PackedRegisterPair* pRegPairs,
+    uint32*             pIndex,
+    uint16              startAddr,
+    uint16              endAddr,
+    const void*         pValues)
+{
+    const uint32* pUints = reinterpret_cast<const uint32*>(pValues);
+
+    for (uint32 i = 0; i < endAddr - startAddr + 1; i++)
+    {
+        SetOneRegValPairPacked<RegSpace>(pRegPairs, pIndex, i + startAddr, pUints[i]);
+    }
+}
+
+// Defines an invalid index for entries into a packed register pair lookup.
+constexpr uint32 InvalidRegPairLookupIndex = 0xFF;
+
+// =====================================================================================================================
+// Sets the offset and value of a user-data entry in a packed register pair and updates the associated lookup table.
+template <uint32 RegSpace>
+static void SetOnePackedRegPairLookup(
+    const uint32        regAddr,
+    const uint16        baseRegAddr,
+    const uint32        value,
+    PackedRegisterPair* pRegPairs,
+    uint8*              pRegLookup,
+    uint32*             pNumRegs)
+{
+    uint32       regIndex     = *pNumRegs;             // Index into the regpair array
+    const uint16 lookupIndex  = regAddr - baseRegAddr; // Index into the the reg lookup
+
+    if (pRegLookup[lookupIndex] == InvalidRegPairLookupIndex)
+    {
+        // If register has not yet been written into the regpair array (pRegPairs) place its index into the lookup
+        pRegLookup[lookupIndex] = regIndex;
+        (*pNumRegs)++;
+    }
+    else
+    {
+        // Else the register's index is already tracked by the lookup
+        regIndex = pRegLookup[lookupIndex];
+    }
+
+    SetOneRegValPairPacked<RegSpace>(pRegPairs, &regIndex, regAddr, value);
+}
+
+// =====================================================================================================================
+// Sets offsets and values for a sequence of consecutive registers in packed register pairs and updates the associated
+// lookup table.
+template <uint32 RegSpace>
+static void SetSeqPackedRegPairLookup(
+    const uint32        startAddr,
+    const uint32        endAddr,
+    const uint16        baseRegAddr,
+    const void*         pValues,
+    PackedRegisterPair* pRegPairs,
+    uint8*              pRegLookup,
+    uint32*             pNumRegs)
+{
+    const uint32* pUints = reinterpret_cast<const uint32*>(pValues);
+
+    for (uint32 i = 0; i < endAddr - startAddr + 1; i++)
+    {
+        SetOnePackedRegPairLookup<RegSpace>(i + startAddr, baseRegAddr, pUints[i], pRegPairs, pRegLookup, pNumRegs);
+    }
+}
+#endif
+
 enum LateAllocVsMode : uint32
 {
     LateAllocVsDisable = 0x00000000,

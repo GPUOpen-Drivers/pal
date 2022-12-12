@@ -129,6 +129,11 @@ public:
         CmdStream* pCmdStream,
         uint32*    pCmdSpace) const;
 
+#if PAL_BUILD_GFX11
+    void AccumulateShRegs(PackedRegisterPair* pRegPairs, uint32* pNumRegs) const;
+    void AccumulateContextRegs(PackedRegisterPair* pRegPairs, uint32* pNumRegs) const;
+#endif
+
     bool UsesHwStreamout() const { return (m_regs.context.vgtStrmoutConfig.u32All != 0);  }
     regVGT_STRMOUT_VTX_STRIDE_0 VgtStrmoutVtxStride(uint32 idx) const
         { return m_regs.context.vgtStrmoutVtxStride[idx]; }
@@ -161,6 +166,9 @@ public:
 private:
     uint32* WriteShCommandsSetPathVs(CmdStream* pCmdStream, uint32* pCmdSpace) const;
     uint32* WriteShCommandsSetPathPs(CmdStream* pCmdStream, uint32* pCmdSpace) const;
+#if PAL_BUILD_GFX11
+    void AccumulateShRegsPs(PackedRegisterPair* pRegPairs, uint32* pNumRegs) const;
+#endif
 
     const Device&  m_device;
 

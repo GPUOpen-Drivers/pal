@@ -93,6 +93,13 @@ static uint32 VgtShaderStagesEn(
         vgtShaderStagesEn.gfx10Plus.PRIMGEN_PASSTHRU_EN = vgtShaderStagesEnMetadata.flags.primgenPassthruEn;
     }
 
+#if  PAL_BUILD_GFX11
+    if (IsGfx104Plus(gfxLevel))
+    {
+        vgtShaderStagesEn.gfx104Plus.PRIMGEN_PASSTHRU_NO_MSG = vgtShaderStagesEnMetadata.flags.primgenPassthruNoMsg;
+    }
+#endif
+
     return vgtShaderStagesEn.u32All;
 }
 
@@ -620,6 +627,13 @@ static uint32 SpiShaderPgmRsrc3Gs(
 
     spiShaderPgmRsrc3Gs.bits.CU_EN = device.GetCuEnableMask(gsCuDisableMask, settings.gsCuEnLimitMask);
 
+#if PAL_BUILD_GFX11
+    if (settings.waForceLockThresholdZero)
+    {
+        spiShaderPgmRsrc3Gs.bits.LOCK_LOW_THRESHOLD = 0;
+    }
+#endif
+
     return spiShaderPgmRsrc3Gs.u32All;
 }
 
@@ -676,7 +690,30 @@ static uint32 SpiShaderPgmRsrc4Gs(
         {
             spiShaderPgmRsrc4Gs.gfx10.CU_EN = device.GetCuEnableMaskHi(GsCuDisableMaskHi, settings.gsCuEnLimitMask);
         }
+#if PAL_BUILD_GFX11
+        else
+        {
+            spiShaderPgmRsrc4Gs.gfx11.CU_EN           = 0;
+            spiShaderPgmRsrc4Gs.gfx11.PH_THROTTLE_EN  =
+                Util::TestAnyFlagSet(settings.rsrc4GsThrottleEn, Rsrc4GsThrottlePhEn);
+            spiShaderPgmRsrc4Gs.gfx11.SPI_THROTTLE_EN =
+                Util::TestAnyFlagSet(settings.rsrc4GsThrottleEn, Rsrc4GsThrottleSpiEn);
+
+            // PWS+ only support pre-shader waits if the IMAGE_OP bit is set. Theoretically we only set it for
+            // shaders that do an image operation. However that would mean that our use of the pre-shader PWS+ wait
+            // is dependent on us only waiting on image resources, which we don't know in our interface. For now
+            // always set the IMAGE_OP bit for corresponding shaders, making the pre-shader waits global.
+            spiShaderPgmRsrc4Gs.gfx11.IMAGE_OP = 1;
+        }
+#endif
     }
+
+#if  PAL_BUILD_GFX11
+    if (IsGfx104Plus(gfxLevel))
+    {
+        spiShaderPgmRsrc4Gs.gfx104Plus.INST_PREF_SIZE = device.GetShaderPrefetchSize(codeLength);
+    }
+#endif
 
     return spiShaderPgmRsrc4Gs.u32All;
 }
@@ -697,6 +734,38 @@ static uint32 SpiShaderPgmChksumGs(
 
     return spiShaderPgmChksumGs.u32All;
 }
+
+#if PAL_BUILD_GFX11
+// =====================================================================================================================
+static uint32 SpiShaderGsMeshletDim(
+    const Util::PalAbi::CodeObjectMetadata& metadata)
+{
+    const Util::PalAbi::SpiShaderGsMeshletDimMetadata& spiShaderGsMeshletDimMetadata =
+        metadata.pipeline.graphicsRegister.spiShaderGsMeshletDim;
+
+    SPI_SHADER_GS_MESHLET_DIM spiShaderGsMeshletDim = {};
+    spiShaderGsMeshletDim.bits.MESHLET_NUM_THREAD_X     = spiShaderGsMeshletDimMetadata.numThreadX;
+    spiShaderGsMeshletDim.bits.MESHLET_NUM_THREAD_Y     = spiShaderGsMeshletDimMetadata.numThreadY;
+    spiShaderGsMeshletDim.bits.MESHLET_NUM_THREAD_Z     = spiShaderGsMeshletDimMetadata.numThreadZ;
+    spiShaderGsMeshletDim.bits.MESHLET_THREADGROUP_SIZE = spiShaderGsMeshletDimMetadata.threadgroupSize;
+
+    return spiShaderGsMeshletDim.u32All;
+}
+
+// =====================================================================================================================
+static uint32 SpiShaderGsMeshletExpAlloc(
+    const Util::PalAbi::CodeObjectMetadata& metadata)
+{
+    const Util::PalAbi::SpiShaderGsMeshletExpAllocMetadata& spiShaderGsMeshletExpAllocMetadata =
+        metadata.pipeline.graphicsRegister.spiShaderGsMeshletExpAlloc;
+
+    SPI_SHADER_GS_MESHLET_EXP_ALLOC spiShaderGsMeshletExpAlloc = {};
+    spiShaderGsMeshletExpAlloc.bits.MAX_EXP_VERTS = spiShaderGsMeshletExpAllocMetadata.maxExpVerts;
+    spiShaderGsMeshletExpAlloc.bits.MAX_EXP_PRIMS = spiShaderGsMeshletExpAllocMetadata.maxExpPrims;
+
+    return spiShaderGsMeshletExpAlloc.u32All;
+}
+#endif
 
 // =====================================================================================================================
 static uint32 VgtGsInstanceCnt(
@@ -989,6 +1058,13 @@ static uint32 SpiShaderPgmRsrc3Hs(
     // always use the ones PAL prefers.
     spiShaderPgmRsrc3Hs.bits.CU_EN = device.GetCuEnableMask(0, UINT_MAX);
 
+#if PAL_BUILD_GFX11
+    if (device.Settings().waForceLockThresholdZero)
+    {
+        spiShaderPgmRsrc3Hs.bits.LOCK_LOW_THRESHOLD = 0;
+    }
+#endif
+
     return spiShaderPgmRsrc3Hs.u32All;
 }
 
@@ -1005,6 +1081,23 @@ static uint32 SpiShaderPgmRsrc4Hs(
     {
         spiShaderPgmRsrc4Hs.gfx10Plus.CU_EN = device.GetCuEnableMaskHi(0, UINT_MAX);
 
+#if  PAL_BUILD_GFX11
+        if (IsGfx104Plus(gfxLevel))
+        {
+            spiShaderPgmRsrc4Hs.gfx104Plus.INST_PREF_SIZE = device.GetShaderPrefetchSize(codeLength);
+        }
+#endif
+
+#if PAL_BUILD_GFX11
+        // PWS+ only support pre-shader waits if the IMAGE_OP bit is set. Theoretically we only set it for shaders that
+        // do an image operation. However that would mean that our use of the pre-shader PWS+ wait is dependent on us
+        // only waiting on image resources, which we don't know in our interface. For now always set the IMAGE_OP bit
+        // for corresponding shaders, making the pre-shader waits global.
+        if (IsGfx11(gfxLevel))
+        {
+            spiShaderPgmRsrc4Hs.gfx11.IMAGE_OP = 1;
+        }
+#endif
     }
 
     return spiShaderPgmRsrc4Hs.u32All;
@@ -1097,7 +1190,12 @@ static uint32 SpiShaderPgmRsrc2Ps(
     spiShaderPgmRsrc2Ps.bits.TRAP_PRESENT     = hwPs.flags.trapPresent;
     spiShaderPgmRsrc2Ps.bits.WAVE_CNT_EN      = metadata.pipeline.graphicsRegister.flags.psWaveCntEn;
 
+#if PAL_BUILD_GFX11
+    const uint32 psExtraLdsDwGranularityShift = IsGfx11(gfxLevel) ? Gfx11PsExtraLdsDwGranularityShift :
+                                                                    Gfx9PsExtraLdsDwGranularityShift;
+#else
     const uint32 psExtraLdsDwGranularityShift = Gfx9PsExtraLdsDwGranularityShift;
+#endif
 
     spiShaderPgmRsrc2Ps.bits.EXTRA_LDS_SIZE   =
         (metadata.pipeline.graphicsRegister.psExtraLdsSize / sizeof(uint32)) >> psExtraLdsDwGranularityShift;
@@ -1148,6 +1246,23 @@ static uint32 SpiShaderPgmRsrc3Ps(
 
     spiShaderPgmRsrc3Ps.bits.CU_EN = device.GetCuEnableMask(0, settings.psCuEnLimitMask);
 
+#if  PAL_BUILD_GFX11
+    if (IsGfx104Plus(gfxLevel))
+    {
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 744)
+        if (createInfo.ldsPsGroupSizeOverride != LdsPsGroupSizeOverride::Default)
+        {
+            spiShaderPgmRsrc3Ps.gfx104Plus.LDS_GROUP_SIZE =
+                (static_cast<uint32>(createInfo.ldsPsGroupSizeOverride) - 1U);
+        }
+        else
+#endif
+        {
+            spiShaderPgmRsrc3Ps.gfx104Plus.LDS_GROUP_SIZE = static_cast<uint32>(settings.ldsPsGroupSize);
+        }
+    }
+#endif
+
     return spiShaderPgmRsrc3Ps.u32All;
 }
 
@@ -1167,6 +1282,23 @@ static uint32 SpiShaderPgmRsrc4Ps(
     {
         spiShaderPgmRsrc4Ps.bits.CU_EN = device.GetCuEnableMaskHi(0, settings.psCuEnLimitMask);
 
+#if  PAL_BUILD_GFX11
+        if (IsGfx104Plus(gfxLevel))
+        {
+            spiShaderPgmRsrc4Ps.gfx104Plus.INST_PREF_SIZE = device.GetShaderPrefetchSize(codeLength);
+        }
+#endif
+
+#if PAL_BUILD_GFX11
+        // PWS+ only support pre-shader waits if the IMAGE_OP bit is set. Theoretically we only set it for shaders
+        // that do an image operation. However that would mean that our use of the pre-shader PWS+ wait is dependent
+        // on us only waiting on image resources, which we don't know in our interface. For now always set the
+        // IMAGE_OP bit for corresponding shaders, making the pre-shader waits global.
+        if (IsGfx11(gfxLevel))
+        {
+            spiShaderPgmRsrc4Ps.gfx11.IMAGE_OP = 1;
+        }
+#endif
     }
 
     return spiShaderPgmRsrc4Ps.u32All;
@@ -1391,6 +1523,12 @@ static void SpiPsInputCntl(
             pSpiPsInputCntl->gfx103PlusExclusive.ROTATE_PC_PTR = spiPsInputCntl.flags.rotatePcPtr;
         }
 
+#if PAL_BUILD_GFX11
+        if (IsGfx11(gfxLevel))
+        {
+            pSpiPsInputCntl->gfx11.PRIM_ATTR = spiPsInputCntl.flags.primAttr;
+        }
+#endif
     }
 }
 
@@ -1450,6 +1588,17 @@ static uint32 DbShaderControl(
         dbShaderControl.gfx10Plus.PRE_SHADER_DEPTH_COVERAGE_ENABLE =
             dbShaderControlMetadata.flags.preShaderDepthCoverageEnable;
     }
+
+#if PAL_BUILD_GFX11
+    if (IsGfx11(gfxLevel) && metadata.pipeline.graphicsRegister.dbShaderControl.flags.primitiveOrderedPixelShader)
+    {
+        // From the reg-spec:
+        //    This must be enabled and OVERRIDE_INTRINSIC_RATE set to 0 (1xaa) in POPS mode
+        //    with super-sampling disabled
+        dbShaderControl.gfx11.OVERRIDE_INTRINSIC_RATE_ENABLE = 1;
+        dbShaderControl.gfx11.OVERRIDE_INTRINSIC_RATE = 0;
+    }
+#endif
 
     return dbShaderControl.u32All;
 }
@@ -1579,6 +1728,13 @@ static uint32 PaClVsOutCntl(
         paClVsOutCntl.gfx103Plus.BYPASS_VTX_RATE_COMBINER  = paClVsOutCntlMetadata.flags.bypassVtxRateCombiner;
         paClVsOutCntl.gfx103Plus.BYPASS_PRIM_RATE_COMBINER = paClVsOutCntlMetadata.flags.bypassPrimRateCombiner;
     }
+
+#if PAL_BUILD_GFX11
+    if (IsGfx11(gfxLevel))
+    {
+        paClVsOutCntl.gfx11.USE_VTX_FSR_SELECT = paClVsOutCntlMetadata.flags.useVtxFsrSelect;
+    }
+#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 733
     if (createInfo.rsState.flags.cullDistMaskValid != 0)

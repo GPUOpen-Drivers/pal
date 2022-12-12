@@ -571,6 +571,9 @@ void LogContext::Struct(
     KeyAndStruct("flags", value.flags);
     KeyAndValue("maxFunctionCallDepth", value.maxFunctionCallDepth);
     KeyAndValue("disablePartialDispatchPreemption", value.disablePartialDispatchPreemption);
+#if PAL_BUILD_GFX11
+    KeyAndEnum("interleaveSize", value.interleaveSize);
+#endif
     KeyAndStruct("threadsPerGroup", value.threadsPerGroup);
     EndMap();
 }
@@ -1814,6 +1817,10 @@ void LogContext::Struct(
         KeyAndEnum("depthRange", value.viewportInfo.depthRange);
     }
     EndMap();
+
+#if PAL_BUILD_GFX11
+    KeyAndEnum("taskInterleaveSize", value.taskInterleaveSize);
+#endif
 
     EndMap();
 }

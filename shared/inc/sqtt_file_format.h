@@ -206,6 +206,9 @@ typedef enum SqttGfxIpLevel
     SQTT_GFXIP_LEVEL_GFXIP_9    = 0x5,
     SQTT_GFXIP_LEVEL_GFXIP_10_1 = 0x7,
     SQTT_GFXIP_LEVEL_GFXIP_10_3 = 0x9,
+#if PAL_BUILD_GFX11
+    SQTT_GFXIP_LEVEL_GFXIP_11_0 = 0xC,
+#endif
 } SqttGfxIpLevel;
 
 /** An enumeration of memory types.
@@ -395,7 +398,11 @@ typedef enum SqttVersion
     SQTT_VERSION_RESERVED_0x8 = 0x8,                        /*!< Reserved. */
     SQTT_VERSION_RESERVED_0x9 = 0x9,                        /*!< Reserved. */
     SQTT_VERSION_RESERVED_0xA = 0xA,                        /*!< Reserved. */
+#if PAL_BUILD_GFX11
+    SQTT_VERSION_3_2          = 0xB,                        /*!< TT 3.2 */
+#else
     SQTT_VERSION_RESERVED_0xB = 0xB,                        /*!< Reserved. */
+#endif
 } SqttVersion;
 
 /** A structure encapsulating the description of the data contained in the matching SQTT_FILE_CHUNK_SQTT_DATA chunk.
@@ -677,6 +684,9 @@ typedef enum SpmGpuBlock
     SPM_GPU_BLOCK_GEDIST  = 0x2E,
     SPM_GPU_BLOCK_GESE    = 0x2F,
     SPM_GPU_BLOCK_DFMALL  = 0x30,
+#if PAL_BUILD_GFX11
+    SPM_GPU_BLOCK_SQWGP   = 0x31,
+#endif
     SPM_GPU_BLOCK_COUNT
 } SpmGpuBlock;
 

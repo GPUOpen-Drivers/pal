@@ -160,6 +160,9 @@ enum class RpmComputePipeline : uint32
     Gfx10PrtPlusResolveResidencyMapEncode           = 128,
     Gfx10PrtPlusResolveSamplingStatusMap            = 129,
     Gfx10VrsHtile                                   = 130,
+#if PAL_BUILD_NAVI31
+    Gfx11GenerateCmdDispatchTaskMesh                = 133,
+#endif
     Count
 };
 

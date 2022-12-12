@@ -90,6 +90,9 @@ enum class GpuBlock : uint32
     GeDist  = 0x2E,
     GeSe    = 0x2F,
     DfMall  = 0x30, // The DF subblocks have unique instances and event IDs but they all share the DF's perf counters.
+#if PAL_BUILD_GFX11
+    SqWgp   = 0x31, // SQ counters that can be sampled at WGP granularity.
+#endif
     Count
 };
 
@@ -160,6 +163,18 @@ union PerfExperimentDeviceFeatureFlags
 /// Specifies properties for a perf counter being added to a perf experiment.  Input structure to
 /// IPerfExperiment::AddCounter().
 ///
+#if PAL_BUILD_GFX11
+/// A note for GpuBlock::SqWgp
+/// Client of palPerfExperiment may configure counters of GpuBlock::SqWgp based on a per-wgp granularity
+/// only if the following are disabled: GFXOFF, virtualization/SRIOV, VDDGFX (power down features), clock gating (CGCG)
+/// and power gating. PAL expose this feature to clients.
+/// If any of the conditions above cannot be met, it's the client's job to set all WGPs in the same SE to the same
+/// perf counter programming. In this case, GpuBlock::SqWgp's perf counter works on a per-SE granularity.
+/// Strictly speaking, it's not true that the counters work on a per-SE granularity when those power features
+/// are enabled. It's all still per-WGP in HW, we just can't support different counter configs within the same SE.
+/// The counter data is still reported per WGP (not aggregated for the whole SE).
+///
+#endif
 struct PerfCounterInfo
 {
     PerfCounterType              counterType; ///< Type of counter to add.
@@ -364,6 +379,10 @@ enum class SpmDataSegmentType : uint32
     Se1,
     Se2,
     Se3,
+#if PAL_BUILD_GFX11
+    Se4,
+    Se5,
+#endif
     Global,
     Count
 };
@@ -415,7 +434,11 @@ struct PerfExperimentCreateInfo
             uint32 cacheFlushOnCounterCollection :  1;
             uint32 sampleInternalOperations      :  1;
             uint32 sqShaderMask                  :  1;
+#if PAL_BUILD_GFX11 && (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 750)
+            uint32 sqWgpShaderMask               :  1;
+#else
             uint32 reserved1                     :  1;
+#endif
             uint32 reserved                      : 28;
         };
         uint32 u32All;
@@ -426,6 +449,9 @@ struct PerfExperimentCreateInfo
         bool                      cacheFlushOnCounterCollection;
         bool                      sampleInternalOperations;
         PerfExperimentShaderFlags sqShaderMask;    ///< GpuBlock::Sq counters only look at these shader types.
+#if PAL_BUILD_GFX11 && (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 750)
+        PerfExperimentShaderFlags sqWgpShaderMask; ///< GpuBlock::SqWgp counters only look at these shader types.
+#endif
     } optionValues;
 };
 

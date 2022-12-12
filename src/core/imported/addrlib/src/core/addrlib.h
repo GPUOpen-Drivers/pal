@@ -424,6 +424,9 @@ Lib* R800HwlInit (const Client* pClient);
 Lib* CiHwlInit   (const Client* pClient);
 Lib* Gfx9HwlInit (const Client* pClient);
 Lib* Gfx10HwlInit(const Client* pClient);
+#if ADDR_GFX11_BUILD
+Lib* Gfx11HwlInit(const Client* pClient);
+#endif
 } // Addr
 
 #endif

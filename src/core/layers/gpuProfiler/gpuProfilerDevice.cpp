@@ -1272,6 +1272,9 @@ GpuBlock StringToGpuBlock(
         "GE_DIST", // GpuBlock::GeDist
         "GE_SE",   // GpuBlock::GeSe
         "DF_MALL", // GpuBlock::DfMall
+#if PAL_BUILD_GFX11
+        "SQWGP",   // GpuBlock::SqWgp
+#endif
     };
 
     static_assert(ArrayLen(TranslationTbl) == static_cast<uint32>(GpuBlock::Count),

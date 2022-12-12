@@ -431,6 +431,22 @@
       "Description": "Enable adaptive sync (variable refresh rate) for a window of Xserver"
     },
     {
+      "Description": "When set to true, swizzle mode determination will be implemented as follows: AddrLib returns a list of valid modes that are allowed on the corresponding hardware configuration, and PAL will choose a mode from that list based on any client preferences. Only for GFX11",
+      "Tags": [
+        "General"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "addr2NewSwizzleModeDetermination",
+      "Name": "Addr2NewSwizzleModeDetermination",
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ]
+    },
+    {
       "Name": "Addr2Disable256BSwizzleMode",
       "Tags": [
         "General",
@@ -2000,6 +2016,43 @@
       "Type": "enum",
       "VariableName": "useExecuteIndirectPacket",
       "Name": "UseExecuteIndirectPacket"
+    },
+    {
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "NoXorForRenderTarget",
+            "Value": 1,
+            "Description": "Render targets"
+          },
+          {
+            "Name": "NoXorForTexture",
+            "Value": 2,
+            "Description": "Non renderable textures"
+          }
+        ],
+        "Name": "NoXor"
+      },
+      "BuildTypes": [
+        "PAL_BUILD_GFX11"
+      ],
+      "Description": "Bitmask of cases where XOR swizzle modes are disallowed.  GFX11 only",
+      "Tags": [
+        "Resource Settings"
+      ],
+      "Flags": {
+        "IsBitmask": true,
+        "IsHex": true,
+        "RereadSetting": true
+      },
+      "Defaults": {
+        "Default": 0
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "uint32",
+      "VariableName": "noXor",
+      "Name": "NoXor"
     },
     {
       "ValidValues": {

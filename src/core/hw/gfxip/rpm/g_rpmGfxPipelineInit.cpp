@@ -92,6 +92,12 @@ Result CreateRpmGraphicsPipelines(
         pTable = rpmGfxBinaryTableNavi24;
         break;
 
+#if PAL_BUILD_NAVI31
+    case AsicRevision::Navi31:
+        pTable = rpmGfxBinaryTableNavi31;
+        break;
+#endif
+
     default:
         result = Result::ErrorUnknown;
         PAL_NOT_IMPLEMENTED();
@@ -257,6 +263,9 @@ Result CreateRpmGraphicsPipelines(
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+#if PAL_BUILD_NAVI31
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#endif
         ))
     {
         pipeInfo = { };

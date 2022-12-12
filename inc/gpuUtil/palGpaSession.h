@@ -189,7 +189,11 @@ struct GpaSampleConfig
             Pal::uint32 cacheFlushOnCounterCollection :  1;  ///< Insert cache flush and invalidate events before and
                                                              ///  after every sample.
             Pal::uint32 sqShaderMask                  :  1;  ///< If sqShaderMask is valid.
+#if PAL_BUILD_GFX11 && (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 750)
+            Pal::uint32 sqWgpShaderMask               :  1;  ///< If sqWgpShaderMask is valid.
+#else
             Pal::uint32 reserved1                     :  1;  ///< Reserved for future use.
+#endif
             Pal::uint32 reserved                      : 28;  ///< Reserved for future use.
         };
         Pal::uint32 u32All;                                  ///< Bit flags packed as uint32.
@@ -198,6 +202,10 @@ struct GpaSampleConfig
 
     Pal::PerfExperimentShaderFlags sqShaderMask;    ///< Which shader stages are sampled by GpuBlock::Sq counters.
                                                     ///< Only used if flags.sqShaderMask is set to 1.
+#if PAL_BUILD_GFX11 && (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 750)
+    Pal::PerfExperimentShaderFlags sqWgpShaderMask; ///< Which shader stages are sampled by GpuBlock::SqWgp counters.
+                                                    ///< Only used if flags.sqWgpShaderMask is set to 1.
+#endif
 
     struct
     {
@@ -550,6 +558,19 @@ public:
     /// the session will be marked invalid and no sample commands will be inserted.  Reporting of this error is
     /// delayed until GetResults().
     ///
+#if PAL_BUILD_GFX11
+    /// A note for GpuBlock::SqWgp
+    /// Client of palPerfExperiment may configure counters of GpuBlock::SqWgp based on a per-wgp granularity
+    /// only if the following are disabled: GFXOFF, virtualization/SRIOV, VDDGFX (power down features), clock
+    /// gating (CGCG) and power gating. PAL expose this feature to clients.
+    /// If any of the conditions above cannot be met, it's the client's job to set all WGPs in the same SE to the same
+    /// perf counter programming. In this case, GpuBlock::SqWgp's perf counter works on a per-SE granularity.
+    /// Strictly speaking, it's not true that the counters work on a per-SE granularity when those power features
+    /// are enabled. It's all still per-WGP in HW, we just can't support different counter configs within the same SE.
+    /// The counter data is still reported per WGP (not aggregated for the whole SE).
+    ///
+    /// Check the following two documents for details:
+#endif
     ///
     /// @param [in]  pCmdBuf      Command buffer to issue the begin sample commands.  All operations performed
     ///                           between executing the BeginSample() and EndSample() GPU commands will contribute to

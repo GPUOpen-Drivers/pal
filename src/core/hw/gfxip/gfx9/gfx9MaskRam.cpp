@@ -2257,6 +2257,13 @@ void Gfx9MetaEqGenerator::GetData2DParamsNew(
                               (3 - static_cast<int32>(microBlockLog2.height)) -
                               overlap;
 
+#if PAL_BUILD_GFX11
+    if (IsGfx11(*pPalDevice) && (blockSizeLog2 != 16))
+    {
+        tempTileSplitBits = overlap;
+    }
+#endif
+
     pParams->tileSplitBits   = static_cast<uint32>(Max(0, tempTileSplitBits));
     pParams->tileSplitBits   = Min(numSamplesLog2, pParams->tileSplitBits);
 
@@ -2348,6 +2355,20 @@ void Gfx9MetaEqGenerator::GetData2DParamsNew(
                pParams->pipeRotateBit1--;
             }
 
+#if PAL_BUILD_GFX11
+            if (IsGfx11(*pPalDevice) && (numSamplesLog2 == 3))
+            {
+                if ((blockSizeLog2 > 16) && (numPipesLog2 == 4) && (bppLog2 == 3))
+                {
+                    pParams->pipeRotateBit1 -= 2;
+                }
+
+                if ((blockSizeLog2 == 18) && (numPipesLog2 == 6) && (bppLog2 >= 2))
+                {
+                    pParams->pipeRotateBit1 -= 4;
+                }
+            }
+#endif
         }
 
         // This makes sure that the msb sample bits get into the pipe if any sample bits are needed in SW_R
@@ -2464,6 +2485,18 @@ int32 Gfx9MetaEqGenerator::GetMetaOverlap() const
     }
 
     // In 16Bpp 8xaa, we lose 1 overlap bit because the block size reduction eats into a pipe anchor bit (y4)
+#if PAL_BUILD_GFX11
+    if (IsGfx11(*pPalDevice))
+    {
+        if((bppLog2 == 4) && (numSamplesLog2 == 3) && (blockSizeLog2 == 16))
+        {
+            overlap--;
+        }
+
+        overlap += 16 - blockSizeLog2;
+    }
+    else
+#endif
     {
         if ((bppLog2 == 4) && (numSamplesLog2 == 3))
         {
@@ -2815,6 +2848,9 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10Plus()
                         subTileXYBits = 0;
                     }
 
+#if PAL_BUILD_GFX11
+                    if (IsGfx11(*pPalDevice) == false)
+#endif
                     {
                         tileSplitBits = (3 - compBlockLog2.width ) +
                                         (3 - compBlockLog2.height) -
@@ -2834,6 +2870,17 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10Plus()
                         flipY1Y2 = true;
                     }
 
+#if PAL_BUILD_GFX11
+                    if (IsGfx11(*pPalDevice)  &&
+                        (blockSizeLog2 == 18) &&
+                        (numSamplesLog2 == 3) &&
+                        (bppLog2 == 2)        &&
+                        (numPipesLog2 == 6)   &&
+                        (numShaderArraysLog2 == 4))
+                    {
+                        flipY1Y2 = true;
+                    }
+#endif
                 }
             }
 
@@ -3125,6 +3172,172 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10Plus()
                 m_meta.Rotate(1, start + metaOverlap - 1, start + metaOverlap);
             }
 
+#if PAL_BUILD_GFX11
+            bool swapB0B1 = false;
+            bool swapB1B2 = false;
+            bool swapB0B5 = false;
+            bool swapB0B4 = false;
+            bool swapB0B2 = false;
+            bool swapB1B3 = false;
+            if (IsGfx11(*pPalDevice) && m_pParent->IsColor())
+            {
+                // ugly...hardcode the table
+                swapB0B1 =
+                    ((blockSizeLog2 == 18) &&
+                     (((numPipesLog2 == 4) && (numShaderArraysLog2 == 3) && (bppLog2 == 4) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 3) && (bppLog2 == 4) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 4) && (numShaderArraysLog2 == 3) && (bppLog2 == 3) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 4) && (numShaderArraysLog2 == 3) && (bppLog2 == 4) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 3) && (bppLog2 == 3) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 3) && (bppLog2 == 4) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 3) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 4) && (numSamplesLog2 == 3))));
+
+                swapB1B2 =
+                    ((blockSizeLog2 == 18) &&
+                     (((numPipesLog2 == 1) && (numShaderArraysLog2 == 0) && (bppLog2 == 2) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 1) && (numShaderArraysLog2 == 0) && (bppLog2 == 4) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 2) && (numShaderArraysLog2 == 0) && (bppLog2 == 4) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 3) && (numShaderArraysLog2 == 0) && (bppLog2 == 4) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 3) && (numShaderArraysLog2 == 2) && (bppLog2 == 4) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 4) && (numShaderArraysLog2 == 2) && (bppLog2 == 4) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 2) && (bppLog2 == 4) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 4) && (bppLog2 == 4) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 4) && (bppLog2 == 4) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 4) && (numShaderArraysLog2 == 3) && (bppLog2 == 4) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 3) && (bppLog2 == 4) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 4) && (bppLog2 == 3) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 4) && (bppLog2 == 3) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 1) && (numShaderArraysLog2 == 0) && (bppLog2 == 0) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 1) && (numShaderArraysLog2 == 0) && (bppLog2 == 2) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 1) && (numShaderArraysLog2 == 0) && (bppLog2 == 4) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 2) && (numShaderArraysLog2 == 0) && (bppLog2 == 2) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 2) && (numShaderArraysLog2 == 0) && (bppLog2 == 4) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 3) && (numShaderArraysLog2 == 0) && (bppLog2 == 2) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 3) && (numShaderArraysLog2 == 0) && (bppLog2 == 4) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 3) && (numShaderArraysLog2 == 2) && (bppLog2 == 2) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 3) && (numShaderArraysLog2 == 2) && (bppLog2 == 4) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 4) && (numShaderArraysLog2 == 2) && (bppLog2 == 2) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 4) && (numShaderArraysLog2 == 2) && (bppLog2 == 4) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 4) && (numShaderArraysLog2 == 3) && (bppLog2 == 3) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 2) && (bppLog2 == 2) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 3) && (bppLog2 == 3) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 4) && (bppLog2 == 2) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 3) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 4) && (bppLog2 == 2) && (numSamplesLog2 == 3))));
+
+                swapB1B2 =
+                    ((blockSizeLog2 == 16) &&
+                     (((numPipesLog2 == 5) && (numShaderArraysLog2 == 4) && (bppLog2 == 0) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 0) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 4) && (bppLog2 == 0) && (numSamplesLog2 == 1))));
+
+                swapB0B1 =
+                    ((blockSizeLog2 == 16) &&
+                     (((numPipesLog2 == 4) && (numShaderArraysLog2 == 1) && (bppLog2 == 3) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 4) && (numShaderArraysLog2 == 1) && (bppLog2 == 4) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 2) && (bppLog2 == 3) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 2) && (bppLog2 == 4) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 2) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 3) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 4) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 3) && (numShaderArraysLog2 == 0) && (bppLog2 == 4) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 4) && (numShaderArraysLog2 == 1) && (bppLog2 == 3) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 4) && (numShaderArraysLog2 == 1) && (bppLog2 == 4) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 2) && (bppLog2 == 2) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 2) && (bppLog2 == 3) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 2) && (bppLog2 == 4) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 1) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 2) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 3) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 4) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 3) && (numShaderArraysLog2 == 0) && (bppLog2 == 3) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 3) && (numShaderArraysLog2 == 0) && (bppLog2 == 4) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 4) && (numShaderArraysLog2 == 1) && (bppLog2 == 2) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 4) && (numShaderArraysLog2 == 1) && (bppLog2 == 3) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 4) && (numShaderArraysLog2 == 1) && (bppLog2 == 4) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 2) && (bppLog2 == 1) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 2) && (bppLog2 == 2) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 2) && (bppLog2 == 3) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 2) && (bppLog2 == 4) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 0) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 1) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 2) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 3) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 4) && (numSamplesLog2 == 3))));
+
+                swapB0B4 =
+                    ((blockSizeLog2 == 16) &&
+                     (((numPipesLog2 == 4) && (numShaderArraysLog2 == 1) && (bppLog2 == 3) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 4) && (numShaderArraysLog2 == 1) && (bppLog2 == 4) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 3) && (numShaderArraysLog2 == 0) && (bppLog2 == 4) && (numSamplesLog2 == 3))));
+
+                swapB0B5 =
+                    ((blockSizeLog2 == 16) &&
+                     (((numPipesLog2 == 1) && (numShaderArraysLog2 == 0) && (bppLog2 == 3) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 2) && (numShaderArraysLog2 == 0) && (bppLog2 == 3) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 3) && (numShaderArraysLog2 == 0) && (bppLog2 == 3) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 3) && (numShaderArraysLog2 == 2) && (bppLog2 == 3) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 3) && (numShaderArraysLog2 == 2) && (bppLog2 == 4) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 4) && (numShaderArraysLog2 == 1) && (bppLog2 == 3) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 4) && (numShaderArraysLog2 == 1) && (bppLog2 == 4) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 4) && (numShaderArraysLog2 == 2) && (bppLog2 == 3) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 4) && (numShaderArraysLog2 == 2) && (bppLog2 == 4) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 2) && (bppLog2 == 3) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 2) && (bppLog2 == 4) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 2) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 3) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 4) && (numSamplesLog2 == 1)) ||
+                      ((numPipesLog2 == 2) && (numShaderArraysLog2 == 1) && (bppLog2 == 3) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 2) && (numShaderArraysLog2 == 1) && (bppLog2 == 4) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 3) && (numShaderArraysLog2 == 0) && (bppLog2 == 4) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 3) && (numShaderArraysLog2 == 1) && (bppLog2 == 3) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 3) && (numShaderArraysLog2 == 1) && (bppLog2 == 4) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 2) && (bppLog2 == 2) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 2) && (bppLog2 == 3) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 2) && (bppLog2 == 4) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 1) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 2) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 3) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 4) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 1) && (numShaderArraysLog2 == 0) && (bppLog2 == 3) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 2) && (numShaderArraysLog2 == 0) && (bppLog2 == 3) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 2) && (numShaderArraysLog2 == 0) && (bppLog2 == 4) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 3) && (numShaderArraysLog2 == 0) && (bppLog2 == 3) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 4) && (numShaderArraysLog2 == 1) && (bppLog2 == 2) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 4) && (numShaderArraysLog2 == 1) && (bppLog2 == 3) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 4) && (numShaderArraysLog2 == 1) && (bppLog2 == 4) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 2) && (bppLog2 == 1) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 2) && (bppLog2 == 2) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 2) && (bppLog2 == 3) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 2) && (bppLog2 == 4) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 0) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 1) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 2) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 3) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 4) && (numSamplesLog2 == 3))));
+
+                swapB0B2 =
+                    ((blockSizeLog2 == 18) &&
+                     (((numPipesLog2 == 5) && (numShaderArraysLog2 == 4) && (bppLog2 == 4) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 4) && (bppLog2 == 4) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 4) && (bppLog2 == 3) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 4) && (bppLog2 == 4) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 4) && (bppLog2 == 3) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 4) && (bppLog2 == 4) && (numSamplesLog2 == 3))));
+
+                swapB1B3 =
+                    ((blockSizeLog2 == 18) &&
+                     (((numPipesLog2 == 5) && (numShaderArraysLog2 == 4) && (bppLog2 == 4) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 4) && (bppLog2 == 4) && (numSamplesLog2 == 2)) ||
+                      ((numPipesLog2 == 4) && (numShaderArraysLog2 == 3) && (bppLog2 == 4) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 3) && (bppLog2 == 4) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 5) && (numShaderArraysLog2 == 4) && (bppLog2 == 3) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 3) && (bppLog2 == 4) && (numSamplesLog2 == 3)) ||
+                      ((numPipesLog2 == 6) && (numShaderArraysLog2 == 4) && (bppLog2 == 3) && (numSamplesLog2 == 3))));
+            } // end check for GFX11 and color surfaces
+#endif
+
             end = cachelineSize + metaOverlap;
 
             if (IsGfx103Plus(*pPalDevice) && (end > (blockSizeLog2 - modNumPipesLog2)))
@@ -3147,6 +3360,60 @@ void Gfx9MetaEqGenerator::CalcMetaEquationGfx10Plus()
                     m_meta.AdjustPipe(modNumPipesLog2,
                                       pipeInterleaveLog2 + nibbleOffset);
                 }
+
+#if PAL_BUILD_GFX11
+            if (IsGfx11(*pPalDevice))
+            {
+                if (m_pParent->IsColor())
+                {
+                    m_meta.Rotate(-tileSplitBits, 1, cachelineSize);
+                }
+
+                if (swapB0B1)
+                {
+                    m_meta.Rotate(1, 1, 2);
+                }
+
+                if (swapB1B2)
+                {
+                    m_meta.Rotate(1, 2, 3);
+                }
+
+                if (swapB0B2)
+                {
+                    m_meta.Swap(1, 3);
+                }
+
+                if (swapB1B3)
+                {
+                    m_meta.Swap(2, 4);
+                }
+
+                if (swapB0B4)
+                {
+                    m_meta.Swap(1, 5);
+                }
+
+                if (swapB0B5)
+                {
+                    m_meta.Swap(1, 6);
+                }
+
+                if (m_pParent->IsColor() && IsZSwizzle(swizzleMode) && (numSamplesLog2 == 1) && (bppLog2 == 0))
+                {
+                    if (((numPipesLog2 == 3) && (numShaderArraysLog2 == 0)) ||
+                        ((numPipesLog2 == 5) && (numShaderArraysLog2 == 2)))
+                    {
+                        PAL_NOT_IMPLEMENTED();
+                    }
+
+                    if ((numPipesLog2 == 4) && (numShaderArraysLog2 == 1))
+                    {
+                        PAL_NOT_IMPLEMENTED();
+                    }
+                }
+            }
+#endif
 
                 if (m_pParent->IsDepth() && IsGfx103Plus(*pPalDevice))
                 {
@@ -3225,6 +3492,10 @@ HtileUsageFlags Gfx9Htile::UseHtileForImage(
         // be bound during a VRS-enabled draw, then
         // Does this device support VRS?
         if (device.ChipProperties().gfxip.supportsVrs &&
+#if PAL_BUILD_GFX11
+            // Does this device record VRS data into hTile memory?
+            IsGfx10(device)                           &&
+#endif
             // Has the client indicated that this depth image will potentially be bound during a VRS-enabled draw?
             (createInfo.usageFlags.vrsDepth != 0))
         {
@@ -3874,6 +4145,30 @@ void Gfx9Dcc::GetXyzInc(
             *pYinc = XyzIncSizes[bppLog2][1];
             *pZinc = XyzIncSizes[bppLog2][2];
 
+#if PAL_BUILD_GFX11
+            if (IsGfx11(palDevice))
+            {
+                uint32  numSamples = m_image.Parent()->GetImageCreateInfo().samples;
+
+                // Note that we can't have MSAA for 3D images.
+                //    Color MSAA surfaces are sample interleaved, the way depth always has been.  So each 256 Bytes region
+                //    is smaller than [it was previously].  It will halve in Morton order.
+                while (numSamples > 1)
+                {
+                    // The general rule is that when dividing a square, divide the height, otherwise, divide the width
+                    if (*pXinc == *pYinc)
+                    {
+                        *pYinc /= 2;
+                    }
+                    else
+                    {
+                        *pXinc /= 2;
+                    }
+
+                    numSamples = numSamples / 2;
+                }
+            }
+#endif
         }
     }
     else if (imageType == ImageType::Tex3d)
@@ -3932,6 +4227,15 @@ Result Gfx9Dcc::Init(
 
     if (result == Result::Success)
     {
+#if PAL_BUILD_GFX11
+        if (IsGfx11(*(m_pGfxDevice->Parent())))
+        {
+            const Gfx9PalSettings& settings = GetGfx9Settings(*(m_pGfxDevice->Parent()));
+
+            m_alignment  = Max(m_alignment, static_cast<gpusize>(settings.gfx11OverrideMetadataAlignment));
+            m_totalSize *= settings.gfx11MetadataSizeMultiplier;
+        }
+#endif
 
         // Compute our aligned GPU memory offset and update the caller-provided running total.
         UpdateGpuMemOffset(pGpuOffset);
@@ -4091,6 +4395,12 @@ void Gfx9Dcc::SetControlReg(
             {
                 m_dccControl.gfx10.INDEPENDENT_128B_BLOCKS  = 1;
             }
+#if PAL_BUILD_GFX11
+            else
+            {
+                m_dccControl.gfx11.INDEPENDENT_128B_BLOCKS  = 1;
+            }
+#endif
 
             PAL_ASSERT(m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE <= m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE);
 
@@ -4402,6 +4712,14 @@ bool Gfx9Dcc::SupportFastColorClear(
     // - If the image is shader write-able, it's shader-writeable in a good way
     // - The Image is not linear tiled.
     return  fastColorClearEnable                                                     &&
+#if PAL_BUILD_GFX11
+            // The only fast color clear mode available on GFX11 is comp-to-single;
+            // if this has been disabled, then we can't do a fast clear.
+            //
+            // Note that this is not strictly true as fast clears to "black" or "white" are
+            // always possible.
+            ((IsGfx11(gfxLevel) == false) || image.Gfx10UseCompToSingleFastClears()) &&
+#endif
             allowShaderWriteableSurfaces                                             &&
             (AddrMgr2::IsLinearSwizzleMode(swizzleMode) == false)                    &&
             (SupportsFastColorClear(createInfo.swizzledFormat.format));
@@ -4632,6 +4950,12 @@ uint8 Gfx9Dcc::GetFastClearCode(
             {
                 clearCode = Gfx9DccClearColor::Gfx10ClearColorCompToSingle;
             }
+#if PAL_BUILD_GFX11
+            else if (IsGfx11(*pDevice))
+            {
+                clearCode = Gfx9DccClearColor::Gfx11ClearColorCompToSingle;
+            }
+#endif
             else
             {
                 // Which GPU is this?
@@ -4644,6 +4968,10 @@ uint8 Gfx9Dcc::GetFastClearCode(
             // so we have to use comp-to-reg.
             clearCode = Gfx9DccClearColor::ClearColorCompToReg;
 
+#if PAL_BUILD_GFX11
+            // Navi3x has deprecated comp-to-reg support, so if we're here, something has gone wrong.
+            PAL_ASSERT(IsGfx11(*pDevice) == false);
+#endif
         }
     }
 
@@ -4664,6 +4992,89 @@ void Gfx9Dcc::GetBlackOrWhiteClearCode(
     uint8*             pClearCode)      // [in, out] the clear code corresponding to the supplied clear color if it's
                                         //           black or white...  Othewrise unchanged from input.
 {
+#if PAL_BUILD_GFX11
+    const Pal::Device&  palDevice  = *pImage->GetDevice();
+
+    if (IsGfx11(palDevice))
+    {
+        const ChNumFormat createFormat = pImage->GetImageCreateInfo().swizzledFormat.format;
+
+        // GFX11 changes the fast clear codes.  :-(
+        if ((color[0] == 0) &&
+            (color[1] == 0) &&
+            (color[2] == 0) &&
+            (color[3] == 0))
+        {
+            // Always works for all formats.
+            *pClearCode = 0x00;
+        }
+        else if (pImage->GetDccFormatEncoding() != DccFormatEncoding::SignIndependent)
+        {
+            if ((color[0] == ones[0]) &&
+                (color[1] == ones[1]) &&
+                (color[2] == ones[2]) &&
+                (color[3] == ones[3]))
+            {
+                // Even though this is "white", there are formats (specifically sint, snorm and FP11) that don't
+                // have clear codes associated with "white".  This should fall back to to the caller and
+                // wind up in "comp to single" mode instead.
+                if (Formats::IsUint(createFormat)  ||
+                    Formats::IsUnorm(createFormat) ||
+                    Formats::IsSrgb(createFormat))
+                {
+                    *pClearCode = 0x02;
+                }
+                else if (Formats::IsFloat(createFormat))
+                {
+                    switch (createFormat)
+                    {
+                    case ChNumFormat::X16_Float:
+                    case ChNumFormat::X16Y16_Float:
+                    case ChNumFormat::X16Y16Z16W16_Float:
+                        *pClearCode = 0x04;
+                        break;
+                    case ChNumFormat::X32_Float:
+                    case ChNumFormat::X32Y32_Float:
+                        *pClearCode = 0x06;
+                        break;
+                    default:
+                        break;
+                    }
+                }
+            }
+            // the 0-0-0-1 and 1-1-1-0 formats only work with UINT/UNORM/SRGB/USCALED formats..
+            else if (Formats::IsUint(createFormat)    ||
+                     Formats::IsUnorm(createFormat)   ||
+                     Formats::IsUscaled(createFormat) ||
+                     Formats::IsSrgb(createFormat))
+            {
+                // And then the AC01/10 clear codes only work with specific bpp arrangements with these formats.
+                const bool is88       = Formats::ShareChFmt(createFormat, ChNumFormat::X8Y8_Unorm);
+                const bool is8888     = Formats::ShareChFmt(createFormat, ChNumFormat::X8Y8Z8W8_Unorm);
+                const bool is16161616 = Formats::ShareChFmt(createFormat, ChNumFormat::X16Y16Z16W16_Unorm);
+
+                if (is88 || is8888 || is16161616)
+                {
+                    if ((color[0] == 0) &&
+                        (color[1] == 0) &&
+                        (color[2] == 0) &&
+                        (color[3] == ones[3]))
+                    {
+                        *pClearCode = 0x08;
+                    }
+                    else if ((color[0] == ones[0]) &&
+                             (color[1] == ones[1]) &&
+                             (color[2] == ones[2]) &&
+                             (color[3] == 0))
+                    {
+                        *pClearCode = 0x0A;
+                    }
+                }
+            }
+        }
+    }
+    else
+#endif
     {
         constexpr uint8 ClearColor0000 = 0x00;
         constexpr uint8 ClearColor0001 = 0x40;
@@ -4716,6 +5127,13 @@ void Gfx9Dcc::GetState(
     pState->maxUncompressedBlockSize = m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE;
     pState->independentBlk64B        = m_dccControl.bits.INDEPENDENT_64B_BLOCKS;
 
+#if PAL_BUILD_GFX11
+    if (IsGfx11(*(m_pGfxDevice->Parent())))
+    {
+        pState->independentBlk128B   = m_dccControl.gfx11.INDEPENDENT_128B_BLOCKS;
+    }
+    else
+#endif
     {
         pState->independentBlk128B   = m_dccControl.gfx10.INDEPENDENT_128B_BLOCKS;
     }
@@ -4916,6 +5334,14 @@ bool Gfx9Cmask::UseCmaskForImage(
     }
     else
     {
+#if PAL_BUILD_GFX11
+        // GFX11 products have no concept of cMask or fMask
+        if (IsGfx11(device))
+        {
+            useCmask = false;
+        }
+        else
+#endif
         {
             // Forcing CMask usage forces FMask usage, which is required for EQAA.
             useCmask = (pParent->IsEqaa() ||
@@ -5193,6 +5619,15 @@ bool Gfx9MetaEqGenerator::IsZSwizzle(
 {
     bool  isZ = AddrMgr2::IsZSwizzle(swizzleMode);
 
+#if PAL_BUILD_GFX11
+    const Pal::Device*  pDevice = m_pParent->GetGfxDevice()->Parent();
+    if (IsGfx11(*pDevice))
+    {
+        //    The data organization (addressing equations) for SW_*_Z_X and SW_*_R_X are now identical
+        isZ |= AddrMgr2::IsRotatedSwizzle(swizzleMode);
+    }
+#endif
+
     return isZ;
 }
 
@@ -5202,6 +5637,18 @@ bool Gfx9MetaEqGenerator::IsRotatedSwizzle(
     ) const
 {
     bool  isR = AddrMgr2::IsRotatedSwizzle(swizzleMode);
+
+#if PAL_BUILD_GFX11
+    const Pal::Device*  pDevice = m_pParent->GetGfxDevice()->Parent();
+    if (IsGfx11(*pDevice))
+    {
+        //    The data organization (addressing equations) for SW_*_Z_X and SW_*_R_X are now identical
+        //
+        // However, due to how the HW addrlib was implemented, "R" modes are changed to "Z", so any check for "SW_R"
+        // is now *false*.
+        isR = false;
+    }
+#endif
 
     return isR;
 }

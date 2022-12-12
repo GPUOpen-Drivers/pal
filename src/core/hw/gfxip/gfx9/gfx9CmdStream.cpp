@@ -60,6 +60,9 @@ CmdStream::CmdStream(
     m_pPm4Optimizer(nullptr),
     m_pChunkPreamble(nullptr),
     m_contextRollDetected(false)
+#if PAL_BUILD_GFX11
+    , m_supportsHoleyOptimization(GetGfx9Settings(*m_device.Parent()).enableHoleyOptimization)
+#endif
 {
 }
 
@@ -605,6 +608,186 @@ uint32* CmdStream::WriteSetSeqShRegsIndex(
     return pCmdSpace;
 }
 
+#if PAL_BUILD_GFX11
+// =====================================================================================================================
+// Helper function for accumulating the user-SGPR's mapped to user-data entries into packed register pairs for graphics
+// or compute shader stages.
+template <bool IgnoreDirtyFlags>
+void CmdStream::AccumulateUserDataEntriesForSgprs(
+    const UserDataEntryMap& entryMap,
+    const UserDataEntries&  entries,
+    const uint16            baseUserDataRegAddr,
+    PackedRegisterPair*     pValidRegPairs,
+    uint8*                  pValidRegsLookup,
+    uint32*                 pNumValidRegs)
+{
+    const uint16 firstUserSgpr = entryMap.firstUserSgprRegAddr;
+    const uint16 userSgprCount = entryMap.userSgprCount;
+
+    for (uint16 sgprIndex = 0; sgprIndex < userSgprCount; ++sgprIndex)
+    {
+        if (IgnoreDirtyFlags || WideBitfieldIsSet(entries.dirty, entryMap.mappedEntry[sgprIndex]))
+        {
+            const uint32 regAddr = sgprIndex + firstUserSgpr;
+            const uint32 value   = entries.entries[entryMap.mappedEntry[sgprIndex]];
+            SetOneUserDataEntryPairPackedValue(regAddr,
+                                               baseUserDataRegAddr,
+                                               value,
+                                               pValidRegPairs,
+                                               pValidRegsLookup,
+                                               pNumValidRegs);
+        }
+    }
+}
+
+template
+void CmdStream::AccumulateUserDataEntriesForSgprs<true>(
+    const UserDataEntryMap& entryMap,
+    const UserDataEntries&  entries,
+    const uint16            baseUserDataRegAddr,
+    PackedRegisterPair*     pValidRegPairs,
+    uint8*                  pValidRegsLookup,
+    uint32*                 pNumValidRegs);
+template
+void CmdStream::AccumulateUserDataEntriesForSgprs<false>(
+    const UserDataEntryMap& entryMap,
+    const UserDataEntries&  entries,
+    const uint16            baseUserDataRegAddr,
+    PackedRegisterPair*     pValidRegPairs,
+    uint8*                  pValidRegsLookup,
+    uint32*                 pNumValidRegs);
+
+// =====================================================================================================================
+// Builds a PM4 packet to set the given packed register pairs unless the PM4 optimizer indicates that it is redundant.
+// Returns a pointer to the next unused DWORD in pCmdSpace.
+template <Pm4ShaderType ShaderType, bool Pm4OptEnabled>
+uint32* CmdStream::WriteSetShRegPairs(
+    PackedRegisterPair* pRegPairs,
+    uint32              numRegs,
+    uint32*             pCmdSpace)
+{
+    PAL_ASSERT(m_flags.optimizeCommands == Pm4OptEnabled);
+
+    if (Pm4OptEnabled)
+    {
+        pCmdSpace = m_pPm4Optimizer->WriteOptimizedSetShRegPairs<ShaderType>(pRegPairs, numRegs, pCmdSpace);
+    }
+    else
+    {
+        pCmdSpace += m_cmdUtil.BuildSetShRegPairsPacked<ShaderType>(pRegPairs, numRegs, pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
+
+template
+uint32* CmdStream::WriteSetShRegPairs<ShaderGraphics, true>(
+    PackedRegisterPair* pRegPairs,
+    uint32              numRegs,
+    uint32*             pCmdSpace);
+template
+uint32* CmdStream::WriteSetShRegPairs<ShaderGraphics, false>(
+    PackedRegisterPair* pRegPairs,
+    uint32              numRegs,
+    uint32*             pCmdSpace);
+template
+uint32* CmdStream::WriteSetShRegPairs<ShaderCompute, true>(
+    PackedRegisterPair* pRegPairs,
+    uint32              numRegs,
+    uint32*             pCmdSpace);
+template
+uint32* CmdStream::WriteSetShRegPairs<ShaderCompute, false>(
+    PackedRegisterPair* pRegPairs,
+    uint32              numRegs,
+    uint32*             pCmdSpace);
+
+// =====================================================================================================================
+// Wrapper for the real WriteSetShRegPairs() for when the caller doesn't know if the immediate mode pm4 optimizer
+// is enabled.
+template <Pm4ShaderType ShaderType>
+uint32* CmdStream::WriteSetShRegPairs(
+    PackedRegisterPair* pRegPairs,
+    uint32              numRegs,
+    uint32*             pCmdSpace)
+{
+    if (m_flags.optimizeCommands)
+    {
+        pCmdSpace = WriteSetShRegPairs<ShaderType, true>(pRegPairs, numRegs, pCmdSpace);
+    }
+    else
+    {
+        pCmdSpace = WriteSetShRegPairs<ShaderType, false>(pRegPairs, numRegs, pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
+
+template
+uint32* CmdStream::WriteSetShRegPairs<ShaderGraphics>(
+    PackedRegisterPair* pRegPairs,
+    uint32              numRegs,
+    uint32*             pCmdSpace);
+template
+uint32* CmdStream::WriteSetShRegPairs<ShaderCompute>(
+    PackedRegisterPair* pRegPairs,
+    uint32              numRegs,
+    uint32*             pCmdSpace);
+
+// =====================================================================================================================
+// Builds a PM4 packet to set the given packed register pairs unless the PM4 optimizer indicates that it is redundant.
+// Returns a pointer to the next unused DWORD in pCmdSpace.
+template <bool Pm4OptEnabled>
+uint32* CmdStream::WriteSetContextRegPairs(
+    PackedRegisterPair* pRegPairs,
+    uint32              numRegs,
+    uint32*             pCmdSpace)
+{
+    PAL_ASSERT(m_flags.optimizeCommands == Pm4OptEnabled);
+
+    if (Pm4OptEnabled)
+    {
+        pCmdSpace = m_pPm4Optimizer->WriteOptimizedSetContextRegPairs(pRegPairs, numRegs, pCmdSpace);
+    }
+    else
+    {
+        pCmdSpace += m_cmdUtil.BuildSetContextRegPairsPacked(pRegPairs, numRegs, pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
+
+template
+uint32* CmdStream::WriteSetContextRegPairs<true>(
+    PackedRegisterPair* pRegPairs,
+    uint32              numRegs,
+    uint32*             pCmdSpace);
+template
+uint32* CmdStream::WriteSetContextRegPairs<false>(
+    PackedRegisterPair* pRegPairs,
+    uint32              numRegs,
+    uint32*             pCmdSpace);
+
+// =====================================================================================================================
+// Wrapper for the real WriteSetShRegPairs() for when the caller doesn't know if the immediate mode pm4 optimizer
+// is enabled.
+uint32* CmdStream::WriteSetContextRegPairs(
+    PackedRegisterPair* pRegPairs,
+    uint32              numRegs,
+    uint32*             pCmdSpace)
+{
+    if (m_flags.optimizeCommands)
+    {
+        pCmdSpace = WriteSetContextRegPairs<true>(pRegPairs, numRegs, pCmdSpace);
+    }
+    else
+    {
+        pCmdSpace = WriteSetContextRegPairs<false>(pRegPairs, numRegs, pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
+#endif
+
 // =====================================================================================================================
 // Helper function for writing user-SGPRs mapped to user-data entries for a graphics or compute shader stage.
 template <bool IgnoreDirtyFlags, Pm4ShaderType shaderType>
@@ -695,6 +878,76 @@ uint32* CmdStream::WriteUserDataEntriesToSgprs(
             }
         }
     }
+#if PAL_BUILD_GFX11
+    else if (m_supportsHoleyOptimization)
+    {
+        // Bitmasks of which sgpr needed to be updated since the corresponding user data entry is dirty.
+        uint32 sgprDirtyMask = 0;
+        for (uint16 sgpr = 0; sgpr < userSgprCount; ++sgpr)
+        {
+            sgprDirtyMask |= WideBitfieldIsSet(entries.dirty, entryMap.mappedEntry[sgpr]) << sgpr;
+        }
+
+        // We write a set of sgprs using one SET_SH packet if the distance between each two sgprs is
+        // less than or equal to MaxDistance, so that we reduce the number of packets we use to write sgpr.
+        BitIter32 sgprDirtyMaskIter(sgprDirtyMask);
+        while (sgprDirtyMaskIter.IsValid())
+        {
+            // Get the first set bit.
+            uint32 index      = sgprDirtyMaskIter.Get();
+            uint32 startIndex = index;
+
+            // the longest distance between each two sgprs which are written in one SET_SH packet.
+            constexpr uint32 MaxDistance = 4;
+
+            // The loop is used to find the first break larger than MaxDistance before writing a packet.
+            do
+            {
+                sgprDirtyMaskIter.Next();
+                if ((sgprDirtyMaskIter.IsValid()) && (index + MaxDistance >= sgprDirtyMaskIter.Get()))
+                {
+                    index = sgprDirtyMaskIter.Get();
+                }
+                else
+                {
+                    break;
+                }
+            } while (sgprDirtyMaskIter.IsValid());
+
+            uint16 packetSgprCount = 0;
+            for (uint32 sgpr = startIndex; sgpr <= index; ++sgpr)
+            {
+                pCmdPayload[packetSgprCount++] = entries.entries[entryMap.mappedEntry[sgpr]];
+            }
+
+            if (packetSgprCount > 0)
+            {
+                const uint16 packetFirstSgpr = (firstUserSgpr + startIndex);
+                if (Pm4OptEnabled)
+                {
+                    PM4_ME_SET_SH_REG setShReg;
+                    m_cmdUtil.BuildSetSeqShRegs(packetFirstSgpr,
+                                                (packetFirstSgpr + packetSgprCount - 1),
+                                                shaderType,
+                                                &setShReg);
+
+                    pCmdSpace = m_pPm4Optimizer->WriteOptimizedSetSeqShRegs(setShReg, pCmdPayload, pCmdSpace);
+                }
+                else
+                {
+                    const size_t totalDwords = m_cmdUtil.BuildSetSeqShRegs(packetFirstSgpr,
+                                                                           (packetFirstSgpr + packetSgprCount - 1),
+                                                                           shaderType,
+                                                                           pCmdSpace);
+                    // The packet is complete and will not be optimized, fix-up pCmdSpace and we're done.
+                    PAL_ASSERT(totalDwords == (packetSgprCount + CmdUtil::ShRegSizeDwords));
+                    pCmdSpace += totalDwords;
+                    pCmdPayload += totalDwords;
+                }
+            }
+        }
+    }
+#endif
     else
     {
         // If we are honoring the dirty flags, then there may be multiple packets because skipping dirty entries

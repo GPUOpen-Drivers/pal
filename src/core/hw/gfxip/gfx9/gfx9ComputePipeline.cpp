@@ -70,6 +70,9 @@ ComputePipeline::ComputePipeline(
               &m_stageInfo,
               &m_perfDataInfo[static_cast<uint32>(Abi::HardwareStage::Cs)]),
     m_disablePartialPreempt(false)
+#if PAL_BUILD_GFX11
+    , m_shPairsPacketSupportedCs(pDevice->Settings().gfx11EnableShRegPairOptimizationCs)
+#endif
 {
 }
 
@@ -253,6 +256,9 @@ Result ComputePipeline::HwlInit(
                            registers,
                            wavefrontSize,
                            &m_threadsPerTg,
+#if PAL_BUILD_GFX11
+                           createInfo.interleaveSize,
+#endif
                            &uploader);
         PAL_ASSERT(m_uploadFenceToken == 0);
         result = uploader.End(&m_uploadFenceToken);
@@ -309,6 +315,9 @@ Result ComputePipeline::HwlInit(
                            registers,
                            wavefrontSize,
                            &m_threadsPerTg,
+#if PAL_BUILD_GFX11
+                           createInfo.interleaveSize,
+#endif
                            &uploader);
         PAL_ASSERT(m_uploadFenceToken == 0);
         result = uploader.End(&m_uploadFenceToken);
@@ -490,6 +499,9 @@ uint32* ComputePipeline::WriteCommands(
 {
     pCmdSpace =  m_chunkCs.WriteShCommands(pCmdStream,
                                            pCmdSpace,
+#if PAL_BUILD_GFX11
+                                           m_shPairsPacketSupportedCs,
+#endif
                                            csInfo,
                                            launchDescGpuVa,
                                            prefetch);
@@ -511,6 +523,22 @@ uint32* ComputePipeline::WriteLaunchDescriptor(
     HwRegInfo::Dynamic dynamicRegs = m_chunkCs.HwInfo().dynamic;
     pCmdSpace = m_chunkCs.UpdateDynamicRegInfo(pCmdStream, pCmdSpace, &dynamicRegs, csInfo, launchDescGpuVa);
 
+#if PAL_BUILD_GFX11
+    if (m_shPairsPacketSupportedCs)
+    {
+        PackedRegisterPair regPairs[NumDynamicRegs];
+        uint32             numRegs = 0;
+
+        static_assert(NumDynamicRegs <= Gfx11RegPairMaxRegCount, "Requesting too many registers!");
+
+        m_chunkCs.AccumulateShCommandsDynamic(regPairs, &numRegs, dynamicRegs, launchDescGpuVa);
+
+        PAL_ASSERT(numRegs <= NumDynamicRegs);
+
+        pCmdSpace = pCmdStream->WriteSetShRegPairs<ShaderCompute>(regPairs, numRegs, pCmdSpace);
+    }
+    else
+#endif
     {
         pCmdSpace = m_chunkCs.WriteShCommandsDynamic(pCmdStream, pCmdSpace, dynamicRegs, launchDescGpuVa);
     }

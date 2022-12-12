@@ -314,5 +314,78 @@ private:
     PAL_DISALLOW_COPY_AND_ASSIGN(Gfx10ColorTargetView);
 };
 
+#if PAL_BUILD_GFX11
+// Set of context registers associated with a color-target view object.
+struct Gfx11ColorTargetViewRegs
+{
+    regCB_COLOR0_BASE          cbColorBase;
+    regCB_COLOR0_VIEW          cbColorView;
+    regCB_COLOR0_INFO          cbColorInfo;
+    regCB_COLOR0_ATTRIB        cbColorAttrib;
+    regCB_COLOR0_DCC_CONTROL   cbColorDccControl;
+    regCB_COLOR0_DCC_BASE      cbColorDccBase;
+    regCB_COLOR0_ATTRIB2       cbColorAttrib2;
+    regCB_COLOR0_ATTRIB3       cbColorAttrib3;
+
+    // These two registers are added to support PAL's high-address bits on gfx11 CB
+    regCB_COLOR0_BASE_EXT      cbColorBaseExt;
+    regCB_COLOR0_DCC_BASE_EXT  cbColorDccBaseExt;
+
+    gpusize  fastClearMetadataGpuVa;
+};
+
+static_assert(Util::CheckSequential({
+        mmCB_COLOR0_VIEW, mmCB_COLOR0_INFO, mmCB_COLOR0_ATTRIB, mmCB_COLOR0_DCC_CONTROL,
+    }), "The ordering of the Gfx11ColorTargetViewRegs changed!");
+
+// =====================================================================================================================
+// Gfx11 specific extension of the base Pal::Gfx9::ColorTargetView class
+class Gfx11ColorTargetView final : public ColorTargetView
+{
+public:
+    Gfx11ColorTargetView(
+        const Device*                     pDevice,
+        const ColorTargetViewCreateInfo&  createInfo,
+        ColorTargetViewInternalCreateInfo internalInfo);
+
+    virtual uint32* WriteCommands(
+        uint32             slot,
+        ImageLayout        imageLayout,
+        CmdStream*         pCmdStream,
+        uint32*            pCmdSpace,
+        regCB_COLOR0_INFO* pCbColorInfo) const override;
+
+    virtual bool IsColorBigPage() const override;
+
+    virtual bool BypassMall() const override { return m_flags.bypassMall; }
+
+    virtual void GetImageSrd(const Device& device, void* pOut) const override;
+
+protected:
+    virtual ~Gfx11ColorTargetView()
+    {
+        // This destructor, and the destructors of all member and base classes, must always be empty: PAL color target
+        // views guarantee to the client that they do not have to be explicitly destroyed.
+        PAL_NEVER_CALLED();
+    }
+
+private:
+    void InitRegisters(
+        const Device&                     device,
+        const ColorTargetViewCreateInfo&  createInfo,
+        ColorTargetViewInternalCreateInfo internalInfo);
+
+    void UpdateImageSrd(const Device& device, void* pOut) const;
+
+    Gfx11ColorTargetViewRegs  m_regs;
+
+    // The view as a cached SRD, for use with the UAV export opt.  This must be generated on-the-fly if the VA is not
+    //  known in advance.
+    ImageSrd  m_uavExportSrd;
+
+    PAL_DISALLOW_COPY_AND_ASSIGN(Gfx11ColorTargetView);
+};
+#endif
+
 } // Gfx9
 } // Pal

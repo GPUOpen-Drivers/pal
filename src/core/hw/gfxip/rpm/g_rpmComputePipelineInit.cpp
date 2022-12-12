@@ -113,6 +113,12 @@ Result CreateRpmComputePipelines(
         pTable = rpmComputeBinaryTableNavi24;
         break;
 
+#if PAL_BUILD_NAVI31
+    case AsicRevision::Navi31:
+        pTable = rpmComputeBinaryTableNavi31;
+        break;
+#endif
+
     default:
         result = Result::ErrorUnknown;
         PAL_NOT_IMPLEMENTED();
@@ -310,6 +316,9 @@ Result CreateRpmComputePipelines(
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+#if PAL_BUILD_NAVI31
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#endif
         ))
     {
         result = CreateRpmComputePipeline(
@@ -321,6 +330,9 @@ Result CreateRpmComputePipelines(
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+#if PAL_BUILD_NAVI31
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#endif
         ))
     {
         result = CreateRpmComputePipeline(
@@ -332,6 +344,9 @@ Result CreateRpmComputePipelines(
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+#if PAL_BUILD_NAVI31
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#endif
         ))
     {
         result = CreateRpmComputePipeline(
@@ -343,6 +358,9 @@ Result CreateRpmComputePipelines(
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+#if PAL_BUILD_NAVI31
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#endif
         ))
     {
         result = CreateRpmComputePipeline(
@@ -982,6 +1000,9 @@ Result CreateRpmComputePipelines(
     if (result == Result::Success && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+#if PAL_BUILD_NAVI31
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#endif
         ))
     {
         result = CreateRpmComputePipeline(
@@ -991,6 +1012,9 @@ Result CreateRpmComputePipelines(
     if (result == Result::Success && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+#if PAL_BUILD_NAVI31
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#endif
         ))
     {
         result = CreateRpmComputePipeline(
@@ -1000,6 +1024,9 @@ Result CreateRpmComputePipelines(
     if (result == Result::Success && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+#if PAL_BUILD_NAVI31
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#endif
         ))
     {
         result = CreateRpmComputePipeline(
@@ -1009,6 +1036,9 @@ Result CreateRpmComputePipelines(
     if (result == Result::Success && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+#if PAL_BUILD_NAVI31
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#endif
         ))
     {
         result = CreateRpmComputePipeline(
@@ -1018,6 +1048,9 @@ Result CreateRpmComputePipelines(
     if (result == Result::Success && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+#if PAL_BUILD_NAVI31
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#endif
         ))
     {
         result = CreateRpmComputePipeline(
@@ -1027,6 +1060,9 @@ Result CreateRpmComputePipelines(
     if (result == Result::Success && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+#if PAL_BUILD_NAVI31
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#endif
         ))
     {
         result = CreateRpmComputePipeline(
@@ -1035,6 +1071,9 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+#if PAL_BUILD_NAVI31
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#endif
         ))
     {
         result = CreateRpmComputePipeline(
@@ -1043,6 +1082,9 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+#if PAL_BUILD_NAVI31
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#endif
         ))
     {
         result = CreateRpmComputePipeline(
@@ -1051,6 +1093,9 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+#if PAL_BUILD_NAVI31
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#endif
         ))
     {
         result = CreateRpmComputePipeline(
@@ -1059,6 +1104,9 @@ Result CreateRpmComputePipelines(
 
     if (result == Result::Success && (false
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
+#if PAL_BUILD_NAVI31
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#endif
         ))
     {
         result = CreateRpmComputePipeline(
@@ -1072,6 +1120,18 @@ Result CreateRpmComputePipelines(
         result = CreateRpmComputePipeline(
             RpmComputePipeline::Gfx10VrsHtile, pDevice, pTable, pPipelineMem);
     }
+
+#if PAL_BUILD_NAVI31
+    if (result == Result::Success && (false
+#if PAL_BUILD_NAVI31
+        || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
+#endif
+        ))
+    {
+        result = CreateRpmComputePipeline(
+            RpmComputePipeline::Gfx11GenerateCmdDispatchTaskMesh, pDevice, pTable, pPipelineMem);
+    }
+#endif
 
     return result;
 }

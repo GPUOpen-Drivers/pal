@@ -139,6 +139,33 @@ public:
         const UserDataEntries&  entries,
         uint32*                 pCmdSpace);
 
+#if PAL_BUILD_GFX11
+    template <bool IgnoreDirtyFlags>
+    static void AccumulateUserDataEntriesForSgprs(
+        const UserDataEntryMap& entryMap,
+        const UserDataEntries&  entries,
+        const uint16            baseUserDataReg,
+        PackedRegisterPair*     pValidRegPairs,
+        uint8*                  pValidRegsLookup,
+        uint32*                 pNumValidRegs);
+
+    template <Pm4ShaderType ShaderType, bool Pm4OptImmediate>
+    uint32* WriteSetShRegPairs(PackedRegisterPair* pRegPairs,
+                               uint32              numRegs,
+                               uint32*             pCmdSpace);
+    template <Pm4ShaderType ShaderType>
+    uint32* WriteSetShRegPairs(PackedRegisterPair* pRegPairs,
+                               uint32              numRegs,
+                               uint32*             pCmdSpace);
+    template <bool Pm4OptImmediate>
+    uint32* WriteSetContextRegPairs(PackedRegisterPair* pRegPairs,
+                                    uint32              numRegs,
+                                    uint32*             pCmdSpace);
+    uint32* WriteSetContextRegPairs(PackedRegisterPair* pRegPairs,
+                                    uint32              numRegs,
+                                    uint32*             pCmdSpace);
+#endif
+
     template <bool Pm4OptEnabled>
     uint32* WriteSetBase(
         gpusize                         address,
@@ -210,6 +237,10 @@ private:
     uint32*        m_pChunkPreamble;      // If non-null, the current chunk preamble was allocated here.
     bool           m_contextRollDetected; // This will only be set if a context roll has been detected since the
                                           // last draw.
+
+#if PAL_BUILD_GFX11
+    const bool     m_supportsHoleyOptimization;
+#endif
 
     PAL_DISALLOW_COPY_AND_ASSIGN(CmdStream);
     PAL_DISALLOW_DEFAULT_CTOR(CmdStream);

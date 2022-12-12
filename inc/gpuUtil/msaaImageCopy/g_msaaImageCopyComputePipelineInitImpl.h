@@ -143,6 +143,12 @@ Pal::Result CreateMsaaImageCopyComputePipelines(
         pTable = msaaImageCopyComputeBinaryTableNavi24;
         break;
 
+#if PAL_BUILD_NAVI31
+    case Pal::AsicRevision::Navi31:
+        pTable = msaaImageCopyComputeBinaryTableNavi31;
+        break;
+#endif
+
     default:
         result = Pal::Result::ErrorUnknown;
         PAL_NOT_IMPLEMENTED();

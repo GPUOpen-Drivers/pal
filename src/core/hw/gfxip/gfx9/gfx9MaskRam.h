@@ -391,6 +391,10 @@ enum class Gfx9DccClearColor : uint8
     // Used for GFX10 GPUs during fast clears where the actual clear color is written
     // into the first pixel of each DCC block in the image data itself.
     Gfx10ClearColorCompToSingle = 0x10,
+#if PAL_BUILD_GFX11
+    // The GFX11 comp-to-single clear code.
+    Gfx11ClearColorCompToSingle = 0x01,
+#endif
     ClearColorInvalid           = 0xFF,
 };
 

@@ -85,6 +85,20 @@ struct AcquireMemGfxSurfSync : AcquireMemCore
     SurfSyncFlags flags;
 };
 
+#if PAL_BUILD_GFX11
+// This version programs the CP's new PWS functionality, which can do a wait further down the gfx pipeline.
+// It's only supported on gfx11+.
+struct AcquireMemGfxPws : AcquireMemCore
+{
+    ME_ACQUIRE_MEM_pws_stage_sel_enum   stageSel;   // Where the acquire's wait occurs.
+    ME_ACQUIRE_MEM_pws_counter_sel_enum counterSel; // Which delta counter to wait on.
+
+    // The number of selected events minus 1 to synchronize on. (A value of 0 indicates 1 event ago.)
+    // This field can be any value from 0 to 63. This works just like the SQ's s_waitcnt instructions.
+    uint32 syncCount;
+};
+#endif
+
 // Modeled after the GCR bits. Multiple release_mems may be issued on gfx9 to handle some cache combinations.
 // Caches can only be synced by EOP release_mems.
 union ReleaseMemCaches
@@ -98,7 +112,13 @@ union ReleaseMemCaches
         uint8 glmInv      : 1; // Invalidate the GL2 metadata cache.
         uint8 gl1Inv      : 1; // Invalidate the GL1 cache, ignored on gfx9.
         uint8 glvInv      : 1; // Invalidate the L0 vector cache.
+#if PAL_BUILD_GFX11
+        uint8 gfx11GlkInv : 1; // Invalidate the L0 scalar cache. Gfx11+ only.
+        uint8 gfx11GlkWb  : 1; // Flush the L0 scalar cache. Gfx11+ only.
+        uint8 reserved    : 1;
+#else
         uint8 reserved    : 3;
+#endif
     };
 };
 
@@ -122,6 +142,9 @@ struct ReleaseMemGeneric : ReleaseMemCore
 struct ReleaseMemGfx : ReleaseMemCore
 {
     VGT_EVENT_TYPE vgtEvent; // Use this event. It must be an EOP TS event or an EOS event.
+#if PAL_BUILD_GFX11
+    bool           usePws;   // This event should increment the PWS counters.
+#endif
 };
 
 // The "official" "event-write" packet definition (see:  PM4_MEC_EVENT_WRITE) contains "extra" dwords that aren't
@@ -254,6 +277,9 @@ public:
     static constexpr uint32 DrawIndexAutoSize             = PM4_PFP_DRAW_INDEX_AUTO_SIZEDW__CORE;
     static constexpr uint32 DrawIndex2Size                = PM4_PFP_DRAW_INDEX_2_SIZEDW__CORE;
     static constexpr uint32 DrawIndexOffset2Size          = PM4_PFP_DRAW_INDEX_OFFSET_2_SIZEDW__CORE;
+#if PAL_BUILD_GFX11
+    static constexpr uint32 DispatchMeshDirectSize        = PM4_ME_DISPATCH_MESH_DIRECT_SIZEDW__GFX11;
+#endif
     static constexpr uint32 DispatchTaskMeshGfxSize       = PM4_ME_DISPATCH_TASKMESH_GFX_SIZEDW__GFX10COREPLUS;
     static constexpr uint32 DispatchTaskMeshDirectMecSize =
         PM4_MEC_DISPATCH_TASKMESH_DIRECT_ACE_SIZEDW__GFX10COREPLUS;
@@ -319,6 +345,9 @@ public:
 
     size_t BuildAcquireMemGeneric(const AcquireMemGeneric& info, void* pBuffer) const;
     size_t BuildAcquireMemGfxSurfSync(const AcquireMemGfxSurfSync& info, void* pBuffer) const;
+#if PAL_BUILD_GFX11
+    size_t BuildAcquireMemGfxPws(const AcquireMemGfxPws& info, void* pBuffer) const;
+#endif
     static size_t BuildAtomicMem(
         AtomicOp atomicOp,
         gpusize  dstMemAddr,
@@ -453,7 +482,16 @@ public:
         uint32       tgDimOffset,
         uint32       ringEntryLoc,
         Pm4Predicate predicate,
+#if PAL_BUILD_GFX11
+        bool         usesLegacyMsFastLaunch,
+#endif
         void*        pBuffer);
+#if PAL_BUILD_GFX11
+    static size_t BuildDispatchMeshDirect(
+        DispatchDims size,
+        Pm4Predicate predicate,
+        void*        pBuffer);
+#endif
     static size_t BuildDispatchMeshIndirectMulti(
         gpusize      dataOffset,
         uint32       xyzOffset,
@@ -462,6 +500,9 @@ public:
         uint32       stride,
         gpusize      countGpuAddr,
         Pm4Predicate predicate,
+#if PAL_BUILD_GFX11
+        bool         usesLegacyMsFastLaunch,
+#endif
         void*        pBuffer);
     static size_t BuildDispatchTaskMeshIndirectMultiAce(
         gpusize      dataOffset,
@@ -508,6 +549,9 @@ public:
         VGT_EVENT_TYPE                           vgtEvent,
         ME_EVENT_WRITE_event_index_enum          eventIndex,
         EngineType                               engineType,
+#if PAL_BUILD_GFX11
+        MEC_EVENT_WRITE_samp_plst_cntr_mode_enum counterMode,
+#endif
         gpusize                                  gpuAddr,
         void*                                    pBuffer) const;
     size_t BuildExecutionMarker(
@@ -663,6 +707,29 @@ public:
         Pm4ShaderType                   shaderType,
         PFP_SET_SH_REG_INDEX_index_enum index,
         void*                           pBuffer) const;
+#if PAL_BUILD_GFX11
+    template <Pm4ShaderType ShaderType, size_t N>
+    size_t BuildSetMaskedPackedRegPairs(
+        const PackedRegisterPair* pRegPairs,
+        uint32                    (&validMask)[N],
+        bool                      isShReg,
+        void*                     pBuffer) const;
+    template <Pm4ShaderType ShaderType>
+    size_t BuildSetPackedRegPairs(
+        PackedRegisterPair* pRegPairs,
+        uint32              numRegs,
+        bool                isShReg,
+        void*               pBuffer) const;
+    template <Pm4ShaderType ShaderType>
+    size_t BuildSetShRegPairsPacked(
+        PackedRegisterPair* pRegPairs,
+        uint32              numRegs,
+        void*               pBuffer) const;
+    size_t BuildSetContextRegPairsPacked(
+        PackedRegisterPair* pRegPairs,
+        uint32              numRegs,
+        void*               pBuffer) const;
+#endif
     static size_t BuildSetPredication(
         gpusize       gpuVirtAddr,
         bool          predicationBool,
@@ -676,11 +743,21 @@ public:
         uint32  explicitOffset,
         gpusize dstGpuVirtAddr,
         gpusize srcGpuVirtAddr,
+#if PAL_BUILD_GFX11
+        gpusize controlBufAddr,
+#endif
         void*   pBuffer);
     size_t BuildWaitCsIdle(EngineType engineType, gpusize timestampGpuAddr, void* pBuffer) const;
     static size_t BuildWaitDmaData(void* pBuffer);
     static size_t BuildWaitOnCeCounter(bool invalidateKcache, void* pBuffer);
     static size_t BuildWaitOnDeCounterDiff(uint32 counterDiff, void* pBuffer);
+#if PAL_BUILD_GFX11
+    size_t BuildWaitEopPws(
+        HwPipePoint  waitPoint,
+        SyncGlxFlags glxSync,
+        SyncRbFlags  rbSync,
+        void*        pBuffer) const;
+#endif
     static size_t BuildWaitRegMem(
         EngineType engineType,
         uint32     memSpace,
@@ -754,12 +831,24 @@ private:
     size_t BuildReleaseMemInternalGfx10(
         const ReleaseMemCore& info,
         VGT_EVENT_TYPE        vgtEvent,
+#if PAL_BUILD_GFX11
+        bool                  usePws,
+#endif
         void*                 pBuffer) const;
 
     static size_t BuildWriteDataInternal(
         const WriteDataInfo& info,
         size_t               dwordsToWrite,
         void*                pBuffer);
+
+#if PAL_BUILD_GFX11
+    template <Pm4ShaderType ShaderType>
+    uint32* FillPackedRegPairsHeaderAndCount(
+        uint32  numRegs,
+        bool    isShReg,
+        size_t* pPacketSize,
+        uint32* pPacket) const;
+#endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     void CheckShadowedContextReg(uint32 regAddr) const;

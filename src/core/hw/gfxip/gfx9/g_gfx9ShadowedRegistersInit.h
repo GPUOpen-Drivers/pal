@@ -2130,5 +2130,667 @@ void InitializeContextRegistersGfx103(
     }
 }
 
+#if PAL_BUILD_GFX11
+// =====================================================================================================================
+// Initialize several structures with the ClearState values, the Set registers are the same as ContextShadowRange.
+void InitializeContextRegistersGfx11(
+    CmdStream*     pCmdStream,
+    uint32         numRegPairs,
+    const uint32*  pRegOffsets,
+    const uint32*  pRegValues)
+{
+    constexpr uint32 DbRenderControlGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x40004000,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 CoherDestBaseHi0Gfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x80000000,
+        0x40004000,
+        0xffff    ,
+        0x0       ,
+        0x40004000,
+        0x0       ,
+        0x40004000,
+        0x0       ,
+        0x40004000,
+        0x0       ,
+        0x40004000,
+        0xaa99aaaa,
+        0x0       ,
+        0xffffffff,
+        0xffffffff,
+        0x80000000,
+        0x40004000,
+        0x0       ,
+        0x0       ,
+        0x80000000,
+        0x40004000,
+        0x80000000,
+        0x40004000,
+        0x80000000,
+        0x40004000,
+        0x80000000,
+        0x40004000,
+        0x80000000,
+        0x40004000,
+        0x80000000,
+        0x40004000,
+        0x80000000,
+        0x40004000,
+        0x80000000,
+        0x40004000,
+        0x80000000,
+        0x40004000,
+        0x80000000,
+        0x40004000,
+        0x80000000,
+        0x40004000,
+        0x80000000,
+        0x40004000,
+        0x80000000,
+        0x40004000,
+        0x80000000,
+        0x40004000,
+        0x80000000,
+        0x40004000,
+        0x80000000,
+        0x40004000,
+        0x0       ,
+        0x3f800000,
+        0x0       ,
+        0x3f800000,
+        0x0       ,
+        0x3f800000,
+        0x0       ,
+        0x3f800000,
+        0x0       ,
+        0x3f800000,
+        0x0       ,
+        0x3f800000,
+        0x0       ,
+        0x3f800000,
+        0x0       ,
+        0x3f800000,
+        0x0       ,
+        0x3f800000,
+        0x0       ,
+        0x3f800000,
+        0x0       ,
+        0x3f800000,
+        0x0       ,
+        0x3f800000,
+        0x0       ,
+        0x3f800000,
+        0x0       ,
+        0x3f800000,
+        0x0       ,
+        0x3f800000,
+        0x0       ,
+        0x3f800000,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 PaScVrsOverrideCntlGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 PaScVrsRateBaseGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 VgtMultiPrimIbResetIndxGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x1000000 ,
+        0x1000000 ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 SpiPsInputCntl0Gfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x2       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 SpiShaderIdxFormatGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 SxPsDownconvertControlGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 PaClPointXRadGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 GeMaxOutputPerSubgroupGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x90000   ,
+        0x4       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 PaSuPointSizeGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 VgtHosMaxTessLevelGfx11[] = {
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 PaScModeCntl0Gfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 VgtPrimitiveidEnGfx11[] = {
+        0x0
+    };
+    constexpr uint32 VgtPrimitiveidResetGfx11[] = {
+        0x0
+    };
+    constexpr uint32 VgtDrawPayloadCntlGfx11[] = {
+        0x0
+    };
+    constexpr uint32 VgtEsgsRingItemsizeGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 VgtStrmoutDrawOpaqueOffsetGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 GeNggSubgrpCntlGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 VgtTfParamGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 PaScCentroidPriority0Gfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x1000    ,
+        0x0       ,
+        0x5       ,
+        0x3f800000,
+        0x3f800000,
+        0x3f800000,
+        0x3f800000,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0xffffffff,
+        0xffffffff,
+        0x0       ,
+        0x3       ,
+        0x0       ,
+        0x100000  ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 CbColor0BaseGfx11[] = {
+        0x0
+    };
+    constexpr uint32 CbColor0ViewGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 CbColor0DccBaseGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 CbColor1ViewGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 CbColor1DccBaseGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 CbColor2ViewGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 CbColor2DccBaseGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 CbColor3ViewGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 CbColor3DccBaseGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 CbColor4ViewGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 CbColor4DccBaseGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 CbColor5ViewGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 CbColor5DccBaseGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 CbColor6ViewGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 CbColor6DccBaseGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 CbColor7ViewGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 CbColor7DccBaseGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    constexpr uint32 CbColor0DccBaseExtGfx11[] = {
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0       ,
+        0x0
+    };
+    uint32* pCmdSpace = pCmdStream->ReserveCommands();
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmDB_RENDER_CONTROL, mmTA_BC_BASE_ADDR_HI, DbRenderControlGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCOHER_DEST_BASE_HI_0, mmPA_SC_TILE_STEERING_OVERRIDE, CoherDestBaseHi0Gfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx11::mmPA_SC_VRS_OVERRIDE_CNTL, Gfx11::mmPA_SC_VRS_RATE_CACHE_CNTL, PaScVrsOverrideCntlGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx11::mmPA_SC_VRS_RATE_BASE, Gfx11::mmPA_SC_VRS_RATE_SIZE_XY, PaScVrsRateBaseGfx11, pCmdSpace);
+    pCmdStream->CommitCommands(pCmdSpace);
+    pCmdSpace = pCmdStream->ReserveCommands();
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_MULTI_PRIM_IB_RESET_INDX, mmPA_CL_UCP_5_W, VgtMultiPrimIbResetIndxGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmSPI_PS_INPUT_CNTL_0, Gfx11::mmSPI_GFX_SCRATCH_BASE_HI, SpiPsInputCntl0Gfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx10Plus::mmSPI_SHADER_IDX_FORMAT, mmSPI_SHADER_COL_FORMAT, SpiShaderIdxFormatGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx103PlusExclusive::mmSX_PS_DOWNCONVERT_CONTROL, mmCB_BLEND7_CONTROL, SxPsDownconvertControlGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_CL_POINT_X_RAD, mmPA_CL_POINT_CULL_RAD, PaClPointXRadGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP, Gfx103Plus::mmPA_CL_VRS_CNTL, GeMaxOutputPerSubgroupGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SU_POINT_SIZE, mmPA_SC_LINE_STIPPLE, PaSuPointSizeGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_HOS_MAX_TESS_LEVEL, mmVGT_HOS_MIN_TESS_LEVEL, VgtHosMaxTessLevelGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_MODE_CNTL_0, mmVGT_ENHANCE, PaScModeCntl0Gfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_PRIMITIVEID_EN, mmVGT_PRIMITIVEID_EN, VgtPrimitiveidEnGfx11, pCmdSpace);
+    pCmdStream->CommitCommands(pCmdSpace);
+    pCmdSpace = pCmdStream->ReserveCommands();
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_PRIMITIVEID_RESET, mmVGT_PRIMITIVEID_RESET, VgtPrimitiveidResetGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_DRAW_PAYLOAD_CNTL, mmVGT_DRAW_PAYLOAD_CNTL, VgtDrawPayloadCntlGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_ESGS_RING_ITEMSIZE, mmDB_SRESULTS_COMPARE_STATE1, VgtEsgsRingItemsizeGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_STRMOUT_DRAW_OPAQUE_OFFSET, mmVGT_GS_MAX_VERT_OUT, VgtStrmoutDrawOpaqueOffsetGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx10Plus::mmGE_NGG_SUBGRP_CNTL, mmVGT_LS_HS_CONFIG, GeNggSubgrpCntlGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmVGT_TF_PARAM, mmVGT_GS_INSTANCE_CNT, VgtTfParamGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmPA_SC_CENTROID_PRIORITY_0, Gfx104Plus::mmPA_SC_BINNER_CNTL_2, PaScCentroidPriority0Gfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_COLOR0_BASE, mmCB_COLOR0_BASE, CbColor0BaseGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_COLOR0_VIEW, mmCB_COLOR0_DCC_CONTROL, CbColor0ViewGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_COLOR0_DCC_BASE, mmCB_COLOR1_BASE, CbColor0DccBaseGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_COLOR1_VIEW, mmCB_COLOR1_DCC_CONTROL, CbColor1ViewGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_COLOR1_DCC_BASE, mmCB_COLOR2_BASE, CbColor1DccBaseGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_COLOR2_VIEW, mmCB_COLOR2_DCC_CONTROL, CbColor2ViewGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_COLOR2_DCC_BASE, mmCB_COLOR3_BASE, CbColor2DccBaseGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_COLOR3_VIEW, mmCB_COLOR3_DCC_CONTROL, CbColor3ViewGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_COLOR3_DCC_BASE, mmCB_COLOR4_BASE, CbColor3DccBaseGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_COLOR4_VIEW, mmCB_COLOR4_DCC_CONTROL, CbColor4ViewGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_COLOR4_DCC_BASE, mmCB_COLOR5_BASE, CbColor4DccBaseGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_COLOR5_VIEW, mmCB_COLOR5_DCC_CONTROL, CbColor5ViewGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_COLOR5_DCC_BASE, mmCB_COLOR6_BASE, CbColor5DccBaseGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_COLOR6_VIEW, mmCB_COLOR6_DCC_CONTROL, CbColor6ViewGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_COLOR6_DCC_BASE, mmCB_COLOR7_BASE, CbColor6DccBaseGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_COLOR7_VIEW, mmCB_COLOR7_DCC_CONTROL, CbColor7ViewGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_COLOR7_DCC_BASE, Gfx10Plus::mmCB_COLOR7_BASE_EXT, CbColor7DccBaseGfx11, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(Gfx10Plus::mmCB_COLOR0_DCC_BASE_EXT, Gfx10Plus::mmCB_COLOR7_ATTRIB3, CbColor0DccBaseExtGfx11, pCmdSpace);
+    pCmdStream->CommitCommands(pCmdSpace);
+
+    for (uint32  regIdx = 0; regIdx < numRegPairs; regIdx++)
+    {
+        pCmdSpace = pCmdStream->ReserveCommands();
+        pCmdSpace = pCmdStream->WriteSetOneContextReg(pRegOffsets[regIdx], pRegValues[regIdx], pCmdSpace);
+        pCmdStream->CommitCommands(pCmdSpace);
+    }
+}
+
+#endif
 } // namespace Gfx9
 } // namespace Pal

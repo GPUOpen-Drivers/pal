@@ -175,6 +175,13 @@ Result RsrcProcMgr::LateInit()
                 pipeInfo.pPipelineBinary = Gfx10EchoGlobalTableElfBinary;
                 pipeInfo.pipelineBinarySize = sizeof(Gfx10EchoGlobalTableElfBinary);
             }
+#if PAL_BUILD_GFX11
+            else if (IsGfx11(*m_pDevice->Parent()))
+            {
+                pipeInfo.pPipelineBinary = Gfx11EchoGlobalTableElfBinary;
+                pipeInfo.pipelineBinarySize = sizeof(Gfx11EchoGlobalTableElfBinary);
+            }
+#endif
         }
 
         if (pipeInfo.pPipelineBinary != nullptr)
@@ -274,6 +281,9 @@ static ColorFormat HwColorFormat(
 
     case GfxIpLevel::GfxIp10_1:
     case GfxIpLevel::GfxIp10_3:
+#if PAL_BUILD_GFX11
+    case GfxIpLevel::GfxIp11_0:
+#endif
         hwColorFmt = HwColorFmt(MergedChannelFlatFmtInfoTbl(gfxLevel, &pDevice->GetPlatform()->PlatformSettings()),
                                 format);
         break;
@@ -1775,6 +1785,44 @@ void RsrcProcMgr::PreComputeDepthStencilClearSync(
     ImageLayout        layout
     ) const
 {
+#if PAL_BUILD_GFX11
+    if (IsGfx11(*m_pDevice->Parent()))
+    {
+        // The most efficient way to wait for DB-idle and flush and invalidate the DB caches on pre-gfx11 HW
+        // is an acquire_mem. Gfx11 can't touch the DB caches using an acquire_mem but that's OK because we
+        // expect WriteWaitEopGfx to do a PWS EOP wait which should be fast. Call CmdReleaseThenAcquire()
+        // so PWS can wait a later point.
+        PAL_ASSERT(subres.numPlanes == 1);
+
+        ImgBarrier imgBarrier = {};
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 767
+        imgBarrier.srcStageMask  = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget;
+        // Fast clear path may have CP to update metadata state/values, wait at BLT/ME stage for safe.
+        imgBarrier.dstStageMask  = PipelineStageBlt;
+#endif
+        imgBarrier.srcAccessMask = CoherDepthStencilTarget;
+        imgBarrier.dstAccessMask = CoherShader;
+        imgBarrier.subresRange   = subres;
+        imgBarrier.pImage        = gfxImage.Parent();
+        imgBarrier.oldLayout     = layout;
+        imgBarrier.newLayout     = layout;
+
+        AcquireReleaseInfo acqRelInfo = {};
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 767
+        acqRelInfo.srcStageMask      = PipelineStageEarlyDsTarget | PipelineStageLateDsTarget;
+        // Fast clear path may have CP to update metadata state/values, wait at BLT/ME stage for safe.
+        acqRelInfo.dstStageMask      = PipelineStageBlt;
+#endif
+        acqRelInfo.imageBarrierCount = 1;
+        acqRelInfo.pImageBarriers    = &imgBarrier;
+        acqRelInfo.reason            = Developer::BarrierReasonPreComputeDepthStencilClear;
+
+        pCmdBuffer->CmdReleaseThenAcquire(acqRelInfo);
+    }
+    else
+#endif
     {
         Pal::Pm4::RsrcProcMgr::PreComputeDepthStencilClearSync(pCmdBuffer, gfxImage, subres, layout);
     }
@@ -2575,6 +2623,16 @@ void RsrcProcMgr::DepthStencilClearGraphics(
 
         uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
+#if PAL_BUILD_GFX11
+        // We should prefer using a pre_depth PWS wait when it's supported. WriteWaitEop will use PWS by default.
+        // Moving the wait down to the pre_depth sync point should make the wait nearly free. Otherwise, the legacy
+        // surf-sync support should be faster than a full EOP wait at the CP.
+        if (IsGfx11(*m_pDevice->Parent()))
+        {
+            pCmdSpace = pPm4CmdBuf->WriteWaitEop(HwPipePreRasterization, SyncGlxNone, SyncDbWbInv, pCmdSpace);
+        }
+        else
+#endif
         {
             AcquireMemGfxSurfSync acquireInfo = {};
             acquireInfo.rangeBase = dstImage.Parent()->GetGpuVirtualAddr();
@@ -6277,6 +6335,9 @@ void Gfx10RsrcProcMgr::ClearDccCompute(
                 }
 
                 if ((clearCode == static_cast<uint8>(Gfx9DccClearColor::Gfx10ClearColorCompToSingle))
+#if PAL_BUILD_GFX11
+                    || (clearCode == static_cast<uint8>(Gfx9DccClearColor::Gfx11ClearColorCompToSingle))
+#endif
                    )
                 {
                     // If this image doesn't support comp-to-single fast clears, then how did we wind up with the
@@ -6332,6 +6393,14 @@ void Gfx10RsrcProcMgr::ClearDccComputeSetFirstPixelOfBlock(
     const auto&              createInfo = pPalImage->GetImageCreateInfo();
     const auto*              pDcc       = dstImage.GetDcc(plane);
     const RpmComputePipeline pipeline   = (((createInfo.samples == 1)
+#if PAL_BUILD_GFX11
+                                            //   On GFX11, MSAA surfaces are sample interleaved, the way depth always
+                                            //   has been.
+                                            //
+                                            // Since "GetXyzInc" already incorporates the # of samples,  we don't
+                                            // have to store the clear color for each sample anymore.
+                                            || IsGfx11(*(m_pDevice->Parent()))
+#endif
                                             )
                                             ? RpmComputePipeline::Gfx10ClearDccComputeSetFirstPixel
                                             : RpmComputePipeline::Gfx10ClearDccComputeSetFirstPixelMsaa);
@@ -6816,7 +6885,12 @@ const Pal::ComputePipeline* Gfx10RsrcProcMgr::GetCmdGenerationPipeline(
     case Pm4::GeneratorType::DispatchMesh:
         PAL_ASSERT(Pal::Device::EngineSupportsGraphics(engineType) &&
                    Pal::Device::EngineSupportsCompute(engineType));
+#if PAL_BUILD_GFX11
+        pipeline = (IsGfx11(generator.Properties().gfxLevel)) ? RpmComputePipeline::Gfx11GenerateCmdDispatchTaskMesh
+                                                              : RpmComputePipeline::Gfx10GenerateCmdDispatchTaskMesh;
+#else
         pipeline = RpmComputePipeline::Gfx10GenerateCmdDispatchTaskMesh;
+#endif
         break;
     default:
         PAL_ASSERT_ALWAYS();
@@ -6834,6 +6908,17 @@ static uint32 RetrieveHwFmtFromSrd(
 {
     uint32  hwFmt = 0;
 
+#if PAL_BUILD_GFX11
+    if (false
+#if PAL_BUILD_GFX11
+        || IsGfx11(palDevice)
+#endif
+       )
+    {
+        hwFmt = pSrd->gfx104Plus.format;
+    }
+    else
+#endif
     {
         PAL_ASSERT(IsGfx10(palDevice));
 
@@ -6929,6 +7014,13 @@ void Gfx10RsrcProcMgr::HwlDecodeImageViewSrd(
             depth     = LowPart(pSrd->gfx10.depth);
             baseArray = LowPart(pSrd->gfx10.base_array);
         }
+#if PAL_BUILD_GFX11
+        else if (IsGfx11(gfxLevel))
+        {
+            depth     = LowPart(pSrd->gfx11.depth);
+            baseArray = LowPart(pSrd->gfx11.base_array);
+        }
+#endif
         else
         {
             PAL_ASSERT_ALWAYS();

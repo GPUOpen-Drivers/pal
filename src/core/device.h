@@ -426,7 +426,11 @@ struct GpuEngineProperties
                 uint32 supportsUnmappedPrtPageAccess   :  1;
                 uint32 memory32bPredicationEmulated    :  1;
                 uint32 supportsClearCopyMsaaDsDst      :  1;
+#if PAL_BUILD_GFX11
+                uint32 supportsPws                     :  1; // HW supports pixel wait sync plus.
+#else
                 uint32 reserved1                       :  1;
+#endif
                 uint32 reserved                        :  6;
             };
             uint32 u32All;
@@ -593,7 +597,17 @@ struct Gfx6PerfCounterInfo
 constexpr uint32 Gfx9MaxSdmaInstances   = 2;
 constexpr uint32 Gfx9MaxSdmaPerfModules = 2;
 
+#if PAL_BUILD_GFX11
+constexpr uint32 Gfx9MaxShaderEngines = 6;  // GFX11 parts have six SE's
+// In gfx11, the max number of wgp instances per shader array is 5.
+// The max number of shader array per shader engine is 2.
+// The max number of shader engines is 6.
+constexpr uint32 Gfx11MaxWgps = 5 * 6 * 2;
+// Minimum PFP uCode version that indicates the device is running in RS64 mode
+constexpr uint32 Gfx11Rs64MinPfpUcodeVersion = 300;
+#else
 constexpr uint32 Gfx9MaxShaderEngines = 4;  // We can't have more than 4 SEs on gfx9+.
+#endif
 
 // UMC is the block that interfaces between the Scalable Data Fabric (SDF) and the physical DRAM. Each UMC block
 // has 1..n channels. Typically, there is one UMC channel per EA block, or one per SDP (Scalable Data Port). We
@@ -752,7 +766,11 @@ struct GpuChipProperties
             uint32 supportGl2Uncached          :  1; // Indicates support for the allocation of GPU L2
                                                      // un-cached memory. See gl2UncachedCpuCoherency
             uint32 supportsVrs                 :  1; // Indicates support for variable rate shading
+#if (PAL_BUILD_GFX11)
+            uint32 supportsSwStrmout           :  1; // Indicates support for software streamout
+#else
             uint32 reserved2                   :  1;
+#endif
             uint32 supportsHwVs                :  1; // Indicates hardware support for Vertex Shaders
             uint32 reserved3                   :  1;
             uint32 supportCaptureReplay        :  1; // Indicates support for Capture Replay
@@ -989,7 +1007,12 @@ struct GpuChipProperties
                 uint64 supportTaskShader                  :  1;
                 uint64 supportMsFullRangeRtai             :  1; // HW supports full range render target array
                                                                 // for Mesh Shaders.
+#if PAL_BUILD_GFX11
+                uint64 supportRayTraversalStack           :  1;
+                uint64 supportPointerFlags                :  1;
+#else
                 uint64 placeholder5                       :  2;
+#endif
                 uint64 supportTextureGatherBiasLod        :  1; // HW supports SQ_IMAGE_GATHER4_L_O
                 uint64 supportInt8Dot                     :  1; // HW supports a dot product 8bit.
                 uint64 supportInt4Dot                     :  1; // HW supports a dot product 4bit.
@@ -1887,6 +1910,11 @@ public:
     const bool IsConstantEngineSupported(EngineType engineType) const
         { return (m_engineProperties.perEngine[engineType].flags.constantEngineSupport != 0); }
 
+#if PAL_BUILD_GFX11
+    const bool IsPwsSupported(EngineType engineType) const
+        { return m_engineProperties.perEngine[engineType].flags.supportsPws; }
+#endif
+
 #if PAL_ENABLE_PRINTS_ASSERTS
     bool IsCmdBufDumpEnabled() const { return m_cmdBufDumpEnabled; }
 #endif
@@ -2395,6 +2423,32 @@ inline bool IsGfx9(const Device& device)
     return IsGfx9(device.ChipProperties().gfxLevel);
 }
 
+#if PAL_BUILD_GFX11
+constexpr bool IsGfx11(GfxIpLevel gfxLevel)
+{
+    return (gfxLevel == GfxIpLevel::GfxIp11_0)
+        ;
+}
+
+inline bool IsGfx11(const Device& device)
+{
+    return IsGfx11(device.ChipProperties().gfxLevel);
+}
+
+#if PAL_BUILD_NAVI31
+inline bool IsNavi31(const Device& device)
+{
+    return AMDGPU_IS_NAVI31(device.ChipProperties().familyId, device.ChipProperties().eRevId);
+}
+#endif
+#if PAL_BUILD_NAVI3X
+inline bool IsNavi3x(const Device& device)
+{
+    return (device.ChipProperties().familyId == FAMILY_NV3);
+}
+#endif
+#endif
+
 constexpr bool IsGfx10(GfxIpLevel gfxLevel)
 {
     return ((gfxLevel == GfxIpLevel::GfxIp10_1)
@@ -2409,6 +2463,9 @@ inline bool IsGfx10(const Device& device)
 constexpr bool IsGfx10Plus(GfxIpLevel gfxLevel)
 {
     return IsGfx10(gfxLevel)
+#if PAL_BUILD_GFX11
+           || IsGfx11(gfxLevel)
+#endif
            ;
 }
 
@@ -2657,10 +2714,31 @@ inline bool IsGfx10Bard(const Device& device)
     return (false
             );
 }
+#if  PAL_BUILD_GFX11
+inline bool IsGfx104Plus(const Device& device)
+{
+    return (false
+#if PAL_BUILD_GFX11
+            || IsGfx11(device)
+#endif
+    );
+}
+constexpr bool IsGfx104Plus(GfxIpLevel gfxLevel)
+{
+    return (false
+#if PAL_BUILD_GFX11
+            || IsGfx11(gfxLevel)
+#endif
+    );
+}
+#endif
 
 inline bool IsGfx091xPlus(const Device& device)
 {
     return (IsVega12(device) || IsVega20(device) || IsRaven2(device) || IsRenoir(device) || IsGfx10(device)
+#if PAL_BUILD_GFX11
+            || IsGfx11(device)
+#endif
            );
 }
 

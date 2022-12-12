@@ -88,6 +88,9 @@ enum class AmdGpuMachineType : uint8
     Gfx1031 = 0x37,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1031
     Gfx1032 = 0x38,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1032
     Gfx1034 = 0x3e,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1034
+#if PAL_BUILD_NAVI31
+    Gfx1100 = 0x41,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1100
+#endif
 };
 
 /// AmdGpuFeatureV4Type for the feature selection mask bits in e_flags.
@@ -154,6 +157,11 @@ enum GfxIpStepping : uint16
 
     // GFXIP 10.3.x steppings:
     GfxIpSteppingNavi24        = 4,
+
+#if PAL_BUILD_NAVI31
+    // GFXIP 11.0.x steppings:
+    GfxIpSteppingNavi31        = 0,
+#endif
 
 };
 
@@ -457,6 +465,10 @@ enum class UserDataMapping : uint32
     MeshPipeStatsBuf      = 0x10000014,  ///< 32-bit GPU virtual address of a buffer storing the shader-emulated mesh
                                          ///  pipeline stats query.
     FetchShaderPtr        = 0x10000015,  ///< 64-bit pointer to GPU memory containing the fetch shader subroutine.
+#if PAL_BUILD_GFX11
+    StreamOutControlBuf   = 0x10000016, ///< 32-bit GPU virtual address to the streamout control buffer for GPUs that
+                                        ///  use software-emulated streamout.
+#endif
     EnPrimsNeededCnt      = 0x10000017,  ///< Address of userdata register that will be used to dynamically enable/disable
                                          ///  extra shader work for generated prim counts in PipelineStats queries
 

@@ -106,6 +106,18 @@ public:
         const uint32*           pData,
         uint32*                 pCmdSpace);
 
+#if PAL_BUILD_GFX11
+    template <Pm4ShaderType ShaderType>
+    uint32* WriteOptimizedSetShRegPairs(
+        PackedRegisterPair* pRegPairs,
+        uint32              numRegs,
+        uint32*             pCmdSpace);
+    uint32* WriteOptimizedSetContextRegPairs(
+        PackedRegisterPair* pRegPairs,
+        uint32              numRegs,
+        uint32*             pCmdSpace);
+#endif
+
     // These functions take a fully built LOAD_DATA header(s) and will update the state of the optimizer state
     // based on the packet's contents.
     void HandleLoadShRegs(const PM4_ME_LOAD_SH_REG& loadData)
@@ -134,6 +146,14 @@ private:
         const uint32*                 pRegData,
         uint32*                       pDstCmd,
         RegGroupState<RegisterCount>* pRegState);
+
+#if PAL_BUILD_GFX11
+    template <Pm4ShaderType ShaderType, bool IsShReg>
+    uint32* OptimizePm4SetRegPairsPacked(
+        PackedRegisterPair* pRegPairs,
+        uint32              numRegs,
+        uint32*             pCmdSpace);
+#endif
 
     template <typename LoadDataPacket, size_t RegisterCount>
     void HandlePm4LoadReg(

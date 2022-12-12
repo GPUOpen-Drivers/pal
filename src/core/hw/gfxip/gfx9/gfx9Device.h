@@ -59,6 +59,11 @@ enum RegisterRangeType : uint32
     RegRangeSh                   = 0x2,
     RegRangeCsSh                 = 0x3,
     RegRangeNonShadowed          = 0x4,
+#if PAL_BUILD_GFX11
+    RegRangeCpRs64InitSh         = 0x5,
+    RegRangeCpRs64InitCsSh       = 0x6,
+    RegRangeCpRs64InitUserConfig = 0x7,
+#endif
 };
 
 struct SyncReqs
@@ -141,6 +146,92 @@ struct AcqRelTransitionInfo
 
 // Forward decl
 static const Gfx9PalSettings& GetGfx9Settings(const Pal::Device& device);
+
+#if PAL_BUILD_GFX11
+// =====================================================================================================================
+// Sets an offset and value in a packed context register pair.
+static void SetOneContextRegValPairPacked(
+    PackedRegisterPair* pRegPairs,
+    uint32*             pIndex,
+    uint16              regAddr,
+    uint32              value)
+{
+    SetOneRegValPairPacked<CONTEXT_SPACE_START>(pRegPairs, pIndex, regAddr, value);
+}
+
+// =====================================================================================================================
+// Sets offsets and values for a sequence of consecutive context registers in packed register pairs.
+static void SetSeqContextRegValPairPacked(
+    PackedRegisterPair* pRegPairs,
+    uint32*             pIndex,
+    uint16              startAddr,
+    uint16              endAddr,
+    const void*         pValues)
+{
+    SetSeqRegValPairPacked<CONTEXT_SPACE_START>(pRegPairs, pIndex, startAddr, endAddr, pValues);
+}
+
+// =====================================================================================================================
+// Sets an offset and value in a packed SH register pair.
+static void SetOneShRegValPairPacked(
+    PackedRegisterPair* pRegPairs,
+    uint32*             pIndex,
+    uint16              regAddr,
+    uint32              value)
+{
+    SetOneRegValPairPacked<PERSISTENT_SPACE_START>(pRegPairs, pIndex, regAddr, value);
+}
+
+// =====================================================================================================================
+// Sets offsets and values for a sequence of consecutive SH registers in packed register pairs.
+static void SetSeqShRegValPairPacked(
+    PackedRegisterPair* pRegPairs,
+    uint32*             pIndex,
+    uint16              startAddr,
+    uint16              endAddr,
+    const void*         pValues)
+{
+    SetSeqRegValPairPacked<PERSISTENT_SPACE_START>(pRegPairs, pIndex, startAddr, endAddr, pValues);
+}
+
+// =====================================================================================================================
+// Sets the offset and value of a user data entry in a packed register pair.
+static void SetOneUserDataEntryPairPackedValue(
+    const uint32        regAddr,
+    const uint16        baseUserDataReg,
+    const uint32        value,
+    PackedRegisterPair* pValidRegPairs,
+    uint8*              pValidRegsLookup,
+    uint32*             pNumValidRegs)
+{
+    SetOnePackedRegPairLookup<PERSISTENT_SPACE_START>(regAddr,
+                                                      baseUserDataReg,
+                                                      value,
+                                                      pValidRegPairs,
+                                                      pValidRegsLookup,
+                                                      pNumValidRegs);
+}
+
+// =====================================================================================================================
+// Sets offsets and values of a sequence of consecutive user data entries in packed register pairs.
+static void SetSeqUserDataEntryPairPackedValues(
+    const uint32        startAddr,
+    const uint32        endAddr,
+    const uint16        baseUserDataReg,
+    const void*         pValues,
+    PackedRegisterPair* pValidRegPairs,
+    uint8*              pValidRegsLookup,
+    uint32*             pNumValidRegs)
+{
+    SetSeqPackedRegPairLookup<PERSISTENT_SPACE_START>(startAddr,
+                                                      endAddr,
+                                                      baseUserDataReg,
+                                                      pValues,
+                                                      pValidRegPairs,
+                                                      pValidRegsLookup,
+                                                      pNumValidRegs);
+}
+#endif
 
 // =====================================================================================================================
 // GFX9 hardware layer implementation of GfxDevice. Responsible for creating HW-specific objects such as Queue contexts
@@ -342,6 +433,11 @@ public:
     // Suballocated memory large enough to hold the output of a ZPASS_DONE event. It is only bound if the workaround
     // that requires it is enabled.
     const BoundGpuMemory& DummyZpassDoneMem() const { return m_dummyZpassDoneMem; }
+
+#if PAL_BUILD_GFX11
+    // Gets the memory object for vertex attributes
+    const BoundGpuMemory& VertexAttributesMem(bool isTmz) const { return m_vertexAttributesMem[isTmz]; }
+#endif
 
     uint16 GetBaseUserDataReg(HwShaderStage  shaderStage) const;
 
@@ -661,7 +757,19 @@ public:
 
     virtual uint32 GetVarBlockSize() const override { return m_varBlockSize; }
 
+#if  PAL_BUILD_GFX11
+    uint32 GetShaderPrefetchSize(size_t  shaderSizeBytes) const;
+#endif
+
     uint32 BufferSrdResourceLevel() const;
+
+#if PAL_BUILD_GFX11
+    // Returns whether the pixel-wait-sync-plus feature can be enabled.
+    bool UsePws(EngineType engineType) const
+        { return (Parent()->IsPwsSupported(engineType) && Settings().enablePws); }
+
+    Result AllocateVertexAttributesMem(bool isTmz);
+#endif
 
 private:
     void Gfx10SetImageSrdDims(sq_img_rsrc_t*  pSrd, uint32 width, uint32  height) const;
@@ -846,6 +954,11 @@ private:
     uint32            m_varBlockSize;
 
     uint16         m_firstUserDataReg[HwShaderStage::Last];
+
+#if PAL_BUILD_GFX11
+    // 0 - Non-TMZ, 1 - TMZ
+    BoundGpuMemory m_vertexAttributesMem[2];
+#endif
 
     PAL_DISALLOW_DEFAULT_CTOR(Device);
     PAL_DISALLOW_COPY_AND_ASSIGN(Device);

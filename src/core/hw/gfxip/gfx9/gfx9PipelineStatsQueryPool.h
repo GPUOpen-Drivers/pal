@@ -68,6 +68,10 @@ public:
         uint32  queryCount,
         void*   pMappedCpuAddr) override;
 
+#if PAL_BUILD_GFX11
+    virtual bool RequiresHybridCmdStream() const override;
+#endif
+
 protected:
     virtual ~PipelineStatsQueryPool() {}
 

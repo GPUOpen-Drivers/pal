@@ -139,8 +139,22 @@ struct GlobalSelectState
         bool                       perfmonInUse[Gfx9MaxSqgPerfmonModules];
         bool                       hasCounters;
         regGRBM_GFX_INDEX          grbmGfxIndex;
+#if PAL_BUILD_GFX11
+        // The register definitions of SQG_PERFCOUNTER0_SELECT and SQ_PERFCOUNTER0_SELECT are bit compatible.
+        // For gfx11, it's safe to store PERF_SEL, SPM_MODE, PERF_MODE fields here.
+#endif
         regSQ_PERFCOUNTER0_SELECT  perfmon[Gfx9MaxSqgPerfmonModules];
     } sqg[Gfx9MaxShaderEngines];
+
+#if PAL_BUILD_GFX11
+    struct
+    {
+        bool                       perfmonInUse[Gfx11MaxSqPerfmonModules];
+        bool                       hasCounters;
+        regGRBM_GFX_INDEX          grbmGfxIndex;
+        regSQ_PERFCOUNTER0_SELECT  perfmon[Gfx11MaxSqPerfmonModules];
+    } sqWgp[Gfx11MaxWgps];
+#endif
 
     // The GRBM is a global block but it defines one special counter per SE. We treat its global counters generically
     // under GpuBlock::Grbm but special case the per-SE counters using GpuBlock::GrbmSe.
@@ -212,6 +226,16 @@ union MuxselEncoding
         uint16 shaderArray : 1; // 0: SA0, 1: SA1
         uint16 instance    : 5; // The local instance of the block.
     } gfx10Se;                   // Use this version in the per-SE muxsel rams on gfx10.
+
+#if PAL_BUILD_GFX11
+    struct
+    {
+        uint16 counter     : 5;
+        uint16 instance    : 5;
+        uint16 shaderArray : 1;
+        uint16 block       : 5;
+    } gfx11;
+#endif
 
     uint16 u16All; // All the fields above as a single uint16
 };
@@ -332,6 +356,9 @@ private:
     bool HasRmiSubInstances(GpuBlock block) const;
     bool IsSqLevelEvent(uint32 eventId) const;
     uint32 VirtualSeToRealSe(const uint32 index) const;
+#if PAL_BUILD_GFX11
+    bool IsSqWgpLevelEvent(uint32 eventId) const;
+#endif
 
     // Here are a few helper functions which write into reserved command space.
     uint32* WriteSpmSetup(CmdStream* pCmdStream, uint32* pCmdSpace) const;

@@ -285,6 +285,98 @@ uint32* Pm4Optimizer::WriteOptimizedSetSeqContextRegs(
     return pNewCmdSpace;
 }
 
+#if PAL_BUILD_GFX11
+// =====================================================================================================================
+// Returns a pointer to the next unused DWORD in pCmdSpace.
+template <Pm4ShaderType ShaderType>
+uint32* Pm4Optimizer::WriteOptimizedSetShRegPairs(
+    PackedRegisterPair* pRegPairs,
+    uint32              numRegs,
+    uint32*             pCmdSpace)
+{
+#if PAL_ENABLE_PRINTS_ASSERTS
+    m_dstContainsSrc = false;
+#endif
+    return OptimizePm4SetRegPairsPacked<ShaderType, true>(pRegPairs, numRegs, pCmdSpace);
+}
+
+template
+uint32* Pm4Optimizer::WriteOptimizedSetShRegPairs<ShaderGraphics>(
+    PackedRegisterPair* pRegPairs,
+    uint32              numRegs,
+    uint32*             pCmdSpace);
+template
+uint32* Pm4Optimizer::WriteOptimizedSetShRegPairs<ShaderCompute>(
+    PackedRegisterPair* pRegPairs,
+    uint32              numRegs,
+    uint32*             pCmdSpace);
+
+// =====================================================================================================================
+// Returns a pointer to the next unused DWORD in pCmdSpace.
+uint32* Pm4Optimizer::WriteOptimizedSetContextRegPairs(
+    PackedRegisterPair* pRegPairs,
+    uint32              numRegs,
+    uint32*             pCmdSpace)
+{
+#if PAL_ENABLE_PRINTS_ASSERTS
+    m_dstContainsSrc = false;
+#endif
+    return OptimizePm4SetRegPairsPacked<ShaderGraphics, false>(pRegPairs, numRegs, pCmdSpace);
+}
+
+// =====================================================================================================================
+// Returns a pointer to the next free location in the optimized command stream.
+template <Pm4ShaderType ShaderType, bool IsShReg>
+uint32* Pm4Optimizer::OptimizePm4SetRegPairsPacked(
+    PackedRegisterPair* pRegPairs,
+    uint32              numRegs,
+    uint32*             pDstCmd)
+{
+    // Determine which of the registers written by this set command can't be skipped because they must always be set or
+    // are taking on a new value.
+    //
+    // We assume that no more than 32 registers are being set.
+    // If we ever encounter a set command with more than 32 registers that has redundant values the assert below
+    // will trigger.
+    constexpr uint32 NumShaderStages = (ShaderType == ShaderCompute) ? Gfx11NumRegPairSupportedStagesCs
+                                                                     : Gfx11NumRegPairSupportedStagesGfx;
+    constexpr uint32 RegisterCount   = IsShReg ? ShRegUsedRangeSize : CntxRegUsedRangeSize;
+
+    // We cast to void to avoid the compiler complaining about mismatching RegisterCount despite matching types.
+    void* pRegState = IsShReg ? static_cast<void*>(&m_shRegs) : static_cast<void*>(&m_cntxRegs);
+
+    uint32 keepRegCount               = 0;
+    uint32 validMask[NumShaderStages] = {};
+    for (uint32 i = 0; i < numRegs; i++)
+    {
+        const uint32 pairIdx = i / 2;
+        const auto&  pair    = pRegPairs[pairIdx];
+
+        const uint16 offset = ((i % 2) == 0) ? pair.offset0 : pair.offset1;
+        const uint32 value  = ((i % 2) == 0) ? pair.value0  : pair.value1;
+
+        if (UpdateRegState<RegisterCount>(value, offset, m_isTempDisabled, pRegState))
+        {
+            WideBitfieldSetBit(validMask, i);
+            keepRegCount++;
+        }
+    }
+
+    if (keepRegCount == numRegs)
+    {
+        pDstCmd += m_cmdUtil.BuildSetPackedRegPairs<ShaderType>(pRegPairs, keepRegCount, IsShReg, pDstCmd);
+    }
+    else if (keepRegCount > 0)
+    {
+        // Keep some register pairs
+        pDstCmd +=
+            m_cmdUtil.BuildSetMaskedPackedRegPairs<ShaderType, NumShaderStages>(pRegPairs, validMask, IsShReg, pDstCmd);
+    }
+
+    return pDstCmd;
+}
+#endif
+
 // =====================================================================================================================
 // Optimize the specified PM4 SET packet. May remove the SET packet completely, reduce the range of registers it sets,
 // break it into multiple smaller SET commands, or leave it unmodified. Returns a pointer to the next free location in

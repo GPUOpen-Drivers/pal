@@ -81,6 +81,11 @@ SqttGfxIpLevel GfxipToSqttGfxIpLevel(
     case Pal::GfxIpLevel::GfxIp10_3:
         sqttLevel = SQTT_GFXIP_LEVEL_GFXIP_10_3;
         break;
+#if PAL_BUILD_GFX11
+    case Pal::GfxIpLevel::GfxIp11_0:
+        sqttLevel = SQTT_GFXIP_LEVEL_GFXIP_11_0;
+        break;
+#endif
     default:
         PAL_ASSERT_ALWAYS_MSG("Unknown GfxIpLevel value: %u!", static_cast<uint32>(gfxIpLevel));
         break;
@@ -120,6 +125,11 @@ SqttVersion GfxipToSqttVersion(
     case Pal::GfxIpLevel::GfxIp10_3:
         version = SQTT_VERSION_3_0;
         break;
+#if PAL_BUILD_GFX11
+    case Pal::GfxIpLevel::GfxIp11_0:
+        version = SQTT_VERSION_3_2;
+        break;
+#endif
     default:
         PAL_ASSERT_ALWAYS_MSG("Unknown GfxIpLevel value: %u!", static_cast<uint32>(gfxIpLevel));
         break;
@@ -3404,6 +3414,11 @@ Result GpaSession::AcquirePerfExperiment(
 
     createInfo.optionFlags.sqShaderMask  = sampleConfig.flags.sqShaderMask;
     createInfo.optionValues.sqShaderMask = sampleConfig.sqShaderMask;
+
+#if PAL_BUILD_GFX11 && (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 750)
+    createInfo.optionFlags.sqWgpShaderMask  = sampleConfig.flags.sqWgpShaderMask;
+    createInfo.optionValues.sqWgpShaderMask = sampleConfig.sqWgpShaderMask;
+#endif
 
     const size_t perfExperimentSize = m_pDevice->GetPerfExperimentSize(createInfo, nullptr);
     const bool   memoryExists       = ((m_pAvailablePerfExpMem != nullptr) &&

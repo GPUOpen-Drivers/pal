@@ -209,5 +209,82 @@ uint32* PipelineChunkHs::WriteContextCommands(
                                               pCmdSpace);
 }
 
+#if PAL_BUILD_GFX11
+// =====================================================================================================================
+// Accumulates this pipeline chunk's SH registers into an array of packed register pairs.
+void PipelineChunkHs::AccumulateShRegs(
+    PackedRegisterPair* pRegPairs,
+    uint32*             pNumRegs
+    ) const
+{
+#if PAL_ENABLE_PRINTS_ASSERTS
+    const uint32 startingIdx = *pNumRegs;
+#endif
+
+    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
+
+    const RegisterInfo& registerInfo = m_device.CmdUtil().GetRegInfo();
+
+    const uint16 mmSpiShaderUserDataHs0 = registerInfo.mmUserDataStartHsShaderStage;
+    const uint16 mmSpiShaderPgmLoLs     = registerInfo.mmSpiShaderPgmLoLs;
+
+    SetOneShRegValPairPacked(pRegPairs,
+                             pNumRegs,
+                             mmSpiShaderPgmLoLs,
+                             m_regs.sh.spiShaderPgmLoLs.u32All);
+    SetOneShRegValPairPacked(pRegPairs,
+                             pNumRegs,
+                             mmSpiShaderUserDataHs0 + ConstBufTblStartReg,
+                             m_regs.sh.userDataInternalTable);
+    SetSeqShRegValPairPacked(pRegPairs,
+                             pNumRegs,
+                             mmSPI_SHADER_PGM_RSRC1_HS,
+                             mmSPI_SHADER_PGM_RSRC2_HS,
+                             &m_regs.sh.spiShaderPgmRsrc1Hs);
+
+    if (chipProps.gfx9.supportSpp != 0)
+    {
+        SetOneShRegValPairPacked(pRegPairs,
+                                 pNumRegs,
+                                 Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_HS,
+                                 m_regs.sh.spiShaderPgmChksumHs.u32All);
+    }
+
+    if (m_pHsPerfDataInfo->regOffset != UserDataNotMapped)
+    {
+        SetOneShRegValPairPacked(pRegPairs,
+                                 pNumRegs,
+                                 m_pHsPerfDataInfo->regOffset,
+                                 m_pHsPerfDataInfo->gpuVirtAddr);
+    }
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    PAL_ASSERT(InRange(*pNumRegs, startingIdx, startingIdx + HsRegs::NumShReg));
+#endif
+}
+
+// =====================================================================================================================
+// Accumulates this pipeline chunk's context registers into an array of packed register pairs.
+void PipelineChunkHs::AccumulateContextRegs(
+    PackedRegisterPair* pRegPairs,
+    uint32*             pNumRegs
+    ) const
+{
+#if PAL_ENABLE_PRINTS_ASSERTS
+    const uint32 startingIdx = *pNumRegs;
+#endif
+
+    SetSeqContextRegValPairPacked(pRegPairs,
+                                  pNumRegs,
+                                  mmVGT_HOS_MAX_TESS_LEVEL,
+                                  mmVGT_HOS_MIN_TESS_LEVEL,
+                                  &m_regs.context.vgtHosMaxTessLevel);
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    PAL_ASSERT(InRange(*pNumRegs, startingIdx, startingIdx + HsRegs::NumContextReg));
+#endif
+}
+#endif
+
 } // Gfx9
 } // Pal

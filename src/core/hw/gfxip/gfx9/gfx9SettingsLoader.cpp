@@ -36,6 +36,12 @@
 #include "devDriverServer.h"
 #include "protocols/ddSettingsService.h"
 #include "settingsService.h"
+#if PAL_BUILD_GFX11
+namespace Pal
+{
+#include "g_gfx11SwWarDetection.h"
+}
+#endif
 
 using namespace Util;
 using namespace Util::Literals;
@@ -47,6 +53,15 @@ namespace Gfx9
 
 // Minimum microcode feature version that has necessary MCBP fix.
 constexpr uint32 MinUcodeFeatureVersionMcbpFix = 36;
+#if PAL_BUILD_GFX11
+// Minimum ucode version that supports the packed register pairs packet. Temporarily set to UINT_MAX to disable packet
+// usage till additional testing and validation is completed.
+constexpr uint32 MinPfpVersionPackedRegPairsPacket   = 1448;
+// Minimum ucode version that supports the packed register pairs packet for compute. Currently not supported.
+constexpr uint32 MinPfpVersionPackedRegPairsPacketCs = UINT_MAX;
+// Minimum ucode version that supports the EVENT_WRITE_ZPASS packet.
+constexpr uint32 MinPfpVersionEventWriteZpassPacket  = 1458;
+#endif
 
 // =====================================================================================================================
 SettingsLoader::SettingsLoader(
@@ -151,6 +166,19 @@ void SettingsLoader::ValidateSettings(
 
     if (m_settings.binningMaxAllocCountNggOnChip == 0)
     {
+#if PAL_BUILD_GFX11
+        if (IsGfx11(*m_pDevice))
+        {
+            // GFX11 eliminates the parameter cache, so the determination needs to come from elsewhere.
+            // In addition, binningMaxAllocCountLegacy has no affect on GFX11.
+            // The expectation is that a value of ~16, which is a workload size of 1024 prims, assuming 2 verts per
+            // prim and 16 attribute groups (256 verts * 16 attr groups / 2 verts per prim / 2 screen tiles = 1024),
+            // should be sufficient for building a batch. This value can be tuned further as more apps are running and
+            // perf investigations continue to progress.
+            m_settings.binningMaxAllocCountNggOnChip = 16;
+        }
+        else
+#endif
         {
             // With NGG + on chip PC there is a single view of the PC rather than a
             // division per SE. The recommended value for this is to allow a single batch to
@@ -184,6 +212,15 @@ void SettingsLoader::ValidateSettings(
         // We must limit the number of offchip buffers to 508 (127 offchip buffers per SE).
         maxOffchipLdsBuffers = Min(maxOffchipLdsBuffers, 508U);
     }
+#if PAL_BUILD_GFX11
+    else if (IsGfx11(*m_pDevice))
+    {
+        // Gfx11 has more SEs than our previous products, and so the number of maxOffchipLdsBuffers is now a factor
+        // of the number of SEs in the chip and there is no minimum.
+        constexpr uint32 Gfx11MaxOffchipLdsBufferPerSe = 256;
+        maxOffchipLdsBuffers = Gfx11MaxOffchipLdsBufferPerSe * gfx9Props.numShaderEngines;
+    }
+#endif
     else
     {
         // On gfx9, the offchip buffering register has enough space to support the full 512 buffers.
@@ -354,6 +391,20 @@ void SettingsLoader::ValidateSettings(
     uint32 tessFactRingSizeMask = Gfx09_10::VGT_TF_RING_SIZE__SIZE_MASK;
     uint32 tessFactScalar       = gfx9Props.numShaderEngines;
 
+#if PAL_BUILD_GFX11
+    if (IsGfx11(*m_pDevice))
+    {
+        // All GFX11 parts support RB+ which according to HW guarantees that
+        // every 256 bytes line up on consistent pixel boundaries.
+        m_settings.useCompToSingle |= (Gfx10UseCompToSingle8bpp | Gfx10UseCompToSingle16bpp);
+
+        // Programming this on GFX11 is slightly different. The size has changed but more importantly the value is now
+        // treated as per SE by the hardware so we don't need to scale by the number of SE's manually any more.
+        tessFactRingSizeMask = Gfx11::VGT_TF_RING_SIZE__SIZE_MASK;
+        tessFactScalar       = 1;
+    }
+#endif
+
     // Default values for Tess Factor buffer are safe. This could have been changed by the panel settings so for a
     // sanity check let's adjust the tess factor buffer size down if it's to big:
     if ((m_settings.tessFactorBufferSizePerSe * tessFactScalar) > tessFactRingSizeMask)
@@ -361,6 +412,53 @@ void SettingsLoader::ValidateSettings(
         m_settings.tessFactorBufferSizePerSe = Pow2AlignDown(tessFactRingSizeMask, tessFactScalar) / tessFactScalar;
         static_assert(VGT_TF_RING_SIZE__SIZE__SHIFT == 0, "VGT_TF_RING_SIZE::SIZE shift is no longer zero!");
     }
+
+#if PAL_BUILD_GFX11
+    if (IsGfx11(*m_pDevice))
+    {
+        // GFX11 doesn't need this workaround as it can natively support 1D depth images.
+        m_settings.treat1dAs2d = false;
+
+        // GFX11 doesn't use the convoluted meta-addressing scheme that GFX9 does either, so disable
+        // the "optimized" algorithm for processing the meta-equations.
+        m_settings.optimizedFastClear = 0;
+
+        // Vertex Attribute ring buffer must be aligned respect the maximum for the chip
+        const uint32 maxAttribRingBufferSizePerSe =
+            Pow2AlignDown(Gfx11VertexAttributeRingMaxSizeBytes / gfx9Props.numShaderEngines,
+                          Gfx11VertexAttributeRingAlignmentBytes);
+
+        m_settings.gfx11VertexAttributesRingBufferSizePerSe =
+            Pow2Align(m_settings.gfx11VertexAttributesRingBufferSizePerSe, Gfx11VertexAttributeRingAlignmentBytes);
+
+        m_settings.gfx11VertexAttributesRingBufferSizePerSe =
+            Min(maxAttribRingBufferSizePerSe, m_settings.gfx11VertexAttributesRingBufferSizePerSe);
+
+        if ((m_settings.waForceSpiThrottleModeNonZero) &&
+            ((m_settings.defaultSpiGsThrottleCntl2 & Gfx11::SPI_GS_THROTTLE_CNTL2__SPI_THROTTLE_MODE_MASK) == 0))
+        {
+            // Force mode 1 (expected default) if we haven't already forced it via the setting.
+            m_settings.defaultSpiGsThrottleCntl2 |= (1 << Gfx11::SPI_GS_THROTTLE_CNTL2__SPI_THROTTLE_MODE__SHIFT);
+        }
+
+        // GFX11 has different VRS programming than GFX10 and does not need this optimization.
+        m_settings.optimizeNullSourceImage = false;
+
+        // Clamp the sample-mask-tracker to the HW-legal values of 3-15.
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 777)
+        pPalSettings->gfx11SampleMaskTrackerWatermark = ((pPalSettings->gfx11SampleMaskTrackerWatermark == 0) ?
+            0 : Clamp(pPalSettings->gfx11SampleMaskTrackerWatermark, 3u, 15u));
+#else
+        m_settings.gfx11SampleMaskTrackerWatermark = ((m_settings.gfx11SampleMaskTrackerWatermark == 0) ?
+            0 : Clamp(m_settings.gfx11SampleMaskTrackerWatermark, 3u, 15u));
+#endif
+
+    }
+    else
+    {
+        m_settings.gfx11VertexAttributesRingBufferSizePerSe = 0;
+    }
+#endif
 
     if ((pPalSettings->distributionTessMode == DistributionTessTrapezoidOnly) ||
         (pPalSettings->distributionTessMode == DistributionTessDefault))
@@ -399,6 +497,11 @@ void SettingsLoader::ValidateSettings(
         m_settings.gsCuEnLimitMask                              = MaskEnableAll;
         m_settings.allowNggOnAllCusWgps                         = true;
         pPalSettings->nggLateAllocGs                            = 0;
+#if PAL_BUILD_GFX11
+        // Gfx11 has attributes through memory, so parameter cache space is not a concern and we can continue to
+        // enable LateAlloc for the parameter cache.
+        if (IsGfx11(chipProps.gfxLevel) == false)
+#endif
         {
             m_settings.gfx10GePcAllocNumLinesPerSeLegacyNggPassthru = 0;
             m_settings.gfx10GePcAllocNumLinesPerSeNggCulling        = 0;
@@ -651,6 +754,107 @@ static void SetupNavi24Workarounds(
     pSettings->waBadSqttFinishResults = true;
 }
 
+#if PAL_BUILD_GFX11
+// =====================================================================================================================
+// Setup workarounds for GFX11
+static void SetupGfx11Workarounds(
+    const Pal::Device&  device,
+    Gfx9PalSettings*    pSettings)
+{
+    const uint32 familyId = device.ChipProperties().familyId;
+    const uint32 eRevId   = device.ChipProperties().eRevId;
+
+    Gfx11SwWarDetection workarounds = {};
+    const bool waFound = DetectGfx11SoftwareWorkaroundsByChip(familyId, eRevId, &workarounds);
+    PAL_ASSERT(waFound);
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    constexpr uint32 HandledWaMask[] = { 0x1E793001, 0x00000000 }; // Workarounds handled by PAL.
+    constexpr uint32 OutsideWaMask[] = { 0xE0068DFE, 0x0000007C }; // Workarounds handled by other components.
+    constexpr uint32 MissingWaMask[] = { 0x00004000, 0x00000001 }; // Workarounds that should be handled by PAL that
+                                                                   // are not yet implemented or are unlikey to be
+                                                                   // implemented.
+    constexpr uint32 InvalidWaMask[] = { 0x01800200, 0x00000002 }; // Workarounds marked invalid, thus not handled.
+    static_assert((sizeof(HandledWaMask) == sizeof(Gfx11InactiveMask)) &&
+                  (sizeof(OutsideWaMask) == sizeof(Gfx11InactiveMask)) &&
+                  (sizeof(MissingWaMask) == sizeof(Gfx11InactiveMask)) &&
+                  (sizeof(InvalidWaMask) == sizeof(Gfx11InactiveMask)),
+                  "Workaround Masks do not match expected size!");
+
+    constexpr uint32 InactiveMask[] = { ~(HandledWaMask[0] | OutsideWaMask[0] | MissingWaMask[0] | InvalidWaMask[0] ),
+                                        ~(HandledWaMask[1] | OutsideWaMask[1] | MissingWaMask[1] | InvalidWaMask[1] ) };
+    static_assert((InactiveMask[0] == Gfx11InactiveMask[0]) && (InactiveMask[1] == Gfx11InactiveMask[1]),
+                  "Workaround Masks do not match!");
+#endif
+
+    static_assert(Gfx11NumWorkarounds == 39, "Workaround count mismatch between PAL and SWD");
+
+#if PAL_BUILD_NAVI31
+    if (workarounds.ppPbbPBBBreakBatchDifferenceWithPrimLimit_FpovLimit_DeallocLimit_A_)
+    {
+        if (pSettings->binningFpovsPerBatch == 0)
+        {
+            pSettings->binningFpovsPerBatch = 255;
+        }
+
+        if (pSettings->binningMaxAllocCountNggOnChip == 0)
+        {
+            pSettings->binningMaxAllocCountNggOnChip = 255;
+        }
+    }
+#endif
+
+#if PAL_BUILD_NAVI3X
+    pSettings->waReplaceEventsWithTsEvents = workarounds.ppDbPWSIssueForDepthWrite_TextureRead_A_;
+
+    pSettings->waAddPostambleEvent = workarounds.geometryGeGEWdTe11ClockCanStayHighAfterShaderMessageThdgrp_A_;
+#endif
+
+#if PAL_BUILD_GFX11
+    pSettings->waLineStippleReset             = workarounds.geometryPaPALineStippleResetError_A_;
+
+    // These two settings are different ways of solving the same problem.  We've experimentally
+    // determined that "intrinsic rate enable" has better performance.
+    pSettings->gfx11DisableRbPlusWithBlending = false;
+    pSettings->waEnableIntrinsicRateEnable    = workarounds.sioSpiBciSPI_TheOverRestrictedExportConflictHQ_HoldingQueue_PtrRuleMayReduceTheTheoreticalExpGrantThroughput_PotentiallyIncreaseOldNewPSWavesInterleavingChances_A_;
+#endif
+
+    pSettings->waSqgTtWptrOffsetFixup = workarounds.shaderSqSqgSQGTTWPTRIssues_A_;
+
+    pSettings->waCbPerfCounterStuckZero =
+        workarounds.gcPvPpCbCBPerfcountersStuckAtZeroAfterPerfcounterStopEventReceived_A_;
+
+    pSettings->waForcePrePixShaderWaitPoint =
+        workarounds.ppDbPWS_RtlTimeout_TimeStampEventPwsStall_eopDoneNotSentForOldestTSWaitingForSyncComplete__FlusherStalledInOpPipe_A_;
+
+    pSettings->waForceLockThresholdZero = workarounds.sioSpiBciSoftLockIssue_A_;
+
+    pSettings->waSetVsXyNanToInfZero = workarounds.geometryPaStereoPositionNanCheckBug_A_;
+
+    pSettings->waIncorrectMaxAllowedTilesInWave = workarounds.ppDbPpScSCDBHangNotSendingWaveConflictBackToSPI_A_;
+
+    if (false
+#if PAL_BUILD_NAVI31
+        || IsNavi31(device)
+#endif
+        )
+    {
+        pSettings->shaderPrefetchSizeBytes = 0;
+    }
+
+#if PAL_BUILD_GFX11
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 777)
+    if (device.GetPublicSettings()->gfx11SampleMaskTrackerWatermark > 0)
+#else
+    if (pSettings->gfx11SampleMaskTrackerWatermark > 0)
+#endif
+    {
+        pSettings->waitOnFlush |= (WaitAfterCbFlush | WaitBeforeBarrierEopWithCbFlush);
+    }
+#endif
+}
+#endif
+
 // =====================================================================================================================
 // Override Gfx9 layer settings. This also includes setting up the workaround flags stored in the settings structure
 // based on chip Family & ID.
@@ -748,6 +952,46 @@ void SettingsLoader::OverrideDefaults(
         }
 
     }
+#if PAL_BUILD_GFX11
+    else if (IsGfx11(device))
+    {
+        SetupGfx11Workarounds(device, &m_settings);
+
+        // GFX11 supports modifying the group size.  Use the maximum setting.
+        m_settings.ldsPsGroupSize = Gfx10LdsPsGroupSize::Gfx10LdsPsGroupSizeDouble;
+
+        // GFX11 doesn't have HW support for DB -> CB copies.
+        m_settings.allowDepthCopyResolve = false;
+
+        m_settings.defaultSpiGsThrottleCntl1 = Gfx11::mmSPI_GS_THROTTLE_CNTL1_DEFAULT;
+        m_settings.defaultSpiGsThrottleCntl2 = Gfx11::mmSPI_GS_THROTTLE_CNTL2_DEFAULT;
+
+        // Recommended by HW that LATE_ALLOC_GS be set to 63 on GFX11
+        pPublicSettings->nggLateAllocGs = 63;
+
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 755)
+        // Recommended defaults for GFX11
+        pPublicSettings->isolineDistributionFactor = 128;
+        pPublicSettings->triDistributionFactor     = 128;
+        pPublicSettings->quadDistributionFactor    = 128;
+#endif
+        // Apply this to all Gfx11 APUs
+        if (device.ChipProperties().gpuType == GpuType::Integrated)
+        {
+            m_settings.gfx11VertexAttributesRingBufferSizePerSe = 512_KiB;
+        }
+    }
+#endif
+
+#if PAL_BUILD_GFX11
+    const uint32 pfpUcodeVersion = m_pDevice->ChipProperties().pfpUcodeVersion;
+
+    m_settings.gfx11EnableContextRegPairOptimization = pfpUcodeVersion >= MinPfpVersionPackedRegPairsPacket;
+    m_settings.gfx11EnableShRegPairOptimization      = pfpUcodeVersion >= MinPfpVersionPackedRegPairsPacket;
+    m_settings.gfx11EnableShRegPairOptimizationCs    = pfpUcodeVersion >= MinPfpVersionPackedRegPairsPacketCs;
+
+    m_settings.gfx11EnableZpassPacketOptimization    = pfpUcodeVersion >= MinPfpVersionEventWriteZpassPacket;
+#endif
 
     // If minimum sizes are 0, then use default size.
     if (m_settings.minBatchBinSize.width == 0)

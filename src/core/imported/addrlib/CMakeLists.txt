@@ -138,6 +138,24 @@ if(ADDR_GFX10_BUILD)
     endif()
 endif()
 
+#if ADDR_GFX11_BUILD
+if(ADDR_GFX11_BUILD)
+    target_sources(addrlib PRIVATE src/chip/gfx11/gfx11_gb_reg.h
+                                   src/gfx11/gfx11SwizzlePattern.h
+                                   src/gfx11/gfx11addrlib.h
+                                   src/gfx11/gfx11addrlib.cpp)
+
+    target_include_directories(addrlib PRIVATE src/chip/gfx11)
+
+    target_compile_definitions(addrlib PUBLIC ADDR_GFX11_BUILD)
+    #if ADDR_NAVI31_BUILD
+    if(ADDR_NAVI31_BUILD)
+        target_compile_definitions(addrlib PRIVATE ADDR_NAVI31_BUILD)
+    endif()
+    #endif
+endif()
+#endif
+
     target_sources(addrlib PRIVATE src/amdgpu_asic_addr.h)
 
 if(ADDR_AM_BUILD)

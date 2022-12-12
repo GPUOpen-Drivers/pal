@@ -611,6 +611,9 @@ public:
     // These functions create a string value for a PAL interface enumeration.
     void Enum(AtomicOp value);
     void Enum(Developer::BarrierReason value);
+#if PAL_BUILD_GFX11
+    void Enum(DispatchInterleaveSize value);
+#endif
     void Enum(BinningOverride value);
     void Enum(Blend value);
     void Enum(BlendFunc value);

@@ -1719,6 +1719,10 @@ enum AddrBlockType
     AddrBlockThickVar = 7, // Resource uses thick var block
     AddrBlockMaxTiledType,
 
+#if ADDR_GFX11_BUILD
+    AddrBlockThin256KB = AddrBlockThinVar,
+    AddrBlockThick256KB = AddrBlockThickVar,
+#endif
 };
 
 /**
@@ -3653,6 +3657,16 @@ typedef union _ADDR2_BLOCK_SET
         UINT_32 reserved       : 24;
     };
 
+#if ADDR_GFX11_BUILD
+    struct
+    {
+        UINT_32                : 5;
+        UINT_32 thin256KB      : 1;   // Thin 256KB block
+        UINT_32 thick256KB     : 1;   // Thick 256KB block
+        UINT_32                : 25;
+    } gfx11;
+#endif
+
     UINT_32 value;
 } ADDR2_BLOCK_SET;
 
@@ -3731,6 +3745,17 @@ typedef union _ADDR2_SWMODE_SET
         UINT_32             : 2;
         UINT_32 swVar_R_X   : 1;
     } gfx10;
+
+#if ADDR_GFX11_BUILD
+    struct
+    {
+        UINT_32             : 28;
+        UINT_32 sw256KB_Z_X : 1;
+        UINT_32 sw256KB_S_X : 1;
+        UINT_32 sw256KB_D_X : 1;
+        UINT_32 sw256KB_R_X : 1;
+    } gfx11;
+#endif
 
     UINT_32 value;
 } ADDR2_SWMODE_SET;

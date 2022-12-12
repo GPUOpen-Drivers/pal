@@ -289,6 +289,9 @@ private:
         uint32*                           pCmdSpace,
         const DynamicGraphicsShaderInfos& graphicsInfo) const;
     uint32* WriteContextCommandsSetPath(CmdStream* pCmdStream, uint32* pCmdSpace) const;
+#if PAL_BUILD_GFX11
+    void AccumulateContextRegisters(PackedRegisterPair* pRegPairs, uint32* pNumRegs) const;
+#endif
 
     void UpdateRingSizes(
         const Util::PalAbi::CodeObjectMetadata& metadata);
@@ -343,11 +346,19 @@ private:
         {
             uint8 uavExportRequiresFlush      : 1; // If false, must flush after each draw when UAV export is enabled
             uint8 binningAllowed              : 1;
+#if PAL_BUILD_GFX11
+            uint8 contextPairsPacketSupported : 1;
+            uint8 shPairsPacketSupported      : 1;
+#else
             uint8 placeholder                 : 2;
+#endif
             uint8 reserved                    : 4;
         };
         uint8 u8All;
     } m_flags;
+#if PAL_BUILD_GFX11
+    uint32            m_strmoutVtxStride[MaxStreamOutTargets];
+#endif
 
     uint16            m_fetchShaderRegAddr; // The user data register which fetch shader address will be writen to.
     gpusize           m_fetchShaderPgm;     // The GPU virtual address of fetch shader entry.

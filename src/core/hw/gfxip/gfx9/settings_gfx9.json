@@ -22,9 +22,51 @@
     {
       "Name": "Vrs"
     },
-    "Gfx10"
+    "Gfx10",
+    {
+      "Name": "PWS",
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ]
+    }
   ],
   "Settings": [
+    {
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "Gfx10LdsPsGroupSizeNone",
+            "Value": 0,
+            "Description": "Don't share PS attributes across waves."
+          },
+          {
+            "Name": "Gfx10LdsPsGroupSizeDouble",
+            "Value": 1,
+            "Description": "Share PS attributes across two waves."
+          }
+        ],
+        "Name": "Gfx10LdsPsGroupSize"
+      },
+      "Description": "Specifies how many PS waves should share the same LDS allocation.  Not supported on all platforms",
+      "Tags": [
+        "Shader Options",
+        "Gfx9"
+      ],
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Defaults": {
+        "Default": "Gfx10LdsPsGroupSizeNone"
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "enum",
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ],
+      "VariableName": "ldsPsGroupSize",
+      "Name": "LdsPsGroupSize"
+    },
     {
       "ValidValues": {
         "IsEnum": true,
@@ -359,6 +401,82 @@
       "Type": "bool",
       "VariableName": "forceRegularClearCode",
       "Name": "ForceRegularClearCode"
+    },
+    {
+      "Description": "GFX11 adds support that allows DCC to always support format replacement",
+      "Tags": [
+        "Color Targets"
+      ],
+      "Defaults": {
+        "Default": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "gfx11AlwaysAllowDccFormatReplacement",
+      "Name": "Gfx11AlwaysAllowDccFormatReplacement",
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ]
+    },
+    {
+      "Description": "Controls the value of CB_FDCC_CONTROL.SAMPLE_MASK_TRACKER_WATERMARK.  Valid values are 0 and 3-15",
+      "Tags": [
+        "Color Targets"
+      ],
+      "Defaults": {
+        "Default": 0
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "uint32",
+      "VariableName": "gfx11SampleMaskTrackerWatermark",
+      "Name": "Gfx11SampleMaskTrackerWatermark",
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ]
+    },
+    {
+      "ValidValues": {
+        "Values": [
+          {
+            "LogicOp": "GreaterThanOrEqual",
+            "Description": "You cannot get rid of the metadata by multiplying by 0. That would cause problems.",
+            "Value": 1
+          }
+        ]
+      },
+      "Description": "Multiplies the size of the metadata surface by this amount. Metadata surface size works in powers of 2. Non power of 2 multiples might work, but it won't be a value that is actaully returned by addrlib.",
+      "Tags": [
+        "General"
+      ],
+      "Defaults": {
+        "Default": 1
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "uint32",
+      "VariableName": "gfx11MetadataSizeMultiplier",
+      "Name": "Gfx11MetadataSizeMultiplier",
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ]
+    },
+    {
+      "Description": "The final alignment of the metadata will be the result of Max(addrlib DCC alignment, gfx11OverrideMetadataAlignment).",
+      "Tags": [
+        "General"
+      ],
+      "Flags": {
+        "IsHex": true
+      },
+      "Defaults": {
+        "Default": 0
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "uint32",
+      "VariableName": "gfx11OverrideMetadataAlignment",
+      "Name": "Gfx11OverrideMetadataAlignment",
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ]
     },
     {
       "Description": "Forces use of a graphics fill memory path on command buffers that supports graphics ops",
@@ -703,6 +821,53 @@
       "Name": "CsSimdDestCntl"
     },
     {
+      "Description": "Controls the value of the COMPUTE_DISPATCH_INTERLEAVE register. This register governs how many thread groups are sent to one SE before switching to the next one. This setting will override the clients behaviour.",
+      "Tags": [
+        "Compute Pipelines"
+      ],
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "CsDispatchInterleaveSizeHonorClient",
+            "Value": 0,
+            "Description": "Leave the interleave size determination to the client."
+          },
+          {
+            "Name": "OverrideCsDispatchInterleaveSizeDisabled",
+            "Value": 1,
+            "Description": "Disable interleaving."
+          },
+          {
+            "Name": "OverrideCsDispatchInterleaveSize128",
+            "Value": 2,
+            "Description": "Switch at 128 thread groups."
+          },
+          {
+            "Name": "OverrideCsDispatchInterleaveSize256",
+            "Value": 3,
+            "Description": "Switch at 256 thread groups."
+          },
+          {
+            "Name": "OverrideCsDispatchInterleaveSize512",
+            "Value": 4,
+            "Description": "Switch at 512 thread groups."
+          }
+        ],
+        "Name": "OverrideCsDispatchInterleaveSize"
+      },
+      "Defaults": {
+        "Default": "CsDispatchInterleaveSizeHonorClient"
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "enum",
+      "VariableName": "overrideCsDispatchInterleaveSize",
+      "Name": "OverrideCsDispatchInterleaveSize",
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ]
+    },
+    {
       "Description": "If true, HTile will be enabled for depth/stencil images.",
       "Tags": [
         "Depth/Stencil",
@@ -715,6 +880,57 @@
       "Type": "bool",
       "VariableName": "htileEnable",
       "Name": "HtileEnable"
+    },
+    {
+      "Description": "Toggle between DB_Z_INFO.NUM_SAMPLES = 3 (legacy) and DB_Z_INFO.NUM_SAMPLES = coverage_samples (from MSAA state object)",
+      "Tags": [
+        "Depth/Stencil"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ],
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "useLegacyDbZInfo",
+      "Name": "UseLegacyDbZInfo"
+    },
+    {
+      "Description": "If set then RB+ is disabled if any color target has blending enabled.  GFX11 specific",
+      "Tags": [
+        "General"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ],
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "gfx11DisableRbPlusWithBlending",
+      "Name": "Gfx11DisableRbPlusWithBlending"
+    },
+    {
+      "Description": "If set then implements this GFX11 workaround.  if(BLENDING && pipeline in 1xaa)  OVERRIDE_INTRINSIC_RATE_ENABLE = 1  OVERRIDE_INTRINSIC_RATE = 2 (4xaa) else  OVERRIDE_INTRINSIC_RATE_ENABLE = 0",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ],
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "Flags": {
+        "RereadSetting": true
+      },
+      "VariableName": "waEnableIntrinsicRateEnable",
+      "Name": "WaEnableIntrinsicRateEnable"
     },
     {
       "Description": "If true, the ITERATE_256 bit will always be set and iterate256 optimization will be disabled. Pertains to GFX10 only",
@@ -1566,6 +1782,160 @@
       }
     },
     {
+      "Description": "This contains the value that will be set for SPI_GS_THROTTLE_CNTL1. The default value is overridden in gfx9SettingsLoader.cpp with the loaded ASIC's default value. Manual setting takes precedence over the ASIC's default value.'",
+      "Tags": [
+        "Graphics Pipelines"
+      ],
+      "Defaults": {
+        "Default": 0
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "uint32",
+      "VariableName": "defaultSpiGsThrottleCntl1",
+      "Name": "DefaultSpiGsThrottleCntl1",
+      "Flags": {
+        "IsHex": true,
+        "RereadSetting": true
+      },
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ]
+    },
+    {
+      "Description": "This contains the value that will be set for SPI_GS_THROTTLE_CNTL2. The default value is overridden in gfx9SettingsLoader.cpp with the loaded ASIC's default value. Manual setting takes precedence over the ASIC's default value.",
+      "Tags": [
+        "Graphics Pipelines"
+      ],
+      "Defaults": {
+        "Default": 0
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "uint32",
+      "VariableName": "defaultSpiGsThrottleCntl2",
+      "Name": "DefaultSpiGsThrottleCntl2",
+      "Flags": {
+        "IsHex": true,
+        "RereadSetting": true
+      },
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ]
+    },
+    {
+      "ValidValues": {
+        "Values": [
+          {
+            "LogicOp": "LessThanOrEqual",
+            "Description": "Primitive group size.",
+            "Value": 4
+          }
+        ]
+      },
+      "Description": "This controls the value that will be set for the GFX11 specific GE_CNTL::PRIM_GRP_SIZE. Number of primitives in a primgroup. This will be used by Assembler to create primgroups. Valid values are 1-256. The value written to this register field will be this key's value divided by PRIM_AMP_FACTOR. Default to 252 to leave space for a null token broadcast for 2 subgroups in an attribute group.",
+      "Tags": [
+        "Graphics Pipelines"
+      ],
+      "Defaults": {
+        "Default": 252
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "uint32",
+      "VariableName": "gfx11GeCntlPrimGrpSize",
+      "Name": "Gfx11GeCntlPrimGrpSize",
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ]
+    },
+    {
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "Gfx11GeCntlGcrModeDefault",
+            "Value": 0,
+            "Description": "No override - driver will select optimal GCR mode."
+          },
+          {
+            "Name": "Gfx11GeCntlGcrModeEnabled",
+            "Value": 1,
+            "Description": "Force GCR enabled (GCR_DISABLE=0)."
+          },
+          {
+            "Name": "Gfx11GeCntlGcrModeDisabled",
+            "Value": 2,
+            "Description": "Force GCR disabled (GCR_DISABLE=1)."
+          }
+        ],
+        "Name": "Gfx11GeCntlGcrMode"
+      },
+      "Description": "This controls the GCR(Graphics Cache Rinse) usage through GFX11 specific GE_CNTL::GCR_DISABLE.",
+      "Tags": [
+        "Graphics Pipelines"
+      ],
+      "Defaults": {
+        "Default": 0
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "uint32",
+      "VariableName": "gfx11GeCntlGcrMode",
+      "Name": "Gfx11GeCntlGcrMode",
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ]
+    },
+    {
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "Rsrc4GsThrottlePhEn",
+            "Value": 1,
+            "Description": "Whether to enable PH_THROTTLE in SPI_SHADER_PGM_RSRC4_GS."
+          },
+          {
+            "Name": "Rsrc4GsThrottleSpiEn",
+            "Value": 2,
+            "Description": "Whether to enable SPI_THROTTLE in SPI_SHADER_PGM_RSRC4_GS."
+          }
+        ],
+        "Name": "Rsrc4GsThrottle"
+      },
+      "Description": "Bitmask of cases where GS wave throttling will be used",
+      "Tags": [
+        "Graphics Pipelines"
+      ],
+      "Flags": {
+        "IsBitmask": true,
+        "IsHex": true
+      },
+      "Defaults": {
+        "Default": 0
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "uint32",
+      "VariableName": "rsrc4GsThrottleEn",
+      "Name": "Rsrc4GsThrottleEn",
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ]
+    },
+    {
+      "Description": "This contains the size in bytes that we will allocate for attributes through memory. Maximum value is 16MB for the entire chip. The value will 64KB aligned. This value is in bytes.",
+      "Tags": [
+        "Graphics Pipelines"
+      ],
+      "Defaults": {
+        "Default": 1398101
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "uint32",
+      "VariableName": "gfx11VertexAttributesRingBufferSizePerSe",
+      "Name": "Gfx11VertexAttributesRingBufferSizePerSe",
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ]
+    },
+    {
       "Description": "If true, preamble will start pipeline stats and subsequent pipeline queries will be ignored. If false, preamble will issue PIPELINESTAT_STOP, and a subsequent UniversalCmdBuffer::AddQuery() call with QueryPoolType::PipelineStats will start stats again.",
       "Tags": [
         "Graphics Pipelines"
@@ -1580,6 +1950,83 @@
       "Type": "bool",
       "VariableName": "enablePreamblePipelineStats",
       "Name": "EnablePreamblePipelineStats"
+    },
+    {
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "Gfx11OreoModeBlend",
+            "Value": 0,
+            "Description": "Pipeline is in blend mode (fail-safe that should work for all cases)."
+          },
+          {
+            "Name": "Gfx11OreoModeOpaqueThenBlend",
+            "Value": 1,
+            "Description": "Pipeline operates in Opaque mode unless overridden by register state back to Blend mode (should be the most performant)."
+          },
+          {
+            "Name": "Gfx11OreoModePunchoutThenOpaqueThenBlend",
+            "Value": 2,
+            "Description": "Pipeline operates in Punchout mode unless reg fallback to Opaque then Blend mode."
+          }
+        ],
+        "Name": "Gfx11OreoMode"
+      },
+      "Description": "Enum to control how the OREO feature works.",
+      "Tags": [
+        "Oreo"
+      ],
+      "Flags": {
+        "IsHex": true
+      },
+      "Defaults": {
+        "Default": 1
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "uint32",
+      "VariableName": "gfx11OreoModeControl",
+      "Name": "Gfx11OreoModeControl",
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ]
+    },
+    {
+      "Description": "If true, disables falling back to blend mode when OREO_MODE = 1 (Gfx11OreoModeControl = 1).",
+      "Tags": [
+        "Oreo",
+        "ForceOreo",
+        "OreoMode"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "gfx11ForceOreoMode",
+      "Name": "Gfx11ForceOreoMode",
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ]
+    },
+    {
+      "Description": "If true, forces DB to make every wave conflict with the prior wave..",
+      "Tags": [
+        "Oreo",
+        "Export",
+        "ExportOrder",
+        "ForceOrder"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "gfx11ForceExportOrder",
+      "Name": "Gfx11ForceExportOrderControl",
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ]
     },
     {
       "Description": "Maximum shader prefetch size in bytes.  Set arbitrarily large to use driver default.  Set to zero to disable",
@@ -2103,6 +2550,63 @@
       "Type": "uint32",
       "VariableName": "samplerSecAnisoBias",
       "Name": "SamplerSecAnisoBias"
+    },
+    {
+      "Description": "If the workaround is enabled, then non-TS events will be replaced with their corresponding TS event",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "OrBuildTypes": [
+        "PAL_BUILD_NAVI3X"
+      ],
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waReplaceEventsWithTsEvents",
+      "Name": "WaReplaceEventsWithTsEvents"
+    },
+    {
+      "Description": "If the workaround is enabled, then a SQ_NON_EVENT will be added to the postabmle of graphics command buffers",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "OrBuildTypes": [
+        "PAL_BUILD_NAVI3X"
+      ],
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waAddPostambleEvent",
+      "Name": "WaAddPostambleEvent"
+    },
+    {
+      "Description": "If the workaround is enabled, then PA_SU_LINE_STIPPLE_CNTL.LINE_STIPPLE_RESET will be set to 2 for all non-stipple draws",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ],
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waLineStippleReset",
+      "Name": "WaLineStippleReset"
     },
     {
       "Description": "If the workaround is enabled, then AUTO_FLUSH_MODE settings will be inverted.",
@@ -3063,6 +3567,109 @@
       "Description": "Enable the 'holey' optimization to minimize CP overhead. Unnecessary for ASICs running F32 cores."
     },
     {
+      "Name": "Gfx11EnableContextRegPairOptimization",
+      "Tags": [
+        "General",
+        "Performance",
+        "GFX11"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "gfx11EnableContextRegPairOptimization",
+      "Description": "Optimize draw launch rate by enabling use of SET_CONTEXT_REG_PAIR_PACKED packets. GFX11 specific and overridden to true unless this setting is explicitly set to false.",
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ]
+    },
+    {
+      "Name": "Gfx11EnableShRegPairOptimization",
+      "Tags": [
+        "General",
+        "Performance",
+        "GFX11"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "gfx11EnableShRegPairOptimization",
+      "Description": "Optimize draw launch rate by enabling use of SET_SH_REG_PAIR_PACKED packets including compute on graphics user data. GFX11 specific and overridden to true unless this setting is explicitly set to false.",
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ]
+    },
+    {
+      "Name": "Gfx11EnableShRegPairOptimizationCs",
+      "Tags": [
+        "General",
+        "Performance",
+        "GFX11"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "gfx11EnableShRegPairOptimizationCs",
+      "Description": "Optimize draw launch rate by enabling use of SET_SH_REG_PAIR_PACKED packets for compute on ace. GFX11 specific and overridden to true unless this setting is explicitly set to false.",
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ]
+    },
+    {
+      "Name": "Gfx11EnableZpassPacketOptimization",
+      "Tags": [
+        "General",
+        "Performance",
+        "GFX11"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "gfx11EnableZpassPacketOptimization",
+      "Description": "Reduce RS64 CP overhead by writing a simplified EVENT_WRITE packet, EVENT_WRITE_ZPASS. GFX11 specific and overridden to true unless this setting is explicitly set to false.",
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ]
+    },
+    {
+      "Name": "EnablePws",
+      "Tags": [
+        "PWS"
+      ],
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Defaults": {
+        "Default": true
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "enablePws",
+      "Description": "Enables the Pixel Wait Sync feature if the hardware supports it. If enabled, Pixel Wait Sync feature is used at places to optimize pipeline synchronization.",
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ]
+    },
+    {
       "Description": "Perfcounter workaround which samples all counters in the running state if SQ counters are on.",
       "Tags": [
         "Hardware Workarounds"
@@ -3077,6 +3684,140 @@
       "Type": "bool",
       "VariableName": "waNeverStopSqCounters",
       "Name": "WaNeverStopSqCounters"
+    },
+    {
+      "Description": "This WA fixup the SQG TT WPTR field to be the correct offset value for the case that the WPTR field stores the actual address that write pointer is at.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ],
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waSqgTtWptrOffsetFixup",
+      "Name": "WaSqgTtWptrOffsetFixup"
+    },
+    {
+      "Description": "This WA fixup a Navi3x CB perfcounter hardware bug, which will cause CB counters stuck at 0 if PERFCOUNTER_STOP is received. If enabled, PAL will remove use of PERFCOUNTER_STOP.  ",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Flags": {
+        "RereadSetting": true
+      },
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ],
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waCbPerfCounterStuckZero",
+      "Name": "WaCbPerfCounterStuckZero"
+    },
+    {
+      "Description": "WA to force PRE_PIX_SHADER barrier sync point for PWS+.",
+      "Tags": [
+        "Hardware Workarounds",
+        "PWS"
+      ],
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waForcePrePixShaderWaitPoint",
+      "Name": "WaForcePrePixShaderWaitPoint",
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ]
+    },
+    {
+      "Description": "WA to force LOCK*THRESHOLD for HS, GS, and CS to 0.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waForceLockThresholdZero",
+      "Name": "WaForceLockThresholdZero",
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ]
+    },
+    {
+      "Description": "WA to force SPI_GS_THROTTLE_CNTL2.SPI_THROTTLE_MODE != 0.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waForceSpiThrottleModeNonZero",
+      "Name": "WaForceSpiThrottleModeNonZero",
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ]
+    },
+    {
+      "Description": "Set VS_XY_NAN_TO_INF = 0 to disable PA stereo rendering",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waSetVsXyNanToInfZero",
+      "Name": "WaSetVsXyNanToInfZero",
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ]
+    },
+    {
+      "Description": "Set DB_RENDER_CONTROL.MAX_ALLOWED_TILES_IN_WAVE one smaller due to incorrect calculation in the DB cachelines.",
+      "Tags": [
+        "Hardware Workarounds"
+      ],
+      "Flags": {
+        "RereadSetting": true
+      },
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalGfx9Key",
+      "Type": "bool",
+      "VariableName": "waIncorrectMaxAllowedTilesInWave",
+      "Name": "WaIncorrectMaxAllowedTilesInWave",
+      "OrBuildTypes": [
+        "PAL_BUILD_GFX11"
+      ]
     }
   ]
 }

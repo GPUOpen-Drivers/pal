@@ -88,6 +88,17 @@ VGT_EVENT_TYPE StreamoutStatsQueryPool::XlateEventType(
 
     VGT_EVENT_TYPE eventType = SAMPLE_STREAMOUTSTATS;
 
+#if PAL_BUILD_GFX11
+    if ((m_device.Parent()->ChipProperties().gfxip.supportsSwStrmout != 0)
+        )
+    {
+        // With software streamout, the hardware no longer has any concept of streamout VGT_EVENTs. As a result,
+        // we need to issue a VS_PARTIAL_FLUSH - to ensure all NGG waves have completed - and then we will have to
+        // tell the CP to use a specific EventIndex that indicates which buffer we wish to sample from.
+        eventType = VS_PARTIAL_FLUSH;
+    }
+    else
+#endif
     {
         eventType = (queryType == QueryType::StreamoutStats)  ? SAMPLE_STREAMOUTSTATS  :
                     (queryType == QueryType::StreamoutStats1) ? SAMPLE_STREAMOUTSTATS1 :
@@ -109,6 +120,30 @@ ME_EVENT_WRITE_event_index_enum StreamoutStatsQueryPool::XlateEventIndex(
                (queryType == QueryType::StreamoutStats3));
 
     ME_EVENT_WRITE_event_index_enum eventIndex = event_index__me_event_write__sample_streamoutstats__GFX09_10;
+
+#if PAL_BUILD_GFX11
+    constexpr auto StreamoutStats0 = static_cast<ME_EVENT_WRITE_event_index_enum>(8);
+    constexpr auto StreamoutStats1 = static_cast<ME_EVENT_WRITE_event_index_enum>(9);
+    constexpr auto StreamoutStats2 = static_cast<ME_EVENT_WRITE_event_index_enum>(10);
+    constexpr auto StreamoutStats3 = static_cast<ME_EVENT_WRITE_event_index_enum>(11);
+
+#if PAL_BUILD_GFX11
+    static_assert(StreamoutStats0 == event_index__me_event_write__sample_streamoutstats__GFX11, "Check reg defs!");
+    static_assert(StreamoutStats1 == event_index__me_event_write__sample_streamoutstats1__GFX11, "Check reg defs!");
+    static_assert(StreamoutStats2 == event_index__me_event_write__sample_streamoutstats2__GFX11, "Check reg defs!");
+    static_assert(StreamoutStats3 == event_index__me_event_write__sample_streamoutstats3__GFX11, "Check reg defs!");
+#endif
+
+    if ((m_device.Parent()->ChipProperties().gfxip.supportsSwStrmout != 0)
+        )
+    {
+        eventIndex =
+            (queryType == QueryType::StreamoutStats)  ? StreamoutStats0 :
+            (queryType == QueryType::StreamoutStats1) ? StreamoutStats1 :
+            (queryType == QueryType::StreamoutStats2) ? StreamoutStats2 :
+                                                        StreamoutStats3;
+    }
+#endif
 
     return eventIndex;
 }
@@ -140,6 +175,9 @@ void StreamoutStatsQueryPool::Begin(
         pCmdSpace += cmdUtil.BuildSampleEventWrite(XlateEventType(queryType),
                                                    XlateEventIndex(queryType),
                                                    pCmdBuffer->GetEngineType(),
+#if PAL_BUILD_GFX11
+                                                   samp_plst_cntr_mode__mec_event_write__legacy_mode__GFX11,
+#endif
                                                    gpuAddr,
                                                    pCmdSpace);
         pCmdStream->CommitCommands(pCmdSpace);
@@ -175,6 +213,9 @@ void StreamoutStatsQueryPool::End(
         pCmdSpace += cmdUtil.BuildSampleEventWrite(XlateEventType(queryType),
                                                    XlateEventIndex(queryType),
                                                    pCmdBuffer->GetEngineType(),
+#if PAL_BUILD_GFX11
+                                                   samp_plst_cntr_mode__mec_event_write__legacy_mode__GFX11,
+#endif
                                                    gpuAddr + sizeof(StreamoutStatsData),
                                                    pCmdSpace);
 

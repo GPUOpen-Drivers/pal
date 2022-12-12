@@ -42,6 +42,9 @@
 #define FAMILY_RV      0x8E
 #endif
 #define FAMILY_NV      0x8F
+#if ADDR_GFX11_BUILD
+#define FAMILY_NV3     0x91
+#endif
 
 // AMDGPU_FAMILY_IS(familyId, familyName)
 #define FAMILY_IS(f, fn)     (f == FAMILY_##fn)
@@ -54,6 +57,9 @@
 #define FAMILY_IS_RV(f)      FAMILY_IS(f, RV)
 #endif
 #define FAMILY_IS_NV(f)      FAMILY_IS(f, NV)
+#if ADDR_GFX11_BUILD
+#define FAMILY_IS_NV3(f)     FAMILY_IS(f, NV3)
+#endif
 
 #define AMDGPU_UNKNOWN          0xFF
 
@@ -111,6 +117,12 @@
 
 #define AMDGPU_NAVI24_RANGE     0x46, 0x50
 
+#if ADDR_GFX11_BUILD
+#if ADDR_NAVI31_BUILD
+#define AMDGPU_NAVI31_RANGE     0x01, 0x10
+#endif
+#endif
+
 #define AMDGPU_EXPAND_FIX(x) x
 #define AMDGPU_RANGE_HELPER(val, min, max) ((val >= min) && (val < max))
 #define AMDGPU_IN_RANGE(val, ...)   AMDGPU_EXPAND_FIX(AMDGPU_RANGE_HELPER(val, __VA_ARGS__))
@@ -157,5 +169,11 @@
 #define ASICREV_IS_NAVI23_P(r)         ASICREV_IS(r, NAVI23)
 
 #define ASICREV_IS_NAVI24_P(r)         ASICREV_IS(r, NAVI24)
+
+#if ADDR_GFX11_BUILD
+#if ADDR_NAVI31_BUILD
+#define ASICREV_IS_NAVI31_P(r)         ASICREV_IS(r, NAVI31)
+#endif
+#endif
 
 #endif

@@ -170,6 +170,9 @@ enum class GfxIpLevel : uint32
     GfxIp9    = 0x5,
     GfxIp10_1 = 0x7,
     GfxIp10_3 = 0x9,
+#if PAL_BUILD_GFX11
+    GfxIp11_0 = 0xC,
+#endif
 };
 
 /// Specifies the hardware revision.  Enumerations are in family order (Southern Islands, Sea Islands, Kaveri,
@@ -220,6 +223,9 @@ enum class AsicRevision : uint32
     Navi22           = 0x25,
     Navi23           = 0x26,
     Navi24           = 0x27,
+#if PAL_BUILD_NAVI31
+    Navi31           = 0x2C,
+#endif
 };
 
 /// Specifies which operating-system-support IP level (OSSIP) this device has.
@@ -730,6 +736,13 @@ struct PalPublicSettings
     // Optimize color export format for depth only rendering. Only applicable for RB+ parts
     bool optDepthOnlyExportRate;
 
+#if PAL_BUILD_GFX11
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 777)
+    // Controls the value of CB_FDCC_CONTROL.SAMPLE_MASK_TRACKER_WATERMARK.Valid values are 0 and 3 - 15
+    uint32 gfx11SampleMaskTrackerWatermark;
+#endif
+#endif
+
     // Controls whether or not we should expand Hi-Z to full range rather than doing fine-grain resummarize
     // operations.  Expanding Hi-Z leaves the Hi-Z data in a less optimal state but is a much faster operation
     // than the fine-grain resummarize.
@@ -864,6 +877,9 @@ enum class RayTracingIpLevel : uint32
 
     RtIp1_0 = 0x1,     ///< First Implementation of HW RT
     RtIp1_1 = 0x2,     ///< Added computation of triangle barycentrics into HW
+#if PAL_BUILD_GFX11
+    RtIp2_0 = 0x3,     ///< Added more Hardware RayTracing features, such as BoxSort, PointerFlag, etc
+#endif
 };
 
 /// Reports various properties of a particular IDevice to the client.  @see IDevice::GetProperties.
@@ -1315,7 +1331,13 @@ struct DeviceProperties
                 uint64 supportSortAgnosticBarycentrics    :  1; ///< HW supports sort-agnostic Barycentrics for PS
                 uint64 supportVrsWithDsExports            :  1; ///< If true, asic support coarse VRS rates
                                                                 ///  when z or stencil exports are enabled
+#if PAL_BUILD_GFX11
+                uint64 supportRayTraversalStack           :  1; ///< HW assisted ray tracing traversal stack support
+                uint64 supportPointerFlags                :  1; ///< Ray tracing HW supports flags embedded in the node
+                                                                ///  pointer bits
+#else
                 uint64 placeholder11                      :  2; ///< Placeholder, do not use
+#endif
                 uint64 supportTextureGatherBiasLod        :  1; ///< HW supports SQ_IMAGE_GATHER4_L_O
                 uint64 supportInt8Dot                     :  1; ///< Hardware supports a dot product 8bit.
                 uint64 supportInt4Dot                     :  1; ///< Hardware supports a dot product 4bit.
@@ -2114,7 +2136,11 @@ struct BvhInfo
             /// only on GPUs that have supportsMall set in DeviceProperties.
             uint32    bypassMallRead        :  1;
             uint32    bypassMallWrite       :  1;
+#if PAL_BUILD_GFX11
+            uint32    pointerFlags          :  1; ///< If set, flags are encoded in the node pointer bits
+#else
             uint32    placeholder           :  1; ///< Reserved for future HW
+#endif
 
             uint32    placeholder2          :  3;
 

@@ -368,6 +368,109 @@ uint32* PipelineChunkVsPs::WriteContextCommands(
     return pCmdSpace;
 }
 
+#if PAL_BUILD_GFX11
+// =====================================================================================================================
+// Accumulates this pipeline chunk's SH registers into an array of packed register pairs.
+void PipelineChunkVsPs::AccumulateShRegs(
+    PackedRegisterPair* pRegPairs,
+    uint32*             pNumRegs
+    ) const
+{
+#if PAL_ENABLE_PRINTS_ASSERTS
+    const uint32 startingIdx = *pNumRegs;
+#endif
+
+    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
+
+    AccumulateShRegsPs(pRegPairs, pNumRegs);
+
+    if (m_pPsPerfDataInfo->regOffset != UserDataNotMapped)
+    {
+        SetOneShRegValPairPacked(pRegPairs, pNumRegs, m_pPsPerfDataInfo->regOffset, m_pPsPerfDataInfo->gpuVirtAddr);
+    }
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    PAL_ASSERT(InRange(*pNumRegs, startingIdx, startingIdx + VsPsRegs::NumShReg));
+#endif
+}
+
+// =====================================================================================================================
+// Accumulates this pipeline's context registers into an array of packed register pairs.
+void PipelineChunkVsPs::AccumulateContextRegs(
+    PackedRegisterPair* pRegPairs,
+    uint32*             pNumRegs
+    ) const
+{
+#if PAL_ENABLE_PRINTS_ASSERTS
+    const uint32 startingIdx = *pNumRegs;
+#endif
+
+    SetOneContextRegValPairPacked(pRegPairs,
+                                  pNumRegs,
+                                  mmSPI_BARYC_CNTL,
+                                  m_regs.context.spiBarycCntl.u32All);
+    SetSeqContextRegValPairPacked(pRegPairs,
+                                  pNumRegs,
+                                  mmSPI_PS_INPUT_ENA,
+                                  mmSPI_PS_INPUT_ADDR,
+                                  &m_regs.context.spiPsInputEna.u32All);
+    SetOneContextRegValPairPacked(pRegPairs,
+                                  pNumRegs,
+                                  mmDB_SHADER_CONTROL,
+                                  m_regs.context.dbShaderControl.u32All);
+    SetOneContextRegValPairPacked(pRegPairs,
+                                  pNumRegs,
+                                  mmPA_SC_SHADER_CONTROL,
+                                  m_regs.context.paScShaderControl.u32All);
+    SetOneContextRegValPairPacked(pRegPairs,
+                                  pNumRegs,
+                                  mmPA_CL_VS_OUT_CNTL,
+                                  m_regs.context.paClVsOutCntl.u32All);
+    SetOneContextRegValPairPacked(pRegPairs,
+                               pNumRegs,
+                               mmVGT_PRIMITIVEID_EN,
+                               m_regs.context.vgtPrimitiveIdEn.u32All);
+
+    if (m_regs.context.interpolatorCount > 0)
+    {
+        const uint32 endRegisterAddr = (mmSPI_PS_INPUT_CNTL_0 + m_regs.context.interpolatorCount - 1);
+        PAL_ASSERT(endRegisterAddr <= mmSPI_PS_INPUT_CNTL_31);
+
+        SetSeqContextRegValPairPacked(pRegPairs,
+                                      pNumRegs,
+                                      mmSPI_PS_INPUT_CNTL_0,
+                                      endRegisterAddr,
+                                      &m_regs.context.spiPsInputCntl[0]);
+    }
+
+    const auto& palDevice = *(m_device.Parent());
+    const bool hasVgtStreamOut = m_device.Parent()->ChipProperties().gfxip.supportsHwVs;
+    if (hasVgtStreamOut)
+    {
+        SetSeqContextRegValPairPacked(pRegPairs,
+                                      pNumRegs,
+                                      HasHwVs::mmVGT_STRMOUT_CONFIG,
+                                      HasHwVs::mmVGT_STRMOUT_BUFFER_CONFIG,
+                                      &m_regs.context.vgtStrmoutConfig);
+    }
+
+    if (UsesHwStreamout())
+    {
+        for (uint32 i = 0; i < MaxStreamOutTargets; ++i)
+        {
+            SetOneContextRegValPairPacked(pRegPairs,
+                                          pNumRegs,
+                                          VgtStrmoutVtxStrideAddr[i],
+                                          m_regs.context.vgtStrmoutVtxStride[i].u32All);
+        }
+    }
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    PAL_ASSERT(InRange(*pNumRegs, startingIdx, startingIdx + VsPsRegs::NumContextReg));
+#endif
+}
+#endif
+
 // =====================================================================================================================
 // Writes PM4 commands to program the SH registers for the VS. Returns the next unused DWORD in pCmdSpace.
 uint32* PipelineChunkVsPs::WriteShCommandsSetPathVs(
@@ -429,6 +532,37 @@ uint32* PipelineChunkVsPs::WriteShCommandsSetPathPs(
 
     return pCmdSpace;
 }
+
+#if PAL_BUILD_GFX11
+// =====================================================================================================================
+// Accumulates registers into an array of packed register pairs to program the SH registers for the PS
+void PipelineChunkVsPs::AccumulateShRegsPs(
+    PackedRegisterPair* pRegPairs,
+    uint32*             pNumRegs
+    ) const
+{
+    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
+
+    SetSeqShRegValPairPacked(pRegPairs,
+                             pNumRegs,
+                             mmSPI_SHADER_PGM_LO_PS,
+                             mmSPI_SHADER_PGM_RSRC2_PS,
+                             &m_regs.sh.spiShaderPgmLoPs);
+
+    SetOneShRegValPairPacked(pRegPairs,
+                             pNumRegs,
+                             mmSPI_SHADER_USER_DATA_PS_0 + ConstBufTblStartReg,
+                             m_regs.sh.userDataInternalTablePs.u32All);
+
+    if (chipProps.gfx9.supportSpp != 0)
+    {
+        SetOneShRegValPairPacked(pRegPairs,
+                                 pNumRegs,
+                                 Apu09_1xPlus::mmSPI_SHADER_PGM_CHKSUM_PS,
+                                 m_regs.sh.spiShaderPgmChksumPs.u32All);
+    }
+}
+#endif
 
 } // Gfx9
 } // Pal

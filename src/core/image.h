@@ -66,6 +66,32 @@ inline uint32 Get256BAddrHi(
     return static_cast<uint32>(virtAddr >> 40);
 }
 
+#if PAL_BUILD_GFX11
+// Shift the 64-bit wide address by 7 to get 128 byte-aligned address, and return the low DWORD of that shifted
+// address.
+//
+// The maximum number of address bits is 64-bits for GCR (gcr_base_lo:32 + gcr_base_hi:25 +
+// shift:7), and 64-bits for COHER (coher_base_lo:32 + coher_base_hi:24 + shift:8).
+inline uint32 Get128BAddrLo(
+    gpusize virtAddr)
+{
+    PAL_ASSERT((virtAddr & 0x7f) == 0);
+    return static_cast<uint32>(virtAddr >> 7);
+}
+
+// Shift the 64-bit wide address by 7 to get 128 byte-aligned address, and return the high DWORD of that shifted
+// address.
+//
+// The maximum number of address bits is 64-bits for GCR (gcr_base_lo:32 + gcr_base_hi:25 +
+// shift:7), and 64-bits for COHER (coher_base_lo:32 + coher_base_hi:24 + shift:8).
+inline uint32 Get128BAddrHi(
+    gpusize virtAddr)
+{
+    PAL_ASSERT((virtAddr & 0x7F) == 0);
+    return static_cast<uint32>(virtAddr >> 39);
+}
+#endif
+
 // Shifts and combines the low and high DWORD's of a 256 byte-aligned address to get the original GPU virtual
 // address.
 constexpr gpusize GetOriginalAddress(

@@ -309,5 +309,29 @@ private:
     PAL_DISALLOW_COPY_AND_ASSIGN(TaskMeshControlRing);
 };
 
+#if PAL_BUILD_GFX11
+// =====================================================================================================================
+// Implements shader ring functionality for vertex and primitive atributes through memory
+class VertexAttributeRing final : public ShaderRing
+{
+public:
+    VertexAttributeRing(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);
+    virtual ~VertexAttributeRing() {}
+
+protected:
+    virtual Result AllocateVideoMemory(gpusize memorySizeBytes, ShaderRingMemory* pDeferredMem) override;
+
+    virtual gpusize ComputeAllocationSize() const override;
+
+    virtual void UpdateSrds() const override;
+
+private:
+    static constexpr uint32 Stride = 16;
+
+    PAL_DISALLOW_DEFAULT_CTOR(VertexAttributeRing);
+    PAL_DISALLOW_COPY_AND_ASSIGN(VertexAttributeRing);
+};
+#endif
+
 } // Gfx9
 } // Pal

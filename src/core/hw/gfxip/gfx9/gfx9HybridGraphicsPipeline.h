@@ -74,6 +74,10 @@ private:
     // Number of threads per threadgroup in each dimension as determined by parsing the input IL.
     DispatchDims m_threadsPerTg;
 
+#if PAL_BUILD_GFX11
+    const bool m_shPairsPacketSupportedCs;
+#endif
+
     PAL_DISALLOW_DEFAULT_CTOR(HybridGraphicsPipeline);
     PAL_DISALLOW_COPY_AND_ASSIGN(HybridGraphicsPipeline);
 };

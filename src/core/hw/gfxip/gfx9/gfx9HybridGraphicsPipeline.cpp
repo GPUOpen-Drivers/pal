@@ -43,6 +43,9 @@ HybridGraphicsPipeline::HybridGraphicsPipeline(
     m_taskStageInfo(),
     m_taskSignature{NullCsSignature},
     m_threadsPerTg{}
+#if PAL_BUILD_GFX11
+    , m_shPairsPacketSupportedCs(pDevice->Settings().gfx11EnableShRegPairOptimizationCs)
+#endif
 {
 }
 
@@ -85,6 +88,9 @@ Result HybridGraphicsPipeline::HwlInit(
                             registers,
                             wavefrontSize,
                             &m_threadsPerTg,
+#if PAL_BUILD_GFX11
+                            createInfo.taskInterleaveSize,
+#endif
                             &uploader);
 
             const auto* pElfSymbol = abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::CsDisassembly);
@@ -148,6 +154,9 @@ uint32* HybridGraphicsPipeline::WriteTaskCommands(
     auto* pGfx9CmdStream = static_cast<CmdStream*>(pCmdStream);
     pCmdSpace = m_task.WriteShCommands(pGfx9CmdStream,
                                        pCmdSpace,
+#if PAL_BUILD_GFX11
+                                       m_shPairsPacketSupportedCs,
+#endif
                                        info,
                                        0uLL,
                                        prefetch);

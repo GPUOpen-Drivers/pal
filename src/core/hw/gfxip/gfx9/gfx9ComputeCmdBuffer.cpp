@@ -65,12 +65,21 @@ ComputeCmdBuffer::ComputeCmdBuffer(
                 IsNested()),
     m_pSignatureCs(&NullCsSignature),
     m_baseUserDataRegCs(device.GetBaseUserDataReg(HwShaderStage::Cs)),
+#if PAL_BUILD_GFX11
+    m_supportsShPairsPacketCs(device.Settings().gfx11EnableShRegPairOptimizationCs),
+    m_validUserEntryRegPairsCs{},
+    m_numValidUserEntriesCs(0),
+#endif
     m_predGpuAddr(0),
     m_inheritedPredication(false),
     m_globalInternalTableAddr(0)
 {
     // Compute command buffers suppors compute ops and CP DMA.
     m_engineSupport = CmdBufferEngineSupport::Compute | CmdBufferEngineSupport::CpDma;
+
+#if PAL_BUILD_GFX11
+    memset(&m_validUserEntryRegPairsLookupCs[0], InvalidRegPairLookupIndex, sizeof(m_validUserEntryRegPairsLookupCs));
+#endif
 
     // Assume PAL ABI compute pipelines by default.
     SetDispatchFunctions(false);
@@ -100,6 +109,12 @@ void ComputeCmdBuffer::ResetState()
     SetDispatchFunctions(false);
 
     m_pSignatureCs = &NullCsSignature;
+
+#if PAL_BUILD_GFX11
+    // All user data entries are invalid upon a state reset.
+    memset(&m_validUserEntryRegPairsLookupCs[0], InvalidRegPairLookupIndex, sizeof(m_validUserEntryRegPairsLookupCs));
+    m_numValidUserEntriesCs = 0;
+#endif
 
     // Command buffers start without a valid predicate GPU address.
     m_predGpuAddr = 0;
@@ -877,6 +892,10 @@ void ComputeCmdBuffer::CmdBindBorderColorPalette(
 // =====================================================================================================================
 // Helper function to write a single user-sgpr. This function should always be preferred for user data writes over
 // WriteSetOneShReg() if the SGPR is written before or during draw/dispatch validation.
+#if PAL_BUILD_GFX11
+// On GFX11, this function will add the register offset and value into the relevant array of packed register pairs to be
+// written in WritePackedUserDataEntriesToSgprs().
+#endif
 // Returns the next unused DWORD in pDeCmdSpace.
 uint32* ComputeCmdBuffer::SetUserSgprReg(
     uint16  regAddr,
@@ -894,6 +913,10 @@ uint32* ComputeCmdBuffer::SetUserSgprReg(
 // =====================================================================================================================
 // Helper function to write a sequence of user-sgprs. This function should always be preferred for user data writes over
 // WriteSetSeqShRegs() if the SGPRs are written before or during draw/dispatch validation.
+#if PAL_BUILD_GFX11
+// On GFX11, this function will add the offsets/values into the relevant array of packed register pairs to be written
+// in WritePackedUserDataEntriesToSgprs().
+#endif
 // Returns the next unused DWORD in pCmdSpace.
 uint32* ComputeCmdBuffer::SetSeqUserSgprRegs(
     uint16      startAddr,
@@ -905,6 +928,20 @@ uint32* ComputeCmdBuffer::SetSeqUserSgprRegs(
     // non user-SGPR SH reg writes.
     PAL_ASSERT(InRange<uint16>(startAddr, m_baseUserDataRegCs, m_baseUserDataRegCs + NumUserDataRegistersCompute));
 
+#if PAL_BUILD_GFX11
+    if (m_supportsShPairsPacketCs)
+    {
+        uint16 baseUserDataReg = m_baseUserDataRegCs;
+        SetSeqUserDataEntryPairPackedValues(startAddr,
+                                            endAddr,
+                                            baseUserDataReg,
+                                            pValues,
+                                            m_validUserEntryRegPairsCs,
+                                            &m_validUserEntryRegPairsLookupCs[0],
+                                            &m_numValidUserEntriesCs);
+    }
+    else
+#endif
     {
         pCmdSpace = m_cmdStream.WriteSetSeqShRegs(startAddr, endAddr, ShaderCompute, pValues, pCmdSpace);
     }
@@ -940,6 +977,18 @@ uint32* ComputeCmdBuffer::ValidateUserData(
 
     if (alreadyWritten == false)
     {
+#if PAL_BUILD_GFX11
+        if (m_supportsShPairsPacketCs)
+        {
+            CmdStream::AccumulateUserDataEntriesForSgprs<false>(m_pSignatureCs->stage,
+                                                                *pUserData,
+                                                                m_baseUserDataRegCs,
+                                                                m_validUserEntryRegPairsCs,
+                                                                &m_validUserEntryRegPairsLookupCs[0],
+                                                                &m_numValidUserEntriesCs);
+        }
+        else
+#endif
         {
             pCmdSpace = m_cmdStream.WriteUserDataEntriesToSgprs<false, ShaderCompute>(m_pSignatureCs->stage,
                                                                                       *pUserData,
@@ -1120,6 +1169,13 @@ uint32* ComputeCmdBuffer::ValidateDispatchPalAbi(
                                        pCmdSpace);
     }
 
+#if PAL_BUILD_GFX11
+    if (m_numValidUserEntriesCs > 0)
+    {
+        pCmdSpace = WritePackedUserDataEntriesToSgprs(pCmdSpace);
+    }
+#endif
+
 #if PAL_DEVELOPER_BUILD
     if (enablePm4Instrumentation)
     {
@@ -1258,6 +1314,13 @@ uint32* ComputeCmdBuffer::ValidateDispatchHsaAbi(
     PAL_ASSERT((startReg - mmCOMPUTE_USER_DATA_0) == computePgmRsrc2.bitfields.USER_SGPR);
 #endif
 
+#if PAL_BUILD_GFX11
+    if (m_numValidUserEntriesCs > 0)
+    {
+        pCmdSpace = WritePackedUserDataEntriesToSgprs(pCmdSpace);
+    }
+#endif
+
 #if PAL_DEVELOPER_BUILD
     if (enablePm4Instrumentation)
     {
@@ -1305,6 +1368,24 @@ bool ComputeCmdBuffer::FixupUserSgprsOnPipelineSwitch(
 
     if (m_pSignatureCs->userDataHash != pPrevSignature->userDataHash)
     {
+#if PAL_BUILD_GFX11
+        if (m_supportsShPairsPacketCs && (m_numValidUserEntriesCs > 0))
+        {
+            // Even though we ignore dirty flags here, we still need to accumulate user data entries into packed
+            // register pairs for each draw/dispatch when the active pipeline has changed and there are pending register
+            // writes (so we only need to write a single packed packet for user entries). If there are no pending writes
+            // in the valid user entry packed register pair array, it is more performant to write the user data entries
+            // into SGPRs via the non-packed SET_SH_REG packet as we can guarantee SGPRs are contiguous when
+            // IgnoreDirtyFlags = true.
+            CmdStream::AccumulateUserDataEntriesForSgprs<true>(m_pSignatureCs->stage,
+                                                               userData,
+                                                               m_baseUserDataRegCs,
+                                                               m_validUserEntryRegPairsCs,
+                                                               &m_validUserEntryRegPairsLookupCs[0],
+                                                               &m_numValidUserEntriesCs);
+        }
+        else
+#endif
         {
             pCmdSpace = m_cmdStream.WriteUserDataEntriesToSgprs<true, ShaderCompute>(m_pSignatureCs->stage,
                                                                                      userData,
@@ -1317,6 +1398,49 @@ bool ComputeCmdBuffer::FixupUserSgprsOnPipelineSwitch(
 
     return written;
 }
+
+#if PAL_BUILD_GFX11
+// =====================================================================================================================
+// Helper function to validate and write packed user data entries to SGPRs. Returns next unused DWORD in command space.
+template <bool Pm4OptImmediate>
+uint32* ComputeCmdBuffer::WritePackedUserDataEntriesToSgprs(
+    uint32* pCmdSpace)
+{
+    PAL_ASSERT(m_numValidUserEntriesCs <= NumUserDataRegistersCompute);
+
+    pCmdSpace = m_cmdStream.WriteSetShRegPairs<ShaderCompute, Pm4OptImmediate>(m_validUserEntryRegPairsCs,
+                                                                               m_numValidUserEntriesCs,
+                                                                               pCmdSpace);
+
+    // All entries are invalid once written to the command stream.
+    memset(&m_validUserEntryRegPairsLookupCs[0], InvalidRegPairLookupIndex, sizeof(m_validUserEntryRegPairsLookupCs));
+    m_numValidUserEntriesCs = 0;
+
+#if PAL_ENABLE_PRINTS_ASSERTS
+    memset(&m_validUserEntryRegPairsCs[0], 0, sizeof(m_validUserEntryRegPairsCs));
+#endif
+
+    return pCmdSpace;
+}
+
+// =====================================================================================================================
+// Wrapper for the real WritePackedUserDataEntriesToSgprs() for when the caller doesn't know if the immediate mode
+// pm4 optimizer is enabled.
+uint32* ComputeCmdBuffer::WritePackedUserDataEntriesToSgprs(
+    uint32* pCmdSpace)
+{
+    if (m_cmdStream.Pm4OptimizerEnabled())
+    {
+        pCmdSpace = WritePackedUserDataEntriesToSgprs<true>(pCmdSpace);
+    }
+    else
+    {
+        pCmdSpace = WritePackedUserDataEntriesToSgprs<false>(pCmdSpace);
+    }
+
+    return pCmdSpace;
+}
+#endif
 
 // =====================================================================================================================
 // Adds PM4 commands needed to write any registers associated with starting a query.

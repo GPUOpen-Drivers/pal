@@ -385,6 +385,19 @@ static ReleaseEvents GetReleaseEvents(
         release.rbCache = 1;
     }
 
+#if PAL_BUILD_GFX11
+    // Optimization: for stageMask transition Ps|Cs->Rt/Ps/Ds with GCR operation or Vs|Ps|Cs->Rt/Ps/Ds, convert
+    //               release events to Eop so can wait at a later PreColor/PrePs/PreDepth point instead of ME.
+    const EngineType engineType = pCmdBuf->GetEngineType();
+    if (device.UsePws(engineType)  &&
+        (release.ps && release.cs) &&
+        (release.vs || (acquireCaches != SyncGlxNone)) &&
+        (acquirePoint >= AcquirePoint::PreDepth))
+    {
+        release.eop = 1;
+    }
+#endif
+
     if (splitBarrier)
     {
         // No VS_DONE event support from HW yet. For ReleaseThenAcquire, can issue VS_PARTIAL_FLUSH instead and for
@@ -438,6 +451,28 @@ static AcquirePoint GetAcquirePoint(
            TestAnyFlagSet(dstStageMask, AcqPreColorStages)  ? AcquirePoint::PreColor  :
                                                               AcquirePoint::Eop;
 }
+
+#if PAL_BUILD_GFX11
+// =====================================================================================================================
+static ME_ACQUIRE_MEM_pws_stage_sel_enum GetPwsStageSel(
+    AcquirePoint acquirePoint)
+{
+    static constexpr ME_ACQUIRE_MEM_pws_stage_sel_enum PwsStageSelMapTable[] =
+    {
+        pws_stage_sel__me_acquire_mem__cp_pfp__HASPWS,         // Pfp       = 0
+        pws_stage_sel__me_acquire_mem__cp_me__HASPWS,          // Me        = 1
+        pws_stage_sel__me_acquire_mem__pre_shader__HASPWS,     // PreShader = 2
+        pws_stage_sel__me_acquire_mem__pre_depth__HASPWS,      // PreDepth  = 3
+        pws_stage_sel__me_acquire_mem__pre_pix_shader__HASPWS, // PrePs     = 4
+        pws_stage_sel__me_acquire_mem__pre_color__HASPWS,      // PreColor  = 5
+        pws_stage_sel__me_acquire_mem__pre_color__HASPWS,      // Eop       = 6 (Invalid)
+    };
+
+    PAL_ASSERT(acquirePoint < AcquirePoint::Count);
+
+    return PwsStageSelMapTable[uint32(acquirePoint)];
+}
+#endif
 
 // =====================================================================================================================
 // Fill in a given BarrierOperations struct with info about a layout transition
@@ -661,6 +696,14 @@ void Device::OptimizeReadOnlyMemBarrier(
     bool canSkip = (TestAnyFlagSet(pTransition->srcAccessMask, CacheCoherShaderReadMask) ||
                    (TestAnyFlagSet(pTransition->dstAccessMask, CacheCoherShaderReadMask) == false));
 
+#if PAL_BUILD_GFX11
+    if (UsePws(pCmdBuf->GetEngineType()))
+    {
+        // Don't skip if last barrier acquires later stage than current barrier acquires.
+        canSkip &= (GetAcquirePoint(srcStageMask) <= GetAcquirePoint(dstStageMask));
+    }
+    else
+#endif
     {
         // Don't skip if may miss PFP_SYNC_ME in non-PWS case.
         canSkip &= (TestAnyFlagSet(srcStageMask, PipelineStagePfpMask) ||
@@ -705,6 +748,27 @@ bool Device::OptimizeReadOnlyImgBarrier(
     bool canSkip = (TestAnyFlagSet(pTransition->srcAccessMask, CacheCoherShaderReadMask) ||
                    (TestAnyFlagSet(pTransition->dstAccessMask, CacheCoherShaderReadMask) == false));
 
+#if PAL_BUILD_GFX11
+    if (UsePws(pCmdBuf->GetEngineType()))
+    {
+        const Pal::Image* pImage = static_cast<const Pal::Image*>(pTransition->pImage);
+
+        // Image without metadata never uses CP DMA except CmdCloneImageData(). Safe to replace acquire BLT stage
+        // with VS/CS stage on non-cloneable image. This is to skip (NonPsRead|PsRead->CopySrc) in DX12 Control.
+        uint32 optDstStageMask = dstStageMask;
+        if (TestAnyFlagSet(optDstStageMask, PipelineStageBlt) &&
+            (pImage->GetMemoryLayout().metadataSize == 0)     && // No metadata
+            (pImage->IsCloneable() == false))
+        {
+            optDstStageMask &= ~PipelineStageBlt;
+            optDstStageMask |= (PipelineStageVs | PipelineStageCs);
+        }
+
+        // Don't skip if last barrier acquires later stage than current barrier acquires.
+        canSkip &= (GetAcquirePoint(srcStageMask) <= GetAcquirePoint(optDstStageMask));
+    }
+    else
+#endif
     {
         // Don't skip if may miss PFP_SYNC_ME in non-PWS case.
         canSkip &= (TestAnyFlagSet(srcStageMask, PipelineStagePfpMask) ||
@@ -1212,6 +1276,26 @@ AcqRelSyncToken Device::IssueReleaseSync(
                 break;
             }
 
+#if PAL_BUILD_GFX11
+            if (UsePws(engineType))
+            {
+                releaseMem.usePws = 1;
+
+                if (syncToken.type == uint32(AcqRelEventType::Eop))
+                {
+                    releaseMem.dataSel = data_sel__me_release_mem__none;
+                }
+                else
+                {
+                    // Note: PWS+ doesn't need timestamp write, we pass in a dummy write just to meet RELEASE_MEM
+                    //       packet programming requirement for DATA_SEL field, where 0=none (Discard data) is not
+                    //       a valid option when EVENT_INDEX=shader_done (PS_DONE/CS_DONE).
+                    releaseMem.dataSel = data_sel__me_release_mem__send_32_bit_low;
+                    releaseMem.dstAddr = pCmdBuf->TimestampGpuVirtAddr();
+                }
+            }
+            else
+#endif
             {
                 releaseMem.dataSel = data_sel__me_release_mem__send_32_bit_low;
                 releaseMem.dstAddr = pCmdBuf->AcqRelFenceValGpuVa(AcqRelEventType(syncToken.type));
@@ -1328,6 +1412,48 @@ void Device::IssueAcquireSync(
 
     bool waitAtPfpOrMe = false;
 
+#if PAL_BUILD_GFX11
+    // If no sync token is specified to be waited for completion, there is no need for a PWS-version of ACQUIRE_MEM.
+    if (hasValidSyncToken && UsePws(engineType))
+    {
+        const AcquirePoint acquirePoint = GetAcquirePoint(stageMask);
+
+        // Wait on the PWS+ event via ACQUIRE_MEM.
+        AcquireMemGfxPws acquireMem = {};
+        acquireMem.cacheSync = acquireCaches;
+        acquireMem.stageSel  = GetPwsStageSel(acquirePoint);
+
+        static_assert((uint32(AcqRelEventType::Eop)    == uint32(pws_counter_sel__me_acquire_mem__ts_select__HASPWS)) &&
+                      (uint32(AcqRelEventType::PsDone) == uint32(pws_counter_sel__me_acquire_mem__ps_select__HASPWS)) &&
+                      (uint32(AcqRelEventType::CsDone) == uint32(pws_counter_sel__me_acquire_mem__cs_select__HASPWS)),
+                      "Enum orders mismatch! Fix the ordering so the following for-loop runs correctly.");
+
+        for (uint32 i = 0; i < uint32(AcqRelEventType::Count); i++)
+        {
+            if (syncTokenToWait[i] != 0)
+            {
+                const uint32 curSyncToken = pCmdBuf->GetCurAcqRelFenceVal(AcqRelEventType(i));
+                const uint32 numEventsAgo = curSyncToken - syncTokenToWait[i];
+
+                PAL_ASSERT(syncTokenToWait[i] <= curSyncToken);
+
+                acquireMem.counterSel = ME_ACQUIRE_MEM_pws_counter_sel_enum(i);
+                acquireMem.syncCount  = Util::Clamp(numEventsAgo, 0U, MaxNumPwsSyncEvents - 1U);
+
+                pCmdSpace += m_cmdUtil.BuildAcquireMemGfxPws(acquireMem, pCmdSpace);
+            }
+        }
+
+        const bool issuedPfpSyncMe = (acquirePoint == AcquirePoint::Pfp);
+        // Note that the CmdUtil will automatically upgrade PWS_STAGE_SEL to ME if cache syncs are required.
+        waitAtPfpOrMe  = (acquireCaches != SyncGlxNone) || (acquirePoint <= AcquirePoint::Me);
+        needPfpSyncMe &= (issuedPfpSyncMe == false);
+
+        pBarrierOps->pipelineStalls.waitOnTs   = 1;
+        pBarrierOps->pipelineStalls.pfpSyncMe |= issuedPfpSyncMe;
+    }
+    else
+#endif
     {
         for (uint32 i = 0; i < uint32(AcqRelEventType::Count); i++)
         {
@@ -1471,6 +1597,41 @@ void Device::IssueReleaseThenAcquireSync(
     // Make no sense to process for (dstStageMask = PipelineStageBottomOfPipe) case so skip it.
     if (dstStageMask != PipelineStageBottomOfPipe)
     {
+#if PAL_BUILD_GFX11
+        if (UsePws(engineType))
+        {
+            // Optimization: we want to acquire at a later stage and we also expect cmdBufStateFlags.gfxBltActive/
+            //               gfxWriteCachesDirty can be optimized to 0 so the following release of BLT stage can be
+            //               skipped. It's really a balance here, if acquire stage is PreShader which is near ME stage,
+            //               let's force waiting at ME stage so cmdBufStateFlags can be optimized to 0.
+            if (releaseEvents.eop &&
+                (acquirePoint == AcquirePoint::PreShader) &&
+                (cmdBufStateFlags.gfxBltActive || cmdBufStateFlags.gfxWriteCachesDirty))
+            {
+                acquirePoint = AcquirePoint::Me;
+            }
+
+            if (acquirePoint > AcquirePoint::Me)
+            {
+                // Optimization: convert acquireCaches to releaseCaches and do GCR op at release Eop instead of acquire
+                //               at ME stage so acquire can wait at a later point.
+                if (releaseEvents.eop && (acquireCaches != SyncGlxNone))
+                {
+                    releaseCaches = m_cmdUtil.SelectReleaseMemCaches(&acquireCaches);
+                    PAL_ASSERT(acquireCaches == SyncGlxNone);
+                }
+
+                // HW limitation: Can only do GCR op at ME stage for Acquire.
+                // Optimization : issue lighter VS_PARTIAL_FLUSH instead of PWS+ packet which needs bump VsDone to
+                //                heavier PsDone or Eop.
+                if ((acquireCaches != SyncGlxNone) || releaseEvents.vs)
+                {
+                    acquirePoint = AcquirePoint::Me;
+                }
+            }
+        }
+        else // PWS unsupported case
+#endif
         {
             acquirePoint = Min(acquirePoint, AcquirePoint::Me);
         }
@@ -1496,6 +1657,93 @@ void Device::IssueReleaseThenAcquireSync(
     {
         waitAtPfpOrMe = (acquirePoint <= AcquirePoint::Me);
 
+#if PAL_BUILD_GFX11
+        // Go PWS+ wait if PWS+ is supported and
+        //     (1) If release a Eop event (PWS+ path performs better than legacy path)
+        //     (2) Or if use a later PWS-only acquire point and need release either PsDone or CsDone.
+        if ((releaseEvents.eop && UsePws(engineType)) ||
+            ((acquirePoint > AcquirePoint::Me) && (releaseEvents.ps || releaseEvents.cs)))
+        {
+            // No VsDone as it should go through non-PWS path.
+            PAL_ASSERT(releaseEvents.vs == 0);
+
+            ReleaseMemGfx releaseMem = {};
+            releaseMem.usePws    = 1;
+            releaseMem.cacheSync = releaseCaches;
+
+            ME_ACQUIRE_MEM_pws_counter_sel_enum pwsCounterSel;
+            if (releaseEvents.eop)
+            {
+                releaseMem.dataSel  = data_sel__me_release_mem__none;
+                releaseMem.vgtEvent = releaseEvents.rbCache ? CACHE_FLUSH_AND_INV_TS_EVENT : BOTTOM_OF_PIPE_TS;
+                pwsCounterSel       = pws_counter_sel__me_acquire_mem__ts_select__HASPWS;
+                pBarrierOps->pipelineStalls.eopTsBottomOfPipe = 1;
+
+                // Handle cases where a stall is needed as a workaround before EOP with CB Flush event
+                if (releaseEvents.rbCache && TestAnyFlagSet(Settings().waitOnFlush, WaitBeforeBarrierEopWithCbFlush))
+                {
+                    pCmdSpace = pCmdBuf->WriteWaitEop(HwPipePreColorTarget, SyncGlxNone, SyncRbNone, pCmdSpace);
+                }
+            }
+            else
+            {
+                // Note: PWS+ doesn't need timestamp write, we pass in a dummy write just to meet RELEASE_MEM packet
+                //       programming requirement for DATA_SEL field, where 0=none (Discard data) is not a valid option
+                //       when EVENT_INDEX=shader_done (PS_DONE/CS_DONE).
+                releaseMem.dataSel = data_sel__me_release_mem__send_32_bit_low;
+                releaseMem.dstAddr = pCmdBuf->TimestampGpuVirtAddr();
+
+                if (releaseEvents.ps)
+                {
+                    releaseMem.vgtEvent = PS_DONE;
+                    pwsCounterSel       = pws_counter_sel__me_acquire_mem__ps_select__HASPWS;
+                    pBarrierOps->pipelineStalls.eosTsPsDone = 1;
+                }
+                else
+                {
+                    PAL_ASSERT(releaseEvents.cs);
+                    releaseMem.vgtEvent = CS_DONE;
+                    pwsCounterSel       = pws_counter_sel__me_acquire_mem__cs_select__HASPWS;
+                    pBarrierOps->pipelineStalls.eosTsCsDone = 1;
+                }
+            }
+
+            pCmdSpace += m_cmdUtil.BuildReleaseMemGfx(releaseMem, pCmdSpace);
+
+            // If need issue CsDone RELEASE_MEM/ACQUIRE_MEM event when both PsDone and CsDone are active.
+            if (releaseEvents.ps && releaseEvents.cs)
+            {
+                PAL_ASSERT(releaseEvents.eop == 0);
+                releaseMem.vgtEvent = CS_DONE;
+                pCmdSpace += m_cmdUtil.BuildReleaseMemGfx(releaseMem, pCmdSpace);
+                pBarrierOps->pipelineStalls.eosTsCsDone = 1;
+            }
+
+            // Wait on the PWS+ event via ACQUIRE_MEM
+            AcquireMemGfxPws acquireMem = {};
+            acquireMem.cacheSync  = acquireCaches;
+            acquireMem.stageSel   = GetPwsStageSel(acquirePoint);
+            acquireMem.counterSel = pwsCounterSel;
+            acquireMem.syncCount  = 0;
+
+            pCmdSpace += m_cmdUtil.BuildAcquireMemGfxPws(acquireMem, pCmdSpace);
+
+            if (releaseEvents.ps && releaseEvents.cs)
+            {
+                acquireMem.counterSel = pws_counter_sel__me_acquire_mem__cs_select__HASPWS;
+                pCmdSpace += m_cmdUtil.BuildAcquireMemGfxPws(acquireMem, pCmdSpace);
+            }
+
+            // BuildAcquireMemGfxPws will automatically upgrade PWS_STAGE_SEL to ME if cache syncs are required.
+            waitAtPfpOrMe |= (acquireCaches != SyncGlxNone);
+            acquireCaches  = SyncGlxNone; // Clear all SyncGlxFlags as done in BuildAcquireMemGfxPws().
+            needPfpSyncMe  = (acquirePoint == AcquirePoint::Pfp) ? false : needPfpSyncMe;
+
+            pBarrierOps->pipelineStalls.waitOnTs   = 1;
+            pBarrierOps->pipelineStalls.pfpSyncMe |= (acquirePoint == AcquirePoint::Pfp);
+        }
+        else
+#endif
         {
             if (releaseEvents.eop)
             {
@@ -2225,6 +2473,17 @@ bool Device::IssueBlt(
 
             if (pCmdBuf->IsGraphicsSupported())
             {
+#if PAL_BUILD_GFX11
+                // The most efficient way to wait for DB-idle and flush and invalidate the DB caches on pre-gfx11 HW
+                // is an acquire_mem. Gfx11 can't touch the DB caches using an acquire_mem but that's OK because we
+                // expect WriteWaitEop to do a PWS EOP wait which should be fast.
+                if (IsGfx11(*Parent()))
+                {
+                    pCmdSpace = pCmdBuf->WriteWaitEop(HwPipePostPrefetch, SyncGlvInv|SyncGl1Inv, SyncDbWbInv, pCmdSpace);
+                    waitEop = true;
+                }
+                else
+#endif
                 {
                     AcquireMemGfxSurfSync acquireInfo = {};
                     acquireInfo.cacheSync              = SyncGlvInv | SyncGl1Inv;

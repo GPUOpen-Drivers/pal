@@ -50,6 +50,9 @@ enum class ShaderRingType : uint32
     DrawData,                          // IndirectDraw parameters from the task shader.
     MeshScratch,                       // Mesh shader scratch ring
     TaskMeshControl,                   // Task/Mesh shader control buffer ring.
+#if PAL_BUILD_GFX11
+    VertexAttributes,                  // Ring for passing vertex and primitive attributes from the HW GS to the PS
+#endif
     NumUniversal,                      // Number of Rings in a RingSet associated with a universal Queue
     NumCompute = (SamplePos + 1),      // Number of Rings in a RingSet associated with a compute Queue
 };
@@ -68,7 +71,11 @@ enum class ShaderRingSrd : uint32
     GsVsRead,                           // GS/VS Ring Read Access
     TessFactorBuffer,                   // Tessellation Factor Buffer
     OffChipLdsBuffer,                   // Off-chip Tessellation LDS buffer
+#if PAL_BUILD_GFX11
+    VertexAttributes,                   // Ring for passing vertex and primitive attributes from the HW GS to the PS
+#else
     Reserved3,                          // Reserved for future use.
+#endif
     SamplePosBuffer,                    // Sample position buffer
     PayloadDataRing,                    // Task -> GFX payload data.
     DrawDataRing,                       // IndirectDraw parameters from task shader.
@@ -168,6 +175,16 @@ private:
         regVGT_HS_OFFCHIP_PARAM       vgtHsOffchipParam;
         regSPI_TMPRING_SIZE           gfxScratchRingSize;
         regCOMPUTE_TMPRING_SIZE       computeScratchRingSize;
+#if PAL_BUILD_GFX11
+        regSPI_ATTRIBUTE_RING_BASE    spiAttributeRingBase;
+        regSPI_ATTRIBUTE_RING_SIZE    spiAttributeRingSize;
+        regSPI_GFX_SCRATCH_BASE_LO    spiGfxScratchBaseLo;
+        regSPI_GFX_SCRATCH_BASE_HI    spiGfxScratchBaseHi;
+#endif
+#if PAL_BUILD_GFX11
+        regCOMPUTE_DISPATCH_SCRATCH_BASE_LO computeDispatchScratchBaseLo;
+        regCOMPUTE_DISPATCH_SCRATCH_BASE_HI computeDispatchScratchBaseHi;
+#endif
     }  m_regs;
 
     PAL_DISALLOW_DEFAULT_CTOR(UniversalRingSet);
@@ -194,6 +211,10 @@ private:
     struct
     {
         regCOMPUTE_TMPRING_SIZE  computeScratchRingSize;
+#if PAL_BUILD_GFX11
+        regCOMPUTE_DISPATCH_SCRATCH_BASE_LO computeDispatchScratchBaseLo;
+        regCOMPUTE_DISPATCH_SCRATCH_BASE_HI computeDispatchScratchBaseHi;
+#endif
     }  m_regs;
 
     PAL_DISALLOW_DEFAULT_CTOR(ComputeRingSet);

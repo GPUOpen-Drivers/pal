@@ -108,6 +108,9 @@ enum class NullGpuId : uint32
     Navi22           = 0x10,
     Navi23           = 0x11,
     Navi24           = 0x12,
+#if PAL_BUILD_NAVI31
+    Navi31           = 0x1A,
+#endif
     Max              = 0x23,
     All              = 0x24
 };

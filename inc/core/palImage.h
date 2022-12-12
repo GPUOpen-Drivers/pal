@@ -205,7 +205,11 @@ union ImageCreateFlags
 
         uint32 tmzProtected            :  1; ///< Indicate this image is protected or not.
         uint32 sharedWithMesa          :  1; ///< Indicate this Image was opened from a Mesa shared Image
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 769) && PAL_BUILD_GFX11
+        uint32 enable256KBSwizzleModes :  1; ///< Enable 256 KiB swizzle modes
+#else
         uint32 reserved769             :  1; ///< Reserved for future use.
+#endif
         uint32 reserved                :  7; ///< Reserved for future use.
     };
     uint32 u32All;                           ///< Flags packed as 32-bit uint.

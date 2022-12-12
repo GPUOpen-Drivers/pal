@@ -153,6 +153,31 @@ static bool CheckGfx103CpUcodeVersion(
     return (IsGfx103(device) && (device.ChipProperties().pfpUcodeVersion >= pfpUcodeVersion));
 }
 
+#if PAL_BUILD_GFX11
+// =====================================================================================================================
+// Helper function for checking the CP microcode version for Gfx11.
+static bool CheckGfx11CpUcodeVersion(
+    const Device& device,
+    uint32        pfpUcodeVersionF32,
+    uint32        pfpUcodeVersionRs64)
+{
+    constexpr uint32 Rs64VersionStart   = 300;
+    const     uint32 deviceUcodeVersion = device.ChipProperties().pfpUcodeVersion;
+
+    PAL_ASSERT((pfpUcodeVersionF32 < Rs64VersionStart) && (pfpUcodeVersionRs64 >= Rs64VersionStart));
+
+    bool featureSupported = false;
+
+    if (IsGfx11(device))
+    {
+        featureSupported = (deviceUcodeVersion < Rs64VersionStart) ? (deviceUcodeVersion >= pfpUcodeVersionF32) :
+                                                                     (deviceUcodeVersion >= pfpUcodeVersionRs64);
+    }
+
+    return featureSupported;
+}
+#endif
+
 // =====================================================================================================================
 // Overrides defaults for the settings based on runtime information.
 void SettingsLoader::OverrideDefaults()
@@ -176,6 +201,12 @@ void SettingsLoader::OverrideDefaults()
                                       UseDccMipMappedArrays;
         m_settings.useDcc = DccEnables;
 
+#if PAL_BUILD_GFX11
+        if (IsGfx11(gfxLevel))
+        {
+            m_settings.useDcc |= UseDccForAllCompatibleFormats;
+        }
+#endif
     }
     else if (gfxLevel >= GfxIpLevel::GfxIp8)
     {
@@ -215,8 +246,19 @@ void SettingsLoader::OverrideDefaults()
             constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectGfx10_1   = 155;
             constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectGfx10_3   = 95;
 
+#if PAL_BUILD_GFX11
+            constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectGfx11F32  = 84;
+            constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectGfx11Rs64 = 413;
+#endif
+
             if (CheckGfx101CpUcodeVersion(*m_pDevice, PfpUcodeVersionVbTableSupportedExecuteIndirectGfx10_1) ||
                 CheckGfx103CpUcodeVersion(*m_pDevice, PfpUcodeVersionVbTableSupportedExecuteIndirectGfx10_3)
+#if PAL_BUILD_GFX11
+                || CheckGfx11CpUcodeVersion(
+                    *m_pDevice,
+                    PfpUcodeVersionVbTableSupportedExecuteIndirectGfx11F32,
+                    PfpUcodeVersionVbTableSupportedExecuteIndirectGfx11Rs64)
+#endif
                 )
             {
                 m_settings.useExecuteIndirectPacket = UseExecuteIndirectPacketForDrawSpillAndVbTable;

@@ -51,6 +51,9 @@ const GraphicsPipelineSignature NullGfxSignature =
     { 0, },                     // User-data mapping for each shader stage
     UserDataNotMapped,          // Vertex buffer table register address
     UserDataNotMapped,          // Stream-out table register address
+#if PAL_BUILD_GFX11
+    UserDataNotMapped,          // Stream-out control buffer register address
+#endif
     UserDataNotMapped,          // UAV export table mapping
     UserDataNotMapped,          // NGG culling data constant buffer
     UserDataNotMapped,          // Vertex offset register address
@@ -187,6 +190,9 @@ GraphicsPipeline::GraphicsPipeline(
     m_fastLaunchMode(GsFastLaunchMode::Disabled),
     m_nggSubgroupSize(0),
     m_flags{},
+#if PAL_BUILD_GFX11
+    m_strmoutVtxStride(),
+#endif
     m_fetchShaderRegAddr(UserDataNotMapped),
     m_primAmpFactor(1),
     m_chunkHs(*pDevice,
@@ -200,6 +206,10 @@ GraphicsPipeline::GraphicsPipeline(
     m_prefetch{},
     m_signature{NullGfxSignature}
 {
+#if PAL_BUILD_GFX11
+    m_flags.contextPairsPacketSupported = pDevice->Settings().gfx11EnableContextRegPairOptimization;
+    m_flags.shPairsPacketSupported      = pDevice->Settings().gfx11EnableShRegPairOptimization;
+#endif
 }
 
 // =====================================================================================================================
@@ -235,6 +245,15 @@ void GraphicsPipeline::EarlyInit(
     {
         SetIsGsOnChip(true);
     }
+
+#if PAL_BUILD_GFX11
+    if (metadata.pipeline.hasEntry.streamoutVertexStrides)
+    {
+        memcpy(m_strmoutVtxStride,
+               metadata.pipeline.streamoutVertexStrides,
+               sizeof(m_strmoutVtxStride));
+    }
+#endif
 
     // Must be called *after* determining active HW stages!
     SetupSignatureFromElf(metadata, &pInfo->esGsLdsSizeRegGs, &pInfo->esGsLdsSizeRegVs);
@@ -615,6 +634,45 @@ uint32* GraphicsPipeline::WriteShCommands(
 {
     PAL_ASSERT(pCmdStream != nullptr);
 
+#if PAL_BUILD_GFX11
+    if (m_flags.shPairsPacketSupported)
+    {
+        constexpr uint32 MaxNumRegisters = GfxPipelineRegs::NumShReg +
+                                           HsRegs::NumShReg          +
+                                           GsRegs::NumShReg          +
+                                           VsPsRegs::NumShReg        +
+                                           2; // For the fetch shader address.
+        constexpr uint32 MaxNumRegPairs  = Pow2Align(MaxNumRegisters, 2) / 2;
+
+        static_assert(MaxNumRegisters <= Gfx11RegPairMaxRegCount, "Requesting too many registers!");
+
+        PackedRegisterPair regPairs[MaxNumRegPairs];
+        uint32             numRegs = 0;
+
+        if (IsTessEnabled())
+        {
+            m_chunkHs.AccumulateShRegs(regPairs, &numRegs);
+        }
+
+        m_chunkGs.AccumulateShRegs(regPairs, &numRegs, HasMeshShader());
+
+        m_chunkVsPs.AccumulateShRegs(regPairs, &numRegs);
+
+        if (m_fetchShaderRegAddr != UserDataNotMapped)
+        {
+            SetSeqShRegValPairPacked(regPairs,
+                                     &numRegs,
+                                     m_fetchShaderRegAddr,
+                                     (m_fetchShaderRegAddr + 1),
+                                     &m_fetchShaderPgm);
+        }
+
+        PAL_ASSERT(numRegs < MaxNumRegisters);
+
+        pCmdSpace = pCmdStream->WriteSetShRegPairs<ShaderGraphics>(regPairs, numRegs, pCmdSpace);
+    }
+    else
+#endif
     {
         // If NGG is enabled, there is no hardware-VS, so there is no need to write the late-alloc VS limit.
         if (IsNgg() == false)
@@ -659,6 +717,39 @@ uint32* GraphicsPipeline::WriteContextCommands(
 {
     PAL_ASSERT(pCmdStream != nullptr);
 
+#if PAL_BUILD_GFX11
+    if (m_flags.contextPairsPacketSupported)
+    {
+        constexpr uint32 MaxNumRegisters = GfxPipelineRegs::NumContextReg +
+                                           HsRegs::NumContextReg          +
+                                           GsRegs::NumContextReg          +
+                                           VsPsRegs::NumContextReg;
+        constexpr uint32 MaxNumRegPairs  = Pow2Align(MaxNumRegisters, 2) / 2;
+
+        static_assert(MaxNumRegisters <= Gfx11RegPairMaxRegCount, "Requesting too many registers!");
+
+        PackedRegisterPair regPairs[MaxNumRegPairs];
+        uint32             numRegs = 0;
+
+        AccumulateContextRegisters(regPairs, &numRegs);
+
+        if (IsTessEnabled())
+        {
+            m_chunkHs.AccumulateContextRegs(regPairs, &numRegs);
+        }
+        if (IsGsEnabled() || IsNgg())
+        {
+            m_chunkGs.AccumulateContextRegs(regPairs, &numRegs);
+        }
+
+        m_chunkVsPs.AccumulateContextRegs(regPairs, &numRegs);
+
+        PAL_ASSERT(numRegs < MaxNumRegisters);
+
+        pCmdSpace = pCmdStream->WriteSetContextRegPairs(regPairs, numRegs, pCmdSpace);
+    }
+    else
+#endif
     {
         pCmdSpace = WriteContextCommandsSetPath(pCmdStream, pCmdSpace);
 
@@ -719,6 +810,16 @@ uint32* GraphicsPipeline::WriteConfigCommandsGfx10(
     pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx10Plus::mmGE_USER_VGPR_EN,
                                                  m_regs.uconfig.geUserVgprEn.u32All,
                                                  pCmdSpace);
+
+#if PAL_BUILD_GFX11
+    if (IsGfx11(m_gfxLevel) && (IsGsEnabled() || HasMeshShader() || (m_fastLaunchMode != GsFastLaunchMode::Disabled)))
+    {
+        // Prim type is implicitly set for API VS without fast-launch, but needs to be set otherwise.
+        pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx11::mmVGT_GS_OUT_PRIM_TYPE,
+                                                    m_regs.uconfig.vgtGsOutPrimType.u32All,
+                                                    pCmdSpace);
+    }
+#endif
 
     return pCmdSpace;
 }
@@ -812,6 +913,9 @@ uint32* GraphicsPipeline::WriteContextCommandsSetPath(
     }
 
     if ((IsGsEnabled() || IsNgg() || IsTessEnabled())
+#if PAL_BUILD_GFX11
+        && (IsGfx11(m_gfxLevel) == false)
+#endif
        )
     {
         pCmdSpace = pCmdStream->WriteSetOneContextReg(Gfx09_10::mmVGT_GS_ONCHIP_CNTL,
@@ -821,6 +925,98 @@ uint32* GraphicsPipeline::WriteContextCommandsSetPath(
 
     return pCmdSpace;
 }
+
+#if PAL_BUILD_GFX11
+// =====================================================================================================================
+void GraphicsPipeline::AccumulateContextRegisters(
+    PackedRegisterPair* pRegPairs,
+    uint32*             pNumRegs
+    ) const
+{
+    const CmdUtil&      cmdUtil = m_pDevice->CmdUtil();
+    const RegisterInfo& regInfo = cmdUtil.GetRegInfo();
+
+    SetOneContextRegValPairPacked(pRegPairs, pNumRegs, mmVGT_SHADER_STAGES_EN, m_regs.context.vgtShaderStagesEn.u32All);
+    SetOneContextRegValPairPacked(pRegPairs, pNumRegs, mmVGT_REUSE_OFF,        m_regs.context.vgtReuseOff.u32All);
+    SetOneContextRegValPairPacked(pRegPairs, pNumRegs, mmVGT_TF_PARAM,         m_regs.context.vgtTfParam.u32All);
+    SetOneContextRegValPairPacked(pRegPairs,
+                                  pNumRegs,
+                                  mmVGT_DRAW_PAYLOAD_CNTL,
+                                  m_regs.context.vgtDrawPayloadCntl.u32All);
+
+    SetOneContextRegValPairPacked(pRegPairs, pNumRegs, mmCB_COLOR_CONTROL, m_regs.context.cbColorControl.u32All);
+
+    SetOneContextRegValPairPacked(pRegPairs, pNumRegs, mmPA_CL_CLIP_CNTL,      m_regs.context.paClClipCntl.u32All);
+    SetOneContextRegValPairPacked(pRegPairs, pNumRegs, mmPA_SU_VTX_CNTL,       m_regs.context.paSuVtxCntl.u32All);
+    SetOneContextRegValPairPacked(pRegPairs, pNumRegs, mmPA_CL_VTE_CNTL,       m_regs.context.paClVteCntl.u32All);
+    SetOneContextRegValPairPacked(pRegPairs, pNumRegs, mmPA_SC_LINE_CNTL,      m_regs.context.paScLineCntl.u32All);
+    SetOneContextRegValPairPacked(pRegPairs, pNumRegs, mmPA_SC_EDGERULE,       m_regs.context.paScEdgerule.u32All);
+    SetOneContextRegValPairPacked(pRegPairs, pNumRegs, mmSPI_INTERP_CONTROL_0, m_regs.context.spiInterpControl0.u32All);
+
+    SetSeqContextRegValPairPacked(pRegPairs,
+                                  pNumRegs,
+                                  mmCB_TARGET_MASK,
+                                  mmCB_SHADER_MASK,
+                                  &m_regs.context.cbTargetMask);
+
+    if (IsGfx9(m_gfxLevel) || ((IsGsEnabled() == false) && (IsNgg() == false)))
+    {
+        SetSeqContextRegValPairPacked(pRegPairs,
+                                      pNumRegs,
+                                      mmSPI_SHADER_POS_FORMAT,
+                                      mmSPI_SHADER_COL_FORMAT,
+                                      &m_regs.context.spiShaderPosFormat);
+    }
+    else
+    {
+        SetSeqContextRegValPairPacked(pRegPairs,
+                                      pNumRegs,
+                                      Gfx10Plus::mmSPI_SHADER_IDX_FORMAT,
+                                      mmSPI_SHADER_COL_FORMAT,
+                                      &m_regs.context.spiShaderIdxFormat);
+    }
+
+    if (m_pDevice->Parent()->ChipProperties().gfxip.supportsHwVs)
+    {
+        SetOneContextRegValPairPacked(pRegPairs,
+                                      pNumRegs,
+                                      HasHwVs::mmVGT_GS_MODE,
+                                      m_regs.context.vgtGsMode.u32All);
+        SetOneContextRegValPairPacked(pRegPairs,
+                                      pNumRegs,
+                                      HasHwVs::mmVGT_VERTEX_REUSE_BLOCK_CNTL,
+                                      m_regs.context.vgtVertexReuseBlockCntl.u32All);
+    }
+
+    if (regInfo.mmPaStereoCntl != 0)
+    {
+        SetOneContextRegValPairPacked(pRegPairs,
+                                      pNumRegs,
+                                      regInfo.mmPaStereoCntl,
+                                      m_regs.context.paStereoCntl.u32All);
+    }
+
+    if (IsGfx10Plus(m_gfxLevel))
+    {
+        SetOneContextRegValPairPacked(pRegPairs,
+                                      pNumRegs,
+                                      Gfx10Plus::mmCB_COVERAGE_OUT_CONTROL,
+                                      m_regs.context.cbCoverageOutCntl.u32All);
+    }
+
+    if ((IsGsEnabled() || IsNgg() || IsTessEnabled())
+#if PAL_BUILD_GFX11
+        && (IsGfx11(m_gfxLevel) == false)
+#endif
+       )
+    {
+        SetOneContextRegValPairPacked(pRegPairs,
+                                      pNumRegs,
+                                      Gfx09_10::mmVGT_GS_ONCHIP_CNTL,
+                                      m_regs.context.vgtGsOnchipCntl.u32All);
+    }
+}
+#endif
 
 // =====================================================================================================================
 // Updates the RB+ register values for a single render target slot.  It is only expected that this will be called for
@@ -876,6 +1072,10 @@ void GraphicsPipeline::SetupCommonRegisters(
     m_regs.context.vgtReuseOff.u32All        = AbiRegisters::VgtReuseOff(metadata);
     m_regs.context.vgtTfParam.u32All         = AbiRegisters::VgtTfParam(metadata, m_gfxLevel);
     m_regs.context.vgtDrawPayloadCntl.u32All = AbiRegisters::VgtDrawPayloadCntl(metadata, *m_pDevice, m_gfxLevel);
+
+#if PAL_BUILD_GFX11
+    m_regs.uconfig.vgtGsOutPrimType.u32All   = AbiRegisters::VgtGsOutPrimType(metadata, m_gfxLevel);
+#endif
 
     m_regs.other.spiPsInControl.u32All = AbiRegisters::SpiPsInControl(metadata, m_gfxLevel);
     m_regs.other.spiVsOutConfig.u32All = AbiRegisters::SpiVsOutConfig(metadata, *m_pDevice, m_gfxLevel);
@@ -1363,6 +1563,13 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     }
     else if (IsDccDecompress())
     {
+#if PAL_BUILD_GFX11
+        if (IsGfx11(*m_pDevice->Parent()))
+        {
+            m_regs.context.cbColorControl.bits.MODE = CB_DCC_DECOMPRESS__GFX11;
+        }
+        else
+#endif
         {
             m_regs.context.cbColorControl.bits.MODE = CB_DCC_DECOMPRESS__GFX09_10;
         }
@@ -1588,6 +1795,11 @@ void GraphicsPipeline::UpdateRingSizes(
     {
         ringSizes.itemSize[static_cast<size_t>(ShaderRingType::MeshScratch)] = metadata.pipeline.meshScratchMemorySize;
     }
+
+#if PAL_BUILD_GFX11
+    ringSizes.itemSize[static_cast<size_t>(ShaderRingType::VertexAttributes)] =
+        settings.gfx11VertexAttributesRingBufferSizePerSe;
+#endif
 
     // Inform the device that this pipeline has some new ring-size requirements.
     m_pDevice->UpdateLargestRingSizes(&ringSizes);
@@ -1880,6 +2092,17 @@ void GraphicsPipeline::SetupSignatureForStageFromElf(
                             (m_fetchShaderRegAddr == UserDataNotMapped));
                  m_fetchShaderRegAddr = offset;
             }
+#if PAL_BUILD_GFX11
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::StreamOutControlBuf))
+            {
+                // There can be only one instance of the streamoutCntlBufRegAddr per pipeline.
+                PAL_ASSERT((m_signature.streamoutCntlBufRegAddr == offset) ||
+                    (m_signature.streamoutCntlBufRegAddr == UserDataNotMapped));
+                PAL_ASSERT(stage == HwShaderStage::Gs);
+
+                m_signature.streamoutCntlBufRegAddr = offset;
+            }
+#endif
             else
             {
                 // This appears to be an illegally-specified user-data register!
@@ -2153,6 +2376,13 @@ uint32 GraphicsPipeline::StrmoutVtxStrideDw(
 {
     uint32 strideDw = 0;
 
+#if PAL_BUILD_GFX11
+    if (m_pDevice->Parent()->ChipProperties().gfxip.supportsSwStrmout)
+    {
+        strideDw = m_strmoutVtxStride[idx];
+    }
+    else
+#endif
     {
         strideDw = m_chunkVsPs.VgtStrmoutVtxStride(idx).u32All;
     }

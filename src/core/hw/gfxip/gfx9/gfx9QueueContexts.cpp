@@ -77,6 +77,12 @@ static uint32* WriteCommonPreamble(
             ((chipProps.gfx9.numShaderEngines >= 2) ? computeStaticThreadMgmtPerSe.u32All : 0),
             ((chipProps.gfx9.numShaderEngines >= 3) ? computeStaticThreadMgmtPerSe.u32All : 0),
             ((chipProps.gfx9.numShaderEngines >= 4) ? computeStaticThreadMgmtPerSe.u32All : 0),
+#if PAL_BUILD_GFX11
+            ((chipProps.gfx9.numShaderEngines >= 5) ? computeStaticThreadMgmtPerSe.u32All : 0),
+            ((chipProps.gfx9.numShaderEngines >= 6) ? computeStaticThreadMgmtPerSe.u32All : 0),
+            ((chipProps.gfx9.numShaderEngines >= 7) ? computeStaticThreadMgmtPerSe.u32All : 0),
+            ((chipProps.gfx9.numShaderEngines >= 8) ? computeStaticThreadMgmtPerSe.u32All : 0),
+#endif
         };
 
         // We are using index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask instead of
@@ -99,6 +105,18 @@ static uint32* WriteCommonPreamble(
                                                        index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
                                                        pCmdSpace);
 
+#if PAL_BUILD_GFX11
+        if (IsGfx11(*device.Parent()))
+        {
+            pCmdSpace = pCmdStream->WriteSetSeqShRegsIndex(Gfx11::mmCOMPUTE_STATIC_THREAD_MGMT_SE4,
+                                                           Gfx11::mmCOMPUTE_STATIC_THREAD_MGMT_SE7,
+                                                           ShaderCompute,
+                                                           &masksPerSe[4],
+                                                           index__pfp_set_sh_reg_index__apply_kmd_cu_and_mask,
+                                                           pCmdSpace);
+        }
+#endif
+
         // Initializing the COMPUTE_PGM_HI register to 0 is required because PAL command-buffer generation expects it.
         pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PGM_HI, 0, pCmdSpace);
 
@@ -120,6 +138,9 @@ static uint32* WriteCommonPreamble(
         }
     } // if compute supported
 
+#if PAL_BUILD_GFX11
+    if (IsGfx11(chipProps.gfxLevel) == false)
+#endif
     {
         // Give the CP_COHER register (used by acquire-mem packet) a chance to think a little bit before actually
         // doing anything.
@@ -732,6 +753,9 @@ Result UniversalQueueContext::AllocateShadowMemory()
 
     if (m_supportMcbp)
     {
+#if PAL_BUILD_GFX11
+        if (m_pDevice->Parent()->SupportStateShadowingByCpFw() == false)
+#endif
         {
             // If mid command buffer preemption is enabled, we must also include shadow space for all of the context,
             // SH, and user-config registers. This is because the CP will restore the whole state when resuming this
@@ -858,6 +882,20 @@ void UniversalQueueContext::WritePerSubmitPreamble(
         pCmdSpace += cmdUtil.BuildNonSampleEventWrite(VS_PARTIAL_FLUSH, EngineTypeUniversal, pCmdSpace);
         pCmdSpace += cmdUtil.BuildNonSampleEventWrite(VGT_FLUSH,        EngineTypeUniversal, pCmdSpace);
 
+#if PAL_BUILD_GFX11
+        // GPU page fault or application corruption is observed when ATM base address switch during HP3D <-> LP3D
+        // transition. According to hardware folks, BOTTOM_OF_PIPE_TS will make sure that the attribute buffer has been
+        // fully deallocated before the registers are updated. And PS_PARTIAL_FLUSH is not sufficient for changing ATM
+        // regs.
+        // SPI_ATTRIBUTE_RING_BASE and SPI_ATTRIBUTE_RING_SIZE registers are in shadow restore list, so we should issue
+        // BOTTOM_OF_PIPE_TS event here.
+        if (IsGfx11(*m_pDevice->Parent()))
+        {
+            // Since PWS is enabled by default on GFX11, here we disregard the UsePws setting and add a PWS stall
+            // directly.
+            pCmdSpace += cmdUtil.BuildWaitEopPws(HwPipePostPrefetch, SyncGlxNone, SyncRbNone, pCmdSpace);
+        }
+#endif
     }
 
     pCmdSpace += CmdUtil::BuildContextControl(m_pDevice->GetContextControl(), pCmdSpace);
@@ -867,6 +905,9 @@ void UniversalQueueContext::WritePerSubmitPreamble(
     }
 
     if (m_supportMcbp
+#if PAL_BUILD_GFX11
+        && (m_pDevice->Parent()->SupportStateShadowingByCpFw() == false)
+#endif
        )
     {
         const gpusize userCfgRegGpuAddr = m_shadowGpuMem.GpuVirtAddr();
@@ -895,6 +936,52 @@ void UniversalQueueContext::WritePerSubmitPreamble(
     {
         pCmdSpace = pCmdStream->ReserveCommands();
 
+#if PAL_BUILD_GFX11
+        if (m_pDevice->Parent()->SupportStateShadowingByCpFw())
+        {
+            uint32 numEntries = 0;
+
+            const RegisterRange* pUserConfigRegRange = m_pDevice->GetRegisterRange(RegRangeCpRs64InitUserConfig,
+                                                                                   &numEntries);
+            for (uint32 rangeIdx = 0; rangeIdx < numEntries; rangeIdx++)
+            {
+                pCmdSpace = pCmdStream->WriteSetZeroSeqConfigRegs(pUserConfigRegRange[rangeIdx].regOffset,
+                                                                  pUserConfigRegRange[rangeIdx].regOffset +
+                                                                  pUserConfigRegRange[rangeIdx].regCount -
+                                                                  1,
+                                                                  pCmdSpace);
+            }
+
+            pCmdStream->CommitCommands(pCmdSpace);
+            pCmdSpace = pCmdStream->ReserveCommands();
+
+            const RegisterRange* pShRegRange = m_pDevice->GetRegisterRange(RegRangeCpRs64InitSh, &numEntries);
+            for (uint32 rangeIdx = 0; rangeIdx < numEntries; rangeIdx++)
+            {
+                pCmdSpace = pCmdStream->WriteSetZeroSeqShRegs(pShRegRange[rangeIdx].regOffset,
+                                                              pShRegRange[rangeIdx].regOffset +
+                                                              pShRegRange[rangeIdx].regCount -
+                                                              1,
+                                                              ShaderGraphics,
+                                                              pCmdSpace);
+            }
+
+            pCmdStream->CommitCommands(pCmdSpace);
+            pCmdSpace = pCmdStream->ReserveCommands();
+
+            const RegisterRange* pCsShRegRange = m_pDevice->GetRegisterRange(RegRangeCpRs64InitCsSh, &numEntries);
+            for (uint32 rangeIdx = 0; rangeIdx < numEntries; rangeIdx++)
+            {
+                pCmdSpace = pCmdStream->WriteSetZeroSeqShRegs(pCsShRegRange[rangeIdx].regOffset,
+                                                              pCsShRegRange[rangeIdx].regOffset +
+                                                              pCsShRegRange[rangeIdx].regCount -
+                                                              1,
+                                                              ShaderCompute,
+                                                              pCmdSpace);
+            }
+        }
+        else
+#endif
         {
             // We memset m_shadowGpuMem to 0 in AllocateShadowMemory.
             // Therefore, we don't need to use DMA packets to zero it.
@@ -961,6 +1048,12 @@ void UniversalQueueContext::WritePerSubmitPreamble(
             {
                 InitializeContextRegistersGfx103(pCmdStream, 1, &regOffset, &regValue);
             }
+#if PAL_BUILD_GFX11
+            else if (IsGfx11(chipProps.gfxLevel))
+            {
+                InitializeContextRegistersGfx11(pCmdStream, 1, &regOffset, &regValue);
+            }
+#endif
             else
             {
                 PAL_ASSERT_ALWAYS_MSG("Need to update shadow memory init for new chip!");
@@ -1474,6 +1567,9 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
         cmdUtil.BuildSampleEventWrite(PIXEL_PIPE_STAT_CONTROL,
                                       event_index__me_event_write__pixel_pipe_stat_control_or_dump,
                                       EngineTypeUniversal,
+#if PAL_BUILD_GFX11
+                                      samp_plst_cntr_mode__mec_event_write__legacy_mode__GFX11,
+#endif
                                       pixelPipeStatControl.u64All,
                                       pCmdSpace);
 
@@ -1538,6 +1634,17 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
 
     regPA_SC_NGG_MODE_CNTL paScNggModeCntl = {};
 
+#if PAL_BUILD_GFX11
+    if (IsGfx11(device))
+    {
+        //  This value should be programmed to a default of 8 or 16. Choosing 16 for now.
+        paScNggModeCntl.bits.MAX_DEALLOCS_IN_WAVE = 16;
+
+        // It is expected that this value should be programmed to 0.
+        paScNggModeCntl.gfx11.MAX_ATTRIBUTES_IN_WAVE = 0;
+    }
+    else
+#endif
     {
         // The recommended value for this is half the PC size. The register field granularity is 2.
         paScNggModeCntl.bits.MAX_DEALLOCS_IN_WAVE = chipProps.gfx9.parameterCacheLines / 4;
@@ -1547,6 +1654,28 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
         paScNggModeCntl.gfx10Plus.MAX_FPOVS_IN_WAVE = settings.gfx10MaxFpovsInWave;
     }
 
+#if PAL_BUILD_GFX11
+    if (IsGfx11(device))
+    {
+        regCB_FDCC_CONTROL cbFdccControl = { };
+
+        // Prevent the HW from generating one of the black/white clear codes determined by the GetBlackOrWhiteClearCode
+        // function.  i.e., an image cleared to "black" would have the HW generating one of the AC01 clear codes and
+        // we don't want that if the panel settings requtest the "regular" clear codes (comp-to-single).
+        cbFdccControl.bits.DISABLE_CONSTANT_ENCODE_AC01  = settings.forceRegularClearCode;
+
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 777)
+        cbFdccControl.bits.SAMPLE_MASK_TRACKER_WATERMARK = pPublicSettings->gfx11SampleMaskTrackerWatermark;
+#else
+        cbFdccControl.bits.SAMPLE_MASK_TRACKER_WATERMARK = settings.gfx11SampleMaskTrackerWatermark;
+#endif
+
+        pCmdSpace = m_deCmdStream.WriteSetOneContextReg(Gfx11::mmCB_FDCC_CONTROL,
+                                                        cbFdccControl.u32All,
+                                                        pCmdSpace);
+    }
+    else
+#endif
     {
         // Set-and-forget DCC register:
         //  This will stop compression to one of the four "magic" clear colors.
@@ -1680,6 +1809,14 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
                                                                 dbVrsOverrideCntl.u32All,
                                                                 pCmdSpace);
             }
+#if PAL_BUILD_GFX11
+            else if (IsGfx11(device))
+            {
+                // The "override" disable on GFX11 is controlled via the PA_SC_VRS_OVERRIDE_CNTL register which is
+                // written when the client calls CmdBindSampleRateImage, so there is no need to setup the override
+                // here.
+            }
+#endif
         } // if VRS is supported
 
         // We use the same programming for VS and PS.
@@ -1733,6 +1870,21 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
         }
     } // if Gfx10.x
 
+#if PAL_BUILD_GFX11
+    if (IsGfx11(chipProps.gfxLevel))
+    {
+        const uint32 regData[] = {
+            settings.defaultSpiGsThrottleCntl1,
+            settings.defaultSpiGsThrottleCntl2,
+        };
+
+        pCmdSpace = m_deCmdStream.WriteSetSeqConfigRegs(Gfx11::mmSPI_GS_THROTTLE_CNTL1,
+                                                        Gfx11::mmSPI_GS_THROTTLE_CNTL2,
+                                                        &regData,
+                                                        pCmdSpace);
+    }
+#endif
+
     const uint32 mmSpiShaderPgmHiEs = IsGfx10Plus(device) ? Gfx10Plus::mmSPI_SHADER_PGM_HI_ES :
                                                             Gfx09::mmSPI_SHADER_PGM_HI_ES;
     const uint32 mmSpiShaderPgmHiLs = IsGfx10Plus(device) ? Gfx10Plus::mmSPI_SHADER_PGM_HI_LS :
@@ -1768,6 +1920,12 @@ uint32* UniversalQueueContext::WriteUniversalPreamble(
             regPA_CL_NANINF_CNTL        paClNanifCntl;
             regPA_SU_LINE_STIPPLE_CNTL  paSuLineStippleCntl;
         } PaRegisters2 = { };
+
+#if PAL_BUILD_GFX11
+        // Ensures that PA stereo rendering is disabled
+        PAL_ASSERT((settings.waSetVsXyNanToInfZero == false) ||
+                   (PaRegisters2.paClNanifCntl.bits.VS_XY_NAN_TO_INF == 0));
+#endif
 
         pCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmPA_CL_NANINF_CNTL,
                                                          mmPA_SU_LINE_STIPPLE_CNTL,

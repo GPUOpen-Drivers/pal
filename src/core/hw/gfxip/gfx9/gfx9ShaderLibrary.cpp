@@ -119,6 +119,9 @@ Result ShaderLibrary::HwlInit(
                            registers,
                            (IsWave32() ? 32 : 64),
                            &threadsPerTg,
+#if PAL_BUILD_GFX11
+                           DispatchInterleaveSize::Default,
+#endif
                            &uploader);
 
         GetFunctionGpuVirtAddrs(uploader, createInfo.pFuncList, createInfo.funcCount);

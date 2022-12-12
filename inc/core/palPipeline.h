@@ -145,6 +145,21 @@ enum class LogicOp : uint32
     Set          = 0xF
 };
 
+#if PAL_BUILD_GFX11
+/// Constant used for dispactch shader engine interleave. Value is the number of thread groups sent to one SE before
+/// switching to another.  Default is 64. Other programmable values are: 128, 256, or 512. You can also disable
+/// interleaving altogether.
+enum class DispatchInterleaveSize : uint32
+{
+    Default = 0x0,
+    Disable = 0x1,
+    _128    = 0x2,
+    _256    = 0x3,
+    _512    = 0x4,
+    Count
+};
+#endif
+
 /// Specifies whether to override binning setting for pipeline. Enum value of Default follows the PBB global setting.
 /// Enable or Disable value overrides PBB global setting for the pipeline and sets binning accordingly.
 enum class BinningOverride : uint32
@@ -288,6 +303,10 @@ struct ComputePipelineCreateInfo
                                            ///  can occur when thread group granularity preemption is available and
                                            ///  instruction level (CWSR) is not. This setting is useful for allowing
                                            ///  dispatches with interdependent thread groups.
+#if PAL_BUILD_GFX11
+    DispatchInterleaveSize interleaveSize; ///< Controls how many thread groups are sent to one SE before switching to
+                                           ///  the next one.
+#endif
 
     /// PAL expects a fixed 3D thread group size for each compute pipeline but the HSA ABI supports dynamic group sizes.
     /// If this pipeline's ELF binary metadata doesn't specify a fixed thread group size, this should be used to force
@@ -412,6 +431,11 @@ struct GraphicsPipelineCreateInfo
                                                   ///  of the graphics pipeline
     MsaaCoverageOutDescriptor coverageOutDesc;    ///< Descriptor describes input parameters for MSAA coverage out.
     ViewportInfo              viewportInfo;       ///< Viewport info.
+#if PAL_BUILD_GFX11
+    DispatchInterleaveSize    taskInterleaveSize; ///< Ignored for pipelines without a task shader. For pipelines with
+                                                  ///  a task shader, controls how many thread groups are sent to one
+                                                  ///  SE before switching to the next one.
+#endif
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 744)
     LdsPsGroupSizeOverride ldsPsGroupSizeOverride; ///< Specifies whether to override ldsPsGroupSize setting for pipeline.
 #endif

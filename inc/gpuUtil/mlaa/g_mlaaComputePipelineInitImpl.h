@@ -139,6 +139,12 @@ Pal::Result CreateMlaaComputePipelines(
         pTable = mlaaComputeBinaryTableNavi24;
         break;
 
+#if PAL_BUILD_NAVI31
+    case Pal::AsicRevision::Navi31:
+        pTable = mlaaComputeBinaryTableNavi31;
+        break;
+#endif
+
     default:
         result = Pal::Result::ErrorUnknown;
         PAL_NOT_IMPLEMENTED();

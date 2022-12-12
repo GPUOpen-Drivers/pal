@@ -158,6 +158,9 @@ bool Device::DetermineGpuIpLevels(
     case FAMILY_AI:
     case FAMILY_RV:
     case FAMILY_NV:
+#if PAL_BUILD_NAVI3X
+    case FAMILY_NV3:
+#endif
         pIpLevels->gfx = Gfx9::DetermineIpLevel(familyId, eRevId, cpMicrocodeVersion);
         break;
 
@@ -183,6 +186,10 @@ bool Device::DetermineGpuIpLevels(
         // GFX10 GPUs have moved the SDMA block into the GFX layer; there is no OSS layer
         // for this GPU.  The proper GFX layer for this family was determined above.
         break;
+#if PAL_BUILD_NAVI3X
+    case FAMILY_NV3:
+        break;
+#endif
     default:
         break;
     }
@@ -555,6 +562,9 @@ Result Device::SetupPublicSettingDefaults()
     m_publicSettings.expandHiZRangeForResummarize             = false;
 
     if (false
+#if PAL_BUILD_GFX11
+        || IsGfx11(gfxLevel)
+#endif
         )
     {
         m_publicSettings.optDepthOnlyExportRate    = true;
@@ -563,6 +573,12 @@ Result Device::SetupPublicSettingDefaults()
     {
         m_publicSettings.optDepthOnlyExportRate    = false;
     }
+
+#if PAL_BUILD_GFX11
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 777)
+    m_publicSettings.gfx11SampleMaskTrackerWatermark = 0;
+#endif
+#endif
 
     return ret;
 }
@@ -599,6 +615,9 @@ Result Device::HwlEarlyInit()
     case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_1:
     case GfxIpLevel::GfxIp10_3:
+#if PAL_BUILD_GFX11
+    case GfxIpLevel::GfxIp11_0:
+#endif
         result = Gfx9::CreateDevice(this, pGfxPlacementAddr, &pfnTable, &m_pGfxDevice);
         break;
     default:
@@ -706,6 +725,9 @@ void Device::InitPerformanceRatings()
             break;
         case GfxIpLevel::GfxIp10_1:
         case GfxIpLevel::GfxIp10_3:
+#if PAL_BUILD_GFX11
+        case GfxIpLevel::GfxIp11_0:
+#endif
             simdWidthMultiplier = 32;
             numShaderEngines    = m_chipProperties.gfx9.numShaderEngines;
             numShaderArrays     = m_chipProperties.gfx9.numShaderArrays;
@@ -856,6 +878,9 @@ void Device::GetHwIpDeviceSizes(
     case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_1:
     case GfxIpLevel::GfxIp10_3:
+#if PAL_BUILD_GFX11
+    case GfxIpLevel::GfxIp11_0:
+#endif
         pHwDeviceSizes->gfx = Gfx9::GetDeviceSize(ipLevels.gfx);
         gfxAddrMgrSize      = AddrMgr2::GetSize();
         break;
@@ -2384,6 +2409,9 @@ Result Device::GetProperties(
         case GfxIpLevel::GfxIp9:
         case GfxIpLevel::GfxIp10_1:
         case GfxIpLevel::GfxIp10_3:
+#if PAL_BUILD_GFX11
+        case GfxIpLevel::GfxIp11_0:
+#endif
         {
             const auto& gfx9Props = m_chipProperties.gfx9;
 
@@ -2474,6 +2502,10 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportTextureGatherBiasLod    = gfx9Props.supportTextureGatherBiasLod;
 
             pInfo->gfxipProperties.flags.supportIntersectRayBarycentrics = gfx9Props.supportIntersectRayBarycentrics;
+#if PAL_BUILD_GFX11
+            pInfo->gfxipProperties.flags.supportRayTraversalStack        = gfx9Props.supportRayTraversalStack;
+            pInfo->gfxipProperties.flags.supportPointerFlags             = gfx9Props.supportPointerFlags;
+#endif
 
             pInfo->gfxipProperties.supportedVrsRates                     = gfx9Props.gfx10.supportedVrsRates;
             pInfo->gfxipProperties.flags.supportVrsWithDsExports         = gfx9Props.gfx10.supportVrsWithDsExports ? 1 : 0;

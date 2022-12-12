@@ -90,6 +90,35 @@ BlendOp ColorBlendState::HwBlendOp(
 
         hwOp = BlendOpTbl[static_cast<size_t>(blendOp)];
     }
+#if PAL_BUILD_GFX11
+    else if (IsGfx11(device))
+    {
+        constexpr BlendOp BlendOpTbl[] =
+        {
+            BLEND_ZERO,                            // Zero
+            BLEND_ONE,                             // One
+            BLEND_SRC_COLOR,                       // SrcColor
+            BLEND_ONE_MINUS_SRC_COLOR,             // OneMinusSrcColor
+            BLEND_DST_COLOR,                       // DstColor
+            BLEND_ONE_MINUS_DST_COLOR,             // OneMinusDstColor
+            BLEND_SRC_ALPHA,                       // SrcAlpha
+            BLEND_ONE_MINUS_SRC_ALPHA,             // OneMinusSrcAlpha
+            BLEND_DST_ALPHA,                       // DstAlpha
+            BLEND_ONE_MINUS_DST_ALPHA,             // OneMinusDstAlpha
+            BLEND_CONSTANT_COLOR__GFX11,           // ConstantColor
+            BLEND_ONE_MINUS_CONSTANT_COLOR__GFX11, // OneMinusConstantColor
+            BLEND_CONSTANT_ALPHA__GFX11,           // ConstantAlpha
+            BLEND_ONE_MINUS_CONSTANT_ALPHA__GFX11, // OneMinusConstantAlpha
+            BLEND_SRC_ALPHA_SATURATE,              // SrcAlphaSaturate
+            BLEND_SRC1_COLOR__GFX11,               // Src1Color
+            BLEND_INV_SRC1_COLOR__GFX11,           // OneMinusSrc1Color
+            BLEND_SRC1_ALPHA__GFX11,               // Src1Alpha
+            BLEND_INV_SRC1_ALPHA__GFX11,           // OneMinusSrc1Alpha
+        };
+
+        hwOp = BlendOpTbl[static_cast<size_t>(blendOp)];
+    }
+#endif
 
     return hwOp;
 }

@@ -275,12 +275,31 @@ union CachedSettings
 
         uint64 supportsVrs                               :  1;
         uint64 vrsForceRateFine                          :  1;
+#if (PAL_BUILD_GFX11)
+        uint64 supportsSwStrmout                         :  1;
+#else
         uint64 reserved7                                 :  1;
+#endif
         uint64 supportAceOffload                         :  1;
         uint64 useExecuteIndirectPacket                  :  2;
         uint64 disablePreamblePipelineStats              :  1;
+#if PAL_BUILD_GFX11
+        uint64 primGrpSize                 :  9; // For programming GE_CNTL::PRIM_GRP_SIZE
+        uint64 geCntlGcrMode               :  2; // For programming GE_CNTL::GCR_DISABLE
+        uint64 useLegacyDbZInfo            :  1;
+        uint64 waLineStippleReset          :  1;
+        uint64 disableRbPlusWithBlending   :  1;
+        uint64 waEnableIntrinsicRateEnable :  1;
+        uint64 supportsShPairsPacket       :  1;
+        uint64 supportsShPairsPacketCs     :  1;
+#else
         uint64 reserved8                   : 17;
+#endif
+#if PAL_BUILD_NAVI3X
+        uint64 waAddPostambleEvent        :  1;
+#else
         uint64 reserved10                 :  1;
+#endif
 
         uint64 optimizeDepthOnlyFmt       :  1;
         uint64 has32bPred                 :  1;
@@ -800,6 +819,15 @@ private:
         ICmdBuffer*  pCmdBuffer,
         gpusize      gpuVa,
         DispatchDims size);
+#if PAL_BUILD_GFX11
+    template <bool IssueSqttMarkerEvent,
+              bool HasUavExport,
+              bool ViewInstancingEnable,
+              bool DescribeDrawDispatch>
+    static void PAL_STDCALL CmdDispatchMeshNative(
+        ICmdBuffer*  pCmdBuffer,
+        DispatchDims size);
+#endif
     template <bool IssueSqttMarkerEvent,
               bool HasUavExport,
               bool ViewInstancingEnable,
@@ -958,6 +986,9 @@ private:
         const UserDataEntries&          userData,
         const ComputePipelineSignature* pCurrSignature,
         const ComputePipelineSignature* pPrevSignature,
+#if PAL_BUILD_GFX11
+        const bool                      onAce,
+#endif
         uint32**                        ppDeCmdSpace);
 
     void LeakNestedCmdBufferState(
@@ -989,6 +1020,9 @@ private:
     void SwitchDrawFunctions(
         bool hasUavExport,
         bool viewInstancingEnable,
+#if PAL_BUILD_GFX11
+        bool nativeMsEnable,
+#endif
         bool hasTaskShader);
 
     template <bool IssueSqtt,
@@ -996,6 +1030,9 @@ private:
     void SwitchDrawFunctionsInternal(
         bool hasUavExport,
         bool viewInstancingEnable,
+#if PAL_BUILD_GFX11
+        bool nativeMsEnable,
+#endif
         bool hasTaskShader);
 
     template <bool ViewInstancing,
@@ -1003,6 +1040,9 @@ private:
               bool DescribeDrawDispatch>
     void SwitchDrawFunctionsInternal(
         bool hasUavExport,
+#if PAL_BUILD_GFX11
+        bool nativeMsEnable,
+#endif
         bool hasTaskShader);
 
     template <bool ViewInstancing,
@@ -1010,6 +1050,9 @@ private:
               bool IssueSqtt,
               bool DescribeDrawDispatch>
     void SwitchDrawFunctionsInternal(
+#if PAL_BUILD_GFX11
+        bool nativeMsEnable,
+#endif
         bool hasTaskShader);
 
     CmdStream* GetAceCmdStream();
@@ -1020,6 +1063,10 @@ private:
     void       ValidateTaskMeshDispatch(gpusize indirectGpuVirtAddr, DispatchDims size);
 
     void        ValidateExecuteNestedCmdBuffer();
+
+#if PAL_BUILD_GFX11
+    gpusize    SwStreamoutDataAddr();
+#endif
 
     bool IsTessEnabled() const
     {
@@ -1045,12 +1092,25 @@ private:
         return (m_pipelineState.flags.isNgg != 0);
     }
 
+#if (PAL_BUILD_GFX11)
+    bool SupportsSwStrmout() const { return m_cachedSettings.supportsSwStrmout; }
+#endif
+
     void WritePerDrawVrsRate(const VrsRateParams&  rateParams);
 
+#if PAL_BUILD_GFX11
+    template <Pm4ShaderType ShaderType, bool Pm4OptImmediate>
+    uint32* WritePackedUserDataEntriesToSgprs(uint32* pDeCmdSpace);
+    template <Pm4ShaderType ShaderType>
+    uint32* WritePackedUserDataEntriesToSgprs(uint32* pDeCmdSpace);
+#endif
     template <Pm4ShaderType ShaderType>
     uint32* SetUserSgprReg(
         uint16  regAddr,
         uint32  regValue,
+#if PAL_BUILD_GFX11
+        bool    onAce,
+#endif
         uint32* pDeCmdSpace);
 
     template <Pm4ShaderType ShaderType>
@@ -1058,6 +1118,9 @@ private:
         uint16      startAddr,
         uint16      endAddr,
         const void* pValues,
+    #if PAL_BUILD_GFX11
+        bool        onAce,
+    #endif
         uint32*     pDeCmdSpace);
 
     const Device&   m_device;
@@ -1226,7 +1289,24 @@ private:
     uint32  m_semCountAceWaitDe;
     uint32  m_semCountDeWaitAce;
 
+#if PAL_BUILD_GFX11
+    gpusize m_swStreamoutDataAddr;
+#endif
+
     uint16 m_baseUserDataReg[HwShaderStage::Last];
+
+#if PAL_BUILD_GFX11
+    // Array of valid packed register pairs holding user entries to be written into SGPRs.
+    PackedRegisterPair     m_validUserEntryRegPairs[Gfx11MaxPackedUserEntryCountGfx];
+    PackedRegisterPair     m_validUserEntryRegPairsCs[Gfx11MaxPackedUserEntryCountCs];
+    // A lookup of registers written into m_validUserEntryRegPairs where each index in the lookup maps to each supported
+    // shader stage's SGPRs. The value at each index divided by 2 serves as an index into m_validUserEntryRegPairs.
+    uint8                  m_validUserEntryRegPairsLookup[Gfx11MaxUserDataIndexCountGfx];
+    uint8                  m_validUserEntryRegPairsLookupCs[Gfx11MaxUserDataIndexCountCs];
+    // Total number of registers packed into m_validUserEntryRegPairs.
+    uint32                 m_numValidUserEntries;
+    uint32                 m_numValidUserEntriesCs;
+#endif
 
     // MS/TS pipeline stats query is emulated by shader. A 6-DWORD scratch memory chunk is needed to store for shader
     // to store the three counter values.

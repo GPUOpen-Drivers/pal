@@ -770,6 +770,67 @@ Gfx10DepthStencilView::Gfx10DepthStencilView(
     }
 }
 
+#if PAL_BUILD_GFX11
+// =====================================================================================================================
+// Helper to initialize the GFX11 DB_RENDER_CONTROL reg based on panel settings and necessary workarounds.
+void Gfx10DepthStencilView::SetGfx11StaticDbRenderControlFields(
+    const Device&         device,
+    const uint8           numFragments,
+    regDB_RENDER_CONTROL* pDbRenderControl)
+{
+    const Pal::Device&     palDevice  = *device.Parent();
+    const Gfx9PalSettings& settings   = device.Settings();
+
+    // The user mode driver should generally set the OREO_MODE field to OPAQUE_THEN_BLEND for best performance.
+    // Setting to BLEND is a fail-safe that should work for all cases
+    pDbRenderControl->gfx11.OREO_MODE          = settings.gfx11OreoModeControl;
+
+    // The FORCE_OREO_MODE is intended only for workarounds and should otherwise be set to 0
+    pDbRenderControl->gfx11.FORCE_OREO_MODE    = settings.gfx11ForceOreoMode ? 1 : 0;
+
+    pDbRenderControl->gfx11.FORCE_EXPORT_ORDER = settings.gfx11ForceExportOrder ? 1 : 0;
+
+#if PAL_BUILD_NAVI3X
+    if (IsNavi3x(palDevice))
+    {
+        switch (numFragments)
+        {
+        case 8:
+            pDbRenderControl->gfx11.MAX_ALLOWED_TILES_IN_WAVE =
+                (settings.waIncorrectMaxAllowedTilesInWave) ? 6 : 7;
+            break;
+        case 4:
+            pDbRenderControl->gfx11.MAX_ALLOWED_TILES_IN_WAVE =
+                (settings.waIncorrectMaxAllowedTilesInWave) ? 13 : 14;
+            break;
+        default:
+            pDbRenderControl->gfx11.MAX_ALLOWED_TILES_IN_WAVE = 0;
+            break;
+        }
+    }
+    else
+#endif
+    if (false
+        )
+    {
+        switch (numFragments)
+        {
+        case 8:
+            pDbRenderControl->gfx11.MAX_ALLOWED_TILES_IN_WAVE =
+                (settings.waIncorrectMaxAllowedTilesInWave) ? 7 : 8;
+            break;
+        case 4:
+            pDbRenderControl->gfx11.MAX_ALLOWED_TILES_IN_WAVE =
+                (settings.waIncorrectMaxAllowedTilesInWave) ? 15 : 0;
+            break;
+        default:
+            pDbRenderControl->gfx11.MAX_ALLOWED_TILES_IN_WAVE = 0;
+            break;
+        }
+    }
+}
+#endif
+
 // =====================================================================================================================
 // Finalizes the PM4 packet image by setting up the register values used to write this View object to hardware.
 void Gfx10DepthStencilView::InitRegisters(
@@ -878,6 +939,14 @@ void Gfx10DepthStencilView::InitRegisters(
         }
     }
 
+#if PAL_BUILD_GFX11
+    if (IsGfx11(palDevice))
+    {
+        const ImageCreateInfo& imageCreateInfo = pParentImg->GetImageCreateInfo();
+
+        SetGfx11StaticDbRenderControlFields(device, imageCreateInfo.fragments, &m_regs.dbRenderControl);
+    }
+#endif
 }
 
 // =====================================================================================================================

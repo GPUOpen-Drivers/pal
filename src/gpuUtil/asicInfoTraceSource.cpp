@@ -85,6 +85,11 @@ void PopulateTraceGfxIpLevel(
     case GfxIpLevel::GfxIp10_3:
         *pTraceGfxIpLevel = { 10, 3, 0 };
         break;
+#if PAL_BUILD_GFX11
+    case GfxIpLevel::GfxIp11_0:
+        *pTraceGfxIpLevel = { 11, 0, 0 };
+        break;
+#endif
 #endif
     default:
         PAL_ASSERT_ALWAYS();

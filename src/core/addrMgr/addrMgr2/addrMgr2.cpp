@@ -403,6 +403,23 @@ void AddrMgr2::InitTilingCaps(
     const bool varSwizzleNotRtOrDs = TestAnyFlagSet(settings.addr2UseVarSwizzleMode, Addr2UseVarSwizzleNotRtOrDs);
 
     pBlockSettings->value = 0; // All modes (256B, 4kb, 64kb) are valid
+#if PAL_BUILD_GFX11
+    if (IsGfx11(*m_pDevice))
+    {
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 769
+        if (createInfo.flags.enable256KBSwizzleModes)
+        {
+        }
+        else
+#endif
+        {
+            pBlockSettings->gfx11.thin256KB  = 1;
+            pBlockSettings->gfx11.thick256KB = 1;
+            // Explicitly disable thin/thick 256 KiB modes on GFX11 if the client setting is not enabled
+        }
+    }
+    else
+#endif
     {
         pBlockSettings->var = 1; // but don't allow variable-size block modes.
     }
@@ -427,6 +444,10 @@ void AddrMgr2::InitTilingCaps(
         pBlockSettings->macroThin64KB  = 1;
         pBlockSettings->macroThick64KB = 1;
 
+#if PAL_BUILD_GFX11
+        pBlockSettings->gfx11.thin256KB  = 1;
+        pBlockSettings->gfx11.thick256KB = 1;
+#endif
     }
     else if (createInfo.flags.prt)
     {
@@ -435,6 +456,13 @@ void AddrMgr2::InitTilingCaps(
         pBlockSettings->macroThin4KB  = 1;
         pBlockSettings->macroThick4KB = 1;
         pBlockSettings->linear        = 1;
+#if PAL_BUILD_GFX11
+        if (IsGfx11(*m_pDevice))
+        {
+            pBlockSettings->gfx11.thin256KB = 1;
+            pBlockSettings->gfx11.thick256KB = 1;
+        }
+#endif
     }
     else if ((surfaceFlags.display == 0)                                       &&
              (varSwizzleFull                                                   ||
@@ -489,6 +517,16 @@ void AddrMgr2::InitTilingCaps(
             pBlockSettings->macroThick4KB = 1;
         }
     }
+
+#if PAL_BUILD_GFX11
+    if (IsGfx11(*m_pDevice) && (createInfo.usageFlags.vrsRateImage != 0))
+    {
+        // Address library can still specify "linear" images even though the client is requsting "optimal".
+        // i.e., "optimal" does not mean "tiled".  Expressely disallow "linear" images here as GFX11 HW
+        // doesn't support it.
+        pBlockSettings->linear = 1;
+    }
+#endif
 
     // GFX10 and newer products have addressing changes that allow YUV+DCC to be a possibility.  The need to
     // address slices individually makes YUV+DCC an impossibility on GFX9 platforms; without any possibility for
@@ -643,8 +681,404 @@ uint32 AddrMgr2::GetNoXorStatus(
 {
     uint32 noXor = 0;
 
+#if PAL_BUILD_GFX11
+    if (IsGfx11(m_gfxLevel))
+    {
+        const PalSettings& settings = m_pDevice->Settings();
+
+        // Depth images require the Z_X swizzle modes; likewise, MSAA images require _X modes as well.
+        if ((pImage->IsDepthStencilTarget() == false) && (pImage->GetImageCreateInfo().samples == 1))
+        {
+            if (pImage->IsRenderTarget() && TestAnyFlagSet(settings.noXor, NoXorForRenderTarget))
+            {
+                noXor = 1;
+            }
+            else if (pImage->IsShaderReadable() && TestAnyFlagSet(settings.noXor, NoXorForTexture))
+            {
+                noXor = 1;
+            }
+        }
+    }
+#endif
+
     return noXor;
 }
+
+#if PAL_BUILD_GFX11 && (ADDRLIB_VERSION_MAJOR >= 7)
+// =====================================================================================================================
+// Chooses a "preferred" swizzle mode from a list of "HW-valid" modes returned from Address Library (for GFX11)
+ADDR_E_RETURNCODE AddrMgr2::Gfx11ChooseSwizzleMode(
+    const SubResourceInfo*                        pBaseSubRes,
+    const ADDR2_GET_PREFERRED_SURF_SETTING_INPUT* pIn,
+    ADDR2_GET_PREFERRED_SURF_SETTING_OUTPUT*      pOut
+    ) const
+{
+    ADDR2_SWMODE_SET allowedSwModeSet = pOut->validSwModeSet;
+
+    Addr2GetAllowedBlockSet(AddrLibHandle(), allowedSwModeSet, pOut->resourceType, &(pOut->validBlockSet));
+    Addr2GetAllowedSwSet(AddrLibHandle(), allowedSwModeSet, &(pOut->validSwTypeSet));
+
+    // Forbid swizzle mode(s) by client setting
+    ADDR2_BLOCK_SET forbiddenBlock = pIn->forbiddenBlock;
+    AddrResourceType resourceType  = pIn->resourceType;
+
+    allowedSwModeSet.value &= forbiddenBlock.linear ? ~Gfx11LinearSwModeMask : ~0;
+    allowedSwModeSet.value &= forbiddenBlock.micro ? ~Gfx11Blk256BSwModeMask : ~0;
+    allowedSwModeSet.value &= forbiddenBlock.macroThin4KB ?
+        ((resourceType == ADDR_RSRC_TEX_3D) ? ~0 : ~Gfx11Blk4KBSwModeMask) : ~0;
+    allowedSwModeSet.value &= forbiddenBlock.macroThick4KB ?
+        ((resourceType == ADDR_RSRC_TEX_3D) ? ~Gfx11Rsrc3dThick4KBSwModeMask : ~0) : ~0;
+    allowedSwModeSet.value &= forbiddenBlock.macroThin64KB ?
+        ((resourceType == ADDR_RSRC_TEX_3D) ? ~Gfx11Rsrc3dThin64KBSwModeMask : ~Gfx11Blk64KBSwModeMask) : ~0;
+    allowedSwModeSet.value &= forbiddenBlock.macroThick64KB ?
+        ((resourceType == ADDR_RSRC_TEX_3D) ? ~Gfx11Rsrc3dThick64KBSwModeMask : ~0) : ~0;
+    allowedSwModeSet.value &= forbiddenBlock.gfx11.thin256KB ?
+        ((resourceType == ADDR_RSRC_TEX_3D) ? ~Gfx11Rsrc3dThin256KBSwModeMask : ~Gfx11Blk256KBSwModeMask) : ~0;
+    allowedSwModeSet.value &= forbiddenBlock.gfx11.thick256KB ?
+        ((resourceType == ADDR_RSRC_TEX_3D) ? ~Gfx11Rsrc3dThick256KBSwModeMask : ~0) : ~0;
+
+    ADDR2_SWTYPE_SET preferredSwSet = pIn->preferredSwSet;
+    if (preferredSwSet.value != 0)
+    {
+        allowedSwModeSet.value &= preferredSwSet.sw_Z ? ~0 : ~Gfx11ZSwModeMask;
+        allowedSwModeSet.value &= preferredSwSet.sw_S ? ~0 : ~Gfx11StandardSwModeMask;
+        allowedSwModeSet.value &= preferredSwSet.sw_D ? ~0 : ~Gfx11DisplaySwModeMask;
+        allowedSwModeSet.value &= preferredSwSet.sw_R ? ~0 : ~Gfx11RenderSwModeMask;
+    }
+
+    if (pIn->noXor)
+    {
+        allowedSwModeSet.value &= ~Gfx11XorSwModeMask;
+    }
+
+    if (pIn->maxAlign > 0)
+    {
+        constexpr uint32 Size256 = 256u;
+        constexpr uint32 Size4K = 4_KiB;
+        constexpr uint32 Size64K = 64_KiB;
+        constexpr uint32 Size256K = 256_KiB;
+
+        if (pIn->maxAlign < Size256K)
+        {
+            allowedSwModeSet.value &= ~Gfx11Blk256KBSwModeMask;
+        }
+
+        if (pIn->maxAlign < Size64K)
+        {
+            allowedSwModeSet.value &= ~Gfx11Blk64KBSwModeMask;
+        }
+
+        if (pIn->maxAlign < Size4K)
+        {
+            allowedSwModeSet.value &= ~Gfx11Blk4KBSwModeMask;
+        }
+
+        if (pIn->maxAlign < Size256)
+        {
+            allowedSwModeSet.value &= ~Gfx11Blk256BSwModeMask;
+        }
+    }
+
+    ADDR_E_RETURNCODE addrRet = ADDR_OK;
+
+    // Apply optional restrictions
+    if (allowedSwModeSet.value == Gfx11LinearSwModeMask)
+    {
+        pOut->swizzleMode = ADDR_SW_LINEAR;
+    }
+    else
+    {
+        const bool computeMinSize = ((pIn->flags.minimizeAlign == 1) || (pIn->memoryBudget >= 1.0));
+
+        if ((pIn->height > 1) && (computeMinSize == false))
+        {
+            // Always ignore linear swizzle mode if:
+            // 1. This is a (2D/3D) resource with height > 1
+            // 2. Client doesn't require computing minimize size
+            allowedSwModeSet.swLinear = 0;
+        }
+
+        ADDR2_BLOCK_SET allowedBlockSet = {};
+        Addr2GetAllowedBlockSet(AddrLibHandle(), allowedSwModeSet, pOut->resourceType, &allowedBlockSet);
+
+        // Determine block size if there are 2 or more block type candidates
+        if (IsPowerOfTwo(allowedBlockSet.value) == false)
+        {
+            ADDR2_COMPUTE_SURFACE_INFO_INPUT localIn = {};
+
+            localIn.flags        = pIn->flags;
+            localIn.resourceType = pIn->resourceType;
+            localIn.format       = pIn->format;
+            localIn.width        = pBaseSubRes->extentElements.width;
+            localIn.height       = pBaseSubRes->extentElements.height;
+            localIn.bpp          = localIn.width / pBaseSubRes->extentTexels.width;
+            localIn.numSlices    = Max(pIn->numSlices, 1u);
+            localIn.numMipLevels = Max(pIn->numMipLevels, 1u);
+            localIn.numSamples   = Max(pIn->numSamples, 1u);
+            localIn.numFrags     = Max(pIn->numSamples, 1u);
+
+            AddrSwizzleMode swMode[AddrBlockMaxTiledType] = {};
+
+            swMode[AddrBlockLinear] = ADDR_SW_LINEAR;
+
+            if (pOut->resourceType == ADDR_RSRC_TEX_3D)
+            {
+                swMode[AddrBlockThick4KB]   = ADDR_SW_4KB_S_X;
+                swMode[AddrBlockThin64KB]   = ADDR_SW_64KB_R_X;
+                swMode[AddrBlockThick64KB]  = ADDR_SW_64KB_S_X;
+                swMode[AddrBlockThin256KB]  = ADDR_SW_256KB_R_X;
+                swMode[AddrBlockThick256KB] = ADDR_SW_256KB_S_X;
+            }
+            else
+            {
+                swMode[AddrBlockMicro]     = ADDR_SW_256B_D;
+                swMode[AddrBlockThin4KB]   = ADDR_SW_4KB_D_X;
+                swMode[AddrBlockThin64KB]  = ADDR_SW_64KB_D_X;
+                swMode[AddrBlockThin256KB] = ADDR_SW_256KB_D_X;
+            }
+
+            uint64 padSize[AddrBlockMaxTiledType] = {};
+
+            const uint32 ratioLow = computeMinSize ? 1 : (pIn->flags.opt4space ? 3 : 2);
+            const uint32 ratioHi  = computeMinSize ? 1 : (pIn->flags.opt4space ? 2 : 1);
+            uint32 minSizeBlk     = AddrBlockMicro;
+            uint32 minSize        = 0;
+
+            ADDR2_COMPUTE_SURFACE_INFO_OUTPUT localOut = {};
+
+            for (uint32 i = AddrBlockLinear; i < AddrBlockMaxTiledType; i++)
+            {
+                if (Addr2IsBlockTypeAvailable(allowedBlockSet, static_cast<AddrBlockType>(i)))
+                {
+                    localIn.swizzleMode = swMode[i];
+
+                    addrRet = Addr2ComputeSurfaceInfo(AddrLibHandle(), &localIn, &localOut);
+
+                    if (addrRet == ADDR_OK)
+                    {
+                        padSize[i] = localOut.surfSize;
+
+                        if ((minSize == 0) ||
+                            Addr2BlockTypeWithinMemoryBudget(minSize, padSize[i], ratioLow, ratioHi))
+                        {
+                            minSize = padSize[i];
+                            minSizeBlk = i;
+                        }
+                    }
+                    else
+                    {
+                        PAL_ASSERT_ALWAYS();
+                        break;
+                    }
+                }
+            }
+
+            if (pIn->memoryBudget > 1.0)
+            {
+                // If minimum size is given by swizzle mode with bigger-block type, then don't ever check
+                // smaller-block type again in coming loop
+                switch (minSizeBlk)
+                {
+                case AddrBlockThick256KB:
+                    allowedBlockSet.gfx11.thin256KB = 0;
+                    break;
+                case AddrBlockThin256KB:
+                    allowedBlockSet.macroThick64KB  = 0;
+                    break;
+                case AddrBlockThick64KB:
+                    allowedBlockSet.macroThin64KB   = 0;
+                    break;
+                case AddrBlockThin64KB:
+                    allowedBlockSet.macroThick4KB   = 0;
+                    break;
+                case AddrBlockThick4KB:
+                    allowedBlockSet.macroThin4KB    = 0;
+                    break;
+                case AddrBlockThin4KB:
+                    allowedBlockSet.micro           = 0;
+                    break;
+                case AddrBlockMicro:
+                    allowedBlockSet.linear          = 0;
+                case AddrBlockLinear:
+                    break;
+
+                default:
+                    PAL_ASSERT_ALWAYS();
+                    break;
+                }
+
+                for (uint32 i = AddrBlockMicro; i < AddrBlockMaxTiledType; i++)
+                {
+                    if ((i != minSizeBlk) &&
+                        Addr2IsBlockTypeAvailable(allowedBlockSet, static_cast<AddrBlockType>(i)))
+                    {
+                        if (Addr2BlockTypeWithinMemoryBudget(minSize, padSize[i], 0, 0, pIn->memoryBudget) == false)
+                        {
+                            // Clear the block type if the memory waste is unacceptable
+                            allowedBlockSet.value &= ~(1u << (i - 1));
+                        }
+                    }
+                }
+
+                // Remove linear block type if 2 or more block types are allowed
+                if (IsPowerOfTwo(allowedBlockSet.value) == false)
+                {
+                    allowedBlockSet.linear = 0;
+                }
+
+                // Select the biggest allowed block type
+                minSizeBlk = Log2(allowedBlockSet.value) + 1;
+
+                if (minSizeBlk == static_cast<uint32>(AddrBlockMaxTiledType))
+                {
+                    minSizeBlk = AddrBlockLinear;
+                }
+            }
+
+            switch (minSizeBlk)
+            {
+            case AddrBlockLinear:
+                allowedSwModeSet.value &= Gfx11LinearSwModeMask;
+                break;
+
+            case AddrBlockMicro:
+                PAL_ASSERT(pOut->resourceType != ADDR_RSRC_TEX_3D);
+                allowedSwModeSet.value &= Gfx11Blk256BSwModeMask;
+                break;
+
+            case AddrBlockThin4KB:
+                PAL_ASSERT(pOut->resourceType != ADDR_RSRC_TEX_3D);
+                allowedSwModeSet.value &= Gfx11Blk4KBSwModeMask;
+                break;
+
+            case AddrBlockThick4KB:
+                PAL_ASSERT(pOut->resourceType == ADDR_RSRC_TEX_3D);
+                allowedSwModeSet.value &= Gfx11Rsrc3dThick4KBSwModeMask;
+                break;
+
+            case AddrBlockThin64KB:
+                allowedSwModeSet.value &= (pOut->resourceType == ADDR_RSRC_TEX_3D) ?
+                    Gfx11Rsrc3dThin64KBSwModeMask : Gfx11Blk64KBSwModeMask;
+                break;
+
+            case AddrBlockThick64KB:
+                PAL_ASSERT(pOut->resourceType == ADDR_RSRC_TEX_3D);
+                allowedSwModeSet.value &= Gfx11Rsrc3dThick64KBSwModeMask;
+                break;
+
+            case AddrBlockThin256KB:
+                allowedSwModeSet.value &= (pOut->resourceType == ADDR_RSRC_TEX_3D) ?
+                    Gfx11Rsrc3dThin256KBSwModeMask : Gfx11Blk256KBSwModeMask;
+                break;
+
+            case AddrBlockThick256KB:
+                PAL_ASSERT(pOut->resourceType == ADDR_RSRC_TEX_3D);
+                allowedSwModeSet.value &= Gfx11Rsrc3dThick256KBSwModeMask;
+                break;
+
+            default:
+                PAL_ASSERT_ALWAYS();
+                allowedSwModeSet.value = 0;
+                break;
+            }
+        }
+
+        // Block type should be determined.
+        Addr2GetAllowedBlockSet(AddrLibHandle(), allowedSwModeSet, pOut->resourceType, &allowedBlockSet);
+        PAL_ASSERT(IsPowerOfTwo(allowedBlockSet.value));
+
+        ADDR2_SWTYPE_SET allowedSwSet = {};
+        Addr2GetAllowedSwSet(AddrLibHandle(), allowedSwModeSet, &allowedSwSet);
+
+        // Determine swizzle type if there are 2 or more swizzle type candidates
+        if ((allowedSwSet.value != 0) && (IsPowerOfTwo(allowedSwSet.value) == false))
+        {
+            if (Formats::IsBlockCompressed(pBaseSubRes->format.format))
+            {
+                if (allowedSwSet.sw_D)
+                {
+                    allowedSwModeSet.value &= Gfx11DisplaySwModeMask;
+                }
+                else if (allowedSwSet.sw_S)
+                {
+                    allowedSwModeSet.value &= Gfx11StandardSwModeMask;
+                }
+                else
+                {
+                    PAL_ASSERT(allowedSwSet.sw_R);
+                    allowedSwModeSet.value &= Gfx11RenderSwModeMask;
+                }
+            }
+            else if (Formats::IsMacroPixelPacked(pBaseSubRes->format.format))
+            {
+                if (allowedSwSet.sw_S)
+                {
+                    allowedSwModeSet.value &= Gfx11StandardSwModeMask;
+                }
+                else if (allowedSwSet.sw_D)
+                {
+                    allowedSwModeSet.value &= Gfx11DisplaySwModeMask;
+                }
+                else
+                {
+                    PAL_ASSERT(allowedSwSet.sw_R);
+                    allowedSwModeSet.value &= Gfx11RenderSwModeMask;
+                }
+            }
+            else if (resourceType == ADDR_RSRC_TEX_3D)
+            {
+                if (pIn->flags.color && allowedSwSet.sw_R)
+                {
+                    allowedSwModeSet.value &= Gfx11RenderSwModeMask;
+                }
+                else if (allowedSwSet.sw_S)
+                {
+                    allowedSwModeSet.value &= Gfx11StandardSwModeMask;
+                }
+                else if (allowedSwSet.sw_D)
+                {
+                    allowedSwModeSet.value &= Gfx11DisplaySwModeMask;
+                }
+                else
+                {
+                    PAL_ASSERT(allowedSwSet.sw_Z);
+                    allowedSwModeSet.value &= Gfx11ZSwModeMask;
+                }
+            }
+            else
+            {
+                if (allowedSwSet.sw_R)
+                {
+                    allowedSwModeSet.value &= Gfx11RenderSwModeMask;
+                }
+                else if (allowedSwSet.sw_D)
+                {
+                    allowedSwModeSet.value &= Gfx11DisplaySwModeMask;
+                }
+                else if (allowedSwSet.sw_Z)
+                {
+                    allowedSwModeSet.value &= Gfx11ZSwModeMask;
+                }
+                else
+                {
+                    PAL_ASSERT_ALWAYS();
+                }
+            }
+
+            // Swizzle type should be determined.
+            Addr2GetAllowedSwSet(AddrLibHandle(), allowedSwModeSet, &allowedSwSet);
+            PAL_ASSERT(IsPowerOfTwo(allowedSwSet.value));
+        }
+
+        // Determine swizzle mode now. Always select the "largest" swizzle mode for a given block type +
+        // swizzle type combination. E.g, for AddrBlockThin64KB + ADDR_SW_S, select SW_64KB_S_X(25) if it's
+        // available, or otherwise select SW_64KB_S_T(17) if it's available, or otherwise select SW_64KB_S(9).
+        pOut->swizzleMode = static_cast<AddrSwizzleMode>(Log2(allowedSwModeSet.value));
+    }
+
+    return addrRet;
+}
+#endif
 
 // =====================================================================================================================
 //  Determines a swizzle mode on GFX9/10 by calling Addr2GetPreferredSurfaceSetting
@@ -657,6 +1091,18 @@ ADDR_E_RETURNCODE AddrMgr2::GetPreferredSurfaceSetting(
 {
     ADDR_E_RETURNCODE addrRet = {};
 
+#if PAL_BUILD_GFX11 && (ADDRLIB_VERSION_MAJOR >= 7)
+    if (IsGfx11(*m_pDevice) && newSwizzleModeDetermination)
+    {
+        addrRet = Addr2GetPossibleSwizzleModes(AddrLibHandle(), pIn, pOut);
+
+        if (addrRet == ADDR_OK)
+        {
+            addrRet = Gfx11ChooseSwizzleMode(pBaseSubRes, pIn, pOut);
+        }
+    }
+    else
+#endif
     {
         addrRet = Addr2GetPreferredSurfaceSetting(AddrLibHandle(), pIn, pOut);
     }
@@ -803,7 +1249,22 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
         surfSettingInput.preferredSwSet.sw_D = 0;
     }
 
+#if PAL_BUILD_GFX11
+    if (IsGfx11(*m_pDevice) && (createInfo.usageFlags.vrsRateImage != 0))
+    {
+        surfSettingInput.preferredSwSet.value = 0;
+        surfSettingInput.preferredSwSet.sw_Z  = 1;
+        surfSettingInput.preferredSwSet.sw_R  = 1;
+    }
+#endif
+
     bool newMethod = false;
+#if PAL_BUILD_GFX11
+    if (IsGfx11(*m_pDevice))
+    {
+        newMethod = settings.addr2NewSwizzleModeDetermination;
+    }
+#endif
     ADDR_E_RETURNCODE addrRet = GetPreferredSurfaceSetting(pBaseSubRes, newMethod, &surfSettingInput, pOut);
 
     // It's possible that we can't get what we preferr so retry using the full permitted mask.
@@ -850,6 +1311,24 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
             {
                 pOut->swizzleMode = ADDR_SW_256B_D;
             }
+#if PAL_BUILD_GFX11
+            else if (IsGfx11(*m_pDevice))
+            {
+                // The most efficient swizzle modes for these surfaces would be the D_X variants.  However, the
+                // "X" modes use the slice index as part of their addressing equations; in other words, slice 1
+                // is arranged slightly differently than slice 0.  This is problematic because our SRD's play games
+                // with YUV surfaces and at times treat slice 1 as slice 0 (accomplished by moving the base address).
+                if (createInfo.arraySize == 1)
+                {
+                    pOut->swizzleMode = ADDR_SW_64KB_D_X;
+                }
+                else
+                {
+                    pOut->swizzleMode = ADDR_SW_64KB_D;
+                }
+
+            }
+#endif
             else if (IsVega10(*m_pDevice) || IsVega12(*m_pDevice) || IsVega20(*m_pDevice))
             {
                 pOut->swizzleMode = ADDR_SW_64KB_D;
@@ -1286,10 +1765,31 @@ uint32 AddrMgr2::GetBlockSize(
         blockSize = 65536;
         break;
 
+#if PAL_BUILD_GFX11
+    case ADDR_SW_256KB_Z_X:  // reused enum from ADDR_SW_VAR_Z_X
+    case ADDR_SW_256KB_R_X:  // reused enum from ADDR_SW_VAR_R_X
+        if (IsGfx11(*m_pDevice))
+        {
+            // 256KB swizzle supported on gfx11
+            blockSize = 262144;
+        }
+        else
+        {
+            // VAR swizzle supported on gfx10
+            blockSize = m_varBlockSize;
+        }
+        break;
+
+    case ADDR_SW_256KB_S_X:
+    case ADDR_SW_256KB_D_X:
+        blockSize = 262144;
+        break;
+#else
     case ADDR_SW_VAR_Z_X:
     case ADDR_SW_VAR_R_X:
         blockSize = m_varBlockSize;
         break;
+#endif
 
     default:
         break;
@@ -1310,6 +1810,52 @@ Pal::Gfx9::SWIZZLE_MODE_ENUM AddrMgr2::GetHwSwizzleMode(
 
     SWIZZLE_MODE_ENUM  retSwizzle = SW_LINEAR;
 
+#if PAL_BUILD_GFX11
+    if (IsGfx11(*m_pDevice))
+    {
+        static constexpr SWIZZLE_MODE_ENUM  hwSwizzleMode[]=
+        {
+            SW_LINEAR,             // ADDR_SW_LINEAR
+            SW_256B_S,             // ADDR_SW_256B_S
+            SW_256B_D,             // ADDR_SW_256B_D
+            SW_256B_R,             // ADDR_SW_256B_R
+            SW_4KB_Z,              // ADDR_SW_4KB_Z
+            SW_4KB_S,              // ADDR_SW_4KB_S
+            SW_4KB_D,              // ADDR_SW_4KB_D
+            SW_4KB_R,              // ADDR_SW_4KB_R
+            SW_64KB_Z,             // ADDR_SW_64KB_Z
+            SW_64KB_S,             // ADDR_SW_64KB_S
+            SW_64KB_D,             // ADDR_SW_64KB_D
+            SW_64KB_R,             // ADDR_SW_64KB_R
+            SW_256KB_Z__GFX11,     // ADDR_SW_MISCDEF12
+            SW_256KB_S__GFX11,     // ADDR_SW_MISCDEF13
+            SW_256KB_D__GFX11,     // ADDR_SW_MISCDEF14
+            SW_256KB_R__GFX11,     // ADDR_SW_MISCDEF15
+            SW_64KB_Z_T,           // ADDR_SW_64KB_Z_T
+            SW_64KB_S_T,           // ADDR_SW_64KB_S_T
+            SW_64KB_D_T,           // ADDR_SW_64KB_D_T
+            SW_64KB_R_T,           // ADDR_SW_64KB_R_T
+            SW_4KB_Z_X,            // ADDR_SW_4KB_Z_X
+            SW_4KB_S_X,            // ADDR_SW_4KB_S_X
+            SW_4KB_D_X,            // ADDR_SW_4KB_D_X
+            SW_4KB_R_X,            // ADDR_SW_4KB_R_X
+            SW_64KB_Z_X,           // ADDR_SW_64KB_Z_X
+            SW_64KB_S_X,           // ADDR_SW_64KB_S_X
+            SW_64KB_D_X,           // ADDR_SW_64KB_D_X
+            SW_64KB_R_X,           // ADDR_SW_64KB_R_X
+            SW_256KB_Z_X__GFX11,   // ADDR_SW_256KB_Z_X
+            SW_256KB_S_X__GFX11,   // ADDR_SW_256KB_S_X
+            SW_256KB_D_X__GFX11,   // ADDR_SW_256KB_D_X
+            SW_256KB_R_X__GFX11,   // ADDR_SW_256KB_R_X
+            SW_LINEAR,             // ADDR_SW_LINEAR_GENERAL
+        };
+
+        PAL_ASSERT (swizzleMode < Util::ArrayLen(hwSwizzleMode));
+
+        retSwizzle = hwSwizzleMode[swizzleMode];
+    }
+    else
+#endif
     {
         static constexpr SWIZZLE_MODE_ENUM  hwSwizzleMode[]=
         {

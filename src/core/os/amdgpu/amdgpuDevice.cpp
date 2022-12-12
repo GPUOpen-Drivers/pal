@@ -948,6 +948,9 @@ Result Device::InitGpuProperties()
     case GfxIpLevel::GfxIp10_1:
     case GfxIpLevel::GfxIp9:
     case GfxIpLevel::GfxIp10_3:
+#if PAL_BUILD_GFX11
+    case GfxIpLevel::GfxIp11_0:
+#endif
         m_chipProperties.gfxEngineId = CIASICIDGFXENGINE_ARCTICISLAND;
         m_pFormatPropertiesTable     = Gfx9::GetFormatPropertiesTable(m_chipProperties.gfxLevel,
                                                                       GetPlatform()->PlatformSettings());
@@ -1065,7 +1068,17 @@ static bool TestCuAlwaysOnBitmap(
     {
         for (uint32 shIndex = 0; shIndex < pDeviceInfo->num_shader_arrays_per_engine; shIndex++)
         {
+#if PAL_BUILD_GFX11
+            // The cu_bitmap is a 4x4 array, so Linux KMD uses cu_bitmap[][2] and cu_bitmap[][3] to represent the mask
+            // of SEs > 4 like this:
+            //      |SE0 SH0|SE0 SH1|SE4 SH0|SE4 SH1|
+            //      |SE1 SH0|SE1 SH1|SE5 SH0|SE5 SH1|
+            //      |SE2 SH0|SE2 SH1|...............
+            //      |SE3 SH0|SE3 SH1|...............
+            if (pDeviceInfo->cu_ao_bitmap[seIndex % 4][shIndex + 2 * (seIndex / 4)] != 0)
+#else
             if (pDeviceInfo->cu_ao_bitmap[seIndex][shIndex] != 0)
+#endif
             {
                 result = true;
                 break;
@@ -1266,6 +1279,14 @@ void Device::InitGfx9ChipProperties()
 
             pChipInfo->gfx10.numTcpPerSa = 2 * wgpPerSa;
         }
+#if PAL_BUILD_GFX11
+        else if (IsGfx11(m_chipProperties.gfxLevel))
+        {
+            pChipInfo->gfx10.numTcpPerSa    =  8; // GC__NUM_TCP_PER_SA
+            pChipInfo->gfx10.numWgpAboveSpi =  4; // GC__NUM_WGP0_PER_SA
+            pChipInfo->gfx10.numWgpBelowSpi =  0; // GC__NUM_WGP1_PER_SA
+        }
+#endif
 
         InitGfx9CuMask(&deviceInfo);
     }
@@ -1316,12 +1337,35 @@ void Device::InitGfx9CuMask(
     {
         for (uint32 shIndex = 0; shIndex < m_gpuInfo.num_shader_arrays_per_engine; shIndex++)
         {
+#if PAL_BUILD_GFX11
+            // The cu_bitmap is a 4x4 array, so Linux KMD uses cu_bitmap[][2] and cu_bitmap[][3] to represent the mask
+            // of SEs > 4 like this:
+            //      |SE0 SH0|SE0 SH1|SE4 SH0|SE4 SH1|
+            //      |SE1 SH0|SE1 SH1|SE5 SH0|SE5 SH1|
+            //      |SE2 SH0|SE2 SH1|...............
+            //      |SE3 SH0|SE3 SH1|...............
+            pChipInfo->activeCuMask[seIndex][shIndex] =
+                m_gpuInfo.cu_bitmap[seIndex - 4 * (seIndex / 4)][shIndex + 2 * (seIndex / 4)];
+
+            if (hasValidAoBitmap)
+            {
+                pChipInfo->alwaysOnCuMask[seIndex][shIndex] =
+                    pDeviceInfo->cu_ao_bitmap[seIndex - 4 * (seIndex / 4)][shIndex + 2 * (seIndex / 4)];
+            }
+            // For Gfx11, the concept of always on CUs is dropped, and the Gfx core is either ON or OFF entirely
+            // So we can treat all active CUs as always on CUs on Gfx11
+            else if (IsGfx11(m_chipProperties.gfxLevel))
+            {
+                pChipInfo->alwaysOnCuMask[seIndex][shIndex] = pChipInfo->activeCuMask[seIndex][shIndex];
+            }
+#else
             pChipInfo->activeCuMask[seIndex][shIndex] = m_gpuInfo.cu_bitmap[seIndex][shIndex];
 
             if (hasValidAoBitmap)
             {
                 pChipInfo->alwaysOnCuMask[seIndex][shIndex] = pDeviceInfo->cu_ao_bitmap[seIndex][shIndex];
             }
+#endif
             else
             {
                 constexpr uint32 AlwaysOnSeMaskSize = 16;

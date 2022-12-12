@@ -94,6 +94,15 @@ function(pal_compile_definitions_gfx9 TARGET)
         target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI24=1)
     endif()
 
+#if PAL_BUILD_NAVI31
+    if(PAL_BUILD_NAVI31)
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI31=1)
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI3X=1)
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_GFX11=1)
+        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI31=1)
+    endif()
+#endif
+
 endfunction()
 
 function(pal_compile_definitions_gpu TARGET)

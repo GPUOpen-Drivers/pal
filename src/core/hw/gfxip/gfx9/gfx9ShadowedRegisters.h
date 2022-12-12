@@ -28,6 +28,9 @@
 #include "palInlineFuncs.h"
 #include "core/hw/gfxip/gfx9/gfx9Chip.h"
 #include "core/hw/gfxip/gfx9/gfx10ShadowedRegisters.h"
+#if PAL_BUILD_GFX11
+#include "core/hw/gfxip/gfx9/gfx11ShadowedRegisters.h"
+#endif
 
 namespace Pal
 {

@@ -52,6 +52,9 @@ struct HwRegInfo
     regCOMPUTE_PGM_RSRC3           computePgmRsrc3;
     regCOMPUTE_USER_DATA_0         userDataInternalTable;
     regCOMPUTE_SHADER_CHKSUM       computeShaderChksum;
+#if PAL_BUILD_GFX11
+    regCOMPUTE_DISPATCH_INTERLEAVE computeDispatchInterleave;
+#endif
 
     struct Dynamic
     {
@@ -92,6 +95,9 @@ public:
         const RegisterVector&  registers,
         uint32                 wavefrontSize,
         DispatchDims*          pThreadsPerTg,
+#if PAL_BUILD_GFX11
+        DispatchInterleaveSize interleaveSize,
+#endif
         PipelineUploader*      pUploader);
 
     uint32* UpdateDynamicRegInfo(
@@ -101,9 +107,24 @@ public:
         const DynamicComputeShaderInfo& csInfo,
         gpusize                         launchDescGpuVa) const;
 
+#if PAL_BUILD_GFX11
+    void AccumulateShCommandsDynamic(
+        PackedRegisterPair* pRegPairs,
+        uint32*             pNumRegs,
+        HwRegInfo::Dynamic  dynamicRegs,
+        gpusize             launchDescGpuVa) const;
+    void AccumulateShCommandsSetPath(
+        PackedRegisterPair* pRegPairs,
+        uint32*             pNumRegs,
+        bool                usingLaunchDesc) const;
+#endif
+
     uint32* WriteShCommands(
         CmdStream*                      pCmdStream,
         uint32*                         pCmdSpace,
+#if PAL_BUILD_GFX11
+        bool                            regPairsSupported,
+#endif
         const DynamicComputeShaderInfo& csInfo,
         gpusize                         launchDescGpuVa,
         bool                            prefetch) const;
@@ -134,6 +155,9 @@ public:
 private:
     void InitRegisters(
         const RegisterVector&  registers,
+#if PAL_BUILD_GFX11
+        DispatchInterleaveSize interleaveSize,
+#endif
         uint32                 wavefrontSize);
 
     void SetupSignatureFromRegisters(

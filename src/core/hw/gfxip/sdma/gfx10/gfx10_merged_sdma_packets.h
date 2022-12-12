@@ -76,6 +76,13 @@ namespace Gfx10x
     constexpr unsigned int SDMA_SUBOP_INVALIDATION                  = 4;
 } // namespace Gfx10x
 
+#if CHIP_HDR_NAVI31
+namespace Gfx11
+{
+    constexpr unsigned int SDMA_SUBOP_VM_INVALIDATION               = 4;
+} // namespace Gfx11
+#endif
+
 namespace Nv10
 {
 } // namespace Nv10
@@ -288,6 +295,13 @@ typedef struct SDMA_PKT_CONSTANT_FILL_TAG
             unsigned int count                          : 22;
             unsigned int                                : 10;
         } gfx10x;
+#if CHIP_HDR_NAVI31
+        struct
+        {
+            unsigned int count                          : 30;
+            unsigned int                                :  2;
+        } gfx11;
+#endif
         unsigned int DW_4_DATA;
     } COUNT_UNION;
 
@@ -2876,6 +2890,52 @@ typedef struct SDMA_PKT_PRE_EXE_TAG
 
 } SDMA_PKT_PRE_EXE;
 
+#if CHIP_HDR_NAVI31
+typedef struct SDMA_PKT_REGISTER_RMW_TAG
+{
+    union
+    {
+        struct
+        {
+            unsigned int op                             :  8;
+            unsigned int sub_op                         :  8;
+            unsigned int                                : 16;
+        };
+        unsigned int DW_0_DATA;
+    } HEADER_UNION;
+
+    union
+    {
+        struct
+        {
+            unsigned int addr                           : 18;
+            unsigned int                                :  2;
+            unsigned int aperture_id                    : 12;
+        };
+        unsigned int DW_1_DATA;
+    } ADDR_UNION;
+
+    union
+    {
+        struct
+        {
+            unsigned int mask                           : 32;
+        };
+        unsigned int DW_2_DATA;
+    } MASK_UNION;
+
+    union
+    {
+        struct
+        {
+            unsigned int value                          : 32;
+        };
+        unsigned int DW_3_DATA;
+    } VALUE_UNION;
+
+} SDMA_PKT_REGISTER_RMW;
+#endif
+
 typedef struct SDMA_PKT_SEMAPHORE_TAG
 {
     union
@@ -3107,6 +3167,55 @@ typedef struct SDMA_PKT_TRNG_FETCH_TAG
     } HEADER_UNION;
 
 } SDMA_PKT_TRNG_FETCH;
+
+#if CHIP_HDR_NAVI31
+typedef struct SDMA_PKT_VM_INVALIDATION_TAG
+{
+    union
+    {
+        struct
+        {
+            unsigned int op                             :  8;
+            unsigned int sub_op                         :  8;
+            unsigned int gfx_eng_id                     :  5;
+            unsigned int                                :  3;
+            unsigned int mm_eng_id                      :  5;
+            unsigned int                                :  3;
+        };
+        unsigned int DW_0_DATA;
+    } HEADER_UNION;
+
+    union
+    {
+        struct
+        {
+            unsigned int invalidatereq                  : 32;
+        };
+        unsigned int DW_1_DATA;
+    } INVALIDATEREQ_UNION;
+
+    union
+    {
+        struct
+        {
+            unsigned int addressrangelo                 : 32;
+        };
+        unsigned int DW_2_DATA;
+    } ADDRESSRANGELO_UNION;
+
+    union
+    {
+        struct
+        {
+            unsigned int invalidateack                  : 16;
+            unsigned int addressrangehi                 :  5;
+            unsigned int                                : 11;
+        };
+        unsigned int DW_3_DATA;
+    } ADDRESSRANGEHI_UNION;
+
+} SDMA_PKT_VM_INVALIDATION;
+#endif
 
 typedef struct SDMA_PKT_WRITE_INCR_TAG
 {
