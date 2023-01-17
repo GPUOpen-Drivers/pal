@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -110,8 +110,10 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdSetViewports,
     CmdBufferCmdSetScissorRects,
     CmdBufferCmdSetGlobalScissor,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
     CmdBufferCmdSetColorWriteMask,
     CmdBufferCmdSetRasterizerDiscardEnable,
+#endif
     CmdBufferCmdBarrier,
     CmdBufferCmdRelease,
     CmdBufferCmdAcquire,
@@ -189,7 +191,6 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdPresent,
     CmdBufferCmdCommentString,
     CmdBufferCmdNop,
-    CmdBufferCmdInsertExecutionMarker,
     CmdBufferCmdXdmaWaitFlipPending,
     CmdBufferCmdStartGpuProfilerLogging,
     CmdBufferCmdStopGpuProfilerLogging,
@@ -496,6 +497,7 @@ public:
     void Struct(const DynamicComputeShaderInfo& value);
     void Struct(const DynamicGraphicsShaderInfo& value);
     void Struct(const DynamicGraphicsShaderInfos& value);
+    void Struct(const DynamicGraphicsState& value);
     void Struct(Extent2d value);
     void Struct(Extent3d value);
     void Struct(const ExternalGpuMemoryOpenInfo& value);
@@ -508,7 +510,9 @@ public:
     void Struct(const FullScreenFrameMetadataControlFlags& value);
     void Struct(const GammaRamp& value);
     void Struct(const GlobalScissorParams& value);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
     void Struct(const ColorWriteMaskParams& value);
+#endif
     void Struct(const GpuEventCreateInfo& value);
     void Struct(GpuMemoryCreateFlags value);
     void Struct(const GpuMemoryCreateInfo& value);
@@ -624,6 +628,7 @@ public:
     void Enum(CompareFunc value);
     void Enum(CullMode value);
     void Enum(DepthRange value);
+    void Enum(DepthClampMode value);
     void Enum(DeviceClockMode value);
     void Enum(EngineType value);
     void Enum(FaceOrientation value);

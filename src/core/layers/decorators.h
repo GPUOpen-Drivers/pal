@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1490,6 +1490,7 @@ public:
         const GlobalScissorParams& params) override
         { m_pNextLayer->CmdSetGlobalScissor(params); }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
     virtual void CmdSetColorWriteMask(
         const ColorWriteMaskParams& params) override
         { m_pNextLayer->CmdSetColorWriteMask(params); }
@@ -1497,6 +1498,7 @@ public:
     virtual void CmdSetRasterizerDiscardEnable(
         bool rasterizerDiscardEnable) override
         { m_pNextLayer->CmdSetRasterizerDiscardEnable(rasterizerDiscardEnable); }
+#endif
 
     virtual void CmdBarrier(const BarrierInfo& barrierInfo) override;
 
@@ -2114,9 +2116,6 @@ public:
     virtual void CmdNop(const void* pPayload, uint32 payloadSize) override
         { return m_pNextLayer->CmdNop(pPayload, payloadSize); }
 
-    virtual uint32 CmdInsertExecutionMarker() override
-        { return m_pNextLayer->CmdInsertExecutionMarker(); }
-
     virtual void CmdPostProcessFrame(
         const CmdPostProcessFrameInfo& postProcessInfo,
         bool*                          pAddedGpuWork) override
@@ -2191,9 +2190,9 @@ public:
         uint32                           regionCount,
         const PrtPlusImageResolveRegion* pRegions) override
     {
-        m_pNextLayer->CmdResolvePrtPlusImage(srcImage,
+        m_pNextLayer->CmdResolvePrtPlusImage(*NextImage(&srcImage),
                                              srcImageLayout,
-                                             dstImage,
+                                             *NextImage(&dstImage),
                                              dstImageLayout,
                                              resolveType,
                                              regionCount,

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -281,8 +281,6 @@ void UniversalCmdBuffer::ResetState()
     }
 
     m_graphicsState.clipRectsState.clipRule = DefaultClipRectsRule;
-    m_graphicsState.colorWriteMask          = UINT_MAX;
-    m_graphicsState.rasterizerDiscardEnable = false;
 }
 
 // =====================================================================================================================
@@ -291,12 +289,11 @@ void UniversalCmdBuffer::CmdBindPipeline(
 {
     if (params.pipelineBindPoint == PipelineBindPoint::Graphics)
     {
+        m_graphicsState.pipelineState.dirtyFlags.pipeline |= (m_graphicsState.pipelineState.pPipeline !=
+                                                             static_cast<const Pipeline*>(params.pPipeline)) ? 1 : 0;
         m_graphicsState.dynamicGraphicsInfo      = params.graphics;
         m_graphicsState.pipelineState.pPipeline  = static_cast<const Pipeline*>(params.pPipeline);
         m_graphicsState.pipelineState.apiPsoHash = params.apiPsoHash;
-        m_graphicsState.colorWriteMask           = UINT_MAX;
-        m_graphicsState.pipelineState.dirtyFlags.pipeline = 1;
-        m_graphicsState.rasterizerDiscardEnable  = false;
     }
 
     // Compute state and some additional generic support is handled by the Pm4CmdBuffer.
@@ -500,18 +497,7 @@ void UniversalCmdBuffer::CmdSetLineStippleState(
     m_graphicsState.dirtyFlags.validationBits.lineStippleState = 1;
 }
 
-// =====================================================================================================================
-// Override the DB_RENDER_OVERRIDE.DISABLE_VIEWPORT_CLAMP bit at draw-time validation. It persists until the graphics
-// state is reset.
-void UniversalCmdBuffer::CmdOverwriteDisableViewportClampForBlits(
-    bool disableViewportClamp)
-{
-    m_graphicsState.depthClampOverride.enabled              = 1;
-    m_graphicsState.depthClampOverride.disableViewportClamp = disableViewportClamp;
-
-    m_graphicsState.dirtyFlags.validationBits.depthClampOverride = 1;
-}
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
 // =====================================================================================================================
 // Sets color write mask params
 void UniversalCmdBuffer::CmdSetColorWriteMask(
@@ -540,8 +526,15 @@ void UniversalCmdBuffer::CmdSetColorWriteMask(
             }
         }
 
-        m_graphicsState.colorWriteMask = updatedColorWriteMask;
-        m_graphicsState.dirtyFlags.validationBits.colorWriteMask = 1;
+        PipelineBindParams bindParams = {};
+        bindParams.pipelineBindPoint = PipelineBindPoint::Graphics;
+        bindParams.pPipeline         = pPipeline;
+        bindParams.apiPsoHash        = m_graphicsState.pipelineState.apiPsoHash;
+        bindParams.graphics          = m_graphicsState.dynamicGraphicsInfo;
+        bindParams.graphics.dynamicState.enable.colorWriteMask = 1;
+        bindParams.graphics.dynamicState.colorWriteMask        = updatedColorWriteMask;
+
+        CmdBindPipeline(bindParams);
     }
 }
 
@@ -555,10 +548,20 @@ void UniversalCmdBuffer::CmdSetRasterizerDiscardEnable(
     if (pPipeline != nullptr)
     {
         const TossPointMode tossPointMode = static_cast<TossPointMode>(m_device.Parent()->Settings().tossPointMode);
-        m_graphicsState.rasterizerDiscardEnable = rasterizerDiscardEnable || (tossPointMode == TossPointAfterRaster);
-        m_graphicsState.dirtyFlags.validationBits.rasterizerDiscardEnable = 1;
+
+        PipelineBindParams bindParams = {};
+        bindParams.pipelineBindPoint = PipelineBindPoint::Graphics;
+        bindParams.pPipeline         = pPipeline;
+        bindParams.apiPsoHash        = m_graphicsState.pipelineState.apiPsoHash;
+        bindParams.graphics          = m_graphicsState.dynamicGraphicsInfo;
+        bindParams.graphics.dynamicState.enable.rasterizerDiscardEnable = 1;
+        bindParams.graphics.dynamicState.rasterizerDiscardEnable        =
+            rasterizerDiscardEnable || (tossPointMode == TossPointAfterRaster);
+
+        CmdBindPipeline(bindParams);
     }
 }
+#endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
 // =====================================================================================================================
@@ -655,11 +658,6 @@ void UniversalCmdBuffer::CmdRestoreGraphicsState()
 
     SetGraphicsState(m_graphicsRestoreState);
 
-    // This is expected to hold if the override is only used by RPM.
-    PAL_ASSERT(m_graphicsRestoreState.depthClampOverride.enabled == 0);
-    m_graphicsState.depthClampOverride.enabled              = 0;
-    m_graphicsState.depthClampOverride.disableViewportClamp = 0;
-
     GfxCmdBuffer::CmdRestoreGraphicsState();
 
     // Reactivate all queries that we stopped in CmdSaveGraphicsState.
@@ -687,7 +685,10 @@ void UniversalCmdBuffer::SetGraphicsState(
 {
     const auto& pipelineState = newGraphicsState.pipelineState;
 
-    if (pipelineState.pPipeline != m_graphicsState.pipelineState.pPipeline)
+    if (pipelineState.pPipeline != m_graphicsState.pipelineState.pPipeline ||
+        (memcmp(&newGraphicsState.dynamicGraphicsInfo.dynamicState,
+                &m_graphicsState.dynamicGraphicsInfo.dynamicState,
+                sizeof(DynamicGraphicsState)) != 0))
     {
         PipelineBindParams bindParams = {};
         bindParams.pipelineBindPoint  = PipelineBindPoint::Graphics;
@@ -708,9 +709,6 @@ void UniversalCmdBuffer::SetGraphicsState(
     {
         m_graphicsState.gfxUserDataEntries.dirty[i] |= newGraphicsState.gfxUserDataEntries.touched[i];
     }
-
-    m_graphicsState.colorWriteMask = newGraphicsState.colorWriteMask;
-    m_graphicsState.rasterizerDiscardEnable = newGraphicsState.rasterizerDiscardEnable;
 }
 
 // =====================================================================================================================

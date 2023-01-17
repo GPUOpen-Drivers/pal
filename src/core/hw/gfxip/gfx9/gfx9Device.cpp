@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -956,76 +956,6 @@ Result Device::CreateQueueContext(
         result = Result::ErrorUnavailable;
         break;
     }
-
-    return result;
-}
-
-// =====================================================================================================================
-size_t Device::GetComputePipelineSize(
-    const ComputePipelineCreateInfo& createInfo,
-    Result*                          pResult
-    ) const
-{
-    if (pResult != nullptr)
-    {
-        (*pResult) = Result::Success;
-    }
-
-    return sizeof(ComputePipeline);
-}
-
-// =====================================================================================================================
-Result Device::CreateComputePipeline(
-    const ComputePipelineCreateInfo& createInfo,
-    void*                            pPlacementAddr,
-    bool                             isInternal,
-    IPipeline**                      ppPipeline)
-{
-    auto* pPipeline = PAL_PLACEMENT_NEW(pPlacementAddr) ComputePipeline(this, isInternal);
-
-    Result result = pPipeline->Init(createInfo);
-    if (result != Result::Success)
-    {
-        pPipeline->Destroy();
-        pPipeline = nullptr;
-    }
-
-    *ppPipeline = pPipeline;
-
-    return result;
-}
-
-// =====================================================================================================================
-size_t Device::GetShaderLibrarySize(
-    const ShaderLibraryCreateInfo&  createInfo,
-    Result*                         pResult
-    ) const
-{
-    if (pResult != nullptr)
-    {
-        (*pResult) = Result::Success;
-    }
-
-    return sizeof(ShaderLibrary);
-}
-
-// =====================================================================================================================
-Result Device::CreateShaderLibrary(
-    const ShaderLibraryCreateInfo&  createInfo,
-    void*                           pPlacementAddr,
-    bool                            isInternal,
-    IShaderLibrary**                ppPipeline)
-{
-    auto* pShaderLib = PAL_PLACEMENT_NEW(pPlacementAddr) ShaderLibrary(this);
-
-    Result result = pShaderLib->Initialize(createInfo);
-    if (result != Result::Success)
-    {
-        pShaderLib->Destroy();
-        pShaderLib = nullptr;
-    }
-
-    *ppPipeline = pShaderLib;
 
     return result;
 }
@@ -2534,12 +2464,26 @@ static Result ConvertAbiRegistersToMetadata(
                                               ? 0
                                               : ((pHwCs->vgprCount - 1) / ((isWave32) ? 8 : 4));
 
-                    PAL_ASSERT(pHwCs->hasEntry.vgprCount        &&
+                    PAL_ASSERT((pHwCs->hasEntry.vgprCount == 0) ||
+                               (pHwCs->hasEntry.vgprCount       &&
                                (pHwCs->vgprCount <= allocVgprs) &&
-                               (rsrc1.bits.VGPRS == calcVgprs));
+                               (rsrc1.bits.VGPRS == calcVgprs)));
 
                     const uint32 calcSgprs  = (pHwCs->sgprCount == 0) ? 0 : ((pHwCs->sgprCount - 1) / 8);
-                    PAL_ASSERT(pHwCs->hasEntry.sgprCount && (rsrc1.bits.SGPRS == calcSgprs));
+                    PAL_ASSERT((pHwCs->hasEntry.sgprCount == 0) ||
+                               (pHwCs->hasEntry.sgprCount && (rsrc1.bits.SGPRS == calcSgprs)));
+
+                    // only hit here via ShaderLibrary so far
+                    if ((pHwCs->hasEntry.vgprCount == 0) && (rsrc1.bits.VGPRS != 0))
+                    {
+                        PAL_SET_ABI_FIELD(pHwCs, vgprCount, allocVgprs);
+                    }
+
+                    if ((pHwCs->hasEntry.sgprCount == 0) && (rsrc1.bits.SGPRS != 0))
+                    {
+                        const uint32 allocSgprs = (rsrc1.bits.SGPRS + 1) * 8;
+                        PAL_SET_ABI_FIELD(pHwCs, sgprCount, allocSgprs);
+                    }
 
                     PAL_SET_ABI_FIELD(pHwCs, floatMode, rsrc1.bits.FLOAT_MODE);
 
@@ -2561,19 +2505,18 @@ static Result ConvertAbiRegistersToMetadata(
                     PAL_SET_ABI_FIELD(pHwCs, userSgprs, rsrc2.bits.USER_SGPR);
 
                     const uint32 excpEn = rsrc2.bits.EXCP_EN |
-                                         (rsrc2.bits.EXCP_EN_MSB << CountSetBits(COMPUTE_PGM_RSRC2__EXCP_EN_MASK));
+                                          (rsrc2.bits.EXCP_EN_MSB << CountSetBits(COMPUTE_PGM_RSRC2__EXCP_EN_MASK));
                     PAL_SET_ABI_FIELD(pHwCs, excpEn, excpEn);
 
-                    PAL_SET_ABI_FLAG(pHwCs, scratchEn,    rsrc2.bits.SCRATCH_EN);
-                    PAL_SET_ABI_FLAG(pHwCs, trapPresent,  rsrc2.bits.TRAP_PRESENT);
+                    PAL_SET_ABI_FLAG(pHwCs, scratchEn,   rsrc2.bits.SCRATCH_EN);
+                    PAL_SET_ABI_FLAG(pHwCs, trapPresent, rsrc2.bits.TRAP_PRESENT);
 
                     PAL_SET_ABI_FIELD(pComputeRegisters, tidigCompCnt, rsrc2.bits.TIDIG_COMP_CNT);
 
                     PAL_SET_ABI_FLAG(pComputeRegisters, tgidXEn,  rsrc2.bits.TGID_X_EN);
                     PAL_SET_ABI_FLAG(pComputeRegisters, tgidYEn,  rsrc2.bits.TGID_Y_EN);
                     PAL_SET_ABI_FLAG(pComputeRegisters, tgidZEn,  rsrc2.bits.TGID_Z_EN);
-
-                    //PAL_SET_ABI_FLAG(pComputeRegisters, tgSizeEn, rsrc2.bits.TG_SIZE_EN);
+                    PAL_SET_ABI_FLAG(pComputeRegisters, tgSizeEn, rsrc2.bits.TG_SIZE_EN);
 
                     const uint32 allocLdsSize = rsrc2.bits.LDS_SIZE * Gfx9LdsDwGranularity * sizeof(uint32);
                     if (pHwCs->hasEntry.ldsSize)
@@ -2656,6 +2599,124 @@ static Result ConvertAbiRegistersToMetadata(
             }
         }
     }
+
+    return result;
+}
+
+// =====================================================================================================================
+size_t Device::GetComputePipelineSize(
+    const ComputePipelineCreateInfo& createInfo,
+    Result*                          pResult
+    ) const
+{
+    if (pResult != nullptr)
+    {
+        (*pResult) = Result::Success;
+    }
+
+    return sizeof(ComputePipeline);
+}
+
+// =====================================================================================================================
+Result Device::CreateComputePipeline(
+    const ComputePipelineCreateInfo& createInfo,
+    void*                            pPlacementAddr,
+    bool                             isInternal,
+    IPipeline**                      ppPipeline)
+{
+    PAL_ASSERT(createInfo.pPipelineBinary != nullptr);
+    PAL_ASSERT(pPlacementAddr != nullptr);
+
+    AbiReader abiReader(GetPlatform(), createInfo.pPipelineBinary);
+    Result result = abiReader.Init();
+
+    if (result == Result::Success)
+    {
+        MsgPackReader metadataReader;
+        PalAbi::CodeObjectMetadata metadata = {};
+
+        const uint8 abi = abiReader.GetOsAbi();
+        if (abi == Abi::ElfOsAbiAmdgpuPal)
+        {
+            result = abiReader.GetMetadata(&metadataReader, &metadata);
+
+            if (result == Result::Success)
+            {
+                result = ConvertAbiRegistersToMetadata(this, &metadata, &metadataReader);
+            }
+        }
+
+        auto* pPipeline = PAL_PLACEMENT_NEW(pPlacementAddr) ComputePipeline(this, isInternal);
+        if (result == Result::Success)
+        {
+            result = pPipeline->Init(createInfo, abiReader, metadata, &metadataReader);
+        }
+
+        if (result != Result::Success)
+        {
+            pPipeline->Destroy();
+            pPipeline = nullptr;
+        }
+
+        *ppPipeline = pPipeline;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+size_t Device::GetShaderLibrarySize(
+    const ShaderLibraryCreateInfo& createInfo,
+    Result*                        pResult
+    ) const
+{
+    if (pResult != nullptr)
+    {
+        (*pResult) = Result::Success;
+    }
+
+    return sizeof(ShaderLibrary);
+}
+
+// =====================================================================================================================
+Result Device::CreateShaderLibrary(
+    const ShaderLibraryCreateInfo&  createInfo,
+    void*                           pPlacementAddr,
+    bool                            isInternal,
+    IShaderLibrary**                ppPipeline)
+{
+    PAL_ASSERT(createInfo.pCodeObject != nullptr);
+    PAL_ASSERT(pPlacementAddr != nullptr);
+    AbiReader abiReader(GetPlatform(), createInfo.pCodeObject);
+    Result result = abiReader.Init();
+
+    MsgPackReader              metadataReader;
+    PalAbi::CodeObjectMetadata metadata;
+
+    if (result == Result::Success)
+    {
+        result = abiReader.GetMetadata(&metadataReader, &metadata);
+    }
+
+    if (result == Result::Success)
+    {
+        result = ConvertAbiRegistersToMetadata(this, &metadata, &metadataReader);
+    }
+
+    auto* pShaderLib = PAL_PLACEMENT_NEW(pPlacementAddr) ShaderLibrary(this);
+
+    if (result == Result::Success)
+    {
+        result = pShaderLib->Initialize(createInfo, abiReader, metadata, &metadataReader);
+    }
+
+    if (result != Result::Success)
+    {
+        pShaderLib->Destroy();
+        pShaderLib = nullptr;
+    }
+
+    *ppPipeline = pShaderLib;
 
     return result;
 }
@@ -6602,6 +6663,17 @@ GfxIpLevel DetermineIpLevel(
         }
         break;
 
+    case FAMILY_RMB:
+        if (AMDGPU_IS_REMBRANDT(familyId, eRevId))
+        {
+            level = GfxIpLevel::GfxIp10_3;
+        }
+        else
+        {
+            PAL_NOT_IMPLEMENTED_MSG("RMB_FAMILY Revision %d unsupported", eRevId);
+        }
+        break;
+
 #if PAL_BUILD_NAVI3X
     case FAMILY_NV3:
 #if PAL_BUILD_NAVI31
@@ -6617,6 +6689,26 @@ GfxIpLevel DetermineIpLevel(
         break;
 #endif
 
+    case FAMILY_RPL:
+        if (AMDGPU_IS_RAPHAEL(familyId, eRevId))
+        {
+            level = GfxIpLevel::GfxIp10_3;
+        }
+        else
+        {
+            PAL_NOT_IMPLEMENTED_MSG("RPL_FAMILY Revision %d unsupported", eRevId);
+        }
+        break;
+    case FAMILY_MDN:
+        if (AMDGPU_IS_MENDOCINO(familyId, eRevId))
+        {
+            level = GfxIpLevel::GfxIp10_3;
+        }
+        else
+        {
+            PAL_NOT_IMPLEMENTED_MSG("MDN_FAMILY Revision %d unsupported", eRevId);
+        }
+        break;
     default:
         PAL_ASSERT_ALWAYS();
         break;
@@ -7175,6 +7267,36 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.numTccBlocks = pInfo->gfx9.gfx10.numGl2c;
         break;
 
+    case FAMILY_RMB:
+        if (AMDGPU_IS_REMBRANDT(pInfo->familyId, pInfo->eRevId))
+        {
+            pInfo->gpuType                             = GpuType::Integrated;
+            pInfo->revision                            = AsicRevision::Rembrandt;
+            pInfo->gfxStepping                         = Abi::GfxIpSteppingRembrandt;
+            pInfo->gfx9.numShaderEngines               = 1; // GC__NUM_SE
+            pInfo->gfx9.rbPlus                         = 1; // GC__RB_PLUS_ADDRESSING == 1
+            pInfo->gfx9.numSdpInterfaces               = 4; // GC__NUM_SDP
+            pInfo->gfx9.maxNumCuPerSh                  = 6; // (GC__NUM_WGP0_PER_SA (3) + GC__NUM_WGP1_PER_SA (0)) * 2
+            pInfo->gfx9.maxNumRbPerSe                  = 4; // GC__NUM_RB_PER_SA (2) * NUM_SA (2) (may eventually be 3)
+            pInfo->gfx9.numPackerPerSc                 = 4;
+            pInfo->gfx9.parameterCacheLines            = 256;
+            pInfo->gfx9.gfx10.numGl2a                  = 4; // GC__NUM_GL2A
+            pInfo->gfx9.gfx10.numGl2c                  = 4; // GC__NUM_GL2C
+            pInfo->gfx9.gfx10.numWgpAboveSpi           = 3; // GPU__GC__NUM_WGP0_PER_SA
+            pInfo->gfx9.gfx10.numWgpBelowSpi           = 0; // GPU__GC__NUM_WGP1_PER_SA
+            pInfo->gfxip.supportCaptureReplay          = 0;
+            pInfo->gfx9.supportInt8Dot                 = 1;
+            pInfo->gfx9.supportInt4Dot                 = 1;
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS_MSG("Unknown RMB Revision %d", pInfo->eRevId);
+        }
+
+        // The GL2C is the TCC.
+        pInfo->gfx9.numTccBlocks = pInfo->gfx9.gfx10.numGl2c;
+        break;
+
 #if PAL_BUILD_NAVI3X
     case FAMILY_NV3:
         pInfo->gfx9.rbPlus     = 1;
@@ -7219,6 +7341,68 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.numTccBlocks = pInfo->gfx9.gfx10.numGl2c;
         break;
 #endif
+
+    case FAMILY_RPL:
+        if (AMDGPU_IS_RAPHAEL(pInfo->familyId, pInfo->eRevId))
+        {
+            pInfo->gpuType                             = GpuType::Integrated;
+            pInfo->revision                            = AsicRevision::Raphael;
+            pInfo->gfxStepping                         = Abi::GfxIpSteppingRaphael;
+            pInfo->gfx9.numShaderEngines               = 1; // GC__NUM_SE
+            pInfo->gfx9.rbPlus                         = 1; // GC__RB_PLUS_ADDRESSING == 1
+            pInfo->gfx9.numSdpInterfaces               = 2; // GC__NUM_SDP
+            pInfo->gfx9.maxNumCuPerSh                  = 2;
+            pInfo->gfx9.maxNumRbPerSe                  = 1;
+            pInfo->gfx9.parameterCacheLines            = 256;
+
+            pInfo->gfx9.gfx10.numGl2a                  = 2; // GC__NUM_GL2A
+            pInfo->gfx9.gfx10.numGl2c                  = 2; // GC__NUM_GL2C
+            pInfo->gfx9.gfx10.numWgpAboveSpi           = 1; // GPU__GC__NUM_WGP0_PER_SA
+            pInfo->gfx9.gfx10.numWgpBelowSpi           = 0; // GPU__GC__NUM_WGP1_PER_SA
+
+            pInfo->gfxip.supportCaptureReplay          = 0;
+            pInfo->gfx9.supportInt8Dot                 = 1;
+            pInfo->gfx9.supportInt4Dot                 = 1;
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS_MSG("Unknown RPL Revision %d", pInfo->eRevId);
+        }
+
+        // The GL2C is the TCC.
+        pInfo->gfx9.numTccBlocks = pInfo->gfx9.gfx10.numGl2c;
+        break;
+
+    case FAMILY_MDN:
+        if (AMDGPU_IS_MENDOCINO(pInfo->familyId, pInfo->eRevId))
+        {
+            pInfo->gpuType                             = GpuType::Integrated;
+            pInfo->revision                            = AsicRevision::Raphael;
+            pInfo->gfxStepping                         = Abi::GfxIpSteppingRaphael;
+            pInfo->gfx9.numShaderEngines               = 1; // GC__NUM_SE
+            pInfo->gfx9.rbPlus                         = 1; // GC__RB_PLUS_ADDRESSING == 1
+            pInfo->gfx9.numSdpInterfaces               = 2; // GC__NUM_SDP
+            pInfo->gfx9.maxNumCuPerSh                  = 2;
+            pInfo->gfx9.maxNumRbPerSe                  = 1;
+            pInfo->gfx9.parameterCacheLines            = 256;
+
+            pInfo->gfx9.gfx10.numGl2a                  = 2; // GC__NUM_GL2A
+            pInfo->gfx9.gfx10.numGl2c                  = 2; // GC__NUM_GL2C
+            pInfo->gfx9.gfx10.numWgpAboveSpi           = 1; // GPU__GC__NUM_WGP0_PER_SA
+            pInfo->gfx9.gfx10.numWgpBelowSpi           = 0; // GPU__GC__NUM_WGP1_PER_SA
+
+            pInfo->gfxip.supportCaptureReplay          = 0;
+            pInfo->gfx9.supportInt8Dot                 = 1;
+            pInfo->gfx9.supportInt4Dot                 = 1;
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS_MSG("Unknown MDN Revision %d", pInfo->eRevId);
+        }
+
+        // The GL2C is the TCC.
+        pInfo->gfx9.numTccBlocks = pInfo->gfx9.gfx10.numGl2c;
+        break;
 
     default:
         PAL_ASSERT_ALWAYS();

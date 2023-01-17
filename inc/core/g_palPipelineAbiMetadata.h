@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1638,34 +1638,36 @@ struct GraphicsRegisterMetadata
         struct
         {
             /// Enables loading of threadgroup related info into SGPR.
-            uint16 hsTgSizeEn            : 1;
+            uint16 hsTgSizeEn                 : 1;
             /// Whether to enable loading of streamout base0 into SGPR.
-            uint16 vsSoBase0En           : 1;
+            uint16 vsSoBase0En                : 1;
             /// Whether to enable loading of streamout base1 into SGPR.
-            uint16 vsSoBase1En           : 1;
+            uint16 vsSoBase1En                : 1;
             /// Whether to enable loading of streamout base2 into SGPR.
-            uint16 vsSoBase2En           : 1;
+            uint16 vsSoBase2En                : 1;
             /// Whether to enable loading of streamout base3 into SGPR.
-            uint16 vsSoBase3En           : 1;
+            uint16 vsSoBase3En                : 1;
             /// Whether to enable loading of streamout buffer config into SGPR.
-            uint16 vsStreamoutEn         : 1;
+            uint16 vsStreamoutEn              : 1;
             /// Whether to enable loading of offchip parameter cache base into SGPR.
-            uint16 vsPcBaseEn            : 1;
+            uint16 vsPcBaseEn                 : 1;
             /// Whether to enable loading of the PS provoking vertex information into the SGPR.
-            uint16 psLoadProvokingVtx    : 1;
+            uint16 psLoadProvokingVtx         : 1;
             /// Whether the HW increments a per-wave count for PS and load the value into SGPR.
-            uint16 psWaveCntEn           : 1;
+            uint16 psWaveCntEn                : 1;
             /// Enables per-sample (i.e. unique shader-computed value per sample) pixel shader execution
-            uint16 psIterSample          : 1;
+            uint16 psIterSample               : 1;
             /// Whether vertex reuse in the frontend is disabled.
-            uint16 vgtReuseOff           : 1;
+            uint16 vgtReuseOff                : 1;
+            /// Mesh shader uses linear dispatch from task shader thread group dimensions.
+            uint16 meshLinearDispatchFromTask : 1;
             /// Whether the primitive export contains additional payload.
-            uint16 vgtDrawPrimPayloadEn  : 1;
+            uint16 vgtDrawPrimPayloadEn       : 1;
             /// Whether primitive ID generation is enabled.
-            uint16 vgtPrimitiveIdEn      : 1;
+            uint16 vgtPrimitiveIdEn           : 1;
             /// Whether to disable reuse on provoking vertex in NGG.
-            uint16 nggDisableProvokReuse : 1;
-            uint16 reserved              : 2;
+            uint16 nggDisableProvokReuse      : 1;
+            uint16 reserved                   : 1;
         };
         uint16 uAll;
     } flags;
@@ -1710,6 +1712,7 @@ struct GraphicsRegisterMetadata
             uint64 placeholder0               : 1;
             uint64 placeholder1               : 1;
 #endif
+            uint64 meshLinearDispatchFromTask : 1;
             uint64 vgtGsMaxVertOut            : 1;
             uint64 vgtGsInstanceCnt           : 1;
             uint64 vgtEsgsRingItemsize        : 1;
@@ -1742,7 +1745,6 @@ struct GraphicsRegisterMetadata
             uint64 spiPsInputAddr             : 1;
             uint64 spiShaderColFormat         : 1;
             uint64 spiShaderZFormat           : 1;
-            uint64 reserved                   : 1;
         };
         uint64 uAll;
     } hasEntry;
@@ -1765,7 +1767,9 @@ struct ComputeRegisterMetadata
             uint8 tgidYEn  : 1;
             /// Enables loading of TGID.Z into SGPR.
             uint8 tgidZEn  : 1;
-            uint8 reserved : 5;
+            /// Enables loading of threadgroup related info into SGPR.
+            uint8 tgSizeEn : 1;
+            uint8 reserved : 4;
         };
         uint8 uAll;
     } flags;
@@ -1777,8 +1781,9 @@ struct ComputeRegisterMetadata
             uint8 tgidXEn      : 1;
             uint8 tgidYEn      : 1;
             uint8 tgidZEn      : 1;
+            uint8 tgSizeEn     : 1;
             uint8 tidigCompCnt : 1;
-            uint8 reserved     : 4;
+            uint8 reserved     : 3;
         };
         uint8 uAll;
     } hasEntry;
@@ -1953,6 +1958,7 @@ namespace ComputeRegisterMetadataKey
     static constexpr char TgidXEn[]      = ".tgid_x_en";
     static constexpr char TgidYEn[]      = ".tgid_y_en";
     static constexpr char TgidZEn[]      = ".tgid_z_en";
+    static constexpr char TgSizeEn[]     = ".tg_size_en";
     static constexpr char TidigCompCnt[] = ".tidig_comp_cnt";
 };
 
@@ -1995,6 +2001,7 @@ namespace GraphicsRegisterMetadataKey
     static constexpr char SpiShaderGsMeshletExpAlloc[] = ".spi_shader_gs_meshlet_exp_alloc";
 #endif
 
+    static constexpr char MeshLinearDispatchFromTask[] = ".mesh_linear_dispatch_from_task";
     static constexpr char VgtGsMaxVertOut[]            = ".vgt_gs_max_vert_out";
     static constexpr char VgtGsInstanceCnt[]           = ".vgt_gs_instance_cnt";
     static constexpr char VgtEsgsRingItemsize[]        = ".vgt_esgs_ring_itemsize";

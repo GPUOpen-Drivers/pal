@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -73,6 +73,25 @@ struct ExternalSharedInfo
     amdgpu_bo_handle_type   handleType;            // Type of the external resource handle.
 };
 
+// All of the parameters for DRM node properties.
+struct DrmNodeProperties
+{
+    union
+    {
+        struct
+        {
+            uint8 hasPrimaryDrmNode : 1;     // Set if the device has a primary DRM node.
+            uint8 hasRenderDrmNode  : 1;     // Set if the device has a render DRM node.
+            uint8 reserved          : 6;
+        };
+        uint8 u8All;
+    } flags;
+    int64 primaryDrmNodeMajor;               // DRM primary node major number.
+    int64 primaryDrmNodeMinor;               // DRM primary node minor number.
+    int64 renderDrmNodeMajor;                // DRM render node major number.
+    int64 renderDrmNodeMinor;                // DRM render node minor number.
+};
+
 // All of the parameters for Pal::Amdgpu::Device constructor.
 struct DeviceConstructorParams
 {
@@ -93,6 +112,7 @@ struct DeviceConstructorParams
     const amdgpu_gpu_info&      gpuInfo;
     const HwIpDeviceSizes&      hwDeviceSizes;
     const drmPciBusInfo&        pciBusInfo;
+    const DrmNodeProperties&    drmNodeProperties;
 };
 
 // the struct is used for sharing metadata with mesa3d, the definition have to follow Mesa's way.
@@ -154,6 +174,7 @@ public:
         const char*             pBusId,
         const char*             pPrimaryNode,
         const char*             pRenderNode,
+        int32                   availableNodes,
         const drmPciBusInfo&    pciBusInfo,
         uint32                  deviceIndex,
         Device**                ppDeviceOut);
@@ -1031,6 +1052,8 @@ private:
     amdgpu_gpu_info  m_gpuInfo;                              // Gpu info queried from kernel
     bool             m_supportsPresent[QueueTypeCount];      // Indicates if each queue type supports presents.
 
+    DrmNodeProperties m_drmNodeProperties;
+
     bool   m_supportExternalSemaphore; // Indicate if external semaphore is supported.
 
     const char*  m_pSettingsPath;
@@ -1103,7 +1126,8 @@ private:
             uint32 requirePrtReserveVaWa               : 1;     // Indicate whether kernel has the fix for PRT va range handling.
             uint32 supportRaw2Submit                   : 1;     // Support amdgpu_cs_submit_raw2.
             uint32 useBoListCreate                     : 1;     // Indicate whether legacy path is needed for raw IBs submission.
-            uint32 reserved                            : 25;
+            uint32 supportPowerDpmIoctl                : 1;     // Support setting/getting Power DPM status by IOCTL
+            uint32 reserved                            : 24;
         };
         uint32 flags;
     } m_featureState;

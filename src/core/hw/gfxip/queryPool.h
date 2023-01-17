@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -122,13 +122,15 @@ protected:
               gpusize                    querySizeInBytes,
               gpusize                    tsSizeInBytes);
 
-    virtual void OptimizedReset(
+    // Reset query via PM4 commands on a PM4-supported command buffer.
+    virtual void NormalReset(
         GfxCmdBuffer* pCmdBuffer,
         CmdStream*    pCmdStream,
         uint32        startQuery,
         uint32        queryCount) const = 0;
 
-    virtual void NormalReset(
+    // Reset query using DMA, when NormalReset() can't be used or the command buffer does not support PM4.
+    virtual void DmaEngineReset(
         GfxCmdBuffer* pCmdBuffer,
         CmdStream*    pCmdStream,
         uint32        startQuery,

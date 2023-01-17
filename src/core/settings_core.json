@@ -130,6 +130,49 @@
       "Description": "Requests that contexts be created with a debug VMID. This allows for better shader debugging by keeping the page tables valid after the context has been switched out.  This is also useful for SQTT profiling as it ensures both compute and graphics queue work will share the same VMID allowing the thread trace to be filtered to a single VMID (to avoid capturing other processes work) while still capturing all work by the target process. NOTE: RGP tracing automatically requests the Debug VMID during setup so there is no need to change this setting when capturing RGP traces. A static VMID is requested instead if the supportStaticVmid flag is set in GpuChipProperties."
     },
     {
+      "Name": "StartingPerfcounterState",
+      "Tags": [
+        "General",
+        "Debug",
+        "Profiling"
+      ],
+      "ValidValues": {
+        "IsEnum": true,
+        "IsExclusive": true,
+        "Values": [
+          {
+            "Name": "StartingPerfcounterStateDisabled",
+            "Value": 0,
+            "Description": "Perfcounters get disabled at start of workloads"
+          },
+          {
+            "Name": "StartingPerfcounterStateEnabled",
+            "Value": 1,
+            "Description": "Perfcounters get enabled at start of workloads"
+          },
+          {
+            "Name": "StartingPerfcounterStateAuto",
+            "Value": 2,
+            "Description": "Perfcounters get enabled/disabled at start of workloads based on if perfcounter tools are enabled"
+          },
+          {
+            "Name": "StartingPerfcounterStateUntouched",
+            "Value": 3,
+            "Description": "Don't touch perfcounters enablement at start of workloads."
+          }
+        ],
+        "Name": "StartingPerfcounterState",
+        "Description": "How to handle perfcounter state at the start of workloads."
+      },
+      "Defaults": {
+        "Default": "StartingPerfcounterStateAuto"
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "enum",
+      "VariableName": "startingPerfcounterState",
+      "Description": "Whether to tell windowed perfcounters to count the current workload. By default, enabled if RDP is detected or GpuProfiler is on."
+    },
+    {
       "Name": "DefaultSqttDetailedCuIndex",
       "Tags": [
         "General",
@@ -1007,7 +1050,7 @@
         "Printing and Logging"
       ],
       "Defaults": {
-        "Default": "CmdBufDumpFormatText"
+        "Default": "CmdBufDumpFormatBinaryHeaders"
       },
       "DependsOn": {
         "Settings": [

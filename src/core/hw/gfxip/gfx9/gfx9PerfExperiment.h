@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -300,7 +300,7 @@ struct SpmCounterMapping
     bool               isOdd;      // If the counter requires the upper 16-bits of a 32-bit counter wire.
 
     // Output information.
-    gpusize            offsetLo;   // Offset within the segment's output buffer to the counter's lower 16 bits.
+    gpusize            offsetLo;   // Offset within a data sample for this counter's lower 16 bits.
     gpusize            offsetHi;   // For 32-bit counters, the corresponding offset for the upper 16 bits.
 };
 
@@ -415,6 +415,9 @@ private:
     // Global SPM state.
     SpmCounterMapping* m_pSpmCounters;                      // The list of all enabled SPM counters.
     uint32             m_numSpmCounters;
+#if PAL_BUILD_GFX11
+    uint32             m_gfx11MaxMuxSelLines;
+#endif
     SpmLineMapping*    m_pMuxselRams[MaxNumSpmSegments];    // One array of muxsel programmings for each segment.
     uint32             m_numMuxselLines[MaxNumSpmSegments];
     uint32             m_spmRingSize;                       // The SPM ring buffer size in bytes.

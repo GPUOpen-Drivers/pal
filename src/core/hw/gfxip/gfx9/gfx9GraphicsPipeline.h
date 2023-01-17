@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -79,14 +79,9 @@ struct GfxPipelineRegs
         regVGT_SHADER_STAGES_EN         vgtShaderStagesEn;
         regVGT_GS_MODE                  vgtGsMode;
         regVGT_REUSE_OFF                vgtReuseOff;
-        regVGT_TF_PARAM                 vgtTfParam;
-        regCB_COLOR_CONTROL             cbColorControl;
-        regCB_TARGET_MASK               cbTargetMask;
         regCB_SHADER_MASK               cbShaderMask;
-        regPA_CL_CLIP_CNTL              paClClipCntl;
         regPA_SU_VTX_CNTL               paSuVtxCntl;
         regPA_CL_VTE_CNTL               paClVteCntl;
-        regPA_SC_LINE_CNTL              paScLineCntl;
         regPA_SC_EDGERULE               paScEdgerule;
         regPA_STEREO_CNTL               paStereoCntl;
         regSPI_INTERP_CONTROL_0         spiInterpControl0;
@@ -120,6 +115,13 @@ struct GfxPipelineRegs
         // where these two registers' values change at a high frequency between draws.
         regSPI_VS_OUT_CONFIG  spiVsOutConfig;
         regSPI_PS_IN_CONTROL  spiPsInControl;
+
+        // These registers may be modified by pipeline dynamic state and are written at draw-time validation.
+        regVGT_TF_PARAM          vgtTfParam;
+        regCB_COLOR_CONTROL      cbColorControl;
+        regCB_TARGET_MASK        cbTargetMask;
+        regPA_CL_CLIP_CNTL       paClClipCntl;
+        regPA_SC_LINE_CNTL       paScLineCntl;
     } other;
 
     struct
@@ -133,6 +135,34 @@ struct GfxPipelineRegs
     static constexpr uint32 NumContextReg = sizeof(Context) / sizeof(uint32_t);
     static constexpr uint32 NumShReg      = sizeof(Sh)      / sizeof(uint32_t);
 };
+
+// =====================================================================================================================
+// Converts the specified logic op enum into a ROP3 code (for programming CB_COLOR_CONTROL).
+inline uint8 Rop3(
+    LogicOp logicOp)
+{
+    constexpr uint8 Rop3Codes[] =
+    {
+        0xCC, // Copy (S)
+        0x00, // Clear (clear to 0)
+        0x88, // And (S & D)
+        0x44, // AndReverse (S & (~D))
+        0x22, // AndInverted ((~S) & D)
+        0xAA, // Noop (D)
+        0x66, // Xor (S ^ D)
+        0xEE, // Or (S | D)
+        0x11, // Nor (~(S | D))
+        0x99, // Equiv (~(S ^ D))
+        0x55, // Invert (~D)
+        0xDD, // OrReverse (S | (~D))
+        0x33, // CopyInverted (~S)
+        0xBB, // OrInverted ((~S) | D)
+        0x77, // Nand (~(S & D))
+        0xFF  // Set (set to 1)
+    };
+
+    return Rop3Codes[static_cast<uint32>(logicOp)];
+}
 
 // =====================================================================================================================
 // GFX9 graphics pipeline class: implements common GFX9-specific functionality for the GraphicsPipeline class.  Details
@@ -152,8 +182,6 @@ public:
 
     regPA_SC_MODE_CNTL_1 PaScModeCntl1() const { return m_regs.other.paScModeCntl1; }
 
-    bool UpdateNggPrimCb(Util::Abi::PrimShaderCullingCb* pPrimShaderCb) const;
-
     regIA_MULTI_VGT_PARAM IaMultiVgtParam(bool forceWdSwitchOnEop) const
         { return m_regs.other.iaMultiVgtParam[static_cast<uint32>(forceWdSwitchOnEop)]; }
 
@@ -163,14 +191,16 @@ public:
     regSX_PS_DOWNCONVERT SxPsDownconvert() const { return m_regs.other.sxPsDownconvert; }
     regSX_BLEND_OPT_EPSILON SxBlendOptEpsilon() const { return m_regs.other.sxBlendOptEpsilon; }
     regSX_BLEND_OPT_CONTROL SxBlendOptControl() const { return m_regs.other.sxBlendOptControl; }
-    regCB_TARGET_MASK CbTargetMask() const { return m_regs.context.cbTargetMask; }
-    regCB_COLOR_CONTROL CbColorControl() const { return m_regs.context.cbColorControl; }
+    regCB_TARGET_MASK CbTargetMask() const { return m_regs.other.cbTargetMask; }
+    regCB_COLOR_CONTROL CbColorControl() const { return m_regs.other.cbColorControl; }
     regDB_RENDER_OVERRIDE DbRenderOverride() const { return m_regs.other.dbRenderOverride; }
     regPA_SU_VTX_CNTL PaSuVtxCntl() const { return m_regs.context.paSuVtxCntl; }
+    regPA_SC_LINE_CNTL PaScLineCntl() const { return m_regs.other.paScLineCntl; }
+    regPA_CL_VTE_CNTL PaClVteCntl() const { return m_regs.context.paClVteCntl; }
     regSPI_PS_INPUT_ENA SpiPsInputEna() const { return m_chunkVsPs.SpiPsInputEna(); }
     regSPI_BARYC_CNTL SpiBarycCntl() const { return m_chunkVsPs.SpiBarycCntl(); }
     regDB_SHADER_CONTROL DbShaderControl() const { return m_chunkVsPs.DbShaderControl(); }
-
+    regVGT_TF_PARAM   VgtTfParam()const { return m_regs.other.vgtTfParam; }
     bool CanDrawPrimsOutOfOrder(const DepthStencilView*  pDsView,
                                 const DepthStencilState* pDepthStencilState,
                                 const ColorBlendState*   pBlendState,
@@ -190,7 +220,7 @@ public:
 
     regVGT_GS_ONCHIP_CNTL VgtGsOnchipCntl() const { return m_regs.context.vgtGsOnchipCntl; }
     regVGT_GS_MODE VgtGsMode() const { return m_regs.context.vgtGsMode; }
-    regPA_CL_CLIP_CNTL PaClClipCntl() const { return m_regs.context.paClClipCntl; }
+    regPA_CL_CLIP_CNTL PaClClipCntl() const { return m_regs.other.paClClipCntl; }
 
     bool   IsNgg() const { return (m_regs.context.vgtShaderStagesEn.bits.PRIMGEN_EN != 0); }
     GsFastLaunchMode FastLaunchMode() const { return m_fastLaunchMode; }
@@ -234,8 +264,6 @@ public:
         bool          vsScratchEn,
         bool          psScratchEn,
         uint32        targetLateAllocLimit);
-
-    bool IsRasterizationKilled() const { return (m_regs.context.paClClipCntl.bits.DX_RASTERIZATION_KILL != 0); }
 
     bool BinningAllowed() const { return m_flags.binningAllowed; }
 
@@ -315,8 +343,6 @@ private:
         const Util::PalAbi::CodeObjectMetadata& metadata);
     void SetupStereoRegisters();
 
-    void SetupFetchShaderInfo(const PipelineUploader* pUploader);
-
     void SetupIaMultiVgtParam(
         const Util::PalAbi::CodeObjectMetadata& metadata);
     void FixupIaMultiVgtParam(
@@ -360,9 +386,6 @@ private:
     uint32            m_strmoutVtxStride[MaxStreamOutTargets];
 #endif
 
-    uint16            m_fetchShaderRegAddr; // The user data register which fetch shader address will be writen to.
-    gpusize           m_fetchShaderPgm;     // The GPU virtual address of fetch shader entry.
-
     uint32            m_primAmpFactor;      // Only valid on GFX10 and later with NGG enabled.
 
     // Each pipeline object contains all possibly pipeline chunk sub-objects, even though not every pipeline will
@@ -380,7 +403,7 @@ private:
     uint8 GetTargetMask(uint32 target) const
     {
         PAL_ASSERT(target < MaxColorTargets);
-        return ((m_regs.context.cbTargetMask.u32All >> (target * 4)) & 0xF);
+        return ((m_regs.other.cbTargetMask.u32All >> (target * 4)) & 0xF);
     }
 
     PAL_DISALLOW_DEFAULT_CTOR(GraphicsPipeline);

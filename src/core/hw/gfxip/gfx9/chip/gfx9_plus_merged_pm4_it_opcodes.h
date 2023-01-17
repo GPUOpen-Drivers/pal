@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -215,6 +215,8 @@ typedef enum IT_OpCodeType {
     IT_DISPATCH_DRAW__NV24                             = 0x0000008d,
     IT_DISPATCH_DRAW_ACE__NV24                         = 0x0000008d,
     IT_BUILD_UNTYPED_SRD__NV24                         = 0x000000af,
+    IT_GET_LOD_STATS__RAPHAEL                          = 0x0000008e,
+    IT_GET_LOD_STATS__REMBRANDT                        = 0x0000008e,
     IT_BUILD_UNTYPED_SRD__VEGA                         = 0x000000af,
 } IT_OpCodeType;
 

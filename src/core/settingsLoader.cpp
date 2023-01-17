@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -226,6 +226,7 @@ void SettingsLoader::OverrideDefaults()
         constexpr uint32 PfpUcodeVersionNativeExecuteIndirectGfx10_1 = 151;
         constexpr uint32 PfpUcodeVersionNativeExecuteIndirectGfx10_3 = 88;
 
+        if (IsRaphael(*m_pDevice) == false)
         {
             if (CheckGfx9CpUcodeVersion(*m_pDevice,   PfpUcodeVersionNativeExecuteIndirectGfx9)    ||
                 CheckGfx101CpUcodeVersion(*m_pDevice, PfpUcodeVersionNativeExecuteIndirectGfx10_1) ||

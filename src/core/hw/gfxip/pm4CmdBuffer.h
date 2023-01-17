@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -236,9 +236,6 @@ public:
 
     // Helper functions
     uint32 GetCurAcqRelFenceVal(AcqRelEventType type) const { return m_acqRelFenceVals[static_cast<uint32>(type)]; }
-
-    virtual void CmdOverwriteDisableViewportClampForBlits(
-        bool disableViewportClamp) = 0;
 
     void AddFceSkippedImageCounter(Pm4Image* pPm4Image);
 

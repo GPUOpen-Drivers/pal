@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2020-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2020-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -195,6 +195,16 @@ inline void MachineTypeToGfxIpVersion(
         *pGfxIpMinorVer = 3;
         *pGfxIpStepping = 4;
         break;
+    case AmdGpuMachineType::Gfx1035:
+        *pGfxIpMajorVer = 10;
+        *pGfxIpMinorVer = 3;
+        *pGfxIpStepping = 5;
+        break;
+    case AmdGpuMachineType::Gfx1036:
+        *pGfxIpMajorVer = 10;
+        *pGfxIpMinorVer = 3;
+        *pGfxIpStepping = 6;
+        break;
 #if PAL_BUILD_NAVI31
     case AmdGpuMachineType::Gfx1100:
         *pGfxIpMajorVer = 11;
@@ -326,6 +336,12 @@ inline void GfxIpVersionToMachineType(
                 break;
             case GfxIpSteppingNavi24:
                 *pMachineType = AmdGpuMachineType::Gfx1034;
+                break;
+            case GfxIpSteppingRembrandt:
+                *pMachineType = AmdGpuMachineType::Gfx1035;
+                break;
+            case GfxIpSteppingRaphael:
+                *pMachineType = AmdGpuMachineType::Gfx1036;
                 break;
             default:
                 PAL_ASSERT_ALWAYS();

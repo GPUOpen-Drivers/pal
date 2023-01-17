@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2022-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1563,6 +1563,7 @@ static void VgtStrmoutVtxStrides(
 // =====================================================================================================================
 static uint32 DbShaderControl(
     const Util::PalAbi::CodeObjectMetadata& metadata,
+    const Device&                           device,
     GfxIpLevel                              gfxLevel)
 {
     const Util::PalAbi::DbShaderControlMetadata& dbShaderControlMetadata =
@@ -1582,6 +1583,14 @@ static uint32 DbShaderControl(
     dbShaderControl.bits.DEPTH_BEFORE_SHADER            = dbShaderControlMetadata.flags.depthBeforeShader;
     dbShaderControl.bits.CONSERVATIVE_Z_EXPORT          = dbShaderControlMetadata.conservativeZExport;
     dbShaderControl.bits.PRIMITIVE_ORDERED_PIXEL_SHADER = dbShaderControlMetadata.flags.primitiveOrderedPixelShader;
+
+    if (static_cast<TossPointMode>(device.Parent()->Settings().tossPointMode) == TossPointAfterPs)
+    {
+        // Set EXEC_ON_NOOP to 1 to disallow the DB from turning off the PS entirely when TossPointAfterPs is set (i.e.
+        // disable all color buffer writes by setting CB_TARGET_MASK = 0). Without this bit set, the DB will check
+        // the CB_TARGET_MASK and turn off the PS if no consumers of the shader are present.
+        dbShaderControl.bits.EXEC_ON_NOOP = 1;
+    }
 
     if (IsGfx10Plus(gfxLevel))
     {
@@ -1880,21 +1889,17 @@ static uint32 ComputePgmRsrc1(
 {
     COMPUTE_PGM_RSRC1 computePgmRsrc1 = { };
 
-    const auto& hwCs = metadata.pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Cs)];
+    const auto& hwCs    = metadata.pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Cs)];
     const bool isWave32 = hwCs.hasEntry.wavefrontSize && (hwCs.wavefrontSize == 32);
 
     if (hwCs.hasEntry.vgprCount)
     {
-        const uint32 calcVgprs = (hwCs.vgprCount == 0)
-            ? 0
-            : ((hwCs.vgprCount - 1) / ((isWave32) ? 8 : 4));
-        computePgmRsrc1.bits.VGPRS = calcVgprs;
+        computePgmRsrc1.bits.VGPRS = CalcNumVgprs(hwCs.vgprCount, isWave32);
     }
 
     if (hwCs.hasEntry.sgprCount)
     {
-        const uint32 calcSgprs = (hwCs.sgprCount == 0) ? 0 : ((hwCs.sgprCount - 1) / 8);
-        computePgmRsrc1.bits.SGPRS = calcSgprs;
+        computePgmRsrc1.bits.SGPRS = CalcNumSgprs(hwCs.sgprCount);
     }
 
     computePgmRsrc1.bits.FLOAT_MODE = hwCs.floatMode;
@@ -1915,12 +1920,16 @@ static uint32 ComputePgmRsrc1(
 
 // =====================================================================================================================
 static uint32 ComputePgmRsrc2(
-    const Util::PalAbi::CodeObjectMetadata& metadata)
+    const Util::PalAbi::CodeObjectMetadata& metadata,
+    const Device&                           device)
 {
     COMPUTE_PGM_RSRC2 computePgmRsrc2 = { };
 
-    Util::PalAbi::PipelineMetadata pipeline                 = metadata.pipeline;
-    Util::PalAbi::ComputeRegisterMetadata pComputeRegisters = pipeline.computeRegister;
+    const GpuChipProperties& chipProps = device.Parent()->ChipProperties();
+    const GfxIpLevel         gfxLevel  = chipProps.gfxLevel;
+
+    const Util::PalAbi::PipelineMetadata& pipeline                 = metadata.pipeline;
+    const Util::PalAbi::ComputeRegisterMetadata& pComputeRegisters = pipeline.computeRegister;
     const auto& hwCs = pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Cs)];
 
     computePgmRsrc2.bits.USER_SGPR      = hwCs.userSgprs;
@@ -1929,7 +1938,6 @@ static uint32 ComputePgmRsrc2(
     computePgmRsrc2.bits.EXCP_EN_MSB    = (hwCs.excpEn >= COMPUTE_PGM_RSRC2__EXCP_EN_MSB_MASK);
 
     computePgmRsrc2.bits.SCRATCH_EN     = hwCs.flags.scratchEn;
-    computePgmRsrc2.bits.TRAP_PRESENT   = hwCs.flags.trapPresent;
 
     computePgmRsrc2.bits.TIDIG_COMP_CNT = pComputeRegisters.tidigCompCnt;
 
@@ -1937,8 +1945,23 @@ static uint32 ComputePgmRsrc2(
     computePgmRsrc2.bits.TGID_Y_EN = pComputeRegisters.flags.tgidYEn;
     computePgmRsrc2.bits.TGID_Z_EN = pComputeRegisters.flags.tgidZEn;
 
+    computePgmRsrc2.bits.TG_SIZE_EN = pComputeRegisters.flags.tgSizeEn;
+
     uint32 allocateLdsSize = hwCs.ldsSize;
     computePgmRsrc2.bits.LDS_SIZE = allocateLdsSize / (sizeof(uint32) * Gfx9LdsDwGranularity);
+
+    computePgmRsrc2.bits.TRAP_PRESENT = hwCs.flags.trapPresent;
+    if (device.Parent()->LegacyHwsTrapHandlerPresent() && (chipProps.gfxLevel == GfxIpLevel::GfxIp9))
+    {
+
+        // If the legacy HWS's trap handler is present, compute shaders must always set the TRAP_PRESENT
+        // flag.
+
+        // TODO: Handle the case where the client enabled a trap handler and the hardware scheduler's trap handler
+        // is already active!
+        PAL_ASSERT(hwCs.flags.trapPresent == 0);
+        computePgmRsrc2.bits.TRAP_PRESENT = 1;
+    }
 
     return computePgmRsrc2.u32All;
 }
@@ -1946,14 +1969,37 @@ static uint32 ComputePgmRsrc2(
 // =====================================================================================================================
 static uint32 ComputePgmRsrc3(
     const Util::PalAbi::CodeObjectMetadata& metadata,
-    GfxIpLevel                              gfxLevel)
+    const Device&                           device,
+    size_t                                  shaderStageInfoCodeLength)
 {
     COMPUTE_PGM_RSRC3 computePgmRsrc3 = {};
+
+    const GpuChipProperties& chipProps = device.Parent()->ChipProperties();
+    const GfxIpLevel         gfxLevel  = chipProps.gfxLevel;
 
     const auto& hwCs = metadata.pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Cs)];
     if (IsGfx10Plus(gfxLevel))
     {
         computePgmRsrc3.bits.SHARED_VGPR_CNT = (hwCs.sharedVgprCnt) / 8;
+
+#if  PAL_BUILD_GFX11
+        if (IsGfx104Plus(gfxLevel))
+        {
+            computePgmRsrc3.gfx104Plus.INST_PREF_SIZE =
+                device.GetShaderPrefetchSize(shaderStageInfoCodeLength);
+        }
+#endif
+
+#if PAL_BUILD_GFX11
+        // PWS+ only support pre-shader waits if the IMAGE_OP bit is set. Theoretically we only set it for shaders that
+        // do an image operation. However that would mean that our use of the pre-shader PWS+ wait is dependent on us
+        // only waiting on image resources, which we don't know in our interface. For now always set the IMAGE_OP bit
+        // for corresponding shaders, making the pre-shader waits global.
+        if (IsGfx11(gfxLevel))
+        {
+            computePgmRsrc3.gfx11.IMAGE_OP = 1;
+        }
+#endif
     }
 
     return computePgmRsrc3.u32All;
@@ -1965,9 +2011,11 @@ static uint32 ComputeShaderChkSum(
     const Device&                           device)
 {
     COMPUTE_SHADER_CHKSUM chkSum = {};
-    const auto& hwCs = metadata.pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Cs)];
+
     const GpuChipProperties& chipProps = device.Parent()->ChipProperties();
     const GfxIpLevel         gfxLevel  = chipProps.gfxLevel;
+
+    const auto& hwCs = metadata.pipeline.hardwareStage[uint32(Util::Abi::HardwareStage::Cs)];
 
     if (chipProps.gfx9.supportSpp && hwCs.hasEntry.checksumValue)
     {
@@ -1986,9 +2034,11 @@ static uint32 ComputeShaderChkSum(
 // =====================================================================================================================
 static uint32 ComputeResourceLimits(
     const Util::PalAbi::CodeObjectMetadata& metadata,
-    const Device&                           device)
+    const Device&                           device,
+    uint32                                  wavefrontSize)
 {
-    COMPUTE_RESOURCE_LIMITS computeResourceLimits = {};
+    COMPUTE_RESOURCE_LIMITS  computeResourceLimits = {};
+
     const GpuChipProperties& chipProps = device.Parent()->ChipProperties();
     const GfxIpLevel         gfxLevel  = chipProps.gfxLevel;
 
@@ -2004,9 +2054,115 @@ static uint32 ComputeResourceLimits(
         computeResourceLimits.bits.WAVES_PER_SH = hwCs.wavesPerSe / numSaPerSe;
     }
 
+    const uint32 threadsPerGroup =
+        (hwCs.threadgroupDimensions[0] * hwCs.threadgroupDimensions[1] * hwCs.threadgroupDimensions[2]);
+    const uint32 wavesPerGroup = Util::RoundUpQuotient(threadsPerGroup, wavefrontSize);
+
+    // SIMD_DEST_CNTL: Controls which SIMDs thread groups get scheduled on.  If the number of
+    // waves-per-TG is a multiple of 4, this should be 1, otherwise 0.
+    computeResourceLimits.bits.SIMD_DEST_CNTL = ((wavesPerGroup % 4) == 0) ? 1 : 0;
+
+    // Force even distribution on all SIMDs in CU for workgroup size is 64
+    // This has shown some good improvements if #CU per SE not a multiple of 4
+    if (((chipProps.gfx9.numShaderArrays * chipProps.gfx9.numCuPerSh) & 0x3) && (wavesPerGroup == 1))
+    {
+        computeResourceLimits.bits.FORCE_SIMD_DIST = 1;
+    }
+
+    const auto& settings = device.Settings();
+
+    // LOCK_THRESHOLD: Sets per-SH low threshold for locking.  Set in units of 4, 0 disables locking.
+    // LOCK_THRESHOLD's maximum value: (6 bits), in units of 4, so it is max of 252.
+    constexpr uint32 Gfx9MaxLockThreshold = 252;
+    PAL_ASSERT(settings.csLockThreshold <= Gfx9MaxLockThreshold);
+
+#if PAL_BUILD_GFX11
+    if (settings.waForceLockThresholdZero)
+    {
+        computeResourceLimits.bits.LOCK_THRESHOLD = 0;
+    }
+    else
+#endif
+    {
+        computeResourceLimits.bits.LOCK_THRESHOLD =
+            Util::Min((settings.csLockThreshold >> 2), (Gfx9MaxLockThreshold >> 2));
+    }
+
+    // SIMD_DEST_CNTL: Controls whichs SIMDs thread groups get scheduled on.  If no override is set, just keep
+    // the existing value in COMPUTE_RESOURCE_LIMITS.
+    switch (settings.csSimdDestCntl)
+    {
+    case CsSimdDestCntlForce1:
+        computeResourceLimits.bits.SIMD_DEST_CNTL = 1;
+        break;
+    case CsSimdDestCntlForce0:
+        computeResourceLimits.bits.SIMD_DEST_CNTL = 0;
+        break;
+    default:
+        PAL_ASSERT(settings.csSimdDestCntl == CsSimdDestCntlDefault);
+        break;
+    }
+
     return computeResourceLimits.u32All;
 }
 
+#if PAL_BUILD_GFX11
+constexpr uint32 DispatchInterleaveSizeLookupTable[] =
+{
+    64u,  // Default
+    1u,   // Disable
+    128u, // _128
+    256u, // _256
+    512u, // _512
+};
+static_assert((Util::ArrayLen32(DispatchInterleaveSizeLookupTable) ==
+               static_cast<uint32>(DispatchInterleaveSize::Count)),
+              "DispatchInterleaveSizeLookupTable and DispatchInterleaveSize don't have the same number of elements.");
+static_assert((DispatchInterleaveSizeLookupTable[static_cast<uint32>(DispatchInterleaveSize::Default)] ==
+               Gfx11::mmCOMPUTE_DISPATCH_INTERLEAVE_DEFAULT),
+              "DispatchInterleaveSizeLookupTable looks up incorrect value for DispatchInterleaveSize::Default.");
+static_assert((DispatchInterleaveSizeLookupTable[static_cast<uint32>(DispatchInterleaveSize::_128)] == 128u),
+              "DispatchInterleaveSizeLookupTable looks up incorrect value for DispatchInterleaveSize::_128.");
+static_assert((DispatchInterleaveSizeLookupTable[static_cast<uint32>(DispatchInterleaveSize::_256)] == 256u),
+              "DispatchInterleaveSizeLookupTable looks up incorrect value for DispatchInterleaveSize::_128.");
+static_assert((DispatchInterleaveSizeLookupTable[static_cast<uint32>(DispatchInterleaveSize::_512)] == 512u),
+              "DispatchInterleaveSizeLookupTable looks up incorrect value for DispatchInterleaveSize::_128.");
+// Panel setting validation for OverrideCsDispatchInterleaveSize
+static_assert((static_cast<uint32>(OverrideCsDispatchInterleaveSizeDisabled) ==
+               static_cast<uint32>(DispatchInterleaveSize::Disable)),
+              "OverrideCsDispatchInterleaveSizeDisabled and DispatchInterleaveSize::Disable do not match.");
+static_assert((static_cast<uint32>(OverrideCsDispatchInterleaveSize128) ==
+               static_cast<uint32>(DispatchInterleaveSize::_128)),
+              "OverrideCsDispatchInterleaveSize128 and DispatchInterleaveSize::_128 do not match.");
+static_assert((static_cast<uint32>(OverrideCsDispatchInterleaveSize256) ==
+               static_cast<uint32>(DispatchInterleaveSize::_256)),
+              "OverrideCsDispatchInterleaveSize256 and DispatchInterleaveSize::_256 do not match.");
+static_assert((static_cast<uint32>(OverrideCsDispatchInterleaveSize512) ==
+               static_cast<uint32>(DispatchInterleaveSize::_512)),
+              "OverrideCsDispatchInterleaveSize512 and DispatchInterleaveSize::_512 do not match.");
+
+// =====================================================================================================================
+static uint32 ComputeDispatchInterleave(
+    const Device&           device,
+    DispatchInterleaveSize  interleaveSize)
+{
+    COMPUTE_DISPATCH_INTERLEAVE computeDispatchInterleave = {};
+
+    const auto& settings               = device.Settings();
+    const GpuChipProperties& chipProps = device.Parent()->ChipProperties();
+    const GfxIpLevel         gfxLevel  = chipProps.gfxLevel;
+
+    if (IsGfx11(gfxLevel))
+    {
+        const uint32 lookup = (settings.overrideCsDispatchInterleaveSize != CsDispatchInterleaveSizeHonorClient)
+            ? static_cast<uint32>(settings.overrideCsDispatchInterleaveSize)
+            : static_cast<uint32>(interleaveSize);
+        computeDispatchInterleave.bits.INTERLEAVE = DispatchInterleaveSizeLookupTable[lookup];
+    }
+
+    return computeDispatchInterleave.u32All;
+}
+#endif
 } // namespace AbiRegisters
 } // namespace Gfx9
 } // namespace Pal

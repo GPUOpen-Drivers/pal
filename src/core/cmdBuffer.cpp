@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -311,14 +311,6 @@ Result CmdBuffer::Begin(
                 }
             }
 
-            if (SupportsExecutionMarker() && (m_buildFlags.enableExecutionMarkerSupport == 1))
-            {
-                BeginExecutionMarker(info.execMarkerClientHandle);
-            }
-            else
-            {
-                m_buildFlags.enableExecutionMarkerSupport = 0;
-            }
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 757
             if (settings.disableQueryInternalOps == true)
             {
@@ -358,14 +350,6 @@ Result CmdBuffer::BeginCommandStreams(
 }
 
 // =====================================================================================================================
-void CmdBuffer::BeginExecutionMarker(
-    uint64 clientHandle)
-{
-    constexpr size_t MarkerSize = sizeof(uint64) / sizeof(uint32);
-    m_executionMarkerAddr = AllocateGpuScratchMem(MarkerSize, MarkerSize);
-}
-
-// =====================================================================================================================
 // Completes recording of a command buffer in the building state, making it executable.
 Result CmdBuffer::End()
 {
@@ -377,10 +361,6 @@ Result CmdBuffer::End()
     }
     else if (m_recordState == CmdBufferRecordState::Building)
     {
-        if (m_buildFlags.enableExecutionMarkerSupport == 1)
-        {
-            EndExecutionMarker();
-        }
         result = AddPostamble();
 
         // Update the last paging fence to reflect that of the command allocator and of all nested command buffers

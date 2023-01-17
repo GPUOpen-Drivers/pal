@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -88,6 +88,8 @@ enum class AmdGpuMachineType : uint8
     Gfx1031 = 0x37,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1031
     Gfx1032 = 0x38,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1032
     Gfx1034 = 0x3e,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1034
+    Gfx1035 = 0x3d,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1035
+    Gfx1036 = 0x45,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1036
 #if PAL_BUILD_NAVI31
     Gfx1100 = 0x41,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1100
 #endif
@@ -158,6 +160,10 @@ enum GfxIpStepping : uint16
     // GFXIP 10.3.x steppings:
     GfxIpSteppingNavi24        = 4,
 
+    GfxIpSteppingRembrandt     = 5,
+
+    GfxIpSteppingRaphael       = 6,
+
 #if PAL_BUILD_NAVI31
     // GFXIP 11.0.x steppings:
     GfxIpSteppingNavi31        = 0,
@@ -188,7 +194,6 @@ constexpr const char* PipelineAbiSymbolNameStrings[] =
     "_amdgpu_vs_main",
     "_amdgpu_ps_main",
     "_amdgpu_cs_main",
-    "_amdgpu_fs_main",
     "_amdgpu_ls_shdr_intrl_tbl",
     "_amdgpu_hs_shdr_intrl_tbl",
     "_amdgpu_es_shdr_intrl_tbl",
@@ -303,7 +308,6 @@ enum class PipelineSymbolType : uint32
     VsMainEntry,       ///< Hardware VS entry point.  Must be aligned to hardware requirements.
     PsMainEntry,       ///< Hardware PS entry point.  Must be aligned to hardware requirements.
     CsMainEntry,       ///< Hardware CS entry point.  Must be aligned to hardware requirements.
-    FsMainEntry,       ///< Hardware FS entry point.  Must be aligned to hardware requirements.
     LsShdrIntrlTblPtr, ///< LS shader internal table pointer.  Optional.  Described in Per-Shader Internal Table.
     HsShdrIntrlTblPtr, ///< HS shader internal table pointer.  Optional.  Described in Per-Shader Internal Table.
     EsShdrIntrlTblPtr, ///< ES shader internal table pointer.  Optional.  Described in Per-Shader Internal Table.
@@ -464,7 +468,6 @@ enum class UserDataMapping : uint32
                                          ///  stage (task shader stage) in a hybrid graphics pipeline.
     MeshPipeStatsBuf      = 0x10000014,  ///< 32-bit GPU virtual address of a buffer storing the shader-emulated mesh
                                          ///  pipeline stats query.
-    FetchShaderPtr        = 0x10000015,  ///< 64-bit pointer to GPU memory containing the fetch shader subroutine.
 #if PAL_BUILD_GFX11
     StreamOutControlBuf   = 0x10000016, ///< 32-bit GPU virtual address to the streamout control buffer for GPUs that
                                         ///  use software-emulated streamout.

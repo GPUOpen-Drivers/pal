@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -726,10 +726,10 @@ uint32 GpaSession::TraceSample::CountNumSamples(
     // been written.
     uint32 numSamples = 0;
 
-    uint32 segmentSizeInDwords   = m_pSpmTraceLayout->sampleSizeInBytes / 4;
-    uint32 segmentSizeInBitlines = m_pSpmTraceLayout->sampleSizeInBytes / 32;
+    uint32 sampleSizeInDwords   = m_pSpmTraceLayout->sampleSizeInBytes / 4;
+    uint32 sampleSizeInBitlines = m_pSpmTraceLayout->sampleSizeInBytes / 32;
 
-    if (segmentSizeInDwords > 0)
+    if (sampleSizeInDwords > 0)
     {
         //! Not sure if this is in bytes or dwords. Assume this is a dword based size since it is a wptr and not size!
         // The first dword is the buffer size followed by 7 reserved dwords
@@ -739,14 +739,13 @@ uint32 GpaSession::TraceSample::CountNumSamples(
         uint32 numLinesWritten = dataSizeInDwords / 2 / MaxNumCountersPerBitline;
 
         // Check for overflow. The number of lines written should be a multiple of the number of lines in each sample.
-        if (numLinesWritten % segmentSizeInBitlines)
+        if (numLinesWritten % sampleSizeInBitlines)
         {
-            // Consider increasing the size of the buffer or reducing the number of counters.
-            PAL_ASSERT_ALWAYS();
+            PAL_ASSERT_MSG(false, "Increase the buffersize or reduce the number of counters.");
         }
         else
         {
-            numSamples = numLinesWritten / segmentSizeInBitlines;
+            numSamples = numLinesWritten / sampleSizeInBitlines;
         }
     }
 

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -48,7 +48,6 @@ ShaderLibrary::ShaderLibrary(
     m_gpuMem(),
     m_gpuMemSize(0),
     m_maxStackSizeInBytes(0),
-    m_maxIrStackSizeInBytes(0),
     m_uploadFenceToken(0),
     m_pagingFenceVal(0),
     m_perfDataMem(),
@@ -59,7 +58,10 @@ ShaderLibrary::ShaderLibrary(
 // =====================================================================================================================
 // Initialize this shader library based on the provided creation info.
 Result ShaderLibrary::Initialize(
-    const ShaderLibraryCreateInfo& createInfo)
+    const ShaderLibraryCreateInfo&    createInfo,
+    const AbiReader&                  abiReader,
+    const PalAbi::CodeObjectMetadata& metadata,
+    MsgPackReader*                    pMetadataReader)
 {
     Result result = Result::Success;
 
@@ -85,7 +87,7 @@ Result ShaderLibrary::Initialize(
     if (result == Result::Success)
     {
         PAL_ASSERT(m_pCodeObjectBinary != nullptr);
-        result = InitFromCodeObjectBinary(createInfo);
+        result = InitFromCodeObjectBinary(createInfo, abiReader, metadata, pMetadataReader);
     }
 
     return result;
@@ -94,38 +96,24 @@ Result ShaderLibrary::Initialize(
 // =====================================================================================================================
 // Initializes this library from the library binary data stored in this object.
 Result ShaderLibrary::InitFromCodeObjectBinary(
-    const ShaderLibraryCreateInfo& createInfo)
+    const ShaderLibraryCreateInfo&    createInfo,
+    const AbiReader&                  abiReader,
+    const PalAbi::CodeObjectMetadata& metadata,
+    MsgPackReader*                    pMetadataReader)
 {
     PAL_ASSERT((m_pCodeObjectBinary != nullptr) && (m_codeObjectBinaryLen != 0));
 
-    AbiReader abiReader(m_pDevice->GetPlatform(), m_pCodeObjectBinary);
-    Result result = abiReader.Init();
+    ExtractLibraryInfo(metadata);
+    DumpLibraryElf("LibraryCs", metadata.pipeline.name);
 
-    MsgPackReader              metadataReader;
-    PalAbi::CodeObjectMetadata metadata;
-
-    if (result == Result::Success)
-    {
-        result = abiReader.GetMetadata(&metadataReader, &metadata);
-    }
+    Result result = pMetadataReader->Seek(metadata.pipeline.shaderFunctions);
 
     if (result == Result::Success)
     {
-        ExtractLibraryInfo(metadata);
-        DumpLibraryElf("LibraryCs", metadata.pipeline.name);
-
-        result = metadataReader.Seek(metadata.pipeline.shaderFunctions);
-
-        if (result == Result::Success)
-        {
-            result = ExtractShaderFunctions(&metadataReader);
-        }
-
-        result = HwlInit(createInfo,
-                abiReader,
-                metadata,
-                &metadataReader);
+        result = ExtractShaderFunctions(pMetadataReader);
     }
+
+    result = HwlInit(createInfo, abiReader, metadata, pMetadataReader);
 
     return result;
 }
@@ -180,12 +168,6 @@ Result ShaderLibrary::ExtractShaderFunctions(
                     {
                         result = pReader->UnpackNext(&stats.stackFrameSizeInBytes);
                         m_maxStackSizeInBytes = Max(m_maxStackSizeInBytes, stats.stackFrameSizeInBytes);
-                        break;
-                    }
-                    case HashLiteralString(".ir_stack_frame_size_in_bytes"):
-                    {
-                        result = pReader->UnpackNext(&stats.irStackFrameSizeInBytes);
-                        m_maxIrStackSizeInBytes = Max(m_maxIrStackSizeInBytes, stats.irStackFrameSizeInBytes);
                         break;
                     }
                     case HashLiteralString(".shader_subtype"):

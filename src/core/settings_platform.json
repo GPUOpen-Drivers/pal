@@ -339,26 +339,6 @@
           "Description": "Location to display debug text."
         },
         {
-          "Description": "Information about the client performing the rendering. For example: Rendered By PAL (0.0.1)",
-          "Defaults": {
-            "Default": ""
-          },
-          "Size": "MaxMiscStrLen",
-          "Type": "string",
-          "VariableName": "renderedByString",
-          "Name": "RenderedByString"
-        },
-        {
-          "Description": "Debug information that the client or tester might want reported.",
-          "Defaults": {
-            "Default": ""
-          },
-          "Size": "MaxMiscStrLen",
-          "Type": "string",
-          "VariableName": "miscellaneousDebugString",
-          "Name": "MiscellaneousDebugString"
-        },
-        {
           "Description": "Output time and date in the debug overlay.",
           "Defaults": {
             "Default": false

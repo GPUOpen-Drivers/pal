@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -32,6 +32,7 @@
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "core/hw/gfxip/gfx9/gfx9GraphicsPipeline.h"
 #include "core/hw/gfxip/gfx9/gfx9PipelineChunkCs.h"
+#include "core/hw/gfxip/gfx9/gfx9AbiToPipelineRegisters.h"
 #include "palHsaAbiMetadata.h"
 
 using namespace Util;
@@ -40,42 +41,6 @@ namespace Pal
 {
 namespace Gfx9
 {
-
-#if PAL_BUILD_GFX11
-constexpr uint32 DispatchInterleaveSizeLookupTable[] =
-{
-    64u,  // Default
-    1u,   // Disable
-    128u, // _128
-    256u, // _256
-    512u, // _512
-};
-static_assert((ArrayLen32(DispatchInterleaveSizeLookupTable) == static_cast<uint32>(DispatchInterleaveSize::Count)),
-              "DispatchInterleaveSizeLookupTable and DispatchInterleaveSize do not have the same number of elements.");
-static_assert((DispatchInterleaveSizeLookupTable[static_cast<uint32>(DispatchInterleaveSize::Default)] ==
-               Gfx11::mmCOMPUTE_DISPATCH_INTERLEAVE_DEFAULT),
-              "DispatchInterleaveSizeLookupTable looks up incorrect value for DispatchInterleaveSize::Default.");
-static_assert((DispatchInterleaveSizeLookupTable[static_cast<uint32>(DispatchInterleaveSize::_128)] == 128u),
-              "DispatchInterleaveSizeLookupTable looks up incorrect value for DispatchInterleaveSize::_128.");
-static_assert((DispatchInterleaveSizeLookupTable[static_cast<uint32>(DispatchInterleaveSize::_256)] == 256u),
-              "DispatchInterleaveSizeLookupTable looks up incorrect value for DispatchInterleaveSize::_128.");
-static_assert((DispatchInterleaveSizeLookupTable[static_cast<uint32>(DispatchInterleaveSize::_512)] == 512u),
-              "DispatchInterleaveSizeLookupTable looks up incorrect value for DispatchInterleaveSize::_128.");
-// Panel setting validation for OverrideCsDispatchInterleaveSize
-static_assert((static_cast<uint32>(OverrideCsDispatchInterleaveSizeDisabled) ==
-               static_cast<uint32>(DispatchInterleaveSize::Disable)),
-              "OverrideCsDispatchInterleaveSizeDisabled and DispatchInterleaveSize::Disable do not match.");
-static_assert((static_cast<uint32>(OverrideCsDispatchInterleaveSize128) ==
-               static_cast<uint32>(DispatchInterleaveSize::_128)),
-              "OverrideCsDispatchInterleaveSize128 and DispatchInterleaveSize::_128 do not match.");
-static_assert((static_cast<uint32>(OverrideCsDispatchInterleaveSize256) ==
-               static_cast<uint32>(DispatchInterleaveSize::_256)),
-              "OverrideCsDispatchInterleaveSize256 and DispatchInterleaveSize::_256 do not match.");
-static_assert((static_cast<uint32>(OverrideCsDispatchInterleaveSize512) ==
-               static_cast<uint32>(DispatchInterleaveSize::_512)),
-              "OverrideCsDispatchInterleaveSize512 and DispatchInterleaveSize::_512 do not match.");
-#endif
-
 // =====================================================================================================================
 PipelineChunkCs::PipelineChunkCs(
     const Device&    device,
@@ -96,28 +61,15 @@ PipelineChunkCs::PipelineChunkCs(
 }
 
 // =====================================================================================================================
-// Late initialization for this pipeline chunk.  Responsible for fetching register values from the pipeline binary and
-// determining the values of other registers.
-void PipelineChunkCs::LateInit(
-    const AbiReader&       abiReader,
-    const RegisterVector&  registers,
-    uint32                 wavefrontSize,
-    DispatchDims*          pThreadsPerTg,
-#if PAL_BUILD_GFX11
-    DispatchInterleaveSize interleaveSize,
-#endif
-    PipelineUploader*      pUploader)
+// Perform LateInit after InitRegisters.
+void PipelineChunkCs::DoLateInit(
+    DispatchDims*     pThreadsPerTg,
+    PipelineUploader* pUploader)
 {
-#if PAL_BUILD_GFX11
-    InitRegisters(registers, interleaveSize, wavefrontSize);
-#else
-    InitRegisters(registers, wavefrontSize);
-#endif
-
     GpuSymbol symbol = { };
     if (pUploader->GetPipelineGpuSymbol(Abi::PipelineSymbolType::CsMainEntry, &symbol) == Result::Success)
     {
-        m_pStageInfo->codeLength  = static_cast<size_t>(symbol.size);
+        m_pStageInfo->codeLength = static_cast<size_t>(symbol.size);
         PAL_ASSERT(IsPow2Aligned(symbol.gpuVirtAddr, 256u));
 
         m_regs.computePgmLo.bits.DATA = Get256BAddrLo(symbol.gpuVirtAddr);
@@ -140,13 +92,88 @@ void PipelineChunkCs::LateInit(
 }
 
 // =====================================================================================================================
+// Late initialization for this pipeline chunk.  Responsible for fetching register values from the pipeline binary and
+// determining the values of other registers.
+void PipelineChunkCs::LateInit(
+    const Util::PalAbi::CodeObjectMetadata& metadata,
+    uint32                                  wavefrontSize,
+    DispatchDims*                           pThreadsPerTg,
+#if PAL_BUILD_GFX11
+    DispatchInterleaveSize                  interleaveSize,
+#endif
+    PipelineUploader*                       pUploader)
+{
+    InitRegisters(metadata,
+#if PAL_BUILD_GFX11
+                  interleaveSize,
+#endif
+                  wavefrontSize);
+
+    DoLateInit(pThreadsPerTg, pUploader);
+}
+
+// =====================================================================================================================
+// Late initialization for Hsa pipeline chunk.
+void PipelineChunkCs::LateInit(
+    const RegisterVector&   registers,
+    uint32                  wavefrontSize,
+    DispatchDims*           pThreadsPerTg,
+#if PAL_BUILD_GFX11
+    DispatchInterleaveSize  interleaveSize,
+#endif
+    PipelineUploader*       pUploader)
+{
+    InitRegisters(
+        registers,
+#if PAL_BUILD_GFX11
+        interleaveSize,
+#endif
+        wavefrontSize);
+
+    DoLateInit(pThreadsPerTg, pUploader);
+}
+
+// =====================================================================================================================
+// Helper method which initializes registers from the metadata extraced from an ELF metadata blob.
+void PipelineChunkCs::InitRegisters(
+    const PalAbi::CodeObjectMetadata& metadata,
+#if PAL_BUILD_GFX11
+    DispatchInterleaveSize            interleaveSize,
+#endif
+    uint32                            wavefrontSize)
+{
+    const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
+    const GfxIpLevel         gfxLevel  = chipProps.gfxLevel;
+
+    m_regs.computePgmRsrc1.u32All         = AbiRegisters::ComputePgmRsrc1(metadata, gfxLevel);
+    m_regs.dynamic.computePgmRsrc2.u32All = AbiRegisters::ComputePgmRsrc2(metadata, m_device);
+
+    // These are optional for shader libraries.
+    {
+        m_regs.computeNumThreadX.u32All = AbiRegisters::ComputeNumThreadX(metadata);
+        m_regs.computeNumThreadY.u32All = AbiRegisters::ComputeNumThreadY(metadata);
+        m_regs.computeNumThreadZ.u32All = AbiRegisters::ComputeNumThreadZ(metadata);
+    }
+
+    m_regs.computePgmRsrc3.u32All = AbiRegisters::ComputePgmRsrc3(metadata, m_device, m_pStageInfo->codeLength);
+    m_regs.computeShaderChksum.u32All = AbiRegisters::ComputeShaderChkSum(metadata, m_device);
+    m_regs.dynamic.computeResourceLimits.u32All =
+        AbiRegisters::ComputeResourceLimits(metadata, m_device, wavefrontSize);
+
+#if PAL_BUILD_GFX11
+    m_regs.computeDispatchInterleave.u32All = AbiRegisters::ComputeDispatchInterleave(m_device, interleaveSize);
+#endif
+
+}
+
+// =====================================================================================================================
 // Helper method which initializes registers from the register vector extraced from an ELF metadata blob.
 void PipelineChunkCs::InitRegisters(
     const RegisterVector&  registers,
 #if PAL_BUILD_GFX11
     DispatchInterleaveSize interleaveSize,
 #endif
-    uint32                  wavefrontSize)
+    uint32                 wavefrontSize)
 {
     const RegisterInfo&      regInfo   = m_device.CmdUtil().GetRegInfo();
     const GpuChipProperties& chipProps = m_device.Parent()->ChipProperties();
@@ -234,8 +261,8 @@ void PipelineChunkCs::InitRegisters(
     else
 #endif
     {
-       m_regs.dynamic.computeResourceLimits.bits.LOCK_THRESHOLD = Min((settings.csLockThreshold >> 2),
-                                                                      (Gfx9MaxLockThreshold >> 2));
+        m_regs.dynamic.computeResourceLimits.bits.LOCK_THRESHOLD = Min((settings.csLockThreshold >> 2),
+                                                                       (Gfx9MaxLockThreshold >> 2));
     }
 
     // SIMD_DEST_CNTL: Controls whichs SIMDs thread groups get scheduled on.  If no override is set, just keep
@@ -257,9 +284,9 @@ void PipelineChunkCs::InitRegisters(
     if (IsGfx11(chipProps.gfxLevel))
     {
         const uint32 lookup = (settings.overrideCsDispatchInterleaveSize != CsDispatchInterleaveSizeHonorClient)
-                              ? static_cast<uint32>(settings.overrideCsDispatchInterleaveSize)
-                              : static_cast<uint32>(interleaveSize);
-        m_regs.computeDispatchInterleave.bits.INTERLEAVE = DispatchInterleaveSizeLookupTable[lookup];
+                               ? static_cast<uint32>(settings.overrideCsDispatchInterleaveSize)
+                               : static_cast<uint32>(interleaveSize);
+        m_regs.computeDispatchInterleave.bits.INTERLEAVE = AbiRegisters::DispatchInterleaveSizeLookupTable[lookup];
     }
 #endif
 }
@@ -293,10 +320,9 @@ void PipelineChunkCs::SetupSignatureFromElf(
 // NOTE: Must be called before LateInit!
 void PipelineChunkCs::SetupSignatureFromElf(
     ComputeShaderSignature*           pSignature,
-    const PalAbi::CodeObjectMetadata& metadata,
-    const RegisterVector&             registers)
+    const PalAbi::CodeObjectMetadata& metadata)
 {
-    SetupSignatureFromRegisters(pSignature, registers);
+    SetupSignatureFromMetadata(pSignature, metadata);
 
     if (metadata.pipeline.hasEntry.spillThreshold != 0)
     {
@@ -325,6 +351,94 @@ void PipelineChunkCs::SetupSignatureFromElf(
             pSignature->flags.isWave32 = (csMetadata.wavefrontSize == 32);
         }
     }
+}
+
+// =====================================================================================================================
+void PipelineChunkCs::SetupSignatureFromMetadata(
+    ComputeShaderSignature*           pSignature,
+    const PalAbi::CodeObjectMetadata& metadata)
+{
+    const Util::PalAbi::HardwareStageMetadata& hwCs = metadata.pipeline.hardwareStage[uint32(Abi::HardwareStage::Cs)];
+    PAL_ASSERT(hwCs.userSgprs <= 16);
+
+    const auto& chipProps = m_device.Parent()->ChipProperties();
+
+    pSignature->stage.firstUserSgprRegAddr = (mmCOMPUTE_USER_DATA_0 + FastUserDataStartReg);
+    for (uint16 offset = 0; offset < 16; ++offset)
+    {
+        uint32 value = 0;
+        if (hwCs.hasEntry.userDataRegMap)
+        {
+            value = hwCs.userDataRegMap[offset];
+
+            // value is not mapped, move on to the next entry
+            if (value == uint32(Abi::UserDataMapping::NotMapped))
+            {
+                continue;
+            }
+
+            if (value < MaxUserDataEntries)
+            {
+                PAL_ASSERT(offset >= FastUserDataStartReg);
+                const uint8 userSgprId = static_cast<uint8>(offset - FastUserDataStartReg);
+
+                pSignature->stage.mappedEntry[userSgprId] = static_cast<uint8>(value);
+                pSignature->stage.userSgprCount = Max<uint8>(userSgprId + 1, pSignature->stage.userSgprCount);
+            }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::GlobalTable))
+            {
+                PAL_ASSERT(offset == (InternalTblStartReg));
+            }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::PerShaderTable))
+            {
+                PAL_ASSERT(offset == (ConstBufTblStartReg));
+            }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::SpillTable))
+            {
+                pSignature->stage.spillTableRegAddr = static_cast<uint16>(offset + mmCOMPUTE_USER_DATA_0);
+            }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::Workgroup))
+            {
+                pSignature->numWorkGroupsRegAddr = static_cast<uint16>(offset + mmCOMPUTE_USER_DATA_0);
+            }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::MeshTaskDispatchDims))
+            {
+                pSignature->taskDispatchDimsAddr = static_cast<uint16_t>(offset + mmCOMPUTE_USER_DATA_0);
+            }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::MeshTaskRingIndex))
+            {
+                pSignature->taskRingIndexAddr = static_cast<uint16>(offset + mmCOMPUTE_USER_DATA_0);
+            }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::TaskDispatchIndex))
+            {
+                pSignature->dispatchIndexRegAddr = static_cast<uint16>(offset + mmCOMPUTE_USER_DATA_0);
+            }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::MeshPipeStatsBuf))
+            {
+                pSignature->taskPipeStatsBufRegAddr = offset + mmCOMPUTE_USER_DATA_0;
+            }
+            else if (value == static_cast<uint32>(Abi::UserDataMapping::PerShaderPerfData))
+            {
+                m_pCsPerfDataInfo->regOffset = offset + mmCOMPUTE_USER_DATA_0;
+            }
+            else if ((value == static_cast<uint32>(Abi::UserDataMapping::VertexBufferTable)) ||
+                     (value == static_cast<uint32>(Abi::UserDataMapping::StreamOutTable))    ||
+                     (value == static_cast<uint32>(Abi::UserDataMapping::BaseVertex))        ||
+                     (value == static_cast<uint32>(Abi::UserDataMapping::BaseInstance))      ||
+                     (value == static_cast<uint32>(Abi::UserDataMapping::DrawIndex))         ||
+                     (value == static_cast<uint32>(Abi::UserDataMapping::BaseIndex))         ||
+                     (value == static_cast<uint32>(Abi::UserDataMapping::Log2IndexSize))     ||
+                     (value == static_cast<uint32>(Abi::UserDataMapping::EsGsLdsSize)))
+            {
+                PAL_ALERT_ALWAYS(); // These are for graphics pipelines only!
+            }
+            else
+            {
+                // This appears to be an illegally-specified user-data register!
+                PAL_NEVER_CALLED();
+            }
+        } // If HasEntry()
+    } // For each user-SGPR
 }
 
 // =====================================================================================================================

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -478,21 +478,22 @@ public:
         Pm4Predicate  predicate,
         void*         pBuffer);
     template <bool IssueSqttMarkerEvent>
-    static size_t BuildDispatchTaskMeshGfx(
+    size_t BuildDispatchTaskMeshGfx(
         uint32       tgDimOffset,
         uint32       ringEntryLoc,
         Pm4Predicate predicate,
 #if PAL_BUILD_GFX11
         bool         usesLegacyMsFastLaunch,
+        bool         linearDispatch,
 #endif
-        void*        pBuffer);
+        void*        pBuffer) const;
 #if PAL_BUILD_GFX11
     static size_t BuildDispatchMeshDirect(
         DispatchDims size,
         Pm4Predicate predicate,
         void*        pBuffer);
 #endif
-    static size_t BuildDispatchMeshIndirectMulti(
+    size_t BuildDispatchMeshIndirectMulti(
         gpusize      dataOffset,
         uint32       xyzOffset,
         uint32       drawIndexOffset,
@@ -503,7 +504,7 @@ public:
 #if PAL_BUILD_GFX11
         bool         usesLegacyMsFastLaunch,
 #endif
-        void*        pBuffer);
+        void*        pBuffer) const;
     static size_t BuildDispatchTaskMeshIndirectMultiAce(
         gpusize      dataOffset,
         uint32       ringEntryLoc,
@@ -554,13 +555,6 @@ public:
 #endif
         gpusize                                  gpuAddr,
         void*                                    pBuffer) const;
-    size_t BuildExecutionMarker(
-        EngineType engineType,
-        gpusize    markerAddr,
-        uint32     markerVal,
-        uint64     clientHandle,
-        uint32     markerType,
-        void*      pBuffer) const;
     static size_t BuildIncrementCeCounter(void* pBuffer);
     static size_t BuildIncrementDeCounter(void* pBuffer);
     static size_t BuildIndexAttributesIndirect(gpusize baseAddr, uint16 index, bool hasIndirectAddress, void* pBuffer);

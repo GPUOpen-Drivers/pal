@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -552,7 +552,8 @@ struct ComputeShaderSignature
         struct
         {
             uint16  isWave32 :  1;   // Is the pipeline running in Wave-32 mode?
-            uint16  reserved : 15;
+            uint16  isLinear :  1;   // Is the taskMesh pipeline using linear dispatch for mesh packets?
+            uint16  reserved : 14;
         };
         uint16  u16All;
     } flags;

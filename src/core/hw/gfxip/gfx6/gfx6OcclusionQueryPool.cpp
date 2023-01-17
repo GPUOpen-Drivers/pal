@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -68,7 +68,7 @@ OcclusionQueryPool::OcclusionQueryPool(
 }
 
 // =====================================================================================================================
-// Adds the PM4 commands needed to begin this query to the supplied stream.
+// Begins a single query
 void OcclusionQueryPool::Begin(
     GfxCmdBuffer*     pCmdBuffer,
     Pal::CmdStream*   pCmdStream,
@@ -101,7 +101,7 @@ void OcclusionQueryPool::Begin(
 }
 
 // =====================================================================================================================
-// Adds the PM4 commands needed to end this query to the supplied stream.
+// Ends a single query
 void OcclusionQueryPool::End(
     GfxCmdBuffer*   pCmdBuffer,
     Pal::CmdStream* pCmdStream,
@@ -147,7 +147,7 @@ void OcclusionQueryPool::End(
             pCmdStream->CommitCommands(pCmdSpace);
 
             // Now that the occlusion query has ended, track the relevant memory range so that we can wait for all
-            // writes to complete before reseting this range in OptimizedReset().
+            // writes to complete before reseting this range in NormalReset().
             auto* pActiveRanges = static_cast<UniversalCmdBuffer*>(pCmdBuffer)->ActiveOcclusionQueryWriteRanges();
 
             const Interval<gpusize, bool> interval = { gpuAddr, gpuAddr + GetGpuResultSizeInBytes(1) - 1 };
@@ -212,9 +212,8 @@ void OcclusionQueryPool::WaitForSlots(
 }
 
 // =====================================================================================================================
-// Adds the PM4 commands needed to reset this query to the supplied stream on a command buffer that does not support
-// PM4 commands, or when an optimized path is unavailable.
-void OcclusionQueryPool::NormalReset(
+// Reset query using DMA, when NormalReset() can't be used or the command buffer does not support PM4.
+void OcclusionQueryPool::DmaEngineReset(
     GfxCmdBuffer*   pCmdBuffer,
     Pal::CmdStream* pCmdStream,
     uint32          startQuery,
@@ -296,9 +295,9 @@ Result OcclusionQueryPool::Reset(
 }
 
 // =====================================================================================================================
-// Adds the PM4 commands needed to reset this query to the supplied stream on a command buffer built for PM4 commands.
+// Reset query via PM4 commands on a PM4-supported command buffer.
 // NOTE: It is safe to call this with a command buffer that does not support occlusion queries.
-void OcclusionQueryPool::OptimizedReset(
+void OcclusionQueryPool::NormalReset(
     GfxCmdBuffer*   pCmdBuffer,
     Pal::CmdStream* pCmdStream,
     uint32          startQuery,

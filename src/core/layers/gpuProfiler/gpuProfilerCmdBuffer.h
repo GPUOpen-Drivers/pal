@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -146,10 +146,12 @@ public:
         const ScissorRectParams& params) override;
     virtual void CmdSetGlobalScissor(
         const GlobalScissorParams& params) override;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
     virtual void CmdSetColorWriteMask(
         const ColorWriteMaskParams& params) override;
     virtual void CmdSetRasterizerDiscardEnable(
         bool rasterizerDiscardEnable) override;
+#endif
     virtual void CmdBarrier(
         const BarrierInfo& barrierInfo) override;
     virtual void OptimizeBarrierReleaseInfo(
@@ -494,7 +496,6 @@ public:
     virtual void CmdNop(
         const void* pPayload,
         uint32      payloadSize) override;
-    virtual uint32 CmdInsertExecutionMarker() override;
     virtual void CmdPostProcessFrame(
         const CmdPostProcessFrameInfo& postProcessInfo,
         bool*                          pAddedGpuWork) override;
@@ -754,8 +755,10 @@ private:
     void ReplayCmdSetViewports(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetScissorRects(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetGlobalScissor(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
     void ReplayCmdSetColorWriteMask(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetRasterizerDiscardEnable(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
+#endif
     void ReplayCmdBarrier(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdRelease(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdAcquire(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
@@ -837,7 +840,6 @@ private:
 
     void ReplayCmdCommentString(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdNop(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
-    void ReplayCmdInsertExecutionMarker(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdPostProcessFrame(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetUserClipPlanes(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);
     void ReplayCmdSetClipRects(Queue* pQueue, TargetCmdBuffer* pTgtCmdBuffer);

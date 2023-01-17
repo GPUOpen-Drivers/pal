@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -2532,21 +2532,21 @@ void RsrcProcMgr::DepthStencilClearGraphics(
 
     // Bind the depth expand state because it's just a full image quad and a zero PS (with no internal flags) which
     // is also what we need for the clear.
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, GetGfxPipeline(DepthExpand), InternalApiPsoHash, });
-    pCmdBuffer->CmdBindMsaaState(GetMsaaState(dstImage.Parent()->GetImageCreateInfo().samples,
-                                              dstImage.Parent()->GetImageCreateInfo().fragments));
-
-    BindCommonGraphicsState(pCmdBuffer);
-    pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
-
+    PipelineBindParams bindParams = { PipelineBindPoint::Graphics, GetGfxPipeline(DepthExpand), InternalApiPsoHash, };
     if (clearDepth)
     {
         // Enable viewport clamping if depth values are in the [0, 1] range. This avoids writing expanded depth
         // when using a float depth format. DepthExpand pipeline disables clamping by default.
         const bool disableClamp = ((depth < 0.0f) || (depth > 1.0f));
-        static_cast<Pm4CmdBuffer*>(pCmdBuffer)->CmdOverwriteDisableViewportClampForBlits(disableClamp);
+        bindParams.graphics.dynamicState.enable.depthClampMode = 1;
+        bindParams.graphics.dynamicState.depthClampMode = disableClamp ? DepthClampMode::_None : DepthClampMode::Viewport;
     }
+    pCmdBuffer->CmdBindPipeline(bindParams);
+    pCmdBuffer->CmdBindMsaaState(GetMsaaState(dstImage.Parent()->GetImageCreateInfo().samples,
+        dstImage.Parent()->GetImageCreateInfo().fragments));
 
+    BindCommonGraphicsState(pCmdBuffer);
+    pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
     // Select a depth/stencil state object for this clear:
     if (clearDepth && clearStencil)
     {

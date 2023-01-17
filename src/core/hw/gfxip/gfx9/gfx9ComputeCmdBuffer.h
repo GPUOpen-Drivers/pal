@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -184,8 +184,6 @@ public:
         const void* pPayload,
         uint32      payloadSize) override;
 
-    virtual uint32 CmdInsertExecutionMarker() override;
-
     virtual void GetChunkForCmdGeneration(
         const Pm4::IndirectCmdGenerator& generator,
         const Pal::Pipeline&             pipeline,
@@ -225,9 +223,6 @@ protected:
 
     virtual Result AddPreamble() override;
     virtual Result AddPostamble() override;
-
-    virtual void BeginExecutionMarker(uint64 clientHandle) override;
-    virtual void EndExecutionMarker() override;
 
     virtual void ResetState() override;
 

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -579,21 +579,12 @@ Result GpuMemory::OpenSharedMemory(
 
         if (bufferInfo.preferred_heap & AMDGPU_GEM_DOMAIN_VRAM)
         {
-            if (bufferInfo.alloc_flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED)
-            {
-                m_heaps[m_heapCount++] = GpuHeapLocal;
-            }
-            else if (bufferInfo.alloc_flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
+            if (bufferInfo.alloc_flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
             {
                 m_heaps[m_heapCount++] = GpuHeapInvisible;
             }
             else
             {
-                // Either one of the AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED or AMDGPU_GEM_CREATE_NO_CPU_ACCESS flag
-                // should have been set, if none of these two flags being set, something may went wrong.
-                // fallback to GpuHeapLocal.
-                PAL_ALERT(!((bufferInfo.alloc_flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED)
-                          ||(bufferInfo.alloc_flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)));
                 m_heaps[m_heapCount++] = GpuHeapLocal;
             }
         }
@@ -616,6 +607,7 @@ Result GpuMemory::OpenSharedMemory(
         }
 
         m_flags.cpuVisible = 1;
+        m_desc.heapCount   = m_heapCount;
 
         for (uint32 heap = 0; heap < m_heapCount; ++heap)
         {
@@ -636,6 +628,8 @@ Result GpuMemory::OpenSharedMemory(
                 default:
                     break;
             }
+
+            m_desc.heaps[heap] = m_heaps[heap];
         }
         if (bufferInfo.alloc_flags & AMDGPU_GEM_CREATE_EXPLICIT_SYNC)
         {

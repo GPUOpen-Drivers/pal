@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -69,8 +69,14 @@ protected:
     virtual Result AddPostamble() override;
 
     virtual void ResetState() override;
-    virtual uint32* WritePredicateCmd(size_t predicateDwords, uint32* pCmdSpace) const override;
-    virtual void PatchPredicateCmd(size_t predicateDwords, void* pPredicateCmd) const override;
+
+    virtual uint32* WriteSetupInternalPredicateMemoryCmd(
+        gpusize predMemAddress,
+        uint32  predCopyData,
+        uint32* pCmdSpace) const override;
+
+    virtual uint32* WritePredicateCmd(uint32* pCmdSpace) const override;
+    virtual void PatchPredicateCmd(uint32* pPredicateCmd, uint32* pCurCmdSpace) const override;
 
     virtual uint32* WriteCopyGpuMemoryCmd(
         gpusize      srcGpuAddr,
@@ -80,10 +86,10 @@ protected:
         uint32*      pCmdSpace,
         gpusize*     pBytesCopied) const override;
 
-    virtual void    WriteCopyImageLinearToLinearCmd(const DmaImageCopyInfo& imageCopyInfo) override;
-    virtual void    WriteCopyImageLinearToTiledCmd(const DmaImageCopyInfo& imageCopyInfo) override;
-    virtual void    WriteCopyImageTiledToLinearCmd(const DmaImageCopyInfo& imageCopyInfo) override;
-    virtual void    WriteCopyImageTiledToTiledCmd(const DmaImageCopyInfo& imageCopyInfo) override;
+    virtual uint32* WriteCopyImageLinearToLinearCmd(const DmaImageCopyInfo& imageCopyInfo, uint32* pCmdSpace) override;
+    virtual uint32* WriteCopyImageLinearToTiledCmd(const DmaImageCopyInfo& imageCopyInfo, uint32* pCmdSpace) override;
+    virtual uint32* WriteCopyImageTiledToLinearCmd(const DmaImageCopyInfo& imageCopyInfo, uint32* pCmdSpace) override;
+    virtual uint32* WriteCopyImageTiledToTiledCmd(const DmaImageCopyInfo& imageCopyInfo, uint32* pCmdSpace) override;
 
     virtual uint32* WriteCopyTypedBuffer(
         const DmaTypedBufferCopyInfo& dmaCopyInfo,
@@ -187,6 +193,9 @@ private:
         { return (imageInfo.actualExtent.width * imageInfo.actualExtent.height) / TilePixels - 1; }
 
     void WriteTimestampCmd(gpusize dstAddr);
+
+    uint32* WriteCondExecCmd(uint32* pCmdSpace, gpusize predMemory, uint32 skipCountInDwords) const;
+    uint32* WriteFenceCmd(uint32* pCmdSpace, gpusize memory, uint32 predCopyData) const;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(DmaCmdBuffer);
     PAL_DISALLOW_DEFAULT_CTOR(DmaCmdBuffer);

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -136,8 +136,10 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferCmdSetViewports,                                  InterfaceObject::CmdBuffer,            "CmdSetViewports"                         },
     { InterfaceFunc::CmdBufferCmdSetScissorRects,                               InterfaceObject::CmdBuffer,            "CmdSetScissorRects"                      },
     { InterfaceFunc::CmdBufferCmdSetGlobalScissor,                              InterfaceObject::CmdBuffer,            "CmdSetGlobalScissor"                     },
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
     { InterfaceFunc::CmdBufferCmdSetColorWriteMask,                             InterfaceObject::CmdBuffer,            "CmdSetColorWriteMask"                    },
     { InterfaceFunc::CmdBufferCmdSetRasterizerDiscardEnable,                    InterfaceObject::CmdBuffer,            "CmdSetRasterizerDiscardEnable"           },
+#endif
     { InterfaceFunc::CmdBufferCmdBarrier,                                       InterfaceObject::CmdBuffer,            "CmdBarrier"                              },
     { InterfaceFunc::CmdBufferCmdRelease,                                       InterfaceObject::CmdBuffer,            "CmdRelease"                              },
     { InterfaceFunc::CmdBufferCmdAcquire,                                       InterfaceObject::CmdBuffer,            "CmdAcquire"                              },
@@ -215,7 +217,6 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::CmdBufferCmdPresent,                                       InterfaceObject::CmdBuffer,            "CmdPresent"                              },
     { InterfaceFunc::CmdBufferCmdCommentString,                                 InterfaceObject::CmdBuffer,            "CmdCommentString"                        },
     { InterfaceFunc::CmdBufferCmdNop,                                           InterfaceObject::CmdBuffer,            "CmdNop"                                  },
-    { InterfaceFunc::CmdBufferCmdInsertExecutionMarker,                         InterfaceObject::CmdBuffer,            "CmdInsertExecutionMarker"                },
     { InterfaceFunc::CmdBufferCmdXdmaWaitFlipPending,                           InterfaceObject::CmdBuffer,            "CmdXdmaWaitFlipPending"                  },
     { InterfaceFunc::CmdBufferCmdStartGpuProfilerLogging,                       InterfaceObject::CmdBuffer,            "CmdStartGpuProfilerLogging"              },
     { InterfaceFunc::CmdBufferCmdStopGpuProfilerLogging,                        InterfaceObject::CmdBuffer,            "CmdStopGpuProfilerLogging"               },

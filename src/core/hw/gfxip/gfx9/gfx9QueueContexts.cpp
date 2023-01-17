@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -408,15 +408,18 @@ Result ComputeQueueContext::RebuildCommandStreams(
 
         pCmdSpace = WriteCommonPreamble(*m_pDevice, EngineTypeCompute, &m_cmdStream, pCmdSpace);
 
-        // If SPM interval spans across gfx and ace, we need to manually set COMPUTE_PERFCOUNT_ENABLE for the pipes.
-        // SPM via devdriver (RDP, PIX) have this register set once profiling enabled to meet RDP's need for extended
-        // SPM interval.
-        // SPM via PAL GpuProfiler will need similar work to have accurate per-frame SPM counts.
-        regCOMPUTE_PERFCOUNT_ENABLE computeEnable = {};
-        computeEnable.bits.PERFCOUNT_ENABLE = m_pDevice->GetPlatform()->IsDevDriverProfilingEnabled() ? 1 : 0;
-        pCmdSpace = m_cmdStream.WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PERFCOUNT_ENABLE,
-                                                                computeEnable.u32All,
-                                                                pCmdSpace);
+        StartingPerfcounterState perfctrBehavior = m_pDevice->CoreSettings().startingPerfcounterState;
+        if (perfctrBehavior != StartingPerfcounterStateUntouched)
+        {
+            // If SPM interval spans across gfx and ace, we need to manually set COMPUTE_PERFCOUNT_ENABLE for the pipes.
+            // But if not using SPM/counters, we want to have the hardware not count our workload (could affect perf)
+            // By default, set it based on if GpuProfiler or DevDriver are active.
+            regCOMPUTE_PERFCOUNT_ENABLE computeEnable = {};
+            computeEnable.bits.PERFCOUNT_ENABLE = uint32(m_pDevice->Parent()->EnablePerfCountersInPreamble());
+            pCmdSpace = m_cmdStream.WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PERFCOUNT_ENABLE,
+                                                                    computeEnable.u32All,
+                                                                    pCmdSpace);
+        }
 
         m_cmdStream.CommitCommands(pCmdSpace);
         result = m_cmdStream.End();
@@ -1014,16 +1017,18 @@ void UniversalQueueContext::WritePerSubmitPreamble(
             }
         } // state shadowing by CP Fw
 
-        // If SPM interval spans across gfx and ace, we need to manually set COMPUTE_PERFCOUNT_ENABLE for the pipes.
-        // Set this register to correct value instead of loading with zero.
-        // SPM via devdriver (RDP, PIX) have this register set once profiling enabled to meet RDP's need for extended
-        // SPM interval.
-        // SPM via PAL GpuProfiler will need similar work to have accurate per-frame SPM counts.
-        regCOMPUTE_PERFCOUNT_ENABLE computeEnable = {};
-        computeEnable.bits.PERFCOUNT_ENABLE = m_pDevice->GetPlatform()->IsDevDriverProfilingEnabled() ? 1 : 0;
-        pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PERFCOUNT_ENABLE,
-                                                                computeEnable.u32All,
-                                                                pCmdSpace);
+        StartingPerfcounterState perfctrBehavior = m_pDevice->CoreSettings().startingPerfcounterState;
+        if (perfctrBehavior != StartingPerfcounterStateUntouched)
+        {
+            // If SPM interval spans across gfx and ace, we need to manually set COMPUTE_PERFCOUNT_ENABLE for the pipes.
+            // But if not using SPM/counters, we want to have the hardware not count our workload (could affect perf)
+            // By default, set it based on if GpuProfiler or DevDriver are active.
+            regCOMPUTE_PERFCOUNT_ENABLE computeEnable = {};
+            computeEnable.bits.PERFCOUNT_ENABLE = uint32(m_pDevice->Parent()->EnablePerfCountersInPreamble());
+            pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_PERFCOUNT_ENABLE,
+                                                                    computeEnable.u32All,
+                                                                    pCmdSpace);
+        }
 
         pCmdStream->CommitCommands(pCmdSpace);
 

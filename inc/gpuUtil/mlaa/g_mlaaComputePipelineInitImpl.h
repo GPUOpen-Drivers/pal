@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -137,6 +137,14 @@ Pal::Result CreateMlaaComputePipelines(
 
     case Pal::AsicRevision::Navi24:
         pTable = mlaaComputeBinaryTableNavi24;
+        break;
+
+    case Pal::AsicRevision::Rembrandt:
+        pTable = mlaaComputeBinaryTableRembrandt;
+        break;
+
+    case Pal::AsicRevision::Raphael:
+        pTable = mlaaComputeBinaryTableRaphael;
         break;
 
 #if PAL_BUILD_NAVI31

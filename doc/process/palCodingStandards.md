@@ -1,5 +1,5 @@
 ```
-Copyright (c) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
+Copyright (c) 2019-2023 Advanced Micro Devices, Inc. All rights reserved.
 ```
 
 <!--
@@ -142,7 +142,7 @@ General Language Restrictions
     or memory allocation calls failing. The `PAL_ALERT` macro ***should
     be*** used for reporting this sort of failure, when deemed useful.
 
--   All target compilers **must** fully support C++11. The following C++11
+-   All target compilers **must** fully support C++14. The following C++
     constructs are explicitly allowed:
 
     -   Storage class ***must*** be specified for all enums to allow

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -754,6 +754,52 @@ static void SetupNavi24Workarounds(
     pSettings->waBadSqttFinishResults = true;
 }
 
+// =====================================================================================================================
+// Setup workarounds that only apply to Rembrandt.
+static void SetupRembrandtWorkarounds(
+    const Pal::Device& device,
+    Gfx9PalSettings*   pSettings)
+{
+    // Setup any Gfx10 workarounds.
+    SetupGfx10Workarounds(device, pSettings);
+
+    // Setup any Navi2x workarounds.
+    SetupNavi2xWorkarounds(device, pSettings);
+
+    // Setup any Rembrandt workarounds.
+    pSettings->waBadSqttFinishResults = true;
+}
+
+// =====================================================================================================================
+// Setup workarounds that only apply to Raphael.
+static void SetupRaphaelWorkarounds(
+    const Pal::Device& device,
+    Gfx9PalSettings*   pSettings)
+{
+    // Setup any Gfx10 workarounds.
+    SetupGfx10Workarounds(device, pSettings);
+
+    // Setup any Navi2x workarounds.
+    SetupNavi2xWorkarounds(device, pSettings);
+
+    // Setup any Raphael workarounds.
+}
+
+// =====================================================================================================================
+// Setup workarounds that only apply to Mendocino.
+static void SetupMendocinoWorkarounds(
+    const Pal::Device& device,
+    Gfx9PalSettings* pSettings)
+{
+    // Setup any Gfx10 workarounds.
+    SetupGfx10Workarounds(device, pSettings);
+
+    // Setup any Navi2x workarounds.
+    SetupNavi2xWorkarounds(device, pSettings);
+
+    // Setup any Mendocino workarounds.
+}
+
 #if PAL_BUILD_GFX11
 // =====================================================================================================================
 // Setup workarounds for GFX11
@@ -769,8 +815,8 @@ static void SetupGfx11Workarounds(
     PAL_ASSERT(waFound);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-    constexpr uint32 HandledWaMask[] = { 0x1E793001, 0x00000000 }; // Workarounds handled by PAL.
-    constexpr uint32 OutsideWaMask[] = { 0xE0068DFE, 0x0000007C }; // Workarounds handled by other components.
+    constexpr uint32 HandledWaMask[] = { 0x1E793001, 0x00000100 }; // Workarounds handled by PAL.
+    constexpr uint32 OutsideWaMask[] = { 0xE0068DFE, 0x000000FC }; // Workarounds handled by other components.
     constexpr uint32 MissingWaMask[] = { 0x00004000, 0x00000001 }; // Workarounds that should be handled by PAL that
                                                                    // are not yet implemented or are unlikey to be
                                                                    // implemented.
@@ -787,7 +833,7 @@ static void SetupGfx11Workarounds(
                   "Workaround Masks do not match!");
 #endif
 
-    static_assert(Gfx11NumWorkarounds == 39, "Workaround count mismatch between PAL and SWD");
+    static_assert(Gfx11NumWorkarounds == 41, "Workaround count mismatch between PAL and SWD");
 
 #if PAL_BUILD_NAVI31
     if (workarounds.ppPbbPBBBreakBatchDifferenceWithPrimLimit_FpovLimit_DeallocLimit_A_)
@@ -852,6 +898,7 @@ static void SetupGfx11Workarounds(
         pSettings->waitOnFlush |= (WaitAfterCbFlush | WaitBeforeBarrierEopWithCbFlush);
     }
 #endif
+
 }
 #endif
 
@@ -944,6 +991,18 @@ void SettingsLoader::OverrideDefaults(
         else if (IsNavi24(device))
         {
             SetupNavi24Workarounds(device, &m_settings);
+        }
+        else if (IsRembrandt(device))
+        {
+            SetupRembrandtWorkarounds(device, &m_settings);
+        }
+        else if (IsRaphael(device))
+        {
+            SetupRaphaelWorkarounds(device, &m_settings);
+        }
+        else if (IsMendocino(device))
+        {
+            SetupMendocinoWorkarounds(device, &m_settings);
         }
 
         if (IsGfx103(device))

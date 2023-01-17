@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -225,6 +225,7 @@ Result Platform::ReQueryDevices()
                                 busId,
                                 pDevices[i]->nodes[DRM_NODE_PRIMARY],
                                 pDevices[i]->nodes[DRM_NODE_RENDER],
+                                pDevices[i]->available_nodes,
                                 *pDevices[i]->businfo.pci,
                                 m_deviceCount,
                                 &pDevice);

@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2020-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2020-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -104,6 +104,16 @@ if (PAL_BUILD_GFX9)
 
     pal_bp(PAL_BUILD_NAVI24 ON MODE "AUTHOR_WARNING")
     pal_set_or(PAL_BUILD_GFX10_3 ${PAL_BUILD_NAVI24})
+
+    pal_bp(PAL_BUILD_REMBRANDT ON MODE "AUTHOR_WARNING")
+    pal_set_or(PAL_BUILD_GFX10_3 ${PAL_BUILD_REMBRANDT})
+
+    pal_bp(PAL_BUILD_MENDOCINO ON MODE "AUTHOR_WARNING")
+    pal_set_or(PAL_BUILD_GFX10_3 ${PAL_BUILD_MENDOCINO})
+    pal_set_or(PAL_BUILD_RAPHAEL ${PAL_BUILD_MENDOCINO})
+
+    pal_bp(PAL_BUILD_RAPHAEL ON MODE "AUTHOR_WARNING")
+    pal_set_or(PAL_BUILD_GFX10_3 ${PAL_BUILD_RAPHAEL})
 
 #if PAL_BUILD_NAVI31
     pal_bp(PAL_BUILD_NAVI31 ON MODE "AUTHOR_WARNING")

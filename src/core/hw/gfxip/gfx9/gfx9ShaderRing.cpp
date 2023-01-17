@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -134,9 +134,7 @@ Result ShaderRing::AllocateVideoMemory(
     createInfo.alignment = ShaderRingAlignment;
     createInfo.priority  = GpuMemPriority::Normal;
 
-    if ((m_ringType == ShaderRingType::SamplePos)       ||
-        (m_ringType == ShaderRingType::TaskMeshControl) ||
-        (m_ringType == ShaderRingType::DrawData))
+    if ((m_ringType == ShaderRingType::SamplePos) || (m_ringType == ShaderRingType::TaskMeshCtrlDrawRing))
     {
         // SamplePos doesn't need a TMZ allocation because it's updated by the CPU and only read by the GPU.
         createInfo.heaps[0]  = GpuHeapLocal;
@@ -738,83 +736,46 @@ void PayloadDataRing::UpdateSrds() const
 }
 
 // =====================================================================================================================
-DrawDataRing::DrawDataRing(
+TaskMeshCtrlDrawRing::TaskMeshCtrlDrawRing(
     Device*    pDevice,
     BufferSrd* pSrdTable,
     bool       isTmz)
     :
-    ShaderRing(pDevice, pSrdTable, isTmz, ShaderRingType::DrawData),
-    m_maxNumEntries(Pow2Pad(m_pDevice->Settings().numTsMsDrawEntriesPerSe *
-                            pDevice->Parent()->ChipProperties().gfx9.numShaderEngines))
+    ShaderRing(pDevice, pSrdTable, isTmz, ShaderRingType::TaskMeshCtrlDrawRing),
+    m_drawRingEntries(Pow2Pad(m_pDevice->Settings().numTsMsDrawEntriesPerSe *
+                              pDevice->Parent()->ChipProperties().gfx9.numShaderEngines)),
+    m_drawRingTotalBytes(m_drawRingEntries * DrawDataEntrySize)
 {
-    const GpuChipProperties& chipProps   = m_pDevice->Parent()->ChipProperties();
-    BufferSrd*const          pGenericSrd = &m_pSrdTable[static_cast<size_t>(ShaderRingSrd::DrawDataRing)];
-    m_pDevice->InitBufferSrd(pGenericSrd, 0, DrawDataEntrySize);
-    AdjustRingDataFormat(chipProps, pGenericSrd);
+    const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
+    BufferSrd*const          pDrawData = &m_pSrdTable[static_cast<size_t>(ShaderRingSrd::DrawDataRing)];
+    m_pDevice->InitBufferSrd(pDrawData, 0, DrawDataEntrySize);
+    AdjustRingDataFormat(chipProps, pDrawData);
+
+    BufferSrd*const          pTaskMeshCt = &m_pSrdTable[static_cast<size_t>(ShaderRingSrd::TaskMeshControl)];
+    m_pDevice->InitBufferSrd(pTaskMeshCt, 0, 0);
+    AdjustRingDataFormat(chipProps, pTaskMeshCt);
 }
 
 // =====================================================================================================================
-void DrawDataRing::UpdateSrds() const
-{
-    PAL_ASSERT(m_ringMem.IsBound());
-
-    const gpusize gpuVirtAddr = m_ringMem.GpuVirtAddr();
-
-    BufferSrd*const pSrd = &m_pSrdTable[static_cast<size_t>(ShaderRingSrd::DrawDataRing)];
-    m_pDevice->SetBaseAddress(pSrd, gpuVirtAddr);
-    m_pDevice->SetNumRecords(pSrd, m_allocSize);
-}
-
-// =====================================================================================================================
-void DrawDataRing::Initialize()
-{
-    // Map and zero-initialize the draw data ring, to ensure a correct initial state of "ready" bits.
-    if (m_ringMem.IsBound())
-    {
-        void*  pData  = nullptr;
-        const Result result = m_ringMem.Map(&pData);
-        if (result == Result::Success)
-        {
-            memset(pData, 0, static_cast<size_t>(m_allocSize));
-            m_ringMem.Unmap();
-        }
-        else
-        {
-            PAL_ASSERT_ALWAYS();
-        }
-    }
-}
-
-// =====================================================================================================================
-TaskMeshControlRing::TaskMeshControlRing(
-    Device*    pDevice,
-    BufferSrd* pSrdTable,
-    bool       isTmz)
-    :
-    ShaderRing(pDevice, pSrdTable, isTmz, ShaderRingType::TaskMeshControl),
-    m_taskControlBufferPaddingSize(
-        pDevice->Settings().taskControlBufferPadDWords * sizeof(uint32))
-{
-    const GpuChipProperties& chipProps   = m_pDevice->Parent()->ChipProperties();
-    BufferSrd*const          pGenericSrd = &m_pSrdTable[static_cast<size_t>(ShaderRingSrd::TaskMeshControl)];
-    m_pDevice->InitBufferSrd(pGenericSrd, 0, 0);
-    AdjustRingDataFormat(chipProps, pGenericSrd);
-}
-
-// =====================================================================================================================
-void TaskMeshControlRing::InitializeControlBuffer(
-    gpusize drawRingAddr,
-    uint32  numEntries)
+void TaskMeshCtrlDrawRing::InitializeControlBufferAndDrawRingBuffer()
 {
     ControlBufferLayout controlBuffer = {};
 
+    constexpr uint32 AlignmentBytes = 64;
+
+    // The constant offset must be > 64 bytes and it must be power of two.
+    static_assert(Util::IsPowerOfTwo(OffsetOfControlDrawRing) && (OffsetOfControlDrawRing > AlignmentBytes),
+                  "The offset between control buffer and draw ring buffer must be power of two and aligned to 64!");
+
+    gpusize drawRingAddr = GetDrawRingVirtAddr();
+
     // The draw ring base address must be aligned to 64-bytes.
-    PAL_ASSERT(Util::IsPow2Aligned(drawRingAddr, 64));
+    PAL_ASSERT(Util::IsPow2Aligned(drawRingAddr, AlignmentBytes));
 
-    // NumEntries must be a power of 2.
-    PAL_ASSERT(Util::IsPowerOfTwo(numEntries));
+    // Number of draw ring entries must be a power of 2.
+    PAL_ASSERT(Util::IsPowerOfTwo(m_drawRingEntries));
 
-    controlBuffer.numEntries       = numEntries;
+    controlBuffer.numEntries       = m_drawRingEntries;
     controlBuffer.drawRingBaseAddr = drawRingAddr;
 
     // The first 5 bits are reserved and need to be set to 0.
@@ -825,11 +786,11 @@ void TaskMeshControlRing::InitializeControlBuffer(
     // indicates ready to GFX. For odd numbered passes, readyBit = 0 indicates ready.
     // The formula for the ready bit written by the taskshader is (readyBit = (wptr / numRingEntries) & 1).
     // The "ready" bits in the zero-initialized draw ring are interpreted as being in "not ready" state.
-    controlBuffer.readPtr    = numEntries;
-    controlBuffer.writePtr   = numEntries;
-    controlBuffer.deallocPtr = numEntries;
+    controlBuffer.readPtr    = m_drawRingEntries;
+    controlBuffer.writePtr   = m_drawRingEntries;
+    controlBuffer.deallocPtr = m_drawRingEntries;
 
-    // Map and upload the control buffer layout to the ring.
+    // Map and upload the control buffer layout and draw data to the ring.
     if (m_ringMem.IsBound())
     {
         void*  pData  = nullptr;
@@ -837,7 +798,8 @@ void TaskMeshControlRing::InitializeControlBuffer(
         if (result == Result::Success)
         {
             memcpy(pData, &controlBuffer, sizeof(ControlBufferLayout));
-            memset(VoidPtrInc(pData, sizeof(ControlBufferLayout)), 0, m_taskControlBufferPaddingSize);
+            // Map and zero-initialize the draw data ring, to ensure a correct initial state of "ready" bits.
+            memset(VoidPtrInc(pData, OffsetOfControlDrawRing), 0, m_drawRingTotalBytes);
             m_ringMem.Unmap();
         }
         else
@@ -845,6 +807,16 @@ void TaskMeshControlRing::InitializeControlBuffer(
             PAL_ASSERT_ALWAYS();
         }
     }
+}
+
+// =====================================================================================================================
+void TaskMeshCtrlDrawRing::UpdateSrds() const
+{
+    PAL_ASSERT(m_ringMem.IsBound());
+
+    BufferSrd*const          pGenericSrd = &m_pSrdTable[static_cast<size_t>(ShaderRingSrd::DrawDataRing)];
+    m_pDevice->SetBaseAddress(pGenericSrd, GetDrawRingVirtAddr());
+    m_pDevice->SetNumRecords(pGenericSrd, m_drawRingTotalBytes);
 }
 
 #if PAL_BUILD_GFX11

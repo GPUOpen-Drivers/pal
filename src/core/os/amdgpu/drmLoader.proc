@@ -49,6 +49,7 @@ libdrm_amdgpu.so.1 @proc  int32 amdgpu_cs_ctx_free (amdgpu_context_handle hConte
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_cs_submit (amdgpu_context_handle hContext, uint64 flags, struct amdgpu_cs_request* pIbsRequest, uint32 numberOfRequests)
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_cs_query_fence_status (struct amdgpu_cs_fence* pFence, uint64 timeoutInNs, uint64 flags, uint32* pExpired)
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_cs_wait_fences (struct amdgpu_cs_fence* pFences, uint32 fenceCount, bool waitAll, uint64 timeoutInNs, uint32* pStatus, uint32* pFirst)
+libdrm_amdgpu.so.1 @proc  int32 amdgpu_cs_ctx_stable_pstate (amdgpu_context_handle context, uint32_t op, uint32_t flags, uint32_t *out_flags)
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_query_buffer_size_alignment (amdgpu_device_handle hDevice, struct amdgpu_buffer_size_alignments* pInfo)
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_query_firmware_version (amdgpu_device_handle hDevice, uint32 fwType, uint32 ipInstance, uint32 index, uint32* pVersion, uint32* pFeature)
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_query_hw_ip_count (amdgpu_device_handle hDevice, uint32 type, uint32* pCount)

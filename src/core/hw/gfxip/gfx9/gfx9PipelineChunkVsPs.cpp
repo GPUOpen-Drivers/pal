@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -172,7 +172,7 @@ void PipelineChunkVsPs::LateInit(
         AbiRegisters::VgtStrmoutVtxStrides(metadata, &m_regs.context.vgtStrmoutVtxStride[0]);
     }
 
-    m_regs.context.dbShaderControl.u32All   = AbiRegisters::DbShaderControl(metadata, chipProps.gfxLevel);
+    m_regs.context.dbShaderControl.u32All   = AbiRegisters::DbShaderControl(metadata, m_device, chipProps.gfxLevel);
     m_regs.context.spiBarycCntl.u32All      = AbiRegisters::SpiBarycCntl(metadata, chipProps.gfxLevel);
     m_regs.context.spiPsInputAddr.u32All    = AbiRegisters::SpiPsInputAddr(metadata);
     m_regs.context.spiPsInputEna.u32All     = AbiRegisters::SpiPsInputEna(metadata);
@@ -321,9 +321,6 @@ uint32* PipelineChunkVsPs::WriteContextCommands(
                                                    mmSPI_PS_INPUT_ADDR,
                                                    &m_regs.context.spiPsInputEna.u32All,
                                                    pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_SHADER_CONTROL,
-                                                  m_regs.context.dbShaderControl.u32All,
-                                                  pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_SC_SHADER_CONTROL,
                                                   m_regs.context.paScShaderControl.u32All,
                                                   pCmdSpace);
@@ -414,10 +411,6 @@ void PipelineChunkVsPs::AccumulateContextRegs(
                                   mmSPI_PS_INPUT_ENA,
                                   mmSPI_PS_INPUT_ADDR,
                                   &m_regs.context.spiPsInputEna.u32All);
-    SetOneContextRegValPairPacked(pRegPairs,
-                                  pNumRegs,
-                                  mmDB_SHADER_CONTROL,
-                                  m_regs.context.dbShaderControl.u32All);
     SetOneContextRegValPairPacked(pRegPairs,
                                   pNumRegs,
                                   mmPA_SC_SHADER_CONTROL,

@@ -1171,6 +1171,20 @@ int amdgpu_cs_wait_fences(struct amdgpu_cs_fence *fences,
 			  uint64_t timeout_ns,
 			  uint32_t *status, uint32_t *first);
 
+/**
+ * Set or query the stable power state for GPU profiling.
+ *
+ * \param   dev        - \c [in] device handle
+ * \param   op         - \c [in] AMDGPU_CTX_OP_{GET,SET}_STABLE_PSTATE
+ * \param   flags      - \c [in] AMDGPU_CTX_STABLE_PSTATE_*
+ * \param   out_flags  - \c [out] output current stable pstate
+ *
+ * \return  0 on success otherwise POSIX Error code.
+ */
+int amdgpu_cs_ctx_stable_pstate(amdgpu_context_handle context,
+				 uint32_t op,
+				 uint32_t flags,
+				 uint32_t *out_flags);
 /*
  * Query / Info API
  *

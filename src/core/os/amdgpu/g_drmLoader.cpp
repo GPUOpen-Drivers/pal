@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2018-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1237,6 +1237,35 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuCsWaitFences(
         timeoutInNs,
         pStatus,
         pFirst);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+int32 DrmLoaderFuncsProxy::pfnAmdgpuCsCtxStablePstate(
+    amdgpu_context_handle  context,
+    uint32_t               op,
+    uint32_t               flags,
+    uint32_t *             out_flags
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int32 ret = m_pFuncs->pfnAmdgpuCsCtxStablePstate(context,
+                                                     op,
+                                                     flags,
+                                                     out_flags);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("AmdgpuCsCtxStablePstate,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "AmdgpuCsCtxStablePstate(%p, %x, %x, %p)\n",
+        context,
+        op,
+        flags,
+        out_flags);
     m_paramLogger.Flush();
 
     return ret;
@@ -3338,6 +3367,7 @@ Result DrmLoader::Init(
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_submit", &m_funcs.pfnAmdgpuCsSubmit);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_query_fence_status", &m_funcs.pfnAmdgpuCsQueryFenceStatus);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_wait_fences", &m_funcs.pfnAmdgpuCsWaitFences);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_ctx_stable_pstate", &m_funcs.pfnAmdgpuCsCtxStablePstate);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_query_buffer_size_alignment", &m_funcs.pfnAmdgpuQueryBufferSizeAlignment);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_query_firmware_version", &m_funcs.pfnAmdgpuQueryFirmwareVersion);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_query_hw_ip_count", &m_funcs.pfnAmdgpuQueryHwIpCount);

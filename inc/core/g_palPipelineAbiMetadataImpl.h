@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -405,9 +405,6 @@ inline Result DeserializeEnum(
         case HashLiteralString("_amdgpu_cs_main"):
             *pValue = Abi::PipelineSymbolType::CsMainEntry;
             break;
-        case HashLiteralString("_amdgpu_fs_main"):
-            *pValue = Abi::PipelineSymbolType::FsMainEntry;
-            break;
         case HashLiteralString("_amdgpu_ls_shdr_intrl_tbl"):
             *pValue = Abi::PipelineSymbolType::LsShdrIntrlTblPtr;
             break;
@@ -513,9 +510,6 @@ inline Result SerializeEnum(
         break;
     case Abi::PipelineSymbolType::CsMainEntry:
         pWriter->Pack("_amdgpu_cs_main");
-        break;
-    case Abi::PipelineSymbolType::FsMainEntry:
-        pWriter->Pack("_amdgpu_fs_main");
         break;
     case Abi::PipelineSymbolType::LsShdrIntrlTblPtr:
         pWriter->Pack("_amdgpu_ls_shdr_intrl_tbl");
@@ -4841,6 +4835,21 @@ inline Result DeserializeGraphicsRegisterMetadata(
 
 #endif
 
+            case HashLiteralString(GraphicsRegisterMetadataKey::MeshLinearDispatchFromTask):
+            {
+                PAL_ASSERT(pMetadata->hasEntry.meshLinearDispatchFromTask == 0);
+                bool value = false;
+                result = pReader->UnpackNext(&value);
+
+                if (result == Result::Success)
+                {
+                    pMetadata->flags.meshLinearDispatchFromTask = value;
+                }
+
+                pMetadata->hasEntry.meshLinearDispatchFromTask = (result == Result::Success);
+                break;
+            }
+
             case HashLiteralString(GraphicsRegisterMetadataKey::VgtGsMaxVertOut):
                 PAL_ASSERT(pMetadata->hasEntry.vgtGsMaxVertOut == 0);
                 result = pReader->UnpackNext(&pMetadata->vgtGsMaxVertOut);
@@ -5160,6 +5169,21 @@ inline Result DeserializeComputeRegisterMetadata(
                 }
 
                 pMetadata->hasEntry.tgidZEn = (result == Result::Success);
+                break;
+            }
+
+            case HashLiteralString(ComputeRegisterMetadataKey::TgSizeEn):
+            {
+                PAL_ASSERT(pMetadata->hasEntry.tgSizeEn == 0);
+                bool value = false;
+                result = pReader->UnpackNext(&value);
+
+                if (result == Result::Success)
+                {
+                    pMetadata->flags.tgSizeEn = value;
+                }
+
+                pMetadata->hasEntry.tgSizeEn = (result == Result::Success);
                 break;
             }
 

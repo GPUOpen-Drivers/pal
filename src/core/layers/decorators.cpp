@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -2844,6 +2844,11 @@ Result QueueDecorator::Submit(
 
                             pNextCmdBufInfoList->frameIndex = origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].frameIndex;
                         }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 779
+                        pNextCmdBufInfoList->pEarlyPresentEvent =
+                            origSubQueueInfo.pCmdBufInfoList[cmdBufIdx].pEarlyPresentEvent;
+#endif
                     }
                 }
 

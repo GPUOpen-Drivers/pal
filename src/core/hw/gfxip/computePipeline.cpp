@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -42,10 +42,8 @@ ComputePipeline::ComputePipeline(
     m_pHsaMeta(nullptr),
     m_pKernelDescriptor(nullptr),
     m_threadsPerTg{},
-    m_useCps(false),
     m_maxFunctionCallDepth(0),
-    m_stackSizeInBytes(0),
-    m_irStackSizeInBytes(0)
+    m_stackSizeInBytes(0)
 {
     memset(&m_stageInfo, 0, sizeof(m_stageInfo));
     m_stageInfo.stageId = Abi::HardwareStage::Cs;
@@ -60,14 +58,14 @@ ComputePipeline::~ComputePipeline()
 // =====================================================================================================================
 // Initialize this compute pipeline based on the provided creation info.
 Result ComputePipeline::Init(
-    const ComputePipelineCreateInfo& createInfo)
+    const ComputePipelineCreateInfo&  createInfo,
+    const AbiReader&                  abiReader,
+    const PalAbi::CodeObjectMetadata& metadata,
+    MsgPackReader*                    pMetadataReader)
 {
     Result result = Result::Success;
 
     m_maxFunctionCallDepth = createInfo.maxFunctionCallDepth;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 728
-    m_useCps = createInfo.flags.useCps;
-#endif
 
     if ((createInfo.pPipelineBinary != nullptr) && (createInfo.pipelineBinarySize != 0))
     {
@@ -107,28 +105,20 @@ Result ComputePipeline::Init(
     {
         PAL_ASSERT((m_pPipelineBinary != nullptr) && (m_pipelineBinaryLen != 0));
 
-        MsgPackReader metadataReader;
-        AbiReader     abiReader(m_pDevice->GetPlatform(), m_pPipelineBinary);
+        const uint8 abi = abiReader.GetOsAbi();
 
-        result = abiReader.Init();
-
-        if (result == Result::Success)
+        if (abi == Abi::ElfOsAbiAmdgpuPal)
         {
-            const uint8 abi = abiReader.GetOsAbi();
-
-            if (abi == Abi::ElfOsAbiAmdgpuPal)
-            {
-                result = InitFromPalAbiBinary(createInfo, abiReader, &metadataReader);
-            }
-            else if ((abi == Abi::ElfOsAbiAmdgpuHsa) && (m_pDevice->ChipProperties().gfxip.supportHsaAbi == 1))
-            {
-                result = InitFromHsaAbiBinary(createInfo, abiReader, &metadataReader);
-            }
-            else
-            {
-                // You can end up here if this is an unknown ABI or if we don't support a known ABI on this device.
-                result = Result::ErrorUnsupportedPipelineElfAbiVersion;
-            }
+            result = InitFromPalAbiBinary(createInfo, abiReader, metadata, pMetadataReader);
+        }
+        else if ((abi == Abi::ElfOsAbiAmdgpuHsa) && (m_pDevice->ChipProperties().gfxip.supportHsaAbi == 1))
+        {
+            result = InitFromHsaAbiBinary(createInfo, abiReader, pMetadataReader);
+        }
+        else
+        {
+            // You can end up here if this is an unknown ABI or if we don't support a known ABI on this device.
+            result = Result::ErrorUnsupportedPipelineElfAbiVersion;
         }
     }
 
@@ -161,37 +151,32 @@ Result ComputePipeline::Init(
 // =====================================================================================================================
 // Extracts PAL ABI metadata from the pipeline binary and initializes the pipeline from it.
 Result ComputePipeline::InitFromPalAbiBinary(
-    const ComputePipelineCreateInfo& createInfo,
-    const AbiReader&                 abiReader,
-    MsgPackReader*                   pMetadataReader)
+    const ComputePipelineCreateInfo&  createInfo,
+    const AbiReader&                  abiReader,
+    const PalAbi::CodeObjectMetadata& metadata,
+    MsgPackReader*                    pMetadataReader)
 {
-    PalAbi::CodeObjectMetadata metadata;
-    Result result = abiReader.GetMetadata(pMetadataReader, &metadata);
+    ExtractPipelineInfo(metadata, ShaderType::Compute, ShaderType::Compute);
 
-    if (result == Result::Success)
+    DumpPipelineElf("PipelineCs", metadata.pipeline.name);
+
+    const Elf::SymbolTableEntry* pSymbol =
+        abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::CsDisassembly);
+
+    if (pSymbol != nullptr)
     {
-        ExtractPipelineInfo(metadata, ShaderType::Compute, ShaderType::Compute);
-
-        DumpPipelineElf("PipelineCs", metadata.pipeline.name);
-
-        const Elf::SymbolTableEntry* pSymbol =
-            abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::CsDisassembly);
-
-        if (pSymbol != nullptr)
-        {
-            m_stageInfo.disassemblyLength = static_cast<size_t>(pSymbol->st_size);
-        }
-
-        const PalAbi::HardwareStageMetadata& csStageMetadata =
-            metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
-
-        if (csStageMetadata.hasEntry.scratchMemorySize != 0)
-        {
-            m_stackSizeInBytes = csStageMetadata.scratchMemorySize;
-        }
-
-        result = HwlInit(createInfo, abiReader, metadata, pMetadataReader);
+        m_stageInfo.disassemblyLength = static_cast<size_t>(pSymbol->st_size);
     }
+
+    const PalAbi::HardwareStageMetadata& csStageMetadata =
+        metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
+
+    if (csStageMetadata.hasEntry.scratchMemorySize != 0)
+    {
+        m_stackSizeInBytes = csStageMetadata.scratchMemorySize;
+    }
+
+    Result result = HwlInit(createInfo, abiReader, metadata, pMetadataReader);
 
     return result;
 }

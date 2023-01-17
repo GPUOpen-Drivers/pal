@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2007-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2007-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -41,7 +41,7 @@ extern "C"
 #endif
 
 #define ADDRLIB_VERSION_MAJOR 8
-#define ADDRLIB_VERSION_MINOR 0
+#define ADDRLIB_VERSION_MINOR 1
 #define ADDRLIB_VERSION ((ADDRLIB_VERSION_MAJOR << 16) | ADDRLIB_VERSION_MINOR)
 
 /// Virtually all interface functions need ADDR_HANDLE as first parameter

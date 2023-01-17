@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -683,11 +683,6 @@ void LogContext::Struct(
         Value("disallowNestedLaunchViaIb2");
     }
 
-    if (value.flags.enableExecutionMarkerSupport)
-    {
-        Value("enableExecutionMarkerSupport");
-    }
-
     if (value.flags.enableTmz)
     {
         Value("enableTmz");
@@ -856,6 +851,13 @@ void LogContext::Struct(
 
         KeyAndValue("frameIndex", value.frameIndex);
     }
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 779
+    if (value.pEarlyPresentEvent != nullptr)
+    {
+        KeyAndValue("pEarlyPresentEvent", value.pEarlyPresentEvent);
+    }
+#endif
 
     EndMap();
 }
@@ -1180,12 +1182,74 @@ void LogContext::Struct(
     KeyAndStruct("ts", value.ts);
     KeyAndStruct("ms", value.ms);
     KeyAndStruct("ps", value.ps);
+    KeyAndStruct("dynamicState", value.dynamicState);
     KeyAndBeginList("flags", true);
 
     EndList();
 
     static_assert(CheckReservedBits<decltype(value.flags)>(32, 24), "Update interfaceLogger!");
 
+    EndMap();
+}
+
+// =====================================================================================================================
+void LogContext::Struct(
+    const DynamicGraphicsState& value)
+{
+    BeginMap(false);
+    KeyAndEnum("depthClampMode",           value.depthClampMode);
+    KeyAndEnum("depthRange",               value.depthRange);
+    KeyAndEnum("logicOp",                  value.logicOp);
+    KeyAndValue("colorWriteMask",          value.colorWriteMask);
+    KeyAndValue("switchWinding",           value.switchWinding);
+    KeyAndValue("depthClipNearEnable",     value.depthClipNearEnable);
+    KeyAndValue("depthClipFarEnable",      value.depthClipFarEnable);
+    KeyAndValue("alphaToCoverageEnable",   value.alphaToCoverageEnable);
+    KeyAndValue("perpLineEndCapsEnable",   value.perpLineEndCapsEnable);
+    KeyAndValue("rasterizerDiscardEnable", value.rasterizerDiscardEnable);
+
+    KeyAndBeginList("enable", true);
+    if (value.enable.depthClampMode)
+    {
+        Value("depthClampMode");
+    }
+    if (value.enable.depthRange)
+    {
+        Value("depthRange");
+    }
+    if (value.enable.logicOp)
+    {
+        Value("logicOp");
+    }
+    if (value.enable.colorWriteMask)
+    {
+        Value("colorWriteMask");
+    }
+    if (value.enable.switchWinding)
+    {
+        Value("switchWinding");
+    }
+    if (value.enable.depthClipMode)
+    {
+        Value("depthClipMode");
+    }
+    if (value.enable.alphaToCoverageEnable)
+    {
+        Value("alphaToCoverageEnable");
+    }
+    if (value.enable.perpLineEndCapsEnable)
+    {
+        Value("perpLineEndCapsEnable");
+    }
+    if (value.enable.rasterizerDiscardEnable)
+    {
+        Value("rasterizerDiscardEnable");
+    }
+
+    EndList();
+    static_assert(sizeof(DynamicGraphicsState) == 24, "Update interfaceLogger!");
+    static_assert(CheckReservedBits<DynamicGraphicsState>(192, 26), "Update interfaceLogger!");
+    static_assert(CheckReservedBits<decltype(value.enable)>(32, 23), "Update interfaceLogger!");
     EndMap();
 }
 
@@ -1418,6 +1482,7 @@ void LogContext::Struct(
     EndMap();
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
 // =====================================================================================================================
 void LogContext::Struct(
     const ColorWriteMaskParams& value)
@@ -1437,6 +1502,7 @@ void LogContext::Struct(
 
     EndMap();
 }
+#endif
 
 // =====================================================================================================================
 void LogContext::Struct(

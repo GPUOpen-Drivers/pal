@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2018-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1892,8 +1892,11 @@ LayoutTransitionInfo Device::PrepareColorBlt(
         }
         else if (isMsaaImage)
         {
-            // Need FmaskDecompress in preparation for the following full MSAA color decompress.
-            transitionInfo.blt[bltIndex++] = HwLayoutTransition::FmaskDecompress;
+            if (oldState == ColorCompressed)
+            {
+                // Need FmaskDecompress in preparation for the following full MSAA color decompress.
+                transitionInfo.blt[bltIndex++] = HwLayoutTransition::FmaskDecompress;
+            }
         }
         else
         {

@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2020-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2020-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -135,6 +135,15 @@ if(ADDR_GFX10_BUILD)
     endif()
     if(ADDR_NAVI24_BUILD)
         target_compile_definitions(addrlib PRIVATE ADDR_NAVI24_BUILD)
+    endif()
+    if(ADDR_REMBRANDT_BUILD)
+        target_compile_definitions(addrlib PRIVATE ADDR_REMBRANDT_BUILD)
+    endif()
+    if(ADDR_RAPHAEL_BUILD)
+        target_compile_definitions(addrlib PRIVATE ADDR_RAPHAEL_BUILD)
+    endif()
+    if(ADDR_MENDOCINO_BUILD)
+        target_compile_definitions(addrlib PRIVATE ADDR_MENDOCINO_BUILD)
     endif()
 endif()
 

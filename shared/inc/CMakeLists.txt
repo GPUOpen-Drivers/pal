@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2021-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2021-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -27,6 +27,5 @@ target_include_directories(pal PUBLIC .)
 
 target_sources(pal PRIVATE
     CMakeLists.txt
-    marker_payload.h
     sqtt_file_format.h
 )

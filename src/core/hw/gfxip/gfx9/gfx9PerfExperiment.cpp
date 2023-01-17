@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -1737,6 +1737,9 @@ Result PerfExperiment::AddSpmTrace(
     // we use to select it.
     constexpr uint32 GlobalTimestampCounters = sizeof(uint64) / sizeof(uint16);
     constexpr uint16 GlobalTimestampSelect   = 0xF0F0;
+#if PAL_BUILD_GFX11
+                     m_gfx11MaxMuxSelLines   = 0;
+#endif
 
     // Allocate the segment memory.
     for (uint32 segment = 0; (result == Result::Success) && (segment < MaxNumSpmSegments); ++segment)
@@ -1774,17 +1777,43 @@ Result PerfExperiment::AddSpmTrace(
         if (totalLines > 0)
         {
             m_numMuxselLines[segment] = totalLines;
-            m_pMuxselRams[segment]    = PAL_NEW_ARRAY(SpmLineMapping, totalLines, m_pPlatform, AllocObject);
+#if PAL_BUILD_GFX11
+            m_gfx11MaxMuxSelLines     = Max(m_gfx11MaxMuxSelLines, totalLines);
+#endif
+        }
+    }
 
-            if (m_pMuxselRams[segment] == nullptr)
+#if PAL_BUILD_GFX11
+    // For Gfx11 there is only 1 programable segment size. We will use the largest segment size for all shader engines.
+    if (IsGfx11(*m_pDevice))
+    {
+        for (int32 segment = 0; (result == Result::Success) && (segment < MaxNumSpmSegments); segment++)
+        {
+            if (static_cast<SpmDataSegmentType>(segment) != SpmDataSegmentType::Global)
             {
-                result = Result::ErrorOutOfMemory;
+                m_numMuxselLines[segment] = m_gfx11MaxMuxSelLines;
             }
-            else
-            {
-                // The ram is POD so just zero it out. Note that zero is a muxsel mapping that means "I don't care".
-                memset(m_pMuxselRams[segment], 0, sizeof(*m_pMuxselRams[segment]) * totalLines);
-            }
+        }
+    }
+#endif
+
+    for (int32 segment = 0; (result == Result::Success) && (segment < MaxNumSpmSegments); segment++)
+    {
+        if(m_numMuxselLines[segment] == 0)
+        {
+            continue;
+        }
+
+        m_pMuxselRams[segment] = PAL_NEW_ARRAY(SpmLineMapping, m_numMuxselLines[segment], m_pPlatform, AllocObject);
+
+        if (m_pMuxselRams[segment] == nullptr)
+        {
+            result = Result::ErrorOutOfMemory;
+        }
+        else
+        {
+            // The ram is POD so just zero it out. Note that zero is a muxsel mapping that means "I don't care".
+            memset(m_pMuxselRams[segment], 0, sizeof(*m_pMuxselRams[segment]) * m_numMuxselLines[segment]);
         }
     }
 
@@ -3046,13 +3075,12 @@ uint32* PerfExperiment::WriteSpmSetup(
 #if PAL_BUILD_GFX11
     if (IsGfx11(m_chipProps.gfxLevel))
     {
+        // TOTAL_NUM_SEGMENT should be (global + SE_NUM_SEGMENT * numActiveShaderEngines)
         spmSegmentSize.gfx11.TOTAL_NUM_SEGMENT  = totalLines;
         spmSegmentSize.gfx11.GLOBAL_NUM_SEGMENT = m_numMuxselLines[static_cast<uint32>(SpmDataSegmentType::Global)];
-
-        for (uint32 i = 0; i < static_cast<uint32>(SpmDataSegmentType::Global); i++)
-        {
-            spmSegmentSize.gfx11.SE_NUM_SEGMENT = Max(spmSegmentSize.gfx11.SE_NUM_SEGMENT, m_numMuxselLines[i]);
-        }
+        // There is only one segment size value for Gfx11. Every shader engine line count will be set to whatever was
+        // the highest value found in the spm config.
+        spmSegmentSize.gfx11.SE_NUM_SEGMENT     = m_gfx11MaxMuxSelLines;
 
         PAL_ASSERT(m_chipProps.gfx9.numActiveShaderEngines <= 6);
 

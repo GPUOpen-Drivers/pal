@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2022-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -143,8 +143,9 @@ void RsrcProcMgr::CmdCopyImage(
     const auto& srcInfo = srcImage.GetImageCreateInfo();
     const auto& dstInfo = dstImage.GetImageCreateInfo();
 
-    // MSAA source and destination images must have the same number of samples.
-    PAL_ASSERT(srcInfo.samples == dstInfo.samples);
+    // MSAA source and destination images must have the same number of fragments.  Note that MSAA images always use
+    // the compute copy path; the shader instructions are based on fragments, not samples.
+    PAL_ASSERT(srcInfo.fragments == dstInfo.fragments);
 
     const ImageCopyEngine copyEngine =
         GetImageToImageCopyEngine(pCmdBuffer, srcImage, dstImage, regionCount, pRegions, flags);
@@ -2724,21 +2725,22 @@ void RsrcProcMgr::SlowClearGraphics(
         bindTargetsInfo.colorTargets[0].imageLayout      = dstImageLayout;
         bindTargetsInfo.colorTargets[0].pColorTargetView = nullptr;
 
-        // Save current command buffer state and bind graphics state which is common for all mipmap levels.
-        pCmdBuffer->CmdSaveGraphicsState();
-        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics,
-                                      GetGfxPipelineByTargetIndexAndFormat(SlowColorClear0_32ABGR, 0, viewFormat),
-                                      InternalApiPsoHash, });
-        BindCommonGraphicsState(pCmdBuffer);
+        PipelineBindParams bindPipelineInfo = { };
+        bindPipelineInfo.pipelineBindPoint = PipelineBindPoint::Graphics;
+        bindPipelineInfo.pPipeline = GetGfxPipelineByTargetIndexAndFormat(SlowColorClear0_32ABGR, 0, viewFormat);
+        bindPipelineInfo.apiPsoHash = InternalApiPsoHash;
 
         if (pColor->disabledChannelMask != 0)
         {
             // Overwrite CbTargetMask for different writeMasks.
-            ColorWriteMaskParams params = {};
-            params.count = 1;
-            params.colorWriteMask[0] = ~pColor->disabledChannelMask;
-            pCmdBuffer->CmdSetColorWriteMask(params);
+            bindPipelineInfo.graphics.dynamicState.enable.colorWriteMask = 1;
+            bindPipelineInfo.graphics.dynamicState.colorWriteMask = ~pColor->disabledChannelMask;
         }
+
+        // Save current command buffer state and bind graphics state which is common for all mipmap levels.
+        pCmdBuffer->CmdSaveGraphicsState();
+        pCmdBuffer->CmdBindPipeline(bindPipelineInfo);
+        BindCommonGraphicsState(pCmdBuffer);
 
         pCmdBuffer->CmdOverwriteRbPlusFormatForBlits(viewFormat, 0);
         pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -32,7 +32,6 @@
 #include "core/hw/gfxip/queryPool.h"
 #include "core/cmdAllocator.h"
 #include "g_platformSettings.h"
-#include "marker_payload.h"
 #include "palInlineFuncs.h"
 #include "palVectorImpl.h"
 
@@ -1259,57 +1258,6 @@ Result ComputeCmdBuffer::AddPostamble()
     m_cmdStream.CommitCommands(pCmdSpace);
 
     return Result::Success;
-}
-
-// =====================================================================================================================
-void ComputeCmdBuffer::BeginExecutionMarker(
-    uint64 clientHandle)
-{
-    CmdBuffer::BeginExecutionMarker(clientHandle);
-    PAL_ASSERT(m_executionMarkerAddr != 0);
-
-    uint32* pDeCmdSpace = m_cmdStream.ReserveCommands();
-    pDeCmdSpace += m_cmdUtil.BuildExecutionMarker(m_executionMarkerAddr,
-                                                  m_executionMarkerCount,
-                                                  clientHandle,
-                                                  RGD_EXECUTION_BEGIN_MARKER_GUARD,
-                                                  pDeCmdSpace);
-    m_cmdStream.CommitCommands(pDeCmdSpace);
-}
-
-// =====================================================================================================================
-uint32 ComputeCmdBuffer::CmdInsertExecutionMarker()
-{
-    uint32 returnVal = UINT_MAX;
-    if (m_buildFlags.enableExecutionMarkerSupport == 1)
-    {
-        PAL_ASSERT(m_executionMarkerAddr != 0);
-
-        uint32* pCmdSpace = m_cmdStream.ReserveCommands();
-        pCmdSpace += m_cmdUtil.BuildExecutionMarker(m_executionMarkerAddr,
-                                                    ++m_executionMarkerCount,
-                                                    0,
-                                                    RGD_EXECUTION_MARKER_GUARD,
-                                                    pCmdSpace);
-        m_cmdStream.CommitCommands(pCmdSpace);
-
-        returnVal = m_executionMarkerCount;
-    }
-    return returnVal;
-}
-
-// =====================================================================================================================
-void ComputeCmdBuffer::EndExecutionMarker()
-{
-    PAL_ASSERT(m_executionMarkerAddr != 0);
-
-    uint32* pDeCmdSpace = m_cmdStream.ReserveCommands();
-    pDeCmdSpace += m_cmdUtil.BuildExecutionMarker(m_executionMarkerAddr,
-                                                  ++m_executionMarkerCount,
-                                                  0,
-                                                  RGD_EXECUTION_MARKER_GUARD,
-                                                  pDeCmdSpace);
-    m_cmdStream.CommitCommands(pDeCmdSpace);
 }
 
 // =====================================================================================================================

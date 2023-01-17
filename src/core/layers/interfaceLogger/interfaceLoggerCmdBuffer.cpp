@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -955,6 +955,7 @@ void CmdBuffer::CmdSetGlobalScissor(
     }
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
 // =====================================================================================================================
 void CmdBuffer::CmdSetColorWriteMask(
     const ColorWriteMaskParams& params)
@@ -998,6 +999,7 @@ void CmdBuffer::CmdSetRasterizerDiscardEnable(
         m_pPlatform->LogEndFunc(pLogContext);
     }
 }
+#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdBarrier(
@@ -3399,25 +3401,6 @@ void CmdBuffer::CmdNop(
 
         m_pPlatform->LogEndFunc(pLogContext);
     }
-}
-
-// =====================================================================================================================
-uint32 CmdBuffer::CmdInsertExecutionMarker()
-{
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId       = InterfaceFunc::CmdBufferCmdInsertExecutionMarker;
-    funcInfo.objectId     = m_objectId;
-    funcInfo.preCallTime  = m_pPlatform->GetTime();
-    const uint32 executionMarker = m_pNextLayer->CmdInsertExecutionMarker();
-    funcInfo.postCallTime = m_pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
-    {
-        m_pPlatform->LogEndFunc(pLogContext);
-    }
-
-    return executionMarker;
 }
 
 // =====================================================================================================================

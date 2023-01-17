@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2018-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -61,8 +61,8 @@ const RegisterRange Gfx11ShShadowRange[] =
         1,
     },
     {
-        (mmSPI_SHADER_PGM_LO_GS - PERSISTENT_SPACE_START),                                            // 0x2C88 - 0x2CAB
-        (Gfx10Plus::mmSPI_SHADER_USER_DATA_GS_31 - mmSPI_SHADER_PGM_LO_GS + 1),
+        (mmSPI_SHADER_PGM_LO_GS - PERSISTENT_SPACE_START),                                            // 0x2C88 - 0x2CAD
+        (Gfx11::mmSPI_SHADER_GS_MESHLET_EXP_ALLOC - mmSPI_SHADER_PGM_LO_GS + 1),
     },
     {
         (Gfx10Plus::mmSPI_SHADER_USER_ACCUM_ESGS_0 - PERSISTENT_SPACE_START),                         // 0x2CB2 - 0x2CB5

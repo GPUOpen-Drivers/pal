@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2007-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2007-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -996,6 +996,36 @@ ChipFamily Gfx10Lib::HwlConvertChipFamily(
 
             break;
 
+        case FAMILY_RMB:
+            if (ASICREV_IS_REMBRANDT(chipRevision))
+            {
+                m_settings.supportRbPlus   = 1;
+                m_settings.dccUnsup3DSwDis = 0;
+            }
+            else
+            {
+                ADDR_ASSERT(!"Unknown chip revision");
+            }
+
+            break;
+        case FAMILY_RPL:
+            if (ASICREV_IS_RAPHAEL(chipRevision))
+            {
+                m_settings.supportRbPlus   = 1;
+                m_settings.dccUnsup3DSwDis = 0;
+            }
+            break;
+        case FAMILY_MDN:
+            if (ASICREV_IS_MENDOCINO(chipRevision))
+            {
+                m_settings.supportRbPlus   = 1;
+                m_settings.dccUnsup3DSwDis = 0;
+            }
+            else
+            {
+                ADDR_ASSERT(!"Unknown chip revision");
+            }
+            break;
         default:
             ADDR_ASSERT(!"Unknown chip family");
             break;

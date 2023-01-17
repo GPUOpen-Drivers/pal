@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -83,8 +83,9 @@ union PipelineStateFlags
     struct
     {
         uint32 pipeline             :  1;
+        uint32 dynamicState         :  1;
         uint32 borderColorPalette   :  1;
-        uint32 reserved             : 30;
+        uint32 reserved             : 29;
     };
 
     uint32 u32All;
@@ -413,8 +414,6 @@ protected:
     void DescribeDispatch(Developer::DrawDispatchType cmdType, DispatchDims size);
     void DescribeDispatchOffset(DispatchDims offset, DispatchDims launchSize, DispatchDims logicalSize);
     void DescribeDispatchIndirect();
-
-    virtual bool SupportsExecutionMarker() override { return true; }
 
     CmdBufferEngineSupport GetPerfExperimentEngine() const;
 

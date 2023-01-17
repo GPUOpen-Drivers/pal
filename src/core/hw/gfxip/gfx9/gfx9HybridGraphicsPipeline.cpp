@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -56,53 +56,48 @@ Result HybridGraphicsPipeline::HwlInit(
     const PalAbi::CodeObjectMetadata& metadata,
     MsgPackReader*                    pMetadataReader)
 {
-    RegisterVector registers(m_pDevice->GetPlatform());
-    Result result = pMetadataReader->Seek(metadata.pipeline.registers);
+    GraphicsPipelineLoadInfo loadInfo = {};
+    GraphicsPipeline::EarlyInit(metadata, &loadInfo);
 
-    if (result == Result::Success)
-    {
-        result = pMetadataReader->Unpack(&registers);
-    }
+    PipelineUploader uploader(m_pDevice->Parent(), abiReader);
 
-    if (result == Result::Success)
-    {
-        GraphicsPipelineLoadInfo loadInfo = {};
-        GraphicsPipeline::EarlyInit(metadata, &loadInfo);
-
-        PipelineUploader uploader(m_pDevice->Parent(), abiReader);
-
-        result = PerformRelocationsAndUploadToGpuMemory(
+    Result result = PerformRelocationsAndUploadToGpuMemory(
             metadata,
             IsInternal() ? GpuHeapLocal : m_pDevice->Parent()->GetPublicSettings()->pipelinePreferredHeap,
             &uploader);
 
-        if (result == Result::Success)
-        {
-            LateInit(createInfo, abiReader, metadata, loadInfo, &uploader);
+    if (result == Result::Success)
+    {
+        LateInit(createInfo, abiReader, metadata, loadInfo, &uploader);
 
-            m_task.SetupSignatureFromElf(&m_taskSignature, metadata, registers);
+        m_task.SetupSignatureFromElf(&m_taskSignature, metadata);
 
-            const uint32 wavefrontSize = m_taskSignature.flags.isWave32 ? 32 : 64;
+        // We opt to pass the graphics pipeline metadata bit to the task shader signature here instead of in the
+        // above task shader (or compute shader) function is due to that, task shader is actually a graphics
+        // shader that is used by hybrid graphics pipeline.
+        // This bit is placed in taskSignature but not in graphicsSignature since linear dispatch is derived
+        // from task shader SC output.
+        m_taskSignature.flags.isLinear = metadata.pipeline.graphicsRegister.flags.meshLinearDispatchFromTask;
 
-            m_task.LateInit(abiReader,
-                            registers,
-                            wavefrontSize,
-                            &m_threadsPerTg,
+        const uint32 wavefrontSize = m_taskSignature.flags.isWave32 ? 32 : 64;
+
+        m_task.LateInit(metadata,
+                        wavefrontSize,
+                        &m_threadsPerTg,
 #if PAL_BUILD_GFX11
-                            createInfo.taskInterleaveSize,
+                        createInfo.taskInterleaveSize,
 #endif
-                            &uploader);
+                        & uploader);
 
-            const auto* pElfSymbol = abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::CsDisassembly);
+        const auto* pElfSymbol = abiReader.GetPipelineSymbol(Abi::PipelineSymbolType::CsDisassembly);
 
-            if (pElfSymbol != nullptr)
-            {
-                m_taskStageInfo.disassemblyLength = static_cast<size_t>(pElfSymbol->st_size);
-            }
-
-            PAL_ASSERT(m_uploadFenceToken == 0);
-            result = uploader.End(&m_uploadFenceToken);
+        if (pElfSymbol != nullptr)
+        {
+            m_taskStageInfo.disassemblyLength = static_cast<size_t>(pElfSymbol->st_size);
         }
+
+        PAL_ASSERT(m_uploadFenceToken == 0);
+        result = uploader.End(&m_uploadFenceToken);
     }
 
     return result;

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -252,8 +252,7 @@ Result ComputePipeline::HwlInit(
 
         const uint32 wavefrontSize = IsWave32() ? 32 : 64;
 
-        m_chunkCs.LateInit(abiReader,
-                           registers,
+        m_chunkCs.LateInit(registers,
                            wavefrontSize,
                            &m_threadsPerTg,
 #if PAL_BUILD_GFX11
@@ -278,29 +277,18 @@ Result ComputePipeline::HwlInit(
 {
     m_disablePartialPreempt = createInfo.disablePartialDispatchPreemption;
 
-    RegisterVector registers(m_pDevice->GetPlatform());
-    Result result = pMetadataReader->Seek(metadata.pipeline.registers);
-
-    if (result == Result::Success)
-    {
-        result = pMetadataReader->Unpack(&registers);
-    }
-
     PipelineUploader uploader(m_pDevice->Parent(), abiReader);
 
-    if (result == Result::Success)
-    {
-        // Next, handle relocations and upload the pipeline code & data to GPU memory.
-        const PalPublicSettings& settings = *m_pDevice->Parent()->GetPublicSettings();
-        const GpuHeap            heap     = IsInternal() ? GpuHeapLocal : settings.pipelinePreferredHeap;
+    // Next, handle relocations and upload the pipeline code & data to GPU memory.
+    const PalPublicSettings& settings = *m_pDevice->Parent()->GetPublicSettings();
+    const GpuHeap            heap     = IsInternal() ? GpuHeapLocal : settings.pipelinePreferredHeap;
 
-        result = PerformRelocationsAndUploadToGpuMemory(0u, heap, &uploader);
-    }
+    Result result = PerformRelocationsAndUploadToGpuMemory(0u, heap, &uploader);
 
     if (result ==  Result::Success)
     {
         // Update the pipeline signature with user-mapping data contained in the ELF:
-        m_chunkCs.SetupSignatureFromElf(&m_signature, metadata, registers);
+        m_chunkCs.SetupSignatureFromElf(&m_signature, metadata);
 
         const uint32 scratchMemorySize = CalcScratchMemSize(m_pDevice->Parent()->ChipProperties().gfxLevel, metadata);
 
@@ -311,8 +299,7 @@ Result ComputePipeline::HwlInit(
 
         const uint32 wavefrontSize = IsWave32() ? 32 : 64;
 
-        m_chunkCs.LateInit(abiReader,
-                           registers,
+        m_chunkCs.LateInit(metadata,
                            wavefrontSize,
                            &m_threadsPerTg,
 #if PAL_BUILD_GFX11
@@ -448,13 +435,7 @@ Result ComputePipeline::LinkWithLibraries(
                 Max(computePgmRsrc3.bits.SHARED_VGPR_CNT, libObjRegInfo.libRegs.computePgmRsrc3.bits.SHARED_VGPR_CNT);
         }
 
-        const uint32 stackSizeNeededInBytes =
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 728
-            // 1 call deep on CPS because functions tail calls other functions.
-            pLibObj->GetMaxStackSizeInBytes() * (m_useCps ? 1 : m_maxFunctionCallDepth);
-#else
-            pLibObj->GetMaxStackSizeInBytes() * m_maxFunctionCallDepth;
-#endif
+        const uint32 stackSizeNeededInBytes = pLibObj->GetMaxStackSizeInBytes() * m_maxFunctionCallDepth;
 
         bool update = false;
         if (stackSizeNeededInBytes > m_stackSizeInBytes)
@@ -463,21 +444,9 @@ Result ComputePipeline::LinkWithLibraries(
             m_stackSizeInBytes = stackSizeNeededInBytes;
         }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 728
-        if (m_useCps)
-        {
-            const uint32 irStackSizeNeededInBytes = pLibObj->GetMaxIrStackSizeInBytes() * m_maxFunctionCallDepth;
-            if (irStackSizeNeededInBytes > m_irStackSizeInBytes)
-            {
-                update = true;
-                m_irStackSizeInBytes = irStackSizeNeededInBytes;
-            }
-        }
-#endif
-
         if (update)
         {
-            UpdateRingSizes((m_irStackSizeInBytes + m_stackSizeInBytes) / sizeof(uint32));
+            UpdateRingSizes(m_stackSizeInBytes / sizeof(uint32));
         }
     }
 

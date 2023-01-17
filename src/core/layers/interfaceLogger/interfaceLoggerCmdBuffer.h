@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -119,10 +119,12 @@ public:
         const ScissorRectParams& params) override;
     virtual void CmdSetGlobalScissor(
         const GlobalScissorParams& params) override;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
     virtual void CmdSetColorWriteMask(
         const ColorWriteMaskParams& params) override;
     virtual void CmdSetRasterizerDiscardEnable(
         bool rasterizerDiscardEnable) override;
+#endif
     virtual void CmdBarrier(
         const BarrierInfo& barrierInfo) override;
     virtual void OptimizeBarrierReleaseInfo(
@@ -476,7 +478,6 @@ public:
     virtual void CmdNop(
         const void* pPayload,
         uint32      payloadSize) override;
-    virtual uint32 CmdInsertExecutionMarker() override;
     virtual void CmdXdmaWaitFlipPending() override;
     virtual void CmdStartGpuProfilerLogging() override;
     virtual void CmdStopGpuProfilerLogging() override;

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -158,6 +158,9 @@ bool Device::DetermineGpuIpLevels(
     case FAMILY_AI:
     case FAMILY_RV:
     case FAMILY_NV:
+    case FAMILY_RMB:
+    case FAMILY_RPL:
+    case FAMILY_MDN:
 #if PAL_BUILD_NAVI3X
     case FAMILY_NV3:
 #endif
@@ -185,6 +188,12 @@ bool Device::DetermineGpuIpLevels(
     case FAMILY_NV:
         // GFX10 GPUs have moved the SDMA block into the GFX layer; there is no OSS layer
         // for this GPU.  The proper GFX layer for this family was determined above.
+        break;
+    case FAMILY_RMB:
+        break;
+    case FAMILY_RPL:
+        break;
+    case FAMILY_MDN:
         break;
 #if PAL_BUILD_NAVI3X
     case FAMILY_NV3:
@@ -1322,24 +1331,6 @@ Result Device::CommitSettingsAndInit()
 {
     PAL_ASSERT(m_pSettingsLoader != nullptr);
     m_pSettingsLoader->FinalizeSettings();
-
-    if (m_pPlatform->PlatformSettings().debugOverlayEnabled)
-    {
-        auto* pDebugOverlayConfig = &m_pPlatform->PlatformSettingsPtr()->debugOverlayConfig;
-
-        // Only copy the client specified debug strings when the platform settings don't have them.
-        if ((pDebugOverlayConfig->miscellaneousDebugString[0] == '\0') &&
-            (m_publicSettings.miscellaneousDebugString[0] != '\0'))
-        {
-            strcpy(pDebugOverlayConfig->miscellaneousDebugString, m_publicSettings.miscellaneousDebugString);
-
-        }
-        if ((pDebugOverlayConfig->renderedByString[0] == '\0') &&
-            (m_publicSettings.renderedByString[0] != '\0'))
-        {
-            strcpy(pDebugOverlayConfig->renderedByString, m_publicSettings.renderedByString);
-        }
-    }
 
     OsFinalizeSettings();
 
@@ -5356,7 +5347,34 @@ bool Device::IssueSqttMarkerEvents() const
     const bool sqttEnabled = (platformSettings.gpuProfilerMode > GpuProfilerCounterAndTimingOnly) &&
                              TestAnyFlagSet(platformSettings.gpuProfilerConfig.traceModeMask, GpuProfilerTraceSqtt);
 
-    return sqttEnabled || m_pPlatform->IsDevDriverProfilingEnabled();
+    return sqttEnabled || m_pPlatform->IsDevDriverProfilingEnabled() || GetPublicSettings()->enableSqttMarkerEvent;
+}
+
+// =====================================================================================================================
+bool Device::EnablePerfCountersInPreamble() const
+{
+    const PalPlatformSettings& platformSettings = m_pPlatform->PlatformSettings();
+    bool enable = true;
+
+    switch (Settings().startingPerfcounterState)
+    {
+        case StartingPerfcounterStateDisabled:
+            enable = false;
+            break;
+        case StartingPerfcounterStateEnabled:
+            enable = true;
+            break;
+        case StartingPerfcounterStateAuto:
+            enable = (platformSettings.gpuProfilerMode > GpuProfilerDisabled) ||
+                     m_pPlatform->IsDevDriverProfilingEnabled() ||
+                     GetPublicSettings()->enableSqttMarkerEvent; // we assume if client wants SQTT they want counters too
+            break;
+        case StartingPerfcounterStateUntouched:
+        default:
+            PAL_NEVER_CALLED();
+    }
+
+    return enable;
 }
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -5409,9 +5427,7 @@ void Device::LogCodeObjectToDisk(
             }
             else
             {
-                const size_t copyLen = Min(size_t(name.Length()), remaining - 5);
-
-                memcpy(pNextChar, name.Data(), copyLen);
+                const size_t copyLen = Util::EncodeAsFilename(pNextChar, remaining - 5, name, false, false);
                 pNextChar += copyLen;
                 remaining -= copyLen;
 

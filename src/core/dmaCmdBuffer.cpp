@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -65,9 +65,7 @@ DmaCmdBuffer::DmaCmdBuffer(
                 IsNested()),
     m_predMemEnabled(false),
     m_copyOverlapHazardSyncs(copyOverlapHazardSyncs),
-    m_predMemAddress(0),
     m_predInternalAddr(0),
-    m_predCopyData(0),
     m_pT2tEmbeddedGpuMemory(nullptr),
     m_t2tEmbeddedMemOffset(0)
 {
@@ -455,12 +453,18 @@ void DmaCmdBuffer::CopyMemoryRegion(
     while (bytesLeftToCopy > 0)
     {
         uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+        uint32* pPredCmd  = pCmdSpace;
+
+        pCmdSpace = WritePredicateCmd(pPredCmd);
+
         pCmdSpace = WriteCopyGpuMemoryCmd(srcGpuAddr,
                                           dstGpuAddr,
                                           bytesLeftToCopy,
                                           flags,
                                           pCmdSpace,
                                           &bytesJustCopied);
+
+        PatchPredicateCmd(pPredCmd, pCmdSpace);
         m_cmdStream.CommitCommands(pCmdSpace);
 
         bytesLeftToCopy -= bytesJustCopied;
@@ -476,20 +480,6 @@ void DmaCmdBuffer::CmdCopyMemory(
     uint32                  regionCount,
     const MemoryCopyRegion* pRegions)
 {
-    uint32* pCmdSpace = nullptr;
-    uint32* pPredCmd  = nullptr;
-
-    if (m_predMemEnabled)
-    {
-        // Write the predication command, we will patch its predication size later.
-        pCmdSpace = m_cmdStream.ReserveCommands();
-
-        pPredCmd  = pCmdSpace;
-        pCmdSpace = WritePredicateCmd(0, pCmdSpace);
-
-        m_cmdStream.CommitCommands(pCmdSpace);
-    }
-
     const GpuMemory& dstMemory = static_cast<const GpuMemory&>(dstGpuMemory);
     bool p2pBltInfoRequired    = m_pDevice->IsP2pBltWaRequired(dstMemory);
 
@@ -546,12 +536,6 @@ void DmaCmdBuffer::CmdCopyMemory(
     {
         P2pBltWaCopyEnd();
     }
-
-    if (m_predMemEnabled)
-    {
-        // We're done writing commands, patch the predicate command.
-        PatchPredicateCmd(static_cast<size_t>(pCmdSpace - pPredCmd), pPredCmd);
-    }
 }
 
 // =====================================================================================================================
@@ -569,30 +553,10 @@ void DmaCmdBuffer::CmdCopyMemoryByGpuVa(
     }
     else
     {
-        uint32* pCmdSpace = nullptr;
-        uint32* pPredCmd  = nullptr;
-
-        if (m_predMemEnabled)
-        {
-            // Write the predication command, we will patch its predication size later.
-            pCmdSpace = m_cmdStream.ReserveCommands();
-
-            pPredCmd  = pCmdSpace;
-            pCmdSpace = WritePredicateCmd(0, pCmdSpace);
-
-            m_cmdStream.CommitCommands(pCmdSpace);
-        }
-
         // Splits up each region's copy size into chunks that the specific hardware can handle.
         for (uint32 rgnIdx = 0; rgnIdx < regionCount; rgnIdx++)
         {
             CopyMemoryRegion(srcGpuVirtAddr, dstGpuVirtAddr, DmaCopyFlags::None, pRegions[rgnIdx]);
-        }
-
-        if (m_predMemEnabled)
-        {
-            // We're done writing commands, patch the predicate command.
-            PatchPredicateCmd(static_cast<size_t>(pCmdSpace - pPredCmd), pPredCmd);
         }
     }
 }
@@ -606,17 +570,6 @@ void DmaCmdBuffer::CmdCopyTypedBuffer(
 {
     uint32* pCmdSpace = nullptr;
     uint32* pPredCmd = nullptr;
-
-    if (m_predMemEnabled)
-    {
-        // Write the predication command, we will patch its predication size later.
-        pCmdSpace = m_cmdStream.ReserveCommands();
-
-        pPredCmd = pCmdSpace;
-        pCmdSpace = WritePredicateCmd(0, pCmdSpace);
-
-        m_cmdStream.CommitCommands(pCmdSpace);
-    }
 
     for (uint32 rgnIdx = 0; rgnIdx < regionCount; rgnIdx++)
     {
@@ -645,16 +598,13 @@ void DmaCmdBuffer::CmdCopyTypedBuffer(
 
         // Write packet
         pCmdSpace = m_cmdStream.ReserveCommands();
+        pPredCmd  = pCmdSpace;
+        pCmdSpace = WritePredicateCmd(pPredCmd);
 
         pCmdSpace = WriteCopyTypedBuffer(copyInfo, pCmdSpace);
 
+        PatchPredicateCmd(pPredCmd, pCmdSpace);
         m_cmdStream.CommitCommands(pCmdSpace);
-    }
-
-    if (m_predMemEnabled)
-    {
-        // We're done writing commands, patch the predicate command.
-        PatchPredicateCmd(static_cast<size_t>(pCmdSpace - pPredCmd), pPredCmd);
     }
 }
 
@@ -782,6 +732,7 @@ void DmaCmdBuffer::WriteCopyImageTiledToTiledCmdChunkCopy(
     barrierInfo.reason             = Developer::BarrierReasonDmaImgScanlineCopySync;
 
     uint32*  pCmdSpace = nullptr;
+    uint32*  pPredCmd  = nullptr;
 
     uint32 cappedDepthToCopy = depthToCopyPixels;
     for (uint32 sliceIdx = 0; sliceIdx < imageCopyInfo.copyExtent.depth; sliceIdx += cappedDepthToCopy)
@@ -857,15 +808,25 @@ void DmaCmdBuffer::WriteCopyImageTiledToTiledCmdChunkCopy(
                 linearDstCopyRgn.imageOffset.x = src.offset.x + xIdx;
                 tiledDstCopyRgn.imageOffset.x  = dst.offset.x + xIdx;
 
-                pCmdSpace  = m_cmdStream.ReserveCommands();
+                pCmdSpace = m_cmdStream.ReserveCommands();
+                pPredCmd  = pCmdSpace;
+                pCmdSpace = WritePredicateCmd(pPredCmd);
+
                 pCmdSpace = WriteCopyTiledImageToMemCmd(src, *m_pT2tEmbeddedGpuMemory, linearDstCopyRgn, pCmdSpace);
+
+                PatchPredicateCmd(pPredCmd, pCmdSpace);
                 m_cmdStream.CommitCommands(pCmdSpace);
 
                 // Potentially have to wait for the copy to finish before we transfer out of that memory
                 CmdBarrier(barrierInfo);
 
                 pCmdSpace  = m_cmdStream.ReserveCommands();
+                pPredCmd  = pCmdSpace;
+                pCmdSpace = WritePredicateCmd(pPredCmd);
+
                 pCmdSpace = WriteCopyMemToTiledImageCmd(*m_pT2tEmbeddedGpuMemory, dst, tiledDstCopyRgn, pCmdSpace);
+
+                PatchPredicateCmd(pPredCmd, pCmdSpace);
                 m_cmdStream.CommitCommands(pCmdSpace);
 
                 // Wait for this copy to finish before we re-use the temp-linear buffer above.
@@ -887,20 +848,6 @@ void DmaCmdBuffer::CmdCopyImage(
     uint32                 flags)
 {
     PAL_ASSERT(TestAnyFlagSet(flags, CopyEnableScissorTest) == false);
-
-    uint32* pCmdSpace = nullptr;
-    uint32* pPredCmd  = nullptr;
-
-    if (m_predMemEnabled)
-    {
-        // Write the predication command, we will patch its predication size later.
-        pCmdSpace = m_cmdStream.ReserveCommands();
-
-        pPredCmd  = pCmdSpace;
-        pCmdSpace = WritePredicateCmd(0, pCmdSpace);
-
-        m_cmdStream.CommitCommands(pCmdSpace);
-    }
 
     // Both images need to use the same image type, so it dosen't matter where we get it from
     const ImageType  imageType = GetImageType(srcImage);
@@ -947,6 +894,9 @@ void DmaCmdBuffer::CmdCopyImage(
             p2pBltInfoRequired = false;
         }
     }
+
+    uint32* pCmdSpace;
+    uint32* pPredCmd;
 
     for (uint32 rgnIdx = 0; rgnIdx < regionCount; rgnIdx++)
     {
@@ -1030,33 +980,54 @@ void DmaCmdBuffer::CmdCopyImage(
 
         if (srcImg.IsSubResourceLinear(region.srcSubres))
         {
+            pCmdSpace = m_cmdStream.ReserveCommands();
+            pPredCmd  = pCmdSpace;
+            pCmdSpace = WritePredicateCmd(pPredCmd);
+
             if (dstImg.IsSubResourceLinear(region.dstSubres))
             {
-                WriteCopyImageLinearToLinearCmd(imageCopyInfo);
+                pCmdSpace = WriteCopyImageLinearToLinearCmd(imageCopyInfo, pCmdSpace);
             }
             else
             {
-                WriteCopyImageLinearToTiledCmd(imageCopyInfo);
+                pCmdSpace = WriteCopyImageLinearToTiledCmd(imageCopyInfo, pCmdSpace);
             }
+
+            PatchPredicateCmd(pPredCmd, pCmdSpace);
+            m_cmdStream.CommitCommands(pCmdSpace);
         }
         else
         {
             if (dstImg.IsSubResourceLinear(region.dstSubres))
             {
-                WriteCopyImageTiledToLinearCmd(imageCopyInfo);
+                pCmdSpace = m_cmdStream.ReserveCommands();
+                pPredCmd  = pCmdSpace;
+                pCmdSpace = WritePredicateCmd(pPredCmd);
+
+                pCmdSpace = WriteCopyImageTiledToLinearCmd(imageCopyInfo, pCmdSpace);
+
+                PatchPredicateCmd(pPredCmd, pCmdSpace);
+                m_cmdStream.CommitCommands(pCmdSpace);
             }
             else
             {
                 // The built-in packets for tiled copies have some restrictions on their use.  Determine if this
                 // copy is natively supported or if it needs to be done piecemeal. First check to see if there is
                 // a DXC Panel setting that force all transfers to use scanline copy. Very useful in diagnosing sDMA issues
-                if ((m_pDevice->Settings().forceT2tScanlineCopies) || (UseT2tScanlineCopy(imageCopyInfo)))
+                if (m_pDevice->Settings().forceT2tScanlineCopies || UseT2tScanlineCopy(imageCopyInfo))
                 {
                     WriteCopyImageTiledToTiledCmdChunkCopy(imageCopyInfo);
                 }
                 else
                 {
-                    WriteCopyImageTiledToTiledCmd(imageCopyInfo);
+                    pCmdSpace = m_cmdStream.ReserveCommands();
+                    pPredCmd  = pCmdSpace;
+                    pCmdSpace = WritePredicateCmd(pPredCmd);
+
+                    pCmdSpace = WriteCopyImageTiledToTiledCmd(imageCopyInfo, pCmdSpace);
+
+                    PatchPredicateCmd(pPredCmd, pCmdSpace);
+                    m_cmdStream.CommitCommands(pCmdSpace);
                 }
             }
         }
@@ -1065,12 +1036,6 @@ void DmaCmdBuffer::CmdCopyImage(
     if (p2pBltInfoRequired)
     {
         P2pBltWaCopyEnd();
-    }
-
-    if (m_predMemEnabled)
-    {
-        // We're done writing commands, patch the predicate command.
-        PatchPredicateCmd(static_cast<size_t>(pCmdSpace - pPredCmd), pPredCmd);
     }
 }
 
@@ -1082,20 +1047,6 @@ void DmaCmdBuffer::CmdCopyMemoryToImage(
     uint32                       regionCount,
     const MemoryImageCopyRegion* pRegions)
 {
-    uint32* pCmdSpace = nullptr;
-    uint32* pPredCmd  = nullptr;
-
-    if (m_predMemEnabled)
-    {
-        // Write the predication command, we will patch its predication size later.
-        pCmdSpace = m_cmdStream.ReserveCommands();
-
-        pPredCmd  = pCmdSpace;
-        pCmdSpace = WritePredicateCmd(0, pCmdSpace);
-
-        m_cmdStream.CommitCommands(pCmdSpace);
-    }
-
     const GpuMemory& srcMemory = static_cast<const GpuMemory&>(srcGpuMemory);
     const Image&     dstImg    = static_cast<const Image&>(dstImage);
     const ImageType  imageType = GetImageType(dstImage);
@@ -1168,7 +1119,10 @@ void DmaCmdBuffer::CmdCopyMemoryToImage(
         // Native copy path
         if (copyMethod == DmaMemImageCopyMethod::Native)
         {
-            pCmdSpace = m_cmdStream.ReserveCommands();
+            uint32*       pCmdSpace = m_cmdStream.ReserveCommands();
+            uint32* const pPredCmd  = pCmdSpace;
+
+            pCmdSpace = WritePredicateCmd(pPredCmd);
 
             if (isLinearImg)
             {
@@ -1179,6 +1133,7 @@ void DmaCmdBuffer::CmdCopyMemoryToImage(
                 pCmdSpace = WriteCopyMemToTiledImageCmd(srcMemory, imageInfo, region, pCmdSpace);
             }
 
+            PatchPredicateCmd(pPredCmd, pCmdSpace);
             m_cmdStream.CommitCommands(pCmdSpace);
         }
         // Workaround path where the x-extents are not properly dword-aligned (slow)
@@ -1194,12 +1149,6 @@ void DmaCmdBuffer::CmdCopyMemoryToImage(
     {
         P2pBltWaCopyEnd();
     }
-
-    if (m_predMemEnabled)
-    {
-        // We're done writing commands, patch the predicate command.
-        PatchPredicateCmd(static_cast<size_t>(pCmdSpace - pPredCmd), pPredCmd);
-    }
 }
 
 // =====================================================================================================================
@@ -1210,20 +1159,6 @@ void DmaCmdBuffer::CmdCopyImageToMemory(
     uint32                       regionCount,
     const MemoryImageCopyRegion* pRegions)
 {
-    uint32* pCmdSpace = nullptr;
-    uint32* pPredCmd  = nullptr;
-
-    if (m_predMemEnabled)
-    {
-        // Write the predication command, we will patch its predication size later.
-        pCmdSpace = m_cmdStream.ReserveCommands();
-
-        pPredCmd  = pCmdSpace;
-        pCmdSpace = WritePredicateCmd(0, pCmdSpace);
-
-        m_cmdStream.CommitCommands(pCmdSpace);
-    }
-
     // For each region, determine which specific hardware copy type (tiled-to-memory or linear-to-memory) is necessary.
     const GpuMemory& dstMemory = static_cast<const GpuMemory&>(dstGpuMemory);
     const Image&     srcImg    = static_cast<const Image&>(srcImage);
@@ -1296,7 +1231,10 @@ void DmaCmdBuffer::CmdCopyImageToMemory(
         // Native copy with SDMA
         if (copyMethod == DmaMemImageCopyMethod::Native)
         {
-            pCmdSpace = m_cmdStream.ReserveCommands();
+            uint32*       pCmdSpace = m_cmdStream.ReserveCommands();
+            uint32* const pPredCmd  = pCmdSpace;
+
+            pCmdSpace = WritePredicateCmd(pPredCmd);
 
             if (isLinearImg)
             {
@@ -1307,6 +1245,7 @@ void DmaCmdBuffer::CmdCopyImageToMemory(
                 pCmdSpace = WriteCopyTiledImageToMemCmd(imageInfo, dstMemory, region, pCmdSpace);
             }
 
+            PatchPredicateCmd(pPredCmd, pCmdSpace);
             m_cmdStream.CommitCommands(pCmdSpace);
         }
         // Workaround path where the x-extents are not properly dword-aligned (slow)
@@ -1321,12 +1260,6 @@ void DmaCmdBuffer::CmdCopyImageToMemory(
     if (p2pBltInfoRequired)
     {
         P2pBltWaCopyEnd();
-    }
-
-    if (m_predMemEnabled)
-    {
-        // We're done writing commands, patch the predicate command.
-        PatchPredicateCmd(static_cast<size_t>(pCmdSpace - pPredCmd), pPredCmd);
     }
 }
 
@@ -1457,16 +1390,24 @@ void DmaCmdBuffer::CmdSetPredication(
         ((predType == PredicateType::Boolean64) && (engineCaps.memory64bPredicationSupport)));
 
     m_predInternalAddr = 0;
-    m_predMemAddress = 0;
     if (pGpuMemory != nullptr)
     {
-        m_predMemAddress = pGpuMemory->Desc().gpuVirtAddr + offset;
-        uint32 *pPredCpuAddr = CmdAllocateEmbeddedData(2, 1, &m_predInternalAddr);
+        const gpusize predMemAddress = pGpuMemory->Desc().gpuVirtAddr + offset;
+        const uint32  predCopyData   = (predPolarity == true);
+
+        uint32* pPredCpuAddr = CmdAllocateEmbeddedData(2, 1, &m_predInternalAddr);
+
         // Execute if 64-bit value in memory are all 0 when predPolarity is false,
         // or Execute if one or more bits of 64-bit value in memory are not 0 when predPolarity is true.
-        m_predCopyData = (predPolarity == true);
         *pPredCpuAddr  = (predPolarity == false);
 
+        // Copy and convert predication value from outer predication memory to internal predication memory
+        // for easier adding CON_EXEC packet.
+        uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+
+        pCmdSpace = WriteSetupInternalPredicateMemoryCmd(predMemAddress, predCopyData, pCmdSpace);
+
+        m_cmdStream.CommitCommands(pCmdSpace);
     }
 
     m_predMemEnabled = ((pQueryPool == nullptr) && (pGpuMemory == nullptr)) ? false : true;
@@ -1767,6 +1708,8 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
     barrierInfo.pPipePoints        = &pipePoints;
 
     MemoryImageCopyRegion sliceRgn;
+    uint32* pCmdSpace;
+    uint32* pPredCmd;
 
     for (uint32 zIdx = 0; zIdx < alignedRgn.imageExtent.depth; zIdx++)
     {
@@ -1796,7 +1739,9 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
             alignedImage.offset = sliceRgn.imageOffset;
 
             // Copy scanline-piece from image to embedded.
-            uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+            pCmdSpace = m_cmdStream.ReserveCommands();
+            pPredCmd  = pCmdSpace;
+            pCmdSpace = WritePredicateCmd(pPredCmd);
 
             if (isLinearImg)
             {
@@ -1807,6 +1752,7 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
                 pCmdSpace = WriteCopyTiledImageToMemCmd(alignedImage, *m_pT2tEmbeddedGpuMemory, sliceRgn, pCmdSpace);
             }
 
+            PatchPredicateCmd(pPredCmd, pCmdSpace);
             m_cmdStream.CommitCommands(pCmdSpace);
 
             CmdBarrier(barrierInfo);
@@ -1834,8 +1780,6 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
                     ((passRgn.imageOffset.x >= rgn.imageOffset.x) &&
                      (passRgn.imageOffset.x < rgn.imageOffset.x + static_cast<int32>(rgn.imageExtent.width))))
                 {
-                    uint32* pCmdSpace = nullptr;
-
                     // Copy from image to embedded per scanline if we did not already do a whole slice
                     if (((memToImg == false) || didAlignMemory) && (wholeSliceInEmbedded == false))
                     {
@@ -1844,6 +1788,8 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
 
                         // Copy scanline-piece from image to embedded.
                         pCmdSpace = m_cmdStream.ReserveCommands();
+                        pPredCmd  = pCmdSpace;
+                        pCmdSpace = WritePredicateCmd(pPredCmd);
 
                         if (isLinearImg)
                         {
@@ -1860,6 +1806,7 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
                                                                     pCmdSpace);
                         }
 
+                        PatchPredicateCmd(pPredCmd, pCmdSpace);
                         m_cmdStream.CommitCommands(pCmdSpace);
 
                         CmdBarrier(barrierInfo);
@@ -1918,6 +1865,8 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
                             CmdBarrier(barrierInfo);
 
                             pCmdSpace = m_cmdStream.ReserveCommands();
+                            pPredCmd  = pCmdSpace;
+                            pCmdSpace = WritePredicateCmd(pPredCmd);
 
                             if (isLinearImg)
                             {
@@ -1930,6 +1879,7 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
                                                                         passRgn, pCmdSpace);
                             }
 
+                            PatchPredicateCmd(pPredCmd, pCmdSpace);
                             m_cmdStream.CommitCommands(pCmdSpace);
                         }
                     }
@@ -1970,7 +1920,9 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
 
             alignedImage.offset = sliceRgn.imageOffset;
 
-            uint32* pCmdSpace = m_cmdStream.ReserveCommands();
+            pCmdSpace = m_cmdStream.ReserveCommands();
+            pPredCmd  = pCmdSpace;
+            pCmdSpace = WritePredicateCmd(pPredCmd);
 
             if (isLinearImg)
             {
@@ -1987,6 +1939,7 @@ void DmaCmdBuffer::WriteCopyMemImageDwordUnalignedCmd(
                                                         pCmdSpace);
             }
 
+            PatchPredicateCmd(pPredCmd, pCmdSpace);
             m_cmdStream.CommitCommands(pCmdSpace);
 
             CmdBarrier(barrierInfo);

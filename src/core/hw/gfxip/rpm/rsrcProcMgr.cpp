@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -363,8 +363,8 @@ void RsrcProcMgr::CmdCopyImage(
     uint32                 flags
     ) const
 {
-    // MSAA source and destination images must have the same number of samples.
-    PAL_ASSERT(srcImage.GetImageCreateInfo().samples == dstImage.GetImageCreateInfo().samples);
+    // MSAA source and destination images must have the same number of fragments.
+    PAL_ASSERT(srcImage.GetImageCreateInfo().fragments == dstImage.GetImageCreateInfo().fragments);
 
     CopyImageCompute(pCmdBuffer,
                      srcImage,

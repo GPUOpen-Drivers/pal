@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -28,6 +28,7 @@
 #endif
 #include "palDbgPrint.h"
 #include "palFile.h"
+#include "palStringView.h"
 #include "palSysMemory.h"
 #include <cstdio>
 
@@ -401,6 +402,52 @@ int32 Snprintf(
 }
 
 // =====================================================================================================================
+// Compiler-specific wrapper of the standard vsnprintf implementation. If buffer is a nullptr it returns the length of
+// the string that would be printed had a buffer with enough space been provided.
+int32 Vsnprintf(
+    wchar_t*       pOutput,  // [out] Output string.
+    size_t         bufSize,  // Available space in pOutput (in wchar count).
+    const wchar_t* pFormat,  // Printf-style format string.
+    va_list        argList)  // Pre-started variable argument list.
+{
+    // It is undefined to request a (count > 0) to be copied while providing a null buffer. Covers common causes of
+    // crash in different versions of vsnprintf.
+    PAL_ASSERT((pOutput == nullptr) ? (bufSize == 0) : (bufSize > 0));
+
+    int32 length = -1;
+
+    va_list argList2;
+
+    va_copy(argList2, argList);
+
+    // vswprintf prints upto (bufSize - 1) entries leaving space for the terminating null character.
+    length = vswprintf(pOutput, bufSize, pFormat, argList2);
+
+    va_end(argList2);
+
+    return length;
+}
+
+// =====================================================================================================================
+// Variable argument wrapper on sprintf function to be used when output needs to be written to a string and no prefix
+// information is required.
+int32 Snprintf(
+    wchar_t*       pOutput,  // [out] Output string.
+    size_t         bufSize,  // Available space in pOutput (in wchar count).
+    const wchar_t* pFormat,  // Printf-style format string.
+    ...)                     // Printf-style argument list.
+{
+    va_list argList;
+    va_start(argList, pFormat);
+
+    const int32 length = Vsnprintf(pOutput, bufSize, pFormat, argList);
+
+    va_end(argList);
+
+    return length;
+}
+
+// =====================================================================================================================
 // Copy an arbitrary string into the provided buffer, encoding as necessary to avoid characters that are illegal
 // in filenames (assuming the more restrictive Windows rules, even on non-Windows OSs).
 //
@@ -413,20 +460,19 @@ int32 Snprintf(
 //   terminating \0.
 // - Passing 0 buffer length is allowed as a special case of that, and nullptr pOutput is then allowed.
 size_t EncodeAsFilename(
-    char*       pOutput,           // [out] Output string; can be nullptr if bufSize is 0
-    size_t      bufSize,           // Available space in pOutput (in bytes)
-    const char* pInput,            // [in] Input string
-    bool        allowSpace,        // Allow (do not % encode) space
-    bool        allowDirSeparator) // Allow (do not % encode) / and \ characters
+    char*                   pOutput,            // [out] Output string; can be nullptr if bufSize is 0
+    size_t                  bufSize,            // Available space in pOutput (in bytes)
+    const StringView<char>& input,              // [in] Input string
+    bool                    allowSpace,         // Allow (do not % encode) space
+    bool                    allowDirSeparator)  // Allow (do not % encode) / and \ characters
 {
-    size_t sizeSoFar = 0;
-    for (;; ++pInput)
+    size_t       sizeSoFar = 0;
+    const char*  pInput    = input.Data();
+    const size_t length    = input.Length();
+
+    for (; sizeSoFar < length; ++pInput)
     {
         int ch = *pInput;
-        if (ch == '\0')
-        {
-            break;
-        }
         const char* pFormat = "%c";
         if (((ch >= '\0' && (ch < ' '))) ||
             ((ch == ' ') && (allowSpace == false)) ||

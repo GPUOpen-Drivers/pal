@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -243,7 +243,7 @@ struct SpmCounterMapping
     bool               isOdd;      // If the counter requires the upper 16-bits of a 32-bit counter wire.
 
     // Output information.
-    gpusize            offsetLo;   // Offset within the segment's output buffer to the counter's lower 16 bits.
+    gpusize            offsetLo;   // Offset within a data sample for this counter's lower 16 bits.
     gpusize            offsetHi;   // For 32-bit counters, the corresponding offset for the upper 16 bits.
 };
 

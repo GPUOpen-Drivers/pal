@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -2065,6 +2065,7 @@ void CmdBuffer::CmdSetGlobalScissor(
     GetNextLayer()->CmdSetGlobalScissor(params);
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
 // =====================================================================================================================
 void CmdBuffer::CmdSetColorWriteMask(
     const ColorWriteMaskParams& params)
@@ -2104,6 +2105,7 @@ void CmdBuffer::CmdSetRasterizerDiscardEnable(
 
     GetNextLayer()->CmdSetRasterizerDiscardEnable(rasterizerDiscardEnable);
 }
+#endif
 
 // =====================================================================================================================
 static const char* HwPipePointToString(
@@ -5876,16 +5878,6 @@ void CmdBuffer::CmdNop(
     }
 
     GetNextLayer()->CmdNop(pPayload, payloadSize);
-}
-
-// =====================================================================================================================
-uint32 CmdBuffer::CmdInsertExecutionMarker()
-{
-    if (m_annotations.logMiscellaneous)
-    {
-        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdInsertExecutionMarker));
-    }
-    return GetNextLayer()->CmdInsertExecutionMarker();
 }
 
 // =====================================================================================================================

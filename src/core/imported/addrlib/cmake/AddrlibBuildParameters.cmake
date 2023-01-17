@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2021-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2021-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -87,6 +87,12 @@ addrlib_bp(ADDR_NAVI22_BUILD ON DEPENDS_ON ${ADDR_GFX10_BUILD})
 addrlib_bp(ADDR_NAVI23_BUILD ON DEPENDS_ON ${ADDR_GFX10_BUILD})
 
 addrlib_bp(ADDR_NAVI24_BUILD ON DEPENDS_ON ${ADDR_GFX10_BUILD})
+
+addrlib_bp(ADDR_REMBRANDT_BUILD ON DEPENDS_ON ${ADDR_GFX10_BUILD})
+
+addrlib_bp(ADDR_RAPHAEL_BUILD ON DEPENDS_ON ${ADDR_GFX10_BUILD})
+
+addrlib_bp(ADDR_MENDOCINO_BUILD ON DEPENDS_ON ${ADDR_GFX10_BUILD})
 
 #if ADDR_GFX11_BUILD
 # GFX11 CARDS #####################################

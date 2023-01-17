@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2007-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2007-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -44,12 +44,16 @@
     #include <string.h>
 #endif
 
+#if defined(__GNUC__)
+    #include <signal.h>
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Platform specific debug break defines
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 #if DEBUG
     #if defined(__GNUC__)
-        #define ADDR_DBG_BREAK()
+        #define ADDR_DBG_BREAK()    { raise(SIGTRAP); }
     #else
         #define ADDR_DBG_BREAK()    { __debugbreak(); }
     #endif

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -57,60 +57,9 @@ const GraphicsPipelineSignature NullGfxSignature =
 };
 static_assert(UserDataNotMapped == 0, "Unexpected value for indicating unmapped user-data entries!");
 
-static uint8 Rop3(LogicOp logicOp);
 static SX_DOWNCONVERT_FORMAT SxDownConvertFormat(SwizzledFormat swizzledFormat);
 static uint32 SxBlendOptEpsilon(SX_DOWNCONVERT_FORMAT sxDownConvertFormat);
 static uint32 SxBlendOptControl(uint32 writeMask);
-
-// =====================================================================================================================
-// The workaround for the "DB Over-Rasterization" hardware bug requires us to write the DB_SHADER_CONTROL register at
-// draw-time. This function writes the PM4 commands necessary and returns the next unused DWORD in pCmdSpace.
-template <bool pm4OptImmediate>
-uint32* GraphicsPipeline::WriteDbShaderControl(
-    bool       isDepthEnabled,
-    bool       usesOverRasterization,
-    CmdStream* pCmdStream,
-    uint32*    pCmdSpace
-    ) const
-{
-    // DB_SHADER_CONTROL must be written at draw-time for particular GPU's to work-around a hardware bug.
-    if (m_pDevice->WaDbOverRasterization())
-    {
-        regDB_SHADER_CONTROL dbShaderControl = m_regs.context.dbShaderControl;
-        if ((dbShaderControl.bits.Z_ORDER == EARLY_Z_THEN_LATE_Z) && usesOverRasterization && isDepthEnabled)
-        {
-            // Apply the "DB Over-Rasterization" workaround: The DB has a bug with early-Z where the DB will kill
-            // pixels when over-rasterization is enabled.  Normally the fix would be to force post-Z over-rasterization
-            // via DB_EQAA, but that workaround isn't sufficient if depth testing is enabled.  In that case, we need to
-            // force late-Z in the pipeline.
-            //
-            // If the workaround is active, and both depth testing and over-rasterization are enabled, and the pipeline
-            // isn't already using late-Z, then we need to force late-Z for the current pipeline.
-            dbShaderControl.bits.Z_ORDER = LATE_Z;
-        }
-
-        pCmdSpace = pCmdStream->WriteSetOneContextReg<pm4OptImmediate>(mmDB_SHADER_CONTROL,
-                                                                       dbShaderControl.u32All,
-                                                                       pCmdSpace);
-    }
-
-    return pCmdSpace;
-}
-
-template
-uint32* GraphicsPipeline::WriteDbShaderControl<true>(
-    bool       isDepthEnabled,
-    bool       usesOverRasterization,
-    CmdStream* pCmdStream,
-    uint32*    pCmdSpace
-    ) const;
-template
-uint32* GraphicsPipeline::WriteDbShaderControl<false>(
-    bool       isDepthEnabled,
-    bool       usesOverRasterization,
-    CmdStream* pCmdStream,
-    uint32*    pCmdSpace
-    ) const;
 
 // =====================================================================================================================
 // Determines whether we can allow the hardware to render out-of-order primitives.  This is done by determing the
@@ -255,10 +204,10 @@ void GraphicsPipeline::EarlyInit(
     // Must be called *after* determining active HW stages!
     SetupSignatureFromElf(metadata, registers, &pInfo->esGsLdsSizeRegGs, &pInfo->esGsLdsSizeRegVs);
 
-    registers.HasEntry(mmVGT_TF_PARAM, &m_regs.context.vgtTfParam.u32All);
+    registers.HasEntry(mmVGT_TF_PARAM, &m_regs.other.vgtTfParam.u32All);
     if (IsTessEnabled() &&
         ((m_regs.context.vgtShaderStagesEn.bits.DYNAMIC_HS == 0) ||
-         (m_regs.context.vgtTfParam.bits.NUM_DS_WAVES_PER_SIMD > 0)))
+         (m_regs.other.vgtTfParam.bits.NUM_DS_WAVES_PER_SIMD > 0)))
     {
         pInfo->usesOnchipTess = true;
     }
@@ -392,7 +341,7 @@ void GraphicsPipeline::OverrideRbPlusRegistersForRpm(
     const SwizzledFormat*const pTargetFormats = TargetFormats();
 
     if ((pTargetFormats[slot].format != swizzledFormat.format) &&
-        (m_regs.context.cbColorControl.bits.DISABLE_DUAL_QUAD__VI == 0))
+        (m_regs.other.cbColorControl.bits.DISABLE_DUAL_QUAD__VI == 0))
     {
         regSX_PS_DOWNCONVERT__VI    sxPsDownconvert   = { };
         regSX_BLEND_OPT_EPSILON__VI sxBlendOptEpsilon = { };
@@ -604,17 +553,10 @@ uint32* GraphicsPipeline::WriteContextCommandsSetPath(
                                                   pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_GS_MODE, m_regs.context.vgtGsMode.u32All, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_REUSE_OFF, m_regs.context.vgtReuseOff.u32All, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmVGT_TF_PARAM, m_regs.context.vgtTfParam.u32All, pCmdSpace);
+    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmCB_SHADER_MASK, m_regs.context.cbShaderMask.u32All, pCmdSpace);
 
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmCB_COLOR_CONTROL, m_regs.context.cbColorControl.u32All, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_TARGET_MASK, mmCB_SHADER_MASK,
-                                                   &m_regs.context.cbTargetMask,
-                                                   pCmdSpace);
-
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_CL_CLIP_CNTL, m_regs.context.paClClipCntl.u32All, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_SU_VTX_CNTL, m_regs.context.paSuVtxCntl.u32All, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_CL_VTE_CNTL, m_regs.context.paClVteCntl.u32All, pCmdSpace);
-    pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_SC_LINE_CNTL, m_regs.context.paScLineCntl.u32All, pCmdSpace);
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmPA_SC_EDGERULE, m_regs.context.paScEdgerule.u32All, pCmdSpace);
 
     pCmdSpace = pCmdStream->WriteSetOneContextReg(mmSPI_INTERP_CONTROL_0,
@@ -630,7 +572,7 @@ uint32* GraphicsPipeline::WriteContextCommandsSetPath(
         // This hardware workaround requires draw-time validation for DB_SHADER_CONTROL.  If the current GPU is
         // not affected by this HW bug, we can just put it into the pipeline PM4 image.
         pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_SHADER_CONTROL,
-                                                      m_regs.context.dbShaderControl.u32All,
+                                                      m_regs.other.dbShaderControl.u32All,
                                                       pCmdSpace);
     }
 
@@ -677,10 +619,10 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     const GpuChipProperties& chipProps = m_pDevice->Parent()->ChipProperties();
     const Gfx6PalSettings&   settings  = m_pDevice->Settings();
 
-    m_regs.context.paScLineCntl.bits.EXPAND_LINE_WIDTH        = createInfo.rsState.expandLineWidth;
-    m_regs.context.paScLineCntl.bits.DX10_DIAMOND_TEST_ENA    = createInfo.rsState.dx10DiamondTestDisable ? 0 : 1;
-    m_regs.context.paScLineCntl.bits.LAST_PIXEL               = createInfo.rsState.rasterizeLastLinePixel;
-    m_regs.context.paScLineCntl.bits.PERPENDICULAR_ENDCAP_ENA = createInfo.rsState.perpLineEndCapsEnable;
+    m_regs.other.paScLineCntl.bits.EXPAND_LINE_WIDTH        = createInfo.rsState.expandLineWidth;
+    m_regs.other.paScLineCntl.bits.DX10_DIAMOND_TEST_ENA    = createInfo.rsState.dx10DiamondTestDisable ? 0 : 1;
+    m_regs.other.paScLineCntl.bits.LAST_PIXEL               = createInfo.rsState.rasterizeLastLinePixel;
+    m_regs.other.paScLineCntl.bits.PERPENDICULAR_ENDCAP_ENA = createInfo.rsState.perpLineEndCapsEnable;
 
     if (createInfo.rsState.pointCoordOrigin == Pal::PointOrigin::UpperLeft)
     {
@@ -708,55 +650,55 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     for (uint32 rt = 0; rt < MaxColorTargets; ++rt)
     {
         const uint32 rtShift = (rt * 4); // Each RT uses four bits of CB_TARGET_MASK.
-        m_regs.context.cbTargetMask.u32All |= ((createInfo.cbState.target[rt].channelWriteMask & 0xF) << rtShift);
+        m_regs.other.cbTargetMask.u32All |= ((createInfo.cbState.target[rt].channelWriteMask & 0xF) << rtShift);
     }
 
     if (IsFastClearEliminate())
     {
-        m_regs.context.cbColorControl.bits.MODE = CB_ELIMINATE_FAST_CLEAR;
-        m_regs.context.cbColorControl.bits.ROP3 = Rop3(LogicOp::Copy);
+        m_regs.other.cbColorControl.bits.MODE = CB_ELIMINATE_FAST_CLEAR;
+        m_regs.other.cbColorControl.bits.ROP3 = Rop3(LogicOp::Copy);
 
         // NOTE: the CB spec states that for fast-clear eliminate, these registers should be set to enable writes to all
         // four channels of RT #0.
         m_regs.context.cbShaderMask.u32All = 0xF;
-        m_regs.context.cbTargetMask.u32All = 0xF;
+        m_regs.other.cbTargetMask.u32All   = 0xF;
     }
     else if (IsFmaskDecompress())
     {
-        m_regs.context.cbColorControl.bits.MODE = CB_FMASK_DECOMPRESS;
-        m_regs.context.cbColorControl.bits.ROP3 = Rop3(LogicOp::Copy);
+        m_regs.other.cbColorControl.bits.MODE = CB_FMASK_DECOMPRESS;
+        m_regs.other.cbColorControl.bits.ROP3 = Rop3(LogicOp::Copy);
 
         // NOTE: the CB spec states that for fmask-decompress, these registers should be set to enable writes to all
         // four channels of RT #0.
         m_regs.context.cbShaderMask.u32All = 0xF;
-        m_regs.context.cbTargetMask.u32All = 0xF;
+        m_regs.other.cbTargetMask.u32All   = 0xF;
     }
     else if (IsDccDecompress())
     {
-        m_regs.context.cbColorControl.bits.MODE = CB_DCC_DECOMPRESS__VI;
-        m_regs.context.cbColorControl.bits.ROP3 = Rop3(LogicOp::Copy);
+        m_regs.other.cbColorControl.bits.MODE = CB_DCC_DECOMPRESS__VI;
+        m_regs.other.cbColorControl.bits.ROP3 = Rop3(LogicOp::Copy);
 
         // According to the reg-spec, DCC decompress ops imply fmask decompress and fast-clear eliminate operations as
         // well, so set these registers as they would be set above.
-        m_regs.context.cbShaderMask.u32All      = 0xF;
-        m_regs.context.cbTargetMask.u32All      = 0xF;
+        m_regs.context.cbShaderMask.u32All    = 0xF;
+        m_regs.other.cbTargetMask.u32All      = 0xF;
     }
     else if (IsResolveFixedFunc())
     {
-        m_regs.context.cbColorControl.bits.MODE = CB_RESOLVE;
-        m_regs.context.cbColorControl.bits.ROP3 = Rop3(LogicOp::Copy);
+        m_regs.other.cbColorControl.bits.MODE = CB_RESOLVE;
+        m_regs.other.cbColorControl.bits.ROP3 = Rop3(LogicOp::Copy);
 
         m_regs.context.cbShaderMask.bits.OUTPUT0_ENABLE = 0xF;
-        m_regs.context.cbTargetMask.bits.TARGET0_ENABLE = 0xF;
+        m_regs.other.cbTargetMask.bits.TARGET0_ENABLE   = 0xF;
     }
-    else if ((m_regs.context.cbShaderMask.u32All == 0) || (m_regs.context.cbTargetMask.u32All == 0))
+    else if ((m_regs.context.cbShaderMask.u32All == 0) || (m_regs.other.cbTargetMask.u32All == 0))
     {
-        m_regs.context.cbColorControl.bits.MODE = CB_DISABLE;
+        m_regs.other.cbColorControl.bits.MODE = CB_DISABLE;
     }
     else
     {
-        m_regs.context.cbColorControl.bits.MODE = CB_NORMAL;
-        m_regs.context.cbColorControl.bits.ROP3 = Rop3(createInfo.cbState.logicOp);
+        m_regs.other.cbColorControl.bits.MODE = CB_NORMAL;
+        m_regs.other.cbColorControl.bits.ROP3 = Rop3(createInfo.cbState.logicOp);
     }
 
     if (createInfo.cbState.dualSourceBlendEnable)
@@ -766,7 +708,7 @@ void GraphicsPipeline::SetupNonShaderRegisters(
         if (((m_regs.context.cbShaderMask.u32All & 0x0F) == 0) || ((m_regs.context.cbShaderMask.u32All & 0xF0) == 0))
         {
             PAL_ALERT_ALWAYS();
-            m_regs.context.cbColorControl.bits.MODE = CB_DISABLE;
+            m_regs.other.cbColorControl.bits.MODE = CB_DISABLE;
         }
     }
 
@@ -777,11 +719,11 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     // Initialize RB+ registers for pipelines which are able to use the feature.
     if (settings.gfx8RbPlusEnable &&
         (createInfo.cbState.dualSourceBlendEnable == false) &&
-        (m_regs.context.cbColorControl.bits.MODE != CB_RESOLVE))
+        (m_regs.other.cbColorControl.bits.MODE != CB_RESOLVE))
     {
         PAL_ASSERT(chipProps.gfx6.rbPlus);
 
-        m_regs.context.cbColorControl.bits.DISABLE_DUAL_QUAD__VI = 0;
+        m_regs.other.cbColorControl.bits.DISABLE_DUAL_QUAD__VI = 0;
 
         for (uint32 slot = 0; slot < MaxColorTargets; ++slot)
         {
@@ -796,7 +738,7 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     else if (chipProps.gfx6.rbPlus != 0)
     {
         // If RB+ is supported but not enabled, we need to set DISABLE_DUAL_QUAD.
-        m_regs.context.cbColorControl.bits.DISABLE_DUAL_QUAD__VI = 1;
+        m_regs.other.cbColorControl.bits.DISABLE_DUAL_QUAD__VI = 1;
     }
 
     // Override some register settings based on toss points.  These toss points cannot be processed in the hardware
@@ -804,7 +746,7 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     if ((IsInternal() == false) && (m_pDevice->Parent()->Settings().tossPointMode == TossPointAfterPs))
     {
         // This toss point is used to disable all color buffer writes.
-        m_regs.context.cbTargetMask.u32All = 0;
+        m_regs.other.cbTargetMask.u32All = 0;
     }
 }
 
@@ -815,28 +757,29 @@ void GraphicsPipeline::SetupCommonRegisters(
     const RegisterVector&             registers,
     PipelineUploader*                 pUploader)
 {
-    const auto&              palDevice    = *(m_pDevice->Parent());
-    const GpuChipProperties& chipProps    = palDevice.ChipProperties();
-    const Gfx6PalSettings&   settings     = m_pDevice->Settings();
-    const PalPublicSettings* pPalSettings = m_pDevice->Parent()->GetPublicSettings();
+    const Pal::Device&       palDevice     = *(m_pDevice->Parent());
+    const GpuChipProperties& chipProps     = palDevice.ChipProperties();
+    const Gfx6PalSettings&   settings      = m_pDevice->Settings();
+    const PalPublicSettings* pPalSettings  = m_pDevice->Parent()->GetPublicSettings();
+    const TossPointMode      tossPointMode = static_cast<TossPointMode>(palDevice.Settings().tossPointMode);
 
-    m_regs.context.paClClipCntl.u32All = registers.At(mmPA_CL_CLIP_CNTL);
-    m_regs.context.paClVteCntl.u32All  = registers.At(mmPA_CL_VTE_CNTL);
-    m_regs.context.paSuVtxCntl.u32All  = registers.At(mmPA_SU_VTX_CNTL);
-    m_regs.other.paScModeCntl1.u32All  = registers.At(mmPA_SC_MODE_CNTL_1);
+    m_regs.other.paClClipCntl.u32All  = registers.At(mmPA_CL_CLIP_CNTL);
+    m_regs.context.paClVteCntl.u32All = registers.At(mmPA_CL_VTE_CNTL);
+    m_regs.context.paSuVtxCntl.u32All = registers.At(mmPA_SU_VTX_CNTL);
+    m_regs.other.paScModeCntl1.u32All = registers.At(mmPA_SC_MODE_CNTL_1);
 
-    m_regs.context.paClClipCntl.bits.DX_CLIP_SPACE_DEF = (createInfo.viewportInfo.depthRange == DepthRange::ZeroToOne);
+    m_regs.other.paClClipCntl.bits.DX_CLIP_SPACE_DEF = (createInfo.viewportInfo.depthRange == DepthRange::ZeroToOne);
     if (createInfo.viewportInfo.depthClipNearEnable == false)
     {
-        m_regs.context.paClClipCntl.bits.ZCLIP_NEAR_DISABLE = 1;
+        m_regs.other.paClClipCntl.bits.ZCLIP_NEAR_DISABLE = 1;
     }
     if (createInfo.viewportInfo.depthClipFarEnable == false)
     {
-        m_regs.context.paClClipCntl.bits.ZCLIP_FAR_DISABLE = 1;
+        m_regs.other.paClClipCntl.bits.ZCLIP_FAR_DISABLE = 1;
     }
-    if (static_cast<TossPointMode>(palDevice.Settings().tossPointMode) == TossPointAfterRaster)
+    if (tossPointMode == TossPointAfterRaster)
     {
-        m_regs.context.paClClipCntl.bits.DX_RASTERIZATION_KILL = 1;
+        m_regs.other.paClClipCntl.bits.DX_RASTERIZATION_KILL = 1;
     }
 
     // Overrides some of the fields in PA_SC_MODE_CNTL1 to account for GPU pipe config and features like out-of-order
@@ -906,7 +849,15 @@ void GraphicsPipeline::SetupCommonRegisters(
 
     m_info.ps.flags.perSampleShading = m_regs.other.paScModeCntl1.bits.PS_ITER_SAMPLE;
 
-    m_regs.context.dbShaderControl.u32All = registers.At(mmDB_SHADER_CONTROL);
+    m_regs.other.dbShaderControl.u32All = registers.At(mmDB_SHADER_CONTROL);
+
+    if (tossPointMode == TossPointAfterPs)
+    {
+        // Set EXEC_ON_NOOP to 1 to disallow the DB from turning off the PS entirely when TossPointAfterPs is set (i.e.
+        // disable all color buffer writes by setting CB_TARGET_MASK = 0). Without this bit set, the DB will check
+        // the CB_TARGET_MASK and turn off the PS if no consumers of the shader are present.
+        m_regs.other.dbShaderControl.bits.EXEC_ON_NOOP = 1;
+    }
 
     // Configure depth clamping
     // Register specification does not specify dependence of DISABLE_VIEWPORT_CLAMP on Z_EXPORT_ENABLE, but
@@ -919,7 +870,7 @@ void GraphicsPipeline::SetupCommonRegisters(
     if (pPalSettings->depthClampBasedOnZExport == true)
     {
         m_regs.other.dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP = ((createInfo.rsState.depthClampMode == DepthClampMode::_None) &&
-                                                            (m_regs.context.dbShaderControl.bits.Z_EXPORT_ENABLE != 0));
+                                                            (m_regs.other.dbShaderControl.bits.Z_EXPORT_ENABLE != 0));
     }
     else
     {
@@ -928,13 +879,13 @@ void GraphicsPipeline::SetupCommonRegisters(
     }
 
     // NOTE: On recommendation from h/ware team FORCE_SHADER_Z_ORDER will be set whenever Re-Z is being used.
-    m_regs.other.dbRenderOverride.bits.FORCE_SHADER_Z_ORDER = (m_regs.context.dbShaderControl.bits.Z_ORDER == RE_Z);
+    m_regs.other.dbRenderOverride.bits.FORCE_SHADER_Z_ORDER = (m_regs.other.dbShaderControl.bits.Z_ORDER == RE_Z);
 
     // NOTE: The Re-Z Stencil corruption bug workaround requires setting FORCE_STENCIL_READ in DB_RENDER_OVERRIDE
     // whenever Re-Z is active.
     if (m_pDevice->WaDbReZStencilCorruption() &&
-        ((m_regs.context.dbShaderControl.bits.Z_ORDER == RE_Z) ||
-         (m_regs.context.dbShaderControl.bits.Z_ORDER == EARLY_Z_THEN_RE_Z)))
+        ((m_regs.other.dbShaderControl.bits.Z_ORDER == RE_Z) ||
+         (m_regs.other.dbShaderControl.bits.Z_ORDER == EARLY_Z_THEN_RE_Z)))
     {
         m_regs.other.dbRenderOverride.bits.FORCE_STENCIL_READ = 1;
     }
@@ -942,15 +893,15 @@ void GraphicsPipeline::SetupCommonRegisters(
     m_regs.context.vgtReuseOff.u32All = registers.At(mmVGT_REUSE_OFF);
 
     // NOTE: The following registers are assumed to have the value zero if the pipeline ELF does not specify values.
-    registers.HasEntry(mmVGT_TF_PARAM,     &m_regs.context.vgtTfParam.u32All);
+    registers.HasEntry(mmVGT_TF_PARAM,     &m_regs.other.vgtTfParam.u32All);
     registers.HasEntry(mmVGT_LS_HS_CONFIG, &m_regs.other.vgtLsHsConfig.u32All);
 
     // If dynamic tessellation mode is enabled (where the shader chooses whether each patch goes to off-chip or to
     // on-chip memory), we should override DS_WAVES_PER_SIMD according to the panel setting.
-    if ((m_regs.context.vgtTfParam.bits.NUM_DS_WAVES_PER_SIMD != 0) &&
+    if ((m_regs.other.vgtTfParam.bits.NUM_DS_WAVES_PER_SIMD != 0) &&
         (m_regs.context.vgtShaderStagesEn.bits.DYNAMIC_HS     != 0))
     {
-        m_regs.context.vgtTfParam.bits.NUM_DS_WAVES_PER_SIMD = settings.dsWavesPerSimdOverflow;
+        m_regs.other.vgtTfParam.bits.NUM_DS_WAVES_PER_SIMD = settings.dsWavesPerSimdOverflow;
     }
 
     // For Gfx6+, default VTX_REUSE_DEPTH to 14
@@ -965,7 +916,7 @@ void GraphicsPipeline::SetupCommonRegisters(
         // VGT_TF_PARAM depends solely on the compiled HS when on-chip GS is disabled, in the future when Tess with
         // on-chip GS is supported, the 2nd condition may need to be revisited.
         if ((m_pDevice->DegeneratePrimFilter() == false) ||
-            (IsTessEnabled() && (m_regs.context.vgtTfParam.bits.PARTITIONING != PART_FRAC_ODD)))
+            (IsTessEnabled() && (m_regs.other.vgtTfParam.bits.PARTITIONING != PART_FRAC_ODD)))
         {
             m_regs.context.vgtVertexReuseBlockCntl.bits.VTX_REUSE_DEPTH = 30;
         }
@@ -1093,12 +1044,12 @@ void GraphicsPipeline::FixupIaMultiVgtParamOnGfx7Plus(
         // (should be programmed to 2 by default)
         pIaMultiVgtParam->bits.MAX_PRIMGRP_IN_WAVE__VI = 2;
 
-        if (m_regs.context.vgtTfParam.bits.DISTRIBUTION_MODE__VI != NO_DIST)
+        if (m_regs.other.vgtTfParam.bits.DISTRIBUTION_MODE__VI != NO_DIST)
         {
             // Verify a few assumptions given that distributed tessellation is enabled:
             //     - Tessellation itself is enabled;
             //     - VGT is configured to send all DS wavefronts to off-chip memory.
-            PAL_ASSERT(IsTessEnabled() && (m_regs.context.vgtTfParam.bits.NUM_DS_WAVES_PER_SIMD == 0));
+            PAL_ASSERT(IsTessEnabled() && (m_regs.other.vgtTfParam.bits.NUM_DS_WAVES_PER_SIMD == 0));
 
             // When distributed tessellation is active, VI hardware requires PARTIAL_ES_WAVE_ON if the GS is present,
             // and PARTIAL_VS_WAVE_ON when the GS is absent.
@@ -1121,7 +1072,7 @@ void GraphicsPipeline::FixupIaMultiVgtParamOnGfx7Plus(
     }
     else
     {
-        PAL_ASSERT(m_regs.context.vgtTfParam.bits.DISTRIBUTION_MODE__VI == NO_DIST);
+        PAL_ASSERT(m_regs.other.vgtTfParam.bits.DISTRIBUTION_MODE__VI == NO_DIST);
     }
 
     // According to the VGT folks, WD_SWITCH_ON_EOP needs to be set whenever any of the following conditions are met.
@@ -1556,34 +1507,6 @@ void GraphicsPipeline::SetupSignatureFromElf(
     // Finally, compact the array of view ID register addresses
     // so that all of the mapped ones are at the front of the array.
     PackArray(m_signature.viewIdRegAddr, UserDataNotMapped);
-}
-
-// =====================================================================================================================
-// Converts the specified logic op enum into a ROP3 code (for programming CB_COLOR_CONTROL).
-static uint8 Rop3(
-    LogicOp logicOp)
-{
-    constexpr uint8 Rop3Codes[] =
-    {
-        0xCC, // Copy (S)
-        0x00, // Clear (clear to 0)
-        0x88, // And (S & D)
-        0x44, // AndReverse (S & (~D))
-        0x22, // AndInverted ((~S) & D)
-        0xAA, // Noop (D)
-        0x66, // Xor (S ^ D)
-        0xEE, // Or (S | D)
-        0x11, // Nor (~(S | D))
-        0x99, // Equiv (~(S ^ D))
-        0x55, // Invert (~D)
-        0xDD, // OrReverse (S | (~D))
-        0x33, // CopyInverted (~S)
-        0xBB, // OrInverted ((~S) | D)
-        0x77, // Nand (~(S & D))
-        0xFF  // Set (set to 1)
-    };
-
-    return Rop3Codes[static_cast<uint32>(logicOp)];
 }
 
 // =====================================================================================================================

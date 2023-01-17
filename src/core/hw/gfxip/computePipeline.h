@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -46,7 +46,11 @@ class ComputePipeline : public Pipeline
 public:
     virtual ~ComputePipeline();
 
-    virtual Result Init(const ComputePipelineCreateInfo& createInfo);
+    virtual Result Init(
+        const ComputePipelineCreateInfo&        createInfo,
+        const AbiReader&                        abiReader,
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        Util::MsgPackReader*                    pMetadataReader);
 
     uint32       ThreadsPerGroup()    const { return m_threadsPerTg.Flatten(); }
     DispatchDims ThreadsPerGroupXyz() const { return m_threadsPerTg; }
@@ -82,19 +86,17 @@ protected:
     // Number of threads per threadgroup in each dimension as determined by parsing the input IL.
     DispatchDims m_threadsPerTg;
 
-    bool    m_useCps;                // Use continuation passing shader
     uint32  m_maxFunctionCallDepth;  // Maximum depth for indirect function calls
     uint32  m_stackSizeInBytes;      // Stack managed by the compiler backend.
-    uint32  m_irStackSizeInBytes;    // Stack managed by IR (Intermediate Representation),
-                                     // transparent to the compiler backend.
 
     ShaderStageInfo  m_stageInfo;
 
 private:
     Result InitFromPalAbiBinary(
-        const ComputePipelineCreateInfo& createInfo,
-        const AbiReader&                 abiReader,
-        Util::MsgPackReader*             pMetadataReader);
+        const ComputePipelineCreateInfo&        createInfo,
+        const AbiReader&                        abiReader,
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        Util::MsgPackReader*                    pMetadataReader);
 
     Result InitFromHsaAbiBinary(
         const ComputePipelineCreateInfo& createInfo,

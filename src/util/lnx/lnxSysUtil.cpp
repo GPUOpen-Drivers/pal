@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -160,6 +160,9 @@ Result QuerySystemInfo(
                 pSystemInfo->cpuType = CpuType::Unknown;
             }
         }
+#else
+        // Non-x86 platforms don't have an unprivileged cpuid intrinisic, so get that info from the OS
+        result = Result::Success;
 #endif
 
         pSystemInfo->cpuLogicalCoreCount  = 0;

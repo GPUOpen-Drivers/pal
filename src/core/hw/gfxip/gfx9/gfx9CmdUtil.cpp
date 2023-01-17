@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -28,7 +28,6 @@
 #include "core/hw/gfxip/gfx9/gfx9CmdUtil.h"
 #include "core/hw/gfxip/gfx9/gfx9Device.h"
 #include "g_gfx9Settings.h"
-#include "marker_payload.h"
 #include "palInlineFuncs.h"
 #include "palIterator.h"
 #include "palMath.h"
@@ -2018,14 +2017,15 @@ size_t CmdUtil::BuildDispatchTaskMeshGfx(
     Pm4Predicate predicate,              // Predication enable control.
 #if PAL_BUILD_GFX11
     bool         usesLegacyMsFastLaunch, // Use legacy MS fast launch.
+    bool         linearDispatch,         // Use linear dispatch.
 #endif
-    void*        pBuffer)                // [out] Build the PM4 packet in this buffer.
+    void*        pBuffer                 // [out] Build the PM4 packet in this buffer.
+    ) const
 {
     static_assert(PM4_ME_DISPATCH_TASKMESH_GFX_SIZEDW__GFX10COREPLUS ==
                   PM4_PFP_DISPATCH_TASKMESH_GFX_SIZEDW__GFX10COREPLUS,
                   "PFP, ME versions of PM4_ME_DISPATCH_TASKMESH_GFX are not the same!");
 
-    PAL_ASSERT(tgDimOffset  != UserDataNotMapped);
     PAL_ASSERT(ringEntryLoc != UserDataNotMapped);
 
     constexpr uint32 PacketSize = PM4_ME_DISPATCH_TASKMESH_GFX_SIZEDW__GFX10COREPLUS;
@@ -2038,13 +2038,21 @@ size_t CmdUtil::BuildDispatchTaskMeshGfx(
                                            predicate);
 
     pPacket->ordinal2.u32All                                             = 0;
-    pPacket->ordinal2.bitfields.gfx10CorePlus.xyz_dim_loc                = tgDimOffset - PERSISTENT_SPACE_START;
+    pPacket->ordinal2.bitfields.gfx10CorePlus.xyz_dim_loc                = (tgDimOffset != UserDataNotMapped)?
+                                                                           tgDimOffset - PERSISTENT_SPACE_START : 0;
     pPacket->ordinal2.bitfields.gfx10CorePlus.ring_entry_loc             = ringEntryLoc - PERSISTENT_SPACE_START;
     pPacket->ordinal3.u32All                                             = 0;
     pPacket->ordinal3.bitfields.gfx10CorePlus.thread_trace_marker_enable = (IssueSqttMarkerEvent) ? 1 : 0;
 
 #if PAL_BUILD_GFX11
+    if (IsGfx11(m_chipProps.gfxLevel) && (tgDimOffset != UserDataNotMapped))
+    {
+        pPacket->ordinal3.bitfields.gfx11.xyz_dim_enable = 1;
+    }
+
     pPacket->ordinal3.bitfields.gfx11.mode1_enable = (usesLegacyMsFastLaunch) ? 1 : 0;
+
+    pPacket->ordinal3.bitfields.gfx11.linear_dispatch_enable = (linearDispatch) ? 1 : 0;
 #endif
 
     regVGT_DRAW_INITIATOR drawInitiator = {};
@@ -2063,8 +2071,9 @@ size_t CmdUtil::BuildDispatchTaskMeshGfx<true>(
     Pm4Predicate predicate,
 #if PAL_BUILD_GFX11
     bool         usesLegacyMsFastLaunch,
+    bool         linearDispatch,
 #endif
-    void*        pBuffer);
+    void*        pBuffer) const;
 template
 size_t CmdUtil::BuildDispatchTaskMeshGfx<false>(
     uint32       tgDimOffset,
@@ -2072,8 +2081,9 @@ size_t CmdUtil::BuildDispatchTaskMeshGfx<false>(
     Pm4Predicate predicate,
 #if PAL_BUILD_GFX11
     bool         usesLegacyMsFastLaunch,
+    bool         linearDispatch,
 #endif
-    void*        pBuffer);
+    void*        pBuffer) const;
 
 #if PAL_BUILD_GFX11
 // =====================================================================================================================
@@ -2119,7 +2129,8 @@ size_t CmdUtil::BuildDispatchMeshIndirectMulti(
 #if PAL_BUILD_GFX11
     bool         usesLegacyMsFastLaunch, // Use legacy MS fast launch.
 #endif
-    void*        pBuffer)                // [out] Build the PM4 packet in this buffer.
+    void*        pBuffer                 // [out] Build the PM4 packet in this buffer.
+    ) const
 {
     static_assert(PM4_ME_DISPATCH_MESH_INDIRECT_MULTI_SIZEDW__GFX10COREPLUS ==
                   PM4_PFP_DISPATCH_MESH_INDIRECT_MULTI_SIZEDW__GFX10COREPLUS,
@@ -2140,7 +2151,8 @@ size_t CmdUtil::BuildDispatchMeshIndirectMulti(
                                          predicate);
 
     packet.ordinal2.data_offset                         = LowPart(dataOffset);
-    packet.ordinal3.bitfields.gfx10CorePlus.xyz_dim_loc = xyzOffset - PERSISTENT_SPACE_START;
+    packet.ordinal3.bitfields.gfx10CorePlus.xyz_dim_loc = (xyzOffset != UserDataNotMapped) ?
+                                                          xyzOffset - PERSISTENT_SPACE_START : 0;
 
     if (drawIndexOffset != UserDataNotMapped)
     {
@@ -2149,6 +2161,11 @@ size_t CmdUtil::BuildDispatchMeshIndirectMulti(
     }
 
 #if PAL_BUILD_GFX11
+    if (IsGfx11(m_chipProps.gfxLevel) && (xyzOffset != UserDataNotMapped))
+    {
+        packet.ordinal4.bitfields.gfx11.xyz_dim_enable = 1;
+    }
+
     packet.ordinal4.bitfields.gfx11.mode1_enable = (usesLegacyMsFastLaunch) ? 1 : 0;
 #endif
 
@@ -2688,65 +2705,6 @@ size_t CmdUtil::BuildSampleEventWrite(
         packet.ordinal4.u32All = HighPart(gpuAddr);
 
         memcpy(pBuffer, &packet, sizeof(packet));
-    }
-
-    return packetSize;
-}
-
-// =====================================================================================================================
-size_t CmdUtil::BuildExecutionMarker(
-    EngineType engineType,
-    gpusize    markerAddr,
-    uint32     markerVal,
-    uint64     clientHandle,
-    uint32     markerType,
-    void*      pBuffer
-    ) const
-{
-    ReleaseMemGeneric releaseInfo = {};
-    releaseInfo.engineType = engineType;
-    releaseInfo.dstAddr    = markerAddr;
-    releaseInfo.dataSel    = data_sel__me_release_mem__send_32_bit_low;
-    releaseInfo.data       = markerVal;
-
-    size_t packetSize = BuildReleaseMemGeneric(releaseInfo, pBuffer);
-    pBuffer = VoidPtrInc(pBuffer, packetSize * sizeof(uint32));
-
-    constexpr uint32 NopSizeDwords = PM4_PFP_NOP_SIZEDW__CORE;
-
-    if (markerType == RGD_EXECUTION_BEGIN_MARKER_GUARD)
-    {
-        constexpr size_t BeginPayloadSize = sizeof(RgdExecutionBeginMarker) / sizeof(uint32);
-        packetSize += BuildNop(BeginPayloadSize + NopSizeDwords, pBuffer);
-
-        auto* pPayload =
-            reinterpret_cast<RgdExecutionBeginMarker*>(VoidPtrInc(pBuffer, NopSizeDwords * sizeof(uint32)));
-        pPayload->guard         = RGD_EXECUTION_BEGIN_MARKER_GUARD;
-        pPayload->marker_buffer = markerAddr;
-        pPayload->client_handle = clientHandle;
-        pPayload->counter       = markerVal;
-    }
-    else if (markerType == RGD_EXECUTION_MARKER_GUARD)
-    {
-        PAL_ASSERT(clientHandle == 0);
-        constexpr size_t MarkerPayloadSize = sizeof(RgdExecutionMarker) / sizeof(uint32);
-        packetSize += BuildNop(MarkerPayloadSize + NopSizeDwords, pBuffer);
-
-        auto* pPayload =
-            reinterpret_cast<RgdExecutionMarker*>(VoidPtrInc(pBuffer, NopSizeDwords * sizeof(uint32)));
-        pPayload->guard   = RGD_EXECUTION_MARKER_GUARD;
-        pPayload->counter = markerVal;
-    }
-    else if (markerType == RGD_EXECUTION_END_MARKER_GUARD)
-    {
-        PAL_ASSERT(clientHandle == 0);
-        constexpr size_t EndPayloadSize = sizeof(RgdExecutionEndMarker) / sizeof(uint32);
-        packetSize += BuildNop(EndPayloadSize + NopSizeDwords, pBuffer);
-
-        auto* pPayload =
-            reinterpret_cast<RgdExecutionEndMarker*>(VoidPtrInc(pBuffer, NopSizeDwords * sizeof(uint32)));
-        pPayload->guard = RGD_EXECUTION_END_MARKER_GUARD;
-        pPayload->counter = markerVal;
     }
 
     return packetSize;

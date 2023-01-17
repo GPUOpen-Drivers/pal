@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -82,8 +82,7 @@ public:
 
     void SetupSignatureFromElf(
         ComputeShaderSignature*                 pSignature,
-        const Util::PalAbi::CodeObjectMetadata& metadata,
-        const RegisterVector&                   registers);
+        const Util::PalAbi::CodeObjectMetadata& metadata);
 
     void SetupSignatureFromElf(
         ComputeShaderSignature*                 pSignature,
@@ -91,14 +90,22 @@ public:
         const RegisterVector&                   registers);
 
     void LateInit(
-        const AbiReader&       abiReader,
-        const RegisterVector&  registers,
-        uint32                 wavefrontSize,
-        DispatchDims*          pThreadsPerTg,
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        uint32                                  wavefrontSize,
+        DispatchDims*                           pThreadsPerTg,
 #if PAL_BUILD_GFX11
-        DispatchInterleaveSize interleaveSize,
+        DispatchInterleaveSize                  interleaveSize,
 #endif
-        PipelineUploader*      pUploader);
+        PipelineUploader*                       pUploader);
+
+    void LateInit(
+        const RegisterVector&                   registers,
+        uint32                                  wavefrontSize,
+        DispatchDims*                           pThreadsPerTg,
+#if PAL_BUILD_GFX11
+        DispatchInterleaveSize                  interleaveSize,
+#endif
+        PipelineUploader*                       pUploader);
 
     uint32* UpdateDynamicRegInfo(
         CmdStream*                      pCmdStream,
@@ -154,11 +161,24 @@ public:
 
 private:
     void InitRegisters(
-        const RegisterVector&  registers,
+        const Util::PalAbi::CodeObjectMetadata& metadata,
 #if PAL_BUILD_GFX11
-        DispatchInterleaveSize interleaveSize,
+        DispatchInterleaveSize                  interleaveSize,
 #endif
-        uint32                 wavefrontSize);
+        uint32                                  wavefrontSize);
+
+    void InitRegisters(
+        const RegisterVector&                   registers,
+#if PAL_BUILD_GFX11
+        DispatchInterleaveSize                  interleaveSize,
+#endif
+        uint32                                  wavefrontSize);
+
+    void DoLateInit(DispatchDims* pThreadsPerTg, PipelineUploader* pUploader);
+
+    void SetupSignatureFromMetadata(
+        ComputeShaderSignature*                 pSignature,
+        const Util::PalAbi::CodeObjectMetadata& metadata);
 
     void SetupSignatureFromRegisters(
         ComputeShaderSignature* pSignature,

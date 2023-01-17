@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2020-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2020-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -92,6 +92,24 @@ function(pal_compile_definitions_gfx9 TARGET)
         target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_GFX103=1)
         target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI2X=1)
         target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI24=1)
+    endif()
+
+    if(PAL_BUILD_REMBRANDT)
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_GFX103=1)
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_REMBRANDT=1)
+        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_REMBRANDT=1)
+    endif()
+
+    if(PAL_BUILD_RAPHAEL)
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_GFX103=1)
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_RAPHAEL=1)
+        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_RAPHAEL=1)
+    endif()
+
+    if(PAL_BUILD_MENDOCINO)
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_GFX103=1)
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_MENDOCINO=1)
+        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_RAPHAEL=1)
     endif()
 
 #if PAL_BUILD_NAVI31

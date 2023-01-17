@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -8892,6 +8892,11 @@ union DF_PIE_AON_PerfMonCtlHi0 {
         unsigned int Filter                                                       : 24;
     } nv31;
 #endif
+    struct {
+        unsigned int EventSelectHi                                                :  6;
+        unsigned int                                                              :  2;
+        unsigned int Filter                                                       : 24;
+    } raphael;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8912,6 +8917,11 @@ union DF_PIE_AON_PerfMonCtlHi1 {
         unsigned int Filter                                                       : 24;
     } nv31;
 #endif
+    struct {
+        unsigned int EventSelectHi                                                :  6;
+        unsigned int                                                              :  2;
+        unsigned int Filter                                                       : 24;
+    } raphael;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8932,6 +8942,11 @@ union DF_PIE_AON_PerfMonCtlHi2 {
         unsigned int Filter                                                       : 24;
     } nv31;
 #endif
+    struct {
+        unsigned int EventSelectHi                                                :  6;
+        unsigned int                                                              :  2;
+        unsigned int Filter                                                       : 24;
+    } raphael;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8952,6 +8967,11 @@ union DF_PIE_AON_PerfMonCtlHi3 {
         unsigned int Filter                                                       : 24;
     } nv31;
 #endif
+    struct {
+        unsigned int EventSelectHi                                                :  6;
+        unsigned int                                                              :  2;
+        unsigned int Filter                                                       : 24;
+    } raphael;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8972,6 +8992,11 @@ union DF_PIE_AON_PerfMonCtlHi4 {
         unsigned int Filter                                                       : 24;
     } nv31;
 #endif
+    struct {
+        unsigned int EventSelectHi                                                :  6;
+        unsigned int                                                              :  2;
+        unsigned int Filter                                                       : 24;
+    } raphael;
 
     unsigned int u32All;
     signed int   i32All;
@@ -8992,6 +9017,11 @@ union DF_PIE_AON_PerfMonCtlHi5 {
         unsigned int Filter                                                       : 24;
     } nv31;
 #endif
+    struct {
+        unsigned int EventSelectHi                                                :  6;
+        unsigned int                                                              :  2;
+        unsigned int Filter                                                       : 24;
+    } raphael;
 
     unsigned int u32All;
     signed int   i32All;
@@ -9012,6 +9042,11 @@ union DF_PIE_AON_PerfMonCtlHi6 {
         unsigned int Filter                                                       : 24;
     } nv31;
 #endif
+    struct {
+        unsigned int EventSelectHi                                                :  6;
+        unsigned int                                                              :  2;
+        unsigned int Filter                                                       : 24;
+    } raphael;
 
     unsigned int u32All;
     signed int   i32All;
@@ -9032,6 +9067,107 @@ union DF_PIE_AON_PerfMonCtlHi7 {
         unsigned int Filter                                                       : 24;
     } nv31;
 #endif
+    struct {
+        unsigned int EventSelectHi                                                :  6;
+        unsigned int                                                              :  2;
+        unsigned int Filter                                                       : 24;
+    } raphael;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtlHi8 {
+    struct {
+        unsigned int EventSelectHi                                                :  6;
+        unsigned int                                                              :  2;
+        unsigned int Filter                                                       : 24;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtlHi9 {
+    struct {
+        unsigned int EventSelectHi                                                :  6;
+        unsigned int                                                              :  2;
+        unsigned int Filter                                                       : 24;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtlHi10 {
+    struct {
+        unsigned int EventSelectHi                                                :  6;
+        unsigned int                                                              :  2;
+        unsigned int Filter                                                       : 24;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtlHi11 {
+    struct {
+        unsigned int EventSelectHi                                                :  6;
+        unsigned int                                                              :  2;
+        unsigned int Filter                                                       : 24;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtlHi12 {
+    struct {
+        unsigned int EventSelectHi                                                :  6;
+        unsigned int                                                              :  2;
+        unsigned int Filter                                                       : 24;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtlHi13 {
+    struct {
+        unsigned int EventSelectHi                                                :  6;
+        unsigned int                                                              :  2;
+        unsigned int Filter                                                       : 24;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtlHi14 {
+    struct {
+        unsigned int EventSelectHi                                                :  6;
+        unsigned int                                                              :  2;
+        unsigned int Filter                                                       : 24;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtlHi15 {
+    struct {
+        unsigned int EventSelectHi                                                :  6;
+        unsigned int                                                              :  2;
+        unsigned int Filter                                                       : 24;
+    } bits, bitfields;
 
     unsigned int u32All;
     signed int   i32All;
@@ -9083,6 +9219,19 @@ union DF_PIE_AON_PerfMonCtlLo0 {
         unsigned int                                                              :  4;
     } nv31;
 #endif
+    struct {
+        unsigned int                                                              : 20;
+        unsigned int Mp1Int                                                       :  1;
+        unsigned int BypassEn                                                     :  1;
+        unsigned int                                                              :  2;
+        unsigned int UnitMaskHi                                                   :  4;
+        unsigned int                                                              :  4;
+    } raphael;
+    struct {
+        unsigned int                                                              : 21;
+        unsigned int Mp1Int                                                       :  1;
+        unsigned int                                                              : 10;
+    } rembrandt;
     struct {
         unsigned int                                                              : 21;
         unsigned int Mp1Int                                                       :  1;
@@ -9140,6 +9289,19 @@ union DF_PIE_AON_PerfMonCtlLo1 {
     } nv31;
 #endif
     struct {
+        unsigned int                                                              : 20;
+        unsigned int Mp1Int                                                       :  1;
+        unsigned int BypassEn                                                     :  1;
+        unsigned int                                                              :  2;
+        unsigned int UnitMaskHi                                                   :  4;
+        unsigned int                                                              :  4;
+    } raphael;
+    struct {
+        unsigned int                                                              : 21;
+        unsigned int Mp1Int                                                       :  1;
+        unsigned int                                                              : 10;
+    } rembrandt;
+    struct {
         unsigned int                                                              : 21;
         unsigned int Mp1Int                                                       :  1;
         unsigned int                                                              : 10;
@@ -9195,6 +9357,19 @@ union DF_PIE_AON_PerfMonCtlLo2 {
         unsigned int                                                              :  4;
     } nv31;
 #endif
+    struct {
+        unsigned int                                                              : 20;
+        unsigned int Mp1Int                                                       :  1;
+        unsigned int BypassEn                                                     :  1;
+        unsigned int                                                              :  2;
+        unsigned int UnitMaskHi                                                   :  4;
+        unsigned int                                                              :  4;
+    } raphael;
+    struct {
+        unsigned int                                                              : 21;
+        unsigned int Mp1Int                                                       :  1;
+        unsigned int                                                              : 10;
+    } rembrandt;
     struct {
         unsigned int                                                              : 21;
         unsigned int Mp1Int                                                       :  1;
@@ -9252,6 +9427,19 @@ union DF_PIE_AON_PerfMonCtlLo3 {
     } nv31;
 #endif
     struct {
+        unsigned int                                                              : 20;
+        unsigned int Mp1Int                                                       :  1;
+        unsigned int BypassEn                                                     :  1;
+        unsigned int                                                              :  2;
+        unsigned int UnitMaskHi                                                   :  4;
+        unsigned int                                                              :  4;
+    } raphael;
+    struct {
+        unsigned int                                                              : 21;
+        unsigned int Mp1Int                                                       :  1;
+        unsigned int                                                              : 10;
+    } rembrandt;
+    struct {
         unsigned int                                                              : 21;
         unsigned int Mp1Int                                                       :  1;
         unsigned int                                                              : 10;
@@ -9307,6 +9495,19 @@ union DF_PIE_AON_PerfMonCtlLo4 {
         unsigned int                                                              :  4;
     } nv31;
 #endif
+    struct {
+        unsigned int                                                              : 20;
+        unsigned int Mp1Int                                                       :  1;
+        unsigned int BypassEn                                                     :  1;
+        unsigned int                                                              :  2;
+        unsigned int UnitMaskHi                                                   :  4;
+        unsigned int                                                              :  4;
+    } raphael;
+    struct {
+        unsigned int                                                              : 21;
+        unsigned int Mp1Int                                                       :  1;
+        unsigned int                                                              : 10;
+    } rembrandt;
     struct {
         unsigned int                                                              : 21;
         unsigned int Mp1Int                                                       :  1;
@@ -9364,6 +9565,19 @@ union DF_PIE_AON_PerfMonCtlLo5 {
     } nv31;
 #endif
     struct {
+        unsigned int                                                              : 20;
+        unsigned int Mp1Int                                                       :  1;
+        unsigned int BypassEn                                                     :  1;
+        unsigned int                                                              :  2;
+        unsigned int UnitMaskHi                                                   :  4;
+        unsigned int                                                              :  4;
+    } raphael;
+    struct {
+        unsigned int                                                              : 21;
+        unsigned int Mp1Int                                                       :  1;
+        unsigned int                                                              : 10;
+    } rembrandt;
+    struct {
         unsigned int                                                              : 21;
         unsigned int Mp1Int                                                       :  1;
         unsigned int                                                              : 10;
@@ -9419,6 +9633,19 @@ union DF_PIE_AON_PerfMonCtlLo6 {
         unsigned int                                                              :  4;
     } nv31;
 #endif
+    struct {
+        unsigned int                                                              : 20;
+        unsigned int Mp1Int                                                       :  1;
+        unsigned int BypassEn                                                     :  1;
+        unsigned int                                                              :  2;
+        unsigned int UnitMaskHi                                                   :  4;
+        unsigned int                                                              :  4;
+    } raphael;
+    struct {
+        unsigned int                                                              : 21;
+        unsigned int Mp1Int                                                       :  1;
+        unsigned int                                                              : 10;
+    } rembrandt;
     struct {
         unsigned int                                                              : 21;
         unsigned int Mp1Int                                                       :  1;
@@ -9476,10 +9703,175 @@ union DF_PIE_AON_PerfMonCtlLo7 {
     } nv31;
 #endif
     struct {
+        unsigned int                                                              : 20;
+        unsigned int Mp1Int                                                       :  1;
+        unsigned int BypassEn                                                     :  1;
+        unsigned int                                                              :  2;
+        unsigned int UnitMaskHi                                                   :  4;
+        unsigned int                                                              :  4;
+    } raphael;
+    struct {
+        unsigned int                                                              : 21;
+        unsigned int Mp1Int                                                       :  1;
+        unsigned int                                                              : 10;
+    } rembrandt;
+    struct {
         unsigned int                                                              : 21;
         unsigned int Mp1Int                                                       :  1;
         unsigned int                                                              : 10;
     } vg12_Rn;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtlLo8 {
+    struct {
+        unsigned int EventSelect_7_0                                              :  8;
+        unsigned int UnitMaskLo                                                   :  8;
+        unsigned int                                                              :  3;
+        unsigned int DsmTrig                                                      :  1;
+        unsigned int Mp1Int                                                       :  1;
+        unsigned int BypassEn                                                     :  1;
+        unsigned int En                                                           :  1;
+        unsigned int                                                              :  1;
+        unsigned int UnitMaskHi                                                   :  4;
+        unsigned int                                                              :  4;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtlLo9 {
+    struct {
+        unsigned int EventSelect_7_0                                              :  8;
+        unsigned int UnitMaskLo                                                   :  8;
+        unsigned int                                                              :  3;
+        unsigned int DsmTrig                                                      :  1;
+        unsigned int Mp1Int                                                       :  1;
+        unsigned int BypassEn                                                     :  1;
+        unsigned int En                                                           :  1;
+        unsigned int                                                              :  1;
+        unsigned int UnitMaskHi                                                   :  4;
+        unsigned int                                                              :  4;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtlLo10 {
+    struct {
+        unsigned int EventSelect_7_0                                              :  8;
+        unsigned int UnitMaskLo                                                   :  8;
+        unsigned int                                                              :  3;
+        unsigned int DsmTrig                                                      :  1;
+        unsigned int Mp1Int                                                       :  1;
+        unsigned int BypassEn                                                     :  1;
+        unsigned int En                                                           :  1;
+        unsigned int                                                              :  1;
+        unsigned int UnitMaskHi                                                   :  4;
+        unsigned int                                                              :  4;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtlLo11 {
+    struct {
+        unsigned int EventSelect_7_0                                              :  8;
+        unsigned int UnitMaskLo                                                   :  8;
+        unsigned int                                                              :  3;
+        unsigned int DsmTrig                                                      :  1;
+        unsigned int Mp1Int                                                       :  1;
+        unsigned int BypassEn                                                     :  1;
+        unsigned int En                                                           :  1;
+        unsigned int                                                              :  1;
+        unsigned int UnitMaskHi                                                   :  4;
+        unsigned int                                                              :  4;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtlLo12 {
+    struct {
+        unsigned int EventSelect_7_0                                              :  8;
+        unsigned int UnitMaskLo                                                   :  8;
+        unsigned int                                                              :  3;
+        unsigned int DsmTrig                                                      :  1;
+        unsigned int Mp1Int                                                       :  1;
+        unsigned int BypassEn                                                     :  1;
+        unsigned int En                                                           :  1;
+        unsigned int                                                              :  1;
+        unsigned int UnitMaskHi                                                   :  4;
+        unsigned int                                                              :  4;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtlLo13 {
+    struct {
+        unsigned int EventSelect_7_0                                              :  8;
+        unsigned int UnitMaskLo                                                   :  8;
+        unsigned int                                                              :  3;
+        unsigned int DsmTrig                                                      :  1;
+        unsigned int Mp1Int                                                       :  1;
+        unsigned int BypassEn                                                     :  1;
+        unsigned int En                                                           :  1;
+        unsigned int                                                              :  1;
+        unsigned int UnitMaskHi                                                   :  4;
+        unsigned int                                                              :  4;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtlLo14 {
+    struct {
+        unsigned int EventSelect_7_0                                              :  8;
+        unsigned int UnitMaskLo                                                   :  8;
+        unsigned int                                                              :  3;
+        unsigned int DsmTrig                                                      :  1;
+        unsigned int Mp1Int                                                       :  1;
+        unsigned int BypassEn                                                     :  1;
+        unsigned int En                                                           :  1;
+        unsigned int                                                              :  1;
+        unsigned int UnitMaskHi                                                   :  4;
+        unsigned int                                                              :  4;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtlLo15 {
+    struct {
+        unsigned int EventSelect_7_0                                              :  8;
+        unsigned int UnitMaskLo                                                   :  8;
+        unsigned int                                                              :  3;
+        unsigned int DsmTrig                                                      :  1;
+        unsigned int Mp1Int                                                       :  1;
+        unsigned int BypassEn                                                     :  1;
+        unsigned int En                                                           :  1;
+        unsigned int                                                              :  1;
+        unsigned int UnitMaskHi                                                   :  4;
+        unsigned int                                                              :  4;
+    } bits, bitfields;
 
     unsigned int u32All;
     signed int   i32All;
@@ -9574,6 +9966,94 @@ union DF_PIE_AON_PerfMonCtrHi7 {
     float        f32All;
 };
 
+union DF_PIE_AON_PerfMonCtrHi8 {
+    struct {
+        unsigned int CTR_47_32                                                    : 16;
+        unsigned int                                                              : 16;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtrHi9 {
+    struct {
+        unsigned int CTR_47_32                                                    : 16;
+        unsigned int                                                              : 16;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtrHi10 {
+    struct {
+        unsigned int CTR_47_32                                                    : 16;
+        unsigned int                                                              : 16;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtrHi11 {
+    struct {
+        unsigned int CTR_47_32                                                    : 16;
+        unsigned int                                                              : 16;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtrHi12 {
+    struct {
+        unsigned int CTR_47_32                                                    : 16;
+        unsigned int                                                              : 16;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtrHi13 {
+    struct {
+        unsigned int CTR_47_32                                                    : 16;
+        unsigned int                                                              : 16;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtrHi14 {
+    struct {
+        unsigned int CTR_47_32                                                    : 16;
+        unsigned int                                                              : 16;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtrHi15 {
+    struct {
+        unsigned int CTR_47_32                                                    : 16;
+        unsigned int                                                              : 16;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
 union DF_PIE_AON_PerfMonCtrLo0 {
     struct {
         unsigned int CTR_31_0                                                     : 32;
@@ -9648,6 +10128,86 @@ union DF_PIE_AON_PerfMonCtrLo7 {
     struct {
         unsigned int CTR_31_0                                                     : 32;
     } most;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtrLo8 {
+    struct {
+        unsigned int CTR_31_0                                                     : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtrLo9 {
+    struct {
+        unsigned int CTR_31_0                                                     : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtrLo10 {
+    struct {
+        unsigned int CTR_31_0                                                     : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtrLo11 {
+    struct {
+        unsigned int CTR_31_0                                                     : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtrLo12 {
+    struct {
+        unsigned int CTR_31_0                                                     : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtrLo13 {
+    struct {
+        unsigned int CTR_31_0                                                     : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtrLo14 {
+    struct {
+        unsigned int CTR_31_0                                                     : 32;
+    } bits, bitfields;
+
+    unsigned int u32All;
+    signed int   i32All;
+    float        f32All;
+};
+
+union DF_PIE_AON_PerfMonCtrLo15 {
+    struct {
+        unsigned int CTR_31_0                                                     : 32;
+    } bits, bitfields;
 
     unsigned int u32All;
     signed int   i32All;
@@ -10358,6 +10918,16 @@ union GC_ATC_L2_PERFCOUNTER2_SELECT {
         unsigned int                                                              : 18;
         unsigned int PERF_MODE                                                    :  4;
     } gfx101;
+    struct {
+        unsigned int PERF_SEL                                                     : 10;
+        unsigned int                                                              : 18;
+        unsigned int PERF_MODE                                                    :  4;
+    } raphael;
+    struct {
+        unsigned int PERF_SEL                                                     : 10;
+        unsigned int                                                              : 18;
+        unsigned int PERF_MODE                                                    :  4;
+    } rembrandt;
 
     unsigned int u32All;
     signed int   i32All;
@@ -16030,6 +16600,18 @@ union PA_PH_ENHANCE {
         unsigned int                                                              : 13;
     } gfx11;
 #endif
+    struct {
+        unsigned int                                                              : 14;
+        unsigned int USE_PERFCOUNTER_START_STOP_EVENTS                            :  1;
+        unsigned int FORCE_PH_PERFCOUNTER_SAMPLE_ENABLE_ON                        :  1;
+        unsigned int                                                              : 16;
+    } raphael;
+    struct {
+        unsigned int                                                              : 14;
+        unsigned int USE_PERFCOUNTER_START_STOP_EVENTS                            :  1;
+        unsigned int FORCE_PH_PERFCOUNTER_SAMPLE_ENABLE_ON                        :  1;
+        unsigned int                                                              : 16;
+    } rembrandt;
 
     unsigned int u32All;
     signed int   i32All;
@@ -17543,6 +18125,22 @@ union PA_SC_ENHANCE_3 {
         unsigned int DISABLE_SET_VPZ_DIRTY_EOPKT_LAST_PHASE_ONLY                  :  1;
         unsigned int RSVD                                                         : 22;
     } nv24;
+    struct {
+        unsigned int                                                              :  6;
+        unsigned int ENABLE_SINGLE_PA_EOPKT_FIRST_PHASE_FILTER                    :  1;
+        unsigned int ENABLE_SINGLE_PA_EOPKT_LAST_PHASE_FILTER                     :  1;
+        unsigned int ENABLE_SINGLE_PA_EOPKT_LAST_PHASE_FILTER_FOR_PBB_BINNED_PRIMS :  1;
+        unsigned int DISABLE_SET_VPZ_DIRTY_EOPKT_LAST_PHASE_ONLY                  :  1;
+        unsigned int RSVD                                                         : 22;
+    } raphael;
+    struct {
+        unsigned int                                                              :  6;
+        unsigned int ENABLE_SINGLE_PA_EOPKT_FIRST_PHASE_FILTER                    :  1;
+        unsigned int ENABLE_SINGLE_PA_EOPKT_LAST_PHASE_FILTER                     :  1;
+        unsigned int ENABLE_SINGLE_PA_EOPKT_LAST_PHASE_FILTER_FOR_PBB_BINNED_PRIMS :  1;
+        unsigned int DISABLE_SET_VPZ_DIRTY_EOPKT_LAST_PHASE_ONLY                  :  1;
+        unsigned int RSVD                                                         : 22;
+    } rembrandt;
 
     unsigned int u32All;
     signed int   i32All;
@@ -18396,6 +18994,16 @@ union PA_SC_TILE_STEERING_OVERRIDE {
         unsigned int                                                              : 10;
     } nv3x;
 #endif
+    struct {
+        unsigned int                                                              : 20;
+        unsigned int NUM_PACKER_PER_SC                                            :  1;
+        unsigned int                                                              : 11;
+    } raphael;
+    struct {
+        unsigned int                                                              : 20;
+        unsigned int NUM_PACKER_PER_SC                                            :  2;
+        unsigned int                                                              : 10;
+    } rembrandt;
 
     unsigned int u32All;
     signed int   i32All;
@@ -21418,6 +22026,16 @@ union RLC_SPM_ACCUM_STATUS {
         unsigned int RESERVED                                                     :  8;
     } nv24;
     struct {
+        unsigned int                                                              : 23;
+        unsigned int MultiSampleAborted                                           :  1;
+        unsigned int RESERVED                                                     :  8;
+    } raphael;
+    struct {
+        unsigned int                                                              : 23;
+        unsigned int MultiSampleAborted                                           :  1;
+        unsigned int RESERVED                                                     :  8;
+    } rembrandt;
+    struct {
         unsigned int                                                              : 16;
         unsigned int RESERVED                                                     : 16;
     } rv2x_Rn;
@@ -21868,6 +22486,16 @@ union RLC_SPM_MC_CNTL {
         unsigned int                                                              : 12;
     } nv3x;
 #endif
+    struct {
+        unsigned int                                                              : 13;
+        unsigned int RESERVED_2                                                   :  1;
+        unsigned int                                                              : 18;
+    } raphael;
+    struct {
+        unsigned int                                                              : 13;
+        unsigned int RESERVED_2                                                   :  1;
+        unsigned int                                                              : 18;
+    } rembrandt;
 
     unsigned int u32All;
     signed int   i32All;
@@ -24603,6 +25231,14 @@ union SPI_FEATURE_CTRL {
         unsigned int BUS_ACTIVITY_THRESHOLD                                       :  8;
         unsigned int                                                              :  4;
     } nv22;
+    struct {
+        unsigned int TUNNELING_WAVE_LIMIT                                         :  4;
+        unsigned int                                                              : 28;
+    } raphael;
+    struct {
+        unsigned int TUNNELING_WAVE_LIMIT                                         :  4;
+        unsigned int                                                              : 28;
+    } rembrandt;
 
     unsigned int u32All;
     signed int   i32All;
@@ -31834,6 +32470,16 @@ union SQG_CONFIG {
         unsigned int SQG_WAVEDONE_FIFO_DEPTH                                      :  1;
         unsigned int                                                              : 19;
     } nv24;
+    struct {
+        unsigned int                                                              : 12;
+        unsigned int SQG_WAVEDONE_FIFO_DEPTH                                      :  1;
+        unsigned int                                                              : 19;
+    } raphael;
+    struct {
+        unsigned int                                                              : 12;
+        unsigned int SQG_WAVEDONE_FIFO_DEPTH                                      :  1;
+        unsigned int                                                              : 19;
+    } rembrandt;
 
     unsigned int u32All;
     signed int   i32All;
@@ -36560,6 +37206,14 @@ union TA_CNTL {
         unsigned int TA_SQ_XNACK_FGCG_DISABLE                                     :  1;
         unsigned int                                                              : 31;
     } nv24;
+    struct {
+        unsigned int TA_SQ_XNACK_FGCG_DISABLE                                     :  1;
+        unsigned int                                                              : 31;
+    } raphael;
+    struct {
+        unsigned int TA_SQ_XNACK_FGCG_DISABLE                                     :  1;
+        unsigned int                                                              : 31;
+    } rembrandt;
 
     unsigned int u32All;
     signed int   i32All;
@@ -46689,6 +47343,16 @@ union VGT_SHADER_STAGES_EN {
         unsigned int PRIMGEN_PASSTHRU_NO_MSG                                      :  1;
         unsigned int                                                              :  5;
     } nv24;
+    struct {
+        unsigned int                                                              : 26;
+        unsigned int PRIMGEN_PASSTHRU_NO_MSG                                      :  1;
+        unsigned int                                                              :  5;
+    } raphael;
+    struct {
+        unsigned int                                                              : 26;
+        unsigned int PRIMGEN_PASSTHRU_NO_MSG                                      :  1;
+        unsigned int                                                              :  5;
+    } rembrandt;
 
     unsigned int u32All;
     signed int   i32All;
@@ -47276,6 +47940,32 @@ union WD_CNTL_STATUS {
         unsigned int WLC_BUSY                                                     :  1;
         unsigned int                                                              :  2;
     } nv24;
+    struct {
+        unsigned int                                                              : 18;
+        unsigned int SA3_OUTPUT_BLOCK_BUSY                                        :  1;
+        unsigned int SA2_OUTPUT_BLOCK_BUSY                                        :  1;
+        unsigned int SA1_OUTPUT_BLOCK_BUSY                                        :  1;
+        unsigned int SA0_OUTPUT_BLOCK_BUSY                                        :  1;
+        unsigned int GE_UTCL1_BUSY                                                :  1;
+        unsigned int WD_TE11_BUSY                                                 :  1;
+        unsigned int                                                              :  4;
+        unsigned int PC_MANAGER_BUSY                                              :  1;
+        unsigned int WLC_BUSY                                                     :  1;
+        unsigned int                                                              :  2;
+    } raphael;
+    struct {
+        unsigned int                                                              : 18;
+        unsigned int SA3_OUTPUT_BLOCK_BUSY                                        :  1;
+        unsigned int SA2_OUTPUT_BLOCK_BUSY                                        :  1;
+        unsigned int SA1_OUTPUT_BLOCK_BUSY                                        :  1;
+        unsigned int SA0_OUTPUT_BLOCK_BUSY                                        :  1;
+        unsigned int GE_UTCL1_BUSY                                                :  1;
+        unsigned int WD_TE11_BUSY                                                 :  1;
+        unsigned int                                                              :  4;
+        unsigned int PC_MANAGER_BUSY                                              :  1;
+        unsigned int WLC_BUSY                                                     :  1;
+        unsigned int                                                              :  2;
+    } rembrandt;
 
     unsigned int u32All;
     signed int   i32All;

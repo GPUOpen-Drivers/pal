@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -31,7 +31,6 @@
 #include "core/hw/gfxip/sdma/gfx10/gfx10DmaCmdBuffer.h"
 #include "core/hw/gfxip/sdma/gfx10/gfx10_merged_sdma_packets.h"
 #include "core/addrMgr/addrMgr2/addrMgr2.h"
-#include "marker_payload.h"
 #include "palFormatInfo.h"
 
 using namespace Util;
@@ -46,9 +45,6 @@ constexpr size_t NopSizeDwords = sizeof(SDMA_PKT_NOP) / sizeof(uint32);
 // The SDMA_PKT_WRITE_UNTILED definition contains space for one dword of data.  To make things a little simpler, we
 // consider the packetHeader size to be the packet size without any associated data.
 constexpr uint32 UpdateMemoryPacketHdrSizeInDwords = (sizeof(SDMA_PKT_WRITE_UNTILED) / sizeof(uint32)) - 1;
-
-// Predication Patch Offset as it requires 2 cond exec packet and 2 fence/"write data" packets
-constexpr uint32 PredPatchOffset = ((sizeof(SDMA_PKT_COND_EXE) * 2 + sizeof(SDMA_PKT_FENCE) * 2)/sizeof(uint32));
 
 // =====================================================================================================================
 DmaCmdBuffer::DmaCmdBuffer(
@@ -230,70 +226,12 @@ Result DmaCmdBuffer::AddPostamble()
 }
 
 // =====================================================================================================================
-void DmaCmdBuffer::BeginExecutionMarker(
-    uint64 clientHandle)
-{
-    CmdBuffer::BeginExecutionMarker(clientHandle);
-    PAL_ASSERT(m_executionMarkerAddr != 0);
-
-    CmdWriteImmediate(HwPipePoint::HwPipeBottom,
-                      m_executionMarkerCount,
-                      ImmediateDataWidth::ImmediateData32Bit,
-                      m_executionMarkerAddr);
-
-    constexpr size_t BeginPayloadSize = sizeof(RgdExecutionBeginMarker) / sizeof(uint32);
-
-    uint32* pCmdSpace = m_cmdStream.ReserveCommands();
-    BuildNops(pCmdSpace, BeginPayloadSize + NopSizeDwords);
-
-    auto* pPayload          = reinterpret_cast<RgdExecutionBeginMarker*>(pCmdSpace + NopSizeDwords);
-    pPayload->guard         = RGD_EXECUTION_BEGIN_MARKER_GUARD;
-    pPayload->marker_buffer = m_executionMarkerAddr;
-    pPayload->client_handle = clientHandle;
-    pPayload->counter       = m_executionMarkerCount;
-
-    pCmdSpace += BeginPayloadSize + NopSizeDwords;
-    m_cmdStream.CommitCommands(pCmdSpace);
-}
-
-// =====================================================================================================================
-uint32 DmaCmdBuffer::CmdInsertExecutionMarker()
-{
-    uint32 returnVal = UINT_MAX;
-    if (m_buildFlags.enableExecutionMarkerSupport == 1)
-    {
-        PAL_ASSERT(m_executionMarkerAddr != 0);
-        CmdWriteImmediate(HwPipePoint::HwPipeBottom,
-                          ++m_executionMarkerCount,
-                          ImmediateDataWidth::ImmediateData32Bit,
-                          m_executionMarkerAddr);
-
-        constexpr size_t MarkerPayloadSize = sizeof(RgdExecutionMarker) / sizeof(uint32);
-
-        uint32* pCmdSpace = m_cmdStream.ReserveCommands();
-        BuildNops(pCmdSpace, MarkerPayloadSize + NopSizeDwords);
-
-        auto* pPayload    = reinterpret_cast<RgdExecutionMarker*>(pCmdSpace + NopSizeDwords);
-        pPayload->guard   = RGD_EXECUTION_MARKER_GUARD;
-        pPayload->counter = m_executionMarkerCount;
-
-        pCmdSpace += MarkerPayloadSize + NopSizeDwords;
-        m_cmdStream.CommitCommands(pCmdSpace);
-
-        returnVal = m_executionMarkerCount;
-    }
-    return returnVal;
-}
-
-// =====================================================================================================================
 void DmaCmdBuffer::CmdNop(
     const void* pPayload,
     uint32      payloadSize)
 {
-    const size_t NopPktDwords = Util::NumBytesToNumDwords(sizeof(SDMA_PKT_NOP));
-    uint32*      pCmdSpace    = m_cmdStream.ReserveCommands();
-
-    const size_t packetSize = NopPktDwords + payloadSize;
+    uint32*      pCmdSpace  = m_cmdStream.ReserveCommands();
+    const size_t packetSize = NopSizeDwords + payloadSize;
     auto*const   pPacket    = reinterpret_cast<SDMA_PKT_NOP*>(pCmdSpace);
     uint32*      pData      = reinterpret_cast<uint32*>(pPacket + 1);
 
@@ -306,25 +244,29 @@ void DmaCmdBuffer::CmdNop(
 }
 
 // =====================================================================================================================
-void DmaCmdBuffer::EndExecutionMarker()
+// Copy and convert predicate value from outer predication memory to internal predication memory
+// Predication value will be converted to 0 or 1 based on value in outer predication memory and predication polarity.
+uint32* DmaCmdBuffer::WriteSetupInternalPredicateMemoryCmd(
+    gpusize predMemAddress,
+    uint32  predCopyData,
+    uint32* pCmdSpace
+    ) const
 {
-    PAL_ASSERT(m_executionMarkerAddr != 0);
-    CmdWriteImmediate(HwPipePoint::HwPipeBottom,
-                      ++m_executionMarkerCount,
-                      ImmediateDataWidth::ImmediateData32Bit,
-                      m_executionMarkerAddr);
+    constexpr uint32 FencePktSizeInDwords = NumBytesToNumDwords(sizeof(SDMA_PKT_FENCE));
 
-    constexpr size_t EndPayloadSize = sizeof(RgdExecutionEndMarker) / sizeof(uint32);
+    // LSB 0-31 bit predication
+    pCmdSpace = WriteCondExecCmd(pCmdSpace, predMemAddress, FencePktSizeInDwords);
 
-    uint32* pCmdSpace = m_cmdStream.ReserveCommands();
-    BuildNops(pCmdSpace, EndPayloadSize + NopSizeDwords);
+    // "Write data"
+    pCmdSpace = WriteFenceCmd(pCmdSpace, m_predInternalAddr, predCopyData);
 
-    auto* pPayload          = reinterpret_cast<RgdExecutionEndMarker*>(pCmdSpace + NopSizeDwords);
-    pPayload->guard         = RGD_EXECUTION_END_MARKER_GUARD;
-    pPayload->counter       = m_executionMarkerCount;
+    // MSB 32-63 bit predication
+    pCmdSpace = WriteCondExecCmd(pCmdSpace, predMemAddress + 4, FencePktSizeInDwords);
 
-    pCmdSpace += EndPayloadSize + NopSizeDwords;
-    m_cmdStream.CommitCommands(pCmdSpace);
+    // "Write data"
+    pCmdSpace = WriteFenceCmd(pCmdSpace, m_predInternalAddr, predCopyData);
+
+    return pCmdSpace;
 }
 
 // =====================================================================================================================
@@ -332,57 +274,43 @@ void DmaCmdBuffer::EndExecutionMarker()
 // pCmdSpace.
 //
 uint32* DmaCmdBuffer::WritePredicateCmd(
-    size_t  predicateDwords,
     uint32* pCmdSpace
-) const
+    ) const
 {
-    uint32 cmdWrittenInDwords        = 0;
-    const uint32 condExecCmdLengthInDwords = NumBytesToNumDwords(sizeof(SDMA_PKT_COND_EXE));
-    const uint32 fenceCmdLengthInDwords    = NumBytesToNumDwords(sizeof(SDMA_PKT_FENCE));
+    if (m_predMemEnabled)
+    {
+        // Predication with Internal Memory
+        pCmdSpace = WriteCondExecCmd(pCmdSpace, m_predInternalAddr, 0);
+    }
 
-    // LSB 0-31 bit predication
-    WriteCondExecCmd(pCmdSpace+ cmdWrittenInDwords, m_predMemAddress, fenceCmdLengthInDwords);
-    cmdWrittenInDwords += condExecCmdLengthInDwords;
-
-    // "Write data"
-    WriteFenceCmd(pCmdSpace+ cmdWrittenInDwords, m_predInternalAddr, m_predCopyData);
-    cmdWrittenInDwords += fenceCmdLengthInDwords;
-
-    // MSB 32-63 bit predication
-    WriteCondExecCmd(pCmdSpace + cmdWrittenInDwords, m_predMemAddress + 4, fenceCmdLengthInDwords);
-    cmdWrittenInDwords += condExecCmdLengthInDwords;
-
-    // "Write data"
-    WriteFenceCmd(pCmdSpace + cmdWrittenInDwords, m_predInternalAddr, m_predCopyData);
-    cmdWrittenInDwords += fenceCmdLengthInDwords;
-
-    // Actual predication with Internal Memory
-    WriteCondExecCmd(pCmdSpace + cmdWrittenInDwords, m_predInternalAddr, 0);
-    cmdWrittenInDwords += condExecCmdLengthInDwords;
-
-    return pCmdSpace + cmdWrittenInDwords;
+    return pCmdSpace;
 }
 
 // =====================================================================================================================
 // Patches a COND_EXE packet with the given predication size.
 //
 void DmaCmdBuffer::PatchPredicateCmd(
-    size_t predicateDwords,
-    void*  pPredicateCmd
+    uint32* pPredicateCmd,
+    uint32* pCurCmdSpace
     ) const
 {
-    auto*const pPacket = reinterpret_cast<SDMA_PKT_COND_EXE*>((uint32*)pPredicateCmd + PredPatchOffset);
+    if (m_predMemEnabled)
+    {
+        PAL_ASSERT(pCurCmdSpace > pPredicateCmd);
 
-    pPacket->EXEC_COUNT_UNION.exec_count = predicateDwords -
-                                           (Util::NumBytesToNumDwords(sizeof(SDMA_PKT_COND_EXE)) + PredPatchOffset);
+        auto* const  pPacket = reinterpret_cast<SDMA_PKT_COND_EXE*>(pPredicateCmd);
+        const uint32 skipDws = (pCurCmdSpace - pPredicateCmd) - NumBytesToNumDwords(sizeof(SDMA_PKT_COND_EXE));
 
+        pPacket->EXEC_COUNT_UNION.exec_count = skipDws;
+    }
 }
+
 // =====================================================================================================================
-void DmaCmdBuffer::WriteCondExecCmd(
+uint32* DmaCmdBuffer::WriteCondExecCmd(
     uint32* pCmdSpace,
     gpusize predMemory,
-    uint32 skipCountInDwords
-) const
+    uint32  skipCountInDwords
+    ) const
 {
     auto*const pPacket = reinterpret_cast<SDMA_PKT_COND_EXE*>(pCmdSpace);
 
@@ -402,18 +330,20 @@ void DmaCmdBuffer::WriteCondExecCmd(
         pHeaderUnion->cpv          = GetCpvFromCachePolicy(packet.HEADER_UNION.gfx103Plus.cache_policy);
     }
     *pPacket = packet;
+
+    return pCmdSpace + NumBytesToNumDwords(sizeof(SDMA_PKT_COND_EXE));
 }
 
 // =====================================================================================================================
-void DmaCmdBuffer::WriteFenceCmd(
+uint32* DmaCmdBuffer::WriteFenceCmd(
     uint32* pCmdSpace,
     gpusize fenceMemory,
     uint32  predCopyData
-) const
+    ) const
 {
     PAL_ASSERT(IsPow2Aligned(fenceMemory, sizeof(uint32)));
 
-    auto*const       pFencePacket = reinterpret_cast<SDMA_PKT_FENCE*>(pCmdSpace);
+    auto*const pFencePacket = reinterpret_cast<SDMA_PKT_FENCE*>(pCmdSpace);
 
     SDMA_PKT_FENCE fencePacket;
     fencePacket.HEADER_UNION.DW_0_DATA   = 0;
@@ -430,12 +360,15 @@ void DmaCmdBuffer::WriteFenceCmd(
         pHeaderUnion->cpv        = GetCpvFromLlcPolicy(fencePacket.HEADER_UNION.gfx103Plus.llc_policy);
     }
     *pFencePacket = fencePacket;
+
+    return pCmdSpace + NumBytesToNumDwords(sizeof(SDMA_PKT_FENCE));
 }
 
 // =====================================================================================================================
 // See the GetMallBypass function for how the llc (last level cache) policy is determined.
 uint32 DmaCmdBuffer::GetCpvFromLlcPolicy(
-    uint32  llcPolicy) const
+    uint32 llcPolicy
+    ) const
 {
     // llcPolicy is a one bit field; ensure that no other bits are set
     PAL_ASSERT((llcPolicy & 0xFFFFFFFE) == 0);
@@ -449,7 +382,8 @@ uint32 DmaCmdBuffer::GetCpvFromLlcPolicy(
 // =====================================================================================================================
 // See GetCachePolicy for details on how the cache policy is determined.
 uint32 DmaCmdBuffer::GetCpvFromCachePolicy(
-    uint32  cachePolicy) const
+    uint32 cachePolicy
+    ) const
 {
     // cachePolicy is a three bit field; ensure that no other bits are set
     PAL_ASSERT((cachePolicy & 0xFFFFFFF8) == 0);
@@ -691,10 +625,10 @@ uint32 DmaCmdBuffer::GetImageZ(
 // =====================================================================================================================
 // Copies the specified region between two linear images.
 //
-void DmaCmdBuffer::WriteCopyImageLinearToLinearCmd(
-    const DmaImageCopyInfo& imageCopyInfo)
+uint32* DmaCmdBuffer::WriteCopyImageLinearToLinearCmd(
+    const DmaImageCopyInfo& imageCopyInfo,
+    uint32*                 pCmdSpace)
 {
-    uint32*      pCmdSpace    = m_cmdStream.ReserveCommands();
     const size_t packetDwords = Util::NumBytesToNumDwords(sizeof(SDMA_PKT_COPY_LINEAR_SUBWIN));
     auto*const   pPacket      = reinterpret_cast<SDMA_PKT_COPY_LINEAR_SUBWIN*>(pCmdSpace);
 
@@ -760,31 +694,25 @@ void DmaCmdBuffer::WriteCopyImageLinearToLinearCmd(
 
     *pPacket = packet;
 
-    m_cmdStream.CommitCommands(pCmdSpace + packetDwords);
+    return pCmdSpace + packetDwords;
 }
 
 // =====================================================================================================================
 // Linear image to tiled image copy
-void DmaCmdBuffer:: WriteCopyImageLinearToTiledCmd(
-    const DmaImageCopyInfo& imageCopyInfo)
+uint32* DmaCmdBuffer:: WriteCopyImageLinearToTiledCmd(
+    const DmaImageCopyInfo& imageCopyInfo,
+    uint32*                 pCmdSpace)
 {
-    uint32*  pCmdSpace = m_cmdStream.ReserveCommands();
-
-    pCmdSpace = CopyImageLinearTiledTransform(imageCopyInfo, imageCopyInfo.src, imageCopyInfo.dst, false, pCmdSpace);
-
-    m_cmdStream.CommitCommands(pCmdSpace);
+    return CopyImageLinearTiledTransform(imageCopyInfo, imageCopyInfo.src, imageCopyInfo.dst, false, pCmdSpace);
 }
 
 // =====================================================================================================================
 // Tiled image to linear image copy
-void DmaCmdBuffer::WriteCopyImageTiledToLinearCmd(
-    const DmaImageCopyInfo& imageCopyInfo)
+uint32* DmaCmdBuffer::WriteCopyImageTiledToLinearCmd(
+    const DmaImageCopyInfo& imageCopyInfo,
+    uint32*                 pCmdSpace)
 {
-    uint32*  pCmdSpace = m_cmdStream.ReserveCommands();
-
-    pCmdSpace = CopyImageLinearTiledTransform(imageCopyInfo, imageCopyInfo.dst, imageCopyInfo.src, true, pCmdSpace);
-
-    m_cmdStream.CommitCommands(pCmdSpace);
+    return CopyImageLinearTiledTransform(imageCopyInfo, imageCopyInfo.dst, imageCopyInfo.src, true, pCmdSpace);
 }
 
 // =====================================================================================================================
@@ -804,8 +732,9 @@ bool DmaCmdBuffer::ImageHasMetaData(
 // =====================================================================================================================
 // Tiled image to tiled image copy.
 //
-void DmaCmdBuffer::WriteCopyImageTiledToTiledCmd(
-    const DmaImageCopyInfo& imageCopyInfo)
+uint32* DmaCmdBuffer::WriteCopyImageTiledToTiledCmd(
+    const DmaImageCopyInfo& imageCopyInfo,
+    uint32*                 pCmdSpace)
 {
     const auto* pAddrMgr   = static_cast<const AddrMgr2::AddrMgr2*>(m_pDevice->GetAddrMgr());
     const auto& src        = imageCopyInfo.src;
@@ -814,7 +743,6 @@ void DmaCmdBuffer::WriteCopyImageTiledToTiledCmd(
     const auto  dstSwizzle = GetSwizzleMode(dst);
     const auto& settings   = GetGfx9Settings(*m_pDevice);
 
-    uint32*      pCmdSpace    = m_cmdStream.ReserveCommands();
     const size_t packetDwords = Util::NumBytesToNumDwords(sizeof(SDMA_PKT_COPY_T2T));
 
     SDMA_PKT_COPY_T2T packet = {};
@@ -914,7 +842,7 @@ void DmaCmdBuffer::WriteCopyImageTiledToTiledCmd(
         pCmdSpace = UpdateImageMetaData(dst, pCmdSpace);
     }
 
-    m_cmdStream.CommitCommands(pCmdSpace);
+    return pCmdSpace;
 }
 
 // =====================================================================================================================

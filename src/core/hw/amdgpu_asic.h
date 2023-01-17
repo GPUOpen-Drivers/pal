@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -46,6 +46,9 @@
 #if PAL_BUILD_NAVI3X
 #define FAMILY_NV3     0x91
 #endif
+#define FAMILY_RMB     0x92
+#define FAMILY_RPL     0x95
+#define FAMILY_MDN     0x97
 
 // AMDGPU_FAMILY_IS(familyId, familyName)
 #define FAMILY_IS(f, fn)     (f == FAMILY_##fn)
@@ -64,6 +67,9 @@
 #define FAMILY_IS_NV3(f)     FAMILY_IS(f, NV3)
 #endif
 #endif
+#define FAMILY_IS_RMB(f)     FAMILY_IS(f, RMB)
+#define FAMILY_IS_RPL(f)     FAMILY_IS(f, RPL)
+#define FAMILY_IS_MDN(f)     FAMILY_IS(f, MDN)
 
 #define AMDGPU_UNKNOWN          0xFF
 
@@ -108,9 +114,12 @@
 #define AMDGPU_NAVI22_RANGE        0x32, 0x3C
 #define AMDGPU_NAVI23_RANGE        0x3C, 0x46
 #define AMDGPU_NAVI24_RANGE        0x46, 0x50
+#define AMDGPU_REMBRANDT_RANGE     0x01, 0xff
 #if PAL_BUILD_NAVI31
 #define AMDGPU_NAVI31_RANGE        0x01, 0x10
 #endif
+#define AMDGPU_RAPHAEL_RANGE       0x01, 0xff
+#define AMDGPU_MENDOCINO_RANGE     0x01, 0xff
 
 #define AMDGPU_EXPAND_FIX(x) x
 #define AMDGPU_RANGE_HELPER(val, min, max) ((val >= min) && (val < max))
@@ -161,9 +170,12 @@
 #define ASICREV_IS_NAVI22(r)           ASICREV_IS(r, NAVI22)
 #define ASICREV_IS_NAVI23(r)           ASICREV_IS(r, NAVI23)
 #define ASICREV_IS_NAVI24(r)           ASICREV_IS(r, NAVI24)
+#define ASICREV_IS_REMBRANDT(r)        ASICREV_IS(r, REMBRANDT)
 #if PAL_BUILD_NAVI31
 #define ASICREV_IS_NAVI31(r)           ASICREV_IS(r, NAVI31)
 #endif
+#define ASICREV_IS_RAPHAEL(r)          ASICREV_IS(r, RAPHAEL)
+#define ASICREV_IS_MENDOCINO(r)        ASICREV_IS(r, MENDOCINO)
 
 // AMDGPU_IS(familyId, eRevisionId, familyName, revisionName)
 #define AMDGPU_IS(f, r, fn, rn)    (FAMILY_IS(f, fn) && ASICREV_IS(r, rn))
@@ -209,9 +221,12 @@
 #define AMDGPU_IS_NAVI22(f, r)        AMDGPU_IS(f, r, NV, NAVI22)
 #define AMDGPU_IS_NAVI23(f, r)        AMDGPU_IS(f, r, NV, NAVI23)
 #define AMDGPU_IS_NAVI24(f, r)        AMDGPU_IS(f, r, NV, NAVI24)
+#define AMDGPU_IS_REMBRANDT(f, r)     AMDGPU_IS(f, r, RMB, REMBRANDT)
 #if PAL_BUILD_NAVI31
 #define AMDGPU_IS_NAVI31(f, r)        AMDGPU_IS(f, r, NV3, NAVI31)
 #endif
+#define AMDGPU_IS_RAPHAEL(f, r)       AMDGPU_IS(f, r, RPL, RAPHAEL)
+#define AMDGPU_IS_MENDOCINO(f, r)     AMDGPU_IS(f, r, MDN, MENDOCINO)
 
 // Device IDs
 #define DEVICE_ID_SI_TAHITI_P_6780      0x6780
@@ -253,9 +268,12 @@
 #define DEVICE_ID_NV_NAVI10_P_7310      0x7310
 #define DEVICE_ID_NV_NAVI12_P_7360      0x7360
 #define DEVICE_ID_NV_NAVI14_M_7340      0x7340
+#define DEVICE_ID_RMB_1681              0x1681
 #if PAL_BUILD_NAVI31
 #define DEVICE_ID_NV3_NAVI31_P_73BF     0x73BF
 #endif
+#define DEVICE_ID_RPL_164E              0x164E
+#define DEVICE_ID_MDN_1506              0x1506
 
 // Revision IDs
 #define SI_TAHITI_P_A21              5
@@ -296,9 +314,12 @@
 #define NV_NAVI22_P_A0              50
 #define NV_NAVI23_P_A0              60
 #define NV_NAVI24_P_A0              70
+#define REMBRANDT_B0              0x20
 #if PAL_BUILD_NAVI31
 #define NAVI31_P_A0               0x01
 #endif
+#define RAPHAEL_A0                0x01
+#define MENDOCINO_A0              0x01
 
 // PRIDs
 #define PRID_SI_TAHITI              0x00
@@ -345,4 +366,7 @@
 #define PRID_NV3_NAVI31_DA          0xDA
 #define PRID_NV3_NAVI31_DB          0xDB
 #endif
+#define PRID_RMB_00                 0x00
+#define PRID_RPL_00                 0x00
+#define PRID_MDN_00                 0x00
 #endif

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -342,6 +342,7 @@ public:
         const GlobalScissorParams& params) override
         { PAL_NEVER_CALLED(); }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
     virtual void CmdSetColorWriteMask(
         const ColorWriteMaskParams& params) override
         { PAL_NEVER_CALLED(); }
@@ -349,6 +350,7 @@ public:
     virtual void CmdSetRasterizerDiscardEnable(
         bool rasterizerDiscardEnable) override
         { PAL_NEVER_CALLED(); }
+#endif
 
     virtual void CmdCopyMemory(
         const IGpuMemory&       srcGpuMemory,
@@ -807,8 +809,6 @@ public:
     virtual void CmdCommentString(
         const char* pComment) override { PAL_NEVER_CALLED(); }
 
-    virtual uint32 CmdInsertExecutionMarker() override { PAL_NEVER_CALLED(); return UINT_MAX; }
-
     void CmdInsertCrashAnalysisHeader();
 
     virtual void CmdXdmaWaitFlipPending() override { PAL_NEVER_CALLED(); }
@@ -974,10 +974,6 @@ protected:
     virtual void ResetState() { }
 
     virtual void WriteEventCmd(const BoundGpuMemory& boundMemObj, HwPipePoint pipePoint, uint32 data) = 0;
-
-    virtual bool SupportsExecutionMarker() { return false; }
-    virtual void BeginExecutionMarker(uint64 clientHandle);
-    virtual void EndExecutionMarker() { PAL_NEVER_CALLED(); }
 
     // Helper function for switching the CmdSetUserData callback for a specific pipeline type.
     void SwitchCmdSetUserDataFunc(

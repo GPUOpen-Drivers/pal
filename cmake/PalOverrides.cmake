@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2020-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2020-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -61,6 +61,12 @@ if(PAL_BUILD_GFX9)
     set(ADDR_NAVI23_BUILD ${PAL_BUILD_NAVI23})
 
     set(ADDR_NAVI24_BUILD ${PAL_BUILD_NAVI24})
+
+    set(ADDR_REMBRANDT_BUILD ${PAL_BUILD_REMBRANDT})
+
+    set(ADDR_RAPHAEL_BUILD ${PAL_BUILD_RAPHAEL})
+
+    set(ADDR_MENDOCINO_BUILD ${PAL_BUILD_MENDOCINO})
 
 #if PAL_BUILD_NAVI31
     set(ADDR_NAVI31_BUILD ${PAL_BUILD_NAVI31})

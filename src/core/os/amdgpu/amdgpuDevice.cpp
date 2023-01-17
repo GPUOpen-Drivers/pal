@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -60,6 +60,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sys/utsname.h>
+#include <sys/sysmacros.h>
 
 using namespace Util;
 using namespace Pal::AddrMgr1;
@@ -156,13 +157,15 @@ static Result OpenAndInitializeDrmDevice(
     const char*             pBusId,
     const char*             pPrimaryNodeName,
     const char*             pRenderNodeName,
+    int32                   availableNodes,
     int32*                  pFileDescriptor,
     int32*                  pPrimaryFileDescriptor,
     amdgpu_device_handle*   pDeviceHandle,
     uint32*                 pDrmMajorVer,
     uint32*                 pDrmMinorVer,
     struct amdgpu_gpu_info* pGpuInfo,
-    uint32*                 pCpVersion);
+    uint32*                 pCpVersion,
+    DrmNodeProperties*      pDrmNodeProperties);
 
 // =====================================================================================================================
 Result Device::Create(
@@ -171,6 +174,7 @@ Result Device::Create(
     const char*             pBusId,
     const char*             pPrimaryNode,
     const char*             pRenderNode,
+    int32                   availableNodes,
     const drmPciBusInfo&    pciBusInfo,
     uint32                  deviceIndex,
     Device**                ppDeviceOut)
@@ -186,18 +190,21 @@ Result Device::Create(
     struct amdgpu_gpu_info gpuInfo               = {};
     uint32                 cpVersion             = 0;
     uint32                 attachedScreenCount   = 0;
+    DrmNodeProperties      drmNodeProperties     = {};
 
     Result result = OpenAndInitializeDrmDevice(pPlatform,
                                                pBusId,
                                                pPrimaryNode,
                                                pRenderNode,
+                                               availableNodes,
                                                &fileDescriptor,
                                                &primaryFileDescriptor,
                                                &hDevice,
                                                &drmMajorVer,
                                                &drmMinorVer,
                                                &gpuInfo,
-                                               &cpVersion);
+                                               &cpVersion,
+                                               &drmNodeProperties);
 
     if (result == Result::Success)
     {
@@ -247,7 +254,8 @@ Result Device::Create(
                 .attachedScreenCount   = attachedScreenCount,
                 .gpuInfo               = gpuInfo,
                 .hwDeviceSizes         = hwDeviceSizes,
-                .pciBusInfo            = pciBusInfo
+                .pciBusInfo            = pciBusInfo,
+                .drmNodeProperties     = drmNodeProperties
             };
 
             (*ppDeviceOut) = PAL_PLACEMENT_NEW(pMemory) Device(constructorParams);
@@ -299,13 +307,15 @@ static Result OpenAndInitializeDrmDevice(
     const char*             pBusId,
     const char*             pPrimaryNode,
     const char*             pRenderNode,
+    int32                   availableNodes,
     int32*                  pFileDescriptor,
     int32*                  pPrimaryFileDescriptor,
     amdgpu_device_handle*   pDeviceHandle,
     uint32*                 pDrmMajorVer,
     uint32*                 pDrmMinorVer,
     struct amdgpu_gpu_info* pGpuInfo,
-    uint32*                 pCpVersion)
+    uint32*                 pCpVersion,
+    DrmNodeProperties*      pDrmNodeProperties)
 {
     Result                 result       = Result::Success;
     amdgpu_device_handle   deviceHandle = nullptr;
@@ -409,6 +419,22 @@ static Result OpenAndInitializeDrmDevice(
         }
     }
 
+    if (result == Result::Success)
+    {
+        struct stat pPrimaryStat = {0};
+        struct stat pRenderStat  = {0};
+
+        pDrmNodeProperties->flags.hasPrimaryDrmNode = (availableNodes & (1 << DRM_NODE_PRIMARY)) &&
+                                                      (stat(pPrimaryNode, &pPrimaryStat) == 0);
+        pDrmNodeProperties->primaryDrmNodeMajor     = static_cast<int64>(major(pPrimaryStat.st_rdev));
+        pDrmNodeProperties->primaryDrmNodeMinor     = static_cast<int64>(minor(pPrimaryStat.st_rdev));
+
+        pDrmNodeProperties->flags.hasRenderDrmNode  = (availableNodes & (1 << DRM_NODE_RENDER)) &&
+                                                      (stat(pRenderNode, &pRenderStat) == 0);
+        pDrmNodeProperties->renderDrmNodeMajor      = static_cast<int64>(major(pRenderStat.st_rdev));
+        pDrmNodeProperties->renderDrmNodeMinor      = static_cast<int64>(minor(pRenderStat.st_rdev));
+    }
+
     return result;
 }
 
@@ -450,6 +476,7 @@ Device::Device(
     Util::Strncpy(m_primaryNodeName, constructorParams.pPrimaryNode, MaxNodeNameLen);
 
     memcpy(&m_gpuInfo, &constructorParams.gpuInfo, sizeof(constructorParams.gpuInfo));
+    memcpy(&m_drmNodeProperties, &constructorParams.drmNodeProperties, sizeof(constructorParams.drmNodeProperties));
 
     m_chipProperties.pciDomainNumber            = constructorParams.pciBusInfo.domain;
     m_chipProperties.pciBusNumber               = constructorParams.pciBusInfo.bus;
@@ -631,6 +658,13 @@ Result Device::OsLateInit()
     else
     {
         m_featureState.useBoListCreate = 1;
+    }
+
+    // Context IOCTL stable pstate interface was introduced from drm 3.45,
+    // but kernel bugs was not fixed until 3.49
+    if (IsDrmVersionOrGreater(3, 49))
+    {
+        m_featureState.supportPowerDpmIoctl = 1;
     }
 
     return result;
@@ -844,6 +878,13 @@ Result Device::GetProperties(
         pInfo->osProperties.timeDomains.supportClockMonotonicRaw       = true;
         pInfo->osProperties.timeDomains.supportQueryPerformanceCounter = false;
 
+        pInfo->osProperties.flags.hasPrimaryDrmNode = m_drmNodeProperties.flags.hasPrimaryDrmNode;
+        pInfo->osProperties.flags.hasRenderDrmNode  = m_drmNodeProperties.flags.hasRenderDrmNode;
+        pInfo->osProperties.primaryDrmNodeMajor     = m_drmNodeProperties.primaryDrmNodeMajor;
+        pInfo->osProperties.primaryDrmNodeMinor     = m_drmNodeProperties.primaryDrmNodeMinor;
+        pInfo->osProperties.renderDrmNodeMajor      = m_drmNodeProperties.renderDrmNodeMajor;
+        pInfo->osProperties.renderDrmNodeMinor      = m_drmNodeProperties.renderDrmNodeMinor;
+
         pInfo->gpuMemoryProperties.flags.supportHostMappedForeignMemory =
             static_cast<Platform*>(m_pPlatform)->IsHostMappedForeignMemorySupported();
     }
@@ -1041,6 +1082,17 @@ Result Device::InitTmzHeapProperties()
             m_heapProperties[GpuHeapLocal].flags.supportsTmz         = 1;
             m_heapProperties[GpuHeapGartUswc].flags.supportsTmz      = 0;
             m_heapProperties[GpuHeapGartCacheable].flags.supportsTmz = 0;
+        }
+        else if (IsMendocino(*this))
+        {
+            m_heapProperties[GpuHeapInvisible].flags.supportsTmz     = 1;
+            m_heapProperties[GpuHeapLocal].flags.supportsTmz         = 1;
+
+            if (MemoryProperties().flags.iommuv2Support == false)
+            {
+                m_heapProperties[GpuHeapGartUswc].flags.supportsTmz      = 1;
+                m_heapProperties[GpuHeapGartCacheable].flags.supportsTmz = 1;
+            }
         }
         else
         {
@@ -2189,6 +2241,7 @@ Result Device::CreateImage(
     Pal::Image* pImage = nullptr;
 
     ImageInternalCreateInfo internalInfo = {};
+    ImageCreateInfo modifiedCreateInfo = createInfo;
 
     // [AMDVLK-179][X-plane]Vulkan does not properly synchronize with OpenGL in X-Plane 11.50
     // This issue root cause is AMDVLK and Mesa have different pipeBankXor for a shareable image.
@@ -2217,7 +2270,29 @@ Result Device::CreateImage(
         }
     }
 
-    Result ret = CreateInternalImage(createInfo, internalInfo, pPlacementAddr, &pImage);
+#if PAL_DISPLAY_DCC
+    else if ((createInfo.flags.flippable == true) &&
+             (createInfo.usageFlags.disableOptimizedDisplay == 0) &&
+             (SupportDisplayDcc() == true) &&
+             // VCAM_SURFACE_DESC does not support YUV presentable yet
+             (Formats::IsYuv(createInfo.swizzledFormat.format) == false))
+    {
+        DisplayDccCaps displayDcc = { };
+
+        GetDisplayDccInfo(displayDcc);
+        PAL_ASSERT(displayDcc.dcc_256_128_128 ||
+                   displayDcc.dcc_128_128_unconstrained ||
+                   displayDcc.dcc_256_64_64);
+        if (displayDcc.pipeAligned == 0)
+        {
+            internalInfo.displayDcc.value                 = displayDcc.value;
+            internalInfo.displayDcc.enabled               = 1;
+            modifiedCreateInfo.flags.optimalShareable     = 1;
+        }
+    }
+#endif
+
+    Result ret = CreateInternalImage(modifiedCreateInfo, internalInfo, pPlacementAddr, &pImage);
     if (ret == Result::Success)
     {
         (*ppImage) = pImage;
@@ -4929,58 +5004,111 @@ Result Device::SetClockMode(
     Result result                         = Result::Success;
 
     int        ioRet                      = 0;
-    const bool needUpdatePerformanceLevel = (DeviceClockMode::Query          != setClockModeInput.clockMode) &&
+    const bool needUpdateStablePState     = (DeviceClockMode::Query          != setClockModeInput.clockMode) &&
                                             (DeviceClockMode::QueryProfiling != setClockModeInput.clockMode) &&
                                             (DeviceClockMode::QueryPeak      != setClockModeInput.clockMode) &&
                                             (Settings().neverChangeClockMode == false);
-    char       writeBuf[MaxClockSysFsEntryNameLen];
 
     const char* pStrKMDInterface[]    =
     {
         "profile_exit",            // see the comments of DeviceClockMode::Default
-        "profile_query",           // place holder, will not be passed to KMD (by means of needUpdatePerformanceLevel)
+        "profile_query",           // place holder, will not be passed to KMD (by means of needUpdateStablePState)
         "profile_standard",        // see the comments of DeviceClockMode::Profiling
         "profile_min_mclk",        // see the comments of DeviceClockMode::MinimumMemory
         "profile_min_sclk",        // see the comments of DeviceClockMode::MinimumEngine
         "profile_peak",            // see the comments of DeviceClockMode::Peak
-        "profile_query_profiling", // place holder, will not be passed to KMD (by means of needUpdatePerformanceLevel)
-        "profile_query_peak",      // place holder, will not be passed to KMD (by means of needUpdatePerformanceLevel)
+        "profile_query_profiling", // place holder, will not be passed to KMD (by means of needUpdateStablePState)
+        "profile_query_peak",      // place holder, will not be passed to KMD (by means of needUpdateStablePState)
     };
-
-    // prepare contents which will be written to sysfs
-    static_assert(static_cast<uint32>(DeviceClockMode::Default)        == 0, "DeviceClockMode definition changed!");
-    static_assert(static_cast<uint32>(DeviceClockMode::Query)          == 1, "DeviceClockMode definition changed!");
-    static_assert(static_cast<uint32>(DeviceClockMode::Profiling)      == 2, "DeviceClockMode definition changed!");
-    static_assert(static_cast<uint32>(DeviceClockMode::MinimumMemory)  == 3, "DeviceClockMode definition changed!");
-    static_assert(static_cast<uint32>(DeviceClockMode::MinimumEngine)  == 4, "DeviceClockMode definition changed!");
-    static_assert(static_cast<uint32>(DeviceClockMode::Peak)           == 5, "DeviceClockMode definition changed!");
-    static_assert(static_cast<uint32>(DeviceClockMode::QueryProfiling) == 6, "DeviceClockMode definition changed!");
-    static_assert(static_cast<uint32>(DeviceClockMode::QueryPeak)      == 7, "DeviceClockMode definition changed!");
 
     PAL_ASSERT(static_cast<uint32>(setClockModeInput.clockMode) < sizeof(pStrKMDInterface)/sizeof(char*));
 
-    memset(writeBuf, 0, sizeof(writeBuf));
-    snprintf(writeBuf, sizeof(writeBuf), "%s", pStrKMDInterface[static_cast<uint32>(setClockModeInput.clockMode)]);
-
-    // write to sysfs
-    if (needUpdatePerformanceLevel)
+    if (needUpdateStablePState)
     {
-        int forcePerformanceLevelFd = open(m_forcePerformanceLevelPath, O_WRONLY);
-        if (forcePerformanceLevelFd < 0)
+        if (m_featureState.supportPowerDpmIoctl != 0)
         {
-            result = Result::ErrorUnavailable;
-        }
+            uint32 amdgpuCtxStablePstate = 0;
+            bool profileExit = FALSE;
+            switch (setClockModeInput.clockMode)
+            {
+                case Pal::DeviceClockMode::Default:
+                    amdgpuCtxStablePstate = AMDGPU_CTX_STABLE_PSTATE_NONE;
+                    profileExit = TRUE;
+                    break;
+                case Pal::DeviceClockMode::Profiling:
+                    amdgpuCtxStablePstate = AMDGPU_CTX_STABLE_PSTATE_STANDARD;
+                    break;
+                case Pal::DeviceClockMode::MinimumMemory:
+                    amdgpuCtxStablePstate = AMDGPU_CTX_STABLE_PSTATE_MIN_MCLK;
+                    break;
+                case Pal::DeviceClockMode::MinimumEngine:
+                    amdgpuCtxStablePstate = AMDGPU_CTX_STABLE_PSTATE_MIN_SCLK;
+                    break;
+                case Pal::DeviceClockMode::Peak:
+                    amdgpuCtxStablePstate = AMDGPU_CTX_STABLE_PSTATE_PEAK;
+                    break;
+                Default:
+                    break;
+            }
 
-        if (result == Result::Success)
+            if (m_hContext == nullptr)
+            {
+                if (m_drmProcs.pfnAmdgpuCsCtxCreate(m_hDevice, &m_hContext) != 0)
+                {
+                    result = Result::ErrorInvalidValue;
+                }
+            }
+
+            // write with Ioctl
+            if (result == Result::Success)
+            {
+                result = CheckResult(m_drmProcs.pfnAmdgpuCsCtxStablePstate(m_hContext,
+                                                                           AMDGPU_CTX_OP_SET_STABLE_PSTATE,
+                                                                           amdgpuCtxStablePstate,
+                                                                           NULL),
+                                     Result::ErrorInvalidValue);
+            }
+
+            if ((m_hContext != nullptr) && profileExit)
+            {
+                m_drmProcs.pfnAmdgpuCsCtxFree(m_hContext);
+                m_hContext = nullptr;
+            }
+        }
+        else
         {
-            ioRet = write(forcePerformanceLevelFd, writeBuf, strlen(writeBuf));
-            PAL_ALERT(static_cast<size_t>(ioRet) != strlen(writeBuf));
-            if (static_cast<size_t>(ioRet) != strlen(writeBuf))
+            // prepare contents which will be written to sysfs
+            static_assert(static_cast<uint32>(DeviceClockMode::Default)        == 0, "DeviceClockMode definition changed!");
+            static_assert(static_cast<uint32>(DeviceClockMode::Query)          == 1, "DeviceClockMode definition changed!");
+            static_assert(static_cast<uint32>(DeviceClockMode::Profiling)      == 2, "DeviceClockMode definition changed!");
+            static_assert(static_cast<uint32>(DeviceClockMode::MinimumMemory)  == 3, "DeviceClockMode definition changed!");
+            static_assert(static_cast<uint32>(DeviceClockMode::MinimumEngine)  == 4, "DeviceClockMode definition changed!");
+            static_assert(static_cast<uint32>(DeviceClockMode::Peak)           == 5, "DeviceClockMode definition changed!");
+            static_assert(static_cast<uint32>(DeviceClockMode::QueryProfiling) == 6, "DeviceClockMode definition changed!");
+            static_assert(static_cast<uint32>(DeviceClockMode::QueryPeak)      == 7, "DeviceClockMode definition changed!");
+
+            char writeBuf[MaxClockSysFsEntryNameLen];
+            memset(writeBuf, 0, sizeof(writeBuf));
+            snprintf(writeBuf, sizeof(writeBuf), "%s", pStrKMDInterface[static_cast<uint32>(setClockModeInput.clockMode)]);
+
+            // write to sysfs
+            int forcePerformanceLevelFd = open(m_forcePerformanceLevelPath, O_WRONLY);
+            if (forcePerformanceLevelFd < 0)
             {
                 result = Result::ErrorUnavailable;
             }
 
-            close(forcePerformanceLevelFd);
+            if (result == Result::Success)
+            {
+                ioRet = write(forcePerformanceLevelFd, writeBuf, strlen(writeBuf));
+                PAL_ALERT(static_cast<size_t>(ioRet) != strlen(writeBuf));
+                if (static_cast<size_t>(ioRet) != strlen(writeBuf))
+                {
+                    result = Result::ErrorUnavailable;
+                }
+
+                close(forcePerformanceLevelFd);
+            }
         }
     }
 
@@ -5454,23 +5582,14 @@ Result Device::CreateGpuMemoryFromExternalShare(
 
     if (sharedInfo.info.preferred_heap & AMDGPU_GEM_DOMAIN_VRAM)
     {
-        if (sharedInfo.info.alloc_flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED)
-        {
-            pCreateInfo->heaps[pCreateInfo->heapCount++] = GpuHeapLocal;
-        }
-        else if (sharedInfo.info.alloc_flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
+        if (sharedInfo.info.alloc_flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
         {
             pCreateInfo->heaps[pCreateInfo->heapCount++] = GpuHeapInvisible;
         }
-        else if (imageCreateInfo.flags.sharedWithMesa != 0)
+        else
         {
             pCreateInfo->heaps[pCreateInfo->heapCount++] = GpuHeapLocal;
         }
-    }
-
-    if (pCreateInfo->heapCount == 0)
-    {
-        PAL_ASSERT_ALWAYS();
     }
 
     GpuMemoryInternalCreateInfo internalInfo = {};

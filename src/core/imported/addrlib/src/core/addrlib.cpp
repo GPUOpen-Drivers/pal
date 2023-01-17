@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2007-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2007-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -186,6 +186,9 @@ ADDR_E_RETURNCODE Lib::Create(
                         break;
 #endif
                     case FAMILY_NV:
+                    case FAMILY_RMB:
+                    case FAMILY_RPL:
+                    case FAMILY_MDN:
                         pLib = Gfx10HwlInit(&client);
                         break;
 #if ADDR_GFX11_BUILD

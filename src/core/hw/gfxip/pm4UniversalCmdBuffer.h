@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -64,10 +64,7 @@ union GraphicsStateFlags
                 uint32 vrsRateParams          :  1; // 10.3+ only
                 uint32 vrsCenterState         :  1; // 10.3+ only
                 uint32 vrsImage               :  1; // 10.3+ only
-                uint32 depthClampOverride     :  1; // All Gfx
-                uint32 colorWriteMask         :  1; // All Gfx
-                uint32 rasterizerDiscardEnable:  1; // All Gfx
-                uint32 reserved               : 14;
+                uint32 reserved               : 17;
             };
 
             uint32 u32All;
@@ -167,14 +164,12 @@ struct GraphicsState
     uint32                      numSamplesPerPixel;     // (CmdSetQuadSamplePattern)
 
     uint32                      viewInstanceMask;       // (CmdSetViewInstanceMask)
-    uint32                      colorWriteMask;         // (CmdSetColorWriteMask)
 
     struct
     {
         uint32  enableMultiViewport    : 1;  // Is the current pipeline using viewport-array-index?
         uint32  depthClampMode         : 2;  // The current pipeline's depth clamp mode. The is of type DepthClampMode
         uint32  useCustomSamplePattern : 1;  // If use custom sample pattern instead of default sample pattern
-        uint32  rasterizerDiscardEnable: 1;  // (CmdSetRasterizerDiscardEnable)
     };
 
     InheritedStateParams inheritedState; // States provided to nested command buffer from primary command buffer.
@@ -185,13 +180,6 @@ struct GraphicsState
         uint32 rectCount;
         Rect   rectList[MaxClipRects];
     } clipRectsState; // (CmdSetClipRects)
-
-    // Overrides the value of DB_RENDER_OVERRIDE.DISABLE_VIEWPORT_CLAMP at draw-time validation.
-    struct
-    {
-        uint32 enabled              : 1; // Are we going to use the override?
-        uint32 disableViewportClamp : 1; // The value to write, if used.
-    } depthClampOverride;
 
     GraphicsStateFlags   dirtyFlags;
     GraphicsStateFlags   leakFlags;      // Graphics state which a nested command buffer "leaks" back to its caller.
@@ -235,12 +223,11 @@ public:
     virtual void CmdSetLineStippleState(
         const LineStippleStateParams& params) override;
 
-    virtual void CmdOverwriteDisableViewportClampForBlits(
-        bool disableViewportClamp) override;
-
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
     virtual void CmdSetColorWriteMask(const ColorWriteMaskParams& params) override;
 
     virtual void CmdSetRasterizerDiscardEnable(bool rasterizerDiscardEnable) override;
+#endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     // This function allows us to dump the contents of this command buffer to a file at submission time.

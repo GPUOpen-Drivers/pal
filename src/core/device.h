@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -2024,6 +2024,7 @@ public:
     bool HasLargeLocalHeap() const;
 
     bool IssueSqttMarkerEvents() const;
+    bool EnablePerfCountersInPreamble() const;
 
     const FlglState& GetFlglState() const { return m_flglState; }
 
@@ -2657,6 +2658,21 @@ inline bool IsNavi2x(const Device& device)
 
 // The ASICs are still referred within the interface and null backend.
 // So we still keep identification suppport for them though they're no longer supported.
+
+inline bool IsRembrandt(const Device& device)
+{
+    return AMDGPU_IS_REMBRANDT(device.ChipProperties().familyId, device.ChipProperties().eRevId);
+}
+
+inline bool IsRaphael(const Device& device)
+{
+    return AMDGPU_IS_RAPHAEL(device.ChipProperties().familyId, device.ChipProperties().eRevId);
+}
+
+inline bool IsMendocino(const Device& device)
+{
+    return AMDGPU_IS_MENDOCINO(device.ChipProperties().familyId, device.ChipProperties().eRevId);
+}
 
 constexpr bool IsGfx103(GfxIpLevel gfxLevel)
 {

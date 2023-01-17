@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -45,7 +45,6 @@ struct ShaderFuncStats
     const char*    pSymbolName;
     uint32         symbolNameLength;
     uint32         stackFrameSizeInBytes;
-    uint32         irStackFrameSizeInBytes;
     ShaderSubType  shaderSubType;
 };
 
@@ -59,7 +58,11 @@ class ShaderLibrary : public IShaderLibrary
 public:
     virtual void Destroy() override { this->~ShaderLibrary(); }
 
-    Result Initialize(const ShaderLibraryCreateInfo& createInfo);
+    Result Initialize(
+        const ShaderLibraryCreateInfo&          createInfo,
+        const AbiReader&                        abiReader,
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        Util::MsgPackReader*                    pMetadataReader);
 
     virtual const LibraryInfo& GetInfo() const override { return m_info; }
 
@@ -90,7 +93,6 @@ public:
         uint32                     funcCount);
 
     uint32 GetMaxStackSizeInBytes() const { return m_maxStackSizeInBytes; }
-    uint32 GetMaxIrStackSizeInBytes() const { return m_maxIrStackSizeInBytes; }
     UploadFenceToken GetUploadFenceToken() const { return m_uploadFenceToken; }
     uint64 GetPagingFenceVal() const { return m_pagingFenceVal; }
 
@@ -132,14 +134,16 @@ protected:
     BoundGpuMemory  m_gpuMem;
     gpusize         m_gpuMemSize;
     uint32          m_maxStackSizeInBytes;
-    uint32          m_maxIrStackSizeInBytes;
 
     UploadFenceToken  m_uploadFenceToken;
     uint64            m_pagingFenceVal;
 
 private:
     Result InitFromCodeObjectBinary(
-        const ShaderLibraryCreateInfo& createInfo);
+        const ShaderLibraryCreateInfo&          createInfo,
+        const AbiReader&                        abiReader,
+        const Util::PalAbi::CodeObjectMetadata& metadata,
+        Util::MsgPackReader*                    pMetadataReader);
 
     void DumpLibraryElf(
         Util::StringView<char> prefix,

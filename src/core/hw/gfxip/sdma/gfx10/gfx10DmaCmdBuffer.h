@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -59,8 +59,6 @@ public:
         ImmediateDataWidth dataSize,
         gpusize            address) override;
 
-    virtual uint32 CmdInsertExecutionMarker() override;
-
     virtual void CmdNop(const void* pPayload, uint32 payloadSize) override;
 
 protected:
@@ -69,14 +67,15 @@ protected:
     virtual Result AddPreamble() override;
     virtual Result AddPostamble() override;
 
-    virtual bool SupportsExecutionMarker() override { return true; }
-    virtual void BeginExecutionMarker(uint64 clientHandle) override;
-    virtual void EndExecutionMarker() override;
-
     virtual void SetupDmaInfoExtent(DmaImageInfo*  pImageInfo) const override;
 
-    virtual uint32* WritePredicateCmd(size_t predicateDwords, uint32* pCmdSpace) const override;
-    virtual void PatchPredicateCmd(size_t predicateDwords, void* pPredicateCmd) const override;
+    virtual uint32* WriteSetupInternalPredicateMemoryCmd(
+        gpusize predMemAddress,
+        uint32  predCopyData,
+        uint32* pCmdSpace) const override;
+
+    virtual uint32* WritePredicateCmd(uint32* pCmdSpace) const override;
+    virtual void PatchPredicateCmd(uint32* pPredicateCmd, uint32* pCurCmdSpace) const override;
 
     virtual uint32* WriteCopyGpuMemoryCmd(
         gpusize      srcGpuAddr,
@@ -90,10 +89,10 @@ protected:
         const DmaTypedBufferCopyInfo&   dmaCopyInfo,
         uint32*                         pCmdSpace) const override;
 
-    virtual void    WriteCopyImageLinearToLinearCmd(const DmaImageCopyInfo& imageCopyInfo) override;
-    virtual void    WriteCopyImageLinearToTiledCmd(const DmaImageCopyInfo& imageCopyInfo) override;
-    virtual void    WriteCopyImageTiledToLinearCmd(const DmaImageCopyInfo& imageCopyInfo) override;
-    virtual void    WriteCopyImageTiledToTiledCmd(const DmaImageCopyInfo& imageCopyInfo) override;
+    virtual uint32* WriteCopyImageLinearToLinearCmd(const DmaImageCopyInfo& imageCopyInfo, uint32* pCmdSpace) override;
+    virtual uint32* WriteCopyImageLinearToTiledCmd(const DmaImageCopyInfo& imageCopyInfo, uint32* pCmdSpace) override;
+    virtual uint32* WriteCopyImageTiledToLinearCmd(const DmaImageCopyInfo& imageCopyInfo, uint32* pCmdSpace) override;
+    virtual uint32* WriteCopyImageTiledToTiledCmd(const DmaImageCopyInfo& imageCopyInfo, uint32* pCmdSpace) override;
 
     virtual uint32* WriteCopyMemToLinearImageCmd(
         const GpuMemory&             srcGpuMemory,
@@ -184,8 +183,8 @@ private:
     static void SetupMetaData(const DmaImageInfo&  image, PacketName*  pPacket, bool  imageIsDst);
 
     static bool ImageHasMetaData(const DmaImageInfo& imageInfo);
-    void WriteCondExecCmd(uint32* pCmdSpace, gpusize predMemory, uint32 skipCountInDwords) const;
-    void WriteFenceCmd(uint32* pCmdSpace, gpusize memory, uint32 predCopyData) const;
+    uint32* WriteCondExecCmd(uint32* pCmdSpace, gpusize predMemory, uint32 skipCountInDwords) const;
+    uint32* WriteFenceCmd(uint32* pCmdSpace, gpusize memory, uint32 predCopyData) const;
 
     uint32 GetImageZ(const DmaImageInfo&  dmaImageInfo, uint32  offsetZ) const;
 

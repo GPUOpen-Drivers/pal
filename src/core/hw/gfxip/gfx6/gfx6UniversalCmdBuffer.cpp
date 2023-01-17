@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -41,7 +41,6 @@
 #include "core/hw/gfxip/queryPool.h"
 #include "core/cmdAllocator.h"
 #include "g_platformSettings.h"
-#include "marker_payload.h"
 #include "palMath.h"
 #include "palIntervalTreeImpl.h"
 #include "palVectorImpl.h"
@@ -282,8 +281,14 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_dbRenderOverride.u32All    = 0;
     m_paSuLineStippleCntl.u32All = 0;
     m_paScLineStipple.u32All     = 0;
+    m_cbColorControl.u32All      = 0;
+    m_paClClipCntl.u32All        = 0;
+    m_cbTargetMask.u32All        = 0;
+    m_vgtTfParam.u32All          = 0;
+    m_paScLineCntl.u32All        = 0;
+    m_dbShaderControl.u32All     = 0;
     m_paSuScModeCntl.u32All      = InvalidPaSuScModeCntlVal;
-
+    m_depthClampMode             = DepthClampMode::Viewport;
     SwitchDrawFunctions(false);
 }
 
@@ -364,57 +369,6 @@ void UniversalCmdBuffer::SetUserDataValidationFunctions(
             SetUserDataValidationFunctions<false, false>();
         }
     }
-}
-
-// =====================================================================================================================
-void UniversalCmdBuffer::BeginExecutionMarker(
-    uint64 clientHandle)
-{
-    CmdBuffer::BeginExecutionMarker(clientHandle);
-    PAL_ASSERT(m_executionMarkerAddr != 0);
-
-    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-    pDeCmdSpace += m_cmdUtil.BuildExecutionMarker(m_executionMarkerAddr,
-                                                  m_executionMarkerCount,
-                                                  clientHandle,
-                                                  RGD_EXECUTION_BEGIN_MARKER_GUARD,
-                                                  pDeCmdSpace);
-    m_deCmdStream.CommitCommands(pDeCmdSpace);
-}
-
-// =====================================================================================================================
-uint32 UniversalCmdBuffer::CmdInsertExecutionMarker()
-{
-    uint32 returnVal = UINT_MAX;
-    if (m_buildFlags.enableExecutionMarkerSupport == 1)
-    {
-        PAL_ASSERT(m_executionMarkerAddr != 0);
-
-        uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-        pDeCmdSpace += m_cmdUtil.BuildExecutionMarker(m_executionMarkerAddr,
-                                                      ++m_executionMarkerCount,
-                                                      0,
-                                                      RGD_EXECUTION_MARKER_GUARD,
-                                                      pDeCmdSpace);
-        m_deCmdStream.CommitCommands(pDeCmdSpace);
-
-        returnVal = m_executionMarkerCount;
-    }
-    return returnVal;
-}
-
-// =====================================================================================================================
-void UniversalCmdBuffer::EndExecutionMarker()
-{
-    PAL_ASSERT(m_executionMarkerAddr != 0);
-
-    uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
-    pDeCmdSpace += m_cmdUtil.BuildExecutionMarker(m_executionMarkerAddr,
-                                                  ++m_executionMarkerCount,
-                                                  0,
-                                                  RGD_EXECUTION_MARKER_GUARD,
-                                                  pDeCmdSpace);
-    m_deCmdStream.CommitCommands(pDeCmdSpace);
 }
 
 // =====================================================================================================================
@@ -520,57 +474,145 @@ void UniversalCmdBuffer::CmdBindPipeline(
         auto*const pNewPipeline = static_cast<const GraphicsPipeline*>(params.pPipeline);
         auto*const pOldPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
 
-        const bool tessEnabled = (pNewPipeline != nullptr) && pNewPipeline->IsTessEnabled();
-        const bool gsEnabled   = (pNewPipeline != nullptr) && pNewPipeline->IsGsEnabled();
-
-        SetUserDataValidationFunctions(tessEnabled, gsEnabled);
-
-        const bool newUsesViewInstancing = (pNewPipeline != nullptr) && pNewPipeline->UsesViewInstancing();
-        const bool oldUsesViewInstancing = (pOldPipeline != nullptr) && pOldPipeline->UsesViewInstancing();
-
-        // NGG Fast Launch pipelines require issuing different packets for indexed draws. We'll need to switch the
-        // draw function pointers around to handle this case.
-        if (oldUsesViewInstancing != newUsesViewInstancing)
+        if (pNewPipeline != pOldPipeline)
         {
-            SwitchDrawFunctions(newUsesViewInstancing);
+            const bool tessEnabled = (pNewPipeline != nullptr) && pNewPipeline->IsTessEnabled();
+            const bool gsEnabled   = (pNewPipeline != nullptr) && pNewPipeline->IsGsEnabled();
+
+            SetUserDataValidationFunctions(tessEnabled, gsEnabled);
+
+            const bool newUsesViewInstancing = (pNewPipeline != nullptr) && pNewPipeline->UsesViewInstancing();
+            const bool oldUsesViewInstancing = (pOldPipeline != nullptr) && pOldPipeline->UsesViewInstancing();
+
+            // NGG Fast Launch pipelines require issuing different packets for indexed draws. We'll need to switch the
+            // draw function pointers around to handle this case.
+            if (oldUsesViewInstancing != newUsesViewInstancing)
+            {
+                SwitchDrawFunctions(newUsesViewInstancing);
+            }
+
+            // If RB+ is enabled, we must update the PM4 image of RB+ register state with the new pipelines' values.  This
+            // should be done here instead of inside SwitchGraphicsPipeline() because RPM sometimes overrides these values
+            // for certain blit operations.
+            if ((m_cachedSettings.rbPlusSupported != 0) && (pNewPipeline != nullptr))
+            {
+                m_sxPsDownconvert   = pNewPipeline->SxPsDownconvert();
+                m_sxBlendOptEpsilon = pNewPipeline->SxBlendOptEpsilon();
+                m_sxBlendOptControl = pNewPipeline->SxBlendOptControl();
+            }
+
+            constexpr uint32 DwordsPerSrd = (sizeof(BufferSrd) / sizeof(uint32));
+            const uint32 vbTableDwords =
+                ((pNewPipeline == nullptr) ? 0 : pNewPipeline->VertexBufferCount() * DwordsPerSrd);
+            PAL_ASSERT(vbTableDwords <= m_vbTable.state.sizeInDwords);
+
+            if (vbTableDwords > m_vbTable.watermark)
+            {
+                // If the current high watermark is increasing, we need to mark the contents as dirty because data which
+                // was previously uploaded to CE RAM wouldn't have been dumped to GPU memory before the previous Draw.
+                m_vbTable.state.dirty = 1;
+            }
+
+            m_vbTable.watermark = vbTableDwords;
         }
 
-        // If RB+ is enabled, we must update the PM4 image of RB+ register state with the new pipelines' values.  This
-        // should be done here instead of inside SwitchGraphicsPipeline() because RPM sometimes overrides these values
-        // for certain blit operations.
-        if ((m_cachedSettings.rbPlusSupported != 0) && (pNewPipeline != nullptr))
+        if (pNewPipeline != nullptr)
         {
-            m_sxPsDownconvert   = pNewPipeline->SxPsDownconvert();
-            m_sxBlendOptEpsilon = pNewPipeline->SxBlendOptEpsilon();
-            m_sxBlendOptControl = pNewPipeline->SxBlendOptControl();
+            regVGT_TF_PARAM        vgtTfParam       = pNewPipeline->VgtTfParam();
+            regPA_CL_CLIP_CNTL     paClClipCntl     = pNewPipeline->PaClClipCntl();
+            regPA_SC_LINE_CNTL     paScLineCntl     = pNewPipeline->PaScLineCntl();
+            regCB_TARGET_MASK      cbTargetMask     = pNewPipeline->CbTargetMask();
+            regCB_COLOR_CONTROL    cbColorControl   = pNewPipeline->CbColorControl();
+            regDB_SHADER_CONTROL   dbShaderControl  = pNewPipeline->DbShaderControl();
+            regDB_RENDER_OVERRIDE  dbRenderOverride = m_dbRenderOverride;
+            BitfieldUpdateSubfield(
+                &(dbRenderOverride.u32All), pNewPipeline->DbRenderOverride().u32All, PipelineDbRenderOverrideMask);
+
+            m_depthClampMode = pNewPipeline->GetDepthClampMode();
+            // Update context registers according dynamic states
+            if (params.graphics.dynamicState.enable.u32All != 0)
+            {
+                if (params.graphics.dynamicState.enable.switchWinding)
+                {
+                    if (params.graphics.dynamicState.switchWinding)
+                    {
+                        if (pNewPipeline->VgtTfParam().bits.TOPOLOGY == OUTPUT_TRIANGLE_CW)
+                        {
+                            vgtTfParam.bits.TOPOLOGY = OUTPUT_TRIANGLE_CCW;
+                        }
+                        else if (pNewPipeline->VgtTfParam().bits.TOPOLOGY == OUTPUT_TRIANGLE_CCW)
+                        {
+                            vgtTfParam.bits.TOPOLOGY = OUTPUT_TRIANGLE_CW;
+                        }
+                    }
+                }
+
+                if (params.graphics.dynamicState.enable.logicOp)
+                {
+                    cbColorControl.bits.ROP3 = Rop3(params.graphics.dynamicState.logicOp);
+                }
+
+                if (params.graphics.dynamicState.enable.rasterizerDiscardEnable)
+                {
+                    paClClipCntl.bits.DX_RASTERIZATION_KILL = params.graphics.dynamicState.rasterizerDiscardEnable;
+                }
+
+                if (params.graphics.dynamicState.enable.depthClipMode)
+                {
+                    paClClipCntl.bits.ZCLIP_NEAR_DISABLE = params.graphics.dynamicState.depthClipNearEnable ? 0 : 1;
+                    paClClipCntl.bits.ZCLIP_FAR_DISABLE = params.graphics.dynamicState.depthClipFarEnable ? 0 : 1;
+                }
+
+                if (params.graphics.dynamicState.enable.depthRange)
+                {
+                    paClClipCntl.bits.DX_CLIP_SPACE_DEF =
+                        (params.graphics.dynamicState.depthRange == DepthRange::ZeroToOne);
+                }
+
+                if (params.graphics.dynamicState.enable.perpLineEndCapsEnable)
+                {
+                    paScLineCntl.bits.PERPENDICULAR_ENDCAP_ENA = params.graphics.dynamicState.perpLineEndCapsEnable;
+                }
+
+                if (params.graphics.dynamicState.enable.colorWriteMask)
+                {
+                    cbTargetMask.u32All =
+                        (pNewPipeline->CbTargetMask().u32All & params.graphics.dynamicState.colorWriteMask);
+                }
+
+                if (params.graphics.dynamicState.enable.alphaToCoverageEnable)
+                {
+                    dbShaderControl.bits.ALPHA_TO_MASK_DISABLE =
+                        params.graphics.dynamicState.alphaToCoverageEnable ? 0 : 1;
+                }
+
+                if (params.graphics.dynamicState.enable.depthClampMode)
+                {
+                    dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP =
+                        (params.graphics.dynamicState.depthClampMode == DepthClampMode::_None);
+                    m_depthClampMode = params.graphics.dynamicState.depthClampMode;
+                }
+            }
+
+            // Update pipeline dynamic state dirty flags
+            if ((vgtTfParam.u32All       != m_vgtTfParam.u32All)      ||
+                (cbColorControl.u32All   != m_cbColorControl.u32All)  ||
+                (paClClipCntl.u32All     != m_paClClipCntl.u32All)    ||
+                (paScLineCntl.u32All     != m_paScLineCntl.u32All)    ||
+                (cbTargetMask.u32All     != m_cbTargetMask.u32All)    ||
+                (dbShaderControl.u32All  != m_dbShaderControl.u32All) ||
+                (dbRenderOverride.u32All != m_dbRenderOverride.u32All))
+            {
+                m_vgtTfParam       = vgtTfParam;
+                m_cbColorControl   = cbColorControl;
+                m_paClClipCntl     = paClClipCntl;
+                m_paScLineCntl     = paScLineCntl;
+                m_cbTargetMask     = cbTargetMask;
+                m_dbShaderControl  = dbShaderControl;
+                m_dbRenderOverride = dbRenderOverride;
+                m_graphicsState.pipelineState.dirtyFlags.dynamicState = 1;
+            }
         }
-
-        constexpr uint32 DwordsPerSrd = (sizeof(BufferSrd) / sizeof(uint32));
-        const uint32 vbTableDwords =
-            ((pNewPipeline == nullptr) ? 0 : pNewPipeline->VertexBufferCount() * DwordsPerSrd);
-        PAL_ASSERT(vbTableDwords <= m_vbTable.state.sizeInDwords);
-
-        if (vbTableDwords > m_vbTable.watermark)
-        {
-            // If the current high watermark is increasing, we need to mark the contents as dirty because data which
-            // was previously uploaded to CE RAM wouldn't have been dumped to GPU memory before the previous Draw.
-            m_vbTable.state.dirty = 1;
-        }
-
-        m_vbTable.watermark = vbTableDwords;
-
-        // Changes to CB_TARGET_MASK due to colorWriteMask must be checked before the call to CmdBindPipeline because
-        // CmdBindPipeline does not always restore CB_TARGET_MASK, but it does always reset colorWriteMask
-        if (m_graphicsState.colorWriteMask != UINT_MAX)
-        {
-            m_graphicsState.dirtyFlags.validationBits.colorWriteMask = 1;
-        }
-
-        if (m_graphicsState.rasterizerDiscardEnable != false)
-        {
-            m_graphicsState.dirtyFlags.validationBits.rasterizerDiscardEnable = 1;
-        }
-
     }
 
     Pal::Pm4::UniversalCmdBuffer::CmdBindPipeline(params);
@@ -617,10 +659,37 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
     const bool wasPrevPipelineNull = (pPrevSignature == &NullGfxSignature);
 
     const uint32 ctxRegHash = pCurrPipeline->GetContextRegHash();
-    if (wasPrevPipelineNull || (m_pipelineCtxRegHash != ctxRegHash))
+    const bool ctxRegDirty = wasPrevPipelineNull || (m_pipelineCtxRegHash != ctxRegHash);
+    if (ctxRegDirty || m_graphicsState.pipelineState.dirtyFlags.dynamicState)
     {
-        pDeCmdSpace = pCurrPipeline->WriteContextCommands(&m_deCmdStream, pDeCmdSpace);
+        if (ctxRegDirty)
+        {
+            pDeCmdSpace = pCurrPipeline->WriteContextCommands(&m_deCmdStream, pDeCmdSpace);
+        }
 
+        if (wasPrevPipelineNull || m_graphicsState.pipelineState.dirtyFlags.dynamicState)
+        {
+            pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(
+                mmCB_COLOR_CONTROL, m_cbColorControl.u32All, pDeCmdSpace);
+
+            pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(
+                mmPA_CL_CLIP_CNTL, m_paClClipCntl.u32All, pDeCmdSpace);
+
+            pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(
+                mmCB_TARGET_MASK, m_cbTargetMask.u32All, pDeCmdSpace);
+
+            pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(
+                mmVGT_TF_PARAM, m_vgtTfParam.u32All, pDeCmdSpace);
+
+            pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(
+                mmPA_SC_LINE_CNTL, m_paScLineCntl.u32All, pDeCmdSpace);
+
+            pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(
+                mmDB_SHADER_CONTROL, m_dbShaderControl.u32All, pDeCmdSpace);
+
+            pDeCmdSpace = m_deCmdStream.WriteContextRegRmw(mmDB_RENDER_OVERRIDE,
+                PipelineDbRenderOverrideMask, m_dbRenderOverride.u32All, pDeCmdSpace);
+        }
         m_pipelineCtxRegHash = ctxRegHash;
     }
 
@@ -663,10 +732,9 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
     }
 
     const bool usesViewportArrayIdx     = pCurrPipeline->UsesViewportArrayIndex();
-    const DepthClampMode depthClampMode = pCurrPipeline->GetDepthClampMode();
     const bool mvDirty                  = (usesViewportArrayIdx != (m_graphicsState.enableMultiViewport != 0));
     const bool depthClampDirty          =
-        (depthClampMode != static_cast<DepthClampMode>(m_graphicsState.depthClampMode));
+        (m_depthClampMode != static_cast<DepthClampMode>(m_graphicsState.depthClampMode));
     if (mvDirty || depthClampDirty)
     {
         // If the previously bound pipeline differed in its use of multiple viewports we will need to rewrite the
@@ -676,7 +744,7 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
             // If viewport is never set, no need to rewrite viewport, this happens in D3D12 nested command list.
             m_graphicsState.dirtyFlags.validationBits.viewports    |=
                 mvDirty ||
-                (depthClampDirty && (depthClampMode != DepthClampMode::_None));
+                (depthClampDirty && (m_depthClampMode != DepthClampMode::_None));
         }
         if (m_graphicsState.scissorRectState.count != 0)
         {
@@ -685,7 +753,7 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
         }
 
         m_graphicsState.enableMultiViewport = usesViewportArrayIdx;
-        m_graphicsState.depthClampMode      = static_cast<uint32>(depthClampMode);
+        m_graphicsState.depthClampMode      = static_cast<uint32>(m_depthClampMode);
     }
 
     if (m_vertexOffsetReg != m_pSignatureGfx->vertexOffsetRegAddr)
@@ -3336,17 +3404,19 @@ void UniversalCmdBuffer::ValidateDraw(
     uint32 userDataCmdLen = 0;
 #endif
 
-    if (m_graphicsState.pipelineState.dirtyFlags.pipeline)
+    if (m_graphicsState.pipelineState.dirtyFlags.pipeline || m_graphicsState.pipelineState.dirtyFlags.dynamicState)
     {
         uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
         const auto*const pNewPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
-
-        pDeCmdSpace = pNewPipeline->WriteShCommands(&m_deCmdStream, pDeCmdSpace, m_graphicsState.dynamicGraphicsInfo);
-
-        if (m_buildFlags.prefetchShaders)
+        if (m_graphicsState.pipelineState.dirtyFlags.pipeline)
         {
-            pDeCmdSpace = pNewPipeline->Prefetch(pDeCmdSpace);
+            pDeCmdSpace = pNewPipeline->WriteShCommands(&m_deCmdStream, pDeCmdSpace, m_graphicsState.dynamicGraphicsInfo);
+
+            if (m_buildFlags.prefetchShaders)
+            {
+                pDeCmdSpace = pNewPipeline->Prefetch(pDeCmdSpace);
+            }
         }
 
         const auto*const pPrevSignature = m_pSignatureGfx;
@@ -3485,10 +3555,10 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         const bool depthEnabled          = ((pDepthState != nullptr) && pDepthState->IsDepthEnabled());
         const bool usesOverRasterization = ((pMsaaState  != nullptr) && pMsaaState->UsesOverRasterization());
 
-        pDeCmdSpace = pPipeline->WriteDbShaderControl<pm4OptImmediate>(depthEnabled,
-                                                                       usesOverRasterization,
-                                                                       &m_deCmdStream,
-                                                                       pDeCmdSpace);
+        pDeCmdSpace = WriteDbShaderControl(depthEnabled,
+                                           usesOverRasterization,
+                                           &m_deCmdStream,
+                                           pDeCmdSpace);
     }
 
     if (pipelineDirty || (stateDirty && dirtyFlags.colorBlendState))
@@ -3619,47 +3689,6 @@ uint32* UniversalCmdBuffer::ValidateDraw(
                                                                    pDeCmdSpace);
             m_paSuLineStippleCntl = paSuLineStippleCntl;
         }
-    }
-
-    if (pipelineDirty || (stateDirty && dirtyFlags.depthClampOverride))
-    {
-        PAL_ASSERT((m_dbRenderOverride.u32All & ~PipelineDbRenderOverrideMask) == 0);
-        PAL_ASSERT((pPipeline->DbRenderOverride().u32All & ~PipelineDbRenderOverrideMask) == 0);
-
-        regDB_RENDER_OVERRIDE updatedReg = pPipeline->DbRenderOverride();
-
-        // Depth clamping override used by RPM.
-        if (m_graphicsState.depthClampOverride.enabled)
-        {
-            updatedReg.bits.DISABLE_VIEWPORT_CLAMP = m_graphicsState.depthClampOverride.disableViewportClamp;
-        }
-
-        // Is the new state different from the last written state?
-        if (updatedReg.u32All != m_dbRenderOverride.u32All)
-        {
-            pDeCmdSpace = m_deCmdStream.WriteContextRegRmw(mmDB_RENDER_OVERRIDE,
-                                                           PipelineDbRenderOverrideMask,
-                                                           updatedReg.u32All,
-                                                           pDeCmdSpace);
-            m_dbRenderOverride = updatedReg;
-        }
-    }
-
-    if (stateDirty && dirtyFlags.colorWriteMask)
-    {
-        regCB_TARGET_MASK updatedRegWriteMask = pPipeline->CbTargetMask();
-        updatedRegWriteMask.u32All &= m_graphicsState.colorWriteMask;
-        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmCB_TARGET_MASK,
-                                                          updatedRegWriteMask.u32All,
-                                                          pDeCmdSpace);
-    }
-
-    if (stateDirty && dirtyFlags.rasterizerDiscardEnable)
-    {
-        regPA_CL_CLIP_CNTL paClClipCntl = pPipeline->PaClClipCntl();
-        paClClipCntl.bits.DX_RASTERIZATION_KILL = m_graphicsState.rasterizerDiscardEnable;
-
-        pDeCmdSpace = m_deCmdStream.WriteSetOneContextReg(mmPA_CL_CLIP_CNTL, paClClipCntl.u32All, pDeCmdSpace);
     }
 
     // Validate the per-draw HW state.
@@ -4656,16 +4685,6 @@ void UniversalCmdBuffer::SetGraphicsState(
 {
     Pal::Pm4::UniversalCmdBuffer::SetGraphicsState(newGraphicsState);
 
-    if (newGraphicsState.colorWriteMask != UINT_MAX)
-    {
-        m_graphicsState.dirtyFlags.validationBits.colorWriteMask = 1;
-    }
-
-    if (newGraphicsState.rasterizerDiscardEnable != false)
-    {
-        m_graphicsState.dirtyFlags.validationBits.rasterizerDiscardEnable = 1;
-    }
-
     // The target state that we would restore is invalid if this is a nested command buffer that inherits target
     // view state. The only allowed BLTs in a nested command buffer are CmdClearBoundColorTargets and
     // CmdClearBoundDepthStencilTargets, neither of which will overwrite the bound targets.
@@ -5508,7 +5527,6 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     {
         m_vertexOffsetReg  = cmdBuffer.m_vertexOffsetReg;
         m_drawIndexReg     = cmdBuffer.m_drawIndexReg;
-        m_dbRenderOverride = cmdBuffer.m_dbRenderOverride;
 
         // Update the functions that are modified by nested command list
         m_pfnValidateUserDataGfx                   = cmdBuffer.m_pfnValidateUserDataGfx;
@@ -5526,6 +5544,15 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
             m_sxBlendOptControl = cmdBuffer.m_sxBlendOptControl;
         }
     }
+
+    m_dbRenderOverride = cmdBuffer.m_dbRenderOverride;
+    m_dbShaderControl  = cmdBuffer.m_dbShaderControl;
+    m_cbColorControl   = cmdBuffer.m_cbColorControl;
+    m_paClClipCntl     = cmdBuffer.m_paClClipCntl;
+    m_cbTargetMask     = cmdBuffer.m_cbTargetMask;
+    m_vgtTfParam       = cmdBuffer.m_vgtTfParam;
+    m_paScLineCntl     = cmdBuffer.m_paScLineCntl;
+    m_depthClampMode   = cmdBuffer.m_depthClampMode;
 
     // If the nested command buffer updated PA_SU_SC_MODE_CNTL, leak its state back to the caller.
     if (cmdBuffer.m_graphicsState.leakFlags.validationBits.triangleRasterState)
@@ -6119,6 +6146,43 @@ void UniversalCmdBuffer::CpCopyMemory(
     {
         SetPm4CmdBufCpMemoryWriteL2CacheStaleState(true);
     }
+}
+
+// =====================================================================================================================
+// The workaround for the "DB Over-Rasterization" hardware bug requires us to write the DB_SHADER_CONTROL register at
+// draw-time. This function writes the PM4 commands necessary and returns the next unused DWORD in pCmdSpace.
+uint32* UniversalCmdBuffer::WriteDbShaderControl(
+    bool       isDepthEnabled,
+    bool       usesOverRasterization,
+    CmdStream* pCmdStream,
+    uint32*    pCmdSpace)
+{
+    // DB_SHADER_CONTROL must be written at draw-time for particular GPU's to work-around a hardware bug.
+    if (m_device.WaDbOverRasterization())
+    {
+        regDB_SHADER_CONTROL dbShaderControl = m_dbShaderControl;
+        if ((dbShaderControl.bits.Z_ORDER == EARLY_Z_THEN_LATE_Z) && usesOverRasterization && isDepthEnabled)
+        {
+            // Apply the "DB Over-Rasterization" workaround: The DB has a bug with early-Z where the DB will kill
+            // pixels when over-rasterization is enabled.  Normally the fix would be to force post-Z over-rasterization
+            // via DB_EQAA, but that workaround isn't sufficient if depth testing is enabled.  In that case, we need to
+            // force late-Z in the pipeline.
+            //
+            // If the workaround is active, and both depth testing and over-rasterization are enabled, and the pipeline
+            // isn't already using late-Z, then we need to force late-Z for the current pipeline.
+            dbShaderControl.bits.Z_ORDER = LATE_Z;
+        }
+
+        if (m_dbShaderControl.u32All != dbShaderControl.u32All)
+        {
+            pCmdSpace = pCmdStream->WriteSetOneContextReg(mmDB_SHADER_CONTROL,
+                m_dbShaderControl.u32All,
+                pCmdSpace);
+            m_dbShaderControl = dbShaderControl;
+        }
+    }
+
+    return pCmdSpace;
 }
 
 } // Gfx6

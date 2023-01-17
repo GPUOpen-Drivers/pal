@@ -493,23 +493,6 @@
       "Name": "ForceGraphicsFillMemoryPath"
     },
     {
-      "Description": "The allocated padding dwords of task control buffer. This can assist task shader debugging.",
-      "Tags": [
-        "General",
-        "Gfx10"
-      ],
-      "Flags": {
-        "IsHex": true
-      },
-      "Defaults": {
-        "Default": 0
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "uint32",
-      "VariableName": "taskControlBufferPadDWords",
-      "Name": "TaskControlBufferPadDWords"
-    },
-    {
       "Description": "Controls whether to wait after F/I when changing targets within a Metadata mip tail region. This can resolve corruptions related to metadata cache conflicts.",
       "Tags": [
         "Cache flush",

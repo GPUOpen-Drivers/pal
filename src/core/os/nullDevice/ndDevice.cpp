@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -73,10 +73,12 @@ extern const NullIdLookup  NullIdLookupTable[] =
     { NullGpuId::Navi22, FAMILY_NV,  NV_NAVI22_P_A0,       PRID_NV_NAVI10_00,            GfxEngineGfx9,  DEVICE_ID_NV_NAVI10_P_7310, "NAVI22:gfx1031" },
     { NullGpuId::Navi23, FAMILY_NV,  NV_NAVI23_P_A0,       PRID_NV_NAVI10_00,            GfxEngineGfx9,  DEVICE_ID_NV_NAVI10_P_7310, "NAVI23:gfx1032" },
     { NullGpuId::Navi24, FAMILY_NV,  NV_NAVI24_P_A0,       PRID_NV_NAVI10_00,            GfxEngineGfx9,  DEVICE_ID_NV_NAVI10_P_7310, "NAVI24:gfx1034" },
+    { NullGpuId::Rembrandt, FAMILY_RMB, REMBRANDT_B0,      PRID_RMB_00,                  GfxEngineGfx9,  DEVICE_ID_RMB_1681,         "REMBRANDT:gfx1035" },
 
 #if PAL_BUILD_NAVI31
     { NullGpuId::Navi31,   FAMILY_NV3, NAVI31_P_A0, PRID_NV3_NAVI31_00, GfxEngineGfx9,  DEVICE_ID_NV3_NAVI31_P_73BF, "NAVI31:gfx1100" },
 #endif
+    { NullGpuId::Raphael,  FAMILY_RPL, RAPHAEL_A0,  PRID_RPL_00,        GfxEngineGfx9,  DEVICE_ID_RPL_164E, "RAPHAEL:gfx1036" },
 };
 extern const uint32 NullIdLookupTableCount = static_cast<uint32>(Util::ArrayLen(NullIdLookupTable));
 
@@ -1114,6 +1116,24 @@ void Device::FillGfx9ChipProperties(
         pChipInfo->gsPrimBufferDepth       =  1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
         pChipInfo->maxGsWavesPerVgt        =    32; // GPU__GC__NUM_MAX_GS_THDS;
     }
+    else if (AMDGPU_IS_REMBRANDT(familyId, eRevId))
+    {
+        pChipInfo->supportSpiPrefPriority  =     1;
+        pChipInfo->doubleOffchipLdsBuffers =     1;
+        pChipInfo->gbAddrConfig            = 0x242; // GB_ADDR_CONFIG_DEFAULT; ///????
+        pChipInfo->numShaderEngines        =     1; // GPU__GC__NUM_SE;
+        pChipInfo->numShaderArrays         =     2; // GPU__GC__NUM_SA_PER_SE
+        pChipInfo->maxNumRbPerSe           =     4; // GPU__GC__NUM_RB_PER_SE;
+        pChipInfo->nativeWavefrontSize     =    32; // GPU__GC__SQ_WAVE_SIZE;
+        pChipInfo->minWavefrontSize        =    32;
+        pChipInfo->maxWavefrontSize        =    64;
+        pChipInfo->numPhysicalVgprsPerSimd =  1024; // GPU__GC__NUM_GPRS;
+        pChipInfo->maxNumCuPerSh           =     6; // GPU__GC__NUM_WGP_PER_SA * 2;
+        pChipInfo->numTccBlocks            =     4; // GPU__GC__NUM_GL2C;
+        pChipInfo->gsVgtTableDepth         =    32; // GPU__VGT__GS_TABLE_DEPTH;
+        pChipInfo->gsPrimBufferDepth       =  1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
+        pChipInfo->maxGsWavesPerVgt        =    32; // GPU__GC__NUM_MAX_GS_THDS;
+    }
 #if PAL_BUILD_NAVI31
     else if (AMDGPU_IS_NAVI31(familyId, eRevId))
     {
@@ -1134,6 +1154,46 @@ void Device::FillGfx9ChipProperties(
         pChipInfo->maxGsWavesPerVgt        =    32; // GC__NUM_MAX_GS_THDS;
     }
 #endif
+    else if (AMDGPU_IS_RAPHAEL(familyId, eRevId))
+    {
+        pChipInfo->supportSpiPrefPriority  =     1;
+        pChipInfo->doubleOffchipLdsBuffers =     1;
+        pChipInfo->gbAddrConfig            =  0x42; // GB_ADDR_CONFIG_DEFAULT; ///????
+        pChipInfo->numShaderEngines        =     1; // GPU__GC__NUM_SE;
+        pChipInfo->numShaderArrays         =     1; // GPU__GC__NUM_SA_PER_SE
+        pChipInfo->maxNumRbPerSe           =     1; // GPU__GC__NUM_RB_PER_SE;
+        pChipInfo->nativeWavefrontSize     =    32; // GPU__GC__SQ_WAVE_SIZE;
+
+        pChipInfo->minWavefrontSize        =    32;
+        pChipInfo->maxWavefrontSize        =    64;
+
+        pChipInfo->numPhysicalVgprsPerSimd =  1024; // GPU__GC__NUM_GPRS;
+        pChipInfo->maxNumCuPerSh           =     2; // GPU__GC__NUM_WGP_PER_SA * 2;
+        pChipInfo->numTccBlocks            =     2; // GPU__GC__NUM_GL2C;
+        pChipInfo->gsVgtTableDepth         =    32; // GPU__VGT__GS_TABLE_DEPTH;
+        pChipInfo->gsPrimBufferDepth       =  1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
+        pChipInfo->maxGsWavesPerVgt        =    32; // GPU__GC__NUM_MAX_GS_THDS;
+    }
+    else if (AMDGPU_IS_MENDOCINO(familyId, eRevId))
+    {
+        pChipInfo->supportSpiPrefPriority      =     1;
+        pChipInfo->doubleOffchipLdsBuffers     =     1;
+        pChipInfo->gbAddrConfig                =  0x42; // GB_ADDR_CONFIG_DEFAULT; ///????
+        pChipInfo->numShaderEngines            =     1; // GPU__GC__NUM_SE;
+        pChipInfo->numShaderArrays             =     1; // GPU__GC__NUM_SA_PER_SE
+        pChipInfo->maxNumRbPerSe               =     1; // GPU__GC__NUM_RB_PER_SE;
+        pChipInfo->nativeWavefrontSize         =    32; // GPU__GC__SQ_WAVE_SIZE;
+
+        pChipInfo->minWavefrontSize            =    32;
+        pChipInfo->maxWavefrontSize            =    64;
+
+        pChipInfo->numPhysicalVgprsPerSimd     =  1024; // GPU__GC__NUM_GPRS;
+        pChipInfo->maxNumCuPerSh               =     2; // GPU__GC__NUM_WGP_PER_SA * 2;
+        pChipInfo->numTccBlocks                =     2; // GPU__GC__NUM_GL2C;
+        pChipInfo->gsVgtTableDepth             =    32; // GPU__VGT__GS_TABLE_DEPTH;
+        pChipInfo->gsPrimBufferDepth           =  1792; // GPU__GC__GSPRIM_BUFF_DEPTH;
+        pChipInfo->maxGsWavesPerVgt            =    32; // GPU__GC__NUM_MAX_GS_THDS;
+    }
     else
     {
         // Unknown device id

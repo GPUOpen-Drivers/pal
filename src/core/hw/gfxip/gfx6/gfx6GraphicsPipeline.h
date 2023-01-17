@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -66,6 +66,34 @@ struct DynamicStageInfos
 };
 
 // =====================================================================================================================
+// Converts the specified logic op enum into a ROP3 code (for programming CB_COLOR_CONTROL).
+inline uint8 Rop3(
+    LogicOp logicOp)
+{
+    constexpr uint8 Rop3Codes[] =
+    {
+        0xCC, // Copy (S)
+        0x00, // Clear (clear to 0)
+        0x88, // And (S & D)
+        0x44, // AndReverse (S & (~D))
+        0x22, // AndInverted ((~S) & D)
+        0xAA, // Noop (D)
+        0x66, // Xor (S ^ D)
+        0xEE, // Or (S | D)
+        0x11, // Nor (~(S | D))
+        0x99, // Equiv (~(S ^ D))
+        0x55, // Invert (~D)
+        0xDD, // OrReverse (S | (~D))
+        0x33, // CopyInverted (~S)
+        0xBB, // OrInverted ((~S) | D)
+        0x77, // Nand (~(S & D))
+        0xFF  // Set (set to 1)
+    };
+
+    return Rop3Codes[static_cast<uint32>(logicOp)];
+}
+
+// =====================================================================================================================
 // GFX6 graphics pipeline class: implements common GFX6-specific funcionality for the GraphicsPipeline class.  Details
 // specific to a particular pipeline configuration (GS-enabled, tessellation-enabled, etc) are offloaded to appropriate
 // subclasses.
@@ -81,18 +109,14 @@ public:
 
     uint32* Prefetch(uint32* pCmdSpace) const;
 
-    template <bool pm4OptImmediate>
-    uint32* WriteDbShaderControl(
-        bool       isDepthEnabled,
-        bool       usesOverRasterization,
-        CmdStream* pCmdStream,
-        uint32*    pCmdSpace) const;
-
     regPA_SC_MODE_CNTL_1 PaScModeCntl1() const { return m_regs.other.paScModeCntl1; }
-    regCB_TARGET_MASK CbTargetMask() const { return m_regs.context.cbTargetMask; }
+    regCB_TARGET_MASK CbTargetMask() const { return m_regs.other.cbTargetMask; }
     regDB_RENDER_OVERRIDE DbRenderOverride() const { return m_regs.other.dbRenderOverride; }
-    regPA_CL_CLIP_CNTL PaClClipCntl() const { return m_regs.context.paClClipCntl; }
-
+    regPA_CL_CLIP_CNTL PaClClipCntl() const { return m_regs.other.paClClipCntl; }
+    regPA_SC_LINE_CNTL PaScLineCntl() const { return m_regs.other.paScLineCntl; }
+    regVGT_TF_PARAM VgtTfParam() const { return m_regs.other.vgtTfParam; }
+    regCB_COLOR_CONTROL CbColorControl() const { return m_regs.other.cbColorControl; }
+    regDB_SHADER_CONTROL DbShaderControl() const { return m_regs.other.dbShaderControl; }
     regIA_MULTI_VGT_PARAM IaMultiVgtParam(bool forceWdSwitchOnEop) const
         { return m_regs.other.iaMultiVgtParam[static_cast<uint32>(forceWdSwitchOnEop)]; }
 
@@ -234,18 +258,12 @@ private:
             regVGT_SHADER_STAGES_EN         vgtShaderStagesEn;
             regVGT_GS_MODE                  vgtGsMode;
             regVGT_REUSE_OFF                vgtReuseOff;
-            regVGT_TF_PARAM                 vgtTfParam;
-            regCB_COLOR_CONTROL             cbColorControl;
-            regCB_TARGET_MASK               cbTargetMask;
             regCB_SHADER_MASK               cbShaderMask;
-            regPA_CL_CLIP_CNTL              paClClipCntl;
             regPA_SU_VTX_CNTL               paSuVtxCntl;
             regPA_CL_VTE_CNTL               paClVteCntl;
-            regPA_SC_LINE_CNTL              paScLineCntl;
             regPA_SC_EDGERULE               paScEdgerule;
             regSPI_INTERP_CONTROL_0         spiInterpControl0;
             regVGT_VERTEX_REUSE_BLOCK_CNTL  vgtVertexReuseBlockCntl;
-            regDB_SHADER_CONTROL            dbShaderControl;
             regDB_ALPHA_TO_MASK             dbAlphaToMask;
         } context;
 
@@ -262,6 +280,14 @@ private:
 
             // This register is written by the command buffer at draw-time validation. Only some fields are used.
             regDB_RENDER_OVERRIDE        dbRenderOverride;
+
+            // These registers may be modified by pipeline dynamic state and are written at draw-time validation.
+            regVGT_TF_PARAM               vgtTfParam;
+            regCB_COLOR_CONTROL           cbColorControl;
+            regCB_TARGET_MASK             cbTargetMask;
+            regPA_CL_CLIP_CNTL            paClClipCntl;
+            regPA_SC_LINE_CNTL            paScLineCntl;
+            regDB_SHADER_CONTROL          dbShaderControl;
         } other;
     }  m_regs;
 
@@ -272,7 +298,7 @@ private:
     uint8 GetTargetMask(uint32 target) const
     {
         PAL_ASSERT(target < MaxColorTargets);
-        return ((m_regs.context.cbTargetMask.u32All >> (target * 4)) & 0xF);
+        return ((m_regs.other.cbTargetMask.u32All >> (target * 4)) & 0xF);
     }
 
     PAL_DISALLOW_DEFAULT_CTOR(GraphicsPipeline);

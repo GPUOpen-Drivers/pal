@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -75,13 +75,13 @@ public:
 protected:
     virtual ~PipelineStatsQueryPool() {}
 
-    virtual void OptimizedReset(
+    virtual void NormalReset(
         GfxCmdBuffer*   pCmdBuffer,
         Pal::CmdStream* pCmdStream,
         uint32          startQuery,
         uint32          queryCount) const override;
 
-    virtual void NormalReset(
+    virtual void DmaEngineReset(
         GfxCmdBuffer*   pCmdBuffer,
         Pal::CmdStream* pCmdStream,
         uint32          startQuery,

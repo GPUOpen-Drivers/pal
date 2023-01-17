@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2018-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -335,10 +335,12 @@ static Result OpenFileInternal(
 
     if (fd != InvalidFd)
     {
-        // Use an exculsive lock if opening for read-write
-        // Otherwise, use a shareable lock if opening for read-only
-        const int32 flockOp = (pOpenInfo->allowWriteAccess)? (LOCK_EX | LOCK_NB) : (LOCK_SH | LOCK_NB);
-        if (flock(fd, flockOp) == 0)
+        // In read-only mode, we allow another process to have this open as read/write.
+        // In write mode, other processes can only have this open for read.
+        // Use an exclusive lock if opening for read-write
+        int resultLock = pOpenInfo->allowWriteAccess ? flock(fd, (LOCK_EX | LOCK_NB)) : 0;
+
+        if (resultLock == 0)
         {
             if (pOpenInfo->useBufferedReadMemory)
             {

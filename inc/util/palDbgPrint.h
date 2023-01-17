@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -155,6 +155,9 @@ extern void SetDbgPrintCallback(
 
 #endif
 
+// Forward declarations.
+template<typename CharT> class StringView;
+
 /// Logs a text string via client callback when provided.
 ///
 /// @param [in] pClientData  Pointer to client-defined data.  The pClientData value specified in the pLogCbInfo
@@ -208,6 +211,34 @@ extern int32 Vsnprintf(
     const char* pFormat,
     va_list     argList);
 
+/// Compiler-specific wrapper of the standard snprintf implementation.
+///
+/// @param [out] pOutput Output string.
+/// @param [in]  bufSize Available space in pOutput.
+/// @param [in]  pFormat Printf-style format string.
+///
+/// @returns The resultant length of the formatted string.
+extern int32 Snprintf(
+    wchar_t*       pOutput,
+    size_t         bufSize,
+    const wchar_t* pFormat,
+    ...);
+
+/// Compiler-specific wrapper of the standard vsnprintf implementation.
+///
+/// @param [out] pOutput Output string. If buffer is a nullptr it returns the length of the string that would be
+///                      printed had a buffer with enough space been provided.
+/// @param [in]  bufSize Available space in pOutput.
+/// @param [in]  pFormat Printf-style format string.
+/// @param [in]  argList variable argument list.
+///
+/// @returns The resultant length of the formatted string.
+extern int32 Vsnprintf(
+    wchar_t*       pOutput,
+    size_t         bufSize,
+    const wchar_t* pFormat,
+    va_list        argList);
+
 /// Copy an arbitrary string into the provided buffer, encoding as necessary to avoid characters that are illegal
 /// in filenames (assuming the more restrictive Windows rules, even on non-Windows OSs).
 ///
@@ -215,7 +246,7 @@ extern int32 Vsnprintf(
 ///
 /// @param [out] pOutput           Output string.
 /// @param       bufSize           Available space in pOutput.
-/// @param [in]  pInput            Input string
+/// @param [in]  input             Input string
 /// @param       allowSpace        Allow (do not % encode) space
 /// @param       allowDirSeparator Allow (do not % encode) / and \ characters
 ///
@@ -227,11 +258,11 @@ extern int32 Vsnprintf(
 ///            enough, excluding the terminating \0.
 ///          - Passing 0 buffer length is allowed as a special case of that, and nullptr pOutput is then allowed.
 extern size_t EncodeAsFilename(
-    char*       pOutput,
-    size_t      bufSize,
-    const char* pInput,
-    bool        allowSpace,
-    bool        allowDirSeparator);
+    char*                   pOutput,
+    size_t                  bufSize,
+    const StringView<char>& input,
+    bool                    allowSpace,
+    bool                    allowDirSeparator);
 
 } // Util
 

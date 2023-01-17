@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2017-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2017-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -45,6 +45,9 @@
 #if ADDR_GFX11_BUILD
 #define FAMILY_NV3     0x91
 #endif
+#define FAMILY_RMB     0x92
+#define FAMILY_RPL     0x95
+#define FAMILY_MDN     0x97
 
 // AMDGPU_FAMILY_IS(familyId, familyName)
 #define FAMILY_IS(f, fn)     (f == FAMILY_##fn)
@@ -60,6 +63,7 @@
 #if ADDR_GFX11_BUILD
 #define FAMILY_IS_NV3(f)     FAMILY_IS(f, NV3)
 #endif
+#define FAMILY_IS_RMB(f)     FAMILY_IS(f, RMB)
 
 #define AMDGPU_UNKNOWN          0xFF
 
@@ -123,6 +127,12 @@
 #endif
 #endif
 
+#define AMDGPU_REMBRANDT_RANGE  0x01, 0xFF
+
+#define AMDGPU_RAPHAEL_RANGE    0x01, 0xFF
+
+#define AMDGPU_MENDOCINO_RANGE  0x01, 0xFF
+
 #define AMDGPU_EXPAND_FIX(x) x
 #define AMDGPU_RANGE_HELPER(val, min, max) ((val >= min) && (val < max))
 #define AMDGPU_IN_RANGE(val, ...)   AMDGPU_EXPAND_FIX(AMDGPU_RANGE_HELPER(val, __VA_ARGS__))
@@ -175,5 +185,11 @@
 #define ASICREV_IS_NAVI31_P(r)         ASICREV_IS(r, NAVI31)
 #endif
 #endif
+
+#define ASICREV_IS_REMBRANDT(r)        ASICREV_IS(r, REMBRANDT)
+
+#define ASICREV_IS_RAPHAEL(r)          ASICREV_IS(r, RAPHAEL)
+
+#define ASICREV_IS_MENDOCINO(r)        ASICREV_IS(r, MENDOCINO)
 
 #endif

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -407,11 +407,17 @@ static const MaxEventIds& GetEventLimits(
     case Pal::AsicRevision::Navi24:
         pOut = &Nv24MaxPerfEventIds;
         break;
+    case Pal::AsicRevision::Rembrandt:
+        pOut = &RembrandtMaxPerfEventIds;
+        break;
 #if PAL_BUILD_NAVI31
     case Pal::AsicRevision::Navi31:
         pOut = &Nv31MaxPerfEventIds;
         break;
 #endif
+    case Pal::AsicRevision::Raphael:
+        pOut = &RaphaelMaxPerfEventIds;
+        break;
     default:
         PAL_ASSERT_ALWAYS(); // What chip is this?
         pOut = &UnknownMaxEventIds;

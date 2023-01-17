@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -181,14 +181,9 @@ Result ShaderRingSet::Init()
                     PAL_NEW(PayloadDataRing, m_pDevice->GetPlatform(), AllocObject)(m_pDevice, m_pSrdTable, m_tmzEnabled);
                 break;
 
-            case ShaderRingType::DrawData:
+            case ShaderRingType::TaskMeshCtrlDrawRing:
                 m_ppRings[idx] =
-                    PAL_NEW(DrawDataRing, m_pDevice->GetPlatform(), AllocObject)(m_pDevice, m_pSrdTable, m_tmzEnabled);
-                break;
-
-            case ShaderRingType::TaskMeshControl:
-                m_ppRings[idx] =
-                    PAL_NEW(TaskMeshControlRing, m_pDevice->GetPlatform(), AllocObject)(m_pDevice, m_pSrdTable, m_tmzEnabled);
+                    PAL_NEW(TaskMeshCtrlDrawRing, m_pDevice->GetPlatform(), AllocObject)(m_pDevice, m_pSrdTable, m_tmzEnabled);
                 break;
 #if PAL_BUILD_GFX11
             case ShaderRingType::VertexAttributes:
@@ -386,6 +381,16 @@ static_assert(NotGfx10::mmVGT_HS_OFFCHIP_PARAM       == Nv21::mmVGT_HS_OFFCHIP_P
 static_assert(NotGfx10::mmVGT_TF_MEMORY_BASE         == Nv21::mmVGT_TF_MEMORY_BASE_UMD, "");
 static_assert(NotGfx10::mmVGT_TF_RING_SIZE           == Nv21::mmVGT_TF_RING_SIZE_UMD, "");
 static_assert(Gfx101::mmVGT_TF_MEMORY_BASE_HI_UMD == Nv21::mmVGT_TF_MEMORY_BASE_HI_UMD, "");
+static_assert(Gfx09::mmVGT_GSVS_RING_SIZE            == Rembrandt::mmVGT_GSVS_RING_SIZE, "");
+static_assert(NotGfx10::mmVGT_HS_OFFCHIP_PARAM       == Rembrandt::mmVGT_HS_OFFCHIP_PARAM, "");
+static_assert(NotGfx10::mmVGT_TF_MEMORY_BASE         == Rembrandt::mmVGT_TF_MEMORY_BASE, "");
+static_assert(NotGfx10::mmVGT_TF_RING_SIZE           == Rembrandt::mmVGT_TF_RING_SIZE, "");
+static_assert(Gfx101::mmVGT_TF_MEMORY_BASE_HI_UMD    == Rembrandt::mmVGT_TF_MEMORY_BASE_HI, "");
+static_assert(Gfx09::mmVGT_GSVS_RING_SIZE            == Raphael::mmVGT_GSVS_RING_SIZE, "");
+static_assert(NotGfx10::mmVGT_HS_OFFCHIP_PARAM       == Raphael::mmVGT_HS_OFFCHIP_PARAM, "");
+static_assert(NotGfx10::mmVGT_TF_MEMORY_BASE         == Raphael::mmVGT_TF_MEMORY_BASE, "");
+static_assert(NotGfx10::mmVGT_TF_RING_SIZE           == Raphael::mmVGT_TF_RING_SIZE, "");
+static_assert(Gfx101::mmVGT_TF_MEMORY_BASE_HI_UMD    == Raphael::mmVGT_TF_MEMORY_BASE_HI, "");
 
 // =====================================================================================================================
 // Initializes this Universal-Queue shader-ring set object.
@@ -487,28 +492,26 @@ Result UniversalRingSet::Validate(
 {
     const Pal::Device&  device = *(m_pDevice->Parent());
 
-    // Check if the DrawData ring has already been initialized.
-    const bool drawDataInitialized = m_ppRings[static_cast<size_t>(ShaderRingType::DrawData)]->IsMemoryValid();
+    // Check if the TaskMesh control draw ring has already been initialized.
+    const bool tsMsCtrlDrawInitialized =
+        m_ppRings[static_cast<size_t>(ShaderRingType::TaskMeshCtrlDrawRing)]->IsMemoryValid();
 
     // First, perform the base class' validation.
     Result result = ShaderRingSet::Validate(ringSizes, samplePatternPalette, lastTimeStamp, pReallocatedRings);
 
     const bool drawDataReAlloc =
-        Util::TestAnyFlagSet(*pReallocatedRings, (1 << static_cast<uint32>(ShaderRingType::DrawData))) ||
+        Util::TestAnyFlagSet(*pReallocatedRings, (1 << static_cast<uint32>(ShaderRingType::TaskMeshCtrlDrawRing))) ||
         Util::TestAnyFlagSet(*pReallocatedRings, (1 << static_cast<uint32>(ShaderRingType::PayloadData)));
 
     // Initialize the task shader control buffer and draw ring after they have been allocated.
     // Also, if we re-allocate the draw and/or payload data rings, we must ensure that all task shader-related
     // rings are re-allocated at the same time and re-initialized.
-    TaskMeshControlRing* pTaskMeshControl =
-        static_cast<TaskMeshControlRing*>(m_ppRings[static_cast<size_t>(ShaderRingType::TaskMeshControl)]);
-    DrawDataRing* pDrawDataRing =
-            static_cast<DrawDataRing*>(m_ppRings[static_cast<size_t>(ShaderRingType::DrawData)]);
+    TaskMeshCtrlDrawRing* pTaskMeshCtrlDrawRing =
+        static_cast<TaskMeshCtrlDrawRing*>(m_ppRings[static_cast<size_t>(ShaderRingType::TaskMeshCtrlDrawRing)]);
 
-    if (((drawDataInitialized == false) || drawDataReAlloc) && pDrawDataRing->IsMemoryValid())
+    if (((tsMsCtrlDrawInitialized == false) || drawDataReAlloc) && pTaskMeshCtrlDrawRing->IsMemoryValid())
     {
-        pTaskMeshControl->InitializeControlBuffer(pDrawDataRing->GpuVirtAddr(), pDrawDataRing->GetNumEntries());
-        pDrawDataRing->Initialize();
+        pTaskMeshCtrlDrawRing->InitializeControlBufferAndDrawRingBuffer();
     }
 
     if (result == Result::Success)
@@ -704,7 +707,7 @@ uint32* UniversalRingSet::WriteCommands(
         pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderGraphics>(gfxSrdTableGpuVaLo[s], srdTableBaseLo, pCmdSpace);
     }
 
-    const ShaderRing* const  pControlBuffer = m_ppRings[static_cast<size_t>(ShaderRingType::TaskMeshControl)];
+    const ShaderRing* const  pControlBuffer = m_ppRings[static_cast<size_t>(ShaderRingType::TaskMeshCtrlDrawRing)];
     if (pControlBuffer->IsMemoryValid())
     {
         pCmdSpace += CmdUtil::BuildTaskStateInit(ShaderGraphics,
@@ -767,7 +770,7 @@ uint32* UniversalRingSet::WriteComputeCommands(
     pCmdSpace = pCmdStream->WriteSetOneShReg<ShaderCompute>(mmCOMPUTE_TMPRING_SIZE,
                                                             m_regs.computeScratchRingSize.u32All,
                                                             pCmdSpace);
-    const ShaderRing* const  pControlBuffer = m_ppRings[static_cast<size_t>(ShaderRingType::TaskMeshControl)];
+    const ShaderRing* const  pControlBuffer = m_ppRings[static_cast<size_t>(ShaderRingType::TaskMeshCtrlDrawRing)];
     if (pControlBuffer->IsMemoryValid())
     {
         pCmdSpace += CmdUtil::BuildTaskStateInit(ShaderCompute,

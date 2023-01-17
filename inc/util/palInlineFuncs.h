@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -37,6 +37,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <cwchar>
+#include <iterator>
 #include <type_traits>
 
 namespace Util
@@ -1324,6 +1325,26 @@ inline wchar_t* Wcsrchr(wchar_t *pStr, wchar_t wc)
 #else
     return wcsrchr(pStr, wc);
 #endif
+}
+
+/// Comparison function for Sort() below.
+template<typename ElementTy> int PAL_CDECL SortComparisonFunc(
+    const void* pLhs,
+    const void* pRhs)
+{
+    return int(*static_cast<const ElementTy*>(pRhs) < *static_cast<const ElementTy*>(pLhs)) -
+           int(*static_cast<const ElementTy*>(pLhs) < *static_cast<const ElementTy*>(pRhs));
+}
+
+/// In-place sort of an array. Uses C library qsort, so is probably a non-order-preserving quicksort.
+/// Sorts the array given by the random iterator range [pStart,pEnd).
+/// The element type (the type you get by dereferencing RandomIt) must have an operator<.
+template<typename RandomIt> void Sort(
+    RandomIt pStart,
+    RandomIt pEnd)
+{
+    using ElementTy = typename std::iterator_traits<RandomIt>::value_type;
+    qsort(&pStart[0], pEnd - pStart, sizeof(ElementTy), SortComparisonFunc<ElementTy>);
 }
 
 } // Util

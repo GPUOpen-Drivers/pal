@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2018-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2018-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -276,6 +276,12 @@ typedef int32 (*AmdgpuCsWaitFences)(
             uint64                    timeoutInNs,
             uint32*                   pStatus,
             uint32*                   pFirst);
+
+typedef int32 (*AmdgpuCsCtxStablePstate)(
+            amdgpu_context_handle     context,
+            uint32_t                  op,
+            uint32_t                  flags,
+            uint32_t *                out_flags);
 
 typedef int32 (*AmdgpuQueryBufferSizeAlignment)(
             amdgpu_device_handle                      hDevice,
@@ -936,6 +942,12 @@ struct DrmLoaderFuncs
     bool pfnAmdgpuCsWaitFencesisValid() const
     {
         return (pfnAmdgpuCsWaitFences != nullptr);
+    }
+
+    AmdgpuCsCtxStablePstate           pfnAmdgpuCsCtxStablePstate;
+    bool pfnAmdgpuCsCtxStablePstateisValid() const
+    {
+        return (pfnAmdgpuCsCtxStablePstate != nullptr);
     }
 
     AmdgpuQueryBufferSizeAlignment    pfnAmdgpuQueryBufferSizeAlignment;
@@ -1890,6 +1902,17 @@ public:
     bool pfnAmdgpuCsWaitFencesisValid() const
     {
         return (m_pFuncs->pfnAmdgpuCsWaitFences != nullptr);
+    }
+
+    int32 pfnAmdgpuCsCtxStablePstate(
+            amdgpu_context_handle     context,
+            uint32_t                  op,
+            uint32_t                  flags,
+            uint32_t *                out_flags) const;
+
+    bool pfnAmdgpuCsCtxStablePstateisValid() const
+    {
+        return (m_pFuncs->pfnAmdgpuCsCtxStablePstate != nullptr);
     }
 
     int32 pfnAmdgpuQueryBufferSizeAlignment(

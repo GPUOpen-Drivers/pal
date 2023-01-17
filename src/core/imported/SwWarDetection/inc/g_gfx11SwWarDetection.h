@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2019-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2019-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -70,7 +70,7 @@ extern bool DetectGfx11SoftwareWorkaroundsByGfxIp(
     Gfx11SwWarDetection* pWorkarounds);
 
 // Number of workarounds that are represented in Gfx11SwWarDetection.
-constexpr uint32_t Gfx11NumWorkarounds = 39;
+constexpr uint32_t Gfx11NumWorkarounds = 41;
 
 // Number of DWORDs that make up the Gfx11SwWarDetection structure.
 constexpr uint32_t Gfx11StructDwords = 2;
@@ -81,7 +81,7 @@ constexpr uint32_t Gfx11StructDwords = 2;
 constexpr uint32_t Gfx11InactiveMask[] =
 {
     0x00000000,
-    0xffffff80,
+    0xfffffe00,
 };
 
 // Bitfield structure containing all workarounds active for the Gfx11 family.
@@ -295,7 +295,15 @@ union Gfx11SwWarDetection
         uint32_t                                                                                                                                                                     : 1;
 #endif
 
-        uint32_t reserved                                                                                                                                                            : 25;
+#if SWD_BUILD_NAVI31
+        uint32_t geometryGeSioPcSioSpiBciATMDeallocsDoNotWaitForGSDONE_A_                                                                                                            : 1;
+#else
+        uint32_t                                                                                                                                                                     : 1;
+#endif
+
+        uint32_t                                                                                                                                                                     : 1;
+
+        uint32_t reserved                                                                                                                                                            : 23;
     };
 
     uint32_t u32All[Gfx11StructDwords];
@@ -318,6 +326,7 @@ void DetectNavi31A0Workarounds(
     pWorkarounds->controlRlcHw36RlcSpmIsAlwaysBusyIfISpmStopIssuedSoCloseToPerfSample_A_                                                                                              = 1;
     pWorkarounds->gcPvPpCbCBPerfcountersStuckAtZeroAfterPerfcounterStopEventReceived_A_                                                                                               = 1;
     pWorkarounds->geometryGeGEWdTe11ClockCanStayHighAfterShaderMessageThdgrp_A_                                                                                                       = 1;
+    pWorkarounds->geometryGeSioPcSioSpiBciATMDeallocsDoNotWaitForGSDONE_A_                                                                                                            = 1;
     pWorkarounds->geometryPaPALineStippleResetError_A_                                                                                                                                = 1;
     pWorkarounds->geometryPaStereoPositionNanCheckBug_A_                                                                                                                              = 1;
     pWorkarounds->ppDbDBDEBUG__FORCEMISSIFNOTINFLIGHTCausesADeadlockBetweenDbDtt_Osb_A_                                                                                               = 1;

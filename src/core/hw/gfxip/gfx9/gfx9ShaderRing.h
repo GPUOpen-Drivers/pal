@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -231,22 +231,41 @@ private:
 };
 
 // =====================================================================================================================
-// Implement shader-ring functionality specific to the IndirectDraw arguments necessary to launch GFX shaders after a
-// Task shader dispatch.
-class DrawDataRing final : public ShaderRing
+// Implements shader-ring functionality specific to the TASKMESH control buffer and DrawRing data buffer. It writes
+// control buffer object and then the draw ring data buffer at the offset of control buffer address, and initializes
+// the draw data rings.
+class TaskMeshCtrlDrawRing final : public ShaderRing
 {
 public:
-    DrawDataRing(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);
-    virtual ~DrawDataRing() {}
-
-    uint32 GetNumEntries() const { return m_maxNumEntries; }
-    void Initialize();
+    TaskMeshCtrlDrawRing(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);
+    virtual ~TaskMeshCtrlDrawRing() {}
+    void InitializeControlBufferAndDrawRingBuffer();
 
 protected:
     virtual gpusize ComputeAllocationSize() const override
-        { return m_maxNumEntries * DrawDataEntrySize; }
+        { return OffsetOfControlDrawRing + m_drawRingTotalBytes; }
     virtual void UpdateSrds() const override;
 
+private:
+#pragma pack(push, 1)
+    struct ControlBufferLayout
+    {
+        uint64 writePtr;
+        uint64 readPtr;
+        uint64 deallocPtr;
+        uint32 numEntries;
+        uint64 drawRingBaseAddr;
+    };
+#pragma pack(pop)
+
+    // The offset FW requires between taskMesh control buffer and draw ring data buffer
+    static constexpr gpusize OffsetOfControlDrawRing = 0x100;
+    static_assert(sizeof(ControlBufferLayout) == sizeof(uint32) * 9,
+                  "Control buffer is a different size than expected!");
+    static_assert(sizeof(ControlBufferLayout) <= OffsetOfControlDrawRing,
+                  "Control buffer is larger than 0x100 offset!");
+
+    // DrawRing buffer allocation
     struct DrawDataRingLayout
     {
         uint32 xDim;
@@ -264,49 +283,15 @@ protected:
             uint32 u32All;
         };
     };
+    static constexpr uint32  DrawDataEntrySize = sizeof(DrawDataRingLayout);
+    const uint32             m_drawRingEntries;
+    size_t                   m_drawRingTotalBytes;
 
-private:
-    // This is the expected size of this data by the CP.
-    static constexpr uint32 DrawDataEntrySize = sizeof(DrawDataRingLayout);
-    const uint32 m_maxNumEntries;
+    // FW requests drawRing base address to have 0x100 offset from taskControl buffer address.
+    gpusize GetDrawRingVirtAddr() const { return GpuVirtAddr() + OffsetOfControlDrawRing; }
 
-    PAL_DISALLOW_DEFAULT_CTOR(DrawDataRing);
-    PAL_DISALLOW_COPY_AND_ASSIGN(DrawDataRing);
-};
-
-// =====================================================================================================================
-// Implements shader-ring functionality specific to the TASKMESH control buffer.
-class TaskMeshControlRing final : public ShaderRing
-{
-public:
-    TaskMeshControlRing(Device* pDevice, BufferSrd* pSrdTable, bool isTmz);
-    virtual ~TaskMeshControlRing() {}
-    void InitializeControlBuffer(gpusize drawRingAddr, uint32 numEntries);
-
-protected:
-#pragma pack(push, 1)
-    struct ControlBufferLayout
-    {
-        uint64 writePtr;
-        uint64 readPtr;
-        uint64 deallocPtr;
-        uint32 numEntries;
-        uint64 drawRingBaseAddr;
-    };
-#pragma pack(pop)
-    static_assert(sizeof(ControlBufferLayout) == sizeof(uint32) * 9,
-                  "Control buffer is a different size than expected!");
-
-    virtual gpusize ComputeAllocationSize() const override
-        { return sizeof(ControlBufferLayout) + m_taskControlBufferPaddingSize; }
-    virtual void UpdateSrds() const override {};
-
-    // These bytes of zeros by panel setting will be written to control buffer as padding for FW counter writes.
-    uint32 m_taskControlBufferPaddingSize;
-
-private:
-    PAL_DISALLOW_DEFAULT_CTOR(TaskMeshControlRing);
-    PAL_DISALLOW_COPY_AND_ASSIGN(TaskMeshControlRing);
+    PAL_DISALLOW_DEFAULT_CTOR(TaskMeshCtrlDrawRing);
+    PAL_DISALLOW_COPY_AND_ASSIGN(TaskMeshCtrlDrawRing);
 };
 
 #if PAL_BUILD_GFX11

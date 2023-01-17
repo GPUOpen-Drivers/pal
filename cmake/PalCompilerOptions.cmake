@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2020-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2020-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -76,12 +76,6 @@ function(pal_compiler_options TARGET)
             # by the C++ standard.  GCC leverages this undefined behavior, and optimizes away this nullptr check that we require,
             # so we need to enable this switch to have GCC include that if-check.
             -fcheck-new
-
-            # Having simple optimization on results in dramatically smaller debug builds (and they actually build faster).
-            # This is mostly due to constant-folding and dead-code-elimination of registers.
-            $<$<CONFIG:Debug>:
-                -Og
-            >
         )
 
         # If we're using a build type that generates debug syms, compress them to save significant disk space.

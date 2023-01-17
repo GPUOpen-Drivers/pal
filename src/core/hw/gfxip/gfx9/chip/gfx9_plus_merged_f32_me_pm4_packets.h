@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -3566,10 +3566,11 @@ typedef struct PM4_ME_DISPATCH_TASKMESH_GFX
 #if CHIP_HDR_NAVI31
             struct
             {
-                uint32_t reserved2      : 29;
-                uint32_t mode1_enable   :  1;
-                uint32_t xyz_dim_enable :  1;
-                uint32_t reserved3      :  1;
+                uint32_t reserved2              : 28;
+                uint32_t linear_dispatch_enable :  1;
+                uint32_t mode1_enable           :  1;
+                uint32_t xyz_dim_enable         :  1;
+                uint32_t reserved3              :  1;
             } gfx11;
 #endif
         } bitfields;

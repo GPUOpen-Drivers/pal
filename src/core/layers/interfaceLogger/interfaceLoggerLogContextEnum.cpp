@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -554,6 +554,23 @@ void LogContext::Enum(
 
 // =====================================================================================================================
 void LogContext::Enum(
+    DepthClampMode value)
+{
+    const char* const StringTable[] =
+    {
+        "Viewport",  // 0x0,
+        "None",      // 0x1,
+        "ZeroToOne", // 0x2
+    };
+
+    const uint32 idx = static_cast<uint32>(value);
+    PAL_ASSERT(idx < ArrayLen(StringTable));
+
+    Value(StringTable[idx]);
+}
+
+// =====================================================================================================================
+void LogContext::Enum(
     DeviceClockMode value)
 {
     const char*const StringTable[] =
@@ -1031,7 +1048,7 @@ void LogContext::Enum(
         "Navi23",
         "Navi24",
         nullptr,
-        nullptr,
+        "Rembrandt",
         nullptr,
         nullptr,
         nullptr,
@@ -1046,7 +1063,7 @@ void LogContext::Enum(
         nullptr,
         nullptr,
         nullptr,
-        nullptr,
+        "Raphael",
         nullptr,
         nullptr,
         nullptr,

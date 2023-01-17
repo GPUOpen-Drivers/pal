@@ -2,7 +2,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -944,7 +944,22 @@ Result Device::CreateComputePipeline(
 {
     auto* pPipeline = PAL_PLACEMENT_NEW(pPlacementAddr) ComputePipeline(this, isInternal);
 
-    Result result = pPipeline->Init(createInfo);
+    AbiReader abiReader(GetPlatform(), createInfo.pPipelineBinary);
+    Result result = abiReader.Init();
+
+    MsgPackReader metadataReader;
+    PalAbi::CodeObjectMetadata metadata = {};
+
+    if (result == Result::Success)
+    {
+        result = abiReader.GetMetadata(&metadataReader, &metadata);
+    }
+
+    if (result == Result::Success)
+    {
+        result = pPipeline->Init(createInfo, abiReader, metadata, &metadataReader);
+    }
+
     if (result != Result::Success)
     {
         pPipeline->Destroy();

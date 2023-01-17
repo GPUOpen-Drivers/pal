@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -44,7 +44,11 @@ typedef struct hsa_kernel_dispatch_packet_s hsa_kernel_dispatch_packet_t;
 /// AMD kernel code typedef
 typedef struct amd_kernel_code_s amd_kernel_code_t;
 
-namespace Util { class VirtualLinearAllocator; }
+namespace Util
+{
+class VirtualLinearAllocator;
+class Event;
+}
 
 namespace Pal
 {
@@ -544,9 +548,11 @@ union CmdBufferBuildFlags
         /// the optimizeExclusiveSubmit flag is also set. This flag is ignored for root command buffers.
         uint32 disallowNestedLaunchViaIb2      :  1;
 
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 780)
         /// Enables execution marker support, which adds structured NOPs and timestamps to the command buffer to allow
         /// for fine-grained hang identification.
         uint32 enableExecutionMarkerSupport    :  1;
+#endif
 
         /// placeholder
         uint32 placeholder1                    :  1;
@@ -681,13 +687,49 @@ struct DynamicGraphicsShaderInfo
                          ///  value of zero means no limit is set.  The remaining valid values are in the range (0, 40]
                          ///  and specify the maximum number of waves per compute unit.  If the hardware has one wave
                          ///  limit control for multiple shader stages PAL will select the most strict limit.
-                         ///  This option is converted internally to set set HW WavesPerSh setting and the non-integer
+                         ///  This option is converted internally to set HW WavesPerSh setting and the non-integer
                          ///  maxWavesPerCu value provides more flexibility to allow arbitrary WavesPerSh value; for
                          ///  example specify less number of waves than number of CUs per shader array.
 
     uint32 cuEnableMask;  ///< This mask is AND-ed with a PAL decided CU enable mask mask to further allow limiting of
                           ///  enabled CUs.  If the hardware has one CU enable mask for multiple shader stages PAL will
                           ///  select the most strict limit.  A value of 0 will be ignored.
+};
+
+/// Specifies dynamic states of a graphics pipeline
+struct DynamicGraphicsState
+{
+    DepthClampMode depthClampMode;               ///< Depth clamping behavior.
+    DepthRange     depthRange;                   ///< Specifies Z dimensions of screen space (i.e., post viewport
+                                                 ///  transform: 0 to 1 or -1 to 1).
+    LogicOp        logicOp;                      ///< Logic operation to perform.
+    uint32         colorWriteMask;               ///< Color target write mask.
+    uint32         switchWinding           :  1; ///< Whether to reverse vertex ordering for tessellation.
+    uint32         depthClipNearEnable     :  1; ///< Enable clipping based on Near Z coordinate.
+    uint32         depthClipFarEnable      :  1; ///< Enable clipping based on Far Z coordinate.
+    uint32         alphaToCoverageEnable   :  1; ///< Enable alpha to coverage.
+    uint32         perpLineEndCapsEnable   :  1; ///< Forces the use of perpendicular line end caps as opposed to
+                                                 ///  axis-aligned line end caps during line rasterization.
+    uint32         rasterizerDiscardEnable :  1; ///< Whether to kill all rasterized pixels.
+    uint32         reserved                : 26; ///< Reserved for future use.
+
+    union
+    {
+        struct
+        {
+            uint32 depthClampMode          :  1;  ///< Whether to enable dynamic state depthClampMode.
+            uint32 depthRange              :  1;  ///< Whether to enable dynamic state depthRange.
+            uint32 logicOp                 :  1;  ///< Whether to enable dynamic state logicOp.
+            uint32 colorWriteMask          :  1;  ///< Whether to enable dynamic state colorWriteMask.
+            uint32 switchWinding           :  1;  ///< Whether to enable dynamic state switchWinding.
+            uint32 depthClipMode           :  1;  ///< Whether to enable dynamic state depthClipNear/FarEnable.
+            uint32 alphaToCoverageEnable   :  1;  ///< Whether to enable dynamic state alphaToCoverageEnable.
+            uint32 perpLineEndCapsEnable   :  1;  ///< Whether to enable dynamic state perpLineEndCapsEnable.
+            uint32 rasterizerDiscardEnable :  1;  ///< Whether to enable dynamic state rasterizerDiscardEnable.
+            uint32 reserved                : 23;  ///< Reserved for future use.
+        };
+        uint32     u32All;
+    } enable;
 };
 
 /// Specifies info on how graphics shaders should use resources.
@@ -701,6 +743,7 @@ struct DynamicGraphicsShaderInfos
     DynamicGraphicsShaderInfo ms;  ///< Dynamic Mesh shader information.
     DynamicGraphicsShaderInfo ps;  ///< Dynamic Pixel shader information.
 
+    DynamicGraphicsState      dynamicState; ///< Dynamic state of graphics pipeline.
     union
     {
         struct
@@ -1856,6 +1899,7 @@ struct GlobalScissorParams
     Rect scissorRegion; ///< Rectangle of the global scissor window.
 };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
 /// Specifies parameters for dynamically setting color write mask.
 /// @see ICmdBuffer::CmdSetColorWriteMask
 struct ColorWriteMaskParams
@@ -1863,6 +1907,7 @@ struct ColorWriteMaskParams
     uint32 count;                           ///< Number of dynamic color write masks to write
     uint8  colorWriteMask[MaxColorTargets]; ///< Color write mask values, populated from 0 to count - 1, no gaps allowed
 };
+#endif
 
 /// Specifies parameters for binding the color targets and depth target.
 /// @see ICmdBuffer::CmdBindTargets
@@ -1990,18 +2035,22 @@ struct CmdBufInfo
         uint32 u32All;                  ///< Flags packed as uint32.
     };
 
-    const IGpuMemory* pPrimaryMemory;   ///< The primary's gpu memory object used for passing its allocation handle
-                                        ///  to KMD for pre-flip primary access (PFPA). If frame metadata flags
-                                        ///  specifies that primaryHandle should be sent, clients should set this to
-                                        ///  current frame pending primary's IGpuMemory object on the creating GPU
-                                        ///  for the frameEnd command. Otherwise set this to nullptr.
+    const IGpuMemory*  pPrimaryMemory;     ///< The primary's gpu memory object used for passing its allocation handle
+                                           ///  to KMD for pre-flip primary access (PFPA). If frame metadata flags
+                                           ///  specifies that primaryHandle should be sent, clients should set this to
+                                           ///  current frame pending primary's IGpuMemory object on the creating GPU
+                                           ///  for the frameEnd command. Otherwise set this to nullptr.
 
-    const IGpuMemory* pDirectCapMemory; ///< The Direct Capture gpu memory object. It should be set if flag
-                                        ///  captureBegin or captureEnd is set. Otherwise set this to nullptr.
-    const IGpuMemory* pPrivFlipMemory;  ///< The gpu memory object of the private flip primary surface for the
-                                        ///  DirectCapture feature.
-    uint64            frameIndex;       ///< The frame index of this command buffer. It is only required for the
-                                        ///  DirectCapture feature
+    const IGpuMemory*  pDirectCapMemory;   ///< The Direct Capture gpu memory object. It should be set if flag
+                                           ///  captureBegin or captureEnd is set. Otherwise set this to nullptr.
+    const IGpuMemory*  pPrivFlipMemory;    ///< The gpu memory object of the private flip primary surface for the
+                                           ///  DirectCapture feature.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 779
+    const Util::Event* pEarlyPresentEvent; ///< The 'early present' event object. This variable can be nullptr.
+#endif
+    uint64             frameIndex;         ///< The frame index of this command buffer. It is only required for the
+                                           ///  DirectCapture feature
+
 };
 
 /// Specifies rotation angle between two images.  Used as input to ICmdBuffer::CmdScaledCopyImage.
@@ -2563,6 +2612,7 @@ public:
     virtual void CmdSetGlobalScissor(
         const GlobalScissorParams& params) = 0;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
     /// Sets color write mask.  The color write mask must be a subset of the currently bound pipeline's color write
     /// mask.  This ensures that CmdSetColorWriteMask will only turn off (and not turn on) writes after the pipeline
     /// is bound.  The updated color write mask is overwritten when binding a new pipeline.  Also, if you pass in a
@@ -2578,6 +2628,7 @@ public:
     /// @param [in] rasterizerDiscardEnable  Parameters for dynamically setting rasterizer discard enable bit
     virtual void CmdSetRasterizerDiscardEnable(
         bool rasterizerDiscardEnable) = 0;
+#endif
 
     /// Inserts a barrier in the current command stream that can stall GPU execution, flush/invalidate caches, or
     /// decompress images before further, dependent work can continue in this command buffer.
@@ -2630,7 +2681,7 @@ public:
     /// visibility operations and/or layout transitions that could not be predicted at release-time.
     ///
     /// @note Not all hardware can support the acquire/release mechanism with good performance.  This call is only
-    ///       valid if supportAcquireReleaseInterface is set in the GFXIP properties section of @ref DeviceProperties.
+    ///       valid if supportReleaseAcquireInterface is set in the GFXIP properties section of @ref DeviceProperties.
     ///
     /// @param [in]  releaseInfo  Describes the synchronization scope, availability operations, and required layout
     ///                           transitions.
@@ -2642,7 +2693,7 @@ public:
     /// set of usages, assuming CmdRelease() was called to release access for the resource's past usage.
     ///
     /// @note Not all hardware can support the acquire/release mechanism with good performance.  This call is only
-    ///       valid if supportAcquireReleaseInterface is set in the GFXIP properties section of @ref DeviceProperties.
+    ///       valid if supportReleaseAcquireInterface is set in the GFXIP properties section of @ref DeviceProperties.
     ///
     /// Conceptually, this method will:
     ///   - Ensure all specified resources are visible in memory.  The visibility operation will invalidate all
@@ -2676,7 +2727,7 @@ public:
     /// layout transitions that could not be predicted at release-time.
     ///
     /// @note Not all hardware can support the acquire/release mechanism with good performance.  This call is only
-    ///       valid if supportAcquireReleaseInterface is set in the GFXIP properties section of @ref DeviceProperties.
+    ///       valid if supportReleaseAcquireInterface is set in the GFXIP properties section of @ref DeviceProperties.
     ///
     /// @param [in] releaseInfo Describes the synchronization scope, availability operations, and required layout
     ///                         transitions.
@@ -2698,7 +2749,7 @@ public:
     ///   - Perform any requested layout transitions.
     ///
     /// @note Not all hardware can support the acquire/release mechanism with good performance.  This call is only
-    ///       valid if supportAcquireReleaseInterface is set in the GFXIP properties section of @ref DeviceProperties.
+    ///       valid if supportReleaseAcquireInterface is set in the GFXIP properties section of @ref DeviceProperties.
     ///
     /// @param [in] acquireInfo    Describes the synchronization scope, visibility operations, and the required layout
     ///                            layout transitions.
@@ -2720,7 +2771,7 @@ public:
     /// Effectively equivalent to @ref ICmdBuffer::CmdBarrier.
     ///
     /// @note Not all hardware can support the acquire/release mechanism with good performance.  This call is only
-    ///       valid if supportAcquireReleaseInterface is set in the GFXIP properties section of @ref DeviceProperties.
+    ///       valid if supportReleaseAcquireInterface is set in the GFXIP properties section of @ref DeviceProperties.
     ///
     /// @param [in] barrierInfo  Describes the synchronization scopes, availability/visibility operations, and the
     ///                          required layout transitions.
@@ -4274,11 +4325,13 @@ public:
         const void* pPayload,
         uint32      payloadSize) = 0;
 
+#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 780)
     /// Inserts a bottom-of-pipe timestamp and embedded payload inside of a NOP packet that allows crash-dump analysis
     /// tools to identify how far command buffer execution has progressed before a crash or hang.
     ///
     /// @returns Counter value of the embedded execution marker.
-    virtual uint32 CmdInsertExecutionMarker() = 0;
+    virtual uint32 CmdInsertExecutionMarker() { return 0; };
+#endif
 
     /// Copy from present back buffer to a packed pixel surface. To support packed pixel on win8/10 in full screen mode,
     /// client will create a scratch surface, convert rendered contents from application primaries into packed pixel

@@ -1,7 +1,7 @@
 ##
  #######################################################################################################################
  #
- #  Copyright (c) 2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ #  Copyright (c) 2022-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  #
  #  Permission is hereby granted, free of charge, to any person obtaining a copy
  #  of this software and associated documentation files (the "Software"), to deal
@@ -61,12 +61,21 @@ if((CMAKE_CXX_COMPILER_ID MATCHES "GNU|[Cc]lang")
         -Wextra
         -Wno-unused
         -Wno-unused-parameter
-        -Wno-unused-command-line-argument
         -Wno-ignored-qualifiers
         -Wno-missing-field-initializers
-        -Wno-self-assign
         -Wno-implicit-fallthrough
     )
+
+    if (CMAKE_CXX_COMPILER_ID MATCHES "[Cc]lang")
+        target_compile_options(addrlib PRIVATE
+            -Wno-unused-command-line-argument
+            -Wno-self-assign
+        )
+    else()
+        target_compile_options(addrlib PRIVATE
+            -Wno-type-limits
+        )
+    endif()
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # Turns on static analysis only if addrlib is the top level project
     # This allows addrlib developers to fix the problem without impacting clients.

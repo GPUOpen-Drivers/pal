@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -384,8 +384,6 @@ public:
         const void* pPayload,
         uint32      payloadSize) override;
 
-    virtual uint32 CmdInsertExecutionMarker() override;
-
     virtual void GetChunkForCmdGeneration(
         const Pm4::IndirectCmdGenerator& generator,
         const Pal::Pipeline&             pipeline,
@@ -421,9 +419,6 @@ protected:
 
     virtual Result AddPreamble() override;
     virtual Result AddPostamble() override;
-
-    virtual void BeginExecutionMarker(uint64 clientHandle) override;
-    virtual void EndExecutionMarker() override;
 
     virtual void ResetState() override;
 
@@ -623,6 +618,12 @@ private:
     void SwitchDrawFunctions(
         bool viewInstancingEnable);
 
+    uint32* WriteDbShaderControl(
+        bool       isDepthEnabled,
+        bool       usesOverRasterization,
+        CmdStream* pCmdStream,
+        uint32*    pCmdSpace);
+
     const Device&   m_device;
     const CmdUtil&  m_cmdUtil;
     CmdStream       m_deCmdStream;
@@ -671,9 +672,15 @@ private:
     regVGT_DMA_INDEX_TYPE__VI    m_vgtDmaIndexType;     // Register setting for VGT_DMA_INDEX_TYPE
     regSPI_VS_OUT_CONFIG         m_spiVsOutConfig;      // Register setting for VS_OUT_CONFIG
     regSPI_PS_IN_CONTROL         m_spiPsInControl;      // Register setting for PS_IN_CONTROL
+    regCB_COLOR_CONTROL          m_cbColorControl;      // Register setting for CB_COLOR_CONTROL
+    regPA_CL_CLIP_CNTL           m_paClClipCntl;        // Register setting for PA_CL_CLIP_CNTL
+    regCB_TARGET_MASK            m_cbTargetMask;        // Register setting for CB_TARGET_MASK
+    regVGT_TF_PARAM              m_vgtTfParam;          // Register setting for VGT_TF_PARAM
+    regPA_SC_LINE_CNTL           m_paScLineCntl;        // Register setting for PA_SC_LINE_CNTL
+    regDB_SHADER_CONTROL         m_dbShaderControl;     // Register setting for DB_SHADER_CONTROL TODO
     uint16                       m_vertexOffsetReg;     // Register where the vertex start offset is written
     uint16                       m_drawIndexReg;        // Register where the draw index is written
-
+    DepthClampMode               m_depthClampMode;      // Depth clamping behavior
     regDB_RENDER_OVERRIDE        m_dbRenderOverride;    // Last written value of the pipeline-owned part of
                                                         // DB_RENDER_OVERRIDE register.
     regPA_SU_LINE_STIPPLE_CNTL  m_paSuLineStippleCntl;  // Last written value of PA_SU_LINE_STIPPLE_CNTL

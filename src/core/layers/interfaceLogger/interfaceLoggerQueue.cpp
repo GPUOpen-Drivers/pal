@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -111,14 +111,14 @@ Result Queue::Submit(
         pLogContext->KeyAndValue("stackSizeInDwords", submitInfo.stackSizeInDwords);
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 764
-    pLogContext->KeyAndBeginList("freeMuxMemory", false);
+        pLogContext->KeyAndBeginList("freeMuxMemory", false);
 
-    if (submitInfo.pFreeMuxMemory != nullptr)
-    {
-        pLogContext->Object(submitInfo.pFreeMuxMemory);
-    }
+        if (submitInfo.pFreeMuxMemory != nullptr)
+        {
+            pLogContext->Object(submitInfo.pFreeMuxMemory);
+        }
 
-    pLogContext->EndList();
+        pLogContext->EndList();
 #endif
 
         pLogContext->EndMap();

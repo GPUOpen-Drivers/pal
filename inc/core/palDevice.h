@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -226,6 +226,8 @@ enum class AsicRevision : uint32
 #if PAL_BUILD_NAVI31
     Navi31           = 0x2C,
 #endif
+    Rembrandt        = 0x2F,
+    Raphael          = 0x34,
 };
 
 /// Specifies which operating-system-support IP level (OSSIP) this device has.
@@ -747,6 +749,10 @@ struct PalPublicSettings
     // operations.  Expanding Hi-Z leaves the Hi-Z data in a less optimal state but is a much faster operation
     // than the fine-grain resummarize.
     bool expandHiZRangeForResummarize;
+
+    // Control whether to have command buffer emit SQTT marker events. Useful for client driver to perform SQTT
+    // dump without the involvement of dev driver.
+    bool enableSqttMarkerEvent;
 };
 
 /// Defines the modes that the GPU Profiling layer can use when its buffer fills.
@@ -1476,7 +1482,15 @@ struct DeviceProperties
                 uint32 flipQueueSupportsDecodeDst :  1;    ///< If set, Decode destination images are supported
                                                            ///  in the OS flip-queue.
                 uint32 supportFreeMux             :  1;    ///< Whether FreeMux is supported by KMD
-                uint32 reserved                   : 20;    ///< Reserved for future use.
+                uint32 isDataCenterBoard          :  1;    ///< Whether the current board in use is a Data Center board.
+                                                           ///  This is meant for supporting a unified VDI/CG driver package.
+#if defined(__unix__)
+                uint32 hasPrimaryDrmNode          :  1;    ///< Set if the device has a primary DRM node.
+                uint32 hasRenderDrmNode           :  1;    ///< Set if the device has a render DRM node.
+#else
+                uint32 placeholder1               :  2;
+#endif
+                uint32 reserved                   : 17;    ///< Reserved for future use.
             };
             uint32 u32All;                        ///< Flags packed as 32-bit uint.
         } flags;                                  ///< OS-specific property flags.
@@ -1522,6 +1536,12 @@ struct DeviceProperties
             uint32 u32All;
         } timeDomains;
 
+#if defined(__unix__)
+        int64 primaryDrmNodeMajor; ///< DRM primary node major number.
+        int64 primaryDrmNodeMinor; ///< DRM primary node minor number.
+        int64 renderDrmNodeMajor;  ///< DRM render node major number.
+        int64 renderDrmNodeMinor;  ///< DRM render node minor number.
+#endif
     } osProperties;                 ///< OS-specific properties of this device.
 
     struct

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -46,10 +46,9 @@ enum class ShaderRingType : uint32
     GsVs,                              // Ring for passing vertex data between the GS & VS stage
     TfBuffer,                          // Tess-Factor Buffer
     OffChipLds,                        // Off-Chip Tessellation LDS buffers
-    PayloadData,                       // Task -> GFX payload data.
-    DrawData,                          // IndirectDraw parameters from the task shader.
+    PayloadData,                       // Task -> GFX payload data
     MeshScratch,                       // Mesh shader scratch ring
-    TaskMeshControl,                   // Task/Mesh shader control buffer ring.
+    TaskMeshCtrlDrawRing,              // Task/Mesh shader control buffer ring and draw data ring
 #if PAL_BUILD_GFX11
     VertexAttributes,                  // Ring for passing vertex and primitive attributes from the HW GS to the PS
 #endif

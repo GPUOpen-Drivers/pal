@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -34,10 +34,83 @@
 namespace Util
 {
 // =====================================================================================================================
+// Set the mode of a file for read, write or append access.
+template<typename T>
+static Result OpenFileMode(
+    uint32 accessFlags,
+    T      (&fileMode)[5])
+{
+    Result result = Result::Success;
+
+    switch (accessFlags)
+    {
+    case FileAccessRead:
+        fileMode[0] = 'r';
+        break;
+    case FileAccessWrite:
+        fileMode[0] = 'w';
+        break;
+    case FileAccessAppend:
+        fileMode[0] = 'a';
+        break;
+    case (FileAccessRead | FileAccessWrite):
+        // Both r+ and w+ modes might apply here: r+ requires that the file exists beforehand, while w+ does not. w+
+        // will create the file if it doesn't exist, like w,a,a+. w+, like w, will discard existing contents of the
+        // file. If we need to expose r+ mode, use FileAccessNoDiscard.
+        fileMode[0] = 'w';
+        fileMode[1] = '+';
+        break;
+    case (FileAccessRead | FileAccessWrite | FileAccessNoDiscard):
+        fileMode[0] = 'r';
+        fileMode[1] = '+';
+        break;
+    case (FileAccessRead | FileAccessAppend):
+        // When a file is opened by using the "a" or "a+" access type, all write operations occur at the end of the
+        // file. The file pointer can be repositioned by using fseek or rewind, but it's always moved back to the
+        // end of the file before any write operation is carried out so that existing data cannot be overwritten.
+        fileMode[0] = 'a';
+        fileMode[1] = '+';
+        break;
+    case (FileAccessRead | FileAccessBinary):
+        fileMode[0] = 'r';
+        fileMode[1] = 'b';
+        break;
+    case (FileAccessWrite | FileAccessBinary) :
+        fileMode[0] = 'w';
+        fileMode[1] = 'b';
+        break;
+    case (FileAccessRead | FileAccessWrite | FileAccessBinary):
+        fileMode[0] = 'w';
+        fileMode[1] = 'b';
+        fileMode[2] = '+';
+        fileMode[3] = 'R';
+        break;
+    case (FileAccessRead | FileAccessWrite | FileAccessBinary | FileAccessNoDiscard):
+        fileMode[0] = 'r';
+        fileMode[1] = 'b';
+        fileMode[2] = '+';
+        fileMode[3] = 'R';
+        break;
+    case (FileAccessRead | FileAccessAppend | FileAccessBinary):
+        fileMode[0] = 'a';
+        fileMode[1] = 'b';
+        fileMode[2] = '+';
+        fileMode[3] = 'R';
+        break;
+    default:
+        PAL_ASSERT_ALWAYS();
+        result = Result::ErrorInvalidFlags;
+        break;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // 64-bit platform-agnostic stat()
 Result File::GetStat(
     const char* pFilename,
-    Stat*     pStatus)
+    Stat*       pStatus)
 {
     PAL_ASSERT(pStatus != nullptr);
 
@@ -103,69 +176,8 @@ Result File::Open(
     }
     else
     {
-        char fileMode[5]{};
-
-        switch (accessFlags)
-        {
-        case FileAccessRead:
-            fileMode[0] = 'r';
-            break;
-        case FileAccessWrite:
-            fileMode[0] = 'w';
-            break;
-        case FileAccessAppend:
-            fileMode[0] = 'a';
-            break;
-        case (FileAccessRead | FileAccessWrite):
-            // Both r+ and w+ modes might apply here: r+ requires that the file exists beforehand, while w+ does not. w+
-            // will create the file if it doesn't exist, like w,a,a+. w+, like w, will discard existing contents of the
-            // file. If we need to expose r+ mode, use FileAccessNoDiscard.
-            fileMode[0] = 'w';
-            fileMode[1] = '+';
-            break;
-        case (FileAccessRead | FileAccessWrite | FileAccessNoDiscard):
-            fileMode[0] = 'r';
-            fileMode[1] = '+';
-            break;
-        case (FileAccessRead | FileAccessAppend):
-            // When a file is opened by using the "a" or "a+" access type, all write operations occur at the end of the
-            // file. The file pointer can be repositioned by using fseek or rewind, but it's always moved back to the
-            // end of the file before any write operation is carried out so that existing data cannot be overwritten.
-            fileMode[0] = 'a';
-            fileMode[1] = '+';
-            break;
-        case (FileAccessRead | FileAccessBinary):
-            fileMode[0] = 'r';
-            fileMode[1] = 'b';
-            break;
-        case (FileAccessWrite | FileAccessBinary) :
-            fileMode[0] = 'w';
-            fileMode[1] = 'b';
-            break;
-        case (FileAccessRead | FileAccessWrite | FileAccessBinary):
-            fileMode[0] = 'w';
-            fileMode[1] = 'b';
-            fileMode[2] = '+';
-            fileMode[3] = 'R';
-            break;
-        case (FileAccessRead | FileAccessWrite | FileAccessBinary | FileAccessNoDiscard):
-            fileMode[0] = 'r';
-            fileMode[1] = 'b';
-            fileMode[2] = '+';
-            fileMode[3] = 'R';
-            break;
-        case (FileAccessRead | FileAccessAppend | FileAccessBinary):
-            fileMode[0] = 'a';
-            fileMode[1] = 'b';
-            fileMode[2] = '+';
-            fileMode[3] = 'R';
-            break;
-        default:
-            PAL_ASSERT_ALWAYS();
-            result = Result::ErrorInvalidFlags;
-            break;
-        }
-
+        char fileMode[5] = {};
+        result = OpenFileMode(accessFlags, fileMode);
         if (result == Result::Success)
         {
             // Just use the traditional fopen.
@@ -200,6 +212,7 @@ Result File::Remove(
     const char* pFilename)
 {
     const int32 ret = remove(pFilename);
+
     return ret == 0 ? Result::Success : Result::ErrorUnknown;
 }
 

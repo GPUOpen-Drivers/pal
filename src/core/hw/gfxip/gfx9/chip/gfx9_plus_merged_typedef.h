@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -586,6 +586,14 @@ typedef union DF_PIE_AON_PerfMonCtlHi4                           regDF_PIE_AON_P
 typedef union DF_PIE_AON_PerfMonCtlHi5                           regDF_PIE_AON_PerfMonCtlHi5;
 typedef union DF_PIE_AON_PerfMonCtlHi6                           regDF_PIE_AON_PerfMonCtlHi6;
 typedef union DF_PIE_AON_PerfMonCtlHi7                           regDF_PIE_AON_PerfMonCtlHi7;
+typedef union DF_PIE_AON_PerfMonCtlHi8                           regDF_PIE_AON_PerfMonCtlHi8;
+typedef union DF_PIE_AON_PerfMonCtlHi9                           regDF_PIE_AON_PerfMonCtlHi9;
+typedef union DF_PIE_AON_PerfMonCtlHi10                          regDF_PIE_AON_PerfMonCtlHi10;
+typedef union DF_PIE_AON_PerfMonCtlHi11                          regDF_PIE_AON_PerfMonCtlHi11;
+typedef union DF_PIE_AON_PerfMonCtlHi12                          regDF_PIE_AON_PerfMonCtlHi12;
+typedef union DF_PIE_AON_PerfMonCtlHi13                          regDF_PIE_AON_PerfMonCtlHi13;
+typedef union DF_PIE_AON_PerfMonCtlHi14                          regDF_PIE_AON_PerfMonCtlHi14;
+typedef union DF_PIE_AON_PerfMonCtlHi15                          regDF_PIE_AON_PerfMonCtlHi15;
 typedef union DF_PIE_AON_PerfMonCtlLo0                           regDF_PIE_AON_PerfMonCtlLo0;
 typedef union DF_PIE_AON_PerfMonCtlLo1                           regDF_PIE_AON_PerfMonCtlLo1;
 typedef union DF_PIE_AON_PerfMonCtlLo2                           regDF_PIE_AON_PerfMonCtlLo2;
@@ -594,6 +602,14 @@ typedef union DF_PIE_AON_PerfMonCtlLo4                           regDF_PIE_AON_P
 typedef union DF_PIE_AON_PerfMonCtlLo5                           regDF_PIE_AON_PerfMonCtlLo5;
 typedef union DF_PIE_AON_PerfMonCtlLo6                           regDF_PIE_AON_PerfMonCtlLo6;
 typedef union DF_PIE_AON_PerfMonCtlLo7                           regDF_PIE_AON_PerfMonCtlLo7;
+typedef union DF_PIE_AON_PerfMonCtlLo8                           regDF_PIE_AON_PerfMonCtlLo8;
+typedef union DF_PIE_AON_PerfMonCtlLo9                           regDF_PIE_AON_PerfMonCtlLo9;
+typedef union DF_PIE_AON_PerfMonCtlLo10                          regDF_PIE_AON_PerfMonCtlLo10;
+typedef union DF_PIE_AON_PerfMonCtlLo11                          regDF_PIE_AON_PerfMonCtlLo11;
+typedef union DF_PIE_AON_PerfMonCtlLo12                          regDF_PIE_AON_PerfMonCtlLo12;
+typedef union DF_PIE_AON_PerfMonCtlLo13                          regDF_PIE_AON_PerfMonCtlLo13;
+typedef union DF_PIE_AON_PerfMonCtlLo14                          regDF_PIE_AON_PerfMonCtlLo14;
+typedef union DF_PIE_AON_PerfMonCtlLo15                          regDF_PIE_AON_PerfMonCtlLo15;
 typedef union DF_PIE_AON_PerfMonCtrHi0                           regDF_PIE_AON_PerfMonCtrHi0;
 typedef union DF_PIE_AON_PerfMonCtrHi1                           regDF_PIE_AON_PerfMonCtrHi1;
 typedef union DF_PIE_AON_PerfMonCtrHi2                           regDF_PIE_AON_PerfMonCtrHi2;
@@ -602,6 +618,14 @@ typedef union DF_PIE_AON_PerfMonCtrHi4                           regDF_PIE_AON_P
 typedef union DF_PIE_AON_PerfMonCtrHi5                           regDF_PIE_AON_PerfMonCtrHi5;
 typedef union DF_PIE_AON_PerfMonCtrHi6                           regDF_PIE_AON_PerfMonCtrHi6;
 typedef union DF_PIE_AON_PerfMonCtrHi7                           regDF_PIE_AON_PerfMonCtrHi7;
+typedef union DF_PIE_AON_PerfMonCtrHi8                           regDF_PIE_AON_PerfMonCtrHi8;
+typedef union DF_PIE_AON_PerfMonCtrHi9                           regDF_PIE_AON_PerfMonCtrHi9;
+typedef union DF_PIE_AON_PerfMonCtrHi10                          regDF_PIE_AON_PerfMonCtrHi10;
+typedef union DF_PIE_AON_PerfMonCtrHi11                          regDF_PIE_AON_PerfMonCtrHi11;
+typedef union DF_PIE_AON_PerfMonCtrHi12                          regDF_PIE_AON_PerfMonCtrHi12;
+typedef union DF_PIE_AON_PerfMonCtrHi13                          regDF_PIE_AON_PerfMonCtrHi13;
+typedef union DF_PIE_AON_PerfMonCtrHi14                          regDF_PIE_AON_PerfMonCtrHi14;
+typedef union DF_PIE_AON_PerfMonCtrHi15                          regDF_PIE_AON_PerfMonCtrHi15;
 typedef union DF_PIE_AON_PerfMonCtrLo0                           regDF_PIE_AON_PerfMonCtrLo0;
 typedef union DF_PIE_AON_PerfMonCtrLo1                           regDF_PIE_AON_PerfMonCtrLo1;
 typedef union DF_PIE_AON_PerfMonCtrLo2                           regDF_PIE_AON_PerfMonCtrLo2;
@@ -610,6 +634,14 @@ typedef union DF_PIE_AON_PerfMonCtrLo4                           regDF_PIE_AON_P
 typedef union DF_PIE_AON_PerfMonCtrLo5                           regDF_PIE_AON_PerfMonCtrLo5;
 typedef union DF_PIE_AON_PerfMonCtrLo6                           regDF_PIE_AON_PerfMonCtrLo6;
 typedef union DF_PIE_AON_PerfMonCtrLo7                           regDF_PIE_AON_PerfMonCtrLo7;
+typedef union DF_PIE_AON_PerfMonCtrLo8                           regDF_PIE_AON_PerfMonCtrLo8;
+typedef union DF_PIE_AON_PerfMonCtrLo9                           regDF_PIE_AON_PerfMonCtrLo9;
+typedef union DF_PIE_AON_PerfMonCtrLo10                          regDF_PIE_AON_PerfMonCtrLo10;
+typedef union DF_PIE_AON_PerfMonCtrLo11                          regDF_PIE_AON_PerfMonCtrLo11;
+typedef union DF_PIE_AON_PerfMonCtrLo12                          regDF_PIE_AON_PerfMonCtrLo12;
+typedef union DF_PIE_AON_PerfMonCtrLo13                          regDF_PIE_AON_PerfMonCtrLo13;
+typedef union DF_PIE_AON_PerfMonCtrLo14                          regDF_PIE_AON_PerfMonCtrLo14;
+typedef union DF_PIE_AON_PerfMonCtrLo15                          regDF_PIE_AON_PerfMonCtrLo15;
 typedef union GB_ADDR_CONFIG                                     regGB_ADDR_CONFIG;
 typedef union GB_ADDR_CONFIG_READ                                regGB_ADDR_CONFIG_READ;
 typedef union GCEA_PERFCOUNTER0_CFG                              regGCEA_PERFCOUNTER0_CFG;

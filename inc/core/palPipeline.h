@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2014-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2014-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -230,12 +230,7 @@ union PipelineCreateFlags
         uint32 supportDynamicDispatch : 1;  ///< Pipeline will be used with @ref ICmdBuffer::CmdDynamicDispatch.
                                             ///  This flag must only be set if the device reports support
                                             ///  via DeviceProperties.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 728
-        uint32 useCps                 : 1;  ///< Uses CPS (Continuation Passing Shader).
-#else
-        uint32 placeHolder728         : 1;
-#endif
-        uint32 reserved               : 29; ///< Reserved for future use.
+        uint32 reserved               : 30; ///< Reserved for future use.
     };
     uint32 u32All;                  ///< Flags packed as 32-bit uint.
 };

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -102,23 +102,24 @@ void TextWriter::WriteVisualConfirm(
     PresentMode presentMode  // How this visual confirm will be presented.
     ) const
 {
-    auto*const  pFpsMgr   = static_cast<Platform*>(m_pDevice->GetPlatform())->GetFpsMgr();
-    const auto& settings  = m_pDevice->GetPlatform()->PlatformSettings();
-    const auto& gpuProps  = m_pDevice->GpuProps();
+    auto*const               pFpsMgr         = static_cast<Platform*>(m_pDevice->GetPlatform())->GetFpsMgr();
+    const auto&              settings        = m_pDevice->GetPlatform()->PlatformSettings();
+    const PalPublicSettings* pPublicSettings = m_pDevice->GetPublicSettings();
+    const auto&              gpuProps        = m_pDevice->GpuProps();
 
     char overlayText[MaxTextLines][BufSize];
     memset(overlayText, 0, sizeof(overlayText));
 
     uint32 textLines = 0;
 
-    if (strlen(settings.debugOverlayConfig.miscellaneousDebugString) > 0)
+    if (strlen(pPublicSettings->miscellaneousDebugString) > 0)
     {
-        Util::Snprintf(&overlayText[textLines++][0], BufSize, settings.debugOverlayConfig.miscellaneousDebugString);
+        Util::Snprintf(&overlayText[textLines++][0], BufSize, pPublicSettings->miscellaneousDebugString);
     }
 
-    if (strlen(settings.debugOverlayConfig.renderedByString) > 0)
+    if (strlen(pPublicSettings->renderedByString) > 0)
     {
-        Util::Snprintf(&overlayText[textLines++][0], BufSize, settings.debugOverlayConfig.renderedByString);
+        Util::Snprintf(&overlayText[textLines++][0], BufSize, pPublicSettings->renderedByString);
     }
     else
     {

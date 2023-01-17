@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2020-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2020-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -2010,6 +2010,7 @@ void CmdBuffer::ReplayCmdSetGlobalScissor(
     pTgtCmdBuffer->CmdSetGlobalScissor(ReadTokenVal<GlobalScissorParams>());
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
 // =====================================================================================================================
 void CmdBuffer::CmdSetColorWriteMask(
     const ColorWriteMaskParams& params)
@@ -2041,6 +2042,7 @@ void CmdBuffer::ReplayCmdSetRasterizerDiscardEnable(
 {
     pTgtCmdBuffer->CmdSetRasterizerDiscardEnable(ReadTokenVal<bool>());
 }
+#endif
 
 // =====================================================================================================================
 void CmdBuffer::CmdBarrierInternal(
@@ -5051,23 +5053,6 @@ void CmdBuffer::ReplayCmdNop(
 }
 
 // =====================================================================================================================
-uint32 CmdBuffer::CmdInsertExecutionMarker()
-{
-    InsertToken(CmdBufCallId::CmdInsertExecutionMarker);
-
-    // We need to let this call go downwards to have the appropriate value to return back to the client.
-    return m_pNextLayer->CmdInsertExecutionMarker();
-}
-
-// =====================================================================================================================
-void CmdBuffer::ReplayCmdInsertExecutionMarker(
-    Queue*           pQueue,
-    TargetCmdBuffer* pTgtCmdBuffer)
-{
-    pTgtCmdBuffer->CmdInsertExecutionMarker();
-}
-
-// =====================================================================================================================
 void CmdBuffer::CmdPostProcessFrame(
     const CmdPostProcessFrameInfo& postProcessInfo,
     bool*                          pAddedGpuWork)
@@ -5223,8 +5208,10 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdSetViewports,
         &CmdBuffer::ReplayCmdSetScissorRects,
         &CmdBuffer::ReplayCmdSetGlobalScissor,
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
         &CmdBuffer::ReplayCmdSetColorWriteMask,
         &CmdBuffer::ReplayCmdSetRasterizerDiscardEnable,
+#endif
         &CmdBuffer::ReplayCmdBarrier,
         &CmdBuffer::ReplayCmdRelease,
         &CmdBuffer::ReplayCmdAcquire,
@@ -5304,7 +5291,6 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdSetUserClipPlanes,
         &CmdBuffer::ReplayCmdCommentString,
         &CmdBuffer::ReplayCmdNop,
-        &CmdBuffer::ReplayCmdInsertExecutionMarker,
         &CmdBuffer::ReplayCmdXdmaWaitFlipPending,
         &CmdBuffer::ReplayCmdCopyMemoryToTiledImage,
         &CmdBuffer::ReplayCmdCopyTiledImageToMemory,

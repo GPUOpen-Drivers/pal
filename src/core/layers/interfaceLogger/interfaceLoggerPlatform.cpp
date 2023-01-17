@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2016-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2016-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -95,8 +95,10 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::CmdBufferCmdSetViewports,                      (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetScissorRects,                   (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetGlobalScissor,                  (CmdBuild)            },
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 778
     { InterfaceFunc::CmdBufferCmdSetColorWriteMask,                 (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdSetRasterizerDiscardEnable,        (CmdBuild)            },
+#endif
     { InterfaceFunc::CmdBufferCmdBarrier,                           (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdRelease,                           (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdAcquire,                           (CmdBuild)            },
@@ -174,7 +176,6 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::CmdBufferCmdPresent,                           (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdCommentString,                     (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdNop,                               (CmdBuild)            },
-    { InterfaceFunc::CmdBufferCmdInsertExecutionMarker,             (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdXdmaWaitFlipPending,               (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdStartGpuProfilerLogging,           (CmdBuild)            },
     { InterfaceFunc::CmdBufferCmdStopGpuProfilerLogging,            (CmdBuild)            },

@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2015-2022 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2015-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -253,8 +253,15 @@ protected:
     // Returns true for situations where the WriteCopyImageTiledToTiledCmd function won't work.
     virtual bool UseT2tScanlineCopy(const DmaImageCopyInfo& imageCopyInfo) const = 0;
 
-    virtual uint32* WritePredicateCmd(size_t predicateDwords, uint32* pCmdSpace) const = 0;
-    virtual void PatchPredicateCmd(size_t predicateDwords, void* pPredicateCmd) const = 0;
+    virtual uint32* WriteSetupInternalPredicateMemoryCmd(
+        gpusize predMemAddress,
+        uint32  predCopyData,
+        uint32* pCmdSpace) const = 0;
+
+    virtual uint32* WritePredicateCmd(uint32* pCmdSpace) const = 0;
+    // Skip all CMD DWORDs between predication packet (starts with pPredicateCmd) and current command buffer
+    // pointer (ends with pCmdSpace)
+    virtual void PatchPredicateCmd(uint32* pPredicateCmd, uint32* pCurCmdSpace) const = 0;
 
     virtual void WriteCopyImageTiledToTiledCmdChunkCopy(const DmaImageCopyInfo& imageCopyInfo);
 
@@ -297,10 +304,10 @@ protected:
         gpusize*     pBytesCopied) const = 0;
 
     virtual uint32* WriteCopyTypedBuffer(const DmaTypedBufferCopyInfo& dmaCopyInfo, uint32* pCmdSpace) const = 0;
-    virtual void    WriteCopyImageLinearToLinearCmd(const DmaImageCopyInfo& imageCopyInfo) = 0;
-    virtual void    WriteCopyImageLinearToTiledCmd(const DmaImageCopyInfo& imageCopyInfo) = 0;
-    virtual void    WriteCopyImageTiledToLinearCmd(const DmaImageCopyInfo& imageCopyInfo) = 0;
-    virtual void    WriteCopyImageTiledToTiledCmd(const DmaImageCopyInfo& imageCopyInfo) = 0;
+    virtual uint32* WriteCopyImageLinearToLinearCmd(const DmaImageCopyInfo& imageCopyInfo, uint32* pCmdSpace) = 0;
+    virtual uint32* WriteCopyImageLinearToTiledCmd(const DmaImageCopyInfo& imageCopyInfo, uint32* pCmdSpace) = 0;
+    virtual uint32* WriteCopyImageTiledToLinearCmd(const DmaImageCopyInfo& imageCopyInfo, uint32* pCmdSpace) = 0;
+    virtual uint32* WriteCopyImageTiledToTiledCmd(const DmaImageCopyInfo& imageCopyInfo, uint32* pCmdSpace) = 0;
 
     virtual uint32* WriteCopyMemToLinearImageCmd(
         const GpuMemory&             srcGpuMemory,
@@ -357,11 +364,9 @@ protected:
     Device*const m_pDevice;
     CmdStream    m_cmdStream;
     bool         m_predMemEnabled;           // Memory predication is enabled.
+    gpusize      m_predInternalAddr;         // Internal Memory predication will reference this address.
     const uint32 m_copyOverlapHazardSyncs;   // Bitmask that depons on image type (1D, 2D or 3D). The bit is set to 1
                                              // if we need to handle overlapping copy syncing during CmdBarrier.
-    gpusize      m_predMemAddress;           // Memory predication will reference this address.
-    gpusize      m_predInternalAddr;         // Internal Memory predication will reference this address.
-    uint32       m_predCopyData;             // Predication copy data for "write data" cmd.
 
 private:
     void SetupDmaInfoSurface(
