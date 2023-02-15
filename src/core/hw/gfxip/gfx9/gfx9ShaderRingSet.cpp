@@ -376,21 +376,16 @@ static_assert(Gfx09::mmVGT_GSVS_RING_SIZE            == Gfx101::mmVGT_GSVS_RING_
 static_assert(NotGfx10::mmVGT_HS_OFFCHIP_PARAM       == Gfx101::mmVGT_HS_OFFCHIP_PARAM_UMD, "");
 static_assert(NotGfx10::mmVGT_TF_MEMORY_BASE         == Gfx101::mmVGT_TF_MEMORY_BASE_UMD, "");
 static_assert(NotGfx10::mmVGT_TF_RING_SIZE           == Gfx101::mmVGT_TF_RING_SIZE_UMD, "");
-static_assert(Gfx09::mmVGT_GSVS_RING_SIZE            == Nv21::mmVGT_GSVS_RING_SIZE_UMD, "");
-static_assert(NotGfx10::mmVGT_HS_OFFCHIP_PARAM       == Nv21::mmVGT_HS_OFFCHIP_PARAM_UMD, "");
-static_assert(NotGfx10::mmVGT_TF_MEMORY_BASE         == Nv21::mmVGT_TF_MEMORY_BASE_UMD, "");
-static_assert(NotGfx10::mmVGT_TF_RING_SIZE           == Nv21::mmVGT_TF_RING_SIZE_UMD, "");
-static_assert(Gfx101::mmVGT_TF_MEMORY_BASE_HI_UMD == Nv21::mmVGT_TF_MEMORY_BASE_HI_UMD, "");
-static_assert(Gfx09::mmVGT_GSVS_RING_SIZE            == Rembrandt::mmVGT_GSVS_RING_SIZE, "");
-static_assert(NotGfx10::mmVGT_HS_OFFCHIP_PARAM       == Rembrandt::mmVGT_HS_OFFCHIP_PARAM, "");
-static_assert(NotGfx10::mmVGT_TF_MEMORY_BASE         == Rembrandt::mmVGT_TF_MEMORY_BASE, "");
-static_assert(NotGfx10::mmVGT_TF_RING_SIZE           == Rembrandt::mmVGT_TF_RING_SIZE, "");
-static_assert(Gfx101::mmVGT_TF_MEMORY_BASE_HI_UMD    == Rembrandt::mmVGT_TF_MEMORY_BASE_HI, "");
-static_assert(Gfx09::mmVGT_GSVS_RING_SIZE            == Raphael::mmVGT_GSVS_RING_SIZE, "");
-static_assert(NotGfx10::mmVGT_HS_OFFCHIP_PARAM       == Raphael::mmVGT_HS_OFFCHIP_PARAM, "");
-static_assert(NotGfx10::mmVGT_TF_MEMORY_BASE         == Raphael::mmVGT_TF_MEMORY_BASE, "");
-static_assert(NotGfx10::mmVGT_TF_RING_SIZE           == Raphael::mmVGT_TF_RING_SIZE, "");
-static_assert(Gfx101::mmVGT_TF_MEMORY_BASE_HI_UMD    == Raphael::mmVGT_TF_MEMORY_BASE_HI, "");
+static_assert(Gfx09::mmVGT_GSVS_RING_SIZE            == Nv2x::mmVGT_GSVS_RING_SIZE_UMD, "");
+static_assert(NotGfx10::mmVGT_HS_OFFCHIP_PARAM       == Nv2x::mmVGT_HS_OFFCHIP_PARAM_UMD, "");
+static_assert(NotGfx10::mmVGT_TF_MEMORY_BASE         == Nv2x::mmVGT_TF_MEMORY_BASE_UMD, "");
+static_assert(NotGfx10::mmVGT_TF_RING_SIZE           == Nv2x::mmVGT_TF_RING_SIZE_UMD, "");
+static_assert(Gfx101::mmVGT_TF_MEMORY_BASE_HI_UMD    == Nv2x::mmVGT_TF_MEMORY_BASE_HI_UMD, "");
+static_assert(Gfx09::mmVGT_GSVS_RING_SIZE            == Apu103::mmVGT_GSVS_RING_SIZE, "");
+static_assert(NotGfx10::mmVGT_HS_OFFCHIP_PARAM       == Apu103::mmVGT_HS_OFFCHIP_PARAM, "");
+static_assert(NotGfx10::mmVGT_TF_MEMORY_BASE         == Apu103::mmVGT_TF_MEMORY_BASE, "");
+static_assert(NotGfx10::mmVGT_TF_RING_SIZE           == Apu103::mmVGT_TF_RING_SIZE, "");
+static_assert(Gfx101::mmVGT_TF_MEMORY_BASE_HI_UMD    == Apu103::mmVGT_TF_MEMORY_BASE_HI, "");
 
 // =====================================================================================================================
 // Initializes this Universal-Queue shader-ring set object.

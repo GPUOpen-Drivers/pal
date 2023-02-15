@@ -74,14 +74,8 @@ public:
     uint32* WriteSetOneContextReg(uint32 regAddr, uint32 regData, uint32* pCmdSpace);
     uint32* WriteSetOneContextRegNoOpt(uint32 regAddr, uint32 regData, uint32* pCmdSpace);
 
-    uint32* WriteSetOnePerfCtrReg(
-        uint32     regAddr,
-        uint32     value,
-        uint32*    pCmdSpace);
-    uint32* WriteSetOnePrivilegedConfigReg(
-        uint32     regAddr,
-        uint32     value,
-        uint32*    pCmdSpace);
+    uint32* WriteSetOnePerfCtrReg(uint32 regAddr, uint32 value, uint32* pCmdSpace);
+    uint32* WriteCopyPerfCtrRegToMemory(uint32 srcReg, gpusize dstGpuVa, uint32* pCmdSpace);
 
     template <Pm4ShaderType shaderType, bool pm4OptImmediate>
     uint32* WriteSetOneShReg(uint32 regAddr, uint32 regData, uint32* pCmdSpace);

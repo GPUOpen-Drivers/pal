@@ -73,6 +73,8 @@ struct HardwareStageMetadata
     Abi::PipelineSymbolType entryPoint;
     /// Scratch memory size in bytes.
     uint32                  scratchMemorySize;
+    /// size in bytes of the stack managed by the compiler backend, part of scratch_memory_size.
+    uint32                  backendStackSize;
     /// Local Data Share size in bytes.
     uint32                  ldsSize;
     /// Performance data buffer size in bytes.
@@ -155,6 +157,7 @@ struct HardwareStageMetadata
         {
             uint64 entryPoint                : 1;
             uint64 scratchMemorySize         : 1;
+            uint64 backendStackSize          : 1;
             uint64 ldsSize                   : 1;
             uint64 perfDataBufferSize        : 1;
             uint64 vgprCount                 : 1;
@@ -186,7 +189,7 @@ struct HardwareStageMetadata
             uint64 writesDepth               : 1;
             uint64 usesAppendConsume         : 1;
             uint64 usesPrimId                : 1;
-            uint64 reserved                  : 31;
+            uint64 reserved                  : 30;
         };
         uint64 uAll;
     } hasEntry;
@@ -2374,6 +2377,7 @@ namespace HardwareStageMetadataKey
 {
     static constexpr char EntryPoint[]                = ".entry_point";
     static constexpr char ScratchMemorySize[]         = ".scratch_memory_size";
+    static constexpr char BackendStackSize[]          = ".backend_stack_size";
     static constexpr char LdsSize[]                   = ".lds_size";
     static constexpr char PerfDataBufferSize[]        = ".perf_data_buffer_size";
     static constexpr char VgprCount[]                 = ".vgpr_count";

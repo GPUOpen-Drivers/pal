@@ -211,11 +211,6 @@ struct RegisterInfo
     uint16  mmRlcSpmGlobalMuxselData;
     uint16  mmRlcSpmSeMuxselAddr;
     uint16  mmRlcSpmSeMuxselData;
-    uint16  mmEaPerfResultCntl;
-    uint16  mmAtcPerfResultCntl;
-    uint16  mmAtcL2PerfResultCntl;
-    uint16  mmMcVmL2PerfResultCntl;
-    uint16  mmRpbPerfResultCntl;
     uint16  mmSpiShaderPgmLoLs;
     uint16  mmSpiShaderPgmLoEs;
     uint16  mmVgtGsMaxPrimsPerSubGroup;
@@ -382,7 +377,7 @@ public:
         void*  pBuffer) const;
     // This generic version of BuildCopyData works on graphics and compute but doesn't provide any user-friendly enums.
     // The caller must make sure that the arguments they use are legal on their engine.
-    static size_t BuildCopyData(
+    size_t BuildCopyData(
         EngineType engineType,
         uint32     engineSel,
         uint32     dstSel,
@@ -391,7 +386,7 @@ public:
         gpusize    srcAddr,
         uint32     countSel,
         uint32     wrConfirm,
-        void*      pBuffer);
+        void*      pBuffer) const;
     static size_t BuildPerfmonControl(
         uint32     perfMonCtlId,
         bool       enable,

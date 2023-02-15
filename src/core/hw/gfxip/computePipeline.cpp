@@ -171,8 +171,16 @@ Result ComputePipeline::InitFromPalAbiBinary(
     const PalAbi::HardwareStageMetadata& csStageMetadata =
         metadata.pipeline.hardwareStage[static_cast<uint32>(Abi::HardwareStage::Cs)];
 
+    if (csStageMetadata.hasEntry.backendStackSize != 0)
+    {
+        // Used by the new raytracing for Continuation, exported to Clients by IPipeline::GetStackSizeInBytes().
+        m_backendStackSizeInBytes = csStageMetadata.backendStackSize;
+    }
+
     if (csStageMetadata.hasEntry.scratchMemorySize != 0)
     {
+        // Used by the old client-raytracing way. It starts with launch kernel scratch size. Updated for the full
+        // pipeline in LinkWithLibraries().
         m_stackSizeInBytes = csStageMetadata.scratchMemorySize;
     }
 

@@ -217,8 +217,8 @@ struct GpaSampleConfig
         /// is _trace_ this will result in SPM data being added to the sample's resulting RGP blob.
         ///
         /// Note that it is up to the client to respect the hardware counter limit per block.  This can be
-        /// determined by the maxGlobalOnlyCounters, maxGlobalSharedCounters, and maxSpmCounters fields of
-        /// @ref Pal::GpuBlockPerfProperties.
+        /// determined by the maxGlobalOnlyCounters, maxGlobalSharedCounters, maxSpmCounters, and instanceGroupSize
+        /// fields of @ref Pal::GpuBlockPerfProperties.
         const PerfCounterId* pIds;
 
         /// Period for SPM sample collection in cycles.  Only relevant for _trace_ samples.

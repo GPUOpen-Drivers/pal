@@ -1785,6 +1785,10 @@ void LogContext::Struct(
     KeyAndStruct("flags", value.flags);
     KeyAndValue("useLateAllocVsLimit", value.useLateAllocVsLimit);
     KeyAndValue("lateAllocVsLimit", value.lateAllocVsLimit);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 781
+    KeyAndValue("useLateAllocGsLimit", value.useLateAllocGsLimit);
+    KeyAndValue("lateAllocGsLimit", value.lateAllocGsLimit);
+#endif
     KeyAndBeginMap("iaState", false);
     {
         KeyAndBeginMap("topologyInfo", false);

@@ -588,8 +588,21 @@ void UniversalCmdBuffer::CmdBindPipeline(
 
                 if (params.graphics.dynamicState.enable.depthClampMode)
                 {
-                    dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP =
-                        (params.graphics.dynamicState.depthClampMode == DepthClampMode::_None);
+                    // For internal RPM pipelines, we want to always disable depth clamp based on depthClampMode
+                    // without honor setting of depthClampBasedOnZExport.
+                    if (m_device.Parent()->GetPublicSettings()->depthClampBasedOnZExport &&
+                        (m_gfxCmdBufStateFlags.isGfxStatePushed == 0)) // Indicates binding a non-RPM pipeline
+                    {
+                        dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP =
+                            ((params.graphics.dynamicState.depthClampMode == DepthClampMode::_None) &&
+                             (pNewPipeline->DbShaderControl().bits.Z_EXPORT_ENABLE != 0));
+                    }
+                    else
+                    {
+                        dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP =
+                            (params.graphics.dynamicState.depthClampMode == DepthClampMode::_None);
+                    }
+
                     m_depthClampMode = params.graphics.dynamicState.depthClampMode;
                 }
             }
@@ -5579,6 +5592,7 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     m_workaroundState.LeakNestedCmdBufferState(cmdBuffer.m_workaroundState);
 
     m_vbTable.state.dirty       |= cmdBuffer.m_vbTable.modified;
+    m_vbTable.watermark          = cmdBuffer.m_vbTable.watermark;
     m_spillTable.stateCs.dirty  |= cmdBuffer.m_spillTable.stateCs.dirty;
     m_spillTable.stateGfx.dirty |= cmdBuffer.m_spillTable.stateGfx.dirty;
 

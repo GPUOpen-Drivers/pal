@@ -146,6 +146,7 @@ enum class ApplicationProfileClient : uint32
     DutyCycleScaling,
     ProBoost,
     RisWindowed,
+    FreeMux,
     Count
 };
 

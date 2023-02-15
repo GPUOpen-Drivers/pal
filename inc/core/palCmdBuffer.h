@@ -388,12 +388,13 @@ enum CacheCoherencyUsageFlags : uint32
 /// Bitmask values for the flags parameter of ICmdBuffer::CmdClearColorImage().
 enum ClearColorImageFlags : uint32
 {
-    ColorClearAutoSync = 0x00000001,   ///< PAL will automatically insert required CmdBarrier() synchronization before
+    ColorClearAutoSync   = 0x00000001, ///< PAL will automatically insert required CmdBarrier() synchronization before
                                        ///  and after the clear assuming all subresources to be cleared are currently
                                        ///  ready for rendering as a color target (as is required by API convention in
                                        ///  DX12).  Allows reduced sync costs in some situations since PAL knows
                                        ///  the details of how the clear will be performed.
-    ColorClearForceSlow = 0x00000002,  ///< Force these to use slow clears.
+    ColorClearForceSlow  = 0x00000002, ///< Force these to use slow clears.
+    ColorClearSkipIfSlow = 0x00000004, ///< Only issue the clear if it is a fast clear.
 };
 
 /// Bitmask values for the flags parameter of ICmdBuffer::CmdClearDepthStencil().

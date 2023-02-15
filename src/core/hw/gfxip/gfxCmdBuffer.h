@@ -118,8 +118,9 @@ union GfxCmdBufferStateFlags
 {
     struct
     {
-        uint32 clientPredicate :  1;  // Track if client is currently using predication functionality.
-        uint32 reserved        : 31;
+        uint32 clientPredicate  :  1;  // Track if client is currently using predication functionality.
+        uint32 isGfxStatePushed :  1;  // If CmdSaveGraphicsState was called without a matching CmdRestoreGraphicsState.
+        uint32 reserved         : 30;
     };
 
     uint32 u32All;
@@ -357,11 +358,6 @@ public:
 
     bool IsComputeStateSaved() const { return (m_computeStateFlags != 0); }
 
-#if PAL_ENABLE_PRINTS_ASSERTS
-    // Returns true if the graphics state is currently pushed.
-    bool IsGraphicsStatePushed() const { return m_graphicsStateIsPushed; }
-#endif
-
     virtual void CmdOverwriteRbPlusFormatForBlits(
         SwizzledFormat format,
         uint32         targetIndex) = 0;
@@ -444,10 +440,6 @@ private:
     void ReturnGeneratedCommandChunks(bool returnGpuMemory);
 
     const GfxDevice& m_device;
-
-#if PAL_ENABLE_PRINTS_ASSERTS
-    bool  m_graphicsStateIsPushed; // If CmdSaveGraphicsState was called without a matching CmdRestoreGraphicsState.
-#endif
 
     PAL_DISALLOW_COPY_AND_ASSIGN(GfxCmdBuffer);
     PAL_DISALLOW_DEFAULT_CTOR(GfxCmdBuffer);

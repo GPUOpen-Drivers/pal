@@ -125,6 +125,18 @@ struct GenericBlockSelect
                                     // be allocated if the client enables a counter in this instance.
 };
 
+// Breaking this out into a struct helps make the implementation cleaner.
+struct DfSelectState
+{
+    bool hasCounters;         // If any of the global counters are in use.
+    struct
+    {
+        bool   perfmonInUse;  // If this DF global counter is enabled.
+        uint16 eventUnitMask; // Event specific configuration data.
+        uint32 eventSelect;   // DF subblock instance and eventId
+    } perfmonConfig[Gfx10MaxDfPerfMon];
+};
+
 // A helper constant to remove this cast.
 constexpr uint32 GpuBlockCount = static_cast<uint32>(GpuBlock::Count);
 
@@ -189,17 +201,7 @@ struct GlobalSelectState
 
     // There is a single DF instance that defines a set of global counters. Each pair of PerfMonCtl registers controls
     // a single global counter.
-    struct
-    {
-        bool hasCounters;             // If any of the global counters are in use.
-        bool usePerfmonControlPacket; // CP supports PERFMON_CONTROL packet for DF config.
-        struct
-        {
-            bool   perfmonInUse;      // If this DF global counter is enabled.
-            uint32 eventSelect;       // DF subblock instance and eventId
-            uint8  eventUnitMask;     // Event specific configuration data.
-        } perfmonConfig[Gfx10MaxDfPerfMon];
-    } df;
+    DfSelectState df;
 
     // The generic block state. These arrays are sparse in that elements can be zero or nullptr if:
     // - The block doesn't exist on our device.
@@ -353,6 +355,8 @@ private:
 
     regGRBM_GFX_INDEX BuildGrbmGfxIndex(const InstanceMapping& mapping, GpuBlock block) const;
     MuxselEncoding BuildMuxselEncoding(const InstanceMapping& mapping, GpuBlock block, uint32 counter) const;
+    uint32 GetMallEventSelect(uint32 eventId, uint32 subBlockInstance) const;
+
     bool HasRmiSubInstances(GpuBlock block) const;
     bool IsSqLevelEvent(uint32 eventId) const;
     uint32 VirtualSeToRealSe(const uint32 index) const;
@@ -386,6 +390,7 @@ private:
 
     // Helper functions to check if we've enabled any counters for a generic block.
     bool HasGenericCounters(GpuBlock block) const;
+    bool HasGlobalDfCounters() const;
 
     // Some helpful references.
     const GpuChipProperties&   m_chipProps;

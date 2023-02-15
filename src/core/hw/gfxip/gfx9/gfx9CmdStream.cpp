@@ -1317,23 +1317,31 @@ void CmdStream::EndCurrentChunk(
 }
 
 // =====================================================================================================================
-// Writes a register for performance counters. (Some performance counter reg's are protected and others aren't). Returns
-// the size of the PM4 command written, in DWORDs.
+// Writes a perfcounter config register even if it's not in user-config space.
+// Returns a pointer to the next unused DWORD in pCmdSpace.
 uint32* CmdStream::WriteSetOnePerfCtrReg(
     uint32  regAddr,
     uint32  value,
-    uint32* pCmdSpace) // [out] Build the PM4 packet in this buffer.
+    uint32* pCmdSpace)
 {
-    uint32* pReturnVal = nullptr;
-
     if (m_cmdUtil.IsUserConfigReg(regAddr) == false)
     {
-        // Protected register: use our COPY_DATA backdoor to write the register.
-        pReturnVal = WriteSetOnePrivilegedConfigReg(regAddr, value, pCmdSpace);
+        // We must use the perfcounters select if the target isn't a user config register.
+        ME_COPY_DATA_dst_sel_enum dstSelect = dst_sel__me_copy_data__perfcounters;
+
+        pCmdSpace += m_cmdUtil.BuildCopyData(GetEngineType(),
+                                             engine_sel__me_copy_data__micro_engine,
+                                             dstSelect,
+                                             regAddr,
+                                             src_sel__me_copy_data__immediate_data,
+                                             value,
+                                             count_sel__me_copy_data__32_bits_of_data,
+                                             wr_confirm__me_copy_data__wait_for_confirmation,
+                                             pCmdSpace);
     }
     else
     {
-        // Non-protected register: use a normal SET_DATA command.
+        // Use a normal SET_DATA command for normal user-config registers.
         if (m_device.Parent()->ChipProperties().gfxLevel != GfxIpLevel::GfxIp9)
         {
             const auto engineType = GetEngineType();
@@ -1342,47 +1350,45 @@ uint32* CmdStream::WriteSetOnePerfCtrReg(
             // compute-only engines.
             if (engineType == EngineTypeUniversal)
             {
-                pReturnVal = WriteSetOneConfigReg<true>(regAddr, value, pCmdSpace);
+                pCmdSpace = WriteSetOneConfigReg<true>(regAddr, value, pCmdSpace);
             }
             else
             {
-                pReturnVal = WriteSetOneConfigReg<false>(regAddr, value, pCmdSpace);
+                pCmdSpace = WriteSetOneConfigReg<false>(regAddr, value, pCmdSpace);
             }
         }
         else
         {
-            pReturnVal = WriteSetOneConfigReg<false>(regAddr, value, pCmdSpace);
+            pCmdSpace = WriteSetOneConfigReg<false>(regAddr, value, pCmdSpace);
         }
     }
 
-    return pReturnVal;
+    return pCmdSpace;
 }
 
 // =====================================================================================================================
-// Writes a config register using a COPY_DATA packet. This is a back-door we have to write privileged registers which
-// cannot be set using a SET_DATA packet. Returns the size of the PM4 command written, in DWORDs.
-uint32* CmdStream::WriteSetOnePrivilegedConfigReg(
-    uint32     regAddr,
-    uint32     value,
-    uint32*    pCmdSpace) // [out] Build the PM4 packet in this buffer.
+// Writes a command which reads a 32-bit perfcounter register and writes it into 4-byte aligned GPU memory.
+// Returns a pointer to the next unused DWORD in pCmdSpace.
+uint32* CmdStream::WriteCopyPerfCtrRegToMemory(
+    uint32  srcReg,
+    gpusize dstGpuVa,
+    uint32* pCmdSpace)
 {
-    // We must use the perfcounters select if the target isn't a user config register.
-    const ME_COPY_DATA_dst_sel_enum dstSelect = (m_cmdUtil.IsUserConfigReg(regAddr)
-                                                 ? dst_sel__me_copy_data__mem_mapped_register
-                                                 : dst_sel__me_copy_data__perfcounters);
+    PAL_ASSERT(srcReg != 0);
 
-    // Assert that our register address will fit in the COPY_DATA packet.
-    PAL_ASSERT(CmdUtil::CanUseCopyDataRegOffset(regAddr));
+    ME_COPY_DATA_src_sel_enum srcSelect = src_sel__me_copy_data__perfcounters;
 
-    return pCmdSpace + m_cmdUtil.BuildCopyData(GetEngineType(),
-                                               engine_sel__me_copy_data__micro_engine,
-                                               dstSelect,
-                                               regAddr,
-                                               src_sel__me_copy_data__immediate_data,
-                                               value,
-                                               count_sel__me_copy_data__32_bits_of_data,
-                                               wr_confirm__me_copy_data__do_not_wait_for_confirmation,
-                                               pCmdSpace);
+    pCmdSpace += m_cmdUtil.BuildCopyData(GetEngineType(),
+                                         engine_sel__me_copy_data__micro_engine,
+                                         dst_sel__me_copy_data__tc_l2,
+                                         dstGpuVa,
+                                         srcSelect,
+                                         srcReg,
+                                         count_sel__me_copy_data__32_bits_of_data,
+                                         wr_confirm__me_copy_data__wait_for_confirmation,
+                                         pCmdSpace);
+
+    return pCmdSpace;
 }
 
 // =====================================================================================================================

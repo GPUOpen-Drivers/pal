@@ -396,6 +396,12 @@ struct GraphicsPipelineCreateInfo
     uint32              lateAllocVsLimit;      ///< The number of VS waves that can be in flight without having param
                                                ///  cache and position buffer space. If useLateAllocVsLimit flag is set,
                                                ///  PAL will use this limit instead of the PAL-specified limit.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 781
+    bool                useLateAllocGsLimit;   ///< If set, use the specified lateAllocVsLimit instead of PAL internally
+                                               ///  determining the limit.
+    uint32              lateAllocGsLimit;      ///< Controls GS LateAlloc val (for pos/prim allocations NOT param cache)
+                                               ///  on NGG pipelines. Can be no more than 127.
+#endif
     struct
     {
         struct

@@ -1008,9 +1008,7 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
     ScissorRectParams scissorInfo = {};
     scissorInfo.count             = 1;
 
-#if PAL_ENABLE_PRINTS_ASSERTS
-    PAL_ASSERT(static_cast<const UniversalCmdBuffer*>(pCmdBuffer)->IsGraphicsStatePushed());
-#endif
+    PAL_ASSERT(pCmdBuffer->GetGfxCmdBufStateFlags().isGfxStatePushed != 0);
 
     BindCommonGraphicsState(pCmdBuffer);
 
@@ -1797,9 +1795,10 @@ void RsrcProcMgr::CmdClearColorImage(
                                             (createInfo.extent.height == pBoxes[0].extent.height) &&
                                             (createInfo.extent.depth  == pBoxes[0].extent.depth)));
 
-    bool needPreComputeSync  = TestAnyFlagSet(flags, ColorClearAutoSync);
-    bool needPostComputeSync = false;
-    bool csFastClear         = false;
+    const bool skipIfSlow          = TestAnyFlagSet(flags, ColorClearSkipIfSlow);
+    const bool needPreComputeSync  = TestAnyFlagSet(flags, ColorClearAutoSync);
+    bool       needPostComputeSync = false;
+    bool       csFastClear         = false;
 
     for (uint32 rangeIdx = 0; rangeIdx < rangeCount; ++rangeIdx)
     {
@@ -1888,7 +1887,7 @@ void RsrcProcMgr::CmdClearColorImage(
         }
 
         // If we couldn't fast clear every range, then we need to slow clear whatever is left over.
-        if (pSlowClearRange->numMips != 0)
+        if ((pSlowClearRange->numMips != 0) && (skipIfSlow == false))
         {
             if (SlowClearUseGraphics(pPm4CmdBuffer,
                                      dstImage,

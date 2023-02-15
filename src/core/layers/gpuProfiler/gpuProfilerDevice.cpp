@@ -942,17 +942,20 @@ Result Device::ExtractPerfCounterInfo(
 
     if (result == Result::Success)
     {
-        uint32 blockIdx = 0;
-        // Count number of perf counters per block instance.
-        // Assume the max number of instances in any block cannot exceed 256.
-        uint8 count[static_cast<uint32>(GpuBlock::Count)][256] = {};
+        // Count number of perf counters per block and per instance group.
+        // Assume the max number of instance groups in any block cannot exceed 256.
+        constexpr uint32 MaxGroups = 256;
+        uint8 count[static_cast<uint32>(GpuBlock::Count)][MaxGroups] = {};
 
-        for (uint32 i = 0; (i < numPerfCounter) && (result == Result::Success); i++)
+        for (uint32 i = 0; i < numPerfCounter; i++)
         {
-            blockIdx = static_cast<uint32>(pPerfCounters[i].block);
+            const uint32 blockIdx           = static_cast<uint32>(pPerfCounters[i].block);
+            const uint32 blockInstanceCount = perfExpProps.blocks[blockIdx].instanceCount;
+            const uint32 blockGroupSize     = perfExpProps.blocks[blockIdx].instanceGroupSize;
+            const uint32 blockGroupCount    = blockInstanceCount / blockGroupSize;
 
-            uint32 blockInstanceCount = perfExpProps.blocks[blockIdx].instanceCount;
-            PAL_ASSERT(blockInstanceCount <= 256);
+            PAL_ASSERT(blockGroupCount <= MaxGroups);
+
             if (pPerfCounters[i].instanceId >= blockInstanceCount)
             {
                 // The block instance ID given in the config file is out of range.
@@ -962,7 +965,7 @@ Result Device::ExtractPerfCounterInfo(
                             pPerfCounters[i].instanceId,
                             blockInstanceCount);
                 result = Result::ErrorInitializationFailed;
-                continue;
+                break;
             }
 
             if (pPerfCounters[i].eventId > perfExpProps.blocks[blockIdx].maxEventId)
@@ -973,22 +976,23 @@ Result Device::ExtractPerfCounterInfo(
                             pPerfCounters[i].eventId,
                             perfExpProps.blocks[blockIdx].maxEventId);
                 result = Result::ErrorInitializationFailed;
-                continue;
+                break;
             }
 
             // The maximum number of counters depends on whether this is an SPM file or a global counters file.
             const uint32 maxCounters = isSpmConfig ? perfExpProps.blocks[blockIdx].maxSpmCounters
                                                    : perfExpProps.blocks[blockIdx].maxGlobalSharedCounters;
-            // All DF instances share same limited set of global block counters, so we need to adjust the counting
-            const bool   countAsGlobalOnly = (pPerfCounters[i].block == GpuBlock::DfMall) ? true : false;
 
             const uint64 instanceMask = pPerfCounters[i].instanceMask;
+
             for (uint32 j = 0; j < pPerfCounters[i].instanceCount; j++)
             {
                 if ((instanceMask == 0) || Util::BitfieldIsSet(instanceMask, j))
                 {
-                    uint32 instanceId = (countAsGlobalOnly) ? 0 : (pPerfCounters[i].instanceId + j);
-                    if (++count[blockIdx][instanceId] > maxCounters)
+                    const uint32 instanceId = pPerfCounters[i].instanceId + j;
+                    const uint32 groupId    = instanceId / blockGroupSize;
+
+                    if (++count[blockIdx][groupId] > maxCounters)
                     {
                         // Too many counters enabled for this block or instance.
                         PAL_DPERROR("PerfCounter[%s]: too many counters enabled for this block (count %u > max %u)",

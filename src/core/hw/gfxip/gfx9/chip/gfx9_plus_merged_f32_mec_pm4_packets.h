@@ -742,7 +742,6 @@ enum MEC_COPY_DATA_src_sel_enum
     src_sel__mec_copy_data__gpu_clock_count               =  9,
     src_sel__mec_copy_data__system_clock_count            = 10,
 #if CHIP_HDR_NAVI31
-    src_sel__mec_copy_data__ext32perfcntr__GFX11          = 11,
     src_sel__mec_copy_data__exec_ind_arg_buf__GFX11       = 12,
 #endif
 };
@@ -759,7 +758,6 @@ enum MEC_COPY_DATA_dst_sel_enum
     dst_sel__mec_copy_data__mem_mapped_reg_dc           =  6,
 #if CHIP_HDR_NAVI31
     dst_sel__mec_copy_data__exec_ind_spill_table__GFX11 =  7,
-    dst_sel__mec_copy_data__ext32perfcntr__GFX11        = 11,
 #endif
 };
 

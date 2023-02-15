@@ -953,6 +953,10 @@ public:
     CmdAllocator* GetCmdAllocator() { return m_pCmdAllocator; }
     const CmdAllocator* GetCmdAllocator() const { return m_pCmdAllocator; }
 
+    // Checks if command buffer can be preempted.
+    // Default state is permissive and assumes most command buffers contain work that is indifferent to preemption
+    virtual bool IsPreemptable() const { return true; }
+
 protected:
     CmdBuffer(const Device&              device,
               const CmdBufferCreateInfo& createInfo);

@@ -1195,7 +1195,9 @@ void LogContext::ClearColorImageFlags(
 {
     const char*const StringTable[] =
     {
-        "ColorClearAutoSync", // 0x1,
+        "ColorClearAutoSync",   // 0x1,
+        "ColorClearForceSlow",  // 0x2,
+        "ColorClearSkipIfSlow", // 0x4,
     };
 
     BeginList(false);

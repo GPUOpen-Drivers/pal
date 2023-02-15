@@ -558,18 +558,29 @@ struct PerfCounterBlockInfo
     uint32                  numGlobalSharedCounters; // Number of global counters that use the same counter state as
                                                      // SPM counters, per instance.
 
+    // If the instance group size is equal to one, every block instance has its own independent counter hardware.
+    // PAL guarantees this is true for all non-DF blocks.
+    //
+    // Otherwise the instance group size will be a value greater than one which indicates how many sequential
+    // instances share the same counter hardware. The client must take care to not enable too many counters within
+    // each of these groups.
+    //
+    // For example, the DfMall block may expose 16 instances with 8 global counters but define a group size of 16.
+    // In that case all instances are part of one massive group which uses one pool of counter state such that no
+    // combination of DfMall counter configurations can exceed 8 global counters.
+    uint32 instanceGroupSize;
+
     // These fields are meant only for internal use in the perf experiment code.
-    PerfCounterRegAddr      regAddr;                 // The perfcounter register addresses for this block.
-    uint32                  numGenericSpmModules;    // Number of SPM perfmon modules per instance. Can be configured
-                                                     // as 1 global counter, 1-2 32-bit SPM counters, or 1-4 16-bit SPM
-                                                     // counters.
-    uint32                  numGenericLegacyModules; // Number of legacy (global only) counter modules per instance.
-    uint32                  numSpmWires;             // The number of 32-bit serial data wires going to the RLC. This
-                                                     // is the ultimate limit on the number of SPM counters.
-    uint32                  spmBlockSelect;          // Identifies this block in the RLC's SPM select logic.
-    bool                    isCfgStyle;              // An alternative counter programming model that: specifies legacy
-                                                     // "CFG" registers instead of "SELECT" registers, uses a master
-                                                     // "RSLT_CNTL" register, and can optionally use generic SPM.
+    PerfCounterRegAddr regAddr;     // The perfcounter register addresses for this block.
+    uint32 numGenericSpmModules;    // Number of SPM perfmon modules per instance. Can be configured as 1 global
+                                    // counter, 1-2 32-bit SPM counters, or 1-4 16-bit SPM counters.
+    uint32 numGenericLegacyModules; // Number of legacy (global only) counter modules per instance.
+    uint32 numSpmWires;             // The number of 32-bit serial data wires going to the RLC. This is the ultimate
+                                    // limit on the number of SPM counters.
+    uint32 spmBlockSelect;          // Identifies this block in the RLC's SPM select logic.
+    bool   isCfgStyle;              // An alternative counter programming model that: specifies legacy  "CFG" registers
+                                    // instead of "SELECT" registers, uses a master "RSLT_CNTL" register, and can
+                                    // optionally use generic SPM.
 };
 
 // SDMA is a global block with unique registers for each instance; this requires special handling.

@@ -1889,9 +1889,10 @@ static Result ConvertAbiRegistersToMetadata(
                     }
 
 #if PAL_BUILD_GFX11
-                    if (IsGfx11(palDevice))
+                    if (IsGfx11(palDevice)
+                        )
                     {
-                        PAL_SET_ABI_FLAG(pPaClVsOutCntl, useVtxFsrSelect, paClVsOutCntl.gfx11.USE_VTX_FSR_SELECT);
+                        PAL_SET_ABI_FLAG(pPaClVsOutCntl, useVtxFsrSelect, paClVsOutCntl.gfx110.USE_VTX_FSR_SELECT);
                     }
 #endif
                 }
@@ -7299,40 +7300,38 @@ void InitializeGpuChipProperties(
 
 #if PAL_BUILD_NAVI3X
     case FAMILY_NV3:
-        pInfo->gfx9.rbPlus     = 1;
-        pInfo->gfx9.supportSpp = 1;
+        pInfo->gpuType = GpuType::Discrete;
+
+        pInfo->gfx9.rbPlus          = 1;
+        pInfo->gfx9.supportSpp      = 1;
+        pInfo->gfx9.supportFp16Dot2 = 1;
+        pInfo->gfx9.supportInt8Dot  = 1;
+        pInfo->gfx9.supportInt4Dot  = 1;
+
+        pInfo->imageProperties.flags.supportsCornerSampling = 1;
+
+        //  Navi3x products don't support EQAA
+        pInfo->imageProperties.msaaSupport = static_cast<MsaaFlags>(MsaaS1F1 | MsaaS2F2 | MsaaS4F4 | MsaaS8F8);
 
 #if PAL_BUILD_NAVI31
         if (AMDGPU_IS_NAVI31(pInfo->familyId, pInfo->eRevId))
         {
-
-            pInfo->gpuType                             = GpuType::Discrete;
-            pInfo->revision                            = AsicRevision::Navi31;
-            pInfo->gfxStepping                         = Abi::GfxIpSteppingNavi31;
-            pInfo->gfx9.numShaderEngines               = 6;
-            pInfo->gfx9.numSdpInterfaces               = 16;
-            pInfo->gfx9.maxNumCuPerSh                  = 8;
-            pInfo->gfx9.maxNumRbPerSe                  = 4;
-            pInfo->gfx9.numPackerPerSc                 = 4;
-            pInfo->gfx9.gfx10.numGl2a                  = 4;  // GC__NUM_GL2A
-            pInfo->gfx9.gfx10.numGl2c                  = 24; // GC__NUM_GL2C
-            pInfo->gfx9.supportFp16Dot2                = 1;
-            pInfo->gfx9.supportInt8Dot                 = 1;
-            pInfo->gfx9.supportInt4Dot                 = 1;
-            pInfo->gfxip.mallSizeInBytes               = 96_MiB;
+            pInfo->revision              = AsicRevision::Navi31;
+            pInfo->gfxStepping           = Abi::GfxIpSteppingNavi31;
+            pInfo->gfx9.numShaderEngines = 6;
+            pInfo->gfx9.numSdpInterfaces = 16;
+            pInfo->gfx9.maxNumCuPerSh    = 8;
+            pInfo->gfx9.maxNumRbPerSe    = 4;
+            pInfo->gfx9.numPackerPerSc   = 4;
+            pInfo->gfx9.gfx10.numGl2a    = 4;  // GC__NUM_GL2A
+            pInfo->gfx9.gfx10.numGl2c    = 24; // GC__NUM_GL2C
+            pInfo->gfxip.mallSizeInBytes = 96_MiB;
 
             pInfo->gfx9.gfx10.numWgpAboveSpi = 4; // GPU__GC__NUM_WGP0_PER_SA
             pInfo->gfx9.gfx10.numWgpBelowSpi = 0; // GPU__GC__NUM_WGP1_PER_SA
-
-            // GFX11-specific image properties go here
-            pInfo->imageProperties.flags.supportsCornerSampling = 1;
-
-            //  Navi3x products don't support EQAA
-            pInfo->imageProperties.msaaSupport   = static_cast<MsaaFlags>(MsaaS1F1 | MsaaS2F2 | MsaaS4F4 | MsaaS8F8);
         }
         else
 #endif
-
         {
             PAL_ASSERT_ALWAYS_MSG("Unknown NV3 Revision %d", pInfo->eRevId);
         }
@@ -7619,6 +7618,8 @@ void InitializePerfExperimentProperties(
             pBlock->maxEventId                = blockInfo.maxEventId;
             pBlock->maxGlobalOnlyCounters     = blockInfo.numGlobalOnlyCounters;
             pBlock->maxSpmCounters            = blockInfo.num16BitSpmCounters;
+            pBlock->instanceGroupSize         = blockInfo.instanceGroupSize;
+
             if (blockIdx == static_cast<uint32>(GpuBlock::DfMall))
             {
                 // For DF SPM, the max number of counters is equal to the number of global counters
@@ -7628,7 +7629,7 @@ void InitializePerfExperimentProperties(
             // Note that the current interface says the shared count includes all global counters. This seems
             // to be contradictory, how can something be shared and global-only? Regardless, we cannot change this
             // without a major interface change so we must compute the total number of global counters here.
-            pBlock->maxGlobalSharedCounters   = blockInfo.numGlobalSharedCounters + blockInfo.numGlobalOnlyCounters;
+            pBlock->maxGlobalSharedCounters = blockInfo.numGlobalSharedCounters + blockInfo.numGlobalOnlyCounters;
         }
     }
 }

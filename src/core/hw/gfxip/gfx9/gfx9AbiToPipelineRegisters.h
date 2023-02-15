@@ -643,7 +643,8 @@ static uint32 SpiShaderPgmRsrc4Gs(
     const Device&                           device,
     GfxIpLevel                              gfxLevel,
     bool                                    nggEnabled,
-    size_t                                  codeLength)
+    size_t                                  codeLength,
+    const GraphicsPipelineCreateInfo&       createInfo)
 {
     const Gfx9PalSettings&   settings        = device.Settings();
     const PalPublicSettings* pPublicSettings = device.Parent()->GetPublicSettings();
@@ -652,8 +653,14 @@ static uint32 SpiShaderPgmRsrc4Gs(
 
     SPI_SHADER_PGM_RSRC4_GS spiShaderPgmRsrc4Gs = {};
 
-    uint32 lateAllocWaves  = (nggEnabled) ? pPublicSettings->nggLateAllocGs : settings.lateAllocGs;
-    uint32 lateAllocLimit  = 127;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 781
+    uint32 nggLateAllocWaves = (createInfo.useLateAllocGsLimit) ? createInfo.lateAllocGsLimit :
+                                                                  pPublicSettings->nggLateAllocGs;
+#else
+    uint32 nggLateAllocWaves = pPublicSettings->nggLateAllocGs;
+#endif
+    uint32 lateAllocWaves    = (nggEnabled) ? nggLateAllocWaves : settings.lateAllocGs;
+    uint32 lateAllocLimit    = 127;
 
     if (nggEnabled == false)
     {
@@ -1739,9 +1746,10 @@ static uint32 PaClVsOutCntl(
     }
 
 #if PAL_BUILD_GFX11
-    if (IsGfx11(gfxLevel))
+    if (IsGfx11(gfxLevel)
+        )
     {
-        paClVsOutCntl.gfx11.USE_VTX_FSR_SELECT = paClVsOutCntlMetadata.flags.useVtxFsrSelect;
+        paClVsOutCntl.gfx110.USE_VTX_FSR_SELECT = paClVsOutCntlMetadata.flags.useVtxFsrSelect;
     }
 #endif
 

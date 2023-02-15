@@ -1285,8 +1285,21 @@ void UniversalCmdBuffer::CmdBindPipeline(
 
                 if (params.graphics.dynamicState.enable.depthClampMode)
                 {
-                    dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP =
-                        (params.graphics.dynamicState.depthClampMode == DepthClampMode::_None);
+                    // For internal RPM pipelines, we want to always disable depth clamp based on depthClampMode
+                    // without honor setting of depthClampBasedOnZExport.
+                    if (m_device.Parent()->GetPublicSettings()->depthClampBasedOnZExport &&
+                        (m_gfxCmdBufStateFlags.isGfxStatePushed == 0)) // Indicates binding a non-RPM pipeline
+                    {
+                        dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP =
+                            ((params.graphics.dynamicState.depthClampMode == DepthClampMode::_None) &&
+                             (pNewPipeline->DbShaderControl().bits.Z_EXPORT_ENABLE != 0));
+                    }
+                    else
+                    {
+                        dbRenderOverride.bits.DISABLE_VIEWPORT_CLAMP =
+                            (params.graphics.dynamicState.depthClampMode == DepthClampMode::_None);
+                    }
+
                     m_depthClampMode = params.graphics.dynamicState.depthClampMode;
                 }
             }
@@ -1456,13 +1469,23 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
     // To reduce context rolls due to pipeline state switches the command buffer tracks VS export count and
     // the PS interpolant count and only sets these registers when the maximum value increases. This heuristic
     // pads the actual parameter cache space required for VS/PS to avoid context rolls.
-    if (m_cachedSettings.padParamCacheSpace && (IsGfx9(m_gfxIpLevel) || IsGfx10(m_gfxIpLevel)))
+    if (m_cachedSettings.padParamCacheSpace)
     {
-        spiVsOutConfig.bits.VS_EXPORT_COUNT =
-            Max(m_spiVsOutConfig.bits.VS_EXPORT_COUNT, spiVsOutConfig.bits.VS_EXPORT_COUNT);
+        const bool padVsOut = IsGfx9(m_gfxIpLevel) || IsGfx10(m_gfxIpLevel);
+        const bool padPsIn = padVsOut;
 
-        spiPsInControl.bits.NUM_INTERP =
-            Max(m_spiPsInControl.bits.NUM_INTERP, spiPsInControl.bits.NUM_INTERP);
+        if (padVsOut)
+        {
+            spiVsOutConfig.bits.VS_EXPORT_COUNT =
+                Max(m_spiVsOutConfig.bits.VS_EXPORT_COUNT, spiVsOutConfig.bits.VS_EXPORT_COUNT);
+        }
+
+        if (padPsIn)
+        {
+            spiPsInControl.bits.NUM_INTERP =
+                Max(m_spiPsInControl.bits.NUM_INTERP, spiPsInControl.bits.NUM_INTERP);
+        }
+
     }
 
     // Write VS_OUT_CONFIG if the register changed or this is the first pipeline switch
@@ -2623,8 +2646,8 @@ void UniversalCmdBuffer::CmdBindTargets(
         {
             if (IsNavi2x(*(m_device.Parent())))
             {
-                m_cbRmiGl2CacheControl.nv21.CMASK_L3_BYPASS = bypassMall;
-                m_cbRmiGl2CacheControl.nv21.FMASK_L3_BYPASS = bypassMall;
+                m_cbRmiGl2CacheControl.nv2x.CMASK_L3_BYPASS = bypassMall;
+                m_cbRmiGl2CacheControl.nv2x.FMASK_L3_BYPASS = bypassMall;
             }
 
             m_cbRmiGl2CacheControl.mall.DCC_L3_BYPASS   = bypassMall;
@@ -4508,15 +4531,15 @@ void UniversalCmdBuffer::CmdWriteTimestamp(
 
     if (pipePoint == HwPipePostPrefetch)
     {
-        pDeCmdSpace += CmdUtil::BuildCopyData(EngineTypeUniversal,
-                                              engine_sel__me_copy_data__micro_engine,
-                                              dst_sel__me_copy_data__memory__GFX09,
-                                              address,
-                                              src_sel__me_copy_data__gpu_clock_count,
-                                              0,
-                                              count_sel__me_copy_data__64_bits_of_data,
-                                              wr_confirm__me_copy_data__wait_for_confirmation,
-                                              pDeCmdSpace);
+        pDeCmdSpace += m_cmdUtil.BuildCopyData(EngineTypeUniversal,
+                                               engine_sel__me_copy_data__micro_engine,
+                                               dst_sel__me_copy_data__memory__GFX09,
+                                               address,
+                                               src_sel__me_copy_data__gpu_clock_count,
+                                               0,
+                                               count_sel__me_copy_data__64_bits_of_data,
+                                               wr_confirm__me_copy_data__wait_for_confirmation,
+                                               pDeCmdSpace);
     }
     else
     {
@@ -4548,29 +4571,29 @@ void UniversalCmdBuffer::CmdWriteImmediate(
 
     if (pipePoint == HwPipeTop)
     {
-        pDeCmdSpace += CmdUtil::BuildCopyData(EngineTypeUniversal,
-                                              engine_sel__pfp_copy_data__prefetch_parser,
-                                              dst_sel__pfp_copy_data__memory__GFX09,
-                                              address,
-                                              src_sel__pfp_copy_data__immediate_data,
-                                              data,
-                                              is32Bit ? count_sel__pfp_copy_data__32_bits_of_data
-                                                      : count_sel__pfp_copy_data__64_bits_of_data,
-                                              wr_confirm__pfp_copy_data__wait_for_confirmation,
-                                              pDeCmdSpace);
+        pDeCmdSpace += m_cmdUtil.BuildCopyData(EngineTypeUniversal,
+                                               engine_sel__pfp_copy_data__prefetch_parser,
+                                               dst_sel__pfp_copy_data__memory__GFX09,
+                                               address,
+                                               src_sel__pfp_copy_data__immediate_data,
+                                               data,
+                                               is32Bit ? count_sel__pfp_copy_data__32_bits_of_data
+                                                       : count_sel__pfp_copy_data__64_bits_of_data,
+                                               wr_confirm__pfp_copy_data__wait_for_confirmation,
+                                               pDeCmdSpace);
     }
     else if (pipePoint == HwPipePostPrefetch)
     {
-        pDeCmdSpace += CmdUtil::BuildCopyData(EngineTypeUniversal,
-                                              engine_sel__me_copy_data__micro_engine,
-                                              dst_sel__me_copy_data__memory__GFX09,
-                                              address,
-                                              src_sel__me_copy_data__immediate_data,
-                                              data,
-                                              is32Bit ? count_sel__me_copy_data__32_bits_of_data
-                                                      : count_sel__me_copy_data__64_bits_of_data,
-                                              wr_confirm__me_copy_data__wait_for_confirmation,
-                                              pDeCmdSpace);
+        pDeCmdSpace += m_cmdUtil.BuildCopyData(EngineTypeUniversal,
+                                               engine_sel__me_copy_data__micro_engine,
+                                               dst_sel__me_copy_data__memory__GFX09,
+                                               address,
+                                               src_sel__me_copy_data__immediate_data,
+                                               data,
+                                               is32Bit ? count_sel__me_copy_data__32_bits_of_data
+                                                       : count_sel__me_copy_data__64_bits_of_data,
+                                               wr_confirm__me_copy_data__wait_for_confirmation,
+                                               pDeCmdSpace);
     }
     else
     {
@@ -9893,15 +9916,15 @@ void UniversalCmdBuffer::CmdSetPredication(
                                                                        &predicateVirtAddr);
         pPredicate[0] = 0;
         pPredicate[1] = 0;
-        pDeCmdSpace += CmdUtil::BuildCopyData(EngineTypeUniversal,
-                                              engine_sel__me_copy_data__micro_engine,
-                                              dst_sel__me_copy_data__memory__GFX09,
-                                              predicateVirtAddr,
-                                              src_sel__me_copy_data__memory__GFX09,
-                                              gpuVirtAddr,
-                                              count_sel__me_copy_data__32_bits_of_data,
-                                              wr_confirm__me_copy_data__wait_for_confirmation,
-                                              pDeCmdSpace);
+        pDeCmdSpace += m_cmdUtil.BuildCopyData(EngineTypeUniversal,
+                                               engine_sel__me_copy_data__micro_engine,
+                                               dst_sel__me_copy_data__memory__GFX09,
+                                               predicateVirtAddr,
+                                               src_sel__me_copy_data__memory__GFX09,
+                                               gpuVirtAddr,
+                                               count_sel__me_copy_data__32_bits_of_data,
+                                               wr_confirm__me_copy_data__wait_for_confirmation,
+                                               pDeCmdSpace);
 
         pDeCmdSpace += CmdUtil::BuildPfpSyncMe(pDeCmdSpace);
         gpuVirtAddr = predicateVirtAddr;
@@ -11132,6 +11155,7 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     }
 
     m_vbTable.state.dirty       |= cmdBuffer.m_vbTable.modified;
+    m_vbTable.watermark          = cmdBuffer.m_vbTable.watermark;
     m_spillTable.stateCs.dirty  |= cmdBuffer.m_spillTable.stateCs.dirty;
     m_spillTable.stateGfx.dirty |= cmdBuffer.m_spillTable.stateGfx.dirty;
 
@@ -11163,7 +11187,10 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     m_pm4CmdBufState.flags.csWriteCachesDirty        = cmdBuffer.m_pm4CmdBufState.flags.csWriteCachesDirty;
     m_pm4CmdBufState.flags.cpWriteCachesDirty        = cmdBuffer.m_pm4CmdBufState.flags.cpWriteCachesDirty;
     m_pm4CmdBufState.flags.cpMemoryWriteL2CacheStale = cmdBuffer.m_pm4CmdBufState.flags.cpMemoryWriteL2CacheStale;
-
+    if (cmdBuffer.m_deCmdStream.IsPreemptionEnabled() == false)
+    {
+        m_deCmdStream.DisablePreemption();
+    }
     m_pSignatureCs  = cmdBuffer.m_pSignatureCs;
     m_pSignatureGfx = cmdBuffer.m_pSignatureGfx;
 
@@ -11459,15 +11486,15 @@ void UniversalCmdBuffer::AddPerPresentCommands(
                                            UINT32_MAX,
                                            pDeCmdSpace);
 
-    pDeCmdSpace += CmdUtil::BuildCopyData(EngineTypeUniversal,
-                                          engine_sel__me_copy_data__micro_engine,
-                                          dst_sel__me_copy_data__perfcounters,
-                                          frameCntReg,
-                                          src_sel__me_copy_data__tc_l2,
-                                          frameCountGpuAddr,
-                                          count_sel__me_copy_data__32_bits_of_data,
-                                          wr_confirm__me_copy_data__do_not_wait_for_confirmation,
-                                          pDeCmdSpace);
+    pDeCmdSpace += m_cmdUtil.BuildCopyData(EngineTypeUniversal,
+                                           engine_sel__me_copy_data__micro_engine,
+                                           dst_sel__me_copy_data__perfcounters,
+                                           frameCntReg,
+                                           src_sel__me_copy_data__tc_l2,
+                                           frameCountGpuAddr,
+                                           count_sel__me_copy_data__32_bits_of_data,
+                                           wr_confirm__me_copy_data__do_not_wait_for_confirmation,
+                                           pDeCmdSpace);
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 }
@@ -12289,6 +12316,12 @@ void UniversalCmdBuffer::EraseVrsCopiesToDepthImage(
             pMapping->pRateImage = nullptr;
         }
     }
+}
+
+// =====================================================================================================================
+bool UniversalCmdBuffer::IsPreemptable() const
+{
+    return m_deCmdStream.IsPreemptionEnabled();
 }
 
 // =====================================================================================================================

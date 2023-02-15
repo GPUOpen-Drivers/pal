@@ -79,11 +79,8 @@ Result CreateRpmComputePipelines(
     case AsicRevision::Vega10:
     case AsicRevision::Raven:
     case AsicRevision::Vega12:
-        pTable = rpmComputeBinaryTableVega10;
-        break;
-
     case AsicRevision::Vega20:
-        pTable = rpmComputeBinaryTableVega20;
+        pTable = rpmComputeBinaryTableVega10;
         break;
 
     case AsicRevision::Raven2:

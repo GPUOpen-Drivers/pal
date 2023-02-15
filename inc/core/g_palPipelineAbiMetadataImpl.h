@@ -917,6 +917,12 @@ inline Result DeserializeHardwareStageMetadata(
                 pMetadata->hasEntry.scratchMemorySize = (result == Result::Success);;
                 break;
 
+            case HashLiteralString(HardwareStageMetadataKey::BackendStackSize):
+                PAL_ASSERT(pMetadata->hasEntry.backendStackSize == 0);
+                result = pReader->UnpackNext(&pMetadata->backendStackSize);
+                pMetadata->hasEntry.backendStackSize = (result == Result::Success);;
+                break;
+
             case HashLiteralString(HardwareStageMetadataKey::LdsSize):
                 PAL_ASSERT(pMetadata->hasEntry.ldsSize == 0);
                 result = pReader->UnpackNext(&pMetadata->ldsSize);

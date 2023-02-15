@@ -1283,10 +1283,16 @@ void InitPerfCtrInfo(
     // We depend very heavily on unsupported fields being zero by default.
     memset(pInfo, 0, sizeof(*pInfo));
 
-    // The SPM block select requires a non-zero default. We use UINT32_MAX to indicate "invalid".
+    // Some fields require non-zero defaults.
     for (uint32 idx = 0; idx < static_cast<uint32>(GpuBlock::Count); idx++)
     {
-        pInfo->block[idx].spmBlockSelect = UINT32_MAX;
+        PerfCounterBlockInfo*const pBlock = &pInfo->block[idx];
+
+        // The SPM block select requires a non-zero default. We use UINT32_MAX to indicate "invalid".
+        pBlock->spmBlockSelect = UINT32_MAX;
+
+        // All blocks have per-instance counter hardware.
+        pBlock->instanceGroupSize = 1;
     }
 
     pInfo->features.counters    = 1;

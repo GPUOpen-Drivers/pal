@@ -111,7 +111,8 @@ void PipelineChunkGs::LateInit(
                                                                                   m_device,
                                                                                   chipProps.gfxLevel,
                                                                                   loadInfo.enableNgg,
-                                                                                  m_stageInfo.codeLength);
+                                                                                  m_stageInfo.codeLength,
+                                                                                  createInfo);
     m_regs.sh.spiShaderPgmChksumGs.u32All = AbiRegisters::SpiShaderPgmChksumGs(metadata, m_device);
 
 #if PAL_BUILD_GFX11

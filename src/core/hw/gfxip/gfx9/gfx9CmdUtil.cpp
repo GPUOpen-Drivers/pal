@@ -356,13 +356,8 @@ CmdUtil::CmdUtil(
 
     if (m_chipProps.gfxLevel == GfxIpLevel::GfxIp9)
     {
-        if (IsVega10(parent) || IsRaven(parent))
+        if ((IsVega10(parent) == false) && (IsRaven(parent) == false))
         {
-            m_registerInfo.mmEaPerfResultCntl = Gfx09_0::mmGCEA_PERFCOUNTER_RSLT_CNTL;
-        }
-        else
-        {
-            m_registerInfo.mmEaPerfResultCntl    = Gfx09_1x::mmGCEA_PERFCOUNTER_RSLT_CNTL;
             m_registerInfo.mmComputeShaderChksum = Gfx09_1x::mmCOMPUTE_SHADER_CHKSUM;
 
             if (IsVega12(parent) || IsVega20(parent))
@@ -372,24 +367,11 @@ CmdUtil::CmdUtil(
             }
         }
 
-        m_registerInfo.mmRlcPerfmonClkCntl      = Gfx09::mmRLC_PERFMON_CLK_CNTL;
-        m_registerInfo.mmRlcSpmGlobalMuxselAddr = Gfx09::mmRLC_SPM_GLOBAL_MUXSEL_ADDR;
-        m_registerInfo.mmRlcSpmGlobalMuxselData = Gfx09::mmRLC_SPM_GLOBAL_MUXSEL_DATA;
-        m_registerInfo.mmRlcSpmSeMuxselAddr     = Gfx09::mmRLC_SPM_SE_MUXSEL_ADDR;
-        m_registerInfo.mmRlcSpmSeMuxselData     = Gfx09::mmRLC_SPM_SE_MUXSEL_DATA;
-        m_registerInfo.mmAtcPerfResultCntl      = Gfx09::mmATC_PERFCOUNTER_RSLT_CNTL;
-        m_registerInfo.mmAtcL2PerfResultCntl    = Gfx09::mmATC_L2_PERFCOUNTER_RSLT_CNTL;
-        m_registerInfo.mmMcVmL2PerfResultCntl   = Gfx09::mmMC_VM_L2_PERFCOUNTER_RSLT_CNTL;
-
-        if (IsRenoir(parent))
-        {
-            m_registerInfo.mmRpbPerfResultCntl = Rn::mmRPB_PERFCOUNTER_RSLT_CNTL;
-        }
-        else
-        {
-            m_registerInfo.mmRpbPerfResultCntl = Vg10_Vg12_Vg20_Rv1x_Rv2x::mmRPB_PERFCOUNTER_RSLT_CNTL;
-        }
-
+        m_registerInfo.mmRlcPerfmonClkCntl          = Gfx09::mmRLC_PERFMON_CLK_CNTL;
+        m_registerInfo.mmRlcSpmGlobalMuxselAddr     = Gfx09::mmRLC_SPM_GLOBAL_MUXSEL_ADDR;
+        m_registerInfo.mmRlcSpmGlobalMuxselData     = Gfx09::mmRLC_SPM_GLOBAL_MUXSEL_DATA;
+        m_registerInfo.mmRlcSpmSeMuxselAddr         = Gfx09::mmRLC_SPM_SE_MUXSEL_ADDR;
+        m_registerInfo.mmRlcSpmSeMuxselData         = Gfx09::mmRLC_SPM_SE_MUXSEL_DATA;
         m_registerInfo.mmSpiShaderPgmLoLs           = Gfx09::mmSPI_SHADER_PGM_LO_LS;
         m_registerInfo.mmSpiShaderPgmLoEs           = Gfx09::mmSPI_SHADER_PGM_LO_ES;
         m_registerInfo.mmVgtGsMaxPrimsPerSubGroup   = Gfx09::mmVGT_GS_MAX_PRIMS_PER_SUBGROUP;
@@ -399,63 +381,10 @@ CmdUtil::CmdUtil(
     }
     else
     {
-        m_registerInfo.mmRlcSpmGlobalMuxselAddr         = Gfx10::mmRLC_SPM_GLOBAL_MUXSEL_ADDR;
-        m_registerInfo.mmRlcSpmGlobalMuxselData         = Gfx10::mmRLC_SPM_GLOBAL_MUXSEL_DATA;
-        m_registerInfo.mmRlcSpmSeMuxselAddr             = Gfx10::mmRLC_SPM_SE_MUXSEL_ADDR;
-        m_registerInfo.mmRlcSpmSeMuxselData             = Gfx10::mmRLC_SPM_SE_MUXSEL_DATA;
-
-        if (IsGfx101(parent))
-        {
-            m_registerInfo.mmEaPerfResultCntl               = Gfx101::mmGCEA_PERFCOUNTER_RSLT_CNTL;
-            m_registerInfo.mmAtcPerfResultCntl              = Gfx101::mmATC_PERFCOUNTER_RSLT_CNTL;
-            m_registerInfo.mmAtcL2PerfResultCntl            = Gfx101::mmGC_ATC_L2_PERFCOUNTER_RSLT_CNTL;
-            m_registerInfo.mmDbDfsmControl                  = Gfx10Core::mmDB_DFSM_CONTROL;
-            m_registerInfo.mmRpbPerfResultCntl              = Gfx10Core::mmRPB_PERFCOUNTER_RSLT_CNTL;
-        }
-        else if (IsGfx103(parent))
-        {
-            m_registerInfo.mmEaPerfResultCntl               = Gfx103CorePlus::mmGCEA_PERFCOUNTER_RSLT_CNTL;
-            m_registerInfo.mmAtcPerfResultCntl              = Gfx103::mmATC_PERFCOUNTER_RSLT_CNTL;
-            m_registerInfo.mmAtcL2PerfResultCntl            = 0;
-            m_registerInfo.mmDbDfsmControl                  = Gfx10Core::mmDB_DFSM_CONTROL;
-            m_registerInfo.mmRpbPerfResultCntl              = Gfx10Core::mmRPB_PERFCOUNTER_RSLT_CNTL;
-        }
-#if PAL_BUILD_GFX11
-        else if (IsGfx11(parent))
-        {
-            m_registerInfo.mmEaPerfResultCntl               = Gfx103CorePlus::mmGCEA_PERFCOUNTER_RSLT_CNTL;
-            m_registerInfo.mmAtcPerfResultCntl              = 0;
-            m_registerInfo.mmAtcL2PerfResultCntl            = 0;
-
-#if PAL_BUILD_NAVI3X
-            if (IsNavi3x(parent))
-            {
-#if PAL_BUILD_NAVI31
-                if (IsNavi31(parent))
-                {
-                    m_registerInfo.mmRpbPerfResultCntl      = Nv31::mmRPB_PERFCOUNTER_RSLT_CNTL;
-                }
-#endif
-            }
-#endif
-
-            m_registerInfo.mmRlcSpmGlobalMuxselAddr         = Gfx11::mmRLC_SPM_GLOBAL_MUXSEL_ADDR;
-            m_registerInfo.mmRlcSpmGlobalMuxselData         = Gfx11::mmRLC_SPM_GLOBAL_MUXSEL_DATA;
-            m_registerInfo.mmRlcSpmSeMuxselAddr             = Gfx11::mmRLC_SPM_SE_MUXSEL_ADDR;
-            m_registerInfo.mmRlcSpmSeMuxselData             = Gfx11::mmRLC_SPM_SE_MUXSEL_DATA;
-        }
-#endif
-        else
-        {
-            PAL_ASSERT_ALWAYS();
-        }
-
-        m_registerInfo.mmRlcPerfmonClkCntl              = Gfx10::mmRLC_PERFMON_CLK_CNTL;
-        m_registerInfo.mmMcVmL2PerfResultCntl           = Gfx10::mmGCMC_VM_L2_PERFCOUNTER_RSLT_CNTL;
-        m_registerInfo.mmVgtGsMaxPrimsPerSubGroup       = Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP;
-        m_registerInfo.mmComputeShaderChksum            = Gfx10Plus::mmCOMPUTE_SHADER_CHKSUM;
-        m_registerInfo.mmPaStereoCntl                   = Gfx10Plus::mmPA_STEREO_CNTL;
-        m_registerInfo.mmPaStateStereoX                 = Gfx10Plus::mmPA_STATE_STEREO_X;
+        m_registerInfo.mmVgtGsMaxPrimsPerSubGroup = Gfx10Plus::mmGE_MAX_OUTPUT_PER_SUBGROUP;
+        m_registerInfo.mmComputeShaderChksum      = Gfx10Plus::mmCOMPUTE_SHADER_CHKSUM;
+        m_registerInfo.mmPaStereoCntl             = Gfx10Plus::mmPA_STEREO_CNTL;
+        m_registerInfo.mmPaStateStereoX           = Gfx10Plus::mmPA_STATE_STEREO_X;
 
         // GFX10 provides a "PGM_{LO,HI}_ES_GS" and a "PGM_{LO,HI}_LS_HS" register that you would think is
         // what you want to use for the merged shader stages.  You'd be wrong.  According to
@@ -467,6 +396,37 @@ CmdUtil::CmdUtil(
         // meaningful in non-GEN-TWO mode.  We get 32 of these which is what we want.
         m_registerInfo.mmUserDataStartHsShaderStage = Gfx10Plus::mmSPI_SHADER_USER_DATA_HS_0;
         m_registerInfo.mmUserDataStartGsShaderStage = Gfx10Plus::mmSPI_SHADER_USER_DATA_GS_0;
+
+        if (IsGfx10(parent))
+        {
+            m_registerInfo.mmRlcSpmGlobalMuxselAddr     = Gfx10::mmRLC_SPM_GLOBAL_MUXSEL_ADDR;
+            m_registerInfo.mmRlcSpmGlobalMuxselData     = Gfx10::mmRLC_SPM_GLOBAL_MUXSEL_DATA;
+            m_registerInfo.mmRlcSpmSeMuxselAddr         = Gfx10::mmRLC_SPM_SE_MUXSEL_ADDR;
+            m_registerInfo.mmRlcSpmSeMuxselData         = Gfx10::mmRLC_SPM_SE_MUXSEL_DATA;
+            m_registerInfo.mmRlcPerfmonClkCntl          = Gfx10::mmRLC_PERFMON_CLK_CNTL;
+
+            if (IsGfx101(parent))
+            {
+                m_registerInfo.mmDbDfsmControl          = Gfx10Core::mmDB_DFSM_CONTROL;
+            }
+            else if (IsGfx103(parent))
+            {
+                m_registerInfo.mmDbDfsmControl          = Gfx10Core::mmDB_DFSM_CONTROL;
+            }
+        }
+#if PAL_BUILD_GFX11
+        else if (IsGfx11(parent))
+        {
+            m_registerInfo.mmRlcSpmGlobalMuxselAddr = Gfx11::mmRLC_SPM_GLOBAL_MUXSEL_ADDR;
+            m_registerInfo.mmRlcSpmGlobalMuxselData = Gfx11::mmRLC_SPM_GLOBAL_MUXSEL_DATA;
+            m_registerInfo.mmRlcSpmSeMuxselAddr     = Gfx11::mmRLC_SPM_SE_MUXSEL_ADDR;
+            m_registerInfo.mmRlcSpmSeMuxselData     = Gfx11::mmRLC_SPM_SE_MUXSEL_DATA;
+        }
+#endif
+        else
+        {
+            PAL_ASSERT_ALWAYS();
+        }
     }
 }
 
@@ -979,7 +939,7 @@ size_t CmdUtil::BuildAcquireMemInternalGfx10(
 
     if (info.cacheSync != 0)
     {
-        // Note that glmWb is unimplemented in HW so we don't both setting it. Everything else we want zeroed.
+        // Note that glmWb is unimplemented in HW so we don't bother setting it. Everything else we want zeroed.
         //
         // We always prefer parallel cache ops but must force sequential (L0->L1->L2) mode when we're writing back a
         // non-write-through L0 before an L2 writeback.
@@ -992,7 +952,7 @@ size_t CmdUtil::BuildAcquireMemInternalGfx10(
         cntl.bits.gl1Inv = TestAnyFlagSet(info.cacheSync, SyncGl1Inv);
         cntl.bits.gl2Inv = TestAnyFlagSet(info.cacheSync, SyncGl2Inv);
         cntl.bits.gl2Wb  = TestAnyFlagSet(info.cacheSync, SyncGl2Wb);
-        cntl.bits.seq    = cntl.bits.gl2Wb & (cntl.bits.glkWb | cbDataWbInv | dbWbInv);
+        cntl.bits.seq    = cntl.bits.gl2Wb & cntl.bits.glkWb;
 
         // We default to whole-cache operations unless this heuristic says we should do a range-based GCR.
         if (UseRangeBasedGcr(info.rangeBase, info.rangeSize))
@@ -1064,7 +1024,7 @@ size_t CmdUtil::BuildAcquireMemGfxPws(
 
     if (info.cacheSync != 0)
     {
-        // Note that glmWb is unimplemented in HW so we don't both setting it. Everything else we want zeroed.
+        // Note that glmWb is unimplemented in HW so we don't bother setting it. Everything else we want zeroed.
         //
         // We always prefer parallel cache ops but must force sequential (L0->L1->L2) mode when we're writing back a
         // non-write-through L0 before an L2 writeback. The only writeable L0 that a PWS acquire can flush is the K$.
@@ -1294,7 +1254,8 @@ size_t CmdUtil::BuildCopyData(
     gpusize    srcAddr,   // Source address (or value) of the copy, see srcSel for exact meaning
     uint32     countSel,
     uint32     wrConfirm,
-    void*      pBuffer)   // [out] Build the PM4 packet in this buffer.
+    void*      pBuffer    // [out] Build the PM4 packet in this buffer.
+    ) const
 {
     static_assert(PM4_ME_COPY_DATA_SIZEDW__CORE == PM4_MEC_COPY_DATA_SIZEDW__CORE,
                   "CopyData packet size is different between ME and MEC!");
@@ -1408,9 +1369,9 @@ size_t CmdUtil::BuildCopyData(
         packetGfx.ordinal3.u32All = LowPart(srcAddr);
 
         // Make sure we didn't get an illegal register offset
+        PAL_ASSERT(CanUseCopyDataRegOffset(srcAddr));
         PAL_ASSERT((gfxSupported && (packetGfx.ordinal3.bitfieldsA.reserved1 == 0)) ||
                    (isCompute    && (pPacketCompute->ordinal3.bitfieldsA.reserved1 == 0)));
-        PAL_ASSERT(HighPart(srcAddr) == 0);
         break;
 
     case src_sel__me_copy_data__immediate_data:
@@ -1450,6 +1411,9 @@ size_t CmdUtil::BuildCopyData(
     case dst_sel__me_copy_data__perfcounters:
     case dst_sel__me_copy_data__mem_mapped_register:
         packetGfx.ordinal5.u32All = LowPart(dstAddr);
+
+        // Make sure we didn't get an illegal register offset.
+        PAL_ASSERT(CanUseCopyDataRegOffset(dstAddr));
         PAL_ASSERT((isCompute    && (pPacketCompute->ordinal5.bitfieldsA.reserved1 == 0)) ||
                    (gfxSupported && (packetGfx.ordinal5.bitfieldsA.reserved1 == 0)));
         break;
@@ -1486,6 +1450,7 @@ size_t CmdUtil::BuildCopyData(
     }
 
     memcpy(pBuffer, &packetGfx, PacketSize * sizeof(uint32));
+
     return PacketSize;
 }
 
@@ -3895,7 +3860,7 @@ size_t CmdUtil::BuildReleaseMemInternalGfx10(
 
         if (info.cacheSync.u8All != 0)
         {
-            // Note that glmWb is unimplemented in HW so we don't both setting it. Everything else we want zeroed.
+            // Note that glmWb is unimplemented in HW so we don't bother setting it. Everything else we want zeroed.
             //
             // We always prefer parallel cache ops but must force sequential (L0->L1->L2) mode when we're writing
             // back one of the non-write-through L0s before an L2 writeback. Any L0 flush/inv ops in our release_mem's
@@ -3922,7 +3887,7 @@ size_t CmdUtil::BuildReleaseMemInternalGfx10(
 #endif
         if (info.cacheSync.u8All != 0)
         {
-            // Note that glmWb is unimplemented in HW so we don't both setting it. Everything else we want zeroed.
+            // Note that glmWb is unimplemented in HW so we don't bother setting it. Everything else we want zeroed.
             // On gfx10, there are no cases where a release_mem would require seq = 1, we can always run in parallel.
             Gfx10ReleaseMemGcrCntl cntl = {};
             cntl.bits.glmInv = info.cacheSync.glmInv;

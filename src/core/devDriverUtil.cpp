@@ -340,6 +340,7 @@ void PalCallback(
                                     pWriter->KeyAndValue("maxGlobalOnlyCounters",   block.maxGlobalOnlyCounters);
                                     pWriter->KeyAndValue("maxSpmCounters",          block.maxSpmCounters);
                                     pWriter->KeyAndValue("maxGlobalSharedCounters", block.maxGlobalSharedCounters);
+                                    pWriter->KeyAndValue("instanceGroupSize",       block.instanceGroupSize);
                                 }
                                 pWriter->EndMap(); // End block info wrapper
                             }

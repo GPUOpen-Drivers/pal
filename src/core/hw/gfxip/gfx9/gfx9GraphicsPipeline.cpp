@@ -999,8 +999,12 @@ void GraphicsPipeline::SetupRbPlusRegistersForSlot(
 
     const SX_DOWNCONVERT_FORMAT downConvertFormat = SxDownConvertFormat(swizzledFormat);
     const uint32                blendOptControl   = Gfx9::SxBlendOptControl(writeMask);
+
+    // A value of 1 in SRGB is 0.0003035, so even the lowest epsilon 0.0003662 will not work.
+    // 0 is the only safe value.
     const uint32                blendOptEpsilon   =
-        (downConvertFormat == SX_RT_EXPORT_NO_CONVERSION) ? 0 : Gfx9::SxBlendOptEpsilon(downConvertFormat);
+        ((downConvertFormat == SX_RT_EXPORT_NO_CONVERSION) ||
+         (Formats::IsSrgb(swizzledFormat.format))) ? 0 : Gfx9::SxBlendOptEpsilon(downConvertFormat);
 
     pSxPsDownconvert->u32All &= ~(SX_PS_DOWNCONVERT__MRT0_MASK << bitShift);
     pSxPsDownconvert->u32All |= (downConvertFormat << bitShift);

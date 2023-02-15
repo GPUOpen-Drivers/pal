@@ -138,14 +138,17 @@ enum Gfx10SpmSeBlockSelect : uint32
                     "mmGE_PERFCOUNTER SELECT1 registers do not match!");
 
 // =====================================================================================================================
-// A helper function which updates the UMCCH's block info with device-specific data.
-static void UpdateUmcchBlockInfo(
+// A helper function which updates the gfx9-10 UMC perf counter registers, numInstances, and maxEventId.
+static void Gfx9Gfx10UpdateUmcchBlockInfo(
     const Pal::Device&    device,
     Gfx9PerfCounterInfo*  pInfo,
     PerfCounterBlockInfo* pBlockInfo)
 {
     if (IsGfx9(device))
     {
+        // Due to missing headers for some asics, we'll be selective here populating the max counts.
+        pBlockInfo->maxEventId = Vg10MaxPerfEventIds[UmcPerfcountSelectId];
+
         // The first instance's registers are common to all ASICs, the rest are a total mess.
         SET_UMCCH_INSTANCE_REGS(Gfx09, 0);
         if (device.ChipProperties().familyId == FAMILY_AI)
@@ -195,111 +198,110 @@ static void UpdateUmcchBlockInfo(
             SET_UMCCH_INSTANCE_REGS(Raven, 1);
         }
     }
-    else if (IsGfx10(device)
-            )
+    else if (IsGfx101(device))
     {
-        static_assert((
-                (Gfx101::mmUMCCH0_PerfMonCtlClk == Gfx103CorePlus::mmUMCCH0_PerfMonCtlClk)  ||
-                (Gfx101::mmUMCCH0_PerfMonCtl1   == Gfx103CorePlus::mmUMCCH0_PerfMonCtl1)    ||
-                (Gfx101::mmUMCCH0_PerfMonCtl2   == Gfx103CorePlus::mmUMCCH0_PerfMonCtl2)    ||
-                (Gfx101::mmUMCCH0_PerfMonCtl3   == Gfx103CorePlus::mmUMCCH0_PerfMonCtl3)    ||
-                (Gfx101::mmUMCCH0_PerfMonCtl4   == Gfx103CorePlus::mmUMCCH0_PerfMonCtl4)    ||
-                (Gfx101::mmUMCCH0_PerfMonCtl5   == Gfx103CorePlus::mmUMCCH0_PerfMonCtl5)    ||
-                (Gfx101::mmUMCCH2_PerfMonCtlClk == Gfx103CorePlus::mmUMCCH2_PerfMonCtlClk)  ||
-                (Gfx101::mmUMCCH2_PerfMonCtl1   == Gfx103CorePlus::mmUMCCH2_PerfMonCtl1)    ||
-                (Gfx101::mmUMCCH2_PerfMonCtl2   == Gfx103CorePlus::mmUMCCH2_PerfMonCtl2)    ||
-                (Gfx101::mmUMCCH2_PerfMonCtl3   == Gfx103CorePlus::mmUMCCH2_PerfMonCtl3)    ||
-                (Gfx101::mmUMCCH2_PerfMonCtl4   == Gfx103CorePlus::mmUMCCH2_PerfMonCtl4)    ||
-                (Gfx101::mmUMCCH2_PerfMonCtl5   == Gfx103CorePlus::mmUMCCH2_PerfMonCtl5)),
-                "UMMCH0 and 2 regs don't match between Gfx101 and Gfx103CorePlus!");
+        // Due to missing headers for some asics, we'll be selective here populating the max counts.
+        pBlockInfo->maxEventId = Nv10MaxPerfEventIds[UmcPerfcountSelectId];
 
+        // This is misleading for Navi14 becuase it's only supposed to have 8 SDPs, but in practice as long as
+        // the first 8 all have the same register offsets the code at the end will clamp us to 8 instances.
         SET_UMCCH_INSTANCE_REGS(Gfx101, 0);
+        SET_UMCCH_INSTANCE_REGS(Gfx101, 1);
         SET_UMCCH_INSTANCE_REGS(Gfx101, 2);
-
-        if (IsNavi21(device))
-        {
-            SET_UMCCH_INSTANCE_REGS(Nv21, 1);
-            SET_UMCCH_INSTANCE_REGS(Nv21, 3);
-            SET_UMCCH_INSTANCE_REGS(Nv21, 4);
-            SET_UMCCH_INSTANCE_REGS(Nv21, 5);
-            SET_UMCCH_INSTANCE_REGS(Nv21, 6);
-            SET_UMCCH_INSTANCE_REGS(Nv21, 7);
-            SET_UMCCH_INSTANCE_REGS(Nv21, 8);
-            SET_UMCCH_INSTANCE_REGS(Nv21, 9);
-            SET_UMCCH_INSTANCE_REGS(Nv21, 10);
-            SET_UMCCH_INSTANCE_REGS(Nv21, 11);
-            SET_UMCCH_INSTANCE_REGS(Nv21, 12);
-            SET_UMCCH_INSTANCE_REGS(Nv21, 13);
-            SET_UMCCH_INSTANCE_REGS(Nv21, 14);
-            SET_UMCCH_INSTANCE_REGS(Nv21, 15);
-        }
-        else if (IsNavi22(device))
-        {
-            SET_UMCCH_INSTANCE_REGS(Nv22, 1);
-            SET_UMCCH_INSTANCE_REGS(Nv22, 3);
-            SET_UMCCH_INSTANCE_REGS(Nv22, 4);
-            SET_UMCCH_INSTANCE_REGS(Nv22, 5);
-            SET_UMCCH_INSTANCE_REGS(Nv22, 6);
-            SET_UMCCH_INSTANCE_REGS(Nv22, 7);
-            SET_UMCCH_INSTANCE_REGS(Nv22, 8);
-            SET_UMCCH_INSTANCE_REGS(Nv22, 9);
-            SET_UMCCH_INSTANCE_REGS(Nv22, 10);
-            SET_UMCCH_INSTANCE_REGS(Nv22, 11);
-        }
-        else if (IsNavi23(device))
-        {
-            SET_UMCCH_INSTANCE_REGS(Nv23, 1);
-            SET_UMCCH_INSTANCE_REGS(Nv23, 3);
-            SET_UMCCH_INSTANCE_REGS(Nv23, 4);
-            SET_UMCCH_INSTANCE_REGS(Nv23, 5);
-            SET_UMCCH_INSTANCE_REGS(Nv23, 6);
-            SET_UMCCH_INSTANCE_REGS(Nv23, 7);
-        }
-        else
-        if (IsNavi24(device))
-        {
-            SET_UMCCH_INSTANCE_REGS(Nv24, 1);
-            SET_UMCCH_INSTANCE_REGS(Nv24, 3);
-        }
-        else
-        {
-            SET_UMCCH_INSTANCE_REGS(Gfx101, 1);
-            SET_UMCCH_INSTANCE_REGS(Gfx101, 3);
-            SET_UMCCH_INSTANCE_REGS(Gfx101, 4);
-            SET_UMCCH_INSTANCE_REGS(Gfx101, 5);
-            SET_UMCCH_INSTANCE_REGS(Gfx101, 6);
-            SET_UMCCH_INSTANCE_REGS(Gfx101, 7);
-            SET_UMCCH_INSTANCE_REGS(Gfx101, 8);
-            SET_UMCCH_INSTANCE_REGS(Gfx101, 9);
-            SET_UMCCH_INSTANCE_REGS(Gfx101, 10);
-            SET_UMCCH_INSTANCE_REGS(Gfx101, 11);
-            SET_UMCCH_INSTANCE_REGS(Gfx101, 12);
-            SET_UMCCH_INSTANCE_REGS(Gfx101, 13);
-            SET_UMCCH_INSTANCE_REGS(Gfx101, 14);
-            SET_UMCCH_INSTANCE_REGS(Gfx101, 15);
-        }
+        SET_UMCCH_INSTANCE_REGS(Gfx101, 3);
+        SET_UMCCH_INSTANCE_REGS(Gfx101, 4);
+        SET_UMCCH_INSTANCE_REGS(Gfx101, 5);
+        SET_UMCCH_INSTANCE_REGS(Gfx101, 6);
+        SET_UMCCH_INSTANCE_REGS(Gfx101, 7);
+        SET_UMCCH_INSTANCE_REGS(Gfx101, 8);
+        SET_UMCCH_INSTANCE_REGS(Gfx101, 9);
+        SET_UMCCH_INSTANCE_REGS(Gfx101, 10);
+        SET_UMCCH_INSTANCE_REGS(Gfx101, 11);
+        SET_UMCCH_INSTANCE_REGS(Gfx101, 12);
+        SET_UMCCH_INSTANCE_REGS(Gfx101, 13);
+        SET_UMCCH_INSTANCE_REGS(Gfx101, 14);
+        SET_UMCCH_INSTANCE_REGS(Gfx101, 15);
     }
-#if PAL_BUILD_GFX11
-    else if (IsGfx11(device))
+    else if (IsGfx103(device))
     {
-        SET_UMCCH_INSTANCE_REGS(Gfx103CorePlus, 0);
-        SET_UMCCH_INSTANCE_REGS(Gfx11,          1);
-        SET_UMCCH_INSTANCE_REGS(Gfx103CorePlus, 2);
-        SET_UMCCH_INSTANCE_REGS(Gfx11,          3);
-        SET_UMCCH_INSTANCE_REGS(Gfx11,          4);
-        SET_UMCCH_INSTANCE_REGS(Gfx11,          5);
-        SET_UMCCH_INSTANCE_REGS(Gfx11,          6);
-        SET_UMCCH_INSTANCE_REGS(Gfx11,          7);
-        SET_UMCCH_INSTANCE_REGS(Gfx11,          8);
-        SET_UMCCH_INSTANCE_REGS(Gfx11,          9);
-        SET_UMCCH_INSTANCE_REGS(Gfx11,          10);
-        SET_UMCCH_INSTANCE_REGS(Gfx11,          11);
-        SET_UMCCH_INSTANCE_REGS(Gfx11,          12);
-        SET_UMCCH_INSTANCE_REGS(Gfx11,          13);
-        SET_UMCCH_INSTANCE_REGS(Gfx11,          14);
-        SET_UMCCH_INSTANCE_REGS(Gfx11,          15);
+        // Due to missing headers for some asics, we'll be selective here populating the max counts.
+        pBlockInfo->maxEventId = Nv21MaxPerfEventIds[UmcPerfcountSelectId];
+
+        if (IsNavi2x(device))
+        {
+            // These four are always the same.
+            SET_UMCCH_INSTANCE_REGS(Gfx103, 0);
+            SET_UMCCH_INSTANCE_REGS(Nv2x,   1);
+            SET_UMCCH_INSTANCE_REGS(Gfx103, 2);
+            SET_UMCCH_INSTANCE_REGS(Nv2x,   3);
+
+            if (IsNavi21(device))
+            {
+                SET_UMCCH_INSTANCE_REGS(Nv21, 4);
+                SET_UMCCH_INSTANCE_REGS(Nv21, 5);
+                SET_UMCCH_INSTANCE_REGS(Nv21, 6);
+                SET_UMCCH_INSTANCE_REGS(Nv21, 7);
+                SET_UMCCH_INSTANCE_REGS(Nv21, 8);
+                SET_UMCCH_INSTANCE_REGS(Nv21, 9);
+                SET_UMCCH_INSTANCE_REGS(Nv21, 10);
+                SET_UMCCH_INSTANCE_REGS(Nv21, 11);
+                SET_UMCCH_INSTANCE_REGS(Nv21, 12);
+                SET_UMCCH_INSTANCE_REGS(Nv21, 13);
+                SET_UMCCH_INSTANCE_REGS(Nv21, 14);
+                SET_UMCCH_INSTANCE_REGS(Nv21, 15);
+            }
+            else if (IsNavi22(device))
+            {
+                SET_UMCCH_INSTANCE_REGS(Nv22, 4);
+                SET_UMCCH_INSTANCE_REGS(Nv22, 5);
+                SET_UMCCH_INSTANCE_REGS(Nv22, 6);
+                SET_UMCCH_INSTANCE_REGS(Nv22, 7);
+                SET_UMCCH_INSTANCE_REGS(Nv22, 8);
+                SET_UMCCH_INSTANCE_REGS(Nv22, 9);
+                SET_UMCCH_INSTANCE_REGS(Nv22, 10);
+                SET_UMCCH_INSTANCE_REGS(Nv22, 11);
+            }
+            else if (IsNavi23(device))
+            {
+                SET_UMCCH_INSTANCE_REGS(Nv23, 4);
+                SET_UMCCH_INSTANCE_REGS(Nv23, 5);
+                SET_UMCCH_INSTANCE_REGS(Nv23, 6);
+                SET_UMCCH_INSTANCE_REGS(Nv23, 7);
+            }
+            else
+            {
+                // Navi24 only has the four common instances.
+                PAL_ASSERT(IsNavi24(device));
+            }
+        }
+        else if (device.ChipProperties().gpuType == GpuType::Integrated)
+        {
+            SET_UMCCH_INSTANCE_REGS(Gfx103, 0);
+            SET_UMCCH_INSTANCE_REGS(Apu103, 1);
+            SET_UMCCH_INSTANCE_REGS(Gfx103, 2);
+            SET_UMCCH_INSTANCE_REGS(Apu103, 3);
+            SET_UMCCH_INSTANCE_REGS(Apu103, 4);
+            SET_UMCCH_INSTANCE_REGS(Apu103, 5);
+            SET_UMCCH_INSTANCE_REGS(Apu103, 6);
+            SET_UMCCH_INSTANCE_REGS(Apu103, 7);
+            SET_UMCCH_INSTANCE_REGS(Apu103, 8);
+            SET_UMCCH_INSTANCE_REGS(Apu103, 9);
+            SET_UMCCH_INSTANCE_REGS(Apu103, 10);
+            SET_UMCCH_INSTANCE_REGS(Apu103, 11);
+            SET_UMCCH_INSTANCE_REGS(Apu103, 12);
+            SET_UMCCH_INSTANCE_REGS(Apu103, 13);
+            SET_UMCCH_INSTANCE_REGS(Apu103, 14);
+            SET_UMCCH_INSTANCE_REGS(Apu103, 15);
+        }
+        else
+        {
+            PAL_NOT_IMPLEMENTED();
+        }
     }
-#endif
+    else
+    {
+        PAL_NOT_IMPLEMENTED();
+    }
 
     // We should have one UMC channel per SDP interface. We also should have a full set of registers for each of those
     // channels. However, we might not be able to read or write some of them due to a limitation in the CP's COPY_DATA
@@ -328,36 +330,6 @@ static void UpdateUmcchBlockInfo(
             // This instance is good, check the next one.
             pBlockInfo->numInstances++;
         }
-    }
-
-    // Due to missing headers for some asics, we'll be selective here populating the max counts.
-    if (IsGfx103(device))
-    {
-        pBlockInfo->maxEventId = Nv21MaxPerfEventIds[UmcPerfcountSelectId];
-    }
-    else
-#if PAL_BUILD_GFX11
-#if PAL_BUILD_NAVI3X
-    if (IsNavi3x(device))
-    {
-#if PAL_BUILD_NAVI31
-        if (IsNavi31(device))
-        {
-            pBlockInfo->maxEventId = Nv31MaxPerfEventIds[UmcPerfcountSelectId];
-        }
-#endif
-    }
-    else
-#endif
-#endif
-    if (IsGfx10(device))
-    {
-        pBlockInfo->maxEventId = Nv10MaxPerfEventIds[UmcPerfcountSelectId];
-    }
-    else // gfx9 asics
-    {
-
-        pBlockInfo->maxEventId = Vg10MaxPerfEventIds[UmcPerfcountSelectId];
     }
 }
 
@@ -426,7 +398,7 @@ static const MaxEventIds& GetEventLimits(
 }
 
 // =====================================================================================================================
-// A helper function which updates the RPB's block info with device-specific data.
+// A helper function which updates the gfx9 RPB's block info with device-specific data.
 static void Gfx9UpdateRpbBlockInfo(
     const Pal::Device&    device,
     PerfCounterBlockInfo* pInfo)
@@ -453,61 +425,41 @@ static void Gfx9UpdateRpbBlockInfo(
     }
 }
 
+#if PAL_BUILD_GFX11
 // =====================================================================================================================
-// A helper function which updates the SX's block info with device-specific data.
-static void Gfx10UpdateSxBlockInfo(
+// A helper function which updates the gfx11 RPB's block info with device-specific data.
+static void Gfx11UpdateRpbBlockInfo(
     const Pal::Device&    device,
     PerfCounterBlockInfo* pInfo)
 {
-    pInfo->numGenericLegacyModules = 2; // SX_PERFCOUNTER2-3
-
-    pInfo->regAddr = { 0, {
-        { mmSX_PERFCOUNTER0_SELECT, mmSX_PERFCOUNTER0_SELECT1, mmSX_PERFCOUNTER0_LO, mmSX_PERFCOUNTER0_HI },
-        { mmSX_PERFCOUNTER1_SELECT, mmSX_PERFCOUNTER1_SELECT1, mmSX_PERFCOUNTER1_LO, mmSX_PERFCOUNTER1_HI },
-        { mmSX_PERFCOUNTER2_SELECT, 0,                         mmSX_PERFCOUNTER2_LO, mmSX_PERFCOUNTER2_HI },
-        { mmSX_PERFCOUNTER3_SELECT, 0,                         mmSX_PERFCOUNTER3_LO, mmSX_PERFCOUNTER3_HI },
-    }};
+#if PAL_BUILD_NAVI3X
+    if (IsNavi3x(device))
+    {
+        pInfo->regAddr = { Nv3x::mmRPB_PERFCOUNTER_RSLT_CNTL, {
+            { Nv3x::mmRPB_PERFCOUNTER0_CFG, 0, Nv3x::mmRPB_PERFCOUNTER_LO, Nv3x::mmRPB_PERFCOUNTER_HI },
+            { Nv3x::mmRPB_PERFCOUNTER1_CFG, 0, Nv3x::mmRPB_PERFCOUNTER_LO, Nv3x::mmRPB_PERFCOUNTER_HI },
+            { Nv3x::mmRPB_PERFCOUNTER2_CFG, 0, Nv3x::mmRPB_PERFCOUNTER_LO, Nv3x::mmRPB_PERFCOUNTER_HI },
+            { Nv3x::mmRPB_PERFCOUNTER3_CFG, 0, Nv3x::mmRPB_PERFCOUNTER_LO, Nv3x::mmRPB_PERFCOUNTER_HI },
+        }};
+    }
+    else
+#endif
+    {
+        PAL_NOT_IMPLEMENTED();
+    }
 }
-
-// =====================================================================================================================
-// A helper function which updates the TA's block info with device-specific data.
-static void Gfx10UpdateTaBlockInfo(
-    const Pal::Device&    device,
-    PerfCounterBlockInfo* pInfo)
-{
-    pInfo->numGenericLegacyModules = 1; // TA_PERFCOUNTER1
-
-    pInfo->regAddr = { 0, {
-        { mmTA_PERFCOUNTER0_SELECT, mmTA_PERFCOUNTER0_SELECT1, mmTA_PERFCOUNTER0_LO, mmTA_PERFCOUNTER0_HI },
-        { mmTA_PERFCOUNTER1_SELECT, 0,                         mmTA_PERFCOUNTER1_LO, mmTA_PERFCOUNTER1_HI },
-    }};
-}
-
-// =====================================================================================================================
-// A helper function which updates the TCP's block info with device-specific data.
-static void Gfx10UpdateTcpBlockInfo(
-    const Pal::Device&    device,
-    PerfCounterBlockInfo* pInfo)
-{
-    pInfo->numGenericLegacyModules = 2; // TCP_PERFCOUNTER2-3
-
-    pInfo->regAddr = { 0, {
-        { mmTCP_PERFCOUNTER0_SELECT, mmTCP_PERFCOUNTER0_SELECT1, mmTCP_PERFCOUNTER0_LO, mmTCP_PERFCOUNTER0_HI },
-        { mmTCP_PERFCOUNTER1_SELECT, mmTCP_PERFCOUNTER1_SELECT1, mmTCP_PERFCOUNTER1_LO, mmTCP_PERFCOUNTER1_HI },
-        { mmTCP_PERFCOUNTER2_SELECT, 0,                          mmTCP_PERFCOUNTER2_LO, mmTCP_PERFCOUNTER2_HI },
-        { mmTCP_PERFCOUNTER3_SELECT, 0,                          mmTCP_PERFCOUNTER3_LO, mmTCP_PERFCOUNTER3_HI },
-    }};
-}
+#endif
 
 // =====================================================================================================================
 // A helper function which updates the GDS's block info with device-specific data.
-static void Gfx10UpdateGdsBlockInfo(
+static void Gfx10PlusUpdateGdsBlockInfo(
     const Pal::Device&    device,
     PerfCounterBlockInfo* pInfo)
 {
-    if (IsGfx103(device))
+    if (IsGfx103Plus(device))
     {
         using namespace Core;
+        using namespace Gfx103CorePlus;
 
         // All of the legacy GDS counters were updated to full perfmon modules in gfx10.2.
         pInfo->numGenericSpmModules    = 4; // GDS_PERFCOUNTER0-3
@@ -515,10 +467,10 @@ static void Gfx10UpdateGdsBlockInfo(
         pInfo->numSpmWires             = 8;
 
         pInfo->regAddr = { 0, {
-            { mmGDS_PERFCOUNTER0_SELECT, mmGDS_PERFCOUNTER0_SELECT1,         mmGDS_PERFCOUNTER0_LO, mmGDS_PERFCOUNTER0_HI },
-            { mmGDS_PERFCOUNTER1_SELECT, Gfx103CorePlus::mmGDS_PERFCOUNTER1_SELECT1, mmGDS_PERFCOUNTER1_LO, mmGDS_PERFCOUNTER1_HI },
-            { mmGDS_PERFCOUNTER2_SELECT, Gfx103CorePlus::mmGDS_PERFCOUNTER2_SELECT1, mmGDS_PERFCOUNTER2_LO, mmGDS_PERFCOUNTER2_HI },
-            { mmGDS_PERFCOUNTER3_SELECT, Gfx103CorePlus::mmGDS_PERFCOUNTER3_SELECT1, mmGDS_PERFCOUNTER3_LO, mmGDS_PERFCOUNTER3_HI },
+            { mmGDS_PERFCOUNTER0_SELECT, mmGDS_PERFCOUNTER0_SELECT1, mmGDS_PERFCOUNTER0_LO, mmGDS_PERFCOUNTER0_HI },
+            { mmGDS_PERFCOUNTER1_SELECT, mmGDS_PERFCOUNTER1_SELECT1, mmGDS_PERFCOUNTER1_LO, mmGDS_PERFCOUNTER1_HI },
+            { mmGDS_PERFCOUNTER2_SELECT, mmGDS_PERFCOUNTER2_SELECT1, mmGDS_PERFCOUNTER2_LO, mmGDS_PERFCOUNTER2_HI },
+            { mmGDS_PERFCOUNTER3_SELECT, mmGDS_PERFCOUNTER3_SELECT1, mmGDS_PERFCOUNTER3_LO, mmGDS_PERFCOUNTER3_HI },
         }};
     }
     else
@@ -612,8 +564,8 @@ static void Gfx10UpdateEaBlockInfo(
     if (IsGfx103(device))
     {
         pInfo->regAddr = { Gfx103CorePlus::mmGCEA_PERFCOUNTER_RSLT_CNTL, {
-            { Gfx103CorePlus::mmGCEA_PERFCOUNTER0_CFG,           0,                                          Gfx103CorePlus::mmGCEA_PERFCOUNTER_LO,         Gfx103CorePlus::mmGCEA_PERFCOUNTER_HI         },
-            { Gfx103CorePlus::mmGCEA_PERFCOUNTER1_CFG,           0,                                          Gfx103CorePlus::mmGCEA_PERFCOUNTER_LO,         Gfx103CorePlus::mmGCEA_PERFCOUNTER_HI         },
+            { Gfx103CorePlus::mmGCEA_PERFCOUNTER0_CFG,   0,                                          Gfx103CorePlus::mmGCEA_PERFCOUNTER_LO, Gfx103CorePlus::mmGCEA_PERFCOUNTER_HI },
+            { Gfx103CorePlus::mmGCEA_PERFCOUNTER1_CFG,   0,                                          Gfx103CorePlus::mmGCEA_PERFCOUNTER_LO, Gfx103CorePlus::mmGCEA_PERFCOUNTER_HI },
             { Gfx10CorePlus::mmGCEA_PERFCOUNTER2_SELECT, Gfx10CorePlus::mmGCEA_PERFCOUNTER2_SELECT1, Gfx10CorePlus::mmGCEA_PERFCOUNTER2_LO, Gfx10CorePlus::mmGCEA_PERFCOUNTER2_HI },
         }};
     }
@@ -635,10 +587,10 @@ static void Gfx10UpdateGusBlockInfo(
 {
     if (IsNavi2x(device))
     {
-        pInfo->regAddr = { Nv21::mmGUS_PERFCOUNTER_RSLT_CNTL, {
-            { Nv21::mmGUS_PERFCOUNTER0_CFG,    0,                                Nv21::mmGUS_PERFCOUNTER_LO,  Nv21::mmGUS_PERFCOUNTER_HI  },
-            { Nv21::mmGUS_PERFCOUNTER1_CFG,    0,                                Nv21::mmGUS_PERFCOUNTER_LO,  Nv21::mmGUS_PERFCOUNTER_HI  },
-            { Nv21::mmGUS_PERFCOUNTER2_SELECT, Nv21::mmGUS_PERFCOUNTER2_SELECT1, Nv21::mmGUS_PERFCOUNTER2_LO, Nv21::mmGUS_PERFCOUNTER2_HI },
+        pInfo->regAddr = { Nv2x::mmGUS_PERFCOUNTER_RSLT_CNTL, {
+            { Nv2x::mmGUS_PERFCOUNTER0_CFG,    0,                                Nv2x::mmGUS_PERFCOUNTER_LO,  Nv2x::mmGUS_PERFCOUNTER_HI  },
+            { Nv2x::mmGUS_PERFCOUNTER1_CFG,    0,                                Nv2x::mmGUS_PERFCOUNTER_LO,  Nv2x::mmGUS_PERFCOUNTER_HI  },
+            { Nv2x::mmGUS_PERFCOUNTER2_SELECT, Nv2x::mmGUS_PERFCOUNTER2_SELECT1, Nv2x::mmGUS_PERFCOUNTER2_LO, Nv2x::mmGUS_PERFCOUNTER2_HI },
         }};
     }
     else
@@ -1180,7 +1132,7 @@ static void Gfx9InitBasicBlockInfo(
     pUmcch->numSpmWires               = 0;
 
     // Note that this function also sets: numInstances, maxEventId.
-    UpdateUmcchBlockInfo(device, pInfo, pUmcch);
+    Gfx9Gfx10UpdateUmcchBlockInfo(device, pInfo, pUmcch);
 
     // A quick check to make sure we have registers for all instances. The fact that the number of instances varies
     // per ASIC doesn't mesh well with our register header scheme. If this triggers UpdateUmcchBlockInfo needs fixing.
@@ -1326,23 +1278,31 @@ static void Gfx10InitBasicBlockInfo(
     pSx->distribution              = PerfCounterDistribution::PerShaderArray;
     pSx->numInstances              = 1;
     pSx->numGenericSpmModules      = 2; // SX_PERFCOUNTER0-1
+    pSx->numGenericLegacyModules   = 2; // SX_PERFCOUNTER2-3
     pSx->numSpmWires               = 4;
     pSx->spmBlockSelect            = Gfx10SpmSeBlockSelectSx;
     pSx->maxEventId                = maxIds[SxPerfcounterValsId];
 
-    // Sets numGenericLegacyModules and the register addresses.
-    Gfx10UpdateSxBlockInfo(device, pSx);
+    pSx->regAddr = { 0, {
+        { mmSX_PERFCOUNTER0_SELECT, mmSX_PERFCOUNTER0_SELECT1, mmSX_PERFCOUNTER0_LO, mmSX_PERFCOUNTER0_HI },
+        { mmSX_PERFCOUNTER1_SELECT, mmSX_PERFCOUNTER1_SELECT1, mmSX_PERFCOUNTER1_LO, mmSX_PERFCOUNTER1_HI },
+        { mmSX_PERFCOUNTER2_SELECT, 0,                         mmSX_PERFCOUNTER2_LO, mmSX_PERFCOUNTER2_HI },
+        { mmSX_PERFCOUNTER3_SELECT, 0,                         mmSX_PERFCOUNTER3_LO, mmSX_PERFCOUNTER3_HI },
+    }};
 
     PerfCounterBlockInfo*const pTa = &pInfo->block[static_cast<uint32>(GpuBlock::Ta)];
     pTa->distribution              = PerfCounterDistribution::PerShaderArray;
     pTa->numInstances              = pProps->gfx9.numCuPerSh;
     pTa->numGenericSpmModules      = 1; // TA_PERFCOUNTER0
+    pTa->numGenericLegacyModules   = 1; // TA_PERFCOUNTER1
     pTa->numSpmWires               = 2;
     pTa->spmBlockSelect            = Gfx10SpmSeBlockSelectTa;
     pTa->maxEventId                = maxIds[TaPerfcountSelId];
 
-    // Sets numGenericLegacyModules and the register addresses.
-    Gfx10UpdateTaBlockInfo(device, pTa);
+    pTa->regAddr = { 0, {
+        { mmTA_PERFCOUNTER0_SELECT, mmTA_PERFCOUNTER0_SELECT1, mmTA_PERFCOUNTER0_LO, mmTA_PERFCOUNTER0_HI },
+        { mmTA_PERFCOUNTER1_SELECT, 0,                         mmTA_PERFCOUNTER1_LO, mmTA_PERFCOUNTER1_HI },
+    }};
 
     PerfCounterBlockInfo*const pTd = &pInfo->block[static_cast<uint32>(GpuBlock::Td)];
     pTd->distribution              = PerfCounterDistribution::PerShaderArray;
@@ -1362,12 +1322,17 @@ static void Gfx10InitBasicBlockInfo(
     pTcp->distribution              = PerfCounterDistribution::PerShaderArray;
     pTcp->numInstances              = pProps->gfx9.gfx10.numTcpPerSa;
     pTcp->numGenericSpmModules      = 2; // TCP_PERFCOUNTER0-1
+    pTcp->numGenericLegacyModules   = 2; // TCP_PERFCOUNTER2-3
     pTcp->numSpmWires               = 4;
     pTcp->spmBlockSelect            = Gfx10SpmSeBlockSelectTcp;
     pTcp->maxEventId                = maxIds[TcpPerfcountSelectId];
 
-    // Sets numGenericLegacyModules and the register addresses.
-    Gfx10UpdateTcpBlockInfo(device, pTcp);
+    pTcp->regAddr = { 0, {
+        { mmTCP_PERFCOUNTER0_SELECT, mmTCP_PERFCOUNTER0_SELECT1, mmTCP_PERFCOUNTER0_LO, mmTCP_PERFCOUNTER0_HI },
+        { mmTCP_PERFCOUNTER1_SELECT, mmTCP_PERFCOUNTER1_SELECT1, mmTCP_PERFCOUNTER1_LO, mmTCP_PERFCOUNTER1_HI },
+        { mmTCP_PERFCOUNTER2_SELECT, 0,                          mmTCP_PERFCOUNTER2_LO, mmTCP_PERFCOUNTER2_HI },
+        { mmTCP_PERFCOUNTER3_SELECT, 0,                          mmTCP_PERFCOUNTER3_LO, mmTCP_PERFCOUNTER3_HI },
+    }};
 
     PerfCounterBlockInfo*const pDb = &pInfo->block[static_cast<uint32>(GpuBlock::Db)];
     pDb->distribution              = PerfCounterDistribution::PerShaderArray;
@@ -1409,7 +1374,7 @@ static void Gfx10InitBasicBlockInfo(
         pGds->maxEventId                = maxIds[GdsPerfcountSelectId];
 
         // Sets the register addresses and configures the perf modules and SPM wires.
-        Gfx10UpdateGdsBlockInfo(device, pGds);
+        Gfx10PlusUpdateGdsBlockInfo(device, pGds);
     }
 
     PerfCounterBlockInfo*const pGrbm = &pInfo->block[static_cast<uint32>(GpuBlock::Grbm)];
@@ -1533,12 +1498,11 @@ static void Gfx10InitBasicBlockInfo(
         pAtcL2->maxEventId                = 8;
         pAtcL2->isCfgStyle                = true;
 
-        pAtcL2->regAddr = { Gfx101::mmGC_ATC_L2_PERFCOUNTER_RSLT_CNTL, {
-            { Gfx101::mmGC_ATC_L2_PERFCOUNTER0_CFG,    0,                                        Gfx101::mmGC_ATC_L2_PERFCOUNTER_LO,  Gfx101::mmGC_ATC_L2_PERFCOUNTER_HI  },
-            { Gfx101::mmGC_ATC_L2_PERFCOUNTER1_CFG,    0,                                        Gfx101::mmGC_ATC_L2_PERFCOUNTER_LO,  Gfx101::mmGC_ATC_L2_PERFCOUNTER_HI  },
-            { Gfx101::mmGC_ATC_L2_PERFCOUNTER2_SELECT, Gfx101::mmGC_ATC_L2_PERFCOUNTER2_SELECT1, Gfx101::mmGC_ATC_L2_PERFCOUNTER2_LO, Gfx101::mmGC_ATC_L2_PERFCOUNTER2_HI },
+        pAtcL2->regAddr = { Apu103::mmGC_ATC_L2_PERFCOUNTER_RSLT_CNTL, {
+            { Apu103::mmGC_ATC_L2_PERFCOUNTER0_CFG,    0,                                        Apu103::mmGC_ATC_L2_PERFCOUNTER_LO,  Apu103::mmGC_ATC_L2_PERFCOUNTER_HI  },
+            { Apu103::mmGC_ATC_L2_PERFCOUNTER1_CFG,    0,                                        Apu103::mmGC_ATC_L2_PERFCOUNTER_LO,  Apu103::mmGC_ATC_L2_PERFCOUNTER_HI  },
+            { Apu103::mmGC_ATC_L2_PERFCOUNTER2_SELECT, Apu103::mmGC_ATC_L2_PERFCOUNTER2_SELECT1, Apu103::mmGC_ATC_L2_PERFCOUNTER2_LO, Apu103::mmGC_ATC_L2_PERFCOUNTER2_HI },
         }};
-
     }
 
     // Also called the UTCL2.
@@ -1660,7 +1624,7 @@ static void Gfx10InitBasicBlockInfo(
         pUmcch->numSpmWires               = 0;
 
         // Note that this function also sets: numInstances, maxEventId.
-        UpdateUmcchBlockInfo(device, pInfo, pUmcch);
+        Gfx9Gfx10UpdateUmcchBlockInfo(device, pInfo, pUmcch);
 
         // A quick check to make sure we have registers for all instances. The fact that the number of instances varies
         // per ASIC doesn't mesh well with our register header scheme. If this hits UpdateUmcchBlockInfo needs fixing.
@@ -1923,7 +1887,7 @@ static void Gfx10InitBasicBlockInfo(
             { Gfx101::mmCHCG_PERFCOUNTER3_SELECT, 0,                                   Gfx101::mmCHCG_PERFCOUNTER3_LO, Gfx101::mmCHCG_PERFCOUNTER3_HI },
         }};
 
-        static_assert(Nv21::mmCHCG_PERFCOUNTER0_SELECT == Gfx101::mmCHCG_PERFCOUNTER0_SELECT,
+        static_assert(Nv2x::mmCHCG_PERFCOUNTER0_SELECT == Gfx101::mmCHCG_PERFCOUNTER0_SELECT,
                       "Must fix CHCG registers!");
 
         PerfCounterBlockInfo*const pGus = &pInfo->block[static_cast<uint32>(GpuBlock::Gus)];
@@ -1956,22 +1920,23 @@ static void Gfx10InitBasicBlockInfo(
         PerfCounterBlockInfo*const pDfMall = &pInfo->block[static_cast<uint32>(GpuBlock::DfMall)];
         pDfMall->distribution              = PerfCounterDistribution::GlobalBlock;
         pDfMall->numInstances              = pProps->gfx9.numSdpInterfaces; // There's one MALL per memory channel.
+        pDfMall->instanceGroupSize         = pProps->gfx9.numSdpInterfaces; // There's one shared set of counters.
         pDfMall->numGlobalOnlyCounters     = 8; // DF_PIE_AON_PerfMon*0-7
         pDfMall->numGenericSpmModules      = 0;
         pDfMall->numGenericLegacyModules   = 0;
         pDfMall->numSpmWires               = 0;
-        pDfMall->maxEventId                = MaxDfMallPerfSelNv21;
+        pDfMall->maxEventId                = MaxDfMallPerfSelNv2x;
 
         // Note that the DF isn't perfmon-style or cfg-style; it has a unique programming model.
         pDfMall->regAddr = { 0, {
-            { Nv21::mmDF_PIE_AON_PerfMonCtlLo0, Nv21::mmDF_PIE_AON_PerfMonCtlHi0, Nv21::mmDF_PIE_AON_PerfMonCtrLo0, Nv21::mmDF_PIE_AON_PerfMonCtrHi0 },
-            { Nv21::mmDF_PIE_AON_PerfMonCtlLo1, Nv21::mmDF_PIE_AON_PerfMonCtlHi1, Nv21::mmDF_PIE_AON_PerfMonCtrLo1, Nv21::mmDF_PIE_AON_PerfMonCtrHi1 },
-            { Nv21::mmDF_PIE_AON_PerfMonCtlLo2, Nv21::mmDF_PIE_AON_PerfMonCtlHi2, Nv21::mmDF_PIE_AON_PerfMonCtrLo2, Nv21::mmDF_PIE_AON_PerfMonCtrHi2 },
-            { Nv21::mmDF_PIE_AON_PerfMonCtlLo3, Nv21::mmDF_PIE_AON_PerfMonCtlHi3, Nv21::mmDF_PIE_AON_PerfMonCtrLo3, Nv21::mmDF_PIE_AON_PerfMonCtrHi3 },
-            { Nv21::mmDF_PIE_AON_PerfMonCtlLo4, Nv21::mmDF_PIE_AON_PerfMonCtlHi4, Nv21::mmDF_PIE_AON_PerfMonCtrLo4, Nv21::mmDF_PIE_AON_PerfMonCtrHi4 },
-            { Nv21::mmDF_PIE_AON_PerfMonCtlLo5, Nv21::mmDF_PIE_AON_PerfMonCtlHi5, Nv21::mmDF_PIE_AON_PerfMonCtrLo5, Nv21::mmDF_PIE_AON_PerfMonCtrHi5 },
-            { Nv21::mmDF_PIE_AON_PerfMonCtlLo6, Nv21::mmDF_PIE_AON_PerfMonCtlHi6, Nv21::mmDF_PIE_AON_PerfMonCtrLo6, Nv21::mmDF_PIE_AON_PerfMonCtrHi6 },
-            { Nv21::mmDF_PIE_AON_PerfMonCtlLo7, Nv21::mmDF_PIE_AON_PerfMonCtlHi7, Nv21::mmDF_PIE_AON_PerfMonCtrLo7, Nv21::mmDF_PIE_AON_PerfMonCtrHi7 },
+            { Nv2x::mmDF_PIE_AON_PerfMonCtlLo0, Nv2x::mmDF_PIE_AON_PerfMonCtlHi0, Nv2x::mmDF_PIE_AON_PerfMonCtrLo0, Nv2x::mmDF_PIE_AON_PerfMonCtrHi0 },
+            { Nv2x::mmDF_PIE_AON_PerfMonCtlLo1, Nv2x::mmDF_PIE_AON_PerfMonCtlHi1, Nv2x::mmDF_PIE_AON_PerfMonCtrLo1, Nv2x::mmDF_PIE_AON_PerfMonCtrHi1 },
+            { Nv2x::mmDF_PIE_AON_PerfMonCtlLo2, Nv2x::mmDF_PIE_AON_PerfMonCtlHi2, Nv2x::mmDF_PIE_AON_PerfMonCtrLo2, Nv2x::mmDF_PIE_AON_PerfMonCtrHi2 },
+            { Nv2x::mmDF_PIE_AON_PerfMonCtlLo3, Nv2x::mmDF_PIE_AON_PerfMonCtlHi3, Nv2x::mmDF_PIE_AON_PerfMonCtrLo3, Nv2x::mmDF_PIE_AON_PerfMonCtrHi3 },
+            { Nv2x::mmDF_PIE_AON_PerfMonCtlLo4, Nv2x::mmDF_PIE_AON_PerfMonCtlHi4, Nv2x::mmDF_PIE_AON_PerfMonCtrLo4, Nv2x::mmDF_PIE_AON_PerfMonCtrHi4 },
+            { Nv2x::mmDF_PIE_AON_PerfMonCtlLo5, Nv2x::mmDF_PIE_AON_PerfMonCtlHi5, Nv2x::mmDF_PIE_AON_PerfMonCtrLo5, Nv2x::mmDF_PIE_AON_PerfMonCtrHi5 },
+            { Nv2x::mmDF_PIE_AON_PerfMonCtlLo6, Nv2x::mmDF_PIE_AON_PerfMonCtlHi6, Nv2x::mmDF_PIE_AON_PerfMonCtrLo6, Nv2x::mmDF_PIE_AON_PerfMonCtrHi6 },
+            { Nv2x::mmDF_PIE_AON_PerfMonCtlLo7, Nv2x::mmDF_PIE_AON_PerfMonCtlHi7, Nv2x::mmDF_PIE_AON_PerfMonCtrLo7, Nv2x::mmDF_PIE_AON_PerfMonCtrHi7 },
         }};
     }
 }
@@ -2144,23 +2109,31 @@ static void Gfx11InitBasicBlockInfo(
     pSx->distribution              = PerfCounterDistribution::PerShaderArray;
     pSx->numInstances              = 1;
     pSx->numGenericSpmModules      = 2; // SX_PERFCOUNTER0-1
+    pSx->numGenericLegacyModules   = 2; // SX_PERFCOUNTER2-3
     pSx->numSpmWires               = 4;
     pSx->spmBlockSelect            = Gfx10SpmSeBlockSelectSx;
     pSx->maxEventId                = maxIds[SxPerfcounterValsId];
 
-    // Sets numGenericLegacyModules and the register addresses.
-    Gfx10UpdateSxBlockInfo(device, pSx);
+    pSx->regAddr = { 0, {
+        { mmSX_PERFCOUNTER0_SELECT, mmSX_PERFCOUNTER0_SELECT1, mmSX_PERFCOUNTER0_LO, mmSX_PERFCOUNTER0_HI },
+        { mmSX_PERFCOUNTER1_SELECT, mmSX_PERFCOUNTER1_SELECT1, mmSX_PERFCOUNTER1_LO, mmSX_PERFCOUNTER1_HI },
+        { mmSX_PERFCOUNTER2_SELECT, 0,                         mmSX_PERFCOUNTER2_LO, mmSX_PERFCOUNTER2_HI },
+        { mmSX_PERFCOUNTER3_SELECT, 0,                         mmSX_PERFCOUNTER3_LO, mmSX_PERFCOUNTER3_HI },
+    }};
 
     PerfCounterBlockInfo*const pTa = &pInfo->block[static_cast<uint32>(GpuBlock::Ta)];
     pTa->distribution              = PerfCounterDistribution::PerShaderArray;
     pTa->numInstances              = pProps->gfx9.numCuPerSh;
     pTa->numGenericSpmModules      = 1; // TA_PERFCOUNTER0
+    pTa->numGenericLegacyModules   = 1; // TA_PERFCOUNTER1
     pTa->numSpmWires               = 2;
     pTa->spmBlockSelect            = Gfx10SpmSeBlockSelectTa;
     pTa->maxEventId                = maxIds[TaPerfcountSelId];
 
-    // Sets numGenericLegacyModules and the register addresses.
-    Gfx10UpdateTaBlockInfo(device, pTa);
+    pTa->regAddr = { 0, {
+        { mmTA_PERFCOUNTER0_SELECT, mmTA_PERFCOUNTER0_SELECT1, mmTA_PERFCOUNTER0_LO, mmTA_PERFCOUNTER0_HI },
+        { mmTA_PERFCOUNTER1_SELECT, 0,                         mmTA_PERFCOUNTER1_LO, mmTA_PERFCOUNTER1_HI },
+    }};
 
     PerfCounterBlockInfo*const pTd = &pInfo->block[static_cast<uint32>(GpuBlock::Td)];
     pTd->distribution              = PerfCounterDistribution::PerShaderArray;
@@ -2231,7 +2204,7 @@ static void Gfx11InitBasicBlockInfo(
     pGds->maxEventId                = maxIds[GdsPerfcountSelectId];
 
     // Sets the register addresses and configures the perf modules and SPM wires.
-    Gfx10UpdateGdsBlockInfo(device, pGds);
+    Gfx10PlusUpdateGdsBlockInfo(device, pGds);
 
     PerfCounterBlockInfo*const pGrbm = &pInfo->block[static_cast<uint32>(GpuBlock::Grbm)];
     pGrbm->distribution              = PerfCounterDistribution::GlobalBlock;
@@ -2248,42 +2221,45 @@ static void Gfx11InitBasicBlockInfo(
 
     // These counters are a bit special. The GRBM is a global block but it defines one special counter per SE. We
     // abstract this as a special Grbm(per)Se block which needs special handling in the perf experiment.
-#if PAL_BUILD_NAVI3X
-    if(IsNavi3x(device))
-    {
-        PerfCounterBlockInfo*const pGrbmSe = &pInfo->block[static_cast<uint32>(GpuBlock::GrbmSe)];
-        pGrbmSe->distribution              = PerfCounterDistribution::PerShaderEngine;
-        pGrbmSe->numInstances              = 1;
-        pGrbmSe->numGlobalOnlyCounters     = 1;
-        pGrbmSe->numGenericSpmModules      = 0;
-        pGrbmSe->numGenericLegacyModules   = 0;
-        pGrbmSe->numSpmWires               = 0;
-        pGrbmSe->maxEventId                = MaxGrbmSe0PerfSelGfx11;
+    PerfCounterBlockInfo*const pGrbmSe = &pInfo->block[static_cast<uint32>(GpuBlock::GrbmSe)];
+    pGrbmSe->distribution              = PerfCounterDistribution::PerShaderEngine;
+    pGrbmSe->numInstances              = 1;
+    pGrbmSe->numGlobalOnlyCounters     = 1;
+    pGrbmSe->numGenericSpmModules      = 0;
+    pGrbmSe->numGenericLegacyModules   = 0;
+    pGrbmSe->numSpmWires               = 0;
+    pGrbmSe->maxEventId                = MaxGrbmSe0PerfSelGfx11;
 
-        // By convention we access the counter register address array using the SE index.
+    // By convention we access the counter register address array using the SE index.
+#if PAL_BUILD_NAVI3X
 #if PAL_BUILD_NAVI31
-        if(IsNavi31(device))
-        {
-            pGrbmSe->regAddr ={ 0, {
-                { mmGRBM_SE0_PERFCOUNTER_SELECT,       0, mmGRBM_SE0_PERFCOUNTER_LO,       mmGRBM_SE0_PERFCOUNTER_HI },
-                { Core::mmGRBM_SE1_PERFCOUNTER_SELECT, 0, Core::mmGRBM_SE1_PERFCOUNTER_LO, Core::mmGRBM_SE1_PERFCOUNTER_HI },
-                { Nv3x::mmGRBM_SE2_PERFCOUNTER_SELECT, 0, Nv3x::mmGRBM_SE2_PERFCOUNTER_LO, Nv3x::mmGRBM_SE2_PERFCOUNTER_HI },
-                { Nv31::mmGRBM_SE3_PERFCOUNTER_SELECT, 0, Nv31::mmGRBM_SE3_PERFCOUNTER_LO, Nv31::mmGRBM_SE3_PERFCOUNTER_HI },
-            }};
-        }
-        else
-#endif
-        if (false
-            )
-        {
-            pGrbmSe->regAddr ={ 0, {
-                { mmGRBM_SE0_PERFCOUNTER_SELECT,       0, mmGRBM_SE0_PERFCOUNTER_LO,       mmGRBM_SE0_PERFCOUNTER_HI },
-                { Core::mmGRBM_SE1_PERFCOUNTER_SELECT, 0, Core::mmGRBM_SE1_PERFCOUNTER_LO, Core::mmGRBM_SE1_PERFCOUNTER_HI },
-                { Nv3x::mmGRBM_SE2_PERFCOUNTER_SELECT, 0, Nv3x::mmGRBM_SE2_PERFCOUNTER_LO, Nv3x::mmGRBM_SE2_PERFCOUNTER_HI },
-            }};
-        }
+    if (IsNavi31(device))
+    {
+        pGrbmSe->regAddr = { 0, {
+            { mmGRBM_SE0_PERFCOUNTER_SELECT,       0, mmGRBM_SE0_PERFCOUNTER_LO,       mmGRBM_SE0_PERFCOUNTER_HI       },
+            { Core::mmGRBM_SE1_PERFCOUNTER_SELECT, 0, Core::mmGRBM_SE1_PERFCOUNTER_LO, Core::mmGRBM_SE1_PERFCOUNTER_HI },
+            { Nv3x::mmGRBM_SE2_PERFCOUNTER_SELECT, 0, Nv3x::mmGRBM_SE2_PERFCOUNTER_LO, Nv3x::mmGRBM_SE2_PERFCOUNTER_HI },
+            { Nv31::mmGRBM_SE3_PERFCOUNTER_SELECT, 0, Nv31::mmGRBM_SE3_PERFCOUNTER_LO, Nv31::mmGRBM_SE3_PERFCOUNTER_HI },
+        }};
     }
+    else
 #endif
+    if (IsNavi3x(device))
+    {
+        pGrbmSe->regAddr = { 0, {
+            { mmGRBM_SE0_PERFCOUNTER_SELECT,       0, mmGRBM_SE0_PERFCOUNTER_LO,       mmGRBM_SE0_PERFCOUNTER_HI       },
+            { Core::mmGRBM_SE1_PERFCOUNTER_SELECT, 0, Core::mmGRBM_SE1_PERFCOUNTER_LO, Core::mmGRBM_SE1_PERFCOUNTER_HI },
+            { Nv3x::mmGRBM_SE2_PERFCOUNTER_SELECT, 0, Nv3x::mmGRBM_SE2_PERFCOUNTER_LO, Nv3x::mmGRBM_SE2_PERFCOUNTER_HI },
+        }};
+    }
+    else
+#endif
+    {
+        pGrbmSe->regAddr = { 0, {
+            { mmGRBM_SE0_PERFCOUNTER_SELECT,       0, mmGRBM_SE0_PERFCOUNTER_LO,       mmGRBM_SE0_PERFCOUNTER_HI       },
+            { Core::mmGRBM_SE1_PERFCOUNTER_SELECT, 0, Core::mmGRBM_SE1_PERFCOUNTER_LO, Core::mmGRBM_SE1_PERFCOUNTER_HI },
+        }};
+    }
 
     // The RLC's SELECT registers are non-standard because they lack PERF_MODE fields. This should be fine though
     // because we only use PERFMON_COUNTER_MODE_ACCUM which is zero. If we ever try to use a different mode the RLC
@@ -2314,9 +2290,9 @@ static void Gfx11InitBasicBlockInfo(
     pDma->numInstances              = Min(pDma->numInstances, Gfx9MaxSdmaInstances);
 
     pInfo->sdmaRegAddr[0][0] = { Gfx103CorePlus::mmSDMA0_PERFCOUNTER0_SELECT, Gfx103CorePlus::mmSDMA0_PERFCOUNTER0_SELECT1,
-                                Gfx103CorePlus::mmSDMA0_PERFCOUNTER0_LO,     Gfx103CorePlus::mmSDMA0_PERFCOUNTER0_HI };
+                                 Gfx103CorePlus::mmSDMA0_PERFCOUNTER0_LO,     Gfx103CorePlus::mmSDMA0_PERFCOUNTER0_HI };
     pInfo->sdmaRegAddr[0][1] = { Gfx103CorePlus::mmSDMA0_PERFCOUNTER1_SELECT, Gfx103CorePlus::mmSDMA0_PERFCOUNTER1_SELECT1,
-                                Gfx103CorePlus::mmSDMA0_PERFCOUNTER1_LO,     Gfx103CorePlus::mmSDMA0_PERFCOUNTER1_HI };
+                                 Gfx103CorePlus::mmSDMA0_PERFCOUNTER1_LO,     Gfx103CorePlus::mmSDMA0_PERFCOUNTER1_HI };
 #if PAL_BUILD_NAVI3X
     if(IsNavi3x(device))
     {
@@ -2354,26 +2330,6 @@ static void Gfx11InitBasicBlockInfo(
         { mmCPC_PERFCOUNTER0_SELECT, mmCPC_PERFCOUNTER0_SELECT1, mmCPC_PERFCOUNTER0_LO, mmCPC_PERFCOUNTER0_HI },
         { mmCPC_PERFCOUNTER1_SELECT, 0,                          mmCPC_PERFCOUNTER1_LO, mmCPC_PERFCOUNTER1_HI },
     }};
-
-    // Also called the ATCL1.
-    PerfCounterBlockInfo*const pAtc = &pInfo->block[static_cast<uint32>(GpuBlock::Atc)];
-    pAtc->distribution              = PerfCounterDistribution::Unavailable;
-    pAtc->numInstances              = 0;
-    pAtc->numGenericSpmModules      = 0;
-    pAtc->numGenericLegacyModules   = 0; // ATC_PERFCOUNTER0-3
-    pAtc->numSpmWires               = 0;
-    pAtc->maxEventId                = 0;
-    pAtc->isCfgStyle                = true;
-
-    PerfCounterBlockInfo*const pAtcL2 = &pInfo->block[static_cast<uint32>(GpuBlock::AtcL2)];
-    pAtcL2->distribution              = PerfCounterDistribution::Unavailable;
-    pAtcL2->numInstances              = 0;
-    pAtcL2->numGenericSpmModules      = 0; // GC_ATC_L2_PERFCOUNTER2
-    pAtcL2->numGenericLegacyModules   = 0; // GC_ATC_L2_PERFCOUNTER0-1
-    pAtcL2->numSpmWires               = 0;
-    pAtcL2->spmBlockSelect            = 0;
-    pAtcL2->maxEventId                = 8;
-    pAtcL2->isCfgStyle                = true;
 
     // Also called the UTCL2.
     PerfCounterBlockInfo*const pMcVmL2 = &pInfo->block[static_cast<uint32>(GpuBlock::McVmL2)];
@@ -2416,31 +2372,18 @@ static void Gfx11InitBasicBlockInfo(
         { Gfx10CorePlus::mmGCEA_PERFCOUNTER2_SELECT, Gfx10CorePlus::mmGCEA_PERFCOUNTER2_SELECT1, Gfx10CorePlus::mmGCEA_PERFCOUNTER2_LO, Gfx10CorePlus::mmGCEA_PERFCOUNTER2_HI },
     }};
 
-#if PAL_BUILD_NAVI3X
-    if(IsNavi3x(device))
-    {
-        PerfCounterBlockInfo*const pRpb = &pInfo->block[static_cast<uint32>(GpuBlock::Rpb)];
-        pRpb->distribution              = PerfCounterDistribution::GlobalBlock;
-        pRpb->numInstances              = 1;
-        pRpb->numGenericSpmModules      = 0;
-        pRpb->numGenericLegacyModules   = 4; // RPB_PERFCOUNTER0-3
-        pRpb->numSpmWires               = 0;
-        pRpb->maxEventId                = 63;
-        pRpb->isCfgStyle                = true;
+    PerfCounterBlockInfo*const pRpb = &pInfo->block[static_cast<uint32>(GpuBlock::Rpb)];
+    pRpb->distribution              = PerfCounterDistribution::GlobalBlock;
+    pRpb->numInstances              = 1;
+    pRpb->numGenericSpmModules      = 0;
+    pRpb->numGenericLegacyModules   = 4; // RPB_PERFCOUNTER0-3
+    pRpb->numSpmWires               = 0;
+    pRpb->maxEventId                = 63;
+    pRpb->isCfgStyle                = true;
 
-#if PAL_BUILD_NAVI31
-        if (IsNavi31(device))
-        {
-            pRpb->regAddr ={ Gfx10Core::mmRPB_PERFCOUNTER_RSLT_CNTL, {
-                { Nv31::mmRPB_PERFCOUNTER0_CFG, 0, Nv31::mmRPB_PERFCOUNTER_LO, Nv31::mmRPB_PERFCOUNTER_HI },
-                { Nv31::mmRPB_PERFCOUNTER1_CFG, 0, Nv31::mmRPB_PERFCOUNTER_LO, Nv31::mmRPB_PERFCOUNTER_HI },
-                { Nv31::mmRPB_PERFCOUNTER2_CFG, 0, Nv31::mmRPB_PERFCOUNTER_LO, Nv31::mmRPB_PERFCOUNTER_HI },
-                { Nv31::mmRPB_PERFCOUNTER3_CFG, 0, Nv31::mmRPB_PERFCOUNTER_LO, Nv31::mmRPB_PERFCOUNTER_HI },
-            }};
-        }
-#endif
-    }
-#endif
+    // This just sets up the perf counter register addresses.
+    Gfx11UpdateRpbBlockInfo(device, pRpb);
+
     // The RMI changes the way you use its perfcounters very frequently, see below for more info.
     PerfCounterBlockInfo*const pRmi = &pInfo->block[static_cast<uint32>(GpuBlock::Rmi)];
     pRmi->distribution              = PerfCounterDistribution::PerShaderArray;
@@ -2466,21 +2409,6 @@ static void Gfx11InitBasicBlockInfo(
             { mmRMI_PERFCOUNTER2_SELECT, mmRMI_PERFCOUNTER2_SELECT1, mmRMI_PERFCOUNTER2_LO, mmRMI_PERFCOUNTER2_HI },
             { mmRMI_PERFCOUNTER3_SELECT, 0,                          mmRMI_PERFCOUNTER3_LO, mmRMI_PERFCOUNTER3_HI },
     }};
-
-    // The UMCCH has a unique programming model. It defines a fixed number of global counters for each instance.
-    PerfCounterBlockInfo*const pUmcch = &pInfo->block[static_cast<uint32>(GpuBlock::Umcch)];
-    pUmcch->distribution              = PerfCounterDistribution::Unavailable; // not defined for GFX11 in the headers yet
-    pUmcch->numGlobalOnlyCounters     = Gfx9MaxUmcchPerfModules;
-    pUmcch->numGenericSpmModules      = 0;
-    pUmcch->numGenericLegacyModules   = 0;
-    pUmcch->numSpmWires               = 0;
-
-    // Note that this function also sets: numInstances, maxEventId.
-    UpdateUmcchBlockInfo(device, pInfo, pUmcch);
-
-    // A quick check to make sure we have registers for all instances. The fact that the number of instances varies
-    // per ASIC doesn't mesh well with our register header scheme. If this hits UpdateUmcchBlockInfo needs fixing.
-    PAL_ASSERT(pInfo->umcchRegAddr[pUmcch->numInstances - 1].perfMonCtlClk != 0);
 
     // Gfx10.3 split the GE perf counters into three independent units: GE1, GE2_DIST, and GE2_SE.
     PerfCounterBlockInfo*const pGe = &pInfo->block[static_cast<uint32>(GpuBlock::Ge)];
@@ -2744,10 +2672,16 @@ void InitPerfCtrInfo(
     // We depend very heavily on unsupported fields being zero by default.
     memset(pInfo, 0, sizeof(*pInfo));
 
-    // The SPM block select requires a non-zero default. We use UINT32_MAX to indicate "invalid".
+    // Some fields require non-zero defaults.
     for (uint32 idx = 0; idx < static_cast<uint32>(GpuBlock::Count); idx++)
     {
-        pInfo->block[idx].spmBlockSelect = UINT32_MAX;
+        PerfCounterBlockInfo*const pBlock = &pInfo->block[idx];
+
+        // The SPM block select requires a non-zero default. We use UINT32_MAX to indicate "invalid".
+        pBlock->spmBlockSelect = UINT32_MAX;
+
+        // Almost all blocks have per-instance counter hardware.
+        pBlock->instanceGroupSize = 1;
     }
 
     // These features are supported by all ASICs.

@@ -54,9 +54,6 @@ GfxCmdBuffer::GfxCmdBuffer(
     m_computeStateFlags(0),
     m_pDfSpmPerfmonInfo(nullptr),
     m_cmdBufPerfExptFlags{}
-#if PAL_ENABLE_PRINTS_ASSERTS
-    , m_graphicsStateIsPushed(false)
-#endif
 {
     PAL_ASSERT((createInfo.queueType == QueueTypeUniversal) || (createInfo.queueType == QueueTypeCompute));
 }
@@ -924,10 +921,8 @@ void GfxCmdBuffer::CmdResolvePrtPlusImage(
 // This cannot be called again until CmdRestoreGraphicsState is called.
 void GfxCmdBuffer::CmdSaveGraphicsState()
 {
-#if PAL_ENABLE_PRINTS_ASSERTS
-    PAL_ASSERT(m_graphicsStateIsPushed == false);
-    m_graphicsStateIsPushed = true;
-#endif
+    PAL_ASSERT(m_gfxCmdBufStateFlags.isGfxStatePushed == 0);
+    m_gfxCmdBufStateFlags.isGfxStatePushed = 1;
 
     if (m_pCurrentExperiment != nullptr)
     {
@@ -939,10 +934,8 @@ void GfxCmdBuffer::CmdSaveGraphicsState()
 // =====================================================================================================================
 void GfxCmdBuffer::CmdRestoreGraphicsState()
 {
-#if PAL_ENABLE_PRINTS_ASSERTS
-    PAL_ASSERT(m_graphicsStateIsPushed);
-    m_graphicsStateIsPushed = false;
-#endif
+    PAL_ASSERT(m_gfxCmdBufStateFlags.isGfxStatePushed != 0);
+    m_gfxCmdBufStateFlags.isGfxStatePushed = 0;
 
     if (m_pCurrentExperiment != nullptr)
     {

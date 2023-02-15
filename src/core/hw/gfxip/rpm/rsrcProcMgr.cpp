@@ -2994,7 +2994,8 @@ void RsrcProcMgr::CmdClearColorImage(
     uint32                flags
     ) const
 {
-    const bool needComputeClearSync = TestAnyFlagSet(flags, ColorClearAutoSync);
+    const bool skipIfSlow           = TestAnyFlagSet(flags, ColorClearSkipIfSlow);
+    const bool needComputeClearSync = TestAnyFlagSet(flags, ColorClearAutoSync) && (skipIfSlow == false);
 
     if (needComputeClearSync)
     {
@@ -3017,7 +3018,7 @@ void RsrcProcMgr::CmdClearColorImage(
     {
         PAL_ASSERT(pRanges[rangeIdx].numPlanes == 1);
 
-        if (pRanges[rangeIdx].numMips != 0)
+        if ((pRanges[rangeIdx].numMips != 0) && (skipIfSlow == false))
         {
             SlowClearCompute(pCmdBuffer,
                              dstImage,

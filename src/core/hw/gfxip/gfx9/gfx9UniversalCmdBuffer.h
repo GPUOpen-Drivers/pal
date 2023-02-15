@@ -673,6 +673,9 @@ public:
 
     virtual gpusize GetMeshPipeStatsGpuAddr() const override { return m_meshPipeStatsGpuAddr; }
 
+    // checks if the entire command buffer can be preempted or not
+    virtual bool IsPreemptable() const override;
+
     virtual uint32* WriteWaitEop(HwPipePoint waitPoint, uint32 hwGlxSync, uint32 hwRbSync, uint32* pCmdSpace) override;
     virtual uint32* WriteWaitCsIdle(uint32* pCmdSpace) override;
 

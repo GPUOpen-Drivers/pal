@@ -870,7 +870,6 @@ enum PFP_COPY_DATA_src_sel_enum
     src_sel__pfp_copy_data__tc_l2                     =  2,
     src_sel__pfp_copy_data__immediate_data            =  5,
 #if CHIP_HDR_NAVI31
-    src_sel__pfp_copy_data__ext32perfcntr__GFX11      = 11,
     src_sel__pfp_copy_data__exec_ind_arg_buf__GFX11   = 12,
 #endif
 };
@@ -884,7 +883,6 @@ enum PFP_COPY_DATA_dst_sel_enum
     dst_sel__pfp_copy_data__tc_l2_obsolete__GFX10PLUS   =  5,
 #if CHIP_HDR_NAVI31
     dst_sel__pfp_copy_data__exec_ind_spill_table__GFX11 =  7,
-    dst_sel__pfp_copy_data__ext32perfcntr__GFX11        = 11,
 #endif
 };
 

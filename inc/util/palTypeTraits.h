@@ -60,13 +60,21 @@ struct Negation : BoolConstant<!bool(B::value)>{};
 
 /// Type trait to form a logical conjution (AND) between a sequence of type traits.
 /// Will be deprecated by C++17's std::conjunction
-template<typename B1, typename... Bn>
-struct Conjunction : std::is_same<std::tuple<std::true_type, B1, Bn...>, std::tuple<B1, Bn..., std::true_type>>{};
+template<class...>
+struct Conjunction : std::true_type{};
+template<class B>
+struct Conjunction<B> : B{};
+template<class B, class... Bn>
+struct Conjunction<B, Bn...> : std::conditional_t<bool(B::value), Conjunction<Bn...>, B>{};
 
 /// Type trait to form a logical disjunction (OR) between a sequence of type traits.
 /// Will be deprecated by C++17's std::disjunction
-template<typename B1, typename... Bn>
-struct Disjunction : Negation<Conjunction<B1, Bn...>>{};
+template<class...>
+struct Disjunction : std::false_type{};
+template<class B>
+struct Disjunction<B> : B{};
+template<class B, class... Bn>
+struct Disjunction<B, Bn...> : std::conditional_t<bool(B::value), B, Disjunction<Bn...>>{};
 
 /// Type trait to determine if a given type is a scoped enum.
 /// Will be deprecated by C++23's std::is_scoped_enum.
@@ -74,6 +82,10 @@ template<typename E, bool = std::is_enum<E>::value>
 struct IsScopedEnum : std::false_type{};
 template<typename E>
 struct IsScopedEnum<E, true> : public BoolConstant<!std::is_convertible<E, std::underlying_type_t<E>>::value>{};
+
+/// Type trait to determine if a given type is an unscoped enum.
+template<typename E>
+using IsUnscopedEnum = Conjunction<std::is_enum<E>, Negation<IsScopedEnum<E>>>;
 
 /// Type trait to determine if two types are the same scoped enums.
 template<typename T1, typename T2>
@@ -176,6 +188,15 @@ constexpr T& operator|=(T& lhs, E rhs) noexcept
     return lhs = static_cast<T>(lhs | rhs);
 }
 
+/// Bitwise or-equals operator for unscoped enums.
+///
+/// @returns the bitwise or-equals of the two passed enums
+template<typename E, std::enable_if_t<IsUnscopedEnum<E>::value, int> = 0>
+constexpr E& operator|=(E& lhs, E rhs) noexcept
+{
+    return lhs = static_cast<E>(lhs | rhs);
+}
+
 /// Bitwise and-equals operator for scoped enums (enum classes).
 ///
 /// @returns the bitwise and-equals of the two passed enums
@@ -197,6 +218,15 @@ constexpr T& operator&=(T& lhs, E rhs) noexcept
     return lhs = static_cast<T>(lhs & rhs);
 }
 
+/// Bitwise and-equals operator for unscoped enums.
+///
+/// @returns the bitwise or-equals of the two passed enums
+template<typename E, std::enable_if_t<IsUnscopedEnum<E>::value, int> = 0>
+constexpr E& operator&=(E& lhs, E rhs) noexcept
+{
+    return lhs = static_cast<E>(lhs & rhs);
+}
+
 /// Bitwise xor-equals operator for scoped enums (enum classes).
 ///
 /// @returns the bitwise xor-equals of the two passed enums
@@ -216,6 +246,15 @@ template<typename E,
 constexpr T& operator^=(T& lhs, E rhs) noexcept
 {
     return lhs = static_cast<T>(lhs ^ rhs);
+}
+
+/// Bitwise xor-equals operator for unscoped enums.
+///
+/// @returns the bitwise or-equals of the two passed enums
+template<typename E, std::enable_if_t<IsUnscopedEnum<E>::value, int> = 0>
+constexpr E& operator^=(E& lhs, E rhs) noexcept
+{
+    return lhs = static_cast<E>(lhs ^ rhs);
 }
 
 /// Bitwise left shift operator for scoped enums (enum classes).

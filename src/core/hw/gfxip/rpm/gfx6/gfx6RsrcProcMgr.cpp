@@ -1443,10 +1443,8 @@ uint32* RsrcProcMgr::UpdateBoundFastClearColor(
 
     const UniversalCmdBuffer* pUnivCmdBuf = static_cast<const UniversalCmdBuffer*>(pCmdBuffer);
 
-#if PAL_ENABLE_PRINTS_ASSERTS
     // We should be inspecting the main graphics state and not a pushed copy
-    PAL_ASSERT(pUnivCmdBuf->IsGraphicsStatePushed() == false);
-#endif
+    PAL_ASSERT(pUnivCmdBuf->GetGfxCmdBufStateFlags().isGfxStatePushed == 0);
 
     const Pm4::GraphicsState& graphicsState = pUnivCmdBuf->GetGraphicsState();
 
@@ -1491,10 +1489,8 @@ void RsrcProcMgr::UpdateBoundFastClearDepthStencil(
 
     const UniversalCmdBuffer* pUnivCmdBuf = static_cast<const UniversalCmdBuffer*>(pCmdBuffer);
 
-#if PAL_ENABLE_PRINTS_ASSERTS
     // We should be inspecting the main graphics state and not a pushed copy
-    PAL_ASSERT(pUnivCmdBuf->IsGraphicsStatePushed() == false);
-#endif
+    PAL_ASSERT(pUnivCmdBuf->GetGfxCmdBufStateFlags().isGfxStatePushed == 0);
 
     const Pm4::GraphicsState& graphicsState = pUnivCmdBuf->GetGraphicsState();
 

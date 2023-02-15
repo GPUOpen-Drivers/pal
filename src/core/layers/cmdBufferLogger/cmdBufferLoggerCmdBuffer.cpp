@@ -982,12 +982,24 @@ static void DumpClearColorImageFlags(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
-    Snprintf(pString, StringLength, "flags = ");
+    Snprintf(pString, StringLength, "flags =");
 
     if (TestAnyFlagSet(flags, ClearColorImageFlags::ColorClearAutoSync))
     {
         const size_t currentStringLength = strlen(pString);
-        Snprintf(pString + currentStringLength, StringLength - currentStringLength, "ColorClearAutoSync");
+        Snprintf(pString + currentStringLength, StringLength - currentStringLength, " ColorClearAutoSync");
+    }
+
+    if (TestAnyFlagSet(flags, ClearColorImageFlags::ColorClearForceSlow))
+    {
+        const size_t currentStringLength = strlen(pString);
+        Snprintf(pString + currentStringLength, StringLength - currentStringLength, " ColorClearForceSlow");
+    }
+
+    if (TestAnyFlagSet(flags, ClearColorImageFlags::ColorClearSkipIfSlow))
+    {
+        const size_t currentStringLength = strlen(pString);
+        Snprintf(pString + currentStringLength, StringLength - currentStringLength, " ColorClearSkipIfSlow");
     }
 
     pCmdBuffer->CmdCommentString(pString);

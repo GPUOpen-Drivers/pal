@@ -86,8 +86,9 @@ protected:
     // Number of threads per threadgroup in each dimension as determined by parsing the input IL.
     DispatchDims m_threadsPerTg;
 
-    uint32  m_maxFunctionCallDepth;  // Maximum depth for indirect function calls
-    uint32  m_stackSizeInBytes;      // Stack managed by the compiler backend.
+    uint32  m_maxFunctionCallDepth;    // Maximum depth for indirect function calls
+    uint32  m_stackSizeInBytes;        // Total stack size for indirect functions
+    uint32  m_backendStackSizeInBytes; // Stack managed by the compiler backend. Only used in Continuation.
 
     ShaderStageInfo  m_stageInfo;
 

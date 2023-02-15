@@ -3347,6 +3347,7 @@ void InitializePerfExperimentProperties(
             pBlock->maxEventId                = blockInfo.maxEventId;
             pBlock->maxGlobalOnlyCounters     = blockInfo.numGlobalOnlyCounters;
             pBlock->maxSpmCounters            = blockInfo.num16BitSpmCounters;
+            pBlock->instanceGroupSize         = blockInfo.instanceGroupSize;
 
             // Note that the current interface says the shared count includes all global counters. This seems
             // to be contradictory, how can something be shared and global-only? Regardless, we cannot change this

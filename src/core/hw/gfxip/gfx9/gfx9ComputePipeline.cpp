@@ -563,7 +563,7 @@ void ComputePipeline::SetStackSizeInBytes(
 // Get the size of the stack managed by the compiler backend.
 uint32 ComputePipeline::GetStackSizeInBytes() const
 {
-    return m_stackSizeInBytes;
+    return m_backendStackSizeInBytes;
 }
 
 // =====================================================================================================================

@@ -141,6 +141,13 @@ public:
         {
             Hash(info.lateAllocVsLimit);
         }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 781
+        Hash(info.useLateAllocGsLimit);
+        if (info.useLateAllocGsLimit)
+        {
+            Hash(info.lateAllocGsLimit);
+        }
+#endif
 
         m_hasher.Update(reinterpret_cast<const uint8*>(&(info.iaState)), sizeof(info.iaState));
         Hash(info.rsState);

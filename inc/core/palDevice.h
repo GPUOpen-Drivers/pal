@@ -506,6 +506,7 @@ union RsFeatureInfo
         bool enabled;    ///< Specifies whether Delag is enabled globally.
         uint32 hotkey;   ///< If nonzero, specifies the virtual key code assigned to Delag.
         uint32 limitFps; ///< Specifies the global Delag FPS limit.
+        uint32 level;    ///< Specifies the global Delag level.
     } delag;
 
     /// Global Boost settings.
@@ -1767,30 +1768,39 @@ struct GpuMemoryHeapProperties
 
 /// Reports properties of a specific GPU block required for interpretting performance experiment data from that block.
 /// See @ref PerfExperimentProperties.
-/// The DF subblocks have unique instances and event IDs but they all share the DF's perf counters.  Each DF subblock
-/// has its own GpuBlock enum and GpuBlockPerfProperties.  The max counter values are shared between all DF subblocks.
-/// For example, if there are only 8 DF global counters then all DF subblocks will report maxGlobalOnlyCounters = 8
-/// but you will run out of counters if you try to enable more than 8 counters across all DF subblocks.
 struct GpuBlockPerfProperties
 {
-    bool     available;                ///< If performance data is available for this block.
-    uint32   instanceCount;            ///< How many instances of this block are in the device.
-    uint32   maxEventId;               ///< Maximum event ID for this block.
-    uint32   maxGlobalOnlyCounters;    ///< Number of counters available only for global counts.
-    uint32   maxGlobalSharedCounters;  ///< Total counters available per instance of the block.
-    uint32   maxSpmCounters;           ///< Counters available for streaming only.
+    bool   available;               ///< If performance data is available for this block.
+    uint32 instanceCount;           ///< How many instances of this block are in the device.
+    uint32 maxEventId;              ///< Maximum event ID for this block.
+    uint32 maxGlobalOnlyCounters;   ///< Number of counters available only for global counts.
+    uint32 maxGlobalSharedCounters; ///< Total counters available including state shared between global and SPM.
+    uint32 maxSpmCounters;          ///< Counters available for streaming only.
+
+    /// If the instance group size is equal to one, every block instance has its own independent counter hardware.
+    /// PAL guarantees this is true for all non-DF blocks.
+    ///
+    /// Otherwise the instance group size will be a value greater than one which indicates how many sequential
+    /// instances share the same counter hardware. The client must take care to not enable too many counters within
+    /// each of these groups.
+    ///
+    /// For example, the DfMall block may expose 16 instances with 8 global counters but define a group size of 16.
+    /// In that case all instances are part of one massive group which uses one pool of counter state such that no
+    /// combination of DfMall counter configurations can exceed 8 global counters.
+    uint32 instanceGroupSize;
 };
 
 /// Reports performance experiment capabilities of a device.  Returned by IDevice::GetPerfExperimentProperties().
 struct PerfExperimentProperties
 {
-    PerfExperimentDeviceFeatureFlags features;                              ///< Performance experiment device features.
-    size_t                 maxSqttSeBufferSize;                             ///< SQTT buffer size per shader engine.
-    size_t                 sqttSeBufferAlignment;                           ///< SQTT buffer size and base address
-                                                                            ///  alignment.
-    uint32                 shaderEngineCount;                               ///< Number of shader engines.
-    GpuBlockPerfProperties blocks[static_cast<size_t>(GpuBlock::Count)];    ///< Reports availability and properties of
-                                                                            ///  each device block.
+    PerfExperimentDeviceFeatureFlags features; ///< Performance experiment device features.
+
+    size_t maxSqttSeBufferSize;   ///< SQTT buffer size per shader engine.
+    size_t sqttSeBufferAlignment; ///< SQTT buffer size and base address alignment.
+    uint32 shaderEngineCount;     ///< Number of shader engines.
+
+    /// Reports availability and properties of each device block.
+    GpuBlockPerfProperties blocks[static_cast<size_t>(GpuBlock::Count)];
 };
 
 /// Reports maximum alignments for images created with a @ref ImageTiling::Linear tiling mode assuming the images'
@@ -4032,6 +4042,8 @@ public:
     /// be setup as described in @ref ImageViewInfo.  The client should put the resulting SRD in an appropriate
     /// location based on the shader resource mapping specified by the bound pipeline, either directly in user data
     /// (ICmdBuffer::CmdSetUserData()) or a table in GPU memory indirectly referenced by user data.
+    ///
+    /// @warning SRDs for Planar YUV images will include padding if pImageViewInfo->subresRange.numSlices > 1
     ///
     /// @param [in]  count        Number of buffer view SRDs to create; size of the pImageViewInfo array.
     /// @param [in]  pImgViewInfo Array of image view descriptions directing SRD construction.
