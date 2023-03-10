@@ -148,10 +148,8 @@ Result DmaCmdBuffer::End()
     if (result == Result::Success)
     {
 
-#if PAL_ENABLE_PRINTS_ASSERTS
         const CmdStream* cmdStreams[] = { &m_cmdStream };
         EndCmdBufferDump(cmdStreams, 1);
-#endif
     }
 
     return result;
@@ -1554,7 +1552,6 @@ void DmaCmdBuffer::SetupDmaTypedBufferCopyInfo(
     *pTexelScale = texelScale;
 }
 
-#if PAL_ENABLE_PRINTS_ASSERTS
 // =====================================================================================================================
 // Dumps this command buffer's single command stream to the given file with an appropriate header.
 void DmaCmdBuffer::DumpCmdStreamsToFile(
@@ -1564,7 +1561,6 @@ void DmaCmdBuffer::DumpCmdStreamsToFile(
 {
     m_cmdStream.DumpCommands(pFile, "# DMA Queue - Command length = ", mode);
 }
-#endif
 
 // =====================================================================================================================
 // Helper function for a number of OSS versions to ensure that various memory-image copy region values dependent on

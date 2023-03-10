@@ -48,7 +48,7 @@
 /// Checks if PAL is compiled with C++ of at least version @p v.
 #define PAL_CPLUSPLUS_AT_LEAST(v) (PAL_CPLUSPLUS >= (v))
 
-static_assert(PAL_CPLUSPLUS_AT_LEAST(PAL_CPLUSPLUS_14), "C++14 is required to build PAL.");
+static_assert(PAL_CPLUSPLUS_AT_LEAST(PAL_CPLUSPLUS_17), "C++17 is required to build PAL.");
 
 #include <cstddef>
 
@@ -499,6 +499,7 @@ enum class Result : int32
 
 };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 785
 /// Length of date field used in BuildUniqueId
 static constexpr uint8 DateLength = 12;
 /// Length of time field used in BuildUniqueId
@@ -512,6 +513,7 @@ struct BuildUniqueId
     uint8 buildDate[DateLength];
     uint8 buildTime[TimeLength];
 };
+#endif
 
 ///Specifies a ratio of two unsigned integers.
 struct Rational

@@ -238,7 +238,7 @@ Device::Device(
     m_deviceFinalized(false),
 #if PAL_ENABLE_PRINTS_ASSERTS
     m_settingsCommitted(false),
-    m_cmdBufDumpEnabled(false),
+    m_cmdBufDumpEnabledViaHotkey(false),
 #endif
     m_force32BitVaSpace(pPlatform->Force32BitVaSpace()),
     m_disableSwapChainAcquireBeforeSignaling(false),
@@ -1458,6 +1458,14 @@ void Device::InitPageFaultDebugSrd()
                 bindData.offset = memOffset;
                 bindData.requiredGpuMemSize = createInfo.size;
                 m_pPlatform->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+
+                Developer::BindGpuMemoryData callbackData = {};
+                callbackData.pObj               = bindData.pObj;
+                callbackData.requiredGpuMemSize = bindData.requiredGpuMemSize;
+                callbackData.pGpuMemory         = bindData.pGpuMemory;
+                callbackData.offset             = bindData.offset;
+                callbackData.isSystemMemory     = bindData.isSystemMemory;
+                DeveloperCb(Developer::CallbackType::BindGpuMemory, &callbackData);
             }
 
             m_pageFaultDebugSrdMem.Update(pGpuMem, memOffset);
@@ -1536,6 +1544,14 @@ Result Device::InitDummyChunkMem()
             bindData.offset = memOffset;
             bindData.requiredGpuMemSize = createInfo.size;
             m_pPlatform->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+
+            Developer::BindGpuMemoryData callbackData = {};
+            callbackData.pObj               = bindData.pObj;
+            callbackData.requiredGpuMemSize = bindData.requiredGpuMemSize;
+            callbackData.pGpuMemory         = bindData.pGpuMemory;
+            callbackData.offset             = bindData.offset;
+            callbackData.isSystemMemory     = bindData.isSystemMemory;
+            DeveloperCb(Developer::CallbackType::BindGpuMemory, &callbackData);
         }
 
         m_dummyChunkMem.Update(pGpuMem, memOffset);
@@ -2548,9 +2564,10 @@ Result Device::GetProperties(
                 sizeof(pInfo->gfxipProperties.shaderCore.activePixelPackerMask));
 #endif
 
-            pInfo->gfxipProperties.flags.supportInt8Dot    = gfx9Props.supportInt8Dot;
-            pInfo->gfxipProperties.flags.supportInt4Dot    = gfx9Props.supportInt4Dot;
-            pInfo->gfxipProperties.flags.support2DRectList = gfx9Props.support2DRectList;
+            pInfo->gfxipProperties.flags.supportInt8Dot     = gfx9Props.supportInt8Dot;
+            pInfo->gfxipProperties.flags.supportInt4Dot     = gfx9Props.supportInt4Dot;
+            pInfo->gfxipProperties.flags.support2DRectList  = gfx9Props.support2DRectList;
+            pInfo->gfxipProperties.flags.support3dUavZRange = gfx9Props.support3dUavZRange;
             break;
         }
 
@@ -2573,6 +2590,7 @@ Result Device::GetProperties(
 
         pInfo->gfxipProperties.maxGsOutputVert            = m_chipProperties.gfxip.maxGsOutputVert;
         pInfo->gfxipProperties.maxGsTotalOutputComponents = m_chipProperties.gfxip.maxGsTotalOutputComponents;
+        pInfo->gfxipProperties.maxGsInvocations           = m_chipProperties.gfxip.maxGsInvocations;
 
         pInfo->gfxipProperties.performance.maxGpuClock     = static_cast<float>(m_chipProperties.maxEngineClock);
         pInfo->gfxipProperties.performance.aluPerClock     = static_cast<float>(m_chipProperties.alusPerClock);
@@ -3617,9 +3635,6 @@ Result Device::CreateGpuMemory(
 
     if ((pPlacementAddr != nullptr) && (ppGpuMemory != nullptr))
     {
-        void*const pPageTableMappingMem =
-            (createInfo.flags.virtualAlloc == 0) ? nullptr : VoidPtrInc(pPlacementAddr, GpuMemoryObjectSize());
-
         GpuMemory* pGpuMemory = ConstructGpuMemoryObject(pPlacementAddr);
         result = pGpuMemory->Init(createInfo, internalInfo);
         if (IsErrorResult(result))
@@ -4343,8 +4358,16 @@ Result Device::ValidateImageViewInfo(
                 }
                 break;
             case ImageType::Tex3d:
-                // 3D image -- view must be 3D and (baseArraySlice + arraySlices) must be 1.
-                if (viewType != ImageViewType::Tex3d)
+                // 3D image -- view must be 3D and (baseArraySlice + arraySlices) must be 1 if not
+                // using 2D image view of a 3D image
+                if ((viewType == ImageViewType::Tex2d) && imgInfo.flags.view3dAs2dArray)
+                {
+                    if (viewMaxSlice > imgInfo.extent.depth)
+                    {
+                        result = Result::ErrorInvalidViewArraySize;
+                    }
+                }
+                else if (viewType != ImageViewType::Tex3d)
                 {
                     result = Result::ErrorViewTypeIncompatibleWithImageType;
                 }
@@ -4947,7 +4970,7 @@ void Device::IncFrameCount()
 {
 #if PAL_ENABLE_PRINTS_ASSERTS
     // Force command buffer dumping on for the next frame if the user is currently holding Shift-F10.
-    m_cmdBufDumpEnabled = IsKeyPressed(KeyCode::Shift_F10);
+    m_cmdBufDumpEnabledViaHotkey = IsKeyPressed(KeyCode::Shift_F10);
 #endif
     Util::AtomicIncrement(&m_frameCnt);
 }
@@ -5030,6 +5053,20 @@ void Device::ApplyDevOverlay(
         Util::Snprintf(overlayTextBuffer,
                        OverlayTextBufferSize, "RMV Tracing: %s",
                        pRmvTraceStatusString);
+        m_pTextWriter->DrawDebugText(dstImage,
+                                     pCmdBuffer,
+                                     overlayTextBuffer,
+                                     0,
+                                     letterHeight);
+        letterHeight += GpuUtil::TextWriterFont::LetterHeight;
+
+        // Check Crash Analysis Status
+        const char* pRgdTraceStatusString = m_pPlatform->IsCrashAnalysisModeEnabled() ? "Active" : "Inactive";
+
+        //Print Crash Analysis Status
+        Util::Snprintf(overlayTextBuffer,
+                       OverlayTextBufferSize, "Crash Analysis: %s",
+                       pRgdTraceStatusString);
         m_pTextWriter->DrawDebugText(dstImage,
                                      pCmdBuffer,
                                      overlayTextBuffer,
@@ -5377,7 +5414,6 @@ bool Device::EnablePerfCountersInPreamble() const
     return enable;
 }
 
-#if PAL_ENABLE_PRINTS_ASSERTS
 // =====================================================================================================================
 // Writes an ELF code object used by a pipeline or library to disk.
 void Device::LogCodeObjectToDisk(
@@ -5446,6 +5482,5 @@ void Device::LogCodeObjectToDisk(
         }
     }
 }
-#endif
 
 } // Pal

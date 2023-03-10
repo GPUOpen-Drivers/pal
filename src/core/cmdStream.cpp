@@ -695,7 +695,6 @@ gpusize CmdStream::GetCurrentGpuVa()
     return gpuVa;
 }
 
-#if PAL_ENABLE_PRINTS_ASSERTS
 // =====================================================================================================================
 // Saves all the command data associated with this stream to the file pointed to by pFile.
 //
@@ -739,7 +738,6 @@ void CmdStream::DumpCommands(
     // operation of the "important" stuff...  but still make it apparent that the dump file isn't accurate.
     PAL_ALERT(result != Result::Success);
 }
-#endif
 
 // =====================================================================================================================
 uint32 CmdStream::GetUsedCmdMemorySize() const

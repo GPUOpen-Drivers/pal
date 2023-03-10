@@ -520,7 +520,7 @@ size_t CmdUtil::BuildAcquireMem(
     PAL_ASSERT(m_chipFamily != GfxIpLevel::GfxIp6);
 
     constexpr size_t PacketSize = PM4_CMD_ACQUIRE_MEM_DWORDS;
-    auto*const       pPacket    = static_cast<PM4ACQUIREMEM*>(pBuffer);
+    PM4ACQUIREMEM packet = {};
 
     if ((m_chipFamily >= GfxIpLevel::GfxIp8) && (cpCoherCntl.bits.TC_ACTION_ENA == 1))
     {
@@ -529,9 +529,9 @@ size_t CmdUtil::BuildAcquireMem(
         cpCoherCntl.bits.TC_WB_ACTION_ENA__CI__VI = 1;
     }
 
-    pPacket->header.u32All = Type3Header(IT_ACQUIRE_MEM__CI__VI, PacketSize);
-    pPacket->coherCntl     = cpCoherCntl.u32All;
-    pPacket->engine        = 0;
+    packet.header.u32All = Type3Header(IT_ACQUIRE_MEM__CI__VI, PacketSize);
+    packet.coherCntl     = cpCoherCntl.u32All;
+    packet.engine        = 0;
 
     // Need to align-down the given base address and then add the difference to the size, and align that new size.
     // Note that if sizeBytes is equal to FullSyncSize we should clamp it to the max virtual address.
@@ -543,17 +543,16 @@ size_t CmdUtil::BuildAcquireMem(
                                         ? m_device.MemoryProperties().vaUsableEnd
                                         : Pow2Align((sizeBytes + (baseAddress - alignedAddress)), Alignment);
 
-    pPacket->coherSize    = static_cast<uint32>(alignedSize >> SizeShift);
-    pPacket->ordinal4     = 0;
-    pPacket->coherSizeHi  = static_cast<uint32>(alignedSize >> 40);
+    packet.coherSize    = static_cast<uint32>(alignedSize >> SizeShift);
+    packet.coherSizeHi  = static_cast<uint32>(alignedSize >> 40);
 
-    pPacket->coherBaseLo  = Get256BAddrLo(alignedAddress);
-    pPacket->ordinal6     = 0;
-    pPacket->coherBaseHi  = Get256BAddrHi(alignedAddress);
+    packet.coherBaseLo  = Get256BAddrLo(alignedAddress);
+    packet.coherBaseHi  = Get256BAddrHi(alignedAddress);
 
-    pPacket->ordinal7     = 0;
-    pPacket->pollInterval = Pal::Device::PollInterval;
+    packet.pollInterval = Pal::Device::PollInterval;
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -571,19 +570,17 @@ size_t CmdUtil::BuildAtomicMem(
     PAL_ASSERT((dstMemAddr != 0) && IsPow2Aligned(dstMemAddr, (Is32BitAtomicOp(atomicOp) ? 4 : 8)));
 
     constexpr size_t    PacketSize = PM4_CMD_ATOMIC_DWORDS;
-    auto*const          pPacket    = static_cast<PM4CMDATOMIC*>(pBuffer);
+    PM4CMDATOMIC packet = {};
 
-    pPacket->header.u32All = Type3Header(IT_ATOMIC, PacketSize);
-    pPacket->ordinal2      = 0;
-    pPacket->atomOp        = TranslateAtomicOp(atomicOp);
-    pPacket->addressLo     = LowPart(dstMemAddr);
-    pPacket->addressHi     = HighPart(dstMemAddr);
-    pPacket->srcDataLo     = LowPart(srcData);
-    pPacket->srcDataHi     = HighPart(srcData);
-    pPacket->ordinal7      = 0;
-    pPacket->ordinal8      = 0;
-    pPacket->ordinal9      = 0;
+    packet.header.u32All = Type3Header(IT_ATOMIC, PacketSize);
+    packet.atomOp        = TranslateAtomicOp(atomicOp);
+    packet.addressLo     = LowPart(dstMemAddr);
+    packet.addressHi     = HighPart(dstMemAddr);
+    packet.srcDataLo     = LowPart(srcData);
+    packet.srcDataHi     = HighPart(srcData);
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -615,28 +612,31 @@ size_t CmdUtil::BuildCondExec(
     if (m_chipFamily == GfxIpLevel::GfxIp6)
     {
         packetSize = PM4_CMD_COND_EXEC_DWORDS;
-        auto*const pPacket = static_cast<PM4CMDCONDEXEC*>(pBuffer);
+        PM4CMDCONDEXEC packet = {};
 
-        pPacket->header.u32All = Type3Header(IT_COND_EXEC, packetSize);
-        pPacket->boolAddrLo    = LowPart(gpuVirtAddr);
-        pPacket->ordinal3      = 0;
-        pPacket->boolAddrHi    = HighPart(gpuVirtAddr);
-        //pPacket->command       = 0; // 0 == discard, set by ordinal3 = 0
-        pPacket->ordinal4      = 0;
-        pPacket->execCount     = sizeInDwords;
+        packet.header.u32All = Type3Header(IT_COND_EXEC, packetSize);
+        packet.boolAddrLo    = LowPart(gpuVirtAddr);
+        packet.boolAddrHi    = HighPart(gpuVirtAddr);
+        //packet.command       = 0; // 0 == discard, set by ordinal3 = 0
+        packet.execCount     = sizeInDwords;
+
+        static_assert(PM4_CMD_COND_EXEC_DWORDS * sizeof(uint32) == sizeof(packet), "");
+        memcpy(pBuffer, &packet, sizeof(packet));
+
     }
     else
     {
         packetSize = PM4_CMD_COND_EXEC_CI_DWORDS;
-        auto*const pPacket = static_cast<PM4CMDCONDEXEC_CI*>(pBuffer);
+        PM4CMDCONDEXEC_CI packet = {};
 
-        pPacket->header.u32All = Type3Header(IT_COND_EXEC, packetSize);
-        pPacket->boolAddrLo    = LowPart(gpuVirtAddr);
-        pPacket->boolAddrHi32  = HighPart(gpuVirtAddr);
-        pPacket->ordinal4      = 0;
-        //pPacket->control       = 0; // 0 == discard, set by ordinal4 = 0
-        pPacket->ordinal5      = 0;
-        pPacket->execCount     = sizeInDwords;
+        packet.header.u32All = Type3Header(IT_COND_EXEC, packetSize);
+        packet.boolAddrLo    = LowPart(gpuVirtAddr);
+        packet.boolAddrHi32  = HighPart(gpuVirtAddr);
+        //packet.control       = 0; // 0 == discard, set by ordinal4 = 0
+        packet.execCount     = sizeInDwords;
+
+        static_assert(PM4_CMD_COND_EXEC_CI_DWORDS * sizeof(uint32) == sizeof(packet), "");
+        memcpy(pBuffer, &packet, sizeof(packet));
     }
 
     return packetSize;
@@ -660,27 +660,21 @@ size_t CmdUtil::BuildCondIndirectBuffer(
     PAL_ASSERT(compareFunc != CompareFunc::Never);
 
     constexpr size_t    PacketSize = PM4_CMD_COND_INDIRECT_BUFFER_DWORDS;
-    auto*const          pPacket    = static_cast<PM4CMDCONDINDIRECTBUFFER*>(pBuffer);
+    PM4CMDCONDINDIRECTBUFFER packet = {};
     const IT_OpCodeType opCode     = constantEngine ? IT_INDIRECT_BUFFER_CNST : IT_COND_INDIRECT_BUFFER;
 
-    pPacket->header.u32All = Type3Header(opCode, PacketSize);
-    pPacket->ordinal2      = 0;
-    pPacket->mode          = COND_INDIRECT_BUFFER_MODE_IF_ELSE;
-    pPacket->function      = CondIbFuncFromCompareType(compareFunc);
-    pPacket->compareAddrLo = LowPart(compareGpuAddr);
-    pPacket->ordinal4      = 0;
-    pPacket->compareAddrHi = HighPart(compareGpuAddr);
-    pPacket->maskLo        = LowPart(mask);
-    pPacket->maskHi        = HighPart(mask);
-    pPacket->referenceLo   = LowPart(reference);
-    pPacket->referenceHi   = HighPart(reference);
-    pPacket->ordinal9      = 0;
-    pPacket->ordinal10     = 0;
-    pPacket->ordinal11     = 0;
-    pPacket->ordinal12     = 0;
-    pPacket->ordinal13     = 0;
-    pPacket->ordinal14     = 0;
+    packet.header.u32All = Type3Header(opCode, PacketSize);
+    packet.mode          = COND_INDIRECT_BUFFER_MODE_IF_ELSE;
+    packet.function      = CondIbFuncFromCompareType(compareFunc);
+    packet.compareAddrLo = LowPart(compareGpuAddr);
+    packet.compareAddrHi = HighPart(compareGpuAddr);
+    packet.maskLo        = LowPart(mask);
+    packet.maskHi        = HighPart(mask);
+    packet.referenceLo   = LowPart(reference);
+    packet.referenceHi   = HighPart(reference);
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -719,14 +713,15 @@ size_t CmdUtil::BuildContextRegRmw(
 #endif
 
     constexpr size_t PacketSize = PM4_CONTEXT_REG_RMW_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CONTEXTREGRMW*>(pBuffer);
+    PM4CONTEXTREGRMW packet = {};
 
-    pPacket->header.u32All = Type3Header(IT_CONTEXT_REG_RMW, PacketSize);
-    pPacket->ordinal2      = 0;
-    pPacket->regOffset     = regAddr - CONTEXT_SPACE_START;
-    pPacket->regMask       = regMask;
-    pPacket->regData       = regData;
+    packet.header.u32All = Type3Header(IT_CONTEXT_REG_RMW, PacketSize);
+    packet.regOffset     = regAddr - CONTEXT_SPACE_START;
+    packet.regMask       = regMask;
+    packet.regData       = regData;
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -746,16 +741,17 @@ size_t CmdUtil::BuildRegRmw(
                ((m_chipFamily >= GfxIpLevel::GfxIp7) && IsUserConfigReg(regAddr)));
 
     constexpr size_t PacketSize = PM4_CMD_REG_RMW_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDREGRMW*>(pBuffer);
+    PM4CMDREGRMW packet = {};
 
-    pPacket->header.u32All = Type3Header(IT_REG_RMW, PacketSize);
-    pPacket->ordinal2      = 0;
-    pPacket->modAdrs       = regAddr;
-    //pPacket->orMaskSrc     = 0; // set by ordinal2 = 0
-    //pPacket->andMaskSrc    = 0; // set by ordinal2 = 0
-    pPacket->orMask        = orMask;
-    pPacket->andMask       = andMask;
+    packet.header.u32All = Type3Header(IT_REG_RMW, PacketSize);
+    packet.modAdrs       = regAddr;
+    //packet.orMaskSrc     = 0; // set by ordinal2 = 0
+    //packet.andMaskSrc    = 0; // set by ordinal2 = 0
+    packet.orMask        = orMask;
+    packet.andMask       = andMask;
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -775,41 +771,41 @@ size_t CmdUtil::BuildCpDmaInternal(
     PAL_ASSERT(dmaData.srcSel != CPDMA_SRC_SEL_SRC_ADDR_USING_L2);
 
     constexpr size_t PacketSize = PM4_CMD_CP_DMA_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDCPDMA*>(pBuffer);
+    PM4CMDCPDMA packet = {};
 
-    pPacket->header.u32All     = Type3Header(IT_CP_DMA, PacketSize, ShaderGraphics, dmaData.predicate);
-    pPacket->ordinal3          = 0;
-    pPacket->dstSel            = dmaData.dstSel;
-    pPacket->engine            = dmaData.usePfp ? CP_DMA_ENGINE_PFP : CP_DMA_ENGINE_ME;
-    pPacket->srcSel            = dmaData.srcSel;
-    pPacket->cpSync            = dmaData.sync;
-    pPacket->dstAddrLo         = LowPart(dmaData.dstAddr);
-    pPacket->dstAddrHi         = HighPart(dmaData.dstAddr);
-    pPacket->ordinal6          = 0;
-    pPacket->command.byteCount = dmaData.numBytes;
-    pPacket->command.disWc     = dmaData.disableWc;
+    packet.header.u32All     = Type3Header(IT_CP_DMA, PacketSize, ShaderGraphics, dmaData.predicate);
+    packet.dstSel            = dmaData.dstSel;
+    packet.engine            = dmaData.usePfp ? CP_DMA_ENGINE_PFP : CP_DMA_ENGINE_ME;
+    packet.srcSel            = dmaData.srcSel;
+    packet.cpSync            = dmaData.sync;
+    packet.dstAddrLo         = LowPart(dmaData.dstAddr);
+    packet.dstAddrHi         = HighPart(dmaData.dstAddr);
+    packet.command.byteCount = dmaData.numBytes;
+    packet.command.disWc     = dmaData.disableWc;
 
     if (dmaData.srcSel == CPDMA_SRC_SEL_DATA)
     {
-        pPacket->ordinal2 = dmaData.srcData;
+        packet.ordinal2 = dmaData.srcData;
     }
     else if (dmaData.srcSel == CPDMA_SRC_SEL_GDS)
     {
         // GDS offset is provided in srcData field.
-        pPacket->srcAddrLo            = dmaData.srcData;
-        pPacket->command.srcAddrSpace = CPDMA_ADDR_SPACE_REG;
+        packet.srcAddrLo            = dmaData.srcData;
+        packet.command.srcAddrSpace = CPDMA_ADDR_SPACE_REG;
     }
     else
     {
-        pPacket->srcAddrLo            = LowPart(dmaData.srcAddr);
-        pPacket->srcAddrHi            = HighPart(dmaData.srcAddr);
-        pPacket->command.srcAddrSpace = dmaData.srcAddrSpace;
+        packet.srcAddrLo            = LowPart(dmaData.srcAddr);
+        packet.srcAddrHi            = HighPart(dmaData.srcAddr);
+        packet.command.srcAddrSpace = dmaData.srcAddrSpace;
     }
 
-    pPacket->command.dstAddrSpace = (dmaData.dstSel == CPDMA_DST_SEL_GDS) ? CPDMA_ADDR_SPACE_REG : dmaData.dstAddrSpace;
-    pPacket->command.srcAddrInc   = (pPacket->command.srcAddrSpace != CPDMA_ADDR_SPACE_MEM);
-    pPacket->command.dstAddrInc   = (pPacket->command.dstAddrSpace != CPDMA_ADDR_SPACE_MEM);
+    packet.command.dstAddrSpace = (dmaData.dstSel == CPDMA_DST_SEL_GDS) ? CPDMA_ADDR_SPACE_REG : dmaData.dstAddrSpace;
+    packet.command.srcAddrInc   = (packet.command.srcAddrSpace != CPDMA_ADDR_SPACE_MEM);
+    packet.command.dstAddrInc   = (packet.command.dstAddrSpace != CPDMA_ADDR_SPACE_MEM);
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -836,20 +832,21 @@ size_t CmdUtil::BuildCopyData(
     PAL_ASSERT((wrConfirm == COPY_DATA_WR_CONFIRM_NO_WAIT) || (wrConfirm == COPY_DATA_WR_CONFIRM_WAIT));
 
     constexpr size_t PacketSize = PM4_CMD_COPY_DATA_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDCOPYDATA*>(pBuffer);
+    PM4CMDCOPYDATA packet = {};
 
-    pPacket->header.u32All = Type3Header(IT_COPY_DATA, PacketSize);
-    pPacket->ordinal2      = 0;
-    pPacket->srcSel        = srcSel;
-    pPacket->dstSel        = dstSel;
-    pPacket->countSel      = countSel;
-    pPacket->wrConfirm     = wrConfirm;
-    pPacket->engineSel     = engineSel;
-    pPacket->srcAddressLo  = LowPart(srcAddr);
-    pPacket->srcAddressHi  = HighPart(srcAddr);
-    pPacket->dstAddressLo  = LowPart(dstAddr);
-    pPacket->dstAddressHi  = HighPart(dstAddr);
+    packet.header.u32All = Type3Header(IT_COPY_DATA, PacketSize);
+    packet.srcSel        = srcSel;
+    packet.dstSel        = dstSel;
+    packet.countSel      = countSel;
+    packet.wrConfirm     = wrConfirm;
+    packet.engineSel     = engineSel;
+    packet.srcAddressLo  = LowPart(srcAddr);
+    packet.srcAddressHi  = HighPart(srcAddr);
+    packet.dstAddressLo  = LowPart(dstAddr);
+    packet.dstAddressHi  = HighPart(dstAddr);
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -867,23 +864,24 @@ size_t CmdUtil::BuildDispatchDirect(
     PAL_ASSERT((dimInThreads == false) || (m_chipFamily != GfxIpLevel::GfxIp6));
 
     constexpr size_t PacketSize = PM4_CMD_DISPATCH_DIRECT_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDDISPATCHDIRECT*>(pBuffer);
+    PM4CMDDISPATCHDIRECT packet = {};
 
-    pPacket->header.u32All = Type3Header(IT_DISPATCH_DIRECT, PacketSize, ShaderCompute, predicate);
-    pPacket->dimX          = size.x;
-    pPacket->dimY          = size.y;
-    pPacket->dimZ          = size.z;
+    packet.header.u32All = Type3Header(IT_DISPATCH_DIRECT, PacketSize, ShaderCompute, predicate);
+    packet.dimX          = size.x;
+    packet.dimY          = size.y;
+    packet.dimZ          = size.z;
 
-    pPacket->dispatchInitiator.u32All                             = 0;
-    pPacket->dispatchInitiator.bits.COMPUTE_SHADER_EN             = 1;
-    pPacket->dispatchInitiator.bits.USE_THREAD_DIMENSIONS__CI__VI = dimInThreads;
-    pPacket->dispatchInitiator.bits.FORCE_START_AT_000            = forceStartAt000;
+    packet.dispatchInitiator.bits.COMPUTE_SHADER_EN             = 1;
+    packet.dispatchInitiator.bits.USE_THREAD_DIMENSIONS__CI__VI = dimInThreads;
+    packet.dispatchInitiator.bits.FORCE_START_AT_000            = forceStartAt000;
 
     // Set unordered mode to allow waves launch faster. This bit is related to the QoS (Quality of service) feature and
     // should be safe to set by default as the feature gets enabled only when allowed by the KMD. This bit also only
     // applies to asynchronous compute pipe and the graphics pipe simply ignores it.
-    pPacket->dispatchInitiator.bits.ORDER_MODE__CI__VI            = 1;
+    packet.dispatchInitiator.bits.ORDER_MODE__CI__VI            = 1;
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -899,16 +897,17 @@ size_t CmdUtil::BuildDispatchIndirect(
     PAL_ASSERT(IsPow2Aligned(offset, 4) && (HighPart(offset) == 0));
 
     constexpr size_t PacketSize = PM4_CMD_DISPATCH_INDIRECT_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDDISPATCHINDIRECT*>(pBuffer);
+    PM4CMDDISPATCHINDIRECT packet = {};
 
-    pPacket->header.u32All = Type3Header(IT_DISPATCH_INDIRECT, PacketSize, ShaderCompute, predicate);
-    pPacket->dataOffset    = LowPart(offset);
+    packet.header.u32All = Type3Header(IT_DISPATCH_INDIRECT, PacketSize, ShaderCompute, predicate);
+    packet.dataOffset    = LowPart(offset);
 
-    pPacket->dispatchInitiator.u32All                  = 0;
-    pPacket->dispatchInitiator.bits.COMPUTE_SHADER_EN  = 1;
-    pPacket->dispatchInitiator.bits.FORCE_START_AT_000 = 1;
-    pPacket->dispatchInitiator.bits.ORDER_MODE__CI__VI = 1;
+    packet.dispatchInitiator.bits.COMPUTE_SHADER_EN  = 1;
+    packet.dispatchInitiator.bits.FORCE_START_AT_000 = 1;
+    packet.dispatchInitiator.bits.ORDER_MODE__CI__VI = 1;
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -923,17 +922,18 @@ size_t CmdUtil::BuildDispatchIndirectMec(
     PAL_ASSERT((m_chipFamily >= GfxIpLevel::GfxIp7) && IsPow2Aligned(address, 4));
 
     constexpr size_t PacketSize = PM4_CMD_DISPATCH_INDIRECT_MEC_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDDISPATCHINDIRECTMEC*>(pBuffer);
+    PM4CMDDISPATCHINDIRECTMEC packet = {};
 
-    pPacket->header.u32All = Type3Header(IT_DISPATCH_INDIRECT, PacketSize, ShaderCompute);
-    pPacket->addressLo     = LowPart(address);
-    pPacket->addressHi     = HighPart(address);
+    packet.header.u32All = Type3Header(IT_DISPATCH_INDIRECT, PacketSize, ShaderCompute);
+    packet.addressLo     = LowPart(address);
+    packet.addressHi     = HighPart(address);
 
-    pPacket->dispatchInitiator.u32All                  = 0;
-    pPacket->dispatchInitiator.bits.COMPUTE_SHADER_EN  = 1;
-    pPacket->dispatchInitiator.bits.FORCE_START_AT_000 = 1;
-    pPacket->dispatchInitiator.bits.ORDER_MODE__CI__VI = 1;
+    packet.dispatchInitiator.bits.COMPUTE_SHADER_EN  = 1;
+    packet.dispatchInitiator.bits.FORCE_START_AT_000 = 1;
+    packet.dispatchInitiator.bits.ORDER_MODE__CI__VI = 1;
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -1123,7 +1123,7 @@ size_t CmdUtil::BuildDrawIndex2(
     ) const
 {
     constexpr size_t PacketSize = PM4_CMD_DRAW_INDEX_2_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDDRAWINDEX2*>(pBuffer);
+    PM4CMDDRAWINDEX2 packet = {};
 
     // Workaround for Gfx6 bug This is a DMA clamping bug that occurs when both the DMA base address (word aligned) is
     // zero and DMA_MAX_SIZE is zero.The max address used to determine when to start clamping underflows and therefore
@@ -1136,16 +1136,17 @@ size_t CmdUtil::BuildDrawIndex2(
         indexBufAddr = 0x2;
     }
 
-    pPacket->header.u32All = Type3Header(IT_DRAW_INDEX_2, PacketSize, ShaderGraphics, predicate);
-    pPacket->maxSize       = indexBufSize;
-    pPacket->indexBaseLo   = LowPart(indexBufAddr);
-    pPacket->indexBaseHi   = HighPart(indexBufAddr);
-    pPacket->indexCount    = indexCount;
+    packet.header.u32All = Type3Header(IT_DRAW_INDEX_2, PacketSize, ShaderGraphics, predicate);
+    packet.maxSize       = indexBufSize;
+    packet.indexBaseLo   = LowPart(indexBufAddr);
+    packet.indexBaseHi   = HighPart(indexBufAddr);
+    packet.indexCount    = indexCount;
 
-    pPacket->drawInitiator.u32All             = 0;
-    pPacket->drawInitiator.bits.SOURCE_SELECT = DI_SRC_SEL_DMA;
-    pPacket->drawInitiator.bits.MAJOR_MODE    = DI_MAJOR_MODE_0;
+    packet.drawInitiator.bits.SOURCE_SELECT = DI_SRC_SEL_DMA;
+    packet.drawInitiator.bits.MAJOR_MODE    = DI_MAJOR_MODE_0;
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -1161,16 +1162,17 @@ size_t CmdUtil::BuildDrawIndexAuto(
     PAL_ASSERT((indexCount == 0) || (useOpaque == false));
 
     constexpr size_t PacketSize = PM4_CMD_DRAW_INDEX_AUTO_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDDRAWINDEXAUTO*>(pBuffer);
+    PM4CMDDRAWINDEXAUTO packet = {};
 
-    pPacket->header.u32All = Type3Header(IT_DRAW_INDEX_AUTO, PacketSize, ShaderGraphics, predicate);
-    pPacket->indexCount    = indexCount;
+    packet.header.u32All = Type3Header(IT_DRAW_INDEX_AUTO, PacketSize, ShaderGraphics, predicate);
+    packet.indexCount    = indexCount;
 
-    pPacket->drawInitiator.u32All             = 0;
-    pPacket->drawInitiator.bits.SOURCE_SELECT = DI_SRC_SEL_AUTO_INDEX;
-    pPacket->drawInitiator.bits.MAJOR_MODE    = DI_MAJOR_MODE_0;
-    pPacket->drawInitiator.bits.USE_OPAQUE    = useOpaque ? 1 : 0;
+    packet.drawInitiator.bits.SOURCE_SELECT = DI_SRC_SEL_AUTO_INDEX;
+    packet.drawInitiator.bits.MAJOR_MODE    = DI_MAJOR_MODE_0;
+    packet.drawInitiator.bits.USE_OPAQUE    = useOpaque ? 1 : 0;
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -1189,19 +1191,18 @@ size_t CmdUtil::BuildDrawIndexIndirect(
     PAL_ASSERT(IsPow2Aligned(offset, 4));
 
     constexpr size_t PacketSize = PM4_CMD_DRAW_INDEX_INDIRECT_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDDRAWINDEXINDIRECT*>(pBuffer);
+    PM4CMDDRAWINDEXINDIRECT packet = {};
 
-    pPacket->header.u32All = Type3Header(IT_DRAW_INDEX_INDIRECT, PacketSize, ShaderGraphics, predicate);
-    pPacket->dataOffset    = LowPart(offset);
-    pPacket->ordinal3      = 0;
-    pPacket->baseVtxLoc    = baseVtxLoc - PERSISTENT_SPACE_START;
-    pPacket->ordinal4      = 0;
-    pPacket->startInstLoc  = startInstLoc - PERSISTENT_SPACE_START;
+    packet.header.u32All = Type3Header(IT_DRAW_INDEX_INDIRECT, PacketSize, ShaderGraphics, predicate);
+    packet.dataOffset    = LowPart(offset);
+    packet.baseVtxLoc    = baseVtxLoc - PERSISTENT_SPACE_START;
+    packet.startInstLoc  = startInstLoc - PERSISTENT_SPACE_START;
 
-    pPacket->drawInitiator.u32All             = 0;
-    pPacket->drawInitiator.bits.SOURCE_SELECT = DI_SRC_SEL_DMA;
-    pPacket->drawInitiator.bits.MAJOR_MODE    = DI_MAJOR_MODE_0;
+    packet.drawInitiator.bits.SOURCE_SELECT = DI_SRC_SEL_DMA;
+    packet.drawInitiator.bits.MAJOR_MODE    = DI_MAJOR_MODE_0;
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -1269,17 +1270,18 @@ size_t CmdUtil::BuildDrawIndexOffset2(
     ) const
 {
     constexpr size_t PacketSize = PM4_CMD_DRAW_INDEX_OFFSET_2_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDDRAWINDEXOFFSET2*>(pBuffer);
+    PM4CMDDRAWINDEXOFFSET2 packet = {};
 
-    pPacket->header.u32All      = Type3Header(IT_DRAW_INDEX_OFFSET_2, PacketSize, ShaderGraphics, predicate);
-    pPacket->maxSize            = indexBufSize;
-    pPacket->indexOffset        = indexOffset;
-    pPacket->indexCount.u32All  = indexCount;
+    packet.header.u32All      = Type3Header(IT_DRAW_INDEX_OFFSET_2, PacketSize, ShaderGraphics, predicate);
+    packet.maxSize            = indexBufSize;
+    packet.indexOffset        = indexOffset;
+    packet.indexCount.u32All  = indexCount;
 
-    pPacket->drawInitiator.u32All             = 0;
-    pPacket->drawInitiator.bits.SOURCE_SELECT = DI_SRC_SEL_DMA;
-    pPacket->drawInitiator.bits.MAJOR_MODE    = DI_MAJOR_MODE_0;
+    packet.drawInitiator.bits.SOURCE_SELECT = DI_SRC_SEL_DMA;
+    packet.drawInitiator.bits.MAJOR_MODE    = DI_MAJOR_MODE_0;
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -1350,16 +1352,16 @@ size_t CmdUtil::BuildDumpConstRam(
     PAL_ASSERT(dwordSize != 0);
 
     constexpr size_t PacketSize = PM4_CMD_DUMP_CONST_RAM_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDCONSTRAMDUMP*>(pBuffer);
+    PM4CMDCONSTRAMDUMP packet = {};
 
-    pPacket->header.u32All = Type3Header(IT_DUMP_CONST_RAM, PacketSize);
-    pPacket->ordinal2      = 0;
-    pPacket->offset        = ramByteOffset;
-    pPacket->ordinal3      = 0;
-    pPacket->numDwords     = dwordSize;
-    pPacket->addrLo        = LowPart(dstGpuAddr);
-    pPacket->addrHi        = HighPart(dstGpuAddr);
+    packet.header.u32All = Type3Header(IT_DUMP_CONST_RAM, PacketSize);
+    packet.offset        = ramByteOffset;
+    packet.numDwords     = dwordSize;
+    packet.addrLo        = LowPart(dstGpuAddr);
+    packet.addrHi        = HighPart(dstGpuAddr);
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -1381,15 +1383,15 @@ size_t CmdUtil::BuildDumpConstRamOffset(
     PAL_ASSERT(dwordSize != 0);
 
     constexpr size_t PacketSize = PM4_CMD_DUMP_CONST_RAM_OFFSET_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDCONSTRAMDUMPOFFSET*>(pBuffer);
+    PM4CMDCONSTRAMDUMPOFFSET packet = {};
 
-    pPacket->header.u32All = Type3Header(IT_DUMP_CONST_RAM_OFFSET__VI, PacketSize);
-    pPacket->ordinal2      = 0;
-    pPacket->offset        = ramByteOffset;
-    pPacket->ordinal3      = 0;
-    pPacket->numDwords     = dwordSize;
-    pPacket->addrOffset    = dstAddrOffset;
+    packet.header.u32All = Type3Header(IT_DUMP_CONST_RAM_OFFSET__VI, PacketSize);
+    packet.offset        = ramByteOffset;
+    packet.numDwords     = dwordSize;
+    packet.addrOffset    = dstAddrOffset;
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -1402,24 +1404,25 @@ size_t CmdUtil::BuildEventWrite(
     ) const
 {
     constexpr size_t PacketSize = PM4_CMD_WAIT_EVENT_WRITE_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDEVENTWRITE*>(pBuffer);
+    PM4CMDEVENTWRITE packet = {};
 
-    pPacket->header.u32All = Type3Header(IT_EVENT_WRITE, PacketSize);
-    pPacket->ordinal2      = 0;
-    pPacket->eventType     = eventType;
-    pPacket->eventIndex    = EventIndexFromEventType(eventType);
+    packet.header.u32All = Type3Header(IT_EVENT_WRITE, PacketSize);
+    packet.eventType     = eventType;
+    packet.eventIndex    = EventIndexFromEventType(eventType);
 
     if ((eventType == CS_PARTIAL_FLUSH) && (m_chipFamily >= GfxIpLevel::GfxIp7))
     {
         // Set the highest bit of ordinal2 for CS_PARTIAL_FLUSH to offload queue
         // until EOP queue goes empty. This works for MEC introduced from CI+/GfxIp7+,
         // and does nothing on ME/graphics queue or asics without MEC.
-        pPacket->offload_enable = 1;
+        packet.offload_enable = 1;
     }
 
-    PAL_ASSERT((pPacket->eventIndex != EVENT_WRITE_INDEX_ANY_EOP_TIMESTAMP) &&
-               (pPacket->eventIndex != EVENT_WRITE_INDEX_ANY_EOS_TIMESTAMP));
+    PAL_ASSERT((packet.eventIndex != EVENT_WRITE_INDEX_ANY_EOP_TIMESTAMP) &&
+               (packet.eventIndex != EVENT_WRITE_INDEX_ANY_EOS_TIMESTAMP));
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -1582,14 +1585,16 @@ size_t CmdUtil::BuildEventWriteQuery(
     PAL_ASSERT(IsPow2Aligned(address, 8));
 
     constexpr size_t PacketSize = PM4_CMD_WAIT_EVENT_WRITE_QUERY_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDEVENTWRITEQUERY*>(pBuffer);
+    PM4CMDEVENTWRITEQUERY packet = {};
 
-    pPacket->header.u32All = Type3Header(IT_EVENT_WRITE, PacketSize);
-    pPacket->ordinal2      = 0;
-    pPacket->eventType     = eventType;
-    pPacket->eventIndex    = EventIndexFromEventType(eventType);
-    pPacket->addressLo     = LowPart(address);
-    pPacket->addressHi32   = HighPart(address);
+    packet.header.u32All = Type3Header(IT_EVENT_WRITE, PacketSize);
+    packet.eventType     = eventType;
+    packet.eventIndex    = EventIndexFromEventType(eventType);
+    packet.addressLo     = LowPart(address);
+    packet.addressHi32   = HighPart(address);
+
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -1715,12 +1720,13 @@ size_t CmdUtil::BuildIncrementCeCounter(
     ) const
 {
     constexpr size_t PacketSize = PM4_CMD_INC_CE_COUNTER_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDINCCECOUNTER*>(pBuffer);
+    PM4CMDINCCECOUNTER packet = {};
 
-    pPacket->header.u32All = Type3Header(IT_INCREMENT_CE_COUNTER, PacketSize);
-    pPacket->ordinal2      = 0;
-    pPacket->incCEcounter  = 1;
+    packet.header.u32All = Type3Header(IT_INCREMENT_CE_COUNTER, PacketSize);
+    packet.incCEcounter  = 1;
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -1751,15 +1757,15 @@ size_t CmdUtil::BuildIndexAttributesIndirect(
     PAL_ASSERT(IsPow2Aligned(baseAddr, 16)); // Address must be 4-DWORD aligned
 
     constexpr size_t PacketSize = PM4_CMD_INDEX_ATTRIBUTES_INDIRECT_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDINDEXATTRIBUTESINDIRECT*>(pBuffer);
+    PM4CMDINDEXATTRIBUTESINDIRECT packet = {};
 
-    pPacket->header.u32All  = Type3Header(IT_INDEX_ATTRIBUTES_INDIRECT__CI__VI, PacketSize);
-    pPacket->ordinal2       = 0;
-    pPacket->addressLo      = (LowPart(baseAddr) >> 4);
-    pPacket->addressHi      = HighPart(baseAddr);
-    pPacket->ordinal4       = 0;
-    pPacket->attributeIndex = index;
+    packet.header.u32All  = Type3Header(IT_INDEX_ATTRIBUTES_INDIRECT__CI__VI, PacketSize);
+    packet.addressLo      = (LowPart(baseAddr) >> 4);
+    packet.addressHi      = HighPart(baseAddr);
+    packet.attributeIndex = index;
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -1775,7 +1781,7 @@ size_t CmdUtil::BuildIndexBase(
     PAL_ASSERT(IsPow2Aligned(baseAddr, 2));
 
     constexpr size_t PacketSize = PM4_CMD_DRAW_INDEX_BASE_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDDRAWINDEXBASE*>(pBuffer);
+    PM4CMDDRAWINDEXBASE packet = {};
 
     // Workaround for Gfx6 bug This is a DMA clamping bug that occurs when both the DMA base address (word aligned) is
     // zero and DMA_MAX_SIZE is zero.The max address used to determine when to start clamping underflows and therefore
@@ -1788,11 +1794,12 @@ size_t CmdUtil::BuildIndexBase(
         baseAddr = 0x2;
     }
 
-    pPacket->header.u32All = Type3Header(IT_INDEX_BASE, PacketSize);
-    pPacket->addrLo        = LowPart(baseAddr);
-    pPacket->ordinal3      = 0;
-    pPacket->addrHi        = HighPart(baseAddr);
+    packet.header.u32All = Type3Header(IT_INDEX_BASE, PacketSize);
+    packet.addrLo        = LowPart(baseAddr);
+    packet.addrHi        = HighPart(baseAddr);
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -1850,38 +1857,39 @@ size_t CmdUtil::BuildIndirectBuffer(
     // Address must be four byte aligned and the size must be nonzero.
     PAL_ASSERT(IsPow2Aligned(gpuAddr, 4) && (sizeInDwords != 0));
 
-    constexpr size_t    PacketSize = PM4_CMD_INDIRECT_BUFFER_DWORDS;
-    auto*const          pPacket    = static_cast<PM4CMDINDIRECTBUFFER*>(pBuffer);
-    const IT_OpCodeType opCode     = constantEngine ? IT_INDIRECT_BUFFER_CNST : IT_INDIRECT_BUFFER;
+    constexpr size_t PacketSize = PM4_CMD_INDIRECT_BUFFER_DWORDS;
+    PM4CMDINDIRECTBUFFER packet = {};
+    const IT_OpCodeType opCode = constantEngine ? IT_INDIRECT_BUFFER_CNST : IT_INDIRECT_BUFFER;
 
-    pPacket->header.u32All = Type3Header(opCode, PacketSize);
-    pPacket->ibBaseLo      = LowPart(gpuAddr);
-    pPacket->ibBaseHi32    = HighPart(gpuAddr);
-    pPacket->ordinal4      = 0;
+    packet.header.u32All = Type3Header(opCode, PacketSize);
+    packet.ibBaseLo      = LowPart(gpuAddr);
+    packet.ibBaseHi32    = HighPart(gpuAddr);
 
     if (m_chipFamily == GfxIpLevel::GfxIp6)
     {
-        pPacket->SI.ibSize = static_cast<uint32>(sizeInDwords);
-        pPacket->SI.chain  = chain;
+        packet.SI.ibSize = static_cast<uint32>(sizeInDwords);
+        packet.SI.chain  = chain;
         PAL_ASSERT(enablePreemption == false);
     }
 #if SI_CI_VI_PM4DEFS_VERSION_MAJOR > 1 || SI_CI_VI_PM4DEFS_VERSION_MINOR >= 18
     else if (m_chipFamily >= GfxIpLevel::GfxIp8)
     {
-        pPacket->VI.ibSize = static_cast<uint32>(sizeInDwords);
-        pPacket->VI.chain  = chain;
-        pPacket->VI.valid  = 1;
-        pPacket->VI.preEna = enablePreemption;
+        packet.VI.ibSize = static_cast<uint32>(sizeInDwords);
+        packet.VI.chain  = chain;
+        packet.VI.valid  = 1;
+        packet.VI.preEna = enablePreemption;
     }
 #endif
     else
     {
-        pPacket->CI.ibSize = static_cast<uint32>(sizeInDwords);
-        pPacket->CI.chain  = chain;
-        pPacket->CI.valid  = 1;
+        packet.CI.ibSize = static_cast<uint32>(sizeInDwords);
+        packet.CI.chain  = chain;
+        packet.CI.valid  = 1;
         PAL_ASSERT(enablePreemption == false);
     }
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -1902,19 +1910,20 @@ size_t CmdUtil::BuildLoadRegsOne(
     PAL_ASSERT((HighPart(gpuVirtAddr) & 0xFFFF0000) == 0);
 
     constexpr size_t PacketSize = PM4_CMD_LOAD_DATA_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDLOADDATA*>(pBuffer);
+    PM4CMDLOADDATA packet = {};
 
-    pPacket->header.u32All  = Type3Header(opCode, PacketSize, shaderType);
-    pPacket->addrLo         = LowPart(gpuVirtAddr);
-    pPacket->addrHi.u32All  = 0;
-    pPacket->addrHi.ADDR_HI = HighPart(gpuVirtAddr);
+    packet.header.u32All  = Type3Header(opCode, PacketSize, shaderType);
+    packet.addrLo         = LowPart(gpuVirtAddr);
+    packet.addrHi.ADDR_HI = HighPart(gpuVirtAddr);
     if (opCode == IT_LOAD_CONFIG_REG)
     {
-        pPacket->addrHi.WAIT_IDLE = 1;
+        packet.addrHi.WAIT_IDLE = 1;
     }
-    pPacket->regOffset      = startRegOffset;
-    pPacket->numDwords      = count;
+    packet.regOffset      = startRegOffset;
+    packet.numDwords      = count;
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -1975,18 +1984,17 @@ size_t CmdUtil::BuildLoadRegsIndex(
     PAL_ASSERT(IsPow2Aligned(gpuVirtAddrOrAddrOffset, 4));
 
     constexpr size_t PacketSize = PM4_CMD_LOAD_DATA_INDEX_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDLOADDATAINDEX*>(pBuffer);
+    PM4CMDLOADDATAINDEX packet = {};
 
-    pPacket->header.u32All  = Type3Header(opCode, PacketSize, shaderType);
-    pPacket->addrLo.u32All  = 0;
+    packet.header.u32All  = Type3Header(opCode, PacketSize, shaderType);
     if (directAddress)
     {
         // Only the low 16 bits of addrOffset are honored for the high portion of the GPU virtual address!
         PAL_ASSERT((HighPart(gpuVirtAddrOrAddrOffset) & 0xFFFF0000) == 0);
 
-        pPacket->addrLo.index   = LOAD_DATA_INDEX_DIRECT_ADDR;
-        pPacket->addrLo.ADDR_LO = (LowPart(gpuVirtAddrOrAddrOffset) >> 2);
-        pPacket->addrOffset     = HighPart(gpuVirtAddrOrAddrOffset);
+        packet.addrLo.index   = LOAD_DATA_INDEX_DIRECT_ADDR;
+        packet.addrLo.ADDR_LO = (LowPart(gpuVirtAddrOrAddrOffset) >> 2);
+        packet.addrOffset     = HighPart(gpuVirtAddrOrAddrOffset);
     }
     else
     {
@@ -1994,22 +2002,23 @@ size_t CmdUtil::BuildLoadRegsIndex(
         // specified to the packet using 32 bits.
         PAL_ASSERT(HighPart(gpuVirtAddrOrAddrOffset) == 0);
 
-        pPacket->addrLo.index = LOAD_DATA_INDEX_OFFSET;
-        pPacket->addrOffset   = LowPart(gpuVirtAddrOrAddrOffset);
+        packet.addrLo.index = LOAD_DATA_INDEX_OFFSET;
+        packet.addrOffset   = LowPart(gpuVirtAddrOrAddrOffset);
     }
-    pPacket->ordinal4   = 0;
-    pPacket->dataFormat = dataFormat;
-    pPacket->numDwords  = count;
+    packet.dataFormat = dataFormat;
+    packet.numDwords  = count;
 
     if (dataFormat == LOAD_DATA_FORMAT_OFFSET_AND_SIZE)
     {
-        pPacket->regOffset = startRegOffset;
+        packet.regOffset = startRegOffset;
     }
     else // LOAD_DATA_FORMAT_OFFSET_AND_DATA
     {
         PAL_ASSERT(startRegOffset == 0);
     }
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -2207,16 +2216,16 @@ size_t CmdUtil::BuildLoadConstRam(
     PAL_ASSERT(IsPow2Aligned(dwordSize, 8));
 
     constexpr size_t PacketSize = PM4_CMD_LOAD_CONST_RAM_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDCONSTRAMLOAD*>(pBuffer);
+    PM4CMDCONSTRAMLOAD packet = {};
 
-    pPacket->header.u32All = Type3Header(IT_LOAD_CONST_RAM, PacketSize);
-    pPacket->addrLo        = LowPart(srcGpuAddr);
-    pPacket->addrHi        = HighPart(srcGpuAddr);
-    pPacket->ordinal4      = 0;
-    pPacket->numDwords     = dwordSize;
-    pPacket->ordinal5      = 0;
-    pPacket->offset        = ramByteOffset;
+    packet.header.u32All = Type3Header(IT_LOAD_CONST_RAM, PacketSize);
+    packet.addrLo        = LowPart(srcGpuAddr);
+    packet.addrHi        = HighPart(srcGpuAddr);
+    packet.numDwords     = dwordSize;
+    packet.offset        = ramByteOffset;
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -2246,11 +2255,10 @@ size_t CmdUtil::BuildMemSemaphore(
     }
 
     constexpr size_t PacketSize = PM4_CMD_MEM_SEMAPHORE_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDMEMSEMAPHORE*>(pBuffer);
+    PM4CMDMEMSEMAPHORE packet = {};
 
-    pPacket->header.u32All = Type3Header(IT_MEM_SEMAPHORE, PacketSize);
-    pPacket->addrLo        = LowPart(gpuVirtAddr);
-    pPacket->ordinal3      = 0;
+    packet.header.u32All = Type3Header(IT_MEM_SEMAPHORE, PacketSize);
+    packet.addrLo        = LowPart(gpuVirtAddr);
 
     if (m_chipFamily == GfxIpLevel::GfxIp6)
     {
@@ -2258,24 +2266,26 @@ size_t CmdUtil::BuildMemSemaphore(
         // for the memory location, and there are some extra unused bits in the last DWORD of the packet.
         PAL_ASSERT((HighPart(gpuVirtAddr) & 0xFFFFFF00) == 0);
 
-        pPacket->SI.addrHi     = HighPart(gpuVirtAddr);
-        pPacket->SI.clientCode = semaphoreClient;
-        pPacket->SI.semSel     = semaphoreOp;
-        pPacket->SI.signalType = isBinary;
-        pPacket->SI.useMailbox = useMailbox;
+        packet.SI.addrHi     = HighPart(gpuVirtAddr);
+        packet.SI.clientCode = semaphoreClient;
+        packet.SI.semSel     = semaphoreOp;
+        packet.SI.signalType = isBinary;
+        packet.SI.useMailbox = useMailbox;
     }
     else
     {
         // Gfx7 and newer hardware families support 48 bit addresses for the memory location.
         PAL_ASSERT((HighPart(gpuVirtAddr) & 0xFFFF0000) == 0);
 
-        pPacket->CI.addrHi     = HighPart(gpuVirtAddr);
-        pPacket->CI.clientCode = semaphoreClient;
-        pPacket->CI.semSel     = semaphoreOp;
-        pPacket->CI.signalType = isBinary;
-        pPacket->CI.useMailbox = useMailbox;
+        packet.CI.addrHi     = HighPart(gpuVirtAddr);
+        packet.CI.clientCode = semaphoreClient;
+        packet.CI.semSel     = semaphoreOp;
+        packet.CI.signalType = isBinary;
+        packet.CI.useMailbox = useMailbox;
     }
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -2350,16 +2360,16 @@ size_t CmdUtil::BuildOcclusionQuery(
     // Note that queryAddr means "zpass query sum address" and not "query pool counters address". Instead startAddr is
     // the "query pool counters addess".
     constexpr size_t PacketSize = PM4_CMD_OCCLUSION_QUERY_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDOCCLUSIONQUERY*>(pBuffer);
+    PM4CMDOCCLUSIONQUERY packet = {};
 
-    pPacket->header.u32All = Type3Header(IT_OCCLUSION_QUERY, PacketSize);
-    pPacket->startAddrLo   = LowPart(queryMemAddr);
-    pPacket->ordinal3      = 0;
-    pPacket->startAddrHi   = HighPart(queryMemAddr);
-    pPacket->queryAddrLo   = LowPart(dstMemAddr);
-    pPacket->ordinal5      = 0;
-    pPacket->queryAddrHi   = HighPart(dstMemAddr);
+    packet.header.u32All = Type3Header(IT_OCCLUSION_QUERY, PacketSize);
+    packet.startAddrLo   = LowPart(queryMemAddr);
+    packet.startAddrHi   = HighPart(queryMemAddr);
+    packet.queryAddrLo   = LowPart(dstMemAddr);
+    packet.queryAddrHi   = HighPart(dstMemAddr);
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -2486,13 +2496,14 @@ size_t CmdUtil::BuildRewind(
     PAL_ASSERT(m_chipFamily >= GfxIpLevel::GfxIp7);
 
     constexpr size_t PacketSize = PM4_CMD_REWIND_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDREWIND*>(pBuffer);
+    PM4CMDREWIND packet = {};
 
-    pPacket->header.u32All = Type3Header(IT_REWIND__CI__VI, PacketSize, ShaderCompute);
-    pPacket->ordinal2      = 0;
-    pPacket->offloadEnable = offloadEnable;
-    pPacket->valid         = valid;
+    packet.header.u32All = Type3Header(IT_REWIND__CI__VI, PacketSize, ShaderCompute);
+    packet.offloadEnable = offloadEnable;
+    packet.valid         = valid;
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -2506,19 +2517,19 @@ size_t CmdUtil::BuildSetBase(
     ) const
 {
     constexpr size_t PacketSize = PM4_CMD_DRAW_SET_BASE_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDDRAWSETBASE*>(pBuffer);
+    PM4CMDDRAWSETBASE packet = {};
 
     PAL_ASSERT((baseIndex == BASE_INDEX_DRAW_INDIRECT) || (baseIndex == BASE_INDEX_LOAD_REG) ||
                (baseIndex == BASE_INDEX_INDIRECT_DATA) || (baseIndex == BASE_INDEX_CE_DST_BASE_ADDR));
     PAL_ASSERT(IsPow2Aligned(baseAddr, 8));
 
-    pPacket->header.u32All = Type3Header(IT_SET_BASE, PacketSize, shaderType);
-    pPacket->ordinal2      = 0;
-    pPacket->baseIndex     = baseIndex;
-    pPacket->addressLo     = LowPart(baseAddr);
-    pPacket->ordinal4      = 0;
-    pPacket->addressHi     = HighPart(baseAddr);
+    packet.header.u32All = Type3Header(IT_SET_BASE, PacketSize, shaderType);
+    packet.baseIndex     = baseIndex;
+    packet.addressLo     = LowPart(baseAddr);
+    packet.addressHi     = HighPart(baseAddr);
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -2778,7 +2789,7 @@ size_t CmdUtil::BuildSetPredication(
                   "Unexpected values for the PredicateType enum.");
 
     constexpr size_t PacketSize = PM4_CMD_SET_PREDICATION_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDSETPREDICATION*>(pBuffer);
+    PM4CMDSETPREDICATION packet = {};
 
     // The predication memory address cannot be wider than 40 bits.
     PAL_ASSERT(gpuVirtAddr <= ((1uLL << 40) - 1));
@@ -2796,15 +2807,16 @@ size_t CmdUtil::BuildSetPredication(
     const bool continueSupported = (predType == PredicateType::Zpass) || (predType == PredicateType::PrimCount);
     PAL_ASSERT(continueSupported || (continuePredicate == false));
 
-    pPacket->header.u32All      = Type3Header(IT_SET_PREDICATION, PacketSize);
-    pPacket->startAddressLo     = LowPart(gpuVirtAddr);
-    pPacket->ordinal3           = 0;
-    pPacket->startAddrHi        = HighPart(gpuVirtAddr);
-    pPacket->predicationBoolean = (predicationBool ? 1 : 0);
-    pPacket->hint               = ((predType == PredicateType::Zpass) && occlusionHint) ? 1 : 0;
-    pPacket->predOp             = static_cast<uint32>(predType);
-    pPacket->continueBit        = (continueSupported && continuePredicate) ? 1 : 0;
+    packet.header.u32All      = Type3Header(IT_SET_PREDICATION, PacketSize);
+    packet.startAddressLo     = LowPart(gpuVirtAddr);
+    packet.startAddrHi        = HighPart(gpuVirtAddr);
+    packet.predicationBoolean = (predicationBool ? 1 : 0);
+    packet.hint               = ((predType == PredicateType::Zpass) && occlusionHint) ? 1 : 0;
+    packet.predOp             = static_cast<uint32>(predType);
+    packet.continueBit        = (continueSupported && continuePredicate) ? 1 : 0;
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -2824,15 +2836,11 @@ size_t CmdUtil::BuildStrmoutBufferUpdate(
     ) const
 {
     constexpr size_t PacketSize = PM4_CMD_STRMOUT_BUFFER_UPDATE_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDSTRMOUTBUFFERUPDATE*>(pBuffer);
+    PM4CMDSTRMOUTBUFFERUPDATE packet = {};
 
-    pPacket->header.u32All      = Type3Header(IT_STRMOUT_BUFFER_UPDATE, PacketSize);
-    pPacket->ordinal2           = 0;
-    pPacket->offsetSourceSelect = sourceSelect;
-    pPacket->bufferSelect       = bufferId;
-    pPacket->ordinal3           = 0;
-    pPacket->ordinal4           = 0;
-    pPacket->ordinal5           = 0;
+    packet.header.u32All      = Type3Header(IT_STRMOUT_BUFFER_UPDATE, PacketSize);
+    packet.offsetSourceSelect = sourceSelect;
+    packet.bufferSelect       = bufferId;
 
     // The dataType field was added in uCode version #26 to support stream-out size in bytes.
     PAL_ASSERT(m_device.ChipProperties().cpUcodeVersion >= 26);
@@ -2841,27 +2849,29 @@ size_t CmdUtil::BuildStrmoutBufferUpdate(
     switch (sourceSelect)
     {
     case STRMOUT_CNTL_OFFSET_SEL_EXPLICT_OFFSET:
-        pPacket->bufferOffset = explicitOffset;
+        packet.bufferOffset = explicitOffset;
         break;
     case STRMOUT_CNTL_OFFSET_SEL_READ_VGT_BUFFER_FILLED_SIZE:
         // No additional members need to be set for this operation.
         break;
     case STRMOUT_CNTL_OFFSET_SEL_READ_SRC_ADDRESS:
-        pPacket->srcAddressLo = LowPart(srcGpuVirtAddr);
-        pPacket->srcAddressHi = HighPart(srcGpuVirtAddr);
-        pPacket->dataType     = DataType;
+        packet.srcAddressLo = LowPart(srcGpuVirtAddr);
+        packet.srcAddressHi = HighPart(srcGpuVirtAddr);
+        packet.dataType     = DataType;
         break;
     case STRMOUT_CNTL_OFFSET_SEL_NONE:
-        pPacket->storeBufferFilledSize = 1;
-        pPacket->dstAddressLo          = LowPart(dstGpuVirtAddr);
-        pPacket->dstAddressHi          = HighPart(dstGpuVirtAddr);
-        pPacket->dataType              = DataType;
+        packet.storeBufferFilledSize = 1;
+        packet.dstAddressLo          = LowPart(dstGpuVirtAddr);
+        packet.dstAddressHi          = HighPart(dstGpuVirtAddr);
+        packet.dataType              = DataType;
         break;
     default:
         PAL_ASSERT_ALWAYS();
         break;
     }
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -2876,7 +2886,7 @@ size_t CmdUtil::BuildSurfaceSync(
     ) const
 {
     constexpr size_t PacketSize = PM4_CMD_SURFACE_SYNC_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDSURFACESYNC*>(pBuffer);
+    PM4CMDSURFACESYNC packet = {};
 
     if ((m_chipFamily >= GfxIpLevel::GfxIp8) && (cpCoherCntl.bits.TC_ACTION_ENA == 1))
     {
@@ -2885,10 +2895,10 @@ size_t CmdUtil::BuildSurfaceSync(
         cpCoherCntl.bits.TC_WB_ACTION_ENA__CI__VI = 1;
     }
 
-    pPacket->header.u32All = Type3Header(IT_SURFACE_SYNC, PacketSize);
-    pPacket->coherCntl     = cpCoherCntl.u32All;
-    pPacket->engine        = syncEngine;
-    pPacket->pollInterval  = Pal::Device::PollInterval;
+    packet.header.u32All = Type3Header(IT_SURFACE_SYNC, PacketSize);
+    packet.coherCntl     = cpCoherCntl.u32All;
+    packet.engine        = syncEngine;
+    packet.pollInterval  = Pal::Device::PollInterval;
 
     // Need to align-down the given base address and then add the difference to the size, and align that new size.
     // Note that if sizeBytes is equal to FullSyncSize we should leave it as-is.
@@ -2900,9 +2910,11 @@ size_t CmdUtil::BuildSurfaceSync(
                                         ? FullSyncSize
                                         : Pow2Align((sizeBytes + (baseAddress - alignedAddress)), Alignment);
 
-    pPacket->cpCoherBase.bits.COHER_BASE_256B = Get256BAddrLo(alignedAddress);
-    pPacket->cpCoherSize.bits.COHER_SIZE_256B = (alignedSize >> SizeShift);
+    packet.cpCoherBase.bits.COHER_BASE_256B = Get256BAddrLo(alignedAddress);
+    packet.cpCoherSize.bits.COHER_SIZE_256B = (alignedSize >> SizeShift);
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -2956,12 +2968,13 @@ size_t CmdUtil::BuildWaitOnCeCounter(
     ) const
 {
     constexpr size_t PacketSize = PM4_CMD_WAIT_ON_CE_COUNTER_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDWAITONCECOUNTER*>(pBuffer);
+    PM4CMDWAITONCECOUNTER packet = {};
 
-    pPacket->header.u32All = Type3Header(IT_WAIT_ON_CE_COUNTER, PacketSize);
-    pPacket->ordinal2      = 0;
-    pPacket->control       = invalidateKcache;
+    packet.header.u32All = Type3Header(IT_WAIT_ON_CE_COUNTER, PacketSize);
+    packet.control       = invalidateKcache;
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -3191,20 +3204,21 @@ size_t CmdUtil::BuildWaitRegMem(
     PAL_ASSERT((memSpace != WAIT_REG_MEM_SPACE_MEMORY) || IsPow2Aligned(addr, 4));
 
     constexpr size_t PacketSize = PM4_CMD_WAIT_REG_MEM_DWORDS;
-    auto*const       pPacket    = static_cast<PM4CMDWAITREGMEM*>(pBuffer);
+    PM4CMDWAITREGMEM packet = {};
 
-    pPacket->header.u32All = Type3Header(IT_WAIT_REG_MEM, PacketSize);
-    pPacket->ordinal2      = 0;
-    pPacket->function      = function;
-    pPacket->memSpace      = memSpace;
-    pPacket->engine        = engine;
-    pPacket->uncached__VI  = (isSdi) ? 1 : 0;
-    pPacket->pollAddressLo = LowPart(addr);
-    pPacket->pollAddressHi = HighPart(addr);
-    pPacket->reference     = reference;
-    pPacket->mask          = mask;
-    pPacket->pollInterval  = Pal::Device::PollInterval;
+    packet.header.u32All = Type3Header(IT_WAIT_REG_MEM, PacketSize);
+    packet.function      = function;
+    packet.memSpace      = memSpace;
+    packet.engine        = engine;
+    packet.uncached__VI  = (isSdi) ? 1 : 0;
+    packet.pollAddressLo = LowPart(addr);
+    packet.pollAddressHi = HighPart(addr);
+    packet.reference     = reference;
+    packet.mask          = mask;
+    packet.pollInterval  = Pal::Device::PollInterval;
 
+    static_assert(PacketSize * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
     return PacketSize;
 }
 
@@ -3249,16 +3263,18 @@ size_t CmdUtil::BuildWriteData(
                (info.engineSel == WRITE_DATA_ENGINE_CE));
 
     const size_t packetSize = PM4_CMD_WRITE_DATA_DWORDS + 1;
-    auto*const   pPacket    = static_cast<PM4CMDWRITEDATA*>(pBuffer);
+    PM4CMDWRITEDATA packet = {};
 
-    pPacket->header.u32All = Type3Header(IT_WRITE_DATA, packetSize, ShaderGraphics, info.predicate);
-    pPacket->ordinal2      = 0;
-    pPacket->dstSel        = info.dstSel;
-    pPacket->wrOneAddr     = info.dontIncrementAddr;
-    pPacket->wrConfirm     = (info.dontWriteConfirm == false);
-    pPacket->engineSel     = info.engineSel;
-    pPacket->dstAddrLo     = LowPart(info.dstAddr);
-    pPacket->dstAddrHi     = HighPart(info.dstAddr);
+    packet.header.u32All = Type3Header(IT_WRITE_DATA, packetSize, ShaderGraphics, info.predicate);
+    packet.dstSel        = info.dstSel;
+    packet.wrOneAddr     = info.dontIncrementAddr;
+    packet.wrConfirm     = (info.dontWriteConfirm == false);
+    packet.engineSel     = info.engineSel;
+    packet.dstAddrLo     = LowPart(info.dstAddr);
+    packet.dstAddrHi     = HighPart(info.dstAddr);
+
+    static_assert(PM4_CMD_WRITE_DATA_DWORDS * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
 
     uint32*const pDataPayload = static_cast<uint32*>(pBuffer) + packetSize - 1;
     *pDataPayload = data;
@@ -3285,20 +3301,23 @@ size_t CmdUtil::BuildWriteData(
                (info.engineSel == WRITE_DATA_ENGINE_CE));
 
     const size_t packetSize = PM4_CMD_WRITE_DATA_DWORDS + dwordsToWrite;
-    auto*const   pPacket    = static_cast<PM4CMDWRITEDATA*>(pBuffer);
+    PM4CMDWRITEDATA packet = {};
 
-    pPacket->header.u32All = Type3Header(IT_WRITE_DATA, packetSize, ShaderGraphics, info.predicate);
-    pPacket->ordinal2      = 0;
-    pPacket->dstSel        = info.dstSel;
-    pPacket->wrOneAddr     = info.dontIncrementAddr;
-    pPacket->wrConfirm     = (info.dontWriteConfirm == false);
-    pPacket->engineSel     = info.engineSel;
-    pPacket->dstAddrLo     = LowPart(info.dstAddr);
-    pPacket->dstAddrHi     = HighPart(info.dstAddr);
+    packet.header.u32All = Type3Header(IT_WRITE_DATA, packetSize, ShaderGraphics, info.predicate);
+    packet.dstSel        = info.dstSel;
+    packet.wrOneAddr     = info.dontIncrementAddr;
+    packet.wrConfirm     = (info.dontWriteConfirm == false);
+    packet.engineSel     = info.engineSel;
+    packet.dstAddrLo     = LowPart(info.dstAddr);
+    packet.dstAddrHi     = HighPart(info.dstAddr);
+
+    static_assert(PM4_CMD_WRITE_DATA_DWORDS * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
 
     if (pData != nullptr)
     {
         // Copy the data into the buffer after the packet.
+        auto*const pPacket = static_cast<PM4CMDWRITEDATA*>(pBuffer);
         memcpy(pPacket + 1, pData, dwordsToWrite * sizeof(uint32));
     }
 
@@ -3326,21 +3345,24 @@ size_t CmdUtil::BuildWriteDataPeriodic(
                (info.engineSel == WRITE_DATA_ENGINE_CE));
 
     const size_t packetSize = PM4_CMD_WRITE_DATA_DWORDS + dwordsToWrite;
-    auto*const   pPacket    = static_cast<PM4CMDWRITEDATA*>(pBuffer);
+    PM4CMDWRITEDATA packet = {};
 
-    pPacket->header.u32All = Type3Header(IT_WRITE_DATA, packetSize, ShaderGraphics, info.predicate);
-    pPacket->ordinal2      = 0;
-    pPacket->dstSel        = info.dstSel;
-    pPacket->wrOneAddr     = info.dontIncrementAddr;
-    pPacket->wrConfirm     = (info.dontWriteConfirm == false);
-    pPacket->engineSel     = info.engineSel;
-    pPacket->dstAddrLo     = LowPart(info.dstAddr);
-    pPacket->dstAddrHi     = HighPart(info.dstAddr);
+    packet.header.u32All = Type3Header(IT_WRITE_DATA, packetSize, ShaderGraphics, info.predicate);
+    packet.dstSel        = info.dstSel;
+    packet.wrOneAddr     = info.dontIncrementAddr;
+    packet.wrConfirm     = (info.dontWriteConfirm == false);
+    packet.engineSel     = info.engineSel;
+    packet.dstAddrLo     = LowPart(info.dstAddr);
+    packet.dstAddrHi     = HighPart(info.dstAddr);
+
+    static_assert(PM4_CMD_WRITE_DATA_DWORDS * sizeof(uint32) == sizeof(packet), "");
+    memcpy(pBuffer, &packet, sizeof(packet));
 
     if (pPeriodData != nullptr)
     {
         // Copy the data into the buffer after the packet.
         const size_t bytesPerPeriod = sizeof(uint32) * dwordsPerPeriod;
+        auto*const   pPacket        = static_cast<PM4CMDWRITEDATA*>(pBuffer);
         uint32*      pDataSection   = reinterpret_cast<uint32*>(pPacket + 1);
 
         for (; periodsToWrite > 0; periodsToWrite--)

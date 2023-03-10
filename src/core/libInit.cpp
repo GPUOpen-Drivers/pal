@@ -30,6 +30,7 @@
 
 #include "core/layers/dbgOverlay/dbgOverlayPlatform.h"
 #include "core/layers/gpuProfiler/gpuProfilerPlatform.h"
+#include "core/layers/crashAnalysis/crashAnalysisPlatform.h"
 
 #if PAL_DEVELOPER_BUILD
 #include "core/layers/gpuDebug/gpuDebugPlatform.h"
@@ -91,6 +92,7 @@ size_t PAL_STDCALL GetPlatformSize()
 
     platformSize += sizeof(DbgOverlay::Platform);
     platformSize += sizeof(GpuProfiler::Platform);
+    platformSize += sizeof(CrashAnalysis::Platform);
 
 #if PAL_DEVELOPER_BUILD
     platformSize += sizeof(InterfaceLogger::Platform);
@@ -153,6 +155,7 @@ Result PAL_STDCALL CreatePlatform(
 
     pPlacementAddr = Util::VoidPtrInc(pPlacementAddr, sizeof(DbgOverlay::Platform));
     pPlacementAddr = Util::VoidPtrInc(pPlacementAddr, sizeof(GpuProfiler::Platform));
+    pPlacementAddr = Util::VoidPtrInc(pPlacementAddr, sizeof(CrashAnalysis::Platform));
 
     // NOTE: If a specific layer is being built we must always create a Platform decorator for that layer.
     //       This avoids a rather difficult issue where we need to place the IPlatform the client uses at the beginning
@@ -267,6 +270,20 @@ Result PAL_STDCALL CreatePlatform(
                                                    &pCurPlatform);
     }
 #endif
+
+    if (result == Result::Success)
+    {
+        pPlacementAddr = Util::VoidPtrDec(pPlacementAddr, sizeof(CrashAnalysis::Platform));
+        pCurPlatform->SetClientData(pPlacementAddr);
+
+        result = CrashAnalysis::Platform::Create(createInfo,
+                                                 allocCb,
+                                                 pCurPlatform,
+                                                 pCorePlatform->IsCrashAnalysisModeEnabled(),
+                                                 pPlacementAddr,
+                                                 &pCurPlatform,
+                                                 pCorePlatform->GetCrashAnalysisEventProvider());
+    }
 
     if (result == Result::Success)
     {

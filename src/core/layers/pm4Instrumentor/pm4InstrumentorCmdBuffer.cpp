@@ -1066,19 +1066,6 @@ void CmdBuffer::CmdResolveImage(
 }
 
 // =====================================================================================================================
-void CmdBuffer::CmdCopyImageToPackedPixelImage(
-    const IImage&          srcImage,
-    const IImage&          dstImage,
-    uint32                 regionCount,
-    const ImageCopyRegion* pRegions,
-    Pal::PackedPixelType   packPixelType)
-{
-    PreCall();
-    CmdBufferFwdDecorator::CmdCopyImageToPackedPixelImage(srcImage, dstImage, regionCount, pRegions, packPixelType);
-    PostCall(CmdBufCallId::CmdCopyImageToPackedPixelImage);
-}
-
-// =====================================================================================================================
 void CmdBuffer::CmdSetEvent(
     const IGpuEvent& gpuEvent,
     HwPipePoint      setPoint)

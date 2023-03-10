@@ -407,13 +407,11 @@ private:
         IQueueSemaphore* pQueueSemaphore,
         volatile bool*   pIsStalled);
 
-#if PAL_ENABLE_PRINTS_ASSERTS
     bool IsCmdDumpEnabled() const;
     Result OpenCommandDumpFile(
         const MultiSubmitInfo&      submitInfo,
         const InternalSubmitInfo&   internalSubmitInfo,
         Util::File*                 logFile);
-#endif
 
     void DumpCmdBuffers(
         const MultiSubmitInfo&    submitInfo,

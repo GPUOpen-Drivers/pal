@@ -470,7 +470,7 @@ size_t EncodeAsFilename(
     const char*  pInput    = input.Data();
     const size_t length    = input.Length();
 
-    for (; sizeSoFar < length; ++pInput)
+    for (size_t i = 0; i < length; ++pInput)
     {
         int ch = *pInput;
         const char* pFormat = "%c";
@@ -484,6 +484,7 @@ size_t EncodeAsFilename(
             pFormat = "%%%2.2X";
         }
         sizeSoFar += snprintf(pOutput + sizeSoFar, (sizeSoFar < bufSize) ? bufSize - sizeSoFar : 0, pFormat, ch & 0xff);
+        i++;
     }
     return sizeSoFar;
 }

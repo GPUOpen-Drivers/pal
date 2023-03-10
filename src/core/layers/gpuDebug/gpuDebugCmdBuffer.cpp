@@ -4765,43 +4765,6 @@ void CmdBuffer::ReplayCmdEndWhile(
 }
 
 // =====================================================================================================================
-void CmdBuffer::CmdCopyImageToPackedPixelImage(
-    const IImage&          srcImage,
-    const IImage&          dstImage,
-    uint32                 regionCount,
-    const ImageCopyRegion* pRegions,
-    Pal::PackedPixelType   packPixelType)
-{
-    HandleBarrierBlt(false, true);
-
-    InsertToken(CmdBufCallId::CmdCopyImageToPackedPixelImage);
-    InsertToken(&srcImage);
-    InsertToken(&dstImage);
-    InsertTokenArray(pRegions, regionCount);
-    InsertToken(packPixelType);
-
-    HandleBarrierBlt(false, false);
-}
-
-// =====================================================================================================================
-void CmdBuffer::ReplayCmdCopyImageToPackedPixelImage(
-    Queue*           pQueue,
-    TargetCmdBuffer* pTgtCmdBuffer)
-{
-    auto                   pSrcImage      = ReadTokenVal<IImage*>();
-    auto                   pDstImage      = ReadTokenVal<IImage*>();
-    const ImageCopyRegion* pRegions       = nullptr;
-    auto                   regionCount    = ReadTokenArray(&pRegions);
-    auto                   packPixelType  = ReadTokenVal<Pal::PackedPixelType>();
-
-    pTgtCmdBuffer->CmdCopyImageToPackedPixelImage(*pSrcImage,
-                                                  *pDstImage,
-                                                  regionCount,
-                                                  pRegions,
-                                                  packPixelType);
-}
-
-// =====================================================================================================================
 void CmdBuffer::CmdSetViewInstanceMask(
     uint32 mask)
 {
@@ -4956,6 +4919,38 @@ void CmdBuffer::ReplayCmdInsertRgpTraceMarker(
     uint32 numDwords = ReadTokenArray(&pData);
 
     pTgtCmdBuffer->CmdInsertRgpTraceMarker(subQueueFlags, numDwords, pData);
+}
+
+// =====================================================================================================================
+uint32 CmdBuffer::CmdInsertExecutionMarker(
+    bool        isBegin,
+    uint8       sourceId,
+    const char* pMarkerName,
+    uint32      markerNameSize)
+{
+    InsertToken(CmdBufCallId::CmdInsertExecutionMarker);
+    InsertToken(isBegin);
+    InsertToken(sourceId);
+    InsertTokenArray(pMarkerName, markerNameSize);
+    return 0;
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdInsertExecutionMarker(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    bool  isBegin  = ReadTokenVal<bool>();
+    uint8 sourceId = ReadTokenVal<uint8>();
+
+    const char* pMarkerName = nullptr;
+    uint32 markerNameSize   = ReadTokenArray(&pMarkerName);
+
+    const uint32 marker = pTgtCmdBuffer->CmdInsertExecutionMarker(isBegin,
+                                                                  sourceId,
+                                                                  pMarkerName,
+                                                                  markerNameSize);
+    PAL_ASSERT_MSG(marker == 0, "Crash Analysis layer is unexpectedly enabled");
 }
 
 // =====================================================================================================================
@@ -5285,6 +5280,7 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdEndPerfExperiment,
         &CmdBuffer::ReplayCmdInsertTraceMarker,
         &CmdBuffer::ReplayCmdInsertRgpTraceMarker,
+        &CmdBuffer::ReplayCmdInsertExecutionMarker,
         &CmdBuffer::ReplayCmdCopyDfSpmTraceData,
         &CmdBuffer::ReplayCmdSaveComputeState,
         &CmdBuffer::ReplayCmdRestoreComputeState,
@@ -5294,7 +5290,6 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdXdmaWaitFlipPending,
         &CmdBuffer::ReplayCmdCopyMemoryToTiledImage,
         &CmdBuffer::ReplayCmdCopyTiledImageToMemory,
-        &CmdBuffer::ReplayCmdCopyImageToPackedPixelImage,
         &CmdBuffer::ReplayCmdStartGpuProfilerLogging,
         &CmdBuffer::ReplayCmdStopGpuProfilerLogging,
         &CmdBuffer::ReplayCmdSetViewInstanceMask,

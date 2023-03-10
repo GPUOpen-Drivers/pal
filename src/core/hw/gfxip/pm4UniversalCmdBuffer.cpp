@@ -198,10 +198,8 @@ Result UniversalCmdBuffer::End()
 
         m_graphicsState.leakFlags.u64All |= m_graphicsState.dirtyFlags.u64All;
 
-#if PAL_ENABLE_PRINTS_ASSERTS
         const Pal::CmdStream* cmdStreams[] = { m_pDeCmdStream, m_pCeCmdStream, m_pAceCmdStream };
         EndCmdBufferDump(cmdStreams, 3);
-#endif
     }
 
     return result;
@@ -298,6 +296,16 @@ void UniversalCmdBuffer::CmdBindPipeline(
 
     // Compute state and some additional generic support is handled by the Pm4CmdBuffer.
     Pm4CmdBuffer::CmdBindPipeline(params);
+}
+
+// =====================================================================================================================
+void UniversalCmdBuffer::CmdBindPipelineWithOverrides(
+    const PipelineBindParams& params,
+    SwizzledFormat            swizzledFormat,
+    uint32                    targetIndex)
+{
+    CmdBindPipeline(params);
+    CmdOverwriteRbPlusFormatForBlits(swizzledFormat, targetIndex);
 }
 
 // =====================================================================================================================
@@ -563,7 +571,6 @@ void UniversalCmdBuffer::CmdSetRasterizerDiscardEnable(
 }
 #endif
 
-#if PAL_ENABLE_PRINTS_ASSERTS
 // =====================================================================================================================
 // Dumps this command buffer's DE and CE command streams to the given file with an appropriate header.
 void UniversalCmdBuffer::DumpCmdStreamsToFile(
@@ -625,7 +632,6 @@ void UniversalCmdBuffer::EndCmdBufferDump(
         DumpFile()->Close();
     }
 }
-#endif
 
 // =====================================================================================================================
 // Copies the currently bound state to m_graphicsRestoreState. This cannot be called again until CmdRestoreGraphicsState

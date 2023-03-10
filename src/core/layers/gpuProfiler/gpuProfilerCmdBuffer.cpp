@@ -3846,6 +3846,38 @@ void CmdBuffer::ReplayCmdInsertRgpTraceMarker(
 }
 
 // =====================================================================================================================
+uint32 CmdBuffer::CmdInsertExecutionMarker(
+    bool        isBegin,
+    uint8       sourceId,
+    const char* pMarkerName,
+    uint32      markerNameSize)
+{
+    InsertToken(CmdBufCallId::CmdInsertExecutionMarker);
+    InsertToken(isBegin);
+    InsertToken(sourceId);
+    InsertTokenArray(pMarkerName, markerNameSize);
+    return 0;
+}
+
+// =====================================================================================================================
+void CmdBuffer::ReplayCmdInsertExecutionMarker(
+    Queue*           pQueue,
+    TargetCmdBuffer* pTgtCmdBuffer)
+{
+    bool  isBegin  = ReadTokenVal<bool>();
+    uint8 sourceId = ReadTokenVal<uint8>();
+
+    const char* pMarkerName = nullptr;
+    uint32 markerNameSize   = ReadTokenArray(&pMarkerName);
+
+    const uint32 marker = pTgtCmdBuffer->CmdInsertExecutionMarker(isBegin,
+                                                                  sourceId,
+                                                                  pMarkerName,
+                                                                  markerNameSize);
+    PAL_ASSERT_MSG(marker == 0, "Crash Analysis layer is unexpectedly enabled");
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdCopyDfSpmTraceData(
     const IPerfExperiment& perfExperiment,
     const IGpuMemory&      dstGpuMemory,
@@ -4192,6 +4224,7 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdEndPerfExperiment,
         &CmdBuffer::ReplayCmdInsertTraceMarker,
         &CmdBuffer::ReplayCmdInsertRgpTraceMarker,
+        &CmdBuffer::ReplayCmdInsertExecutionMarker,
         &CmdBuffer::ReplayCmdCopyDfSpmTraceData,
         &CmdBuffer::ReplayCmdSaveComputeState,
         &CmdBuffer::ReplayCmdRestoreComputeState,
@@ -4201,7 +4234,6 @@ Result CmdBuffer::Replay(
         &CmdBuffer::ReplayCmdXdmaWaitFlipPending,
         &CmdBuffer::ReplayCmdCopyMemoryToTiledImage,
         &CmdBuffer::ReplayCmdCopyTiledImageToMemory,
-        &CmdBuffer::ReplayCmdCopyImageToPackedPixelImage,
         &CmdBuffer::ReplayCmdStartGpuProfilerLogging,
         &CmdBuffer::ReplayCmdStopGpuProfilerLogging,
         &CmdBuffer::ReplayCmdSetViewInstanceMask,
@@ -4343,43 +4375,6 @@ void CmdBuffer::LogPostTimedCall(
         // Add this log item to the queue for processing once the corresponding submit is idle.
         pQueue->AddLogItem(*pLogItem);
     }
-}
-
-// =====================================================================================================================
-void CmdBuffer::CmdCopyImageToPackedPixelImage(
-    const IImage&          srcImage,
-    const IImage&          dstImage,
-    uint32                 regionCount,
-    const ImageCopyRegion* pRegions,
-    Pal::PackedPixelType   packPixelType)
-{
-    InsertToken(CmdBufCallId::CmdCopyImageToPackedPixelImage);
-    InsertToken(&srcImage);
-    InsertToken(&dstImage);
-    InsertTokenArray(pRegions, regionCount);
-    InsertToken(packPixelType);
-}
-
-// =====================================================================================================================
-void CmdBuffer::ReplayCmdCopyImageToPackedPixelImage(
-    Queue*           pQueue,
-    TargetCmdBuffer* pTgtCmdBuffer)
-{
-    auto                   pSrcImage      = ReadTokenVal<IImage*>();
-    auto                   pDstImage      = ReadTokenVal<IImage*>();
-    const ImageCopyRegion* pRegions       = nullptr;
-    auto                   regionCount    = ReadTokenArray(&pRegions);
-    auto                   packPixelType  = ReadTokenVal<Pal::PackedPixelType>();
-
-    LogItem logItem = { };
-
-    LogPreTimedCall(pQueue, pTgtCmdBuffer, &logItem, CmdBufCallId::CmdCopyImageToPackedPixelImage);
-    pTgtCmdBuffer->CmdCopyImageToPackedPixelImage(*pSrcImage,
-                                                  *pDstImage,
-                                                  regionCount,
-                                                  pRegions,
-                                                  packPixelType);
-    LogPostTimedCall(pQueue, pTgtCmdBuffer, &logItem);
 }
 
 // =====================================================================================================================

@@ -49,7 +49,7 @@ enum class EventId : uint8_t
 struct PageFault
 {
     /// The maximum size required for a buffer to hold the packed data of this event.
-    static const uint32_t PackedBufferSize = 20;
+    static const uint32_t PackedBufferSize = 82;
 
     uint32_t vmId;
 
@@ -101,6 +101,8 @@ struct PageFault
         buffer += sizeof(processNameLength);
 
         memcpy(buffer, processName, processNameLength);
+
+        static_assert(sizeof(vmId) + sizeof(processId) + sizeof(pageFaultAddress) + sizeof(processNameLength) + sizeof(processName) == PackedBufferSize, "PackedBufferSize is incorrect");
 
         return sizeof(vmId) + sizeof(processId) + sizeof(pageFaultAddress) + sizeof(processNameLength) + processNameLength;
     }

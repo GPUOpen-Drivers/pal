@@ -110,7 +110,6 @@ struct CmdBufferIb2DumpHeader
     uint64      gpuVa;              // GPU virtual address of the IB2
 };
 
-#if PAL_ENABLE_PRINTS_ASSERTS
 // Structure holding information needed to dump IB2s
 struct Ib2DumpInfo
 {
@@ -120,7 +119,6 @@ struct Ib2DumpInfo
     const EngineType    engineType;       // Engine Type
     const SubEngineType subEngineType;    // SubEngine Type
 };
-#endif
 
 // Gets the subEngineId to put in headers when dumping
 const uint32 GetSubEngineId(
@@ -195,10 +193,8 @@ class CmdBuffer : public ICmdBuffer
     // A useful shorthand for a vector of chunks.
     typedef ChunkVector<CmdStreamChunk*, 16, Platform> ChunkRefList;
 
-#if PAL_ENABLE_PRINTS_ASSERTS
     // A useful shorthand for a vector of IB2 Infos
     typedef Util::Vector<Ib2DumpInfo, 4, Platform> Ib2DumpInfoVec;
-#endif
 
 public:
     // NOTE: Part of the public IDestroyable interface.
@@ -773,13 +769,6 @@ public:
         uint32                       maximumCount,
         gpusize                      countGpuAddr) override { PAL_NEVER_CALLED(); }
 
-    virtual void CmdCopyImageToPackedPixelImage(
-        const IImage&          srcImage,
-        const IImage&          dstImage,
-        uint32                 regionCount,
-        const ImageCopyRegion* pRegions,
-        Pal::PackedPixelType   packPixelType) override { PAL_NEVER_CALLED(); }
-
     virtual void CmdPostProcessFrame(
         const CmdPostProcessFrameInfo& postProcessInfo,
         bool*                          pAddedGpuWork) override
@@ -809,8 +798,6 @@ public:
     virtual void CmdCommentString(
         const char* pComment) override { PAL_NEVER_CALLED(); }
 
-    void CmdInsertCrashAnalysisHeader();
-
     virtual void CmdXdmaWaitFlipPending() override { PAL_NEVER_CALLED(); }
 
     virtual void CmdUpdateHiSPretests(
@@ -830,7 +817,6 @@ public:
     // Increments the submit-count of the command stream(s) contained in this command buffer.
     virtual void IncrementSubmitCount() = 0;
 
-#if PAL_ENABLE_PRINTS_ASSERTS
     // This function allows us end all CmdStream provided and dump them into a file.
     virtual void EndCmdBufferDump(const CmdStream** ppCmdStreams, uint32 cmdStreamsNum);
 
@@ -850,7 +836,6 @@ public:
 
     // Inserts Ib2 to the vector, but only if there isn't an ib2 with the same gpuVA already
     void InsertIb2DumpInfo(const Ib2DumpInfo& dumpInfo);
-#endif
 
     // Returns the number of command streams associated with this command buffer.
     virtual uint32 NumCmdStreams() const = 0;
@@ -1036,19 +1021,23 @@ protected:
         uint32            maximumCount,
         gpusize           countGpuAddr);
 
-#if PAL_ENABLE_PRINTS_ASSERTS
     // Utility function for determing if command buffer dumping has been enabled.
     bool IsDumpingEnabled() const { return m_device.Settings().cmdBufDumpMode == CmdBufDumpModeRecordTime; }
 
     Util::File* DumpFile() { return &m_file; }
     uint32      UniqueId() const { return m_uniqueId; }
     uint32      NumBegun() const { return m_numCmdBufsBegun; }
-#endif
 
     virtual void CmdNop(
         const void* pPayload,
         uint32      payloadSize) override
         { PAL_NEVER_CALLED(); }
+
+    virtual uint32 CmdInsertExecutionMarker(
+        bool         isBegin,
+        uint8        sourceId,
+        const char*  pMarkerName,
+        uint32       markerNameSize) override { return 0; }
 
     const CmdBufferCreateInfo     m_createInfo;
     CmdBufferInternalCreateInfo   m_internalInfo;
@@ -1110,11 +1099,7 @@ protected:
     // Number of implicit ganged sub-queues.
     uint32 m_implicitGangSubQueueCount;
 
-    const uint32 m_resourceId; // Unique Id for this CmdBuffer
-
-#if PAL_ENABLE_PRINTS_ASSERTS
     Ib2DumpInfoVec m_ib2DumpInfos; // Vector holding information needed to dump IB2s
-#endif
 
 private:
     CmdStreamChunk* GetNextDataChunk(
@@ -1136,13 +1121,11 @@ private:
     const Device&          m_device;
     CmdBufferRecordState   m_recordState;
 
-#if PAL_ENABLE_PRINTS_ASSERTS
     // These member variables are only for command buffer dumping support.
     static uint32  s_numCreated[QueueTypeCount]; // Number of created CmdBuffers of each type.
     Util::File     m_file;
     uint32         m_uniqueId;
     uint32         m_numCmdBufsBegun;
-#endif
 
     PAL_DISALLOW_COPY_AND_ASSIGN(CmdBuffer);
     PAL_DISALLOW_DEFAULT_CTOR(CmdBuffer);

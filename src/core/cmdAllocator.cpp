@@ -851,8 +851,6 @@ Result CmdAllocator::CreateAllocation(
                                            m_pDevice->GetPlatform(),
                                            AllocInternal);
 
-    Util::MutexAuto allocatorLock(m_pDevice->MemMgr()->GetAllocatorLock());
-
     if (pPlacementAddr != nullptr)
     {
         result = CmdStreamAllocation::Create(allocCreateInfo, m_pDevice, pPlacementAddr, &pAlloc);
@@ -876,6 +874,14 @@ Result CmdAllocator::CreateAllocation(
             }
             eventData.requiredGpuMemSize = pAllocInfo->allocCreateInfo.memObjCreateInfo.size;
             m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(eventData);
+
+            Developer::BindGpuMemoryData callbackData = {};
+            callbackData.pObj               = eventData.pObj;
+            callbackData.requiredGpuMemSize = eventData.requiredGpuMemSize;
+            callbackData.pGpuMemory         = eventData.pGpuMemory;
+            callbackData.offset             = eventData.offset;
+            callbackData.isSystemMemory     = eventData.isSystemMemory;
+            m_pDevice->DeveloperCb(Developer::CallbackType::BindGpuMemory, &callbackData);
         }
     }
 
@@ -932,8 +938,6 @@ Result CmdAllocator::CreateDummyChunkAllocation()
 
     if (pPlacementAddr != nullptr)
     {
-        Util::MutexAuto allocatorLock(m_pDevice->MemMgr()->GetAllocatorLock());
-
         result = CmdStreamAllocation::Create(createInfo, m_pDevice, pPlacementAddr, &m_pDummyChunkAllocation);
 
         if (result != Result::Success)

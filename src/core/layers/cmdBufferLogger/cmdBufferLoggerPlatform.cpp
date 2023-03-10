@@ -163,8 +163,13 @@ void PAL_STDCALL Platform::CmdBufferLoggerCb(
 
     switch (type)
     {
-    case Developer::CallbackType::AllocGpuMemory:
+    case Developer::CallbackType::AllocGpuMemory: // fallthrough intentional
     case Developer::CallbackType::FreeGpuMemory:
+    case Developer::CallbackType::SubAllocGpuMemory:
+    case Developer::CallbackType::SubFreeGpuMemory:
+        PAL_ASSERT(pCbData != nullptr);
+        TranslateGpuMemoryData(pCbData);
+        break;
     case Developer::CallbackType::PresentConcluded:
     case Developer::CallbackType::CreateImage:
     case Developer::CallbackType::SurfRegData:
@@ -241,6 +246,10 @@ void PAL_STDCALL Platform::CmdBufferLoggerCb(
         TranslateOptimizedRegistersData(pCbData);
         break;
 #endif
+    case Developer::CallbackType::BindGpuMemory:
+        PAL_ASSERT(pCbData != nullptr);
+        TranslateBindGpuMemoryData(pCbData);
+        break;
     default:
         PAL_ASSERT_ALWAYS();
         break;

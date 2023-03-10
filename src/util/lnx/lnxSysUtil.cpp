@@ -29,7 +29,9 @@
 #include "palSysMemory.h"
 #include "palMemTrackerImpl.h"
 #include "palHashMapImpl.h"
+#include "palUuid.h"
 #include "lnxSysUtil.h"
+#include <mutex>
 
 #include <cwchar>
 #include <errno.h>
@@ -47,6 +49,7 @@
 #include <dirent.h>
 #include <string.h>
 #include <poll.h>
+#include <link.h>
 
 namespace Util
 {
@@ -612,8 +615,167 @@ Result GetCurrentLibraryName(
     size_t extBufferLength)
 {
     Result result = Result::Success;
-    PAL_NOT_IMPLEMENTED();
+    PAL_NOT_IMPLEMENTED(); // todo: dladdr and splitpath
     return result;
+}
+
+// =====================================================================================================================
+struct BuildIdCbData {
+    BuildId*    pBuildId; // out
+    const void* pLibBase; // target library to search for
+};
+
+// =====================================================================================================================
+int BuildIdEachLibCallback(
+    struct dl_phdr_info* pInfo,
+    size_t               size,
+    void*                pData)
+{
+    int retval = 0; // found = 0
+    BuildIdCbData* pCbData = reinterpret_cast<BuildIdCbData*>(pData);
+
+    // Check if we're in the right library by looking at the first loaded segment.
+    void* pLibBase = nullptr;
+    for (uint32 i = 0; i < pInfo->dlpi_phnum; i++)
+    {
+        if (pInfo->dlpi_phdr[i].p_type == PT_LOAD)
+        {
+            pLibBase = reinterpret_cast<void*>(pInfo->dlpi_addr + pInfo->dlpi_phdr[i].p_vaddr);
+            break;
+        }
+    }
+
+    if (pLibBase == pCbData->pLibBase)
+    {
+        // We're in the right library; now look for notes!
+        for (uint32 i = 0; i < pInfo->dlpi_phnum; i++)
+        {
+            if (pInfo->dlpi_phdr[i].p_type == PT_NOTE)
+            {
+                void* pElfNote = reinterpret_cast<void*>(pInfo->dlpi_addr + pInfo->dlpi_phdr[i].p_vaddr);
+                ssize_t elfSecLen = pInfo->dlpi_phdr[i].p_memsz;
+                while (elfSecLen > 0)
+                {
+                    // Note sections may have one or more notes. Keep at it till we run out of bytes
+                    PAL_ASSERT(elfSecLen >= sizeof(ElfW(Nhdr)));
+                    ElfW(Nhdr)* pElfNoteHdr = reinterpret_cast<ElfW(Nhdr)*>(pElfNote);
+                    size_t noteTotalSize = (sizeof(ElfW(Nhdr)) +
+                                            Pow2Align(pElfNoteHdr->n_namesz, 4) +
+                                            Pow2Align(pElfNoteHdr->n_descsz, 4));
+                    PAL_ASSERT(elfSecLen >= noteTotalSize);
+
+                    char* pElfNoteName = reinterpret_cast<char*>(VoidPtrInc(pElfNote, sizeof(ElfW(Nhdr))));
+                    char* pElfNoteDesc = reinterpret_cast<char*>(
+                        VoidPtrInc(pElfNote, sizeof(ElfW(Nhdr)) + Pow2Align(pElfNoteHdr->n_namesz, 4))
+                        );
+
+                    if ((pElfNoteHdr->n_type == NT_GNU_BUILD_ID) &&
+                        (pElfNoteHdr->n_namesz == strlen(ELF_NOTE_GNU) + 1) &&
+                        (strncmp(pElfNoteName, ELF_NOTE_GNU, pElfNoteHdr->n_namesz) == 0))
+                    {
+                        // Found the note! Copy it out.
+                        memcpy(pCbData->pBuildId,
+                                pElfNoteDesc,
+                                Util::Min(sizeof(BuildId), static_cast<size_t>(pElfNoteHdr->n_descsz)));
+                        retval = 1; // found!
+                        break;
+                    }
+
+                    pElfNote   = VoidPtrInc(pElfNote, noteTotalSize);
+                    elfSecLen -= noteTotalSize;
+                }
+            }
+        }
+    }
+    return retval;
+};
+
+// =====================================================================================================================
+// Get a build id for the code at the specified address, without caching or watertight fallbacks.
+static Result GetLibFileBuildId(
+    BuildId* pBuildId,
+    const void* pCodeAddr)
+{
+    Result result = Result::Success;
+    bool found = false;
+
+    Dl_info libInfo = {};
+    if (dladdr(pCodeAddr, &libInfo) == 0)
+    {
+        result = Result::ErrorUnknown;
+    }
+
+    if (result == Result::Success)
+    {
+        // Let's parse the currently-running library and look for a build id
+        // This is still opt-in and pretty rare on linux, sadly, but when it is available, it's the
+        // best way to get this info race-free besides taking a full checksum of the whole library
+        // at runtime.
+        BuildIdCbData callbackData = { pBuildId, libInfo.dli_fbase};
+        found = dl_iterate_phdr(BuildIdEachLibCallback, &callbackData);
+    }
+
+    if ((result == Result::Success) && (found == false))
+    {
+        // No built in ID but found the library. We'll use the file timestamp as something "good enough"
+        // Caveats:
+        //  - This can fail if someone deleted the current library. Unfixable with just the file.
+        //  - Folks can change this at will by modifying raw file timestamps. Unfixable with just the file.
+        //  - Copying a new driver can cause a race condition between the time it was loaded and when we
+        //    check the time. To address this, reject any timestamps newer than the process start time.
+        File::Stat procStat;
+        File::Stat dllStat;
+        result = File::GetStat("/proc/self", &procStat);
+
+        if (result == Result::Success)
+        {
+            result = File::GetStat(libInfo.dli_fname, &dllStat);
+        }
+        if ((result == Result::Success) && (procStat.mtime >= dllStat.mtime))
+        {
+            found = true;
+            static_assert(sizeof(dllStat.mtime) <= sizeof(pBuildId->data), "Build ID is too small!");
+            PAL_ASSERT(dllStat.mtime != 0);
+            memcpy(&pBuildId->data[0], &dllStat.mtime, sizeof(dllStat.mtime));
+        }
+    }
+
+    if ((result == Result::Success) && (found == false))
+    {
+        result = Result::ErrorUnavailable;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+// Gets a unique ID for the current library or else returns a random hash
+bool GetCurrentLibraryBuildId(
+    BuildId* pBuildId)
+{
+    static bool           s_buildIdPersists = true;
+    static BuildId        s_buildId = {};
+    static std::once_flag s_buildIdInit;
+
+    std::call_once(s_buildIdInit, [](BuildId* pInnerBuildId, bool* pPersists)
+        {
+            memset(pInnerBuildId->data, 0, sizeof(pBuildId->data));
+            Result result = GetLibFileBuildId(pInnerBuildId, reinterpret_cast<void*>(GetCurrentLibraryBuildId));
+
+            if (result != Result::Success)
+            {
+                static_assert(sizeof(pInnerBuildId->data) <= sizeof(Uuid::Uuid), "Build ID is too small!");
+                *pPersists = false;
+                Uuid::Uuid randUuid = Uuid::Uuid4();
+                memcpy(pInnerBuildId->data, randUuid.raw, sizeof(randUuid.raw));
+            }
+        },
+        &s_buildId,
+        &s_buildIdPersists
+    );
+
+    *pBuildId = s_buildId;
+    return s_buildIdPersists;
 }
 
 // =====================================================================================================================

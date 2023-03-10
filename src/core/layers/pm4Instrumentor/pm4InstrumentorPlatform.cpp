@@ -50,8 +50,13 @@ static void PAL_STDCALL Pm4InstrumentorCb(
 
     switch (type)
     {
-    case Developer::CallbackType::AllocGpuMemory:
+    case Developer::CallbackType::AllocGpuMemory: // fallthrough intentional
     case Developer::CallbackType::FreeGpuMemory:
+    case Developer::CallbackType::SubAllocGpuMemory:
+    case Developer::CallbackType::SubFreeGpuMemory:
+        PAL_ASSERT(pCbData != nullptr);
+        TranslateGpuMemoryData(pCbData);
+        break;
     case Developer::CallbackType::SurfRegData:
         break;
     case Developer::CallbackType::PresentConcluded:
@@ -92,6 +97,10 @@ static void PAL_STDCALL Pm4InstrumentorCb(
 
             pCmdBuf->UpdateOptimizedRegisters(data);
         }
+        break;
+    case Developer::CallbackType::BindGpuMemory:
+        PAL_ASSERT(pCbData != nullptr);
+        TranslateBindGpuMemoryData(pCbData);
         break;
     default:
         PAL_ASSERT_ALWAYS();

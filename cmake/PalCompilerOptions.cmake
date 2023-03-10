@@ -30,11 +30,13 @@ include(CheckCXXCompilerFlag)
 
 function(pal_compiler_options TARGET)
     set_target_properties(${TARGET} PROPERTIES
-        CXX_STANDARD 14
+        CXX_STANDARD 17
         CXX_STANDARD_REQUIRED ON
         CXX_EXTENSIONS OFF
         POSITION_INDEPENDENT_CODE TRUE
     )
+
+    target_compile_features(${TARGET} PUBLIC cxx_std_17)
 
     set(isGNU   FALSE)
     set(isClang FALSE)
@@ -87,6 +89,8 @@ function(pal_compiler_options TARGET)
                 >
             )
         endif()
+
+        target_link_options(${TARGET} PUBLIC "LINKER:--build-id")
     else()
         message(FATAL_ERROR "Unsupported compiler: ${CMAKE_CXX_COMPILER_ID}")
     endif()

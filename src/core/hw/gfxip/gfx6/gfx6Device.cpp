@@ -520,6 +520,14 @@ Result Device::Finalize()
                 bindData.offset = memOffset;
                 bindData.requiredGpuMemSize = srcMemCreateInfo.size;
                 m_pParent->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+
+                Developer::BindGpuMemoryData callbackData = {};
+                callbackData.pObj               = bindData.pObj;
+                callbackData.requiredGpuMemSize = bindData.requiredGpuMemSize;
+                callbackData.pGpuMemory         = bindData.pGpuMemory;
+                callbackData.offset             = bindData.offset;
+                callbackData.isSystemMemory     = bindData.isSystemMemory;
+                m_pParent->DeveloperCb(Developer::CallbackType::BindGpuMemory, &callbackData);
             }
 
             result = m_occlusionSrcMem.Map(reinterpret_cast<void**>(&pData));
@@ -576,6 +584,14 @@ Result Device::Finalize()
                     bindData.offset = memOffset;
                     bindData.requiredGpuMemSize = srcMemCreateInfo.size;
                     m_pParent->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+
+                    Developer::BindGpuMemoryData callbackData = {};
+                    callbackData.pObj               = bindData.pObj;
+                    callbackData.requiredGpuMemSize = bindData.requiredGpuMemSize;
+                    callbackData.pGpuMemory         = bindData.pGpuMemory;
+                    callbackData.offset             = bindData.offset;
+                    callbackData.isSystemMemory     = bindData.isSystemMemory;
+                    m_pParent->DeveloperCb(Developer::CallbackType::BindGpuMemory, &callbackData);
                 }
             }
         }
@@ -2742,6 +2758,7 @@ void InitializeGpuChipProperties(
 
     pInfo->gfxip.maxGsOutputVert            = 1023;
     pInfo->gfxip.maxGsTotalOutputComponents = 4095;
+    pInfo->gfxip.maxGsInvocations           = 127;
 
     // The maximum amount of LDS space that can be shared by a group of threads (wave/ threadgroup) in bytes.
     pInfo->gfxip.ldsSizePerCu = 65536;

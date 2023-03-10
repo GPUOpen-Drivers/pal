@@ -36,11 +36,8 @@
 #include <cstdio>
 #include <cstring>
 
-namespace Util
+namespace Util::Abi
 {
-namespace Abi
-{
-
 // =====================================================================================================================
 static bool MatchesAnySupportedAbi(
     uint8 osAbi,
@@ -328,6 +325,4 @@ const Elf::SymbolTableEntry* PipelineAbiReader::GetGenericSymbol(
 
     return pSymbol;
 }
-
-} // Abi
-} // Util
+} // Util::Abi

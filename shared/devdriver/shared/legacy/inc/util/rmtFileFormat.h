@@ -34,7 +34,7 @@ namespace DevDriver
 #define RMT_FILE_MAGIC_NUMBER (0x494e494d)
 
 #define RMT_FILE_MAJOR_VERSION 1
-#define RMT_FILE_MINOR_VERSION 0
+#define RMT_FILE_MINOR_VERSION 1
 
 /// The maximum number of separate RMT streams in a file.
 #define RMT_MAXIMUM_STREAMS  (256)
@@ -141,7 +141,7 @@ typedef struct RmtFileChunkHeader
 
     // This version number matches the spec revision version
     #define RMT_FILE_DATA_CHUNK_MAJOR_VERSION 1
-    #define RMT_FILE_DATA_CHUNK_MINOR_VERSION 7
+    #define RMT_FILE_DATA_CHUNK_MINOR_VERSION 8
 
 /// A structure encapsulating information about the location of the RMT data within the RMT file itself.
 typedef struct RmtFileChunkRmtData

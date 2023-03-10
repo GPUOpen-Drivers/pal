@@ -422,6 +422,11 @@ public:
         RgpMarkerSubQueueFlags subQueueFlags,
         uint32                 numDwords,
         const void*            pData) override;
+    virtual uint32 CmdInsertExecutionMarker(
+        bool        isBegin,
+        uint8       sourceId,
+        const char* pMarkerName,
+        uint32      markerNameSize) override;
     virtual void CmdCopyDfSpmTraceData(
         const IPerfExperiment& perfExperiment,
         const IGpuMemory&      dstGpuMemory,
@@ -461,13 +466,6 @@ public:
         gpusize                      offset,
         uint32                       maximumCount,
         gpusize                      countGpuAddr) override;
-
-    virtual void CmdCopyImageToPackedPixelImage(
-        const Pal::IImage&          srcImage,
-        const Pal::IImage&          dstImage,
-        uint32                      regionCount,
-        const Pal::ImageCopyRegion* pRegions,
-        Pal::PackedPixelType        packPixelType) override;
 
     virtual void CmdPostProcessFrame(
         const CmdPostProcessFrameInfo& postProcessInfo,

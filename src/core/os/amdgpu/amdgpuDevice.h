@@ -807,8 +807,12 @@ public:
     bool GetPresentSupport(QueueType type) const { return m_supportsPresent[type]; }
 
     void UpdateMetaData(
-        amdgpu_bo_handle    hBuffer,
-        const Image&        image);
+        amdgpu_bo_handle         hBuffer,
+        const Image&             image,
+        const Amdgpu::GpuMemory* pAmdgpuGpuMem);
+
+    virtual void UpdateMetaDataUniqueId(
+        const Amdgpu::GpuMemory* pAmdgpuGpuMem);
 
     void UpdateImageInfo(
         amdgpu_bo_handle    hBuffer,

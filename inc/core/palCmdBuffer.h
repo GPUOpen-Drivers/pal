@@ -4334,23 +4334,31 @@ public:
     virtual uint32 CmdInsertExecutionMarker() { return 0; };
 #endif
 
-    /// Copy from present back buffer to a packed pixel surface. To support packed pixel on win8/10 in full screen mode,
-    /// client will create a scratch surface, convert rendered contents from application primaries into packed pixel
-    /// formats on the scratch surface, and then presented the scratch surface. This function is used to convert rendered
-    /// contents into packed pixel formats.
+    /// Marks the begin or end of a user-defined region of GPU work; analyzed post-mortem in crash-dump analysis tools.
+    /// Each 'Begin' marker must be paired with a corresponding 'End' marker; however, markers may be nested by
+    /// inserting multiple 'Begin' markers consecutively.
     ///
-    /// @param [in] srcImage       Source image to copy, this is client created primary surface which after rendering.
-    /// @param [in] dstImage       Packed pixel destination image, this is the scratch surface which will packs two/three
-    ///                            10-bit luminance values into a single R8G8B8 pixel.
-    /// @param [in] regionCount    Copy region count.
-    /// @param [in] pRegions       Array of copy region.
-    /// @param [in] packPixelType  Pack pixel type.
-    virtual void CmdCopyImageToPackedPixelImage(
-        const IImage&          srcImage,
-        const IImage&          dstImage,
-        uint32                 regionCount,
-        const ImageCopyRegion* pRegions,
-        PackedPixelType        packPixelType) = 0;
+    /// @warning This function is a no-op if Crash Analysis mode is not enabled.
+    ///
+    /// @param [in] isBegin         Whether this is a 'Begin' marker (true) or an 'End' marker (false).
+    /// @param [in] sourceId        The application layer ID at which the marker is being created:
+    ///                               0x0 => Application
+    ///                               0x1 => API (e.g. DX12, Vulkan, etc.)
+    ///                               0x2 => PAL
+    ///                             Developers may use IDs within the range of 10 - 15 to define a custom
+    ///                             application layer.
+    /// @param [in] pMarkerName     A NULL-terminated string containing a name for this marker, used for annotation
+    ///                             purposes in external tools. Only valid for 'Begin' markers, and will be ignored if
+    ///                             isBeginMarker is false.
+    /// @param [in] markerNameSize  Size of the marker string, in bytes.
+    ///
+    /// @returns Non-zero counter value of the embedded execution marker.
+    ///          If Crash Analysis mode is disabled, this will always return zero.
+    virtual uint32 CmdInsertExecutionMarker(
+        bool         isBegin,
+        uint8        sourceId,
+        const char*  pMarkerName,
+        uint32       markerNameSize) = 0;
 
     /// Insert a command to stall until there is no XDMA flip pending. This stall can be used to prevent a slave GPU
     /// from overwriting a displayable image while it is still being read by XDMA for an earlier frame. This can be

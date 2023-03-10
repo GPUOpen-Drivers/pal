@@ -135,7 +135,8 @@ Platform::Platform(
     m_maxSvmSize(createInfo.maxSvmSize),
     m_logCb(),
     m_gpuMemoryEventProvider(this),
-    m_resourceId(0)
+    m_crashAnalysisEventProvider(this),
+    m_enabledCallbackTypesMask(Developer::DefaultEnabledCallbackTypes)
 {
     memset(&m_pDevice[0], 0, sizeof(m_pDevice));
     memset(&m_properties, 0, sizeof(m_properties));
@@ -620,8 +621,13 @@ Result Platform::EarlyInitDevDriver()
 
     if ((result == Result::Success) && (m_pDevDriverServer != nullptr))
     {
-        // Initialize the event provider if we have a valid connection
+        // Initialize the event providers if we have a valid connection
         result = m_gpuMemoryEventProvider.Init();
+
+        if (result == Result::Success)
+        {
+            result = m_crashAnalysisEventProvider.Init();
+        }
 
         if (result == Result::Success)
         {
@@ -650,6 +656,7 @@ Result Platform::EarlyInitDevDriver()
                 // The tools have indicated that they do not wish to communicate with this driver
                 // so we can safely destroy all of the previously initialized DevDriver infrastructure.
                 m_gpuMemoryEventProvider.Destroy();
+                m_crashAnalysisEventProvider.Destroy();
 
 #if PAL_BUILD_RDF
                 DestroyRpcServices();
@@ -764,6 +771,7 @@ void Platform::DestroyDevDriver()
         DestroyRpcServices();
 
         m_gpuMemoryEventProvider.Destroy();
+        m_crashAnalysisEventProvider.Destroy();
 
         // Null out cached pointers
         m_pRgpServer   = nullptr;
@@ -1069,6 +1077,24 @@ Result Platform::ReEnumerateDevices()
 }
 
 // =====================================================================================================================
+void Platform::DeveloperCb(
+    uint32                  deviceIndex,
+    Developer::CallbackType type,
+    void*                   pData)
+{
+    if (BitfieldIsSet(m_enabledCallbackTypesMask, static_cast<uint32>(type)))
+    {
+        m_pfnDeveloperCb(m_pClientPrivateData, deviceIndex, type, pData);
+    }
+}
+
+// =====================================================================================================================
+void Platform::SetEnabledCallbackTypes(uint32 enabledCallbackTypesMask)
+{
+    m_enabledCallbackTypesMask = enabledCallbackTypesMask;
+}
+
+// =====================================================================================================================
 bool Platform::IsDevDriverProfilingEnabled() const
 {
     bool isProfilingEnabled = false;
@@ -1101,11 +1127,6 @@ bool Platform::IsTracingEnabled() const
 bool Platform::IsCrashAnalysisModeEnabled() const
 {
     bool isCrashAnalysisModeEnabled = false;
-
-    if (m_pDriverUtilsService != nullptr)
-    {
-        isCrashAnalysisModeEnabled = m_pDriverUtilsService->IsCrashAnalysisModeEnabled();
-    }
 
     return isCrashAnalysisModeEnabled;
 }

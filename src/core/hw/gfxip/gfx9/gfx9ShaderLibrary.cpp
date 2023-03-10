@@ -148,6 +148,14 @@ Result ShaderLibrary::HwlInit(
         bindData.requiredGpuMemSize = m_gpuMemSize;
         bindData.offset = m_gpuMem.Offset();
         m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+
+        Developer::BindGpuMemoryData callbackData = {};
+        callbackData.pObj               = bindData.pObj;
+        callbackData.requiredGpuMemSize = bindData.requiredGpuMemSize;
+        callbackData.pGpuMemory         = bindData.pGpuMemory;
+        callbackData.offset             = bindData.offset;
+        callbackData.isSystemMemory     = bindData.isSystemMemory;
+        m_pDevice->Parent()->DeveloperCb(Developer::CallbackType::BindGpuMemory, &callbackData);
     }
 
     if ((result == Result::Success) && (createInfo.funcCount != 0))

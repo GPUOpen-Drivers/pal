@@ -1062,6 +1062,8 @@ void RsrcProcMgr::HwlFastColorClear(
                                                    packetPredicate,
                                                    pCmdSpace);
 
+    pCmdBuffer->SetPm4CmdBufCpMemoryWriteL2CacheStaleState(true);
+
     // In case the cleared image is already bound as a color target, we need to update the color clear value
     // registers to the newly-cleared values.
     if (pCmdBuffer->GetEngineType() == EngineTypeUniversal)

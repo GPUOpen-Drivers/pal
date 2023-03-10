@@ -4766,7 +4766,7 @@ uint8 Gfx9Dcc::GetFastClearCode(
     bool*              pNeedFastClearElim, // [out] true if this surface will require a fast-clear-eliminate pass
                                            //       before it can be used as a texture
     bool*              pBlackOrWhite)      // [out] true if this clear color is either black or white and corresponds
-                                           //        to one of the "special" clear codes.
+                                           //       to one of the "special" clear codes.
 {
     PAL_ASSERT(clearRange.numPlanes == 1);
 
@@ -4802,28 +4802,15 @@ uint8 Gfx9Dcc::GetFastClearCode(
         const uint32           numComponents = NumComponents(createInfo.swizzledFormat.format);
         const SurfaceSwap      surfSwap      = Formats::Gfx9::ColorCompSwap(createInfo.swizzledFormat);
         const ChannelSwizzle*  pSwizzle      = &createInfo.swizzledFormat.swizzle.swizzle[0];
-        bool                   alphaOnMsb    = false;
 
-        if (numComponents == 1)
-        {
-            alphaOnMsb = (surfSwap == SWAP_ALT_REV) != (IsRaven2(*pDevice) || IsRenoir(*pDevice));
-        }
-        else if ((surfSwap != SWAP_STD_REV) && (surfSwap != SWAP_ALT_REV))
-        {
-            alphaOnMsb = true;
-        }
-
-        uint32                 color[4] = {};
-        uint32                 ones[4]  = {};
-        uint32                 cmpIdx   = 0;
-        uint32                 rgbaIdx  = 0;
+        uint32 color[4] = {};
+        uint32 ones[4]  = {};
+        uint32 cmpIdx   = 0;
+        uint32 rgbaIdx  = 0;
 
         switch(numComponents)
         {
         case 1:
-            // For most gfx9 and gfx10 asic and for single-component format:
-            // alpha_is_on_msbs == 1, the component is alpha.
-            // alpha_is_on_msbs == 0, the component is color.
             while ((pSwizzle[rgbaIdx] != ChannelSwizzle::X) && (rgbaIdx < 4))
             {
                 rgbaIdx++;
@@ -4831,39 +4818,64 @@ uint8 Gfx9Dcc::GetFastClearCode(
 
             PAL_ASSERT(pSwizzle[rgbaIdx] == ChannelSwizzle::X);
 
+#if PAL_BUILD_GFX11
+            if (IsGfx11(*pDevice) == false)
+#endif
+            {
+
+                // For most gfx9 and gfx10 asic and for single-component format:
+                // alpha_is_on_msbs == 1, the component is alpha.
+                // alpha_is_on_msbs == 0, the component is color.
+                // On Raven 2 and Renoir, the reverse is true.
+                const bool alphaOnMsb = (surfSwap == SWAP_ALT_REV) != (IsRaven2(*pDevice) || IsRenoir(*pDevice));
+
+                color[2] = alphaOnMsb ? 0 : pConvertedColor[rgbaIdx];
+                color[3] = alphaOnMsb ? pConvertedColor[rgbaIdx] : 0;
+            }
+#if PAL_BUILD_GFX11
+            else
+            {
+                color[2] =
+                color[3] = pConvertedColor[rgbaIdx];
+            }
+#endif
+
             color[0] =
-            color[1] =
-            color[2] = alphaOnMsb ? 0 : pConvertedColor[rgbaIdx];
-            color[3] = alphaOnMsb ? pConvertedColor[rgbaIdx] : 0;
+            color[1] = color[2];
 
             ones[0] =
             ones[1] =
             ones[2] =
             ones[3] = image.TranslateClearCodeOneToNativeFmt(0);
+
             break;
         case 2:
-            // alpha_is_on_msbs decides whether last or first component represents alpha,
-            // alpha_is_on_msbs == 1, Y component is alpha, X component is color.
-            // alpha_is_on_msbs == 0, X component is alpha, Y component is color.
-            for (rgbaIdx = 0; rgbaIdx < 4; rgbaIdx++)
             {
-                if (pSwizzle[rgbaIdx] == (alphaOnMsb ? ChannelSwizzle::Y : ChannelSwizzle::X))
-                {
-                    cmpIdx   = static_cast<uint32>(pSwizzle[0]) - static_cast<uint32>(ChannelSwizzle::X);
-                    ones[3]  = image.TranslateClearCodeOneToNativeFmt(cmpIdx);
-                    color[3] = pConvertedColor[rgbaIdx];
-                }
-                else if (pSwizzle[rgbaIdx] == (alphaOnMsb ? ChannelSwizzle::X : ChannelSwizzle::Y))
-                {
-                    cmpIdx  = static_cast<uint32>(pSwizzle[0]) - static_cast<uint32>(ChannelSwizzle::X);
+                // revComponentOrder (i.e. component order is reversed) decides if first/last component represents alpha
+                // revComponentOrder == false - Y component is alpha, X component is color.
+                // revComponentOrder == true  - X component is alpha, Y component is color.
+                const bool revComponentOrder = (surfSwap == SWAP_STD_REV) || (surfSwap == SWAP_ALT_REV);
 
-                    color[0] =
-                    color[1] =
-                    color[2] = pConvertedColor[rgbaIdx];
+                cmpIdx = static_cast<uint32>(pSwizzle[0]) - static_cast<uint32>(ChannelSwizzle::X);
 
-                    ones[0] =
-                    ones[1] =
-                    ones[2] = image.TranslateClearCodeOneToNativeFmt(cmpIdx);
+                for (rgbaIdx = 0; rgbaIdx < 4; rgbaIdx++)
+                {
+                    if (pSwizzle[rgbaIdx] == (revComponentOrder ? ChannelSwizzle::X : ChannelSwizzle::Y))
+                    {
+                        color[3] = pConvertedColor[rgbaIdx];
+
+                        ones[3]  = image.TranslateClearCodeOneToNativeFmt(cmpIdx);
+                    }
+                    else if (pSwizzle[rgbaIdx] == (revComponentOrder ? ChannelSwizzle::Y : ChannelSwizzle::X))
+                    {
+                        color[0] =
+                        color[1] =
+                        color[2] = pConvertedColor[rgbaIdx];
+
+                        ones[0]  =
+                        ones[1]  =
+                        ones[2]  = image.TranslateClearCodeOneToNativeFmt(cmpIdx);
+                    }
                 }
             }
             break;

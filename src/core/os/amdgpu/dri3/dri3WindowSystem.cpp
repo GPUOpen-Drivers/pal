@@ -1053,6 +1053,8 @@ Result Dri3WindowSystem::HandlePresentEvent(
         break;
     }
 
+    free(pPresentEvent);
+
     return result;
 }
 
@@ -1081,7 +1083,6 @@ Result Dri3WindowSystem::WaitForLastImagePresented()
         else
         {
             result = HandlePresentEvent(pPresentEvent, nullptr);
-            free(pPresentEvent);
         }
     }
 
@@ -1793,7 +1794,6 @@ void Dri3WindowSystem::GoThroughEvent()
     while ((pEvent = m_dri3Procs.pfnXcbPollForSpecialEvent(m_pConnection, m_pPresentEvent)) != nullptr)
     {
         HandlePresentEvent(reinterpret_cast<xcb_present_generic_event_t*>(pEvent), nullptr);
-        free(pEvent);
     }
 }
 

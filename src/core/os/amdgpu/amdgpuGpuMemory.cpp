@@ -324,7 +324,7 @@ Result GpuMemory::AllocateOrPinMemory(
                     }
                 }
 
-                if ((pDevice->Settings().isLocalHeapPreferred || (m_priority >= GpuMemPriority::High)) &&
+                if ((pDevice->Settings().isLocalHeapPreferred || (m_priority >= GpuMemPriority::VeryHigh)) &&
                     (allocRequest.preferred_heap & AMDGPU_GEM_DOMAIN_VRAM))
                 {
                     allocRequest.flags          &= ~AMDGPU_GEM_CREATE_CPU_GTT_USWC;
@@ -577,6 +577,18 @@ Result GpuMemory::OpenSharedMemory(
         result      = pDevice->QueryBufferInfo(m_hSurface, &bufferInfo);
         m_heapCount = 0;
 
+        if ((result == Result::Success) && IsExternal())
+        {
+            auto*const pUmdMetaData = reinterpret_cast<amdgpu_bo_umd_metadata*>
+                                (&bufferInfo.metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
+
+            auto*const pUmdSharedMetadata = reinterpret_cast<amdgpu_shared_metadata_info*>
+                                (&pUmdMetaData->shared_metadata_info);
+
+            m_desc.uniqueId = Uint64CombineParts(pUmdSharedMetadata->resource_id,
+                pUmdSharedMetadata->resource_id_high32);
+        }
+
         if (bufferInfo.preferred_heap & AMDGPU_GEM_DOMAIN_VRAM)
         {
             if (bufferInfo.alloc_flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
@@ -710,6 +722,8 @@ OsExternalHandle GpuMemory::ExportExternalHandle(
 
         if ((result == Result::Success) && (m_amdgpuFlags.isShared == false))
         {
+            pDevice->UpdateMetaDataUniqueId(this);
+
             m_amdgpuFlags.isShared = pDevice->AddToSharedBoMap(m_hSurface, m_hVaRange, m_desc.gpuVirtAddr);
         }
     }

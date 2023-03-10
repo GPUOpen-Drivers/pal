@@ -29,12 +29,11 @@
 #include "palPlatform.h"
 #include "platformSettingsLoader.h"
 #include "core/gpuMemoryEventProvider.h"
+#include "core/layers/crashAnalysis/crashAnalysisEventProvider.h"
 #include "g_coreSettings.h"
 #include "g_platformSettings.h"
 #include "ver.h"
 #include "ddApi.h"
-
-#include <atomic>
 
 #if PAL_BUILD_RDF
 // GpuUtil forward declarations.
@@ -172,8 +171,10 @@ public:
     void DeveloperCb(
         uint32                  deviceIndex,
         Developer::CallbackType type,
-        void*                   pData)
-        { m_pfnDeveloperCb(m_pClientPrivateData, deviceIndex, type, pData); }
+        void*                   pData);
+
+    virtual uint32 GetEnabledCallbackTypes() const override { return m_enabledCallbackTypesMask; }
+    virtual void   SetEnabledCallbackTypes(uint32 enabledCallbackTypesMask) override;
 
     virtual DevDriver::DevDriverServer* GetDevDriverServer() override { return m_pDevDriverServer; }
     virtual DevDriver::EventProtocol::EventServer* GetEventServer() override { return m_pEventServer; }
@@ -207,6 +208,7 @@ public:
                             va_list         args) override;
 
     GpuMemoryEventProvider* GetGpuMemoryEventProvider() { return &m_gpuMemoryEventProvider; }
+    CrashAnalysisEventProvider* GetCrashAnalysisEventProvider() { return &m_crashAnalysisEventProvider; }
 
     virtual void LogEvent(
         PalEvent    eventId,
@@ -217,9 +219,6 @@ public:
 
     const uint16 GetClientApiMajorVer() const { return m_clientApiMajorVer; }
     const uint16 GetClientApiMinorVer() const { return m_clientApiMinorVer; }
-
-    // Generates an ID, unique within this Platform, for a generic resource
-    uint32 GenerateResourceId() { return m_resourceId.fetch_add(1, std::memory_order_relaxed); }
 
 #if PAL_ENABLE_LOGGING
     virtual void GetDbgLoggerFileSettings(
@@ -366,14 +365,15 @@ private:
     GpuUtil::UberTraceService* m_pUberTraceService;
 #endif
 
-    DDRpcServer            m_rpcServer;
-    Developer::Callback    m_pfnDeveloperCb;
-    void*                  m_pClientPrivateData;
-    gpusize                m_svmRangeStart;
-    gpusize                m_maxSvmSize;
-    Util::LogCallbackInfo  m_logCb;
-    GpuMemoryEventProvider m_gpuMemoryEventProvider;
-    std::atomic<uint32>    m_resourceId; // Seed for Resource Id generation
+    DDRpcServer                m_rpcServer;
+    Developer::Callback        m_pfnDeveloperCb;
+    void*                      m_pClientPrivateData;
+    gpusize                    m_svmRangeStart;
+    gpusize                    m_maxSvmSize;
+    Util::LogCallbackInfo      m_logCb;
+    GpuMemoryEventProvider     m_gpuMemoryEventProvider;
+    CrashAnalysisEventProvider m_crashAnalysisEventProvider;
+    uint32                     m_enabledCallbackTypesMask;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(Platform);
 };

@@ -70,7 +70,7 @@ extern bool DetectGfx11SoftwareWorkaroundsByGfxIp(
     Gfx11SwWarDetection* pWorkarounds);
 
 // Number of workarounds that are represented in Gfx11SwWarDetection.
-constexpr uint32_t Gfx11NumWorkarounds = 41;
+constexpr uint32_t Gfx11NumWorkarounds = 42;
 
 // Number of DWORDs that make up the Gfx11SwWarDetection structure.
 constexpr uint32_t Gfx11StructDwords = 2;
@@ -81,7 +81,7 @@ constexpr uint32_t Gfx11StructDwords = 2;
 constexpr uint32_t Gfx11InactiveMask[] =
 {
     0x00000000,
-    0xfffffe00,
+    0xfffffc00,
 };
 
 // Bitfield structure containing all workarounds active for the Gfx11 family.
@@ -303,7 +303,13 @@ union Gfx11SwWarDetection
 
         uint32_t                                                                                                                                                                     : 1;
 
-        uint32_t reserved                                                                                                                                                            : 23;
+#if SWD_BUILD_NAVI31
+        uint32_t shaderSpTranscendentalOpFollowedByALUDoesntEnforceDependency_A_                                                                                                     : 1;
+#else
+        uint32_t                                                                                                                                                                     : 1;
+#endif
+
+        uint32_t reserved                                                                                                                                                            : 22;
     };
 
     uint32_t u32All[Gfx11StructDwords];
@@ -339,6 +345,7 @@ void DetectNavi31A0Workarounds(
     pWorkarounds->shaderSpDPPStallDueToExecutionMaskForwardingMissesPermlane16_x__A_                                                                                                  = 1;
     pWorkarounds->shaderSpQSADAndMADI64U64SrcDataCorruptionDueToIntraInstructionForwarding_A_                                                                                         = 1;
     pWorkarounds->shaderSpSPSrcOperandInvalidatedByTdLdsDataReturn_A_                                                                                                                 = 1;
+    pWorkarounds->shaderSpTranscendentalOpFollowedByALUDoesntEnforceDependency_A_                                                                                                     = 1;
     pWorkarounds->shaderSpfailedToDetectPartialForwardingStall_A_                                                                                                                     = 1;
     pWorkarounds->shaderSpsubvectorExecutionSubv1SharedVgprGotWrongData_A_                                                                                                            = 1;
     pWorkarounds->shaderSqSqgPCSentToSQThrCmdBusMayBeDropped_A_                                                                                                                       = 1;

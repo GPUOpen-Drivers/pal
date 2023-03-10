@@ -305,13 +305,6 @@ public:
         uint32                           regionCount,
         const PrtPlusImageResolveRegion* pRegions) override;
 
-    void CmdCopyImageToPackedPixelImage(
-        const IImage&          srcImage,
-        const IImage&          dstImage,
-        uint32                 regionCount,
-        const ImageCopyRegion* pRegions,
-        Pal::PackedPixelType   packPixelType) override;
-
     virtual void CmdPostProcessFrame(
         const CmdPostProcessFrameInfo& postProcessInfo,
         bool*                          pAddedGpuWork) override;
@@ -396,6 +389,11 @@ public:
     virtual bool SqttClosed() const = 0;
 
     static bool IsAnyUserDataDirty(const UserDataEntries* pUserDataEntries);
+
+    virtual void CmdBindPipelineWithOverrides(
+        const PipelineBindParams& params,
+        SwizzledFormat            swizzledFormat,
+        uint32                    targetIndex) {}
 
 protected:
     GfxCmdBuffer(

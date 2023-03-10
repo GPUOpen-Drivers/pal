@@ -22,6 +22,7 @@
  *  SOFTWARE.
  *
  **********************************************************************************************************************/
+
 #ifndef _AMDGPU_SHARED_H_
 #define _AMDGPU_SHARED_H_
 
@@ -285,9 +286,11 @@ typedef struct _amdgpu_shared_metadata_info
     uint32_t            fast_clear_value_offset;
     uint32_t            fce_state_offset;
     uint32_t            htile_lookup_table_offset;
-    uint32_t            resource_id;  ///< This id is a unique name for the cross-process shared memory used to pass extra
-                                      ///< information. Currently it's composed by the image object pointer and process id.
+    uint32_t            resource_id;  ///< This is a unique ID to identify cross-process shared GPU memory.
+                                      ///< It is composed of the GPU memory or image object pointer and the process id.
+                                      ///< This is the low 32-bits of a 64-bit resource_id.  See resource_id_high32.
     AMDGPU_SWIZZLE_MODE fmaskSwizzleMode;
+    uint32_t            resource_id_high32; ///< This is the high 32-bits of a 64-bit resource_id.  See resource_id.
 } amdgpu_shared_metadata_info;
 
 typedef struct _amdgpu_bo_umd_metadata

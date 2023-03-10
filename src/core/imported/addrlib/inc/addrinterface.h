@@ -41,7 +41,7 @@ extern "C"
 #endif
 
 #define ADDRLIB_VERSION_MAJOR 8
-#define ADDRLIB_VERSION_MINOR 1
+#define ADDRLIB_VERSION_MINOR 3
 #define ADDRLIB_VERSION ((ADDRLIB_VERSION_MAJOR << 16) | ADDRLIB_VERSION_MINOR)
 
 /// Virtually all interface functions need ADDR_HANDLE as first parameter
@@ -49,6 +49,13 @@ typedef VOID*   ADDR_HANDLE;
 
 /// Client handle used in callbacks
 typedef VOID*   ADDR_CLIENT_HANDLE;
+
+typedef struct _ADDR_EXTENT3D
+{
+    UINT_32  width;
+    UINT_32  height;
+    UINT_32  depth;  // also slices for 2D images
+} ADDR_EXTENT3D;
 
 /**
 * /////////////////////////////////////////////////////////////////////////////////////////////////

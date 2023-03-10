@@ -48,8 +48,6 @@ target_sources(pal PRIVATE
     cmdStream.h
     cmdStreamAllocation.cpp
     cmdStreamAllocation.h
-    crashAnalysisEventProvider.cpp
-    crashAnalysisEventProvider.h
     dbgLoggerDevDriver.cpp
     devDriverEventService.cpp
     devDriverEventService.h

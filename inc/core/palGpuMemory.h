@@ -405,6 +405,9 @@ struct GpuMemoryDesc
         };
         uint32 u32All;              ///< Flags packed as 32-bit uint.
     } flags;                        ///< GPU memory desc flags.
+
+    uint64 uniqueId;                ///< Unique ID assigned to each GPU memory object, allowing for client tracking of
+                                    ///  GPU memory allocations.
 };
 
 /// Defines GPU memory sub allocation info. Contains a GPU memory handle to the whole memory. And the offset and size

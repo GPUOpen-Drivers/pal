@@ -213,9 +213,7 @@ public:
 
     uint32 GetSizeAlignDwords() const { return m_sizeAlignDwords; }
 
-#if PAL_ENABLE_PRINTS_ASSERTS
     void DumpCommands(Util::File* pFile, const char* pHeader, CmdBufDumpFormat mode) const;
-#endif
 
     void EnableDropIfSameContext(bool enable) { m_flags.dropIfSameContext = enable; }
 

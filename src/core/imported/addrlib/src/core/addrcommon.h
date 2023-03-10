@@ -69,7 +69,13 @@
 
 #if DEBUG
         #define ADDR_ASSERT(__e) if ( !((__e) ? TRUE : FALSE)) { ADDR_DBG_BREAK(); }
-    #define ADDR_ASSERT_ALWAYS() ADDR_DBG_BREAK()
+
+    #if ADDR_SILENCE_ASSERT_ALWAYS
+        #define ADDR_ASSERT_ALWAYS()
+    #else
+        #define ADDR_ASSERT_ALWAYS() ADDR_DBG_BREAK()
+    #endif
+
     #define ADDR_UNHANDLED_CASE() ADDR_ASSERT(!"Unhandled case")
     #define ADDR_NOT_IMPLEMENTED() ADDR_ASSERT(!"Not implemented");
 #else //DEBUG

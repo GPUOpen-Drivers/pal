@@ -130,10 +130,8 @@ Result ComputeCmdBuffer::End()
 
     if (result == Result::Success)
     {
-#if PAL_ENABLE_PRINTS_ASSERTS
         const Pal::CmdStream* cmdStreams[] = { m_pCmdStream };
         EndCmdBufferDump(cmdStreams, 1);
-#endif
     }
 
     return result;
@@ -162,7 +160,6 @@ void ComputeCmdBuffer::ResetState()
     ResetUserDataTable(&m_spillTable.stateCs);
 }
 
-#if PAL_ENABLE_PRINTS_ASSERTS
 // =====================================================================================================================
 // Dumps this command buffer's single command stream to the given file with an appropriate header.
 void ComputeCmdBuffer::DumpCmdStreamsToFile(
@@ -172,7 +169,6 @@ void ComputeCmdBuffer::DumpCmdStreamsToFile(
 {
     m_pCmdStream->DumpCommands(pFile, "# Compute Queue - Command length = ", mode);
 }
-#endif
 
 // =====================================================================================================================
 CmdStream* ComputeCmdBuffer::GetCmdStreamByEngine(

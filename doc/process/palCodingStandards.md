@@ -142,7 +142,7 @@ General Language Restrictions
     or memory allocation calls failing. The `PAL_ALERT` macro ***should
     be*** used for reporting this sort of failure, when deemed useful.
 
--   All target compilers **must** fully support C++14. The following C++
+-   All target compilers **must** fully support C++17. The following C++
     constructs are explicitly allowed:
 
     -   Storage class ***must*** be specified for all enums to allow
@@ -333,13 +333,21 @@ Namespaces
 -   The closing bracket of a namespace ***must*** be followed by a
     comment identifying the namespace that was closed. Example:
 
-```
+```cpp
 namespace Util
 {
 // Contents of namespace are not indented.
 uint32 SomeFunction();
 ...
 } // Util
+```
+
+-   Qualified namespaces are encouraged:
+```cpp
+namespace Pal::Formats
+{
+...
+} // Pal::Formats
 ```
 
 Files

@@ -314,6 +314,7 @@ protected:
     Lib(const Client* pClient);
 
     static const UINT_32 MaxNumOfBpp = 5;
+    static const UINT_32 MaxNumOfBppCMask = 4;
     static const UINT_32 MaxNumOfAA  = 4;
 
     static const Dim2d Block256_2d[MaxNumOfBpp];

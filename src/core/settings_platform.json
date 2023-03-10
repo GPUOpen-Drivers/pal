@@ -1106,41 +1106,17 @@
           "Description": "Mask indicating which SQTT tokens should be included in the trace.  Value will be written to TOKEN_MASK field in hardware.  For reference, based on GFX8 SQTT user guide: 0x0001: TIME (TT2.0 only), MISC (TT2.1+) 0x0002: TIMESTAMP 0x0004: REG 0x0008: WAVE_START 0x0010: WAVE_PS_ALLOC (TT2.0 only) / WAVE_ALLOC (TT2.1+) 0x0020: WAVE_VS_ALLOC (TT2.0 only) / REG_CSPRIV (TT2.1+) 0x0040: WAVE_END 0x0080: EVENT 0x0100: EVENT_CS 0x0200: EVENT_GFX1 0x0400: INST 0x0800: INST_PC 0x1000: INST_USERDATA 0x2000: ISSUE 0x4000: PERF 0x8000: MISC (TT2.0 only), REG_CS(TT2.1+)"
         },
         {
-          "ValidValues": {
-            "Values": [
-              {
-                "Name": "ShaderEngine-0",
-                "Value": 1,
-                "Description": "Trace for Shader Engine 0"
-              },
-              {
-                "Name": "ShaderEngine-1",
-                "Value": 2,
-                "Description": "Trace for Shader Engine 1"
-              },
-              {
-                "Name": "ShaderEngine-2",
-                "Value": 4,
-                "Description": "Trace for Shader Engine 2"
-              },
-              {
-                "Name": "ShaderEngine-3",
-                "Value": 8,
-                "Description": "Trace for Shader Engine 3"
-              }
-            ]
-          },
           "Name": "SEMask",
           "Flags": {
             "IsBitmask": true,
             "IsHex": true
           },
           "Defaults": {
-            "Default": 15
+            "Default": 0
           },
           "Type": "uint32",
           "VariableName": "seMask",
-          "Description": "Mask indicating which which SE to gather thread trace from."
+          "Description": "Mask indicating which which SE to gather thread trace from. Zero means trace all SEs."
         },
         {
           "Description": "Pipeline compiler hash to enable SQ thread traces for. If this is zero, thread traces will be enabled for all pipelines.  This filtering only applies to draw or cmdbuf profiling granularity.",

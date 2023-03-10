@@ -61,6 +61,9 @@ addrlib_bp(ADDR_SI_BUILD ON)
 # Build the CI HWL lib
 addrlib_bp(ADDR_CI_BUILD ON)
 
+# Build with "always" assertions by default
+addrlib_bp(ADDR_SILENCE_ASSERT_ALWAYS OFF)
+
 # Build support for fmask addressing and addr5Swizzle
 addrlib_bp(ADDR_AM_BUILD ${ADDRLIB_IS_TOP_LEVEL} MSG "Build support for fmask addressing and addr5Swizzle?")
 

@@ -50,7 +50,13 @@ public:
     DepthStencilView(
         const Device*                             pDevice,
         const DepthStencilViewCreateInfo&         createInfo,
-        const DepthStencilViewInternalCreateInfo& internalInfo);
+        const DepthStencilViewInternalCreateInfo& internalInfo,
+        uint32                                    uniqueId);
+
+    DepthStencilView(const DepthStencilView&) = default;
+    DepthStencilView& operator=(const DepthStencilView&) = default;
+    DepthStencilView(DepthStencilView&&) = default;
+    DepthStencilView& operator=(DepthStencilView&&) = default;
 
     virtual uint32* WriteCommands(
         ImageLayout            depthLayout,
@@ -87,9 +93,12 @@ public:
 
     Pm4::TargetExtent2d GetExtent() const { return m_extent; }
 
+    bool Equals(const DepthStencilView* pOther) const;
+
     static const uint32 DbRenderOverrideRmwMask = DB_RENDER_OVERRIDE__FORCE_HIZ_ENABLE_MASK        |
                                                   DB_RENDER_OVERRIDE__FORCE_HIS_ENABLE0_MASK       |
                                                   DB_RENDER_OVERRIDE__FORCE_HIS_ENABLE1_MASK       |
+                                                  DB_RENDER_OVERRIDE__FORCE_STENCIL_VALID_MASK     |
                                                   DB_RENDER_OVERRIDE__FORCE_STENCIL_VALID_MASK     |
                                                   DB_RENDER_OVERRIDE__FORCE_Z_VALID_MASK           |
                                                   DB_RENDER_OVERRIDE__DISABLE_TILE_RATE_TILES_MASK |
@@ -150,7 +159,7 @@ protected:
         uint32 u32All;
     } m_flags;
 
-    const Image*const   m_pImage;
+    const Image*        m_pImage;
     Pm4::TargetExtent2d m_extent;
 
     SubresId  m_depthSubresource;   // Sub-resource associated with the Depth plane
@@ -159,13 +168,14 @@ protected:
     DepthStencilLayoutToState  m_depthLayoutToState;
     DepthStencilLayoutToState  m_stencilLayoutToState;
 
+    uint32 m_uniqueId;
+
 private:
     uint32 CalcDecompressOnZPlanesValue(const Device& device, ZFormat hwZFmt) const;
 
     HtileUsageFlags  m_hTileUsage;
 
     PAL_DISALLOW_DEFAULT_CTOR(DepthStencilView);
-    PAL_DISALLOW_COPY_AND_ASSIGN(DepthStencilView);
 };
 
 // Set of context registers associated with a depth/stencil view object (Gfx9 version).
@@ -206,7 +216,13 @@ public:
     Gfx9DepthStencilView(
         const Device*                             pDevice,
         const DepthStencilViewCreateInfo&         createInfo,
-        const DepthStencilViewInternalCreateInfo& internalInfo);
+        const DepthStencilViewInternalCreateInfo& internalInfo,
+        uint32                                    uniqueId);
+
+    Gfx9DepthStencilView(const Gfx9DepthStencilView&) = default;
+    Gfx9DepthStencilView& operator=(const Gfx9DepthStencilView&) = default;
+    Gfx9DepthStencilView(Gfx9DepthStencilView&&) = default;
+    Gfx9DepthStencilView& operator=(Gfx9DepthStencilView&&) = default;
 
     uint32* WriteCommands(
         ImageLayout            depthLayout,
@@ -238,7 +254,6 @@ private:
     Gfx9DepthStencilViewRegs  m_regs;
 
     PAL_DISALLOW_DEFAULT_CTOR(Gfx9DepthStencilView);
-    PAL_DISALLOW_COPY_AND_ASSIGN(Gfx9DepthStencilView);
 };
 
 // Set of context registers associated with a depth/stencil view object (Gfx10 version).
@@ -280,7 +295,13 @@ public:
     Gfx10DepthStencilView(
         const Device*                             pDevice,
         const DepthStencilViewCreateInfo&         createInfo,
-        const DepthStencilViewInternalCreateInfo& internalInfo);
+        const DepthStencilViewInternalCreateInfo& internalInfo,
+        uint32                                    uniqueId);
+
+    Gfx10DepthStencilView(const Gfx10DepthStencilView&) = default;
+    Gfx10DepthStencilView& operator=(const Gfx10DepthStencilView&) = default;
+    Gfx10DepthStencilView(Gfx10DepthStencilView&&) = default;
+    Gfx10DepthStencilView& operator=(Gfx10DepthStencilView&&) = default;
 
 #if PAL_BUILD_GFX11
     static void SetGfx11StaticDbRenderControlFields(
@@ -319,11 +340,10 @@ private:
     static constexpr uint32 DbDepthViewSliceStartMaskNumBits = 11;
     static constexpr uint32 DbDepthViewSliceMaxMaskNumBits   = 11;
 
-    const uint32  m_baseArraySlice;
-    const uint32  m_arraySize;
+    uint32 m_baseArraySlice;
+    uint32 m_arraySize;
 
     PAL_DISALLOW_DEFAULT_CTOR(Gfx10DepthStencilView);
-    PAL_DISALLOW_COPY_AND_ASSIGN(Gfx10DepthStencilView);
 };
 
 } // Gfx9

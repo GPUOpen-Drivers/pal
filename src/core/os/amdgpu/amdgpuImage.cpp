@@ -285,7 +285,7 @@ void Image::UpdateMetaDataInfo(
 
         if (pAmdgpuGpuMem->IsInterprocess())
         {
-            pAmdgpuDevice->UpdateMetaData(pAmdgpuGpuMem->SurfaceHandle(), *this);
+            pAmdgpuDevice->UpdateMetaData(pAmdgpuGpuMem->SurfaceHandle(), *this, pAmdgpuGpuMem);
         }
         else if (pAmdgpuGpuMem->IsExternal())
         {
@@ -313,7 +313,7 @@ Result Image::UpdateExternalImageInfo(
     const int32 sharedBufferFd  = static_cast<int32>(pAmdgpuGpuMemory->ExportExternalHandle(exportInfo));
 
     // Update the image information to metadata.
-    pDevice->UpdateMetaData(pAmdgpuGpuMemory->SurfaceHandle(), *pAmdgpuImage);
+    pDevice->UpdateMetaData(pAmdgpuGpuMemory->SurfaceHandle(), *pAmdgpuImage, pAmdgpuGpuMemory);
 
     if (sharedBufferFd >= 0)
     {
@@ -730,7 +730,8 @@ Result Image::CreateExternalSharedImage(
                 internalCreateInfo.sharedMetadata.htileOffset = 0;
             }
 
-            internalCreateInfo.sharedMetadata.resourceId       = pUmdSharedMetadata->resource_id;
+            internalCreateInfo.sharedMetadata.resourceId       = Uint64CombineParts(pUmdSharedMetadata->resource_id,
+                pUmdSharedMetadata->resource_id_high32);
             internalCreateInfo.sharedMetadata.fmaskSwizzleMode = static_cast<AddrSwizzleMode>
                 (pUmdSharedMetadata->fmaskSwizzleMode);
 

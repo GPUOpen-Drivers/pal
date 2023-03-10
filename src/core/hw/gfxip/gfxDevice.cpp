@@ -254,6 +254,14 @@ Result GfxDevice::Finalize()
                 bindData.offset = memOffset;
                 bindData.requiredGpuMemSize = memCreateInfo.size;
                 m_pParent->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+
+                Developer::BindGpuMemoryData callbackData = {};
+                callbackData.pObj               = bindData.pObj;
+                callbackData.requiredGpuMemSize = bindData.requiredGpuMemSize;
+                callbackData.pGpuMemory         = bindData.pGpuMemory;
+                callbackData.offset             = bindData.offset;
+                callbackData.isSystemMemory     = bindData.isSystemMemory;
+                m_pParent->DeveloperCb(Developer::CallbackType::BindGpuMemory, &callbackData);
             }
         }
     }

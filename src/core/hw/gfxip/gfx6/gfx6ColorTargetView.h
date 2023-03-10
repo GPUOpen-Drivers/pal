@@ -23,6 +23,8 @@
  *
  **********************************************************************************************************************/
 
+#pragma once
+
 #include "palColorTargetView.h"
 #include "core/hw/gfxip/gfx6/gfx6Image.h"
 #include "core/hw/gfxip/gfx6/gfx6MaskRam.h"
@@ -72,6 +74,9 @@ public:
         const Device&                     device,
         const ColorTargetViewCreateInfo&  createInfo,
         ColorTargetViewInternalCreateInfo internalInfo);
+
+    ColorTargetView(const ColorTargetView&) = default;
+    ColorTargetView(ColorTargetView&&) = default;
 
     static uint32* WriteUpdateFastClearColor(
         uint32       slot,
@@ -144,7 +149,8 @@ private:
     // Value of CB_COLOR_ATTRIB used when binding this target for non-compressed rendering.
     regCB_COLOR0_ATTRIB  m_cbColorAttribDecompressed;
 
-    PAL_DISALLOW_COPY_AND_ASSIGN(ColorTargetView);
+    ColorTargetView& operator=(const ColorTargetView&) = delete;
+    ColorTargetView& operator=(ColorTargetView&&) = delete;
 };
 
 } // Gfx6

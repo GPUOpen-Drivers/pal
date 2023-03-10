@@ -30,7 +30,6 @@
 #include <router/ddRouterContext.h>
 #if defined(DD_PLATFORM_WINDOWS_KM)
 #include <wdm.h>
-#include <devdriver_shared.h>
 #endif
 
 namespace DevDriver
@@ -40,7 +39,9 @@ namespace DevDriver
     class MsgRouter final : public IRouter
     {
     public:
-        MsgRouter(const AllocCb& allocCb);
+        MsgRouter(const AllocCb&         allocCb,
+                  pfnNotifyKernalEnable  kernalEnableCb,
+                  pfnNotifyKernalDisable kernalDisableCb);
         ~MsgRouter();
 
         const AllocCb& GetAllocCb() const { return m_allocCb; }
@@ -52,18 +53,22 @@ namespace DevDriver
 
 		Kmd::KContext* GetContext() { return &m_context; }
 
-#if defined(DD_PLATFORM_WINDOWS_KM)
-        void MsgRouter::SendNotificationToKmd(DEVDRIVER_CBOBJ_NOTIFICATION notification,
-                                              void *notificationData);
-#endif
+        void SignalDriverResetEvent();
+
         Result ProcessDevModeCmd(ProcessId processId, DevModeCmd cmd, size_t bufferSize, void* pBuffer) override;
 
+        void OnProcessClose(ProcessId processId) override;
+
     private:
-        AllocCb           m_allocCb;
-        Kmd::KContext     m_context;
-        Vector<IService*> m_servicesToRegister;
+        AllocCb                m_allocCb;
+        Kmd::KContext          m_context;
+        Vector<IService*>      m_servicesToRegister;
+        pfnNotifyKernalEnable  m_kernalEnableCb;
+        pfnNotifyKernalDisable m_kernalDisableCb;
+        ProcessId              m_devDriverPID;
 #if defined(DD_PLATFORM_WINDOWS_KM)
-        PCALLBACK_OBJECT  m_stateChangeCallbackObject;
+        HANDLE                 m_driverResetEventHandle;
+        PRKEVENT               m_driverResetEvent;
 #endif
     };
 

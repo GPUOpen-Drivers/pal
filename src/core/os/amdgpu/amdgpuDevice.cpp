@@ -1094,6 +1094,14 @@ Result Device::InitTmzHeapProperties()
                 m_heapProperties[GpuHeapGartCacheable].flags.supportsTmz = 1;
             }
         }
+        else if (IsGfx10Plus(*this))
+        {
+            // All GFX10+ chips support page based local TMZ memory at least.
+            m_heapProperties[GpuHeapInvisible].flags.supportsTmz     = 1;
+            m_heapProperties[GpuHeapLocal].flags.supportsTmz         = 1;
+            m_heapProperties[GpuHeapGartUswc].flags.supportsTmz      = 0;
+            m_heapProperties[GpuHeapGartCacheable].flags.supportsTmz = 0;
+        }
         else
         {
             result = Pal::Result::ErrorUnknown;
@@ -3700,8 +3708,9 @@ Result Device::CreatePresentableMemoryObject(
 // with the memory object.  The consumer of the memory object will get the metadata when importing it and view the image
 // in the exactly the same way.
 void Device::UpdateMetaData(
-    amdgpu_bo_handle    hBuffer,
-    const Image&        image)
+    amdgpu_bo_handle         hBuffer,
+    const Image&             image,
+    const Amdgpu::GpuMemory* pAmdgpuGpuMem)
 {
     amdgpu_bo_metadata metadata = {};
     const SubResourceInfo*const    pSubResInfo = image.SubresourceInfo(0);
@@ -3890,8 +3899,9 @@ void Device::UpdateMetaData(
             pUmdSharedMetadata->htile_lookup_table_offset =
                 sharedMetadataInfo.htileLookupTableOffset;
         }
-        //linux don't need use this value to pass extra information for now
-        pUmdSharedMetadata->resource_id = 0;
+
+        pUmdSharedMetadata->resource_id        = LowPart(pAmdgpuGpuMem->Desc().uniqueId);
+        pUmdSharedMetadata->resource_id_high32 = HighPart(pAmdgpuGpuMem->Desc().uniqueId);
 
         // In order to support displayable dcc in linux window mode,
         // it's needed to share standard dcc metadata with Mesa3D when displayable DCC has enabled.
@@ -3914,6 +3924,37 @@ void Device::UpdateMetaData(
     }
 
     m_drmProcs.pfnAmdgpuBoSetMetadata(hBuffer, &metadata);
+}
+
+// =====================================================================================================================
+// Update the GPU memory's unique ID in the metadata associated with the memory object. The GPU memory's unique ID will
+// be available via the metadata after import.
+void Device::UpdateMetaDataUniqueId(
+    const Amdgpu::GpuMemory* pAmdgpuGpuMem)
+{
+    amdgpu_bo_handle hBuffer = pAmdgpuGpuMem->SurfaceHandle();
+    amdgpu_bo_info   info    = {};
+
+    // Read current metadata first if it exists
+    QueryBufferInfo(hBuffer, &info);
+
+    // In case metadata was not set before, set the metadata's size
+    info.metadata.size_metadata = PRO_UMD_METADATA_SIZE;
+
+    // First 32 dwords are reserved for open source components.
+    auto*const pUmdMetaData       = reinterpret_cast<amdgpu_bo_umd_metadata*>
+                                        (&info.metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
+
+    auto*const pUmdSharedMetadata = reinterpret_cast<amdgpu_shared_metadata_info*>
+                                        (&pUmdMetaData->shared_metadata_info);
+
+    // Update metadata structure with GPU memory's unique ID
+    pUmdSharedMetadata->resource_id        = LowPart(pAmdgpuGpuMem->Desc().uniqueId);
+    pUmdSharedMetadata->resource_id_high32 = HighPart(pAmdgpuGpuMem->Desc().uniqueId);
+
+    // Set new metadata
+    int32 drmRet = m_drmProcs.pfnAmdgpuBoSetMetadata(hBuffer, &info.metadata);
+    PAL_ASSERT(drmRet == 0);
 }
 
 // =====================================================================================================================

@@ -1907,6 +1907,9 @@
       "Tags": [
         "Graphics Pipelines"
       ],
+      "Flags": {
+        "RereadSetting": true
+      },
       "Defaults": {
         "Default": 1398101
       },
@@ -3519,7 +3522,7 @@
       "Description": "Prefer compute for non-local copies on gfx10.2+. This can increase PCIe throughput."
     },
     {
-      "Name": "Gfx103DisableAsymmetricWgpForPs",
+      "Name": "Gfx103PlusDisableAsymmetricWgpForPs",
       "Tags": [
         "General",
         "Performance"
@@ -3527,9 +3530,12 @@
       "Defaults": {
         "Default": false
       },
+      "Flags": {
+        "RereadSetting": true
+      },
       "Scope": "PrivatePalGfx9Key",
       "Type": "bool",
-      "VariableName": "gfx103DisableAsymmetricWgpForPs",
+      "VariableName": "gfx103PlusDisableAsymmetricWgpForPs",
       "Description": "On WGP harvesting asymmetric configuration, we scan all of the SAs to find the minimal number of WGPs to override the psCuEnLimitMask setting for performance."
     },
     {

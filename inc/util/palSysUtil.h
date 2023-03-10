@@ -371,6 +371,25 @@ extern Result GetCurrentLibraryName(
     char*  pExtBuffer,
     size_t extBufferLength);
 
+/// Opaque build ID obtained with GetCurrentLibraryBuildId
+struct BuildId {
+    uint8 data[16];
+};
+
+/// Gets build-unique identifier for the executable or shared library PAL was built into. This will be some opaque
+/// hash or timestamp embedded in the code if present and falls back to random bytes (constant until exit) for a
+/// 'usuable' build id to always exist.
+///
+/// @param [out] pBuildId Will contain unique id for build
+///
+/// @returns true if build id will be persistent, false if temporary
+///
+/// @note We fallback to using a random build id here instead of failing so that even if this fails and nobody checks,
+///       a new driver will always invalidate caches. It is better, of course, not to persist these on disk.
+/// @note This may be heavy on first invocation but can be assumed to always return quickly after that.
+extern bool GetCurrentLibraryBuildId(
+    BuildId* pBuildId);
+
 /// Splits a filename into its path and file components.
 ///
 /// @param [in]  pFullPath  Buffer containing the full path & file name.

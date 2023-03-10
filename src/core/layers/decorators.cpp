@@ -2625,12 +2625,21 @@ void PAL_STDCALL PlatformDecorator::DefaultDeveloperCb(
         PAL_ASSERT(pCbData != nullptr);
         TranslateBindPipelineData(pCbData);
         break;
-    case Developer::CallbackType::AllocGpuMemory:
+    case Developer::CallbackType::AllocGpuMemory: // fallthrough intentional
     case Developer::CallbackType::FreeGpuMemory:
+    case Developer::CallbackType::SubAllocGpuMemory:
+    case Developer::CallbackType::SubFreeGpuMemory:
+        PAL_ASSERT(pCbData != nullptr);
+        TranslateGpuMemoryData(pCbData);
+        break;
     case Developer::CallbackType::PresentConcluded:
     case Developer::CallbackType::CreateImage:
     case Developer::CallbackType::BarrierBegin:
     case Developer::CallbackType::BarrierEnd:
+        break;
+    case Developer::CallbackType::BindGpuMemory:
+        PAL_ASSERT(pCbData != nullptr);
+        TranslateBindGpuMemoryData(pCbData);
         break;
     default:
         // If we are here, there is a callback we haven't implemented above!

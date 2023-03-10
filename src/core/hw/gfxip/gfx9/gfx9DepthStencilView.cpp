@@ -47,9 +47,11 @@ namespace Gfx9
 DepthStencilView::DepthStencilView(
     const Device*                             pDevice,
     const DepthStencilViewCreateInfo&         createInfo,
-    const DepthStencilViewInternalCreateInfo& internalInfo)
+    const DepthStencilViewInternalCreateInfo& internalInfo,
+    uint32                                    uniqueId)
     :
-    m_pImage(GetGfx9Image(createInfo.pImage))
+    m_pImage(GetGfx9Image(createInfo.pImage)),
+    m_uniqueId(uniqueId)
 {
     PAL_ASSERT(createInfo.pImage != nullptr);
     const auto& imageInfo = m_pImage->Parent()->GetImageCreateInfo();
@@ -590,12 +592,20 @@ uint32* DepthStencilView::HandleBoundTargetChanged(
 }
 
 // =====================================================================================================================
+bool DepthStencilView::Equals(
+    const DepthStencilView* pOther) const
+{
+    return ((pOther != nullptr) && (m_uniqueId == pOther->m_uniqueId));
+}
+
+// =====================================================================================================================
 Gfx9DepthStencilView::Gfx9DepthStencilView(
     const Device*                             pDevice,
     const DepthStencilViewCreateInfo&         createInfo,
-    const DepthStencilViewInternalCreateInfo& internalInfo)
+    const DepthStencilViewInternalCreateInfo& internalInfo,
+    uint32                                    uniqueId)
     :
-    DepthStencilView(pDevice, createInfo, internalInfo)
+    DepthStencilView(pDevice, createInfo, internalInfo, uniqueId)
 {
     m_flags.waTcCompatZRange = m_pImage->HasWaTcCompatZRangeMetaData();
 
@@ -755,9 +765,10 @@ uint32* Gfx9DepthStencilView::UpdateZRangePrecision(
 Gfx10DepthStencilView::Gfx10DepthStencilView(
     const Device*                             pDevice,
     const DepthStencilViewCreateInfo&         createInfo,
-    const DepthStencilViewInternalCreateInfo& internalInfo)
+    const DepthStencilViewInternalCreateInfo& internalInfo,
+    uint32                                    uniqueId)
     :
-    DepthStencilView(pDevice, createInfo, internalInfo),
+    DepthStencilView(pDevice, createInfo, internalInfo, uniqueId),
     m_baseArraySlice(createInfo.baseArraySlice),
     m_arraySize(createInfo.arraySize)
 {

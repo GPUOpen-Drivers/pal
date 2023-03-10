@@ -139,6 +139,14 @@ Result BorderColorPalette::BindGpuMemory(
         data.requiredGpuMemSize = m_gpuMemSize;
         data.offset = offset;
         m_device.GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(data);
+
+        Developer::BindGpuMemoryData callbackData = {};
+        callbackData.pObj               = data.pObj;
+        callbackData.requiredGpuMemSize = data.requiredGpuMemSize;
+        callbackData.pGpuMemory         = data.pGpuMemory;
+        callbackData.offset             = data.offset;
+        callbackData.isSystemMemory     = data.isSystemMemory;
+        m_device.DeveloperCb(Developer::CallbackType::BindGpuMemory, &callbackData);
     }
 
     return result;

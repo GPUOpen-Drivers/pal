@@ -283,13 +283,6 @@ public:
         const ImageResolveRegion* pRegions,
         uint32                    flags) override;
 
-    virtual void CmdCopyImageToPackedPixelImage(
-        const IImage&          srcImage,
-        const IImage&          dstImage,
-        uint32                 regionCount,
-        const ImageCopyRegion* pRegions,
-        Pal::PackedPixelType   packPixelType) override;
-
     virtual void CmdSetEvent(
         const IGpuEvent& gpuEvent, HwPipePoint setPoint) override;
     virtual void CmdResetEvent(

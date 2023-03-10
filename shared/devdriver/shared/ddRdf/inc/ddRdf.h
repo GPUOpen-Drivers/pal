@@ -26,7 +26,6 @@
 #pragma once
 
 #include <stdint.h>
-#include <ddDefs.h>
 
 #define DD_RDF_USERSTREAM_INTERFACE_VERSION_MAJOR 1
 #define DD_RDF_USERSTREAM_INTERFACE_VERSION_MINOR 0

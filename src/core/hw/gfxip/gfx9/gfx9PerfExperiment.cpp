@@ -3674,6 +3674,15 @@ uint32* PerfExperiment::WriteSelectRegisters(
                     pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regAddr.perfcounter[idx].selectOrCfg,
                                                                   m_select.sqWgp[instance].perfmon[idx].u32All,
                                                                   pCmdSpace);
+
+                    // Some SQ-per-WGP perfmons actually have zero counters! What a unique programming model.
+                    if (regAddr.perfcounter[idx].lo != 0)
+                    {
+                        // Zero out this counter value before we start using it. Experiments show this fixes some
+                        // issues with the SQ latency counters getting stuck at "0xFFFFFFFF", likely due to saturation.
+                        // Note that SQ's legacy counters are 32-bit.
+                        pCmdSpace = pCmdStream->WriteSetOnePerfCtrReg(regAddr.perfcounter[idx].lo, 0, pCmdSpace);
+                    }
                 }
             }
 

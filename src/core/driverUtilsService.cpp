@@ -40,6 +40,7 @@ DriverUtilsService::DriverUtilsService(
     Platform* pPlatform)
     :
     m_isTracingEnabled(false),
+    m_crashAnalysisModeEnabled(false),
     m_pPlatform(pPlatform)
 {
 }

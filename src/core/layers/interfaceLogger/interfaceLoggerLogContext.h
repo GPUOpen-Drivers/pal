@@ -195,7 +195,6 @@ enum class InterfaceFunc : uint32
     CmdBufferCmdStartGpuProfilerLogging,
     CmdBufferCmdStopGpuProfilerLogging,
     CmdBufferDestroy,
-    CmdBufferCopyImageToPackedPixelImage,
     CmdBufferCmdSetViewInstanceMask,
     CmdUpdateHiSPretests,
     CmdBufferCmdSetClipRects,

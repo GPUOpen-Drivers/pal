@@ -193,9 +193,7 @@ public:
 
     bool ContainsAddress(const uint32* pAddress) const;
 
-#if PAL_ENABLE_PRINTS_ASSERTS
     Result WriteCommandsToFile(Util::File* pFile, uint32 subEngineId, CmdBufDumpFormat mode) const;
-#endif
 
     // We need these intrusive getters so that we can apply the PM4 optimizer during finalization (and other things).
     // They cannot be called after the chunk is finalized.

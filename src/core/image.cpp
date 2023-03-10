@@ -1053,6 +1053,14 @@ Result Image::BindGpuMemory(
         data.requiredGpuMemSize = m_gpuMemSize;
         data.offset = offset;
         m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(data);
+
+        Developer::BindGpuMemoryData callbackData = {};
+        callbackData.pObj               = data.pObj;
+        callbackData.requiredGpuMemSize = data.requiredGpuMemSize;
+        callbackData.pGpuMemory         = data.pGpuMemory;
+        callbackData.offset             = data.offset;
+        callbackData.isSystemMemory     = data.isSystemMemory;
+        m_pDevice->DeveloperCb(Developer::CallbackType::BindGpuMemory, &callbackData);
     }
 
     UpdateMetaDataInfo(pGpuMemory);

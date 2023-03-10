@@ -265,7 +265,6 @@ void ShaderLibrary::DumpLibraryElf(
     Util::StringView<char> name     // Optional: Can be the empty string if a human-readable filename is not desired.
     ) const
 {
-#if PAL_ENABLE_PRINTS_ASSERTS
     m_pDevice->LogCodeObjectToDisk(
         prefix,
         name,
@@ -273,7 +272,6 @@ void ShaderLibrary::DumpLibraryElf(
         false,
         m_pCodeObjectBinary,
         m_codeObjectBinaryLen);
-#endif
 }
 
 // =====================================================================================================================

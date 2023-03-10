@@ -207,6 +207,8 @@ void PAL_STDCALL Platform::DbgOverlayCb(
         {
             pPlatform->GetDevice(deviceIndex)->AddAllocatedVidMem(allocType, data.heap, data.size);
         }
+
+        TranslateGpuMemoryData(pCbData);
         break;
     }
     case Developer::CallbackType::FreeGpuMemory:
@@ -219,6 +221,14 @@ void PAL_STDCALL Platform::DbgOverlayCb(
         {
             pPlatform->GetDevice(deviceIndex)->SubFreedVidMem(allocType, data.heap, data.size);
         }
+
+        TranslateGpuMemoryData(pCbData);
+        break;
+    }
+    case Developer::CallbackType::SubAllocGpuMemory: // fallthrough intentional
+    case Developer::CallbackType::SubFreeGpuMemory:
+    {
+        TranslateGpuMemoryData(pCbData);
         break;
     }
     case Developer::CallbackType::PresentConcluded:
@@ -260,6 +270,10 @@ void PAL_STDCALL Platform::DbgOverlayCb(
         TranslateOptimizedRegistersData(pCbData);
         break;
 #endif
+    case Developer::CallbackType::BindGpuMemory:
+        PAL_ASSERT(pCbData != nullptr);
+        TranslateBindGpuMemoryData(pCbData);
+        break;
     default:
         PAL_ASSERT_ALWAYS();
         break;

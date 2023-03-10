@@ -1243,6 +1243,8 @@ struct DeviceProperties
 
         uint32 maxGsOutputVert;             ///< Maximum number of GS output vertices.
         uint32 maxGsTotalOutputComponents;  ///< Maximum number of GS output components totally.
+        uint32 maxGsInvocations;            ///< Maximum number of GS prim instances, corresponding to geometry shader
+                                            ///  invocation in glsl.
 
         uint32 dynamicLaunchDescSize;   ///< Dynamic launch descriptor size. Zero indicates this feature is not
                                         ///  supported. @ref IPipeline::CreateLaunchDescriptor()
@@ -1352,7 +1354,9 @@ struct DeviceProperties
                 uint64 supportHsaAbi                      :  1; ///< PAL supports HSA ABI compute pipelines.
                 uint64 supportImageViewMinLod             :  1; ///< Indicates image srd supports min_lod.
                 uint64 supportStaticVmid                  :  1; ///< Indicates support for static-VMID
-                uint64 reserved                           :  9; ///< Reserved for future use.
+                uint64 support3dUavZRange                 :  1; ///< HW supports read-write ImageViewSrds of 3D images
+                                                                ///  with zRange specified.
+                uint64 reserved                           :  8; ///< Reserved for future use.
             };
             uint64 u64All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.

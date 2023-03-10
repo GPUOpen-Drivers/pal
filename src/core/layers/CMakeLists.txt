@@ -29,6 +29,7 @@ add_subdirectory(interfaceLogger)
 add_subdirectory(gpuProfiler)
 add_subdirectory(gpuDebug)
 add_subdirectory(pm4Instrumentor)
+add_subdirectory(crashAnalysis)
 
 target_sources(pal PRIVATE
     CMakeLists.txt

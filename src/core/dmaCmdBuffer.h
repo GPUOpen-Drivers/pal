@@ -203,10 +203,8 @@ public:
     virtual void IncrementSubmitCount() override
         { m_cmdStream.IncrementSubmitCount(); }
 
-#if PAL_ENABLE_PRINTS_ASSERTS
     // This function allows us to dump the contents of this command buffer to a file at submission time.
     virtual void DumpCmdStreamsToFile(Util::File* pFile, CmdBufDumpFormat mode) const override;
-#endif
 
     // Returns the number of command streams associated with this command buffer.
     virtual uint32 NumCmdStreams() const override { return 1; }
@@ -216,16 +214,6 @@ public:
     {
         PAL_ASSERT(cmdStreamIdx < NumCmdStreams());
         return &m_cmdStream;
-    }
-
-    void CmdCopyImageToPackedPixelImage(
-        const IImage&           srcImage,
-        const IImage&           dstImage,
-        uint32                  regionCount,
-        const ImageCopyRegion*  pRegions,
-        Pal::PackedPixelType    packPixelType) override
-    {
-        PAL_NEVER_CALLED();
     }
 
     virtual void CmdUpdateBusAddressableMemoryMarker(

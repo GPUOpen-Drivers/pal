@@ -64,6 +64,10 @@ target_sources(addrlib PRIVATE src/core/addrcommon.h
                                src/core/coord.h
                                src/core/coord.cpp)
 
+if(ADDR_SILENCE_ASSERT_ALWAYS)
+    target_compile_definitions(addrlib PRIVATE ADDR_SILENCE_ASSERT_ALWAYS)
+endif()
+
 if(ADDR_R800_BUILD)
     target_sources(addrlib PRIVATE src/chip/r800/r800_gb_reg.h
                                    src/r800/r800addrlib.h

@@ -274,14 +274,6 @@ public:
         const PrtPlusImageResolveRegion* pRegions) const
         { PAL_NEVER_CALLED(); }
 
-    void CopyImageToPackedPixelImage(
-        GfxCmdBuffer*          pCmdBuffer,
-        const Image&           srcImage,
-        const Image&           dstImage,
-        uint32                 regionCount,
-        const ImageCopyRegion* pRegions,
-        Pal::PackedPixelType   packPixelType) const;
-
     virtual void CmdGfxDccToDisplayDcc(
         GfxCmdBuffer* pCmdBuffer,
         const IImage& image) const;

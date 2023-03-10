@@ -817,12 +817,6 @@ Result CreateRpmComputePipelines(
     if (result == Result::Success)
     {
         result = CreateRpmComputePipeline(
-            RpmComputePipeline::PackedPixelComposite, pDevice, pTable, pPipelineMem);
-    }
-
-    if (result == Result::Success)
-    {
-        result = CreateRpmComputePipeline(
             RpmComputePipeline::ResolveOcclusionQuery, pDevice, pTable, pPipelineMem);
     }
 

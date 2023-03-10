@@ -99,9 +99,7 @@ static void PAL_STDCALL CmdDispatchOffsetInvalid(
     DispatchDims launchSize,
     DispatchDims logicalSize);
 
-#if PAL_ENABLE_PRINTS_ASSERTS
 uint32 CmdBuffer::s_numCreated[QueueTypeCount] = {};
-#endif
 
 // =====================================================================================================================
 CmdBuffer::CmdBuffer(
@@ -123,15 +121,11 @@ CmdBuffer::CmdBuffer(
     m_p2pBltWaInfo(device.GetPlatform()),
     m_p2pBltWaLastChunkAddr(0),
     m_implicitGangSubQueueCount(0),
-    m_resourceId(device.GetPlatform()->GenerateResourceId()),
     m_device(device),
-    m_recordState(CmdBufferRecordState::Reset)
-#if PAL_ENABLE_PRINTS_ASSERTS
-    ,
+    m_recordState(CmdBufferRecordState::Reset) ,
     m_uniqueId(0),
     m_numCmdBufsBegun(0),
     m_ib2DumpInfos(device.GetPlatform())
-#endif
 {
     m_buildFlags.u32All = 0;
     m_flags.u32All      = 0;
@@ -184,12 +178,10 @@ Result CmdBuffer::Init(
 
     Result result = Reset(nullptr, true);
 
-#if PAL_ENABLE_PRINTS_ASSERTS
     if (result == Result::Success)
     {
         m_uniqueId = AtomicIncrement(&s_numCreated[static_cast<size_t>(GetQueueType())]);
     }
-#endif
 
     return result;
 }
@@ -296,19 +288,9 @@ Result CmdBuffer::Begin(
             {
                 m_recordState = CmdBufferRecordState::Building;
 
-#if PAL_ENABLE_PRINTS_ASSERTS
                 // Don't really need to do this unless PM4 dumping has been enabled in the settings, but it takes
                 // longer to determine if its necessary than to just increment the variable.
                 m_numCmdBufsBegun++;
-#endif
-
-                // In crash analysis mode, a NOP with a special payload is inserted.
-                // Radeon GPU Detective & other tools parse this for post-mortem
-                // analysis & debugging of this buffer.
-                if (m_device.GetPlatform()->IsCrashAnalysisModeEnabled())
-                {
-                    CmdInsertCrashAnalysisHeader();
-                }
             }
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 757
@@ -320,7 +302,6 @@ Result CmdBuffer::Begin(
         }
     }
 
-#if PAL_ENABLE_PRINTS_ASSERTS
     if ((result == Result::Success) && (IsDumpingEnabled()))
     {
         char filename[MaxFilenameLength] = {};
@@ -328,7 +309,6 @@ Result CmdBuffer::Begin(
         GetCmdBufDumpFilename(filename, MaxFilenameLength * sizeof(char));
         OpenCmdBufDumpFile(&filename[0]);
     }
-#endif
 
     return result;
 }
@@ -419,10 +399,8 @@ Result CmdBuffer::Reset(
     m_executionMarkerCount = 0;
     m_executionMarkerAddr  = 0;
 
-#if PAL_ENABLE_PRINTS_ASSERTS
     // reset the dumpInfos
     m_ib2DumpInfos.Clear();
-#endif
 
     // We must attempt to return our linear allocator in the case that the client reset this command buffer while it was
     // in the building state. In normal operation this call will do nothing and take no locks.
@@ -1170,7 +1148,6 @@ bool CmdBuffer::HasAddressDependentCmdStream() const
     return addressDependent;
 }
 
-#if PAL_ENABLE_PRINTS_ASSERTS
 // =====================================================================================================================
 void CmdBuffer::EndCmdBufferDump(
     const CmdStream** ppCmdStreams,
@@ -1243,15 +1220,15 @@ void CmdBuffer::OpenCmdBufDumpFile(
 
     if (settings.cmdBufDumpFormat == CmdBufDumpFormat::CmdBufDumpFormatText)
     {
-        PAL_ALERT_MSG(m_file.Open(&fullFilename[0], FileAccessMode::FileAccessWrite) != Result::Success,
-                      "Failed to open CmdBuf dump file '%s'", fullFilename);
+        Result result = m_file.Open(&fullFilename[0], FileAccessMode::FileAccessWrite);
+        PAL_ALERT_MSG(result != Result::Success, "Failed to open CmdBuf dump file '%s'", fullFilename);
     }
     else if ((settings.cmdBufDumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinary) ||
              (settings.cmdBufDumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinaryHeaders))
     {
         const uint32 fileMode = FileAccessMode::FileAccessWrite | FileAccessMode::FileAccessBinary;
-        PAL_ALERT_MSG(m_file.Open(&fullFilename[0], fileMode) != Result::Success,
-                      "Failed to open CmdBuf dump file '%s'", fullFilename);
+        Result result = m_file.Open(&fullFilename[0], fileMode);
+        PAL_ALERT_MSG(result != Result::Success, "Failed to open CmdBuf dump file '%s'", fullFilename);
     }
     else
     {
@@ -1407,8 +1384,6 @@ void CmdBuffer::GetCmdBufDumpFilename(
         break;
     }
 }
-
-#endif
 
 // =====================================================================================================================
 // Gets the subEngineId for dump headers
@@ -1722,17 +1697,6 @@ void CmdBuffer::CmdBindSampleRateImage(
     const IImage*  pImage)
 {
     PAL_NOT_IMPLEMENTED();
-}
-
-// =====================================================================================================================
-// Inserts a NOP packet with metadata used for port-mortem GPU crash analysis.
-void CmdBuffer::CmdInsertCrashAnalysisHeader()
-{
-    CrashAnalysisMarkerHeader header = { };
-    header.cmdBufferId = m_resourceId;
-    header.timestamp   = 0;
-
-    CmdNop(static_cast<const void*>(&header), sizeof(header));
 }
 
 } // Pal

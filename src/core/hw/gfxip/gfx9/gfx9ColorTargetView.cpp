@@ -46,11 +46,13 @@ namespace Gfx9
 ColorTargetView::ColorTargetView(
     const Device*                     pDevice,
     const ColorTargetViewCreateInfo&  createInfo,
-    ColorTargetViewInternalCreateInfo internalInfo)
+    ColorTargetViewInternalCreateInfo internalInfo,
+    uint32                            uniqueId)
     :
     m_pImage((createInfo.flags.isBufferView == 0) ? GetGfx9Image(createInfo.imageInfo.pImage) : nullptr),
     m_gfxLevel(pDevice->Parent()->ChipProperties().gfxLevel),
-    m_arraySize(0)
+    m_arraySize(0),
+    m_uniqueId(uniqueId)
 {
     const Gfx9PalSettings& settings = pDevice->Settings();
 
@@ -603,12 +605,20 @@ void ColorTargetView::SetupExtents(
 }
 
 // =====================================================================================================================
+bool ColorTargetView::Equals(
+    const ColorTargetView* pOther) const
+{
+    return ((pOther != nullptr) && (m_uniqueId == pOther->m_uniqueId));
+}
+
+// =====================================================================================================================
 Gfx9ColorTargetView::Gfx9ColorTargetView(
     const Device*                     pDevice,
     const ColorTargetViewCreateInfo&  createInfo,
-    ColorTargetViewInternalCreateInfo internalInfo)
+    ColorTargetViewInternalCreateInfo internalInfo,
+    uint32                            viewId)
     :
-    ColorTargetView(pDevice, createInfo, internalInfo)
+    ColorTargetView(pDevice, createInfo, internalInfo, viewId)
 {
     memset(&m_regs, 0, sizeof(m_regs));
     InitRegisters(*pDevice, createInfo, internalInfo);
@@ -795,9 +805,10 @@ uint32* Gfx9ColorTargetView::WriteCommands(
 Gfx10ColorTargetView::Gfx10ColorTargetView(
     const Device*                     pDevice,
     const ColorTargetViewCreateInfo&  createInfo,
-    ColorTargetViewInternalCreateInfo internalInfo)
+    ColorTargetViewInternalCreateInfo internalInfo,
+    uint32                            viewId)
     :
-    ColorTargetView(pDevice, createInfo, internalInfo)
+    ColorTargetView(pDevice, createInfo, internalInfo, viewId)
 {
     memset(&m_regs, 0, sizeof(m_regs));
     memset(&m_uavExportSrd, 0, sizeof(m_uavExportSrd));
@@ -1106,9 +1117,10 @@ bool Gfx10ColorTargetView::IsFmaskBigPage() const
 Gfx11ColorTargetView::Gfx11ColorTargetView(
     const Device*                     pDevice,
     const ColorTargetViewCreateInfo&  createInfo,
-    ColorTargetViewInternalCreateInfo internalInfo)
+    ColorTargetViewInternalCreateInfo internalInfo,
+    uint32                            viewId)
     :
-    ColorTargetView(pDevice, createInfo, internalInfo)
+    ColorTargetView(pDevice, createInfo, internalInfo, viewId)
 {
     memset(&m_regs, 0, sizeof(m_regs));
     memset(&m_uavExportSrd, 0, sizeof(m_uavExportSrd));

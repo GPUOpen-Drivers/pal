@@ -31,8 +31,12 @@
 #include "core/hw/gfxip/gfx6/gfx6CmdStream.h"
 #include "core/hw/gfxip/gfx6/gfx6CmdUtil.h"
 #include "core/hw/gfxip/gfx6/gfx6WorkaroundState.h"
+#include "core/hw/gfxip/gfx6/gfx6ColorTargetView.h"
+#include "core/hw/gfxip/gfx6/gfx6DepthStencilView.h"
 #include "palAutoBuffer.h"
 #include "palIntervalTree.h"
+
+#include <type_traits>
 
 namespace Pal
 {
@@ -611,6 +615,19 @@ private:
 
     void DescribeDraw(Developer::DrawDispatchType cmdType);
 
+    template <typename T>
+    using ViewStorage = typename std::aligned_storage<sizeof(T), alignof(T)>::type;
+
+    void CopyColorTargetViewStorage(
+        ViewStorage<ColorTargetView>*       pColorTargetViewStorageDst,
+        const ViewStorage<ColorTargetView>* pColorTargetViewStorageSrc,
+        Pm4::GraphicsState*                 pGraphicsStateDst);
+
+    void CopyDepthStencilViewStorage(
+        ViewStorage<DepthStencilView>*       pDepthStencilViewStorageDst,
+        const ViewStorage<DepthStencilView>* pDepthStencilViewStorageSrc,
+        Pm4::GraphicsState*                  pGraphicsStateDst);
+
     uint32* BuildWriteViewId(
         uint32  viewId,
         uint32* pCmdSpace);
@@ -742,6 +759,11 @@ private:
     // to track memory ranges affected by outstanding End() calls in this command buffer so we can avoid the idle
     // during Reset() if the reset doesn't affect any pending queries.
     Util::IntervalTree<gpusize, bool, Platform>  m_activeOcclusionQueryWriteRanges;
+
+    ViewStorage<ColorTargetView>  m_colorTargetViewStorage[MaxColorTargets];
+    ViewStorage<ColorTargetView>  m_colorTargetViewRestoreStorage[MaxColorTargets];
+    ViewStorage<DepthStencilView> m_depthStencilViewStorage;
+    ViewStorage<DepthStencilView> m_depthStencilViewRestoreStorage;
 
     PAL_DISALLOW_DEFAULT_CTOR(UniversalCmdBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(UniversalCmdBuffer);

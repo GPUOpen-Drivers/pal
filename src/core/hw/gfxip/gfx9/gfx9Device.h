@@ -37,6 +37,8 @@
 #include "palPipelineAbi.h"
 #include "palAutoBuffer.h"
 
+#include <atomic>
+
 namespace Pal
 {
 
@@ -954,6 +956,9 @@ private:
     uint32            m_varBlockSize;
 
     uint16         m_firstUserDataReg[HwShaderStage::Last];
+
+    mutable std::atomic<uint32> m_nextColorTargetViewId;
+    mutable std::atomic<uint32> m_nextDepthStencilViewId;
 
 #if PAL_BUILD_GFX11
     // 0 - Non-TMZ, 1 - TMZ

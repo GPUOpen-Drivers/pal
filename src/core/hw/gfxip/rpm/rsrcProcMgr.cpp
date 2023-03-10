@@ -2931,15 +2931,15 @@ void RsrcProcMgr::CmdClearBoundColorTargets(
             memcpy(&convertedColor[0], &pBoundColorTargets[colorIndex].clearValue.u32Color[0], sizeof(convertedColor));
         }
 
-        // Get the correct slow clear state based on the view format.
-        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics,
-                                      GetGfxPipelineByTargetIndexAndFormat(
-                                          SlowColorClear0_32ABGR,
-                                          pBoundColorTargets[colorIndex].targetIndex,
-                                          pBoundColorTargets[colorIndex].swizzledFormat),
-                                      InternalApiPsoHash, });
-        pCmdBuffer->CmdOverwriteRbPlusFormatForBlits(pBoundColorTargets[colorIndex].swizzledFormat,
-                                                     pBoundColorTargets[colorIndex].targetIndex);
+        const GraphicsPipeline* pPipeline =
+            GetGfxPipelineByTargetIndexAndFormat(SlowColorClear0_32ABGR,
+                                                 pBoundColorTargets[colorIndex].targetIndex,
+                                                 pBoundColorTargets[colorIndex].swizzledFormat);
+
+        pCmdBuffer->CmdBindPipelineWithOverrides({ PipelineBindPoint::Graphics, pPipeline, InternalApiPsoHash, },
+                                                 pBoundColorTargets[colorIndex].swizzledFormat,
+                                                 pBoundColorTargets[colorIndex].targetIndex);
+
         pCmdBuffer->CmdBindMsaaState(GetMsaaState(pBoundColorTargets[colorIndex].samples,
                                                   pBoundColorTargets[colorIndex].fragments));
 
@@ -4742,171 +4742,6 @@ static const void ProcessPackPixelCopyConstants(
     pAluConstants[5] = 1.0f;
     pAluConstants[6] = rightOffset;
     pAluConstants[7] = 0.0f;
-}
-
-// =====================================================================================================================
-// Builds commands to copy from rendered surface to an internal surface with packing 2/3 pixels to 1 R8G8B8A8 pixel.
-void RsrcProcMgr::CopyImageToPackedPixelImage(
-    GfxCmdBuffer*          pCmdBuffer,
-    const Image&           srcImage,
-    const Image&           dstImage,
-    uint32                 regionCount,
-    const ImageCopyRegion* pRegions,
-    Pal::PackedPixelType   packPixelType
-    ) const
-{
-    const auto&           device        = *m_pDevice->Parent();
-    const auto&           dstCreateInfo = dstImage.GetImageCreateInfo();
-    const auto&           srcCreateInfo = srcImage.GetImageCreateInfo();
-    const bool            isCompressed  = (Formats::IsBlockCompressed(srcCreateInfo.swizzledFormat.format) ||
-                                           Formats::IsBlockCompressed(dstCreateInfo.swizzledFormat.format));
-    const bool            useMipInSrd   = CopyImageUseMipLevelInSrd(isCompressed);
-    const BltMonitorDesc* pMonDesc      = GetMonitorDesc(packPixelType);
-
-    // Get the appropriate pipeline object.
-    const ComputePipeline* pPipeline       = GetPipeline(RpmComputePipeline::PackedPixelComposite);
-    const DispatchDims     threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
-
-    // Save current command buffer state and bind the pipeline.
-    pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-
-    // ALU constants assignment
-    PackPixelConstant constantData    = {};
-    const uint32      aluConstantSize = sizeof(constantData.aluConstant0);
-    constexpr uint32 DataDwords = (sizeof(constantData) / sizeof(uint32));
-
-    // c2 shader flow control
-    constantData.aluConstant2[0] = pMonDesc->isColorType;
-    constantData.aluConstant2[1] = ((pMonDesc->numPixels > 1) ? 1 : 0);
-    constantData.aluConstant2[2] = ((pMonDesc->numPixels != 2) ? 1 : 0);
-    constantData.aluConstant2[3] = pMonDesc->isSplitType;
-
-    // c3 - c5 color -> color gray matrix
-    memcpy(&constantData.aluConstant3[0], &pMonDesc->grayScalingMap[0], aluConstantSize);
-    memcpy(&constantData.aluConstant4[0], &pMonDesc->grayScalingMap[4], aluConstantSize);
-    memcpy(&constantData.aluConstant5[0], &pMonDesc->grayScalingMap[8], aluConstantSize);
-
-    if (pMonDesc->isColorType == 0)
-    {
-        // c6  - c7 left pixel pack parameters (rmask, gmask, bmask, shift)
-        // c8  - c9 mid pixel pack parameters
-        // c10 - c11 right pixel pack parameters
-        if (pMonDesc->numPixels == 1)
-        {
-            memcpy(&constantData.aluConstant8[0], &pMonDesc->packParams[0], aluConstantSize);
-            memcpy(&constantData.aluConstant9[0], &pMonDesc->packParams[4], aluConstantSize);
-        }
-        else if (pMonDesc->numPixels == 2)
-        {
-            memcpy(&constantData.aluConstant6[0], &pMonDesc->packParams[0], aluConstantSize);
-            memcpy(&constantData.aluConstant7[0], &pMonDesc->packParams[4], aluConstantSize);
-
-            memcpy(&constantData.aluConstant10[0], &pMonDesc->packParams[8], aluConstantSize);
-            memcpy(&constantData.aluConstant11[0], &pMonDesc->packParams[12], aluConstantSize);
-        }
-        else if (pMonDesc->numPixels == 3)
-        {
-            memcpy(&constantData.aluConstant6[0], &pMonDesc->packParams[0], aluConstantSize);
-            memcpy(&constantData.aluConstant7[0], &pMonDesc->packParams[4], aluConstantSize);
-
-            memcpy(&constantData.aluConstant8[0], &pMonDesc->packParams[8], aluConstantSize);
-            memcpy(&constantData.aluConstant9[0], &pMonDesc->packParams[12], aluConstantSize);
-
-            memcpy(&constantData.aluConstant10[0], &pMonDesc->packParams[16], aluConstantSize);
-            memcpy(&constantData.aluConstant11[0], &pMonDesc->packParams[20], aluConstantSize);
-        }
-        else
-        {
-            PAL_ASSERT_ALWAYS();
-        }
-    }
-
-    // c12 pixel scaling (2^N-1, 1/(2^N-1), unused, unused)
-    memcpy(&constantData.aluConstant12[0], &pMonDesc->scalingParams[0], sizeof(pMonDesc->scalingParams[0]) * 4);
-
-    // Now begin processing the list of copy regions.
-    for (uint32 idx = 0; idx < regionCount; ++idx)
-    {
-        const ImageCopyRegion& region = pRegions[idx];
-
-        PAL_ASSERT((region.numSlices == 1) || (region.extent.depth == 1));
-
-        SwizzledFormat srcFormat = srcImage.SubresourceInfo(region.srcSubres)->format;
-        SwizzledFormat dstFormat = dstImage.SubresourceInfo(region.dstSubres)->format;
-
-        // set up c0/c1 sample scaling and offset
-        ProcessPackPixelCopyConstants(*pMonDesc, pMonDesc->numPixels,
-                                      region,
-                                      reinterpret_cast<float*>(&constantData.aluConstant0[0]));
-
-        // c13 -> region.width*1.0, region.height*1.0, region.width, region.height
-        constantData.aluConstant13[2] = region.dstOffset.x + region.extent.width;
-        constantData.aluConstant13[3] = region.dstOffset.y + region.extent.height;
-
-        // there are 2 resources and 1 sampler
-        const uint8 rsNum = 3;
-        uint32* pUserData = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
-                                                                   SrdDwordAlignment() * rsNum + DataDwords,
-                                                                   SrdDwordAlignment(),
-                                                                   PipelineBindPoint::Compute,
-                                                                   0);
-        ImageViewInfo imageView[2] = {};
-        SubresRange   viewRange    = { region.dstSubres, 1, 1, 1 };
-        RpmUtil::BuildImageViewInfo(&imageView[0],
-                                    dstImage,
-                                    viewRange,
-                                    dstFormat,
-                                    RpmUtil::DefaultRpmLayoutShaderWrite,
-                                    Pal::ImageTexOptLevel::Default,
-                                    true);
-
-        viewRange.startSubres = region.srcSubres;
-        RpmUtil::BuildImageViewInfo(&imageView[1],
-                                    srcImage,
-                                    viewRange,
-                                    srcFormat,
-                                    RpmUtil::DefaultRpmLayoutRead,
-                                    Pal::ImageTexOptLevel::Default,
-                                    false);
-
-        if (useMipInSrd == false)
-        {
-            // The miplevel as specified in the shader instruction is actually an offset from the mip-level
-            // as specified in the SRD.
-            imageView[0].subresRange.startSubres.mipLevel = 0;  // dst
-            imageView[1].subresRange.startSubres.mipLevel = 0;  // src
-
-            // The mip-level from the instruction is also clamped to the "last level" as specified in the SRD.
-            imageView[0].subresRange.numMips = region.dstSubres.mipLevel + viewRange.numMips;
-            imageView[1].subresRange.numMips = region.srcSubres.mipLevel + viewRange.numMips;
-        }
-
-        // Turn our image views into HW SRDs here
-        device.CreateImageViewSrds(2, &imageView[0], pUserData);
-        pUserData += SrdDwordAlignment() * 2;
-
-        Pal::SamplerInfo samplerInfo = {};
-
-        samplerInfo.filter.magnification = Pal::XyFilterPoint;
-        samplerInfo.filter.minification  = Pal::XyFilterPoint;
-        samplerInfo.filter.mipFilter     = Pal::MipFilterNone;
-        samplerInfo.addressU             = Pal::TexAddressMode::Clamp;
-        samplerInfo.addressV             = Pal::TexAddressMode::Clamp;
-        samplerInfo.addressW             = Pal::TexAddressMode::Clamp;
-
-        device.CreateSamplerSrds(1, &samplerInfo, pUserData);
-        pUserData += SrdDwordAlignment();
-        // Copy the copy parameters into the embedded user-data space
-        memcpy(pUserData, &constantData, sizeof(constantData));
-
-        // Execute the dispatch, we need one thread per texel.
-        const DispatchDims threads = {region.extent.width, region.extent.height, 1};
-
-        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(threads, threadsPerGroup));
-    }
-
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
 }
 
 // =====================================================================================================================

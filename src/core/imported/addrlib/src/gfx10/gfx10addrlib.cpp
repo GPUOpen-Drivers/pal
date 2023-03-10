@@ -129,6 +129,7 @@ Gfx10Lib::Gfx10Lib(const Client* pClient)
     m_numSaLog2(0),
     m_colorBaseIndex(0),
     m_xmaskBaseIndex(0),
+    m_htileBaseIndex(0),
     m_dccBaseIndex(0)
 {
     memset(&m_settings, 0, sizeof(m_settings));
@@ -610,7 +611,7 @@ ADDR_E_RETURNCODE Gfx10Lib::HwlComputeHtileAddrFromCoord(
         {
             const UINT_32  numSampleLog2 = Log2(pIn->numSamples);
             const UINT_32  pipeMask      = (1 << m_pipesLog2) - 1;
-            const UINT_32  index         = m_xmaskBaseIndex + numSampleLog2;
+            const UINT_32  index         = m_htileBaseIndex + numSampleLog2;
             const UINT_8*  patIdxTable   = m_settings.supportRbPlus ? GFX10_HTILE_RBPLUS_PATIDX : GFX10_HTILE_PATIDX;
 
             const UINT_32  blkSizeLog2   = Log2(output.metaBlkWidth) + Log2(output.metaBlkHeight) - 4;
@@ -883,9 +884,11 @@ BOOL_32 Gfx10Lib::HwlInitGlobalParams(
 
     {
         // Skip unaligned case
-        m_xmaskBaseIndex += MaxNumOfAA;
+        m_xmaskBaseIndex += MaxNumOfBppCMask;
+        m_htileBaseIndex += MaxNumOfAA;
 
-        m_xmaskBaseIndex += m_pipesLog2 * MaxNumOfAA;
+        m_xmaskBaseIndex += m_pipesLog2 * MaxNumOfBppCMask;
+        m_htileBaseIndex += m_pipesLog2 * MaxNumOfAA;
         m_colorBaseIndex += m_pipesLog2 * MaxNumOfBpp;
 
         if (m_settings.supportRbPlus)
@@ -901,7 +904,8 @@ BOOL_32 Gfx10Lib::HwlInitGlobalParams(
             if (m_numPkrLog2 >= 2)
             {
                 m_colorBaseIndex += (2 * m_numPkrLog2 - 2) * MaxNumOfBpp;
-                m_xmaskBaseIndex += (m_numPkrLog2 - 1) * 3 * MaxNumOfAA;
+                m_xmaskBaseIndex += (m_numPkrLog2 - 1) * 3 * MaxNumOfBppCMask;
+                m_htileBaseIndex += (m_numPkrLog2 - 1) * 3 * MaxNumOfAA;
             }
         }
         else
@@ -911,9 +915,8 @@ BOOL_32 Gfx10Lib::HwlInitGlobalParams(
                                         1;
 
             ADDR_C_ASSERT(sizeof(GFX10_HTILE_PATIDX) / sizeof(GFX10_HTILE_PATIDX[0]) == (numPipeType + 1) * MaxNumOfAA);
-
-            ADDR_C_ASSERT(sizeof(GFX10_HTILE_PATIDX) / sizeof(GFX10_HTILE_PATIDX[0]) ==
-                          sizeof(GFX10_CMASK_64K_PATIDX) / sizeof(GFX10_CMASK_64K_PATIDX[0]));
+            ADDR_C_ASSERT(sizeof(GFX10_CMASK_64K_PATIDX) / sizeof(GFX10_CMASK_64K_PATIDX[0]) ==
+                          (numPipeType + 1) * MaxNumOfBppCMask);
         }
     }
 

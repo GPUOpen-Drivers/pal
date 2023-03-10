@@ -379,6 +379,17 @@ public:
         void*               pPrivateData)
         { pPlatform->InstallDeveloperCb(pfnDeveloperCb, pPrivateData); };
 
+    /// Returns the currently enabled developer callback types.
+    ///
+    /// @returns  The bitmask of currently enabled developer callback types
+    virtual uint32 GetEnabledCallbackTypes() const = 0;
+
+    /// Sets the currently enabled developer callback types.
+    ///
+    /// @param  [in]    callbackTypeMask     A bitmask of client requested developer callback types to enable
+    virtual void SetEnabledCallbackTypes(
+        uint32 enabledCallbackTypesMask) = 0;
+
     /// Returns a pointer to the developer driver server object if developer mode is enabled on the system.
     ///
     /// @returns A valid DevDriver::DevDriverServer pointer if developer mode is enabled. If developer mode is not

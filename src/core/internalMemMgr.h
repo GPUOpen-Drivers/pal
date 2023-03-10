@@ -27,6 +27,7 @@
 
 #include "core/gpuMemory.h"
 #include "palBuddyAllocator.h"
+#include "palList.h"
 #include "palMutex.h"
 
 namespace Pal
@@ -54,8 +55,13 @@ struct GpuMemoryPool
     VaRange                         vaRange;                // Virtual address range
     MType                           mtype;                  // The mtype of the GPU memory object.
     uint64                          pagingFenceVal;         // Paging fence value
-
     Util::BuddyAllocator<Platform>* pBuddyAllocator;        // Buddy allocator used for the suballocation
+};
+
+struct PoolWithKval
+{
+    GpuMemoryPool* pPool;
+    uint32         kval;
 };
 
 // =====================================================================================================================
@@ -77,6 +83,7 @@ public:
     typedef Util::ListIterator<GpuMemoryInfo, Platform> GpuMemoryListIterator;
 
     typedef Util::List<GpuMemoryPool, Platform>         GpuMemoryPoolList;
+    typedef Util::List<PoolWithKval, Platform>          BestFitPoolList;
 
     explicit InternalMemMgr(Device* pDevice);
     ~InternalMemMgr() { FreeAllocations(); }
@@ -84,13 +91,6 @@ public:
     void FreeAllocations();
 
     Result AllocateGpuMem(
-        const GpuMemoryCreateInfo&          createInfo,
-        const GpuMemoryInternalCreateInfo&  internalInfo,
-        bool                                readOnly,
-        GpuMemory**                         ppGpuMemory,
-        gpusize*                            pOffset);
-
-    Result AllocateGpuMemNoAllocLock(
         const GpuMemoryCreateInfo&          createInfo,
         const GpuMemoryInternalCreateInfo&  internalInfo,
         bool                                readOnly,
@@ -107,7 +107,6 @@ public:
 
     GpuMemoryListIterator GetRefListIter() const { return m_references.Begin(); }
     Util::RWLock* GetRefListLock() { return &m_referenceLock; }
-    Util::Mutex* GetAllocatorLock() { return &m_allocatorLock; }
 
     // It is assumed that the caller will take the references lock before calling this if necessary.
     uint32 ReferenceWatermark() { return m_referenceWatermark; }
@@ -125,10 +124,20 @@ private:
     Result FreeBaseGpuMem(
         GpuMemory*  pGpuMemory);
 
+    GpuMemoryPool* GetOpenPoolAndClaimMemory(
+        const GpuMemoryCreateInfo&         createInfo,
+        const GpuMemoryInternalCreateInfo& internalInfo,
+        bool                               readOnly);
+
     Device*const        m_pDevice;
 
-    // Serialize access to the memory manager to ensure thread-safety
-    Util::Mutex         m_allocatorLock;
+    // Only 1 thread can create a pool at a time.  This is done so after one thread creates a new pool, another thread
+    // waiting on this lock can check if that pool is suitable for it, and then sub-allocate from that instead of
+    // unnecessarily creating a new pool
+    Util::Mutex         m_createNewPoolLock;
+
+    // use RW locks to allow concurrent reading of pools, but lock whenever a new pool is created to protect the list.
+    Util::RWLock        m_poolLock;
 
     // Maintain a list of GPU memory objects that are sub-allocated
     GpuMemoryPoolList   m_poolList;

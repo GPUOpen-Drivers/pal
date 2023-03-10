@@ -26,7 +26,6 @@
 #pragma once
 
 #include "palPlatform.h"
-#include "palMutex.h"
 
 #include "core/eventDefs.h"
 #include "core/devDriverEventService.h"
@@ -35,7 +34,11 @@
 
 namespace Pal
 {
-class Platform;
+class IPlatform;
+
+namespace CrashAnalysis { struct MarkerState; } // Forward declaration
+
+using EventProviderId = DevDriver::EventProtocol::EventProviderId;
 
 // =====================================================================================================================
 // The CrashAnalysisEventProvider class is a class derived from DevDriver::EventProvider::BaseEventProvider
@@ -43,8 +46,8 @@ class Platform;
 class CrashAnalysisEventProvider final : public DevDriver::EventProtocol::BaseEventProvider
 {
 public:
-    explicit CrashAnalysisEventProvider(Platform* pPlatform);
-    ~CrashAnalysisEventProvider() override {}
+    explicit CrashAnalysisEventProvider(IPlatform* pPlatform);
+    ~CrashAnalysisEventProvider() override { }
 
     Result Init();
     void Destroy();
@@ -54,8 +57,18 @@ public:
     // These functions will result in an event being sent through the DevDriver EventProtocol or to the event log file
     // if the provider and event are enabled.
 
-    void LogCreateCrashAnalysisEvent(
-        const CrashAnalysisExecutionMarker& eventData);
+    void LogExecutionMarkerBegin(
+        uint32      cmdBufferId,
+        uint32      markerValue,
+        const char* pMarkerName,
+        uint32      markerNameSize);
+
+    void LogExecutionMarkerEnd(
+        uint32 cmdBufferId,
+        uint32 markerValue);
+
+    void LogCrashDebugMarkerData(
+        const CrashAnalysis::MarkerState* pMarkerHeader);
 
     // End of Event Log Functions
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -63,14 +76,11 @@ public:
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // BaseEventProvider overrides
 
-    static constexpr char ProviderName[] = "PalCrashAnalysisEventProvider";
-    static constexpr DevDriver::EventProtocol::EventProviderId ProviderId = 0x50434145; // 'PCAE'
+    EventProviderId GetId()   const override;
+    const char*     GetName() const override { return "PalCrashAnalysisEventProvider"; }
 
-    DevDriver::EventProtocol::EventProviderId GetId() const override { return ProviderId; }
-
-    const char* GetName() const override { return ProviderName; }
-    const void* GetEventDescriptionData()     const override;
-    uint32      GetEventDescriptionDataSize() const override;
+    const void*     GetEventDescriptionData()     const override;
+    uint32          GetEventDescriptionDataSize() const override;
 
     // End of BaseEventProvider overrides
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -78,14 +88,8 @@ public:
 private:
     bool ShouldLog() const;
 
-    void LogEvent(
-        PalEvent    eventId,
-        const void* pEventData,
-        size_t      eventDataSize);
-
-    Platform*                  m_pPlatform;
-    EventService               m_eventService;
-    DevDriver::EventTimer      m_eventTimer;
+    IPlatform*            m_pPlatform;
+    DevDriver::EventTimer m_eventTimer;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(CrashAnalysisEventProvider);
 };

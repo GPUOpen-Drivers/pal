@@ -374,18 +374,18 @@ void SettingsLoader::ValidateSettings(
         {
             m_settings.useCompToSingle |= (Gfx10UseCompToSingle8bpp | Gfx10UseCompToSingle16bpp);
         }
+    }
 
-        // On Navi2x WGP harvesting asymmetric configuration, for pixel shader waves the extra WGP is not useful as all
-        // of Navi2x splits workloads (waves) evenly among the SE. For pixel shader workloads, the pixels are split
-        // evenly among the 2 SA within an SE as well. So for basic large uniform PS workload, the pixels are split
-        // evenly among all 8 SA of a Navi2x and the work-load will only finish as fast as the SA with the fewest # of
-        // WGP. In essence this means that a 72 CU Navi21 behaves like a 64 CU Navi21 for pixel shader workloads.
-        // We should mask off the extra WGP from PS waves on WGP harvesting asymmetric configuration.
-        // This will reduce power consumption when not needed and allow to the GPU to clock higher.
-        if (IsGfx103(*m_pDevice) && m_settings.gfx103DisableAsymmetricWgpForPs)
-        {
-            m_settings.psCuEnLimitMask = (1 << (gfx9Props.gfx10.minNumWgpPerSa * 2)) - 1;
-        }
+    // On GFX103+ WGP harvesting asymmetric configuration, for pixel shader waves the extra WGP is not useful as all
+    // of GFX103 splits workloads (waves) evenly among the SE. Using Navi2x as an example: For pixel shader workloads,
+    // pixels are split evenly among the 2 SA within an SE as well. So for basic large uniform PS workload, pixels are
+    // split evenly among all 8 SA of a Navi2x and the work-load will only finish as fast as the SA with the fewest # of
+    // WGP. In essence this means that a 72 CU Navi21 behaves like a 64 CU Navi21 for pixel shader workloads.
+    // We should mask off the extra WGP from PS waves on WGP harvesting asymmetric configuration.
+    // This will reduce power consumption when not needed and allow to the GPU to clock higher.
+    if (IsGfx103Plus(*m_pDevice) && m_settings.gfx103PlusDisableAsymmetricWgpForPs)
+    {
+        m_settings.psCuEnLimitMask = (1 << (gfx9Props.gfx10.minNumWgpPerSa * 2)) - 1;
     }
 
     uint32 tessFactRingSizeMask = Gfx09_10::VGT_TF_RING_SIZE__SIZE_MASK;
@@ -815,7 +815,7 @@ static void SetupGfx11Workarounds(
     PAL_ASSERT(waFound);
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-    constexpr uint32 HandledWaMask[] = { 0x1E793001, 0x00000100 }; // Workarounds handled by PAL.
+    constexpr uint32 HandledWaMask[] = { 0x1E793001, 0x00000300 }; // Workarounds handled by PAL.
     constexpr uint32 OutsideWaMask[] = { 0xE0068DFE, 0x000000FC }; // Workarounds handled by other components.
     constexpr uint32 MissingWaMask[] = { 0x00004000, 0x00000001 }; // Workarounds that should be handled by PAL that
                                                                    // are not yet implemented or are unlikey to be
@@ -833,7 +833,7 @@ static void SetupGfx11Workarounds(
                   "Workaround Masks do not match!");
 #endif
 
-    static_assert(Gfx11NumWorkarounds == 41, "Workaround count mismatch between PAL and SWD");
+    static_assert(Gfx11NumWorkarounds == 42, "Workaround count mismatch between PAL and SWD");
 
 #if PAL_BUILD_NAVI31
     if (workarounds.ppPbbPBBBreakBatchDifferenceWithPrimLimit_FpovLimit_DeallocLimit_A_)
@@ -1005,11 +1005,6 @@ void SettingsLoader::OverrideDefaults(
             SetupMendocinoWorkarounds(device, &m_settings);
         }
 
-        if (IsGfx103(device))
-        {
-            m_settings.gfx103DisableAsymmetricWgpForPs = true;
-        }
-
     }
 #if PAL_BUILD_GFX11
     else if (IsGfx11(device))
@@ -1041,6 +1036,11 @@ void SettingsLoader::OverrideDefaults(
         }
     }
 #endif
+
+    if (IsGfx103Plus(device))
+    {
+        m_settings.gfx103PlusDisableAsymmetricWgpForPs = true;
+    }
 
 #if PAL_BUILD_GFX11
     const uint32 pfpUcodeVersion = m_pDevice->ChipProperties().pfpUcodeVersion;

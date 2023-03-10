@@ -3543,51 +3543,54 @@ Result GpaSession::AcquirePerfExperiment(
 
                 const bool skipInstTokens = sampleConfig.sqtt.flags.supressInstructionTokens;
                 ThreadTraceInfo sqttInfo = { };
-                sqttInfo.traceType                             = PerfTraceType::ThreadTrace;
-                sqttInfo.optionFlags.bufferSize                = 1;
-                sqttInfo.optionFlags.threadTraceStallBehavior  = 1;
-                sqttInfo.optionValues.threadTraceStallBehavior = sampleConfig.sqtt.flags.stallMode;
-
-                sqttInfo.optionFlags.threadTraceTokenConfig  = 1;
-
+                sqttInfo.traceType                              = PerfTraceType::ThreadTrace;
+                sqttInfo.optionFlags.bufferSize                 = 1;
+                sqttInfo.optionFlags.threadTraceStallBehavior   = 1;
+                sqttInfo.optionFlags.threadTraceTokenConfig     = 1;
                 sqttInfo.optionFlags.threadTraceShaderTypeMask  = 1;
+                sqttInfo.optionValues.threadTraceStallBehavior  = sampleConfig.sqtt.flags.stallMode;
                 sqttInfo.optionValues.threadTraceShaderTypeMask = PerfShaderMaskAll;
 
                 for (uint32 i = 0; (i < m_perfExperimentProps.shaderEngineCount) && (result == Result::Success); i++)
                 {
-                    sqttInfo.optionValues.bufferSize = alignedBufferSize;
-
-                    // Build another mask of detailed info such as instruction tracing of SEs in order for gpu
-                    // profiler tools, And the shader type mask controls which shader stages emit detailed tokens
-                    // Note: An SE detailed mask of 0 means that detailed tokens should be enabled for all SEs.
-                    const bool enableDetailedTokens = (Util::TestAnyFlagSet(sampleConfig.sqtt.seDetailedMask, 1 << i) ||
-                                                        (sampleConfig.sqtt.seDetailedMask == 0));
-
-                    // In the case of the seDetailedMask set for this specific SE we want to increase the buffer
-                    // size.
-                    if (((sampleConfig.sqtt.seDetailedMask == 0) ||
-                            Util::TestAnyFlagSet(sampleConfig.sqtt.seDetailedMask, 1 << i)) &&
-                        (skipInstTokens == false))
+                    if ((sampleConfig.sqtt.seMask == 0) || Util::TestAnyFlagSet(sampleConfig.sqtt.seMask, 1 << i))
                     {
-                        constexpr size_t DetailSqttSeBufferMultiplier = 4;
-                        sqttInfo.optionValues.bufferSize *= DetailSqttSeBufferMultiplier;
-                    }
+                        sqttInfo.optionValues.bufferSize = alignedBufferSize;
 
-                    if (m_flags.enableSampleUpdates == true)
-                    {
-                        sqttInfo.optionValues.threadTraceTokenConfig = SqttTokenConfigMinimal;
-                    }
-                    else if((enableDetailedTokens == false) || (skipInstTokens == true))
-                    {
-                        sqttInfo.optionValues.threadTraceTokenConfig = SqttTokenConfigNoInst;
-                    }
-                    else
-                    {
-                        sqttInfo.optionValues.threadTraceTokenConfig = SqttTokenConfigAllTokens;
-                    }
+                        // Build another mask of detailed info such as instruction tracing of SEs in order for gpu
+                        // profiler tools, And the shader type mask controls which shader stages emit detailed tokens
+                        // Note: An SE detailed mask of 0 means that detailed tokens should be enabled for all SEs.
+                        const bool enableDetailedTokens =
+                            (Util::TestAnyFlagSet(sampleConfig.sqtt.seDetailedMask, 1 << i) ||
+                             (sampleConfig.sqtt.seDetailedMask == 0));
 
-                    sqttInfo.instance = i;
-                    result = pExperiment->AddThreadTrace(sqttInfo);
+                        // In the case of the seDetailedMask set for this specific SE we want to increase the buffer
+                        // size.
+                        if (((sampleConfig.sqtt.seDetailedMask == 0) ||
+                                Util::TestAnyFlagSet(sampleConfig.sqtt.seDetailedMask, 1 << i)) &&
+                            (skipInstTokens == false))
+                        {
+                            constexpr size_t DetailSqttSeBufferMultiplier = 4;
+                            sqttInfo.optionValues.bufferSize *= DetailSqttSeBufferMultiplier;
+                        }
+
+                        if (m_flags.enableSampleUpdates == true)
+                        {
+                            sqttInfo.optionValues.threadTraceTokenConfig = SqttTokenConfigMinimal;
+                        }
+                        else if((enableDetailedTokens == false) || (skipInstTokens == true))
+                        {
+                            sqttInfo.optionValues.threadTraceTokenConfig = SqttTokenConfigNoInst;
+                        }
+                        else
+                        {
+                            sqttInfo.optionValues.threadTraceTokenConfig = SqttTokenConfigAllTokens;
+                        }
+
+                        sqttInfo.instance = i;
+
+                        result = pExperiment->AddThreadTrace(sqttInfo);
+                    }
                 }
             }
 

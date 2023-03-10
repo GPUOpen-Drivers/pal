@@ -58,26 +58,23 @@ constexpr uint32_t DDEventMetaVersionMinor = 1;
 /// ```
 struct DDEventMetaVersion
 {
-    uint8_t major;
-    uint8_t minor;
+    uint16_t major;
+    uint16_t minor;
 };
-static_assert(sizeof(DDEventMetaVersion) == 2, "DDEventMetaVersion has incorrect size");
+static_assert(sizeof(DDEventMetaVersion) == 4, "DDEventMetaVersion has incorrect size");
 
 /// The header for an event provider. This header immediately follows `DDEventMetaVersion`
 /// in a dd-event data stream.
 struct DDEventProviderHeader
 {
     /// Major version number of the event provider, indicating the events data format.
-    uint8_t versionMajor;
+    uint16_t versionMajor;
 
     /// Minor version number of the event provider, indicating the events data format
-    uint8_t versionMinor;
+    uint16_t versionMinor;
 
     /// reserved
-    uint16_t reserved0;
-
-    /// reserved
-    uint32_t reserved1;
+    uint32_t reserved;
 
     /// Number uniquely identifying an event provider.
     uint32_t providerId;
@@ -109,20 +106,21 @@ static_assert(sizeof(DDEventProviderHeader) == 32, "DDEventProviderHeader has in
 /// #include <dd_event.h>
 /// #include <foo_event.h>
 ///
-/// fread(tempBuffer, 1, sizeof(DDEventHeader), dataFileHandle);
-/// DDEventHeader* header = (DDEventHeader*)tempBuffer;
+/// DDEventHeader header = {};
+/// fread(&header, 1, sizeof(header), dataFileHandle);
 ///
-/// if (header->eventId == DDCommonEventId::TimestampLargeDelta) {
+/// if (header.eventId == DDCommonEventId::TimestampLargeDelta) {
 ///     // do something
 /// } else {
-///     switch ((Foo::EvenId)header->eventId) {
+///     switch ((Foo::EvenId)header.eventId) {
 ///         case Foo::EventId::MySpecialEvent:
 ///             // read the actual event payload based on `header.eventSize`
-///             fread(tempBuffer, 1, header->eventSize, dataFileHandle);
+///             uint8_t tempBuf[kBigEnoughSize] = {};
+///             fread(tempBuf, 1, header.eventSize, dataFileHandle);
 ///
-///             // convert tempBuffer to event
+///             // convert `tempBuf` to the actual event
 ///             MySpecialEvent event;
-///             event.FromBuffer(tempBuffer);
+///             event.FromBuffer(tempBuf);
 ///
 ///             // do something with `event`
 ///             break;

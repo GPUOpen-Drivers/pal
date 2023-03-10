@@ -877,12 +877,18 @@ void UniversalCmdBuffer::CmdBindMsaaState(
 void UniversalCmdBuffer::CmdSaveGraphicsState()
 {
     Pal::Pm4::UniversalCmdBuffer::CmdSaveGraphicsState();
+
+    CopyColorTargetViewStorage(m_colorTargetViewRestoreStorage, m_colorTargetViewStorage, &m_graphicsRestoreState);
+    CopyDepthStencilViewStorage(&m_depthStencilViewRestoreStorage, &m_depthStencilViewStorage, &m_graphicsRestoreState);
 }
 
 // =====================================================================================================================
 void UniversalCmdBuffer::CmdRestoreGraphicsState()
 {
     Pal::Pm4::UniversalCmdBuffer::CmdRestoreGraphicsState();
+
+    CopyColorTargetViewStorage(m_colorTargetViewStorage, m_colorTargetViewRestoreStorage, &m_graphicsState);
+    CopyDepthStencilViewStorage(&m_depthStencilViewStorage, &m_depthStencilViewRestoreStorage, &m_graphicsState);
 }
 
 // =====================================================================================================================
@@ -1269,7 +1275,11 @@ void UniversalCmdBuffer::CmdBindTargets(
     {
         if ((slot < params.colorTargetCount) && (params.colorTargets[slot].pColorTargetView != nullptr))
         {
-            m_graphicsState.bindTargets.colorTargets[slot] = params.colorTargets[slot];
+            m_graphicsState.bindTargets.colorTargets[slot].imageLayout      = params.colorTargets[slot].imageLayout;
+            m_graphicsState.bindTargets.colorTargets[slot].pColorTargetView =
+                PAL_PLACEMENT_NEW(&m_colorTargetViewStorage[slot])
+                ColorTargetView(*static_cast<const ColorTargetView*>(params.colorTargets[slot].pColorTargetView));
+
             updatedColorTargetCount = slot + 1;  // track last actual bound slot
         }
         else
@@ -1278,10 +1288,52 @@ void UniversalCmdBuffer::CmdBindTargets(
         }
     }
     m_graphicsState.bindTargets.colorTargetCount               = updatedColorTargetCount;
-    m_graphicsState.bindTargets.depthTarget                    = params.depthTarget;
+    m_graphicsState.bindTargets.depthTarget.depthLayout        = params.depthTarget.depthLayout;
+    m_graphicsState.bindTargets.depthTarget.stencilLayout      = params.depthTarget.stencilLayout;
+
+    if (pNewDepthView != nullptr)
+    {
+        m_graphicsState.bindTargets.depthTarget.pDepthStencilView = PAL_PLACEMENT_NEW(&m_depthStencilViewStorage)
+            DepthStencilView(*static_cast<const DepthStencilView*>(pNewDepthView));
+    }
+    else
+    {
+        m_graphicsState.bindTargets.depthTarget.pDepthStencilView = nullptr;
+    }
+
     m_graphicsState.dirtyFlags.validationBits.colorTargetView  = 1;
     m_graphicsState.dirtyFlags.validationBits.depthStencilView = 1;
     PAL_ASSERT(m_graphicsState.inheritedState.stateFlags.targetViewState == 0);
+}
+
+// =====================================================================================================================
+void UniversalCmdBuffer::CopyColorTargetViewStorage(
+    ViewStorage<ColorTargetView>*       pStorageDst,
+    const ViewStorage<ColorTargetView>* pStorageSrc,
+    Pm4::GraphicsState*                 pGraphicsStateDst)
+{
+    for (uint32 slot = 0; slot < pGraphicsStateDst->bindTargets.colorTargetCount; ++slot)
+    {
+        if (pGraphicsStateDst->bindTargets.colorTargets[slot].pColorTargetView != nullptr)
+        {
+            pGraphicsStateDst->bindTargets.colorTargets[slot].pColorTargetView =
+                PAL_PLACEMENT_NEW(&pStorageDst[slot])
+                ColorTargetView(*reinterpret_cast<const ColorTargetView*>(&pStorageSrc[slot]));
+        }
+    }
+}
+
+// =====================================================================================================================
+void UniversalCmdBuffer::CopyDepthStencilViewStorage(
+    ViewStorage<DepthStencilView>*       pStorageDst,
+    const ViewStorage<DepthStencilView>* pStorageSrc,
+    Pm4::GraphicsState*                  pGraphicsStateDst)
+{
+    if (pGraphicsStateDst->bindTargets.depthTarget.pDepthStencilView != nullptr)
+    {
+        pGraphicsStateDst->bindTargets.depthTarget.pDepthStencilView =
+            PAL_PLACEMENT_NEW(pStorageDst) DepthStencilView(*reinterpret_cast<const DepthStencilView*>(pStorageSrc));
+    }
 }
 
 // =====================================================================================================================
@@ -5205,13 +5257,11 @@ void UniversalCmdBuffer::CmdExecuteNestedCmdBuffers(
         m_deCmdStream.Call(pCallee->m_deCmdStream, exclusiveSubmit, allowIb2Launch);
         m_ceCmdStream.Call(pCallee->m_ceCmdStream, exclusiveSubmit, allowIb2Launch);
 
-#if PAL_ENABLE_PRINTS_ASSERTS
         if (allowIb2Launch)
         {
             TrackIb2DumpInfoFromExecuteNestedCmds(pCallee->m_deCmdStream);
             TrackIb2DumpInfoFromExecuteNestedCmds(pCallee->m_ceCmdStream);
         }
-#endif
 
         // Callee command buffers are also able to leak any changes they made to bound user-data entries and any other
         // state back to the caller.
@@ -5535,6 +5585,16 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     const UniversalCmdBuffer& cmdBuffer)
 {
     Pal::Pm4::UniversalCmdBuffer::LeakNestedCmdBufferState(cmdBuffer);
+
+    if (cmdBuffer.m_graphicsState.leakFlags.validationBits.colorTargetView != 0)
+    {
+        CopyColorTargetViewStorage(m_colorTargetViewStorage, cmdBuffer.m_colorTargetViewStorage, &m_graphicsState);
+    }
+
+    if (cmdBuffer.m_graphicsState.leakFlags.validationBits.depthStencilView != 0)
+    {
+        CopyDepthStencilViewStorage(&m_depthStencilViewStorage, &cmdBuffer.m_depthStencilViewStorage, &m_graphicsState);
+    }
 
     if (cmdBuffer.m_graphicsState.pipelineState.pPipeline != nullptr)
     {

@@ -4846,28 +4846,6 @@ void CmdBuffer::CmdCopyTiledImageToMemory(
 }
 
 // =====================================================================================================================
-void CmdBuffer::CmdCopyImageToPackedPixelImage(
-    const IImage&          srcImage,
-    const IImage&          dstImage,
-    uint32                 regionCount,
-    const ImageCopyRegion* pRegions,
-    Pal::PackedPixelType   packPixelType)
-{
-    if (m_annotations.logCmdBlts)
-    {
-        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdCopyImageToPackedPixelImage));
-
-        // TODO: Add comment string.
-    }
-
-    GetNextLayer()->CmdCopyImageToPackedPixelImage(srcImage,
-                                                   dstImage,
-                                                   regionCount,
-                                                   pRegions,
-                                                   packPixelType);
-}
-
-// =====================================================================================================================
 void CmdBuffer::CmdClearColorBuffer(
     const IGpuMemory& gpuMemory,
     const ClearColor& color,
@@ -5825,6 +5803,23 @@ void CmdBuffer::CmdInsertRgpTraceMarker(
     }
 
     GetNextLayer()->CmdInsertRgpTraceMarker(subQueueFlags, numDwords, pData);
+}
+
+// =====================================================================================================================
+uint32 CmdBuffer::CmdInsertExecutionMarker(
+    bool        isBegin,
+    uint8       sourceId,
+    const char* pMarkerName,
+    uint32      markerNameSize)
+{
+    if (m_annotations.logMiscellaneous)
+    {
+        GetNextLayer()->CmdCommentString(GetCmdBufCallIdString(CmdBufCallId::CmdInsertExecutionMarker));
+
+        // TODO: Add comment string.
+    }
+
+    return GetNextLayer()->CmdInsertExecutionMarker(isBegin, sourceId, pMarkerName, markerNameSize);
 }
 
 // ====================================================================================================================

@@ -118,6 +118,14 @@ Result GraphicsPipeline::Init(
         bindData.requiredGpuMemSize = m_gpuMemSize;
         bindData.offset             = m_gpuMem.Offset();
         pEventProvider->LogGpuMemoryResourceBindEvent(bindData);
+
+        Developer::BindGpuMemoryData callbackData = {};
+        callbackData.pObj               = bindData.pObj;
+        callbackData.requiredGpuMemSize = bindData.requiredGpuMemSize;
+        callbackData.pGpuMemory         = bindData.pGpuMemory;
+        callbackData.offset             = bindData.offset;
+        callbackData.isSystemMemory     = bindData.isSystemMemory;
+        m_pDevice->DeveloperCb(Developer::CallbackType::BindGpuMemory, &callbackData);
     }
 
     return result;

@@ -243,6 +243,34 @@ static bool TranslateOptimizedRegistersData(
 #endif
 
 // =====================================================================================================================
+// Returns true if the PreviousObject was non-null, and thus the pData->pGpuMemory data is valid for this layer.
+static bool TranslateGpuMemoryData(
+    void* pCbData)
+{
+    auto*const pData = static_cast<Developer::GpuMemoryData*>(pCbData);
+
+    const IGpuMemory* pPrevGpuMemory = PreviousObject(pData->pGpuMemory);
+    const bool        hasValidData   = (pPrevGpuMemory != nullptr);
+    pData->pGpuMemory                = (hasValidData) ? pPrevGpuMemory : pData->pGpuMemory;
+
+    return hasValidData;
+}
+
+// =====================================================================================================================
+// Returns true if the PreviousObject was non-null, and thus the pData->pGpuMemory data is valid for this layer.
+static bool TranslateBindGpuMemoryData(
+    void* pCbData)
+{
+    auto*const pData = static_cast<Developer::BindGpuMemoryData*>(pCbData);
+
+    const IGpuMemory* pPrevGpuMemory = PreviousObject(pData->pGpuMemory);
+    const bool        hasValidData   = (pPrevGpuMemory != nullptr);
+    pData->pGpuMemory                = (hasValidData) ? pPrevGpuMemory : pData->pGpuMemory;
+
+    return hasValidData;
+}
+
+// =====================================================================================================================
 class PlatformDecorator : public IPlatform
 {
 public:
@@ -319,6 +347,16 @@ public:
         {
             m_pfnDeveloperCb(m_pClientPrivateData, deviceIndex, type, pCbData);
         }
+    }
+
+    virtual uint32 GetEnabledCallbackTypes() const override
+    {
+        return m_pNextLayer->GetEnabledCallbackTypes();
+    }
+
+    virtual void SetEnabledCallbackTypes(uint32 enabledCallbackTypesMask) override
+    {
+        m_pNextLayer->SetEnabledCallbackTypes(enabledCallbackTypesMask);
     }
 
     virtual Result GetPrimaryLayout(
@@ -1838,20 +1876,6 @@ public:
                                       flags);
     }
 
-    virtual void CmdCopyImageToPackedPixelImage(
-        const IImage&          srcImage,
-        const IImage&          dstImage,
-        uint32                 regionCount,
-        const ImageCopyRegion* pRegions,
-        Pal::PackedPixelType   packPixelType) override
-    {
-        m_pNextLayer->CmdCopyImageToPackedPixelImage(*NextImage(&srcImage),
-                                                     *NextImage(&dstImage),
-                                                     regionCount,
-                                                     pRegions,
-                                                     packPixelType);
-    }
-
     virtual void CmdSetEvent(
         const IGpuEvent& gpuEvent, HwPipePoint setPoint) override
         { m_pNextLayer->CmdSetEvent(*NextGpuEvent(&gpuEvent), setPoint); }
@@ -2115,6 +2139,18 @@ public:
         { return m_pNextLayer->CmdCommentString(pComment); }
     virtual void CmdNop(const void* pPayload, uint32 payloadSize) override
         { return m_pNextLayer->CmdNop(pPayload, payloadSize); }
+
+    virtual uint32 CmdInsertExecutionMarker(
+        bool         isBeginMarker,
+        uint8        sourceId,
+        const char*  pMarkerName,
+        uint32       markerNameSize) override
+    {
+        return m_pNextLayer->CmdInsertExecutionMarker(isBeginMarker,
+                                                      sourceId,
+                                                      pMarkerName,
+                                                      markerNameSize);
+    }
 
     virtual void CmdPostProcessFrame(
         const CmdPostProcessFrameInfo& postProcessInfo,

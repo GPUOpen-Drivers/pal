@@ -190,7 +190,6 @@ static void PAL_STDCALL WriteCmdDumpToFile(
     PAL_ALERT(result != Result::Success);
 }
 
-#if PAL_ENABLE_PRINTS_ASSERTS
 // =====================================================================================================================
 // Gets the number of non-IB2 chunks in the submitInfo
 static uint32 GetNumChunks(
@@ -269,7 +268,6 @@ static void DumpIb2sToFile(
         }
     }
 }
-#endif
 
 // =====================================================================================================================
 void SubmissionContext::TakeReference()
@@ -657,7 +655,6 @@ Result Queue::SubmitInternal(
         }
     }
 
-#if PAL_ENABLE_PRINTS_ASSERTS
     if (result == Result::Success)
     {
         if (IsCmdDumpEnabled())
@@ -681,7 +678,6 @@ Result Queue::SubmitInternal(
             }
         }
     }
-#endif
 
     if ((submitInfo.pfnCmdDumpCb != nullptr) && (result == Result::Success))
     {
@@ -797,11 +793,13 @@ void Queue::DumpCmdBuffers(
 
             DumpCmdStream(cmdBufferDesc, pCmdStream, submitInfo.pfnCmdDumpCb, submitInfo.pUserData);
         }
-#if PAL_ENABLE_PRINTS_ASSERTS
-        // need the print guard here because the Ib2DumpInfo is only tracked if its enabled, however DumpCmdBuffers can
-        // be called even when printing isn't enabled.
-        DumpIb2sToFile(submitInfo, internalSubmitInfo);
-#endif
+
+        if (submitInfo.pfnCmdDumpCb == WriteCmdDumpToFile)
+        {
+            // This function currently assumes the cb/userdata is PAL's own dumper, as the CB interface
+            // currently can't handle IB2s and it needs to do the ops directly.
+            DumpIb2sToFile(submitInfo, internalSubmitInfo);
+        }
     }
 }
 
@@ -834,7 +832,6 @@ void Queue::DumpCmdStream(
     pfnCmdDumpCb(cmdBufferDesc, cmdBufferChunks.Data(), numOfChunks, pUserData);
 }
 
-#if PAL_ENABLE_PRINTS_ASSERTS
 // =====================================================================================================================
 // Helper function to find out if command dumping to file at submit time is enabled.
 bool Queue::IsCmdDumpEnabled() const
@@ -844,7 +841,7 @@ bool Queue::IsCmdDumpEnabled() const
     const CmdBufDumpFormat dumpFormat = settings.cmdBufDumpFormat;
     const uint32 frameCnt             = m_pDevice->GetFrameCount();
 
-    const bool cmdBufDumpEnabled = (m_pDevice->IsCmdBufDumpEnabled() ||
+    const bool cmdBufDumpEnabled = (m_pDevice->IsCmdBufDumpEnabledViaHotkey() ||
         ((frameCnt >= settings.submitTimeCmdBufDumpStartFrame) &&
          (frameCnt <= settings.submitTimeCmdBufDumpEndFrame)));
 
@@ -918,15 +915,15 @@ Result Queue::OpenCommandDumpFile(
 
         if (dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatText)
         {
-            PAL_ALERT_MSG(pLogFile->Open(&filename[0], FileAccessMode::FileAccessWrite) != Result::Success,
-                "Failed to open CmdBuf dump file '%s'", filename);
+            Result result = pLogFile->Open(&filename[0], FileAccessMode::FileAccessWrite);
+            PAL_ALERT_MSG(result != Result::Success, "Failed to open CmdBuf dump file '%s'", filename);
         }
         else if ((dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinary) ||
                  (dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinaryHeaders))
         {
             const uint32 fileMode = FileAccessMode::FileAccessWrite | FileAccessMode::FileAccessBinary;
-            PAL_ALERT_MSG(pLogFile->Open(&filename[0], fileMode) != Result::Success,
-                "Failed to open CmdBuf dump file '%s'", filename);
+            Result result = pLogFile->Open(&filename[0], fileMode);
+            PAL_ALERT_MSG(result != Result::Success, "Failed to open CmdBuf dump file '%s'", filename);
 
             if (dumpFormat == CmdBufDumpFormat::CmdBufDumpFormatBinaryHeaders)
             {
@@ -967,7 +964,6 @@ Result Queue::OpenCommandDumpFile(
         return Result::ErrorInitializationFailed;
     }
 }
-#endif
 
 // =====================================================================================================================
 // Waits for all requested submissions on this Queue to finish, including any batched-up submissions. This call never

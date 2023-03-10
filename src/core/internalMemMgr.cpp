@@ -32,7 +32,6 @@
 #include "palListImpl.h"
 #include "palLiterals.h"
 #include "palSysMemory.h"
-#include <stdio.h>
 
 using namespace Util;
 using namespace Util::Literals;
@@ -171,29 +170,13 @@ void InternalMemMgr::FreeAllocations()
 }
 
 // =====================================================================================================================
-// Allocates GPU memory for internal use, ensures thread safety by acquiring the allocator lock.
-Result InternalMemMgr::AllocateGpuMem(
-    const GpuMemoryCreateInfo&          createInfo,
-    const GpuMemoryInternalCreateInfo&  internalInfo,
-    bool                                readOnly,
-    GpuMemory**                         ppGpuMemory,
-    gpusize*                            pOffset)
-{
-    Util::MutexAuto allocatorLock(&m_allocatorLock); // Ensure thread-safety using the lock
-
-    return AllocateGpuMemNoAllocLock(createInfo, internalInfo, readOnly, ppGpuMemory, pOffset);
-}
-
-// =====================================================================================================================
-// Assuming the caller is already holding the allocator lock, this function will not use the lock.
-//
 // Allocates GPU memory for internal use. Depending on the type of memory object requested, the memory may be
-// sub-allocated from an existing allocation, or it might not.
+// sub-allocated from an existing allocation, or it might not.  Thread safe.
 //
 // The sub-allocation scheme is skipped if pOffset is null.
 //
 // Any new allocations are added to the memory manager's list of internal memory references.
-Result InternalMemMgr::AllocateGpuMemNoAllocLock(
+Result InternalMemMgr::AllocateGpuMem(
     const GpuMemoryCreateInfo&          createInfo,
     const GpuMemoryInternalCreateInfo&  internalInfo,
     bool                                readOnly,
@@ -206,8 +189,8 @@ Result InternalMemMgr::AllocateGpuMemNoAllocLock(
     PAL_ASSERT(createInfo.flags.virtualAlloc == 0);
 
     // By convention, the only allocations that are allowed to skip the sub-allocation scheme are are UDMA buffers, page
-    // directories, and page-table blocks, and PageFaultDebugSrds. We may relax this if there is good reason to skip sub-allocation for other
-    // kinds of allocations.
+    // directories, page-table blocks, command allocators, and PageFaultDebugSrds. We may relax this if there is good
+    // reason to skip sub-allocation for other kinds of allocations.
     PAL_ASSERT(((internalInfo.flags.udmaBuffer        == 0) &&
                 (internalInfo.flags.pageDirectory     == 0) &&
                 (internalInfo.flags.pageTableBlock    == 0) &&
@@ -244,156 +227,42 @@ Result InternalMemMgr::AllocateGpuMemNoAllocLock(
 
         result = Result::ErrorOutOfMemory;
 
-        // CurrentPoolSize will be double in first use.
-        gpusize currentPoolSize = DefaultPoolAllocationMinSize / 2;
-
-        // Try to find a base allocation of the appropriate type that has sufficient enough space
-        for (auto it = m_poolList.Begin(); it.Get() != nullptr; it.Next())
+        GpuMemoryPool* pOpenPool = GetOpenPoolAndClaimMemory(localCreateInfo, internalInfo, readOnly);
+        if (pOpenPool != nullptr)
         {
-            GpuMemoryPool* pPool = it.Get();
+            // If the base allocation matches the search criteria then try to allocate from it
+            result = pOpenPool->pBuddyAllocator->Allocate(localCreateInfo.size,
+                                                          localCreateInfo.alignment,
+                                                          pOffset);
 
-            if (IsMatchingPool(*pPool,
-                               readOnly,
-                               requestedMemFlags,
-                               localCreateInfo.heapCount,
-                               localCreateInfo.heaps,
-                               localCreateInfo.vaRange,
-                               internalInfo.mtype))
+            // Since we got the pool from GetOpenPoolAndClaimMemory, Allocate() should never fail.
+            PAL_ASSERT(result == Result::Success);
+
+            *ppGpuMemory = pOpenPool->pGpuMemory;
+            if (internalInfo.pPagingFence != nullptr)
             {
-                const GpuMemoryDesc& desc = pPool->pGpuMemory->Desc();
-
-                // Now pool size is not fixed value. Make sure sub allocation size is matching with this pool.
-                if ((localCreateInfo.size      <= desc.size / 2) &&
-                    (localCreateInfo.alignment <= desc.size / 2))
-                {
-                    // If the base allocation matches the search criteria then try to allocate from it
-                    result = pPool->pBuddyAllocator->Allocate(localCreateInfo.size,
-                                                              localCreateInfo.alignment,
-                                                              pOffset);
-
-                    if (result == Result::Success)
-                    {
-                        // If we found a free block, fill in the memory object pointer from the base allocation and
-                        // stop searching
-                        *ppGpuMemory = pPool->pGpuMemory;
-                        if (internalInfo.pPagingFence != nullptr)
-                        {
-                            *internalInfo.pPagingFence = pPool->pagingFenceVal;
-                        }
-                        break;
-                    }
-                }
-
-                // Loop to find the max size we have in the matched pools.
-                currentPoolSize = Util::Max(currentPoolSize, desc.size);
+                *internalInfo.pPagingFence = pOpenPool->pagingFenceVal;
             }
+
+            // Report the successful sub-allocation
+            Developer::GpuMemoryData data = {};
+            data.size                     = localCreateInfo.size;
+            data.heap                     = (*ppGpuMemory)->Desc().heaps[0];
+            data.flags.isClient           = (*ppGpuMemory)->IsClient();
+            data.flags.isFlippable        = (*ppGpuMemory)->IsFlippable();
+            data.flags.isUdmaBuffer       = (*ppGpuMemory)->IsUdmaBuffer();
+            data.flags.isCmdAllocator     = (*ppGpuMemory)->IsCmdAllocator();
+            data.flags.isVirtual          = (*ppGpuMemory)->IsVirtual();
+            data.flags.isExternal         = (*ppGpuMemory)->IsExternal();
+            data.flags.buddyAllocated     = (*ppGpuMemory)->WasBuddyAllocated();
+            data.allocMethod              = Developer::GpuMemoryAllocationMethod::Normal;
+            data.pGpuMemory               = *ppGpuMemory;
+            data.offset                   = *pOffset;
+            m_pDevice->DeveloperCb(Developer::CallbackType::SubAllocGpuMemory, &data);
         }
-
-        if (result != Result::Success)
+        else
         {
-            // None of the existing base allocations had a free block large enough for us so we need to create
-            // a new base allocation
-
-            // Fix-up the GPU memory create info structures to suit the base allocation's needs
-            GpuMemoryInternalCreateInfo localInternalInfo  = internalInfo;
-
-            const gpusize localCreateInfoAlignment = localCreateInfo.alignment;
-            const gpusize localCreateInfoSize      = localCreateInfo.size;
-
-            // Enlarge next pool allocation as double current max pool size
-            gpusize nextPoolAllocationSize = currentPoolSize * 2;
-
-            // Check if need to enlarge the pool size base on creation allocate size and alignment
-            nextPoolAllocationSize = Util::Max(Util::Pow2Pad(localCreateInfoSize * 2), nextPoolAllocationSize);
-            nextPoolAllocationSize = Util::Max(Util::Pow2Pad(localCreateInfoAlignment * 2), nextPoolAllocationSize);
-
-            // Clamp to maximum size
-            nextPoolAllocationSize = Util::Min(DefaultPoolAllocationSize, nextPoolAllocationSize);
-
-            localCreateInfo.size                   = nextPoolAllocationSize;
-            localCreateInfo.alignment              = DefaultPoolAlignment;
-            localInternalInfo.flags.buddyAllocated = 1;
-
-            GpuMemory* pGpuMemory = nullptr;
-
-            // Issue the base memory allocation
-            result = AllocateBaseGpuMem(localCreateInfo, localInternalInfo, readOnly, &pGpuMemory);
-            localCreateInfo.size = localCreateInfoSize;
-            localCreateInfo.alignment = localCreateInfoAlignment;
-
-            if (result == Result::Success)
-            {
-                // We need to add the newly allocated base allocation to the list
-                GpuMemoryPool newPool = {};
-
-                newPool.pGpuMemory = pGpuMemory;
-                newPool.readOnly   = readOnly;
-                newPool.memFlags   = requestedMemFlags;
-                newPool.heapCount  = localCreateInfo.heapCount;
-                newPool.vaRange    = localCreateInfo.vaRange;
-                newPool.mtype      = internalInfo.mtype;
-                if (internalInfo.pPagingFence != nullptr)
-                {
-                    newPool.pagingFenceVal = *internalInfo.pPagingFence;
-                }
-
-                for (uint32 h = 0; h < localCreateInfo.heapCount; ++h)
-                {
-                    newPool.heaps[h] = localCreateInfo.heaps[h];
-                }
-
-                // Create and initialize the buddy allocator
-                newPool.pBuddyAllocator = PAL_NEW(BuddyAllocator<Platform>, m_pDevice->GetPlatform(), AllocInternal)
-                                          (m_pDevice->GetPlatform(),
-                                           nextPoolAllocationSize,
-                                           PoolMinSuballocationSize);
-
-                if (newPool.pBuddyAllocator != nullptr)
-                {
-                    // Try to initialize the buddy allocator
-                    result = newPool.pBuddyAllocator->Init();
-
-                    gpusize localOffset = 0;
-
-                    if (result == Result::Success)
-                    {
-                        // ... and then sub-allocate from it
-                        // NOTE: The sub-allocation should never fail here since we just optained a fresh base
-                        // allocation, the only possible case for failure is a low system memory situation
-                        result = newPool.pBuddyAllocator->Allocate(localCreateInfo.size,
-                                                                   localCreateInfo.alignment,
-                                                                   &localOffset);
-                    }
-
-                    // If we successfully sub-allocated from the new buddy allocator, then attempt to add the new pool
-                    // to the list
-                    if (result == Result::Success)
-                    {
-                        result = m_poolList.PushFront(newPool);
-                    }
-
-                    // Finally, if absolutely everything succeeded, return values to caller
-                    if (result == Result::Success)
-                    {
-                        *ppGpuMemory = pGpuMemory;
-                        *pOffset     = localOffset;
-                    }
-                }
-                else
-                {
-                    result = Result::ErrorOutOfMemory;
-                }
-
-                // Undo any allocations if something went wrong
-                if (result != Result::Success)
-                {
-                    // Delete the buddy allocator if it exists.
-                    PAL_DELETE(newPool.pBuddyAllocator, m_pDevice->GetPlatform());
-
-                    // If there was a failure then release the base allocation
-                    FreeBaseGpuMem(pGpuMemory);
-                }
-            }
+            PAL_ASSERT_ALWAYS();
         }
     }
     else if (result == Result::Success)
@@ -416,6 +285,295 @@ Result InternalMemMgr::AllocateGpuMemNoAllocLock(
 }
 
 // =====================================================================================================================
+// Returns a pointer to a pool of GPU memory, creates one if needed.
+GpuMemoryPool* InternalMemMgr::GetOpenPoolAndClaimMemory(
+    const GpuMemoryCreateInfo&         createInfo,
+    const GpuMemoryInternalCreateInfo& internalInfo,
+    bool                               readOnly)
+{
+    GpuMemoryPool* pPool      = nullptr;
+    GpuMemoryPool* pBestPool  = nullptr;
+    GpuMemoryPool* pFirstPool = nullptr;
+    uint32         minKval    = Log2(Pow2Pad(Max(createInfo.size, createInfo.alignment, PoolMinSuballocationSize)));
+    uint32         bestKval   = UINT_MAX;
+    const GpuMemoryFlags requestedMemFlags = ConvertGpuMemoryFlags(createInfo, internalInfo);
+
+    Result result = Result::ErrorOutOfGpuMemory;
+    gpusize currentPoolSize = DefaultPoolAllocationMinSize / 2;
+
+    BestFitPoolList* pBestFitPoolList = PAL_NEW(BestFitPoolList,
+                                                m_pDevice->GetPlatform(),
+                                                SystemAllocType::AllocInternalTemp) (m_pDevice->GetPlatform());
+
+    if (pBestFitPoolList != nullptr)
+    {
+        RWLockAuto<RWLock::ReadOnly> poolLock(&m_poolLock);
+        pFirstPool = m_poolList.Begin().Get();
+
+        // This loop finds all the pools that have space for us currently. It inserts them in order of lowest->highest kval
+        // to pBestFitPoolList.  Then after we search through all the pools, we iterate throught pBestFitPoolList until we
+        // find a pool we can allocate memory from.  Since we search lowest->highest, this should tend towards fragmenting
+        // memory the least, however other pools may fragment the memory in our best pool before we actually claim it.  This
+        // is done in two separate loops to avoid needing to claim a lock on the whole pool list while each thread looks for
+        // the best pool.
+        for (auto it = m_poolList.Begin(); it.Get() != nullptr; it.Next())
+        {
+            pPool = it.Get();
+
+            if (IsMatchingPool(*pPool,
+                readOnly,
+                requestedMemFlags,
+                createInfo.heapCount,
+                createInfo.heaps,
+                createInfo.vaRange,
+                internalInfo.mtype))
+            {
+                const GpuMemoryDesc& desc = pPool->pGpuMemory->Desc();
+                if ((createInfo.size <= desc.size / 2) &&
+                    (createInfo.alignment <= desc.size / 2))
+                {
+                    uint32 maxKval = UINT_MAX;
+                    result = pPool->pBuddyAllocator->CheckIfOpenMemory(createInfo.size,
+                                                                       createInfo.alignment,
+                                                                       &maxKval);
+                    // if there was memory available
+                    if (result == Result::Success)
+                    {
+                        // if we found a pool with less fragmentation, push it to the front
+                        if (maxKval <= bestKval)
+                        {
+                            bestKval = maxKval;
+                            // if this is the best possible pool, try to stop early and actually claim the memory.
+                            if (bestKval == minKval)
+                            {
+                                result = pPool->pBuddyAllocator->ClaimGpuMemory(createInfo.size, createInfo.alignment);
+                                if (result == Result::Success)
+                                {
+                                    pBestPool = pPool;
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                result = pBestFitPoolList->PushFront({ pPool, maxKval });
+                            }
+                        }
+                        // otherwise insert in order.  This does a simple linear search through the list until it finds
+                        // a spot it can insert into.
+                        else
+                        {
+                            bool inserted = false;
+                            for (auto it2 = pBestFitPoolList->Begin(); it2.Get() != nullptr; it2.Next())
+                            {
+                                if (it2.Get()->kval >= maxKval)
+                                {
+                                    result = pBestFitPoolList->InsertBefore(&it2, { pPool, maxKval });
+                                    inserted = true;
+                                    break;
+                                }
+                            }
+                            if (inserted == false)
+                            {
+                                result = pBestFitPoolList->PushBack({ pPool, maxKval });
+                            }
+                        }
+
+                        // this means pushing to the list failed.  No point in continuing
+                        if (result == Result::ErrorOutOfMemory)
+                        {
+                            PAL_ASSERT_ALWAYS();
+                            break;
+                        }
+                    }
+                }
+                // Loop to find the max size we have in the matched pools.
+                currentPoolSize = Util::Max(currentPoolSize, desc.size);
+            }
+        }
+
+        // Now start at the best pool we found, and try to allocate. ErrorOutOfMemory means we ran out of memory to push
+        // to the list, not that we're out of GPU memory.
+        if ((pBestFitPoolList->NumElements()) > 0 && (pBestPool == nullptr) && (result != Result::ErrorOutOfMemory))
+        {
+            for (auto it = pBestFitPoolList->Begin(); it.Get() != nullptr; it.Next())
+            {
+                result = it.Get()->pPool->pBuddyAllocator->ClaimGpuMemory(createInfo.size, createInfo.alignment);
+                if (result == Result::Success)
+                {
+                    pBestPool = it.Get()->pPool;
+                    break;
+                }
+            }
+        }
+
+        // need to clear the list to free memory
+        while (pBestFitPoolList->NumElements() > 0)
+        {
+            auto it = pBestFitPoolList->Begin();
+            pBestFitPoolList->Erase(&it);
+        }
+        PAL_ASSERT(pBestFitPoolList->NumElements() == 0);
+        PAL_SAFE_DELETE(pBestFitPoolList, m_pDevice->GetPlatform());
+    }
+    else
+    {
+        result = Result::ErrorOutOfMemory;
+        PAL_ALERT_ALWAYS();
+    }
+
+    // We didn't find any pool of memory that could fit this allocation, create a new one,
+    if ((pBestPool == nullptr) && (result != Result::ErrorOutOfMemory))
+    {
+        // only 1 thread can create a pool at a time.  There is a tradeoff in doing this, as the call to
+        // AllocateBaseGpuMem takes over 1000x longer than suballocations, over 90% of the average time spent allocating
+        // memory is spent sitting on this lock, and over 95% of the time in the critical section is spent on calls to
+        // AllocateBaseGpuMem.
+        MutexAuto createNewPoolLock(&m_createNewPoolLock);
+
+        // now we check to see if any new pools have been created to avoid making more than we need to.  To make sure
+        // that we aren't wasting time double checking pools, only iterate until we hit the head of the list we searched
+        // previously.  So if other threads created new pools while we were on m_createNewPoolLock, we will check those
+        // pools to avoid creating more pools than we need.
+        for (auto it = m_poolList.Begin(); (it.Get() != nullptr) && (it.Get() != pFirstPool); it.Next())
+        {
+            pPool = it.Get();
+
+            if (IsMatchingPool(*pPool,
+                readOnly,
+                requestedMemFlags,
+                createInfo.heapCount,
+                createInfo.heaps,
+                createInfo.vaRange,
+                internalInfo.mtype))
+            {
+                const GpuMemoryDesc& desc = pPool->pGpuMemory->Desc();
+                if ((createInfo.size <= desc.size / 2) &&
+                    (createInfo.alignment <= desc.size / 2))
+                {
+                    // don't bother trying to find the pool with the least fragmentation here, as it is unlikely there
+                    // will have been more than 1 matching pool created.  Just claim on the first pool we find.
+                    result = pPool->pBuddyAllocator->ClaimGpuMemory(createInfo.size, createInfo.alignment);
+                    if (result == Result::Success)
+                    {
+                        pBestPool = pPool;
+                        break;
+                    }
+                }
+                currentPoolSize = Util::Max(currentPoolSize, desc.size);
+            }
+        }
+
+        // create a new memory pool if the most recently created one didn't suit our needs
+        if (result != Result::Success)
+        {
+            pPool = nullptr;
+            PAL_ASSERT(result == Result::ErrorOutOfGpuMemory);
+            PAL_ASSERT(pBestPool == nullptr);
+            // Fix-up the GPU memory create info structures to suit the base allocation's needs
+            GpuMemoryInternalCreateInfo localInternalInfo        = internalInfo;
+            GpuMemoryCreateInfo         localCreateInfo          = createInfo;
+            const gpusize               localCreateInfoAlignment = createInfo.alignment;
+            const gpusize               localCreateInfoSize      = createInfo.size;
+
+            // Enlarge next pool allocation as double current max pool size
+            gpusize nextPoolAllocationSize = currentPoolSize * 2;
+
+            // Check if need to enlarge the pool size base on creation allocate size and alignment
+            nextPoolAllocationSize = Util::Max(Util::Pow2Pad(localCreateInfoSize * 2), nextPoolAllocationSize);
+            nextPoolAllocationSize = Util::Max(Util::Pow2Pad(localCreateInfoAlignment * 2), nextPoolAllocationSize);
+
+            localCreateInfo.size                   = nextPoolAllocationSize;
+            localCreateInfo.alignment              = DefaultPoolAlignment;
+            localInternalInfo.flags.buddyAllocated = 1;
+
+            GpuMemory* pGpuMemory = nullptr;
+
+            // Issue the base memory allocation
+            result = AllocateBaseGpuMem(localCreateInfo, localInternalInfo, readOnly, &pGpuMemory);
+            localCreateInfo.size      = localCreateInfoSize;
+            localCreateInfo.alignment = localCreateInfoAlignment;
+
+            if (result == Result::Success)
+            {
+                // We need to add the newly allocated base allocation to the list
+                GpuMemoryPool newPool = {};
+
+                newPool.pGpuMemory = pGpuMemory;
+                newPool.readOnly   = readOnly;
+                newPool.memFlags   = requestedMemFlags;
+                newPool.heapCount  = localCreateInfo.heapCount;
+                newPool.vaRange    = localCreateInfo.vaRange;
+                newPool.mtype      = internalInfo.mtype;
+
+                if (internalInfo.pPagingFence != nullptr)
+                {
+                    newPool.pagingFenceVal = *internalInfo.pPagingFence;
+                }
+
+                for (uint32 h = 0; h < localCreateInfo.heapCount; ++h)
+                {
+                    newPool.heaps[h] = localCreateInfo.heaps[h];
+                }
+
+                // Create and initialize the buddy allocator
+                newPool.pBuddyAllocator = PAL_NEW(BuddyAllocator<Platform>, m_pDevice->GetPlatform(), AllocInternal)
+                                                 (m_pDevice->GetPlatform(),
+                                                  nextPoolAllocationSize,
+                                                  PoolMinSuballocationSize);
+
+                if (newPool.pBuddyAllocator != nullptr)
+                {
+                    // Try to initialize the buddy allocator
+                    result = newPool.pBuddyAllocator->Init();
+                    if (result == Result::Success)
+                    {
+                        result = newPool.pBuddyAllocator->ClaimGpuMemory(localCreateInfo.size,
+                                                                         localCreateInfo.alignment);
+                        // this should always be able to claim at least the first allocation.
+                        PAL_ASSERT(result == Result::Success);
+                    }
+                    if (result == Result::Success)
+                    {
+                        RWLockAuto<RWLock::ReadWrite> poolLock(&m_poolLock);
+
+                        result = m_poolList.PushFront(newPool);
+                        if (result == Result::Success)
+                        {
+                            pBestPool = m_poolList.Begin().Get();
+
+                            // assert that we got the same pool back.
+                            PAL_ASSERT(pBestPool->pGpuMemory == newPool.pGpuMemory);
+                        }
+                        else
+                        {
+                            // should already be nullptr, still want to explicitly set it.
+                            pBestPool = nullptr;
+                        }
+                    }
+                }
+                else
+                {
+                    result = Result::ErrorOutOfMemory;
+                }
+
+                // Undo any allocations if something went wrong
+                if (result != Result::Success)
+                {
+                    // Delete the buddy allocator if it exists.
+                    PAL_SAFE_DELETE(newPool.pBuddyAllocator, m_pDevice->GetPlatform());
+
+                    // If there was a failure then release the base allocation
+                    FreeBaseGpuMem(pGpuMemory);
+                }
+            }
+        }
+    }
+    // this really shouldn't fail unless we ran out of host memory.
+    PAL_ALERT(result != Result::Success);
+    return pBestPool;
+}
+
+// =====================================================================================================================
 // Allocates a base GPU memory object allocation.
 Result InternalMemMgr::AllocateBaseGpuMem(
     const GpuMemoryCreateInfo&          createInfo,
@@ -434,8 +592,8 @@ Result InternalMemMgr::AllocateBaseGpuMem(
         RWLockAuto<RWLock::ReadWrite> referenceLock(&m_referenceLock);
 
         GpuMemoryInfo memInfo = {};
-        memInfo.pGpuMemory  = *ppGpuMemory;
-        memInfo.readOnly    = readOnly;
+        memInfo.pGpuMemory    = *ppGpuMemory;
+        memInfo.readOnly      = readOnly;
         result = m_references.PushBack(memInfo);
 
         if (result == Result::Success)
@@ -509,11 +667,9 @@ Result InternalMemMgr::FreeGpuMem(
     PAL_ASSERT(pGpuMemory != nullptr);
 
     Result result = Result::ErrorInvalidValue;
-
     if (pGpuMemory->WasBuddyAllocated())
     {
-        MutexAuto allocatorLock(&m_allocatorLock); // Ensure thread-safety using the lock
-
+        RWLockAuto<RWLock::ReadOnly> poolLock(&m_poolLock);
         // Try to find the allocation in the pool list
         for (auto it = m_poolList.Begin(); it.Get() != nullptr; it.Next())
         {
@@ -533,6 +689,22 @@ Result InternalMemMgr::FreeGpuMem(
 
         // If we didn't find the allocation in the pool list then something went wrong with the allocation scheme
         PAL_ASSERT(result == Result::Success);
+
+        // Report the successful free of sub-allocation
+        Developer::GpuMemoryData data = {};
+        data.size                     = 0; // Sub allocation size is not tracked explicitly
+        data.heap                     = pGpuMemory->Desc().heaps[0];
+        data.flags.isClient           = pGpuMemory->IsClient();
+        data.flags.isFlippable        = pGpuMemory->IsFlippable();
+        data.flags.isUdmaBuffer       = pGpuMemory->IsUdmaBuffer();
+        data.flags.isCmdAllocator     = pGpuMemory->IsCmdAllocator();
+        data.flags.isVirtual          = pGpuMemory->IsVirtual();
+        data.flags.isExternal         = pGpuMemory->IsExternal();
+        data.flags.buddyAllocated     = pGpuMemory->WasBuddyAllocated();
+        data.allocMethod              = Developer::GpuMemoryAllocationMethod::Normal;
+        data.pGpuMemory               = pGpuMemory;
+        data.offset                   = offset;
+        m_pDevice->DeveloperCb(Developer::CallbackType::SubFreeGpuMemory, &data);
     }
     else
     {
@@ -541,7 +713,6 @@ Result InternalMemMgr::FreeGpuMem(
         // Free a base allocation
         result = FreeBaseGpuMem(pGpuMemory);
     }
-
     return result;
 }
 

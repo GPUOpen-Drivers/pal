@@ -138,6 +138,11 @@ DD_RESULT RmtEventStreamer::BeginStreaming(
 
     DD_RESULT result = DD_RESULT_COMMON_UNKNOWN;
 
+    m_expectedEventDataIndex = 0;
+    m_expectedEventDataIndexValid = false;
+    m_encounteredErrors = false;
+    m_rmtVersionScratchOffset = 0;
+
     // Attempt to enable the desired provider
 
     result = Init(clientId, hConnection, m_providerId);

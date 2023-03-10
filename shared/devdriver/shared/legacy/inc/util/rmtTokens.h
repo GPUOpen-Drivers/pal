@@ -733,7 +733,8 @@ struct RMT_MSG_VIRTUAL_ALLOCATE : RMT_TOKEN_DATA
         RMT_HEAP_TYPE heapImportance1,
         RMT_HEAP_TYPE heapImportance2,
         RMT_HEAP_TYPE heapImportance3,
-        uint8         heapImportanceCount)
+        uint8         heapImportanceCount,
+        bool          isExternal = false)
     {
         sizeInBytes = sizeof(bytes);
         pByteData = &bytes[0];
@@ -768,8 +769,11 @@ struct RMT_MSG_VIRTUAL_ALLOCATE : RMT_TOKEN_DATA
         // HEAP_IMPORTANCE_COUNT [92:90] The number of heap importance fields that are in use.
         SetBits(heapImportanceCount, 92, 90);
 
-        // RESERVED [95:93] Reserved for future expansion. Should be set to 0.
-        SetBits(0, 95, 93);
+        // IS_EXTERNAL [93:93]
+        SetBits((isExternal ? 1 : 0), 93, 93);
+
+        // RESERVED [95:94] Reserved for future expansion. Should be set to 0.
+        SetBits(0, 95, 94);
     }
 };
 

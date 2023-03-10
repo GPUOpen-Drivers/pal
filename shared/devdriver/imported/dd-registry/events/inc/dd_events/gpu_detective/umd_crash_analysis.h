@@ -39,10 +39,10 @@ constexpr uint32_t VersionMinor = 1;
 constexpr uint32_t ProviderId = 0x50434145;
 
 /// A marker that matches this value indicates the associated command buffer hasn't started.
-constexpr uint32_t ExecutionMarkerValueInit = 0xFFFFAAAA;
+constexpr uint32_t InitialExecutionMarkerValue = 0xFFFFAAAA;
 
 /// A marker that matches this value indicates the associated command buffer has completed.
-constexpr uint32_t ExecutionMarkerValueDone = 0xFFFFBBBB;
+constexpr uint32_t FinalExecutionMarkerValue = 0xFFFFBBBB;
 
 /// Unique id represeting each event. Each variable name of the enum value corresponds to the
 /// struct with the same name.
@@ -57,9 +57,9 @@ enum class EventId : uint8_t
 enum class ExecutionMarkerSource : uint8_t
 {
     Application = 0,
-    PAL         = 1,
-    API         = 2,
-    HW          = 3
+    Api         = 1,
+    Pal         = 2,
+    Hardware    = 3
 };
 
 /// Execution marker inserted at the top of pipe.
@@ -73,8 +73,8 @@ struct ExecutionMarkerTop
 
     /// Execution marker value. The first 4 most significant bits represent the
     /// source from which the marker was inserted, and should be one of the
-    /// values of `ExecutionMarkerSource`. The last 28 bits represent a timestamp
-    /// counter.
+    /// values of `ExecutionMarkerSource`. The last 28 bits represent a
+    /// timestamp counter.
     uint32_t marker;
 
     /// The length of `markerName`.

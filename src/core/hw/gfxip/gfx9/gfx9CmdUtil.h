@@ -264,6 +264,7 @@ public:
     static uint32 ChainSizeInDwords(EngineType engineType);
     static constexpr uint32 CondIndirectBufferSize        = PM4_PFP_COND_INDIRECT_BUFFER_SIZEDW__CORE;
     static constexpr uint32 DispatchDirectSize            = PM4_PFP_DISPATCH_DIRECT_SIZEDW__CORE;
+    static constexpr uint32 DispatchIndirectGfxSize       = PM4_ME_DISPATCH_INDIRECT_SIZEDW__CORE;
     static constexpr uint32 DispatchIndirectMecSize       = PM4_MEC_DISPATCH_INDIRECT_SIZEDW__CORE;
     static constexpr uint32 DrawIndirectSize              = PM4_PFP_DRAW_INDIRECT_SIZEDW__CORE;
     static constexpr uint32 SetIndexAttributesSize        = PM4_PFP_INDEX_ATTRIBUTES_INDIRECT_SIZEDW__CORE;

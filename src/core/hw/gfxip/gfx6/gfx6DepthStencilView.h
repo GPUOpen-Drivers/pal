@@ -85,6 +85,9 @@ public:
         const DepthStencilViewCreateInfo&         createInfo,
         const DepthStencilViewInternalCreateInfo& internalInfo);
 
+    DepthStencilView(const DepthStencilView&) = default;
+    DepthStencilView(DepthStencilView&&) = default;
+
     uint32* WriteCommands(
         ImageLayout depthLayout,
         ImageLayout stencilLayout,
@@ -170,8 +173,8 @@ private:
     DepthStencilLayoutToState  m_stencilLayoutToState;
     DepthStencilViewRegs       m_regs;
 
-    PAL_DISALLOW_DEFAULT_CTOR(DepthStencilView);
-    PAL_DISALLOW_COPY_AND_ASSIGN(DepthStencilView);
+    DepthStencilView& operator=(const DepthStencilView&) = delete;
+    DepthStencilView& operator=(DepthStencilView&&) = delete;
 };
 
 } // Gfx6

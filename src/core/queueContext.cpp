@@ -126,6 +126,14 @@ Result QueueContext::CreateTimestampMem(
             bindData.requiredGpuMemSize = sizeof(uint32);
             m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
 
+            Developer::BindGpuMemoryData callbackData = {};
+            callbackData.pObj               = bindData.pObj;
+            callbackData.requiredGpuMemSize = bindData.requiredGpuMemSize;
+            callbackData.pGpuMemory         = bindData.pGpuMemory;
+            callbackData.offset             = bindData.offset;
+            callbackData.isSystemMemory     = bindData.isSystemMemory;
+            m_pDevice->DeveloperCb(Developer::CallbackType::BindGpuMemory, &callbackData);
+
             if (needWaitForIdleMem)
             {
                 createData.pObj = &m_waitForIdleTs;
@@ -134,6 +142,10 @@ Result QueueContext::CreateTimestampMem(
                 bindData.offset = offset + sizeof(uint32);
                 bindData.pObj = &m_waitForIdleTs;
                 m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+
+                callbackData.offset = bindData.offset;
+                callbackData.pObj   = bindData.pObj;
+                m_pDevice->DeveloperCb(Developer::CallbackType::BindGpuMemory, &callbackData);
             }
 
         }

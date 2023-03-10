@@ -216,6 +216,19 @@ constexpr bool BitfieldIsSet(
     return (bitfield & (static_cast<T>(1) << bit));
 }
 
+/// Sets a single bit in a bitfield to one.
+///
+/// @param [in] bitfield  Reference to the bitfield being modified
+/// @param [in] bit       Index of the bit to set
+template <typename T>
+void BitfieldSetBit(
+    T      &bitfield,
+    uint32 bit)
+{
+    PAL_CONSTEXPR_ASSERT(bit < (sizeof(T) * 8));
+    bitfield |= (static_cast<T>(1) << bit);
+}
+
 ///@{
 /// Counts the number of one bits (population count) in an unsigned integer using some bitwise magic explained in the
 /// Software Optimization Guide for AMD64 Processors.

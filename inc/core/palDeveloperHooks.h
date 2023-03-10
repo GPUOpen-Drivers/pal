@@ -65,8 +65,19 @@ enum class CallbackType : uint32
     OptimizedRegisters,     ///< This callback is to describe the PM4 optimizer's removal of redundant register
                             ///  sets.
 #endif
+    BindGpuMemory,          ///< This callback is to inform of a new binding to GPU memory.
+    SubAllocGpuMemory,      ///< This callback is to inform of suballocation from base GPU memory allocation.
+    SubFreeGpuMemory,       ///< This callback is to inform that GPU memory suballocation has been freed.
     Count,                  ///< The number of info types.
 };
+
+constexpr uint32 AllCallbackTypesMask = Util::BitfieldGenMask(static_cast<uint32>(CallbackType::Count));
+
+constexpr uint32 DefaultDisabledCallbackTypes = (1 << static_cast<uint32>(CallbackType::BindGpuMemory))     |
+                                                (1 << static_cast<uint32>(CallbackType::SubAllocGpuMemory)) |
+                                                (1 << static_cast<uint32>(CallbackType::SubFreeGpuMemory));
+
+constexpr uint32 DefaultEnabledCallbackTypes = AllCallbackTypesMask & ~DefaultDisabledCallbackTypes;
 
 /// Definition for developer callback.
 ///
@@ -123,10 +134,15 @@ struct GpuMemoryData
         uint32 isUdmaBuffer     :  1;       ///< This allocation is for a UDMA buffer.
         uint32 isVirtual        :  1;       ///< This allocation is for virtual memory.
         uint32 isCmdAllocator   :  1;       ///< This allocation is for a CmdAllocator.
-        uint32 reserved         : 27;       ///< Reserved for future use.
+        uint32 isExternal       :  1;       ///< This allocation is marked as external.
+        uint32 buddyAllocated   :  1;       ///< This allocation is buddy allocated.
+        uint32 reserved         : 25;       ///< Reserved for future use.
     } flags;                                ///< Flags describing the allocation.
 
     GpuMemoryAllocationMethod allocMethod;  ///< Allocation method
+    const IGpuMemory*         pGpuMemory;   ///< Handle to the Pal::IGpuMemory object of this GPU memory allocation
+    gpusize offset;                         ///< Offset, in bytes, of a suballocation within a base allocation.  For
+                                            ///  base allocations, offset is always zero.
 };
 
 /// Information pertaining to the cache flush/invalidations and stalls performed during barrier execution.
@@ -480,6 +496,17 @@ struct OptimizedRegistersData
     uint16        ctxRegBase;       ///< Base address of context registers
 };
 #endif
+
+/// Describes the binding of a GPU Memory object to a resource
+struct BindGpuMemoryData
+{
+    const void*         pObj;               ///< Opaque pointer to the resource having memory bound to it.
+    gpusize             requiredGpuMemSize; ///< GPU memory size required by pObj.
+    const IGpuMemory*   pGpuMemory;         ///< IGpuMemory object being bound to the resource.
+    gpusize             offset;             ///< Offset within pGpuMemory where the resource is being bound.
+    bool                isSystemMemory;     ///< If true then system memory is being bound to the object. In this case,
+                                            ///  pGpuMemory and offset should be set to zero.
+};
 
 } // Developer
 } // Pal

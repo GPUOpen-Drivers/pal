@@ -264,6 +264,26 @@ void SettingsLoader::OverrideDefaults()
             {
                 m_settings.useExecuteIndirectPacket = UseExecuteIndirectPacketForDrawSpillAndVbTable;
             }
+
+            constexpr uint32 PfpUcodeVersionDispatchExecuteIndirectGfx10_1   = 156;
+            constexpr uint32 PfpUcodeVersionDispatchExecuteIndirectGfx10_3   = 97;
+#if PAL_BUILD_GFX11
+            constexpr uint32 PfpUcodeVersionDispatchExecuteIndirectGfx11F32  = 95;
+            constexpr uint32 PfpUcodeVersionDispatchExecuteIndirectGfx11Rs64 = 1535;
+#endif
+
+            if (CheckGfx101CpUcodeVersion(*m_pDevice, PfpUcodeVersionDispatchExecuteIndirectGfx10_1) ||
+                CheckGfx103CpUcodeVersion(*m_pDevice, PfpUcodeVersionDispatchExecuteIndirectGfx10_3)
+#if PAL_BUILD_GFX11
+                || CheckGfx11CpUcodeVersion(
+                    *m_pDevice,
+                    PfpUcodeVersionDispatchExecuteIndirectGfx11F32,
+                    PfpUcodeVersionDispatchExecuteIndirectGfx11Rs64)
+#endif
+                )
+            {
+                // m_settings.useExecuteIndirectPacket = UseExecuteIndirectPacketForDrawDispatch;
+            }
         }
     }
 

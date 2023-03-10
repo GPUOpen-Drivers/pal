@@ -121,12 +121,11 @@ Result CmdStreamAllocation::Init(
     }
     else
     {
-        // In CmdAllocator::CreateAllocation() the allocator lock is already accquired.
-        result = pDevice->MemMgr()->AllocateGpuMemNoAllocLock(m_createInfo.memObjCreateInfo,
-                                                              m_createInfo.memObjInternalInfo,
-                                                              false,
-                                                              &m_pGpuMemory,
-                                                              nullptr);
+        result = pDevice->MemMgr()->AllocateGpuMem(m_createInfo.memObjCreateInfo,
+                                                   m_createInfo.memObjInternalInfo,
+                                                   false,
+                                                   &m_pGpuMemory,
+                                                   nullptr);
 
         if ((result == Result::Success) && CpuAccessible())
         {
@@ -492,7 +491,6 @@ bool CmdStreamChunk::ContainsAddress(
     return ((pAddress >= pBaseAddr) && (pAddress < pEndAddr));
 }
 
-#if PAL_ENABLE_PRINTS_ASSERTS
 // =====================================================================================================================
 // Writes the commands in this chunk to the given file. Each DWORD is expressed in hex and printed on its own line.
 Result CmdStreamChunk::WriteCommandsToFile(
@@ -534,6 +532,5 @@ Result CmdStreamChunk::WriteCommandsToFile(
 
     return result;
 }
-#endif
 
 } // Pal

@@ -163,8 +163,7 @@ public:
     {
         return ((GetProfilerMode() > GpuProfilerCounterAndTimingOnly)
                 && (Util::TestAnyFlagSet(GetPlatform()->PlatformSettings().gpuProfilerConfig.traceModeMask,
-                                         GpuProfilerTraceSqtt))
-                && (GetSeMask() > 0));
+                                         GpuProfilerTraceSqtt)));
     }
 
     // Returns true if the settings config has successfully requested for Streaming counter trace.

@@ -767,6 +767,8 @@ struct GpuChipProperties
                                                      // Note: Only valid if supportGl2Uncached is true.
         uint32 maxGsOutputVert;                      // Maximum number of GS vertices output.
         uint32 maxGsTotalOutputComponents;           // Maximum number of GS output components totally.
+        uint32 maxGsInvocations;                     // Maximum number of GS prim instances, corresponding to geometry
+                                                     // shader invocation in glsl.
         uint32 dynamicLaunchDescSize;                // Dynamic compute pipeline launch descriptor size in bytes
         // Mask of active pixel packers. The mask is 128 bits wide, assuming a max of 32 SEs and a max of 4 pixel
         // packers (indicated by a single bit each) per physical SE (includes harvested SEs).
@@ -1030,7 +1032,9 @@ struct GpuChipProperties
                 uint64 support2DRectList                  :  1; // HW supports PrimitiveTopology::TwoDRectList.
                 uint64 supportImageViewMinLod             :  1; // Indicates image srd supports min_lod.
                 uint64 stateShadowingByCpFw               :  1; // Indicates that state shadowing is done is CP FW.
-                uint64 reserved                           : 12;
+                uint64 support3dUavZRange                 :  1; // HW supports read-write ImageViewSrds of 3D images
+                                                                // with zRange specified.
+                uint64 reserved                           : 11;
             };
 
             RayTracingIpLevel rayTracingIp;      //< HW RayTracing IP version
@@ -1927,7 +1931,9 @@ public:
 #endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-    bool IsCmdBufDumpEnabled() const { return m_cmdBufDumpEnabled; }
+    bool IsCmdBufDumpEnabledViaHotkey() const { return m_cmdBufDumpEnabledViaHotkey; }
+#else
+    bool IsCmdBufDumpEnabledViaHotkey() const { return false; }
 #endif
     uint32 GetFrameCount() const { return m_frameCnt; }
     void IncFrameCount();
@@ -2039,7 +2045,6 @@ public:
 
     const FlglState& GetFlglState() const { return m_flglState; }
 
-#if PAL_ENABLE_PRINTS_ASSERTS
     void LogCodeObjectToDisk(
         Util::StringView<char> prefix,
         Util::StringView<char> name,
@@ -2047,7 +2052,6 @@ public:
         bool                   isInternal,
         const void*            pCodeObject,
         size_t                 codeObjectLen) const;
-#endif
 
     bool IsFinalized() const { return m_deviceFinalized; }
     size_t NumQueues() const { return m_queues.NumElements(); }
@@ -2203,8 +2207,8 @@ protected:
     bool  m_deviceFinalized;    // Set if the client has ever call Finalize().
 
 #if PAL_ENABLE_PRINTS_ASSERTS
-    bool  m_settingsCommitted;  // Set if the client has ever called CommitSettingsAndInit().
-    bool  m_cmdBufDumpEnabled;  // Command buffer dumping is enabled on the next frame
+    bool  m_settingsCommitted;           // Set if the client has ever called CommitSettingsAndInit().
+    bool  m_cmdBufDumpEnabledViaHotkey;  // Command buffer dumping is enabled on the next frame
 #endif
 
     const bool m_force32BitVaSpace;  // Forces 32 bit virtual address space

@@ -53,7 +53,13 @@ public:
     ColorTargetView(
         const Device*                     pDevice,
         const ColorTargetViewCreateInfo&  createInfo,
-        ColorTargetViewInternalCreateInfo internalInfo);
+        ColorTargetViewInternalCreateInfo internalInfo,
+        uint32                            uniqueId);
+
+    ColorTargetView(const ColorTargetView&) = default;
+    ColorTargetView& operator=(const ColorTargetView&) = default;
+    ColorTargetView(ColorTargetView&&) = default;
+    ColorTargetView& operator=(ColorTargetView&&) = default;
 
     virtual uint32* WriteCommands(
         uint32             slot,
@@ -93,6 +99,8 @@ public:
     // Mask of CB_COLORn_INFO bits owned by the ColorTargetView classes.
     static const uint32 CbColorInfoMask = static_cast<uint32>(~(CB_COLOR0_INFO__BLEND_OPT_DONT_RD_DST_MASK |
                                                                 CB_COLOR0_INFO__BLEND_OPT_DISCARD_PIXEL_MASK));
+
+     bool Equals(const ColorTargetView* pOther) const;
 
 protected:
     virtual ~ColorTargetView()
@@ -170,16 +178,14 @@ protected:
         uint32 u32All;
     } m_flags;
 
-    const Image* const  m_pImage;
-    const GfxIpLevel    m_gfxLevel;
+    const Image*        m_pImage;
+    GfxIpLevel          m_gfxLevel;
     SubresId            m_subresource;
     uint32              m_arraySize;
+    uint32              m_uniqueId;
     SwizzledFormat      m_swizzledFormat;
     Pm4::TargetExtent2d m_extent;
     ColorLayoutToState  m_layoutToState;
-
-private:
-    PAL_DISALLOW_COPY_AND_ASSIGN(ColorTargetView);
 };
 
 // Set of context registers associated with a color-target view object.
@@ -211,7 +217,13 @@ public:
     Gfx9ColorTargetView(
         const Device*                     pDevice,
         const ColorTargetViewCreateInfo&  createInfo,
-        ColorTargetViewInternalCreateInfo internalInfo);
+        ColorTargetViewInternalCreateInfo internalInfo,
+        uint32                            uniqueId);
+
+    Gfx9ColorTargetView(const Gfx9ColorTargetView&) = default;
+    Gfx9ColorTargetView& operator=(const Gfx9ColorTargetView&) = default;
+    Gfx9ColorTargetView(Gfx9ColorTargetView&&) = default;
+    Gfx9ColorTargetView& operator=(Gfx9ColorTargetView&&) = default;
 
     virtual uint32* WriteCommands(
         uint32             slot,
@@ -235,8 +247,6 @@ private:
         ColorTargetViewInternalCreateInfo internalInfo);
 
     Gfx9ColorTargetViewRegs  m_regs;
-
-    PAL_DISALLOW_COPY_AND_ASSIGN(Gfx9ColorTargetView);
 };
 
 // Set of context registers associated with a color-target view object.
@@ -273,7 +283,13 @@ public:
     Gfx10ColorTargetView(
         const Device*                     pDevice,
         const ColorTargetViewCreateInfo&  createInfo,
-        ColorTargetViewInternalCreateInfo internalInfo);
+        ColorTargetViewInternalCreateInfo internalInfo,
+        uint32                            uniqueId);
+
+    Gfx10ColorTargetView(const Gfx10ColorTargetView&) = default;
+    Gfx10ColorTargetView& operator=(const Gfx10ColorTargetView&) = default;
+    Gfx10ColorTargetView(Gfx10ColorTargetView&&) = default;
+    Gfx10ColorTargetView& operator=(Gfx10ColorTargetView&&) = default;
 
     virtual uint32* WriteCommands(
         uint32             slot,
@@ -310,8 +326,6 @@ private:
     // The view as a cached SRD, for use with the UAV export opt.  This must be generated on-the-fly if the VA is not
     //  known in advance.
     ImageSrd  m_uavExportSrd;
-
-    PAL_DISALLOW_COPY_AND_ASSIGN(Gfx10ColorTargetView);
 };
 
 #if PAL_BUILD_GFX11
@@ -346,7 +360,13 @@ public:
     Gfx11ColorTargetView(
         const Device*                     pDevice,
         const ColorTargetViewCreateInfo&  createInfo,
-        ColorTargetViewInternalCreateInfo internalInfo);
+        ColorTargetViewInternalCreateInfo internalInfo,
+        uint32                            uniqueId);
+
+    Gfx11ColorTargetView(const Gfx11ColorTargetView&) = default;
+    Gfx11ColorTargetView& operator=(const Gfx11ColorTargetView&) = default;
+    Gfx11ColorTargetView(Gfx11ColorTargetView&&) = default;
+    Gfx11ColorTargetView& operator=(Gfx11ColorTargetView&&) = default;
 
     virtual uint32* WriteCommands(
         uint32             slot,
@@ -382,8 +402,6 @@ private:
     // The view as a cached SRD, for use with the UAV export opt.  This must be generated on-the-fly if the VA is not
     //  known in advance.
     ImageSrd  m_uavExportSrd;
-
-    PAL_DISALLOW_COPY_AND_ASSIGN(Gfx11ColorTargetView);
 };
 #endif
 

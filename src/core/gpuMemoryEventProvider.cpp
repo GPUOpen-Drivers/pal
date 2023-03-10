@@ -528,7 +528,8 @@ void GpuMemoryEventProvider::LogEvent(
                     PalToRmtHeapType(pData->heaps[1]),
                     PalToRmtHeapType(pData->heaps[2]),
                     PalToRmtHeapType(pData->heaps[3]),
-                    static_cast<DevDriver::uint8>(pData->heapCount));
+                    static_cast<DevDriver::uint8>(pData->heapCount),
+                    pData->isExternalShared);
 
                 WriteTokenData(eventToken);
 

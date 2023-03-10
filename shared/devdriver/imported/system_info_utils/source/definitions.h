@@ -1,7 +1,7 @@
 /*
  ***********************************************************************************************************************
  *
- *  Copyright (c) 2023 Advanced Micro Devices, Inc. All Rights Reserved.
+ *  Copyright (c) 2022-2023 Advanced Micro Devices, Inc. All Rights Reserved.
  *
  *  Permission is hereby granted, free of charge, to any person obtaining a copy
  *  of this software and associated documentation files (the "Software"), to deal
@@ -22,9 +22,6 @@
  *  SOFTWARE.
  *
  **********************************************************************************************************************/
-
-//=============================================================================
-// Copyright (c) 2022 Advanced Micro Devices, Inc. All rights reserved.
 /// @author AMD Developer Tools Team
 /// @file
 /// @brief JSON key definitions
@@ -33,15 +30,32 @@
 #ifndef SYSTEM_INFO_UTILS_SOURCE_DEFINITIONS_H_
 #define SYSTEM_INFO_UTILS_SOURCE_DEFINITIONS_H_
 
-#if defined(__cpp_exceptions) || defined(__EXCEPTIONS) || (_HAS_EXCEPTIONS)
+#if defined(__clang__)
+#if defined(__cpp_exceptions) || defined(__EXCEPTIONS)
 #define SYSTEM_INFO_THROW(exception) throw exception
 #define SYSTEM_INFO_TRY try
 #define SYSTEM_INFO_CATCH(exception) catch (exception)
+#define SYSTEM_INFO_UNUSED(x) (void)(x)
 #else
 #include <cstdlib>
 #define SYSTEM_INFO_THROW(exception) std::abort()
 #define SYSTEM_INFO_TRY if (true)
 #define SYSTEM_INFO_CATCH(exception) if (false)
+#define SYSTEM_INFO_UNUSED(x)
+#endif
+#else
+#if defined(__cpp_exceptions) || defined(__EXCEPTIONS) || (_HAS_EXCEPTIONS)
+#define SYSTEM_INFO_THROW(exception) throw exception
+#define SYSTEM_INFO_TRY try
+#define SYSTEM_INFO_CATCH(exception) catch (exception)
+#define SYSTEM_INFO_UNUSED(x) (void)(x)
+#else
+#include <cstdlib>
+#define SYSTEM_INFO_THROW(exception) std::abort()
+#define SYSTEM_INFO_TRY if (true)
+#define SYSTEM_INFO_CATCH(exception) if (false)
+#define SYSTEM_INFO_UNUSED(x)
+#endif
 #endif
 
 static constexpr const char* kSystemInfoChunkIdentifier = "SystemInfo";

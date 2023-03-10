@@ -539,6 +539,14 @@ Result Device::InitOcclusionResetMem()
             bindData.offset = memOffset;
             bindData.requiredGpuMemSize = srcMemCreateInfo.size;
             m_pParent->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+
+            Developer::BindGpuMemoryData callbackData = {};
+            callbackData.pObj               = bindData.pObj;
+            callbackData.requiredGpuMemSize = bindData.requiredGpuMemSize;
+            callbackData.pGpuMemory         = bindData.pGpuMemory;
+            callbackData.offset             = bindData.offset;
+            callbackData.isSystemMemory     = bindData.isSystemMemory;
+            m_pParent->DeveloperCb(Developer::CallbackType::BindGpuMemory, &callbackData);
         }
 
         result = m_occlusionSrcMem.Map(reinterpret_cast<void**>(&pData));
@@ -3280,18 +3288,23 @@ Result Device::CreateColorTargetView(
     IColorTargetView**                ppColorTargetView
     ) const
 {
+    const uint32 viewId = m_nextColorTargetViewId++;
+
     if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
     {
-        (*ppColorTargetView) = PAL_PLACEMENT_NEW(pPlacementAddr) Gfx9ColorTargetView(this, createInfo, internalInfo);
+        (*ppColorTargetView) =
+            PAL_PLACEMENT_NEW(pPlacementAddr) Gfx9ColorTargetView(this, createInfo, internalInfo, viewId);
     }
     else if (IsGfx10(m_gfxIpLevel))
     {
-        (*ppColorTargetView) = PAL_PLACEMENT_NEW(pPlacementAddr) Gfx10ColorTargetView(this, createInfo, internalInfo);
+        (*ppColorTargetView) =
+            PAL_PLACEMENT_NEW(pPlacementAddr) Gfx10ColorTargetView(this, createInfo, internalInfo, viewId);
     }
 #if PAL_BUILD_GFX11
     else if (IsGfx11(m_gfxIpLevel))
     {
-        (*ppColorTargetView) = PAL_PLACEMENT_NEW(pPlacementAddr) Gfx11ColorTargetView(this, createInfo, internalInfo);
+        (*ppColorTargetView) =
+            PAL_PLACEMENT_NEW(pPlacementAddr) Gfx11ColorTargetView(this, createInfo, internalInfo, viewId);
     }
 #endif
 
@@ -3327,13 +3340,17 @@ Result Device::CreateDepthStencilView(
     IDepthStencilView**                       ppDepthStencilView
     ) const
 {
+    const uint32 viewId = m_nextDepthStencilViewId++;
+
     if (m_gfxIpLevel == GfxIpLevel::GfxIp9)
     {
-        (*ppDepthStencilView) = PAL_PLACEMENT_NEW(pPlacementAddr) Gfx9DepthStencilView(this, createInfo, internalInfo);
+        (*ppDepthStencilView) =
+            PAL_PLACEMENT_NEW(pPlacementAddr) Gfx9DepthStencilView(this, createInfo, internalInfo, viewId);
     }
     else if (IsGfx10Plus(m_gfxIpLevel))
     {
-        (*ppDepthStencilView) = PAL_PLACEMENT_NEW(pPlacementAddr) Gfx10DepthStencilView(this, createInfo, internalInfo);
+        (*ppDepthStencilView) =
+            PAL_PLACEMENT_NEW(pPlacementAddr) Gfx10DepthStencilView(this, createInfo, internalInfo, viewId);
     }
     else
     {
@@ -6835,6 +6852,15 @@ void InitializeGpuChipProperties(
         pInfo->gfxip.maxGsTotalOutputComponents = 4095; // power of two minus one
     }
 
+    if (IsGfx10Plus(pInfo->gfxLevel))
+    {
+        pInfo->gfxip.maxGsInvocations = 126;
+    }
+    else
+    {
+        pInfo->gfxip.maxGsInvocations = 127;
+    }
+
     if (IsGfx103Plus(pInfo->gfxLevel))
     {
         pInfo->imageProperties.prtFeatures = Gfx102PlusPrtFeatures;
@@ -7024,7 +7050,14 @@ void InitializeGpuChipProperties(
     pInfo->gfx9.supportTrapezoidTessDistribution = 1;
 
     pInfo->gfx9.supportReleaseAcquireInterface = 1;
-    pInfo->gfx9.supportSplitReleaseAcquire     = IsGfx10Plus(pInfo->gfxLevel);
+
+    if (IsGfx10Plus(pInfo->gfxLevel))
+    {
+        pInfo->gfx9.supportSplitReleaseAcquire = 1;
+
+        // Only supported on GFX10+ because GFX9 ignores the BASE_ARRAY SRD field for 3D image views.
+        pInfo->gfx9.support3dUavZRange = 1;
+    }
 
     switch (pInfo->familyId)
     {

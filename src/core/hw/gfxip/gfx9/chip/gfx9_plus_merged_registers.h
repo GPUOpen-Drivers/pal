@@ -9401,7 +9401,7 @@ union DF_PIE_AON_PerfMonCtlHi0 {
         unsigned int EventSelectHi                                                :  6;
         unsigned int                                                              :  2;
         unsigned int Filter                                                       : 24;
-    } gfx11;
+    } gfx110;
 #endif
     struct {
         unsigned int EventSelectHi                                                :  6;
@@ -9426,7 +9426,7 @@ union DF_PIE_AON_PerfMonCtlHi1 {
         unsigned int EventSelectHi                                                :  6;
         unsigned int                                                              :  2;
         unsigned int Filter                                                       : 24;
-    } gfx11;
+    } gfx110;
 #endif
     struct {
         unsigned int EventSelectHi                                                :  6;
@@ -9451,7 +9451,7 @@ union DF_PIE_AON_PerfMonCtlHi2 {
         unsigned int EventSelectHi                                                :  6;
         unsigned int                                                              :  2;
         unsigned int Filter                                                       : 24;
-    } gfx11;
+    } gfx110;
 #endif
     struct {
         unsigned int EventSelectHi                                                :  6;
@@ -9476,7 +9476,7 @@ union DF_PIE_AON_PerfMonCtlHi3 {
         unsigned int EventSelectHi                                                :  6;
         unsigned int                                                              :  2;
         unsigned int Filter                                                       : 24;
-    } gfx11;
+    } gfx110;
 #endif
     struct {
         unsigned int EventSelectHi                                                :  6;
@@ -9501,7 +9501,7 @@ union DF_PIE_AON_PerfMonCtlHi4 {
         unsigned int EventSelectHi                                                :  6;
         unsigned int                                                              :  2;
         unsigned int Filter                                                       : 24;
-    } gfx11;
+    } gfx110;
 #endif
     struct {
         unsigned int EventSelectHi                                                :  6;
@@ -9526,7 +9526,7 @@ union DF_PIE_AON_PerfMonCtlHi5 {
         unsigned int EventSelectHi                                                :  6;
         unsigned int                                                              :  2;
         unsigned int Filter                                                       : 24;
-    } gfx11;
+    } gfx110;
 #endif
     struct {
         unsigned int EventSelectHi                                                :  6;
@@ -9551,7 +9551,7 @@ union DF_PIE_AON_PerfMonCtlHi6 {
         unsigned int EventSelectHi                                                :  6;
         unsigned int                                                              :  2;
         unsigned int Filter                                                       : 24;
-    } gfx11;
+    } gfx110;
 #endif
     struct {
         unsigned int EventSelectHi                                                :  6;
@@ -9576,7 +9576,7 @@ union DF_PIE_AON_PerfMonCtlHi7 {
         unsigned int EventSelectHi                                                :  6;
         unsigned int                                                              :  2;
         unsigned int Filter                                                       : 24;
-    } gfx11;
+    } gfx110;
 #endif
     struct {
         unsigned int EventSelectHi                                                :  6;
@@ -9708,7 +9708,7 @@ union DF_PIE_AON_PerfMonCtlLo0 {
         unsigned int                                                              :  2;
         unsigned int UnitMaskHi                                                   :  4;
         unsigned int                                                              :  4;
-    } gfx11;
+    } gfx110;
 #endif
     struct {
         unsigned int                                                              : 21;
@@ -9762,7 +9762,7 @@ union DF_PIE_AON_PerfMonCtlLo1 {
         unsigned int                                                              :  2;
         unsigned int UnitMaskHi                                                   :  4;
         unsigned int                                                              :  4;
-    } gfx11;
+    } gfx110;
 #endif
     struct {
         unsigned int                                                              : 21;
@@ -9816,7 +9816,7 @@ union DF_PIE_AON_PerfMonCtlLo2 {
         unsigned int                                                              :  2;
         unsigned int UnitMaskHi                                                   :  4;
         unsigned int                                                              :  4;
-    } gfx11;
+    } gfx110;
 #endif
     struct {
         unsigned int                                                              : 21;
@@ -9870,7 +9870,7 @@ union DF_PIE_AON_PerfMonCtlLo3 {
         unsigned int                                                              :  2;
         unsigned int UnitMaskHi                                                   :  4;
         unsigned int                                                              :  4;
-    } gfx11;
+    } gfx110;
 #endif
     struct {
         unsigned int                                                              : 21;
@@ -9924,7 +9924,7 @@ union DF_PIE_AON_PerfMonCtlLo4 {
         unsigned int                                                              :  2;
         unsigned int UnitMaskHi                                                   :  4;
         unsigned int                                                              :  4;
-    } gfx11;
+    } gfx110;
 #endif
     struct {
         unsigned int                                                              : 21;
@@ -9978,7 +9978,7 @@ union DF_PIE_AON_PerfMonCtlLo5 {
         unsigned int                                                              :  2;
         unsigned int UnitMaskHi                                                   :  4;
         unsigned int                                                              :  4;
-    } gfx11;
+    } gfx110;
 #endif
     struct {
         unsigned int                                                              : 21;
@@ -10032,7 +10032,7 @@ union DF_PIE_AON_PerfMonCtlLo6 {
         unsigned int                                                              :  2;
         unsigned int UnitMaskHi                                                   :  4;
         unsigned int                                                              :  4;
-    } gfx11;
+    } gfx110;
 #endif
     struct {
         unsigned int                                                              : 21;
@@ -10086,7 +10086,7 @@ union DF_PIE_AON_PerfMonCtlLo7 {
         unsigned int                                                              :  2;
         unsigned int UnitMaskHi                                                   :  4;
         unsigned int                                                              :  4;
-    } gfx11;
+    } gfx110;
 #endif
     struct {
         unsigned int                                                              : 21;

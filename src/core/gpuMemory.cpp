@@ -460,6 +460,9 @@ GpuMemory::~GpuMemory()
     data.flags.isUdmaBuffer       = IsUdmaBuffer();
     data.flags.isCmdAllocator     = IsCmdAllocator();
     data.flags.isVirtual          = IsVirtual();
+    data.flags.isExternal         = IsExternal();
+    data.flags.buddyAllocated     = WasBuddyAllocated();
+    data.pGpuMemory               = this;
     m_pDevice->DeveloperCb(Developer::CallbackType::FreeGpuMemory, &data);
 
 }
@@ -831,6 +834,8 @@ Result GpuMemory::Init(
 
         if (IsErrorResult(result) == false)
         {
+            m_desc.uniqueId = GenerateUniqueId();
+
             DescribeGpuMemory(Developer::GpuMemoryAllocationMethod::Normal);
         }
     }
@@ -861,6 +866,7 @@ Result GpuMemory::Init(
     m_desc.clientSize = createInfo.size; // store the requested size before any alignment
     m_desc.size       = createInfo.size;
     m_desc.alignment  = createInfo.alignment;
+    m_desc.uniqueId   = GenerateUniqueId();
     if (createInfo.flags.gl2Uncached)
     {
         m_mtype = MType::Uncached;
@@ -942,6 +948,7 @@ Result GpuMemory::Init(
     m_desc.size       = createInfo.size;
     m_desc.alignment  = (createInfo.alignment != 0) ? createInfo.alignment
                                                    : m_pDevice->MemoryProperties().realMemAllocGranularity;
+    m_desc.uniqueId   = GenerateUniqueId();
 
     m_vaPartition                    = m_pDevice->ChooseVaPartition(createInfo.vaRange, false);
 
@@ -985,6 +992,7 @@ Result GpuMemory::Init(
     m_desc.clientSize = m_pOriginalMem->m_desc.clientSize;
     m_desc.size       = m_pOriginalMem->m_desc.size;
     m_desc.alignment  = m_pOriginalMem->m_desc.alignment;
+    m_desc.uniqueId   = m_pOriginalMem->m_desc.uniqueId;
     m_vaPartition     = m_pOriginalMem->m_vaPartition;
     m_mtype           = m_pOriginalMem->m_mtype;
     m_heapCount       = m_pOriginalMem->m_heapCount;
@@ -1055,6 +1063,7 @@ Result GpuMemory::Init(
     m_desc.clientSize = m_pOriginalMem->m_desc.clientSize;
     m_desc.size       = m_pOriginalMem->m_desc.size;
     m_desc.alignment  = m_pOriginalMem->m_desc.alignment;
+    m_desc.uniqueId   = m_pOriginalMem->m_desc.uniqueId;
     m_vaPartition     = m_pOriginalMem->m_vaPartition;
     m_mtype           = m_pOriginalMem->m_mtype;
     m_heapCount       = m_pOriginalMem->m_heapCount;
@@ -1262,7 +1271,10 @@ void GpuMemory::DescribeGpuMemory(
     data.flags.isCmdAllocator     = IsCmdAllocator();
     data.flags.isUdmaBuffer       = IsUdmaBuffer();
     data.flags.isVirtual          = IsVirtual();
+    data.flags.isExternal         = IsExternal();
+    data.flags.buddyAllocated     = WasBuddyAllocated();
     data.allocMethod              = allocMethod;
+    data.pGpuMemory               = this;
     m_pDevice->DeveloperCb(Developer::CallbackType::AllocGpuMemory, &data);
 }
 
@@ -1366,6 +1378,13 @@ gpusize GpuMemory::GetPhysicalAddressAlignment() const
     }
 
     return alignment;
+}
+
+// =====================================================================================================================
+/// Generate a 64-bit unique ID for this GPU memory.
+uint64 GpuMemory::GenerateUniqueId(void) const
+{
+    return reinterpret_cast<uint64>(this) ^ Uint64CombineParts(0, GetIdOfCurrentProcess());
 }
 
 } // Pal

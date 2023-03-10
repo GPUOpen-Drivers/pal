@@ -30,11 +30,20 @@
 #include "core/hw/gfxip/gfx9/gfx9CmdStream.h"
 #include "core/hw/gfxip/gfx9/gfx9ComputeCmdBuffer.h"
 #include "core/hw/gfxip/gfx9/gfx9WorkaroundState.h"
+#include "core/hw/gfxip/gfx9/gfx9ColorTargetView.h"
+#include "core/hw/gfxip/gfx9/gfx9DepthStencilView.h"
 #include "g_gfx9Settings.h"
 #include "palAutoBuffer.h"
 #include "palIntervalTree.h"
 #include "palPipelineAbi.h"
 #include "palVector.h"
+
+#ifdef max
+#undef max
+#endif
+
+#include <algorithm>
+#include <type_traits>
 
 namespace Pal
 {
@@ -582,6 +591,8 @@ public:
     uint32 BuildExecuteIndirectIb2Packets(
         const IndirectCmdGenerator& gfx9Generator,
         const GraphicsPipeline&     gfxPipeline,
+        const ComputePipeline&      csPipeline,
+        const bool                  isGfx,
         uint32*                     pDeCmdIb2Space);
 
     gpusize ConstructExecuteIndirectIb2(
@@ -589,6 +600,7 @@ public:
         PipelineBindPoint           bindPoint,
         const uint32                maximumCount,
         const GraphicsPipeline*     pGfxPipeline,
+        const ComputePipeline*      pCsPipeline,
         gpusize*                    pIb2GpuSize,
         gpusize*                    pSpillTableAddress,
         uint32*                     pSpillTableInstCnt,
@@ -1123,6 +1135,32 @@ private:
         const GraphicsPipeline*         pCurrentPipeline,
         Util::Abi::PrimShaderCullingCb* pPrimShaderCb) const;
 
+    template <typename... Tn>
+    using ViewStorage = typename std::aligned_storage<
+        std::max({ sizeof(Tn)... }),
+        std::max({ alignof(Tn)... })>::type;
+
+#if PAL_BUILD_GFX11
+    using ColorTargetViewStorage  = ViewStorage<Gfx9ColorTargetView, Gfx10ColorTargetView, Gfx11ColorTargetView>;
+#else
+    using ColorTargetViewStorage  = ViewStorage<Gfx9ColorTargetView, Gfx10ColorTargetView>;
+#endif
+    using DepthStencilViewStorage = ViewStorage<Gfx9DepthStencilView, Gfx10DepthStencilView>;
+
+    IColorTargetView* StoreColorTargetView(uint32 slot, const BindTargetParams& params);
+
+    void CopyColorTargetViewStorage(
+        ColorTargetViewStorage*       pColorTargetViewStorageDst,
+        const ColorTargetViewStorage* pColorTargetViewStorageSrc,
+        Pm4::GraphicsState*           pGraphicsStateDst);
+
+    IDepthStencilView* StoreDepthStencilView(const BindTargetParams& params);
+
+    void CopyDepthStencilViewStorage(
+        DepthStencilViewStorage*       pDepthStencilViewStorageDst,
+        const DepthStencilViewStorage* pDepthStencilViewStorageSrc,
+        Pm4::GraphicsState*            pGraphicsStateDst);
+
     const Device&   m_device;
     const CmdUtil&  m_cmdUtil;
     CmdStream       m_deCmdStream;
@@ -1318,6 +1356,11 @@ private:
     gpusize m_meshPipeStatsGpuAddr;
 
     gpusize m_globalInternalTableAddr; // If non-zero, the low 32-bits of the global internal table were written here.
+
+    ColorTargetViewStorage  m_colorTargetViewStorage[MaxColorTargets];
+    ColorTargetViewStorage  m_colorTargetViewRestoreStorage[MaxColorTargets];
+    DepthStencilViewStorage m_depthStencilViewStorage;
+    DepthStencilViewStorage m_depthStencilViewRestoreStorage;
 
     PAL_DISALLOW_DEFAULT_CTOR(UniversalCmdBuffer);
     PAL_DISALLOW_COPY_AND_ASSIGN(UniversalCmdBuffer);

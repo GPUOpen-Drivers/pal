@@ -3051,6 +3051,17 @@ void CmdBuffer::CmdInsertRgpTraceMarker(
 }
 
 // =====================================================================================================================
+uint32 CmdBuffer::CmdInsertExecutionMarker(
+    bool        isBegin,
+    uint8       sourceId,
+    const char* pMarkerName,
+    uint32      markerNameSize)
+{
+    // This function is not logged because it should only be called by other debug tools.
+    return m_pNextLayer->CmdInsertExecutionMarker(isBegin, sourceId, pMarkerName, markerNameSize);
+}
+
+// =====================================================================================================================
 void CmdBuffer::CmdCopyDfSpmTraceData(
     const IPerfExperiment& perfExperiment,
     const IGpuMemory&      dstGpuMemory,
@@ -3882,44 +3893,6 @@ void CmdBuffer::CmdDispatchMeshIndirectMulti(
         pLogContext->KeyAndValue("stride", stride);
         pLogContext->KeyAndValue("maximumCount", maximumCount);
         pLogContext->KeyAndValue("countGpuAddr", countGpuAddr);
-        pLogContext->EndInput();
-
-        pThis->m_pPlatform->LogEndFunc(pLogContext);
-    }
-}
-
-// =====================================================================================================================
-void  CmdBuffer::CmdCopyImageToPackedPixelImage(
-    const Pal::IImage&           srcImage,
-    const Pal::IImage&           dstImage,
-    uint32                       regionCount,
-    const Pal::ImageCopyRegion*  pRegions,
-    Pal::PackedPixelType         packPixelType)
-{
-    auto*const pThis = static_cast<CmdBuffer*>(this);
-
-    BeginFuncInfo funcInfo;
-    funcInfo.funcId      = InterfaceFunc::CmdBufferCopyImageToPackedPixelImage;
-    funcInfo.objectId    = pThis->m_objectId;
-    funcInfo.preCallTime = pThis->m_pPlatform->GetTime();
-
-    pThis->m_pNextLayer->CmdCopyImageToPackedPixelImage(srcImage,
-                                                        dstImage,
-                                                        regionCount,
-                                                        pRegions,
-                                                        packPixelType);
-
-    funcInfo.postCallTime = pThis->m_pPlatform->GetTime();
-
-    LogContext* pLogContext = nullptr;
-    if (pThis->m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
-    {
-        pLogContext->BeginInput();
-        pLogContext->KeyAndObject("srcImage", &srcImage);
-        pLogContext->KeyAndObject("dstImage", &dstImage);
-        pLogContext->KeyAndValue("regionCount", regionCount);
-        pLogContext->KeyAndStruct("Region", *pRegions);
-        pLogContext->KeyAndValue("packPixelType", static_cast<uint32>(packPixelType));
         pLogContext->EndInput();
 
         pThis->m_pPlatform->LogEndFunc(pLogContext);

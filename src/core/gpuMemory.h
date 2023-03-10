@@ -352,6 +352,9 @@ protected:
 
     virtual void DescribeGpuMemory(Developer::GpuMemoryAllocationMethod allocMethod) const;
 
+    /// Generate a 64-bit unique ID for this GPU memory.
+    uint64 GenerateUniqueId(void) const;
+
     Device*const   m_pDevice;
     VaPartition    m_vaPartition;
     size_t         m_heapCount;

@@ -146,6 +146,14 @@ Result PerfExperiment::BindGpuMemory(
         bindData.requiredGpuMemSize = m_totalMemSize;
         bindData.offset = offset;
         m_pPlatform->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(bindData);
+
+        Developer::BindGpuMemoryData callbackData = {};
+        callbackData.pObj               = bindData.pObj;
+        callbackData.requiredGpuMemSize = bindData.requiredGpuMemSize;
+        callbackData.pGpuMemory         = bindData.pGpuMemory;
+        callbackData.offset             = bindData.offset;
+        callbackData.isSystemMemory     = bindData.isSystemMemory;
+        m_pDevice->DeveloperCb(Developer::CallbackType::BindGpuMemory, &callbackData);
     }
 
     return result;

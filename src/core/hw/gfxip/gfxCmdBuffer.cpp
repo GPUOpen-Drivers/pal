@@ -982,24 +982,6 @@ CmdBufferEngineSupport GfxCmdBuffer::GetPerfExperimentEngine() const
 }
 
 // =====================================================================================================================
-void GfxCmdBuffer::CmdCopyImageToPackedPixelImage(
-        const IImage&          srcImage,
-        const IImage&          dstImage,
-        uint32                 regionCount,
-        const ImageCopyRegion* pRegions,
-        Pal::PackedPixelType   packPixelType)
-{
-    PAL_ASSERT(pRegions != nullptr);
-    m_device.RsrcProcMgr().CopyImageToPackedPixelImage(
-        this,
-        static_cast<const Image&>(srcImage),
-        static_cast<const Image&>(dstImage),
-        regionCount,
-        pRegions,
-        packPixelType);
-}
-
-// =====================================================================================================================
 uint32 GfxCmdBuffer::GetUsedSize(
     CmdAllocType type
     ) const

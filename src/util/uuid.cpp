@@ -328,8 +328,9 @@ Uuid Uuid3(
 // =====================================================================================================================
 Uuid Uuid4()
 {
-    // ensure threads have divergent generators
-    thread_local ::std::mt19937_64 generator(Os::GetSequenceStart());
+    static Mutex mutex;
+    static ::std::mt19937_64 generator(Os::GetSequenceStart());
+    MutexAuto guard(&mutex);
 
     Uuid uuid = {};
 
