@@ -22,7 +22,6 @@
  #  SOFTWARE.
  #
  #######################################################################################################################
-
 cmake_minimum_required(VERSION 3.15...3.21)
 include(cmake/PalVersionHelper.cmake)
 project(PAL LANGUAGES CXX)
