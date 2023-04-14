@@ -155,14 +155,14 @@ enum class CompSetting : uint32
 // =====================================================================================================================
 // This method implements the helper function called CompSetting() for the shader export mode derivation algorithm
 static CompSetting ComputeCompSetting(
-    const MergedFmtInfo* pFmtInfo,
-    SwizzledFormat       format)
+    const ColorFormat hwColorFmt,
+    SwizzledFormat    format)
 {
     CompSetting compSetting = CompSetting::Invalid;
 
     const SurfaceSwap surfSwap = ColorCompSwap(format);
 
-    switch (HwColorFmt(pFmtInfo, format.format))
+    switch (hwColorFmt)
     {
     case COLOR_8:
     case COLOR_16:
@@ -211,6 +211,7 @@ const SPI_SHADER_EX_FORMAT RsrcProcMgr::DeterminePsExportFmt(
     const bool waCbNoLt16BitIntClamp   = m_pDevice->WaCbNoLt16BitIntClamp();
 
     const MergedFmtInfo*const pFmtInfo = MergedChannelFmtInfoTbl(chipProps.gfxLevel);
+    const ColorFormat hwColorFmt = HwColorFmt(pFmtInfo, format.format);
 
     const bool isUnorm = Formats::IsUnorm(format.format);
     const bool isSnorm = Formats::IsSnorm(format.format);
@@ -220,13 +221,35 @@ const SPI_SHADER_EX_FORMAT RsrcProcMgr::DeterminePsExportFmt(
     const bool isSrgb  = Formats::IsSrgb(format.format);
 
     const uint32 maxCompSize = Formats::MaxComponentBitCount(format.format);
-    const bool  alphaExport  = (shaderExportsAlpha &&
-                                (Formats::HasAlpha(format) || blendSrcAlphaToColor || enableAlphaToCoverage));
-    const bool  isDepth      = ((HwColorFmt(pFmtInfo, format.format) == COLOR_8_24) ||
-                                (HwColorFmt(pFmtInfo, format.format) == COLOR_24_8) ||
-                                (HwColorFmt(pFmtInfo, format.format) == COLOR_X24_8_32_FLOAT));
 
-    const CompSetting compSetting = ComputeCompSetting(pFmtInfo, format);
+    bool foundSwizzles[4] = {};
+    SwizzledFormat pipelineFormat = format;
+    for (uint32 i = 0; i < 4; i++)
+    {
+        const ChannelSwizzle swizzle = pipelineFormat.swizzle.swizzle[i];
+        if ((uint32(ChannelSwizzle::X) <= uint32(swizzle)) &&
+            (uint32(swizzle) <= uint32(ChannelSwizzle::W)))
+        {
+            const uint32 swizzleIndex = uint32(swizzle) - uint32(ChannelSwizzle::X);
+            if (foundSwizzles[swizzleIndex] == false)
+            {
+                foundSwizzles[swizzleIndex] = true;
+            }
+            else
+            {
+                pipelineFormat.swizzle.swizzle[i] = ChannelSwizzle::Zero;
+            }
+        }
+    }
+    const bool hasAlpha = Formats::HasAlpha(pipelineFormat);
+
+    const bool  alphaExport  = (shaderExportsAlpha &&
+                                (hasAlpha || blendSrcAlphaToColor || enableAlphaToCoverage));
+    const bool  isDepth      = ((hwColorFmt == COLOR_8_24) ||
+                                (hwColorFmt == COLOR_24_8) ||
+                                (hwColorFmt == COLOR_X24_8_32_FLOAT));
+
+    const CompSetting compSetting = ComputeCompSetting(hwColorFmt, pipelineFormat);
 
     // Start by assuming SPI_FORMAT_ZERO (no exports).
     SPI_SHADER_EX_FORMAT spiShaderExFormat = SPI_SHADER_ZERO;

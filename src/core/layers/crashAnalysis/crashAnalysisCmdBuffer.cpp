@@ -26,7 +26,10 @@
 #include "core/layers/crashAnalysis/crashAnalysisCmdBuffer.h"
 #include "core/layers/crashAnalysis/crashAnalysisDevice.h"
 #include "core/layers/crashAnalysis/crashAnalysisPlatform.h"
+
+#include "palSysMemory.h"
 #include "palVectorImpl.h"
+#include "palMutex.h"
 
 namespace Pal
 {
@@ -54,8 +57,9 @@ CmdBuffer::CmdBuffer(
     m_pPlatform(static_cast<Platform*>(m_pDevice->GetPlatform())),
     m_cmdBufferId(m_pPlatform->GenerateResourceId()),
     m_markerCounter(0),
-    m_markerStack(m_pPlatform),
-    m_memoryChunk()
+    m_pMemoryChunk(nullptr),
+    m_pEventCache(nullptr),
+    m_markerStack(m_pPlatform)
 {
     // Create the 'marker stack' for each of the 16 possible marker sources.
     // Note: this does not allocate. The default capacity of 'm_markerStack'
@@ -92,7 +96,26 @@ Result CmdBuffer::Begin(
 {
     ResetState();
 
-    Result result = m_pDevice->GetMemoryChunk(&m_memoryChunk);
+    if (m_pMemoryChunk != nullptr)
+    {
+        m_pMemoryChunk->ReleaseReference();
+    }
+
+    Result result = m_pDevice->GetMemoryChunk(&m_pMemoryChunk);
+
+    if (result == Result::Success)
+    {
+        // Release the old event cache
+        if (m_pEventCache != nullptr)
+        {
+            m_pEventCache->ReleaseReference();
+        }
+
+        // Create a new event cache
+        m_pEventCache = PAL_NEW(EventCache,
+                                m_pPlatform,
+                                Util::SystemAllocType::AllocInternal)(m_pPlatform);
+    }
 
     if (result == Result::Success)
     {
@@ -120,12 +143,31 @@ Result CmdBuffer::Reset(
     bool           returnGpuMemory)
 {
     ResetState();
+
+    if (m_pEventCache != nullptr)
+    {
+        Result result = m_pEventCache->CacheCmdBufferReset(m_cmdBufferId);
+        PAL_ASSERT(result == Result::Success);
+    }
+
     return GetNextLayer()->Reset(NextCmdAllocator(pCmdAllocator), returnGpuMemory);
 }
 
 // =====================================================================================================================
 void CmdBuffer::Destroy()
 {
+    if (m_pMemoryChunk != nullptr)
+    {
+        m_pMemoryChunk->ReleaseReference();
+        m_pMemoryChunk = nullptr;
+    }
+
+    if (m_pEventCache != nullptr)
+    {
+        m_pEventCache->ReleaseReference();
+        m_pEventCache = nullptr;
+    }
+
     ICmdBuffer* pNextLayer = m_pNextLayer;
     this->~CmdBuffer();
     pNextLayer->Destroy();
@@ -182,6 +224,26 @@ void CmdBuffer::AddPostamble()
 }
 
 // =====================================================================================================================
+MemoryChunk* CmdBuffer::GetMemoryChunk()
+{
+    if (m_pMemoryChunk != nullptr)
+    {
+        m_pMemoryChunk->TakeReference();
+    }
+    return m_pMemoryChunk;
+}
+
+// =====================================================================================================================
+EventCache* CmdBuffer::GetEventCache()
+{
+    if (m_pEventCache != nullptr)
+    {
+        m_pEventCache->TakeReference();
+    }
+    return m_pEventCache;
+}
+
+// =====================================================================================================================
 // Public entry-point for marker insertion.
 uint32 CmdBuffer::CmdInsertExecutionMarker(
     bool         isBegin,
@@ -219,7 +281,7 @@ uint32 CmdBuffer::InsertBeginMarker(
     {
         WriteMarkerImmediate(true, marker);
 
-        m_pPlatform->GetCrashAnalysisEventProvider()->LogExecutionMarkerBegin(
+        m_pEventCache->CacheExecutionMarkerBegin(
             m_cmdBufferId,
             marker,
             pMarkerName,
@@ -240,8 +302,7 @@ uint32 CmdBuffer::InsertEndMarker(
     if (PopMarker(source, &marker) == Result::Success)
     {
         WriteMarkerImmediate(false, marker);
-
-        m_pPlatform->GetCrashAnalysisEventProvider()->LogExecutionMarkerEnd(m_cmdBufferId, marker);
+        m_pEventCache->CacheExecutionMarkerEnd(m_cmdBufferId, marker);
     }
 
     return marker;
@@ -261,16 +322,37 @@ Result CmdBuffer::PopMarker(
     MarkerSource source,
     uint32*      pMarker)
 {
-    Result result = Result::ErrorUnknown;
+    Result       result = Result::ErrorUnknown;
+    const uint32 index  = static_cast<uint32>(source);
 
-    if (pMarker != nullptr)
+    if ((pMarker != nullptr) && (m_markerStack[index].NumElements() > 0))
     {
-        const uint32 index = static_cast<uint32>(source);
         m_markerStack[index].PopBack(pMarker);
         result = (pMarker != nullptr) ? Result::Success : Result::ErrorUnknown;
     }
 
     return result;
+}
+
+// =====================================================================================================================
+void CmdBuffer::WriteMarkerImmediate(
+    bool   isBegin,
+    uint32 marker)
+{
+    // There should never be a circumstance where m_pMemoryChunk is null here
+    PAL_ALERT(m_pMemoryChunk == nullptr);
+
+    if (m_pMemoryChunk != nullptr)
+    {
+        const HwPipePoint pipePoint = (isBegin) ? HwPipePoint::HwPipeTop
+                                                : HwPipePoint::HwPipeBottom;
+        const gpusize     offset    = (isBegin) ? offsetof(MarkerState, markerBegin)
+                                                : offsetof(MarkerState, markerEnd);
+        CmdWriteImmediate(pipePoint,
+                          marker,
+                          ImmediateDataWidth::ImmediateData32Bit,
+                          GetGpuVa(offset));
+    }
 }
 
 // =====================================================================================================================

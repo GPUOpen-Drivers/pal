@@ -41,20 +41,25 @@ namespace Util
 // =====================================================================================================================
 // Retrieves the element at position index.
 template<typename T, typename Allocator>
-T& Deque<T, Allocator>::At(
-    uint32 index)
+T& Deque<T, Allocator>::InternalAt(
+    uint32 index) const
 {
     PAL_ASSERT(index < m_numElements);
 
+    // Convert the abstract index into a physical index of elements across the chain of blocks. We must account for
+    // invalid elements at the beginning of the front block (perhaps made invalid by prior PopFront calls).
+    PAL_ASSERT(m_pFront >= static_cast<T*>(m_pFrontHeader->pStart));
+    const size_t globalElemIndex = index + m_pFront - static_cast<T*>(m_pFrontHeader->pStart);
+
     // find the block
     DequeBlockHeader* pCurrentHeader = m_pFrontHeader;
-    for (uint32 blockIndex = index / uint32(m_numElementsPerBlock); blockIndex > 0; --blockIndex)
+    for (size_t blockIndex = globalElemIndex / m_numElementsPerBlock; blockIndex > 0; --blockIndex)
     {
         pCurrentHeader = pCurrentHeader->pNext;
     }
 
     // find the element in the block
-    const uint32 elementIndex = index % m_numElementsPerBlock;
+    const size_t elementIndex = globalElemIndex % m_numElementsPerBlock;
     return *(static_cast<T*>(pCurrentHeader->pStart) + elementIndex);
 }
 
@@ -64,18 +69,16 @@ template<typename T, typename Allocator>
 const T& Deque<T, Allocator>::At(
     uint32 index) const
 {
-    PAL_ASSERT(index < m_numElements);
+    return InternalAt(index);
+}
 
-    // find the block
-    const DequeBlockHeader* pCurrentHeader = m_pFrontHeader;
-    for (uint32 blockIndex = index / uint32(m_numElementsPerBlock); blockIndex > 0; --blockIndex)
-    {
-        pCurrentHeader = pCurrentHeader->pNext;
-    }
-
-    // find the element in the block
-    const uint32 elementIndex = index % m_numElementsPerBlock;
-    return *(static_cast<const T*>(pCurrentHeader->pStart) + elementIndex);
+// =====================================================================================================================
+// Retrieves the element at position index.
+template<typename T, typename Allocator>
+T& Deque<T, Allocator>::At(
+    uint32 index)
+{
+    return InternalAt(index);
 }
 
 // =====================================================================================================================
@@ -339,7 +342,7 @@ Result Deque<T, Allocator>::PopFront(
         }
 
         // Explicitly destroy the removed value if it's non-trivial.
-        if (!std::is_pod<T>::value)
+        if (!std::is_trivial<T>::value)
         {
             m_pFront->~T();
         }
@@ -400,7 +403,7 @@ Result Deque<T, Allocator>::PopBack(
         }
 
         // Explicitly destroy the removed value if it's non-trivial.
-        if (!std::is_pod<T>::value)
+        if (!std::is_trivial<T>::value)
         {
             m_pBack->~T();
         }

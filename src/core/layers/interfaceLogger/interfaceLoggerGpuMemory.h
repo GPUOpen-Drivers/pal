@@ -53,6 +53,7 @@ public:
     virtual Result Map(
         void** ppData) override;
     virtual Result Unmap() override;
+    virtual Result SetSdiRemoteBusAddress(gpusize surfaceBusAddr, gpusize markerBusAddr) override;
 
     // Public IDestroyable interface methods:
     virtual void Destroy() override;

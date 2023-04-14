@@ -23,6 +23,7 @@
  *
  **********************************************************************************************************************/
 
+### Copyright (c) 2023 Advanced Micro Devices, Inc. All rights reserved. ###
 [CsIl]
 il_cs_2_0
 dcl_global_flags refactoringAllowed

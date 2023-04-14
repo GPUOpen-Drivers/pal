@@ -445,7 +445,8 @@ struct GpuEngineProperties
                     uint32 exclusive                :  1;
                     uint32 mustUseDispatchTunneling :  1;
                     uint32 supportsMultiQueue       :  1;
-                    uint32 reserved                 : 29;
+                    uint32 hwsEnabled               :  1;
+                    uint32 reserved                 : 28;
                 };
                 uint32 u32All;
             } flags;
@@ -740,6 +741,9 @@ struct GpuChipProperties
         uint32 realTimeCuMask;
         uint32 maxThreadGroupSize;
         uint32 maxAsyncComputeThreadGroupSize;
+        uint32 maxComputeThreadGroupCountX;          // Maximum number of compute thread groups to dispatch
+        uint32 maxComputeThreadGroupCountY;
+        uint32 maxComputeThreadGroupCountZ;
         uint32 hardwareContexts;
         uint32 ldsSizePerThreadGroup;                // Maximum LDS size available per thread group in bytes.
         uint32 ldsSizePerCu;                         // Maximum LDS size available per CU in KB.
@@ -776,23 +780,29 @@ struct GpuChipProperties
 
         struct
         {
-            uint32 supportGl2Uncached          :  1; // Indicates support for the allocation of GPU L2
-                                                     // un-cached memory. See gl2UncachedCpuCoherency
-            uint32 supportsVrs                 :  1; // Indicates support for variable rate shading
+            uint32 supportGl2Uncached               :  1; // Indicates support for the allocation of GPU L2
+                                                          // un-cached memory. See gl2UncachedCpuCoherency
+            uint32 supportsVrs                      :  1; // Indicates support for variable rate shading
 #if (PAL_BUILD_GFX11)
-            uint32 supportsSwStrmout           :  1; // Indicates support for software streamout
+            uint32 supportsSwStrmout                :  1; // Indicates support for software streamout
 #else
-            uint32 reserved2                   :  1;
+            uint32 reserved2                        :  1;
 #endif
-            uint32 supportsHwVs                :  1; // Indicates hardware support for Vertex Shaders
-            uint32 reserved3                   :  1;
-            uint32 supportCaptureReplay        :  1; // Indicates support for Capture Replay
-            uint32 supportHsaAbi               :  1;
-            uint32 supportAceOffload           :  1;
-            uint32 supportStaticVmid           :  1; // Indicates support for static-VMID.
-            uint32 supportFloat32BufferAtomics :  1; // Indicates support for float32 buffer atomics
-            uint32 supportFloat32ImageAtomics  :  1; // Indicates support for float32 image atomics
-            uint32 reserved                    : 21;
+            uint32 supportsHwVs                     :  1; // Indicates hardware support for Vertex Shaders
+            uint32 reserved3                        :  1;
+            uint32 supportCaptureReplay             :  1; // Indicates support for Capture Replay
+            uint32 supportHsaAbi                    :  1;
+            uint32 supportAceOffload                :  1;
+            uint32 supportStaticVmid                :  1; // Indicates support for static-VMID.
+            uint32 supportFloat32BufferAtomics      :  1; // Indicates support for float32 buffer atomics
+            uint32 supportFloat32ImageAtomics       :  1; // Indicates support for float32 image atomics
+            uint32 supportFloat32BufferAtomicAdd    :  1; // Indicates support for float32 buffer atomics add op
+            uint32 supportFloat32ImageAtomicAdd     :  1; // Indicates support for float32 image atomics add op
+            uint32 supportFloat32ImageAtomicMinMax  :  1; // Indicates support for float32 image atomics min and max op
+            uint32 supportFloat64BufferAtomicMinMax :  1; // Indicates support for float64 image atomics min and max op
+            uint32 supportFloat64SharedAtomicMinMax :  1; // Indicates support for float64 shared atomics min and max op
+
+            uint32 reserved                         : 16;
         };
     } gfxip;
 #endif
@@ -1916,18 +1926,21 @@ public:
 
     virtual bool IsNull() const { return false; }
 
-    const bool IsUsingAutoPriorityForInternalAllocations() const
+    bool IsUsingAutoPriorityForInternalAllocations() const
         { return m_memoryProperties.flags.autoPrioritySupport & m_finalizeInfo.flags.internalGpuMemAutoPriority; }
 
-    const bool IsPreemptionSupported(EngineType engineType) const
+    bool IsPreemptionSupported(EngineType engineType) const
         { return m_engineProperties.perEngine[engineType].flags.supportsMidCmdBufPreemption; }
 
-    const bool IsConstantEngineSupported(EngineType engineType) const
+    bool IsConstantEngineSupported(EngineType engineType) const
         { return (m_engineProperties.perEngine[engineType].flags.constantEngineSupport != 0); }
 
 #if PAL_BUILD_GFX11
-    const bool IsPwsSupported(EngineType engineType) const
-        { return m_engineProperties.perEngine[engineType].flags.supportsPws; }
+    // Returns whether any pixel-wait-sync-plus feature can be enabled.
+    bool UsePws(EngineType engineType) const;
+
+    // Returns whether the pixel-wait-sync-plus late acquire point feature can be enabled.
+    bool UsePwsLateAcquirePoint(EngineType engineType) const;
 #endif
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -2455,6 +2468,12 @@ inline bool IsGfx11(const Device& device)
 inline bool IsNavi31(const Device& device)
 {
     return AMDGPU_IS_NAVI31(device.ChipProperties().familyId, device.ChipProperties().eRevId);
+}
+inline bool IsNavi31XtxA0(const Device& device)
+{
+    return SKU_IS_NAVI31_XTX_A0(device.ChipProperties().deviceId,
+                                device.ChipProperties().eRevId,
+                                device.ChipProperties().revisionId);
 }
 #endif
 #if PAL_BUILD_NAVI3X

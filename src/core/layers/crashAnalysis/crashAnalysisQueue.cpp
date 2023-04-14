@@ -144,10 +144,32 @@ Result Queue::Submit(
     pendingInfo.pFence            = AcquireFence();
     pendingInfo.pStateList        = PAL_NEW(MarkerStateList, m_pDevice->GetPlatform(), AllocInternal)
                                            (static_cast<Platform*>(m_pDevice->GetPlatform()));
+    pendingInfo.pEventList        = PAL_NEW(EventCacheList, m_pDevice->GetPlatform(), AllocInternal)
+                                           (static_cast<Platform*>(m_pDevice->GetPlatform()));
 
-    Result result = (pendingInfo.pFence != nullptr)
-                    ? Result::Success
-                    : Result::ErrorOutOfMemory;
+    Result result = ((pendingInfo.pFence     != nullptr) &&
+                     (pendingInfo.pStateList != nullptr) &&
+                     (pendingInfo.pEventList != nullptr))
+                  ? Result::Success
+                  : Result::ErrorOutOfMemory;
+
+    if (result != Result::Success)
+    {
+        if (pendingInfo.pFence != nullptr)
+        {
+            m_availableFences.PushBack(pendingInfo.pFence);
+        }
+
+        if (pendingInfo.pStateList != nullptr)
+        {
+            PAL_SAFE_FREE(pendingInfo.pStateList, m_pDevice->GetPlatform());
+        }
+
+        if (pendingInfo.pEventList != nullptr)
+        {
+            PAL_SAFE_FREE(pendingInfo.pEventList, m_pDevice->GetPlatform());
+        }
+    }
 
     // Grab the memory chunk info from all CmdBuffers queued for submission
     if (result == Result::Success)
@@ -163,6 +185,11 @@ Result Queue::Submit(
                 if (pCmdBuffer != nullptr)
                 {
                     result = pendingInfo.pStateList->PushBack(pCmdBuffer->GetMemoryChunk());
+
+                    if (result == Result::Success)
+                    {
+                        result = pendingInfo.pEventList->PushBack(pCmdBuffer->GetEventCache());
+                    }
 
                     if (result != Result::Success)
                     {
@@ -198,17 +225,27 @@ void Queue::ProcessIdleSubmits()
 
         PAL_ASSERT(submitInfo.pFence     != nullptr);
         PAL_ASSERT(submitInfo.pStateList != nullptr);
+        PAL_ASSERT(submitInfo.pEventList != nullptr);
 
         // Release all held memory chunks: they are no longer needed by
         // either the CmdBuffer or Crash Analysis
         while (submitInfo.pStateList->NumElements() > 0)
         {
-            MemoryChunk chunk;
-            submitInfo.pStateList->PopBack(&chunk);
-            m_pDevice->ReleaseMemoryChunk(&chunk);
+            MemoryChunk* pChunk;
+            submitInfo.pStateList->PopBack(&pChunk);
+            pChunk->ReleaseReference();
         }
-
         PAL_SAFE_DELETE(submitInfo.pStateList, m_pDevice->GetPlatform());
+
+        // Release all held events: since we have not crashed by now, they are no longer
+        // needed.
+        while (submitInfo.pEventList->NumElements() > 0)
+        {
+            EventCache* pCache;
+            submitInfo.pEventList->PopBack(&pCache);
+            pCache->ReleaseReference();
+        }
+        PAL_SAFE_DELETE(submitInfo.pEventList, m_pDevice->GetPlatform());
 
         m_availableFences.PushBack(submitInfo.pFence);
     }
@@ -220,18 +257,38 @@ void Queue::LogCrashAnalysisMarkerData() const
     CrashAnalysisEventProvider* pProvider =
         static_cast<Platform*>(m_pDevice->GetPlatform())->GetCrashAnalysisEventProvider();
 
-    PAL_ASSERT_MSG(pProvider != nullptr,
+    PAL_ASSERT_MSG((pProvider != nullptr) && (pProvider->IsProviderRegistered()) && (pProvider->IsSessionAcquired()),
                    "CrashAnalysisEventProvider not available: cannot send crash dump data");
 
     if (pProvider != nullptr)
     {
-        for (uint32 i = 0; i < m_pendingSubmits.NumElements(); i++)
+        // Iterate through all pending submissions...
+        for (auto pendingSubmitIter = m_pendingSubmits.Begin();
+             pendingSubmitIter.IsValid();
+             pendingSubmitIter.Next())
         {
-            auto it = m_pendingSubmits[i].pStateList->Begin();
-            while (it.IsValid())
+            const PendingSubmitInfo* pSubmission = pendingSubmitIter.Get();
+
+            if ((pSubmission->pEventList == nullptr) || (pSubmission->pStateList == nullptr))
             {
-                pProvider->LogCrashDebugMarkerData(it.Get().pCpuAddr);
-                it.Next();
+                // These items should not be invalidated yet - if they are, it means
+                // GPU execution has continued past the crash point, and possibly while we're in this callback.
+                PAL_ASSERT_ALWAYS();
+                continue;
+            }
+
+            // Sanity check: the number of event cache items should match the number of
+            // memory chunks (one per CmdBuffer)
+            PAL_ASSERT(pSubmission->pEventList->NumElements() == pSubmission->pStateList->NumElements());
+
+            // Iterate through all CmdBuffers in this submission...
+            for (uint32 j = 0; j < pSubmission->pStateList->NumElements(); j++)
+            {
+                const MemoryChunk* pChunk = pSubmission->pStateList->At(j);
+                PAL_ASSERT((pChunk != nullptr) && (pChunk->pCpuAddr != nullptr));
+
+                pProvider->LogCrashDebugMarkerData(pChunk->pCpuAddr);
+                pProvider->ReplayEventCache(pSubmission->pEventList->At(j));
             }
         }
     }

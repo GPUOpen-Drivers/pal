@@ -168,8 +168,8 @@ const UINT_32 Gfx10Rsrc3dThick4KBSwModeMask = Gfx10Rsrc3dThickSwModeMask & Gfx10
 
 const UINT_32 Gfx10Rsrc3dThick64KBSwModeMask = Gfx10Rsrc3dThickSwModeMask & Gfx10Blk64KBSwModeMask;
 
-const UINT_32 Gfx10MsaaSwModeMask = Gfx10ZSwModeMask      |
-                                    Gfx10RenderSwModeMask
+const UINT_32 Gfx10MsaaSwModeMask = (Gfx10ZSwModeMask       |
+                                     Gfx10RenderSwModeMask)
                                     ;
 
 const UINT_32 Dcn20NonBpp64SwModeMask = (1u << ADDR_SW_LINEAR)   |

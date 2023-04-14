@@ -271,9 +271,16 @@
 #define DEVICE_ID_RMB_1681              0x1681
 #if PAL_BUILD_NAVI31
 #define DEVICE_ID_NV3_NAVI31_P_73BF     0x73BF
+#define DEVICE_ID_NV3_NAVI31_P_744C     0x744C
 #endif
 #define DEVICE_ID_RPL_164E              0x164E
 #define DEVICE_ID_MDN_1506              0x1506
+
+// DEVICE_IS(deviceId, deviceName)
+#define DEVICE_IS(d, dn) (d == DEVICE_ID_##dn)
+#if PAL_BUILD_NAVI31
+#define DEVICE_IS_NAVI31(d) (DEVICE_IS(d, NV3_NAVI31_P_744C) | DEVICE_IS(d, NV3_NAVI31_P_73BF))
+#endif
 
 // Revision IDs
 #define SI_TAHITI_P_A21              5
@@ -321,6 +328,12 @@
 #define RAPHAEL_A0                0x01
 #define MENDOCINO_A0              0x01
 
+// SPIN_IS(revisionId, revisionName)
+#define SPIN_IS(r, rn) (r == rn)
+#if PAL_BUILD_NAVI31
+#define SPIN_IS_NAVI31_A0(r) SPIN_IS(r, NAVI31_P_A0)
+#endif
+
 // PRIDs
 #define PRID_SI_TAHITI              0x00
 #define PRID_SI_PITCAIRN            0x00
@@ -359,14 +372,37 @@
 #define PRID_NV_NAVI14_00           0x00
 #if PAL_BUILD_NAVI31
 #define PRID_NV3_NAVI31_00          0x00
+#define PRID_NV3_NAVI31_18          0x18
+#define PRID_NV3_NAVI31_19          0x19
+#define PRID_NV3_NAVI31_C0          0xC0
+#define PRID_NV3_NAVI31_C8          0xC8
+#define PRID_NV3_NAVI31_CC          0xCC
+#define PRID_NV3_NAVI31_CE          0xCE
+#define PRID_NV3_NAVI31_CF          0xCF
 #define PRID_NV3_NAVI31_D2          0xD2
 #define PRID_NV3_NAVI31_D4          0xD4
 #define PRID_NV3_NAVI31_D5          0xD5
+#define PRID_NV3_NAVI31_D6          0xD6
+#define PRID_NV3_NAVI31_D8          0xD8
 #define PRID_NV3_NAVI31_D9          0xD9
 #define PRID_NV3_NAVI31_DA          0xDA
 #define PRID_NV3_NAVI31_DB          0xDB
+#define PRID_NV3_NAVI31_E0          0xE0
+#define PRID_NV3_NAVI31_EC          0xEC
+#define PRID_NV3_NAVI31_EE          0xEE
 #endif
 #define PRID_RMB_00                 0x00
 #define PRID_RPL_00                 0x00
 #define PRID_MDN_00                 0x00
+
+// VARIANT_IS(prid, variantName)
+#define VARIANT_IS(v, vn) (v == PRID_##vn)
+#if PAL_BUILD_NAVI31
+#define VARIANT_IS_NAVI31_XTX(v) (VARIANT_IS(v, NV3_NAVI31_C8 ) | VARIANT_IS(v, NV3_NAVI31_D4))
+#endif
+
+#if PAL_BUILD_NAVI31
+#define SKU_IS_NAVI31_XTX_A0(d, r, v) (DEVICE_IS_NAVI31(d) && SPIN_IS_NAVI31_A0(r) && VARIANT_IS_NAVI31_XTX(v))
+#endif
+
 #endif

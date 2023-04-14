@@ -29,7 +29,7 @@ target_sources(pal PRIVATE
     CMakeLists.txt
 )
 
-if(PAL_BUILD_GFX6)
+if(PAL_BUILD_GFX6 OR PAL_BUILD_OSS2_4)
     add_subdirectory(addrMgr1)
 endif()
 

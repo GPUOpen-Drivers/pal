@@ -278,6 +278,7 @@ enum class InterfaceFunc : uint32
     GpuMemorySetPriority,
     GpuMemoryMap,
     GpuMemoryUnmap,
+    GpuMemorySetSdiRemoteBusAddress,
     GpuMemoryDestroy,
     ImageBindGpuMemory,
     ImageDestroy,

@@ -151,7 +151,7 @@ All source and include files ***must contain*** the AMD copyright notice.
 
 * Local variables ***should*** be initialized with declaration where possible.
 
-* Aggregate types (`struct`, `union`, etc.) ***must*** be initialized prior to use, whenever possible. Prefer [empty initialization (`T foo = { }`)](https://en.cppreference.com/w/c/language/initialization#Empty_initialization) over just a declaration when an appropriate constructor is not available.
+* Aggregate types (`struct`, `union`, etc.) ***must*** be initialized prior to use, whenever possible. Prefer empty initialization (`T foo = { }`) over just a declaration when an appropriate constructor is not available.
 
 ***
 

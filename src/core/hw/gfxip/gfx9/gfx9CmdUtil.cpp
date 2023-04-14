@@ -4852,7 +4852,9 @@ size_t CmdUtil::BuildWaitEopPws(
         acquireInfo.stageSel = pws_stage_sel__me_acquire_mem__cp_me__HASPWS;
         break;
     case HwPipePreRasterization:
-        acquireInfo.stageSel = pws_stage_sel__me_acquire_mem__pre_depth__HASPWS;
+        acquireInfo.stageSel = m_device.Parent()->UsePwsLateAcquirePoint(EngineTypeUniversal)
+                               ? pws_stage_sel__me_acquire_mem__pre_depth__HASPWS
+                               : pws_stage_sel__me_acquire_mem__cp_me__HASPWS;
         break;
     case HwPipePostPs:
     case HwPipePreColorTarget:
@@ -4860,7 +4862,9 @@ size_t CmdUtil::BuildWaitEopPws(
         // HwPipePostPs and HwPipePreColorTarget are essentially the same pipe point with only a minor semantic
         // difference. They both map to pre_color. The last wait stage we can get is pre_color so that's also the best
         // choice for bottom of pipe waits.
-        acquireInfo.stageSel = pws_stage_sel__me_acquire_mem__pre_color__HASPWS;
+        acquireInfo.stageSel = m_device.Parent()->UsePwsLateAcquirePoint(EngineTypeUniversal)
+                               ? pws_stage_sel__me_acquire_mem__pre_color__HASPWS
+                               : pws_stage_sel__me_acquire_mem__cp_me__HASPWS;
         break;
     default:
         // What is this?

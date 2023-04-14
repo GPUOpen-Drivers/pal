@@ -52,6 +52,7 @@ libdrm_amdgpu.so.1 @proc  int32 amdgpu_cs_wait_fences (struct amdgpu_cs_fence* p
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_cs_ctx_stable_pstate (amdgpu_context_handle context, uint32_t op, uint32_t flags, uint32_t *out_flags)
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_query_buffer_size_alignment (amdgpu_device_handle hDevice, struct amdgpu_buffer_size_alignments* pInfo)
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_query_firmware_version (amdgpu_device_handle hDevice, uint32 fwType, uint32 ipInstance, uint32 index, uint32* pVersion, uint32* pFeature)
+libdrm_amdgpu.so.1 @proc  int32 amdgpu_query_video_caps_info (amdgpu_device_handle hDevice, uint32 capType, uint32 size, void* pCaps)
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_query_hw_ip_count (amdgpu_device_handle hDevice, uint32 type, uint32* pCount)
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_query_heap_info (amdgpu_device_handle hDevice, uint32 heap, uint32 flags, struct amdgpu_heap_info* pInfo)
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_query_gpu_info (amdgpu_device_handle hDevice, struct amdgpu_gpu_info* pInfo)

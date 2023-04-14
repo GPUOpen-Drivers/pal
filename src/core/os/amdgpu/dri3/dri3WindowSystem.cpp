@@ -825,6 +825,12 @@ void Dri3WindowSystem::WaitOnIdleEvent(
     {
         xcb_present_generic_event_t*const pPresentEvent = reinterpret_cast<xcb_present_generic_event_t*>(
             m_dri3Procs.pfnXcbWaitForSpecialEvent(m_pConnection, m_pPresentEvent));
+
+        if (pPresentEvent == nullptr)
+        {
+            break;
+        }
+
         HandlePresentEvent(pPresentEvent, &image);
     }
 

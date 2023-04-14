@@ -2635,6 +2635,9 @@ public:
 
     void PopulateNextLayerDesc() { m_desc = m_pNextLayer->Desc(); }
 
+    virtual Result SetSdiRemoteBusAddress(gpusize surfaceBusAddr, gpusize markerBusAddr) override
+        { return m_pNextLayer->SetSdiRemoteBusAddress(surfaceBusAddr, markerBusAddr); }
+
 protected:
     virtual ~GpuMemoryDecorator() {}
 

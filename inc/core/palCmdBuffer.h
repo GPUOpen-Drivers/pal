@@ -692,9 +692,11 @@ struct DynamicGraphicsShaderInfo
                          ///  maxWavesPerCu value provides more flexibility to allow arbitrary WavesPerSh value; for
                          ///  example specify less number of waves than number of CUs per shader array.
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 789
     uint32 cuEnableMask;  ///< This mask is AND-ed with a PAL decided CU enable mask mask to further allow limiting of
                           ///  enabled CUs.  If the hardware has one CU enable mask for multiple shader stages PAL will
                           ///  select the most strict limit.  A value of 0 will be ignored.
+#endif
 };
 
 /// Specifies dynamic states of a graphics pipeline
@@ -712,7 +714,8 @@ struct DynamicGraphicsState
     uint32         perpLineEndCapsEnable   :  1; ///< Forces the use of perpendicular line end caps as opposed to
                                                  ///  axis-aligned line end caps during line rasterization.
     uint32         rasterizerDiscardEnable :  1; ///< Whether to kill all rasterized pixels.
-    uint32         reserved                : 26; ///< Reserved for future use.
+    uint32         dualSourceBlendEnable   :  1; ///< Enable dual source blend
+    uint32         reserved                : 25; ///< Reserved for future use.
 
     union
     {
@@ -727,7 +730,8 @@ struct DynamicGraphicsState
             uint32 alphaToCoverageEnable   :  1;  ///< Whether to enable dynamic state alphaToCoverageEnable.
             uint32 perpLineEndCapsEnable   :  1;  ///< Whether to enable dynamic state perpLineEndCapsEnable.
             uint32 rasterizerDiscardEnable :  1;  ///< Whether to enable dynamic state rasterizerDiscardEnable.
-            uint32 reserved                : 23;  ///< Reserved for future use.
+            uint32 dualSourceBlendEnable   :  1;  ///< Whether to enable dynamic state dualSourceBlendEnable
+            uint32 reserved                : 22;  ///< Reserved for future use.
         };
         uint32     u32All;
     } enable;
@@ -2070,6 +2074,16 @@ struct ColorKey
     uint32 u32Color[4]; ///< The color value for each channel
 };
 
+/// Specifies the input parameters for debug overlay's visual confirm. This struct is not functional.
+/// The client is expected to default initialize this struct and then fill out any state that makes
+/// sense under its presentation model. PAL will process any valid input and ignore fields that are
+/// default initialized.
+struct CmdPostProcessDebugOverlayInfo
+{
+    PresentMode presentMode;           ///< The Presentation Mode of the application.
+    WsiPlatform wsiPlatform;           ///< The WsiPlatform that Swap Chain works upon
+};
+
 /// Specifies the input parameters for ICmdBuffer::CmdPostProcessFrame.
 struct CmdPostProcessFrameInfo
 {
@@ -2090,7 +2104,11 @@ struct CmdPostProcessFrameInfo
                                            ///  Must have been created as a typed buffer.
     };
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 787
+    CmdPostProcessDebugOverlayInfo debugOverlay;
+#else
     PresentMode presentMode;               /// The Presentation Mode of the application.
+#endif
 
     FullScreenFrameMetadataControlFlags fullScreenFrameMetadataControlFlags;
 };

@@ -51,7 +51,9 @@ public:
 
     Result Init();
 
-    void WriteVisualConfirm(const Image& dstImage, ICmdBuffer* pCmdBuffer, PresentMode presentMode) const;
+    void WriteVisualConfirm(const Image&                           dstImage,
+                            ICmdBuffer*                            pCmdBuffer,
+                            const CmdPostProcessDebugOverlayInfo&  debugOverlayInfo) const;
 
 private:
     Device*const m_pDevice;

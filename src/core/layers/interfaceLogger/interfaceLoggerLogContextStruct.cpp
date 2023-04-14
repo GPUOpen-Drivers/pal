@@ -1166,7 +1166,9 @@ void LogContext::Struct(
 {
     BeginMap(false);
     KeyAndValue("maxWavesPerCu", value.maxWavesPerCu);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 789
     KeyAndValue("cuEnableMask", value.cuEnableMask);
+#endif
     EndMap();
 }
 
@@ -1207,6 +1209,7 @@ void LogContext::Struct(
     KeyAndValue("alphaToCoverageEnable",   value.alphaToCoverageEnable);
     KeyAndValue("perpLineEndCapsEnable",   value.perpLineEndCapsEnable);
     KeyAndValue("rasterizerDiscardEnable", value.rasterizerDiscardEnable);
+    KeyAndValue("dualSourceBlendEnable",   value.dualSourceBlendEnable);
 
     KeyAndBeginList("enable", true);
     if (value.enable.depthClampMode)
@@ -1246,10 +1249,14 @@ void LogContext::Struct(
         Value("rasterizerDiscardEnable");
     }
 
+    if (value.enable.dualSourceBlendEnable)
+    {
+        Value("rasterizerDiscardEnable");
+    }
     EndList();
     static_assert(sizeof(DynamicGraphicsState) == 24, "Update interfaceLogger!");
-    static_assert(CheckReservedBits<DynamicGraphicsState>(192, 26), "Update interfaceLogger!");
-    static_assert(CheckReservedBits<decltype(value.enable)>(32, 23), "Update interfaceLogger!");
+    static_assert(CheckReservedBits<DynamicGraphicsState>(192, 25), "Update interfaceLogger!");
+    static_assert(CheckReservedBits<decltype(value.enable)>(32, 22), "Update interfaceLogger!");
     EndMap();
 }
 
@@ -1811,6 +1818,7 @@ void LogContext::Struct(
         KeyAndValue("outOfOrderPrimsEnable", value.rsState.outOfOrderPrimsEnable);
         KeyAndValue("perpLineEndCapsEnable", value.rsState.perpLineEndCapsEnable);
         KeyAndEnum("binningOverride", value.rsState.binningOverride);
+        KeyAndEnum("depthClampMode", value.rsState.depthClampMode);
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 733
         KeyAndBeginList("flags", true);
         if (value.rsState.flags.clipDistMaskValid != 0)

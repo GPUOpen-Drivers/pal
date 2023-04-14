@@ -58,6 +58,7 @@ union UploadedStreamFlags
 struct UploadedStreamInfo
 {
     UploadedStreamFlags flags;
+    EngineType          engineType;    // The engine type targeted by this stream.
     SubEngineType       subEngineType; // The sub engine type targeted by this stream.
     const GpuMemory*    pGpuMemory;    // The GPU memory backing the stream or null if the stream is empty.
     gpusize             launchSize;    // The size of the first command block in the stream.
@@ -167,6 +168,7 @@ private:
     struct UploadState
     {
         UploadedStreamFlags flags;         // Most of these are taken from the first command stream uploaded.
+        EngineType          engineType;    // Also from the first command stream.
         SubEngineType       subEngineType; // Also from the first command stream.
 
         gpusize raftFreeOffset;        // Where the next byte of free space is in the raft.

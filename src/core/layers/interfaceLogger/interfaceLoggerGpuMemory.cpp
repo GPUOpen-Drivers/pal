@@ -124,6 +124,36 @@ Result GpuMemory::Unmap()
 }
 
 // =====================================================================================================================
+Result GpuMemory::SetSdiRemoteBusAddress(
+    gpusize surfaceBusAddr,
+    gpusize markerBusAddr)
+{
+    BeginFuncInfo funcInfo;
+    funcInfo.funcId       = InterfaceFunc::GpuMemorySetSdiRemoteBusAddress;
+    funcInfo.objectId     = m_objectId;
+    funcInfo.preCallTime  = m_pPlatform->GetTime();
+    const Result result   = GpuMemoryDecorator::SetSdiRemoteBusAddress(surfaceBusAddr, markerBusAddr);
+    funcInfo.postCallTime = m_pPlatform->GetTime();
+
+    LogContext* pLogContext = nullptr;
+    if (m_pPlatform->LogBeginFunc(funcInfo, &pLogContext))
+    {
+        pLogContext->BeginInput();
+        pLogContext->KeyAndValue("surfaceBusAddr", surfaceBusAddr);
+        pLogContext->KeyAndValue("markerBusAddr", markerBusAddr);
+        pLogContext->EndInput();
+
+        pLogContext->BeginOutput();
+        pLogContext->KeyAndEnum("result", result);
+        pLogContext->EndOutput();
+
+        m_pPlatform->LogEndFunc(pLogContext);
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 void GpuMemory::Destroy()
 {
     // Note that we can't time a Destroy call.

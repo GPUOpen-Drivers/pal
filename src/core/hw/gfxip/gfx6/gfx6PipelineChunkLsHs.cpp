@@ -208,11 +208,13 @@ uint32* PipelineChunkLsHs::WriteShCommands(
             dynamic.spiShaderPgmRsrc3Hs.bits.WAVE_LIMIT = hsStageInfo.wavesPerSh;
         }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 789
         if (lsStageInfo.cuEnableMask != 0)
         {
             dynamic.spiShaderPgmRsrc3Ls.bits.CU_EN &= lsStageInfo.cuEnableMask;
         }
         // NOTE: There is no CU enable mask for the HS stage!
+#endif
 
         pCmdSpace = pCmdStream->WriteSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC3_LS__CI__VI,
                                                       dynamic.spiShaderPgmRsrc3Ls.u32All,

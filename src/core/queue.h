@@ -166,6 +166,7 @@ struct BatchedQueueCmdData
             VirtualMemoryCopyPageMappingsRange*       pRanges;
             bool                                      doNotWait;
         } copyVirtualMemoryPageMappings;
+
     };
 };
 

@@ -491,16 +491,6 @@ void UniversalCmdBuffer::CmdBindPipeline(
                 SwitchDrawFunctions(newUsesViewInstancing);
             }
 
-            // If RB+ is enabled, we must update the PM4 image of RB+ register state with the new pipelines' values.  This
-            // should be done here instead of inside SwitchGraphicsPipeline() because RPM sometimes overrides these values
-            // for certain blit operations.
-            if ((m_cachedSettings.rbPlusSupported != 0) && (pNewPipeline != nullptr))
-            {
-                m_sxPsDownconvert   = pNewPipeline->SxPsDownconvert();
-                m_sxBlendOptEpsilon = pNewPipeline->SxBlendOptEpsilon();
-                m_sxBlendOptControl = pNewPipeline->SxBlendOptControl();
-            }
-
             constexpr uint32 DwordsPerSrd = (sizeof(BufferSrd) / sizeof(uint32));
             const uint32 vbTableDwords =
                 ((pNewPipeline == nullptr) ? 0 : pNewPipeline->VertexBufferCount() * DwordsPerSrd);
@@ -528,6 +518,16 @@ void UniversalCmdBuffer::CmdBindPipeline(
             BitfieldUpdateSubfield(
                 &(dbRenderOverride.u32All), pNewPipeline->DbRenderOverride().u32All, PipelineDbRenderOverrideMask);
 
+            // If RB+ is enabled, we must update the PM4 image of RB+ register state with the new pipelines' values.  This
+            // should be done here instead of inside SwitchGraphicsPipeline() because RPM sometimes overrides these values
+            // for certain blit operations.
+            if (m_cachedSettings.rbPlusSupported != 0)
+            {
+                pNewPipeline->GetRbPlusRegisters(false,
+                                                 &m_sxPsDownconvert,
+                                                 &m_sxBlendOptEpsilon,
+                                                 &m_sxBlendOptControl);
+            }
             m_depthClampMode = pNewPipeline->GetDepthClampMode();
             // Update context registers according dynamic states
             if (params.graphics.dynamicState.enable.u32All != 0)
@@ -604,6 +604,19 @@ void UniversalCmdBuffer::CmdBindPipeline(
                     }
 
                     m_depthClampMode = params.graphics.dynamicState.depthClampMode;
+                }
+
+                if (params.graphics.dynamicState.enable.dualSourceBlendEnable)
+                {
+                    if (m_cachedSettings.rbPlusSupported != 0)
+                    {
+                        cbColorControl.bits.DISABLE_DUAL_QUAD__VI =
+                            params.graphics.dynamicState.dualSourceBlendEnable ? 1 : 0;
+                        pNewPipeline->GetRbPlusRegisters(params.graphics.dynamicState.dualSourceBlendEnable,
+                                                         &m_sxPsDownconvert,
+                                                         &m_sxBlendOptEpsilon,
+                                                         &m_sxBlendOptControl);
+                    }
                 }
             }
 
@@ -3224,6 +3237,10 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
         pDeCmdSpace = WriteDirtyUserDataEntriesToSgprsGfx<TessEnabled, GsEnabled>(pPrevSignature,
                                                                                   alreadyWrittenStageMask,
                                                                                   pDeCmdSpace);
+    }
+
+    if (HasPipelineChanged || anyUserDataDirty)
+    {
         if (spillThreshold != NoUserDataSpilling)
         {
             const uint16 userDataLimit = m_pSignatureGfx->userDataLimit;
@@ -3241,7 +3258,7 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
                 // because we normally only update the portions usable by the bound pipeline to minimize memory usage.
                 reUpload = true;
             }
-            else
+            else if (anyUserDataDirty)
             {
                 // Otherwise, use the following loop to check if any of the spilled user-data entries are dirty.
                 const uint32 firstMaskId = (spillThreshold / UserDataEntriesPerMask);
@@ -3280,6 +3297,24 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
                                        &m_graphicsState.gfxUserDataEntries.entries[0]);
             }
 
+            // NOTE: If the pipeline is changing, we may need to re-write the spill table address to any shader stage,
+            // even if the spill table wasn't re-uploaded because the mapped user-SGPRs for the spill table could have
+            // changed (as indicated by 'alreadyWrittenStageMask')
+            if ((alreadyWrittenStageMask != 0) || reUpload)
+            {
+                const uint32 gpuVirtAddrLo = LowPart(m_spillTable.stateGfx.gpuVirtAddr);
+                for (uint32 s = 0; s < NumHwShaderStagesGfx; ++s)
+                {
+                    const uint16 userSgpr = m_pSignatureGfx->stage[s].spillTableRegAddr;
+                    if (userSgpr != UserDataNotMapped)
+                    {
+                        pDeCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(userSgpr,
+                            gpuVirtAddrLo,
+                            pDeCmdSpace);
+                    }
+                }
+            }
+
         } // if current pipeline spills user-data
 
         // All dirtied user-data entries have been written to user-SGPR's or to the spill table somewhere in this
@@ -3289,25 +3324,7 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
         {
             pDirtyMask[i] = 0;
         }
-    } // if any user data is dirty
-
-    // NOTE: If the pipeline is changing, we may need to re-write the spill table address to any shader stage,
-    // even if the spill table wasn't re-uploaded because the mapped user-SGPRs for the spill table could have
-    // changed.
-    if ((spillThreshold != NoUserDataSpilling) && (HasPipelineChanged || reUpload))
-    {
-        const uint32 gpuVirtAddrLo = LowPart(m_spillTable.stateGfx.gpuVirtAddr);
-        for (uint32 s = 0; s < NumHwShaderStagesGfx; ++s)
-        {
-            const uint16 userSgpr = m_pSignatureGfx->stage[s].spillTableRegAddr;
-            if (userSgpr != UserDataNotMapped)
-            {
-                pDeCmdSpace = m_deCmdStream.WriteSetOneShReg<ShaderGraphics>(userSgpr,
-                    gpuVirtAddrLo,
-                    pDeCmdSpace);
-            }
-        }
-    }
+    } // if any user data is dirty or pipeline changed
 
     // Step #5:
     // Even though the spill table is not being managed using CE RAM, it is possible for the client to use CE RAM for
@@ -3884,12 +3901,14 @@ uint32* UniversalCmdBuffer::ValidateViewports(
         const auto&         viewport    = params.viewports[i];
         VportZMinMaxPm4Img* pZMinMaxImg = reinterpret_cast<VportZMinMaxPm4Img*>(&zMinMaxImg[i]);
 
+#if PAL_BUILD_SUPPORT_DEPTHCLAMPMODE_ZERO_TO_ONE
         if (static_cast<DepthClampMode>(m_graphicsState.depthClampMode) == DepthClampMode::ZeroToOne)
         {
             pZMinMaxImg->zMin.f32All = 0.0f;
             pZMinMaxImg->zMax.f32All = 1.0f;
         }
         else
+#endif
         {
             pZMinMaxImg->zMin.f32All = Min(viewport.minDepth, viewport.maxDepth);
             pZMinMaxImg->zMax.f32All = Max(viewport.minDepth, viewport.maxDepth);

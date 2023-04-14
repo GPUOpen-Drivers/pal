@@ -22,13 +22,7 @@
     {
       "Name": "Vrs"
     },
-    "Gfx10",
-    {
-      "Name": "PWS",
-      "OrBuildTypes": [
-        "PAL_BUILD_GFX11"
-      ]
-    }
+    "Gfx10"
   ],
   "Settings": [
     {
@@ -2080,56 +2074,6 @@
       }
     },
     {
-      "ValidValues": {
-        "IsEnum": true,
-        "IsExclusive": true,
-        "Values": [
-          {
-            "Name": "Gfx9DeferredBatchBinDisabled",
-            "Value": 0
-          },
-          {
-            "Name": "Gfx9DeferredBatchBinCustom",
-            "Value": 1
-          },
-          {
-            "Name": "Gfx9DeferredBatchBinAccurate",
-            "Value": 2
-          }
-        ],
-        "Name": "Gfx9BinningMode"
-      },
-      "Description": "Controls whether or not deferred batch binning is enabled 0 : Batch binning always disabled 1 : Use custom bin sizes 2 : Optimal ",
-      "Tags": [
-        "PBB and DFSM",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": "Gfx9DeferredBatchBinAccurate"
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "enum",
-      "VariableName": "binningMode",
-      "Name": "DeferredBatchBinMode"
-    },
-    {
-      "Description": "Controls the custom batch bin size.  Only used when deferredBatchBinMode==1 High word is for x, low word is for y.  Default is 128x128.  Values must be power-of-two between 16 and 512",
-      "Tags": [
-        "PBB and DFSM",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": 8388736
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "uint32",
-      "VariableName": "customBatchBinSize",
-      "Name": "CustomBatchBinSize",
-      "Flags": {
-        "IsHex": true
-      }
-    },
-    {
       "Description": "Controls the minimum batch bin size used.",
       "Tags": [
         "PBB and DFSM",
@@ -2228,20 +2172,6 @@
       "Type": "uint32",
       "VariableName": "binningMaxAllocCountNggOnChip",
       "Name": "BinningMaxAllocCountNggOnChip"
-    },
-    {
-      "Description": "Maximum number of primitives per batch. The maximum value is 1024.",
-      "Tags": [
-        "PBB and DFSM",
-        "Gfx9"
-      ],
-      "Defaults": {
-        "Default": 1024
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "uint32",
-      "VariableName": "binningMaxPrimPerBatch",
-      "Name": "BinningMaxPrimPerBatch"
     },
     {
       "Description": "Maximum number of FPOV tokens allowed per batch. Zero means no limit.",
@@ -3635,25 +3565,6 @@
       "Type": "bool",
       "VariableName": "gfx11EnableZpassPacketOptimization",
       "Description": "Reduce RS64 CP overhead by writing a simplified EVENT_WRITE packet, EVENT_WRITE_ZPASS. GFX11 specific and overridden to true unless this setting is explicitly set to false.",
-      "OrBuildTypes": [
-        "PAL_BUILD_GFX11"
-      ]
-    },
-    {
-      "Name": "EnablePws",
-      "Tags": [
-        "PWS"
-      ],
-      "Flags": {
-        "RereadSetting": true
-      },
-      "Defaults": {
-        "Default": true
-      },
-      "Scope": "PrivatePalGfx9Key",
-      "Type": "bool",
-      "VariableName": "enablePws",
-      "Description": "Enables the Pixel Wait Sync feature if the hardware supports it. If enabled, Pixel Wait Sync feature is used at places to optimize pipeline synchronization.",
       "OrBuildTypes": [
         "PAL_BUILD_GFX11"
       ]

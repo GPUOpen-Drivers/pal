@@ -89,6 +89,9 @@ public:
 
     Result QuerySdiBusAddress();
 
+    // Set SDI remote surface bus address and marker bus address.
+    virtual Result SetSdiRemoteBusAddress(gpusize surfaceBusAddr, gpusize markerBusAddr) override;
+
 protected:
     virtual Result AllocateOrPinMemory(
         gpusize                 baseVirtAddr,

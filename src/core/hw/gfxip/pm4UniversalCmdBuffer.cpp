@@ -327,7 +327,10 @@ void PAL_STDCALL UniversalCmdBuffer::CmdSetUserDataGfx(
     userDataArgs.entryCount   = entryCount;
     userDataArgs.pEntryValues = pEntryValues;
 
-    if ((filterRedundantUserData == false) || pSelf->FilterSetUserDataGfx(&userDataArgs))
+    if ((filterRedundantUserData == false) ||
+        GfxCmdBuffer::FilterSetUserData(&userDataArgs,
+                                        pSelf->m_graphicsState.gfxUserDataEntries.entries,
+                                        pSelf->m_graphicsState.gfxUserDataEntries.touched))
     {
         SetUserData(userDataArgs.firstEntry, userDataArgs.entryCount, pEntries, userDataArgs.pEntryValues);
     } // if (filtering is disabled OR user data not redundant)
@@ -346,55 +349,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdSetUserDataGfx<true>(
     uint32        firstEntry,
     uint32        entryCount,
     const uint32* pEntryValues);
-
-// =====================================================================================================================
-// Compares the client-specified user data update parameters against the current user data values, and filters any
-// redundant updates at the beginning of ending of the range.  Filtering redundant values in the middle of the range
-// would involve significant updates to the rest of PAL, and we typically expect a good hit rate for redundant updates
-// at the beginning or end.  The most common updates are setting 2-dword addresses (best hit rate on high bits) and
-// 4-dword buffer SRDs (best hit rate on last dword).
-//
-// Returns true if there are still entries that should be processed after filtering.  False means that the entire set
-// is redundant.
-bool UniversalCmdBuffer::FilterSetUserDataGfx(
-    UserDataArgs* pUserDataArgs)
-{
-    uint32        firstEntry   = pUserDataArgs->firstEntry;
-    uint32        entryCount   = pUserDataArgs->entryCount;
-    const uint32* pEntryValues = pUserDataArgs->pEntryValues;
-
-    // Adjust the start entry and entry value pointer for any redundant entries found at the beginning of the range.
-    while ((entryCount > 0) &&
-           (*pEntryValues == m_graphicsState.gfxUserDataEntries.entries[firstEntry]) &&
-           WideBitfieldIsSet(m_graphicsState.gfxUserDataEntries.touched, firstEntry))
-    {
-        firstEntry++;
-        pEntryValues++;
-        entryCount--;
-    }
-
-    bool result = false;
-    if (entryCount > 0)
-    {
-        // Search from the end of the range for the last non-redundant entry.  We are guaranteed to find one since the
-        // earlier loop found at least one non-redundant entry.
-        uint32 idx = entryCount - 1;
-        while ((pEntryValues[idx] == m_graphicsState.gfxUserDataEntries.entries[firstEntry + idx]) &&
-               WideBitfieldIsSet(m_graphicsState.gfxUserDataEntries.touched, firstEntry + idx))
-        {
-            idx--;
-        }
-
-        // Update the caller's values.
-        pUserDataArgs->firstEntry   = firstEntry;
-        pUserDataArgs->entryCount   = idx + 1;
-        pUserDataArgs->pEntryValues = pEntryValues;
-
-        result = true;
-    }
-
-    return result;
-}
 
 // =====================================================================================================================
 bool UniversalCmdBuffer::IsAnyGfxUserDataDirty() const

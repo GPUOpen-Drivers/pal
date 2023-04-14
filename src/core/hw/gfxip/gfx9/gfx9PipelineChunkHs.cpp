@@ -170,12 +170,14 @@ uint32* PipelineChunkHs::WriteDynamicRegs(
     }
 #endif
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 789
     if (hsStageInfo.cuEnableMask != 0)
     {
         dynamic.spiShaderPgmRsrc3Hs.bits.CU_EN &= hsStageInfo.cuEnableMask;
         dynamic.spiShaderPgmRsrc4Hs.gfx10Plus.CU_EN =
             Device::AdjustCuEnHi(dynamic.spiShaderPgmRsrc4Hs.gfx10Plus.CU_EN, hsStageInfo.cuEnableMask);
     }
+#endif
 
     pCmdSpace = pCmdStream->WriteSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC3_HS,
                                                   dynamic.spiShaderPgmRsrc3Hs.u32All,

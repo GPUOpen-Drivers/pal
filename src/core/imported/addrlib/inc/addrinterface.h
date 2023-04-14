@@ -41,7 +41,7 @@ extern "C"
 #endif
 
 #define ADDRLIB_VERSION_MAJOR 8
-#define ADDRLIB_VERSION_MINOR 3
+#define ADDRLIB_VERSION_MINOR 5
 #define ADDRLIB_VERSION ((ADDRLIB_VERSION_MAJOR << 16) | ADDRLIB_VERSION_MINOR)
 
 /// Virtually all interface functions need ADDR_HANDLE as first parameter
@@ -134,7 +134,7 @@ typedef union _ADDR_CHANNEL_SETTING
     struct
     {
         UINT_8 valid   : 1;    ///< Indicate whehter this channel setting is valid
-        UINT_8 channel : 2;    ///< 0 for x channel, 1 for y channel, 2 for z channel
+        UINT_8 channel : 2;    ///< 0 for x channel, 1 for y channel, 2 for z channel, 3 for MSAA sample index
         UINT_8 index   : 5;    ///< Channel index
     };
     UINT_8 value;              ///< Value
@@ -2575,7 +2575,7 @@ typedef struct _ADDR2_COMPUTE_SURFACE_ADDRFROMCOORD_OUTPUT
 {
     UINT_32    size;             ///< Size of this structure in bytes
 
-    UINT_64    addr;             ///< Byte address
+    UINT_64    addr;             ///< Byte offset from the image starting address
     UINT_32    bitPosition;      ///< Bit position within surfaceAddr, 0-7.
                                  ///  For surface bpp < 8, e.g. FMT_1.
     UINT_32    prtBlockIndex;    ///< Index of a PRT tile (64K block)

@@ -356,7 +356,7 @@ static Result OpenFileInternal(
     }
     else
     {
-        PAL_ALERT_ALWAYS();
+        PAL_ALERT_ALWAYS_MSG("Failed to open file '%s'", pFileName);
         result = ConvertErrno(errno);
     }
 

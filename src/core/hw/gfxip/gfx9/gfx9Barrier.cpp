@@ -1299,16 +1299,9 @@ void Device::Barrier(
 
 #if PAL_ENABLE_PRINTS_ASSERTS
                 const auto& engineProps = Parent()->EngineProperties().perEngine[engineType];
-                const auto& createInfo  = image.GetImageCreateInfo();
-                const bool  isFullPlane = image.IsRangeFullPlane(subresRange);
 
                 // This queue must support this barrier transition.
                 PAL_ASSERT(engineProps.flags.supportsImageInitBarrier == 1);
-
-                // By default, the entire plane must be initialized in one go. Per-subres support can be requested
-                // using an image flag as long as the queue supports it.
-                PAL_ASSERT(isFullPlane || ((engineProps.flags.supportsImageInitPerSubresource == 1) &&
-                                           (createInfo.flags.perSubresInit == 1)));
 #endif
 
                 if (gfx9Image.HasColorMetaData() || gfx9Image.HasHtileData())

@@ -616,5 +616,16 @@ extern void BeepSound(
 /// @returns true if there is a debugger attached.
 extern bool IsDebuggerAttached();
 
+/// Set path to be accessible by everyone.
+///
+/// In Linux world that is 777. For Windows it does nothing.
+/// To be used for debug folders mainly. Use carefully for release paths as this will open them wide
+/// and possibly create a security hole.
+///
+/// @param [in] fileName  Path to a file or folder, it must exist.
+///
+/// @returns Returns success if permissions were set successfully, Result::ErrorUnknown otherwise
+extern Result SetRwxFilePermissions(const char* pFileName);
+
 } // Util
 

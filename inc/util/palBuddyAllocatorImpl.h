@@ -50,10 +50,10 @@ BuddyAllocator<Allocator>::BuddyAllocator(
     m_pAllocator(pAllocator),
     m_baseAllocKval(SizeToKval(baseAllocSize)),
     m_minKval(SizeToKval(minAllocSize)),
-    m_numSuballocations(0),
     m_pFreeBlockSets(nullptr),
     m_pUsedBlockMap(nullptr),
     m_pNumFreeList(nullptr),
+    m_numSuballocations(0),
     m_pFreeSetMutexes(nullptr),
     m_usedClaim(false)
 {

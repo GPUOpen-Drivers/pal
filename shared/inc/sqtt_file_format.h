@@ -106,15 +106,17 @@ typedef enum SqttFileChunkType
     SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_DATABASE,         /*!< Pipeline code object database. */
     SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_LOADER_EVENTS,    /*!< Code object loader event data. */
     SQTT_FILE_CHUNK_TYPE_PSO_CORRELATION,              /*!< Pipeline State Object -> Code Object correlation mapping. */
-    SQTT_FILE_CHUNK_TYPE_INSTRUMENTATION_TABLE,        /*!< Instrumentation table. */
+    SQTT_FILE_CHUNK_TYPE_RESERVED1,                    /*!< Reserved (Should not be used). */
     SQTT_FILE_CHUNK_TYPE_DF_SPM_DB,                    /*!< DF SPM trace data. */
+    SQTT_FILE_CHUNK_TYPE_INSTRUMENTATION_TABLE,        /*!< Instrumentation table. */
+
     SQTT_FILE_CHUNK_TYPE_COUNT,
 } SqttFileChunkType;
 
 /// Lookup table providing the major version and minor version numbers for the RGP chunks within this header.
 static constexpr RgpChunkVersionNumbers RgpChunkVersionNumberLookup[] =
 {
-    {0, 5}, // SQTT_FILE_CHUNK_TYPE_ASIC_INFO,
+    {0, 6}, // SQTT_FILE_CHUNK_TYPE_ASIC_INFO,
     {0, 2}, // SQTT_FILE_CHUNK_TYPE_SQTT_DESC,
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_SQTT_DATA,
     {0, 2}, // SQTT_FILE_CHUNK_TYPE_API_INFO,
@@ -126,8 +128,9 @@ static constexpr RgpChunkVersionNumbers RgpChunkVersionNumberLookup[] =
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_DATABASE,
     {1, 1}, // SQTT_FILE_CHUNK_TYPE_CODE_OBJECT_LOADER_EVENTS
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_PSO_CORRELATION
-    {0, 0}, // SQTT_FILE_CHUNK_TYPE_INSTRUMENTATION_TABLE
+    {0, 0}, // SQTT_FILE_CHUNK_TYPE_RESERVED1
     {0, 0}, // SQTT_FILE_CHUNK_TYPE_DF_SPM_DB,
+    {0, 0}, // SQTT_FILE_CHUNK_TYPE_INSTRUMENTATION_TABLE
 };
 
 static_assert(Util::ArrayLen(RgpChunkVersionNumberLookup) == static_cast<uint32_t>(SQTT_FILE_CHUNK_TYPE_COUNT),

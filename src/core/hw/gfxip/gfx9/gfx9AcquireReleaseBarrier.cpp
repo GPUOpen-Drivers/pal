@@ -388,8 +388,7 @@ static ReleaseEvents GetReleaseEvents(
 #if PAL_BUILD_GFX11
     // Optimization: for stageMask transition Ps|Cs->Rt/Ps/Ds with GCR operation or Vs|Ps|Cs->Rt/Ps/Ds, convert
     //               release events to Eop so can wait at a later PreColor/PrePs/PreDepth point instead of ME.
-    const EngineType engineType = pCmdBuf->GetEngineType();
-    if (device.UsePws(engineType)  &&
+    if (device.Parent()->UsePws(pCmdBuf->GetEngineType()) &&
         (release.ps && release.cs) &&
         (release.vs || (acquireCaches != SyncGlxNone)) &&
         (acquirePoint >= AcquirePoint::PreDepth))
@@ -407,6 +406,17 @@ static ReleaseEvents GetReleaseEvents(
         // Combine two events to single event
         release.eop |= (release.ps & release.cs);
     }
+    else
+    {
+        // If acquire at bottom of pipe and no cache sync, can skip the release/acquire.
+        if ((acquirePoint == AcquirePoint::Eop) && (release.rbCache == 0) && (acquireCaches == SyncGlxNone))
+        {
+            release.eop = 0;
+            release.ps  = 0;
+            release.vs  = 0;
+            release.cs  = 0;
+        }
+    }
 
     if (release.eop)
     {
@@ -419,8 +429,10 @@ static ReleaseEvents GetReleaseEvents(
 }
 
 // =====================================================================================================================
-static AcquirePoint GetAcquirePoint(
-    uint32 dstStageMask)
+AcquirePoint Device::GetAcquirePoint(
+    uint32     dstStageMask,
+    EngineType engineType
+    ) const
 {
     // Constants to map PAL interface pipe stage masks to HW acquire points.
     constexpr uint32 AcqPfpStages       = PipelineStageTopOfPipe | PipelineStageFetchIndirectArgs |
@@ -443,13 +455,26 @@ static AcquirePoint GetAcquirePoint(
     constexpr uint32 AcqPreColorStages  = PipelineStageColorTarget;
 
     // Convert global dstStageMask to HW acquire point.
-    return TestAnyFlagSet(dstStageMask, AcqPfpStages)       ? AcquirePoint::Pfp       :
-           TestAnyFlagSet(dstStageMask, AcqMeStages)        ? AcquirePoint::Me        :
-           TestAnyFlagSet(dstStageMask, AcqPreShaderStages) ? AcquirePoint::PreShader :
-           TestAnyFlagSet(dstStageMask, AcqPreDepthStages)  ? AcquirePoint::PreDepth  :
-           TestAnyFlagSet(dstStageMask, AcqPrePsStages)     ? AcquirePoint::PrePs     :
-           TestAnyFlagSet(dstStageMask, AcqPreColorStages)  ? AcquirePoint::PreColor  :
-                                                              AcquirePoint::Eop;
+    AcquirePoint acqPoint = TestAnyFlagSet(dstStageMask, AcqPfpStages)       ? AcquirePoint::Pfp       :
+                            TestAnyFlagSet(dstStageMask, AcqMeStages)        ? AcquirePoint::Me        :
+                            TestAnyFlagSet(dstStageMask, AcqPreShaderStages) ? AcquirePoint::PreShader :
+                            TestAnyFlagSet(dstStageMask, AcqPreDepthStages)  ? AcquirePoint::PreDepth  :
+                            TestAnyFlagSet(dstStageMask, AcqPrePsStages)     ? AcquirePoint::PrePs     :
+                            TestAnyFlagSet(dstStageMask, AcqPreColorStages)  ? AcquirePoint::PreColor  :
+                                                                               AcquirePoint::Eop;
+
+    // Disable PWS late acquire point if PWS is not disabled or late acquire point is disallowed.
+    if ((acqPoint > AcquirePoint::Me) &&
+        (acqPoint != AcquirePoint::Eop)
+#if PAL_BUILD_GFX11
+        && (Parent()->UsePwsLateAcquirePoint(engineType) == false)
+#endif
+        )
+    {
+        acqPoint = AcquirePoint::Me;
+    }
+
+    return acqPoint;
 }
 
 #if PAL_BUILD_GFX11
@@ -697,10 +722,11 @@ void Device::OptimizeReadOnlyMemBarrier(
                    (TestAnyFlagSet(pTransition->dstAccessMask, CacheCoherShaderReadMask) == false));
 
 #if PAL_BUILD_GFX11
-    if (UsePws(pCmdBuf->GetEngineType()))
+    if (Parent()->UsePws(pCmdBuf->GetEngineType()))
     {
         // Don't skip if last barrier acquires later stage than current barrier acquires.
-        canSkip &= (GetAcquirePoint(srcStageMask) <= GetAcquirePoint(dstStageMask));
+        const EngineType engineType = pCmdBuf->GetEngineType();
+        canSkip &= (GetAcquirePoint(srcStageMask, engineType) <= GetAcquirePoint(dstStageMask, engineType));
     }
     else
 #endif
@@ -749,7 +775,7 @@ bool Device::OptimizeReadOnlyImgBarrier(
                    (TestAnyFlagSet(pTransition->dstAccessMask, CacheCoherShaderReadMask) == false));
 
 #if PAL_BUILD_GFX11
-    if (UsePws(pCmdBuf->GetEngineType()))
+    if (Parent()->UsePws(pCmdBuf->GetEngineType()))
     {
         const Pal::Image* pImage = static_cast<const Pal::Image*>(pTransition->pImage);
 
@@ -765,7 +791,8 @@ bool Device::OptimizeReadOnlyImgBarrier(
         }
 
         // Don't skip if last barrier acquires later stage than current barrier acquires.
-        canSkip &= (GetAcquirePoint(srcStageMask) <= GetAcquirePoint(optDstStageMask));
+        const EngineType engineType = pCmdBuf->GetEngineType();
+        canSkip &= (GetAcquirePoint(srcStageMask, engineType) <= GetAcquirePoint(optDstStageMask, engineType));
     }
     else
 #endif
@@ -1028,16 +1055,9 @@ bool Device::AcqRelInitMaskRam(
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     const auto& engineProps = Parent()->EngineProperties().perEngine[engineType];
-    const auto& createInfo  = image.GetImageCreateInfo();
-    const bool  isFullPlane = image.IsRangeFullPlane(subresRange);
 
     // This queue must support this barrier transition.
     PAL_ASSERT(engineProps.flags.supportsImageInitBarrier == 1);
-
-    // By default, the entire plane must be initialized in one go. Per-subres support can be requested
-    // using an image flag as long as the queue supports it.
-    PAL_ASSERT(isFullPlane || ((engineProps.flags.supportsImageInitPerSubresource == 1) &&
-                               (createInfo.flags.perSubresInit == 1)));
 #endif
 
     PAL_ASSERT(gfx9Image.HasColorMetaData() || gfx9Image.HasHtileData());
@@ -1277,7 +1297,7 @@ AcqRelSyncToken Device::IssueReleaseSync(
             }
 
 #if PAL_BUILD_GFX11
-            if (UsePws(engineType))
+            if (Parent()->UsePws(engineType))
             {
                 releaseMem.usePws = 1;
 
@@ -1390,34 +1410,42 @@ void Device::IssueAcquireSync(
     }
 
     const SyncGlxFlags acquireCaches = GetAcquireCacheFlags(accessMask, refreshTcc, mayHaveMetadata, pBarrierOps);
+    AcquirePoint       acquirePoint  = GetAcquirePoint(stageMask, engineType);
+
+    // Must acquire at PFP/ME if cache syncs are required.
+    if ((acquireCaches != SyncGlxNone) && (acquirePoint > AcquirePoint::Me))
+    {
+        acquirePoint = AcquirePoint::Me;
+    }
 
     uint32* pCmdSpace = pCmdStream->ReserveCommands();
 
-    uint32 syncTokenToWait[uint32(AcqRelEventType::Count)] = {};
-    bool hasValidSyncToken = false;
+    uint32  syncTokenToWait[uint32(AcqRelEventType::Count)] = {};
+    bool    hasValidSyncToken = false;
 
     // Merge synchronization timestamp entries in the list.
-    for (uint32 i = 0; i < syncTokenCount; i++)
+    // Can safely skip Acquire if acquire point is EOP and no cache sync. If there is cache sync, acquire point has
+    // been forced to ME by above codes.
+    if (acquirePoint != AcquirePoint::Eop)
     {
-        const AcqRelSyncToken curSyncToken = pSyncTokens[i];
-
-        if ((curSyncToken.fenceVal != 0) && (curSyncToken.type != uint32(AcqRelEventType::Invalid)))
+        for (uint32 i = 0; i < syncTokenCount; i++)
         {
-            PAL_ASSERT(curSyncToken.type < uint32(AcqRelEventType::Count));
+            const AcqRelSyncToken curSyncToken = pSyncTokens[i];
 
-            syncTokenToWait[curSyncToken.type] = Max(curSyncToken.fenceVal, syncTokenToWait[curSyncToken.type]);
-            hasValidSyncToken = true;
+            if ((curSyncToken.fenceVal != 0) && (curSyncToken.type != uint32(AcqRelEventType::Invalid)))
+            {
+                PAL_ASSERT(curSyncToken.type < uint32(AcqRelEventType::Count));
+
+                syncTokenToWait[curSyncToken.type] = Max(curSyncToken.fenceVal, syncTokenToWait[curSyncToken.type]);
+                hasValidSyncToken = true;
+            }
         }
     }
 
-    bool waitAtPfpOrMe = false;
-
 #if PAL_BUILD_GFX11
     // If no sync token is specified to be waited for completion, there is no need for a PWS-version of ACQUIRE_MEM.
-    if (hasValidSyncToken && UsePws(engineType))
+    if (hasValidSyncToken && Parent()->UsePws(engineType))
     {
-        const AcquirePoint acquirePoint = GetAcquirePoint(stageMask);
-
         // Wait on the PWS+ event via ACQUIRE_MEM.
         AcquireMemGfxPws acquireMem = {};
         acquireMem.cacheSync = acquireCaches;
@@ -1444,13 +1472,9 @@ void Device::IssueAcquireSync(
             }
         }
 
-        const bool issuedPfpSyncMe = (acquirePoint == AcquirePoint::Pfp);
-        // Note that the CmdUtil will automatically upgrade PWS_STAGE_SEL to ME if cache syncs are required.
-        waitAtPfpOrMe  = (acquireCaches != SyncGlxNone) || (acquirePoint <= AcquirePoint::Me);
-        needPfpSyncMe &= (issuedPfpSyncMe == false);
-
         pBarrierOps->pipelineStalls.waitOnTs   = 1;
-        pBarrierOps->pipelineStalls.pfpSyncMe |= issuedPfpSyncMe;
+        pBarrierOps->pipelineStalls.pfpSyncMe |= (acquirePoint == AcquirePoint::Pfp);
+        needPfpSyncMe = false;
     }
     else
 #endif
@@ -1459,18 +1483,17 @@ void Device::IssueAcquireSync(
         {
             if (syncTokenToWait[i] != 0)
             {
-                 pCmdSpace += m_cmdUtil.BuildWaitRegMem(engineType,
-                                                        mem_space__me_wait_reg_mem__memory_space,
-                                                        function__me_wait_reg_mem__greater_than_or_equal_reference_value,
-                                                        engine_sel__me_wait_reg_mem__micro_engine,
-                                                        pCmdBuf->AcqRelFenceValGpuVa(AcqRelEventType(i)),
-                                                        syncTokenToWait[i],
-                                                        UINT32_MAX,
-                                                        pCmdSpace);
+                pCmdSpace += m_cmdUtil.BuildWaitRegMem(engineType,
+                                                       mem_space__me_wait_reg_mem__memory_space,
+                                                       function__me_wait_reg_mem__greater_than_or_equal_reference_value,
+                                                       engine_sel__me_wait_reg_mem__micro_engine,
+                                                       pCmdBuf->AcqRelFenceValGpuVa(AcqRelEventType(i)),
+                                                       syncTokenToWait[i],
+                                                       UINT32_MAX,
+                                                       pCmdSpace);
             }
         }
 
-        waitAtPfpOrMe                         = hasValidSyncToken;
         pBarrierOps->pipelineStalls.waitOnTs |= hasValidSyncToken;
 
         if (acquireCaches != SyncGlxNone)
@@ -1501,7 +1524,7 @@ void Device::IssueAcquireSync(
     const uint32             waitedEopFenceVal = syncTokenToWait[uint32(AcqRelEventType::Eop)];
 
     // If we have waited on a valid EOP fence value, update some CmdBufState (e.g. xxxBltActive) flags.
-    if ((waitedEopFenceVal != 0) && waitAtPfpOrMe)
+    if ((waitedEopFenceVal != 0) && (acquirePoint <= AcquirePoint::Me))
     {
         pCmdBuf->SetPrevCmdBufInactive();
 
@@ -1527,7 +1550,7 @@ void Device::IssueAcquireSync(
     const uint32 waitedCsDoneFenceVal = syncTokenToWait[uint32(AcqRelEventType::CsDone)];
 
     if ((waitedCsDoneFenceVal != 0) &&
-        (waitAtPfpOrMe == true)     &&
+        (acquirePoint <= AcquirePoint::Me) &&
         (waitedCsDoneFenceVal >= cmdBufState.fences.csBltExecCsDoneFenceVal))
     {
         // An CS_DONE release sync that is issued after the latest CS BLT must have completed, so mark CS BLT idle.
@@ -1584,7 +1607,7 @@ void Device::IssueReleaseThenAcquireSync(
         PAL_ASSERT(TestAnyFlagSet(srcAccessMask, CacheCoherencyBlt) == false);
     }
 
-    AcquirePoint     acquirePoint  = GetAcquirePoint(dstStageMask);
+    AcquirePoint     acquirePoint  = GetAcquirePoint(dstStageMask, engineType);
     SyncGlxFlags     acquireCaches = GetReleaseThenAcquireCacheFlags(srcAccessMask, dstAccessMask,
                                                                      refreshTcc, mayHaveMetadata, pBarrierOps);
     ReleaseEvents    releaseEvents = GetReleaseEvents(pCmdBuf, *this, srcStageMask, srcAccessMask,
@@ -1594,55 +1617,44 @@ void Device::IssueReleaseThenAcquireSync(
     const Pm4CmdBufferStateFlags cmdBufStateFlags = pCmdBuf->GetPm4CmdBufState().flags;
 
     // Preprocess release events, acquire caches and point for optimization or HW limitation before issue real packet.
-    // Make no sense to process for (dstStageMask = PipelineStageBottomOfPipe) case so skip it.
-    if (dstStageMask != PipelineStageBottomOfPipe)
+    if (acquirePoint > AcquirePoint::Me)
     {
-#if PAL_BUILD_GFX11
-        if (UsePws(engineType))
+        // Optimization: convert acquireCaches to releaseCaches and do GCR op at release Eop instead of acquire
+        //               at ME stage so acquire can wait at a later point.
+        // Note that converting acquireCaches to releaseCaches is a correctness requirement when skip the acquire
+        // at EOP wait.
+        if (releaseEvents.eop && (acquireCaches != SyncGlxNone))
         {
-            // Optimization: we want to acquire at a later stage and we also expect cmdBufStateFlags.gfxBltActive/
-            //               gfxWriteCachesDirty can be optimized to 0 so the following release of BLT stage can be
-            //               skipped. It's really a balance here, if acquire stage is PreShader which is near ME stage,
-            //               let's force waiting at ME stage so cmdBufStateFlags can be optimized to 0.
-            if (releaseEvents.eop &&
-                (acquirePoint == AcquirePoint::PreShader) &&
-                (cmdBufStateFlags.gfxBltActive || cmdBufStateFlags.gfxWriteCachesDirty))
-            {
-                acquirePoint = AcquirePoint::Me;
-            }
-
-            if (acquirePoint > AcquirePoint::Me)
-            {
-                // Optimization: convert acquireCaches to releaseCaches and do GCR op at release Eop instead of acquire
-                //               at ME stage so acquire can wait at a later point.
-                if (releaseEvents.eop && (acquireCaches != SyncGlxNone))
-                {
-                    releaseCaches = m_cmdUtil.SelectReleaseMemCaches(&acquireCaches);
-                    PAL_ASSERT(acquireCaches == SyncGlxNone);
-                }
-
-                // HW limitation: Can only do GCR op at ME stage for Acquire.
-                // Optimization : issue lighter VS_PARTIAL_FLUSH instead of PWS+ packet which needs bump VsDone to
-                //                heavier PsDone or Eop.
-                if ((acquireCaches != SyncGlxNone) || releaseEvents.vs)
-                {
-                    acquirePoint = AcquirePoint::Me;
-                }
-            }
-        }
-        else // PWS unsupported case
-#endif
-        {
-            acquirePoint = Min(acquirePoint, AcquirePoint::Me);
+            releaseCaches = m_cmdUtil.SelectReleaseMemCaches(&acquireCaches);
+            PAL_ASSERT(acquireCaches == SyncGlxNone);
         }
 
-        // Optimization: If this is an Eop release acquiring at PFP/ME stage and cmdBufStateFlags.gfxWriteCachesDirty
-        //               is active, let's force releaseEvents.rbCache = 1 so cmdBufStateFlags.gfxWriteCachesDirty can
-        //               be optimized to 0 at end of this function.
-        if (releaseEvents.eop && (acquirePoint <= AcquirePoint::Me))
+        // HW limitation: Can only do GCR op at ME stage for Acquire.
+        // Optimization : issue lighter VS_PARTIAL_FLUSH instead of PWS+ packet which needs bump VsDone to
+        //                heavier PsDone or Eop.
+        if ((acquireCaches != SyncGlxNone) || releaseEvents.vs)
         {
-            releaseEvents.rbCache |= cmdBufStateFlags.gfxWriteCachesDirty;
+            acquirePoint = AcquirePoint::Me;
         }
+
+        // Optimization: we want to acquire at a later stage and we also expect cmdBufStateFlags.gfxBltActive/
+        //               gfxWriteCachesDirty can be optimized to 0 so the following release of BLT stage can be
+        //               skipped. It's really a balance here, if acquire stage is PreShader which is near ME stage,
+        //               let's force waiting at ME stage so cmdBufStateFlags can be optimized to 0.
+        if ((acquirePoint == AcquirePoint::PreShader) &&
+            (releaseEvents.eop != 0) &&
+            (cmdBufStateFlags.gfxBltActive || cmdBufStateFlags.gfxWriteCachesDirty))
+        {
+            acquirePoint = AcquirePoint::Me;
+        }
+    }
+
+    // Optimization: If this is an Eop release acquiring at PFP/ME stage and cmdBufStateFlags.gfxWriteCachesDirty
+    //               is active, let's force releaseEvents.rbCache = 1 so cmdBufStateFlags.gfxWriteCachesDirty can
+    //               be optimized to 0 at end of this function.
+    if (releaseEvents.eop && (acquirePoint <= AcquirePoint::Me))
+    {
+        releaseEvents.rbCache |= cmdBufStateFlags.gfxWriteCachesDirty;
     }
 
     if (releaseEvents.rbCache)
@@ -1651,17 +1663,13 @@ void Device::IssueReleaseThenAcquireSync(
         Pm4CmdBuffer::SetBarrierOperationsRbCacheSynced(pBarrierOps);
     }
 
-    bool waitAtPfpOrMe = false;
-
-    if (dstStageMask != PipelineStageBottomOfPipe)
+    if (acquirePoint != AcquirePoint::Eop)
     {
-        waitAtPfpOrMe = (acquirePoint <= AcquirePoint::Me);
-
 #if PAL_BUILD_GFX11
         // Go PWS+ wait if PWS+ is supported and
         //     (1) If release a Eop event (PWS+ path performs better than legacy path)
         //     (2) Or if use a later PWS-only acquire point and need release either PsDone or CsDone.
-        if ((releaseEvents.eop && UsePws(engineType)) ||
+        if ((releaseEvents.eop && Parent()->UsePws(engineType)) ||
             ((acquirePoint > AcquirePoint::Me) && (releaseEvents.ps || releaseEvents.cs)))
         {
             // No VsDone as it should go through non-PWS path.
@@ -1734,10 +1742,8 @@ void Device::IssueReleaseThenAcquireSync(
                 pCmdSpace += m_cmdUtil.BuildAcquireMemGfxPws(acquireMem, pCmdSpace);
             }
 
-            // BuildAcquireMemGfxPws will automatically upgrade PWS_STAGE_SEL to ME if cache syncs are required.
-            waitAtPfpOrMe |= (acquireCaches != SyncGlxNone);
-            acquireCaches  = SyncGlxNone; // Clear all SyncGlxFlags as done in BuildAcquireMemGfxPws().
-            needPfpSyncMe  = (acquirePoint == AcquirePoint::Pfp) ? false : needPfpSyncMe;
+            acquireCaches = SyncGlxNone; // Clear all SyncGlxFlags as done in BuildAcquireMemGfxPws().
+            needPfpSyncMe = false;
 
             pBarrierOps->pipelineStalls.waitOnTs   = 1;
             pBarrierOps->pipelineStalls.pfpSyncMe |= (acquirePoint == AcquirePoint::Pfp);
@@ -1775,18 +1781,19 @@ void Device::IssueReleaseThenAcquireSync(
             }
         }
     }
-    else // (dstStageMask == PipelineStageBottomOfPipe)
+    else // acquirePoint == AcquirePoint::Eop
     {
-        if (releaseEvents.rbCache)
+        if (releaseEvents.rbCache || (releaseCaches.u8All != 0))
         {
-            // Need issue GCR.gl2Inv/gl2Wb and RB cache sync in single ReleaseMem packet to avoid racing issue. Note
-            // that it's possible GCR.glkInv is left in acquireCaches for cases glkInv isn't supported in ReleaseMem
-            // packet and that should be fine.
-            releaseCaches = m_cmdUtil.SelectReleaseMemCaches(&acquireCaches);
+            PAL_ASSERT(releaseEvents.eop); // Must be Eop event to sync RB or GCR cache.
 
+            // Need issue GCR.gl2Inv/gl2Wb and RB cache sync in single ReleaseMem packet to avoid racing issue.
+            // Note that it's possible GCR.glkInv is left in acquireCaches for cases glkInv isn't supported in
+            // ReleaseMem packet. This case has been handled in if path since acquirePoint has been changed to Me
+            // in optimization codes above the if branch.
             ReleaseMemGfx releaseMem = {};
             releaseMem.cacheSync = releaseCaches;
-            releaseMem.vgtEvent  = CACHE_FLUSH_AND_INV_TS_EVENT;
+            releaseMem.vgtEvent  = releaseEvents.rbCache ? CACHE_FLUSH_AND_INV_TS_EVENT : BOTTOM_OF_PIPE_TS;
             releaseMem.dataSel   = data_sel__me_release_mem__none;
 
             pCmdSpace += m_cmdUtil.BuildReleaseMemGfx(releaseMem, pCmdSpace);
@@ -1818,7 +1825,7 @@ void Device::IssueReleaseThenAcquireSync(
     }
 
     // If we have stalled at Eop or Cs, update some CmdBufState (e.g. xxxBltActive) flags.
-    if (waitAtPfpOrMe)
+    if (acquirePoint <= AcquirePoint::Me)
     {
         if (releaseEvents.eop)
         {
@@ -2081,16 +2088,9 @@ LayoutTransitionInfo Device::PrepareBltInfo(
 
 #if PAL_ENABLE_PRINTS_ASSERTS
         const auto& engineProps = Parent()->EngineProperties().perEngine[pCmdBuf->GetEngineType()];
-        const auto& createInfo  = image.GetImageCreateInfo();
-        const bool  isFullPlane = image.IsRangeFullPlane(subresRange);
 
         // This queue must support this barrier transition.
         PAL_ASSERT(engineProps.flags.supportsImageInitBarrier == 1);
-
-        // By default, the entire plane must be initialized in one go. Per-subres support can be requested
-        // using an image flag as long as the queue supports it.
-        PAL_ASSERT(isFullPlane || ((engineProps.flags.supportsImageInitPerSubresource == 1) &&
-                                   (createInfo.flags.perSubresInit == 1)));
 #endif
 
         if (gfx9Image.HasColorMetaData() || gfx9Image.HasHtileData())
@@ -2279,7 +2279,6 @@ void Device::Acquire(
         // Issue acquire for global or pre-BLT sync. No need stall if wait at bottom of pipe
         const uint32 acquireDstStageMask  = (transInfo.bltCount > 0) ? transInfo.bltStageMask : dstGlobalStageMask;
         const uint32 acquireDstAccessMask = (transInfo.bltCount > 0) ? transInfo.bltAccessMask : dstGlobalAccessMask;
-        const bool   needWaitSyncToken    = (acquireDstStageMask != PipelineStageBottomOfPipe);
 
         IssueAcquireSync(pCmdBuf,
                          pCmdStream,
@@ -2287,7 +2286,7 @@ void Device::Acquire(
                          acquireDstAccessMask,
                          globalRefreshTcc,
                          mayHaveMatadata,
-                         (needWaitSyncToken ? syncTokenCount : 0),
+                         syncTokenCount,
                          pSyncTokens,
                          pBarrierOps);
 
@@ -3085,16 +3084,13 @@ void Device::AcquireEvent(
             activeEventCount = 1;
         }
 
-        // Issue acquire for global cache sync. No need stall if wait at bottom of pipe
-        const bool needWaitEvents = (dstGlobalStageMask != PipelineStageBottomOfPipe);
-
         IssueAcquireSyncEvent(pCmdBuf,
                               pCmdStream,
                               dstGlobalStageMask,
                               dstGlobalAccessMask,
                               globalRefreshTcc,
                               mayHaveMatadata,
-                              needWaitEvents ? activeEventCount : 0,
+                              activeEventCount,
                               ppActiveEvents,
                               pBarrierOps);
     }

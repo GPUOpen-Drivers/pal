@@ -60,7 +60,7 @@ GpuMemory::~GpuMemory()
     IGpuMemory* pGpuMemory = this;
     pDevice->RemoveGlobalReferences(1, &pGpuMemory, true);
 
-    if (m_desc.flags.isExternPhys)
+    if (IsExternPhys() && (m_desc.gpuVirtAddr != 0))
     {
         result = pDevice->FreeSdiSurface(this);
         PAL_ASSERT(result == Result::Success);
@@ -139,6 +139,7 @@ Result GpuMemory::AllocateOrPinMemory(
     PAL_ASSERT((IsPageDirectory() == false) && (IsPageTableBlock() == false));
 
     Result result = Result::Success;
+    const GpuChipProperties& chipProps = pDevice->ChipProperties();
 
     if (IsSvmAlloc())
     {
@@ -325,7 +326,7 @@ Result GpuMemory::AllocateOrPinMemory(
                 }
 
                 if ((pDevice->Settings().isLocalHeapPreferred || (m_priority >= GpuMemPriority::VeryHigh)) &&
-                    (allocRequest.preferred_heap & AMDGPU_GEM_DOMAIN_VRAM))
+                    (allocRequest.preferred_heap & AMDGPU_GEM_DOMAIN_VRAM) && (chipProps.gpuType != GpuType::Integrated))
                 {
                     allocRequest.flags          &= ~AMDGPU_GEM_CREATE_CPU_GTT_USWC;
                     allocRequest.preferred_heap &= ~AMDGPU_GEM_DOMAIN_GTT;
@@ -416,11 +417,12 @@ Result GpuMemory::Init(
 
     Result result = Pal::GpuMemory::Init(createInfo, internalInfo);
 
-    if (createInfo.flags.sdiExternal)
+    if (createInfo.flags.sdiExternal &&
+        ((createInfo.surfaceBusAddr != 0) || (createInfo.markerBusAddr != 0)))
     {
         Device* pDevice = static_cast<Device*>(m_pDevice);
-        m_desc.surfaceBusAddr = createInfo.surfaceBusAddr;
-        m_desc.markerBusAddr = createInfo.markerBusAddr;
+        SetSurfaceBusAddr(createInfo.surfaceBusAddr);
+        SetMarkerBusAddr(createInfo.markerBusAddr);
         result = pDevice->SetSdiSurface(this, &(m_desc.gpuVirtAddr));
     }
 
@@ -543,7 +545,14 @@ Result GpuMemory::ImportMemory(
     {
         result = pDevice->MapVirtualAddress(m_hSurface, 0, m_desc.size, m_desc.gpuVirtAddr, m_mtype);
 
-        if (result != Result::Success)
+        if (result == Result::Success)
+        {
+            if (IsGpuVaPreReserved() == false)
+            {
+                m_amdgpuFlags.isShared = pDevice->AddToSharedBoMap(m_hSurface, m_hVaRange, m_desc.gpuVirtAddr);
+            }
+        }
+        else
         {
             pDevice->FreeVirtualAddress(this);
         }
@@ -824,6 +833,35 @@ Result GpuMemory::QuerySdiBusAddress()
             const gpusize markerVa = m_desc.gpuVirtAddr + m_desc.markerBusAddr - m_desc.surfaceBusAddr;
             SetBusAddrMarkerVa(markerVa);
         }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result GpuMemory::SetSdiRemoteBusAddress(
+    gpusize surfaceBusAddr,
+    gpusize markerBusAddr)
+{
+    Result result = Result::Success;
+
+    if (IsExternPhys() && (m_desc.gpuVirtAddr == 0))
+    {
+        if ((surfaceBusAddr != 0) || (markerBusAddr != 0))
+        {
+            Device* pDevice = static_cast<Device*>(m_pDevice);
+            SetSurfaceBusAddr(surfaceBusAddr);
+            SetMarkerBusAddr(markerBusAddr);
+            result = pDevice->SetSdiSurface(this, &(m_desc.gpuVirtAddr));
+        }
+        else
+        {
+            result = Result::ErrorInvalidValue;
+        }
+    }
+    else
+    {
+        result = Result::ErrorUnavailable;
     }
 
     return result;

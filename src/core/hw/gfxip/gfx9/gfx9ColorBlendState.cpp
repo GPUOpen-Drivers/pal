@@ -47,9 +47,8 @@ ColorBlendState::ColorBlendState(
     m_flags.u32All = 0;
     m_flags.rbPlus = device.Settings().gfx9RbPlusEnable;
 
-    memset(&m_blendOpts[0],      0, sizeof(m_blendOpts));
-    memset(&m_cbBlendControl[0], 0, sizeof(m_cbBlendControl));
-    memset(&m_sxMrtBlendOpt[0],  0, sizeof(m_sxMrtBlendOpt));
+    memset(&m_blendOpts[0], 0, sizeof(m_blendOpts));
+    memset(&m_regs,         0, sizeof(m_regs));
 
     Init(createInfo);
 }
@@ -312,36 +311,36 @@ void ColorBlendState::Init(
         if (blend.targets[i].blendEnable)
         {
             m_flags.blendEnable |= (1 << i);
-            m_cbBlendControl[i].bits.ENABLE = 1;
+            m_regs.cbBlendControl[i].bits.ENABLE = 1;
         }
-        m_cbBlendControl[i].bits.SEPARATE_ALPHA_BLEND = 1;
-        m_cbBlendControl[i].bits.COLOR_SRCBLEND       = HwBlendOp(blend.targets[i].srcBlendColor);
-        m_cbBlendControl[i].bits.COLOR_DESTBLEND      = HwBlendOp(blend.targets[i].dstBlendColor);
-        m_cbBlendControl[i].bits.ALPHA_SRCBLEND       = HwBlendOp(blend.targets[i].srcBlendAlpha);
-        m_cbBlendControl[i].bits.ALPHA_DESTBLEND      = HwBlendOp(blend.targets[i].dstBlendAlpha);
-        m_cbBlendControl[i].bits.COLOR_COMB_FCN       = HwBlendFunc(blend.targets[i].blendFuncColor);
-        m_cbBlendControl[i].bits.ALPHA_COMB_FCN       = HwBlendFunc(blend.targets[i].blendFuncAlpha);
+        m_regs.cbBlendControl[i].bits.SEPARATE_ALPHA_BLEND = 1;
+        m_regs.cbBlendControl[i].bits.COLOR_SRCBLEND       = HwBlendOp(blend.targets[i].srcBlendColor);
+        m_regs.cbBlendControl[i].bits.COLOR_DESTBLEND      = HwBlendOp(blend.targets[i].dstBlendColor);
+        m_regs.cbBlendControl[i].bits.ALPHA_SRCBLEND       = HwBlendOp(blend.targets[i].srcBlendAlpha);
+        m_regs.cbBlendControl[i].bits.ALPHA_DESTBLEND      = HwBlendOp(blend.targets[i].dstBlendAlpha);
+        m_regs.cbBlendControl[i].bits.COLOR_COMB_FCN       = HwBlendFunc(blend.targets[i].blendFuncColor);
+        m_regs.cbBlendControl[i].bits.ALPHA_COMB_FCN       = HwBlendFunc(blend.targets[i].blendFuncAlpha);
 
         // BlendOps are forced to ONE for MIN/MAX blend funcs
         if ((blend.targets[i].blendFuncColor == BlendFunc::Min) ||
             (blend.targets[i].blendFuncColor == BlendFunc::Max))
         {
-            m_cbBlendControl[i].bits.COLOR_SRCBLEND  = BLEND_ONE;
-            m_cbBlendControl[i].bits.COLOR_DESTBLEND = BLEND_ONE;
+            m_regs.cbBlendControl[i].bits.COLOR_SRCBLEND  = BLEND_ONE;
+            m_regs.cbBlendControl[i].bits.COLOR_DESTBLEND = BLEND_ONE;
         }
 
         if ((blend.targets[i].blendFuncAlpha == BlendFunc::Min) ||
             (blend.targets[i].blendFuncAlpha == BlendFunc::Max))
         {
-            m_cbBlendControl[i].bits.ALPHA_SRCBLEND  = BLEND_ONE;
-            m_cbBlendControl[i].bits.ALPHA_DESTBLEND = BLEND_ONE;
+            m_regs.cbBlendControl[i].bits.ALPHA_SRCBLEND  = BLEND_ONE;
+            m_regs.cbBlendControl[i].bits.ALPHA_DESTBLEND = BLEND_ONE;
         }
     }
 
     m_flags.dualSourceBlend = m_device.CanEnableDualSourceBlend(blend);
 
     // CB_BLEND1_CONTROL.ENABLE must be 1 for dual source blending.
-    m_cbBlendControl[1].bits.ENABLE |= m_flags.dualSourceBlend;
+    m_regs.cbBlendControl[1].bits.ENABLE |= m_flags.dualSourceBlend;
 
     InitBlendOpts(blend);
 
@@ -352,7 +351,7 @@ void ColorBlendState::Init(
         {
             if (blend.targets[i].blendEnable == true)
             {
-                m_sxMrtBlendOpt[i].bits.COLOR_SRC_OPT = GetSxBlendOptColor(blend.targets[i].srcBlendColor);
+                m_regs.sxMrtBlendOpt[i].bits.COLOR_SRC_OPT = GetSxBlendOptColor(blend.targets[i].srcBlendColor);
 
                 // If src color factor constains Dst, don't optimize color DST. It was said blend factor
                 // SrcAlphaSaturate contains DST in RGB channels only.
@@ -362,14 +361,14 @@ void ColorBlendState::Init(
                     (blend.targets[i].srcBlendColor == Blend::OneMinusDstAlpha) ||
                     (blend.targets[i].srcBlendColor == Blend::SrcAlphaSaturate))
                 {
-                    m_sxMrtBlendOpt[i].bits.COLOR_DST_OPT = BLEND_OPT_PRESERVE_NONE_IGNORE_NONE;
+                    m_regs.sxMrtBlendOpt[i].bits.COLOR_DST_OPT = BLEND_OPT_PRESERVE_NONE_IGNORE_NONE;
                 }
                 else
                 {
-                    m_sxMrtBlendOpt[i].bits.COLOR_DST_OPT = GetSxBlendOptColor(blend.targets[i].dstBlendColor);
+                    m_regs.sxMrtBlendOpt[i].bits.COLOR_DST_OPT = GetSxBlendOptColor(blend.targets[i].dstBlendColor);
                 }
 
-                m_sxMrtBlendOpt[i].bits.ALPHA_SRC_OPT = GetSxBlendOptAlpha(blend.targets[i].srcBlendAlpha);
+                m_regs.sxMrtBlendOpt[i].bits.ALPHA_SRC_OPT = GetSxBlendOptAlpha(blend.targets[i].srcBlendAlpha);
 
                 // If src alpha factor contains DST, don't optimize alpha DST.
                 if ((blend.targets[i].srcBlendAlpha == Blend::DstColor) ||
@@ -377,35 +376,35 @@ void ColorBlendState::Init(
                     (blend.targets[i].srcBlendAlpha == Blend::DstAlpha) ||
                     (blend.targets[i].srcBlendAlpha == Blend::OneMinusDstAlpha))
                 {
-                    m_sxMrtBlendOpt[i].bits.ALPHA_DST_OPT = BLEND_OPT_PRESERVE_NONE_IGNORE_NONE;
+                    m_regs.sxMrtBlendOpt[i].bits.ALPHA_DST_OPT = BLEND_OPT_PRESERVE_NONE_IGNORE_NONE;
                 }
                 else
                 {
-                    m_sxMrtBlendOpt[i].bits.ALPHA_DST_OPT = GetSxBlendOptAlpha(blend.targets[i].dstBlendAlpha);
+                    m_regs.sxMrtBlendOpt[i].bits.ALPHA_DST_OPT = GetSxBlendOptAlpha(blend.targets[i].dstBlendAlpha);
                 }
 
-                m_sxMrtBlendOpt[i].bits.COLOR_COMB_FCN = GetSxBlendFcn(blend.targets[i].blendFuncColor);
-                m_sxMrtBlendOpt[i].bits.ALPHA_COMB_FCN = GetSxBlendFcn(blend.targets[i].blendFuncAlpha);
+                m_regs.sxMrtBlendOpt[i].bits.COLOR_COMB_FCN = GetSxBlendFcn(blend.targets[i].blendFuncColor);
+                m_regs.sxMrtBlendOpt[i].bits.ALPHA_COMB_FCN = GetSxBlendFcn(blend.targets[i].blendFuncAlpha);
 
                 // BlendOpts are forced to ONE for MIN/MAX blend fcns
-                if ((m_sxMrtBlendOpt[i].bits.COLOR_COMB_FCN == OPT_COMB_MIN) ||
-                    (m_sxMrtBlendOpt[i].bits.COLOR_COMB_FCN == OPT_COMB_MAX))
+                if ((m_regs.sxMrtBlendOpt[i].bits.COLOR_COMB_FCN == OPT_COMB_MIN) ||
+                    (m_regs.sxMrtBlendOpt[i].bits.COLOR_COMB_FCN == OPT_COMB_MAX))
                 {
-                    m_sxMrtBlendOpt[i].bits.COLOR_SRC_OPT = BLEND_OPT_PRESERVE_ALL_IGNORE_NONE;
-                    m_sxMrtBlendOpt[i].bits.COLOR_DST_OPT = BLEND_OPT_PRESERVE_ALL_IGNORE_NONE;
+                    m_regs.sxMrtBlendOpt[i].bits.COLOR_SRC_OPT = BLEND_OPT_PRESERVE_ALL_IGNORE_NONE;
+                    m_regs.sxMrtBlendOpt[i].bits.COLOR_DST_OPT = BLEND_OPT_PRESERVE_ALL_IGNORE_NONE;
                 }
 
-                if ((m_sxMrtBlendOpt[i].bits.ALPHA_COMB_FCN == OPT_COMB_MIN) ||
-                    (m_sxMrtBlendOpt[i].bits.ALPHA_COMB_FCN == OPT_COMB_MAX))
+                if ((m_regs.sxMrtBlendOpt[i].bits.ALPHA_COMB_FCN == OPT_COMB_MIN) ||
+                    (m_regs.sxMrtBlendOpt[i].bits.ALPHA_COMB_FCN == OPT_COMB_MAX))
                 {
-                    m_sxMrtBlendOpt[i].bits.ALPHA_SRC_OPT = BLEND_OPT_PRESERVE_ALL_IGNORE_NONE;
-                    m_sxMrtBlendOpt[i].bits.ALPHA_DST_OPT = BLEND_OPT_PRESERVE_ALL_IGNORE_NONE;
+                    m_regs.sxMrtBlendOpt[i].bits.ALPHA_SRC_OPT = BLEND_OPT_PRESERVE_ALL_IGNORE_NONE;
+                    m_regs.sxMrtBlendOpt[i].bits.ALPHA_DST_OPT = BLEND_OPT_PRESERVE_ALL_IGNORE_NONE;
                 }
             }
             else
             {
-                m_sxMrtBlendOpt[i].bits.COLOR_COMB_FCN = OPT_COMB_BLEND_DISABLED;
-                m_sxMrtBlendOpt[i].bits.ALPHA_COMB_FCN = OPT_COMB_BLEND_DISABLED;
+                m_regs.sxMrtBlendOpt[i].bits.COLOR_COMB_FCN = OPT_COMB_BLEND_DISABLED;
+                m_regs.sxMrtBlendOpt[i].bits.ALPHA_COMB_FCN = OPT_COMB_BLEND_DISABLED;
             }
         }
     }
@@ -429,16 +428,16 @@ void ColorBlendState::InitBlendOpts(
     for (uint32 ct = 0; ct < Pal::MaxColorTargets; ct++)
     {
         // The logic assumes the separate alpha blend is always on
-        PAL_ASSERT(m_cbBlendControl[ct].bits.SEPARATE_ALPHA_BLEND == 1);
+        PAL_ASSERT(m_regs.cbBlendControl[ct].bits.SEPARATE_ALPHA_BLEND == 1);
 
         Input optInput = { };
-        optInput.srcBlend       = HwEnumToBlendOp(m_cbBlendControl[ct].bits.COLOR_SRCBLEND);
-        optInput.destBlend      = HwEnumToBlendOp(m_cbBlendControl[ct].bits.COLOR_DESTBLEND);
-        optInput.alphaSrcBlend  = HwEnumToBlendOp(m_cbBlendControl[ct].bits.ALPHA_SRCBLEND);
-        optInput.alphaDestBlend = HwEnumToBlendOp(m_cbBlendControl[ct].bits.ALPHA_DESTBLEND);
+        optInput.srcBlend       = HwEnumToBlendOp(m_regs.cbBlendControl[ct].bits.COLOR_SRCBLEND);
+        optInput.destBlend      = HwEnumToBlendOp(m_regs.cbBlendControl[ct].bits.COLOR_DESTBLEND);
+        optInput.alphaSrcBlend  = HwEnumToBlendOp(m_regs.cbBlendControl[ct].bits.ALPHA_SRCBLEND);
+        optInput.alphaDestBlend = HwEnumToBlendOp(m_regs.cbBlendControl[ct].bits.ALPHA_DESTBLEND);
 
-        const uint32 colorCombFcn = m_cbBlendControl[ct].bits.COLOR_COMB_FCN;
-        const uint32 alphaCombFcn = m_cbBlendControl[ct].bits.ALPHA_COMB_FCN;
+        const uint32 colorCombFcn = m_regs.cbBlendControl[ct].bits.COLOR_COMB_FCN;
+        const uint32 alphaCombFcn = m_regs.cbBlendControl[ct].bits.ALPHA_COMB_FCN;
 
         for (uint32 idx = 0; idx < NumChannelWriteComb; idx++)
         {
@@ -498,13 +497,14 @@ uint32* ColorBlendState::WriteCommands(
     uint32*    pCmdSpace
     ) const
 {
-    pCmdSpace = pCmdStream->WriteSetSeqContextRegs(mmCB_BLEND0_CONTROL,
-                                                   mmCB_BLEND7_CONTROL,
-                                                   &m_cbBlendControl[0],
-                                                   pCmdSpace);
+    static_assert(mmSX_MRT7_BLEND_OPT + 1 == mmCB_BLEND0_CONTROL, "SX and CB BLEND reg ranges are not sequential!");
+    static_assert(offsetof(Regs, cbBlendControl) == MaxColorTargets * sizeof(uint32),
+                  "Bad Colorblend state reg storage order!");
+
+    // This writes SX_MRT0_BLEND_OPT - SX_MRT7_BLEND_OPT and CB_BLEND0_CONTROL - CB_BLEND7_CONTROL
     return pCmdStream->WriteSetSeqContextRegs(mmSX_MRT0_BLEND_OPT,
-                                              mmSX_MRT7_BLEND_OPT,
-                                              &m_sxMrtBlendOpt[0],
+                                              mmCB_BLEND7_CONTROL,
+                                              &m_regs.sxMrtBlendOpt[0],
                                               pCmdSpace);
 }
 

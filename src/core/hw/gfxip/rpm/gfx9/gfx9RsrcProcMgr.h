@@ -250,6 +250,18 @@ protected:
         bool                      computeResolve
         ) const override;
 
+#if PAL_BUILD_GFX11
+    virtual void HwlResolveImageGraphics(
+        GfxCmdBuffer*             pCmdBuffer,
+        const Pal::Image&         srcImage,
+        ImageLayout               srcImageLayout,
+        const Pal::Image&         dstImage,
+        ImageLayout               dstImageLayout,
+        uint32                    regionCount,
+        const ImageResolveRegion* pRegions,
+        uint32                    flags) const override;
+#endif
+
     virtual void HwlImageToImageMissingPixelCopy(
         GfxCmdBuffer*          pCmdBuffer,
         const Pal::Image&      srcImage,

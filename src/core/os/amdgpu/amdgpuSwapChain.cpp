@@ -53,7 +53,8 @@ size_t SwapChain::GetSize(
             WindowSystem::GetSize(createInfo.wsiPlatform)                                       +
             (createInfo.imageCount * PresentFence::GetSize(createInfo.wsiPlatform))             +
             PresentScheduler::GetSize(device, createInfo.pSlaveDevices, createInfo.wsiPlatform) +
-            Pal::SwapChain::GetPlacementSize(createInfo, device));
+            // No need to create present complete semaphore.
+            Pal::SwapChain::GetPlacementSize(createInfo, device, false));
 }
 
 // =====================================================================================================================
@@ -68,7 +69,7 @@ Result SwapChain::Create(
     if ((pPlacementAddr != nullptr) && (ppSwapChain != nullptr))
     {
         auto*const pSwapChain = PAL_PLACEMENT_NEW(pPlacementAddr) SwapChain(createInfo, pDevice);
-        result                = pSwapChain->Init(pSwapChain + 1);
+        result                = pSwapChain->Init(pSwapChain + 1, false);
 
         if (result == Result::Success)
         {
@@ -116,7 +117,8 @@ SwapChain::~SwapChain()
 // =====================================================================================================================
 // Creates our Linux objects then gives our parent class a chance to create its objects.
 Result SwapChain::Init(
-    void* pPlacementAddr)
+    void* pPlacementAddr,
+    bool  needPresentComplete)
 {
     Device*const pLnxDevice = static_cast<Device*>(m_pDevice);
 
@@ -174,7 +176,7 @@ Result SwapChain::Init(
 
     if (result == Result::Success)
     {
-        result = Pal::SwapChain::Init(pPlacementAddr);
+        result = Pal::SwapChain::Init(pPlacementAddr, needPresentComplete);
     }
 
     return result;

@@ -1330,6 +1330,35 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuQueryFirmwareVersion(
 }
 
 // =====================================================================================================================
+int32 DrmLoaderFuncsProxy::pfnAmdgpuQueryVideoCapsInfo(
+    amdgpu_device_handle  hDevice,
+    uint32                capType,
+    uint32                size,
+    void*                 pCaps
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int32 ret = m_pFuncs->pfnAmdgpuQueryVideoCapsInfo(hDevice,
+                                                      capType,
+                                                      size,
+                                                      pCaps);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("AmdgpuQueryVideoCapsInfo,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "AmdgpuQueryVideoCapsInfo(%p, %x, %x, %p)\n",
+        hDevice,
+        capType,
+        size,
+        pCaps);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
 int32 DrmLoaderFuncsProxy::pfnAmdgpuQueryHwIpCount(
     amdgpu_device_handle  hDevice,
     uint32                type,
@@ -3370,6 +3399,7 @@ Result DrmLoader::Init(
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_ctx_stable_pstate", &m_funcs.pfnAmdgpuCsCtxStablePstate);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_query_buffer_size_alignment", &m_funcs.pfnAmdgpuQueryBufferSizeAlignment);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_query_firmware_version", &m_funcs.pfnAmdgpuQueryFirmwareVersion);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_query_video_caps_info", &m_funcs.pfnAmdgpuQueryVideoCapsInfo);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_query_hw_ip_count", &m_funcs.pfnAmdgpuQueryHwIpCount);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_query_heap_info", &m_funcs.pfnAmdgpuQueryHeapInfo);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_query_gpu_info", &m_funcs.pfnAmdgpuQueryGpuInfo);

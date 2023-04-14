@@ -149,6 +149,10 @@ function(pal_compile_definitions TARGET)
 
     )
 
+    if (PAL_CLIENT_VULKAN)
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_SUPPORT_DEPTHCLAMPMODE_ZERO_TO_ONE=1)
+    endif()
+
     pal_get_cpu_endianness(TARGET_ARCHITECTURE_ENDIANESS)
     pal_get_system_architecture_bits(TARGET_ARCHITECTURE_BITS)
 

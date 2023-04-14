@@ -1155,9 +1155,10 @@ void Gfx11ColorTargetView::InitRegisters(
     const ColorTargetViewCreateInfo&  createInfo,
     ColorTargetViewInternalCreateInfo internalInfo)
 {
-    const Pal::Device&       palDevice = *device.Parent();
-    const GpuChipProperties& chipProps = palDevice.ChipProperties();
-    const Gfx9PalSettings&   settings  = device.Settings();
+    const Pal::Device&       palDevice       = *device.Parent();
+    const GpuChipProperties& chipProps       = palDevice.ChipProperties();
+    const Gfx9PalSettings&   settings        = device.Settings();
+    const PalPublicSettings* pPublicSettings = palDevice.GetPublicSettings();
 
     const MergedFlatFmtInfo*const pFmtInfoTbl =
         MergedChannelFlatFmtInfoTbl(chipProps.gfxLevel, &device.GetPlatform()->PlatformSettings());
@@ -1240,6 +1241,9 @@ void Gfx11ColorTargetView::InitRegisters(
 
         m_regs.cbColorAttrib.gfx11.NUM_FRAGMENTS     = Log2(imageCreateInfo.fragments);
         m_regs.cbColorAttrib.gfx11.FORCE_DST_ALPHA_1 = Formats::HasUnusedAlpha(m_swizzledFormat);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 790
+        m_regs.cbColorAttrib.gfx11.LIMIT_COLOR_FETCH_TO_256B_MAX = pPublicSettings->limitCbFetch256B;
+#endif
 
         m_regs.cbColorAttrib3.bits.MIP0_DEPTH    =
             ((imageType == ImageType::Tex3d) ? imageCreateInfo.extent.depth : imageCreateInfo.arraySize) - 1;

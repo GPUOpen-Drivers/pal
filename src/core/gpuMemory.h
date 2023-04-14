@@ -237,10 +237,15 @@ public:
 
     GpuHeap PreferredHeap() const;
 
+    // NOTE: Part of the public IGpuMemory interface. Set SDI remote surface bus address and marker bus address.
+    virtual Result SetSdiRemoteBusAddress(gpusize surfaceBusAddr, gpusize markerBusAddr) override
+        { return Result::ErrorUnavailable; }
+
     bool IsVirtual()             const { return (m_desc.flags.isVirtual           != 0); }
     bool IsPeer()                const { return (m_desc.flags.isPeer              != 0); }
     bool IsShared()              const { return (m_desc.flags.isShared            != 0); }
     bool IsExternal()            const { return (m_desc.flags.isExternal          != 0); }
+    bool IsExternPhys()          const { return (m_desc.flags.isExternPhys        != 0); }
     bool IsPinned()              const { return (m_flags.isPinned                 != 0); }
     bool IsShareable()           const { return (m_flags.isShareable              != 0); }
     bool IsPresentable()         const { return (m_flags.isPresentable            != 0); }

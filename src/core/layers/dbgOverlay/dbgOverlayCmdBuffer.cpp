@@ -93,8 +93,11 @@ void CmdBuffer::CmdColorSpaceConversionCopy(
             barrier.transitionCount = 1;
             barrier.pTransitions = &transition;
 
+            CmdPostProcessDebugOverlayInfo debugOverlayInfo = {};
+            debugOverlayInfo.presentMode = PresentMode::Unknown;
             m_device.GetTextWriter().WriteVisualConfirm(static_cast<const Image&>(srcImage),
-                                                        this, PresentMode::Unknown);
+                                                        this,
+                                                        debugOverlayInfo);
 
             barrier.reason = Developer::BarrierReasonDebugOverlayText;
 
@@ -126,8 +129,8 @@ void CmdBuffer::CmdColorSpaceConversionCopy(
 
 // =====================================================================================================================
 void CmdBuffer::DrawOverlay(
-    const IImage* pSrcImage,
-    PresentMode   presentMode)
+    const IImage*                         pSrcImage,
+    const CmdPostProcessDebugOverlayInfo& debugOverlayInfo)
 {
     const auto&  settings = m_pDevice->GetPlatform()->PlatformSettings();
     const uint32 engines  = (m_queueType == QueueTypeUniversal) ? LayoutUniversalEngine : LayoutComputeEngine;
@@ -156,14 +159,17 @@ void CmdBuffer::DrawOverlay(
     if (settings.debugOverlayConfig.visualConfirmEnabled == true)
     {
         const PlatformProperties& properties   = static_cast<Platform*>(m_pDevice->GetPlatform())->Properties();
-        const PresentMode expectedMode         =
-            ((properties.explicitPresentModes == 0) ? PresentMode::Unknown : presentMode);
 
+        CmdPostProcessDebugOverlayInfo expectedDebugOverlayInfo = debugOverlayInfo;
+        if (properties.explicitPresentModes == 0)
+        {
+            expectedDebugOverlayInfo.presentMode = PresentMode::Unknown;
+        }
         // Draw the debug overlay using this command buffer. Note that the DX runtime controls whether the
         // present will be windowed or fullscreen. We have no reliable way to detect the chosen present mode.
         m_device.GetTextWriter().WriteVisualConfirm(static_cast<const Image&>(*pSrcImage),
                                                     this,
-                                                    expectedMode);
+                                                    expectedDebugOverlayInfo);
 
         if (settings.debugOverlayConfig.timeGraphEnabled == true)
         {
@@ -205,7 +211,13 @@ void CmdBuffer::CmdPostProcessFrame(
         (m_device.GetSettings()->disableDebugOverlayVisualConfirm == false) &&
         Device::DetermineDbgOverlaySupport(m_queueType))
     {
-        DrawOverlay(postProcessInfo.pSrcImage, postProcessInfo.presentMode);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 787
+        DrawOverlay(postProcessInfo.pSrcImage, postProcessInfo.debugOverlay);
+#else
+        CmdPostProcessDebugOverlayInfo debugOverlay = {};
+        debugOverlay.presentMode = postProcessInfo.presentMode;
+        DrawOverlay(postProcessInfo.pSrcImage, debugOverlay);
+#endif
 
         if (pAddedGpuWork != nullptr)
         {

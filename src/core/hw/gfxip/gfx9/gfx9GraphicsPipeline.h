@@ -102,6 +102,12 @@ struct GfxPipelineRegs
         regSX_PS_DOWNCONVERT     sxPsDownconvert;
         regSX_BLEND_OPT_EPSILON  sxBlendOptEpsilon;
         regSX_BLEND_OPT_CONTROL  sxBlendOptControl;
+
+        // Additional RbPlus register set for enable dual source blend dynamically.
+        regSX_PS_DOWNCONVERT     sxPsDownconvertDual;
+        regSX_BLEND_OPT_EPSILON  sxBlendOptEpsilonDual;
+        regSX_BLEND_OPT_CONTROL  sxBlendOptControlDual;
+
         regVGT_LS_HS_CONFIG      vgtLsHsConfig;
         regPA_SC_MODE_CNTL_1     paScModeCntl1;
         regIA_MULTI_VGT_PARAM    iaMultiVgtParam[NumIaMultiVgtParam];
@@ -188,9 +194,6 @@ public:
     regVGT_LS_HS_CONFIG VgtLsHsConfig()   const { return m_regs.other.vgtLsHsConfig;  }
     regSPI_VS_OUT_CONFIG SpiVsOutConfig() const { return m_regs.other.spiVsOutConfig; }
     regSPI_PS_IN_CONTROL SpiPsInControl() const { return m_regs.other.spiPsInControl; }
-    regSX_PS_DOWNCONVERT SxPsDownconvert() const { return m_regs.other.sxPsDownconvert; }
-    regSX_BLEND_OPT_EPSILON SxBlendOptEpsilon() const { return m_regs.other.sxBlendOptEpsilon; }
-    regSX_BLEND_OPT_CONTROL SxBlendOptControl() const { return m_regs.other.sxBlendOptControl; }
     regCB_TARGET_MASK CbTargetMask() const { return m_regs.other.cbTargetMask; }
     regCB_COLOR_CONTROL CbColorControl() const { return m_regs.other.cbColorControl; }
     regDB_RENDER_OVERRIDE DbRenderOverride() const { return m_regs.other.dbRenderOverride; }
@@ -244,12 +247,18 @@ public:
     uint32* WriteConfigCommandsGfx10(CmdStream* pCmdStream, uint32* pCmdSpace) const;
 
     uint32 GetContextRegHash() const { return m_contextRegHash; }
-    uint32 GetRbplusRegHash() const { return m_rbplusRegHash; }
+    uint32 GetRbplusRegHash(bool dual) const { return dual ? m_rbplusRegHashDual : m_rbplusRegHash; }
     uint32 GetConfigRegHash() const { return m_configRegHash; }
 
     void OverrideRbPlusRegistersForRpm(
         SwizzledFormat           swizzledFormat,
         uint32                   slot,
+        regSX_PS_DOWNCONVERT*    pSxPsDownconvert,
+        regSX_BLEND_OPT_EPSILON* pSxBlendOptEpsilon,
+        regSX_BLEND_OPT_CONTROL* pSxBlendOptControl) const;
+
+    void GetRbPlusRegisters(
+        bool                     dualSourceBlendEnable,
         regSX_PS_DOWNCONVERT*    pSxPsDownconvert,
         regSX_BLEND_OPT_EPSILON* pSxBlendOptEpsilon,
         regSX_BLEND_OPT_CONTROL* pSxBlendOptControl) const;
@@ -363,6 +372,7 @@ private:
     const GfxIpLevel  m_gfxLevel;
     uint32            m_contextRegHash;
     uint32            m_rbplusRegHash;
+    uint32            m_rbplusRegHashDual;
     uint32            m_configRegHash;
     GsFastLaunchMode  m_fastLaunchMode;
     uint32            m_nggSubgroupSize;

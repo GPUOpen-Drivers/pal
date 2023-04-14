@@ -156,6 +156,8 @@ public:
         IGpuMemory*const* ppGpuMemory,
         bool              forceRemove);
 
+    Result DoAssociateFenceWithLastSubmit(Pal::Fence* pFence) override;
+
 protected:
     virtual Result OsDelay(float delay, const IPrivateScreen* pScreen) override;
 
@@ -171,8 +173,6 @@ protected:
         uint32                                    rangeCount,
         const VirtualMemoryCopyPageMappingsRange* pRanges,
         bool                                      doNotWait) override { return Result::ErrorUnavailable; }
-
-    Result DoAssociateFenceWithLastSubmit(Pal::Fence* pFence) override;
 
     const Device&          m_device;
     amdgpu_bo_handle*      m_pResourceList;
@@ -199,16 +199,19 @@ private:
 
     Result AddCmdStream(
         const CmdStream& cmdStream,
+        uint32           engineId,
         bool             isDummySubmission,
         bool             isTmzEnabled);
 
     Result AddIb(
-        gpusize gpuVirtAddr,
-        uint32  sizeInDwords,
-        bool    isConstantEngine,
-        bool    isPreemptionEnabled,
-        bool    dropIfSameContext,
-        bool    isTmzEnabled);
+        gpusize       gpuVirtAddr,
+        uint32        sizeInDwords,
+        EngineType    engineType,
+        SubEngineType subEngineType,
+        uint32        engineId,
+        bool          isPreemptionEnabled,
+        bool          dropIfSameContext,
+        bool          isTmzEnabled);
 
     Result SubmitIbs(
         const InternalSubmitInfo& internalSubmitInfo);
@@ -220,11 +223,17 @@ private:
         const MultiSubmitInfo&    submitInfo,
         const InternalSubmitInfo& internalSubmitInfo);
 
+    Result SubmitMultiQueuePm4(
+        const MultiSubmitInfo&    submitInfo,
+        const InternalSubmitInfo* internalSubmitInfo);
+
     Result PrepareChainedCommandBuffers(
         const InternalSubmitInfo& internalSubmitInfo,
         uint32                    cmdBufferCount,
         ICmdBuffer*const*         ppCmdBuffers,
-        uint32*                   pAppendedCmdBuffers);
+        uint32*                   pAppendedCmdBuffers,
+        uint32                    engineId,
+        const bool                isMultiQueue = false);
 
     Result PrepareUploadedCommandBuffers(
         const InternalSubmitInfo& internalSubmitInfo,
@@ -237,6 +246,11 @@ private:
     Result SubmitNonGfxIp(
         const MultiSubmitInfo&    submitInfo,
         const InternalSubmitInfo& internalSubmitInfo);
+
+    void IncrementDummySubmitCount(
+        const InternalSubmitInfo* internalSubmitInfo,
+        ICmdBuffer*const*        &ppCmdBuffers,
+        uint32                   &cmdBufferCount);
 
     // Tracks global memory references for this queue. Each key is a GPU memory object and each value is a refcount.
     typedef Util::HashMap<IGpuMemory*, uint32, Pal::Platform> MemoryRefMap;
@@ -260,8 +274,8 @@ private:
     bool               m_perfCtrWaRequired;        // if SQ Thread Trace in any cmdBuffer is active we need to tell KMD
 
     // These IBs will be sent to the kernel when SubmitIbs is called.
-    uint32                m_numIbs;
-    amdgpu_cs_ib_info     m_ibs[MaxIbsPerSubmit];
+    uint32                 m_numIbs;
+    drm_amdgpu_cs_chunk_ib m_ibs[MaxIbsPerSubmit];
 
     // The sync object refers to the fence of last submission.
     amdgpu_syncobj_handle m_lastSignaledSyncObject;
@@ -273,6 +287,9 @@ private:
     };
     // The vector to store the pending wait semaphore when sync object is in using.
     Util::Vector<SemaphoreInfo, 16, Platform> m_waitSemList;
+
+    // If we are using the ImplicitAce along with Gfx.
+    bool m_requiresGangedInterface;
 
     PAL_DISALLOW_DEFAULT_CTOR(Queue);
     PAL_DISALLOW_COPY_AND_ASSIGN(Queue);

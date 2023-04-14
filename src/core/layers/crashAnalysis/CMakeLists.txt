@@ -26,6 +26,7 @@
 target_sources(pal PRIVATE
     CMakeLists.txt
     crashAnalysis.h
+    crashAnalysis.cpp
     crashAnalysisCmdBuffer.cpp
     crashAnalysisCmdBuffer.h
     crashAnalysisQueue.cpp

@@ -173,6 +173,23 @@ static LocalMemoryType TranslateMemoryType(uint32 memType)
     return LocalMemoryType::Unknown;
 }
 
+uint32 DetermineNumberOfCus(const amdgpu_gpu_info& info)
+{
+    DD_ASSERT(info.num_shader_engines <= 4);
+    DD_ASSERT(info.num_shader_arrays_per_engine <= 4);
+
+    uint32 numCus = 0;
+    for (uint32 shaderEngine = 0; shaderEngine < info.num_shader_engines; ++shaderEngine)
+    {
+        for (uint32 shaderArray = 0; shaderArray < info.num_shader_arrays_per_engine; ++shaderArray)
+        {
+            numCus += CountSetBits(info.cu_bitmap[shaderEngine][shaderArray]);
+        }
+    }
+
+    return numCus;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Linux implementation of QueryGpuInfo, loads the dynamic library libdrm_amdgpu and calls functions to create a device
 // handle per GPU on the system, then query the GPU info from it to populate our own AmdGpuInfo struct used by the info
@@ -263,6 +280,7 @@ Result QueryGpuInfo(const AllocCb& allocCb, Vector<AmdGpuInfo>* pGpus)
 
                     outGpuInfo.asic.gpuIndex       = i;
                     outGpuInfo.asic.gpuCounterFreq = gpuInfo.gpu_counter_freq * 1000;
+                    outGpuInfo.asic.numCus = DetermineNumberOfCus(gpuInfo);
 
                     outGpuInfo.memory.type           = TranslateMemoryType(gpuInfo.vram_type);
                     outGpuInfo.memory.memOpsPerClock = MemoryOpsPerClock(outGpuInfo.memory.type);

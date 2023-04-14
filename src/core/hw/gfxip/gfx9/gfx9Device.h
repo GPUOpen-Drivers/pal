@@ -51,6 +51,8 @@ namespace Gfx9
 // Needed only for VRS support
 class Gfx10DepthStencilView;
 
+enum class AcquirePoint : uint8;
+
 // This value is the result Log2(MaxMsaaRasterizerSamples) + 1.
 constexpr uint32 MsaaLevelCount = 5;
 
@@ -494,7 +496,9 @@ public:
         void*                pOut);
 
     uint32 GetCuEnableMaskHi(uint32 disabledCuMmask, uint32 enabledCuMaskSetting) const;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 789
     static uint16 AdjustCuEnHi(uint16  val, uint32  mask) { return ((val & mask) >> 16); }
+#endif
 
     // Function definition for creating typed buffer view SRDs.
     static void PAL_STDCALL Gfx10CreateTypedBufferViewSrds(
@@ -766,10 +770,6 @@ public:
     uint32 BufferSrdResourceLevel() const;
 
 #if PAL_BUILD_GFX11
-    // Returns whether the pixel-wait-sync-plus feature can be enabled.
-    bool UsePws(EngineType engineType) const
-        { return (Parent()->IsPwsSupported(engineType) && Settings().enablePws); }
-
     Result AllocateVertexAttributesMem(bool isTmz);
 #endif
 
@@ -904,6 +904,8 @@ private:
     void OptimizeReadOnlyMemBarrier(Pm4CmdBuffer* pCmdBuf, MemBarrier* pTransition) const;
     bool OptimizeReadOnlyImgBarrier(Pm4CmdBuffer* pCmdBuf, ImgBarrier* pTransition) const;
 #endif
+
+    AcquirePoint GetAcquirePoint(uint32 dstStageMask, EngineType engineType) const;
 
     Gfx9::CmdUtil  m_cmdUtil;
     BoundGpuMemory m_occlusionSrcMem;   // If occlusionQueryDmaBufferSlots is in use, this is the source memory.

@@ -91,9 +91,15 @@ private:
         uint32  u32All;
     } m_flags;
 
-    const Device&         m_device;
-    regCB_BLEND0_CONTROL  m_cbBlendControl[MaxColorTargets];
-    regSX_MRT0_BLEND_OPT  m_sxMrtBlendOpt[MaxColorTargets];
+    const Device& m_device;
+
+    struct Regs
+    {
+        regSX_MRT0_BLEND_OPT sxMrtBlendOpt[MaxColorTargets];
+        regCB_BLEND0_CONTROL cbBlendControl[MaxColorTargets];
+    };
+
+    Regs m_regs;
 
     GfxBlendOptimizer::BlendOpts  m_blendOpts[MaxColorTargets * GfxBlendOptimizer::NumChannelWriteComb];
 

@@ -2760,6 +2760,12 @@ void InitializeGpuChipProperties(
     pInfo->gfxip.maxGsTotalOutputComponents = 4095;
     pInfo->gfxip.maxGsInvocations           = 127;
 
+    // Max supported by HW is 2^32-1 for all counters.  However limit Y and Z to keep total threads < 2^64 to avoid
+    // potentially overflowing 64 bit counters in HW
+    pInfo->gfxip.maxComputeThreadGroupCountX = UINT32_MAX;
+    pInfo->gfxip.maxComputeThreadGroupCountY = UINT16_MAX;
+    pInfo->gfxip.maxComputeThreadGroupCountZ = UINT16_MAX;
+
     // The maximum amount of LDS space that can be shared by a group of threads (wave/ threadgroup) in bytes.
     pInfo->gfxip.ldsSizePerCu = 65536;
     if (pInfo->gfxLevel == GfxIpLevel::GfxIp6)
@@ -2793,13 +2799,18 @@ void InitializeGpuChipProperties(
     pInfo->nullSrds.pNullSampler    = &NullSampler;
 
     // All GFXIP 6-8 hardware cannot support 2-bit signed values.
-    pInfo->gfx6.supports2BitSignedValues     = 0;
-    pInfo->gfx6.support64BitInstructions     = 1;
-    pInfo->gfxip.supportFloat32BufferAtomics = 1;
-    pInfo->gfxip.supportFloat32ImageAtomics  = 1;
-    pInfo->gfx6.supportFloat64Atomics        = 1;
-    pInfo->gfx6.supportBorderColorSwizzle    = 0;
-    pInfo->gfx6.supportImageViewMinLod       = 1;
+    pInfo->gfx6.supports2BitSignedValues          = 0;
+    pInfo->gfx6.support64BitInstructions          = 1;
+    pInfo->gfxip.supportFloat32BufferAtomics      = 1;
+    pInfo->gfxip.supportFloat32ImageAtomics       = 1;
+    pInfo->gfxip.supportFloat32BufferAtomicAdd    = 0;
+    pInfo->gfxip.supportFloat32ImageAtomicAdd     = 0;
+    pInfo->gfxip.supportFloat32ImageAtomicMinMax  = 0;
+    pInfo->gfx6.supportFloat64Atomics             = 1;
+    pInfo->gfx6.supportBorderColorSwizzle         = 0;
+    pInfo->gfx6.supportImageViewMinLod            = 1;
+    pInfo->gfxip.supportFloat64BufferAtomicMinMax = 1;
+    pInfo->gfxip.supportFloat64SharedAtomicMinMax = 1;
 
     // Out of order primitives was added in Hawaii, but it has a hardware bug where the hardware can hang when a
     // multi-cycle primitive is processed when out of order is enabled. This is fixed for GFXIP 8.

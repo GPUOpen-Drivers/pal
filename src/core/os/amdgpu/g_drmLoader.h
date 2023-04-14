@@ -295,6 +295,12 @@ typedef int32 (*AmdgpuQueryFirmwareVersion)(
             uint32*               pVersion,
             uint32*               pFeature);
 
+typedef int32 (*AmdgpuQueryVideoCapsInfo)(
+            amdgpu_device_handle  hDevice,
+            uint32                capType,
+            uint32                size,
+            void*                 pCaps);
+
 typedef int32 (*AmdgpuQueryHwIpCount)(
             amdgpu_device_handle  hDevice,
             uint32                type,
@@ -960,6 +966,12 @@ struct DrmLoaderFuncs
     bool pfnAmdgpuQueryFirmwareVersionisValid() const
     {
         return (pfnAmdgpuQueryFirmwareVersion != nullptr);
+    }
+
+    AmdgpuQueryVideoCapsInfo          pfnAmdgpuQueryVideoCapsInfo;
+    bool pfnAmdgpuQueryVideoCapsInfoisValid() const
+    {
+        return (pfnAmdgpuQueryVideoCapsInfo != nullptr);
     }
 
     AmdgpuQueryHwIpCount              pfnAmdgpuQueryHwIpCount;
@@ -1935,6 +1947,17 @@ public:
     bool pfnAmdgpuQueryFirmwareVersionisValid() const
     {
         return (m_pFuncs->pfnAmdgpuQueryFirmwareVersion != nullptr);
+    }
+
+    int32 pfnAmdgpuQueryVideoCapsInfo(
+            amdgpu_device_handle  hDevice,
+            uint32                capType,
+            uint32                size,
+            void*                 pCaps) const;
+
+    bool pfnAmdgpuQueryVideoCapsInfoisValid() const
+    {
+        return (m_pFuncs->pfnAmdgpuQueryVideoCapsInfo != nullptr);
     }
 
     int32 pfnAmdgpuQueryHwIpCount(

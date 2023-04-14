@@ -1039,7 +1039,7 @@ void PAL_STDCALL DeviceDecorator::DecoratorCreateBvhSrds(
 
     AutoBuffer<BvhInfo, 16, PlatformDecorator> bvhInfo(count, pDeviceDecorator->GetPlatform());
 
-    if (bvhInfo.Capacity() < count)
+    if (bvhInfo.Capacity() < count) [[unlikely]]
     {
         // No way to report this error...
         PAL_ASSERT_ALWAYS();
@@ -2696,6 +2696,14 @@ Result PlatformDecorator::CreateLogDir(
         // Try to create the root log directory first, which may already exist.
         const Result tmpResult = MkDir(pBaseDir);
         result = (tmpResult == Result::AlreadyExists) ? Result::Success : tmpResult;
+
+        if (result == Result::Success)
+        {
+            // Even if the dir already exists we try to set permissions in case it was device user who ceated the dir but
+            // with not enough permisions.
+            result = SetRwxFilePermissions(pBaseDir);
+            PAL_ASSERT_MSG(result == Result::Success, "Failed to set main logs directory permissions to RWX for all");
+        }
 
         // Create a directory name that will hold any dumped logs this session.  The name will be composed of the
         // executable name and current date/time, looking something like this: app.exe_2015-08-26_07.49.20.

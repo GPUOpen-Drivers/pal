@@ -242,12 +242,14 @@ uint32* PipelineChunkVsPs::WriteDynamicRegs(
     }
 #endif
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 789
     if (psStageInfo.cuEnableMask != 0)
     {
         dynamic.spiShaderPgmRsrc3Ps.bits.CU_EN &= psStageInfo.cuEnableMask;
         dynamic.spiShaderPgmRsrc4Ps.bits.CU_EN  =
             Device::AdjustCuEnHi(dynamic.spiShaderPgmRsrc4Ps.bits.CU_EN, psStageInfo.cuEnableMask);
     }
+#endif
 
     if (isNgg == false)
     {
@@ -264,12 +266,14 @@ uint32* PipelineChunkVsPs::WriteDynamicRegs(
         }
 #endif
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 789
         if (vsStageInfo.cuEnableMask != 0)
         {
             dynamic.spiShaderPgmRsrc3Vs.bits.CU_EN &= vsStageInfo.cuEnableMask;
             dynamic.spiShaderPgmRsrc4Vs.bits.CU_EN =
                 Device::AdjustCuEnHi(dynamic.spiShaderPgmRsrc4Vs.bits.CU_EN, vsStageInfo.cuEnableMask);
         }
+#endif
     }
 
     pCmdSpace = pCmdStream->WriteSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC3_PS,

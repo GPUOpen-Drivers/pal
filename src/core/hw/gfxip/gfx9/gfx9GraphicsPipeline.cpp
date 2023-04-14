@@ -324,6 +324,7 @@ void GraphicsPipeline::LateInit(
     if (pPublicSettings->optDepthOnlyExportRate && CanRbPlusOptimizeDepthOnly())
     {
         m_regs.other.sxPsDownconvert.bits.MRT0                    = SX_RT_EXPORT_32_R;
+        m_regs.other.sxPsDownconvertDual.bits.MRT0                = SX_RT_EXPORT_32_R;
         m_regs.context.spiShaderColFormat.bits.COL0_EXPORT_FORMAT = SPI_SHADER_32_R;
     }
 
@@ -340,6 +341,14 @@ void GraphicsPipeline::LateInit(
                   sizeof(m_regs.other.sxBlendOptControl));
     hasher.Finalize(hash.bytes);
     m_rbplusRegHash = MetroHash::Compact32(&hash);
+
+    hasher.Initialize();
+    hasher.Update(reinterpret_cast<const uint8*>(&m_regs.other.sxPsDownconvertDual),
+        sizeof(m_regs.other.sxPsDownconvertDual) +
+        sizeof(m_regs.other.sxBlendOptEpsilonDual) +
+        sizeof(m_regs.other.sxBlendOptControlDual));
+    hasher.Finalize(hash.bytes);
+    m_rbplusRegHashDual = MetroHash::Compact32(&hash);
 
     // We write our config registers in a separate function so they get their own hash.
     // Also, we only set config registers on gfx10+.
@@ -371,9 +380,8 @@ void GraphicsPipeline::LateInit(
 // =====================================================================================================================
 void GraphicsPipeline::DetermineBinningOnOff()
 {
-    const Gfx9PalSettings&   settings  = m_pDevice->Settings();
-
-    bool disableBinning = (settings.binningMode == Gfx9DeferredBatchBinDisabled);
+    const auto* const pPublicSettings = m_pDevice->Parent()->GetPublicSettings();
+    bool disableBinning = (pPublicSettings->binningMode == DeferredBatchBinDisabled);
 
     const regDB_SHADER_CONTROL& dbShaderControl = m_chunkVsPs.DbShaderControl();
 
@@ -392,10 +400,10 @@ void GraphicsPipeline::DetermineBinningOnOff()
     // Z rejects are allowed (PS does not output depth).
     // In such cases the binner orders pixel traffic in a suboptimal way.
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 753)
-    disableBinning |= canKill && canReject && (m_pDevice->Parent()->GetPublicSettings()->disableBinningPsKill
+    disableBinning |= canKill && canReject && (pPublicSettings->disableBinningPsKill
                                                == OverrideMode::Enabled);
 #else
-    disableBinning |= canKill && canReject && (m_pDevice->Parent()->GetPublicSettings()->disableBinningPsKill
+    disableBinning |= canKill && canReject && (pPublicSettings->disableBinningPsKill
                                                == DisableBinningPsKill::_True);
 #endif
 #else
@@ -405,7 +413,7 @@ void GraphicsPipeline::DetermineBinningOnOff()
 
     // Disable binning when the PS uses append/consume.
     // In such cases, binning changes the ordering of append/consume opeartions. This re-ordering can be suboptimal.
-    disableBinning |= PsUsesAppendConsume() && settings.disableBinningAppendConsume;
+    disableBinning |= PsUsesAppendConsume() && m_pDevice->Settings().disableBinningAppendConsume;
 
     disableBinning |= (GetBinningOverride() == BinningOverride::Disable);
 
@@ -522,7 +530,9 @@ void GraphicsPipeline::CalcDynamicStageInfo(
         pStageInfo->wavesPerSh   = CalcMaxWavesPerSh(shaderInfo.maxWavesPerCu, 0);
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 789
     pStageInfo->cuEnableMask = shaderInfo.cuEnableMask;
+#endif
 }
 
 // =====================================================================================================================
@@ -541,7 +551,9 @@ void GraphicsPipeline::CalcDynamicStageInfo(
     {
         pStageInfo->wavesPerSh   = CalcMaxWavesPerSh(shaderInfo1.maxWavesPerCu, shaderInfo2.maxWavesPerCu);
     }
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 789
     pStageInfo->cuEnableMask = shaderInfo1.cuEnableMask & shaderInfo2.cuEnableMask;
+#endif
 }
 
 // =====================================================================================================================
@@ -1580,6 +1592,11 @@ void GraphicsPipeline::SetupNonShaderRegisters(
         }
     }
 
+    // Copy RbPlus registers sets which compatible with dual source blend enable
+    m_regs.other.sxPsDownconvertDual   = m_regs.other.sxPsDownconvert;
+    m_regs.other.sxBlendOptEpsilonDual = m_regs.other.sxBlendOptEpsilon;
+    m_regs.other.sxBlendOptControlDual = m_regs.other.sxBlendOptControl;
+
     // Initialize RB+ registers for pipelines which are able to use the feature.
     if (settings.gfx9RbPlusEnable &&
         (createInfo.cbState.dualSourceBlendEnable == false) &&
@@ -2361,6 +2378,19 @@ void GraphicsPipeline::OverrideRbPlusRegistersForRpm(
         *pSxBlendOptEpsilon = sxBlendOptEpsilon;
         *pSxBlendOptControl = sxBlendOptControl;
     }
+}
+
+// =====================================================================================================================
+void GraphicsPipeline::GetRbPlusRegisters(
+    bool                     dualSourceBlendEnable,
+    regSX_PS_DOWNCONVERT*    pSxPsDownconvert,
+    regSX_BLEND_OPT_EPSILON* pSxBlendOptEpsilon,
+    regSX_BLEND_OPT_CONTROL* pSxBlendOptControl
+    ) const
+{
+    *pSxPsDownconvert   = dualSourceBlendEnable ? m_regs.other.sxPsDownconvertDual   : m_regs.other.sxPsDownconvert;
+    *pSxBlendOptEpsilon = dualSourceBlendEnable ? m_regs.other.sxBlendOptEpsilonDual : m_regs.other.sxBlendOptEpsilon;
+    *pSxBlendOptControl = dualSourceBlendEnable ? m_regs.other.sxBlendOptControlDual : m_regs.other.sxBlendOptControl;
 }
 
 // =====================================================================================================================

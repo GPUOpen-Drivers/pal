@@ -1202,4 +1202,42 @@ bool IsDebuggerAttached()
     return isAttached;
 }
 
+// =====================================================================================================================
+// Set path to be accessible by everyone.
+Result SetRwxFilePermissions(
+    const char* pFileName)
+{
+    Result result = Result::Success;
+    struct stat info;
+    int ret = stat(pFileName, &info);
+
+    if (ret == -1)
+    {
+        PAL_ALERT_ALWAYS_MSG("Failed to get stats for %s: %d - %s", pFileName, errno, strerror(errno));
+        result = Result::ErrorUnknown;
+    }
+    else if ((info.st_mode & (ACCESSPERMS)) != (ACCESSPERMS))
+    {
+        const uid_t euid = geteuid();
+        if (info.st_uid != euid)
+        {
+            PAL_ALERT_ALWAYS_MSG(
+                "Failed to set user access permission for %s due to mismach between owner and user ID", pFileName);
+            result = Result::ErrorUnknown;
+        }
+
+        if (result == Result::Success)
+        {
+            ret = chmod(pFileName, ACCESSPERMS);
+            if (ret == -1)
+            {
+                PAL_ALERT_ALWAYS_MSG(
+                    "Failed to set user access permission for %s: %d - %s", pFileName, errno, strerror(errno));
+                result = Result::ErrorUnknown;
+            }
+        }
+    }
+
+    return result;
+}
 } // Util

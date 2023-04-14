@@ -209,7 +209,8 @@ Queue::Queue(
     m_perfCtrWaRequired(false),
     m_numIbs(0),
     m_lastSignaledSyncObject(0),
-    m_waitSemList(pDevice->GetPlatform())
+    m_waitSemList(pDevice->GetPlatform()),
+    m_requiresGangedInterface(false)
 {
     // The space allocated will be used to save either the handle of each command or the pointer of the command
     // itself. When raw2 submit is supported, we save the pointer.
@@ -617,7 +618,6 @@ Result Queue::OsSubmit(
 {
     // If this triggers we forgot to flush one or more IBs to the GPU during the previous submit.
     PAL_ASSERT(m_numIbs == 0);
-    PAL_ASSERT(submitInfo.perSubQueueInfoCount <= 1);
 
     Result result = Result::Success;
 
@@ -625,22 +625,26 @@ Result Queue::OsSubmit(
     bool sqttClosed    = (m_sqttWaRequired == false);
     bool perfCtrActive = m_perfCtrWaRequired;
     bool perfCtrClosed = (m_perfCtrWaRequired == false);
-    for (uint32 cmdBufferIdx = 0; (cmdBufferIdx < submitInfo.pPerSubQueueInfo[0].cmdBufferCount); ++cmdBufferIdx)
+    for (uint32 queueCountIdx = 0; queueCountIdx < submitInfo.perSubQueueInfoCount; queueCountIdx++)
     {
-        if ((Type() == QueueType::QueueTypeUniversal) || (Type() == QueueType::QueueTypeCompute))
+        for (uint32 cmdBufferIdx = 0; (cmdBufferIdx < submitInfo.pPerSubQueueInfo[queueCountIdx].cmdBufferCount);
+            ++cmdBufferIdx)
         {
-            const GfxCmdBuffer*const pGfxCmdBuffer =
-                static_cast<GfxCmdBuffer*>(submitInfo.pPerSubQueueInfo[0].ppCmdBuffers[cmdBufferIdx]);
+            if ((Type() == QueueType::QueueTypeUniversal) || (Type() == QueueType::QueueTypeCompute))
+            {
+                const GfxCmdBuffer*const pGfxCmdBuffer =
+                    static_cast<GfxCmdBuffer*>(submitInfo.pPerSubQueueInfo[queueCountIdx].ppCmdBuffers[cmdBufferIdx]);
 
-            if (pGfxCmdBuffer->SqttStarted() || pGfxCmdBuffer->SqttClosed())
-            {
-                sqttActive = true;
-                sqttClosed = pGfxCmdBuffer->SqttClosed();
-            }
-            if (pGfxCmdBuffer->PerfCounterStarted() || pGfxCmdBuffer->PerfCounterClosed())
-            {
-                perfCtrActive = true;
-                perfCtrClosed = pGfxCmdBuffer->PerfCounterClosed();
+                if (pGfxCmdBuffer->SqttStarted() || pGfxCmdBuffer->SqttClosed())
+                {
+                    sqttActive = true;
+                    sqttClosed = pGfxCmdBuffer->SqttClosed();
+                }
+                if (pGfxCmdBuffer->PerfCounterStarted() || pGfxCmdBuffer->PerfCounterClosed())
+                {
+                    perfCtrActive = true;
+                    perfCtrClosed = pGfxCmdBuffer->PerfCounterClosed();
+                }
             }
         }
     }
@@ -661,6 +665,7 @@ Result Queue::OsSubmit(
 
         if (result == Result::Success)
         {
+            // localSubmitInfo is used for SubmitPm4() and SubmitNonGfxIp() calls
             MultiSubmitInfo       localSubmitInfo       = submitInfo;
             PerSubQueueSubmitInfo perSubQueueSubmitInfo = {};
             if (pInternalSubmitInfos->flags.isDummySubmission == false)
@@ -670,28 +675,66 @@ Result Queue::OsSubmit(
             localSubmitInfo.pPerSubQueueInfo     = &perSubQueueSubmitInfo;
             localSubmitInfo.perSubQueueInfoCount = 1;
 
-            // amdgpu won't give us a new fence value unless the submission has at least one command buffer.
-            if ((pInternalSubmitInfos->flags.isDummySubmission) || (m_ifhMode == IfhModePal))
-            {
-                perSubQueueSubmitInfo.ppCmdBuffers =
-                    reinterpret_cast<Pal::ICmdBuffer* const*>(&m_pDummyCmdBuffer);
-                perSubQueueSubmitInfo.cmdBufferCount  = 1;
-                if ((m_ifhMode != IfhModePal) && (pInternalSubmitInfos->flags.isDummySubmission == false))
-                {
-                    m_pDummyCmdBuffer->IncrementSubmitCount();
-                }
-            }
-
             // Clear pending wait flag.
             m_pendingWait = false;
 
             if ((Type() == QueueTypeUniversal) || (Type() == QueueTypeCompute))
             {
-                result = SubmitPm4(localSubmitInfo, pInternalSubmitInfos[0]);
+                if (m_queueCount > 1)
+                {
+                    result = SubmitMultiQueuePm4(submitInfo, pInternalSubmitInfos);
+                }
+                else if (pInternalSubmitInfos->implicitGangedSubQueues > 0)
+                {
+                    // We only support Gfx+ImplicitAce submissions as a single queue on the Universal Engine.
+                    PAL_ASSERT((m_queueCount == 1) &&
+                               (m_pQueueInfos[0].createInfo.engineType == EngineType::EngineTypeUniversal));
+                    // There's a race condition with a Queue using both normal and gang submission.
+                    // Because normal submissions use GPU to write to fence memory, and gang submissions uses the CPU
+                    // to write to fence memory, there is a chance that while we are trying to write a gang submit
+                    // fence, the GPU will write a fence for normal submission.
+                    // Solution:
+                    // If m_queuecount == 1, have PAL track if it has ever seen a submit which uses
+                    // ImplicitAceCmdStream. Until it encounters one, it can use the normal path.The first time it
+                    // encounters a usesImplicitAceCmdStream submit, it needs to idle the queue then use the gang
+                    // submission interface from that point forward.
+                    if (m_requiresGangedInterface == false)
+                    {
+                        result = WaitIdle();
+                        PAL_ALERT(result == Result::Success);
+                        m_requiresGangedInterface = true;
+                    }
+                    if (result == Result::Success)
+                    {
+                        PAL_NOT_IMPLEMENTED_MSG("Implicit Gang Submission not yet implemented!");
+                    }
+                }
+                else
+                {
+                    if (m_requiresGangedInterface == false)
+                    {
+                        IncrementDummySubmitCount(pInternalSubmitInfos, perSubQueueSubmitInfo.ppCmdBuffers,
+                                                  perSubQueueSubmitInfo.cmdBufferCount);
+
+                        result = SubmitPm4(localSubmitInfo, pInternalSubmitInfos[0]);
+                    }
+                    else
+                    {
+                        // If we reach this branch, it indicates that pInternalSubmitInfos->implicitGangedSubQueues is 0
+                        // while m_requiresGangedInterface is true. Specifically, it indicates that this submission does
+                        // not use the ImplicitAce while there was an ImplicitAce + Gfx submission on this queue before.
+                        // Based on the solution mentioned above, we need to use gang submit interface for this submission.
+                        result = SubmitMultiQueuePm4(submitInfo, pInternalSubmitInfos);
+                    }
+                }
             }
             else if ((Type() == QueueTypeDma)
                     )
             {
+                // amdgpu won't give us a new fence value unless the submission has at least one command buffer.
+                IncrementDummySubmitCount(pInternalSubmitInfos, perSubQueueSubmitInfo.ppCmdBuffers,
+                                          perSubQueueSubmitInfo.cmdBufferCount);
+
                 result = SubmitNonGfxIp(localSubmitInfo, pInternalSubmitInfos[0]);
             }
         }
@@ -768,13 +811,18 @@ Result Queue::SubmitPm4(
     PAL_ASSERT(submitInfo.pPerSubQueueInfo[0].cmdBufferCount > 0);
     PAL_ASSERT((Type() == QueueTypeUniversal) || (Type() == QueueTypeCompute));
 
+    // SubmitPm4 function should not handle more than 1 subqueue
+    PAL_ASSERT(submitInfo.perSubQueueInfoCount == 1);
+
     // For linux platforms, there will exist at most 3 preamble + 2 postamble:
     // Preamble  CE IB (always)
     // Preamble  DE IB (always)
     // Preamble  DE IB (if context switch)
     // Postamble CE IB
     // Postamble DE IB
-    PAL_ASSERT((internalSubmitInfo.numPreambleCmdStreams + internalSubmitInfo.numPostambleCmdStreams) <= 5);
+    constexpr uint32 MaxPreamblePostambleCmdStreams = 5;
+    PAL_ASSERT((internalSubmitInfo.numPreambleCmdStreams + internalSubmitInfo.numPostambleCmdStreams) <=
+                MaxPreamblePostambleCmdStreams);
 
     // Determine which optimization modes should be enabled for this submit.
     const bool minGpuCmdOverhead     = (m_pQueueInfos[0].createInfo.submitOptMode == SubmitOptMode::MinGpuCmdOverhead);
@@ -854,7 +902,8 @@ Result Queue::SubmitPm4(
                 result = PrepareChainedCommandBuffers(internalSubmitInfo,
                                                       numNextCmdBuffers,
                                                       ppNextCmdBuffers,
-                                                      &batchSize);
+                                                      &batchSize,
+                                                      EngineId());
             }
         }
         else
@@ -862,7 +911,8 @@ Result Queue::SubmitPm4(
             result = PrepareChainedCommandBuffers(internalSubmitInfo,
                                                   numNextCmdBuffers,
                                                   ppNextCmdBuffers,
-                                                  &batchSize);
+                                                  &batchSize,
+                                                  EngineId());
         }
 
         if (result == Result::Success)
@@ -893,13 +943,113 @@ Result Queue::SubmitPm4(
 }
 
 // =====================================================================================================================
+// Submits one or more PM4 command buffers.
+Result Queue::SubmitMultiQueuePm4(
+    const MultiSubmitInfo&    submitInfo,
+    const InternalSubmitInfo* internalSubmitInfo)
+{
+    Result result = Result::Success;
+
+    // The OsSubmit function should guarantee that we have at least one universal or compute command buffer.
+    PAL_ASSERT(submitInfo.pPerSubQueueInfo[0].cmdBufferCount > 0);
+    PAL_ASSERT((Type() == QueueTypeUniversal) || (Type() == QueueTypeCompute));
+
+    // For linux platforms, there will exist at most 4 preamble + 3 postamble:
+    // Preamble  (gang submit)
+    // Preamble  CE IB (optional)
+    // Preamble  DE IB (always)
+    // Preamble  DE IB (if context switch)
+    // Postamble CE IB
+    // Postamble DE IB
+    // Postamble  (gang submit)
+    constexpr uint32 MaxPreamblePostambleCmdStreams = 7;
+    PAL_ASSERT((internalSubmitInfo[0].numPreambleCmdStreams + internalSubmitInfo[0].numPostambleCmdStreams) <=
+                MaxPreamblePostambleCmdStreams);
+
+    auto*const pDevice                  = static_cast<Device*>(m_pDevice);
+    uint32 numOfNonEmptyPerSubQueueInfo = 0;
+
+    for (uint32 qIndex = 0; qIndex < submitInfo.perSubQueueInfoCount; qIndex++)
+    {
+        // Iteratively build batches of command buffers and launch their command streams.
+        uint32            numNextCmdBuffers = submitInfo.pPerSubQueueInfo[qIndex].cmdBufferCount;
+        ICmdBuffer*const* ppNextCmdBuffers  = submitInfo.pPerSubQueueInfo[qIndex].ppCmdBuffers;
+
+        IncrementDummySubmitCount(internalSubmitInfo, ppNextCmdBuffers, numNextCmdBuffers);
+
+        // If there are no provided cmdbuffers provided by the client, we don't attach gang submit headers for this
+        // sub queue.
+        if (numNextCmdBuffers == 0)
+        {
+            continue;
+        }
+
+        numOfNonEmptyPerSubQueueInfo++;
+
+        // If spm enabled commands included, reserve a vmid so that the SPM_VMID could be updated
+        // by KMD.
+        for (uint32 idx = 0; idx < numNextCmdBuffers; ++idx)
+        {
+            auto pCmdBuf = static_cast<GfxCmdBuffer*>(ppNextCmdBuffers[idx]);
+            if (pCmdBuf->PerfTracesEnabled().spmTraceEnabled)
+            {
+                result = static_cast<Device*>(m_pDevice)->SetStaticVmidMode(true);
+                break;
+            }
+        }
+
+        while ((result == Result::Success) && (numNextCmdBuffers > 0))
+        {
+            uint32 batchSize = 0;
+
+            result = PrepareChainedCommandBuffers(internalSubmitInfo[qIndex],
+                                                  numNextCmdBuffers,
+                                                  ppNextCmdBuffers,
+                                                  &batchSize,
+                                                  m_pQueueInfos[qIndex].createInfo.engineIndex,
+                                                  true);
+            if (result == Result::Success)
+            {
+                // The batch is fully prepared, advance our tracking variables and launch the command streams.
+                PAL_ASSERT(numNextCmdBuffers >= batchSize);
+
+                numNextCmdBuffers -= batchSize;
+                ppNextCmdBuffers  += batchSize;
+            }
+        }
+    }
+
+    if (result == Result::Success)
+    {
+        result = GfxIpWaitPipelineUploading(submitInfo);
+    }
+
+    if (result == Result::Success)
+    {
+        if (pDevice->IsRaw2SubmitSupported())
+        {
+            result = SubmitIbsRaw(internalSubmitInfo[0]);
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS_MSG("Attempted to perform a Multi-Submit on a device which does not support Raw2Submit");
+            result = Result::Unsupported;
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 // The GFX IP engines all support IB chaining, so we can submit multiple command buffers together as one. This function
 // will add command streams for the preambles, chained command streams, and the postambles.
 Result Queue::PrepareChainedCommandBuffers(
     const InternalSubmitInfo& internalSubmitInfo,
     uint32                    cmdBufferCount,
     ICmdBuffer*const*         ppCmdBuffers,
-    uint32*                   pAppendedCmdBuffers)
+    uint32*                   pAppendedCmdBuffers,
+    uint32                    engineId,
+    const bool                isMultiQueue)
 {
     Result result = Result::Success;
 
@@ -911,7 +1061,19 @@ Result Queue::PrepareChainedCommandBuffers(
     uint32 batchSize = 1;
     while ((batchSize < maxBatchSize) && static_cast<CmdBuffer*>(ppCmdBuffers[batchSize - 1])->IsExclusiveSubmit())
     {
+        if (static_cast<CmdBuffer*>(ppCmdBuffers[0])->IsTmzEnabled() !=
+            static_cast<CmdBuffer*>(ppCmdBuffers[batchSize])->IsTmzEnabled())
+        {
+            // All chained IBs must have the same TMZ mode since this can only be set on a per submission basis.
+            break;
+        }
         batchSize++;
+    }
+
+    // In MultiQueue, all command streams of a subQueue should be able to chained together.
+    if (isMultiQueue && (batchSize < cmdBufferCount))
+    {
+        result = Result::ErrorUnavailable;
     }
 
     // The preamble command streams must be added to beginning of each kernel submission and cannot be chained because
@@ -922,6 +1084,7 @@ Result Queue::PrepareChainedCommandBuffers(
     {
         PAL_ASSERT(internalSubmitInfo.pPreambleCmdStream[idx] != nullptr);
         result = AddCmdStream(*internalSubmitInfo.pPreambleCmdStream[idx],
+                              engineId,
                               internalSubmitInfo.flags.isDummySubmission,
                               internalSubmitInfo.flags.isTmzEnabled);
     }
@@ -943,19 +1106,14 @@ Result Queue::PrepareChainedCommandBuffers(
             PAL_ASSERT(numStreams == pCurCmdBuf->NumCmdStreams());
 
             const CmdStream*const pCurCmdStream = pCurCmdBuf->GetCmdStream(streamIdx);
-            if (pCurCmdStream == nullptr)
-            {
-                // There are some CmdStreams which are only active when specific features are enabled.
-                // As a result, not all command buffers in a submit will contain these CmdStreams.
-                continue;
-            }
 
-            if (pCurCmdStream->IsEmpty() == false)
+            if ((pCurCmdStream != nullptr) && (pCurCmdStream->IsEmpty() == false))
             {
                 if (pPrevCmdStream == nullptr)
                 {
                     // The first command buffer's command streams are what the kernel will launch.
                     result = AddCmdStream(*pCurCmdStream,
+                                          engineId,
                                           internalSubmitInfo.flags.isDummySubmission,
                                           internalSubmitInfo.flags.isTmzEnabled);
                 }
@@ -994,6 +1152,7 @@ Result Queue::PrepareChainedCommandBuffers(
     {
         PAL_ASSERT(internalSubmitInfo.pPostambleCmdStream[idx] != nullptr);
         result = AddCmdStream(*internalSubmitInfo.pPostambleCmdStream[idx],
+                              engineId,
                               internalSubmitInfo.flags.isDummySubmission,
                               internalSubmitInfo.flags.isTmzEnabled);
     }
@@ -1026,6 +1185,7 @@ Result Queue::PrepareUploadedCommandBuffers(
     {
         PAL_ASSERT(internalSubmitInfo.pPreambleCmdStream[idx] != nullptr);
         result = AddCmdStream(*internalSubmitInfo.pPreambleCmdStream[idx],
+                              EngineId(),
                               internalSubmitInfo.flags.isDummySubmission,
                               internalSubmitInfo.flags.isTmzEnabled);
     }
@@ -1041,7 +1201,9 @@ Result Queue::PrepareUploadedCommandBuffers(
 
             result = AddIb(streamInfo.pGpuMemory->Desc().gpuVirtAddr,
                            static_cast<uint32>(streamInfo.launchSize / sizeof(uint32)),
-                           (streamInfo.subEngineType == SubEngineType::ConstantEngine),
+                           streamInfo.engineType,
+                           streamInfo.subEngineType,
+                           EngineId(),
                            streamInfo.flags.isPreemptionEnabled,
                            streamInfo.flags.dropIfSameContext,
                            internalSubmitInfo.flags.isTmzEnabled);
@@ -1057,6 +1219,7 @@ Result Queue::PrepareUploadedCommandBuffers(
     {
         PAL_ASSERT(internalSubmitInfo.pPostambleCmdStream[idx] != nullptr);
         result = AddCmdStream(*internalSubmitInfo.pPostambleCmdStream[idx],
+                              EngineId(),
                               internalSubmitInfo.flags.isDummySubmission,
                               internalSubmitInfo.flags.isTmzEnabled);
     }
@@ -1117,7 +1280,9 @@ Result Queue::SubmitNonGfxIp(
 
             result = AddIb(pChunk->GpuVirtAddr(),
                            pChunk->CmdDwordsToExecute(),
-                           (pCmdStream->GetSubEngineType() == SubEngineType::ConstantEngine),
+                           pCmdStream->GetEngineType(),
+                           pCmdStream->GetSubEngineType(),
+                           EngineId(),
                            pCmdStream->IsPreemptionEnabled(),
                            pCmdStream->DropIfSameContext(),
                            internalSubmitInfo.flags.isTmzEnabled);
@@ -1140,6 +1305,27 @@ Result Queue::SubmitNonGfxIp(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+// Assigns ppCmdBuffers to a dummy command buffer and sets the command buffer count to 1 if operating in IfhModePal or
+// if this is a dummy submission. Will increment submit count if m_ifhMode isn't IfhModePal and not a dummy
+// subbmission.
+void Queue::IncrementDummySubmitCount(
+    const InternalSubmitInfo* internalSubmitInfo,
+    ICmdBuffer*const*        &ppCmdBuffers,
+    uint32                   &cmdBufferCount)
+{
+    // Use m_pDummyCmdBuffer for dummy submissions
+    if ((internalSubmitInfo->flags.isDummySubmission) || (m_ifhMode == IfhModePal))
+    {
+        ppCmdBuffers    = reinterpret_cast<Pal::ICmdBuffer* const*>(&m_pDummyCmdBuffer);
+        cmdBufferCount  = 1;
+        if ((m_ifhMode != IfhModePal) && (internalSubmitInfo->flags.isDummySubmission == false))
+        {
+            m_pDummyCmdBuffer->IncrementSubmitCount();
+        }
+    }
 }
 
 // =====================================================================================================================
@@ -1371,6 +1557,7 @@ Result Queue::AppendResourceToList(
 // Calls AddIb on the first chunk from the given command stream.
 Result Queue::AddCmdStream(
     const CmdStream& cmdStream,
+    uint32           engineId,
     bool             isDummySubmission,
     bool             isTmzEnabled)
 {
@@ -1384,7 +1571,9 @@ Result Queue::AddCmdStream(
 
         result =  AddIb(pChunk->GpuVirtAddr(),
                         pChunk->CmdDwordsToExecute(),
-                        (cmdStream.GetSubEngineType() == SubEngineType::ConstantEngine),
+                        cmdStream.GetEngineType(),
+                        cmdStream.GetSubEngineType(),
+                        engineId,
                         cmdStream.IsPreemptionEnabled(),
                         cmdStream.DropIfSameContext(),
                         isTmzEnabled);
@@ -1396,25 +1585,31 @@ Result Queue::AddCmdStream(
 // =====================================================================================================================
 // Adds an IB to the internal list. It will be submitted to the GPU during the next call to SubmitIbs.
 Result Queue::AddIb(
-    gpusize gpuVirtAddr,
-    uint32  sizeInDwords,
-    bool    isConstantEngine,
-    bool    isPreemptionEnabled,
-    bool    dropIfSameContext,
-    bool    isTmzEnabled)
+    gpusize       gpuVirtAddr,
+    uint32        sizeInDwords,
+    EngineType    engineType,
+    SubEngineType subEngineType,
+    uint32        engineId,
+    bool          isPreemptionEnabled,
+    bool          dropIfSameContext,
+    bool          isTmzEnabled)
 {
     Result result = Result::ErrorUnknown;
+
+    bool isConstantEngine = (subEngineType == SubEngineType::ConstantEngine);
 
     if (m_numIbs < MaxIbsPerSubmit)
     {
         result = Result::Success;
 
-        m_ibs[m_numIbs].ib_mc_address = gpuVirtAddr;
-        m_ibs[m_numIbs].size          = sizeInDwords;
+        bool isConstantEngine = (subEngineType == SubEngineType::ConstantEngine);
+
+        m_ibs[m_numIbs]._pad = 0;
 
         // In Linux KMD, AMDGPU_IB_FLAG_PREAMBLE simply behaves just like flag "dropIfSameCtx" in windows.
         // But we are forbidden to change the flag name because the interface was already upstreamed to
         // open source libDRM, so we have to still use it for backward compatibility.
+        // So far the flag is always 0 for drm_amdgpu_cs_chunk_ib chunks.
         m_ibs[m_numIbs].flags         = ((isConstantEngine       ? AMDGPU_IB_FLAG_CE              : 0) |
                                          (isPreemptionEnabled    ? AMDGPU_IB_FLAG_PREEMPT         : 0) |
                                          (dropIfSameContext      ? AMDGPU_IB_FLAG_PREAMBLE        : 0) |
@@ -1422,6 +1617,14 @@ Result Queue::AddIb(
                                          (isTmzEnabled           ? AMDGPU_IB_FLAGS_SECURE         : 0) |
                                          (m_perfCtrWaRequired    ? AMDGPU_IB_FLAG_PERF_COUNTER    : 0) |
                                          (m_sqttWaRequired       ? AMDGPU_IB_FLAG_SQ_THREAD_TRACE : 0));
+
+        m_ibs[m_numIbs].va_start = gpuVirtAddr;
+        m_ibs[m_numIbs].ib_bytes = sizeInDwords * 4;
+        m_ibs[m_numIbs].ip_type  = GetIpType(static_cast<EngineType>(engineType));
+        // Quote From Kernel : Right now all IPs have only one instance - multiple rings.
+        // The ip_instance should always stay at 0 for now.
+        m_ibs[m_numIbs].ip_instance = 0;
+        m_ibs[m_numIbs].ring        = engineId;
 
         m_numIbs++;
     }
@@ -1474,19 +1677,16 @@ Result Queue::SubmitIbsRaw(
         // kernel requires IB chunk goes ahead of others.
         for (uint32 i = 0; i < m_numIbs; i++)
         {
-            chunkArray[i].chunk_id = AMDGPU_CHUNK_ID_IB;
-            chunkArray[i].length_dw = sizeof(struct drm_amdgpu_cs_chunk_ib) / 4;
-            chunkArray[i].chunk_data  = static_cast<uint64>(reinterpret_cast<uintptr_t>(&chunkDataArray[i]));
-            chunkDataArray[i].ib_data._pad = 0;
-            chunkDataArray[i].ib_data.va_start = m_ibs[i].ib_mc_address;
-            chunkDataArray[i].ib_data.ib_bytes = m_ibs[i].size * 4;
-            chunkDataArray[i].ib_data.ip_type = pContext->IpType();
-            // Quote From Kernel : Right now all IPs have only one instance - multiple rings.
-            // The ip_instance should always stay at 0 for now.
-            chunkDataArray[i].ib_data.ip_instance = 0;
-            chunkDataArray[i].ib_data.ring = pContext->EngineId();
-            // so far the flag is always 0
-            chunkDataArray[i].ib_data.flags = m_ibs[i].flags;
+            chunkArray[i].chunk_id              = AMDGPU_CHUNK_ID_IB;
+            chunkArray[i].length_dw             = sizeof(struct drm_amdgpu_cs_chunk_ib) / 4;
+            chunkArray[i].chunk_data            = static_cast<uint64>(reinterpret_cast<uintptr_t>(&chunkDataArray[i]));
+            chunkDataArray[i].ib_data._pad        = m_ibs[i]._pad;
+            chunkDataArray[i].ib_data.va_start    = m_ibs[i].va_start;
+            chunkDataArray[i].ib_data.ib_bytes    = m_ibs[i].ib_bytes;
+            chunkDataArray[i].ib_data.ip_type     = m_ibs[i].ip_type;
+            chunkDataArray[i].ib_data.ip_instance = m_ibs[i].ip_instance;
+            chunkDataArray[i].ib_data.ring        = m_ibs[i].ring;
+            chunkDataArray[i].ib_data.flags       = m_ibs[i].flags;
             currentChunk ++;
         }
 
@@ -1711,13 +1911,25 @@ Result Queue::SubmitIbs(
     }
     else
     {
+        // We are using the newer drm_amdgpu_cs_chunk_ib to store data. Switch back to using the older
+        // amdgpu_cs_request struct for legacy submit.
+        amdgpu_cs_ib_info legacy_ibs[MaxIbsPerSubmit];
+        memset(legacy_ibs, 0, sizeof(legacy_ibs));
+
+        for (uint32 i = 0; i < m_numIbs; i++)
+        {
+            legacy_ibs[i].ib_mc_address = m_ibs[i].va_start;
+            legacy_ibs[i].size          = (m_ibs[i].ib_bytes / 4);
+            legacy_ibs[i].flags         = m_ibs[i].flags;
+        }
+
         struct amdgpu_cs_request ibsRequest = {};
         ibsRequest.flags         = internalSubmitInfo.flags.isTmzEnabled;
         ibsRequest.ip_type       = pContext->IpType();
         ibsRequest.ring          = pContext->EngineId();
         ibsRequest.resources     = internalSubmitInfo.flags.isDummySubmission ? m_hDummyResourceList : m_hResourceList;
         ibsRequest.number_of_ibs = m_numIbs;
-        ibsRequest.ibs           = m_ibs;
+        ibsRequest.ibs           = legacy_ibs;
 
         result = pDevice->Submit(pContext->Handle(), 0, &ibsRequest, 1, pContext->LastTimestampPtr());
     }

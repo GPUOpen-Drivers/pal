@@ -121,6 +121,7 @@ struct AmdGpuInfo
     {
         uint32 gpuIndex;       // Index of gpu as enumerated
         uint64 gpuCounterFreq; // ???
+        uint32 numCus;         // The number of compute units.
 
         struct Ids
         {
@@ -206,5 +207,20 @@ struct AmdGpuInfo
 
 // Query information about all AMD adapters in the system
 Result QueryGpuInfo(const AllocCb& allocCb, Vector<AmdGpuInfo>* pGpus);
+
+// Counts the number of 1 bits
+inline uint32 CountSetBits(uint32 value)
+{
+    uint32 numberOfOnes = 0;
+    for (uint8 digit = 0; digit < 32; digit++)
+    {
+        if ((value & (1 << digit)) != 0)
+        {
+            ++numberOfOnes;
+        }
+    }
+
+    return numberOfOnes;
+}
 
 } // namespace DevDriver

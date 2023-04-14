@@ -86,7 +86,7 @@ public:
     /// Called to end this object's thread.
     ///
     /// @warning Must be called from this object's thread.
-    PAL_NO_RETURN void End();
+    [[noreturn]] void End();
 
     /// Returns true if the calling thread is this Thread object's thread.
     bool IsCurrentThread() const;

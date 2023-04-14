@@ -97,9 +97,9 @@ static void PrintMemoryInfo(
 // =====================================================================================================================
 // Writes the Visual Confirm ("Rendered by <Your API Here>") to the specified image.
 void TextWriter::WriteVisualConfirm(
-    const Image&        dstImage,    // Image to write visual confirm into.
-    ICmdBuffer*         pCmdBuffer,  // Command buffer to write commands into.
-    PresentMode presentMode  // How this visual confirm will be presented.
+    const Image&                          dstImage,    // Image to write visual confirm into.
+    ICmdBuffer*                           pCmdBuffer,  // Command buffer to write commands into.
+    const CmdPostProcessDebugOverlayInfo& debugOverlayInfo
     ) const
 {
     auto*const               pFpsMgr         = static_cast<Platform*>(m_pDevice->GetPlatform())->GetFpsMgr();
@@ -197,20 +197,49 @@ void TextWriter::WriteVisualConfirm(
 
     const float framerate = pFpsMgr->GetFramesPerSecond();
 
-    switch (presentMode)
+    const char* const PresentModeStrings[] =
     {
-    case PresentMode::Windowed:
-        Util::Snprintf(&overlayText[textLines++][0], BufSize, "CPU Frame Rate:    %7.2f FPS (Windowed)", framerate);
-        break;
+        "Unknown",    // 0
+        "Windowed",   // 1
+        "Fullscreen", // 2
+    };
 
-    case PresentMode::Fullscreen:
-        Util::Snprintf(&overlayText[textLines++][0], BufSize, "CPU Frame Rate:    %7.2f FPS (Fullscreen)", framerate);
-        break;
+    static_assert(ArrayLen(PresentModeStrings) == uint32(PresentMode::Count), "PresentModeStrings is out of date.");
 
-    default:
+    const uint32 presentModeIdx = uint32(debugOverlayInfo.presentMode);
+    PAL_ASSERT(presentModeIdx < uint32(PresentMode::Count));
+
+    const char* const WsiPlatformStrings[] =
+    {
+        "Win32",         // 0x00000001,
+        "Xcb",           // 0x00000002,
+        "Xlib",          // 0x00000004,
+        "Wayland",       // 0x00000008,
+        "Mir",           // 0x00000010,
+        "DirectDisplay", // 0x00000020,
+        "Android",       // 0x00000040,
+        "Dxgi",          // 0x00000080,
+    };
+
+    const uint32 wsiPlatformIdx = Log2(debugOverlayInfo.wsiPlatform);
+    PAL_ASSERT(wsiPlatformIdx < 0xFF);
+
+    if (debugOverlayInfo.wsiPlatform != 0)
+    {
+        // We know our WSI platform and may know our present mode (if not, we'll print Unknown).
+        Util::Snprintf(&overlayText[textLines++][0], BufSize, "CPU Frame Rate:    %7.2f FPS (%s | %s)",
+            framerate, PresentModeStrings[presentModeIdx], WsiPlatformStrings[wsiPlatformIdx]);
+    }
+    else if (debugOverlayInfo.presentMode != PresentMode::Unknown)
+    {
+        // We don't have a WSI platform but we do know our present mode.
+        Util::Snprintf(&overlayText[textLines++][0], BufSize, "CPU Frame Rate:    %7.2f FPS (%s)",
+            framerate, PresentModeStrings[presentModeIdx]);
+    }
+    else
+    {
         // If we don't know what mode will be used, don't write a mode at all.
         Util::Snprintf(&overlayText[textLines++][0], BufSize, "CPU Frame Rate:    %7.2f FPS", framerate);
-        break;
     }
 
     // Add benchmark string.

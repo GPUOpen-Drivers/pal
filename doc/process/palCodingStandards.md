@@ -65,12 +65,12 @@ General
 -   Source lines ***must*** be no more than 120 characters long.
 
     -   On VS Code, you can set a vertical ruler to display the 120 character
-        limit by setting "editor.rulers" to 120 in ```Settings.json``` (press
+        limit by setting "editor.rulers" to 120 in `Settings.json` (press
         CTRL + P and search for Settings.json)
 
         - The color of the vertical ruler can also be customized with the following
           json object:
-          ```"workbench.colorCustomizations": {"editorRuler.foreground": "#colorcode" }}```
+          `"workbench.colorCustomizations": {"editorRuler.foreground": "#colorcode" }}`
 
     -   On Visual Studio, you can use the Editor Guidelines extension (found on the Visual
         Studio marketplace)
@@ -108,7 +108,7 @@ General Language Restrictions
 -   The std `atomic` header ***should*** be used to implement atomic
     values and thread barriers.
 
--   Standard I/O stream functionality (i.e., cin, cout, cerr, clog)
+-   Standard I/O stream functionality (i.e., `cin`, `cout`, `cerr`, `clog`)
     ***must not*** be used.
 
 -   goto statements ***must not*** be used.
@@ -122,7 +122,7 @@ General Language Restrictions
 -   Non-const references ***must not*** be used except where needed in
     required constructors, etc.
 
--   const references ***may*** be used as an alternative to const
+-   `const` references ***may*** be used as an alternative to `const`
     pointers in cases where a function argument would/should be passed
     by value if it weren't a large structure.
 
@@ -176,7 +176,7 @@ Preprocessor
     and `#ifndef` except in these cases:
 
     - It's determining a default for a macro.
-    ```
+    ```cpp
     #ifndef SOME_MACRO
         #define SOME_MACRO
     #endif
@@ -212,7 +212,7 @@ Naming Conventions
 
 -   All pointer variables ***must*** be prefixed with a "p" character.
     For example:
-```
+```cpp
 SomeObject* pObject;
 ```
 
@@ -220,14 +220,14 @@ SomeObject* pObject;
 
 -   Global variables ***must*** be prefixed with "g\_". See example
     below:
-```
+```cpp
 extern uint32 g_someGlobalVar;
 ```
 -   Thread-local variable ***must*** be prefixed with "tls\_".
 
 -   Static, non-constant member variables (class variables) ***must***
     be prefixed with "s\_". See example below:
-```
+```cpp
 static uint32* s_pSingleton;
 ```
 -   Static constant member variables (class constants) ***must not*** be
@@ -236,7 +236,7 @@ static uint32* s_pSingleton;
 -   Non-static member variables ***must*** be prefixed with "m\_".
     See example below and throughout:
 
-```
+```cpp
 uint32 m_flags;
 uint32* m_pValue;
 ```
@@ -246,7 +246,7 @@ uint32* m_pValue;
     of pure virtual functions that have no implementation. For
     example:
 
-```
+```cpp
 class IDevice { ... };
 ```
 -   All namespace, class, structure, typedef, enumeration, enumeration
@@ -277,14 +277,14 @@ class IDevice { ... };
     names must be UPPERCASE and use underscores to separate words.
     For example:
 
-```
+```cpp
 #define DEPRECATED_FEATURE
 #define PAL_DISALLOW_COPY_AND_ASSIGN(typeName) \
     typeName(const typeName&);                 \
     void operator=(const typeName&);
 ```
 -   Examples:
-```
+```cpp
 // Function name is UpperCamelCase.
 // Parameter names are lowerCamelCase.
 void ComputeSomething(
@@ -396,7 +396,7 @@ Documentation and Comments
 All source and include files developed ***must*** contain an AMD copyright
 notice:
 
-```
+```cpp
 Copyright (C) [year] Advanced Micro Devices, Inc.  All rights reserved.
 ```
 
@@ -475,7 +475,7 @@ the following standards apply:
 -   Every class definition ***must*** have an accompanying comment
     describing what it is for and how it should be used. For example:
 
-```
+```cpp
 // =======================================================================
 // Singleton class that handles global functionality for a particular PAL
 // instantiation.
@@ -566,11 +566,10 @@ separate section covering specific requirements for member variables.
 -   Static variables local to a particular function ***must not*** be
     used. constexpr ***should*** be used instead.
 
--   Static variables in header files ***must not*** be used. constexpr
-    ***should*** be used instead. If the variable cannot be constexpr
-    (e.g., the initialization expression is not constexpr),
-    `PAL_WEAK_LINK` ***should*** be used which emulates the behavior
-    of C++17 inline variables.
+-   Static variables in header files ***must not*** be used. `constexpr`
+    ***should*** be used instead. If the variable cannot be `constexpr`
+    (e.g., the initialization expression is not constexpr), it
+    ***should*** be declared `inline`.
 
 > Including for fixed constants. If the compiler fails to identify a
 > constant accurately, then it generates initialisation code assuming
@@ -580,13 +579,13 @@ separate section covering specific requirements for member variables.
 -   All pointer variable definitions ***must*** be specified with the
     asterisk immediately following the type. For example:
 
-```
+```cpp
 Device* pDevice;
 ```
 -   All references ***must*** be specified with the ampersand
     immediately following the type. For example:
 
-```
+```cpp
 MyFunc(const MyInputStruct& inputInfo);
 ```
 
@@ -594,7 +593,7 @@ MyFunc(const MyInputStruct& inputInfo);
     semicolon at the end of the declaration. Multiple variable
     definitions ***must not*** reside on the same line. For example:
 
-```
+```cpp
 int32 numIterations;
 float scale;
 uint32* pFlags;
@@ -615,7 +614,7 @@ uint32* pFlags;
     initialized are set to 0) in a concise way which is also highly
     visible to the optimizer.
 
-```
+```cpp
 SomeStruct structData = { };
 ```
 
@@ -713,7 +712,7 @@ General Functions
 
 -   Examples:
 
-```
+```cpp
 // Function prototype example
 HwlFactory* SomeHwlInit(const Adapter* pAdapter, bool fastInit);
 
@@ -755,8 +754,17 @@ HwlFactory* SomeHwlInit(
 > architecture by performing code akin to
 > `if (no error) { error = operation1; } if (no error) { error = operation2; }` etc.
 
--   Each function ***must*** have only one return point. Early returns
-    statements are not permitted.
+-   Each function ***should*** have only one return point. Early return
+    statements are ***discouraged*** and should only be used in cases
+    where:
+       1. The function's clean-up at the return points is trivial (such
+        as just having local variables which require no clean-up, or RAII
+        objects).
+       1. The function is short enough for readers to see the multiple
+        returns and understand the flow of the function without having to
+        scroll up and down repeatedly, ***or*** the additional return points
+        are early-outs which make the rest of the function body easier to
+        understand.
 
 Classes
 -------
@@ -771,7 +779,7 @@ Classes
     `PAL_DISALLOW_COPY_AND_ASSIGN` macro in the private section of
     the class. See the example below.
 
-```
+```cpp
 class HwlFactory
 {
 public:
@@ -843,7 +851,7 @@ private:
     considered a "decay", that is, possibly losing information and not actually
     needing to execute any real code.
 
-```c++
+```cpp
 class Token
 {
 public:
@@ -857,7 +865,7 @@ protected:
 -   ***Prefer*** member brace initialization to zero initialize members instead of
     `memset`. E.g.,
 
-```c++
+```cpp
 class Device : public IDevice
 {
 public:.
@@ -888,7 +896,7 @@ Device::Device()
     below, `m_tokenVal` and `m_count` are initialized instead of assigned in
     the constructor.
 
-```
+```cpp
 class Token
 {
 public:
@@ -930,7 +938,7 @@ Token::Token(
     public `Destroy()` method must be provided for object destruction
     instead.
 
-```
+```cpp
 class HwlFactory
 {
 public:
@@ -979,7 +987,7 @@ public:
     and method name ***must*** all reside on a single source line. For
     example:
 
-```
+```cpp
 uint32 SomeClass::Optimize(
     uint32 offset,
     uint32 count)
@@ -996,7 +1004,7 @@ uint32 SomeClass::Optimize(
     method has no parameters and is const, const must appear on the
     same line as the function name. Examples:
 
-```
+```cpp
 uint32 SomeClass::ConstFunc() const
 {
     ...
@@ -1049,7 +1057,7 @@ Const Usage
 -   Variables whose value is invariant ***should*** be declared with the
     const specifier. For example:
 
-```
+```cpp
 const float pi = 3.141592f;
 ```
 
@@ -1074,7 +1082,7 @@ const float pi = 3.141592f;
 -   Pointer variables that point to invariant data ***should*** declare
     the data as const. This is a pointer to a const. For example:
 
-```
+```cpp
 const SomeStaticTable* pTable; // pointer can change but contents cannot
 ```
 
@@ -1082,7 +1090,7 @@ const SomeStaticTable* pTable; // pointer can change but contents cannot
     can change ***should*** specify that the pointer is const. This is
     a const pointer. For example:
 
-```
+```cpp
 float* const pRunningSum; // pointer cannot change but contents can
 ```
 
@@ -1091,7 +1099,7 @@ float* const pRunningSum; // pointer cannot change but contents can
     and the contents pointed to by the address are const. This is a
     const pointer to a const. For example:
 
-```
+```cpp
 const char* const pStr = "Hello"; // neither pointer nor content change
 ```
 
@@ -1121,7 +1129,7 @@ Casting
 
 -   Functional cast notation ***may*** be used in place of `static_cast` if
     the type is an enum or a fundamental type. E.g.,
-```c++
+```cpp
 // static_cast for defining enum values
 enum HardwareStageFlagBits : uint32
 {
@@ -1162,7 +1170,7 @@ enum HardwareStageFlagBits : uint32
     -   The contents of an intrinsic type needs to be reinterpreted as
         another intrinsic type:
 
-```
+```cpp
 float guardbandScale = 1.5f;
 uint32 regGuardbandScale;
 
@@ -1255,7 +1263,7 @@ Ifs, Loops, and Switch Statements
 
 -   Ranged-based for-loops are ***allowed***. The rules for `auto` apply here
     as well. E.g.,
-```c++
+```cpp
 Util::Vector<int32, 16, Allocator> data = ...;
 for (int32 i : data)
 {
@@ -1266,7 +1274,7 @@ for (int32 i : data)
 -   Braces (curly brackets) ***must*** bracket the body of all if/else
     statements, including single statement bodies.
 
-```
+```cpp
 if (usage > maxUsage)
 {
     // Do something.
@@ -1282,7 +1290,7 @@ else
 -   Braces must bracket the body of all for, do/while, and while
     statements including single statement bodies.
 
-```
+```cpp
 for (i = 0; i < maxIter; i++)
 {
     // Do something.
@@ -1302,7 +1310,7 @@ while (done == FALSE)
 
 -   All switch/case statements ***must*** be of the following form:
 
-```
+```cpp
 switch (blah)
 {
 case Blah1:
@@ -1320,7 +1328,7 @@ case Blah2:
     the same code. The example below shows where a comment is and is
     not required.
 
-```
+```cpp
 switch (operation)
 {
 case OpGo:
@@ -1358,7 +1366,7 @@ default:
 -   Subexpressions in if statements that use comparison operators
     ***must*** have explicit bracketing.
 
-```
+```cpp
 if ((pResource == nullptr) &&
     (flags.abort == true) &&
     (id >= MinIdToCheck))
@@ -1453,7 +1461,7 @@ can be empty.
 
 E.g.,
 
-```c++
+```cpp
 class Object
 {
 public:
@@ -1526,7 +1534,7 @@ defined that calls the destructor.
 
 E.g.,
 
-```c++
+```cpp
 class Object
 {
 public:
@@ -1580,7 +1588,7 @@ object is responsibility of the caller. However, if that need arises, a
 `DestroyInternal()` function ***must*** be provided.
 
 E.g.,
-```c++
+```cpp
 class MyAllocator;
 
 class Object
@@ -1671,7 +1679,7 @@ destructor of the outer object is responsible for that object clean-up.
 
 E.g.,
 
-```c++
+```cpp
 class MyAllocator;
 
 class OuterObject
@@ -1717,7 +1725,7 @@ properly destroyed if its construction fails inside the factory.
 
 E.g.,
 
-```c++
+```cpp
 class ObjectCreator
 {
 public:

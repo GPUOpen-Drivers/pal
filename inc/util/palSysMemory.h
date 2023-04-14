@@ -671,7 +671,7 @@ extern Result OsInitDefaultAllocCallbacks(AllocCallbacks* pAllocCb);
 template<typename T>
 void Destructor(T* p)
 {
-    if ((p != nullptr) && !std::is_pod<T>::value)
+    if ((p != nullptr) && !std::is_trivial<T>::value)
     {
         p->~T();
     }
@@ -708,7 +708,7 @@ T* NewArray(
     size_t allocSize  = sizeof(T) * arrayCnt;
     size_t headerSize = 0;
 
-    if (!std::is_pod<T>::value)
+    if (!std::is_trivial<T>::value)
     {
         align      = Max(align, alignof(size_t));
         headerSize = Max(align, sizeof(size_t));
@@ -723,7 +723,7 @@ T* NewArray(
 
     T* pRet = static_cast<T*>(pAllocator->Alloc(info));
 
-    if ((!std::is_pod<T>::value) && (pRet != nullptr))
+    if ((!std::is_trivial<T>::value) && (pRet != nullptr))
     {
         pRet = static_cast<T*>(Util::VoidPtrInc(static_cast<void*>(pRet), headerSize));
 
@@ -753,7 +753,7 @@ T* NewArray(
 template<typename T, typename Allocator>
 void DeleteArray(T* p, Allocator* pAllocator)
 {
-    if ((p != nullptr) && !std::is_pod<T>::value)
+    if ((p != nullptr) && !std::is_trivial<T>::value)
     {
         const size_t  headerSize = Max(Max(alignof(T), alignof(size_t)), sizeof(size_t));
         const size_t* pArrayCnt  = const_cast<const size_t*>(reinterpret_cast<const volatile size_t*>(p)) - 1;

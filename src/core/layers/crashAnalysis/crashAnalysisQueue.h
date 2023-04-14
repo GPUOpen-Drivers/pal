@@ -38,7 +38,8 @@ namespace CrashAnalysis
 
 class Device; // Forward-declare
 
-typedef Util::Vector<MemoryChunk, 16, IPlatform> MarkerStateList;
+typedef Util::Vector<MemoryChunk*, 16, IPlatform> MarkerStateList;
+typedef Util::Vector<EventCache*,  16, IPlatform> EventCacheList;
 
 // =====================================================================================================================
 class Queue final : public QueueDecorator
@@ -63,23 +64,24 @@ private:
     virtual ~Queue() { }
 
     IFence* AcquireFence();
-    void ProcessIdleSubmits();
+    void    ProcessIdleSubmits();
 
     Device*const m_pDevice;
     const uint32 m_queueCount;
+
+    // Each queue must register itself with its device and engine so that they can manage their internal lists.
+    Util::IntrusiveListNode<Queue> m_node;
+
+    // Tracks a list of fence objects owned by this queue that are ready for reuse.
+    Util::Deque<IFence*, IPlatform> m_availableFences;
 
     struct PendingSubmitInfo
     {
         IFence*          pFence;
         MarkerStateList* pStateList;
+        EventCacheList*  pEventList;
     };
     Util::Deque<PendingSubmitInfo, IPlatform> m_pendingSubmits;
-
-    // Tracks a list of fence objects owned by this queue that are ready for reuse.
-    Util::Deque<IFence*, IPlatform> m_availableFences;
-
-    // Each queue must register itself with its device and engine so that they can manage their internal lists.
-    Util::IntrusiveListNode<Queue> m_node;
 
     PAL_DISALLOW_DEFAULT_CTOR(Queue);
     PAL_DISALLOW_COPY_AND_ASSIGN(Queue);

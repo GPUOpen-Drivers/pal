@@ -34,15 +34,14 @@ namespace UmdCrashAnalysisEvents
 {
 
 constexpr uint32_t VersionMajor = 0;
-constexpr uint32_t VersionMinor = 1;
-
-constexpr uint32_t ProviderId = 0x50434145;
+constexpr uint32_t VersionMinor = 2;
+constexpr uint32_t ProviderId   = 0x50434145;
 
 /// A marker that matches this value indicates the associated command buffer hasn't started.
 constexpr uint32_t InitialExecutionMarkerValue = 0xFFFFAAAA;
 
 /// A marker that matches this value indicates the associated command buffer has completed.
-constexpr uint32_t FinalExecutionMarkerValue = 0xFFFFBBBB;
+constexpr uint32_t FinalExecutionMarkerValue   = 0xFFFFBBBB;
 
 /// Unique id represeting each event. Each variable name of the enum value corresponds to the
 /// struct with the same name.
@@ -51,6 +50,7 @@ enum class EventId : uint8_t
     ExecutionMarkerTop    = DDCommonEventId::FirstEventIdForIndividualProvider + 0,
     ExecutionMarkerBottom = DDCommonEventId::FirstEventIdForIndividualProvider + 1,
     CrashDebugMarkerValue = DDCommonEventId::FirstEventIdForIndividualProvider + 2,
+    CmdBufferReset        = DDCommonEventId::FirstEventIdForIndividualProvider + 3
 };
 
 /// The source from which execution markers were inserted.
@@ -65,9 +65,6 @@ enum class ExecutionMarkerSource : uint8_t
 /// Execution marker inserted at the top of pipe.
 struct ExecutionMarkerTop
 {
-    /// The maximum size required for a buffer to hold the packed data of this event.
-    static const uint32_t PackedBufferSize = 530;
-
     /// An integer uniquely identifying a command buffer.
     uint32_t cmdBufferId;
 
@@ -82,7 +79,7 @@ struct ExecutionMarkerTop
 
     /// A user-defined name for the marker, encoded in UTF-8. Note, this string is not
     /// necessarily null-terminated.
-    uint8_t markerName[512];
+    uint8_t markerName[150];
 
     void FromBuffer(const uint8_t* buffer)
     {
@@ -99,10 +96,10 @@ struct ExecutionMarkerTop
     }
 
     /// Fill the pre-allocated `buffer` with the data in this struct. The size of
-    /// the buffer has to be at least `PackedBufferSize` big.
+    /// the buffer has to be at least `sizeof(ExecutionMarkerTop)` big.
     ///
     /// Return the actual amount of bytes copied into `buffer`.
-    uint32_t ToBuffer(uint8_t* buffer)
+    uint32_t ToBuffer(uint8_t* buffer) const
     {
         memcpy(buffer, &cmdBufferId, sizeof(cmdBufferId));
         buffer += sizeof(cmdBufferId);
@@ -122,9 +119,6 @@ struct ExecutionMarkerTop
 /// Execution marker inserted at the bottom of pipe.
 struct ExecutionMarkerBottom
 {
-    /// The maximum size required for a buffer to hold the packed data of this event.
-    static const uint32_t PackedBufferSize = 16;
-
     /// An integer uniquely identifying a command buffer.
     uint32_t cmdBufferId;
 
@@ -143,10 +137,10 @@ struct ExecutionMarkerBottom
     }
 
     /// Fill the pre-allocated `buffer` with the data of this struct. The size of
-    /// the buffer has to be at least `PackedBufferSize` big.
+    /// the buffer has to be at least `sizeof(ExecutionMarkerBottom)` big.
     ///
     /// Return the actual amount of bytes copied into `buffer`.
-    uint32_t ToBuffer(uint8_t* buffer)
+    uint32_t ToBuffer(uint8_t* buffer) const
     {
         memcpy(buffer, &cmdBufferId, sizeof(cmdBufferId));
         buffer += sizeof(cmdBufferId);
@@ -160,9 +154,6 @@ struct ExecutionMarkerBottom
 /// This struct helps identify commands that may have caused crashes.
 struct CrashDebugMarkerValue
 {
-    /// The maximum size required for a buffer to hold the packed data of this event.
-    static const uint32_t PackedBufferSize = 12;
-
     /// The id of the commond buffer that may have caused the crash.
     uint32_t cmdBufferId;
 
@@ -186,7 +177,7 @@ struct CrashDebugMarkerValue
     }
 
     /// Fill the pre-allocated `buffer` with the data of this struct. The size of
-    /// the buffer has to be at least `PackedBufferSize` big.
+    /// the buffer has to be at least `sizeof(CrashDebugMarkerValue)` big.
     ///
     /// Return the actual amount of bytes copied into `buffer`.
     uint32_t ToBuffer(uint8_t* buffer)
@@ -200,6 +191,29 @@ struct CrashDebugMarkerValue
         memcpy(buffer, &bottomMarkerValue, sizeof(bottomMarkerValue));
 
         return sizeof(cmdBufferId) + sizeof(topMarkerValue) + sizeof(bottomMarkerValue);
+    }
+};
+
+/// A command buffer has been reset to an initial state.
+struct CmdBufferReset
+{
+    /// An integer uniquely identifying a command buffer.
+    uint32_t cmdBufferId;
+
+    /// Deserializes a buffer into this event object
+    void FromBuffer(const uint8_t* buffer)
+    {
+        memcpy(&cmdBufferId, buffer, sizeof(cmdBufferId));
+    }
+
+    /// Fill the pre-allocated `buffer` with the data of this struct. The size of
+    /// the buffer has to be at least `sizeof(CmdBufferReset)` big.
+    ///
+    /// Return the actual amount of bytes copied into `buffer`.
+    uint32_t ToBuffer(uint8_t* buffer) const
+    {
+        memcpy(buffer, &cmdBufferId, sizeof(cmdBufferId));
+        return sizeof(cmdBufferId);
     }
 };
 

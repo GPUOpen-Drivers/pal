@@ -138,10 +138,6 @@ public:
     regSPI_VS_OUT_CONFIG SpiVsOutConfig() const { return m_chunkVsPs.SpiVsOutConfig(); }
     regSPI_PS_IN_CONTROL SpiPsInControl() const { return m_chunkVsPs.SpiPsInControl(); }
 
-    regSX_PS_DOWNCONVERT__VI SxPsDownconvert() const { return m_regs.other.sxPsDownconvert; }
-    regSX_BLEND_OPT_EPSILON__VI SxBlendOptEpsilon() const { return m_regs.other.sxBlendOptEpsilon; }
-    regSX_BLEND_OPT_CONTROL__VI SxBlendOptControl() const { return m_regs.other.sxBlendOptControl; }
-
     const GraphicsPipelineSignature& Signature() const { return m_signature; }
 
     bool UsesViewInstancing() const { return (m_signature.viewIdRegAddr[0] != UserDataNotMapped); }
@@ -159,6 +155,12 @@ public:
     void OverrideRbPlusRegistersForRpm(
         SwizzledFormat               swizzledFormat,
         uint32                       slot,
+        regSX_PS_DOWNCONVERT__VI*    pSxPsDownconvert,
+        regSX_BLEND_OPT_EPSILON__VI* pSxBlendOptEpsilon,
+        regSX_BLEND_OPT_CONTROL__VI* pSxBlendOptControl) const;
+
+    void GetRbPlusRegisters(
+        bool                         dualSourceBlendEnable,
         regSX_PS_DOWNCONVERT__VI*    pSxPsDownconvert,
         regSX_BLEND_OPT_EPSILON__VI* pSxBlendOptEpsilon,
         regSX_BLEND_OPT_CONTROL__VI* pSxBlendOptControl) const;
@@ -274,6 +276,12 @@ private:
             regSX_PS_DOWNCONVERT__VI     sxPsDownconvert;
             regSX_BLEND_OPT_EPSILON__VI  sxBlendOptEpsilon;
             regSX_BLEND_OPT_CONTROL__VI  sxBlendOptControl;
+
+            // Additional RbPlus register set for enable dual source blend dynamically.
+            regSX_PS_DOWNCONVERT__VI     sxPsDownconvertDual;
+            regSX_BLEND_OPT_EPSILON__VI  sxBlendOptEpsilonDual;
+            regSX_BLEND_OPT_CONTROL__VI  sxBlendOptControlDual;
+
             regVGT_LS_HS_CONFIG          vgtLsHsConfig;
             regPA_SC_MODE_CNTL_1         paScModeCntl1;
             regIA_MULTI_VGT_PARAM        iaMultiVgtParam[NumIaMultiVgtParam];

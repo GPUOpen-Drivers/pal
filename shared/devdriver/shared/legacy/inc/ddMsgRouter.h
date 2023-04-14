@@ -28,9 +28,6 @@
 #include <gpuopen.h>
 #include <ddRouterInterface.h>
 #include <router/ddRouterContext.h>
-#if defined(DD_PLATFORM_WINDOWS_KM)
-#include <wdm.h>
-#endif
 
 namespace DevDriver
 {
@@ -66,10 +63,6 @@ namespace DevDriver
         pfnNotifyKernalEnable  m_kernalEnableCb;
         pfnNotifyKernalDisable m_kernalDisableCb;
         ProcessId              m_devDriverPID;
-#if defined(DD_PLATFORM_WINDOWS_KM)
-        HANDLE                 m_driverResetEventHandle;
-        PRKEVENT               m_driverResetEvent;
-#endif
     };
 
 } // DevDriver

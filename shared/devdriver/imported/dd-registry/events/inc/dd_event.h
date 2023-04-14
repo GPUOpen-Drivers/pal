@@ -70,7 +70,7 @@ struct DDEventProviderHeader
     /// Major version number of the event provider, indicating the events data format.
     uint16_t versionMajor;
 
-    /// Minor version number of the event provider, indicating the events data format
+    /// Minor version number of the event provider, indicating the events data format.
     uint16_t versionMinor;
 
     /// reserved
@@ -81,7 +81,7 @@ struct DDEventProviderHeader
 
     /// Time unit indicates the precision of timestamp delta. A timestamp delta
     /// is always a multiple of `timeUnit`. To calculate timestamp:
-    /// `currentTimestamp = lastTimestamp + delta * timeUnit`
+    /// `currentTimestamp = lastTimestamp + delta * timeUnit`.
     uint32_t timeUnit;
 
     /// First timestamp counter before any other events. Used to calibrate the

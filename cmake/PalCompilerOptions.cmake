@@ -90,7 +90,11 @@ function(pal_compiler_options TARGET)
             )
         endif()
 
-        target_link_options(${TARGET} PUBLIC "LINKER:--build-id")
+        # The MacOS linker does not have --build-id. That is OK because we do not support building
+        # a driver on MacOS; it is only used for experimental building of standalone tools.
+        if (NOT CMAKE_OSX_DEPLOYMENT_TARGET)
+            target_link_options(${TARGET} PUBLIC "LINKER:--build-id")
+        endif()
     else()
         message(FATAL_ERROR "Unsupported compiler: ${CMAKE_CXX_COMPILER_ID}")
     endif()

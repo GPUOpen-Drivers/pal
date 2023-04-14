@@ -36,7 +36,12 @@ namespace Pal
 {
 class IPlatform;
 
-namespace CrashAnalysis { struct MarkerState; } // Forward declaration
+// Forward declarations
+namespace CrashAnalysis
+{
+struct MarkerState;
+class EventCache;
+}
 
 using EventProviderId = DevDriver::EventProtocol::EventProviderId;
 
@@ -69,6 +74,12 @@ public:
 
     void LogCrashDebugMarkerData(
         const CrashAnalysis::MarkerState* pMarkerHeader);
+
+    void LogCmdBufferReset(
+        uint32 cmdBufferId);
+
+    void ReplayEventCache(
+        CrashAnalysis::EventCache* pEventCache);
 
     // End of Event Log Functions
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

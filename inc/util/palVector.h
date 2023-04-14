@@ -320,7 +320,7 @@ public:
     const_iterator     end()    const noexcept { return (m_pData + m_numElements); }
     const_iterator     cbegin() const noexcept { return m_pData; }
     const_iterator     cend()   const noexcept { return (m_pData + m_numElements); }
-    PAL_NODISCARD bool empty()  const noexcept { return IsEmpty(); }
+    [[nodiscard]] bool empty()  const noexcept { return IsEmpty(); }
     size_type          size()   const noexcept { return m_numElements; }
     ///@}
 
@@ -379,7 +379,7 @@ template<typename T, uint32 defaultCapacity, typename Allocator>
 Vector<T, defaultCapacity, Allocator>::~Vector()
 {
     // Explicitly destroy all non-trivial types.
-    if (!std::is_pod<T>::value)
+    if (!std::is_trivial<T>::value)
     {
         for (uint32 idx = 0; idx < m_numElements; ++idx)
         {
@@ -413,7 +413,7 @@ Vector<T, defaultCapacity, Allocator>::Vector(
         // Data buffer will be using storage from local buffer.
         m_pData = reinterpret_cast<T*>(m_data);
 
-        if (std::is_pod<T>::value)
+        if (std::is_trivial<T>::value)
         {
             // Optimize trivial types by copying local buffer.
             std::memcpy(m_pData, vector.m_pData, sizeof(T) * m_numElements);

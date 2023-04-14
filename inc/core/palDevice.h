@@ -551,6 +551,21 @@ enum class FastDepthStencilClearMode : uint8
     Compute     ///< Compute will always be used
 };
 
+enum DeferredBatchBinMode : uint32
+{
+    DeferredBatchBinDisabled = 0,
+    DeferredBatchBinCustom = 1,
+    DeferredBatchBinAccurate = 2
+};
+
+/// PWS enable mode: e.g. disabled, fully enabled or partially enabled.
+enum class PwsMode : uint32
+{
+    Disabled = 0,           ///< PWS feature is disabled
+    Enabled = 1,            ///< PWS feature is fully enabled if HW supports.
+    NoLateAcquirePoint = 2  ///< PWS feature is enabled with PWS counter only if HW supports, no late acquire points.
+};
+
 /// Pal settings that are client visible and editable.
 struct PalPublicSettings
 {
@@ -754,6 +769,24 @@ struct PalPublicSettings
     // Control whether to have command buffer emit SQTT marker events. Useful for client driver to perform SQTT
     // dump without the involvement of dev driver.
     bool enableSqttMarkerEvent;
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 790
+    // Controls the value of CB_COLOR0_ATTRIB.LIMIT_COLOR_FETCH_TO_256B_MAX. This bit limits CB fetch to 256B on cache
+    // miss, regardless of sector size.
+    bool limitCbFetch256B;
+#endif
+
+    /// Controls whether or not deferred batch binning is enabled 0 : Batch binning always disabled 1 : Use custom bin
+    /// sizes 2 : Optimal.
+    DeferredBatchBinMode binningMode;
+    /// Controls the custom batch bin size.Only used when deferredBatchBinMode == 1 High word is for x, low word is for
+    /// y.Default is 128x128. Values must be power of two between 16 and 512.
+    uint32               customBatchBinSize;
+    /// Maximum number of primitives per batch. The maximum value is 1024.
+    uint32               binningMaxPrimPerBatch;
+
+    // Controls PWS enable mode: e.g. disabled, fully enabled or partially enabled. Only take effect if HW supports PWS.
+    PwsMode pwsMode;
 };
 
 /// Defines the modes that the GPU Profiling layer can use when its buffer fills.
@@ -896,6 +929,7 @@ struct DeviceProperties
     uint32     deviceId;                     ///< GPU device ID (e.g., Hawaii XT = 0x67B0).
     uint32     revisionId;                   ///< GPU revision.  HW-specific value differentiating between different
                                              ///  SKUs or revisions.  Corresponds to one of the PRID_* revision IDs.
+    uint32     eRevId;                       ///< GPU emulation/internal revision ID.
     AsicRevision revision;                   ///< ASIC revision.
     GpuType    gpuType;                      ///< Type of GPU (discrete vs. integrated).
     GfxIpLevel gfxLevel;                     ///< IP level of this GPU's GFX block
@@ -1003,7 +1037,8 @@ struct DeviceProperties
                     /// a multi-queue.
                     /// @see IDevice::CreateMultiQueue.
                     uint32 supportsMultiQueue       :  1;
-                    uint32 reserved                 : 29;  ///< Reserved for future use.
+                    uint32 hwsEnabled               :  1;
+                    uint32 reserved                 : 28;  ///< Reserved for future use.
                 };
                 uint32 u32All;                        ///< Flags packed as 32-bit uint.
             } flags;                                  ///< Capabilities property flags.
@@ -1225,6 +1260,11 @@ struct DeviceProperties
         /// If this value equals maxThreadGroupSize, then the device does not have this bug and the client can use
         /// any compute shader on any queue.
         uint32 maxAsyncComputeThreadGroupSize;
+
+        uint32 maxComputeThreadGroupCountX; ///< Maximum number of thread groups supported
+        uint32 maxComputeThreadGroupCountY; ///< Maximum number of thread groups supported
+        uint32 maxComputeThreadGroupCountZ; ///< Maximum number of thread groups supported
+
         uint32 maxBufferViewStride; ///< Maximum stride, in bytes, that can be specified in a buffer view.
 
         uint32 hardwareContexts;    ///< Number of distinct state contexts available for graphics workloads.  Mostly
@@ -1321,7 +1361,13 @@ struct DeviceProperties
                                                                 ///  returns triangle barycentrics.
                 uint64 supportFloat32BufferAtomics        :  1; ///< Hardware supports float32 buffer atomics
                 uint64 supportFloat32ImageAtomics         :  1; ///< Hardware supports float32 image atomics
+                uint64 supportFloat32BufferAtomicAdd      :  1; ///< Hardware supports float32 buffer atomic add
+                uint64 supportFloat32ImageAtomicAdd       :  1; ///< Hardware supports float32 image atomic add
                 uint64 supportFloat64Atomics              :  1; ///< Hardware supports float64 atomics
+                uint64 supportFloat32ImageAtomicMinMax    :  1; ///< Hardware supports float32 image atomic min and max
+                uint64 supportFloat64BufferAtomicMinMax   :  1; ///< Hardware supports float64 buffer atomic min and max
+                uint64 supportFloat64SharedAtomicMinMax   :  1; ///< Hardware supports float64 shared atomic min and max
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 735
                 uint64 supportFloat32Atomics              :  1; ///< Hardware supports float32 atomics
 #else
@@ -1356,7 +1402,7 @@ struct DeviceProperties
                 uint64 supportStaticVmid                  :  1; ///< Indicates support for static-VMID
                 uint64 support3dUavZRange                 :  1; ///< HW supports read-write ImageViewSrds of 3D images
                                                                 ///  with zRange specified.
-                uint64 reserved                           :  8; ///< Reserved for future use.
+                uint64 reserved                           :  3; ///< Reserved for future use.
             };
             uint64 u64All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.
@@ -2176,9 +2222,9 @@ struct BvhInfo
             uint32    placeholder           :  1; ///< Reserved for future HW
 #endif
 
-            uint32    placeholder2          :  3;
+            uint32    placeholder2          :  4;
 
-            uint32    reserved              :  24; ///< Reserved for future HW
+            uint32    reserved              :  23; ///< Reserved for future HW
         };
 
         uint32  u32All; ///< Flags packed as 32-bit uint.

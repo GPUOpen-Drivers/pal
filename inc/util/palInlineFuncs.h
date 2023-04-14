@@ -945,7 +945,7 @@ inline void StringToValueType(
 ///
 /// @note: A numeric value that does not fit in the destination type returns true and will be represented by the
 ///        closest value (eg, UINT_MAX). A string that is truncated returns false.
-PAL_NODISCARD inline bool StringToValueTypeChecked(
+[[nodiscard]] inline bool StringToValueTypeChecked(
     const char* pStrValue,  ///< [in] Setting value in string form.
     ValueType   type,       ///< Data type of the value being converted.
     size_t      valueSize,  ///< Size of pValue buffer.

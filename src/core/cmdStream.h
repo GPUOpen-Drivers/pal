@@ -58,7 +58,7 @@ enum class CmdStreamUsage : uint32
     Count,
 };
 
-// Structure for passing arguments to FilterSetUserDataGfx() and WriteUserDataRegisters().  Reduces moving
+// Structure for passing arguments to FilterSetUserData() and WriteUserDataRegisters().  Reduces moving
 // arguments on and off the stack when calling these functions.
 struct UserDataArgs
 {

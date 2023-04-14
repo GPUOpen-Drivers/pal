@@ -263,6 +263,7 @@ static constexpr FuncLoggingTableEntry FuncLoggingTable[] =
     { InterfaceFunc::GpuMemorySetPriority,                          (GenCalls)            },
     { InterfaceFunc::GpuMemoryMap,                                  (GenCalls)            },
     { InterfaceFunc::GpuMemoryUnmap,                                (GenCalls)            },
+    { InterfaceFunc::GpuMemorySetSdiRemoteBusAddress,               (GenCalls)            },
     { InterfaceFunc::GpuMemoryDestroy,                              (CrtDstry | BindMem)  },
     { InterfaceFunc::ImageBindGpuMemory,                            (BindMem)             },
     { InterfaceFunc::ImageDestroy,                                  (CrtDstry | BindMem)  },

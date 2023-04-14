@@ -68,7 +68,8 @@ Device::~Device()
 // =====================================================================================================================
 // Adds a Queue to an internal tracking list. This should be called whenever a Queue has been created on this Device.
 // The tracking list should be an accurate reflection of all queues which are currently owned by this Device.
-void Device::TrackQueue(Queue* pQueue)
+void Device::TrackQueue(
+    Queue* pQueue)
 {
     PAL_ASSERT(pQueue != nullptr);
     MutexAuto lock(&m_queueLock);
@@ -78,7 +79,8 @@ void Device::TrackQueue(Queue* pQueue)
 // =====================================================================================================================
 // Remove a Queue from the internal tracking list. This should be called once a Queue has finished execution and is
 // preparing to be destroyed.
-void Device::UntrackQueue(Queue* pQueue)
+void Device::UntrackQueue(
+    Queue* pQueue)
 {
     PAL_ASSERT(pQueue != nullptr);
     MutexAuto lock(&m_queueLock);
@@ -86,18 +88,17 @@ void Device::UntrackQueue(Queue* pQueue)
 }
 
 // =====================================================================================================================
-// Acquires a memory chunk from the Device's memory pool. This memory chunk will be used by a CmdBuffer to write its
-// marker state. Thread safe.
-Result Device::GetMemoryChunk(MemoryChunk* pMemChunk)
+Result Device::GetMemoryChunk(
+    MemoryChunk** ppMemChunk)
 {
     MutexAuto lock(&m_memoryLock);
 
     Result result = Result::ErrorOutOfMemory;
 
-    if (pMemChunk != nullptr)
+    if (ppMemChunk != nullptr)
     {
-        MemoryChunk chunk  = { };
-        gpusize     offset;
+        MemoryChunk* pChunk = PAL_NEW(MemoryChunk, m_pPlatform, AllocInternal)(this);
+        gpusize      offset = 0;
 
         // Attempt to find a free allocation in one of the Buddy Allocators
         for (int i = 0; ((result != Result::Success) && i < m_memoryRafts.size()); i++)
@@ -116,9 +117,10 @@ Result Device::GetMemoryChunk(MemoryChunk* pMemChunk)
 
             if (result == Result::Success)
             {
-                chunk.raftIndex   = i;
-                chunk.gpuVirtAddr = offset + m_memoryRafts[i].pGpuMemory->Desc().gpuVirtAddr;
-                chunk.pCpuAddr    = static_cast<MarkerState*>(VoidPtrInc(m_memoryRafts[i].pSystemMemory, offset));
+                pChunk->raftIndex   = i;
+                pChunk->gpuVirtAddr = offset + m_memoryRafts[i].pGpuMemory->Desc().gpuVirtAddr;
+                pChunk->pCpuAddr    = static_cast<MarkerState*>(
+                    VoidPtrInc(m_memoryRafts[i].pSystemMemory, offset));
             }
         }
 
@@ -145,16 +147,16 @@ Result Device::GetMemoryChunk(MemoryChunk* pMemChunk)
 
                 if (result == Result::Success)
                 {
-                    chunk.raftIndex   = m_memoryRafts.size() - 1;
-                    chunk.gpuVirtAddr = (raft.pGpuMemory->Desc().gpuVirtAddr) + offset;
-                    chunk.pCpuAddr    = static_cast<MarkerState*>(VoidPtrInc(raft.pSystemMemory, offset));
+                    pChunk->raftIndex   = m_memoryRafts.size() - 1;
+                    pChunk->gpuVirtAddr = (raft.pGpuMemory->Desc().gpuVirtAddr) + offset;
+                    pChunk->pCpuAddr    = static_cast<MarkerState*>(VoidPtrInc(raft.pSystemMemory, offset));
                 }
             }
         }
 
         if (result == Result::Success)
         {
-            (*pMemChunk) = chunk;
+            (*ppMemChunk) = pChunk;
         }
     }
 
@@ -162,16 +164,16 @@ Result Device::GetMemoryChunk(MemoryChunk* pMemChunk)
 }
 
 // =====================================================================================================================
-// Releases a CmdBuffer-owned memory chunk. Thread safe.
-void Device::ReleaseMemoryChunk(MemoryChunk* pChunk)
+void Device::FreeMemoryChunkAllocation(
+    uint32  raftIndex,
+    gpusize gpuVirtAddr)
 {
-    if ((pChunk != nullptr) &&
-        (pChunk->raftIndex < m_memoryRafts.size()))
+    if (raftIndex < m_memoryRafts.size())
     {
-        RaftAllocator& raft = m_memoryRafts[pChunk->raftIndex];
+        RaftAllocator& raft = m_memoryRafts[raftIndex];
 
         // 'Free' operates on offsets relative to the base allocation, not absolute virtual addresses
-        raft.pBuddyAllocator->Free(pChunk->gpuVirtAddr - raft.pGpuMemory->Desc().gpuVirtAddr);
+        raft.pBuddyAllocator->Free(gpuVirtAddr - raft.pGpuMemory->Desc().gpuVirtAddr);
     }
 }
 
@@ -258,7 +260,7 @@ Result Device::CreateMemoryRaft()
     }
     else
     {
-        // IGpuMemory should be free'd by this point.
+        // IGpuMemory should be freed by this point.
         // The only outstanding allocation is the buddy allocator.
         if (raft.pBuddyAllocator != nullptr)
         {

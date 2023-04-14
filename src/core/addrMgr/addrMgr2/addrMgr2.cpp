@@ -674,36 +674,6 @@ bool AddrMgr2::IsValidToOverride(
     return TestAnyFlagSet(validSwModeSet.value, (1u << primarySwMode));
 }
 
-// =====================================================================================================================
-uint32 AddrMgr2::GetNoXorStatus(
-    const Image*  pImage)
-    const
-{
-    uint32 noXor = 0;
-
-#if PAL_BUILD_GFX11
-    if (IsGfx11(m_gfxLevel))
-    {
-        const PalSettings& settings = m_pDevice->Settings();
-
-        // Depth images require the Z_X swizzle modes; likewise, MSAA images require _X modes as well.
-        if ((pImage->IsDepthStencilTarget() == false) && (pImage->GetImageCreateInfo().samples == 1))
-        {
-            if (pImage->IsRenderTarget() && TestAnyFlagSet(settings.noXor, NoXorForRenderTarget))
-            {
-                noXor = 1;
-            }
-            else if (pImage->IsShaderReadable() && TestAnyFlagSet(settings.noXor, NoXorForTexture))
-            {
-                noXor = 1;
-            }
-        }
-    }
-#endif
-
-    return noXor;
-}
-
 #if PAL_BUILD_GFX11 && (ADDRLIB_VERSION_MAJOR >= 7)
 // =====================================================================================================================
 // Chooses a "preferred" swizzle mode from a list of "HW-valid" modes returned from Address Library (for GFX11)
@@ -1130,7 +1100,7 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
     ADDR2_GET_PREFERRED_SURF_SETTING_INPUT surfSettingInput = { };
     surfSettingInput.size            = sizeof(surfSettingInput);
     surfSettingInput.format          = Image::GetAddrFormat(pBaseSubRes->format.format);
-    surfSettingInput.noXor           = GetNoXorStatus(pImage);
+    surfSettingInput.noXor           = false;
     surfSettingInput.bpp             = Formats::BitsPerPixel(pBaseSubRes->format.format);
     surfSettingInput.width           = createInfo.extent.width;
     surfSettingInput.height          = createInfo.extent.height;

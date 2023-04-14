@@ -78,6 +78,9 @@ function(pal_compiler_warnings_gnu_or_clang TARGET)
 
         # Suppress warning for offsetof of field in struct/class with parent struct/class.
         -Wno-invalid-offsetof
+
+        # Suppress warnings about unrecognized attributes.
+        -Wno-attributes
     )
 
     # Don't complain on asserts, we want to keep them

@@ -323,9 +323,29 @@ const SPI_SHADER_EX_FORMAT RsrcProcMgr::DeterminePsExportFmt(
     const uint32 maxCompSize = Formats::MaxComponentBitCount(format.format);
 
     const ColorFormat hwColorFmt  = HwColorFormat(m_pDevice, format.format);
-    const CompSetting compSetting = ComputeCompSetting(hwColorFmt, format);
 
-    const bool hasAlpha = Formats::HasAlpha(format);
+    bool foundSwizzles[4] = {};
+    SwizzledFormat pipelineFormat = format;
+    for (uint32 i = 0; i < 4; i++)
+    {
+        const ChannelSwizzle swizzle = pipelineFormat.swizzle.swizzle[i];
+        if ((uint32(ChannelSwizzle::X) <= uint32(swizzle)) &&
+            (uint32(swizzle) <= uint32(ChannelSwizzle::W)))
+        {
+            const uint32 swizzleIndex = uint32(swizzle) - uint32(ChannelSwizzle::X);
+            if (foundSwizzles[swizzleIndex] == false)
+            {
+                foundSwizzles[swizzleIndex] = true;
+            }
+            else
+            {
+                pipelineFormat.swizzle.swizzle[i] = ChannelSwizzle::Zero;
+            }
+        }
+    }
+
+    const CompSetting compSetting = ComputeCompSetting(hwColorFmt, pipelineFormat);
+    const bool hasAlpha = Formats::HasAlpha(pipelineFormat);
     const bool isDepth  = ((hwColorFmt == COLOR_8_24) ||
                            (hwColorFmt == COLOR_24_8) ||
                            (hwColorFmt == COLOR_X24_8_32_FLOAT));
@@ -1145,11 +1165,17 @@ const Pal::GraphicsPipeline* RsrcProcMgr::GetGfxPipelineByTargetIndexAndFormat(
     ) const
 {
     // There are only four ranges of pipelines that vary by export format and these are their bases.
-    PAL_ASSERT((basePipeline == Copy_32ABGR)             ||
-               (basePipeline == ResolveFixedFunc_32ABGR) ||
-               (basePipeline == SlowColorClear0_32ABGR)  ||
-               (basePipeline == ScaledCopy2d_32ABGR)     ||
-               (basePipeline == ScaledCopy3d_32ABGR));
+
+    bool validPipe =
+#if PAL_BUILD_GFX11
+                    (basePipeline == Gfx11ResolveGraphics_32ABGR) ||
+#endif
+                    (basePipeline == Copy_32ABGR)                 ||
+                    (basePipeline == ResolveFixedFunc_32ABGR)     ||
+                    (basePipeline == SlowColorClear0_32ABGR)      ||
+                    (basePipeline == ScaledCopy2d_32ABGR)         ||
+                    (basePipeline == ScaledCopy3d_32ABGR);
+    PAL_ASSERT(validPipe);
 
     const SPI_SHADER_EX_FORMAT exportFormat = DeterminePsExportFmt(format,
                                                                    false,  // Blend disabled
@@ -2155,6 +2181,273 @@ void RsrcProcMgr::HwlDepthStencilClear(
         }
     }
 }
+
+#if PAL_BUILD_GFX11
+// =====================================================================================================================
+// Sets up an optimized shader for GFX11 that uses a pixel shader to do the resolve
+void RsrcProcMgr::HwlResolveImageGraphics(
+    GfxCmdBuffer*             pCmdBuffer,
+    const Pal::Image&         srcImage,
+    ImageLayout               srcImageLayout,
+    const Pal::Image&         dstImage,
+    ImageLayout               dstImageLayout,
+    uint32                    regionCount,
+    const ImageResolveRegion* pRegions,
+    uint32                    flags
+) const
+{
+    // This path only supports gfx11.
+    PAL_ASSERT(IsGfx11(*m_pDevice->Parent()));
+    PAL_ASSERT(pCmdBuffer->IsGraphicsSupported());
+    // Don't expect GFX Blts on Nested unless targets not inherited.
+    PAL_ASSERT((pCmdBuffer->IsNested() == false) || (static_cast<Pm4::UniversalCmdBuffer*>(
+        pCmdBuffer)->GetGraphicsState().inheritedState.stateFlags.targetViewState == 0));
+
+    const GfxImage* pSrcGfxImage = srcImage.GetGfxImage();
+    const Image* pGfx9Image      = static_cast<const Pal::Gfx9::Image*>(pSrcGfxImage);
+    const auto& device           = *m_pDevice->Parent();
+    const auto& settings         = device.Settings();
+    const auto& dstCreateInfo    = dstImage.GetImageCreateInfo();
+    const auto& srcCreateInfo    = srcImage.GetImageCreateInfo();
+    const auto& srcImageInfo     = srcImage.GetImageInfo();
+    const auto* pPublicSettings  = device.GetPublicSettings();
+
+    LateExpandShaderResolveSrc(pCmdBuffer,
+                               srcImage,
+                               srcImageLayout,
+                               pRegions,
+                               regionCount,
+                               srcImageInfo.resolveMethod,
+                               false);
+
+    const StencilRefMaskParams stencilRefMasks = { 0xFF, 0xFF, 0xFF, 0x01, 0xFF, 0xFF, 0xFF, 0x01, 0xFF, };
+
+    // Initialize some structures we will need later on.
+    ViewportParams viewportInfo = { };
+    viewportInfo.count                 = 1;
+    viewportInfo.viewports[0].minDepth = 0.f;
+    viewportInfo.viewports[0].maxDepth = 1.f;
+    viewportInfo.viewports[0].origin   = PointOrigin::UpperLeft;
+    viewportInfo.horzClipRatio         = FLT_MAX;
+    viewportInfo.horzDiscardRatio      = 1.0f;
+    viewportInfo.vertClipRatio         = FLT_MAX;
+    viewportInfo.vertDiscardRatio      = 1.0f;
+    viewportInfo.depthRange            = DepthRange::ZeroToOne;
+
+    ScissorRectParams scissorInfo = { };
+    scissorInfo.count = 1;
+
+    const ColorTargetViewInternalCreateInfo colorViewInfoInternal = { };
+
+    ColorTargetViewCreateInfo colorViewInfo = { };
+    colorViewInfo.imageInfo.pImage    = &dstImage;
+    colorViewInfo.imageInfo.arraySize = 1;
+    colorViewInfo.flags.bypassMall    = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
+                                                       RpmViewsBypassMallOnCbDbWrite);
+
+    if (dstCreateInfo.imageType == ImageType::Tex3d)
+    {
+        colorViewInfo.zRange.extent = 1;
+        colorViewInfo.flags.zRangeValid = true;
+    }
+
+    BindTargetParams bindTargetsInfo = { };
+    bindTargetsInfo.colorTargets[0].imageLayout = dstImageLayout;
+    bindTargetsInfo.colorTargets[0].pColorTargetView = nullptr;
+
+    // Save current command buffer state.
+    pCmdBuffer->CmdSaveGraphicsState();
+    BindCommonGraphicsState(pCmdBuffer);
+    pCmdBuffer->CmdBindColorBlendState(m_pBlendDisableState);
+    pCmdBuffer->CmdBindDepthStencilState(m_pDepthDisableState);
+    pCmdBuffer->CmdBindMsaaState(GetMsaaState(dstCreateInfo.samples, dstCreateInfo.fragments));
+    pCmdBuffer->CmdSetStencilRefMasks(stencilRefMasks);
+
+    // Keep track of the previous graphics pipeline to reduce the pipeline switching overhead.
+    const Pal::GraphicsPipeline* pPreviousPipeline = nullptr;
+
+    // Each region needs to be resolved individually.
+    for (uint32 idx = 0; idx < regionCount; ++idx)
+    {
+        const SubresId dstSubres = { pRegions[idx].dstPlane, pRegions[idx].dstMipLevel, pRegions[idx].dstSlice };
+        const SubresId srcSubres = { pRegions[idx].srcPlane, 0, pRegions[idx].srcSlice };
+
+        SwizzledFormat dstFormat = dstImage.SubresourceInfo(dstSubres)->format;
+        SwizzledFormat srcFormat = srcImage.SubresourceInfo(srcSubres)->format;
+
+        // Override the formats with the caller's "reinterpret" format.
+        if (Formats::IsUndefined(pRegions[idx].swizzledFormat.format) == false)
+        {
+            // We require that the channel formats match.
+            PAL_ASSERT(Formats::ShareChFmt(srcFormat.format, pRegions[idx].swizzledFormat.format));
+            PAL_ASSERT(Formats::ShareChFmt(dstFormat.format, pRegions[idx].swizzledFormat.format));
+
+            // If the specified format exactly matches the image formats the resolve will always work. Otherwise, the
+            // images must support format replacement.
+            PAL_ASSERT(Formats::HaveSameNumFmt(srcFormat.format, pRegions[idx].swizzledFormat.format) ||
+                srcImage.GetGfxImage()->IsFormatReplaceable(srcSubres, srcImageLayout, false));
+
+            PAL_ASSERT(Formats::HaveSameNumFmt(dstFormat.format, pRegions[idx].swizzledFormat.format) ||
+                dstImage.GetGfxImage()->IsFormatReplaceable(dstSubres, dstImageLayout, true));
+
+            srcFormat.format = pRegions[idx].swizzledFormat.format;
+            dstFormat.format = pRegions[idx].swizzledFormat.format;
+        }
+
+        // Non-SRGB can be treated as SRGB when copying to non-srgb image
+        if (TestAnyFlagSet(flags, ImageResolveDstAsSrgb))
+        {
+            dstFormat.format = Formats::ConvertToSrgb(dstFormat.format);
+            PAL_ASSERT(Formats::IsUndefined(dstFormat.format) == false);
+        }
+        // SRGB can be treated as Non-SRGB when copying to srgb image
+        else if (TestAnyFlagSet(flags, ImageResolveDstAsNorm))
+        {
+            dstFormat.format = Formats::ConvertToUnorm(dstFormat.format);
+            PAL_ASSERT(Formats::IsUndefined(dstFormat.format) == false);
+        }
+
+        colorViewInfo.swizzledFormat = dstFormat;
+
+        // Only switch to the appropriate graphics pipeline if it differs from the previous region's pipeline.
+        const Pal::GraphicsPipeline* const pPipeline = GetGfxPipelineByTargetIndexAndFormat(
+                                                            RpmGfxPipeline::Gfx11ResolveGraphics_32ABGR, 0, dstFormat);
+        if (pPreviousPipeline != pPipeline)
+        {
+            pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Graphics, pPipeline, InternalApiPsoHash, });
+            pCmdBuffer->CmdOverwriteRbPlusFormatForBlits(dstFormat, 0);
+            pPreviousPipeline = pPipeline;
+        }
+
+        // Setup the viewport and scissor to restrict rendering to the destination region being copied.
+        viewportInfo.viewports[0].originX = static_cast<float>(pRegions[idx].dstOffset.x);
+        viewportInfo.viewports[0].originY = static_cast<float>(pRegions[idx].dstOffset.y);
+        viewportInfo.viewports[0].width   = static_cast<float>(pRegions[idx].extent.width);
+        viewportInfo.viewports[0].height  = static_cast<float>(pRegions[idx].extent.height);
+
+        scissorInfo.scissors[0].offset.x      = pRegions[idx].dstOffset.x;
+        scissorInfo.scissors[0].offset.y      = pRegions[idx].dstOffset.y;
+        scissorInfo.scissors[0].extent.width  = pRegions[idx].extent.width;
+        scissorInfo.scissors[0].extent.height = pRegions[idx].extent.height;
+
+        // Store the necessary region independent user data values in slot 1. Shader expects the following layout:
+        // 1 - Num Samples
+        uint32 isSingleSample = (Formats::IsSint(srcFormat.format) || Formats::IsUint(srcFormat.format));
+        const uint32 numSamples = (isSingleSample) ? 1u : srcImage.GetImageCreateInfo().samples;
+
+        const uint32 psData[4] = { numSamples, 0u, 0u, 0u, };
+        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 1, 4, &psData[0]);
+
+        // Handle Y inversion in vertex shader.
+        const bool invertY = TestAnyFlagSet(flags, ImageResolveInvertY);
+        const float bottom = (invertY) ? static_cast<float>(pRegions[idx].extent.height + pRegions[idx].srcOffset.y) :
+            static_cast<float>(pRegions[idx].srcOffset.y);
+        const float top = (invertY) ? static_cast<float>(pRegions[idx].srcOffset.y) :
+            static_cast<float>(pRegions[idx].extent.height + pRegions[idx].srcOffset.y);
+
+        const float vsData[4] =
+        {
+            // srcTexCoord, [left, bottom, right, top]
+            static_cast<float>(pRegions[idx].srcOffset.x),
+            bottom,
+            static_cast<float>(pRegions[idx].extent.width + pRegions[idx].srcOffset.x),
+            top,
+        };
+
+        // Can't directly cast from float* to uint32*
+        const uint32* vsDataUint = static_cast<const uint32*>(static_cast<const void*>(&vsData[0]));
+        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Graphics, 5, 4, vsDataUint);
+
+        pCmdBuffer->CmdSetViewports(viewportInfo);
+        pCmdBuffer->CmdSetScissorRects(scissorInfo);
+
+        const SubresId dstStartSubres =
+        {
+            pRegions[idx].dstPlane,
+            pRegions[idx].dstMipLevel,
+            pRegions[idx].dstSlice
+        };
+
+        for (uint32 slice = 0; slice < pRegions[idx].numSlices; ++slice)
+        {
+            const SubresId srcSubresSlice = { pRegions[idx].srcPlane, 0, pRegions[idx].srcSlice + slice };
+
+            // Create an embedded user-data table and bind it to user data 1. We only need one image view.
+            uint32* pUserData = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
+                                                                       SrdDwordAlignment(),
+                                                                       SrdDwordAlignment(),
+                                                                       PipelineBindPoint::Graphics,
+                                                                       0);
+
+            // Populate the table with an image view of the source image.
+            ImageViewInfo     imageView = { };
+            const SubresRange viewRange = { srcSubresSlice, 1, 1, 1 };
+            RpmUtil::BuildImageViewInfo(&imageView,
+                                        srcImage,
+                                        viewRange,
+                                        srcFormat,
+                                        srcImageLayout,
+                                        device.TexOptLevel(),
+                                        false);
+
+            device.CreateImageViewSrds(1, &imageView, pUserData);
+
+            colorViewInfo.imageInfo.baseSubRes = dstStartSubres;
+            if (dstCreateInfo.imageType == ImageType::Tex3d)
+            {
+                colorViewInfo.zRange.offset = pRegions[idx].dstOffset.z + slice;
+            }
+            else
+            {
+                colorViewInfo.imageInfo.baseSubRes.arraySlice = dstStartSubres.arraySlice + slice;
+            }
+
+            // create and bind a color target view of the destination region
+            LinearAllocatorAuto<VirtualLinearAllocator> sliceAlloc(pCmdBuffer->Allocator(), false);
+            IColorTargetView* pColorView = nullptr;
+            void* pColorViewMem =
+                PAL_MALLOC(m_pDevice->GetColorTargetViewSize(nullptr), &sliceAlloc, AllocInternalTemp);
+
+            if (pColorViewMem == nullptr)
+            {
+                pCmdBuffer->NotifyAllocFailure();
+            }
+            else
+            {
+                // Since our color target view can only bind 1 slice at a time, we have to issue a separate draw for
+                // each slice in extent.z. We can keep the same src image view since we pass the explicit slice to
+                // read from in user data, but we'll need to create a new color target view each time.
+                Result result = m_pDevice->CreateColorTargetView(colorViewInfo,
+                                                                 colorViewInfoInternal,
+                                                                 pColorViewMem,
+                                                                 &pColorView);
+                PAL_ASSERT(result == Result::Success);
+                bindTargetsInfo.colorTargets[0].pColorTargetView = pColorView;
+                bindTargetsInfo.colorTargetCount = 1;
+                pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+                // Draw a fullscreen quad.
+                pCmdBuffer->CmdDraw(0, 3, 0, 1, 0);
+
+                // Unbind the color-target view.
+                bindTargetsInfo.colorTargetCount = 0;
+                pCmdBuffer->CmdBindTargets(bindTargetsInfo);
+                PAL_SAFE_FREE(pColorViewMem, &sliceAlloc);
+            }
+        } // End for each slice.
+    } // End for each region.
+
+    // Restore original command buffer state.
+    pCmdBuffer->CmdRestoreGraphicsState();
+
+    FixupLateExpandShaderResolveSrc(pCmdBuffer,
+        srcImage,
+        srcImageLayout,
+        pRegions,
+        regionCount,
+        srcImageInfo.resolveMethod,
+        false);
+}
+#endif
 
 // =====================================================================================================================
 // Check if for all the regions, the format and swizzle mode matches for src and dst image.

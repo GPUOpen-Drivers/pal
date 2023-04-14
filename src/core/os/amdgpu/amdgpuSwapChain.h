@@ -65,7 +65,7 @@ private:
     SwapChain(const SwapChainCreateInfo& createInfo, Device* pDevice);
     virtual ~SwapChain();
 
-    virtual Result Init(void* pPlacementMem) override;
+    virtual Result Init(void* pPlacementMem, bool needPresentComplete) override;
 
     virtual Result ReclaimUnusedImages(uint64 timeout) override;
 

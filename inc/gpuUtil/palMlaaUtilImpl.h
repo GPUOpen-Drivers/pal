@@ -33,6 +33,7 @@
 #include "palPipeline.h"
 #include "palSysMemory.h"
 #include "palMlaaUtil.h"
+#include "palDeveloperHooks.h"
 #include "mlaa/g_mlaaComputePipelineInitImpl.h"
 
 namespace GpuUtil

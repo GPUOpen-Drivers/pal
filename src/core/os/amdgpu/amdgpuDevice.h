@@ -226,6 +226,14 @@ public:
     bool IsAceGfxGangSubmitSupported() const
         { return false; }
 
+    bool SupportsExplicitGang() const
+    {
+        bool supportsExplicitGang = ((IsDrmVersionOrGreater(3,49) || IsKernelVersionEqualOrGreater(6,1)) &&
+                                    false                                                                &&
+                                    (m_pPlatform->IsEmulationEnabled() == false));
+        return supportsExplicitGang;
+    }
+
     virtual Result AddGpuMemoryReferences(
         uint32              gpuMemRefCount,
         const GpuMemoryRef* pGpuMemoryRefs,
@@ -944,6 +952,15 @@ protected:
         const QueueCreateInfo& createInfo,
         void*                  pPlacementAddr) override;
 
+    virtual size_t MultiQueueObjectSize(
+        uint32                 queueCount,
+        const QueueCreateInfo* pCreateInfo) const override;
+
+    virtual Pal::Queue* ConstructMultiQueueObject(
+        uint32                 queueCount,
+        const QueueCreateInfo* pCreateInfo,
+        void*                  pPlacementAddr) override;
+
     virtual size_t GpuMemoryObjectSize() const override;
 
     virtual Pal::GpuMemory* ConstructGpuMemoryObject(
@@ -956,21 +973,6 @@ protected:
 
     virtual Result OsSetStaticVmidMode(
         bool enable) override;
-
-    virtual Pal::Queue* ConstructMultiQueueObject(
-        uint32                 queueCount,
-        const QueueCreateInfo* pCreateInfo,
-        void*                  pPlacementAddr) override
-    {
-        return nullptr;
-    }
-
-    virtual size_t MultiQueueObjectSize(
-        uint32                 queueCount,
-        const QueueCreateInfo* pCreateInfo) const override
-    {
-        return 0;
-    }
 
     virtual Result OpenExternalResource(
         const ExternalResourceOpenInfo& openInfo,

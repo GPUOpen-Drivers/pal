@@ -360,6 +360,7 @@ private:
     bool HasRmiSubInstances(GpuBlock block) const;
     bool IsSqLevelEvent(uint32 eventId) const;
     uint32 VirtualSeToRealSe(const uint32 index) const;
+    uint32 RealSeToVirtualSe(const uint32 index) const;
 #if PAL_BUILD_GFX11
     bool IsSqWgpLevelEvent(uint32 eventId) const;
 #endif

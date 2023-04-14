@@ -839,8 +839,8 @@ bool GfxDevice::IsValidTypedBufferView(
 
     const uint32 bpp = Pal::Formats::BytesPerPixel(view.swizzledFormat.format);
 
-    // Typed buffer loads require element size alignment. 96 bit is a special case because the element size is 32 bits.
-    const gpusize requiredAlignment = (bpp == 12) ? sizeof(uint32) : bpp;
+    // Typed buffer loads require element size is min(DWORD, ElementsSize).
+    const gpusize requiredAlignment = Util::Min(bpp, uint32(sizeof(uint32)));
 
     if (view.gpuAddr == 0)
     {

@@ -48,9 +48,6 @@ enum class EventId : uint8_t
 /// Data generated from kernel driver when a VM Page Fault happens.
 struct PageFault
 {
-    /// The maximum size required for a buffer to hold the packed data of this event.
-    static const uint32_t PackedBufferSize = 82;
-
     uint32_t vmId;
 
     /// Process ID (PID) of the offending process.
@@ -83,10 +80,10 @@ struct PageFault
     }
 
     /// Fill the pre-allocated `buffer` with the data of this struct. The size of
-    /// the buffer has to be at least `PackedBufferSize` big.
+    /// the buffer has to be at least `sizeof(PageFault)` big.
     ///
     /// Return the actual amount of bytes copied into `buffer`.
-    uint32_t ToBuffer(uint8_t* buffer)
+    uint32_t ToBuffer(uint8_t* buffer) const
     {
         memcpy(buffer, &vmId, sizeof(vmId));
         buffer += sizeof(vmId);
@@ -101,8 +98,6 @@ struct PageFault
         buffer += sizeof(processNameLength);
 
         memcpy(buffer, processName, processNameLength);
-
-        static_assert(sizeof(vmId) + sizeof(processId) + sizeof(pageFaultAddress) + sizeof(processNameLength) + sizeof(processName) == PackedBufferSize, "PackedBufferSize is incorrect");
 
         return sizeof(vmId) + sizeof(processId) + sizeof(pageFaultAddress) + sizeof(processNameLength) + processNameLength;
     }

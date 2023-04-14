@@ -115,6 +115,18 @@ namespace DevDriver
             {
                 // Wait for the connection to complete
                 result = pSession->WaitForConnection(timeoutInMs);
+                if (result != Result::Success)
+                {
+                    DD_PRINT(
+                        LogLevel::Error,
+                        "[DevDriver][LegacyProtocolClient] Failed to connect session (protocol: %u). Result: %u",
+                        sessionInfo.protocol,
+                        result);
+                }
+            }
+            else
+            {
+                DD_PRINT(LogLevel::Error, "[DevDriver][LegacyProtocolClient] Failed to establish session for client. Result: %u", result);
             }
 
             // If we successfully connect, store the pointer to the session so it doesn't get deleted.

@@ -72,24 +72,17 @@ static_assert(PAL_CPLUSPLUS_AT_LEAST(PAL_CPLUSPLUS_17), "C++17 is required to bu
 #define PAL_STDCALL __stdcall
 // Equates to the [__cdecl](https://github.com/MicrosoftDocs/cpp-docs/blob/master/docs/cpp/cdecl.md) convention on Windows.
 #define PAL_CDECL __cdecl
-// Equates to [__declspec(noreturn)](https://github.com/MicrosoftDocs/cpp-docs/blob/master/docs/cpp/noreturn.md) on Windows.
-#define PAL_NO_RETURN __declspec(noreturn)
 // Equates to [__declspec(align(__x))](https://github.com/MicrosoftDocs/cpp-docs/blob/master/docs/cpp/align-cpp.md) on Windows.
 #define PAL_ALIGN(__x) __declspec(align(__x))
 #define PAL_FORCE_INLINE __forceinline
-// Equates to [__declspec(selectany)](https://github.com/MicrosoftDocs/cpp-docs/blob/master/docs/cpp/selectany.md) on Windows.
-#define PAL_WEAK_LINK __declspec(selectany)
 #else
 /// Undefined on GCC platforms.
 #define PAL_STDCALL
 /// Undefined on GCC platforms.
 #define PAL_CDECL
 /// Undefined on GCC platforms.
-#define PAL_NO_RETURN
-/// Undefined on GCC platforms.
 #define PAL_ALIGN(__x)
 #define PAL_FORCE_INLINE __attribute__((always_inline)) inline
-#define PAL_WEAK_LINK __attribute__((weak))
 #endif
 
 /// Platform cache line size in bytes.
@@ -117,12 +110,6 @@ constexpr int32_t InvalidFd = -1;
 #define PAL_HAS_CPP_ATTR(attr) __has_cpp_attribute(attr)
 #else
 #define PAL_HAS_CPP_ATTR(attr) 0
-#endif
-
-#if PAL_HAS_CPP_ATTR(nodiscard)
-#define PAL_NODISCARD [[nodiscard]]
-#else
-#define PAL_NODISCARD
 #endif
 
 /// Library-wide namespace encapsulating all PAL utility collection entities.

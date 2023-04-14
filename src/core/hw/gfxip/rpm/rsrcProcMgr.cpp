@@ -387,6 +387,7 @@ void RsrcProcMgr::CopyImageCs(
     const auto&        srcCreateInfo   = copyImageCsInfo.pSrcImage->GetImageCreateInfo();
     const ImageType    imageType       = copyImageCsInfo.pSrcImage->GetGfxImage()->GetOverrideImageType();
     const DispatchDims threadsPerGroup = copyImageCsInfo.pPipeline->ThreadsPerGroupXyz();
+    const bool         viewMatchDim    = (IsGfx8(device) || IsGfx9(device));
 
     // Save current command buffer state and bind the pipeline.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
@@ -493,12 +494,15 @@ void RsrcProcMgr::CopyImageCs(
                                     device.TexOptLevel(),
                                     false);
 
-        // The shader treats all images as 2D arrays which means we need to override the view type to 2D. We also used
-        // to do this for 3D images but that caused test failures when the images used mipmaps because the HW expected
-        // the "numSlices" to be constant for all mip levels (rather than halving at each mip as z-slices do).
-        //
-        // Is it legal for the shader to view 1D and 3D images as 2D?
-        if (imageType == ImageType::Tex1d)
+        // Image view type matters for HW addrlib. Only override if absolutely necessary.
+        // GFX10+: Copying behavior depends on instruction DIM, not image view type
+        //    See GetCopyImageComputePipeline for more info on DIM
+        // GFX8,9: The original comment asserts that overriding the image view type to 2D is necessary.
+        //    "The shader treats all images as 2D arrays which means we need to override the view type to 2D.
+        //     We also used to do this for 3D images but that caused test failures when the images used mipmaps
+        //     because the HW expected "numSlices" to be constant for all mip levels
+        //     (rather than halving at each mip as z-slices do)."
+        if (viewMatchDim && (imageType == ImageType::Tex1d))
         {
             imageView[0].viewType = ImageViewType::Tex2d;
             imageView[1].viewType = ImageViewType::Tex2d;
@@ -633,6 +637,13 @@ const ComputePipeline* RsrcProcMgr::GetCopyImageComputePipeline(
     }
     else
     {
+        // GFX10+: The types declared in the IL source are encoded into the DIM field of the instructions.
+        //    DIM determines the max number of texture parameters [S,R,T,Q] to allocate.
+        //    TA ignores unused parameters for a resource if the image view defines them as size 1.
+        //    [S,R,T] can be generalized (3D, 2D array) for non-sampler operations like copies.
+        //        [Q] TA's interpretation of Q depends on DIM. MIP unless DIM is MSAA
+        //    Image Copies with a Q component need their own copy shaders.
+        //    Simpler copies (non-msaa, non-mip) can all share a single 3-dimensional (2d array) copy shader.
         switch (srcCreateInfo.fragments)
         {
         case 2:
@@ -1891,9 +1902,14 @@ void RsrcProcMgr::ScaledCopyImageCompute(
 
     const bool imageTypeMatch = (pSrcGfxImage->GetOverrideImageType() == pDstGfxImage->GetOverrideImageType());
     const bool is3d           = (imageTypeMatch && (pSrcGfxImage->GetOverrideImageType() == ImageType::Tex3d));
+    const bool viewMatchDim   = (IsGfx8(device) || IsGfx9(device));
     bool       isFmaskCopy    = false;
 
     // Get the appropriate pipeline object.
+    // Scaling textures relies on sampler instructions.
+    // GFX10+: IL type declarations set DIM, which controls the parameters [S,R,T,Q] to alloc.
+    //    [S,R] can be generalized for sampler operations. 2D array also works
+    //      [T] is interpreted differently by samplers if DIM is 3D.
     const ComputePipeline* pPipeline = nullptr;
     if (is3d)
     {
@@ -2239,7 +2255,11 @@ void RsrcProcMgr::ScaledCopyImageCompute(
                                         device.TexOptLevel(),
                                         false);
 
-            if (is3d == false)
+            // Image view type matters for HW addrlib. Only override if absolutely necessary.
+            // GFX10+: Sample instruction limitations depend on DIM, not the image view type.
+            //    See comments around the initialization of pPipeline for more details.
+            // GFX8,9: See similar behavior in copyImageCS. Unclear why this is necessary.
+            if (viewMatchDim && (is3d == false))
             {
                 imageView[0].viewType = ImageViewType::Tex2d;
                 imageView[1].viewType = ImageViewType::Tex2d;
@@ -3644,7 +3664,7 @@ void RsrcProcMgr::LateExpandShaderResolveSrc(
     bool                      isCsResolve
     ) const
 {
-    PAL_ASSERT((method.shaderCsFmask != 0) || (method.shaderCs != 0) | (method.shaderPs != 0));
+    PAL_ASSERT((method.shaderCsFmask != 0) || (method.shaderCs != 0) || (method.shaderPs != 0));
 
     const ImageLayoutUsageFlags shaderUsage =
         (method.shaderCsFmask ? Pal::LayoutShaderFmaskBasedRead : Pal::LayoutShaderRead);
@@ -3680,7 +3700,7 @@ void RsrcProcMgr::FixupLateExpandShaderResolveSrc(
     bool                      isCsResolve
     ) const
 {
-    PAL_ASSERT((method.shaderCsFmask != 0) || (method.shaderCs != 0) | (method.shaderPs != 0));
+    PAL_ASSERT((method.shaderCsFmask != 0) || (method.shaderCs != 0) || (method.shaderPs != 0));
 
     const ImageLayoutUsageFlags shaderUsage =
         (method.shaderCsFmask ? Pal::LayoutShaderFmaskBasedRead : Pal::LayoutShaderRead);

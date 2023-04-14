@@ -83,6 +83,7 @@ bool EventServer::AcceptSession(const SharedPointer<ISession>& pSession)
             if (providerIter.value->IsSessionAcquired() == false)
             {
                 acceptable = true;
+                DD_PRINT(LogLevel::Verbose, "[DevDriver][EventServer] accepted a session (%u).", pSession->GetSessionId());
                 break;
             }
         }
@@ -350,11 +351,20 @@ Result EventServer::AssignSessionToProvider(EventServerSession* pEventSession, E
             auto sessionIter = FindPendingSessionById(pEventSession->GetSessionId());
             DD_ASSERT(sessionIter != m_pendingSessions.End());
             m_pendingSessions.Remove(sessionIter);
+
+            DD_PRINT(
+                LogLevel::Info,
+                "[DevDriver][EventServer] Provider (%s) acquired session: %u",
+                requestedProviderIter->value->GetName(),
+                pEventSession->GetSessionId());
         }
         else
         {
-            // The requested provider has already acquired a session.
             result = Result::Unavailable;
+            DD_PRINT(
+                LogLevel::Error,
+                "[DevDriver][EventServer] The requested provider (%s) has already acquired a session.\n",
+                requestedProviderIter->value->GetName());
         }
     }
     else
@@ -376,6 +386,12 @@ void EventServer::UnassignSessionFromProvider(EventServerSession* pEventSession,
 
     providerIter->value->Disable();
     providerIter->value->ResetSession();
+
+    DD_PRINT(
+        LogLevel::Info,
+        "[DevDriver][EventServer] Unassign session (%u) from the event provider (%s).",
+        pEventSession->GetSessionId(),
+        providerIter->value->GetName());
 }
 
 Vector<EventServerSession*, 16u>::Iterator EventServer::FindPendingSessionById(SessionId id)

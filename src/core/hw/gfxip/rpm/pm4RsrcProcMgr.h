@@ -296,6 +296,18 @@ private:
         const ImageResolveRegion* pRegions,
         bool                      computeResolve) const = 0;
 
+#if PAL_BUILD_GFX11
+    virtual void HwlResolveImageGraphics(
+        GfxCmdBuffer*              pCmdBuffer,
+        const Pal::Image&         srcImage,
+        ImageLayout               srcImageLayout,
+        const Pal::Image&         dstImage,
+        ImageLayout               dstImageLayout,
+        uint32                    regionCount,
+        const ImageResolveRegion* pRegions,
+        uint32                    flags) const { PAL_NEVER_CALLED(); };
+#endif
+
     virtual void HwlFixupResolveDstImage(
         Pm4CmdBuffer*             pCmdBuffer,
         const GfxImage&           dstImage,

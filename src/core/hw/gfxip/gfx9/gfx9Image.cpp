@@ -461,6 +461,13 @@ Result Image::Finalize(
 
     Result result = Result::Success;
 
+#if PAL_BUILD_GFX11
+    if (IsGfx11(m_device) && (Parent()->IsEqaa() == false))
+    {
+        m_pImageInfo->resolveMethod.shaderPs = 1;
+    }
+#endif
+
     if (useSharedMetadata)
     {
         PAL_ASSERT(sharedMetadata.numPlanes == 1);
@@ -1894,14 +1901,13 @@ bool Image::IsFastClearColorMetaFetchable(
     {
         // Ok, not using comp-to-single, so we need to check for one of the four magic clear colors here.
         const ChNumFormat     format        = m_createInfo.swizzledFormat.format;
-        const uint32          numComponents = NumComponents(format);
         const ChannelSwizzle* pSwizzle      = &m_createInfo.swizzledFormat.swizzle.swizzle[0];
         const auto&           settings      = GetGfx9Settings(m_device);
 
         bool   rgbSeen          = false;
         uint32 requiredRgbValue = 0; // not valid unless rgbSeen==true
 
-        for (uint32 cmpIdx = 0; ((cmpIdx < numComponents) && isMetaFetchable); cmpIdx++)
+        for (uint32 cmpIdx = 0; ((cmpIdx < 4) && isMetaFetchable); cmpIdx++)
         {
             //  If forceRegularClearCode is set then we are not using one of the four "magic"
             //  fast-clear colors so the fast-clear can't be meta-fetchable.
@@ -1920,6 +1926,8 @@ bool Image::IsFastClearColorMetaFetchable(
             }
             else
             {
+                uint8 tgtCmpIdx = static_cast<uint8>(pSwizzle[cmpIdx]) - static_cast<uint8>(ChannelSwizzle::X);
+
                 switch (pSwizzle[cmpIdx])
                 {
                 case ChannelSwizzle::W:
@@ -1937,9 +1945,9 @@ bool Image::IsFastClearColorMetaFetchable(
                         // This is the first r-g-b value that we've come across, and it's a known zero-or-one value.
                         // All future RGB values need to match this one, so just record this value for comparison
                         // purposes.
-                        requiredRgbValue = pColor[cmpIdx];
+                        requiredRgbValue = pColor[tgtCmpIdx];
                     }
-                    else if (pColor[cmpIdx] != requiredRgbValue)
+                    else if (pColor[tgtCmpIdx] != requiredRgbValue)
                     {
                         // Fast clear is a no-go.
                         isMetaFetchable = false;
@@ -2503,14 +2511,21 @@ void Image::UpdateDccStateMetaData(
         writeData.dstSel     = dst_sel__pfp_write_data__memory;
         writeData.predicate  = predicate;
 
-        for (SubresId subresId = range.startSubres;
-             subresId.plane < (range.startSubres.plane + range.numPlanes);
-             subresId.plane++)
+        SubresId subresId = {};
+        for (uint32 planeIdx = range.startSubres.plane;
+            planeIdx < (range.startSubres.plane + range.numPlanes);
+            planeIdx++)
         {
+            subresId.plane = planeIdx;
+
             for (uint32 mipLevelIdx = mipBegin; mipLevelIdx < mipEnd; mipLevelIdx++)
             {
+                subresId.mipLevel = mipLevelIdx;
+
                 for (uint32 sliceIdx = sliceBegin; sliceIdx < sliceEnd; sliceIdx += maxSlicesPerPacket)
                 {
+                    subresId.arraySlice = sliceIdx;
+
                     uint32 periodsToWrite = (sliceIdx + maxSlicesPerPacket <= sliceEnd) ? maxSlicesPerPacket :
                                                                                           sliceEnd - sliceIdx;
 

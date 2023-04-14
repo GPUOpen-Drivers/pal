@@ -52,14 +52,15 @@ public:
         Queue* pQueue);
 
     Result GetMemoryChunk(
-        MemoryChunk* pMemChunk);
-
-    void ReleaseMemoryChunk(
-        MemoryChunk* pChunk);
+        MemoryChunk** ppMemChunk);
 
     void LogCrashAnalysisMarkerData();
 
-    // Public IDevice interface methods:
+    void FreeMemoryChunkAllocation(
+        uint32  raftIndex,
+        gpusize gpuVirtAddr);
+
+    // Public IDevice interface methods
     virtual size_t GetCmdBufferSize(
         const CmdBufferCreateInfo& createInfo,
         Result*                    pResult) const override;
@@ -70,27 +71,30 @@ public:
         ICmdBuffer**               ppCmdBuffer) override;
 
     virtual size_t GetQueueSize(
-        const QueueCreateInfo& createInfo,
-        Result*                pResult) const override;
+        const QueueCreateInfo&     createInfo,
+        Result*                    pResult) const override;
 
     virtual Result CreateQueue(
-        const QueueCreateInfo& createInfo,
-        void*                  pPlacementAddr,
-        IQueue**               ppQueue) override;
+        const QueueCreateInfo&     createInfo,
+        void*                      pPlacementAddr,
+        IQueue**                   ppQueue) override;
 
     virtual size_t GetMultiQueueSize(
-        uint32                 queueCount,
-        const QueueCreateInfo* pCreateInfo,
-        Result*                pResult) const override;
+        uint32                     queueCount,
+        const QueueCreateInfo*     pCreateInfo,
+        Result*                    pResult) const override;
 
     virtual Result CreateMultiQueue(
-        uint32                 queueCount,
-        const QueueCreateInfo* pCreateInfo,
-        void*                  pPlacementAddr,
-        IQueue**               ppQueue) override;
+        uint32                     queueCount,
+        const QueueCreateInfo*     pCreateInfo,
+        void*                      pPlacementAddr,
+        IQueue**                   ppQueue) override;
 
     virtual Result CommitSettingsAndInit() override;
-    virtual Result Finalize(const DeviceFinalizeInfo& finalizeInfo) override;
+
+    virtual Result Finalize(
+        const DeviceFinalizeInfo&  finalizeInfo) override;
+
     virtual Result Cleanup() override;
 
 private:
@@ -99,19 +103,19 @@ private:
     Result CreateMemoryRaft();
     void   FreeMemoryRafts();
 
-    const PalPublicSettings*   m_pPublicSettings;
-    DeviceProperties           m_deviceProperties;
+    const PalPublicSettings*                  m_pPublicSettings;
+    DeviceProperties                          m_deviceProperties;
 
-    Util::IntrusiveList<Queue> m_queues;
-    Util::Mutex                m_queueLock;
-    Util::Mutex                m_memoryLock;
-    bool                       m_initialized;
+    Util::IntrusiveList<Queue>                m_queues;
+    Util::Mutex                               m_queueLock;
+    Util::Mutex                               m_memoryLock;
+    bool                                      m_initialized;
 
     struct RaftAllocator
     {
-        Util::BuddyAllocator<IPlatform>* pBuddyAllocator;
-        IGpuMemory* pGpuMemory;
-        void*       pSystemMemory;
+        Util::BuddyAllocator<IPlatform>*      pBuddyAllocator;
+        IGpuMemory*                           pGpuMemory;
+        void*                                 pSystemMemory;
     };
     Util::Vector<RaftAllocator, 1, IPlatform> m_memoryRafts;
 
@@ -121,3 +125,4 @@ private:
 
 } // namespace CrashAnalysis
 } // namespace Pal
+

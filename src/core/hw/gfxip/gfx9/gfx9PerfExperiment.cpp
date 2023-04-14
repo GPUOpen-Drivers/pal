@@ -1383,6 +1383,15 @@ Result PerfExperiment::AddThreadTrace(
                     // We should always have at least one non-realtime CU.
                     PAL_ASSERT_ALWAYS();
                 }
+
+#if PAL_AMDGPU_BUILD
+#if PAL_BUILD_GFX11
+                if (IsGfx11(*m_pDevice))
+                {
+                    cuIndex = (Util::CountSetBits(m_chipProps.gfx9.gfx10.activeWgpMask[realInstance][shIndex]) - 1) * 2;
+                }
+#endif
+#endif
             }
         }
 
@@ -2094,7 +2103,7 @@ Result PerfExperiment::GetThreadTraceLayout(
             {
                 if (m_sqtt[idx].inUse)
                 {
-                    pLayout->traces[traceIdx].shaderEngine = idx;
+                    pLayout->traces[traceIdx].shaderEngine = RealSeToVirtualSe(idx);
                     pLayout->traces[traceIdx].infoOffset   = m_sqtt[idx].infoOffset;
                     pLayout->traces[traceIdx].infoSize     = sizeof(ThreadTraceInfoData);
                     pLayout->traces[traceIdx].dataOffset   = m_sqtt[idx].bufferOffset;
@@ -4697,6 +4706,25 @@ uint32 PerfExperiment::VirtualSeToRealSe(
             (index == seCount++))
         {
             break;
+        }
+    }
+    return seIndex;
+}
+
+// =====================================================================================================================
+// Needed for SE harvesting. Translate the Real Shader Engine Index to the virtual shader index
+uint32 PerfExperiment::RealSeToVirtualSe(
+    uint32 index
+    ) const
+{
+    // If they are asking for a ShaderEngine index that is larger than what we have we can't find it
+    PAL_ASSERT(index < m_chipProps.gfx9.numShaderEngines);
+    uint32 seIndex = 0;
+    for (uint32 i = 0; i < index; i++)
+    {
+        if (m_chipProps.gfx9.activeSeMask & (1 << i))
+        {
+            seIndex++;
         }
     }
     return seIndex;

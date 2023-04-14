@@ -411,6 +411,10 @@ protected:
 
     CmdBufferEngineSupport GetPerfExperimentEngine() const;
 
+    static bool FilterSetUserData(UserDataArgs*        pUserDataArgs,
+                                  const uint32*        pEntries,
+                                  const UserDataFlags& userDataFlags);
+
     uint32                  m_engineSupport;       // Indicates which engines are supported by the command buffer.
                                                    // Populated by the GFXIP-specific layer.
     GfxCmdBufferStateFlags  m_gfxCmdBufStateFlags;

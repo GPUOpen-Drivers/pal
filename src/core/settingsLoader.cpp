@@ -162,11 +162,16 @@ static bool CheckGfx11CpUcodeVersion(
     uint32        pfpUcodeVersionRs64)
 {
     constexpr uint32 Rs64VersionStart   = 300;
-    const     uint32 deviceUcodeVersion = device.ChipProperties().pfpUcodeVersion;
+    uint32 deviceUcodeVersion = device.ChipProperties().pfpUcodeVersion;
 
     PAL_ASSERT((pfpUcodeVersionF32 < Rs64VersionStart) && (pfpUcodeVersionRs64 >= Rs64VersionStart));
 
     bool featureSupported = false;
+
+    if (deviceUcodeVersion > 1000000)
+    {
+        deviceUcodeVersion = 413;
+    }
 
     if (IsGfx11(device))
     {
@@ -264,26 +269,6 @@ void SettingsLoader::OverrideDefaults()
             {
                 m_settings.useExecuteIndirectPacket = UseExecuteIndirectPacketForDrawSpillAndVbTable;
             }
-
-            constexpr uint32 PfpUcodeVersionDispatchExecuteIndirectGfx10_1   = 156;
-            constexpr uint32 PfpUcodeVersionDispatchExecuteIndirectGfx10_3   = 97;
-#if PAL_BUILD_GFX11
-            constexpr uint32 PfpUcodeVersionDispatchExecuteIndirectGfx11F32  = 95;
-            constexpr uint32 PfpUcodeVersionDispatchExecuteIndirectGfx11Rs64 = 1535;
-#endif
-
-            if (CheckGfx101CpUcodeVersion(*m_pDevice, PfpUcodeVersionDispatchExecuteIndirectGfx10_1) ||
-                CheckGfx103CpUcodeVersion(*m_pDevice, PfpUcodeVersionDispatchExecuteIndirectGfx10_3)
-#if PAL_BUILD_GFX11
-                || CheckGfx11CpUcodeVersion(
-                    *m_pDevice,
-                    PfpUcodeVersionDispatchExecuteIndirectGfx11F32,
-                    PfpUcodeVersionDispatchExecuteIndirectGfx11Rs64)
-#endif
-                )
-            {
-                // m_settings.useExecuteIndirectPacket = UseExecuteIndirectPacketForDrawDispatch;
-            }
         }
     }
 
@@ -332,7 +317,10 @@ void SettingsLoader::ValidateSettings()
 
     // If developer driver profiling is enabled, we should always request the debug-vmid/static-vmid and disable mid
     // command buffer preemption support.
-    if (m_pDevice->GetPlatform()->IsDevDriverProfilingEnabled())
+    //
+    // CrashAnalysis feature requires disablement of command buffer preemption, as well as DebugVmid.
+    if (m_pDevice->GetPlatform()->IsDevDriverProfilingEnabled() ||
+        m_pDevice->GetPlatform()->IsCrashAnalysisModeEnabled())
     {
         m_settings.requestDebugVmid     = true;
         m_settings.cmdBufPreemptionMode = CmdBufPreemptModeDisable;

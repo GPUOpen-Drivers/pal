@@ -80,7 +80,9 @@ struct ShaderStageInfo
 struct DynamicStageInfo
 {
     uint32 wavesPerSh;
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 789
     uint32 cuEnableMask;
+#endif
 };
 
 // Identifies what type of pipeline is described by a serialized pipeline ELF.

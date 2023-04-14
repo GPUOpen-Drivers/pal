@@ -530,11 +530,11 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     PAL_ASSERT((m_minBinSizeX != 0) && (m_minBinSizeY != 0));
     PAL_ASSERT(IsPowerOfTwo(m_minBinSizeX) && IsPowerOfTwo(m_minBinSizeY));
 
-    if (settings.binningMode == Gfx9DeferredBatchBinCustom)
+    if (pPublicSettings->binningMode == DeferredBatchBinCustom)
     {
         // The custom bin size setting is encoded as two uint16's.
-        m_customBinSizeX = settings.customBatchBinSize >> 16;
-        m_customBinSizeY = settings.customBatchBinSize & 0xFFFF;
+        m_customBinSizeX = pPublicSettings->customBatchBinSize >> 16;
+        m_customBinSizeY = pPublicSettings->customBatchBinSize & 0xFFFF;
 
         PAL_ASSERT(IsPowerOfTwo(m_customBinSizeX) && IsPowerOfTwo(m_customBinSizeY));
     }
@@ -572,11 +572,11 @@ UniversalCmdBuffer::UniversalCmdBuffer(
         m_persistentStatesPerBin = 1;
     }
 #endif
-    m_cachedPbbSettings.maxPrimsPerBatch       = (settings.binningMaxPrimPerBatch        - 1);
+    m_cachedPbbSettings.maxPrimsPerBatch       = (pPublicSettings->binningMaxPrimPerBatch - 1);
     m_cachedPbbSettings.persistentStatesPerBin = (m_persistentStatesPerBin               - 1);
     PAL_ASSERT(m_cachedPbbSettings.maxAllocCountNgg    == (0xFFFF & (settings.binningMaxAllocCountNggOnChip - 1)));
     PAL_ASSERT(m_cachedPbbSettings.maxAllocCountLegacy == (0xFFFF & (settings.binningMaxAllocCountLegacy    - 1)));
-    PAL_ASSERT(m_cachedPbbSettings.maxPrimsPerBatch    == (0xFFFF & (settings.binningMaxPrimPerBatch        - 1)));
+    PAL_ASSERT(m_cachedPbbSettings.maxPrimsPerBatch    == (0xFFFF & (pPublicSettings->binningMaxPrimPerBatch - 1)));
 
     m_pbbCntlRegs.paScBinnerCntl1.bits.MAX_PRIM_PER_BATCH        = m_cachedPbbSettings.maxPrimsPerBatch;
     m_pbbCntlRegs.paScBinnerCntl0.bits.PERSISTENT_STATES_PER_BIN = m_cachedPbbSettings.persistentStatesPerBin;
@@ -1144,19 +1144,6 @@ void UniversalCmdBuffer::CmdBindPipeline(
                                     taskEnabled);
             }
 
-            if (pNewPipeline != nullptr)
-            {
-                // If RB+ is enabled, we must update the PM4 image of RB+ register state with the new pipelines' values.
-                // This should be done here instead of inside SwitchGraphicsPipeline() because RPM sometimes overrides
-                //  these values for certain blit operations.
-                if (m_cachedSettings.rbPlusSupported != 0)
-                {
-                    m_sxPsDownconvert = pNewPipeline->SxPsDownconvert();
-                    m_sxBlendOptEpsilon = pNewPipeline->SxBlendOptEpsilon();
-                    m_sxBlendOptControl = pNewPipeline->SxBlendOptControl();
-                }
-            }
-
             constexpr uint32 DwordsPerSrd = (sizeof(BufferSrd) / sizeof(uint32));
             const uint32 vbTableDwords =
                 ((pNewPipeline == nullptr) ? 0 : pNewPipeline->VertexBufferCount() * DwordsPerSrd);
@@ -1224,6 +1211,16 @@ void UniversalCmdBuffer::CmdBindPipeline(
                     &(dbShaderControl.u32All), pNewPipeline->DbShaderControl().u32All, Gfx11PipelineDbShaderControlMask);
             }
 #endif
+            // If RB+ is enabled, we must update the PM4 image of RB+ register state with the new pipelines' values.
+            // This should be done here instead of inside SwitchGraphicsPipeline() because RPM sometimes overrides
+            //  these values for certain blit operations.
+            if (m_cachedSettings.rbPlusSupported != 0)
+            {
+                pNewPipeline->GetRbPlusRegisters(false,
+                                                 &m_sxPsDownconvert,
+                                                 &m_sxBlendOptEpsilon,
+                                                 &m_sxBlendOptControl);
+            }
 
             m_depthClampMode = pNewPipeline->GetDepthClampMode();
             // Update context registers according dynamic states
@@ -1301,6 +1298,19 @@ void UniversalCmdBuffer::CmdBindPipeline(
                     }
 
                     m_depthClampMode = params.graphics.dynamicState.depthClampMode;
+                }
+
+                if (params.graphics.dynamicState.enable.dualSourceBlendEnable)
+                {
+                    if (m_cachedSettings.rbPlusSupported != 0)
+                    {
+                        cbColorControl.bits.DISABLE_DUAL_QUAD =
+                            params.graphics.dynamicState.dualSourceBlendEnable ? 1 : 0;
+                        pNewPipeline->GetRbPlusRegisters(params.graphics.dynamicState.dualSourceBlendEnable,
+                                                         &m_sxPsDownconvert,
+                                                         &m_sxBlendOptEpsilon,
+                                                         &m_sxBlendOptControl);
+                    }
                 }
             }
 
@@ -1432,8 +1442,10 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
         }
     }
 
+    bool dynamicDualSourceBlendEnabled = m_graphicsState.dynamicGraphicsInfo.dynamicState.dualSourceBlendEnable &&
+        m_graphicsState.dynamicGraphicsInfo.dynamicState.enable.dualSourceBlendEnable;
     if ((m_cachedSettings.rbPlusSupported != 0) &&
-        (disableFiltering || (m_rbplusRegHash != pCurrPipeline->GetRbplusRegHash())))
+        (disableFiltering || (m_rbplusRegHash != pCurrPipeline->GetRbplusRegHash(dynamicDualSourceBlendEnabled))))
     {
         // m_sxPsDownconvert, m_sxBlendOptEpsilon and m_sxBlendOptControl have been updated in cmdBindPipeline.
         pDeCmdSpace = m_deCmdStream.WriteSetSeqContextRegs(mmSX_PS_DOWNCONVERT,
@@ -1441,7 +1453,7 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
                                                            &m_sxPsDownconvert,
                                                            pDeCmdSpace);
         m_deCmdStream.SetContextRollDetected<true>();
-        m_rbplusRegHash = pCurrPipeline->GetRbplusRegHash();
+        m_rbplusRegHash = pCurrPipeline->GetRbplusRegHash(dynamicDualSourceBlendEnabled);
     }
 
     bool breakBatch = ((m_cachedSettings.pbbMoreThanOneCtxState) && (m_state.flags.cbTargetMaskChanged));
@@ -3047,15 +3059,22 @@ void UniversalCmdBuffer::DescribeDraw(
     const auto*  pPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
     const uint32 userData0 = pPipeline->GetVsUserDataBaseOffset();
 
-    // Compute register offsets of first vertex and start instance user data locations relative to
-    // user data 0.
-    PAL_ASSERT((GetVertexOffsetRegAddr() != 0) && (GetInstanceOffsetRegAddr() != 0));
-    PAL_ASSERT(GetVertexOffsetRegAddr() >= userData0);
-    PAL_ASSERT(GetInstanceOffsetRegAddr() >= userData0);
-
-    uint32 firstVertexIdx   = GetVertexOffsetRegAddr() - userData0;
-    uint32 startInstanceIdx = GetInstanceOffsetRegAddr() - userData0;
+    uint32 firstVertexIdx   = UINT_MAX;
+    uint32 startInstanceIdx = UINT_MAX;
     uint32 drawIndexIdx     = UINT_MAX;
+
+    if ((cmdType != Developer::DrawDispatchType::CmdDispatchMesh) &&
+        (cmdType != Developer::DrawDispatchType::CmdDispatchMeshIndirectMulti))
+    {
+        // Compute register offsets of first vertex and start instance user data locations relative to
+        // user data 0.
+        PAL_ASSERT((GetVertexOffsetRegAddr() != 0) && (GetInstanceOffsetRegAddr() != 0));
+        PAL_ASSERT(GetVertexOffsetRegAddr() >= userData0);
+        PAL_ASSERT(GetInstanceOffsetRegAddr() >= userData0);
+
+        firstVertexIdx   = GetVertexOffsetRegAddr() - userData0;
+        startInstanceIdx = GetInstanceOffsetRegAddr() - userData0;
+    }
 
     if (m_drawIndexReg != UserDataNotMapped)
     {
@@ -5973,7 +5992,10 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
         pDeCmdSpace = WriteDirtyUserDataEntriesToSgprsGfx<TessEnabled, GsEnabled, VsEnabled>(pPrevSignature,
                                                                                              alreadyWrittenStageMask,
                                                                                              pDeCmdSpace);
+    }
 
+    if (HasPipelineChanged || anyUserDataDirty)
+    {
         if (spillThreshold != NoUserDataSpilling)
         {
             const uint16 userDataLimit = m_pSignatureGfx->userDataLimit;
@@ -5991,7 +6013,7 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
                 // because we normally only update the portions usable by the bound pipeline to minimize memory usage.
                 reUpload = true;
             }
-            else
+            else if (anyUserDataDirty)
             {
                 // Otherwise, use the following loop to check if any of the spilled user-data entries are dirty.
                 const uint32 firstMaskId = (spillThreshold / UserDataEntriesPerMask);
@@ -6029,6 +6051,27 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
                                        spillThreshold,
                                        &m_graphicsState.gfxUserDataEntries.entries[0]);
             }
+
+            // NOTE: If the pipeline is changing, we may need to re-write the spill table address to any shader stage,
+            // even if the spill table wasn't re-uploaded because the mapped user-SGPRs for the spill table could have
+            // changed (as indicated by 'alreadyWrittenStageMask').
+            if ((alreadyWrittenStageMask != 0) || reUpload)
+            {
+                const uint32 gpuVirtAddrLo = LowPart(m_spillTable.stateGfx.gpuVirtAddr);
+                for (uint32 s = 0; s < NumHwShaderStagesGfx; ++s)
+                {
+                    const uint16 userSgpr = m_pSignatureGfx->stage[s].spillTableRegAddr;
+                    if (userSgpr != UserDataNotMapped)
+                    {
+                        pDeCmdSpace = SetUserSgprReg<ShaderGraphics>(userSgpr,
+                                                                    gpuVirtAddrLo,
+        #if PAL_BUILD_GFX11
+                                                                    false,
+        #endif
+                                                                    pDeCmdSpace);
+                    }
+                }
+            }
         } // if current pipeline spills user-data
 
         // All dirtied user-data entries have been written to user-SGPR's or to the spill table somewhere in this
@@ -6038,28 +6081,7 @@ uint32* UniversalCmdBuffer::ValidateGraphicsUserData(
         {
             pDirtyMask[i] = 0;
         }
-    }// if any user data is dirty
-
-    // NOTE: If the pipeline is changing, we may need to re-write the spill table address to any shader stage,
-    // even if the spill table wasn't re-uploaded because the mapped user-SGPRs for the spill table could have
-    // changed.
-    if ((spillThreshold != NoUserDataSpilling) && (HasPipelineChanged || reUpload))
-    {
-        const uint32 gpuVirtAddrLo = LowPart(m_spillTable.stateGfx.gpuVirtAddr);
-        for (uint32 s = 0; s < NumHwShaderStagesGfx; ++s)
-        {
-            const uint16 userSgpr = m_pSignatureGfx->stage[s].spillTableRegAddr;
-            if (userSgpr != UserDataNotMapped)
-            {
-                pDeCmdSpace = SetUserSgprReg<ShaderGraphics>(userSgpr,
-                                                             gpuVirtAddrLo,
-#if PAL_BUILD_GFX11
-                                                             false,
-#endif
-                                                             pDeCmdSpace);
-            }
-        }
-    }
+    }// if any user data is dirty or pipeline changed
 
     return pDeCmdSpace;
 }
@@ -6286,6 +6308,9 @@ void UniversalCmdBuffer::ValidateDraw(
             {
                 pDeCmdSpace = pNewPipeline->Prefetch(pDeCmdSpace);
             }
+
+            m_deCmdStream.CommitCommands(pDeCmdSpace);
+            pDeCmdSpace = m_deCmdStream.ReserveCommands();
         }
 
         const auto*const pPrevSignature = m_pSignatureGfx;
@@ -7980,12 +8005,14 @@ uint32* UniversalCmdBuffer::ValidateViewports(
         const auto&         viewport    = params.viewports[i];
         VportZMinMaxPm4Img* pZMinMaxImg = reinterpret_cast<VportZMinMaxPm4Img*>(&viewportRegs.zMinMaxImgs[i]);
 
+#if PAL_BUILD_SUPPORT_DEPTHCLAMPMODE_ZERO_TO_ONE
         if (static_cast<DepthClampMode>(m_graphicsState.depthClampMode) == DepthClampMode::ZeroToOne)
         {
             pZMinMaxImg->zMin.f32All = 0.0f;
             pZMinMaxImg->zMax.f32All = 1.0f;
         }
         else
+#endif
         {
             pZMinMaxImg->zMin.f32All = Min(viewport.minDepth, viewport.maxDepth);
             pZMinMaxImg->zMax.f32All = Max(viewport.minDepth, viewport.maxDepth);
@@ -12491,7 +12518,7 @@ uint32* UniversalCmdBuffer::WriteWaitEop(
     bool waitAtPfpOrMe = true;
 
 #if PAL_BUILD_GFX11
-    if (m_device.UsePws(EngineTypeUniversal))
+    if (m_device.Parent()->UsePws(EngineTypeUniversal))
     {
         // We should always prefer a PWS sync over a wait for EOP timestamp because it avoids all TS memory accesses.
         // It can also push the wait point further down the graphics pipeline in some cases.

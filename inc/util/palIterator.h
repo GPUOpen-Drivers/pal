@@ -108,7 +108,7 @@ public:
 
     BitIter            begin() const { return *this; }
     BitIter            end()   const { return BitIter(0); }
-    PAL_NODISCARD bool empty() const { return m_val == 0; }
+    [[nodiscard]] bool empty() const { return m_val == 0; }
     uint32             size()  const { return CountSetBits(m_val); }
 
     friend bool operator==(const BitIter& a, const BitIter& b) { return a.m_val == b.m_val; }
@@ -188,7 +188,7 @@ public:
 
     WideBitIter        begin() const { return *this; }
     WideBitIter        end()   const { return WideBitIter(0); }
-    PAL_NODISCARD bool empty() const { return m_val == 0; }
+    [[nodiscard]] bool empty() const { return m_val == 0; }
     WideBitIter        size()  const { return WideBitfieldCountSetBits(m_val); }
 
     friend bool operator == (const WideBitIter& a, const WideBitIter& b) { return a.m_val == b.m_val; }

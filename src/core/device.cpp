@@ -589,6 +589,16 @@ Result Device::SetupPublicSettingDefaults()
 #endif
 #endif
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 790
+    m_publicSettings.limitCbFetch256B = false;
+#endif
+
+    m_publicSettings.binningMode            = DeferredBatchBinAccurate;
+    m_publicSettings.customBatchBinSize     = 0x800080;
+    m_publicSettings.binningMaxPrimPerBatch = 1024;
+
+    m_publicSettings.pwsMode = PwsMode::Enabled;
+
     return ret;
 }
 
@@ -2119,10 +2129,10 @@ Result Device::GetProperties(
         memset(pInfo, 0, sizeof(DeviceProperties));
 
         // NOTE: We must identify with the ATI vendor ID rather than AMD, as apps can be hardcoded to detect ATI ID.
-        pInfo->vendorId = ATI_VENDOR_ID;
-        pInfo->deviceId = m_chipProperties.deviceId;
-
+        pInfo->vendorId    = ATI_VENDOR_ID;
+        pInfo->deviceId    = m_chipProperties.deviceId;
         pInfo->revisionId  = m_chipProperties.revisionId;
+        pInfo->eRevId      = m_chipProperties.eRevId;
         pInfo->revision    = m_chipProperties.revision;
         pInfo->gfxStepping = m_chipProperties.gfxStepping;
         pInfo->gpuType     = m_chipProperties.gpuType;
@@ -2199,6 +2209,7 @@ Result Device::GetProperties(
                 pCapabilitiesInfo->dispatchTunnelingPrioritySupport = capabilitiesInfo.dispatchTunnelingPrioritySupport;
                 pCapabilitiesInfo->flags.supportsMultiQueue         = capabilitiesInfo.flags.supportsMultiQueue;
                 pCapabilitiesInfo->maxFrontEndPipes                 = capabilitiesInfo.maxFrontEndPipes;
+                pCapabilitiesInfo->flags.hwsEnabled                 = capabilitiesInfo.flags.hwsEnabled;
             }
 
             for (uint32 j = 0; j < CmdAllocatorTypeCount; j++)
@@ -2582,6 +2593,10 @@ Result Device::GetProperties(
         pInfo->gfxipProperties.maxThreadGroupSize             = m_chipProperties.gfxip.maxThreadGroupSize;
         pInfo->gfxipProperties.maxAsyncComputeThreadGroupSize = m_chipProperties.gfxip.maxAsyncComputeThreadGroupSize;
 
+        pInfo->gfxipProperties.maxComputeThreadGroupCountX    = m_chipProperties.gfxip.maxComputeThreadGroupCountX;
+        pInfo->gfxipProperties.maxComputeThreadGroupCountY    = m_chipProperties.gfxip.maxComputeThreadGroupCountY;
+        pInfo->gfxipProperties.maxComputeThreadGroupCountZ    = m_chipProperties.gfxip.maxComputeThreadGroupCountZ;
+
         pInfo->gfxipProperties.maxBufferViewStride = MaxMemoryViewStride;
         pInfo->gfxipProperties.hardwareContexts    = m_chipProperties.gfxip.hardwareContexts;
         pInfo->gfxipProperties.maxPrimgroupSize    = m_chipProperties.gfxip.maxPrimgroupSize;
@@ -2619,6 +2634,18 @@ Result Device::GetProperties(
         pInfo->gfxipProperties.flags.supportStaticVmid           = m_chipProperties.gfxip.supportStaticVmid;
         pInfo->gfxipProperties.flags.supportFloat32BufferAtomics = m_chipProperties.gfxip.supportFloat32BufferAtomics;
         pInfo->gfxipProperties.flags.supportFloat32ImageAtomics  = m_chipProperties.gfxip.supportFloat32ImageAtomics;
+
+        pInfo->gfxipProperties.flags.supportFloat32BufferAtomicAdd
+            = m_chipProperties.gfxip.supportFloat32BufferAtomicAdd;
+        pInfo->gfxipProperties.flags.supportFloat32ImageAtomicAdd
+            = m_chipProperties.gfxip.supportFloat32ImageAtomicAdd;
+        pInfo->gfxipProperties.flags.supportFloat32ImageAtomicMinMax
+            = m_chipProperties.gfxip.supportFloat32ImageAtomicMinMax;
+        pInfo->gfxipProperties.flags.supportFloat64BufferAtomicMinMax
+            = m_chipProperties.gfxip.supportFloat64BufferAtomicMinMax;
+        pInfo->gfxipProperties.flags.supportFloat64SharedAtomicMinMax
+            = m_chipProperties.gfxip.supportFloat64SharedAtomicMinMax;
+
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 735
         pInfo->gfxipProperties.flags.supportFloat32Atomics       = m_chipProperties.gfxip.supportFloat32BufferAtomics |
                                                                    m_chipProperties.gfxip.supportFloat32ImageAtomics;
@@ -5482,5 +5509,27 @@ void Device::LogCodeObjectToDisk(
         }
     }
 }
+
+#if PAL_BUILD_GFX11
+
+// =====================================================================================================================
+bool Device::UsePws(
+    EngineType engineType
+    ) const
+{
+    return m_engineProperties.perEngine[engineType].flags.supportsPws &&
+           (m_publicSettings.pwsMode != PwsMode::Disabled);
+}
+
+// =====================================================================================================================
+bool Device::UsePwsLateAcquirePoint(
+    EngineType engineType
+    ) const
+{
+    return m_engineProperties.perEngine[engineType].flags.supportsPws &&
+           (m_publicSettings.pwsMode == PwsMode::Enabled);
+}
+
+#endif
 
 } // Pal

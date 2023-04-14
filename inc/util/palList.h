@@ -60,8 +60,6 @@ template<typename T, typename Allocator>
 class ListIterator
 {
 public:
-    ~ListIterator() { }
-
     /// Returns a pointer to the current element.  Will return null if the iterator has been advanced off the end of the
     /// list.
     T* Get() const;
@@ -74,15 +72,6 @@ public:
 
     /// Moves the iterator back to the start of the list.
     void Restart() { m_pCurrent = m_pList->m_header.pNext; }
-
-    /// Assignment operator.  Update this iterator to point at the same list node as the source list iterator.
-    ListIterator<T, Allocator>& operator =(const ListIterator<T, Allocator>& listIterator)
-    {
-        m_pList    = listIterator.m_pList;
-        m_pCurrent = listIterator.m_pCurrent;
-
-        return (*this);
-    }
 
     /// Equality operator. Returns true if two iterators point to the same position in the list.
     bool operator ==(const ListIterator<T, Allocator>& listIterator)

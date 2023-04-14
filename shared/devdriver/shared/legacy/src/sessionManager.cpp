@@ -159,6 +159,10 @@ namespace DevDriver
                         pNewSession->Shutdown(Result::InsufficientMemory);
                     }
                 }
+                else
+                {
+                    DD_PRINT(LogLevel::Error, "[DevDriver][SessionManager] Failed to connect session (id: %u).", sessionId);
+                }
             }
 
             // If everything goes well, return the session shared pointer.

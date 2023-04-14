@@ -24,8 +24,12 @@
  #######################################################################################################################
 
 import os
-CopyrightFilePath = os.path.dirname(os.path.realpath(__file__)) + "/../pal-copyright-template.txt"
-FileHeaderCopyright = open(CopyrightFilePath, 'r').read().replace("2018", "%Year%")
+import sys
+
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "offline"))
+from genCopyright import Copyright
+
+FileHeaderCopyright = f"/* {Copyright} */"
 
 FileHeaderWarning = """
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

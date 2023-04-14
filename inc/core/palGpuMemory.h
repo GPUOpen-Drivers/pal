@@ -146,13 +146,14 @@ union GpuMemoryCreateFlags
         uint64 busAddressable               :  1; ///< Create Bus Addressable memory. Allow memory to be used by other
                                                   ///  device on the PCIe bus by exposing a write-only bus address.
         uint64 sdiExternal                  :  1; ///< Create External Physical memory from an already allocated memory
-                                                  ///  on remote device. Similar to virtual allocations
-                                                  ///  (no physical backing) but have an immutable page mapping set at
-                                                  ///  creation time. Must specify surfBusAddr and markerBusAddr in
-                                                  ///  GpuMemoryCreateInfo. The page mappings for an allocation
-                                                  ///  with this flag set must be initialized by including a reference
-                                                  ///  to it in the ppExternPhysMem list for the first submission that
-                                                  ///  references it.
+                                                  ///  on remote device. Similar to virtual allocations (no physical
+                                                  ///  backing) but have an immutable page mapping. The client must
+                                                  ///  specify surfaceBusAddr and markerBusAddr either at creation time
+                                                  ///  in GpuMemoryCreateInfo or by calling SetSdiRemoteBusAddress
+                                                  ///  once before using the GPU memory. The page mappings for an
+                                                  ///  allocation with this flag set must be initialized by including a
+                                                  ///  reference to it in the ppExternPhysMem list for the first
+                                                  ///  submission that references it.
         uint64 sharedViaNtHandle            :  1; ///< Memory will be shared by using Nt handle.
         uint64 peerWritable                 :  1; ///< The memory can be open as peer memory and be writable.
         uint64 tmzProtected                 :  1; ///< The memory is protected using TMZ (Trusted Memory Zone) or HSFB
@@ -630,6 +631,26 @@ public:
     {
         m_pClientData = pClientData;
     }
+
+    /// Set SDI remote surface bus address and marker bus address.
+    ///
+    /// This GPU memory object must have been created with the sdiExternal flag set and with the GpuMemoryCreateInfo
+    /// surfaceBusAddr and markerBusAddr fields both set to zero. This function allows clients to defer setting those
+    /// addresses until after creation. It must be called exactly once to permanently bind the given SDI addresses to
+    /// this GPU memory object.
+    ///
+    /// @warning An sdiExternal GPU memory object is not complete until its given its SDI addresses! The gpuVirtAddr
+    ///          field in this GPU memory's GpuMemoryDesc will not be valid until this function is called!
+    ///
+    /// @param [in] surfaceBusAddr Surface bus address of Bus Addressable Memory.
+    /// @param [in] markerBusAddr  Marker bus address of Bus Addressable Memory. The client can write to the marker
+    ///                            and have the GPU wait until a value is written to marker before continuing.
+    ///
+    /// @returns Success if succeeded. Otherwise, one of the following errors may be returned:
+    ///          + ErrorUnavailable if the GPU memory object is not external physical memory or it has already been set.
+    ///          + ErrorInvalidValue if one of the input params is 0.
+    ///          + One of the escape call failed error.
+    virtual Result SetSdiRemoteBusAddress(gpusize surfaceBusAddr, gpusize markerBusAddr) = 0;
 
 protected:
     /// @internal Constructor. Prevent use of new operator on this interface. Client must create objects by explicitly

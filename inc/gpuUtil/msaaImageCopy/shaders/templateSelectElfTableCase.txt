@@ -1,1 +1,0 @@
-    case Pal::AsicRevision::${Target}:

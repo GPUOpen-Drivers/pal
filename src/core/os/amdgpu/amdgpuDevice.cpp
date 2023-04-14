@@ -324,6 +324,8 @@ static Result OpenAndInitializeDrmDevice(
 
     // Using render node here so that we can do the off-screen rendering without authentication.
     int32 fd        = open(pRenderNode, O_RDWR, 0);
+    PAL_ASSERT(fd > 0); // Make sure the user has the "Render" permission to access /dev/dri/render*
+
     int32 primaryFd = InvalidFd;
 
     if (pPlatform->DontOpenPrimaryNode() == false)
@@ -1787,6 +1789,8 @@ Result Device::InitQueueInfo()
                                                                                    SupportQueuePriorityHigh   |
                                                                                    SupportQueuePriorityRealtime);
 
+    const bool supportsMultiQueue = SupportsExplicitGang();
+
     for (uint32 i = 0; i < EngineTypeCount; ++i)
     {
         auto*const                   pEngineInfo = &m_engineProperties.perEngine[i];
@@ -1807,8 +1811,9 @@ Result Device::InitQueueInfo()
                                                                sizeof(uint32)) / sizeof(uint32);
                     for (uint32 engineIdx = 0; engineIdx < pEngineInfo->numAvailable; engineIdx++)
                     {
-                        pEngineInfo->capabilities[engineIdx].queuePrioritySupport = AnyPriority;
-                        pEngineInfo->capabilities[engineIdx].maxFrontEndPipes     = 1;
+                        pEngineInfo->capabilities[engineIdx].queuePrioritySupport     = AnyPriority;
+                        pEngineInfo->capabilities[engineIdx].maxFrontEndPipes         = 1;
+                        pEngineInfo->capabilities[engineIdx].flags.supportsMultiQueue = supportsMultiQueue;
                     }
                 }
                 break;
@@ -1830,7 +1835,8 @@ Result Device::InitQueueInfo()
 
                     for (; engineIdx < pEngineInfo->numAvailable; engineIdx++)
                     {
-                        pEngineInfo->capabilities[engineIdx].queuePrioritySupport = normalQueueSupport;
+                        pEngineInfo->capabilities[engineIdx].queuePrioritySupport     = normalQueueSupport;
+                        pEngineInfo->capabilities[engineIdx].flags.supportsMultiQueue = supportsMultiQueue;
 
                         // Kernel doesn't expose this info.
                         pEngineInfo->capabilities[engineIdx].maxFrontEndPipes = 1;
@@ -1903,11 +1909,10 @@ Result Device::InitQueueInfo()
 
         // This code is added here because it is entirely reliant on kernel level support for implicit/explicit
         // gang submit. As a result, this GFXIP-specific logic is being handled in InitQueueInfo.
-        const HwsInfo& hwsInfo = GetHwsInfo();
+        const bool supportsImplicitGangSubmit = SupportsExplicitGang() &&
+                                                IsAceGfxGangSubmitSupported();
 
-        const bool supportsImplicitGangSubmit = IsAceGfxGangSubmitSupported();
-        const bool supportsExplicitGangSubmit = ((hwsInfo.gangSubmitEngineFlags.compute == 1) &&
-                                                 (hwsInfo.gangSubmitEngineFlags.graphics == 1));
+        const bool supportsExplicitGangSubmit = SupportsExplicitGang();
 
         if (IsGfx103PlusExclusive(m_chipProperties.gfxLevel))
         {
@@ -2175,6 +2180,60 @@ Pal::Queue* Device::ConstructQueueObject(
     default:
         PAL_ASSERT_ALWAYS();
         break;
+    }
+
+    return pQueue;
+}
+
+// =====================================================================================================================
+size_t Device::MultiQueueObjectSize(
+    uint32                 queueCount,
+    const QueueCreateInfo* pCreateInfo
+    ) const
+{
+    return QueueObjectSize(pCreateInfo[0]);
+}
+
+// =====================================================================================================================
+Pal::Queue* Device::ConstructMultiQueueObject(
+    uint32                 queueCount,
+    const QueueCreateInfo* pCreateInfo,
+    void*                  pPlacementAddr)
+{
+    PAL_ASSERT(queueCount > 0);
+    // Make sure every queue supports HWS and every queue is QueueTypeCompute, QueueTypeUniversal, or QueueTypeDma.
+    bool isMultiQueueType = true;
+    Pal::Queue* pQueue    = nullptr;
+
+    for (uint32 qIndex = 0; qIndex < queueCount; qIndex++)
+    {
+        switch (pCreateInfo[qIndex].queueType)
+        {
+        case QueueTypeCompute:
+        case QueueTypeUniversal:
+        case QueueTypeDma:
+            break;
+        default:
+            // We don't expect a multiQueue would be of any other queue type at this stage.
+            isMultiQueueType = false;
+            break;
+        }
+    }
+
+    if (isMultiQueueType)
+    {
+        switch (pCreateInfo[0].queueType)
+        {
+        case QueueTypeCompute:
+        case QueueTypeUniversal:
+        case QueueTypeDma:
+            pQueue = PAL_PLACEMENT_NEW(pPlacementAddr) Amdgpu::Queue(queueCount, this, pCreateInfo);
+            break;
+        default:
+            // We don't expect a multiQueue would be of any other queue type at this stage.
+            PAL_ASSERT_ALWAYS();
+            break;
+        }
     }
 
     return pQueue;
@@ -3938,23 +3997,24 @@ void Device::UpdateMetaDataUniqueId(
     // Read current metadata first if it exists
     QueryBufferInfo(hBuffer, &info);
 
-    // In case metadata was not set before, set the metadata's size
-    info.metadata.size_metadata = PRO_UMD_METADATA_SIZE;
+    // Only update metadata of which the BO allocated by Pal
+    if (info.metadata.size_metadata == PRO_UMD_METADATA_SIZE)
+    {
+        // First 32 dwords are reserved for open source components.
+        auto*const pUmdMetaData       = reinterpret_cast<amdgpu_bo_umd_metadata*>
+                                            (&info.metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
 
-    // First 32 dwords are reserved for open source components.
-    auto*const pUmdMetaData       = reinterpret_cast<amdgpu_bo_umd_metadata*>
-                                        (&info.metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
+        auto*const pUmdSharedMetadata = reinterpret_cast<amdgpu_shared_metadata_info*>
+                                            (&pUmdMetaData->shared_metadata_info);
 
-    auto*const pUmdSharedMetadata = reinterpret_cast<amdgpu_shared_metadata_info*>
-                                        (&pUmdMetaData->shared_metadata_info);
+        // Update metadata structure with GPU memory's unique ID
+        pUmdSharedMetadata->resource_id        = LowPart(pAmdgpuGpuMem->Desc().uniqueId);
+        pUmdSharedMetadata->resource_id_high32 = HighPart(pAmdgpuGpuMem->Desc().uniqueId);
 
-    // Update metadata structure with GPU memory's unique ID
-    pUmdSharedMetadata->resource_id        = LowPart(pAmdgpuGpuMem->Desc().uniqueId);
-    pUmdSharedMetadata->resource_id_high32 = HighPart(pAmdgpuGpuMem->Desc().uniqueId);
-
-    // Set new metadata
-    int32 drmRet = m_drmProcs.pfnAmdgpuBoSetMetadata(hBuffer, &info.metadata);
-    PAL_ASSERT(drmRet == 0);
+        // Set new metadata
+        int32 drmRet = m_drmProcs.pfnAmdgpuBoSetMetadata(hBuffer, &info.metadata);
+        PAL_ASSERT(drmRet == 0);
+    }
 }
 
 // =====================================================================================================================
@@ -5088,7 +5148,7 @@ Result Device::SetClockMode(
                 case Pal::DeviceClockMode::Peak:
                     amdgpuCtxStablePstate = AMDGPU_CTX_STABLE_PSTATE_PEAK;
                     break;
-                Default:
+                default:
                     break;
             }
 

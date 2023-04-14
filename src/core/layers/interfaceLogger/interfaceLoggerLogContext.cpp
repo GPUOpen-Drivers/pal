@@ -304,6 +304,7 @@ static constexpr FuncFormattingEntry FuncFormattingTable[] =
     { InterfaceFunc::GpuMemorySetPriority,                                      InterfaceObject::GpuMemory,            "SetPriority"                             },
     { InterfaceFunc::GpuMemoryMap,                                              InterfaceObject::GpuMemory,            "Map"                                     },
     { InterfaceFunc::GpuMemoryUnmap,                                            InterfaceObject::GpuMemory,            "Unmap"                                   },
+    { InterfaceFunc::GpuMemorySetSdiRemoteBusAddress,                           InterfaceObject::GpuMemory,            "SetSdiRemoteBusAddress"                  },
     { InterfaceFunc::GpuMemoryDestroy,                                          InterfaceObject::GpuMemory,            "Destroy"                                 },
     { InterfaceFunc::ImageBindGpuMemory,                                        InterfaceObject::Image,                "BindGpuMemory"                           },
     { InterfaceFunc::ImageDestroy,                                              InterfaceObject::Image,                "Destroy"                                 },

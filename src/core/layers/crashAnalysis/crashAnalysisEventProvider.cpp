@@ -141,10 +141,10 @@ void CrashAnalysisEventProvider::LogExecutionMarkerBegin(
     if (ShouldLog())
     {
         // Give default annotation if none is present
-        if (pMarkerName == nullptr)
+        if ((pMarkerName == nullptr) || (markerNameSize == 0))
         {
             pMarkerName    = DefaultMarkerName;
-            markerNameSize = static_cast<uint32>(strlen(DefaultMarkerName));
+            markerNameSize = StringLength(DefaultMarkerName);
         }
 
         // There is a fixed-size buffer in the event structure, so we need to truncate the name if it is too long.
@@ -156,7 +156,7 @@ void CrashAnalysisEventProvider::LogExecutionMarkerBegin(
         eventInfo.markerNameSize     = markerNameSize;
         memcpy(eventInfo.markerName, pMarkerName, markerNameSize);
 
-        uint8 eventData[ExecutionMarkerTop::PackedBufferSize];
+        uint8 eventData[sizeof(ExecutionMarkerTop)];
 
         const uint32 eventSize = eventInfo.ToBuffer(eventData);
 
@@ -179,11 +179,70 @@ void CrashAnalysisEventProvider::LogExecutionMarkerEnd(
         eventInfo.cmdBufferId           = cmdBufferId;
         eventInfo.marker                = markerValue;
 
-        uint8 eventData[ExecutionMarkerBottom::PackedBufferSize];
+        uint8 eventData[sizeof(ExecutionMarkerBottom)];
 
         const uint32 eventSize = eventInfo.ToBuffer(eventData);
 
         WriteEvent(eventId, eventData, eventSize);
+    }
+}
+
+// =====================================================================================================================
+// This function deserializes an EventCache and replays the events contained within it.
+void CrashAnalysisEventProvider::ReplayEventCache(
+    CrashAnalysis::EventCache* pEventCache)
+{
+    using namespace UmdCrashAnalysisEvents;
+
+    PAL_ALERT(pEventCache == nullptr);
+
+    EventId     eventId;
+    uint32      cmdBufferId;
+    uint32      markerValue;
+    const char* pMarkerName;
+    uint32      markerNameSize;
+
+    if (pEventCache != nullptr)
+    {
+        for (uint32 i = 0; i < pEventCache->Count(); i++)
+        {
+            Result result = pEventCache->GetEventAt(i,
+                &eventId,
+                &cmdBufferId,
+                &markerValue,
+                &pMarkerName,
+                &markerNameSize);
+
+            if (result != Result::Success)
+            {
+                PAL_ASSERT_ALWAYS();
+                continue;
+            }
+
+            switch (eventId)
+            {
+            case EventId::ExecutionMarkerTop:
+            {
+                LogExecutionMarkerBegin(cmdBufferId, markerValue, pMarkerName, markerNameSize);
+                break;
+            }
+            case EventId::ExecutionMarkerBottom:
+            {
+                LogExecutionMarkerEnd(cmdBufferId, markerValue);
+                break;
+            }
+            case EventId::CmdBufferReset:
+            {
+                LogCmdBufferReset(cmdBufferId);
+                break;
+            }
+            default:
+            {
+                PAL_ASSERT_ALWAYS();
+                break;
+            }
+            }
+        }
     }
 }
 
@@ -195,7 +254,7 @@ void CrashAnalysisEventProvider::LogCrashDebugMarkerData(
 
     const uint32 eventId = static_cast<uint32>(EventId::CrashDebugMarkerValue);
 
-    PAL_ASSERT(pMarkerHeader != nullptr);
+    PAL_ALERT(pMarkerHeader == nullptr);
 
     if (ShouldLog() && (pMarkerHeader != nullptr))
     {
@@ -204,9 +263,29 @@ void CrashAnalysisEventProvider::LogCrashDebugMarkerData(
         eventInfo.topMarkerValue        = pMarkerHeader->markerBegin;
         eventInfo.bottomMarkerValue     = pMarkerHeader->markerEnd;
 
-        uint8 eventData[CrashDebugMarkerValue::PackedBufferSize];
+        uint8 eventData[sizeof(CrashDebugMarkerValue)];
         const uint32 eventSize = eventInfo.ToBuffer(eventData);
         WriteEvent(eventId, &eventData, eventSize);
+    }
+}
+
+// =====================================================================================================================
+void CrashAnalysisEventProvider::LogCmdBufferReset(
+    uint32 cmdBufferId)
+{
+    using namespace UmdCrashAnalysisEvents;
+
+    const uint32 eventId = static_cast<uint32>(EventId::CmdBufferReset);
+
+    if (ShouldLog())
+    {
+        CmdBufferReset eventInfo = { };
+        eventInfo.cmdBufferId    = cmdBufferId;
+
+        uint8 eventData[sizeof(CmdBufferReset)];
+        const uint32 eventSize = eventInfo.ToBuffer(eventData);
+
+        WriteEvent(eventId, eventData, eventSize);
     }
 }
 

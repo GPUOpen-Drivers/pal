@@ -73,6 +73,9 @@ public:
     /// Advances the iterator to the previous position (move backward).
     void Prev();
 
+    /// Check if the element the iterator references is valid.
+    bool IsValid() const { return m_pCurrent != nullptr; }
+
 private:
     DequeIterator(const Deque<T, Allocator>* pDeque, DequeBlockHeader* pHeader, T* pCurrent);
 
@@ -225,6 +228,9 @@ private:
     DequeBlockHeader* AllocateNewBlock();
     void FreeUnusedBlock(DequeBlockHeader* pHeader);
 
+    // A helper function to avoid duplication in const and non-const versions of At().
+    T& InternalAt(uint32 index) const;
+
     size_t            m_numElements;         // Number of elements
     const size_t      m_numElementsPerBlock; // Block granularity when we need to alloc a new one
 
@@ -268,7 +274,7 @@ Deque<T, Allocator>::Deque(
 template<typename T, typename Allocator>
 Deque<T, Allocator>::~Deque()
 {
-    if (!std::is_pod<T>::value)
+    if (!std::is_trivial<T>::value)
     {
         while (m_pFrontHeader != nullptr)
         {

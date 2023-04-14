@@ -274,6 +274,7 @@ uint32* PipelineChunkVsPs::WriteShCommands(
             dynamic.spiShaderPgmRsrc3Ps.bits.WAVE_LIMIT = psStageInfo.wavesPerSh;
         }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 789
         if (vsStageInfo.cuEnableMask != 0)
         {
             dynamic.spiShaderPgmRsrc3Vs.bits.CU_EN &= vsStageInfo.cuEnableMask;
@@ -283,6 +284,7 @@ uint32* PipelineChunkVsPs::WriteShCommands(
         {
             dynamic.spiShaderPgmRsrc3Ps.bits.CU_EN &= psStageInfo.cuEnableMask;
         }
+#endif
 
         pCmdSpace = pCmdStream->WriteSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC3_VS__CI__VI,
                                                       dynamic.spiShaderPgmRsrc3Vs.u32All,

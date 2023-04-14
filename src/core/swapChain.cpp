@@ -37,11 +37,12 @@ namespace Pal
 // present scheduler because the OS-specifc classes are tasked with creating that object.
 size_t SwapChain::GetPlacementSize(
     const SwapChainCreateInfo& createInfo,
-    const Device&              device)
+    const Device&              device,
+    bool                       needPresentComplete)
 {
     size_t totalSize = 0;
 
-    if (createInfo.swapChainMode != SwapChainMode::Mailbox)
+    if ((createInfo.swapChainMode != SwapChainMode::Mailbox) && (needPresentComplete == true))
     {
         // We need space for one pPresentComplete semaphore per swap chain image. The semaphores must start signaled
         // because no presents have occured yet.
@@ -108,7 +109,8 @@ SwapChain::~SwapChain()
 
 // =====================================================================================================================
 Result SwapChain::Init(
-    void* pPlacementAddr)
+    void* pPlacementAddr,
+    bool  needPresentComplete)
 {
     Result result = Result::Success;
 
@@ -119,18 +121,21 @@ Result SwapChain::Init(
             result = m_availableImageSemaphore.Init(m_createInfo.imageCount, m_createInfo.imageCount);
         }
 
-        // We also need space for one pPresentComplete semaphore per swap chain image. The semaphores must start
-        // signaled because no presents have occured yet.
-        QueueSemaphoreCreateInfo semaphoreInfo = {};
-        semaphoreInfo.maxCount     = m_pDevice->MaxQueueSemaphoreCount();
-        semaphoreInfo.initialCount = 1;
-
-        const size_t semaphoreSize = m_pDevice->GetQueueSemaphoreSize(semaphoreInfo, nullptr);
-
-        for (uint32 idx = 0; (result == Result::Success) && (idx < m_createInfo.imageCount); ++idx)
+        if (needPresentComplete == true)
         {
-            result         = m_pDevice->CreateQueueSemaphore(semaphoreInfo, pPlacementAddr, &m_pPresentComplete[idx]);
-            pPlacementAddr = VoidPtrInc(pPlacementAddr, semaphoreSize);
+            // We also need space for one pPresentComplete semaphore per swap chain image. The semaphores must start
+            // signaled because no presents have occured yet.
+            QueueSemaphoreCreateInfo semaphoreInfo = {};
+            semaphoreInfo.maxCount     = m_pDevice->MaxQueueSemaphoreCount();
+            semaphoreInfo.initialCount = 1;
+
+            const size_t semaphoreSize = m_pDevice->GetQueueSemaphoreSize(semaphoreInfo, nullptr);
+
+            for (uint32 idx = 0; (result == Result::Success) && (idx < m_createInfo.imageCount); ++idx)
+            {
+                result         = m_pDevice->CreateQueueSemaphore(semaphoreInfo, pPlacementAddr, &m_pPresentComplete[idx]);
+                pPlacementAddr = VoidPtrInc(pPlacementAddr, semaphoreSize);
+            }
         }
     }
 
@@ -272,7 +277,10 @@ Result SwapChain::PresentComplete(
     else
     {
         // The ring mode algorithm requires us to signal the present complete semaphore at this time.
-        result = pQueue->SignalQueueSemaphore(m_pPresentComplete[imageIndex]);
+        if (m_pPresentComplete[imageIndex] != nullptr)
+        {
+            result = pQueue->SignalQueueSemaphore(m_pPresentComplete[imageIndex]);
+        }
 
         if (m_createInfo.flags.canAcquireBeforeSignaling == 0)
         {

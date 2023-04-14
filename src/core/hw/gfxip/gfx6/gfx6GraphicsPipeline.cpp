@@ -360,6 +360,19 @@ void GraphicsPipeline::OverrideRbPlusRegistersForRpm(
 }
 
 // =====================================================================================================================
+void GraphicsPipeline::GetRbPlusRegisters(
+    bool                         dualSourceBlendEnable,
+    regSX_PS_DOWNCONVERT__VI*    pSxPsDownconvert,
+    regSX_BLEND_OPT_EPSILON__VI* pSxBlendOptEpsilon,
+    regSX_BLEND_OPT_CONTROL__VI* pSxBlendOptControl
+    ) const
+{
+    *pSxPsDownconvert   = dualSourceBlendEnable ? m_regs.other.sxPsDownconvertDual   : m_regs.other.sxPsDownconvert;
+    *pSxBlendOptEpsilon = dualSourceBlendEnable ? m_regs.other.sxBlendOptEpsilonDual : m_regs.other.sxBlendOptEpsilon;
+    *pSxBlendOptControl = dualSourceBlendEnable ? m_regs.other.sxBlendOptControlDual : m_regs.other.sxBlendOptControl;
+}
+
+// =====================================================================================================================
 // Helper function to compute the WAVE_LIMIT field of the SPI_SHADER_PGM_RSRC3* registers.
 uint32 GraphicsPipeline::CalcMaxWavesPerSh(
     float maxWavesPerCu
@@ -398,7 +411,9 @@ void GraphicsPipeline::CalcDynamicStageInfo(
     ) const
 {
     pStageInfo->wavesPerSh   = CalcMaxWavesPerSh(shaderInfo.maxWavesPerCu);
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 789
     pStageInfo->cuEnableMask = shaderInfo.cuEnableMask;
+#endif
 }
 
 // =====================================================================================================================
@@ -719,6 +734,11 @@ void GraphicsPipeline::SetupNonShaderRegisters(
     // We need to set the enable bit for alpha to mask dithering, but MSAA state also sets some fields of this register
     // so we must use a read/modify/write packet so we only update the _ENABLE field.
     m_regs.context.dbAlphaToMask.bits.ALPHA_TO_MASK_ENABLE = createInfo.cbState.alphaToCoverageEnable;
+
+    // Copy RbPlus registers sets which compatible with dual source blend enable
+    m_regs.other.sxPsDownconvertDual   = m_regs.other.sxPsDownconvert;
+    m_regs.other.sxBlendOptEpsilonDual = m_regs.other.sxBlendOptEpsilon;
+    m_regs.other.sxBlendOptControlDual = m_regs.other.sxBlendOptControl;
 
     // Initialize RB+ registers for pipelines which are able to use the feature.
     if (settings.gfx8RbPlusEnable &&

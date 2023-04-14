@@ -3063,15 +3063,35 @@ void RsrcProcMgr::CmdResolveImage(
         }
         else if (dstMethod.shaderPs && (resolveMode == ResolveMode::Average))
         {
-            // this only supports Depth/Stencil resolves.
-            ResolveImageDepthStencilGraphics(pPm4CmdBuffer,
-                                             srcImage,
-                                             srcImageLayout,
-                                             dstImage,
-                                             dstImageLayout,
-                                             regionCount,
-                                             pRegions,
-                                             flags);
+            if (dstImage.IsDepthStencilTarget())
+            {
+                // this only supports Depth/Stencil resolves.
+                ResolveImageDepthStencilGraphics(pPm4CmdBuffer,
+                                                 srcImage,
+                                                 srcImageLayout,
+                                                 dstImage,
+                                                 dstImageLayout,
+                                                 regionCount,
+                                                 pRegions,
+                                                 flags);
+            }
+#if PAL_BUILD_GFX11
+            else if (IsGfx11(*m_pDevice->Parent()))
+            {
+                HwlResolveImageGraphics(pPm4CmdBuffer,
+                                        srcImage,
+                                        srcImageLayout,
+                                        dstImage,
+                                        dstImageLayout,
+                                        regionCount,
+                                        pRegions,
+                                        flags);
+            }
+#endif
+            else
+            {
+                PAL_NOT_IMPLEMENTED();
+            }
         }
         else if (pPm4CmdBuffer->IsComputeSupported() &&
                  ((srcMethod.shaderCsFmask == 1) ||

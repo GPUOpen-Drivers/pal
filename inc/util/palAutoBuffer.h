@@ -91,7 +91,7 @@ public:
                 m_capacity = requiredCapacity;
             }
         }
-        else if (!std::is_pod<Item>::value)
+        else if (!std::is_trivial<Item>::value)
         {
             // Explicitly construct all objects of non-trivial type in the local buffer.
             for (uint32 idx = 0; idx < defaultCapacity; ++idx)
@@ -114,7 +114,7 @@ public:
             // Destory dynamically allocated array, by destroying its objects and freeing memory.
             PAL_SAFE_DELETE_ARRAY(m_pBuffer, m_pAllocator);
         }
-        else if (!std::is_pod<Item>::value)
+        else if (!std::is_trivial<Item>::value)
         {
             // Explicitly destroy all objects of non-trivial type from the local buffer.
             for (uint32 idx = 0; idx < defaultCapacity; ++idx)

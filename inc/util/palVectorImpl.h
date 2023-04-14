@@ -63,7 +63,7 @@ Result Vector<T, defaultCapacity, Allocator>::Reserve(
         {
             T* const pNewData = static_cast<T*>(pNewMemory);
 
-            if (std::is_pod<T>::value)
+            if (std::is_trivial<T>::value)
             {
                 // Optimize trivial types by copying local buffer.
                 std::memcpy(pNewData, m_pData, sizeof(T) * m_numElements);
@@ -107,7 +107,7 @@ Result Vector<T, defaultCapacity, Allocator>::Resize(
 
     if (m_numElements > newSize)
     {
-        if (std::is_pod<T>::value)
+        if (std::is_trivial<T>::value)
         {
             // Trivial value, so we don't need to destroy any objects.  Just shrink m_numElements.
             m_numElements = newSize;
@@ -235,7 +235,7 @@ void Vector<T, defaultCapacity, Allocator>::PopBack(
     }
 
     // Explicitly destroy the removed value if it's non-trivial.
-    if (!std::is_pod<T>::value)
+    if (!std::is_trivial<T>::value)
     {
         m_pData[m_numElements].~T();
     }
@@ -246,7 +246,7 @@ template<typename T, uint32 defaultCapacity, typename Allocator>
 void Vector<T, defaultCapacity, Allocator>::Clear()
 {
     // Explicitly destroy all non-trivial types.
-    if (!std::is_pod<T>::value)
+    if (!std::is_trivial<T>::value)
     {
         for (uint32 idx = 0; idx < m_numElements; ++idx)
         {

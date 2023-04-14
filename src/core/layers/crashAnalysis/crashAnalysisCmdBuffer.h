@@ -49,7 +49,7 @@ public:
               Device*                    pDevice,
               const CmdBufferCreateInfo& createInfo);
 
-    MemoryChunk GetMemoryChunk() { return m_memoryChunk; }
+    MemoryChunk* GetMemoryChunk();
 
     // Public interface for marker insertion. Prefer to use
     // InsertBeginMarker and InsertEndMarker when possible.
@@ -87,10 +87,16 @@ public:
         uint32            cmdBufferCount,
         ICmdBuffer*const* ppCmdBuffers) override;
 
+    EventCache* GetEventCache();
+
 private:
     virtual ~CmdBuffer();
 
-    gpusize GetGpuVa(gpusize offset) const { return m_memoryChunk.gpuVirtAddr + offset; }
+    gpusize GetGpuVa(gpusize offset) const
+    {
+        PAL_ASSERT(m_pMemoryChunk != nullptr);
+        return m_pMemoryChunk->gpuVirtAddr + offset;
+    }
 
     void ResetState();
     void AddPreamble();
@@ -107,17 +113,9 @@ private:
         uint32*      pMarker); // [out] The popped marker value
 
     // Issues a write call to update the current marker value
-    void WriteMarkerImmediate(bool isBeginMarker, uint32 marker)
-    {
-        const HwPipePoint pipePoint = (isBeginMarker) ? HwPipePoint::HwPipeTop
-                                                      : HwPipePoint::HwPipeBottom;
-        const gpusize     offset    = (isBeginMarker) ? offsetof(MarkerState, markerBegin)
-                                                      : offsetof(MarkerState, markerEnd);
-        CmdWriteImmediate(pipePoint,
-                          marker,
-                          ImmediateDataWidth::ImmediateData32Bit,
-                          m_memoryChunk.gpuVirtAddr + offset);
-    }
+    void WriteMarkerImmediate(
+        bool   isBegin,
+        uint32 marker);
 
     // ICmdBuffer function table overrides:
     static void PAL_STDCALL CmdDrawDecorator(
@@ -187,7 +185,8 @@ private:
     Platform*const m_pPlatform;
     const uint32   m_cmdBufferId;
     uint32         m_markerCounter;
-    MemoryChunk    m_memoryChunk;
+    MemoryChunk*   m_pMemoryChunk;
+    EventCache*    m_pEventCache;
     Util::Vector<MarkerStack, MarkerStackCount, IPlatform> m_markerStack;
 
     PAL_DISALLOW_DEFAULT_CTOR(CmdBuffer);
@@ -197,4 +196,3 @@ private:
 
 } // namespace CrashAnalysis
 } // namespace Pal
-

@@ -6838,6 +6838,12 @@ void InitializeGpuChipProperties(
     pInfo->gfxip.maxUserDataEntries      = MaxUserDataEntries;
     pInfo->gfxip.supportsHwVs            = 1;
 
+    // Max supported by HW is 2^32-1 for all counters.  However limit Y and Z to keep total threads < 2^64 to avoid
+    // potentially overflowing 64 bit counters in HW
+    pInfo->gfxip.maxComputeThreadGroupCountX = UINT32_MAX;
+    pInfo->gfxip.maxComputeThreadGroupCountY = UINT16_MAX;
+    pInfo->gfxip.maxComputeThreadGroupCountZ = UINT16_MAX;
+
 #if PAL_BUILD_GFX11
     if (IsGfx11(pInfo->gfxLevel))
     {
@@ -6929,6 +6935,9 @@ void InitializeGpuChipProperties(
     pInfo->gfx9.support64BitInstructions           = 1;
     pInfo->gfx9.supportBorderColorSwizzle          = 1;
     pInfo->gfx9.supportDoubleRate16BitInstructions = 1;
+    pInfo->gfxip.supportFloat64BufferAtomicMinMax  = 1;
+    pInfo->gfxip.supportFloat64SharedAtomicMinMax  = 1;
+
     {
         pInfo->gfx9.supportImageViewMinLod         = 1;
     }
@@ -6948,6 +6957,9 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.supportTextureGatherBiasLod      = 1;
         pInfo->gfxip.supportFloat32BufferAtomics     = 1;
         pInfo->gfxip.supportFloat32ImageAtomics      = 1;
+        pInfo->gfxip.supportFloat32ImageAtomicMinMax = 1;
+        pInfo->gfxip.supportFloat32BufferAtomicAdd   = 0;
+        pInfo->gfxip.supportFloat32ImageAtomicAdd    = 0;
         pInfo->gfx9.supportFloat64Atomics            = 1;
 
         pInfo->gfx9.numShaderArrays         = 2;
@@ -6969,12 +6981,17 @@ void InitializeGpuChipProperties(
     }
     else if (pInfo->gfxLevel == GfxIpLevel::GfxIp9)
     {
-        pInfo->gfx9.supportAddrOffsetDumpAndSetShPkt = (cpUcodeVersion >= UcodeVersionWithDumpOffsetSupport);
-        pInfo->gfx9.supportAddrOffsetSetSh256Pkt     = (cpUcodeVersion >= Gfx9UcodeVersionSetShRegOffset256B);
-        pInfo->gfx9.supportTextureGatherBiasLod      = 1;
-        pInfo->gfxip.supportFloat32BufferAtomics     = 1;
-        pInfo->gfxip.supportFloat32ImageAtomics      = 1;
-        pInfo->gfx9.supportFloat64Atomics            = 1;
+        pInfo->gfx9.supportAddrOffsetDumpAndSetShPkt  = (cpUcodeVersion >= UcodeVersionWithDumpOffsetSupport);
+        pInfo->gfx9.supportAddrOffsetSetSh256Pkt      = (cpUcodeVersion >= Gfx9UcodeVersionSetShRegOffset256B);
+        pInfo->gfx9.supportTextureGatherBiasLod       = 1;
+        pInfo->gfxip.supportFloat32BufferAtomics      = 1;
+        pInfo->gfxip.supportFloat32ImageAtomics       = 1;
+        pInfo->gfxip.supportFloat32BufferAtomicAdd    = 0;
+        pInfo->gfxip.supportFloat32ImageAtomicAdd     = 0;
+        pInfo->gfxip.supportFloat32ImageAtomicMinMax  = 0;
+        pInfo->gfxip.supportFloat64BufferAtomicMinMax = 0;
+        pInfo->gfxip.supportFloat64SharedAtomicMinMax = 0;
+        pInfo->gfx9.supportFloat64Atomics             = 1;
 
         pInfo->gfx9.numShaderArrays         = 1;
         pInfo->gfx9.numSimdPerCu            = Gfx9NumSimdPerCu;
@@ -6998,11 +7015,19 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.supportAddrOffsetSetSh256Pkt     = (cpUcodeVersion >= Gfx10UcodeVersionSetShRegOffset256B);
         pInfo->gfx9.supportPostDepthCoverage         = 1;
 
-        //       FP32 image atomic operations are removed in Gfx11
-        pInfo->gfxip.supportFloat32BufferAtomics     = 1;
-        pInfo->gfxip.supportFloat32ImageAtomics      = 0;
-        //       FP64 atomic operations are removed from GL2 in Gfx11
-        pInfo->gfx9.supportFloat64Atomics            = 0;
+        //       FP32 image add/min/max atomic operations are removed in Gfx11, though atomic exch op is enabled
+        pInfo->gfxip.supportFloat32BufferAtomics      = 1;
+        pInfo->gfxip.supportFloat32ImageAtomics       = 1;
+        pInfo->gfxip.supportFloat32BufferAtomicAdd    = 1;
+        pInfo->gfxip.supportFloat32ImageAtomicAdd     = 0;
+        pInfo->gfxip.supportFloat32ImageAtomicMinMax  = 0;
+
+        //       FP64 atomic add/min/max operations are removed from GL2 in Gfx11, though atomic exch op is enabled
+        pInfo->gfx9.supportFloat64Atomics             = 1;
+
+        // NAVI3x hw for min/max support has been removed (comparing to NAVI2x)
+        pInfo->gfxip.supportFloat64BufferAtomicMinMax = 0;
+        pInfo->gfxip.supportFloat64SharedAtomicMinMax = 0;
 
         pInfo->gfx9.numShaderArrays         = 2;
         pInfo->gfx9.numSimdPerCu            = Gfx10NumSimdPerCu;

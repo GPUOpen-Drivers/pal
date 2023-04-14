@@ -324,7 +324,7 @@ constexpr const char* QueueCallIdStrings[] =
     "PresentSwapChain()",
     "Delay()",
     "RemapVirtualMemoryPages()",
-    "CopyVirtualMemoryPageMappings()"
+    "CopyVirtualMemoryPageMappings()",
 };
 
 static_assert(Util::ArrayLen(QueueCallIdStrings) == static_cast<uint32>(QueueCallId::Count),

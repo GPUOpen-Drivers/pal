@@ -63,7 +63,7 @@ public:
         bool*                          pAddedGpuWork) override;
 
 private:
-    void DrawOverlay(const IImage* pSrcImage, PresentMode presentMode);
+    void DrawOverlay(const IImage* pSrcImage, const CmdPostProcessDebugOverlayInfo& debugOverlayInfo);
 
     const Device&   m_device;
     const QueueType m_queueType;

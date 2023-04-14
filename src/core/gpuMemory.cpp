@@ -822,7 +822,7 @@ Result GpuMemory::Init(
             baseVirtAddr = createInfo.replayVirtAddr;
         }
 
-        if (result == Result::Success && (Desc().flags.isExternPhys == false))
+        if (result == Result::Success && (IsExternPhys() == false))
         {
             result = AllocateOrPinMemory(baseVirtAddr,
                                          internalInfo.pPagingFence,
@@ -842,7 +842,7 @@ Result GpuMemory::Init(
 
     // Verify that if the allocation succeeded, we got a GPU virtual address back as expected (except for
     // page directory and page table allocations and SDI External Physical Memory).
-    if ((IsPageDirectory() == false) && (IsPageTableBlock() == false) && (Desc().flags.isExternPhys == false))
+    if ((IsPageDirectory() == false) && (IsPageTableBlock() == false) && (IsExternPhys() == false))
     {
         PAL_ASSERT((result != Result::Success) || (m_desc.gpuVirtAddr != 0));
     }

@@ -258,6 +258,7 @@ uint32* PipelineChunkGs::WriteDynamicRegs(
     }
 #endif
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 789
     if (gsStageInfo.cuEnableMask != 0)
     {
         dynamic.spiShaderPgmRsrc3Gs.bits.CU_EN &= gsStageInfo.cuEnableMask;
@@ -275,6 +276,7 @@ uint32* PipelineChunkGs::WriteDynamicRegs(
         }
 #endif
     }
+#endif
 
     pCmdSpace = pCmdStream->WriteSetOneShRegIndex(mmSPI_SHADER_PGM_RSRC3_GS,
                                                   dynamic.spiShaderPgmRsrc3Gs.u32All,

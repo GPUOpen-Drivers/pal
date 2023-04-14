@@ -26,7 +26,6 @@
 import os
 import re
 import sys
-import time
 import json
 import textwrap
 import argparse
@@ -1045,8 +1044,7 @@ devDriverRegister = devDriverRegister.replace("%MagicBufferOffset%", str(args.ma
 devDriverRegister = devDriverRegister.replace("%SettingsDataHash%", str(settingsDataHash))
 
 headerDoxComment = codeTemplates.HeaderFileDoxComment.replace("%FileName%", headerFileName)
-copyrightAndWarning = codeTemplates.CopyrightAndWarning.replace("%Year%", time.strftime("%Y"))
-
+copyrightAndWarning = codeTemplates.CopyrightAndWarning
 namespaceStart = codeTemplates.NamespaceStart
 namespaceEnd   = codeTemplates.NamespaceEnd
 if hardwareLayer != "":

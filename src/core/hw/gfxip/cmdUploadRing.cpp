@@ -361,6 +361,7 @@ Result CmdUploadRing::UploadCmdBuffers(
         if (pFirstStream != nullptr)
         {
             streamState[idx].curIbFreeBytes                 = Min(m_maxStreamBytes, RaftMemBytes) - m_minPostambleBytes;
+            streamState[idx].engineType                     = pFirstStream->GetEngineType();
             streamState[idx].subEngineType                  = pFirstStream->GetSubEngineType();
             streamState[idx].flags.isPreemptionEnabled      = pFirstStream->IsPreemptionEnabled();
             streamState[idx].flags.dropIfSameContext        = pFirstStream->DropIfSameContext();
@@ -570,6 +571,7 @@ Result CmdUploadRing::UploadCmdBuffers(
             if (streamState[idx].launchBytes > 0)
             {
                 pUploadInfo->streamInfo[idx].flags         = streamState[idx].flags;
+                pUploadInfo->streamInfo[idx].engineType    = streamState[idx].engineType;
                 pUploadInfo->streamInfo[idx].subEngineType = streamState[idx].subEngineType;
                 pUploadInfo->streamInfo[idx].pGpuMemory    = pRaft->pGpuMemory[idx];
                 pUploadInfo->streamInfo[idx].launchSize    = streamState[idx].launchBytes;

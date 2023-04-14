@@ -74,12 +74,14 @@ public:
     const SwapChainCreateInfo& CreateInfo() const { return m_createInfo; }
 
 protected:
-    static size_t GetPlacementSize(const SwapChainCreateInfo& createInfo, const Device& device);
+    static size_t GetPlacementSize(const SwapChainCreateInfo& createInfo,
+                                   const Device& device,
+                                   bool needPresentComplete);
 
     SwapChain(const SwapChainCreateInfo& createInfo, Device* pDevice);
     virtual ~SwapChain();
 
-    virtual Result Init(void* pPlacementAddr);
+    virtual Result Init(void* pPlacementAddr, bool needPresentComplete);
 
     // Abstracts OS-specific logic necessary to find unused images in mailbox mode.
     virtual Result ReclaimUnusedImages(uint64 timeout) { return Result::ErrorUnavailable; }

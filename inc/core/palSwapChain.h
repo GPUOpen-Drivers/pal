@@ -178,7 +178,7 @@ struct SwapChainCreateInfo
                                                    ///  backbuffer. (left and right slice)
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 768
             uint32 clientBlockIfFlipping     :  1; ///< If toggled, swapchain will offload block if flipping (write
-                                                   /// primary) responsibility to client.
+                                                   /// primary) responsibility to client. Not applicable to DXGI.
             uint32 reserved                  : 24; ///< Reserved for future use.
 #else
             uint32 reserved                  : 25; ///< Reserved for future use.

@@ -85,7 +85,8 @@ struct MsaaStateCreateInfo
     uint32 depthStencilSamples;           ///< Number of samples in the bound depth target. Must be less than or equal
                                           ///  to coverageSamples. Valid values are 1, 2, 4, and 8.
     uint32 shaderExportMaskSamples;       ///< Number of samples to use in the shader export mask. Should match the
-                                          ///  number of color target samples clamped to 8.
+                                          ///  number of color target fragments clamped to
+                                          ///  @ref DeviceProperties imageProperties.maxMsaaFragments.
     uint32 sampleMask;                    ///< Bitmask of which color target and depth/stencil samples should be
                                           ///  updated.  The lowest bit corresponds to sample 0.
     uint32 sampleClusters;                ///< Number of sample clusters to control over-rasterization (all samples
@@ -94,7 +95,7 @@ struct MsaaStateCreateInfo
     uint32 alphaToCoverageSamples;        ///< How many samples of quality to generate with alpha-to-coverage. Must be
                                           ///  less than or equal to coverageSamples.
                                           ///  Valid values are 1, 2, 4, 8, and 16.
-    uint32 occlusionQuerySamples;         ///< Controls the number of samples to use for occlusion  queries>
+    uint32 occlusionQuerySamples;         ///< Controls the number of samples to use for occlusion queries
                                           ///  This value must never exceed the MSAA rate.
 
     ConservativeRasterizationMode conservativeRasterizationMode;

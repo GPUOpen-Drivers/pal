@@ -310,8 +310,6 @@ protected:
         uint32        entryCount,
         const uint32* pEntryValues);
 
-    bool FilterSetUserDataGfx(UserDataArgs* pUserDataArgs);
-
     bool IsAnyGfxUserDataDirty() const;
 
     virtual void SetGraphicsState(const GraphicsState& newGraphicsState);
