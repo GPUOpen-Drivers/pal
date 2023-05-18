@@ -46,6 +46,23 @@ namespace rdf
 {
 namespace internal
 {
+    // Duplicated in the header, but we don't want to play public/private
+    // tricks to avoid a copy here given the function is so small
+    size_t SafeStringLength(const char* s, const size_t maxLength)
+    {
+        if (s == nullptr) {
+            return 0;
+        }
+
+        for (size_t i = 0; i < maxLength; ++i) {
+            if (s[i] == '\0') {
+                return i;
+            }
+        }
+
+        return maxLength;
+    }
+
     /**
     Check if the value v could have been a size_t-like type on the current
     platform. For 64-bit, it's always true, for 32-bit it checks if the value
@@ -61,7 +78,7 @@ namespace internal
     }
 
     ///////////////////////////////////////////////////////////////////////////
-    class RDF_EXPORT IStream
+    class IStream
     {
     public:
         virtual ~IStream();
@@ -89,6 +106,89 @@ namespace internal
     };
 
     ///////////////////////////////////////////////////////////////////////////
+    class UserStream final : public IStream
+    {
+    public:
+        UserStream(rdfUserStream stream) : stream_(stream)
+        {
+            if (stream_.Read == nullptr && stream_.Write == nullptr) {
+                throw std::runtime_error("Stream must support at least reading or writing");
+            }
+
+            if (stream_.GetSize == nullptr) {
+                throw std::runtime_error("Stream must provide a GetSize callback");
+            }
+
+            if (stream_.Seek == nullptr) {
+                throw std::runtime_error("Stream must provide a Seek callback");
+            }
+
+            if (stream_.Tell == nullptr) {
+                throw std::runtime_error("Stream must provide a Tell callback");
+            }
+        }
+
+    private:
+        std::int64_t ReadImpl(const std::int64_t count, void* buffer) override
+        {
+            std::int64_t bytesRead = 0;
+            CheckCall(stream_.Read(stream_.context, count, buffer, &bytesRead));
+            assert(bytesRead <= count);
+            return bytesRead;
+        }
+
+        std::int64_t WriteImpl(const std::int64_t count, const void* buffer) override
+        {
+            assert(stream_.Write);
+
+            std::int64_t bytesWritten = 0;
+            CheckCall(stream_.Write(stream_.context, count, buffer, &bytesWritten));
+            assert(bytesWritten <= count);
+            return bytesWritten;
+        }
+
+        std::int64_t TellImpl() const override
+        {
+            std::int64_t position = 0;
+            CheckCall(stream_.Tell(stream_.context, &position));
+            assert(position >= 0);
+            return position;
+        }
+
+        void SeekImpl(const std::int64_t offset) override
+        {
+            CheckCall(stream_.Seek(stream_.context, offset));
+        }
+
+        std::int64_t GetSizeImpl() const override
+        {
+            std::int64_t size = 0;
+            CheckCall(stream_.GetSize(stream_.context, &size));
+            assert(size >= 0);
+            return size;
+        }
+
+        bool CanWriteImpl() const override
+        {
+            return stream_.Write != nullptr;
+        }
+
+        bool CanReadImpl() const override
+        {
+            return stream_.Read != nullptr;
+        }
+
+        void CheckCall(int result) const
+        {
+            if (result != rdfResultOk) {
+                throw std::runtime_error("I/O error");
+            }
+        }
+
+        rdfUserStream stream_;
+    };
+
+    ///////////////////////////////////////////////////////////////////////////
     /**
 	Helper class to make the handling of chunk IDs a bit easier
 	*/
@@ -105,7 +205,7 @@ namespace internal
         ChunkId(const char* id)
         {
             ::memset(id_, 0, sizeof(IdType));
-            const auto size = ::strlen(id);
+            const auto size = SafeStringLength(id, RDF_IDENTIFIER_SIZE);
             assert(size <= sizeof(IdType));
             ::memcpy(id_, id, size);
         }
@@ -151,19 +251,15 @@ namespace internal
         return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
     }
 
-    enum class AccessMode
-    {
-        Read,
-        ReadWrite
-    };
+    std::unique_ptr<IStream> OpenFile(const char* filename,
+                                      rdfStreamAccess access,
+                                      rdfFileMode fileMode);
+    std::unique_ptr<IStream> CreateFile(const char* filename);
 
-    std::unique_ptr<IStream> RDF_EXPORT OpenFile(const char* filename, AccessMode accessMode);
-    std::unique_ptr<IStream> RDF_EXPORT CreateFile(const char* filename);
+    std::unique_ptr<IStream> CreateReadOnlyMemoryStream(const std::int64_t bufferSize,
+                                                        const void* buffer);
 
-    std::unique_ptr<IStream> RDF_EXPORT CreateReadOnlyMemoryStream(const std::int64_t bufferSize,
-                                                                   const void* buffer);
-
-    std::unique_ptr<IStream> RDF_EXPORT CreateMemoryStream();
+    std::unique_ptr<IStream> CreateMemoryStream();
 
     enum class Compression : std::uint8_t
     {
@@ -241,12 +337,17 @@ namespace internal
     private:
         void Construct()
         {
+            // We always seek to the start as this is where the header should
+            // be, and we don't support multiple files  in a stream
+            stream_->Seek(0);
+
             if (stream_->Read(sizeof(header_), &header_) != sizeof(header_)) {
                 throw std::runtime_error("Error while reading file -- could not read header");
             }
 
-            if (::memcmp(header_.identifier, Identifier, 8) != 0
-                && ::memcmp(header_.identifier, LegacyIdentifier, 8) != 0) {
+            if (::memcmp(header_.identifier, Identifier, 8) != 0 &&
+                ::memcmp(header_.identifier, LegacyIdentifier, 8) != 0)
+            {
                 throw std::runtime_error("Invalid file header");
             }
 
@@ -271,11 +372,11 @@ namespace internal
 
             auto it = chunkTypeRange_.find(id);
             if (it == chunkTypeRange_.end()) {
-                throw std::runtime_error("Chunk not found");
+                return false;
             }
 
             if (chunkIndex >= (it->second.last - it->second.first)) {
-                throw std::runtime_error("Chunk index out of range");
+                return false;
             }
 
             return true;
@@ -346,9 +447,10 @@ namespace internal
                                 entry.uncompressedChunkSize,
                                 compressedData.data(),
                                 compressedData.size());
-            } else {
-                // TODO Check error?
+            } else if (entry.compression == Compression::None) {
                 stream_->Read(entry.chunkDataSize, buffer);
+            } else {
+                throw std::runtime_error("Unsupported compression algorithm");
             }
         }
 
@@ -485,15 +587,16 @@ namespace internal
     class ChunkFileWriter final
     {
     public:
-        ChunkFileWriter(std::unique_ptr<IStream>&& stream)
+        ChunkFileWriter(std::unique_ptr<IStream>&& stream,
+            bool append)
             : streamPointer_(std::move(stream)), stream_(streamPointer_.get())
         {
-            Construct();
+            Construct(append);
         }
 
-        ChunkFileWriter(IStream* stream) : stream_(stream)
+        ChunkFileWriter(IStream* stream, bool append) : stream_(stream)
         {
-            Construct();
+            Construct(append);
         }
 
         void BeginChunk(const char* chunkIdentifier,
@@ -511,11 +614,9 @@ namespace internal
             ChunkFile::IndexEntry entry;
             ::memset(&entry, 0, sizeof(entry));
 
-            if (::strlen(chunkIdentifier) > sizeof(entry.chunkIdentifier)) {
-                throw std::runtime_error("Chunk identifier must be <= 16 characters in length.");
-            }
-            // Without trailing \0!
-            ::memcpy(entry.chunkIdentifier, chunkIdentifier, ::strlen(chunkIdentifier));
+            // Without trailing \0, which is fine because it's memset to 0
+            ::memcpy(entry.chunkIdentifier, chunkIdentifier,
+                SafeStringLength(chunkIdentifier, RDF_IDENTIFIER_SIZE));
 
             entry.compression = compression;
             entry.version = version;
@@ -619,7 +720,7 @@ namespace internal
         /**
         Flush all pending data and finalize the file.
 
-        This function must be called exactly once per instantation. It's not
+        This function must be called exactly once per instantiation. It's not
         automatically called in the destructor as it could throw.
         */
         void Finalize()
@@ -637,14 +738,53 @@ namespace internal
         }
 
     private:
-        void Construct()
+        void Construct(bool append)
         {
-            header_.version = ChunkFile::Version;
-            ::memcpy(header_.identifier, ChunkFile::Identifier, sizeof(ChunkFile::Identifier));
-            header_.reserved = 0;
+            if (!stream_->CanWrite()) {
+                throw std::runtime_error("Stream must allow for write access");
+            }
 
-            stream_->Write(sizeof(header_), &header_);
-            dataWriteOffset_ = stream_->Tell();
+            if (append && !stream_->CanRead()) {
+                throw std::runtime_error("Appending requires a stream with read access");
+            }
+
+            ::memset(&header_, 0, sizeof(header_));
+
+            if (append) {
+                // Try to read the current header, check if it's a supported
+                // version, then read in the index
+                stream_->Seek(0);
+                stream_->Read(sizeof(header_), &header_);
+
+                if (::memcmp(header_.identifier,
+                             ChunkFile::Identifier,
+                             sizeof(ChunkFile::Identifier)) != 0) {
+                    throw std::runtime_error("Unsupported file type");
+                }
+
+                if (header_.version != ChunkFile::Version) {
+                    throw std::runtime_error("Unsupported file version");
+                }
+
+                chunks_.resize(header_.indexSize / sizeof(ChunkFile::IndexEntry));
+                stream_->Seek(header_.indexOffset);
+                stream_->Read(header_.indexSize, chunks_.data());
+
+                // Initialize the counts so the returned index is correct
+                for (const auto& chunk : chunks_) {
+                    ChunkId id (chunk.chunkIdentifier);
+                    chunkCountPerType_[id] += 1;
+                }
+
+                dataWriteOffset_ = header_.indexOffset;
+                stream_->Seek(dataWriteOffset_);
+            } else {
+                header_.version = ChunkFile::Version;
+                ::memcpy(header_.identifier, ChunkFile::Identifier, sizeof(ChunkFile::Identifier));
+
+                stream_->Write(sizeof(header_), &header_);
+                dataWriteOffset_ = stream_->Tell();
+            }
         }
 
         std::vector<ChunkFile::IndexEntry> chunks_;
@@ -733,7 +873,7 @@ namespace internal
     class Filestream final : public IStream
     {
     public:
-        Filestream(std::FILE* fd, AccessMode accessMode) : fd_(fd), accessMode_(accessMode) {}
+        Filestream(std::FILE* fd, rdfStreamAccess accessMode) : fd_(fd), accessMode_(accessMode) {}
 
         ~Filestream()
         {
@@ -771,13 +911,13 @@ namespace internal
             // Linux fseek is a long, so 64-bit
             fseek(fd_, offset, SEEK_SET);
 #else
-    #error "Unsupported platform"
+#error "Unsupported platform"
 #endif
         }
 
         bool CanWriteImpl() const override
         {
-            return accessMode_ == AccessMode::ReadWrite;
+            return accessMode_ == rdfStreamAccessReadWrite;
         }
 
         bool CanReadImpl() const override
@@ -796,12 +936,12 @@ namespace internal
             fstat(fileno(fd_), &statBuffer);
             return statBuffer.st_size;
 #else
-    #error "Unsupported platform"
+#error "Unsupported platform"
 #endif
         }
 
         std::FILE* fd_;
-        AccessMode accessMode_;
+        rdfStreamAccess accessMode_;
     };
 
     //////////////////////////////////////////////////////////////////////
@@ -815,6 +955,7 @@ namespace internal
         ReadOnlyMemoryStream(const std::int64_t size, const void* buffer)
             : size_(size), buffer_(buffer)
         {
+            assert(size >= 0);
         }
 
     private:
@@ -822,7 +963,8 @@ namespace internal
         {
             const auto startPointer = readPointer_;
             auto endPointer = readPointer_ + count;
-            if (endPointer > size_) {
+
+            if (endPointer > static_cast<decltype(endPointer)>(size_)) {
                 endPointer = size_;
             }
 
@@ -960,9 +1102,28 @@ namespace internal
     }
 
     //////////////////////////////////////////////////////////////////////
-    std::unique_ptr<IStream> OpenFile(const char* filename, AccessMode accessMode)
+    std::unique_ptr<IStream> OpenFile(const char* filename,
+                                      rdfStreamAccess accessMode,
+                                      rdfFileMode fileMode)
     {
-        auto fd = std::fopen(filename, accessMode == AccessMode::Read ? "rb" : "wb");
+        const char* mode = nullptr;
+        if (accessMode == rdfStreamAccessRead) {
+            if (fileMode == rdfFileModeOpen) {
+                mode = "rb";
+            } else if (fileMode == rdfFileModeCreate) {
+                throw std::runtime_error("Cannot create file in read-only mode");
+            }
+        } else if (accessMode == rdfStreamAccessReadWrite) {
+            if (fileMode == rdfFileModeOpen) {
+                mode = "r+b";
+            } else if (fileMode == rdfFileModeCreate) {
+                mode = "w+b";
+            }
+        } else {
+            assert(false);
+        }
+
+        auto fd = std::fopen(filename, mode);
         if (fd == nullptr) {
             throw std::runtime_error("Could not open file");
         }
@@ -978,7 +1139,7 @@ namespace internal
             throw std::runtime_error("Could not create file");
         }
 
-        return rdf_make_unique<Filestream>(fd, AccessMode::ReadWrite);
+        return rdf_make_unique<Filestream>(fd, rdfStreamAccessReadWrite);
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -1031,6 +1192,48 @@ struct rdfChunkFileWriter
 
 //////////////////////////////////////////////////////////////////////////////
 /**
+Create a stream from a file.
+
+This is the most generic function to create a stream from a file, allowing
+to open an existing file for read/write or create a new one.
+
+The creation file mode requires read/write access, as creating a new file
+for read-only would result in an unusable stream.
+*/
+int RDF_EXPORT rdfStreamFromFile(const rdfStreamFromFileCreateInfo* info,
+    rdfStream** handle)
+{
+    RDF_C_API_BEGIN
+
+    if (info == nullptr) {
+        return rdfResultInvalidArgument;
+    }
+
+    if (info->filename == nullptr) {
+        return rdfResultInvalidArgument;
+    }
+
+    if (handle == nullptr) {
+        return rdfResultInvalidArgument;
+    }
+
+    *handle = new rdfStream;
+    try {
+        (*handle)->stream =
+            rdf::internal::OpenFile(info->filename, info->accessMode, info->fileMode);
+    } catch (...) {
+        delete *handle;
+        *handle = nullptr;
+        throw;
+    }
+
+    return rdfResult::rdfResultOk;
+
+    RDF_C_API_END
+}
+
+//////////////////////////////////////////////////////////////////////////////
+/**
 Open a file for reading.
 
 This creates a new stream from the given file path.
@@ -1039,11 +1242,16 @@ int RDF_EXPORT rdfStreamOpenFile(const char* filename, rdfStream** handle)
 {
     RDF_C_API_BEGIN
 
+    if (handle == nullptr) {
+        return rdfResultInvalidArgument;
+    }
+
     *handle = new rdfStream;
     try {
-        (*handle)->stream = rdf::internal::OpenFile(filename, rdf::internal::AccessMode::Read);
+        (*handle)->stream = rdf::internal::OpenFile(filename, rdfStreamAccessRead, rdfFileModeOpen);
     } catch (...) {
         delete *handle;
+        *handle = nullptr;
         throw;
     }
 
@@ -1062,11 +1270,16 @@ int RDF_EXPORT rdfStreamCreateFile(const char* filename, rdfStream** handle)
 {
     RDF_C_API_BEGIN
 
+    if (handle == nullptr) {
+        return rdfResultInvalidArgument;
+    }
+
     *handle = new rdfStream;
     try {
         (*handle)->stream = rdf::internal::CreateFile(filename);
     } catch (...) {
         delete *handle;
+        *handle = nullptr;
         throw;
     }
 
@@ -1092,11 +1305,16 @@ int RDF_EXPORT rdfStreamFromReadOnlyMemory(const std::int64_t size,
         return rdfResult::rdfResultInvalidArgument;
     }
 
+    if (handle == nullptr) {
+        return rdfResultInvalidArgument;
+    }
+
     *handle = new rdfStream;
     try {
         (*handle)->stream = rdf::internal::CreateReadOnlyMemoryStream(size, data);
     } catch (...) {
         delete *handle;
+        *handle = nullptr;
         throw;
     }
 
@@ -1116,11 +1334,52 @@ int RDF_EXPORT rdfStreamCreateMemoryStream(rdfStream** handle)
 {
     RDF_C_API_BEGIN
 
+    if (handle == nullptr) {
+        return rdfResultInvalidArgument;
+    }
+
     *handle = new rdfStream;
     try {
         (*handle)->stream = rdf::internal::CreateMemoryStream();
     } catch (...) {
         delete *handle;
+        *handle = nullptr;
+        throw;
+    }
+
+    return rdfResult::rdfResultOk;
+
+    RDF_C_API_END
+}
+
+//////////////////////////////////////////////////////////////////////////////
+int RDF_EXPORT rdfStreamCreateFromUserStream(const rdfUserStream* userStream, rdfStream** handle)
+{
+    return rdfStreamFromUserStream(userStream, handle);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+/**
+Create a memory stream based on user provided callbacks.
+*/
+int RDF_EXPORT rdfStreamFromUserStream(const rdfUserStream* userStream, rdfStream** handle)
+{
+    RDF_C_API_BEGIN
+
+    if (userStream == nullptr) {
+        return rdfResultInvalidArgument;
+    }
+
+    if (handle == nullptr) {
+        return rdfResultInvalidArgument;
+    }
+
+    *handle = new rdfStream;
+    try {
+        (*handle)->stream = rdf::internal::rdf_make_unique<rdf::internal::UserStream>(*userStream);
+    } catch (...) {
+        delete *handle;
+        *handle = nullptr;
         throw;
     }
 
@@ -1205,6 +1464,10 @@ int RDF_EXPORT rdfStreamWrite(rdfStream* stream,
 
     if (count < 0) {
         return rdfResult::rdfResultInvalidArgument;
+    }
+
+    if (!stream->stream->CanWrite()) {
+        return rdfResult::rdfResultError;
     }
 
     auto written = stream->stream->Write(count, buffer);
@@ -1293,9 +1556,10 @@ int RDF_EXPORT rdfChunkFileOpenFile(const char* filename, rdfChunkFile** handle)
     *handle = new rdfChunkFile;
     try {
         (*handle)->chunkFile.reset(new rdf::internal::ChunkFile(
-            rdf::internal::OpenFile(filename, rdf::internal::AccessMode::Read)));
+            rdf::internal::OpenFile(filename, rdfStreamAccessRead, rdfFileModeOpen)));
     } catch (...) {
         delete *handle;
+        *handle = nullptr;
         throw;
     }
 
@@ -1317,6 +1581,7 @@ int RDF_EXPORT rdfChunkFileOpenStream(rdfStream* stream, rdfChunkFile** handle)
         (*handle)->chunkFile.reset(new rdf::internal::ChunkFile(stream->stream.get()));
     } catch (...) {
         delete *handle;
+        *handle = nullptr;
         throw;
     }
 
@@ -1706,7 +1971,7 @@ int RDF_EXPORT rdfChunkFileIteratorGetChunkIndex(rdfChunkFileIterator* iterator,
 /**
 Create a new chunk file writer.
 
-The stream must allow both reads and writes.
+The stream must support write access.
 */
 int RDF_EXPORT rdfChunkFileWriterCreate(rdfStream* stream, rdfChunkFileWriter** writer)
 {
@@ -1722,7 +1987,44 @@ int RDF_EXPORT rdfChunkFileWriterCreate(rdfStream* stream, rdfChunkFileWriter** 
 
     *writer = new rdfChunkFileWriter;
     try {
-        (*writer)->writer.reset(new rdf::internal::ChunkFileWriter(stream->stream.get()));
+        (*writer)->writer.reset(new rdf::internal::ChunkFileWriter(stream->stream.get(), false));
+    } catch (...) {
+        delete *writer;
+        throw;
+    }
+
+    return rdfResult::rdfResultOk;
+
+    RDF_C_API_END
+}
+
+//////////////////////////////////////////////////////////////////////////////
+/**
+Create a new chunk file writer.
+
+The stream must allow both read and write access if appending is enabled.
+When appending, the stream must be pointing at an existing chunk file,
+otherwise appending will fail (i.e. you can't use append on a fresh stream.)
+*/
+int RDF_EXPORT rdfChunkFileWriterCreate2(const rdfChunkFileWriterCreateInfo* info, rdfChunkFileWriter** writer)
+{
+    RDF_C_API_BEGIN
+
+    if (info == nullptr) {
+        return rdfResult::rdfResultInvalidArgument;
+    }
+
+    if (info->stream == nullptr) {
+        return rdfResult::rdfResultInvalidArgument;
+    }
+
+    if (writer == nullptr) {
+        return rdfResult::rdfResultInvalidArgument;
+    }
+
+    *writer = new rdfChunkFileWriter;
+    try {
+        (*writer)->writer.reset(new rdf::internal::ChunkFileWriter(info->stream->stream.get(), info->appendToFile));
     } catch (...) {
         delete *writer;
         throw;

@@ -1107,6 +1107,55 @@ int32 DrmLoaderFuncsProxy::pfnAmdgpuBoListDestroyRaw(
 }
 
 // =====================================================================================================================
+int32 DrmLoaderFuncsProxy::pfnAmdgpuCsQueryResetState(
+    amdgpu_context_handle  context,
+    uint32_t *             state,
+    uint32_t *             hangs
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int32 ret = m_pFuncs->pfnAmdgpuCsQueryResetState(context,
+                                                     state,
+                                                     hangs);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("AmdgpuCsQueryResetState,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "AmdgpuCsQueryResetState(%p, %p, %p)\n",
+        context,
+        state,
+        hangs);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
+int32 DrmLoaderFuncsProxy::pfnAmdgpuCsQueryResetState2(
+    amdgpu_context_handle  hContext,
+    uint64*                flags
+    ) const
+{
+    const int64 begin = Util::GetPerfCpuTime();
+    int32 ret = m_pFuncs->pfnAmdgpuCsQueryResetState2(hContext,
+                                                      flags);
+    const int64 end = Util::GetPerfCpuTime();
+    const int64 elapse = end - begin;
+    m_timeLogger.Printf("AmdgpuCsQueryResetState2,%ld,%ld,%ld\n", begin, end, elapse);
+    m_timeLogger.Flush();
+
+    m_paramLogger.Printf(
+        "AmdgpuCsQueryResetState2(%p, %p)\n",
+        hContext,
+        flags);
+    m_paramLogger.Flush();
+
+    return ret;
+}
+
+// =====================================================================================================================
 int32 DrmLoaderFuncsProxy::pfnAmdgpuCsCtxCreate(
     amdgpu_device_handle    hDevice,
     amdgpu_context_handle*  pContextHandle
@@ -3391,6 +3440,8 @@ Result DrmLoader::Init(
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_list_destroy", &m_funcs.pfnAmdgpuBoListDestroy);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_list_create_raw", &m_funcs.pfnAmdgpuBoListCreateRaw);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_bo_list_destroy_raw", &m_funcs.pfnAmdgpuBoListDestroyRaw);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_query_reset_state", &m_funcs.pfnAmdgpuCsQueryResetState);
+            m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_query_reset_state2", &m_funcs.pfnAmdgpuCsQueryResetState2);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_ctx_create", &m_funcs.pfnAmdgpuCsCtxCreate);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_ctx_free", &m_funcs.pfnAmdgpuCsCtxFree);
             m_library[LibDrmAmdgpu].GetFunction("amdgpu_cs_submit", &m_funcs.pfnAmdgpuCsSubmit);

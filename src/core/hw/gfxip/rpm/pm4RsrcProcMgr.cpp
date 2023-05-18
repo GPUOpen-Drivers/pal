@@ -1870,9 +1870,6 @@ void RsrcProcMgr::CmdClearColorImage(
                     csFastClear         = true;
                 }
 
-                // Hand off to the HWL to perform the fast-clear.
-                PAL_ASSERT(dstImage.IsRenderTarget());
-
                 HwlFastColorClear(pPm4CmdBuffer,
                                   *pPm4Image,
                                   &convertedColor[0],

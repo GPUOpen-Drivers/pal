@@ -715,7 +715,8 @@ struct DynamicGraphicsState
                                                  ///  axis-aligned line end caps during line rasterization.
     uint32         rasterizerDiscardEnable :  1; ///< Whether to kill all rasterized pixels.
     uint32         dualSourceBlendEnable   :  1; ///< Enable dual source blend
-    uint32         reserved                : 25; ///< Reserved for future use.
+    uint32         vertexBufferCount       :  6; ///< Number of vertex buffer slots which are accessed by this pipeline
+    uint32         reserved                : 19; ///< Reserved for future use.
 
     union
     {
@@ -731,7 +732,8 @@ struct DynamicGraphicsState
             uint32 perpLineEndCapsEnable   :  1;  ///< Whether to enable dynamic state perpLineEndCapsEnable.
             uint32 rasterizerDiscardEnable :  1;  ///< Whether to enable dynamic state rasterizerDiscardEnable.
             uint32 dualSourceBlendEnable   :  1;  ///< Whether to enable dynamic state dualSourceBlendEnable
-            uint32 reserved                : 22;  ///< Reserved for future use.
+            uint32 vertexBufferCount       :  1;  ///< Whether to enable dynamic state vertexBufferCount.
+            uint32 reserved                : 21;  ///< Reserved for future use.
         };
         uint32     u32All;
     } enable;
@@ -2035,7 +2037,13 @@ struct CmdBufInfo
 #else
             uint32 reserved741        : 1;  ///< Reserved for future usage.
 #endif
-            uint32 reserved           : 18; ///< Reserved for future usage.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 795
+            uint32 noFlip             : 1;  ///< No flip when DirectCapture access submission completes
+            uint32 frameGenIndex      : 4;  ///< Index of the DirectCapture feature generated frames
+#else
+            uint32 reserved795        : 5;  ///< Reserved for future usage.
+#endif
+            uint32 reserved           : 13; ///< Reserved for future usage.
         };
         uint32 u32All;                  ///< Flags packed as uint32.
     };

@@ -467,6 +467,7 @@ Device::Device(
     m_globalRefMap(MemoryRefMapElements, constructorParams.pPlatform),
     m_semType(SemaphoreType::Legacy),
     m_fenceType(FenceType::Legacy),
+    m_contextList(constructorParams.pPlatform),
 #if defined(PAL_DEBUG_PRINTS)
     m_drmProcs(constructorParams.pPlatform->GetDrmLoader().GetProcsTableProxy())
 #else
@@ -527,6 +528,14 @@ Device::~Device()
     {
         close(m_primaryFileDescriptor);
         m_primaryFileDescriptor = InvalidFd;
+    }
+
+    for (auto iter = m_contextList.Begin(); (iter != m_contextList.End()); iter.Next())
+    {
+        if (*iter.Get() != nullptr)
+        {
+            m_contextList.Erase(&iter);
+        }
     }
 }
 
@@ -1374,10 +1383,31 @@ void Device::InitGfx9ChipProperties()
 
     Gfx9::InitializePerfExperimentProperties(m_chipProperties, &m_perfExperimentProperties);
 
-    m_engineProperties.perEngine[EngineTypeUniversal].flags.supportsMidCmdBufPreemption =
-        (m_gpuInfo.ids_flags & AMDGPU_IDS_FLAGS_PREEMPTION) ? 1 : 0;
-    m_engineProperties.perEngine[EngineTypeUniversal].contextSaveAreaSize               = 0;
-    m_engineProperties.perEngine[EngineTypeUniversal].contextSaveAreaAlignment          = 0;
+    auto* pUniversalEngProps = &m_engineProperties.perEngine[EngineTypeUniversal];
+    pUniversalEngProps->contextSaveAreaSize               = 0;
+    pUniversalEngProps->contextSaveAreaAlignment          = 0;
+
+    if (m_gpuInfo.ids_flags & AMDGPU_IDS_FLAGS_PREEMPTION)
+    {
+        pUniversalEngProps->flags.supportsMidCmdBufPreemption = 1;
+#if PAL_BUILD_GFX11
+        if ((deviceInfo.shadow_size != 0) && IsGfx11(*this))
+        {
+            m_chipProperties.gfx9.stateShadowingByCpFw          = 1;
+            m_chipProperties.gfx9.stateShadowingByCpFwUserAlloc = 1;
+            pUniversalEngProps->fwShadowAreaSize                = deviceInfo.shadow_size;
+            pUniversalEngProps->fwShadowAreaAlignment           = deviceInfo.shadow_alignment;
+            pUniversalEngProps->contextSaveAreaSize             = deviceInfo.csa_size;
+            pUniversalEngProps->contextSaveAreaAlignment        = deviceInfo.csa_alignment;
+            pUniversalEngProps->gdsSaveAreaSize                 = 0;
+            pUniversalEngProps->gdsSaveAreaAlignment            = 0;
+        }
+#endif
+    }
+    else
+    {
+        pUniversalEngProps->flags.supportsMidCmdBufPreemption = 0;
+    }
 
     m_engineProperties.perEngine[EngineTypeDma].flags.supportsMidCmdBufPreemption       =
         (m_gpuInfo.ids_flags & AMDGPU_IDS_FLAGS_PREEMPTION) ? 1 : 0;
@@ -1789,7 +1819,7 @@ Result Device::InitQueueInfo()
                                                                                    SupportQueuePriorityHigh   |
                                                                                    SupportQueuePriorityRealtime);
 
-    const bool supportsMultiQueue = SupportsExplicitGang();
+    const bool supportsMultiQueue = SupportsGangSubmit();
 
     for (uint32 i = 0; i < EngineTypeCount; ++i)
     {
@@ -1819,7 +1849,8 @@ Result Device::InitQueueInfo()
                 break;
 
             case EngineTypeCompute:
-                if (m_chipProperties.gfxLevel != GfxIpLevel::None)
+                if ((Settings().disableComputeEngine == false) &&
+                    (m_chipProperties.gfxLevel != GfxIpLevel::None))
                 {
                     if (m_drmProcs.pfnAmdgpuQueryHwIpInfo(m_hDevice, AMDGPU_HW_IP_COMPUTE, 0, &engineInfo) != 0)
                     {
@@ -1909,16 +1940,13 @@ Result Device::InitQueueInfo()
 
         // This code is added here because it is entirely reliant on kernel level support for implicit/explicit
         // gang submit. As a result, this GFXIP-specific logic is being handled in InitQueueInfo.
-        const bool supportsImplicitGangSubmit = SupportsExplicitGang() &&
-                                                IsAceGfxGangSubmitSupported();
-
-        const bool supportsExplicitGangSubmit = SupportsExplicitGang();
+        const bool supportsGangSubmit = SupportsGangSubmit();
 
         if (IsGfx103PlusExclusive(m_chipProperties.gfxLevel))
         {
             m_chipProperties.gfx9.supportMeshShader =  m_chipProperties.gfx9.supportImplicitPrimitiveShader;
             m_chipProperties.gfx9.supportTaskShader = (m_chipProperties.gfx9.supportImplicitPrimitiveShader &&
-                                                       (supportsImplicitGangSubmit || supportsExplicitGangSubmit));
+                                                       supportsGangSubmit);
         }
         m_chipProperties.gfxip.supportAceOffload = 0;
 
@@ -3078,11 +3106,13 @@ Result Device::CreateCommandSubmissionContext(
     )
 {
     Result result = Result::Success;
+    MutexAuto lock(&m_contextListLock);
 
     // Check if the global scheduling context isn't available and allocate a new one for each queue
     if (m_useSharedGpuContexts == false)
     {
         result = CreateCommandSubmissionContextRaw(pContextHandle, priority, isTmzOnly);
+        m_contextList.PushBack(*pContextHandle);
     }
     else
     {
@@ -3094,6 +3124,7 @@ Result Device::CreateCommandSubmissionContext(
             if (m_hTmzContext == nullptr)
             {
                 result = CreateCommandSubmissionContextRaw(&m_hTmzContext, QueuePriority::Medium, isTmzOnly);
+                m_contextList.PushBack(m_hTmzContext);
             }
             *pContextHandle = m_hTmzContext;
         }
@@ -3102,6 +3133,7 @@ Result Device::CreateCommandSubmissionContext(
             if (m_hContext == nullptr)
             {
                 result = CreateCommandSubmissionContextRaw(&m_hContext, QueuePriority::Medium, isTmzOnly);
+                m_contextList.PushBack(m_hContext);
             }
             *pContextHandle = m_hContext;
         }
@@ -3113,16 +3145,28 @@ Result Device::CreateCommandSubmissionContext(
 // =====================================================================================================================
 // Call amdgpu to destroy a command submission context.
 Result Device::DestroyCommandSubmissionContext(
-    amdgpu_context_handle hContext
-    ) const
+    amdgpu_context_handle hContext)
 {
     Result result = Result::Success;
+    MutexAuto lock(&m_contextListLock);
 
     if ((hContext != m_hContext) && (hContext != m_hTmzContext))
     {
         if (m_drmProcs.pfnAmdgpuCsCtxFree(hContext) != 0)
         {
             result = Result::ErrorInvalidValue;
+        }
+
+        if (result == Result::Success)
+        {
+            for (auto iter = m_contextList.Begin(); (iter != m_contextList.End()); iter.Next())
+            {
+                if (*iter.Get() == hContext)
+                {
+                    m_contextList.Erase(&iter);
+                    break;
+                }
+            }
         }
     }
 
@@ -3997,9 +4041,12 @@ void Device::UpdateMetaDataUniqueId(
     // Read current metadata first if it exists
     QueryBufferInfo(hBuffer, &info);
 
-    // Only update metadata of which the BO allocated by Pal
-    if (info.metadata.size_metadata == PRO_UMD_METADATA_SIZE)
+    // if uniqueId is nonzero, then this BO was created by Pal, so update the metadata with the uniqueId
+    if (pAmdgpuGpuMem->Desc().uniqueId != 0)
     {
+        // In case metadata was not set before, set the metadata's size
+        info.metadata.size_metadata = PRO_UMD_METADATA_SIZE;
+
         // First 32 dwords are reserved for open source components.
         auto*const pUmdMetaData       = reinterpret_cast<amdgpu_bo_umd_metadata*>
                                             (&info.metadata.umd_metadata[PRO_UMD_METADATA_OFFSET_DWORD]);
@@ -5486,6 +5533,55 @@ Result Device::InitClkInfo()
 }
 
 // =====================================================================================================================
+// Checks and returns execution state of the device.
+// When context reset occurs, any active context can query the reset state.
+// If context is empty, will return -EINVAL: ErrorInvalidValue.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 796
+Result Device::CheckExecutionState(
+    PageFaultStatus* pPageFaultStatus)
+{
+    Result result = Result::Success;
+    MutexAuto lock(&m_contextListLock);
+
+    if (m_contextList.NumElements() == 0)
+    {
+        return Result::ErrorInvalidValue;
+    }
+
+    amdgpu_context_handle queryContext = *m_contextList.Begin().Get();
+
+    if (m_drmMinorVer >= 24)
+    {
+        uint64 flags;
+        result = CheckResult(m_drmProcs.pfnAmdgpuCsQueryResetState2(
+            queryContext, &flags), Result::Success);
+
+        if (result == Result::Success)
+        {
+            if (flags & AMDGPU_CTX_QUERY2_FLAGS_RESET)
+            {
+                result = Result::ErrorDeviceLost;
+            }
+        }
+    }
+    else
+    {
+        uint32_t state, hangs;
+        result = CheckResult(m_drmProcs.pfnAmdgpuCsQueryResetState(
+            queryContext, &state, &hangs), Result::Success);
+
+        if (result == Result::Success)
+        {
+            if (state != AMDGPU_CTX_NO_RESET)
+            {
+                result = Result::ErrorDeviceLost;
+            }
+        }
+    }
+
+    return result;
+}
+#else
 Result Device::CheckExecutionState(
     PageFaultStatus* pPageFaultStatus
     ) const
@@ -5499,8 +5595,10 @@ Result Device::CheckExecutionState(
                                                               AMDGPU_INFO_TIMESTAMP,
                                                               sizeof(gpuTimestamp),
                                                               &gpuTimestamp), Result::Success);
+
     return result;
 }
+#endif
 
 // =====================================================================================================================
 // Helper function to check kernel version.

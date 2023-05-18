@@ -30,6 +30,10 @@ target_sources(rdfm PRIVATE
 target_link_libraries(rdfm PRIVATE rdf cli11 json)
 set_target_properties(rdfm PROPERTIES CXX_STANDARD 17)
 
+if(RDF_BUILD_TESTS)
+    add_subdirectory(test)
+endif()
+
 if(RDF_BUILD_INSTALL)
     install(TARGETS rdfm DESTINATION bin)
 endif()

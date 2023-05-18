@@ -76,17 +76,11 @@ include(AMD)
 include(DevDriverBP)
 
 macro(apply_devdriver_build_flags _target)
-    set(DD_OPT_CPP_STD "" CACHE STRING "Passed to CMake's CXX_STANDARD to define the C++ standard")
-    if(DD_OPT_CPP_STD)
-        set_target_properties(${_target} PROPERTIES CXX_STANDARD ${DD_OPT_CPP_STD})
-    else()
-        set_target_properties(${_target} PROPERTIES CXX_STANDARD 11)
-    endif()
-
     set_target_properties(${_target} PROPERTIES
-        # Ensure the standard is supported by the compiler
+        CXX_STANDARD 17
+        # Ensure the standard is supported by the compiler.
         CXX_STANDARD_REQUIRED TRUE
-        # Use -std=c++11 rather than -std=gnu++11
+        # Use -std=c++17 rather than -std=gnu++17.
         CXX_EXTENSIONS FALSE
     )
 
@@ -133,15 +127,6 @@ function(apply_devdriver_warnings name)
                     -Wno-class-memaccess
             )
         endif()
-        # Apply special options for versions earlier than GCC 5.x
-        if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)
-            target_compile_options(${name}
-                PRIVATE
-                    # This warning triggers when we default initialize structures with the "StructType x = {};" syntax.
-                    # It only triggers on GCC 4.8
-                    -Wno-missing-field-initializers
-            )
-        endif()
     elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
         if (DD_MSVC_CODE_ANALYZE)
             target_compile_options(${name} PRIVATE
@@ -178,7 +163,6 @@ function(apply_devdriver_build_configs name)
 endfunction()
 
 function(devdriver_target name)
-
     amd_target(${name} ${ARGN})
 
     # Interface libraries cannot have many of their properties set
@@ -193,19 +177,14 @@ function(devdriver_target name)
             apply_devdriver_warnings(${name})
         endif()
     endif()
-
 endfunction()
 
 function(devdriver_executable name)
-
     amd_executable(${name} ${ARGN})
     devdriver_target(${name})
-
 endfunction()
 
 function(devdriver_library name type)
-
         amd_library(${name} ${type} ${ARGN})
         devdriver_target(${name})
-
 endfunction()

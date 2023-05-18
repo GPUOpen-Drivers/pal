@@ -117,6 +117,8 @@ public:
     virtual void PostProcessSubmit() override;
     virtual Result ProcessInitialSubmit(InternalSubmitInfo* pSubmitInfo) override;
 
+    virtual gpusize ShadowMemVa() const { return  m_shadowGpuMem.GpuVirtAddr(); }
+
 private:
     Result BuildShadowPreamble();
 

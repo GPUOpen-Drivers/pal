@@ -127,63 +127,6 @@ bool SettingsLoader::ReadSetting(
 }
 
 // =====================================================================================================================
-// Helper function for checking the CP microcode version for Gfx9.
-static bool CheckGfx9CpUcodeVersion(
-    const Device& device,
-    uint32        pfpUcodeVersion)
-{
-    return (IsGfx9(device) && (device.ChipProperties().pfpUcodeVersion >= pfpUcodeVersion));
-}
-
-// =====================================================================================================================
-// Helper function for checking the CP microcode version for Gfx10.1.
-static bool CheckGfx101CpUcodeVersion(
-    const Device& device,
-    uint32        pfpUcodeVersion)
-{
-    return (IsGfx101(device) && (device.ChipProperties().pfpUcodeVersion >= pfpUcodeVersion));
-}
-
-// =====================================================================================================================
-// Helper function for checking the CP microcode version for Gfx10.3.
-static bool CheckGfx103CpUcodeVersion(
-    const Device& device,
-    uint32        pfpUcodeVersion)
-{
-    return (IsGfx103(device) && (device.ChipProperties().pfpUcodeVersion >= pfpUcodeVersion));
-}
-
-#if PAL_BUILD_GFX11
-// =====================================================================================================================
-// Helper function for checking the CP microcode version for Gfx11.
-static bool CheckGfx11CpUcodeVersion(
-    const Device& device,
-    uint32        pfpUcodeVersionF32,
-    uint32        pfpUcodeVersionRs64)
-{
-    constexpr uint32 Rs64VersionStart   = 300;
-    uint32 deviceUcodeVersion = device.ChipProperties().pfpUcodeVersion;
-
-    PAL_ASSERT((pfpUcodeVersionF32 < Rs64VersionStart) && (pfpUcodeVersionRs64 >= Rs64VersionStart));
-
-    bool featureSupported = false;
-
-    if (deviceUcodeVersion > 1000000)
-    {
-        deviceUcodeVersion = 413;
-    }
-
-    if (IsGfx11(device))
-    {
-        featureSupported = (deviceUcodeVersion < Rs64VersionStart) ? (deviceUcodeVersion >= pfpUcodeVersionF32) :
-                                                                     (deviceUcodeVersion >= pfpUcodeVersionRs64);
-    }
-
-    return featureSupported;
-}
-#endif
-
-// =====================================================================================================================
 // Overrides defaults for the settings based on runtime information.
 void SettingsLoader::OverrideDefaults()
 {
@@ -225,51 +168,13 @@ void SettingsLoader::OverrideDefaults()
         m_settings.useDcc = DccEnables;
     }
 
+    // The new ExecuteIndirect packet is supported on Gfx9+ only.
+    // This is set by PAL based on when certain aspects of this feature were added to the uCode by PFP FW version
+    // of this device. This setting is Reread() enabled which means the stable value determined here can be
+    // overridden by the value set in Panel/Registry settings.
     if (gfxLevel >= GfxIpLevel::GfxIp9)
     {
-        constexpr uint32 PfpUcodeVersionNativeExecuteIndirectGfx9    = 192;
-        constexpr uint32 PfpUcodeVersionNativeExecuteIndirectGfx10_1 = 151;
-        constexpr uint32 PfpUcodeVersionNativeExecuteIndirectGfx10_3 = 88;
-
-        if (IsRaphael(*m_pDevice) == false)
-        {
-            if (CheckGfx9CpUcodeVersion(*m_pDevice,   PfpUcodeVersionNativeExecuteIndirectGfx9)    ||
-                CheckGfx101CpUcodeVersion(*m_pDevice, PfpUcodeVersionNativeExecuteIndirectGfx10_1) ||
-                CheckGfx103CpUcodeVersion(*m_pDevice, PfpUcodeVersionNativeExecuteIndirectGfx10_3))
-            {
-                m_settings.useExecuteIndirectPacket = UseExecuteIndirectPacketForDraw;
-            }
-
-            constexpr uint32 PfpUcodeVersionSpillTableSupportedExecuteIndirectGfx10_1 = 155;
-            constexpr uint32 PfpUcodeVersionSpillTableSupportedExecuteIndirectGfx10_3 = 91;
-
-            if (CheckGfx101CpUcodeVersion(*m_pDevice, PfpUcodeVersionSpillTableSupportedExecuteIndirectGfx10_1) ||
-                CheckGfx103CpUcodeVersion(*m_pDevice, PfpUcodeVersionSpillTableSupportedExecuteIndirectGfx10_3))
-            {
-                m_settings.useExecuteIndirectPacket = UseExecuteIndirectPacketForDrawSpillTable;
-            }
-
-            constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectGfx10_1   = 155;
-            constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectGfx10_3   = 95;
-
-#if PAL_BUILD_GFX11
-            constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectGfx11F32  = 84;
-            constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectGfx11Rs64 = 413;
-#endif
-
-            if (CheckGfx101CpUcodeVersion(*m_pDevice, PfpUcodeVersionVbTableSupportedExecuteIndirectGfx10_1) ||
-                CheckGfx103CpUcodeVersion(*m_pDevice, PfpUcodeVersionVbTableSupportedExecuteIndirectGfx10_3)
-#if PAL_BUILD_GFX11
-                || CheckGfx11CpUcodeVersion(
-                    *m_pDevice,
-                    PfpUcodeVersionVbTableSupportedExecuteIndirectGfx11F32,
-                    PfpUcodeVersionVbTableSupportedExecuteIndirectGfx11Rs64)
-#endif
-                )
-            {
-                m_settings.useExecuteIndirectPacket = UseExecuteIndirectPacketForDrawSpillAndVbTable;
-            }
-        }
+        m_settings.useExecuteIndirectPacket = m_pDevice->ChipProperties().gfx9.executeIndirectSupport;
     }
 
     if (m_pDevice->PhysicalEnginesAvailable())
@@ -302,7 +207,10 @@ void SettingsLoader::OverrideDefaults()
     {
         // Sending commands intended for a spoofed GPU model to the different physical device is
         // almost certain to hang the device.
-        m_settings.ifh = IfhModeKmd;
+        if (m_settings.ifh == IfhModeDisabled)
+        {
+            m_settings.ifh = IfhModeKmd;
+        }
     }
 
     m_state = SettingsLoaderState::LateInit;

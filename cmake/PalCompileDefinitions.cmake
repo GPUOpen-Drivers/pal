@@ -254,6 +254,10 @@ function(pal_compile_definitions TARGET)
         endif()
     endif()
 
+    if (PAL_64BIT_ARCHIVE_FILE_FMT)
+        target_compile_definitions(${TARGET} PUBLIC PAL_64BIT_ARCHIVE_FILE_FMT=1)
+    endif()
+
     pal_compile_definitions_gpu(${TARGET})
 
 endfunction()

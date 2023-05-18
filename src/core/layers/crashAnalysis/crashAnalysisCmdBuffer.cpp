@@ -55,7 +55,7 @@ CmdBuffer::CmdBuffer(
     CmdBufferFwdDecorator(pNextCmdBuffer, pDevice),
     m_pDevice(pDevice),
     m_pPlatform(static_cast<Platform*>(m_pDevice->GetPlatform())),
-    m_cmdBufferId(m_pPlatform->GenerateResourceId()),
+    m_cmdBufferId(0),
     m_markerCounter(0),
     m_pMemoryChunk(nullptr),
     m_pEventCache(nullptr),
@@ -96,6 +96,10 @@ Result CmdBuffer::Begin(
 {
     ResetState();
 
+    // Re-generate the command buffer ID each time we begin command buffer recording.
+    // This allows us to distinguish between command buffers that are re-recorded.
+    m_cmdBufferId = m_pPlatform->GenerateResourceId();
+
     if (m_pMemoryChunk != nullptr)
     {
         m_pMemoryChunk->ReleaseReference();
@@ -105,6 +109,15 @@ Result CmdBuffer::Begin(
 
     if (result == Result::Success)
     {
+        // Initialize the memory chunk CPU-side, in the event that
+        // we crash before the TOP writes in `AddPreamble` are hit.
+        if (m_pMemoryChunk->pCpuAddr != nullptr)
+        {
+            m_pMemoryChunk->pCpuAddr->cmdBufferId = m_cmdBufferId;
+            m_pMemoryChunk->pCpuAddr->markerBegin = 0x0;
+            m_pMemoryChunk->pCpuAddr->markerEnd   = 0x0;
+        }
+
         // Release the old event cache
         if (m_pEventCache != nullptr)
         {
@@ -143,13 +156,6 @@ Result CmdBuffer::Reset(
     bool           returnGpuMemory)
 {
     ResetState();
-
-    if (m_pEventCache != nullptr)
-    {
-        Result result = m_pEventCache->CacheCmdBufferReset(m_cmdBufferId);
-        PAL_ASSERT(result == Result::Success);
-    }
-
     return GetNextLayer()->Reset(NextCmdAllocator(pCmdAllocator), returnGpuMemory);
 }
 
@@ -186,11 +192,8 @@ void CmdBuffer::ResetState()
 // =====================================================================================================================
 void CmdBuffer::AddPreamble()
 {
-    CmdWriteImmediate(
-        HwPipePoint::HwPipeTop,
-        m_cmdBufferId,
-        ImmediateDataWidth::ImmediateData32Bit,
-        GetGpuVa(offsetof(MarkerState, cmdBufferId)));
+    PAL_ASSERT(m_pMemoryChunk->pCpuAddr->cmdBufferId == m_cmdBufferId);
+
     CmdWriteImmediate(
         HwPipePoint::HwPipeTop,
         CrashAnalysis::InitialMarkerValue,

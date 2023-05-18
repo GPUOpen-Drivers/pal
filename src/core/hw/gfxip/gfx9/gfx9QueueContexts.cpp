@@ -750,33 +750,62 @@ Result UniversalQueueContext::AllocateShadowMemory()
 {
     Pal::Device*const        pDevice   = m_pDevice->Parent();
 
-    // Shadow memory only needs to include space for the region of CE RAM which the client requested PAL makes
-    // persistent between submissions.
-    uint32 ceRamBytes = (m_persistentCeRamSize * sizeof(uint32));
+    // Shadow memory looks like the following:
+    //  - CE RAM shadow (if present)
+    //  - GRBM shadow memory (if present and handled in usermode)
+    //  - CSA shadow memory (if present and handled in usermode)
+    //  - GDS shadow memory (if present and handled in usermode)
+
+    gpusize shadowMemoryAlignment = 256;
+    gpusize shadowMemSize = 0;
 
     if (m_supportMcbp)
     {
+        // Also, if mid command buffer preemption is enabled, we must restore all CE RAM used by the client and
+        // internally by PAL. All of that data will need to be restored aftere resuming this Queue from being
+        // preempted.
+        size_t ceRamBytes = pDevice->CeRamBytesUsed(EngineTypeUniversal);
+        shadowMemSize += ceRamBytes;
+
 #if PAL_BUILD_GFX11
-        if (m_pDevice->Parent()->SupportStateShadowingByCpFw() == false)
+        if (m_pDevice->Parent()->SupportStateShadowingByCpFwUserAlloc())
+        {
+            PAL_ASSERT(ceRamBytes == 0); // All chips that support this do not support CE ram and we'll assume that.
+
+            // When CP FW handles shadowing fully, we don't need to add extra load packets, but some OSs want the
+            // backing allocation for shadow memory made in userspace. Allocate appropriately so we can communicate
+            // those (sub)allocations and the KMD will do the rest.
+            const auto& univEngineProps = m_pDevice->Parent()->EngineProperties().perEngine[EngineTypeUniversal];
+
+            shadowMemSize         = Pow2Align(shadowMemSize, univEngineProps.fwShadowAreaAlignment);
+            shadowMemSize         += univEngineProps.fwShadowAreaSize;
+            shadowMemoryAlignment = Max(shadowMemoryAlignment, univEngineProps.fwShadowAreaAlignment);
+
+            shadowMemSize         = Pow2Align(shadowMemSize, univEngineProps.contextSaveAreaAlignment);
+            shadowMemSize         += univEngineProps.contextSaveAreaSize;
+            shadowMemoryAlignment = Max(shadowMemoryAlignment, univEngineProps.contextSaveAreaAlignment);
+        }
+        else if (m_pDevice->Parent()->SupportStateShadowingByCpFw() == false)
 #endif
         {
             // If mid command buffer preemption is enabled, we must also include shadow space for all of the context,
             // SH, and user-config registers. This is because the CP will restore the whole state when resuming this
-            // Queue from being preempted.
+            // Queue from being preempted, as defined by the load packets that we put in the preamble.
             m_shadowedRegCount = (ShRegCount + CntxRegCount + UserConfigRegCount);
+            shadowMemSize += m_shadowedRegCount * sizeof(uint32);
         }
-
-        // Also, if mid command buffer preemption is enabled, we must restore all CE RAM used by the client and
-        // internally by PAL. All of that data will need to be restored aftere resuming this Queue from being
-        // preempted.
-        ceRamBytes = static_cast<uint32>(pDevice->CeRamBytesUsed(EngineTypeUniversal));
+    }
+    else
+    {
+        // Shadow memory only needs to include space for the region of CE RAM which the client requested PAL makes
+        // persistent between submissions.
+        uint32 ceRamBytes = (m_persistentCeRamSize * sizeof(uint32));
+        shadowMemSize += ceRamBytes;
     }
 
-    constexpr gpusize ShadowMemoryAlignment = 256;
-
     GpuMemoryCreateInfo createInfo = { };
-    createInfo.alignment  = ShadowMemoryAlignment;
-    createInfo.size       = (ceRamBytes + (sizeof(uint32) * m_shadowedRegCount));
+    createInfo.alignment  = shadowMemoryAlignment;
+    createInfo.size       = shadowMemSize;
     createInfo.priority   = GpuMemPriority::Normal;
     createInfo.vaRange    = VaRange::Default;
     createInfo.heapAccess = GpuHeapAccess::GpuHeapAccessExplicit;

@@ -79,8 +79,11 @@ Result CreateRpmComputePipelines(
     case AsicRevision::Vega10:
     case AsicRevision::Raven:
     case AsicRevision::Vega12:
-    case AsicRevision::Vega20:
         pTable = rpmComputeBinaryTableVega10;
+        break;
+
+    case AsicRevision::Vega20:
+        pTable = rpmComputeBinaryTableVega20;
         break;
 
     case AsicRevision::Raven2:
@@ -194,6 +197,24 @@ Result CreateRpmComputePipelines(
     {
         result = CreateRpmComputePipeline(
             RpmComputePipeline::CopyImage2d, pDevice, pTable, pPipelineMem);
+    }
+
+    if (result == Result::Success)
+    {
+        result = CreateRpmComputePipeline(
+            RpmComputePipeline::CopyImage2dMorton2x, pDevice, pTable, pPipelineMem);
+    }
+
+    if (result == Result::Success)
+    {
+        result = CreateRpmComputePipeline(
+            RpmComputePipeline::CopyImage2dMorton4x, pDevice, pTable, pPipelineMem);
+    }
+
+    if (result == Result::Success)
+    {
+        result = CreateRpmComputePipeline(
+            RpmComputePipeline::CopyImage2dMorton8x, pDevice, pTable, pPipelineMem);
     }
 
     if (result == Result::Success)

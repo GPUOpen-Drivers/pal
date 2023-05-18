@@ -25,7 +25,7 @@ struct Header final
 };
 ```
 
-* `identifier` must be `RTA_DATA`
+* `identifier` must be `AMD_RDF `
 * `version` is 3
 * `reserved` must be set to 0
 * `indexOffset` is the offset to the chunk index

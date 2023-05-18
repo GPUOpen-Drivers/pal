@@ -497,7 +497,7 @@ size_t Image::GetTotalSubresourceSize(
 }
 
 // =====================================================================================================================
-// Helper method which determines if the image uses a multimedia format
+// Helper method which determines if the image uses a hardware multimedia (MM) format.
 bool Image::UsesMmFormat() const
 {
     const ChNumFormat format = m_createInfo.swizzledFormat.format;
@@ -1074,6 +1074,8 @@ AddrFormat Image::GetAddrFormat(
 {
     AddrFormat ret = ADDR_FMT_INVALID;
 
+    // ChNumFormat enum names are in big endian
+    // AddrFormat enum names are in little endian
     switch (format)
     {
         case ChNumFormat::X1_Unorm:
@@ -1161,6 +1163,7 @@ AddrFormat Image::GetAddrFormat(
         case ChNumFormat::X10Y10Z10W2_Uint:
         case ChNumFormat::U10V10W10_Snorm_A2_Unorm:
         case ChNumFormat::X10Y10Z10W2Bias_Unorm:
+        case ChNumFormat::Y410:
             ret = ADDR_FMT_2_10_10_10;
             break;
         case ChNumFormat::X16_Unorm:
@@ -1200,10 +1203,19 @@ AddrFormat Image::GetAddrFormat(
         case ChNumFormat::X16Y16Z16W16_Sscaled:
         case ChNumFormat::X16Y16Z16W16_Uint:
         case ChNumFormat::X16Y16Z16W16_Sint:
+        case ChNumFormat::Y416:
             ret = ADDR_FMT_16_16_16_16;
             break;
         case ChNumFormat::X16Y16Z16W16_Float:
             ret = ADDR_FMT_16_16_16_16_FLOAT;
+            break;
+        case ChNumFormat::Y216:
+        case ChNumFormat::Y210:
+#if (ADDRLIB_VERSION_MAJOR >= 8) && (ADDRLIB_VERSION_MINOR >= 9)
+            ret = ADDR_FMT_BG_RG_16_16_16_16;
+#else
+            ret = ADDR_FMT_INVALID;
+#endif
             break;
         case ChNumFormat::X32_Uint:
         case ChNumFormat::X32_Sint:

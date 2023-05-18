@@ -599,6 +599,9 @@ Result Device::SetupPublicSettingDefaults()
 
     m_publicSettings.pwsMode = PwsMode::Enabled;
 
+    m_publicSettings.maxScratchRingSizeBaseline = 268435456;
+    m_publicSettings.maxScratchRingSizeScalePct = 10;
+
     return ret;
 }
 
@@ -1260,15 +1263,15 @@ Result Device::FixupUsableGpuVirtualAddressRange(
         // Enable support for shadow desc VA range if fmask SRDs are supported
         m_memoryProperties.flags.shadowDescVaSupport = (m_chipProperties.srdSizes.fmaskView > 0);
     }
-    else if (((usableVaEnd - usableVaStart) >= (5uLL * _1GB)) &&
-             (m_chipProperties.srdSizes.fmaskView > 0))
+    else if ((((usableVaEnd - usableVaStart) >= (5uLL * _1GB)) && (m_chipProperties.srdSizes.fmaskView > 0)) ||
+             (((usableVaEnd - usableVaStart) >= (4uLL * _1GB)) && (m_chipProperties.srdSizes.fmaskView == 0)))
     {
         // Case #2:
         // This is not quite ideal, but still workable: we have more than 5 GB of address space, so we can use two
         // 1 GB sections for the ShadowDescriptor and DescriptorTable ranges. The remaining space (1 GB - 4GB and
         // >5 GB) will be used for default, and needs to be split into two subsections.
         gpusize baseVirtAddr = m_memoryProperties.fragmentSize
-            ? ((usableVaStart - 1) / m_memoryProperties.fragmentSize + 1 ) * m_memoryProperties.fragmentSize
+            ? ((usableVaStart - 1) / m_memoryProperties.fragmentSize + 1) * m_memoryProperties.fragmentSize
             : usableVaStart;
 
         // Need to account for any exclusion at the beginning of the range
@@ -1284,27 +1287,39 @@ Result Device::FixupUsableGpuVirtualAddressRange(
 
         baseVirtAddr += descTblSize;
 
-        pVaRange[static_cast<uint32>(VaPartition::Default)].baseVirtAddr = baseVirtAddr;
-        pVaRange[static_cast<uint32>(VaPartition::Default)].size         = (3uLL * _1GB);
-
-        baseVirtAddr += (3uLL * _1GB);
-
-        result = ProbeGpuVaRange(baseVirtAddr, _1GB, VaPartition::ShadowDescriptorTable);
-
-        if (result == Result::Success)
+        // Reserve VA range for ShadowDescriptorTable only if fmask SRDs are supported
+        if (m_chipProperties.srdSizes.fmaskView > 0)
         {
-            pVaRange[static_cast<uint32>(VaPartition::ShadowDescriptorTable)].baseVirtAddr = baseVirtAddr;
-            pVaRange[static_cast<uint32>(VaPartition::ShadowDescriptorTable)].size         = _1GB;
+            pVaRange[static_cast<uint32>(VaPartition::Default)].baseVirtAddr = baseVirtAddr;
+            pVaRange[static_cast<uint32>(VaPartition::Default)].size         = (3uLL * _1GB);
+
+            baseVirtAddr += (3uLL * _1GB);
+
+            //@todo Consider not having a separate VA range for shadow desc table, it reserves 4G of VA space which may
+            //      not actaully be used.  APU's have limited VA space due to restrictions on page table size allowed in
+            //      memory and reserving a range may increase page table size.
+            result = ProbeGpuVaRange(baseVirtAddr, _1GB, VaPartition::ShadowDescriptorTable);
+
+            if (result == Result::Success)
+            {
+                pVaRange[static_cast<uint32>(VaPartition::ShadowDescriptorTable)].baseVirtAddr = baseVirtAddr;
+                pVaRange[static_cast<uint32>(VaPartition::ShadowDescriptorTable)].size         = _1GB;
+            }
+
+            baseVirtAddr += _1GB;
+
+            if (usableVaEnd > baseVirtAddr)
+            {
+                pVaRange[static_cast<uint32>(VaPartition::DefaultBackup)].baseVirtAddr = baseVirtAddr;
+                pVaRange[static_cast<uint32>(VaPartition::DefaultBackup)].size         = (usableVaEnd - baseVirtAddr);
+
+                m_memoryProperties.flags.defaultVaRangeSplit = 1;
+            }
         }
-
-        baseVirtAddr += _1GB;
-
-        if (usableVaEnd > baseVirtAddr)
+        else
         {
-            pVaRange[static_cast<uint32>(VaPartition::DefaultBackup)].baseVirtAddr = baseVirtAddr;
-            pVaRange[static_cast<uint32>(VaPartition::DefaultBackup)].size         = (usableVaEnd - baseVirtAddr);
-
-            m_memoryProperties.flags.defaultVaRangeSplit = 1;
+            pVaRange[static_cast<uint32>(VaPartition::Default)].baseVirtAddr = baseVirtAddr;
+            pVaRange[static_cast<uint32>(VaPartition::Default)].size         = (usableVaEnd - baseVirtAddr);
         }
 
         PAL_ASSERT(m_memoryProperties.vaStartPrt == 0);
@@ -1312,10 +1327,7 @@ Result Device::FixupUsableGpuVirtualAddressRange(
         m_memoryProperties.flags.multipleVaRangeSupport = 1;
 
         // Enable support for shadow desc VA range.
-        //@todo Consider not having a separate VA range for shadow desc table, it reserves 4G of VA space which may
-        //      not actaully be used.  APU's have limited VA space due to restrictions on page table size allowed in
-        //      memory and reserving a range may increase page table size.
-        m_memoryProperties.flags.shadowDescVaSupport = 1;
+        m_memoryProperties.flags.shadowDescVaSupport = (m_chipProperties.srdSizes.fmaskView > 0);
     }
     else
     {
@@ -2129,20 +2141,21 @@ Result Device::GetProperties(
         memset(pInfo, 0, sizeof(DeviceProperties));
 
         // NOTE: We must identify with the ATI vendor ID rather than AMD, as apps can be hardcoded to detect ATI ID.
-        pInfo->vendorId    = ATI_VENDOR_ID;
-        pInfo->deviceId    = m_chipProperties.deviceId;
-        pInfo->revisionId  = m_chipProperties.revisionId;
-        pInfo->eRevId      = m_chipProperties.eRevId;
-        pInfo->revision    = m_chipProperties.revision;
-        pInfo->gfxStepping = m_chipProperties.gfxStepping;
-        pInfo->gpuType     = m_chipProperties.gpuType;
-        pInfo->gfxLevel    = m_chipProperties.gfxLevel;
-        pInfo->ossLevel    = m_chipProperties.ossLevel;
-        pInfo->uvdLevel    = m_chipProperties.uvdLevel;
-        pInfo->vceLevel    = m_chipProperties.vceLevel;
-        pInfo->vcnLevel    = m_chipProperties.vcnLevel;
-        pInfo->spuLevel    = m_chipProperties.spuLevel;
-        pInfo->pspLevel    = m_chipProperties.pspLevel;
+        pInfo->vendorId                         = ATI_VENDOR_ID;
+        pInfo->deviceId                         = m_chipProperties.deviceId;
+        pInfo->revisionId                       = m_chipProperties.revisionId;
+        pInfo->eRevId                           = m_chipProperties.eRevId;
+        pInfo->revision                         = m_chipProperties.revision;
+        pInfo->gfxStepping                      = m_chipProperties.gfxStepping;
+        pInfo->gpuType                          = m_chipProperties.gpuType;
+        pInfo->gfxLevel                         = m_chipProperties.gfxLevel;
+        pInfo->gpuPerformanceCapacity           = m_chipProperties.gpuPerformanceCapacity;
+        pInfo->ossLevel                         = m_chipProperties.ossLevel;
+        pInfo->uvdLevel                         = m_chipProperties.uvdLevel;
+        pInfo->vceLevel                         = m_chipProperties.vceLevel;
+        pInfo->vcnLevel                         = m_chipProperties.vcnLevel;
+        pInfo->spuLevel                         = m_chipProperties.spuLevel;
+        pInfo->pspLevel                         = m_chipProperties.pspLevel;
 
         Strncpy(&pInfo->gpuName[0], &m_gpuName[0], sizeof(pInfo->gpuName));
 
@@ -2673,9 +2686,15 @@ Result Device::GetProperties(
 // ability to query the GPU execution state from OS or KMD. Returns Success for platforms that can't detect the GPU
 // state, which is equivalent to GPU being active.
 // NOTE: Part of the IDevice public interface.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 796
+Result Device::CheckExecutionState(
+    PageFaultStatus* pPageFaultStatus
+    )
+#else
 Result Device::CheckExecutionState(
     PageFaultStatus* pPageFaultStatus
     ) const
+#endif
 {
     return Result::Success;
 }

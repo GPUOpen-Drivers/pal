@@ -371,8 +371,6 @@ namespace Internal
 
 // Helper macros to make logging simple
 // These can be expanded per component if you never vary category:
-//      #define DD_ROUTER_LOG(logger, level, message)   DD_API_LOG(logger,  level, kRouterCategory, message)
-//      #define DD_ROUTER_LOGF(logger, level, fmt, ...) DD_API_LOGF(logger, level, kRouterCategory, fmt, __VA_ARGS__)
 #define DD_API_LOG(logger,  level, category, message)  (logger).Log(DD_MAKE_LOG_EVENT(level, category), message)
 #define DD_API_LOGF(logger, level, category, fmt, ...) (logger).Printf(DD_MAKE_LOG_EVENT(level, category), fmt, __VA_ARGS__);
 

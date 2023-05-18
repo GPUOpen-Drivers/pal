@@ -665,6 +665,36 @@ ADDR2_SURFACE_FLAGS AddrMgr2::DetermineSurfaceFlags(
 }
 
 // =====================================================================================================================
+uint32 AddrMgr2::GetNoXorStatus(
+    const Image*  pImage)
+    const
+{
+    uint32 noXor = 0;
+
+#if PAL_BUILD_GFX11
+    if (IsGfx11(m_gfxLevel))
+    {
+        const PalSettings& settings = m_pDevice->Settings();
+
+        // Depth images require the Z_X swizzle modes; likewise, MSAA images require _X modes as well.
+        if ((pImage->IsDepthStencilTarget() == false) && (pImage->GetImageCreateInfo().samples == 1))
+        {
+            if (pImage->IsRenderTarget() && TestAnyFlagSet(settings.noXor, NoXorForRenderTarget))
+            {
+                noXor = 1;
+            }
+            else if (pImage->IsShaderReadable() && TestAnyFlagSet(settings.noXor, NoXorForTexture))
+            {
+                noXor = 1;
+            }
+        }
+    }
+#endif
+
+    return noXor;
+}
+
+// =====================================================================================================================
 // Determine if preferred swizzle mode caculated by address library is valid to be overridden by the primaryTilingCaps
 // that is returned by KMD
 bool AddrMgr2::IsValidToOverride(
@@ -1100,7 +1130,7 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
     ADDR2_GET_PREFERRED_SURF_SETTING_INPUT surfSettingInput = { };
     surfSettingInput.size            = sizeof(surfSettingInput);
     surfSettingInput.format          = Image::GetAddrFormat(pBaseSubRes->format.format);
-    surfSettingInput.noXor           = false;
+    surfSettingInput.noXor           = GetNoXorStatus(pImage);
     surfSettingInput.bpp             = Formats::BitsPerPixel(pBaseSubRes->format.format);
     surfSettingInput.width           = createInfo.extent.width;
     surfSettingInput.height          = createInfo.extent.height;
@@ -1252,6 +1282,17 @@ Result AddrMgr2::ComputePlaneSwizzleMode(
         // Alert if we're supposed to disable S swizzle modes but ended up picking one. See the comment block above
         // for more details about why this is currently OK but could theoretically cause blending corruption.
         PAL_ALERT(disableSModes8BppColor && IsStandardSwzzle(pOut->swizzleMode));
+
+#if PAL_BUILD_GFX11
+        if (IsGfx11(*m_pDevice)                                    &&
+            (createInfo.imageType == ImageType::Tex3d)             &&
+            TestAllFlagsSet(settings.noXor, NoXorForRenderTarget |
+                                            NoXorOverrideLinear3d) &&
+            IsLinearSwizzleMode(pOut->swizzleMode))
+        {
+            pOut->swizzleMode = ADDR_SW_64KB_R_X;
+        }
+#endif
 
         if (IsGfx10Plus(*m_pDevice) &&
             Formats::IsMacroPixelPackedRgbOnly(createInfo.swizzledFormat.format))

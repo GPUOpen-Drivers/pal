@@ -349,6 +349,12 @@ enum class ChNumFormat : Util::uint32
                                         ///  luma and chroma sample are ignored.
     P412                     = 0xB8,    ///< YUV 4:4:4 planar format, with 12 bits per luma and chroma sample.
     X10Y10Z10W2_Float        = 0xB9,    ///< RGBA format with three 10-bit floats (6e4) and a 2-bit unorm as alpha.
+    Y216                     = 0xBA,    ///< YUV 4:2:2 packed, with 16 bits per luma or chroma sample. No alpha.
+    Y210                     = 0xBB,    ///< YUV 4:2:2 packed, with 10 bits per luma or chroma sample. No alpha.
+                                        ///  Same memory layout as @ref ChNumFormat::Y216.
+                                        ///  The lowest 6 bits of each sample are ignored.
+    Y416                     = 0xBC,    ///< YUV 4:4:4 packed, with 16 bits per luma or chroma sample.
+    Y410                     = 0xBD,    ///< YUV 4:4:4 packed, with 10 bits per luma or chroma sample and 2 bits for alpha.
     Count,
 
 };

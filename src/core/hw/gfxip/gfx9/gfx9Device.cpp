@@ -3434,14 +3434,14 @@ uint32 Device::CalcNumRecords(
     //    Bytes if: Buffer SRD is for raw buffer access (which we define as Undefined format and Stride of 1).
     //    Otherwise, in units of "stride".
     // Which can be simplified to divide by stride if the stride is greater than 1
-    uint32 numRecords = static_cast<uint32>(sizeInBytes);
+    uint64 numRecords = sizeInBytes;
 
     if (stride > 1)
     {
         numRecords /= stride;
     }
 
-    return numRecords;
+    return static_cast<uint32>(numRecords);
 }
 
 // =====================================================================================================================
@@ -6769,6 +6769,37 @@ const MergedFormatPropertiesTable* GetFormatPropertiesTable(
 }
 
 // =====================================================================================================================
+// Helper function to determine and set the level of ExecuteIndirect PM4 Support based on PFP uCode Version.
+// Since support for this feature was added incrementally a higher version number means that previous functionality is
+// already supported. For example, we support DrawSpillTable already if FW version says we support DrawSpillAndVbTable.
+static void GetExecuteIndirectSupport(
+    GpuChipProperties* pInfo,
+    const uint32       supportDraw,
+    const uint32       supportDrawSpill,
+    const uint32       supportDrawSpillVb,
+    const uint32       supportDispatch)
+{
+    pInfo->gfx9.executeIndirectSupport = UseExecuteIndirectShaders;
+
+    if (pInfo->pfpUcodeVersion >= supportDispatch)
+    {
+        pInfo->gfx9.executeIndirectSupport = UseExecuteIndirectPacketForDrawDispatch;
+    }
+    else if (pInfo->pfpUcodeVersion >= supportDrawSpillVb)
+    {
+        pInfo->gfx9.executeIndirectSupport = UseExecuteIndirectPacketForDrawSpillAndVbTable;
+    }
+    else if (pInfo->pfpUcodeVersion >= supportDrawSpill)
+    {
+        pInfo->gfx9.executeIndirectSupport = UseExecuteIndirectPacketForDrawSpillTable;
+    }
+    else if (pInfo->pfpUcodeVersion >= supportDraw)
+    {
+        pInfo->gfx9.executeIndirectSupport = UseExecuteIndirectPacketForDraw;
+    }
+}
+
+// =====================================================================================================================
 // Initializes the GPU chip properties for a Device object, specifically for the GFX9 hardware layer. Returns an error
 // if an unsupported chip revision is detected.
 void InitializeGpuChipProperties(
@@ -7084,6 +7115,17 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.support3dUavZRange = 1;
     }
 
+#if PAL_BUILD_NAVI3X
+    // RS64 FW identifier for Gfx11 is PFP uCode Version being greater than 300.
+    constexpr uint32 Rs64VersionStart   = 300;
+#endif
+
+    // FW version where initial ExecuteIndirect PM4 was added with Draw Support on Gfx9.
+    constexpr uint32 PfpUcodeVersionNativeExecuteIndirectGfx9 = 192;
+
+    // Using CmdGeneration Shaders is the default method.
+    pInfo->gfx9.executeIndirectSupport = UseExecuteIndirectShaders;
+
     switch (pInfo->familyId)
     {
     // Gfx 9 APU's (Raven):
@@ -7130,12 +7172,15 @@ void InitializeGpuChipProperties(
             PAL_ASSERT_ALWAYS();
         }
         break;
+
     // Gfx 9 Discrete GPU's (Vega):
     case FAMILY_AI:
         pInfo->gpuType = GpuType::Discrete;
         pInfo->gfx9.numShaderEngines               = 4;
         pInfo->gfx9.maxGsWavesPerVgt               = 32;
         pInfo->gfx9.parameterCacheLines            = 2048;
+
+        GetExecuteIndirectSupport(pInfo, PfpUcodeVersionNativeExecuteIndirectGfx9, UINT_MAX, UINT_MAX, UINT_MAX);
 
         if (ASICREV_IS_VEGA10_P(pInfo->eRevId))
         {
@@ -7322,6 +7367,34 @@ void InitializeGpuChipProperties(
             PAL_ASSERT_ALWAYS();
         }
 
+        if (pInfo->gpuType == GpuType::Discrete)
+        {
+            if (pInfo->gfxLevel == GfxIpLevel::GfxIp10_1)
+            {
+                constexpr uint32 PfpUcodeVersionNativeExecuteIndirectGfx10_1              = 151;
+                constexpr uint32 PfpUcodeVersionSpillTableSupportedExecuteIndirectGfx10_1 = 155;
+                constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectGfx10_1    = 155;
+                GetExecuteIndirectSupport(
+                    pInfo,
+                    PfpUcodeVersionNativeExecuteIndirectGfx10_1,
+                    PfpUcodeVersionSpillTableSupportedExecuteIndirectGfx10_1,
+                    PfpUcodeVersionVbTableSupportedExecuteIndirectGfx10_1,
+                    UINT_MAX);
+            }
+            else if (pInfo->gfxLevel == GfxIpLevel::GfxIp10_3)
+            {
+                constexpr uint32 PfpUcodeVersionNativeExecuteIndirectGfx10_3              = 88;
+                constexpr uint32 PfpUcodeVersionSpillTableSupportedExecuteIndirectGfx10_3 = 91;
+                constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectGfx10_3    = 95;
+                GetExecuteIndirectSupport(
+                    pInfo,
+                    PfpUcodeVersionNativeExecuteIndirectGfx10_3,
+                    PfpUcodeVersionSpillTableSupportedExecuteIndirectGfx10_3,
+                    PfpUcodeVersionVbTableSupportedExecuteIndirectGfx10_3,
+                    UINT_MAX);
+            }
+        }
+
         // The GL2C is the TCC.
         pInfo->gfx9.numTccBlocks = pInfo->gfx9.gfx10.numGl2c;
         break;
@@ -7346,6 +7419,15 @@ void InitializeGpuChipProperties(
             pInfo->gfxip.supportCaptureReplay          = 0;
             pInfo->gfx9.supportInt8Dot                 = 1;
             pInfo->gfx9.supportInt4Dot                 = 1;
+
+            constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectRembrandt = 96;
+
+            GetExecuteIndirectSupport(
+                pInfo,
+                UINT_MAX,
+                UINT_MAX,
+                PfpUcodeVersionVbTableSupportedExecuteIndirectRembrandt,
+                UINT_MAX);
         }
         else
         {
@@ -7367,6 +7449,27 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.supportInt4Dot  = 1;
 
         pInfo->imageProperties.flags.supportsCornerSampling = 1;
+
+        if (pInfo->pfpUcodeVersion >= Rs64VersionStart)
+        {
+            constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectNavi3Rs64 = 413;
+            GetExecuteIndirectSupport(
+                pInfo,
+                UINT_MAX,
+                UINT_MAX,
+                PfpUcodeVersionVbTableSupportedExecuteIndirectNavi3Rs64,
+                UINT_MAX);
+        }
+        else
+        {
+            constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectNavi3F32  = 84;
+            GetExecuteIndirectSupport(
+                pInfo,
+                UINT_MAX,
+                UINT_MAX,
+                PfpUcodeVersionVbTableSupportedExecuteIndirectNavi3F32,
+                UINT_MAX);
+        }
 
         //  Navi3x products don't support EQAA
         pInfo->imageProperties.msaaSupport = static_cast<MsaaFlags>(MsaaS1F1 | MsaaS2F2 | MsaaS4F4 | MsaaS8F8);
@@ -7420,6 +7523,15 @@ void InitializeGpuChipProperties(
             pInfo->gfxip.supportCaptureReplay          = 0;
             pInfo->gfx9.supportInt8Dot                 = 1;
             pInfo->gfx9.supportInt4Dot                 = 1;
+
+            constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectRaphael = 14;
+
+            GetExecuteIndirectSupport(
+                pInfo,
+                UINT_MAX,
+                UINT_MAX,
+                PfpUcodeVersionVbTableSupportedExecuteIndirectRaphael,
+                UINT_MAX);
         }
         else
         {
@@ -7451,6 +7563,15 @@ void InitializeGpuChipProperties(
             pInfo->gfxip.supportCaptureReplay          = 0;
             pInfo->gfx9.supportInt8Dot                 = 1;
             pInfo->gfx9.supportInt4Dot                 = 1;
+
+            constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectMendocino = 6;
+
+            GetExecuteIndirectSupport(
+                pInfo,
+                UINT_MAX,
+                UINT_MAX,
+                PfpUcodeVersionVbTableSupportedExecuteIndirectMendocino,
+                UINT_MAX);
         }
         else
         {

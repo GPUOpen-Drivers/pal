@@ -1897,7 +1897,7 @@
       ]
     },
     {
-      "Description": "This contains the size in bytes that we will allocate for attributes through memory. Maximum value is 16MB for the entire chip. The value will 64KB aligned. This value is in bytes.",
+      "Description": "This contains the size in bytes that we will allocate for attributes through memory. Maximum value is 16MB for the entire chip. The value will 64KB aligned. This value is in bytes. NOTE: If key is not set, default value can vary per ASIC (e.g. Gfx11+ APU default is 512 KiB).",
       "Tags": [
         "Graphics Pipelines"
       ],
@@ -1916,7 +1916,7 @@
       ]
     },
     {
-      "Description": "If true, preamble will start pipeline stats and subsequent pipeline queries will be ignored. If false, preamble will issue PIPELINESTAT_STOP, and a subsequent UniversalCmdBuffer::AddQuery() call with QueryPoolType::PipelineStats will start stats again.",
+      "Description": "If true, preamble will start pipeline stats and subsequent pipeline queries will be ignored. If false, preamble will not issue any pipeline stats, and a subsequent UniversalCmdBuffer::AddQuery() call with QueryPoolType::PipelineStats will start stats again.",
       "Tags": [
         "Graphics Pipelines"
       ],

@@ -399,8 +399,6 @@ namespace DevDriver
             // These are unlikely to ever fail. If they do, it's because of
             //      1) Programmer error on our part here
             //      2) Low memory conditions
-            // #1 should show up before changes here are checked in
-            // #2 is an end-of-the-world scenario, so you have bigger problems.
             //      But the URIServer will still start. Just without an "internal" service.
             //
             // We can't fail in a constructor anyway, so mark these as unhandled.

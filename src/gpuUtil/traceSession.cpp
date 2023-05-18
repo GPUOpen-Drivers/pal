@@ -125,7 +125,7 @@ Result TraceSession::RegisterController(
     {
         if (m_sessionState == TraceSessionState::Ready)
         {
-            m_registerTraceControllerLock.LockForWrite();
+            Util::RWLockAuto<Util::RWLock::ReadWrite> traceControllerLock(&m_registerTraceControllerLock);
 
             bool existed = false;
             ITraceController** ppMapEntry;
@@ -142,8 +142,6 @@ Result TraceSession::RegisterController(
                     *(ppMapEntry) = pController;
                 }
             }
-
-            m_registerTraceControllerLock.UnlockForWrite();
         }
         else
         {
@@ -162,9 +160,8 @@ Result TraceSession::UnregisterController(
 
     if (m_sessionState == TraceSessionState::Ready)
     {
-        m_registerTraceControllerLock.LockForWrite();
+        Util::RWLockAuto<Util::RWLock::ReadWrite> traceControllerLock(&m_registerTraceControllerLock);
         result = m_registeredTraceControllers.Erase(pController->GetName()) ? Result::Success : Result::NotFound;
-        m_registerTraceControllerLock.UnlockForWrite();
     }
     else
     {
@@ -184,7 +181,7 @@ Result TraceSession::RegisterSource(
     {
         if (m_sessionState == TraceSessionState::Ready)
         {
-            m_registerTraceSourceLock.LockForWrite();
+            Util::RWLockAuto<Util::RWLock::ReadWrite> traceSourceLock(&m_registerTraceSourceLock);
 
             bool existed = false;
             ITraceSource** ppMapEntry;
@@ -215,8 +212,6 @@ Result TraceSession::RegisterSource(
 #endif
                 }
             }
-
-            m_registerTraceSourceLock.UnlockForWrite();
         }
         else
         {
@@ -235,9 +230,8 @@ Result TraceSession::UnregisterSource(
 
     if (m_sessionState == TraceSessionState::Ready)
     {
-        m_registerTraceSourceLock.LockForWrite();
+        Util::RWLockAuto<Util::RWLock::ReadWrite> traceSourceLock(&m_registerTraceSourceLock);
         result = m_registeredTraceSources.Erase(pSource->GetName()) ? Result::Success : Result::NotFound;
-        m_registerTraceSourceLock.UnlockForWrite();
     }
     else
     {
@@ -309,6 +303,8 @@ Result TraceSession::UpdateTraceConfig(
 
                     if ((pName != nullptr) && (traceControllerConfig.IsNull() == false))
                     {
+                        Util::RWLockAuto<Util::RWLock::ReadOnly> traceControllerLock(&m_registerTraceControllerLock);
+
                         auto ppController = m_registeredTraceControllers.FindKey(pName);
                         if (ppController != nullptr)
                         {
@@ -326,6 +322,8 @@ Result TraceSession::UpdateTraceConfig(
 
             if (traceSources.IsNull() == false)
             {
+                Util::RWLockAuto<Util::RWLock::ReadWrite> traceSourceLock(&m_registerTraceSourceLock);
+
                 for (uint32 idx = 0; idx < numTraceSources; ++idx)
                 {
                     // Grab the config for each source
@@ -335,16 +333,32 @@ Result TraceSession::UpdateTraceConfig(
 
                     if ((pName != nullptr) && (traceSourceConfig.IsNull() == false))
                     {
+                        // Update source configs if available
+                        GpuUtil::ITraceSource** ppSource = m_registeredTraceSources.FindKey(pName);
+                        if (ppSource != nullptr)
+                        {
+                            if (*ppSource != nullptr)
+                            {
+                                (*ppSource)->OnConfigUpdated(&traceSourceConfig);
+                            }
+                        }
+
                         // Store configs of TraceSources
                         bool existed = false;
                         DevDriver::StructuredValue** ppMapEntry;
                         result = m_traceSourcesConfigs.FindAllocate(pName, &existed, &ppMapEntry);
-
                         if (result == Result::Success)
                         {
-                            // Ensure deallocations when TraceSession is destroyed
-                            *ppMapEntry = PAL_NEW(DevDriver::StructuredValue, m_pPlatform, Util::AllocInternalTemp);
-                            **ppMapEntry = traceSourceConfig;
+                            // don't want to re-allocate memory if the entry already exists
+                            if (existed == false)
+                            {
+                                // Ensure deallocations when TraceSession is destroyed
+                                *ppMapEntry = PAL_NEW(DevDriver::StructuredValue, m_pPlatform, Util::AllocInternalTemp);
+                            }
+                            if (*ppMapEntry != nullptr)
+                            {
+                                **ppMapEntry = traceSourceConfig;
+                            }
                         }
                     }
                 }
@@ -389,15 +403,13 @@ Result TraceSession::AcceptTrace(
 
             if (result == Result::Success)
             {
-                m_registerTraceSourceLock.LockForRead();
+                Util::RWLockAuto<Util::RWLock::ReadOnly> traceSourceLock(&m_registerTraceSourceLock);
 
                 // Notify all trace sources that the trace has been accepted
                 for (auto iter = m_registeredTraceSources.Begin(); iter.Get() != nullptr; iter.Next())
                 {
                     iter.Get()->value->OnTraceAccepted();
                 }
-
-                m_registerTraceSourceLock.UnlockForRead();
             }
         }
         else
@@ -423,15 +435,13 @@ Result TraceSession::BeginTrace()
 
     if (result == Result::Success)
     {
-        m_registerTraceSourceLock.LockForRead();
+        Util::RWLockAuto<Util::RWLock::ReadOnly> traceSourceLock(&m_registerTraceSourceLock);
 
         // Notify all trace sources that the trace has begun
         for (auto iter = m_registeredTraceSources.Begin(); iter.Get() != nullptr; iter.Next())
         {
             iter.Get()->value->OnTraceBegin(gpuIndex, pBeginCmdBuf);
         }
-
-        m_registerTraceSourceLock.UnlockForRead();
     }
 
     return result;
@@ -451,15 +461,13 @@ Result TraceSession::EndTrace()
 
     if (result == Result::Success)
     {
-        m_registerTraceSourceLock.LockForRead();
+        Util::RWLockAuto<Util::RWLock::ReadOnly> traceSourceLock(&m_registerTraceSourceLock);
 
         // Notify all trace sources that the trace has begun
         for (auto iter = m_registeredTraceSources.Begin(); iter.Get() != nullptr; iter.Next())
         {
             iter.Get()->value->OnTraceEnd(gpuIndex, pCmdBuf);
         }
-
-        m_registerTraceSourceLock.UnlockForRead();
     }
 
     return result;
@@ -557,7 +565,7 @@ Result TraceSession::WriteDataChunk(
     currentChunkInfo.pHeader     = info.pHeader;
     memcpy(currentChunkInfo.identifier, info.id, TextIdentifierSize);
 
-    m_chunkAppendLock.LockForWrite();
+    Util::RWLockAuto<Util::RWLock::ReadWrite> chunkAppendLock(&m_chunkAppendLock);
 
     // Append the incoming chunk to the data stream
     if (result == Result::Success)
@@ -569,24 +577,19 @@ Result TraceSession::WriteDataChunk(
                                                                    &m_currentChunkIndex));
     }
 
-    m_chunkAppendLock.UnlockForWrite();
-
     return result;
 }
 
 // =====================================================================================================================
 void TraceSession::FinishTrace()
 {
-
-    m_registerTraceSourceLock.LockForRead();
+    Util::RWLockAuto<Util::RWLock::ReadOnly> traceSourceLock(&m_registerTraceSourceLock);
 
     // Notify all trace sources that the trace has finished
     for (auto iter = m_registeredTraceSources.Begin(); iter.Get() != nullptr; iter.Next())
     {
         iter.Get()->value->OnTraceFinished(); // Writes data into TraceSession
     }
-
-    m_registerTraceSourceLock.UnlockForRead();
 }
 
 }

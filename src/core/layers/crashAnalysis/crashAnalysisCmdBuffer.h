@@ -183,7 +183,7 @@ private:
 
     Device*const   m_pDevice;
     Platform*const m_pPlatform;
-    const uint32   m_cmdBufferId;
+    uint32         m_cmdBufferId;
     uint32         m_markerCounter;
     MemoryChunk*   m_pMemoryChunk;
     EventCache*    m_pEventCache;

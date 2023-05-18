@@ -24,7 +24,7 @@
  #######################################################################################################################
 
 cmake_minimum_required(VERSION 3.13..3.21)
-project(rdf LANGUAGES CXX)
+project(rdf LANGUAGES CXX C)
 
 if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     set(RDF_IS_TOP_LEVEL ON)

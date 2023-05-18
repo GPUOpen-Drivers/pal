@@ -938,6 +938,7 @@ Result GpuMemory::Init(
     const PinnedGpuMemoryCreateInfo& createInfo)
 {
     m_flags.isPinned     = 1;
+    m_flags.isClient     = 1;
     m_flags.nonLocalOnly = 1; // Pinned allocations always go into a non-local heap.
     m_flags.cpuVisible   = 1; // Pinned allocations are by definition CPU visible.
 

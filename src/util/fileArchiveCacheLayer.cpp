@@ -50,7 +50,7 @@ FileArchiveCacheLayer::FileArchiveCacheLayer(
     m_archiveFileMutex {},
     m_hashContextMutex {},
     m_entryMapLock     {},
-    m_entries          { GetHashMapNumBuckets(pArchiveFile), Allocator() }
+    m_entries          { uint32(GetHashMapNumBuckets(pArchiveFile)), Allocator() }
 {
     PAL_ASSERT(m_pArchivefile != nullptr);
     PAL_ASSERT(m_pBaseContext != nullptr);
@@ -64,13 +64,13 @@ FileArchiveCacheLayer::~FileArchiveCacheLayer()
 }
 
 // =====================================================================================================================
-uint32 FileArchiveCacheLayer::GetHashMapNumBuckets(
+size_t FileArchiveCacheLayer::GetHashMapNumBuckets(
     const IArchiveFile* pArchiveFile)
 {
-    constexpr uint32 MinExpectedHeaders = 1024;
-    uint32 numBuckets = MinExpectedHeaders;
+    constexpr size_t MinExpectedHeaders = 1024;
+    size_t numBuckets = MinExpectedHeaders;
 
-    uint32 entryCount = static_cast<uint32>(pArchiveFile->GetEntryCount());
+    const size_t entryCount = pArchiveFile->GetEntryCount();
 
     // Generally, if we're opening a file for read only, we don't expect any more headers to be added.
     // We limit the number of buckets here because many files can be open at a time and we don't want to waste memory.
@@ -241,8 +241,14 @@ Result FileArchiveCacheLayer::StoreInternal(
                 MutexAuto archiveFileLock { &m_archiveFileMutex };
 
                 void* const pDataMem = pMem;
+
+#if PAL_64BIT_ARCHIVE_FILE_FMT
+                header.dataSize      = writeDataSize;
+                header.metaValue     = dataSize;
+#else
                 header.dataSize      = uint32(writeDataSize);
                 header.metaValue     = uint32(dataSize);
+#endif
 
                 memcpy(pDataMem, pData, storeSize);
                 memcpy(header.entryKey, key.value, sizeof(header.entryKey));
@@ -281,14 +287,12 @@ Result FileArchiveCacheLayer::LoadInternal(
 
     Result result = Result::Success;
 
-    if ((pQuery == nullptr) ||
-        (pBuffer == nullptr))
+    if ((pQuery == nullptr) || (pBuffer == nullptr))
     {
         result = Result::ErrorInvalidPointer;
     }
 
-    if ((result == Result::Success) &&
-        (pQuery->pLayer != this))
+    if ((result == Result::Success) && (pQuery->pLayer != this))
     {
         result = Result::ErrorInvalidValue;
     }
@@ -316,7 +320,7 @@ Result FileArchiveCacheLayer::LoadInternal(
     {
         MutexAuto archiveFileLock { &m_archiveFileMutex };
 
-        size_t entryId = static_cast<size_t>(pQuery->context.entryId);
+        size_t entryId = size_t(pQuery->context.entryId);
         result         = m_pArchivefile->GetEntryByIndex(entryId, &header);
     }
 
@@ -327,7 +331,8 @@ Result FileArchiveCacheLayer::LoadInternal(
 
         const size_t readSize      = header.dataSize;
         const size_t dataSize      = header.metaValue;
-        size_t storeSize           = readSize;
+
+        const size_t storeSize     = readSize;
 
         PAL_ASSERT(storeSize == pQuery->storeSize);
 
@@ -419,9 +424,7 @@ Result CreateArchiveFileCacheLayer(
     void*                  pTempContextMem = nullptr;
     const size_t           hashContextSize = GetBaseContextSizeFromCreateInfo(pCreateInfo);
 
-    if ((pCreateInfo == nullptr) ||
-        (pPlacementAddr == nullptr) ||
-        (ppCacheLayer == nullptr))
+    if ((pCreateInfo == nullptr) || (pPlacementAddr == nullptr) || (ppCacheLayer == nullptr))
     {
         result = Result::ErrorInvalidPointer;
     }
@@ -489,10 +492,7 @@ Result FileArchiveCacheLayer::AddHeaderToTable(
 
     // Note in this case the "dataSize" in the file is how much is stored.
     // The *actual* data size, we store as metadata.
-    return m_entries.Insert(key,
-                            {header.ordinalId,
-                             header.metaValue,
-                             header.dataSize});
+    return m_entries.Insert(key, { header.ordinalId, header.metaValue, header.dataSize });
 }
 
 // =====================================================================================================================

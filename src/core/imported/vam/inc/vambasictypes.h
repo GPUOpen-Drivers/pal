@@ -78,7 +78,7 @@
 #define GCC_PACK_STRUCT __attribute__((packed))
 #define GCC_STRUCT_DEFAULT_ALIGN  __attribute__ ((aligned (8)))
 #define GCC_STRUCT_ALIGN(a)  __attribute__ ((aligned (a)))
-#else                                   // #ifdef __GNUC__
+#else
 #define GCC_STRUCT_DEFAULT_ALIGN
 #define GCC_STRUCT_ALIGN(a)
 #define GCC_PACK_STRUCT

@@ -33,7 +33,6 @@
 
 // Turn on all the bells and whistles
 // TODO: We may want to try using SSE2 for improved string parsing performance.
-// #define RAPIDJSON_SSE2
 #define RAPIDJSON_WRITE_DEFAULT_FLAGS (kWriteValidateEncodingFlag | kWriteNanAndInfFlag)
 
 #define RAPIDJSON_ASSERT(x) DD_ASSERT(x)

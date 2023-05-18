@@ -155,40 +155,74 @@ Result MemoryCacheLayer::StoreInternal(
     bool setData = false;
     if (result == Result::Success)
     {
-        Entry** ppFound = nullptr;
-
         RWLockAuto<RWLock::ReadWrite> lock { &m_lock };
 
-        ppFound = m_entryLookup.FindKey(*pHashId);
-
-        if (ppFound != nullptr)
+        bool keepGoing;
+        do
         {
-            if (*ppFound != nullptr)
+            keepGoing = false;
+
+            // Check if this hash is already in the cahce.
+            // If so then we'll delete the existing entry and write a new one.
+            Entry** ppFound = m_entryLookup.FindKey(*pHashId);
+
+            // See if there's a hash collision.
+            if (ppFound != nullptr)
             {
-                if ((*ppFound)->Data() == nullptr)
+                // See if the entry at that collision is valid. If not then something has gone wrong.
+                if (*ppFound != nullptr)
                 {
-                    result = SetDataToEntry(*ppFound, pData, dataSize, storeSize);
-                    if (result == Result::Success)
+                    // See if that entry is empty. If so then that means it was created in PromoteData().
+                    if ((*ppFound)->Data() == nullptr)
                     {
-                        setData = true;
+                        const size_t prevSize = m_curSize;
+
+                        // The entry already exists, but when it was created in PromoteData() we didn't reserve
+                        // space for it because we didn't know how big it would be until now.
+                        result = EnsureAvailableSpace(storeSize, 1);
+
+                        // If we're full and we can't evict then get outta here.
+                        if (result == Result::ErrorShaderCacheFull)
+                        {
+                            PAL_ASSERT(m_curSize == prevSize);
+                            PAL_ASSERT(m_evictOnFull == false);
+                            break;
+                        }
+
+                        // If we deleted any entries, we need to start over. We could've just deleted this entry.
+                        if (m_curSize != prevSize)
+                        {
+                            keepGoing = true;
+                            continue;
+                        }
+
+                        if (result == Result::Success)
+                        {
+                            result = SetDataToEntry(*ppFound, pData, dataSize, storeSize);
+                        }
+                        if (result == Result::Success)
+                        {
+                            setData = true;
+                            m_conditionVariable.WakeAll();
+                        }
+                    }
+                    else if (m_evictDuplicates)
+                    {
+                        result = EvictEntryFromCache(*ppFound);
                         m_conditionVariable.WakeAll();
                     }
-                }
-                else if (m_evictDuplicates)
-                {
-                    result = EvictEntryFromCache(*ppFound);
-                    m_conditionVariable.WakeAll();
+                    else
+                    {
+                        result = Result::AlreadyExists;
+                    }
                 }
                 else
                 {
-                    result = Result::AlreadyExists;
+                    result = Result::ErrorUnknown;
                 }
             }
-            else
-            {
-                result = Result::ErrorUnknown;
-            }
         }
+        while (keepGoing);
     }
 
     if ((result == Result::Success) && (setData == false))

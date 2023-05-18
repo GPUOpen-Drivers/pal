@@ -28,6 +28,7 @@
 #include "palHashMapImpl.h"
 
 #include "ddTransferManager.h"
+#include "ddUriInterface.h"
 #include "protocols/driverControlServer.h"
 
 using namespace Util;

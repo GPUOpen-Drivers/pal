@@ -231,11 +231,6 @@ void CrashAnalysisEventProvider::ReplayEventCache(
                 LogExecutionMarkerEnd(cmdBufferId, markerValue);
                 break;
             }
-            case EventId::CmdBufferReset:
-            {
-                LogCmdBufferReset(cmdBufferId);
-                break;
-            }
             default:
             {
                 PAL_ASSERT_ALWAYS();
@@ -266,26 +261,6 @@ void CrashAnalysisEventProvider::LogCrashDebugMarkerData(
         uint8 eventData[sizeof(CrashDebugMarkerValue)];
         const uint32 eventSize = eventInfo.ToBuffer(eventData);
         WriteEvent(eventId, &eventData, eventSize);
-    }
-}
-
-// =====================================================================================================================
-void CrashAnalysisEventProvider::LogCmdBufferReset(
-    uint32 cmdBufferId)
-{
-    using namespace UmdCrashAnalysisEvents;
-
-    const uint32 eventId = static_cast<uint32>(EventId::CmdBufferReset);
-
-    if (ShouldLog())
-    {
-        CmdBufferReset eventInfo = { };
-        eventInfo.cmdBufferId    = cmdBufferId;
-
-        uint8 eventData[sizeof(CmdBufferReset)];
-        const uint32 eventSize = eventInfo.ToBuffer(eventData);
-
-        WriteEvent(eventId, eventData, eventSize);
     }
 }
 

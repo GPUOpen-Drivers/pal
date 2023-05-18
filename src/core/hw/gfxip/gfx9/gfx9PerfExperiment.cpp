@@ -742,7 +742,12 @@ Result PerfExperiment::AddCounter(
                     m_select.umcch[info.instance].perfmonInUse[idx] = true;
                     m_select.umcch[info.instance].thresholdSet[idx] = false;
                     m_select.umcch[info.instance].perfmonCntl[idx].most.EventSelect = info.eventId;
-                    m_select.umcch[info.instance].perfmonCntl[idx].most.Enable = 1;
+                    m_select.umcch[info.instance].perfmonCntl[idx].most.Enable      = 1;
+
+                    if (IsGfx103Plus(*m_pDevice) && ((info.umc.rdWrMask >= 1) && (info.umc.rdWrMask <= 2)))
+                    {
+                        m_select.umcch[info.instance].perfmonCntl[idx].most.RdWrMask = info.umc.rdWrMask;
+                    }
 
                     if (IsGfx103Plus(*m_pDevice) &&
                         ((info.umc.eventThresholdEn != 0) || (info.umc.eventThreshold != 0)))
@@ -792,7 +797,7 @@ Result PerfExperiment::AddCounter(
                     pSelect->hasCounters                      = true;
                     pSelect->perfmonConfig[idx].perfmonInUse  = true;
                     pSelect->perfmonConfig[idx].eventSelect   = GetMallEventSelect(info.eventId, subInstance);
-                    pSelect->perfmonConfig[idx].eventUnitMask = info.df.eventQualifier & 0xFFff;
+                    pSelect->perfmonConfig[idx].eventUnitMask = info.df.eventQualifier & 0xFFFF;
 
                     mapping.counterId = idx;
                     searching         = false;
@@ -3032,6 +3037,25 @@ uint32* PerfExperiment::WriteSpmSetup(
                                                   mmRLC_SPM_PERFMON_RING_SIZE,
                                                   &rlcInit,
                                                   pCmdSpace);
+#if PAL_BUILD_GFX11
+    // We have to set this register on Navi3X. The HW uses this value as offset. If PAL doesn't zero out this register
+    // than the WRPTR value only continues to grow. This moves the result data further and further into the SPM data
+    // buffer. Originally an undocumented change in the SPM initialization procedure from Navi2X where we don't have to
+    // set this register. The docs have been updated to include this register. Also listed in the new HW documentation
+    // are the RLC_SPM_SEGMENT_THRESHOLD and RLC_SPM_RING_RDPTR registers. PAL is intentionally not setting those
+    // registers because PAL doesn't have SPM stall's or SPM interrupts enabled. The documentation refers to this as
+    // "RING_MODE == 0". If PAL ever trys to enable either one of those features then PAL should set both of those
+    // registers below along with the RLC_SPM_RING_WRPTR. Be aware that in particular setting the RLC_SPM_RING_RDPTR
+    // register requires "privilege" either enabled manually in the CP mircocode or by the KMD.
+    if (IsGfx11(*m_pDevice))
+    {
+        regRLC_SPM_RING_WRPTR rlcSpmRingWrptr = {};
+        rlcSpmRingWrptr.bits.PERFMON_RING_WRPTR = 0;
+        pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx11::mmRLC_SPM_RING_WRPTR,
+                                                     rlcSpmRingWrptr.u32All,
+                                                     pCmdSpace);
+    }
+#endif
 
     // Program the muxsel line sizes. Note that PERFMON_SEGMENT_SIZE only has space for 31 lines per segment.
     regRLC_SPM_PERFMON_SEGMENT_SIZE spmSegmentSize = {};

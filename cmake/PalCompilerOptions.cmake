@@ -43,8 +43,11 @@ function(pal_compiler_options TARGET)
 
     if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
         set(isGNU   TRUE)
+        # Output with color if in terminal: https://github.com/ninja-build/ninja/wiki/FAQ
+        target_compile_options(${TARGET} PRIVATE -fdiagnostics-color=always)
     elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
         set(isClang TRUE)
+        target_compile_options(${TARGET} PRIVATE -fcolor-diagnostics)
     endif()
 
     # Enable Large File Support for 32-bit Linux.

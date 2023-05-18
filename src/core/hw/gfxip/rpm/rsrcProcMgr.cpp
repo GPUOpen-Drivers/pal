@@ -382,12 +382,18 @@ void RsrcProcMgr::CopyImageCs(
     const CopyImageCsInfo& copyImageCsInfo
     ) const
 {
-    const auto&        device          = *m_pDevice->Parent();
-    const auto&        dstCreateInfo   = copyImageCsInfo.pDstImage->GetImageCreateInfo();
-    const auto&        srcCreateInfo   = copyImageCsInfo.pSrcImage->GetImageCreateInfo();
-    const ImageType    imageType       = copyImageCsInfo.pSrcImage->GetGfxImage()->GetOverrideImageType();
-    const DispatchDims threadsPerGroup = copyImageCsInfo.pPipeline->ThreadsPerGroupXyz();
-    const bool         viewMatchDim    = (IsGfx8(device) || IsGfx9(device));
+    const Device&          device        = *m_pDevice->Parent();
+    const ImageCreateInfo& dstCreateInfo = copyImageCsInfo.pDstImage->GetImageCreateInfo();
+    const ImageCreateInfo& srcCreateInfo = copyImageCsInfo.pSrcImage->GetImageCreateInfo();
+    const ImageType        imageType     = copyImageCsInfo.pSrcImage->GetGfxImage()->GetOverrideImageType();
+    const bool             viewMatchDim  = (IsGfx8(device) || IsGfx9(device));
+
+    // If the destination format is srgb and we will be doing format conversion copy then we need the shader to
+    // perform gamma correction. Note: If both src and dst are srgb then we'll do a raw copy and so no need to change
+    // pipelines in that case.
+    const bool isSrgbDst = (TestAnyFlagSet(copyImageCsInfo.flags, CopyFormatConversion) &&
+                            Formats::IsSrgb(dstCreateInfo.swizzledFormat.format)        &&
+                            (Formats::IsSrgb(srcCreateInfo.swizzledFormat.format) == false));
 
     // Save current command buffer state and bind the pipeline.
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
@@ -451,21 +457,11 @@ void RsrcProcMgr::CopyImageCs(
         copyRegion.dstOffset.x  *= texelScale;
         copyRegion.extent.width *= texelScale;
 
-        RpmUtil::CopyImageInfo copyImageInfo    = {};
-        copyImageInfo.srcOffset                 = copyRegion.srcOffset;
-        copyImageInfo.dstOffset                 = copyRegion.dstOffset;
-        copyImageInfo.numSamples                = dstCreateInfo.samples;
-        copyImageInfo.packedMipData.srcMipLevel = copyRegion.srcSubres.mipLevel;
-        copyImageInfo.packedMipData.dstMipLevel = copyRegion.dstSubres.mipLevel;
-        copyImageInfo.copyRegion.width          = copyRegion.extent.width;
-        copyImageInfo.copyRegion.height         = copyRegion.extent.height;
-
         // Create an embedded user-data table and bind it to user data 0. We need image views for the src and dst
         // subresources, as well as some inline constants for the copy offsets and extents.
-        const uint8 numSlots = copyImageCsInfo.isFmaskCopy ? 3 : 2;
+        const uint32 numSlots = copyImageCsInfo.isFmaskCopy ? 3 : 2;
         uint32* pUserData = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
-                                                                   (SrdDwordAlignment() * numSlots +
-                                                                    RpmUtil::CopyImageInfoDwords),
+                                                                   SrdDwordAlignment() * numSlots,
                                                                    SrdDwordAlignment(),
                                                                    PipelineBindPoint::Compute,
                                                                    0);
@@ -535,16 +531,33 @@ void RsrcProcMgr::CopyImageCs(
             fmaskView.arraySize      = copyRegion.numSlices;
 
             m_pDevice->Parent()->CreateFmaskViewSrds(1, &fmaskView, pUserData);
-            pUserData += SrdDwordAlignment();
         }
 
-        // Copy the copy parameters into the embedded user-data space
-        memcpy(pUserData, &copyImageInfo, sizeof(copyImageInfo));
+        // Embed the constant buffer in the remaining fast user-data entries.
+        union
+        {
+            RpmUtil::CopyImageInfo copyImageInfo;
+            uint32                 userData[RpmUtil::CopyImageInfoDwords];
+        } cb;
 
-        // Execute the dispatch, we need one thread per texel.
-        const DispatchDims threads = {copyRegion.extent.width, copyRegion.extent.height, numSlices};
+        cb.copyImageInfo.srcOffset                 = copyRegion.srcOffset;
+        cb.copyImageInfo.dstOffset                 = copyRegion.dstOffset;
+        cb.copyImageInfo.numSamples                = dstCreateInfo.samples;
+        cb.copyImageInfo.packedMipData.srcMipLevel = copyRegion.srcSubres.mipLevel;
+        cb.copyImageInfo.packedMipData.dstMipLevel = copyRegion.dstSubres.mipLevel;
+        cb.copyImageInfo.copyRegion.width          = copyRegion.extent.width;
+        cb.copyImageInfo.copyRegion.height         = copyRegion.extent.height;
+        cb.copyImageInfo.dstIsSrgb                 = isSrgbDst;
 
-        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(threads, threadsPerGroup));
+        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, RpmUtil::CopyImageInfoDwords, cb.userData);
+
+        // Execute the dispatch. All of our copyImage shaders split the copy window into 8x8x1-texel tiles.
+        // Most of them simply define their threadgroup as an 8x8x1 grid and assign one texel to each thread.
+        // Some more advanced shaders use abstract threadgroup layouts which do not map one thread to one texel.
+        constexpr DispatchDims texelsPerGroup = {8, 8, 1};
+        const     DispatchDims texels = {copyRegion.extent.width, copyRegion.extent.height, numSlices};
+
+        pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(texels, texelsPerGroup));
     }
 
     if (copyImageCsInfo.pP2pBltInfoChunks != nullptr)
@@ -606,10 +619,12 @@ const ComputePipeline* RsrcProcMgr::GetCopyImageComputePipeline(
     const bool      isEqaaSrc     = (srcCreateInfo.samples != srcCreateInfo.fragments);
 
     // Get the appropriate pipeline object.
-    const ComputePipeline* pPipeline = nullptr;
+    RpmComputePipeline pipeline   = RpmComputePipeline::Count;
+    bool pipelineHasSrgbCoversion = false;
 
     if (pSrcGfxImage->HasFmaskData())
     {
+        // MSAA copies that use FMask.
         PAL_ASSERT(srcCreateInfo.fragments > 1);
         PAL_ASSERT((srcImage.IsDepthStencilTarget() == false) && (dstImage.IsDepthStencilTarget() == false));
 
@@ -617,7 +632,7 @@ const ComputePipeline* RsrcProcMgr::GetCopyImageComputePipeline(
         // Verify that any "update" operation performed is legal for the source and dest images.
         if (HwlUseOptimizedImageCopy(srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions))
         {
-            pPipeline = GetPipeline(RpmComputePipeline::MsaaFmaskCopyImageOptimized);
+            pipeline = RpmComputePipeline::MsaaFmaskCopyImageOptimized;
             *pIsFmaskCopyOptimized = true;
         }
         else
@@ -630,12 +645,46 @@ const ComputePipeline* RsrcProcMgr::GetCopyImageComputePipeline(
                 PAL_NOT_IMPLEMENTED();
             }
 
-            pPipeline = GetPipeline(RpmComputePipeline::MsaaFmaskCopyImage);
+            pipeline = RpmComputePipeline::MsaaFmaskCopyImage;
         }
 
         *pIsFmaskCopy = true;
     }
-    else
+    else if (srcCreateInfo.fragments > 1)
+    {
+        // MSAA copies that don't use FMask.
+        //
+        // We have two different copy algorithms which read and write the fragments of an 8x8 pixel tile in different
+        // orders. The simple one assigns each thread to a single pixel and iterates over the fragment index; this
+        // works well if the image treats the fragment index like a slice index and stores samples in planes.
+        // The more complex Morton/Z order algorithm assigns sequential threads to sequential fragment indices and
+        // walks the memory requests around the 8x8 pixel tile in Morton/Z order; this works well if the image stores
+        // each pixel's samples sequentially in memory (and also stores tiles in Morton/Z order).
+        const bool useMorton = CopyImageCsUseMsaaMorton(dstImage);
+
+        // The Morton shaders have built-in support for SRGB conversions.
+        pipelineHasSrgbCoversion = useMorton;
+
+        switch (srcCreateInfo.fragments)
+        {
+        case 2:
+            pipeline = useMorton ? RpmComputePipeline::CopyImage2dMorton2x : RpmComputePipeline::CopyImage2dms2x;
+            break;
+
+        case 4:
+            pipeline = useMorton ? RpmComputePipeline::CopyImage2dMorton4x : RpmComputePipeline::CopyImage2dms4x;
+            break;
+
+        case 8:
+            pipeline = useMorton ? RpmComputePipeline::CopyImage2dMorton8x : RpmComputePipeline::CopyImage2dms8x;
+            break;
+
+        default:
+            PAL_ASSERT_ALWAYS();
+            break;
+        };
+    }
+    else if (useMipInSrd)
     {
         // GFX10+: The types declared in the IL source are encoded into the DIM field of the instructions.
         //    DIM determines the max number of texture parameters [S,R,T,Q] to allocate.
@@ -644,44 +693,44 @@ const ComputePipeline* RsrcProcMgr::GetCopyImageComputePipeline(
         //        [Q] TA's interpretation of Q depends on DIM. MIP unless DIM is MSAA
         //    Image Copies with a Q component need their own copy shaders.
         //    Simpler copies (non-msaa, non-mip) can all share a single 3-dimensional (2d array) copy shader.
-        switch (srcCreateInfo.fragments)
-        {
-        case 2:
-            pPipeline = GetPipeline(RpmComputePipeline::CopyImage2dms2x);
-            break;
-
-        case 4:
-            pPipeline = GetPipeline(RpmComputePipeline::CopyImage2dms4x);
-            break;
-
-        case 8:
-            pPipeline = GetPipeline(RpmComputePipeline::CopyImage2dms8x);
-            break;
-
-        default:
-            if (useMipInSrd)
-            {
-                pPipeline = GetPipeline(RpmComputePipeline::CopyImage2d);
-            }
-            else
-            {
-                pPipeline = GetPipeline(RpmComputePipeline::CopyImage2dShaderMipLevel);
-            }
-            break;
-        }
+        pipeline = RpmComputePipeline::CopyImage2d;
+    }
+    else
+    {
+        pipeline = RpmComputePipeline::CopyImage2dShaderMipLevel;
     }
 
-    const bool isSrgbDst = (Formats::IsSrgb(dstCreateInfo.swizzledFormat.format) &&
-                            (Formats::IsSrgb(srcCreateInfo.swizzledFormat.format) == false));
     // If the destination format is srgb and we will be doing format conversion copy then we need to use the pipeline
     // that will properly perform gamma correction. Note: If both src and dst are srgb then we'll do a raw copy and so
     // no need to change pipelines in that case.
-    if (isSrgbDst && TestAnyFlagSet(flags, CopyFormatConversion))
+    const bool needSrgbConversion = (TestAnyFlagSet(flags, CopyFormatConversion) &&
+                                     Formats::IsSrgb(dstCreateInfo.swizzledFormat.format) &&
+                                     (Formats::IsSrgb(srcCreateInfo.swizzledFormat.format) == false));
+
+    if (needSrgbConversion && (pipelineHasSrgbCoversion == false))
     {
-        pPipeline = GetPipeline(RpmComputePipeline::CopyImageGammaCorrect2d);
+        pipeline = RpmComputePipeline::CopyImageGammaCorrect2d;
+
+        // We need to clear these out just in case we went down the FMask path above. This fallback shader has no
+        // FMask acceleration support so we need to fully decompress/expand the color information.
+        *pIsFmaskCopy          = false;
+        *pIsFmaskCopyOptimized = false;
     }
 
-    return pPipeline;
+    return GetPipeline(pipeline);
+}
+
+// =====================================================================================================================
+// Gives the hardare layers some influence over GetCopyImageComputePipeline.
+bool RsrcProcMgr::CopyImageCsUseMsaaMorton(
+    const Image& dstImage
+    ) const
+{
+    // Our HW has stored depth/stencil samples sequentially for many generations and gfx10+ explicitly stores pixels
+    // within a micro-tile in Morton/Z order. The Morton shaders were written with gfx10 in mind but performance
+    // profiling showed they help on all GPUs. This makes sense as reading and writing samples sequentially is the
+    // primary benefit to using the Morton path over the old path (Morton is just a snazzier name than Sequential).
+    return dstImage.IsDepthStencilTarget();
 }
 
 // =====================================================================================================================
@@ -1194,6 +1243,10 @@ void RsrcProcMgr::CopyBetweenMemoryAndImageCs(
             copyData[2] = imgCreateInfo.samples;
         }
 
+        // User-data entry 0 is for the per-dispatch user-data table pointer. Embed the unchanging constant buffer
+        // in the fast user-data entries after that table.
+        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, ArrayLen32(copyData), copyData);
+
         const uint32 firstMipLevel  = copyRegion.imageSubres.mipLevel;
         const uint32 lastArraySlice = copyRegion.imageSubres.arraySlice + copyRegion.numSlices - 1;
 
@@ -1234,14 +1287,12 @@ void RsrcProcMgr::CopyBetweenMemoryAndImageCs(
         {
             copyRegion.imageSubres.mipLevel = firstMipLevel;
 
-            // Create an embedded user-data table to contain the Image SRD's and the copy data constants.
-            // It will be bound to entry 0.
-            const uint32 DataDwords = NumBytesToNumDwords(sizeof(copyData));
-            uint32*      pUserData  = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
-                                                                             SrdDwordAlignment() * 2 + DataDwords,
-                                                                             SrdDwordAlignment(),
-                                                                             PipelineBindPoint::Compute,
-                                                                             0);
+            // Create an embedded user-data table to contain the Image SRD's. It will be bound to entry 0.
+            uint32* pUserData = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
+                                                                       SrdDwordAlignment() * 2,
+                                                                       SrdDwordAlignment(),
+                                                                       PipelineBindPoint::Compute,
+                                                                       0);
 
             device.CreateTypedBufferViewSrds(1, &bufferView, pUserData);
             pUserData += SrdDwordAlignment();
@@ -1270,11 +1321,7 @@ void RsrcProcMgr::CopyBetweenMemoryAndImageCs(
                 fmaskView.arraySize      = copyRegion.numSlices;
 
                 m_pDevice->Parent()->CreateFmaskViewSrds(1, &fmaskView, pUserData);
-                pUserData += SrdDwordAlignment();
             }
-
-            // Copy the copy data into the embedded user data memory.
-            memcpy(pUserData, &copyData[0], sizeof(copyData));
 
             // Execute the dispatch, we need one thread per texel.
             const DispatchDims threads = {bufferBox.width, bufferBox.height, bufferBox.depth};
@@ -1418,10 +1465,9 @@ void RsrcProcMgr::CmdCopyTypedBuffer(
             pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
         }
 
-        // Create an embedded user-data table and bind it to user data 0. We need buffer views for the src and dst
-        // subresources, as well as some inline constants for our inline constant user data.
+        // Create an embedded user-data table and bind it to user data 0. We need buffer views for the src and dst.
         uint32* pUserDataTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
-                                                                        SrdDwordAlignment() * 2 + numUserData,
+                                                                        SrdDwordAlignment() * 2,
                                                                         SrdDwordAlignment(),
                                                                         PipelineBindPoint::Compute,
                                                                         0);
@@ -1443,10 +1489,9 @@ void RsrcProcMgr::CmdCopyTypedBuffer(
         bufferView.range          = ComputeTypedBufferRange(copyExtent, rawBpp, srcInfo.rowPitch, srcInfo.depthPitch);
 
         device.CreateTypedBufferViewSrds(1, &bufferView, pUserDataTable);
-        pUserDataTable += SrdDwordAlignment();
 
-        // Copy the copy parameters into the embedded user-data space.
-        memcpy(pUserDataTable, userData, numUserData * sizeof(uint32));
+        // Embed the constant buffer in the remaining fast user-data entries.
+        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, numUserData, userData);
 
         // Execute the dispatch, we need one thread per texel.
         const DispatchDims threads = {copyExtent.width, copyExtent.height, copyExtent.depth};
@@ -3264,7 +3309,7 @@ void RsrcProcMgr::SlowClearCompute(
     pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
     pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
 
-    // Pack the clear color into the raw format and write it to user data 2-5.
+    // Pack the clear color into the raw format and write it to user data 1-4.
     uint32 packedColor[4] = {0};
 
     uint32 convertedColor[4] = {0};
@@ -3295,6 +3340,9 @@ void RsrcProcMgr::SlowClearCompute(
         Formats::PackRawClearColor(baseFormat, &swizzledColor[0], &packedColor[0]);
     }
 
+    // The color is constant for all dispatches so we can embed it in the fast user-data right now.
+    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, ArrayLen32(packedColor), packedColor);
+
     // Split the clear range into sections with constant mip/array levels and loop over them.
     SubresRange  singleMipRange = { clearRange.startSubres, 1, 1, clearRange.numSlices };
     const uint32 firstMipLevel  = clearRange.startSubres.mipLevel;
@@ -3314,19 +3362,7 @@ void RsrcProcMgr::SlowClearCompute(
     // Boxes are only meaningful if we're clearing a single mip.
     PAL_ASSERT((hasBoxes == false) || ((pBoxes != nullptr) && (clearRange.numMips == 1)));
 
-    // The user data will contain:
-    //   [ 0 :  3] Clear color
-    //   [ 4 : 10] Offset and extent
-    uint32 userData[11] =
-    {
-        packedColor[0],
-        packedColor[1],
-        packedColor[2],
-        packedColor[3],
-        0, 0, 0, 0, 0, 0, 0
-    };
-
-    const auto& device  = *m_pDevice->Parent();
+    const Device& device = *m_pDevice->Parent();
 
     for (;
          singleMipRange.startSubres.arraySlice <= lastArraySlice;
@@ -3338,9 +3374,13 @@ void RsrcProcMgr::SlowClearCompute(
             const auto& subResInfo = *dstImage.SubresourceInfo(singleMipRange.startSubres);
 
             // Create an embedded SRD table and bind it to user data 0. We only need a single image view.
-            // Populate the table with an image view and the embedded user data. The view should cover this
-            // mip's clear range and use a raw format.
-            const uint32 DataDwords = NumBytesToNumDwords(sizeof(userData));
+            uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
+                                                                       SrdDwordAlignment(),
+                                                                       SrdDwordAlignment(),
+                                                                       PipelineBindPoint::Compute,
+                                                                       0);
+
+            // The view should cover this mip's clear range and use a raw format.
             ImageViewInfo imageView = {};
             PAL_ASSERT(dstImage.GetGfxImage()->ShaderWriteIncompatibleWithLayout(
                        singleMipRange.startSubres, dstImageLayout) == false);
@@ -3352,22 +3392,14 @@ void RsrcProcMgr::SlowClearCompute(
                                         device.TexOptLevel(),
                                         true);
 
+            device.CreateImageViewSrds(1, &imageView, pSrdTable);
+
             // The default clear box is the entire subresource. This will be changed per-dispatch if boxes are enabled.
             Extent3d clearExtent = subResInfo.extentTexels;
             Offset3d clearOffset = {};
 
             for (uint32 i = 0; i < dispatchCount; i++)
             {
-                uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(
-                    pCmdBuffer,
-                    SrdDwordAlignment() + DataDwords,
-                    SrdDwordAlignment(),
-                    PipelineBindPoint::Compute,
-                    0);
-
-                device.CreateImageViewSrds(1, &imageView, pSrdTable);
-                pSrdTable += SrdDwordAlignment();
-
                 if (hasBoxes)
                 {
                     clearExtent = pBoxes[i].extent;
@@ -3380,17 +3412,22 @@ void RsrcProcMgr::SlowClearCompute(
                     clearOffset.x     >>= texelShift;
                 }
 
-                // Compute the minimum number of threads to dispatch. Note that only 2D images can have multiple
-                // samples and 3D images cannot have multiple slices.
+                // Compute the minimum number of threads to dispatch and fill out the per-dispatch constants.
+                // Note that only 2D images can have multiple samples and 3D images cannot have multiple slices.
                 DispatchDims threads = { clearExtent.width, 1, 1 };
+
+                // The remaining virtual user-data contains a 2D offset followed by a 3D extent.
+                uint32 userData[7] = {};
+                uint32 numUserData = 0;
 
                 switch (imageType)
                 {
                 case ImageType::Tex1d:
                     // For 1d the shader expects the x offset, an unused dword, then the clear width.
                     // ClearImage1D:dcl_num_thread_per_group 64, 1, 1, Y and Z direction threads are 1
-                    userData[4] = clearOffset.x;
-                    userData[6] = clearExtent.width;
+                    userData[0] = clearOffset.x;
+                    userData[2] = clearExtent.width;
+                    numUserData = 3;
 
                     // 1D images can only have a single-sample, but they can have multiple slices.
                     threads.z = singleMipRange.numSlices;
@@ -3401,10 +3438,11 @@ void RsrcProcMgr::SlowClearCompute(
                     threads.z = singleMipRange.numSlices * createInfo.samples;
 
                     // For 2d the shader expects x offset, y offset, clear width then clear height.
-                    userData[4] = clearOffset.x;
-                    userData[5] = clearOffset.y;
-                    userData[6] = clearExtent.width;
-                    userData[7] = clearExtent.height;
+                    userData[0] = clearOffset.x;
+                    userData[1] = clearOffset.y;
+                    userData[2] = clearExtent.width;
+                    userData[3] = clearExtent.height;
+                    numUserData = 4;
                     break;
 
                 default:
@@ -3413,18 +3451,19 @@ void RsrcProcMgr::SlowClearCompute(
                     threads.z = clearExtent.depth;
 
                     // For 3d the shader expects x, y z offsets, an unused dword then the width, height and depth.
-                    userData[4]  = clearOffset.x;
-                    userData[5]  = clearOffset.y;
-                    userData[6]  = clearOffset.z;
+                    userData[0] = clearOffset.x;
+                    userData[1] = clearOffset.y;
+                    userData[2] = clearOffset.z;
 
-                    userData[8]  = clearExtent.width;
-                    userData[9]  = clearExtent.height;
-                    userData[10] = clearExtent.depth;
+                    userData[4] = clearExtent.width;
+                    userData[5] = clearExtent.height;
+                    userData[6] = clearExtent.depth;
+                    numUserData = 7;
                     break;
                 }
 
-                // Copy the user-data values into the descriptor table memory.
-                memcpy(pSrdTable, &userData[0], sizeof(userData));
+                // Embed these constants in the remaining fast user-data entries (after the packedColor).
+                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 5, numUserData, userData);
 
                 pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(threads, threadsPerGroup));
             }
@@ -3498,9 +3537,10 @@ void RsrcProcMgr::CmdClearColorBuffer(
     Formats::PackRawClearColor(bufferFormat, &convertedColor[0], &packedColor[0]);
 
     // This is the raw format that we will be writing.
-    uint32 texelScale = 0;
-    const SwizzledFormat rawFormat = RpmUtil::GetRawFormat(bufferFormat.format, &texelScale, nullptr);
-    const uint32         bpp = Formats::BytesPerPixel(rawFormat.format);
+    uint32               texelScale    = 0;
+    const SwizzledFormat rawFormat     = RpmUtil::GetRawFormat(bufferFormat.format, &texelScale, nullptr);
+    const uint32         bpp           = Formats::BytesPerPixel(rawFormat.format);
+    const bool           texelScaleOne = (texelScale == 1);
 
     // Get the appropriate pipeline.
     const auto*const pPipeline = GetPipeline(RpmComputePipeline::ClearBuffer);
@@ -3512,65 +3552,58 @@ void RsrcProcMgr::CmdClearColorBuffer(
 
     // some formats (notably RGB32) require multiple passes, e.g. we cannot write 12b texels (see RpmUtil::GetRawFormat)
     // for all other formats this loop will run a single iteration
+    // This is pretty confusing, maybe we should have a separate TexelScale version like the clearImage shaders.
     for (uint32 channel = 0; channel < texelScale; channel++)
     {
+        // Create an embedded SRD table and bind it to user data 0. We only need a single buffer view.
+        uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
+                                                                   SrdDwordAlignment(),
+                                                                   SrdDwordAlignment(),
+                                                                   PipelineBindPoint::Compute,
+                                                                   0);
+
         // Build an SRD we can use to write to any texel within the buffer using our raw format.
         BufferViewInfo dstViewInfo = {};
-        dstViewInfo.gpuAddr        = dstGpuMemory.Desc().gpuVirtAddr + (texelScale == 1 ? bpp : 1) * (bufferOffset) + channel * bpp;
+        dstViewInfo.gpuAddr        = dstGpuMemory.Desc().gpuVirtAddr +
+                                     (texelScaleOne ? bpp : 1) * (bufferOffset) + channel * bpp;
         dstViewInfo.range          = bpp * texelScale * bufferExtent;
         dstViewInfo.stride         = bpp * texelScale;
-        dstViewInfo.swizzledFormat = texelScale == 1 ? rawFormat : UndefinedSwizzledFormat;
+        dstViewInfo.swizzledFormat = texelScaleOne ? rawFormat : UndefinedSwizzledFormat;
         dstViewInfo.flags.bypassMallRead  = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
                                                            RpmViewsBypassMallOnRead);
         dstViewInfo.flags.bypassMallWrite = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
                                                            RpmViewsBypassMallOnWrite);
 
-        uint32 dstSrd[4] = {0};
-        PAL_ASSERT(m_pDevice->Parent()->ChipProperties().srdSizes.bufferView == sizeof(dstSrd));
-
-        if (texelScale == 1)
+        if (texelScaleOne)
         {
-            m_pDevice->Parent()->CreateTypedBufferViewSrds(1, &dstViewInfo, dstSrd);
+            m_pDevice->Parent()->CreateTypedBufferViewSrds(1, &dstViewInfo, pSrdTable);
         }
         else
         {
             // we have to use non-standard stride, which is incompatible with TypedBufferViewSrd contract
-            m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &dstViewInfo, dstSrd);
+            m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &dstViewInfo, pSrdTable);
         }
 
-        // We will do a dispatch for every range. If no ranges are specified then we will do a single full buffer dispatch.
-        const Range defaultRange = { 0, bufferExtent };
+        // Embed the constants in the remaining fast user-data entries. The clear color is constant over all ranges
+        // so we can set it here. Note we need to only write one channel at a time if texelScale != 1.
+        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1,
+                                   texelScaleOne ? PackedColorDwords : 1, packedColor + channel);
 
+        // We will do a dispatch for every range. If no ranges are given then we will do a single full buffer dispatch.
+        const Range  defaultRange    = { 0, bufferExtent };
         const bool   hasRanges       = (rangeCount > 0);
         const uint32 dispatchCount   = hasRanges ? rangeCount : 1;
         const Range* pDispatchRanges = hasRanges ? pRanges    : &defaultRange;
 
         for (uint32 i = 0; i < dispatchCount; i++)
         {
-            // Create an embedded SRD table and bind it to user data 0-1. We only need a single buffer view.
-            // Populate the table with a buffer view and the necessary embedded user data (clear color, offset, and extent).
-            constexpr uint32 DataDwords = PackedColorDwords + 2;
-            uint32*          pSrdTable  = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
-                                                                                 SrdDwordAlignment() + DataDwords,
-                                                                                 SrdDwordAlignment(),
-                                                                                 PipelineBindPoint::Compute,
-                                                                                 0);
-
-            // Copy in the raw buffer view.
-            memcpy(pSrdTable, dstSrd, sizeof(dstSrd));
-            pSrdTable += SrdDwordAlignment();
-
-            // Copy in the packed clear color.
-            memcpy(pSrdTable, packedColor + channel, sizeof(packedColor) - channel * sizeof(uint32));
-            pSrdTable += PackedColorDwords;
-
-            // The final two entries in the table are the range offset and range extent.
-            pSrdTable[0] = pDispatchRanges[i].offset;
-            pSrdTable[1] = pDispatchRanges[i].extent;
-
             // Verify that the range is contained within the view.
             PAL_ASSERT((pDispatchRanges[i].offset >= 0) &&
                        (pDispatchRanges[i].offset + pDispatchRanges[i].extent <= bufferExtent));
+
+            // The final two constant buffer entries are the range offset and range extent.
+            const uint32 userData[2] = { static_cast<uint32>(pDispatchRanges[i].offset), pDispatchRanges[i].extent };
+            pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1 + PackedColorDwords, 2, userData);
 
             // Execute the dispatch.
             const uint32 numThreadGroups = RpmUtil::MinThreadGroups(pDispatchRanges[i].extent, threadsPerGroup);
@@ -3859,24 +3892,35 @@ void RsrcProcMgr::ResolveImageCompute(
             PAL_ASSERT(Formats::IsUndefined(dstFormat.format) == false);
         }
 
-        // Store the necessary region independent user data values in slots 1-4. Shader expects the following layout:
-        // 1 - Num Samples
-        // 2 - Gamma correction option (1 if the destination format is SRGB, 0 otherwise)
-        // 3 - Copy sample 0 (single sample) flag. (1 for integer formats, 0 otherwise). For DS images this flag
-        //     is 1 if resolve mode is set as average.
-        // 4 - Y-invert
-        const uint32 imageData[4] =
+        // All resolve shaders use a 10-dword constant buffer with this layout:
+        // cb0[0] = (source X offset, source Y offset, resolve width, resolve height)
+        // cb0[1] = (dest X offset, dest Y offset)
+        // cb0[2] = (sample count, gamma correction option, copy single sample flag, y invert flag)
+        //
+        // Gamma correction should only be enabled if the destination format is SRGB. Copy single sample should only
+        // be used for integer formats or for DS images in average mode.
+        //
+        // Everything could fit in 8 DWORDs if someone wants to rewrite the constant logic in all 32 resolve shaders.
+        const bool isDepthOrStencil = (srcImage.IsDepthPlane(pRegions[idx].srcPlane) ||
+                                       srcImage.IsStencilPlane(pRegions[idx].srcPlane));
+
+        const uint32 userData[10] =
         {
+            static_cast<uint32>(pRegions[idx].srcOffset.x),
+            static_cast<uint32>(pRegions[idx].srcOffset.y),
+            pRegions[idx].extent.width,
+            pRegions[idx].extent.height,
+            static_cast<uint32>(pRegions[idx].dstOffset.x),
+            static_cast<uint32>(pRegions[idx].dstOffset.y),
             srcImage.GetImageCreateInfo().samples,
             Formats::IsSrgb(dstFormat.format),
-            ((srcImage.IsDepthPlane(pRegions[idx].srcPlane) ||
-              srcImage.IsStencilPlane(pRegions[idx].srcPlane)) ? (resolveMode == ResolveMode::Average)
-                                                                : (Formats::IsSint(srcFormat.format) ||
-                                                                   Formats::IsUint(srcFormat.format))),
-            TestAnyFlagSet(flags, ImageResolveInvertY),
+            (isDepthOrStencil ? (resolveMode == ResolveMode::Average)
+                              : (Formats::IsSint(srcFormat.format) || Formats::IsUint(srcFormat.format))),
+            TestAnyFlagSet(flags, ImageResolveInvertY)
         };
 
-        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, 4, &imageData[0]);
+        // Embed the constant buffer in user-data right after the SRD table.
+        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, ArrayLen32(userData), userData);
 
         // The hardware can't handle UAV stores using SRGB num format.  The resolve shaders already contain a
         // linear-to-gamma conversion, but in order for that to work the output UAV's num format must be patched to be
@@ -3886,28 +3930,13 @@ void RsrcProcMgr::ResolveImageCompute(
             dstFormat.format = Formats::ConvertToUnorm(dstFormat.format);
         }
 
-        // The shader expects the following layout for the embedded user-data constants.
-        // Src Offset X, Src Y offset, Resolve width, Resolve height
-        // Dst Offset X, Dst Y offset
-
-        const uint32 regionData[6] =
-        {
-            static_cast<uint32>(pRegions[idx].srcOffset.x),
-            static_cast<uint32>(pRegions[idx].srcOffset.y),
-            pRegions[idx].extent.width,
-            pRegions[idx].extent.height,
-            static_cast<uint32>(pRegions[idx].dstOffset.x),
-            static_cast<uint32>(pRegions[idx].dstOffset.y)
-        };
-
         // Create an embedded user-data table and bind it to user data 0. We need image views for the src and dst
-        // subresources, as well as some inline constants for the resolve offsets and extents.
-        const uint32 DataDwords = NumBytesToNumDwords(sizeof(regionData));
-        uint32*      pUserData  = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
-                                                                         SrdDwordAlignment() * numSlots + DataDwords,
-                                                                         SrdDwordAlignment(),
-                                                                         PipelineBindPoint::Compute,
-                                                                         0);
+        // subresources and in some cases an fmask image view.
+        uint32* pUserData = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
+                                                                   SrdDwordAlignment() * numSlots,
+                                                                   SrdDwordAlignment(),
+                                                                   PipelineBindPoint::Compute,
+                                                                   0);
 
         ImageViewInfo imageView[2] = {};
         SubresRange   viewRange = { dstSubres, 1, 1, pRegions[idx].numSlices };
@@ -3948,11 +3977,7 @@ void RsrcProcMgr::ResolveImageCompute(
             fmaskView.arraySize      = pRegions[idx].numSlices;
 
             m_pDevice->Parent()->CreateFmaskViewSrds(1, &fmaskView, pUserData);
-            pUserData += SrdDwordAlignment();
         }
-
-        // Copy the user-data values into the descriptor table memory
-        memcpy(pUserData, &regionData[0], sizeof(regionData));
 
         // Execute the dispatch. Resolves can only be done on 2D images so the Z dimension of the dispatch is always 1.
         const DispatchDims threads = {pRegions[idx].extent.width, pRegions[idx].extent.height, pRegions[idx].numSlices};

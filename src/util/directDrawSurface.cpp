@@ -1128,6 +1128,26 @@ Result GetDdsPixelFormat(
                 result = Result::Unsupported;
                 break;
             }
+            case Pal::ChNumFormat::Y216:
+            {
+                result = Result::Unsupported;
+                break;
+            }
+            case  Pal::ChNumFormat::Y210:
+            {
+                result = Result::Unsupported;
+                break;
+            }
+            case Pal::ChNumFormat::Y416:
+            {
+                result = Result::Unsupported;
+                break;
+            }
+            case Pal::ChNumFormat::Y410:
+            {
+                result = Result::Unsupported;
+                break;
+            }
             case Pal::ChNumFormat::Count:
             {
                 result = Result::Unsupported;
@@ -1140,7 +1160,7 @@ Result GetDdsPixelFormat(
             }
         }
 
-        static_assert(static_cast<uint32>(Pal::ChNumFormat::Count) == 0xBA,
+        static_assert(static_cast<uint32>(Pal::ChNumFormat::Count) == 0xBE,
                       "Format table needs updating!");
 
 #if !DXGI_FORMAT_DEFINED

@@ -76,19 +76,24 @@ void CopyChunks(rdf::ChunkFile& cf, rdf::ChunkFileWriter& output, const bool com
         const auto version = cf.GetChunkVersion(id, index);
 
         const auto chunkHeaderSize = cf.GetChunkHeaderSize(id, index);
-        headerBuffer.resize(chunkHeaderSize);
-        cf.ReadChunkHeaderToBuffer(id, index, headerBuffer.data());
+        if (chunkHeaderSize > 0) {
+            headerBuffer.resize(chunkHeaderSize);
+            cf.ReadChunkHeaderToBuffer(id, index, headerBuffer.data());
+        }
 
         const auto chunkDataSize = cf.GetChunkDataSize(id, index);
-        dataBuffer.resize(chunkDataSize);
-        cf.ReadChunkDataToBuffer(id, index, dataBuffer.data());
+        if (chunkDataSize > 0) {
+            dataBuffer.resize(chunkDataSize);
+            cf.ReadChunkDataToBuffer(id, index, dataBuffer.data());
+        }
 
         output.WriteChunk(id,
                           chunkHeaderSize,
                           headerBuffer.data(),
                           dataBuffer.size(),
                           dataBuffer.data(),
-                          compress ? rdfCompressionZstd : rdfCompressionNone);
+                          compress ? rdfCompressionZstd : rdfCompressionNone,
+                          version);
 
         it.Advance();
     }
@@ -118,7 +123,7 @@ int MergeChunkFiles(const std::string& input1,
         return 1;
     }
 
-    rdf::Stream outputFile = rdf::Stream::OpenFile(output.c_str());
+    rdf::Stream outputFile = rdf::Stream::CreateFile(output.c_str());
     rdf::ChunkFileWriter chunkFileWriter(outputFile);
 
     CopyChunks(chunkFile1, chunkFileWriter, compress);

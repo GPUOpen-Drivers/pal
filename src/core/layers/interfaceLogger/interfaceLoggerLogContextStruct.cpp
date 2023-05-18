@@ -837,6 +837,18 @@ void LogContext::Struct(
     }
 #endif
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 795
+    if (value.noFlip)
+    {
+        Value("noFlip");
+    }
+
+    if (value.frameGenIndex)
+    {
+        Value("frameGenIndex");
+    }
+#endif
+
     EndList();
     KeyAndObject("primaryMemory", value.pPrimaryMemory);
 
@@ -1095,10 +1107,28 @@ void LogContext::Struct(
         Value("shared");
     }
 
-    static_assert(CheckReservedBits<decltype(value.usageFlags)>(32, 28), "Update interfaceLogger!");
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 795
+    if (value.usageFlags.frameGenRatio)
+    {
+        Value("frameGenRatio");
+    }
+
+    if (value.usageFlags.paceGeneratedFrame)
+    {
+        Value("paceGeneratedFrame");
+    }
+#endif
+
+    static_assert(CheckReservedBits<decltype(value.usageFlags)>(32, 23), "Update interfaceLogger!");
     EndList();
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 795
     KeyAndValue("hPreFlipEvent", value.hPreFlipEvent);
+#else
+    KeyAndValue("hNewFrameEvent", value.hNewFrameEvent);
+
+    KeyAndValue("hFatalErrorEvent", value.hFatalErrorEvent);
+#endif
 
     EndMap();
 }
@@ -1210,6 +1240,7 @@ void LogContext::Struct(
     KeyAndValue("perpLineEndCapsEnable",   value.perpLineEndCapsEnable);
     KeyAndValue("rasterizerDiscardEnable", value.rasterizerDiscardEnable);
     KeyAndValue("dualSourceBlendEnable",   value.dualSourceBlendEnable);
+    KeyAndValue("vertexBufferCount",       value.vertexBufferCount);
 
     KeyAndBeginList("enable", true);
     if (value.enable.depthClampMode)
@@ -1253,10 +1284,14 @@ void LogContext::Struct(
     {
         Value("rasterizerDiscardEnable");
     }
+    if (value.enable.vertexBufferCount)
+    {
+        Value("vertexBufferCount");
+    }
     EndList();
     static_assert(sizeof(DynamicGraphicsState) == 24, "Update interfaceLogger!");
-    static_assert(CheckReservedBits<DynamicGraphicsState>(192, 25), "Update interfaceLogger!");
-    static_assert(CheckReservedBits<decltype(value.enable)>(32, 22), "Update interfaceLogger!");
+    static_assert(CheckReservedBits<DynamicGraphicsState>(192, 19), "Update interfaceLogger!");
+    static_assert(CheckReservedBits<decltype(value.enable)>(32, 21), "Update interfaceLogger!");
     EndMap();
 }
 
@@ -2698,6 +2733,13 @@ void LogContext::Struct(
     KeyAndObject("swapChain", value.pSwapChain);
     KeyAndValue("imageIndex", value.imageIndex);
     KeyAndBeginList("flags", true);
+
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 794
+    if (value.flags.turboSyncEnabled)
+    {
+        Value("turboSyncEnabled");
+    }
+#endif
 
     if (value.flags.notifyOnly)
     {

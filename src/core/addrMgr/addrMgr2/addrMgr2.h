@@ -492,6 +492,8 @@ private:
         SubResourceInfo* pSubResInfo,
         AddrSwizzleMode  swizzleMode) const;
 
+    uint32 GetNoXorStatus(const Image* pImage) const;
+
     PAL_DISALLOW_DEFAULT_CTOR(AddrMgr2);
     PAL_DISALLOW_COPY_AND_ASSIGN(AddrMgr2);
 

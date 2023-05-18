@@ -136,7 +136,8 @@ Platform::Platform(
     m_logCb(),
     m_gpuMemoryEventProvider(this),
     m_crashAnalysisEventProvider(this),
-    m_enabledCallbackTypesMask(Developer::DefaultEnabledCallbackTypes)
+    m_enabledCallbackTypesMask(Developer::DefaultEnabledCallbackTypes),
+    m_subAllocTrackingEnabled(false)
 {
     memset(&m_pDevice[0], 0, sizeof(m_pDevice));
     memset(&m_properties, 0, sizeof(m_properties));
@@ -1092,6 +1093,12 @@ void Platform::DeveloperCb(
 void Platform::SetEnabledCallbackTypes(uint32 enabledCallbackTypesMask)
 {
     m_enabledCallbackTypesMask = enabledCallbackTypesMask;
+
+    if (BitfieldIsSet(m_enabledCallbackTypesMask, static_cast<uint32>(Developer::CallbackType::SubAllocGpuMemory)) &&
+        BitfieldIsSet(m_enabledCallbackTypesMask, static_cast<uint32>(Developer::CallbackType::SubFreeGpuMemory)))
+    {
+        m_subAllocTrackingEnabled = true;
+    }
 }
 
 // =====================================================================================================================

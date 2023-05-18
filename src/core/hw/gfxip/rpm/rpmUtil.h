@@ -139,6 +139,7 @@ struct CopyImageInfo
         uint32 dstMipLevel : 16;
     } packedMipData;                // packed source and dest mipmap levels (for the mip-level shader ONLY).
     Extent2d copyRegion;
+    uint32   dstIsSrgb;             // If we need an SRGB conversion on store, not implemented by all shaders.
 };
 
 // Size of a CopyImageInfo structure, in DWORD's.

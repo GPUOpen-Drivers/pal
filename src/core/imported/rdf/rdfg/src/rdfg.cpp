@@ -29,6 +29,21 @@
 
 namespace
 {
+//////////////////////////////////////////////////////////////////////////////
+std::vector<std::byte> ReadFile(const std::string& filename)
+{
+    if (filename.empty()) {
+        return std::vector<std::byte>();
+    }
+
+    auto inputStream = rdf::Stream::OpenFile(filename.c_str());
+    std::vector<std::byte> buffer(inputStream.GetSize());
+    inputStream.Read(buffer.size(), buffer.data());
+
+    return buffer;
+}
+
+//////////////////////////////////////////////////////////////////////////////
 std::vector<std::byte> ConvertArrayToBytes(const nlohmann::json& object)
 {
     if (! object.is_array()) {
@@ -69,14 +84,14 @@ std::vector<std::byte> ConvertArrayToBytes(const nlohmann::json& object)
 int CreateChunkFile(const std::string& input, const std::string& output,
     const bool verbose)
 {
-    auto inputStream = rdf::Stream::OpenFile(input.c_str());
-    std::vector<char> buffer(inputStream.GetSize());
-    inputStream.Read(buffer.size(), buffer.data());
+    const auto buffer = ReadFile(input);
 
     auto outputStream = rdf::Stream::CreateFile(output.c_str());
     rdf::ChunkFileWriter writer(outputStream);
 
-    nlohmann::json config = nlohmann::json::parse(buffer.begin(), buffer.end());
+    nlohmann::json config = nlohmann::json::parse(
+        reinterpret_cast<const char*>(buffer.data()),
+        reinterpret_cast<const char*>(buffer.data() + buffer.size()));
 
     for (const auto& chunk : config["chunks"]) {
         const auto id = chunk["id"].get<std::string>();
@@ -136,6 +151,34 @@ int CreateChunkFile(const std::string& input, const std::string& output,
 
     return 0;
 }
+
+//////////////////////////////////////////////////////////////////////////////
+int AddToChunkFile(const std::string& chunkFileName,
+                   const std::string& dataFileName,
+    const std::string& headerFileName,
+    const std::string& chunkName, const bool verbose)
+{
+    rdf::Stream stream = rdf::Stream::FromFile(
+        chunkFileName.c_str(), rdfStreamAccess::rdfStreamAccessReadWrite, rdfFileModeOpen);
+
+    rdf::ChunkFileWriter writer(stream, rdf::ChunkFileWriteMode::Append);
+
+    const auto data = ReadFile(dataFileName);
+    const auto header = ReadFile(headerFileName);
+
+    if (header.empty()) {
+        writer.BeginChunk(chunkName.c_str(), 0, nullptr);
+    } else {
+        writer.BeginChunk(
+            chunkName.c_str(), static_cast<std::int64_t>(header.size()), header.data());
+    }
+    writer.AppendToChunk(static_cast<std::int64_t>(data.size()), data.data());
+    writer.EndChunk();
+
+    writer.Close();
+
+    return 0;
+}
 }  // namespace
 
 int main(int argc, char* argv[])
@@ -151,11 +194,21 @@ int main(int argc, char* argv[])
     createChunkFile->add_option("output", output)->required();
     createChunkFile->add_flag("-v,--verbose", verbose);
 
+    std::string chunkName, data, header;
+    auto addToChunkFile = app.add_subcommand("append", "Append data to an existing chunk file");
+    addToChunkFile->add_option("chunk-name", chunkName, "The chunk name")->required();
+    addToChunkFile->add_option("data", data, "The file containting the data to add")->required();
+    addToChunkFile->add_option("file", input, "The chunk file to add to")->required();
+    addToChunkFile->add_option("--header", header, "The file containing the chunk header data");
+    addToChunkFile->add_flag("-v,--verbose", verbose);
+
     CLI11_PARSE(app, argc, argv);
 
     try {
         if (*createChunkFile) {
             return CreateChunkFile(input, output, verbose);
+        } else if (*addToChunkFile) {
+            return AddToChunkFile(input, data, header, chunkName, verbose);
         }
     } catch (const std::exception& ex) {
         std::cerr << ex.what() << std::endl;

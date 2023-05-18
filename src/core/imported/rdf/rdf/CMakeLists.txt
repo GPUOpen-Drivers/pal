@@ -43,7 +43,8 @@ target_sources(amdrdf PRIVATE
 target_link_libraries(amdrdf PRIVATE zstd)
 target_compile_definitions(amdrdf PRIVATE
     RDF_BUILD_LIBRARY
-    RDF_BUILD_STATIC=$<BOOL:${RDF_STATIC}>)
+    RDF_BUILD_STATIC=$<BOOL:${RDF_STATIC}>
+)
 
 if (RDF_ENABLE_CXX_BINDINGS)
     # This is needed in order to be absorbed by libraries that don't allow exceptions

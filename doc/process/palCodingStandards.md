@@ -97,11 +97,14 @@ General
 General Language Restrictions
 -----------------------------
 
--   The Standard Template Library (STL) ***must not*** be used. The PAL
-    utility collection (namespace Util) should be used instead and
-    expanded as necessary.
+-   The C++ Standard Library ***must not*** be used. This includes everything
+    from the `std` namespace. The PAL utility collection (namespace `Util`)
+    should be used instead and expanded as necessary. Exceptions are given
+    in the following. The main restricting factors are exception safety
+    (many functions in the standard library may throw), and allocator
+    restrictions (system allocators may not be used directly).
 
--   When necessary for implementing a templated function or class, STL
+-   When necessary for implementing a templated function or class,
     helpers from the `type_traits` header and `std::numeric_limits`
     **may** be used.
 
@@ -118,6 +121,8 @@ General Language Restrictions
     meaning of the operator is preserved (e.g., iterators).
 
 -   Code ***must not*** throw exceptions.
+    Note that PAL does not require clients to disable exceptions at compile time
+    (e.g. via `-fno-exceptions`), and always guarantees to not throw.
 
 -   Non-const references ***must not*** be used except where needed in
     required constructors, etc.
@@ -130,7 +135,8 @@ General Language Restrictions
     comparing null pointer values.
 
 -   ***Avoid*** magic numbers; replace with predefined constants with
-    meaningful names.
+    meaningful names. Exceptions often apply to `#if` version guards where
+    specific numeric versions are directly referenced.
 
 -   Assertions (and any other code wrapped in `#if DEBUG`) ***must not***
     change the state of the program, only verify the current state.
@@ -684,6 +690,23 @@ General Functions
 -   Functions declared `static` in a header are ***discouraged*** unless
     there is a specific, documented technical reason. To avoid multiple
     symbol defininition errors prefer the `inline` specifier.
+
+### Lambdas
+
+-   Anonymous functions (lambdas) may be used in places where a
+    freestanding function would be overly verbose or a poor fit. When
+    possible, non-capturing lambdas should be preferred. Lambdas larger
+    than a few lines are prohibited.
+
+-   Capturing lambdas are permitted, but they **must** not be stored
+    away, returned, or otherwise permitted to outlast the function
+    that defined them.
+
+-   `std::function` **must not** be used.
+
+    > `std::function` may allocate for large lambdas, and allocation
+    > failure there may throw an exception. Its motivating use case
+    > is also storing capturing lambdas, which is prohibited above.
 
 ### Formatting and Commenting
 

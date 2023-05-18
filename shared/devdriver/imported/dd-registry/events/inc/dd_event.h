@@ -34,10 +34,8 @@ constexpr uint32_t DDEventMetaVersionMinor = 1;
 /// The meta version dictates data definitions in this file. This version data is
 /// __always__ at the very beginning of a dd-event data stream.
 ///
-/// # Example
 ///
 /// ```c++
-/// #include <dd_event.h>
 ///
 /// DDEventMetaVersion metaVersion{};
 /// fread(&metaVersion, 1, sizeof(metaVersion), eventFileHandle);
@@ -100,11 +98,8 @@ static_assert(sizeof(DDEventProviderHeader) == 32, "DDEventProviderHeader has in
 /// event, developers are expected to first read `sizeof(DDEventHeader)` bytes
 /// before the actual event payload.
 ///
-/// # Example
 ///
 /// ```c++
-/// #include <dd_event.h>
-/// #include <foo_event.h>
 ///
 /// DDEventHeader header = {};
 /// fread(&header, 1, sizeof(header), dataFileHandle);

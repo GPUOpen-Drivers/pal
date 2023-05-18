@@ -73,6 +73,9 @@ function(amd_target_options name)
                 /volatile:iso
 
                 /Zc:__cplusplus
+
+                # Disable permissive C++ semantics. Help code portability.
+                /permissive-
         )
     else()
         message(FATAL_ERROR "Compiler ${CMAKE_CXX_COMPILER_ID} is not supported!")

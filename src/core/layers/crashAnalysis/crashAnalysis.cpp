@@ -154,18 +154,6 @@ Result EventCache::CacheExecutionMarkerEnd(
 }
 
 // =====================================================================================================================
-// Serializes a CmdBufferReset event into the event cache.
-Result EventCache::CacheCmdBufferReset(
-    uint32      cmdBufferId)
-{
-    EventData eventData        = { };
-    eventData.eventId          = EventId::CmdBufferReset;
-    eventData.cmdBufferId      = cmdBufferId;
-
-    return m_eventCache.PushBack(eventData);
-}
-
-// =====================================================================================================================
 Result EventCache::GetEventAt(
     uint32                           index,
     UmdCrashAnalysisEvents::EventId* pEventId,

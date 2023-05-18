@@ -118,9 +118,6 @@ public:
         uint32      cmdBufferId,
         uint32      markerValue);
 
-    Result CacheCmdBufferReset(
-        uint32      cmdBufferId);
-
     uint32 Count() const { return m_eventCache.NumElements(); }
 
     Result GetEventAt(

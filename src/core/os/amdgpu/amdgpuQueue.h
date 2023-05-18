@@ -26,6 +26,7 @@
 #pragma once
 
 #include "core/queue.h"
+#include "core/cmdBuffer.h"
 #include "core/os/amdgpu/amdgpuHeaders.h"
 #include "palHashMap.h"
 #include "palVector.h"
@@ -63,6 +64,13 @@ enum class CommandListType : uint32
     Count,
 };
 
+enum class SubmitType : uint32
+{
+    SingleQueue,
+    ExplicitGang,
+    ImplicitGang,
+};
+
 // Maximum number of IB's we will specify in a single submission to the GPU.
 constexpr uint32 MaxIbsPerSubmit = 16;
 
@@ -95,8 +103,11 @@ public:
     amdgpu_syncobj_handle GetLastSignaledSyncObj() const        { return m_lastSignaledSyncObject; }
     void SetLastSignaledSyncObj(amdgpu_syncobj_handle hSyncObj) { m_lastSignaledSyncObject = hSyncObj; }
 
+    bool                  IsShadowInitialized() const { return m_isShadowInitialized; }
+    void                  SetShadowInitialized() { m_isShadowInitialized = true; }
+
 private:
-    SubmissionContext(const Device&      device,
+    SubmissionContext(Device*            pDevice,
                       EngineType         engineType,
                       uint32             engineId,
                       Pal::QueuePriority priority,
@@ -105,13 +116,14 @@ private:
 
     Result Init(Device* pDevice);
 
-    const Device&               m_device;
+    Device*                     m_pDevice;
     const uint32                m_ipType;    // This context's HW IP type as defined by amdgpu.
     const uint32                m_engineId;
     QueuePriority               m_queuePriority;
     bool                        m_isTmzOnly;
     amdgpu_syncobj_handle       m_lastSignaledSyncObject;
     amdgpu_context_handle       m_hContext;  // Command submission context handle.
+    bool                        m_isShadowInitialized;
 
     PAL_DISALLOW_DEFAULT_CTOR(SubmissionContext);
     PAL_DISALLOW_COPY_AND_ASSIGN(SubmissionContext);
@@ -174,7 +186,7 @@ protected:
         const VirtualMemoryCopyPageMappingsRange* pRanges,
         bool                                      doNotWait) override { return Result::ErrorUnavailable; }
 
-    const Device&          m_device;
+    Device&                m_device;
     amdgpu_bo_handle*      m_pResourceList;
     GpuMemory**            m_pResourceObjectList;
     uint8*                 m_pResourcePriorityList;
@@ -227,13 +239,19 @@ private:
         const MultiSubmitInfo&    submitInfo,
         const InternalSubmitInfo* internalSubmitInfo);
 
+    Result SubmitImplicitGangPm4(
+        const MultiSubmitInfo&    submitInfo,
+        const InternalSubmitInfo* internalSubmitInfo);
+
     Result PrepareChainedCommandBuffers(
         const InternalSubmitInfo& internalSubmitInfo,
         uint32                    cmdBufferCount,
         ICmdBuffer*const*         ppCmdBuffers,
         uint32*                   pAppendedCmdBuffers,
         uint32                    engineId,
-        const bool                isMultiQueue = false);
+        const SubmitType          submitType,
+        const EngineType          implicitGangEngineType  = EngineTypeCount,
+        int32                     implicitGangSubQueueIdx = CmdBuffer::MainSubQueueIdx);
 
     Result PrepareUploadedCommandBuffers(
         const InternalSubmitInfo& internalSubmitInfo,

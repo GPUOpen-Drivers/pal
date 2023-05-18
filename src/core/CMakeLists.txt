@@ -49,8 +49,6 @@ target_sources(pal PRIVATE
     cmdStreamAllocation.cpp
     cmdStreamAllocation.h
     dbgLoggerDevDriver.cpp
-    devDriverEventService.cpp
-    devDriverEventService.h
     devDriverEventServiceConv.h
     devDriverUtil.cpp
     devDriverUtil.h

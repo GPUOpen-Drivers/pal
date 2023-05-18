@@ -381,6 +381,10 @@ static const char* FormatToString(
         "P212",
         "P412",
         "X10Y10Z10W2_Float",
+        "Y216",
+        "Y210",
+        "Y416",
+        "Y410",
     };
 
     static_assert(ArrayLen(FormatStrings) == static_cast<size_t>(ChNumFormat::Count),

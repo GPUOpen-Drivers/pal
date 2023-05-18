@@ -59,8 +59,13 @@ constexpr uint8 MagicEntryMarker[4]     = {'N','T','R','Y'};    ///< Identifies 
 * @brief Version constants. Must be updated if this file is changed
 ***********************************************************************************************************************
 */
+#if PAL_64BIT_ARCHIVE_FILE_FMT
+constexpr uint32 CurrentMajorVersion    = 2;    ///< Version number denoting compatibility breaking changes
+constexpr uint32 CurrentMinorVersion    = 0;    ///< Version number denoting changes that should be backward compatible
+#else
 constexpr uint32 CurrentMajorVersion    = 1;    ///< Version number denoting compatibility breaking changes
 constexpr uint32 CurrentMinorVersion    = 2;    ///< Version number denoting changes that should be backward compatible
+#endif
 
 /**
 ***********************************************************************************************************************
@@ -72,7 +77,11 @@ struct ArchiveFileHeader
     uint8  archiveMarker[16];   ///< Fixed marker bookending our archive format, must match MagicArchiveMarker
     uint32 majorVersion;        ///< Major (breaking) version of the archive format
     uint32 minorVersion;        ///< Minor (compatible) version of the archive format
+#if PAL_64BIT_ARCHIVE_FILE_FMT
+    uint64 firstBlock;          ///< Byte offset of first block from the start of the archive
+#else
     uint32 firstBlock;          ///< Byte offset of first block from the start of the archive
+#endif
     uint32 archiveType;         ///< Optional type ID signifying the intended consumer type of this archive
     uint8  platformKey[20];     ///< Optional 160-bit (max) hash value of the OS/Hardware/Driver
 };
@@ -85,7 +94,11 @@ struct ArchiveFileHeader
 struct ArchiveFileFooter
 {
     uint8  footerMarker[4];    ///< Fixed marker to designate the footer, must match MagicFooterMarker
+#if PAL_64BIT_ARCHIVE_FILE_FMT
+    uint64 entryCount;         ///< Count of all entries stored within the archive
+#else
     uint32 entryCount;         ///< Count of all entries stored within the archive
+#endif
     uint64 lastWriteTimestamp; ///< Timestamp of when this file was last written to according to the application
     uint8  archiveMarker[16];  ///< Fixed marker bookending our archive format, must match MagicArchiveMarker
 };
@@ -98,14 +111,25 @@ struct ArchiveFileFooter
 struct ArchiveEntryHeader
 {
     uint8  entryMarker[4];  ///< Fixed marker to designate an entry, must match MagicEntryMarker
+#if PAL_64BIT_ARCHIVE_FILE_FMT
+    uint64 ordinalId;       ///< Index of entry in the archive file as ordinal number
+    uint64 nextBlock;       ///< Byte offset of next block in file from start of archive
+    uint64 dataSize;        ///< Size of entry data
+    uint64 dataPosition;    ///< Byte offset of entry data from start of archive
+#else
     uint32 ordinalId;       ///< Index of entry in the archive file as ordinal number
     uint32 nextBlock;       ///< Byte offset of next block in file from start of archive
     uint32 dataSize;        ///< Size of entry data
     uint32 dataPosition;    ///< Byte offset of entry data from start of archive
+#endif
     uint64 dataCrc64;       ///< Checksum for data integrity
     uint32 dataType;        ///< Optional ID signifying the data type for the entry
     uint8  entryKey[20];    ///< 160-bit (max) hash key for the entry
+#if PAL_64BIT_ARCHIVE_FILE_FMT
+    uint64 metaValue;       ///< Optional meta-data value for use by consumer of data
+#else
     uint32 metaValue;       ///< Optional meta-data value for use by consumer of data
+#endif
 };
 #pragma pack(pop)
 

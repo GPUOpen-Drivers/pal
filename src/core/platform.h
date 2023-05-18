@@ -175,6 +175,7 @@ public:
 
     virtual uint32 GetEnabledCallbackTypes() const override { return m_enabledCallbackTypesMask; }
     virtual void   SetEnabledCallbackTypes(uint32 enabledCallbackTypesMask) override;
+    bool           IsSubAllocTrackingEnabled() const { return m_subAllocTrackingEnabled; }
 
     virtual DevDriver::DevDriverServer* GetDevDriverServer() override { return m_pDevDriverServer; }
     virtual DevDriver::EventProtocol::EventServer* GetEventServer() override { return m_pEventServer; }
@@ -374,6 +375,7 @@ private:
     GpuMemoryEventProvider     m_gpuMemoryEventProvider;
     CrashAnalysisEventProvider m_crashAnalysisEventProvider;
     uint32                     m_enabledCallbackTypesMask;
+    bool                       m_subAllocTrackingEnabled;
 
     PAL_DISALLOW_COPY_AND_ASSIGN(Platform);
 };

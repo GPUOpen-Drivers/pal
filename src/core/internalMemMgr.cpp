@@ -244,21 +244,24 @@ Result InternalMemMgr::AllocateGpuMem(
                 *internalInfo.pPagingFence = pOpenPool->pagingFenceVal;
             }
 
-            // Report the successful sub-allocation
-            Developer::GpuMemoryData data = {};
-            data.size                     = localCreateInfo.size;
-            data.heap                     = (*ppGpuMemory)->Desc().heaps[0];
-            data.flags.isClient           = (*ppGpuMemory)->IsClient();
-            data.flags.isFlippable        = (*ppGpuMemory)->IsFlippable();
-            data.flags.isUdmaBuffer       = (*ppGpuMemory)->IsUdmaBuffer();
-            data.flags.isCmdAllocator     = (*ppGpuMemory)->IsCmdAllocator();
-            data.flags.isVirtual          = (*ppGpuMemory)->IsVirtual();
-            data.flags.isExternal         = (*ppGpuMemory)->IsExternal();
-            data.flags.buddyAllocated     = (*ppGpuMemory)->WasBuddyAllocated();
-            data.allocMethod              = Developer::GpuMemoryAllocationMethod::Normal;
-            data.pGpuMemory               = *ppGpuMemory;
-            data.offset                   = *pOffset;
-            m_pDevice->DeveloperCb(Developer::CallbackType::SubAllocGpuMemory, &data);
+            if (m_pDevice->GetPlatform()->IsSubAllocTrackingEnabled())
+            {
+                // Report the successful sub-allocation
+                Developer::GpuMemoryData data = {};
+                data.size                     = localCreateInfo.size;
+                data.heap                     = (*ppGpuMemory)->Desc().heaps[0];
+                data.flags.isClient           = (*ppGpuMemory)->IsClient();
+                data.flags.isFlippable        = (*ppGpuMemory)->IsFlippable();
+                data.flags.isUdmaBuffer       = (*ppGpuMemory)->IsUdmaBuffer();
+                data.flags.isCmdAllocator     = (*ppGpuMemory)->IsCmdAllocator();
+                data.flags.isVirtual          = (*ppGpuMemory)->IsVirtual();
+                data.flags.isExternal         = (*ppGpuMemory)->IsExternal();
+                data.flags.buddyAllocated     = (*ppGpuMemory)->WasBuddyAllocated();
+                data.allocMethod              = Developer::GpuMemoryAllocationMethod::Normal;
+                data.pGpuMemory               = *ppGpuMemory;
+                data.offset                   = *pOffset;
+                m_pDevice->DeveloperCb(Developer::CallbackType::SubAllocGpuMemory, &data);
+            }
         }
         else
         {
@@ -272,9 +275,8 @@ Result InternalMemMgr::AllocateGpuMem(
             // Since we're not sub-allocating, the new memory object will always have a zero offset.
             *pOffset = 0;
 
-            // General-purpose calls to AllocateGpuMem shouldn't trigger a base mem allocation. If this alert tiggers
+            // General-purpose calls to AllocateGpuMem shouldn't trigger a base mem allocation. If this path tiggers
             // it's a sign that we might need to tune our buddy allocator.
-            PAL_ALERT_ALWAYS_MSG("Memory could not be suballocated, consider tweaking pool/allocator settings.");
         }
 
         // Issue the base memory allocation.
@@ -679,6 +681,25 @@ Result InternalMemMgr::FreeGpuMem(
 
             if (pPool->pGpuMemory == pGpuMemory)
             {
+                if (m_pDevice->GetPlatform()->IsSubAllocTrackingEnabled())
+                {
+                    // Report the successful free of sub-allocation
+                    Developer::GpuMemoryData data = {};
+                    data.size                     = 0; // Sub allocation size is not tracked explicitly
+                    data.heap                     = pGpuMemory->Desc().heaps[0];
+                    data.flags.isClient           = pGpuMemory->IsClient();
+                    data.flags.isFlippable        = pGpuMemory->IsFlippable();
+                    data.flags.isUdmaBuffer       = pGpuMemory->IsUdmaBuffer();
+                    data.flags.isCmdAllocator     = pGpuMemory->IsCmdAllocator();
+                    data.flags.isVirtual          = pGpuMemory->IsVirtual();
+                    data.flags.isExternal         = pGpuMemory->IsExternal();
+                    data.flags.buddyAllocated     = pGpuMemory->WasBuddyAllocated();
+                    data.allocMethod              = Developer::GpuMemoryAllocationMethod::Normal;
+                    data.pGpuMemory               = pGpuMemory;
+                    data.offset                   = offset;
+                    m_pDevice->DeveloperCb(Developer::CallbackType::SubFreeGpuMemory, &data);
+                }
+
                 // If found then use the buddy allocator to release the block
                 pPool->pBuddyAllocator->Free(offset);
 
@@ -689,22 +710,6 @@ Result InternalMemMgr::FreeGpuMem(
 
         // If we didn't find the allocation in the pool list then something went wrong with the allocation scheme
         PAL_ASSERT(result == Result::Success);
-
-        // Report the successful free of sub-allocation
-        Developer::GpuMemoryData data = {};
-        data.size                     = 0; // Sub allocation size is not tracked explicitly
-        data.heap                     = pGpuMemory->Desc().heaps[0];
-        data.flags.isClient           = pGpuMemory->IsClient();
-        data.flags.isFlippable        = pGpuMemory->IsFlippable();
-        data.flags.isUdmaBuffer       = pGpuMemory->IsUdmaBuffer();
-        data.flags.isCmdAllocator     = pGpuMemory->IsCmdAllocator();
-        data.flags.isVirtual          = pGpuMemory->IsVirtual();
-        data.flags.isExternal         = pGpuMemory->IsExternal();
-        data.flags.buddyAllocated     = pGpuMemory->WasBuddyAllocated();
-        data.allocMethod              = Developer::GpuMemoryAllocationMethod::Normal;
-        data.pGpuMemory               = pGpuMemory;
-        data.offset                   = offset;
-        m_pDevice->DeveloperCb(Developer::CallbackType::SubFreeGpuMemory, &data);
     }
     else
     {

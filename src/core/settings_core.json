@@ -1753,34 +1753,6 @@
       "Description": "When this setting is non-zero, clamp L2 prefetching to this many bytes."
     },
     {
-      "Name": "MaxScratchRingSizeBaseline",
-      "Tags": [
-        "Scratch",
-        "Performance"
-      ],
-      "Defaults": {
-        "Default": 268435456
-      },
-      "Scope": "PrivatePalKey",
-      "Type": "gpusize",
-      "VariableName": "maxScratchRingSizeBaseline",
-      "Description": "Controls the maximum size of the scratch ring allocation. This is the minimum value the max size can be, it scales higher with larger VRAM sizes (see MaxScratchRingSizeScalePct). If the application requests more scratch memory than the computed max size, the driver will limit the number of waves in flight to comply with the memory restriction."
-    },
-    {
-      "Name": "MaxScratchRingSizeScalePct",
-      "Tags": [
-        "Scratch",
-        "Performance"
-      ],
-      "Defaults": {
-        "Default": 10
-      },
-      "Scope": "PrivatePalKey",
-      "Type": "uint32",
-      "VariableName": "maxScratchRingScalePct",
-      "Description": "Controls the maximum size of the scratch ring allocation. If the product of this setting and the invisible memory heap size is larger than MaxScratchRingSizeBaseline then the calculated value will be the max scratch ring size. If the application requests more scratch memory than the computed max size, the driver will limit the number of waves in flight to comply with the memory restriction."
-    },
-    {
       "Name": "IfhGpuMask",
       "Tags": [
         "MGPU",
@@ -1910,6 +1882,19 @@
       "Type": "gpusize",
       "VariableName": "debugForceResourceAdditionalPadding",
       "Description": "Add the additional padding to resources' memory requirements. This setting is in units of bytes. This is a debug setting and strange behavior (e.g. poor performance, out of memory) may occur in some applications."
+    },
+    {
+      "Name": "DisableComputeEngine",
+      "Tags": [
+        "Bringup"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "disableComputeEngine",
+      "Description": "Disable entire Compute engine in UMD driver."
     },
     {
       "Name": "OverlayReportMes",
@@ -2059,6 +2044,48 @@
       "Type": "enum",
       "VariableName": "useExecuteIndirectPacket",
       "Name": "UseExecuteIndirectPacket"
+    },
+    {
+      "ValidValues": {
+        "IsEnum": true,
+        "Values": [
+          {
+            "Name": "NoXorForRenderTarget",
+            "Value": 1,
+            "Description": "Render targets"
+          },
+          {
+            "Name": "NoXorForTexture",
+            "Value": 2,
+            "Description": "Non renderable textures"
+          },
+          {
+            "Name": "NoXorOverrideLinear3d",
+            "Value": 4,
+            "Description": "3D render targets don't get linear"
+          }
+        ],
+        "Name": "NoXor"
+      },
+      "BuildTypes": [
+        "PAL_BUILD_GFX11"
+      ],
+      "Description": "Bitmask of cases where XOR swizzle modes are disallowed.  GFX11 only",
+      "Tags": [
+        "Resource Settings"
+      ],
+      "Flags": {
+        "IsBitmask": true,
+        "IsHex": true,
+        "RereadSetting": true
+      },
+      "Defaults": {
+        "Default": 0
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "uint32",
+      "VariableName": "noXor",
+      "Name": "NoXor"
     },
     {
       "ValidValues": {

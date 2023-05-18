@@ -64,6 +64,8 @@ public:
     void SetParentQueue(Queue* pQueue) { m_pParentQueue   = pQueue; }
     void SetWaitForIdleOnRingResize(bool doWait) { m_needWaitIdleOnRingResize = doWait; }
 
+    virtual gpusize ShadowMemVa() const { return 0; }
+
 protected:
     virtual ~QueueContext();
 

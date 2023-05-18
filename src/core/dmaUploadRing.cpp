@@ -277,6 +277,7 @@ Result DmaUploadRing::Submit(
         *pCompletionFence = m_pDmaQueue->GetSubmissionContext()->LastTimestamp();
         PAL_ASSERT(*pCompletionFence > 0);
         PAL_ASSERT(result == Result::Success);
+        static_cast<CmdBuffer*>(m_pRing[slotId].pCmdBuf)->Reset(m_pDevice->InternalCmdAllocator(UploadEngine), true);
     }
 
     return result;

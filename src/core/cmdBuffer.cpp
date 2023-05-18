@@ -1347,11 +1347,11 @@ void CmdBuffer::TrackIb2DumpInfoFromExecuteNestedCmds(
 
         const Ib2DumpInfo dumpInfo =
         {
-            pChunk->CpuAddr(),               // CPU address of the commands
-            pChunk->CmdDwordsToExecute(),    // Length of the dump in bytes
-            pChunk->GpuVirtAddr(),           // GPU virtual address of the commands
-            targetStream.GetEngineType(),    // Engine Type
-            targetStream.GetSubEngineType(), // Sub Engine Type
+            pChunk->CpuAddr(),                             // CPU address of the commands
+            pChunk->CmdDwordsToExecute() * sizeof(uint32), // Length of the dump in bytes
+            pChunk->GpuVirtAddr(),                         // GPU virtual address of the commands
+            targetStream.GetEngineType(),                  // Engine Type
+            targetStream.GetSubEngineType(),               // Sub Engine Type
         };
 
         InsertIb2DumpInfo(dumpInfo);

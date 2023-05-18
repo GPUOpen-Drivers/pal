@@ -471,6 +471,8 @@ void UniversalCmdBuffer::CmdBindPipeline(
 {
     if (params.pipelineBindPoint == PipelineBindPoint::Graphics)
     {
+        constexpr uint32 DwordsPerSrd = (sizeof(BufferSrd) / sizeof(uint32));
+
         auto*const pNewPipeline = static_cast<const GraphicsPipeline*>(params.pPipeline);
         auto*const pOldPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
 
@@ -491,7 +493,6 @@ void UniversalCmdBuffer::CmdBindPipeline(
                 SwitchDrawFunctions(newUsesViewInstancing);
             }
 
-            constexpr uint32 DwordsPerSrd = (sizeof(BufferSrd) / sizeof(uint32));
             const uint32 vbTableDwords =
                 ((pNewPipeline == nullptr) ? 0 : pNewPipeline->VertexBufferCount() * DwordsPerSrd);
             PAL_ASSERT(vbTableDwords <= m_vbTable.state.sizeInDwords);
@@ -617,6 +618,19 @@ void UniversalCmdBuffer::CmdBindPipeline(
                                                          &m_sxBlendOptEpsilon,
                                                          &m_sxBlendOptControl);
                     }
+                }
+
+                if (params.graphics.dynamicState.enable.vertexBufferCount)
+                {
+                    const uint32 vbTableDwords = params.graphics.dynamicState.vertexBufferCount * DwordsPerSrd;
+                    PAL_ASSERT(vbTableDwords <= m_vbTable.state.sizeInDwords);
+
+                    if (vbTableDwords > m_vbTable.watermark)
+                    {
+                        m_vbTable.state.dirty = 1;
+                    }
+
+                    m_vbTable.watermark = vbTableDwords;
                 }
             }
 

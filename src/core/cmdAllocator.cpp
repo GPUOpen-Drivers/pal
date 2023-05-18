@@ -99,7 +99,8 @@ CmdAllocator::CmdAllocator(
     m_pChunkLock(nullptr),
     m_lastPagingFence(0),
     m_pLinearAllocLock(nullptr),
-    m_pDummyChunkAllocation(nullptr)
+    m_pDummyChunkAllocation(nullptr),
+    m_pPlatform(pDevice->GetPlatform())
 {
 #if PAL_ENABLE_PRINTS_ASSERTS
     memset(m_pHistograms, 0, sizeof(m_pHistograms));
@@ -245,7 +246,7 @@ CmdAllocator::CmdAllocator(
     data.pResourceDescData = static_cast<void*>(&desc);
     data.resourceDescSize = sizeof(ResourceDescriptionCmdAllocator);
     data.pObj = this;
-    m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceCreateEvent(data);
+    m_pPlatform->GetGpuMemoryEventProvider()->LogGpuMemoryResourceCreateEvent(data);
 }
 
 // =====================================================================================================================
@@ -255,7 +256,7 @@ CmdAllocator::~CmdAllocator()
 {
     ResourceDestroyEventData data = {};
     data.pObj = this;
-    m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceDestroyEvent(data);
+    m_pPlatform->GetGpuMemoryEventProvider()->LogGpuMemoryResourceDestroyEvent(data);
 
     // We must explicitly invoke the mutexes' destructors because we created them using placement new.
     if (m_pChunkLock != nullptr)
@@ -270,14 +271,14 @@ CmdAllocator::~CmdAllocator()
         m_pLinearAllocLock = nullptr;
     }
 
-    FreeAllChunks();
+    FreeAllChunks(m_pPlatform->IsSubAllocTrackingEnabled());
     FreeAllLinearAllocators();
 
     // Free the dummy chunk.
     if (m_pDummyChunkAllocation != nullptr)
     {
         m_pDummyChunkAllocation->Destroy(m_pDevice);
-        PAL_SAFE_FREE(m_pDummyChunkAllocation, m_pDevice->GetPlatform());
+        PAL_SAFE_FREE(m_pDummyChunkAllocation, m_pPlatform);
     }
 
 #if PAL_ENABLE_PRINTS_ASSERTS
@@ -288,7 +289,7 @@ CmdAllocator::~CmdAllocator()
         // Print and free the histograms.
         for (uint32 histIdx = 0; histIdx < HistogramCount; ++histIdx)
         {
-            PAL_SAFE_FREE(m_pHistograms[histIdx], m_pDevice->GetPlatform());
+            PAL_SAFE_FREE(m_pHistograms[histIdx], m_pPlatform);
         }
     }
 #endif
@@ -317,7 +318,8 @@ void CmdAllocator::TransferChunks(
 }
 
 // =====================================================================================================================
-void CmdAllocator::FreeAllChunks()
+void CmdAllocator::FreeAllChunks(
+    const bool trackSuballocations)
 {
     CmdAllocInfo*const pAllocInfo[] =
     {
@@ -354,6 +356,15 @@ void CmdAllocator::FreeAllChunks()
     // called in this loop can access those head chunks.
     for (uint32 i = 0; i < (CmdAllocatorTypeCount + 1); ++i)
     {
+        if ((i < CmdAllocatorTypeCount) && trackSuballocations)
+        {
+            // Only report suballocations for gpu memory types, not system memory
+            for (auto iter = pAllocInfo[i]->busyList.Begin(); iter.IsValid(); iter.Next())
+            {
+                ReportSuballocationEvent(Developer::CallbackType::SubFreeGpuMemory, iter.Get());
+            }
+        }
+
         // Empty out the chunk lists so we can destroy the chunks.
         pAllocInfo[i]->freeList.EraseAll();
         pAllocInfo[i]->busyList.EraseAll();
@@ -368,7 +379,7 @@ void CmdAllocator::FreeAllChunks()
             pAllocInfo[i]->allocList.Erase(&iter);
 
             pAlloc->Destroy(m_pDevice);
-            PAL_SAFE_FREE(pAlloc, m_pDevice->GetPlatform());
+            PAL_SAFE_FREE(pAlloc, m_pPlatform);
         }
     }
 }
@@ -381,14 +392,14 @@ void CmdAllocator::FreeAllLinearAllocators()
     {
         VirtualLinearAllocatorWithNode*const pAllocator = iter.Get();
         m_linearAllocFreeList.Erase(&iter);
-        PAL_DELETE(pAllocator, m_pDevice->GetPlatform());
+        PAL_DELETE(pAllocator, m_pPlatform);
     }
 
     for (auto iter = m_linearAllocBusyList.Begin(); iter.IsValid();)
     {
         VirtualLinearAllocatorWithNode*const pAllocator = iter.Get();
         m_linearAllocBusyList.Erase(&iter);
-        PAL_DELETE(pAllocator, m_pDevice->GetPlatform());
+        PAL_DELETE(pAllocator, m_pPlatform);
     }
 }
 
@@ -423,7 +434,7 @@ Result CmdAllocator::Init(
         {
             // We must use CALLOC to make sure that all bins start out zeroed.
             m_pHistograms[histIdx] = static_cast<uint64*>(PAL_CALLOC(m_numHistogramBins * sizeof(uint64),
-                                                                     m_pDevice->GetPlatform(),
+                                                                     m_pPlatform,
                                                                      AllocInternal));
             if (m_pHistograms[histIdx] == nullptr)
             {
@@ -446,7 +457,7 @@ Result CmdAllocator::Init(
 // Destroys this object assuming it was allocated via CreateInternalCmdAllocator().
 void CmdAllocator::DestroyInternal()
 {
-    Platform*const pPlatform = m_pDevice->GetPlatform();
+    Platform*const pPlatform = m_pPlatform;
     Destroy();
     PAL_FREE(this, pPlatform);
 }
@@ -456,6 +467,8 @@ void CmdAllocator::DestroyInternal()
 Result CmdAllocator::Reset(
     bool freeMemory)
 {
+    const bool trackSuballocations = m_pPlatform->IsSubAllocTrackingEnabled();
+
     if (m_pChunkLock != nullptr)
     {
         m_pChunkLock->Lock();
@@ -464,12 +477,20 @@ Result CmdAllocator::Reset(
     if (freeMemory)
     {
         // We've been asked to simply destroy all of our allocations on each reset.
-        FreeAllChunks();
+        FreeAllChunks(trackSuballocations);
     }
     else
     {
         for (uint32 i = 0; i < CmdAllocatorTypeCount; ++i)
         {
+            if (trackSuballocations)
+            {
+                for (auto iter = m_gpuAllocInfo[i].busyList.Begin(); iter.IsValid(); iter.Next())
+                {
+                    ReportSuballocationEvent(Developer::CallbackType::SubFreeGpuMemory, iter.Get());
+                }
+            }
+
             TransferChunks(&m_gpuAllocInfo[i].freeList, &m_gpuAllocInfo[i].busyList);
             TransferChunks(&m_gpuAllocInfo[i].freeList, &m_gpuAllocInfo[i].reuseList);
         }
@@ -570,7 +591,7 @@ Result CmdAllocator::TrimMemory(
 
     // The PAL hash map is really hard to use... 4 entries per bucket should roughly work out right on 64-bit builds.
     const uint32 numBuckets = RoundUpQuotient(static_cast<uint32>(pAllocInfo->allocList.NumElements()), 4u);
-    HashMap<CmdStreamAllocation*, uint32, Platform> allocMap(numBuckets, m_pDevice->GetPlatform());
+    HashMap<CmdStreamAllocation*, uint32, Platform> allocMap(numBuckets, m_pPlatform);
 
     Result result = allocMap.Init();
 
@@ -624,7 +645,7 @@ Result CmdAllocator::TrimMemory(
                 pAllocInfo->allocList.Erase(pAlloc->ListNode());
 
                 pAlloc->Destroy(m_pDevice);
-                PAL_FREE(pAlloc, m_pDevice->GetPlatform());
+                PAL_FREE(pAlloc, m_pPlatform);
 
                 // Bail out once we've freed enough allocations to fit in the threshold.
                 if (--numFreeAllocs <= allocFreeThreshold)
@@ -691,6 +712,7 @@ void CmdAllocator::ReuseChunks(
         }
 
         auto*const pAllocInfo = (systemMemory ? &m_sysAllocInfo : &m_gpuAllocInfo[allocType]);
+        const bool trackSuballocations = (systemMemory == false) && m_pPlatform->IsSubAllocTrackingEnabled();
 
         // If the root chunk is idle, we can push all the chunks to the free list.
         if (iter.Get()->IsIdleOnGpu())
@@ -699,6 +721,12 @@ void CmdAllocator::ReuseChunks(
             {
                 // Move this chunk from the busy list to the front of the free list.
                 auto*const pNode = iter.Get()->ListNode();
+
+                if (trackSuballocations)
+                {
+                    ReportSuballocationEvent(Developer::CallbackType::SubFreeGpuMemory, iter.Get());
+                }
+
                 pAllocInfo->busyList.Erase(pNode);
                 pAllocInfo->freeList.PushFront(pNode);
 
@@ -725,6 +753,12 @@ void CmdAllocator::ReuseChunks(
             {
                 // Move this chunk from the busy list to the front of the reuse list.
                 auto*const pNode = iter.Get()->ListNode();
+
+                if (trackSuballocations)
+                {
+                    ReportSuballocationEvent(Developer::CallbackType::SubFreeGpuMemory, iter.Get());
+                }
+
                 pAllocInfo->busyList.Erase(pNode);
                 pAllocInfo->reuseList.PushFront(pNode);
 
@@ -755,7 +789,7 @@ Result CmdAllocator::GetNewChunk(
         m_pChunkLock->Lock();
     }
 
-    Result result = FindFreeChunk(systemMemory ? &m_sysAllocInfo : &m_gpuAllocInfo[allocType], ppChunk);
+    Result result = FindFreeChunk(systemMemory, systemMemory ? &m_sysAllocInfo : &m_gpuAllocInfo[allocType], ppChunk);
 
     if (m_pChunkLock != nullptr)
     {
@@ -768,11 +802,13 @@ Result CmdAllocator::GetNewChunk(
 // =====================================================================================================================
 // Searches the free and busy lists for a free chunk. A new CmdStreamAllocation will be created if needed.
 Result CmdAllocator::FindFreeChunk(
+    const bool       systemMemory,
     CmdAllocInfo*    pAllocInfo,
     CmdStreamChunk** ppChunk)
 {
     Result result = Result::Success;
     CmdStreamChunk* pChunk = nullptr;
+    const bool trackSuballocations = (systemMemory == false) && m_pPlatform->IsSubAllocTrackingEnabled();
 
     // Search the free-list first.
     if (pAllocInfo->freeList.IsEmpty() == false)
@@ -782,6 +818,11 @@ Result CmdAllocator::FindFreeChunk(
         PAL_ASSERT(pChunk->IsIdleOnGpu());
 
         pChunk->Reset();
+
+        if (trackSuballocations)
+        {
+            ReportSuballocationEvent(Developer::CallbackType::SubAllocGpuMemory, pChunk);
+        }
 
         // Move the chunk from the free list to the front of the busy list.
         auto*const pNode = pChunk->ListNode();
@@ -800,6 +841,11 @@ Result CmdAllocator::FindFreeChunk(
                 {
                     pChunk = reuseIter.Get();
                     pChunk->Reset();
+
+                    if (trackSuballocations)
+                    {
+                        ReportSuballocationEvent(Developer::CallbackType::SubAllocGpuMemory, pChunk);
+                    }
 
                     // Move this chunk from the reuse list to the front of the busy list.
                     auto*const pNode = pChunk->ListNode();
@@ -848,7 +894,7 @@ Result CmdAllocator::CreateAllocation(
     }
 
     void*const pPlacementAddr = PAL_MALLOC(CmdStreamAllocation::GetSize(allocCreateInfo),
-                                           m_pDevice->GetPlatform(),
+                                           m_pPlatform,
                                            AllocInternal);
 
     if (pPlacementAddr != nullptr)
@@ -858,30 +904,7 @@ Result CmdAllocator::CreateAllocation(
         if (result != Result::Success)
         {
             // Free the memory we allocated for the command stream since it failed to initialize.
-            PAL_FREE(pPlacementAddr, m_pDevice->GetPlatform());
-        }
-        else if (pAlloc != nullptr)
-        {
-            GpuMemoryResourceBindEventData eventData = {};
-            eventData.pObj = this;
-            if (pAlloc->UsesSystemMemory())
-            {
-                eventData.isSystemMemory = true;
-            }
-            else
-            {
-                eventData.pGpuMemory = pAlloc->GpuMemory();
-            }
-            eventData.requiredGpuMemSize = pAllocInfo->allocCreateInfo.memObjCreateInfo.size;
-            m_pDevice->GetPlatform()->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(eventData);
-
-            Developer::BindGpuMemoryData callbackData = {};
-            callbackData.pObj               = eventData.pObj;
-            callbackData.requiredGpuMemSize = eventData.requiredGpuMemSize;
-            callbackData.pGpuMemory         = eventData.pGpuMemory;
-            callbackData.offset             = eventData.offset;
-            callbackData.isSystemMemory     = eventData.isSystemMemory;
-            m_pDevice->DeveloperCb(Developer::CallbackType::BindGpuMemory, &callbackData);
+            PAL_FREE(pPlacementAddr, m_pPlatform);
         }
     }
 
@@ -895,6 +918,34 @@ Result CmdAllocator::CreateAllocation(
         {
             pAllocInfo->freeList.PushBack(pChunk[idx].ListNode());
         }
+
+        const bool usesSystemMemory = pAlloc->UsesSystemMemory();
+
+        if ((usesSystemMemory == false) && m_pPlatform->IsSubAllocTrackingEnabled())
+        {
+            ReportSuballocationEvent(Developer::CallbackType::SubAllocGpuMemory, pChunk);
+        }
+
+        GpuMemoryResourceBindEventData eventData = {};
+        eventData.pObj = this;
+        if (usesSystemMemory)
+        {
+            eventData.isSystemMemory = true;
+        }
+        else
+        {
+            eventData.pGpuMemory = pAlloc->GpuMemory();
+        }
+        eventData.requiredGpuMemSize = pAllocInfo->allocCreateInfo.memObjCreateInfo.size;
+        m_pPlatform->GetGpuMemoryEventProvider()->LogGpuMemoryResourceBindEvent(eventData);
+
+        Developer::BindGpuMemoryData callbackData = {};
+        callbackData.pObj               = eventData.pObj;
+        callbackData.requiredGpuMemSize = eventData.requiredGpuMemSize;
+        callbackData.pGpuMemory         = eventData.pGpuMemory;
+        callbackData.offset             = eventData.offset;
+        callbackData.isSystemMemory     = eventData.isSystemMemory;
+        m_pDevice->DeveloperCb(Developer::CallbackType::BindGpuMemory, &callbackData);
 
         // Move the first newly created chunk to the busy list.
         pAllocInfo->busyList.PushBack(pChunk->ListNode());
@@ -933,7 +984,7 @@ Result CmdAllocator::CreateDummyChunkAllocation()
     createInfo.flags.dummyAllocation = true;
 
     void*const pPlacementAddr = PAL_MALLOC(CmdStreamAllocation::GetSize(createInfo),
-                                           m_pDevice->GetPlatform(),
+                                           m_pPlatform,
                                            AllocInternal);
 
     if (pPlacementAddr != nullptr)
@@ -943,7 +994,7 @@ Result CmdAllocator::CreateDummyChunkAllocation()
         if (result != Result::Success)
         {
             // Free the memory we allocated for the command stream since it failed to initialize.
-            PAL_FREE(pPlacementAddr, m_pDevice->GetPlatform());
+            PAL_FREE(pPlacementAddr, m_pPlatform);
         }
         else
         {
@@ -979,7 +1030,7 @@ VirtualLinearAllocator* CmdAllocator::GetNewLinearAllocator()
     else
     {
         // Try to create a new linear allocator, we will return null if this fails.
-        pAllocator = PAL_NEW(VirtualLinearAllocatorWithNode, m_pDevice->GetPlatform(), AllocInternal) (64_KiB);
+        pAllocator = PAL_NEW(VirtualLinearAllocatorWithNode, m_pPlatform, AllocInternal) (64_KiB);
 
         if (pAllocator != nullptr)
         {
@@ -987,7 +1038,7 @@ VirtualLinearAllocator* CmdAllocator::GetNewLinearAllocator()
 
             if (result != Result::Success)
             {
-                PAL_SAFE_DELETE(pAllocator, m_pDevice->GetPlatform());
+                PAL_SAFE_DELETE(pAllocator, m_pPlatform);
             }
             else
             {
@@ -1126,5 +1177,33 @@ void CmdAllocator::PrintCommitLog() const
     PAL_ASSERT(result == Result::Success);
 }
 #endif
+
+// =====================================================================================================================
+// Reports allocation and free of suballocations to the DeveloperCb
+void CmdAllocator::ReportSuballocationEvent(
+    const Developer::CallbackType type,
+    CmdStreamChunk* const         pChunk
+    ) const
+{
+    PAL_ASSERT((type == Developer::CallbackType::SubAllocGpuMemory) ||
+               (type == Developer::CallbackType::SubFreeGpuMemory));
+
+    const GpuMemory* pGpuMemory = pChunk->Allocation()->GpuMemory();
+
+    Developer::GpuMemoryData data = {};
+    data.size                     = pChunk->Size();
+    data.heap                     = pGpuMemory->Desc().heaps[0];
+    data.flags.isClient           = pGpuMemory->IsClient();
+    data.flags.isFlippable        = pGpuMemory->IsFlippable();
+    data.flags.isUdmaBuffer       = pGpuMemory->IsUdmaBuffer();
+    data.flags.isCmdAllocator     = pGpuMemory->IsCmdAllocator();
+    data.flags.isVirtual          = pGpuMemory->IsVirtual();
+    data.flags.isExternal         = pGpuMemory->IsExternal();
+    data.flags.buddyAllocated     = pGpuMemory->WasBuddyAllocated();
+    data.allocMethod              = Developer::GpuMemoryAllocationMethod::Normal;
+    data.pGpuMemory               = pGpuMemory;
+    data.offset                   = pChunk->GpuMemoryOffset();
+    m_pDevice->DeveloperCb(type, &data);
+}
 
 } // Pal

@@ -1031,6 +1031,8 @@ void UniversalCmdBuffer::CmdBindPipeline(
 {
     if (params.pipelineBindPoint == PipelineBindPoint::Graphics)
     {
+        constexpr uint32 DwordsPerSrd = (sizeof(BufferSrd) / sizeof(uint32));
+
         auto*const pNewPipeline = static_cast<const GraphicsPipeline*>(params.pPipeline);
         auto*const pOldPipeline = static_cast<const GraphicsPipeline*>(m_graphicsState.pipelineState.pPipeline);
 
@@ -1144,7 +1146,6 @@ void UniversalCmdBuffer::CmdBindPipeline(
                                     taskEnabled);
             }
 
-            constexpr uint32 DwordsPerSrd = (sizeof(BufferSrd) / sizeof(uint32));
             const uint32 vbTableDwords =
                 ((pNewPipeline == nullptr) ? 0 : pNewPipeline->VertexBufferCount() * DwordsPerSrd);
             PAL_ASSERT(vbTableDwords <= m_vbTable.state.sizeInDwords);
@@ -1311,6 +1312,19 @@ void UniversalCmdBuffer::CmdBindPipeline(
                                                          &m_sxBlendOptEpsilon,
                                                          &m_sxBlendOptControl);
                     }
+                }
+
+                if (params.graphics.dynamicState.enable.vertexBufferCount)
+                {
+                    const uint32 vbTableDwords = params.graphics.dynamicState.vertexBufferCount * DwordsPerSrd;
+                    PAL_ASSERT(vbTableDwords <= m_vbTable.state.sizeInDwords);
+
+                    if (vbTableDwords > m_vbTable.watermark)
+                    {
+                        m_vbTable.state.dirty = 1;
+                    }
+
+                    m_vbTable.watermark = vbTableDwords;
                 }
             }
 
@@ -1484,7 +1498,11 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
     if (m_cachedSettings.padParamCacheSpace)
     {
         const bool padVsOut = IsGfx9(m_gfxIpLevel) || IsGfx10(m_gfxIpLevel);
+#if PAL_BUILD_GFX11
+        const bool padPsIn = padVsOut || IsGfx11(m_gfxIpLevel);
+#else
         const bool padPsIn = padVsOut;
+#endif
 
         if (padVsOut)
         {
@@ -1496,8 +1514,23 @@ uint32* UniversalCmdBuffer::SwitchGraphicsPipeline(
         {
             spiPsInControl.bits.NUM_INTERP =
                 Max(m_spiPsInControl.bits.NUM_INTERP, spiPsInControl.bits.NUM_INTERP);
-        }
 
+#if PAL_BUILD_GFX11
+            // On Gfx11, padding PS_IN > VS_OUT+1 triggers a hazard.
+            //
+            // Long-term plan is to perform max-padding just like we did in Gfx10, but for that we need to also disable
+            // wave reuse.
+            //
+            // The current strategy pads PS_IN up to VS_OUT+1, which avoids the hazard. This results in more context
+            // rolls than we would have with the desired/unconstrained max-padding, but it is still effective in
+            // reducing the rolls.
+            if (IsGfx11(m_gfxIpLevel))
+            {
+                spiPsInControl.bits.NUM_INTERP =
+                    Min(spiPsInControl.bits.NUM_INTERP, spiVsOutConfig.bits.VS_EXPORT_COUNT + 1u);
+            }
+#endif
+        }
     }
 
     // Write VS_OUT_CONFIG if the register changed or this is the first pipeline switch
@@ -4992,8 +5025,10 @@ Result UniversalCmdBuffer::AddPreamble()
 
     uint32* pDeCmdSpace = m_deCmdStream.ReserveCommands();
 
-    pDeCmdSpace += cmdUtil.BuildNonSampleEventWrite(m_cachedSettings.disablePreamblePipelineStats ?
-        PIPELINESTAT_STOP : PIPELINESTAT_START, EngineTypeUniversal, pDeCmdSpace);
+    if (m_cachedSettings.disablePreamblePipelineStats == false)
+    {
+        pDeCmdSpace += cmdUtil.BuildNonSampleEventWrite(PIPELINESTAT_START, EngineTypeUniversal, pDeCmdSpace);
+    }
 
     // DB_RENDER_OVERRIDE bits are updated via depth-stencil view and at draw time validation based on dirty
     // depth-stencil state.
@@ -9091,17 +9126,14 @@ void UniversalCmdBuffer::AddQuery(
             // Activate queries on first AddQuery call
             ActivateQueryType(queryType);
         }
-        else if (queryType == QueryPoolType::PipelineStats)
+        else if ((queryType == QueryPoolType::PipelineStats) ||
+                 (queryType == QueryPoolType::StreamoutStats))
         {
             if (m_cachedSettings.disablePreamblePipelineStats)
             {
                 // If pipeline stats are disabled in preamble, need to activate first queries of type PipelineStats
                 ActivateQueryType(queryType);
             }
-        }
-        else if (queryType == QueryPoolType::StreamoutStats)
-        {
-            // Nothing needs to do for Streamout stats query
         }
         else
         {

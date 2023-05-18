@@ -456,7 +456,7 @@ namespace DevDriver
         T* _AllocateBack()
         {
             T* pResult = nullptr;
-            const size_t newOffset = m_offset + m_size;
+            size_t newOffset = m_offset + m_size;
             const size_t indexOffset = IndexForOffset(newOffset);
 
             // Check to see if the tail is at a pBlockIndex edge + grow as necessary
@@ -464,6 +464,9 @@ namespace DevDriver
                 & ((m_size + kPaddedBlockSize) >= Capacity()))
             {
                 GrowBlocks(1);
+                // re-calculate the new offset as the previously calculated offset
+                // may become invalid if the blocks cache array was grown
+                newOffset = m_offset + m_size;
             }
 
             // Only allocate if we have enough space

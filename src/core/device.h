@@ -187,7 +187,8 @@ struct HwsInfo
             uint32 computeHwsEnabled : 1;                // flag compute engine enablement using OS HWS (MES)
             uint32 dmaHwsEnabled     : 1;                // flag dma engine enablement using OS HWS (MES)
             uint32 vcnHwsEnabled     : 1;                // flag vcn engine enablement using OS HWS (MM HWS)
-            uint32 reserved          : 28;
+            uint32 reserved1         : 1;
+            uint32 reserved          : 27;
         };
         uint32 osHwsEnableFlags;
     };
@@ -393,9 +394,13 @@ struct GpuEngineProperties
         uint32   maxNumDedicatedCu;             // The maximum possible number of dedicated CUs per compute ring
         uint32   dedicatedCuGranularity;        // The granularity at which compute units can be dedicated to a queue.
 
-        gpusize  contextSaveAreaSize;           // Size of the context-save-area for this engine, in bytes. This area
-                                                // of memory is used for mid-command buffer preemption.
+        // Each of the following is used for mid-command-buffer preemption
+        gpusize  fwShadowAreaSize;              // Size of the FW-driven shadow area for this engine, in bytes.
+        gpusize  fwShadowAreaAlignment;         // Alignment of the FW-driven shadow area for this engine, in bytes.
+        gpusize  contextSaveAreaSize;           // Size of the context-save-area for this engine, in bytes.
         gpusize  contextSaveAreaAlignment;      // Alignment of the context-save-area for this engine, in bytes.
+        gpusize  gdsSaveAreaSize;               // Size of the GDS-save-area for this engine, in bytes.
+        gpusize  gdsSaveAreaAlignment;          // Alignment of the GDS-save-area for this engine, in bytes.
 
         union
         {
@@ -677,6 +682,8 @@ struct GpuChipProperties
     HwIpLevelFlags hwIpFlags;
     uint32         gfxStepping; // Stepping level of this GPU's GFX block.
 
+    uint16   gpuPerformanceCapacity; // GpuCapacity is the percentage (in fixed point [1, 65535]) of the
+                                     // GPU's performance that can be used. 0 is invalid (not SRIOV).
     uint32   vceUcodeVersion;                   // VCE Video encode firmware version
     uint32   uvdUcodeVersion;                   // UVD Video encode firmware version
     uint32   vcnUcodeVersion;                   // VCN Video encode firmware version
@@ -1042,12 +1049,16 @@ struct GpuChipProperties
                 uint64 support2DRectList                  :  1; // HW supports PrimitiveTopology::TwoDRectList.
                 uint64 supportImageViewMinLod             :  1; // Indicates image srd supports min_lod.
                 uint64 stateShadowingByCpFw               :  1; // Indicates that state shadowing is done is CP FW.
+                uint64 stateShadowingByCpFwUserAlloc      :  1; // FW state shadowing memory is allocated by PAL.
                 uint64 support3dUavZRange                 :  1; // HW supports read-write ImageViewSrds of 3D images
                                                                 // with zRange specified.
-                uint64 reserved                           : 11;
+                uint64 reserved                           : 10;
             };
 
             RayTracingIpLevel rayTracingIp;      //< HW RayTracing IP version
+
+            UseExecuteIndirectPacket executeIndirectSupport; //< Specifies which CmdTypes of ExecuteIndirect are
+                                                             //< supported by this FW version.
 
             Gfx9PerfCounterInfo perfCounterInfo; // Contains info for perf counters for a specific hardware block
 
@@ -1166,8 +1177,13 @@ public:
     virtual Result GetProperties(
         DeviceProperties* pInfo) const override;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 796
+    virtual Result CheckExecutionState(
+        PageFaultStatus* pPageFaultStatus) override;
+#else
     virtual Result CheckExecutionState(
         PageFaultStatus* pPageFaultStatus) const override;
+#endif
 
     // NOTE: PAL internals can access the same information more directly via the HeapProperties() getter.
     virtual Result GetGpuMemoryHeapProperties(
@@ -1822,6 +1838,11 @@ public:
         return m_chipProperties.gfx9.stateShadowingByCpFw;
     }
 
+    bool SupportStateShadowingByCpFwUserAlloc() const
+    {
+        return m_chipProperties.gfx9.stateShadowingByCpFwUserAlloc;
+    }
+
     bool SupportsStaticVmid() const
         { return m_chipProperties.gfxip.supportStaticVmid; }
 
@@ -2460,6 +2481,16 @@ constexpr bool IsGfx11(GfxIpLevel gfxLevel)
 }
 
 inline bool IsGfx11(const Device& device)
+{
+    return IsGfx11(device.ChipProperties().gfxLevel);
+}
+
+inline bool IsGfx11Plus(GfxIpLevel gfxLevel)
+{
+    return IsGfx11(gfxLevel);
+}
+
+inline bool IsGfx11Plus(const Device& device)
 {
     return IsGfx11(device.ChipProperties().gfxLevel);
 }

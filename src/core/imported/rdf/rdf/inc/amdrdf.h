@@ -31,13 +31,20 @@
 #include <stdexcept>
 #include <vector>
 
-#if defined(RDF_BUILD_LIBRARY) && RDF_BUILD_STATIC==0
+#if defined(RDF_BUILD_LIBRARY) && RDF_BUILD_STATIC == 0
 #define RDF_EXPORT __attribute__((visibility("default")))
 #else
 #define RDF_EXPORT
 #endif
 
 #define RDF_IDENTIFIER_SIZE 16
+
+#define RDF_MAKE_VERSION(major, minor, patch) \
+    ((static_cast<std::uint32_t>(major) << 22) | \
+     (static_cast<std::uint32_t>(minor) << 12) | \
+     (static_cast<std::uint32_t>(patch)))
+
+#define RDF_INTERFACE_VERSION RDF_MAKE_VERSION(1, 1, 2)
 
 extern "C" {
 struct rdfChunkFile;
@@ -57,12 +64,125 @@ enum rdfCompression
     rdfCompressionZstd = 1
 };
 
+enum rdfStreamAccess
+{
+    rdfStreamAccessRead = 1,
+    rdfStreamAccessReadWrite = 3
+};
+
+enum rdfFileMode
+{
+    // Open an existing file
+    rdfFileModeOpen,
+    // Create a new file, if it exists, truncate
+    rdfFileModeCreate,
+};
+
+struct rdfStreamFromFileCreateInfo
+{
+    const char* filename;
+    rdfStreamAccess accessMode;
+    rdfFileMode fileMode;
+};
+
+/**
+ * @brief User-provided I/O callbacks
+ *
+ * There are five callback functions here which will be called with the user-
+ * provided context variable:
+ *
+ * - Seek/Tell/GetSize must be always non-null
+ * - Read/Write can be null. Note that a stream which has both set to null
+ *   is invalid. The chunk writer can work with a stream that is in write-
+ *   only mode only if it's not appending.
+*/
+struct rdfUserStream
+{
+    /**
+     * @brief Read count bytes into buffer
+     * @return rdfResult
+     *
+     * This function can be `null` if the stream doesn't support reading.
+     *
+     * - `bytesRead` can be optionally set, if it's non-null, the number of
+     *   bytes actually read must be set.
+     * - `buffer` can be null only if `count` is 0
+     * - The provided context will be passed into `ctx`
+    */
+    int (*Read)(void* ctx, const std::int64_t count, void* buffer, std::int64_t* bytesRead);
+
+    /**
+     * @brief Write count bytes from buffer
+     * @return rdfResult
+     *
+     * This function can be `null` if the stream doesn't support writing.
+     *
+     * - `bytesWritten` can be optionally set, if it's non-null, the number of
+     *   bytes actually written must be set.
+     * - `buffer` can be null only if `count` is 0
+     * - The provided context will be passed into `ctx`
+    */
+    int (*Write)(void* ctx,
+                 const std::int64_t count,
+                 const void* buffer,
+                 std::int64_t* bytesWritten);
+
+    /**
+     * @brief Get the current position
+     * @return rdfResult
+     *
+     * This function must be always provided.
+     *
+     * - `position` must not be null
+     * - The provided context will be passed into `ctx`
+    */
+    int (*Tell)(void* ctx, std::int64_t* position);
+
+    /**
+     * @brief Set the current position
+     * @return rdfResult
+     *
+     * This function must be always provided.
+     *
+     * - `position` must not positive or 0
+     * - The provided context will be passed into `ctx`
+    */
+    int (*Seek)(void* ctx, std::int64_t position);
+
+    /**
+     * @brief Get the size
+     * @return rdfResult
+     *
+     * This function must be always provided.
+     *
+     * -  `size` must not be `null`
+     * - The provided context will be passed into `ctx`
+    */
+    int (*GetSize)(void* ctx, std::int64_t* size);
+
+    void* context;
+};
+
+int RDF_EXPORT rdfStreamFromFile(const rdfStreamFromFileCreateInfo* info, rdfStream** stream);
+
 int RDF_EXPORT rdfStreamOpenFile(const char* filename, rdfStream** stream);
 int RDF_EXPORT rdfStreamCreateFile(const char* filename, rdfStream** stream);
 int RDF_EXPORT rdfStreamFromReadOnlyMemory(const std::int64_t size,
                                            const void* buffer,
                                            rdfStream** stream);
 int RDF_EXPORT rdfStreamCreateMemoryStream(rdfStream** stream);
+
+/**
+ * @deprecated Use `rdfStreamFromUserStream` instead
+ *
+ * This entry point will be removed in the next major version
+ */
+int RDF_EXPORT rdfStreamCreateFromUserStream(const rdfUserStream* userStream, rdfStream** stream);
+
+/**
+ * @since 1.1
+ */
+int RDF_EXPORT rdfStreamFromUserStream(const rdfUserStream* userStream, rdfStream** stream);
 int RDF_EXPORT rdfStreamClose(rdfStream** stream);
 
 int RDF_EXPORT rdfStreamRead(rdfStream*,
@@ -131,7 +251,15 @@ struct rdfChunkCreateInfo
     std::uint32_t version;
 };
 
+struct rdfChunkFileWriterCreateInfo
+{
+    rdfStream* stream;
+    bool appendToFile;
+};
+
 int RDF_EXPORT rdfChunkFileWriterCreate(rdfStream* stream, rdfChunkFileWriter** writer);
+int RDF_EXPORT rdfChunkFileWriterCreate2(const rdfChunkFileWriterCreateInfo* info,
+                                         rdfChunkFileWriter** writer);
 int RDF_EXPORT rdfChunkFileWriterDestroy(rdfChunkFileWriter** writer);
 
 int RDF_EXPORT rdfChunkFileWriterBeginChunk(rdfChunkFileWriter* writer,
@@ -174,6 +302,7 @@ private:
     rdfResult result_;
 };
 
+#ifndef RDF_CHECK_CALL
 #define RDF_CHECK_CALL(c)                                        \
     do {                                                         \
         const auto r_ = c;                                       \
@@ -181,6 +310,7 @@ private:
             throw rdf::ApiException(static_cast<rdfResult>(r_)); \
         }                                                        \
     } while (0)
+#endif
 
 class Stream final
 {
@@ -189,6 +319,21 @@ public:
     {
         Stream result;
         RDF_CHECK_CALL(rdfStreamOpenFile(filename, &result.stream_));
+        return result;
+    }
+
+    static Stream FromFile(const char* filename,
+        rdfStreamAccess streamAccess,
+        rdfFileMode fileMode)
+    {
+        Stream result;
+
+        rdfStreamFromFileCreateInfo info = {};
+        info.filename = filename;
+        info.fileMode = fileMode;
+        info.accessMode = streamAccess;
+
+        RDF_CHECK_CALL(rdfStreamFromFile(&info, &result.stream_));
         return result;
     }
 
@@ -210,6 +355,13 @@ public:
     {
         Stream result;
         RDF_CHECK_CALL(rdfStreamCreateMemoryStream(&result.stream_));
+        return result;
+    }
+
+    static Stream FromUserStream(const rdfUserStream* userStream)
+    {
+        Stream result;
+        RDF_CHECK_CALL(rdfStreamFromUserStream(userStream, &result.stream_));
         return result;
     }
 
@@ -282,13 +434,13 @@ public:
         return stream_;
     }
 
-    Stream(Stream&& rhs)
+    Stream(Stream&& rhs) noexcept
     {
         stream_ = rhs.stream_;
         rhs.stream_ = nullptr;
     }
 
-    Stream& operator=(Stream&& rhs)
+    Stream& operator=(Stream&& rhs) noexcept
     {
         stream_ = rhs.stream_;
         rhs.stream_ = nullptr;
@@ -316,13 +468,13 @@ class ChunkFileIterator final
 public:
     ChunkFileIterator(rdfChunkFileIterator* iterator) : it_(iterator) {}
 
-    ChunkFileIterator(ChunkFileIterator&& rhs)
+    ChunkFileIterator(ChunkFileIterator&& rhs) noexcept
     {
         it_ = rhs.it_;
         rhs.it_ = nullptr;
     }
 
-    ChunkFileIterator& operator=(ChunkFileIterator&& rhs)
+    ChunkFileIterator& operator=(ChunkFileIterator&& rhs) noexcept
     {
         it_ = rhs.it_;
         rhs.it_ = nullptr;
@@ -395,13 +547,13 @@ public:
     ChunkFile(const ChunkFile&) = delete;
     ChunkFile& operator=(const ChunkFile&) = delete;
 
-    ChunkFile(ChunkFile&& rhs)
+    ChunkFile(ChunkFile&& rhs) noexcept
     {
         chunkFile_ = rhs.chunkFile_;
         rhs.chunkFile_ = nullptr;
     }
 
-    ChunkFile& operator=(ChunkFile&& rhs)
+    ChunkFile& operator=(ChunkFile&& rhs) noexcept
     {
         chunkFile_ = rhs.chunkFile_;
         rhs.chunkFile_ = nullptr;
@@ -537,12 +689,28 @@ private:
     rdfChunkFile* chunkFile_ = nullptr;
 };
 
+enum ChunkFileWriteMode
+{
+    Create,
+    Append
+};
+
 class ChunkFileWriter final
 {
 public:
     ChunkFileWriter(Stream& stream)
     {
         RDF_CHECK_CALL(rdfChunkFileWriterCreate(static_cast<rdfStream*>(stream), &writer_));
+    }
+
+    ChunkFileWriter(Stream& stream, ChunkFileWriteMode writeMode)
+    {
+        rdfChunkFileWriterCreateInfo info = {};
+
+        info.stream = static_cast<rdfStream*>(stream);
+        info.appendToFile = writeMode == ChunkFileWriteMode::Append;
+
+        RDF_CHECK_CALL(rdfChunkFileWriterCreate2(&info, &writer_));
     }
 
     ~ChunkFileWriter()
@@ -593,8 +761,8 @@ public:
                    const std::uint32_t version)
     {
         rdfChunkCreateInfo info = {};
-        ::memcpy(
-            info.identifier, chunkId, std::min(std::strlen(chunkId), (size_t)RDF_IDENTIFIER_SIZE));
+        ::memcpy(info.identifier, chunkId,
+            SafeStringLength(chunkId, RDF_IDENTIFIER_SIZE));
         info.headerSize = chunkHeaderSize;
         info.pHeader = chunkHeader;
         info.compression = compression;
@@ -628,8 +796,8 @@ public:
                     const std::uint32_t version)
     {
         rdfChunkCreateInfo info = {};
-        ::memcpy(
-            info.identifier, chunkId, std::min(std::strlen(chunkId), (size_t)RDF_IDENTIFIER_SIZE));
+        ::memcpy(info.identifier, chunkId,
+            SafeStringLength(chunkId, RDF_IDENTIFIER_SIZE));
         info.headerSize = chunkHeaderSize;
         info.pHeader = chunkHeader;
         info.compression = compression;
@@ -659,6 +827,21 @@ public:
 
 private:
     rdfChunkFileWriter* writer_ = nullptr;
+
+    size_t SafeStringLength(const char* s, const size_t maxLength)
+    {
+        if (s == nullptr) {
+            return 0;
+        }
+
+        for (size_t i = 0; i < maxLength; ++i) {
+            if (s[i] == '\0') {
+                return i;
+            }
+        }
+
+        return maxLength;
+    }
 };
 }  // namespace rdf
 #endif

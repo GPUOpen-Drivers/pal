@@ -1303,9 +1303,10 @@ bool RsrcProcMgr::ExpandDepthStencil(
                 pBaseSubResInfo->extentElements.height,
             };
 
-            const uint32 sizeConstDataDwords = NumBytesToNumDwords(sizeof(constData));
+            // Embed the constant buffer in user-data right after the SRD table.
+            pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, ArrayLen32(constData), constData);
 
-            for (uint32  sliceIdx = 0; sliceIdx < range.numSlices; sliceIdx++)
+            for (uint32 sliceIdx = 0; sliceIdx < range.numSlices; sliceIdx++)
             {
                 const SubresId     subResId =  { mipBaseSubResId.plane,
                                                  mipBaseSubResId.mipLevel,
@@ -1313,12 +1314,11 @@ bool RsrcProcMgr::ExpandDepthStencil(
                 const SubresRange  viewRange = { subResId, 1, 1, 1 };
 
                 // Create an embedded user-data table and bind it to user data 0. We will need two views.
-                uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(
-                                        pCmdBuffer,
-                                        2 * SrdDwordAlignment() + sizeConstDataDwords,
-                                        SrdDwordAlignment(),
-                                        PipelineBindPoint::Compute,
-                                        0);
+                uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
+                                                                           SrdDwordAlignment() * 2,
+                                                                           SrdDwordAlignment(),
+                                                                           PipelineBindPoint::Compute,
+                                                                           0);
 
                 ImageViewInfo imageView[2] = {};
                 RpmUtil::BuildImageViewInfo(&imageView[0],
@@ -1336,9 +1336,6 @@ bool RsrcProcMgr::ExpandDepthStencil(
                                             device.TexOptLevel(),
                                             true);  // dst
                 device.CreateImageViewSrds(2, &imageView[0], pSrdTable);
-
-                pSrdTable += 2 * SrdDwordAlignment();
-                memcpy(pSrdTable, constData, sizeof(constData));
 
                 // Execute the dispatch.
                 pCmdBuffer->CmdDispatch(threadGroups);
@@ -1424,7 +1421,8 @@ void RsrcProcMgr::HwlFastColorClear(
     PAL_ASSERT(gfx9Image.HasDccData());
 
     auto*const pCmdStream = static_cast<CmdStream*>(
-        pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics));
+        pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Compute));
+
     PAL_ASSERT(pCmdStream != nullptr);
 
     bool fastClearElimRequired = false;
@@ -3183,13 +3181,17 @@ void RsrcProcMgr::DccDecompressOnCompute(
     const uint32     lastMip    = range.startSubres.mipLevel + range.numMips - 1;
     bool             earlyExit  = false;
 
-    for (uint32  mipLevel = range.startSubres.mipLevel; ((earlyExit == false) && (mipLevel <= lastMip)); mipLevel++)
+    for (uint32 mipLevel = range.startSubres.mipLevel; ((earlyExit == false) && (mipLevel <= lastMip)); mipLevel++)
     {
         const SubresId              mipBaseSubResId = { range.startSubres.plane, mipLevel, 0 };
         const SubResourceInfo*const pBaseSubResInfo = image.Parent()->SubresourceInfo(mipBaseSubResId);
 
-        // Blame the caller if this trips...
-        PAL_ASSERT(pBaseSubResInfo->flags.supportMetaDataTexFetch);
+        // After a certain point, mips may not have 'useful' DCC, thus supportMetaDataTexFetch is 0 and expand is not
+        // necessary at all
+        if (pBaseSubResInfo->flags.supportMetaDataTexFetch == 0)
+        {
+            break;
+        }
 
         const DispatchDims threadGroups =
         {
@@ -3205,9 +3207,10 @@ void RsrcProcMgr::DccDecompressOnCompute(
             pBaseSubResInfo->extentElements.height,
         };
 
-        const uint32 sizeConstDataDwords = NumBytesToNumDwords(sizeof(constData));
+        // Embed the constant buffer in user-data right after the SRD table.
+        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, ArrayLen32(constData), constData);
 
-        for (uint32  sliceIdx = 0; sliceIdx < range.numSlices; sliceIdx++)
+        for (uint32 sliceIdx = 0; sliceIdx < range.numSlices; sliceIdx++)
         {
             const SubresId     subResId =  { mipBaseSubResId.plane,
                                              mipBaseSubResId.mipLevel,
@@ -3216,7 +3219,7 @@ void RsrcProcMgr::DccDecompressOnCompute(
 
             // Create an embedded user-data table and bind it to user data 0. We will need two views.
             uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
-                                                                       2 * SrdDwordAlignment() + sizeConstDataDwords,
+                                                                       SrdDwordAlignment() * 2,
                                                                        SrdDwordAlignment(),
                                                                        PipelineBindPoint::Compute,
                                                                        0);
@@ -3239,9 +3242,6 @@ void RsrcProcMgr::DccDecompressOnCompute(
                                         true);  // dst
 
             device.CreateImageViewSrds(2, &imageView[0], pSrdTable);
-
-            pSrdTable += 2 * SrdDwordAlignment();
-            memcpy(pSrdTable, constData, sizeof(constData));
 
             // Execute the dispatch.
             pCmdBuffer->CmdDispatch(threadGroups);
@@ -3422,21 +3422,17 @@ void RsrcProcMgr::ClearFmask(
     const uint64 validBitsMask    = fMaskAddrOutput.bpp < 64 ? (1ULL << fMaskAddrOutput.bpp) - 1ULL : UINT64_MAX;
     const uint64 maskedClearValue = clearValue & validBitsMask;
 
-    const uint32  userData[] =
+    const uint32 userData[8] =
     {
         // color
         LowPart(maskedClearValue), HighPart(maskedClearValue), 0, 0,
         // (x,y) offset, (width,height)
-        0, 0, imageCreateInfo.extent.width, imageCreateInfo.extent.height,
-        // ignored
-        0, 0, 0
+        0, 0, imageCreateInfo.extent.width, imageCreateInfo.extent.height
     };
-
-    const uint32  DataDwords = NumBytesToNumDwords(sizeof(userData));
 
     // Create an embedded user-data table and bind it to user data 0.
     uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
-                                                               SrdDwordAlignment() + DataDwords,
+                                                               SrdDwordAlignment(),
                                                                SrdDwordAlignment(),
                                                                PipelineBindPoint::Compute,
                                                                0);
@@ -3452,8 +3448,9 @@ void RsrcProcMgr::ClearFmask(
     fmaskViewInternal.flags.fmaskAsUav = 1;
 
     m_pDevice->CreateFmaskViewSrdsInternal(1, &fmaskBufferView, &fmaskViewInternal, pSrdTable);
-    pSrdTable += SrdDwordAlignment();
-    memcpy(pSrdTable, &userData[0], sizeof(userData));
+
+    // The constant buffer goes in the remaining user-data.
+    pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, ArrayLen32(userData), userData);
 
     // And hit the "go" button...
     const DispatchDims threads = {imageCreateInfo.extent.width, imageCreateInfo.extent.height, clearRange.numSlices};
@@ -7792,6 +7789,23 @@ ImageCopyEngine Gfx10RsrcProcMgr::GetImageToImageCopyEngine(
     ImageCopyEngine copyEngine = PreferComputeForNonLocalDestCopy(dstImage) ? ImageCopyEngine::Compute :
         Pm4::RsrcProcMgr::GetImageToImageCopyEngine(pCmdBuffer, srcImage, dstImage, regionCount, pRegions, copyFlags);
 
+#if PAL_BUILD_GFX11
+    // Profiling shows that gfx11's draw-based copy performance craters when you go from 4xAA to 8xAA on either of
+    // the two-plane depth+stencil formats. The single-plane depth-only formats seem unaffected.
+    //
+    // We don't have a proper root-cause for this but we suspect that running a per-sample PS with 8xAA fills up the
+    // OREO scoreboard. Waiting for the scoreboard to drain becomes a serious bottleneck making the copy DB-bound.
+    // We'll run much, much faster if we force these cases back to the compute path.
+    if ((copyEngine == ImageCopyEngine::Graphics)    &&
+        IsGfx11(*m_pDevice->Parent())                &&
+        dstImage.IsDepthStencilTarget()              &&
+        (dstImage.GetImageCreateInfo().samples == 8) &&
+        (dstImage.GetImageInfo().numPlanes == 2))
+    {
+        copyEngine = ImageCopyEngine::Compute;
+    }
+#endif
+
     // If the copy will use the graphics engine anyway then there's no need to go through this as graphics
     // copies won't corrupt the VRS encoding.
     if ((copyEngine != ImageCopyEngine::Graphics) && CopyDstBoundStencilNeedsWa(pCmdBuffer, dstImage))
@@ -7869,6 +7883,21 @@ bool Gfx10RsrcProcMgr::PreferComputeForNonLocalDestCopy(
     }
 
     return preferCompute;
+}
+
+// =====================================================================================================================
+// Gives the hardare layers some influence over GetCopyImageComputePipeline.
+bool Gfx10RsrcProcMgr::CopyImageCsUseMsaaMorton(
+    const Pal::Image& dstImage
+    ) const
+{
+#if PAL_BUILD_GFX11
+    // In gfx11, all MSAA swizzle modes were made identical to gfx10's "Z" swizzle modes. That means all gfx11
+    // MSAA images store their samples sequentially and store pixels in micro-tiles in Morton/Z order.
+    return IsGfx11(*m_pDevice->Parent()) || Pal::RsrcProcMgr::CopyImageCsUseMsaaMorton(dstImage);
+#else
+    return Pal::RsrcProcMgr::CopyImageCsUseMsaaMorton(dstImage);
+#endif
 }
 
 // =====================================================================================================================

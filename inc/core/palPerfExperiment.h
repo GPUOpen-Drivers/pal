@@ -194,7 +194,8 @@ struct PerfCounterInfo
         struct
         {
             uint16 eventThreshold;   ///< Threshold value for those UMC counters having event-specific threshold.
-            uint8  eventThresholdEn; ///< Threshold enable (0 for disabled,1 for <threshold,2 for >threshold)
+            uint8  eventThresholdEn; ///< Threshold enable (0 for disabled,1 for <threshold,2 for >threshold).
+            uint8  rdWrMask;         ///< Read/Write mask select (1 for Read, 2 for Write).
         } umc;
     };
 };

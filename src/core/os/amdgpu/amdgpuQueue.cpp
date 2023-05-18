@@ -102,7 +102,7 @@ Result SubmissionContext::Create(
     Pal::SubmissionContext** ppContext)
 {
     Result     result   = Result::ErrorOutOfMemory;
-    auto*const pContext = PAL_NEW(SubmissionContext, pDevice->GetPlatform(), AllocInternal)(*pDevice,
+    auto*const pContext = PAL_NEW(SubmissionContext, pDevice->GetPlatform(), AllocInternal)(pDevice,
                                                                                             engineType,
                                                                                             engineId,
                                                                                             priority,
@@ -128,20 +128,21 @@ Result SubmissionContext::Create(
 
 // =====================================================================================================================
 SubmissionContext::SubmissionContext(
-    const Device&       device,
+    Device*             pDevice,
     EngineType          engineType,
     uint32              engineId,
     Pal::QueuePriority  priority,
     bool                isTmzOnly)
     :
-    Pal::SubmissionContext(device.GetPlatform()),
-    m_device(device),
+    Pal::SubmissionContext(pDevice->GetPlatform()),
+    m_pDevice(pDevice),
     m_ipType(GetIpType(engineType)),
     m_engineId(engineId),
     m_queuePriority(priority),
     m_isTmzOnly(isTmzOnly),
     m_lastSignaledSyncObject(0),
-    m_hContext(nullptr)
+    m_hContext(nullptr),
+    m_isShadowInitialized(false)
 {
 }
 
@@ -150,7 +151,7 @@ SubmissionContext::~SubmissionContext()
 {
     if (m_hContext != nullptr)
     {
-        const Result result = m_device.DestroyCommandSubmissionContext(m_hContext);
+        const Result result = m_pDevice->DestroyCommandSubmissionContext(m_hContext);
         PAL_ASSERT(result == Result::Success);
 
         m_hContext = nullptr;
@@ -178,7 +179,7 @@ bool SubmissionContext::IsTimestampRetired(
     queryFence.ip_instance = 0;
     queryFence.ip_type     = m_ipType;
 
-    return (m_device.QueryFenceStatus(&queryFence, 0) == Result::Success);
+    return (m_pDevice->QueryFenceStatus(&queryFence, 0) == Result::Success);
 }
 
 // =====================================================================================================================
@@ -706,7 +707,7 @@ Result Queue::OsSubmit(
                     }
                     if (result == Result::Success)
                     {
-                        PAL_NOT_IMPLEMENTED_MSG("Implicit Gang Submission not yet implemented!");
+                        SubmitImplicitGangPm4(submitInfo, pInternalSubmitInfos);
                     }
                 }
                 else
@@ -903,7 +904,8 @@ Result Queue::SubmitPm4(
                                                       numNextCmdBuffers,
                                                       ppNextCmdBuffers,
                                                       &batchSize,
-                                                      EngineId());
+                                                      EngineId(),
+                                                      SubmitType::SingleQueue);
             }
         }
         else
@@ -912,7 +914,8 @@ Result Queue::SubmitPm4(
                                                   numNextCmdBuffers,
                                                   ppNextCmdBuffers,
                                                   &batchSize,
-                                                  EngineId());
+                                                  EngineId(),
+                                                  SubmitType::SingleQueue);
         }
 
         if (result == Result::Success)
@@ -943,7 +946,7 @@ Result Queue::SubmitPm4(
 }
 
 // =====================================================================================================================
-// Submits one or more PM4 command buffers.
+// Submits command buffers in each perSubQueueInfo to corresponding subQueue with a single submit.
 Result Queue::SubmitMultiQueuePm4(
     const MultiSubmitInfo&    submitInfo,
     const InternalSubmitInfo* internalSubmitInfo)
@@ -1007,7 +1010,7 @@ Result Queue::SubmitMultiQueuePm4(
                                                   ppNextCmdBuffers,
                                                   &batchSize,
                                                   m_pQueueInfos[qIndex].createInfo.engineIndex,
-                                                  true);
+                                                  SubmitType::ExplicitGang);
             if (result == Result::Success)
             {
                 // The batch is fully prepared, advance our tracking variables and launch the command streams.
@@ -1041,6 +1044,112 @@ Result Queue::SubmitMultiQueuePm4(
 }
 
 // =====================================================================================================================
+// Submits implicitly gang-submit command buffers for the Universal Engine.
+// The caller must ensure that the this is not an explicit MultiQueue submit and that the command buffers being
+// submitted are designated for the Universal engine.
+Result Queue::SubmitImplicitGangPm4(
+    const MultiSubmitInfo&    submitInfo,
+    const InternalSubmitInfo* internalSubmitInfo)
+{
+    auto*const pDevice                     = static_cast<Device*>(m_pDevice);
+    const GpuEngineProperties& engineProps = m_pDevice->EngineProperties();
+    PAL_ASSERT(submitInfo.pPerSubQueueInfo     != nullptr);
+    PAL_ASSERT(submitInfo.perSubQueueInfoCount == 1);
+    PAL_ASSERT((m_queueCount == 1) && (m_pQueueInfos[0].createInfo.engineType == EngineTypeUniversal));
+    PAL_ASSERT(engineProps.perEngine[EngineTypeUniversal].flags.physicalAddressingMode == 0);
+
+    Result result = Result::Success;
+
+    // Get a compute Queue Engine
+    int32 computeEngineIndex = MaxAvailableEngines - 1;
+    const auto * const engineCapabilities = engineProps.perEngine[EngineTypeCompute].capabilities;
+    for (; computeEngineIndex >= 0; --computeEngineIndex)
+    {
+        if (engineCapabilities[computeEngineIndex].flags.supportsMultiQueue)
+        {
+            if (m_device.GetEngine(EngineTypeCompute, computeEngineIndex) == nullptr)
+            {
+                result = m_device.CreateEngine(EngineTypeCompute, computeEngineIndex);
+            }
+
+            if (result == Result::Success)
+            {
+                break;
+            }
+        }
+    }
+    if (computeEngineIndex < 0)
+    {
+        result = Result::ErrorUnavailable;
+    }
+
+    // Prepare Command Buffers
+    uint32            cmdBufferCount = submitInfo.pPerSubQueueInfo[0].cmdBufferCount;
+    ICmdBuffer*const* ppCmdBuffers   = submitInfo.pPerSubQueueInfo[0].ppCmdBuffers;
+    uint32            batchSize      = 0;
+
+    PAL_ASSERT(cmdBufferCount != 0);
+
+    IncrementDummySubmitCount(internalSubmitInfo, ppCmdBuffers, cmdBufferCount);
+
+    // ************************
+    // First handle the Universal Engine data.
+    // ************************
+    if (result == Result::Success)
+    {
+        result = PrepareChainedCommandBuffers(internalSubmitInfo[0],
+                                              cmdBufferCount,
+                                              ppCmdBuffers,
+                                              &batchSize,
+                                              m_pQueueInfos[0].createInfo.engineIndex,
+                                              SubmitType::ImplicitGang,
+                                              EngineTypeUniversal,
+                                              CmdBuffer::MainSubQueueIdx);
+        PAL_ASSERT(batchSize == cmdBufferCount);
+    }
+
+    // ************************
+    // Next handle the implicit Compute Engine data.
+    // ************************
+    for (uint32 subQueueIdx = 0;
+        ((result == Result::Success) && (subQueueIdx < internalSubmitInfo->implicitGangedSubQueues));
+        ++subQueueIdx)
+    {
+        // Note: PAL currently only supports 1 subQueue, at index 0, for implicit gang.
+        result = PrepareChainedCommandBuffers(internalSubmitInfo[0],
+                                              cmdBufferCount,
+                                              ppCmdBuffers,
+                                              &batchSize,
+                                              computeEngineIndex,
+                                              SubmitType::ImplicitGang,
+                                              EngineTypeCompute,
+                                              subQueueIdx);
+        PAL_ASSERT(batchSize == cmdBufferCount);
+    }
+
+    // Wait for upload ring
+    if (result == Result::Success)
+    {
+        result = GfxIpWaitPipelineUploading(submitInfo);
+    }
+
+    // Submit Command Stream Chunks
+    if (result == Result::Success)
+    {
+        if (pDevice->IsRaw2SubmitSupported())
+        {
+            result = SubmitIbsRaw(internalSubmitInfo[0]);
+        }
+        else
+        {
+            PAL_ASSERT_ALWAYS_MSG("Attempted an implicit gang submit on a device which doesn't support Raw2Submit");
+            result = Result::Unsupported;
+        }
+    }
+    return result;
+}
+
+// =====================================================================================================================
 // The GFX IP engines all support IB chaining, so we can submit multiple command buffers together as one. This function
 // will add command streams for the preambles, chained command streams, and the postambles.
 Result Queue::PrepareChainedCommandBuffers(
@@ -1049,7 +1158,9 @@ Result Queue::PrepareChainedCommandBuffers(
     ICmdBuffer*const*         ppCmdBuffers,
     uint32*                   pAppendedCmdBuffers,
     uint32                    engineId,
-    const bool                isMultiQueue)
+    const SubmitType          submitType,
+    const EngineType          implicitGangEngineType,
+    int32                     implicitGangSubQueueIdx)
 {
     Result result = Result::Success;
 
@@ -1070,8 +1181,8 @@ Result Queue::PrepareChainedCommandBuffers(
         batchSize++;
     }
 
-    // In MultiQueue, all command streams of a subQueue should be able to chained together.
-    if (isMultiQueue && (batchSize < cmdBufferCount))
+    // In a ganged submit, all command streams of a subQueue should be able to chained together.
+    if ((submitType != SubmitType::SingleQueue) && (batchSize < cmdBufferCount))
     {
         result = Result::ErrorUnavailable;
     }
@@ -1082,15 +1193,27 @@ Result Queue::PrepareChainedCommandBuffers(
     // as preemptible.
     for (uint32 idx = 0; (result == Result::Success) && (idx < internalSubmitInfo.numPreambleCmdStreams); ++idx)
     {
-        PAL_ASSERT(internalSubmitInfo.pPreambleCmdStream[idx] != nullptr);
-        result = AddCmdStream(*internalSubmitInfo.pPreambleCmdStream[idx],
-                              engineId,
-                              internalSubmitInfo.flags.isDummySubmission,
-                              internalSubmitInfo.flags.isTmzEnabled);
+        const CmdStream* const pCmdStream = internalSubmitInfo.pPreambleCmdStream[idx];
+
+        PAL_ASSERT(pCmdStream != nullptr);
+
+        if ((submitType == SubmitType::ImplicitGang) && (pCmdStream->GetEngineType() != implicitGangEngineType))
+        {
+            continue;
+        }
+        else
+        {
+            result = AddCmdStream(*pCmdStream,
+                                  engineId,
+                                  internalSubmitInfo.flags.isDummySubmission,
+                                  internalSubmitInfo.flags.isTmzEnabled);
+        }
     }
 
     // The command buffer streams are grouped by stream index.
-    const uint32 numStreams = static_cast<CmdBuffer*>(ppCmdBuffers[0])->NumCmdStreams();
+    const uint32 numStreams = (submitType == SubmitType::ImplicitGang) ?
+                        static_cast<CmdBuffer*>(ppCmdBuffers[0])->NumCmdStreamsInSubQueue(implicitGangSubQueueIdx) :
+                        static_cast<CmdBuffer*>(ppCmdBuffers[0])->NumCmdStreams();
 
     for (uint32 streamIdx = 0; (result == Result::Success) && (streamIdx < numStreams); ++streamIdx)
     {
@@ -1103,9 +1226,13 @@ Result Queue::PrepareChainedCommandBuffers(
             PAL_ASSERT(pCurCmdBuf != nullptr);
 
             // We assume that all command buffers for this queue type have the same number of streams.
-            PAL_ASSERT(numStreams == pCurCmdBuf->NumCmdStreams());
+            PAL_ASSERT(numStreams == (submitType == SubmitType::ImplicitGang) ?
+                        pCurCmdBuf->NumCmdStreamsInSubQueue(implicitGangSubQueueIdx) :
+                        pCurCmdBuf->NumCmdStreams());
 
-            const CmdStream*const pCurCmdStream = pCurCmdBuf->GetCmdStream(streamIdx);
+            const CmdStream*const pCurCmdStream = (submitType == SubmitType::ImplicitGang) ?
+                                            pCurCmdBuf->GetCmdStreamInSubQueue(implicitGangSubQueueIdx, streamIdx) :
+                                            pCurCmdBuf->GetCmdStream(streamIdx);
 
             if ((pCurCmdStream != nullptr) && (pCurCmdStream->IsEmpty() == false))
             {
@@ -1150,11 +1277,21 @@ Result Queue::PrepareChainedCommandBuffers(
     // postambles will always be executed.
     for (uint32 idx = 0; (result == Result::Success) && (idx < internalSubmitInfo.numPostambleCmdStreams); ++idx)
     {
-        PAL_ASSERT(internalSubmitInfo.pPostambleCmdStream[idx] != nullptr);
-        result = AddCmdStream(*internalSubmitInfo.pPostambleCmdStream[idx],
-                              engineId,
-                              internalSubmitInfo.flags.isDummySubmission,
-                              internalSubmitInfo.flags.isTmzEnabled);
+        const CmdStream* const pCmdStream = internalSubmitInfo.pPostambleCmdStream[idx];
+
+        PAL_ASSERT(pCmdStream != nullptr);
+
+        if ((submitType == SubmitType::ImplicitGang) && (pCmdStream->GetEngineType() != implicitGangEngineType))
+        {
+            continue;
+        }
+        else
+        {
+            result = AddCmdStream(*internalSubmitInfo.pPostambleCmdStream[idx],
+                                  engineId,
+                                  internalSubmitInfo.flags.isDummySubmission,
+                                  internalSubmitInfo.flags.isTmzEnabled);
+        }
     }
 
     if (result == Result::Success)
@@ -1655,6 +1792,12 @@ Result Queue::SubmitIbsRaw(
     // to use raw2 submit with DRM >= 3.27, amdgpu_bo_handles will be submitted with an extra chunk
     totalChunk += pDevice->UseBoListCreate() ? 0 : 1;
 
+    // Shadow buffers need one chunk
+    if (GetEngineType() == EngineTypeUniversal)
+    {
+        totalChunk += pDevice->SupportStateShadowingByCpFwUserAlloc();
+    }
+
     AutoBuffer<struct drm_amdgpu_cs_chunk, 8, Pal::Platform>
                         chunkArray(totalChunk, m_pDevice->GetPlatform());
     AutoBuffer<struct drm_amdgpu_cs_chunk_data, 8, Pal::Platform>
@@ -1756,6 +1899,7 @@ Result Queue::SubmitIbsRaw(
                 }
                 pSignalChunkArray[internalSubmitInfo.signalSemaphoreCount].handle = m_lastSignaledSyncObject;
                 pSignalChunkArray[internalSubmitInfo.signalSemaphoreCount].point = 0;
+                currentChunk ++;
             }
         }
         else
@@ -1807,8 +1951,44 @@ Result Queue::SubmitIbsRaw(
                     pSignalChunkArray[i].handle     = reinterpret_cast<uintptr_t>(handle);
                 }
                 pSignalChunkArray[internalSubmitInfo.signalSemaphoreCount].handle = m_lastSignaledSyncObject;
+                currentChunk++;
             }
         }
+
+#if PAL_BUILD_GFX11
+        struct drm_amdgpu_cs_chunk_cp_gfx_shadow shadowInfo = {};
+        if (m_pDevice->SupportStateShadowingByCpFwUserAlloc() && (GetEngineType() == EngineTypeUniversal))
+        {
+            // Add shadow memory information
+            chunkArray[currentChunk].chunk_id = AMDGPU_CHUNK_ID_CP_GFX_SHADOW;
+            chunkArray[currentChunk].length_dw  = sizeof(shadowInfo) / 4;
+            chunkArray[currentChunk].chunk_data = static_cast<uint64>(reinterpret_cast<uintptr_t>(&shadowInfo));
+
+            gpusize shadowBase =  m_pQueueInfos[0].pQueueContext->ShadowMemVa();
+            const auto& engineProps = m_pDevice->EngineProperties().perEngine[EngineTypeUniversal];
+            PAL_ASSERT(shadowBase != 0);
+
+            PAL_ASSERT(IsPow2Aligned(shadowBase, engineProps.fwShadowAreaAlignment));
+            shadowInfo.shadow_va  = shadowBase;
+            shadowBase           += engineProps.fwShadowAreaSize;
+
+            shadowBase           = Pow2Align(shadowBase, engineProps.contextSaveAreaAlignment);
+            shadowInfo.csa_va    = shadowBase;
+
+            shadowInfo.gds_va    = 0;
+
+            if (pContext->IsShadowInitialized() != true)
+            {
+                shadowInfo.flags = AMDGPU_CS_CHUNK_CP_GFX_SHADOW_FLAGS_INIT_SHADOW;
+            }
+            else
+            {
+                shadowInfo.flags = 0;
+            }
+
+            currentChunk++;
+        }
+#endif
 
 	// Serialize access to internalMgr and queue memory list
 	RWLockAuto<RWLock::ReadWrite> lockMgr(m_pDevice->MemMgr()->GetRefListLock());
@@ -1866,11 +2046,11 @@ Result Queue::SubmitIbsRaw(
                                             m_dummyResourceEntryList.Data() :
                                             resourceEntryList.Data()));
 
-            currentChunk ++;
             chunkArray[currentChunk].chunk_id = AMDGPU_CHUNK_ID_BO_HANDLES;
             chunkArray[currentChunk].length_dw = sizeof(struct drm_amdgpu_bo_list_in) / 4;
             // The pointer needs to be reinterpreted as unsigned 64-bit value in DRM.
             chunkArray[currentChunk].chunk_data = static_cast<uint64>(reinterpret_cast<uintptr_t>(&boListIn));
+            currentChunk ++;
         }
 
         result = pDevice->SubmitRaw2(pContext->Handle(),
@@ -1878,6 +2058,11 @@ Result Queue::SubmitIbsRaw(
                 totalChunk,
                 &chunkArray[0],
                 pContext->LastTimestampPtr());
+
+        if (result == Result::Success)
+        {
+            pContext->SetShadowInitialized();
+        }
 
         pContext->SetLastSignaledSyncObj(m_lastSignaledSyncObject);
 

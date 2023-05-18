@@ -250,6 +250,15 @@ typedef int32 (*AmdgpuBoListDestroyRaw)(
             amdgpu_device_handle  hDevice,
             uint32                boListHandle);
 
+typedef int32 (*AmdgpuCsQueryResetState)(
+            amdgpu_context_handle     context,
+            uint32_t *                state,
+            uint32_t *                hangs);
+
+typedef int32 (*AmdgpuCsQueryResetState2)(
+            amdgpu_context_handle     hContext,
+            uint64*                   flags);
+
 typedef int32 (*AmdgpuCsCtxCreate)(
             amdgpu_device_handle      hDevice,
             amdgpu_context_handle*    pContextHandle);
@@ -918,6 +927,18 @@ struct DrmLoaderFuncs
     bool pfnAmdgpuBoListDestroyRawisValid() const
     {
         return (pfnAmdgpuBoListDestroyRaw != nullptr);
+    }
+
+    AmdgpuCsQueryResetState           pfnAmdgpuCsQueryResetState;
+    bool pfnAmdgpuCsQueryResetStateisValid() const
+    {
+        return (pfnAmdgpuCsQueryResetState != nullptr);
+    }
+
+    AmdgpuCsQueryResetState2          pfnAmdgpuCsQueryResetState2;
+    bool pfnAmdgpuCsQueryResetState2isValid() const
+    {
+        return (pfnAmdgpuCsQueryResetState2 != nullptr);
     }
 
     AmdgpuCsCtxCreate                 pfnAmdgpuCsCtxCreate;
@@ -1862,6 +1883,25 @@ public:
     bool pfnAmdgpuBoListDestroyRawisValid() const
     {
         return (m_pFuncs->pfnAmdgpuBoListDestroyRaw != nullptr);
+    }
+
+    int32 pfnAmdgpuCsQueryResetState(
+            amdgpu_context_handle     context,
+            uint32_t *                state,
+            uint32_t *                hangs) const;
+
+    bool pfnAmdgpuCsQueryResetStateisValid() const
+    {
+        return (m_pFuncs->pfnAmdgpuCsQueryResetState != nullptr);
+    }
+
+    int32 pfnAmdgpuCsQueryResetState2(
+            amdgpu_context_handle     hContext,
+            uint64*                   flags) const;
+
+    bool pfnAmdgpuCsQueryResetState2isValid() const
+    {
+        return (m_pFuncs->pfnAmdgpuCsQueryResetState2 != nullptr);
     }
 
     int32 pfnAmdgpuCsCtxCreate(

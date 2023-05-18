@@ -31,13 +31,13 @@
 #include "palMutex.h"
 #include "palPlatform.h"
 
-#include "core/devDriverEventService.h"
 #include "core/eventDefs.h"
 
 #include "protocols/ddEventServer.h"
 #include "protocols/ddEventProvider.h"
 
 #include "util/ddEventTimer.h"
+#include "util/rmtTokens.h"
 
 namespace Pal
 {
@@ -61,7 +61,7 @@ public:
 
     bool IsMemoryProfilingEnabled() const
     {
-        return (IsProviderEnabled() || m_eventService.IsMemoryProfilingEnabled());
+        return (IsProviderEnabled());
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -139,11 +139,9 @@ private:
             token.Data(),
             token.Size()
         );
-        m_eventService.WriteTokenData(token);
     }
 
     Platform*                  m_pPlatform;
-    EventService               m_eventService;
     DevDriver::EventTimer      m_eventTimer;
     DevDriver::Platform::Mutex m_providerLock;
     bool                       m_logRmtVersion;

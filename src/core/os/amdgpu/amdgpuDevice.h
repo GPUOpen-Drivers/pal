@@ -186,6 +186,9 @@ public:
     virtual Result Finalize(const DeviceFinalizeInfo& finalizeInfo) override;
     virtual Result Cleanup() override;
 
+    Util::List<amdgpu_context_handle, Platform> m_contextList;
+    Util::Mutex m_contextListLock;
+
     // NOTE: Part of the public IDevice interface.
     virtual Result GetProperties(
         DeviceProperties* pInfo) const override;
@@ -223,15 +226,12 @@ public:
 
     virtual bool IsMasterGpu() const override { return true; }
 
-    bool IsAceGfxGangSubmitSupported() const
-        { return false; }
-
-    bool SupportsExplicitGang() const
+    bool SupportsGangSubmit() const
     {
-        bool supportsExplicitGang = ((IsDrmVersionOrGreater(3,49) || IsKernelVersionEqualOrGreater(6,1)) &&
-                                    false                                                                &&
+        bool supportsGangSubmit = ((IsDrmVersionOrGreater(3,49) || IsKernelVersionEqualOrGreater(6,1)) &&
+                                    false                                                              &&
                                     (m_pPlatform->IsEmulationEnabled() == false));
-        return supportsExplicitGang;
+        return supportsGangSubmit;
     }
 
     virtual Result AddGpuMemoryReferences(
@@ -492,8 +492,13 @@ public:
         return Result::ErrorUnavailable;
     }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 796
+    virtual Result CheckExecutionState(
+        PageFaultStatus* pPageFaultStatus) override;
+#else
     virtual Result CheckExecutionState(
         PageFaultStatus* pPageFaultStatus) const override;
+#endif
 
     virtual Result QueryRadeonSoftwareVersion(
         char*  pBuffer,
@@ -601,7 +606,7 @@ public:
         bool                   isTmzOnly) const;
 
     Result DestroyCommandSubmissionContext(
-        amdgpu_context_handle hContext) const;
+        amdgpu_context_handle hContext);
 
     Result SubmitRaw2(
         amdgpu_context_handle           hContext,

@@ -32,15 +32,15 @@
 #include "palSysUtil.h"
 #include "devDriverServer.h"
 
-#include "core/devDriverEventService.h"
 #include "core/devDriverEventServiceConv.h"
 #include "core/eventDefs.h"
 #include "core/gpuMemory.h"
 
 #include "palSysUtil.h"
 
-#include "util/rmtTokens.h"
+#include "util/rmtFileFormat.h"
 #include "util/rmtResourceDescriptions.h"
+#include "util/rmtTokens.h"
 
 using namespace Util;
 using namespace DevDriver;
@@ -70,7 +70,6 @@ GpuMemoryEventProvider::GpuMemoryEventProvider(Platform* pPlatform)
             kEventFlushTimeoutInMs
         ),
         m_pPlatform(pPlatform),
-        m_eventService({ pPlatform, DevDriverAlloc, DevDriverFree }),
         m_logRmtVersion(false)
         {}
 
@@ -91,21 +90,8 @@ Result GpuMemoryEventProvider::Init()
         EventProtocol::EventServer* pEventServer = pServer->GetEventServer();
         PAL_ASSERT(pEventServer != nullptr);
 
-        result =
-            (pMsgChannel->RegisterService(&m_eventService) == DevDriver::Result::Success) ? Result::Success
-                                                                                          : Result::ErrorUnknown;
-
-        if (result == Result::Success)
-        {
-            result =
-                (pEventServer->RegisterProvider(this) == DevDriver::Result::Success) ? Result::Success
-                                                                                     : Result::ErrorUnknown;
-
-            if (result != Result::Success)
-            {
-                DD_UNHANDLED_RESULT(pMsgChannel->UnregisterService(&m_eventService));
-            }
-        }
+        result = (pEventServer->RegisterProvider(this) == DevDriver::Result::Success) ? Result::Success
+                                                                                      : Result::ErrorUnknown;
     }
 
     return result;
@@ -127,7 +113,6 @@ void GpuMemoryEventProvider::Destroy()
         PAL_ASSERT(pEventServer != nullptr);
 
         DD_UNHANDLED_RESULT(pEventServer->UnregisterProvider(this));
-        DD_UNHANDLED_RESULT(pMsgChannel->UnregisterService(&m_eventService));
     }
 }
 
@@ -147,8 +132,7 @@ bool GpuMemoryEventProvider::ShouldLog(
     PalEvent eventId
     ) const
 {
-    return (m_eventService.IsMemoryProfilingEnabled() ||
-           (QueryEventWriteStatus(static_cast<uint32>(eventId)) == DevDriver::Result::Success));
+    return QueryEventWriteStatus(static_cast<uint32>(eventId)) == DevDriver::Result::Success;
 }
 
 // =====================================================================================================================

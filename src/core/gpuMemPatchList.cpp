@@ -146,7 +146,6 @@ Result GpuMemoryPatchList::AddWidePatchEntry(
             entry.chunkOffset            = chunkOffsetHi;
             entry.patchOp                = patchOpHi;
             entry.patchOpNum             = patchOpNumHi;
-
             result = m_patchEntries.PushBack(entry);
         }
     }

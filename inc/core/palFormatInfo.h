@@ -834,7 +834,6 @@ extern float GammaToLinear(float gammaCorrectedVal);
 
 /// Checks to see if a given format is a MM format
 ///
-/// #param [in] format Format to check
 ///
 /// @returns bool is it an MM format
 extern bool IsMmFormat(ChNumFormat format);

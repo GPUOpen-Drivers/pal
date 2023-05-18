@@ -591,9 +591,14 @@ public:
         DeviceProperties* pInfo) const override
         { return m_pNextLayer->GetProperties(pInfo); }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 796
+    virtual Result CheckExecutionState(
+        PageFaultStatus* pPageFaultStatus) override
+#else
     virtual Result CheckExecutionState(
         PageFaultStatus* pPageFaultStatus) const override
-        { return m_pNextLayer->CheckExecutionState(pPageFaultStatus); }
+#endif
+    { return m_pNextLayer->CheckExecutionState(pPageFaultStatus); }
 
     virtual PalPublicSettings* GetPublicSettings() override
         { return m_pNextLayer->GetPublicSettings(); }

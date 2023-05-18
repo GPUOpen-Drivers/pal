@@ -65,7 +65,6 @@ static_assert(false, "This header is for user mode windows, and it does not work
 // This macro can be used to inform the compiler about preconditions
 // that your code assumes, but cannot validate.
 //
-// ## Example Use Case - Generators
 //
 // A generator represents a potentially stateless object,
 // which computes a series of values lazily (on demand).

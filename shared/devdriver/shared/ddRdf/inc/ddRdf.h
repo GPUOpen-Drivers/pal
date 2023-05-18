@@ -28,7 +28,8 @@
 #include <stdint.h>
 
 #define DD_RDF_USERSTREAM_INTERFACE_VERSION_MAJOR 1
-#define DD_RDF_USERSTREAM_INTERFACE_VERSION_MINOR 0
+#define DD_RDF_USERSTREAM_INTERFACE_VERSION_MINOR 1
+#define DD_RDF_USERSTREAM_INTERFACE_VERSION_PATCH 2
 
 /// Note that DDRdfFileWriter mirrors the rdfUserStream, some caveats:
 ///     Writing a file requires us to seek back to the start and also tell the current position

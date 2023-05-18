@@ -120,16 +120,18 @@ private:
     };
 
     // These internal functions are used to manage all types of chunks.
-    Result FindFreeChunk(CmdAllocInfo* pAllocInfo, CmdStreamChunk** ppChunk);
+    Result FindFreeChunk(const bool systemMemory, CmdAllocInfo* pAllocInfo, CmdStreamChunk** ppChunk);
     Result CreateAllocation(CmdAllocInfo* pAllocInfo, bool dummyAlloc, CmdStreamChunk** ppChunk);
     Result CreateDummyChunkAllocation();
 
     void TransferChunks(ChunkList* pFreeList, ChunkList* pSrcList);
-    void FreeAllChunks();
+    void FreeAllChunks(const bool trackSuballocations);
     void FreeAllLinearAllocators();
 
     // Free allocations where all chunks are idle. Keep at least allocFreeThreshold allocations.
     Result TrimMemory(CmdAllocInfo* const pAllocInfo, uint32 allocFreeThreshold);
+
+    void ReportSuballocationEvent(const Developer::CallbackType type, CmdStreamChunk* const pChunk) const;
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     void PrintCommitLog() const;
@@ -177,6 +179,8 @@ private:
 
     // Dummy chunk used to handle cases where we've run out of GPU memory.
     CmdStreamAllocation* m_pDummyChunkAllocation;
+
+    Platform*const       m_pPlatform;
 
     PAL_DISALLOW_DEFAULT_CTOR(CmdAllocator);
     PAL_DISALLOW_COPY_AND_ASSIGN(CmdAllocator);

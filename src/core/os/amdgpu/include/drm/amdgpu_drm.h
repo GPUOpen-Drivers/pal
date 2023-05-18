@@ -626,6 +626,7 @@ struct drm_amdgpu_gem_va {
 #define AMDGPU_CHUNK_ID_SCHEDULED_DEPENDENCIES	0x07
 #define AMDGPU_CHUNK_ID_SYNCOBJ_TIMELINE_WAIT    0x08
 #define AMDGPU_CHUNK_ID_SYNCOBJ_TIMELINE_SIGNAL  0x09
+#define AMDGPU_CHUNK_ID_CP_GFX_SHADOW 0x0a
 
 struct drm_amdgpu_cs_chunk {
 	__u32		chunk_id;
@@ -748,6 +749,15 @@ struct drm_amdgpu_cs_chunk_data {
 		struct drm_amdgpu_cs_chunk_ib		ib_data;
 		struct drm_amdgpu_cs_chunk_fence	fence_data;
 	};
+};
+
+#define AMDGPU_CS_CHUNK_CP_GFX_SHADOW_FLAGS_INIT_SHADOW         0x1
+
+struct drm_amdgpu_cs_chunk_cp_gfx_shadow {
+       __u64 shadow_va;
+       __u64 csa_va;
+       __u64 gds_va;
+       __u64 flags;
 };
 
 /**
@@ -1133,6 +1143,26 @@ struct drm_amdgpu_info_device {
 	__u32 pa_sc_tile_steering_override;
 	/* disabled TCCs */
 	__u64 tcc_disabled_mask;
+    __u64 min_engine_clock;
+    __u64 min_memory_clock;
+    /* The following fields are only set on gfx11+, older chips set 0. */
+    __u32 tcp_cache_size;       /* AKA GL0, VMEM cache */
+    __u32 num_sqc_per_wgp;
+    __u32 sqc_data_cache_size;  /* AKA SMEM cache */
+    __u32 sqc_inst_cache_size;
+    __u32 gl1c_cache_size;
+    __u32 gl2c_cache_size;
+    __u64 mall_size;            /* AKA infinity cache */
+    /* high 32 bits of the rb pipes mask */
+    __u32 enabled_rb_pipes_mask_hi;
+    /* shadow area size for gfx11 */
+    __u32 shadow_size;
+    /* shadow area alignment for gfx11 */
+    __u32 shadow_alignment;
+    /* context save area size for gfx11 */
+    __u32 csa_size;
+    /* context save area alignment for gfx11 */
+    __u32 csa_alignment;
 };
 
 struct drm_amdgpu_info_hw_ip {

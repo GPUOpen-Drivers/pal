@@ -385,10 +385,11 @@ private:
 #if PAL_BUILD_GFX11
             uint8 contextPairsPacketSupported : 1;
             uint8 shPairsPacketSupported      : 1;
+            uint8 writeVgtGsOutPrimType       : 1;
 #else
-            uint8 placeholder                 : 2;
+            uint8 placeholder                 : 3;
 #endif
-            uint8 reserved                    : 4;
+            uint8 reserved                    : 3;
         };
         uint8 u8All;
     } m_flags;

@@ -26,10 +26,7 @@
 #pragma once
 
 #include "palPlatform.h"
-
 #include "core/eventDefs.h"
-#include "core/devDriverEventService.h"
-
 #include "protocols/ddEventProvider.h"
 
 namespace Pal
@@ -74,9 +71,6 @@ public:
 
     void LogCrashDebugMarkerData(
         const CrashAnalysis::MarkerState* pMarkerHeader);
-
-    void LogCmdBufferReset(
-        uint32 cmdBufferId);
 
     void ReplayEventCache(
         CrashAnalysis::EventCache* pEventCache);

@@ -931,7 +931,8 @@ bool RsrcProcMgr::ExpandDepthStencil(
                 pBaseSubResInfo->extentElements.height,
             };
 
-            const uint32 sizeConstDataDwords = NumBytesToNumDwords(sizeof(constData));
+            // Embed the constant buffer in user-data right after the SRD table.
+            pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, ArrayLen32(constData), constData);
 
             for (uint32  sliceIdx = 0; sliceIdx < range.numSlices; sliceIdx++)
             {
@@ -941,12 +942,11 @@ bool RsrcProcMgr::ExpandDepthStencil(
                 const SubresRange  viewRange = { subResId, 1, 1, 1 };
 
                 // Create an embedded user-data table and bind it to user data 0. We will need two views.
-                uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(
-                                        pCmdBuffer,
-                                        2 * SrdDwordAlignment() + sizeConstDataDwords,
-                                        SrdDwordAlignment(),
-                                        PipelineBindPoint::Compute,
-                                        0);
+                uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
+                                                                           SrdDwordAlignment() * 2,
+                                                                           SrdDwordAlignment(),
+                                                                           PipelineBindPoint::Compute,
+                                                                           0);
 
                 ImageViewInfo imageView[2] = {};
                 RpmUtil::BuildImageViewInfo(&imageView[0],
@@ -964,9 +964,6 @@ bool RsrcProcMgr::ExpandDepthStencil(
                                             device.TexOptLevel(),
                                             true);  // dst
                 device.CreateImageViewSrds(2, &imageView[0], pSrdTable);
-
-                pSrdTable += 2 * SrdDwordAlignment();
-                memcpy(pSrdTable, constData, sizeof(constData));
 
                 // Execute the dispatch.
                 pCmdBuffer->CmdDispatch(threadGroups);
@@ -3324,7 +3321,8 @@ void RsrcProcMgr::DccDecompressOnCompute(
             pBaseSubResInfo->extentElements.height,
         };
 
-        const uint32 sizeConstDataDwords = NumBytesToNumDwords(sizeof(constData));
+        // Embed the constant buffer in user-data right after the SRD table.
+        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1, ArrayLen32(constData), constData);
 
         for (uint32  sliceIdx = 0; sliceIdx < range.numSlices; sliceIdx++)
         {
@@ -3335,7 +3333,7 @@ void RsrcProcMgr::DccDecompressOnCompute(
 
             // Create an embedded user-data table and bind it to user data 0. We will need two views.
             uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
-                                                                        2 * SrdDwordAlignment() + sizeConstDataDwords,
+                                                                        SrdDwordAlignment() * 2,
                                                                         SrdDwordAlignment(),
                                                                         PipelineBindPoint::Compute,
                                                                         0);
@@ -3356,9 +3354,6 @@ void RsrcProcMgr::DccDecompressOnCompute(
                                         device.TexOptLevel(),
                                         true);  // dst
             device.CreateImageViewSrds(2, &imageView[0], pSrdTable);
-
-            pSrdTable += 2 * SrdDwordAlignment();
-            memcpy(pSrdTable, constData, sizeof(constData));
 
             // Execute the dispatch.
             pCmdBuffer->CmdDispatch(threadGroups);

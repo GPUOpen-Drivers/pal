@@ -80,9 +80,9 @@ private:
     // Container types
     struct Entry
     {
-        uint32 ordinalId;
-        uint32 dataSize;
-        uint32 storeSize;
+        uint64 ordinalId;
+        uint64 dataSize;
+        uint64 storeSize;
     };
     using EntryMap = HashMap<EntryKey,
                              Entry,
@@ -100,7 +100,7 @@ private:
     Result RefreshHeaders();
 
     // Helper function for constructor
-    static uint32 GetHashMapNumBuckets(const IArchiveFile* pArchiveFile);
+    static size_t GetHashMapNumBuckets(const IArchiveFile* pArchiveFile);
 
     // Invariants that must be passed in by ctor
     IArchiveFile* const  m_pArchivefile;

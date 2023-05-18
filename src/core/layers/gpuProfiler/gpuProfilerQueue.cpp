@@ -1377,11 +1377,11 @@ Result Queue::BuildGpaSessionSampleConfig()
 {
     const auto& settings = m_pDevice->GetPlatform()->PlatformSettings();
 
-    const uint32 numCounters                           = m_pDevice->NumGlobalPerfCounters();
-    const GpuProfiler::PerfCounter* pCounters = m_pDevice->GlobalPerfCounters();
+    const uint32 numCounters                             = m_pDevice->NumGlobalPerfCounters();
+    const GpuProfiler::PerfCounter* pCounters            = m_pDevice->GlobalPerfCounters();
 
-    const uint32 numSpmCountersRequested               = m_pDevice->NumStreamingPerfCounters();
-    const GpuProfiler::PerfCounter* pStreamingCounters = m_pDevice->StreamingPerfCounters();
+    const uint32 numSpmCountersRequested                 = m_pDevice->NumStreamingPerfCounters();
+    const GpuProfiler::PerfCounter* pStreamingCounters   = m_pDevice->StreamingPerfCounters();
 
     const uint32 numDfSpmCountersRequested               = m_pDevice->NumDfStreamingPerfCounters();
     const GpuProfiler::PerfCounter* pDfStreamingCounters = m_pDevice->DfStreamingPerfCounters();
@@ -1460,6 +1460,8 @@ Result Queue::BuildGpaSessionSampleConfig()
                             counterInfo.umc.eventThreshold   = pCounters[i].optionalData & 0xFFF;
                             // ThresholdEn [2-bits] 0=disabled, 1=less than, 2=greater than
                             counterInfo.umc.eventThresholdEn = (pCounters[i].optionalData >> 12) & 0x3;
+                            // Read/Write Mask [2-bits] 0=Read, 1=Write
+                            counterInfo.umc.rdWrMask         = (pCounters[i].optionalData >> 14) & 0x3;
                         }
                     }
 

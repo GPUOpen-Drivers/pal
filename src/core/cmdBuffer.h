@@ -134,15 +134,6 @@ enum class CmdBufferRecordState : uint32
     Reset      = 2,    // CmdBuffer has been reset and not re-begun
 };
 
-/// Used by tools like Radeon GPU Detective to mark command buffers
-/// with metadata that allows for post-mortem analysis of runtime & crash
-/// state of an application.
-struct CrashAnalysisMarkerHeader
-{
-    uint32 cmdBufferId; ///< Unique ID representing a command buffer
-    uint32 timestamp;   ///< Marker execution counter
-};
-
 // Differentiates between once-per-copy and once-per-chunk data in P2pBltWaInfo.
 enum class P2pBltWaInfoType : uint32
 {

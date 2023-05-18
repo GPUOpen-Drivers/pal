@@ -787,6 +787,12 @@ struct PalPublicSettings
 
     // Controls PWS enable mode: e.g. disabled, fully enabled or partially enabled. Only take effect if HW supports PWS.
     PwsMode pwsMode;
+
+    //controls the MaxScratchRingSizeBaseline, which is really just the maximum size of the scratch ring
+    gpusize maxScratchRingSizeBaseline;
+    //controls the maximum size of the scratch ring allocation
+    uint32 maxScratchRingSizeScalePct;
+
 };
 
 /// Defines the modes that the GPU Profiling layer can use when its buffer fills.
@@ -931,7 +937,9 @@ struct DeviceProperties
                                              ///  SKUs or revisions.  Corresponds to one of the PRID_* revision IDs.
     uint32     eRevId;                       ///< GPU emulation/internal revision ID.
     AsicRevision revision;                   ///< ASIC revision.
-    GpuType    gpuType;                      ///< Type of GPU (discrete vs. integrated).
+    GpuType    gpuType;                      ///< Type of GPU (discrete vs. integrated)
+    uint16     gpuPerformanceCapacity;       ///< Portion of GPU assigned in virtualized system (SRIOV)
+                                             ///< 0-65535, 0 invalid (not virtualized), 1 min, 65535 max
     GfxIpLevel gfxLevel;                     ///< IP level of this GPU's GFX block
     OssIpLevel ossLevel;                     ///< IP level of this GPU's OSS block
     VceIpLevel vceLevel;                     ///< IP level of this GPU's VCE block
@@ -1525,11 +1533,19 @@ struct DeviceProperties
                 uint32 requireFrameEnd            :  1;    ///< If the client must tag the last command buffer
                                                            ///  submission in each frame with a @ref CmdBufInfo with
                                                            ///  the frameEnd flag set.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 795
                 uint32 supportDirectCapture       :  1;    ///< Whether Direct Capture is supported by KMD
+#else
+                uint32 placeholder795             :  1;
+#endif
                 uint32 supportNativeHdrWindowing  :  1;    ///< Support HDR presentation that does not require FSE.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 795
                 uint32 supportRSync               :  1;    ///< Whether RSync is supported by KMD, RSync is a feature
                                                            ///  to sync the fullscreen app rendering frame rate with
                                                            ///  the capture frame rate in the Streaming SDK project.
+#else
+                uint32 placeholder795_1           :  1;
+#endif
                 uint32 flipQueueSupportsDecodeDst :  1;    ///< If set, Decode destination images are supported
                                                            ///  in the OS flip-queue.
                 uint32 supportFreeMux             :  1;    ///< Whether FreeMux is supported by KMD
@@ -1593,6 +1609,18 @@ struct DeviceProperties
         int64 renderDrmNodeMajor;  ///< DRM render node major number.
         int64 renderDrmNodeMinor;  ///< DRM render node minor number.
 #endif
+        union
+        {
+            struct
+            {
+                uint32 supportPostflip  : 1;  ///< KMD support DirectCapture post-flip access
+                uint32 supportPreflip   : 1;  ///< KMD support DirectCapture pre-flip access
+                uint32 supportRSync     : 1;  ///< KMD support RSync
+                uint32 maxFrameGenRatio : 4;  ///< Maximum frame generation ratio or zero if not supported
+                uint32 reserved         : 25; ///< Reserved for future use.
+            };
+            uint32 u32All;
+        } directCapture;
     } osProperties;                 ///< OS-specific properties of this device.
 
     struct
@@ -1613,7 +1641,8 @@ struct DeviceProperties
                                                         ///  GPU.  This is meant for pre-silicon development.
                 uint32 gpuEmulatedInHardware      :  1; ///< Device is a hardware emulated GPU.  This is meant for
                                                         ///  pre-silicon development.
-                uint32 reserved                   : 29; ///< Reserved for future use.
+                uint32 gpuVirtualization          :  1; ///< Set if running under VM.
+                uint32 reserved                   : 28; ///< Reserved for future use.
             };
             uint32 u32All;                  ///< Flags packed as 32-bit uint.
         } flags;                            ///< PCI bus property flags.
@@ -2834,22 +2863,29 @@ public:
     virtual Result GetProperties(
         DeviceProperties* pInfo) const = 0;
 
-    /// Checks and returns execution state of the device. Currently unsupported for DX and Linux clients and
+    /// Checks and returns execution state of the device. Currently unsupported for DX clients and
     /// will return Unavailable if called by those clients.
     ///
     /// @param [out] pPageFaultStatus   Page fault status that can be queried when the Result is ErrorGpuPageFaultDetected
     ///
     /// @returns Success if device is operational and running.  Otherwise, one of the following errors may be
     ///          + ErrorDeviceLost if device is lost, reset or not responding,
+    ///          + ErrorInvalidValue if failed to get device reset state,
     ///          + ErrorOutOfGpuMemory if ran out of GPU memory,
     ///          + ErrorGpuPageFaultDetected if page fault was detected,
     ///          + ErrorUnknown if device is in unknown state.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 796
+    virtual Result CheckExecutionState(
+        PageFaultStatus* pPageFaultStatus) = 0;
+
+#else
     virtual Result CheckExecutionState(
         PageFaultStatus* pPageFaultStatus) const = 0;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 772
     inline Result CheckExecutionState() const
         { return CheckExecutionState(nullptr); }
+#endif
 #endif
 
     /// Returns this devices client-visible settings structure initialized with appropriate defaults.  Clients can

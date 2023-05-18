@@ -44,6 +44,8 @@ libdrm_amdgpu.so.1 @proc  int32 amdgpu_bo_list_create (amdgpu_device_handle hDev
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_bo_list_destroy (amdgpu_bo_list_handle hBoList)
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_bo_list_create_raw (amdgpu_device_handle hDevice, uint32 numberOfResources, struct drm_amdgpu_bo_list_entry* pBoListEntry, uint32* pBoListHandle)
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_bo_list_destroy_raw (amdgpu_device_handle hDevice, uint32 boListHandle)
+libdrm_amdgpu.so.1 @proc  int32 amdgpu_cs_query_reset_state  (amdgpu_context_handle context,uint32_t *state, uint32_t *hangs)
+libdrm_amdgpu.so.1 @proc  int32 amdgpu_cs_query_reset_state2 (amdgpu_context_handle hContext, uint64* flags)
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_cs_ctx_create (amdgpu_device_handle hDevice, amdgpu_context_handle* pContextHandle)
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_cs_ctx_free (amdgpu_context_handle hContext)
 libdrm_amdgpu.so.1 @proc  int32 amdgpu_cs_submit (amdgpu_context_handle hContext, uint64 flags, struct amdgpu_cs_request* pIbsRequest, uint32 numberOfRequests)

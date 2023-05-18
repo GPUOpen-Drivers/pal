@@ -231,6 +231,13 @@ void GraphicsPipeline::EarlyInit(
             GsFastLaunchMode::Disabled;
     }
 
+#if PAL_BUILD_GFX11
+    m_flags.writeVgtGsOutPrimType = (IsGfx11(m_gfxLevel) &&
+                                     (IsGsEnabled()   ||
+                                      HasMeshShader() ||
+                                      (m_fastLaunchMode != GsFastLaunchMode::Disabled)));
+#endif
+
     m_nggSubgroupSize = (metadata.pipeline.hasEntry.nggSubgroupSize) ? metadata.pipeline.nggSubgroupSize : 0;
 
     // Determine whether or not GS is onchip or not.
@@ -355,7 +362,21 @@ void GraphicsPipeline::LateInit(
     if (IsGfx10Plus(m_gfxLevel))
     {
         hasher.Initialize();
-        hasher.Update(m_regs.uconfig);
+        hasher.Update(reinterpret_cast<const uint8*>(&m_regs.uconfig.geStereoCntl),
+                      sizeof(m_regs.uconfig.geStereoCntl) +
+                      sizeof(m_regs.uconfig.gePcAlloc)    +
+                      sizeof(m_regs.uconfig.geUserVgprEn));
+
+#if PAL_BUILD_GFX11
+        // Refer to WriteConfigCommandsGfx10(), the uconfig.vgtGsOutPrimType will be set conditionly.
+        // Here we need to make sure the difference hash value based on uconfig.vgtGsOutPrimType condition.
+        // Or which will lead to skip set uconfig.vgtGsOutPrimType if different piplines has same hash value.
+        if (m_flags.writeVgtGsOutPrimType)
+        {
+            hasher.Update(m_regs.uconfig.vgtGsOutPrimType);
+        }
+#endif
+
         hasher.Finalize(hash.bytes);
         m_configRegHash = MetroHash::Compact32(&hash);
 
@@ -803,12 +824,12 @@ uint32* GraphicsPipeline::WriteConfigCommandsGfx10(
                                                  pCmdSpace);
 
 #if PAL_BUILD_GFX11
-    if (IsGfx11(m_gfxLevel) && (IsGsEnabled() || HasMeshShader() || (m_fastLaunchMode != GsFastLaunchMode::Disabled)))
+    if (m_flags.writeVgtGsOutPrimType)
     {
         // Prim type is implicitly set for API VS without fast-launch, but needs to be set otherwise.
         pCmdSpace = pCmdStream->WriteSetOneConfigReg(Gfx11::mmVGT_GS_OUT_PRIM_TYPE,
-                                                    m_regs.uconfig.vgtGsOutPrimType.u32All,
-                                                    pCmdSpace);
+                                                     m_regs.uconfig.vgtGsOutPrimType.u32All,
+                                                     pCmdSpace);
     }
 #endif
 

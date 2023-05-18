@@ -1,0 +1,14 @@
+{
+  "chunks": [
+    {
+      "id": "empty-chunk",
+      "header": [
+        1,
+        3,
+        3,
+        7
+      ],
+      "data": []
+    }
+  ]
+}
