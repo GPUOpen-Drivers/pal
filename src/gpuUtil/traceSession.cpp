@@ -197,10 +197,8 @@ Result TraceSession::RegisterSource(
                 {
                     *ppMapEntry = pSource;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 712
                     // Update source configs if available
-                    DevDriver::StructuredValue** ppSourceConfig =
-                        m_traceSourcesConfigs.FindKey(pSource->GetName());
+                    DevDriver::StructuredValue** ppSourceConfig = m_traceSourcesConfigs.FindKey(pSource->GetName());
 
                     if (ppSourceConfig != nullptr)
                     {
@@ -209,7 +207,6 @@ Result TraceSession::RegisterSource(
                             pSource->OnConfigUpdated(*ppSourceConfig);
                         }
                     }
-#endif
                 }
             }
         }
@@ -259,7 +256,6 @@ Result TraceSession::RequestTrace()
 }
 
 // =====================================================================================================================
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 712
 Result TraceSession::UpdateTraceConfig(
     const void* pData,
     size_t      dataSize)
@@ -372,7 +368,6 @@ Result TraceSession::UpdateTraceConfig(
 
     return result;
 }
-#endif
 
 // =====================================================================================================================
 Result TraceSession::AcceptTrace(

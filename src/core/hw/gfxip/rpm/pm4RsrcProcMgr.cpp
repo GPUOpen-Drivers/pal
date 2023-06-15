@@ -1317,14 +1317,12 @@ void RsrcProcMgr::ScaledCopyImageGraphics(
             dstFormat.format = Formats::ConvertToSrgb(dstFormat.format);
             PAL_ASSERT(Formats::IsUndefined(dstFormat.format) == false);
         }
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 742
         // srgb can be treated as non-srgb when copying to srgb image
         else if (copyInfo.flags.dstAsNorm)
         {
             dstFormat.format = Formats::ConvertToUnorm(dstFormat.format);
             PAL_ASSERT(Formats::IsUndefined(dstFormat.format) == false);
         }
-#endif
 
         uint32 sizeInDwords                 = 0;
         constexpr uint32 ColorKeyDataDwords = 7;

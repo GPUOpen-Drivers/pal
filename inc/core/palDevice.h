@@ -226,6 +226,9 @@ enum class AsicRevision : uint32
 #if PAL_BUILD_NAVI31
     Navi31           = 0x2C,
 #endif
+#if PAL_BUILD_NAVI33
+    Navi33           = 0x2E,
+#endif
     Rembrandt        = 0x2F,
     Raphael          = 0x34,
 };
@@ -537,10 +540,6 @@ enum class HdrDisplayMode : uint32
     FreeSync2 = 3,  ///< FreeSync2 HDR10 Gamma 2.2.  Requires 10:10:10:2 swap chain.
 };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 732
-static constexpr uint32 MaxPathStrLen = Util::MaxPathStrLen;
-static constexpr uint32 MaxFileNameStrLen = Util::MaxFileNameStrLen;
-#endif
 static constexpr uint32 MaxMiscStrLen = 61;
 
 /// Whether to use graphics or compute for performing fast clears on depth stencil views.
@@ -566,15 +565,37 @@ enum class PwsMode : uint32
     NoLateAcquirePoint = 2  ///< PWS feature is enabled with PWS counter only if HW supports, no late acquire points.
 };
 
+#if defined(__unix__)
+/// Defines the supported VM always valid modes.
+enum VmAlwaysValidEnable : uint32
+{
+    VmAlwaysValidDefaultEnable = 0,  ///< Only enable the optimization when kernel driver can support
+    VmAlwaysValidForceDisable = 1,   ///< Force the optimization always disabled
+    VmAlwaysValidForceEnable = 2     ///< Force the optimization always enabled
+};
+#endif
+
+/// Alignment mode for accessing graphics/compute buffers.
+/// This doesn't change the alignment of the whole buffer, just the alignment at which accesses must be made.
+enum class BufferAlignmentMode : uint8
+{
+    Default,  ///< KMD (and therefore PAL) picks alignment requirement. Client should be prepared for anything.
+    Dword,    ///< Hardware will automatically align requests to the smaller of: element-size or DWORD.
+    Unaligned ///< Any request alignment is allowed.
+};
+
 /// Pal settings that are client visible and editable.
 struct PalPublicSettings
 {
     /// Maximum border color palette size supported by any queue.
     uint32 borderColorPaletteSizeLimit;
+
     /// Whether to use graphics or compute for performing fast clears on depth stencil views.
     FastDepthStencilClearMode fastDepthStencilClearMode;
+
     /// Forces all serialized loads (LoadPipeline or LoadCompoundState) to fail.
     bool forceLoadObjectFailure;
+
     /// Controls the distribution mode for tessellation, which affects how patches are processed by different VGT
     /// units. 0: None - No distribution across VGTs (legacy mode). 1: Default - Optimal settings are chosen depending
     /// on the gfxip. 2: Patch - Individual patches are distributed to different VGTs. 3: Donut - Patches are split
@@ -582,114 +603,138 @@ struct PalPublicSettings
     /// distributed to different VGTs. Falls back to donut mode if HW does not support this mode. 5: Trapezoid only -
     /// Distribution turned off if HW does not support this mode.
     uint32 distributionTessMode;
+
     /// Flags that control PAL optimizations to reduce context rolls. 0: Optimization disabled. 1: Pad parameter cache
     /// space. Sets VS export count and PS interpolant number to per-command buffer maximum value. Reduces context rolls
     /// at the expense of parameter cache space.
     uint32 contextRollOptimizationFlags;
+
     /// The number of unbound descriptor debug srds to allocate. To detect reads of unbound descriptor within arrays,
     /// multiple debug srds can be allocated.
     uint32 unboundDescriptorDebugSrdCount;
+
     /// Disables compilation of internal PAL shaders. It can be enabled only if a PAL client won't use any of PAL blit
     /// functionalities on gfx/compute engines.
     bool disableResourceProcessingManager;
+
     /// Controls app detect and image quality altering optimizations exposed by CCC.
     uint32 catalystAI;
+
     /// Controls texture filtering optimizations exposed by CCC.
     uint32 textureOptLevel;
+
     /// Disables SC initialization. It can be enabled only if a PAL client won't use SC for shader compilation and
     /// provide direct ISA binaries(usually AQL path).
     bool disableScManager;
+
     /// Information about the client performing the rendering. For example: Rendered By PAL (0.0.1)
     char renderedByString[MaxMiscStrLen];
+
     /// Debug information that the client or tester might want reported.
     char miscellaneousDebugString[MaxMiscStrLen];
+
     /// Allows SC to make optimizations at the expense of IEEE compliance.
     bool allowNonIeeeOperations;
+
     /// Controls whether shaders should execute one atomic instruction per wave for UAV append/consume operations.
     /// If false, one atomic will be executed per thread.
     bool appendBufPerWaveAtomic;
+
     /// Bitmask of cases where texture compatible meta data will be used Single-sample color surface: 0x00000001 MSAA
     /// color surface: 0x00000002 FMask data: 0x00000004 Single-sample depth surface: 0x00000008 MSAA depth surface:
     /// 0x00000010 Allow stencil: 0x00000020 Allow Z-16 surfs 0x00000040
     uint32 tcCompatibleMetaData;
+
     /// Specifies the threshold below which CmdCopyMemory() is executed via a CpDma BLT, in bytes. CPDMA copies have
     /// lower overhead than CS/Gfx copies, but less throughput for large copies.
     uint32 cpDmaCmdCopyMemoryMaxBytes;
+
     /// Forces high performance state for allocated queues. Note: currently supported in Windows only.
     bool forceHighClocks;
+
     /// When submitting multiple command buffers in a single grQueueSubmit call, the ICD will patch the command streams
     /// so that the command buffers are chained together instead of submitting through KMD multiple times. This setting
     /// limits the number of command buffers that will be chained together; reduce to prevent problems due to long
     /// running submits.
     uint32 cmdBufBatchedSubmitChainLimit;
+
     /// Flags that control PAL's command allocator residency optimizations. If a command allocation isn't optimized PAL
     /// will wait for it to become resident at creation. 0x1 - Wait for command data to become resident at Submit-time.
     /// 0x2 - Wait for embedded data to become resident at Submit-time. 0x4 - Wait for marker data to become resident at
     /// Submit-time.
     uint32 cmdAllocResidency;
+
     /// Overrides max queued frames allowed
     uint32 maxQueuedFrames;
+
     /// Maximum number of presentable images per adapter(including LDA chain) which is recommended. If app exceeds the
     /// presentable image number threshold, awarning may be reported.
     uint32 presentableImageNumberThreshold;
+
     /// Provides a hint to PAL that client knows that every individual depth stencil surfaces are always cleared with
     /// same values.If TRUE, per-tile tracking of exp/clear will be enabled (requires HTile).
     bool hintInvariantDepthStencilClearValues;
+
     /// Provides a hint to PAL that PAL should disable color compression on surfaces that are smaller than or equal to
     /// this setting (setting * setting) in size.
     uint32 hintDisableSmallSurfColorCompressionSize;
+
     /// Disables Escape call to KMD. This is a temporary setting for experimentation that is expected to break features
     /// that currently needs Escape call.
     bool disableEscapeCall;
+
     /// In Win7 requests an extended TDR timeout (6 seconds).
     bool longRunningSubmissions;
+
     /// Disables MCBP on demand. This is a temporary setting until ATOMIC_MEM packet issue with MCBP is resolved.
     bool disableCommandBufferPreemption;
+
     /// Disable the fast clear eliminate skipping optimization.  This optimization will conservatively track the usage
     /// of clear values to allow the vast majority of images that never clear to a value that isn't TC-compatible to
     /// skip the CPU and front-end GPU overhead of issuing a predicated fast clear eliminate BLT.
     bool disableSkipFceOptimization;
+
     /// Sets the minimum BPP of surfaces which will have DCC enabled
     uint32 dccBitsPerPixelThreshold;
+
     /// See largePageSizeInBytes in DeviceProperties. This limit defines how large an allocation must be to have
     /// PAL automatically pad allocation starting virtual address alignments to enable this optimization. By
     /// default, PAL will use the KMD-reported limit.
     gpusize largePageMinSizeForVaAlignmentInBytes;
+
     /// See largePageSizeInBytes in DeviceProperties. This limit defines how large an allocation must be to have
     /// PAL automatically pad allocation sizes to fill an integral number of large pages. By default, PAL will
     /// use the KMD-reported limit.
     gpusize largePageMinSizeForSizeAlignmentInBytes;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 727
-    /// The acquire/release-based barrier interface is enabled.
-    bool useAcqRelInterface;
-#endif
+
     /// Makes the unbound descriptor debug srd 0 so the hardware drops the load and ignores it instead of pagefaulting.
     /// Used to workaround incorrect app behavior.
     bool zeroUnboundDescDebugSrd;
+
     /// Preferred heap for uploading client pipelines. Default is set to @ref GpuHeap::GpuHeapInvisible. Setting is
     /// ignored for internal pipelines and are uploaded to @ref GpuHeap::GpuHeapLocal.
     GpuHeap pipelinePreferredHeap;
-    ///
+
     bool depthClampBasedOnZExport;
+
     /// Force the PreColorTarget to an earlier PreRasterization point if used as a wait point. This is to prevent a
     /// write-after-read hazard for a corner case: shader exports from distinct packers are not ordered. Advancing
     /// wait point from PreColorTarget to PostPrefetch could cause over-sync due to extra  VS/PS_PARTIAL_FLUSH
     /// inserted. It is default to false, but client drivers may choose to app-detect to enable if see corruption.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 743
-    bool forceWaitPointPreColorToPostIndexFetch;
-#else
     bool forceWaitPointPreColorToPostPrefetch;
-#endif
+
     /// Allows the client to disable debug overlay visual confirm after DebugOverlay::Platform is created when the
     /// panel setting DebugOverlayEnabled is globally set but a certain application might need to turn off visual
     /// confirm to make the screen not too noisy.
     bool disableDebugOverlayVisualConfirm;
+
     bool enableExecuteIndirectPacket;
+
     /// Offers flexibility to the client to choose Graphics vs Compute engine for Indirect Command Generation
     /// (Shader path) based on performance and other factors. The default is false since we have seen perf gains using
     /// the ACE.
     bool disableExecuteIndirectAceOffload;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 706
+
     /// Value to initialize metadata for DCC surfaces to, if they are compressable. This has no effect on non-DCC
     /// images. Images whose initial layout is not compressable are only affected if this is "forced".
     ///  0x00 - Uncompressed (default)
@@ -698,101 +743,82 @@ struct PalPublicSettings
     ///  0x11 - Forced Opaque Black
     ///  0x12 - Forced Opaque White
     uint32 dccInitialClearKind;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 713
+
     /// Allows the client to not create internal VrsImage. Pal internal will create a 16M image as vrsImageSize.
     bool disableInternalVrsImage;
-#endif
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 716) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 719)
-    /// Allows the client to control internalMemMgr::PoolAllocationSize. 0 is use pal default value.
-    gpusize memMgrPoolAllocationSizeInBytes;
-#endif
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 744)
     /// Allows the client to control binning persistent and context states per bin.
     /// A value of 0 tells PAL to pick the number of states per bin.
     uint32 binningPersistentStatesPerBin;
     uint32 binningContextStatesPerBin;
-#endif
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 749)
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 753)
     /// This key controls if binning will be disabled when the PS may kill pixels.
     OverrideMode disableBinningPsKill;
-#else
-    /// This key controls if binning will be disabled when the PS may kill pixels.
-    DisableBinningPsKill disableBinningPsKill;
-#endif
-#endif
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 755)
-    /// The following 3 factors are used by hardware when distributed tessellation is active: the min tess factors for
-    /// each patch processed by a VGT are accumulated. When the sum exceeds this threshold, the next patch is sent to a
-    /// different VGT.
-    uint32 isolineDistributionFactor;
-    uint32 triDistributionFactor;     ///< Recommended to be higher than quad factor.
-    uint32 quadDistributionFactor;
-    /// Used by the hardware when distributed tessellation is in DONUT mode: the min tess factor for each patch is
-    // tested against this threshold to determine whether a patch gets split up. If the patch isn't split, it still
-    // increments the accumulator for the Patch distribution factor.
-    uint32 donutDistributionFactor;
-    /// Used when the distribution mode is TRAPEZOID for quad and tri domain types. The number of donuts in the patch
-    /// are compared against this value to detemine whether this donut gets split up into trapezoids (needs the patch to
-    /// be in donut mode). A value of 0 or 1 will be treated as 2. The innermost donut is never allowed to be broken
-    /// into trapezoids.
-    uint32 trapezoidDistributionFactor;
-#endif
+
     /// Controls GS LateAlloc val (for pos/prim allocations NOT param cache) on NGG pipelines. Can be no more than 127.
     uint32 nggLateAllocGs;
 
-    // Bitmask of cases where RPM view memory accesses will bypass the MALL
-    // RpmViewsBypassMallOff (0x0): Disable MALL bypass
-    // RpmViewsBypassMallOnRead (0x1): Skip MALL for read access of views created in RPM
-    // RpmViewsBypassMallOnWrite (0x2): Skip MALL for write access of views created in RPM
-    // RpmViewsBypassMallOnCbDbWrite (0x4): Control the RPM CB/DB behavior
+    /// Bitmask of cases where RPM view memory accesses will bypass the MALL
+    /// RpmViewsBypassMallOff (0x0): Disable MALL bypass
+    /// RpmViewsBypassMallOnRead (0x1): Skip MALL for read access of views created in RPM
+    /// RpmViewsBypassMallOnWrite (0x2): Skip MALL for write access of views created in RPM
+    /// RpmViewsBypassMallOnCbDbWrite (0x4): Control the RPM CB/DB behavior
     RpmViewsBypassMall rpmViewsBypassMall;
 
-    // Optimize color export format for depth only rendering. Only applicable for RB+ parts
+    /// Optimize color export format for depth only rendering. Only applicable for RB+ parts
     bool optDepthOnlyExportRate;
 
 #if PAL_BUILD_GFX11
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 777)
-    // Controls the value of CB_FDCC_CONTROL.SAMPLE_MASK_TRACKER_WATERMARK.Valid values are 0 and 3 - 15
+    /// Controls the value of CB_FDCC_CONTROL.SAMPLE_MASK_TRACKER_WATERMARK.Valid values are 0 and 3 - 15
     uint32 gfx11SampleMaskTrackerWatermark;
 #endif
 #endif
 
-    // Controls whether or not we should expand Hi-Z to full range rather than doing fine-grain resummarize
-    // operations.  Expanding Hi-Z leaves the Hi-Z data in a less optimal state but is a much faster operation
-    // than the fine-grain resummarize.
+    /// Controls whether or not we should expand Hi-Z to full range rather than doing fine-grain resummarize
+    /// operations.  Expanding Hi-Z leaves the Hi-Z data in a less optimal state but is a much faster operation
+    /// than the fine-grain resummarize.
     bool expandHiZRangeForResummarize;
 
-    // Control whether to have command buffer emit SQTT marker events. Useful for client driver to perform SQTT
-    // dump without the involvement of dev driver.
+    /// Control whether to have command buffer emit SQTT marker events. Useful for client driver to perform SQTT
+    /// dump without the involvement of dev driver.
     bool enableSqttMarkerEvent;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 790
-    // Controls the value of CB_COLOR0_ATTRIB.LIMIT_COLOR_FETCH_TO_256B_MAX. This bit limits CB fetch to 256B on cache
-    // miss, regardless of sector size.
+    /// Controls the value of CB_COLOR0_ATTRIB.LIMIT_COLOR_FETCH_TO_256B_MAX. This bit limits CB fetch to 256B on cache
+    /// miss, regardless of sector size.
     bool limitCbFetch256B;
 #endif
 
     /// Controls whether or not deferred batch binning is enabled 0 : Batch binning always disabled 1 : Use custom bin
     /// sizes 2 : Optimal.
     DeferredBatchBinMode binningMode;
+
     /// Controls the custom batch bin size.Only used when deferredBatchBinMode == 1 High word is for x, low word is for
-    /// y.Default is 128x128. Values must be power of two between 16 and 512.
+    /// y. Default is 128x128. Values must be power of two between 16 and 512.
     uint32               customBatchBinSize;
+
     /// Maximum number of primitives per batch. The maximum value is 1024.
     uint32               binningMaxPrimPerBatch;
 
-    // Controls PWS enable mode: e.g. disabled, fully enabled or partially enabled. Only take effect if HW supports PWS.
+    /// Controls PWS enable mode: disabled, fully enabled or partially enabled. Only take effect if HW supports PWS.
     PwsMode pwsMode;
 
-    //controls the MaxScratchRingSizeBaseline, which is really just the maximum size of the scratch ring
+    /// Controls the MaxScratchRingSizeBaseline, which is really just the maximum size of the scratch ring
     gpusize maxScratchRingSizeBaseline;
-    //controls the maximum size of the scratch ring allocation
+
+    /// Controls the maximum size of the scratch ring allocation
     uint32 maxScratchRingSizeScalePct;
 
+#if defined(__unix__)
+    /// Whether enable vm-always-valid feature on Linux while allocating Bo
+    VmAlwaysValidEnable  enableVmAlwaysValid;
+#endif
+
+    /// Alignment mode for graphics and compute buffers.
+    /// Clients must check Pal::DeviceProperties::osProperties::flags::forceAlignmentSupported
+    /// to see if anything other than default will work.
+    BufferAlignmentMode hardwareBufferAlignmentMode;
 };
 
 /// Defines the modes that the GPU Profiling layer can use when its buffer fills.
@@ -1364,7 +1390,6 @@ struct DeviceProperties
                 uint64 supportGl2Uncached                 :  1; ///< Indicates support for the allocation of GPU L2
                                                                 ///  un-cached memory. @see gl2UncachedCpuCoherency
                 uint64 supportOutOfOrderPrimitives        :  1; ///< HW supports higher throughput for out of order
-
                 uint64 supportIntersectRayBarycentrics    :  1; ///< HW supports the ray intersection mode which
                                                                 ///  returns triangle barycentrics.
                 uint64 supportFloat32BufferAtomics        :  1; ///< Hardware supports float32 buffer atomics
@@ -1375,17 +1400,6 @@ struct DeviceProperties
                 uint64 supportFloat32ImageAtomicMinMax    :  1; ///< Hardware supports float32 image atomic min and max
                 uint64 supportFloat64BufferAtomicMinMax   :  1; ///< Hardware supports float64 buffer atomic min and max
                 uint64 supportFloat64SharedAtomicMinMax   :  1; ///< Hardware supports float64 shared atomic min and max
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 735
-                uint64 supportFloat32Atomics              :  1; ///< Hardware supports float32 atomics
-#else
-                uint64 reserved735                        :  1;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 720
-                uint64 supportFloatAtomics                :  1; ///< Hardware supports float atomics
-#else
-                uint64 reserved720                        :  1;
-#endif
                 uint64 support64BitInstructions           :  1; ///< Hardware supports 64b instructions
                 uint64 supportShaderSubgroupClock         :  1; ///< HW supports clock functions across subgroup.
                 uint64 supportShaderDeviceClock           :  1; ///< HW supports clock functions across device.
@@ -1410,7 +1424,8 @@ struct DeviceProperties
                 uint64 supportStaticVmid                  :  1; ///< Indicates support for static-VMID
                 uint64 support3dUavZRange                 :  1; ///< HW supports read-write ImageViewSrds of 3D images
                                                                 ///  with zRange specified.
-                uint64 reserved                           :  3; ///< Reserved for future use.
+                uint64 supportCooperativeMatrix           :  1; ///< HW supports cooperative matrix
+                uint64 reserved                           :  4; ///< Reserved for future use.
             };
             uint64 u64All;           ///< Flags packed as 32-bit uint.
         } flags;                     ///< Device IP property flags.
@@ -1557,7 +1572,9 @@ struct DeviceProperties
 #else
                 uint32 placeholder1               :  2;
 #endif
-                uint32 reserved                   : 17;    ///< Reserved for future use.
+                uint32 forceAlignmentSupported    :  1;    ///< If PalPublicSettings::hardwareBufferAlignmentMode
+                                                           ///  has any effect.
+                uint32 reserved                   : 16;    ///< Reserved for future use.
             };
             uint32 u32All;                        ///< Flags packed as 32-bit uint.
         } flags;                                  ///< OS-specific property flags.
@@ -2253,7 +2270,9 @@ struct BvhInfo
 
             uint32    placeholder2          :  4;
 
-            uint32    reserved              :  23; ///< Reserved for future HW
+            uint32    placeholder4          :  1;
+
+            uint32    reserved              :  22; ///< Reserved for future HW
         };
 
         uint32  u32All; ///< Flags packed as 32-bit uint.
@@ -5269,6 +5288,18 @@ public:
     {
         m_pClientData = pClientData;
     }
+
+#if defined(__unix__)
+    /// Gets the modifier list and modifier count according to image format.
+    ///
+    /// @param [in]    format             Image format.
+    /// @param [out]   pModifierCount     Modifier count.
+    /// @param [out]   pModifiersList     A pointer to the modifier list.
+    virtual void GetModifiersList(
+        ChNumFormat format,
+        uint32*     pModifierCount,
+        uint64*     pModifiersList) const = 0;
+#endif
 
 protected:
     /// @internal Constructor. Prevent use of new operator on this interface. Client must create objects by explicitly

@@ -65,12 +65,24 @@ General
 -   Source lines ***must*** be no more than 120 characters long.
 
     -   On VS Code, you can set a vertical ruler to display the 120 character
-        limit by setting "editor.rulers" to 120 in `Settings.json` (press
-        CTRL + P and search for Settings.json)
-
+        limit by setting "editor.rulers" to 120 in `Settings.json` file
+        - Press CTRL + Shift + P and search for Open User Settings (JSON)
+        - Replace
+            ```
+            "editor.rulers": [
+            ],
+            ```
+          with
+            ```
+            "editor.rulers": [
+                120
+            ],
+            ```
         - The color of the vertical ruler can also be customized with the following
-          json object:
-          `"workbench.colorCustomizations": {"editorRuler.foreground": "#colorcode" }}`
+          json object before "editor.rulers":
+          ```
+          "workbench.colorCustomizations": {"editorRuler.foreground": "#colorcode" },
+          ```
 
     -   On Visual Studio, you can use the Editor Guidelines extension (found on the Visual
         Studio marketplace)
@@ -93,6 +105,8 @@ General
 
 -   There ***should*** not be trailing whitespace. Consider enabling
     visible whitespace in your editor to avoid this.
+     * In VS Code you could also enable trailing whitespace trimming by pressing Ctrl + Shift + P and then searching for Trim Trailing Whitespace.
+     * For Visual Studio check out Trailing Whitespace Visualizer extension  (found on the Visual Studio marketplace).
 
 General Language Restrictions
 -----------------------------

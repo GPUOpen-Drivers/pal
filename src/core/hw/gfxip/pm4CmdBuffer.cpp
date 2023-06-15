@@ -482,10 +482,6 @@ void Pm4CmdBuffer::OptimizeSrcCacheMask(
             *pCacheMask |= cmdBufStateFlags.cpWriteCachesDirty ? CoherCp : 0;
             *pCacheMask |= cmdBufStateFlags.cpMemoryWriteL2CacheStale ? CoherMemory : 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 740
-            * pCacheMask |= cmdBufStateFlags.gfxWriteCachesDirty ? CoherColorTarget : 0;
-            *pCacheMask |= cmdBufStateFlags.csWriteCachesDirty ? CoherShader : 0;
-#else
             if (isCopySrcOnly)
             {
                 *pCacheMask |= cmdBufStateFlags.gfxWriteCachesDirty ? CoherShaderRead : 0;
@@ -496,7 +492,6 @@ void Pm4CmdBuffer::OptimizeSrcCacheMask(
                 *pCacheMask |= cmdBufStateFlags.gfxWriteCachesDirty ? CoherColorTarget : 0;
                 *pCacheMask |= cmdBufStateFlags.csWriteCachesDirty ? CoherShader : 0;
             }
-#endif
         }
     }
 }
@@ -562,10 +557,6 @@ void Pm4CmdBuffer::OptimizePipeAndCacheMaskForRelease(
             localAccessMask |= cmdBufStateFlags.cpWriteCachesDirty ? CoherCp : 0;
             localAccessMask |= cmdBufStateFlags.cpMemoryWriteL2CacheStale ? CoherMemory : 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 740
-            localAccessMask |= cmdBufStateFlags.gfxWriteCachesDirty ? CoherColorTarget : 0;
-            localAccessMask |= cmdBufStateFlags.csWriteCachesDirty ? CoherShader : 0;
-#else
             if (isCopySrcOnly)
             {
                 localAccessMask |= cmdBufStateFlags.gfxWriteCachesDirty ? CoherShaderRead : 0;
@@ -576,7 +567,6 @@ void Pm4CmdBuffer::OptimizePipeAndCacheMaskForRelease(
                 localAccessMask |= cmdBufStateFlags.gfxWriteCachesDirty ? CoherColorTarget : 0;
                 localAccessMask |= cmdBufStateFlags.csWriteCachesDirty ? CoherShader : 0;
             }
-#endif
         }
 
         *pAccessMask = localAccessMask;
@@ -752,19 +742,16 @@ void Pm4CmdBuffer::CmdSaveComputeState(uint32 stateFlags)
     }
 
     // Disable all active queries so that we don't sample internal operations in the app's query pool slots.
-    // NOTE: We don't do this for the Vulkan client because Vulkan allows blits to occur inside nested command buffers.
+    //
+    // NOTE: We expect Vulkan won't set this flag because Vulkan allows blits to occur inside nested command buffers.
     // In a nested command buffer, we don't know what value of DB_COUNT_CONTROL to restore because the query state may
     // have been inherited from the calling command buffer. Luckily, Vulkan also states that whether blit or barrier
-    // operations affect the results of queries is implementation-defined. So, for symmetry, we'll skip disabling any
-    // active queries for blits on any Vulkan command buffer. If your test matches this criterion, starting
-    // Interface Version 757 you will need to set flag disableQueryInternalOps to False from the PanelSettings to
-    // ensure correct behavior.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 757
+    // operations affect the results of queries is implementation-defined. So, for symmetry, they should not disable
+    // active queries for blits.
     if (m_buildFlags.disableQueryInternalOps)
     {
         DeactivateQueries();
     }
-#endif
 }
 
 // =====================================================================================================================
@@ -791,12 +778,10 @@ void Pm4CmdBuffer::CmdRestoreComputeState(uint32 stateFlags)
     UpdatePm4CmdBufCsBltExecFence();
 
     // Reactivate all queries that we stopped in CmdSaveComputeState.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 757
     if (m_buildFlags.disableQueryInternalOps)
     {
         ReactivateQueries();
     }
-#endif
 }
 
 // =====================================================================================================================

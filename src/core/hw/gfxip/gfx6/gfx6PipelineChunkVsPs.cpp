@@ -158,7 +158,6 @@ void PipelineChunkVsPs::LateInit(
 
     m_regs.context.paClVsOutCntl.u32All = registers.At(mmPA_CL_VS_OUT_CNTL);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 733
     if (createInfo.rsState.flags.cullDistMaskValid != 0)
     {
         m_regs.context.paClVsOutCntl.bitfields.CULL_DIST_ENA_0 &= (createInfo.rsState.cullDistMask & 0x1) != 0;
@@ -172,9 +171,6 @@ void PipelineChunkVsPs::LateInit(
     }
 
     if (createInfo.rsState.flags.clipDistMaskValid != 0)
-#else
-    if (createInfo.rsState.clipDistMask != 0)
-#endif
     {
         m_regs.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_0 &= (createInfo.rsState.clipDistMask & 0x1) != 0;
         m_regs.context.paClVsOutCntl.bitfields.CLIP_DIST_ENA_1 &= (createInfo.rsState.clipDistMask & 0x2) != 0;

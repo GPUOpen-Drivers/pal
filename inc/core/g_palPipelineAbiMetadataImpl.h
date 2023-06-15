@@ -774,6 +774,89 @@ inline Result SerializeEnum(
 }
 
 // =====================================================================================================================
+inline Result DeserializeEnum(
+    MsgPackReader*  pReader,
+    Abi::CbConstUsageType*  pValue)
+{
+    StringViewType key;
+    Result result = pReader->UnpackNext(&key);
+
+    if (result == Result::Success)
+    {
+        switch (HashString(key))
+        {
+        case HashLiteralString("LoopIter"):
+            *pValue = Abi::CbConstUsageType::LoopIter;
+            break;
+        case HashLiteralString("Eq0Float"):
+            *pValue = Abi::CbConstUsageType::Eq0Float;
+            break;
+        case HashLiteralString("Lt0Float"):
+            *pValue = Abi::CbConstUsageType::Lt0Float;
+            break;
+        case HashLiteralString("Gt0Float"):
+            *pValue = Abi::CbConstUsageType::Gt0Float;
+            break;
+        case HashLiteralString("Eq0Int"):
+            *pValue = Abi::CbConstUsageType::Eq0Int;
+            break;
+        case HashLiteralString("Lt0Int"):
+            *pValue = Abi::CbConstUsageType::Lt0Int;
+            break;
+        case HashLiteralString("Gt0Int"):
+            *pValue = Abi::CbConstUsageType::Gt0Int;
+            break;
+        case HashLiteralString("Other"):
+            *pValue = Abi::CbConstUsageType::Other;
+            break;
+        default:
+            result = Result::NotFound;
+            break;
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+inline Result SerializeEnum(
+    MsgPackWriter*  pWriter,
+    Abi::CbConstUsageType  value)
+{
+    switch (value)
+    {
+    case Abi::CbConstUsageType::LoopIter:
+        pWriter->Pack("LoopIter");
+        break;
+    case Abi::CbConstUsageType::Eq0Float:
+        pWriter->Pack("Eq0Float");
+        break;
+    case Abi::CbConstUsageType::Lt0Float:
+        pWriter->Pack("Lt0Float");
+        break;
+    case Abi::CbConstUsageType::Gt0Float:
+        pWriter->Pack("Gt0Float");
+        break;
+    case Abi::CbConstUsageType::Eq0Int:
+        pWriter->Pack("Eq0Int");
+        break;
+    case Abi::CbConstUsageType::Lt0Int:
+        pWriter->Pack("Lt0Int");
+        break;
+    case Abi::CbConstUsageType::Gt0Int:
+        pWriter->Pack("Gt0Int");
+        break;
+    case Abi::CbConstUsageType::Other:
+        pWriter->Pack("Other");
+        break;
+    default:
+        break;
+    }
+
+    return pWriter->GetStatus();
+}
+
+// =====================================================================================================================
 template <typename EnumType>
 Result DeserializeEnumBitflags(
     MsgPackReader*  pReader,
@@ -890,6 +973,62 @@ inline Result DeserializeShaderMetadata(
 }
 
 // =====================================================================================================================
+inline Result DeserializeCbConstUsageMetadata(
+    MsgPackReader*  pReader,
+    CbConstUsageMetadata*  pMetadata)
+{
+    Result result = (pReader->Type() == CWP_ITEM_ARRAY) ? Result::Success : Result::ErrorInvalidValue;
+
+    const uint32 arraySize = pReader->Get().as.array.size;
+
+    for (uint32 j = 0; ((result == Result::Success) && (j < arraySize)); j++)
+    {
+        result = pReader->Next(CWP_ITEM_MAP);
+
+        for (uint32 i = pReader->Get().as.map.size; ((result == Result::Success) && (i > 0)); --i)
+        {
+            StringViewType key;
+            result = pReader->UnpackNext(&key);
+
+            if (result == Result::Success)
+            {
+                switch (HashString(key))
+                {
+                case HashLiteralString(CbConstUsageMetadataKey::BuffId):
+                    PAL_ASSERT(pMetadata[j].hasEntry.buffId == 0);
+                    result = pReader->UnpackNext(&pMetadata[j].buffId);
+                    pMetadata[j].hasEntry.buffId = (result == Result::Success);;
+                    break;
+
+                case HashLiteralString(CbConstUsageMetadataKey::Elem):
+                    PAL_ASSERT(pMetadata[j].hasEntry.elem == 0);
+                    result = pReader->UnpackNext(&pMetadata[j].elem);
+                    pMetadata[j].hasEntry.elem = (result == Result::Success);;
+                    break;
+
+                case HashLiteralString(CbConstUsageMetadataKey::Chan):
+                    PAL_ASSERT(pMetadata[j].hasEntry.chan == 0);
+                    result = pReader->UnpackNext(&pMetadata[j].chan);
+                    pMetadata[j].hasEntry.chan = (result == Result::Success);;
+                    break;
+
+                case HashLiteralString(CbConstUsageMetadataKey::Usage):
+                    PAL_ASSERT(pMetadata[j].hasEntry.usage == 0);
+                    result = DeserializeEnum(pReader, &pMetadata[j].usage);
+                    pMetadata[j].hasEntry.usage = (result == Result::Success);;
+                    break;
+                default:
+                    result = pReader->Skip(1);
+                    break;
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
 inline Result DeserializeHardwareStageMetadata(
     MsgPackReader*  pReader,
     HardwareStageMetadata*  pMetadata)
@@ -921,6 +1060,12 @@ inline Result DeserializeHardwareStageMetadata(
                 PAL_ASSERT(pMetadata->hasEntry.backendStackSize == 0);
                 result = pReader->UnpackNext(&pMetadata->backendStackSize);
                 pMetadata->hasEntry.backendStackSize = (result == Result::Success);;
+                break;
+
+            case HashLiteralString(HardwareStageMetadataKey::FrontendStackSize):
+                PAL_ASSERT(pMetadata->hasEntry.frontendStackSize == 0);
+                result = pReader->UnpackNext(&pMetadata->frontendStackSize);
+                pMetadata->hasEntry.frontendStackSize = (result == Result::Success);;
                 break;
 
             case HashLiteralString(HardwareStageMetadataKey::LdsSize):
@@ -969,6 +1114,20 @@ inline Result DeserializeHardwareStageMetadata(
                 PAL_ASSERT(pMetadata->hasEntry.origThreadgroupDimensions == 0);
                 result = pReader->UnpackNext(&pMetadata->origThreadgroupDimensions);
                 pMetadata->hasEntry.origThreadgroupDimensions = (result == Result::Success);;
+                break;
+
+            case HashLiteralString(HardwareStageMetadataKey::CbConstUsages):
+                PAL_ASSERT(pMetadata->hasEntry.cbConstUsage == 0);
+                pReader->Next();
+                result = DeserializeCbConstUsageMetadata(
+                        pReader, &pMetadata->cbConstUsage[0]);
+                    pMetadata->hasEntry.cbConstUsage = (result == Result::Success);
+                break;
+
+            case HashLiteralString(HardwareStageMetadataKey::NumCbConstUsages):
+                PAL_ASSERT(pMetadata->hasEntry.numCbConstUsages == 0);
+                result = pReader->UnpackNext(&pMetadata->numCbConstUsages);
+                pMetadata->hasEntry.numCbConstUsages = (result == Result::Success);;
                 break;
 
             case HashLiteralString(HardwareStageMetadataKey::WavefrontSize):

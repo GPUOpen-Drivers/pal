@@ -71,23 +71,13 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     SwitchCmdSetUserDataFunc(PipelineBindPoint::Compute,  &Pm4CmdBuffer::CmdSetUserDataCs);
     SwitchCmdSetUserDataFunc(PipelineBindPoint::Graphics, &CmdSetUserDataGfx<true>);
 
-    const PalPublicSettings* pPalSettings = m_device.Parent()->GetPublicSettings();
-
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 755)
     constexpr TessDistributionFactors DefaultTessDistributionFactors = { 12, 30, 24, 24, 6 };
     m_tessDistributionFactors = DefaultTessDistributionFactors;
-#else
-    m_tessDistributionFactors = { pPalSettings->isolineDistributionFactor,
-                                  pPalSettings->triDistributionFactor,
-                                  pPalSettings->quadDistributionFactor,
-                                  pPalSettings->donutDistributionFactor,
-                                  pPalSettings->trapezoidDistributionFactor };
-#endif
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 744)
+    const PalPublicSettings* pPalSettings = m_device.Parent()->GetPublicSettings();
+
     m_contextStatesPerBin    = pPalSettings->binningContextStatesPerBin;
     m_persistentStatesPerBin = pPalSettings->binningPersistentStatesPerBin;
-#endif
 }
 
 // =====================================================================================================================
@@ -97,12 +87,11 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 Result UniversalCmdBuffer::Begin(
     const CmdBufferBuildInfo& info)
 {
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 755)
     if (m_buildFlags.optimizeTessDistributionFactors)
     {
         m_tessDistributionFactors = info.clientTessDistributionFactors;
     }
-#endif
+
     // m_persistentStatesPerBin and m_contextStatesPerBin
     // need to be set before the base class Begin() is called.
     // These values are read be ResetState() in the HWL which is called by Begin().
@@ -598,13 +587,11 @@ void UniversalCmdBuffer::CmdSaveGraphicsState()
     memset(&m_graphicsState.gfxUserDataEntries.touched[0], 0, sizeof(m_graphicsState.gfxUserDataEntries.touched));
 
     // Disable all active queries so that we don't sample internal operations in the app's query pool slots.
-    // SEE: Pm4CmdBuffer::CmdSaveComputeState() for details on why this is not done for the Vulkan client.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 757
+    // SEE: Pm4CmdBuffer::CmdSaveComputeState() for details on why we don't expect Vulkan to set this flag.
     if (m_buildFlags.disableQueryInternalOps)
     {
         DeactivateQueries();
     }
-#endif
 }
 
 // =====================================================================================================================
@@ -621,12 +608,10 @@ void UniversalCmdBuffer::CmdRestoreGraphicsState()
     GfxCmdBuffer::CmdRestoreGraphicsState();
 
     // Reactivate all queries that we stopped in CmdSaveGraphicsState.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 757
     if (m_buildFlags.disableQueryInternalOps)
     {
         ReactivateQueries();
     }
-#endif
 
     // All RMP GFX Blts should push/pop command buffer's graphics state,
     // so this is a safe opportunity to mark that a GFX Blt is active
@@ -805,6 +790,25 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     {
         m_graphicsState.pVrsImage = graphics.pVrsImage;
     }
+
+    if (graphics.pipelineState.pPipeline != nullptr)
+    {
+        m_funcTable.pfnCmdDraw                      = cmdBuffer.m_funcTable.pfnCmdDraw;
+        m_funcTable.pfnCmdDrawOpaque                = cmdBuffer.m_funcTable.pfnCmdDrawOpaque;
+        m_funcTable.pfnCmdDrawIndexed               = cmdBuffer.m_funcTable.pfnCmdDrawIndexed;
+        m_funcTable.pfnCmdDrawIndirectMulti         = cmdBuffer.m_funcTable.pfnCmdDrawIndirectMulti;
+        m_funcTable.pfnCmdDrawIndexedIndirectMulti  = cmdBuffer.m_funcTable.pfnCmdDrawIndexedIndirectMulti;
+        m_funcTable.pfnCmdDispatchMesh              = cmdBuffer.m_funcTable.pfnCmdDispatchMesh;
+        m_funcTable.pfnCmdDispatchMeshIndirectMulti = cmdBuffer.m_funcTable.pfnCmdDispatchMeshIndirectMulti;
+    }
+
+    // It is possible that nested command buffer execute operation which affect the data in the primary buffer
+    m_pm4CmdBufState.flags.gfxBltActive              = cmdBuffer.m_pm4CmdBufState.flags.gfxBltActive;
+    m_pm4CmdBufState.flags.csBltActive               = cmdBuffer.m_pm4CmdBufState.flags.csBltActive;
+    m_pm4CmdBufState.flags.gfxWriteCachesDirty       = cmdBuffer.m_pm4CmdBufState.flags.gfxWriteCachesDirty;
+    m_pm4CmdBufState.flags.csWriteCachesDirty        = cmdBuffer.m_pm4CmdBufState.flags.csWriteCachesDirty;
+    m_pm4CmdBufState.flags.cpWriteCachesDirty        = cmdBuffer.m_pm4CmdBufState.flags.cpWriteCachesDirty;
+    m_pm4CmdBufState.flags.cpMemoryWriteL2CacheStale = cmdBuffer.m_pm4CmdBufState.flags.cpMemoryWriteL2CacheStale;
 
     m_graphicsState.viewInstanceMask = graphics.viewInstanceMask;
 

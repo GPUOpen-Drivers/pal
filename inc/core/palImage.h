@@ -210,7 +210,8 @@ union ImageCreateFlags
 #else
         uint32 reserved769             :  1; ///< Reserved for future use.
 #endif
-        uint32 reserved                :  7; ///< Reserved for future use.
+        uint32 hasModifier             :  1; ///< Set if the image uses drm format modifier.
+        uint32 reserved                :  6; ///< Reserved for future use.
     };
     uint32 u32All;                           ///< Flags packed as 32-bit uint.
 };
@@ -253,11 +254,7 @@ union ImageUsageFlags
         uint32 stencilOnlyTarget      :  1; ///< This must be set if a stencil-only IDepthStencilView will be created
                                             ///< for this image.
         uint32 vrsRateImage           :  1; ///< This image is potentially used with CmdBindSampleRateImage
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 722
         uint32 videoDecoder           :  1; ///< Indicating this Image is video decoder target
-#else
-        uint32 reserved722            :  1;
-#endif
         uint32 reserved               : 12; ///< Reserved for future use.
     };
     uint32 u32All;                          ///< Flags packed as 32-bit uint.
@@ -341,6 +338,11 @@ struct ImageCreateInfo
                                           ///  Note that this array is consumed at image creation time and should
                                           ///  not be accessed afterwards through GetImageCreateInfo().
 
+#if defined(__unix__)
+    uint64            modifier;           ///< Drm format modifier. Ignored if flags.hasModifier unset.
+    uint32            modifierPlaneCount; ///< Number of memory planes of drm format modifier.
+    gpusize           modifierMemoryPlaneOffset[3];  ///< Offset of main surface, display Dcc surface and gfx Dcc surface.
+#endif
 };
 
 /// Specifies properties for presentable @ref IImage creation.  Input structure to IDevice::CreatePresentableImage().
@@ -438,6 +440,12 @@ struct ExternalImageOpenInfo
     ImageUsageFlags          usage;          ///< Image usage flags.
     IPrivateScreen*          pScreen;        ///< Private screen this image is created on, or null.
     gpusize                  gpuMemOffset;   ///< GpuMemory offset
+#if defined(__unix__)
+    gpusize                  dccOffset;          ///< Offset of gfx Dcc surface if nonzero.
+    gpusize                  displayDccOffset;   ///< Offset of display Dcc surface if nonzero.
+    uint64                   modifier;           ///< Drm format modifier, if flags.hasModifier is set.
+    uint32                   modifierPlaneCount; ///< Number of memory planes of drm format modifier.
+#endif
 };
 
 /// Reports the overall GPU memory layout of the entire image.  Output structure for IImage::GetMemoryLayout(). Unused
@@ -580,6 +588,20 @@ public:
     virtual Result GetSubresourceLayout(
         SubresId      subresId,
         SubresLayout* pLayout) const = 0;
+
+#if defined(__unix__)
+    /// Reports information on the memory plane layout of the specified subresource in memory for image with modifier.
+    ///
+    /// @param [in]  memoryPlane Selects a memory plane from the image.
+    /// @param [out] pLayout     Reports info on the subresource layout such as size and pitch.
+    ///
+    /// @returns Success if the layout was successfully reported.  Otherwise, one of the following error codes may be
+    ///          returned:
+    ///          + ErrorInvalidValue is the memory plane is out of range for this image.
+    virtual Result GetModifierSubresourceLayout(
+        uint32        memoryPlane,
+        SubresLayout* pLayout) const = 0;
+#endif
 
     /// Reports the create info of image.
     ///

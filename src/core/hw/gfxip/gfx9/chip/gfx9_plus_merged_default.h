@@ -3123,7 +3123,7 @@ namespace Gfx103PlusExclusive
     constexpr unsigned int mmTA_CNTL_AUX_DEFAULT                              = 0x1030000;
 } // namespace Gfx103PlusExclusive
 
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 namespace Gfx104Plus
 {
     constexpr unsigned int mmCB_PERFCOUNTER0_SELECT1_DEFAULT                  = 0xFFFFF;
@@ -3510,7 +3510,7 @@ namespace Gfx10Vrs
     constexpr unsigned int mmRLC_SPM_SE_MUXSEL_ADDR_OFFSET_DEFAULT            = 0x0000;
 } // namespace Gfx10Vrs
 
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 namespace Gfx11
 {
     constexpr unsigned int mmCB_BLEND0_CONTROL_DEFAULT                        = 0xCDCD0DCD;
@@ -4002,7 +4002,7 @@ namespace Gfx11
 } // namespace Gfx11
 #endif
 
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 namespace Gfx110
 {
     constexpr unsigned int mmCB_CGTT_SCLK_CTRL_DEFAULT                        = 0x0100;
@@ -7055,7 +7055,21 @@ namespace Nv31
 } // namespace Nv31
 #endif
 
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI33
+namespace Nv33
+{
+    constexpr unsigned int mmGB_ADDR_CONFIG_DEFAULT                           = 0x0343;
+    constexpr unsigned int mmGB_ADDR_CONFIG_READ_DEFAULT                      = 0x0343;
+    constexpr unsigned int mmGE_SPI_IF_SAFE_REG_DEFAULT                       = 0x18A69;
+    constexpr unsigned int mmPA_PH_INTERFACE_FIFO_SIZE_DEFAULT                = 0x0028;
+    constexpr unsigned int mmPA_SC_FIFO_DEPTH_CNTL_DEFAULT                    = 0x0028;
+    constexpr unsigned int mmRLC_SPM_ACCUM_MODE_DEFAULT                       = 0x6004;
+    constexpr unsigned int mmSPI_SX_EXPORT_BUFFER_SIZES_DEFAULT               = 0x10000140;
+    constexpr unsigned int mmVGT_GS_MAX_WAVE_ID_DEFAULT                       = 0x03FF;
+} // namespace Nv33
+#endif
+
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 namespace Nv3x
 {
     constexpr unsigned int mmCB_RMI_GL2_CACHE_CONTROL_DEFAULT                 = 0x8CC0000D;

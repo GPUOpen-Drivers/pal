@@ -2791,7 +2791,7 @@ namespace Gfx103PlusExclusive
     constexpr unsigned int mmSX_PS_DOWNCONVERT_CONTROL                        = 0xA1D4;
 } // namespace Gfx103PlusExclusive
 
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 namespace Gfx104Plus
 {
     constexpr unsigned int mmGE_RATE_CNTL_1                                   = 0x2254;
@@ -3270,7 +3270,7 @@ namespace Gfx10Vrs
     constexpr unsigned int mmRLC_SPM_SE_MUXSEL_ADDR_OFFSET                    = 0xDCA8;
 } // namespace Gfx10Vrs
 
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 namespace Gfx11
 {
     constexpr unsigned int mmCB_DCC_CONFIG2                                   = 0x268B;
@@ -3501,7 +3501,7 @@ namespace Gfx11
 } // namespace Gfx11
 #endif
 
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 namespace Gfx110
 {
     constexpr unsigned int mmCB_CGTT_SCLK_CTRL                                = 0xF0A8;
@@ -5027,7 +5027,196 @@ namespace Nv31
 } // namespace Nv31
 #endif
 
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI33
+namespace Nv33
+{
+    constexpr unsigned int mmPerfMonCtl1                                      = 0x14344;
+    constexpr unsigned int mmPerfMonCtl2                                      = 0x14347;
+    constexpr unsigned int mmPerfMonCtl3                                      = 0x1434A;
+    constexpr unsigned int mmPerfMonCtl4                                      = 0x1434D;
+    constexpr unsigned int mmPerfMonCtl5                                      = 0x14350;
+    constexpr unsigned int mmPerfMonCtl6                                      = 0x14353;
+    constexpr unsigned int mmPerfMonCtl7                                      = 0x14356;
+    constexpr unsigned int mmPerfMonCtl8                                      = 0x14359;
+    constexpr unsigned int mmPerfMonCtl9                                      = 0x1435C;
+    constexpr unsigned int mmPerfMonCtl10                                     = 0x1435F;
+    constexpr unsigned int mmPerfMonCtl11                                     = 0x14362;
+    constexpr unsigned int mmPerfMonCtl12                                     = 0x14365;
+    constexpr unsigned int mmPerfMonCtlClk                                    = 0x14340;
+    constexpr unsigned int mmPerfMonCtr1_Hi                                   = 0x14346;
+    constexpr unsigned int mmPerfMonCtr1_Lo                                   = 0x14345;
+    constexpr unsigned int mmPerfMonCtr2_Hi                                   = 0x14349;
+    constexpr unsigned int mmPerfMonCtr2_Lo                                   = 0x14348;
+    constexpr unsigned int mmPerfMonCtr3_Hi                                   = 0x1434C;
+    constexpr unsigned int mmPerfMonCtr3_Lo                                   = 0x1434B;
+    constexpr unsigned int mmPerfMonCtr4_Hi                                   = 0x1434F;
+    constexpr unsigned int mmPerfMonCtr4_Lo                                   = 0x1434E;
+    constexpr unsigned int mmPerfMonCtr5_Hi                                   = 0x14352;
+    constexpr unsigned int mmPerfMonCtr5_Lo                                   = 0x14351;
+    constexpr unsigned int mmPerfMonCtr6_Hi                                   = 0x14355;
+    constexpr unsigned int mmPerfMonCtr6_Lo                                   = 0x14354;
+    constexpr unsigned int mmPerfMonCtr7_Hi                                   = 0x14358;
+    constexpr unsigned int mmPerfMonCtr7_Lo                                   = 0x14357;
+    constexpr unsigned int mmPerfMonCtr8_Hi                                   = 0x1435B;
+    constexpr unsigned int mmPerfMonCtr8_Lo                                   = 0x1435A;
+    constexpr unsigned int mmPerfMonCtr9_Hi                                   = 0x1435E;
+    constexpr unsigned int mmPerfMonCtr9_Lo                                   = 0x1435D;
+    constexpr unsigned int mmPerfMonCtr10_Hi                                  = 0x14361;
+    constexpr unsigned int mmPerfMonCtr10_Lo                                  = 0x14360;
+    constexpr unsigned int mmPerfMonCtr11_Hi                                  = 0x14364;
+    constexpr unsigned int mmPerfMonCtr11_Lo                                  = 0x14363;
+    constexpr unsigned int mmPerfMonCtr12_Hi                                  = 0x14367;
+    constexpr unsigned int mmPerfMonCtr12_Lo                                  = 0x14366;
+    constexpr unsigned int mmPerfMonCtrClk_Hi                                 = 0x14342;
+    constexpr unsigned int mmPerfMonCtrClk_Lo                                 = 0x14341;
+    constexpr unsigned int mmUMCCH0_PerfMonCtl1                               = 0x14344;
+    constexpr unsigned int mmUMCCH0_PerfMonCtl2                               = 0x14347;
+    constexpr unsigned int mmUMCCH0_PerfMonCtl3                               = 0x1434A;
+    constexpr unsigned int mmUMCCH0_PerfMonCtl4                               = 0x1434D;
+    constexpr unsigned int mmUMCCH0_PerfMonCtl5                               = 0x14350;
+    constexpr unsigned int mmUMCCH0_PerfMonCtlClk                             = 0x14340;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr1_Hi                            = 0x14346;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr1_Lo                            = 0x14345;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr2_Hi                            = 0x14349;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr2_Lo                            = 0x14348;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr3_Hi                            = 0x1434C;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr3_Lo                            = 0x1434B;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr4_Hi                            = 0x1434F;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr4_Lo                            = 0x1434E;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr5_Hi                            = 0x14352;
+    constexpr unsigned int mmUMCCH0_PerfMonCtr5_Lo                            = 0x14351;
+    constexpr unsigned int mmUMCCH0_PerfMonCtrClk_Hi                          = 0x14342;
+    constexpr unsigned int mmUMCCH0_PerfMonCtrClk_Lo                          = 0x14341;
+    constexpr unsigned int mmUMCCH1_PerfMonCtl1                               = 0x14744;
+    constexpr unsigned int mmUMCCH1_PerfMonCtl2                               = 0x14747;
+    constexpr unsigned int mmUMCCH1_PerfMonCtl3                               = 0x1474A;
+    constexpr unsigned int mmUMCCH1_PerfMonCtl4                               = 0x1474D;
+    constexpr unsigned int mmUMCCH1_PerfMonCtl5                               = 0x14750;
+    constexpr unsigned int mmUMCCH1_PerfMonCtlClk                             = 0x14740;
+    constexpr unsigned int mmUMCCH1_PerfMonCtr1_Hi                            = 0x14746;
+    constexpr unsigned int mmUMCCH1_PerfMonCtr1_Lo                            = 0x14745;
+    constexpr unsigned int mmUMCCH1_PerfMonCtr2_Hi                            = 0x14749;
+    constexpr unsigned int mmUMCCH1_PerfMonCtr2_Lo                            = 0x14748;
+    constexpr unsigned int mmUMCCH1_PerfMonCtr3_Hi                            = 0x1474C;
+    constexpr unsigned int mmUMCCH1_PerfMonCtr3_Lo                            = 0x1474B;
+    constexpr unsigned int mmUMCCH1_PerfMonCtr4_Hi                            = 0x1474F;
+    constexpr unsigned int mmUMCCH1_PerfMonCtr4_Lo                            = 0x1474E;
+    constexpr unsigned int mmUMCCH1_PerfMonCtr5_Hi                            = 0x14752;
+    constexpr unsigned int mmUMCCH1_PerfMonCtr5_Lo                            = 0x14751;
+    constexpr unsigned int mmUMCCH1_PerfMonCtrClk_Hi                          = 0x14742;
+    constexpr unsigned int mmUMCCH1_PerfMonCtrClk_Lo                          = 0x14741;
+    constexpr unsigned int mmUMCCH2_PerfMonCtl1                               = 0x54344;
+    constexpr unsigned int mmUMCCH2_PerfMonCtl2                               = 0x54347;
+    constexpr unsigned int mmUMCCH2_PerfMonCtl3                               = 0x5434A;
+    constexpr unsigned int mmUMCCH2_PerfMonCtl4                               = 0x5434D;
+    constexpr unsigned int mmUMCCH2_PerfMonCtl5                               = 0x54350;
+    constexpr unsigned int mmUMCCH2_PerfMonCtlClk                             = 0x54340;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr1_Hi                            = 0x54346;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr1_Lo                            = 0x54345;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr2_Hi                            = 0x54349;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr2_Lo                            = 0x54348;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr3_Hi                            = 0x5434C;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr3_Lo                            = 0x5434B;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr4_Hi                            = 0x5434F;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr4_Lo                            = 0x5434E;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr5_Hi                            = 0x54352;
+    constexpr unsigned int mmUMCCH2_PerfMonCtr5_Lo                            = 0x54351;
+    constexpr unsigned int mmUMCCH2_PerfMonCtrClk_Hi                          = 0x54342;
+    constexpr unsigned int mmUMCCH2_PerfMonCtrClk_Lo                          = 0x54341;
+    constexpr unsigned int mmUMCCH3_PerfMonCtl1                               = 0x54744;
+    constexpr unsigned int mmUMCCH3_PerfMonCtl2                               = 0x54747;
+    constexpr unsigned int mmUMCCH3_PerfMonCtl3                               = 0x5474A;
+    constexpr unsigned int mmUMCCH3_PerfMonCtl4                               = 0x5474D;
+    constexpr unsigned int mmUMCCH3_PerfMonCtl5                               = 0x54750;
+    constexpr unsigned int mmUMCCH3_PerfMonCtlClk                             = 0x54740;
+    constexpr unsigned int mmUMCCH3_PerfMonCtr1_Hi                            = 0x54746;
+    constexpr unsigned int mmUMCCH3_PerfMonCtr1_Lo                            = 0x54745;
+    constexpr unsigned int mmUMCCH3_PerfMonCtr2_Hi                            = 0x54749;
+    constexpr unsigned int mmUMCCH3_PerfMonCtr2_Lo                            = 0x54748;
+    constexpr unsigned int mmUMCCH3_PerfMonCtr3_Hi                            = 0x5474C;
+    constexpr unsigned int mmUMCCH3_PerfMonCtr3_Lo                            = 0x5474B;
+    constexpr unsigned int mmUMCCH3_PerfMonCtr4_Hi                            = 0x5474F;
+    constexpr unsigned int mmUMCCH3_PerfMonCtr4_Lo                            = 0x5474E;
+    constexpr unsigned int mmUMCCH3_PerfMonCtr5_Hi                            = 0x54752;
+    constexpr unsigned int mmUMCCH3_PerfMonCtr5_Lo                            = 0x54751;
+    constexpr unsigned int mmUMCCH3_PerfMonCtrClk_Hi                          = 0x54742;
+    constexpr unsigned int mmUMCCH3_PerfMonCtrClk_Lo                          = 0x54741;
+    constexpr unsigned int mmUMCCH4_PerfMonCtl1                               = 0x94344;
+    constexpr unsigned int mmUMCCH4_PerfMonCtl2                               = 0x94347;
+    constexpr unsigned int mmUMCCH4_PerfMonCtl3                               = 0x9434A;
+    constexpr unsigned int mmUMCCH4_PerfMonCtl4                               = 0x9434D;
+    constexpr unsigned int mmUMCCH4_PerfMonCtl5                               = 0x94350;
+    constexpr unsigned int mmUMCCH4_PerfMonCtlClk                             = 0x94340;
+    constexpr unsigned int mmUMCCH4_PerfMonCtr1_Hi                            = 0x94346;
+    constexpr unsigned int mmUMCCH4_PerfMonCtr1_Lo                            = 0x94345;
+    constexpr unsigned int mmUMCCH4_PerfMonCtr2_Hi                            = 0x94349;
+    constexpr unsigned int mmUMCCH4_PerfMonCtr2_Lo                            = 0x94348;
+    constexpr unsigned int mmUMCCH4_PerfMonCtr3_Hi                            = 0x9434C;
+    constexpr unsigned int mmUMCCH4_PerfMonCtr3_Lo                            = 0x9434B;
+    constexpr unsigned int mmUMCCH4_PerfMonCtr4_Hi                            = 0x9434F;
+    constexpr unsigned int mmUMCCH4_PerfMonCtr4_Lo                            = 0x9434E;
+    constexpr unsigned int mmUMCCH4_PerfMonCtr5_Hi                            = 0x94352;
+    constexpr unsigned int mmUMCCH4_PerfMonCtr5_Lo                            = 0x94351;
+    constexpr unsigned int mmUMCCH4_PerfMonCtrClk_Hi                          = 0x94342;
+    constexpr unsigned int mmUMCCH4_PerfMonCtrClk_Lo                          = 0x94341;
+    constexpr unsigned int mmUMCCH5_PerfMonCtl1                               = 0x94744;
+    constexpr unsigned int mmUMCCH5_PerfMonCtl2                               = 0x94747;
+    constexpr unsigned int mmUMCCH5_PerfMonCtl3                               = 0x9474A;
+    constexpr unsigned int mmUMCCH5_PerfMonCtl4                               = 0x9474D;
+    constexpr unsigned int mmUMCCH5_PerfMonCtl5                               = 0x94750;
+    constexpr unsigned int mmUMCCH5_PerfMonCtlClk                             = 0x94740;
+    constexpr unsigned int mmUMCCH5_PerfMonCtr1_Hi                            = 0x94746;
+    constexpr unsigned int mmUMCCH5_PerfMonCtr1_Lo                            = 0x94745;
+    constexpr unsigned int mmUMCCH5_PerfMonCtr2_Hi                            = 0x94749;
+    constexpr unsigned int mmUMCCH5_PerfMonCtr2_Lo                            = 0x94748;
+    constexpr unsigned int mmUMCCH5_PerfMonCtr3_Hi                            = 0x9474C;
+    constexpr unsigned int mmUMCCH5_PerfMonCtr3_Lo                            = 0x9474B;
+    constexpr unsigned int mmUMCCH5_PerfMonCtr4_Hi                            = 0x9474F;
+    constexpr unsigned int mmUMCCH5_PerfMonCtr4_Lo                            = 0x9474E;
+    constexpr unsigned int mmUMCCH5_PerfMonCtr5_Hi                            = 0x94752;
+    constexpr unsigned int mmUMCCH5_PerfMonCtr5_Lo                            = 0x94751;
+    constexpr unsigned int mmUMCCH5_PerfMonCtrClk_Hi                          = 0x94742;
+    constexpr unsigned int mmUMCCH5_PerfMonCtrClk_Lo                          = 0x94741;
+    constexpr unsigned int mmUMCCH6_PerfMonCtl1                               = 0xD4344;
+    constexpr unsigned int mmUMCCH6_PerfMonCtl2                               = 0xD4347;
+    constexpr unsigned int mmUMCCH6_PerfMonCtl3                               = 0xD434A;
+    constexpr unsigned int mmUMCCH6_PerfMonCtl4                               = 0xD434D;
+    constexpr unsigned int mmUMCCH6_PerfMonCtl5                               = 0xD4350;
+    constexpr unsigned int mmUMCCH6_PerfMonCtlClk                             = 0xD4340;
+    constexpr unsigned int mmUMCCH6_PerfMonCtr1_Hi                            = 0xD4346;
+    constexpr unsigned int mmUMCCH6_PerfMonCtr1_Lo                            = 0xD4345;
+    constexpr unsigned int mmUMCCH6_PerfMonCtr2_Hi                            = 0xD4349;
+    constexpr unsigned int mmUMCCH6_PerfMonCtr2_Lo                            = 0xD4348;
+    constexpr unsigned int mmUMCCH6_PerfMonCtr3_Hi                            = 0xD434C;
+    constexpr unsigned int mmUMCCH6_PerfMonCtr3_Lo                            = 0xD434B;
+    constexpr unsigned int mmUMCCH6_PerfMonCtr4_Hi                            = 0xD434F;
+    constexpr unsigned int mmUMCCH6_PerfMonCtr4_Lo                            = 0xD434E;
+    constexpr unsigned int mmUMCCH6_PerfMonCtr5_Hi                            = 0xD4352;
+    constexpr unsigned int mmUMCCH6_PerfMonCtr5_Lo                            = 0xD4351;
+    constexpr unsigned int mmUMCCH6_PerfMonCtrClk_Hi                          = 0xD4342;
+    constexpr unsigned int mmUMCCH6_PerfMonCtrClk_Lo                          = 0xD4341;
+    constexpr unsigned int mmUMCCH7_PerfMonCtl1                               = 0xD4744;
+    constexpr unsigned int mmUMCCH7_PerfMonCtl2                               = 0xD4747;
+    constexpr unsigned int mmUMCCH7_PerfMonCtl3                               = 0xD474A;
+    constexpr unsigned int mmUMCCH7_PerfMonCtl4                               = 0xD474D;
+    constexpr unsigned int mmUMCCH7_PerfMonCtl5                               = 0xD4750;
+    constexpr unsigned int mmUMCCH7_PerfMonCtlClk                             = 0xD4740;
+    constexpr unsigned int mmUMCCH7_PerfMonCtr1_Hi                            = 0xD4746;
+    constexpr unsigned int mmUMCCH7_PerfMonCtr1_Lo                            = 0xD4745;
+    constexpr unsigned int mmUMCCH7_PerfMonCtr2_Hi                            = 0xD4749;
+    constexpr unsigned int mmUMCCH7_PerfMonCtr2_Lo                            = 0xD4748;
+    constexpr unsigned int mmUMCCH7_PerfMonCtr3_Hi                            = 0xD474C;
+    constexpr unsigned int mmUMCCH7_PerfMonCtr3_Lo                            = 0xD474B;
+    constexpr unsigned int mmUMCCH7_PerfMonCtr4_Hi                            = 0xD474F;
+    constexpr unsigned int mmUMCCH7_PerfMonCtr4_Lo                            = 0xD474E;
+    constexpr unsigned int mmUMCCH7_PerfMonCtr5_Hi                            = 0xD4752;
+    constexpr unsigned int mmUMCCH7_PerfMonCtr5_Lo                            = 0xD4751;
+    constexpr unsigned int mmUMCCH7_PerfMonCtrClk_Hi                          = 0xD4742;
+    constexpr unsigned int mmUMCCH7_PerfMonCtrClk_Lo                          = 0xD4741;
+} // namespace Nv33
+#endif
+
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 namespace Nv3x
 {
     constexpr unsigned int mmCHCG_PERFCOUNTER0_HI                             = 0xD3C9;

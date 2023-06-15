@@ -190,7 +190,7 @@ struct GpaSampleConfig
             Pal::uint32 cacheFlushOnCounterCollection :  1;  ///< Insert cache flush and invalidate events before and
                                                              ///  after every sample.
             Pal::uint32 sqShaderMask                  :  1;  ///< If sqShaderMask is valid.
-#if PAL_BUILD_GFX11 && (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 750)
+#if PAL_BUILD_GFX11
             Pal::uint32 sqWgpShaderMask               :  1;  ///< If sqWgpShaderMask is valid.
 #else
             Pal::uint32 reserved1                     :  1;  ///< Reserved for future use.
@@ -203,7 +203,7 @@ struct GpaSampleConfig
 
     Pal::PerfExperimentShaderFlags sqShaderMask;    ///< Which shader stages are sampled by GpuBlock::Sq counters.
                                                     ///< Only used if flags.sqShaderMask is set to 1.
-#if PAL_BUILD_GFX11 && (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 750)
+#if PAL_BUILD_GFX11
     Pal::PerfExperimentShaderFlags sqWgpShaderMask; ///< Which shader stages are sampled by GpuBlock::SqWgp counters.
                                                     ///< Only used if flags.sqWgpShaderMask is set to 1.
 #endif
@@ -795,6 +795,7 @@ private:
 
     Pal::IDevice*const            m_pDevice;                    // Device associated with this GpaSession.
     Pal::DeviceProperties         m_deviceProps;
+    Pal::SetClockModeOutput       m_peakClockFrequency;         // Output of query for stable peak, values in Mhz
     Pal::PerfExperimentProperties m_perfExperimentProps;
     Pal::uint32                   m_timestampAlignment;         // Pre-calculated timestamp data alignment.
     ApiType                       m_apiType;                    // API type, e.g. Vulkan, used in RGP dumps.

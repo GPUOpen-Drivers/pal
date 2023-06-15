@@ -73,11 +73,7 @@ public:
     ApiInfoTraceSource(Pal::Platform* pPlatform);
     virtual ~ApiInfoTraceSource();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 712
     virtual void OnConfigUpdated(DevDriver::StructuredValue* pJsonConfig) override {}
-#else
-    virtual void OnConfigUpdated(const char* pJsonConfig) override {}
-#endif
 
     virtual Pal::uint64 QueryGpuWorkMask() const override { return 0; }
 

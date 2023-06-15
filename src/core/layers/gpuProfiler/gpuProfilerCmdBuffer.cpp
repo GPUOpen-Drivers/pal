@@ -2379,6 +2379,11 @@ void CmdBuffer::CmdScaledCopyImage(
     {
         InsertTokenArray(copyInfo.pColorKey,1);
     }
+
+    if (copyInfo.flags.scissorTest)
+    {
+        InsertTokenArray(copyInfo.pScissorRect, 1);
+    }
 }
 
 // =====================================================================================================================
@@ -2411,6 +2416,15 @@ void CmdBuffer::ReplayCmdScaledCopyImage(
     else
     {
         copyInfo.pColorKey = nullptr;
+    }
+
+    if (copyInfo.flags.scissorTest)
+    {
+        ReadTokenArray(&copyInfo.pScissorRect);
+    }
+    else
+    {
+        copyInfo.pScissorRect = nullptr;
     }
 
     LogItem logItem = { };

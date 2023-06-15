@@ -1083,8 +1083,18 @@ Result Image::CreateDccObject(
                     result = CreateGfx9MaskRam(m_device, *this, &m_pDispDcc[planeIdx], true);
                     if (result == Result::Success)
                     {
-                        m_pDispDcc[planeIdx]->Init(planeBaseSubResId, pGpuMemSize, true);
-                        PAL_ASSERT(pDcc->GetControlReg().u32All == m_pDispDcc[planeIdx]->GetControlReg().u32All);
+                        if (useSharedMetadata && (sharedMetadata.displayDccOffset[planeIdx] > 0))
+                        {
+                            gpusize forcedOffset = sharedMetadata.displayDccOffset[planeIdx];
+                            m_pDispDcc[planeIdx]->Init(planeBaseSubResId, &forcedOffset, sharedMetadata.flags.hasEqGpuAccess);
+                            PAL_ASSERT(pDcc->GetControlReg().u32All == m_pDispDcc[planeIdx]->GetControlReg().u32All);
+                            *pGpuMemSize = Max(forcedOffset, *pGpuMemSize);
+                        }
+                        else
+                        {
+                            m_pDispDcc[planeIdx]->Init(planeBaseSubResId, pGpuMemSize, true);
+                            PAL_ASSERT(pDcc->GetControlReg().u32All == m_pDispDcc[planeIdx]->GetControlReg().u32All);
+                        }
                     }
                 }
                 m_numDccPlanes++;
@@ -1901,6 +1911,7 @@ bool Image::IsFastClearColorMetaFetchable(
     {
         // Ok, not using comp-to-single, so we need to check for one of the four magic clear colors here.
         const ChNumFormat     format        = m_createInfo.swizzledFormat.format;
+        const uint32          numComponents = NumComponents(format);
         const ChannelSwizzle* pSwizzle      = &m_createInfo.swizzledFormat.swizzle.swizzle[0];
         const auto&           settings      = GetGfx9Settings(m_device);
 
@@ -1911,7 +1922,8 @@ bool Image::IsFastClearColorMetaFetchable(
         {
             //  If forceRegularClearCode is set then we are not using one of the four "magic"
             //  fast-clear colors so the fast-clear can't be meta-fetchable.
-            if ((IsColorDataZeroOrOne(pColor, cmpIdx) == false) || settings.forceRegularClearCode)
+            if (((cmpIdx < numComponents) && (IsColorDataZeroOrOne(pColor, cmpIdx) == false)) ||
+                settings.forceRegularClearCode)
             {
                 // This channel isn't zero or one, so the fast-clear can't be meta-fetchable.
                 isMetaFetchable = false;

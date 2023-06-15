@@ -961,15 +961,9 @@ static uint32 PaClNggCntl(
     GfxIpLevel                        gfxLevel)
 {
     PA_CL_NGG_CNTL paClNggCntl = {};
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 709
     paClNggCntl.bits.INDEX_BUF_EDGE_FLAG_ENA =
         (createInfo.iaState.topologyInfo.topologyIsPolygon ||
          (createInfo.iaState.topologyInfo.primitiveType == Pal::PrimitiveType::Quad));
-#else
-    paClNggCntl.bits.INDEX_BUF_EDGE_FLAG_ENA =
-        (createInfo.iaState.topologyInfo.primitiveType == Pal::PrimitiveType::Quad);
-#endif
 
     if (IsGfx103PlusExclusive(gfxLevel))
     {
@@ -1256,14 +1250,12 @@ static uint32 SpiShaderPgmRsrc3Ps(
 #if  PAL_BUILD_GFX11
     if (IsGfx104Plus(gfxLevel))
     {
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 744)
         if (createInfo.ldsPsGroupSizeOverride != LdsPsGroupSizeOverride::Default)
         {
             spiShaderPgmRsrc3Ps.gfx104Plus.LDS_GROUP_SIZE =
                 (static_cast<uint32>(createInfo.ldsPsGroupSizeOverride) - 1U);
         }
         else
-#endif
         {
             spiShaderPgmRsrc3Ps.gfx104Plus.LDS_GROUP_SIZE = static_cast<uint32>(settings.ldsPsGroupSize);
         }
@@ -1753,7 +1745,6 @@ static uint32 PaClVsOutCntl(
     }
 #endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 733
     if (createInfo.rsState.flags.cullDistMaskValid != 0)
     {
         paClVsOutCntl.bitfields.CULL_DIST_ENA_0 &= (createInfo.rsState.cullDistMask & 0x1) != 0;
@@ -1767,9 +1758,6 @@ static uint32 PaClVsOutCntl(
     }
 
     if (createInfo.rsState.flags.clipDistMaskValid != 0)
-#else
-    if (createInfo.rsState.clipDistMask != 0)
-#endif
     {
         paClVsOutCntl.bitfields.CLIP_DIST_ENA_0 &= (createInfo.rsState.clipDistMask & 0x1) != 0;
         paClVsOutCntl.bitfields.CLIP_DIST_ENA_1 &= (createInfo.rsState.clipDistMask & 0x2) != 0;

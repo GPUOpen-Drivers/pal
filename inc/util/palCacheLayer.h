@@ -152,20 +152,6 @@ public:
         size_t           storeSize = 0
     ) = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 738
-    Result Store(
-        const Hash128*  pHashId,
-        const void*     pData,
-        size_t          dataSize,
-        size_t          storeSize = 0)
-    {
-        Util::StoreFlags storeFlags{};
-        storeFlags.enableFileCache      = true;
-        storeFlags.enableCompression    = true;
-        return Store(storeFlags, pHashId, pData, dataSize, storeSize);
-    }
-#endif
-
     /// Accquire a long-lived reference to a cache object
     ///
     /// @note The result populated by QueryResult will not be evicted until `ReleaseCacheRef()` is called.
@@ -385,9 +371,7 @@ struct MemoryCacheCreateInfo
     CacheLayerBaseCreateInfo baseInfo;        ///< Base cache layer creation info
     size_t                   maxObjectCount;  ///< Maximum number of entries in cache
     size_t                   maxMemorySize;   ///< Maximum total size of entries in cache
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 711
     uint32                   expectedEntries; ///< Expected number of entries in cache
-#endif
     bool                     evictOnFull;     ///< Whether or not the cache should evict entries based on LRU to
                                               ///  make room for new ones
     bool                     evictDuplicates; ///< Whether or not the cache should evict entries with a duplicate hash

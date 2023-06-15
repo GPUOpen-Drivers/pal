@@ -65,18 +65,16 @@ Result GraphicsPipeline::Init(
 {
     Result result = Result::Success;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 709
     if ((createInfo.iaState.topologyInfo.topologyIsPolygon == true) &&
         (createInfo.iaState.topologyInfo.primitiveType != Pal::PrimitiveType::Triangle))
     {
         result = Result::ErrorInvalidValue;
     }
-    else
-#endif
-    if ((createInfo.pPipelineBinary != nullptr) && (createInfo.pipelineBinarySize != 0))
+    else if ((createInfo.pPipelineBinary != nullptr) && (createInfo.pipelineBinarySize != 0))
     {
         m_pipelineBinaryLen = createInfo.pipelineBinarySize;
         m_pPipelineBinary   = PAL_MALLOC(m_pipelineBinaryLen, m_pDevice->GetPlatform(), AllocInternal);
+
         if (m_pPipelineBinary == nullptr)
         {
             result = Result::ErrorOutOfMemory;
@@ -84,17 +82,13 @@ Result GraphicsPipeline::Init(
         else
         {
             memcpy(m_pPipelineBinary, createInfo.pPipelineBinary, m_pipelineBinaryLen);
+
+            result = InitFromPipelineBinary(createInfo, internalInfo, abiReader, metadata, pMetadataReader);
         }
     }
     else
     {
         result = Result::ErrorInvalidPointer;
-    }
-
-    if (result == Result::Success)
-    {
-        PAL_ASSERT(m_pPipelineBinary != nullptr);
-        result = InitFromPipelineBinary(createInfo, internalInfo, abiReader, metadata, pMetadataReader);
     }
 
     if (result == Result::Success)

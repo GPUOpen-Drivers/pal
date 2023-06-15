@@ -298,7 +298,6 @@ void SettingsLoader::ValidateSettings(
     {
         m_settings.enableOutOfOrderPrimitives = OutOfOrderPrimDisable;
     }
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 744)
     {
         if (pPalSettings->binningContextStatesPerBin == 0)
         {
@@ -309,10 +308,7 @@ void SettingsLoader::ValidateSettings(
             pPalSettings->binningPersistentStatesPerBin = 1;
         }
     }
-#endif
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 749)
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 753)
     if (pPalSettings->disableBinningPsKill == OverrideMode::Default)
     {
         if (
@@ -325,21 +321,6 @@ void SettingsLoader::ValidateSettings(
             pPalSettings->disableBinningPsKill = OverrideMode::Enabled;
         }
     }
-#else
-    if (pPalSettings->disableBinningPsKill == DisableBinningPsKill::Default)
-    {
-        if (
-            false)
-        {
-            pPalSettings->disableBinningPsKill = DisableBinningPsKill::_False;
-        }
-        else
-        {
-            pPalSettings->disableBinningPsKill = DisableBinningPsKill::_True;
-        }
-    }
-#endif
-#endif
 
     if (IsGfx10(*m_pDevice))
     {
@@ -349,14 +330,6 @@ void SettingsLoader::ValidateSettings(
         // GFX10 doesn't use the convoluted meta-addressing scheme that GFX9 does, so disable
         // the "optimized" algorithm for processing the meta-equations.
         m_settings.optimizedFastClear = 0;
-
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 755)
-        if (m_settings.waClampQuadDistributionFactor)
-        {
-            // VGT_TESS_DISTRIBUTION.ACCUM_QUAD should never be allowed to exceed 64
-            pPalSettings->quadDistributionFactor = Min(pPalSettings->quadDistributionFactor , 64u);
-        }
-#endif
 
         if ((m_settings.waLateAllocGs0) && m_settings.nggSupported)
         {
@@ -510,6 +483,19 @@ void SettingsLoader::ValidateSettings(
 
     // nggLateAllocGs can NOT be greater than 127.
     pPalSettings->nggLateAllocGs = Min(pPalSettings->nggLateAllocGs, 127u);
+
+#if PAL_BUILD_NAVI33
+    constexpr uint32 Navi33GopherUltraLite = 0x74;
+
+    if ((chipProps.revision == AsicRevision::Navi33) && (chipProps.deviceId == Navi33GopherUltraLite))
+    {
+        // Navi33 Ultra Lite Model has 1 SEs, 2 SAs/SE, 1 WGP/SA
+        // In this model if a CU is reserved for PS firestrike hangs
+        constexpr uint32 MaskEnableAll  = UINT_MAX;
+        m_settings.gsCuEnLimitMask      = MaskEnableAll;
+        m_settings.allowNggOnAllCusWgps = true;
+    }
+#endif
 
     // Since XGMI is much faster than PCIe, PAL should not reduce the number of RBs to increase the PCIe throughput
     if (chipProps.p2pSupport.xgmiEnabled != 0)
@@ -816,8 +802,8 @@ static void SetupGfx11Workarounds(
 
 #if PAL_ENABLE_PRINTS_ASSERTS
     constexpr uint32 HandledWaMask[] = { 0x1E793001, 0x00000300 }; // Workarounds handled by PAL.
-    constexpr uint32 OutsideWaMask[] = { 0xE0068DFE, 0x000000FC }; // Workarounds handled by other components.
-    constexpr uint32 MissingWaMask[] = { 0x00004000, 0x00000001 }; // Workarounds that should be handled by PAL that
+    constexpr uint32 OutsideWaMask[] = { 0xE0068DFE, 0x000014FC }; // Workarounds handled by other components.
+    constexpr uint32 MissingWaMask[] = { 0x00004000, 0x00000801 }; // Workarounds that should be handled by PAL that
                                                                    // are not yet implemented or are unlikey to be
                                                                    // implemented.
     constexpr uint32 InvalidWaMask[] = { 0x01800200, 0x00000002 }; // Workarounds marked invalid, thus not handled.
@@ -833,7 +819,7 @@ static void SetupGfx11Workarounds(
                   "Workaround Masks do not match!");
 #endif
 
-    static_assert(Gfx11NumWorkarounds == 42, "Workaround count mismatch between PAL and SWD");
+    static_assert(Gfx11NumWorkarounds == 45, "Workaround count mismatch between PAL and SWD");
 
 #if PAL_BUILD_NAVI31
     if (workarounds.ppPbbPBBBreakBatchDifferenceWithPrimLimit_FpovLimit_DeallocLimit_A_)
@@ -848,6 +834,11 @@ static void SetupGfx11Workarounds(
             pSettings->binningMaxAllocCountNggOnChip = 255;
         }
     }
+#endif
+
+#if PAL_BUILD_NAVI33
+    pSettings->waForceSpiThrottleModeNonZero =
+        workarounds.sioSpiBciSpyGlassRevealedABugInSpiRaRscselGsThrottleModuleWhichIsCausedByGsPsVgprLdsInUsesVariableDroppingMSBInRelevantMathExpression_A_;
 #endif
 
 #if PAL_BUILD_NAVI3X
@@ -1023,16 +1014,12 @@ void SettingsLoader::OverrideDefaults(
         // Recommended by HW that LATE_ALLOC_GS be set to 63 on GFX11
         pPublicSettings->nggLateAllocGs = 63;
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 755)
-        // Recommended defaults for GFX11
-        pPublicSettings->isolineDistributionFactor = 128;
-        pPublicSettings->triDistributionFactor     = 128;
-        pPublicSettings->quadDistributionFactor    = 128;
-#endif
         // Apply this to all Gfx11 APUs
         if (device.ChipProperties().gpuType == GpuType::Integrated)
         {
-            m_settings.gfx11VertexAttributesRingBufferSizePerSe = 512_KiB;
+            // APU tuning with 2MB L2 Cache shows ATM Ring Buffer size 768 KiB yields best performance
+            m_settings.gfx11VertexAttributesRingBufferSizePerSe = 768_KiB;
+
         }
     }
 #endif

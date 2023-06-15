@@ -33,9 +33,6 @@
 
 #include "palUtil.h"
 #include "palAssert.h"
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 715
-#include <atomic>
-#endif
 #include <errno.h>
 #include <string.h>
 
@@ -201,18 +198,17 @@ enum class CpuType : uint32
 /// Specifies a struct that contains information about the system.
 struct SystemInfo
 {
-    CpuType cpuType;                ///< Cpu type
-    char    cpuVendorString[16];    ///< Null-terminated cpu vendor string
-    char    cpuBrandString[48];     ///< Null-terminated cpu brand string
-    uint32  cpuLogicalCoreCount;    ///< Number of logical cores on the cpu
-    uint32  cpuPhysicalCoreCount;   ///< Number of physical cores on the cpu
-    uint32  totalSysMemSize;        ///< Total system memory (RAM) size in megabytes
-    uint32  cpuFrequency;           ///< Reports CPU clock speed (from Registry for Windows;
-                                    ///< current average processor speed for Linux) in MHz.
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 758)
-    uint32 displayFamily;           ///< Display Family of cpu
-    uint32 displayModel;            ///< Display Model of cpu
-#endif
+    CpuType cpuType;              ///< Cpu type
+    char    cpuVendorString[16];  ///< Null-terminated cpu vendor string
+    char    cpuBrandString[48];   ///< Null-terminated cpu brand string
+    uint32  cpuLogicalCoreCount;  ///< Number of logical cores on the cpu
+    uint32  cpuPhysicalCoreCount; ///< Number of physical cores on the cpu
+    uint32  totalSysMemSize;      ///< Total system memory (RAM) size in megabytes
+    uint32  cpuFrequency;         ///< Reports CPU clock speed in MHz.
+                                  ///  (From Registry for Windows, current average processor speed for Linux.)
+    uint32  displayFamily;        ///< Display Family of cpu
+    uint32  displayModel;         ///< Display Model of cpu
+
     union
     {
         struct
@@ -505,30 +501,6 @@ extern size_t DumpStackTrace(
     char*   pOutput,
     size_t  bufSize,
     uint32  skipFrames);
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 715
-/// Flushes CPU cached writes to memory.
-inline void FlushCpuWrites()
-{
-#if   defined(__unix__)
-     asm volatile("" ::: "memory");
-#else
-#error "Not implemented for the current platform"
-#endif
-}
-
-#ifndef MemoryBarrier
-/// Issues a full memory barrier.
-inline void MemoryBarrier()
-{
-#if  defined(__unix__)
-    atomic_thread_fence(std::memory_order_acq_rel);
-#else
-#error "Not implemented for the current platform"
-#endif
-}
-#endif
-#endif
 
 /// Puts the calling thread to sleep for a specified number of milliseconds.
 ///

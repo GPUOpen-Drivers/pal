@@ -212,12 +212,8 @@ enum HwPipePoint : uint32
                                                     ///  Only valid as a wait point (acquire point).
     HwPipeBottom           = 0x7,                   ///< All prior GPU work (graphics, compute, or BLT) has completed.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 743
-    HwPipePostIndexFetch   = HwPipePostPrefetch,
-#else
     HwPipePreIndexBuffer   = HwPipeTop,             ///< As late as possible before index buffer fetches (CP PFP).
     HwPipePostIndexBuffer  = HwPipePreRasterization,///< All prior index buffer fetches have completed.
-#endif
 
     // The following points apply to compute-specific work:
     HwPipePreCs            = HwPipePostPrefetch,    ///< As late as possible before CS waves are launched (CP ME).
@@ -326,35 +322,6 @@ enum ImageLayoutEngineFlags : uint32
 /// GPU memory in a ICmdBuffer::CmdBarrier() call to ensure cache coherency between those usages.
 enum CacheCoherencyUsageFlags : uint32
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 740
-    CoherCpu                = 0x00000001,     ///< Data read or written by CPU.
-    CoherShader             = 0x00000002,     ///< Data read or written by a GPU shader.
-    CoherCopy               = 0x00000004,     ///< Data read or written by a ICmdBuffer::CmdCopy*() call.
-    CoherColorTarget        = 0x00000008,     ///< Color target.
-    CoherDepthStencilTarget = 0x00000010,     ///< Depth stencil target.
-    CoherResolve            = 0x00000020,     ///< Source or destination of a CmdResolveImage() call.
-    CoherClear              = 0x00000040,     ///< Destination of a CmdClear() call.
-    CoherIndirectArgs       = 0x00000080,     ///< Source argument data read by CmdDrawIndirect() and similar functions.
-    CoherIndexData          = 0x00000100,     ///< Index buffer data.
-    CoherQueueAtomic        = 0x00000200,     ///< Destination of a CmdMemoryAtomic() call.
-    CoherTimestamp          = 0x00000400,     ///< Destination of a CmdWriteTimestamp() call.
-    CoherCeLoad             = 0x00000800,     ///< Source of a CmdLoadCeRam() call.
-    CoherCeDump             = 0x00001000,     ///< Destination of CmdDumpCeRam() call.
-    CoherStreamOut          = 0x00002000,     ///< Data written as stream output.
-    CoherMemory             = 0x00004000,     ///< Data read or written directly from/to memory
-    CoherSampleRate         = 0x00008000,     ///< CmdBindSampleRateImage() source.
-    CoherPresent            = 0x00010000,     ///< Source of present.
-    CoherCp                 = CoherTimestamp, ///< HW Command Processor (CP) encompassing the front - end command
-                                              ///  processing of any queue, including SDMA.
-    CoherShaderRead         = CoherShader,
-    CoherShaderWrite        = CoherShader,
-    CoherCopySrc            = CoherCopy,
-    CoherCopyDst            = CoherCopy,
-    CoherResolveSrc         = CoherResolve,
-    CoherResolveDst         = CoherResolve,
-
-    CoherAllUsages          = 0x0001FFFF,
-#else
     CoherCpu                = 0x00000001,     ///< Data read or written by CPU.
     CoherShaderRead         = 0x00000002,     ///< Data read by a GPU shader.
     CoherShaderWrite        = 0x00000004,     ///< Data written by a GPU shader.
@@ -382,7 +349,6 @@ enum CacheCoherencyUsageFlags : uint32
     CoherResolve            = CoherResolveSrc | CoherResolveDst,
 
     CoherAllUsages          = 0x000FFFFF,
-#endif
 };
 
 /// Bitmask values for the flags parameter of ICmdBuffer::CmdClearColorImage().
@@ -421,14 +387,13 @@ enum ResolveImageFlags : uint32
 /// Specifies properties for creation of an ICmdBuffer object.  Input structure to IDevice::CreateCmdBuffer().
 struct CmdBufferCreateInfo
 {
-    ICmdAllocator*                pCmdAllocator; ///< The command buffer will use this command allocator to allocate
-                                                 ///  all GPU memory. If the client specifies a null pCmdAllocator,
-                                                 ///  it must call ICmdBuffer::Reset with a non-null pCmdAllocator
-                                                 ///  before calling ICmdBuffer::Begin.
-    QueueType                     queueType;     ///< Type of queue commands in this command buffer will target.
-                                                 ///  This defines the set of allowed actions in the command buffer.
-    QueuePriority                 queuePriority; ///< Priority level of the queue this command buffer will target.
-    EngineType                    engineType;    ///< Type of engine the queue commands will run on.
+    ICmdAllocator*  pCmdAllocator; ///< The command buffer will use this command allocator to allocate all GPU memory
+                                   ///  If the client specifies a null pCmdAllocator, it must call ICmdBuffer::Reset
+                                   ///  with a non-null pCmdAllocator before calling ICmdBuffer::Begin.
+    QueueType       queueType;     ///< Type of queue commands in this command buffer will target.
+                                   ///  This defines the set of allowed actions in the command buffer.
+    QueuePriority   queuePriority; ///< Priority level of the queue this command buffer will target.
+    EngineType      engineType;    ///< Type of engine the queue commands will run on.
 
     union
     {
@@ -523,13 +488,9 @@ union CmdBufferBuildFlags
         /// optimizeExclusiveSubmit if this flag is set.
         uint32 optimizeOneTimeSubmit           :  1;
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 755)
         /// Indicates that the client is providing custom tessellation distribution settings. If set, it is the clients
         /// responsibility to ensure all 5 (isoline, triangle, quad, donut, trapezoid) factors are provided.
         uint32 optimizeTessDistributionFactors :  1;
-#else
-        uint32 placeholder754                  :  1;
-#endif
 
         /// Attempt to prefetch shader code into cache before launching draws or dispatches with a freshly bound
         /// pipeline object.  This optimization might increase the CPU overhead of building command buffers and/or
@@ -556,18 +517,15 @@ union CmdBufferBuildFlags
 #endif
 
         /// placeholder
-        uint32 placeholder1                    :  1;
+        uint32 placeholder1                    :  2;
+
         /// Enable TMZ mode to allow reading TMZ protected allocations. If this command buffer attempts to write
         /// non-TMZ memory, the results are undefined. Only valid for graphics and compute.
         uint32  enableTmz                      :  1;
 
-        uint32 placeholder2                    :  1;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 757
         /// If set, internal operations such as blits, copies, etc. will not affect active Query results.
         /// Otherwise they may affect the results.
         uint32 disableQueryInternalOps         :  1;
-#endif
 
         uint32 placeholder763                  :  1;
 
@@ -638,11 +596,9 @@ struct CmdBufferBuildInfo
     ///   before calling Begin() or PAL will accidentally free it.
     Util::VirtualLinearAllocator* pMemAllocator;
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 755)
     /// Optional tessellation distribution factors that will overwrite PAL set defaults. Clients must also set the
     /// optimizeTessDistributionFactors flag for these custom factors to take effect.
     TessDistributionFactors clientTessDistributionFactors;
-#endif
 
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 763)
     // Number of context states per PBB bin.
@@ -861,32 +817,6 @@ struct BarrierTransition
     } imageInfo; ///< Image-specific transition information.
 };
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 751
-/// Flags that modify the behavior of ICmdBuffer::CmdBarrier().  @see BarrierInfo.
-union BarrierFlags
-{
-    struct
-    {
-        uint32 splitBarrierEarlyPhase :  1;  ///< Indicates that this is a split barrier, and this call should only
-                                             ///  execute the "early" portion of the barrier.  This usally entails
-                                             ///  performing any pipelined decompress operations and issuing a pipelined
-                                             ///  operation to flush destination caches and signal the GPU event
-                                             ///  specified in BarrierInfo (pSplitBarrierGpuEvent) once previous work
-                                             ///  has completed.  Requires pSplitBarrierGpuEvent is non-null and is
-                                             ///  mutually exclusive with splitBarrierLatePhase.
-        uint32 splitBarrierLatePhase  :  1;  ///< Indicates that this is a split barrier, and this call should only
-                                             ///  execute the "late" portion of the barrier.  This usually entails
-                                             ///  waiting for the "early" portion of the barrier to complete using the
-                                             ///  GPU event specified in BarrierInfo (pSplitBarrierGpuEvent), then
-                                             ///  invalidating source caches as necessary.  Requires
-                                             ///  pSplitBarrierGpuEvent is non-null and is mutually exclusive with
-                                             ///  splitBarrierEarlyPhase.
-        uint32 reserved               : 30;  ///< Reserved for future use.
-    };
-    uint32 u32All;                           ///< Flags packed as a 32-bit uint.
-};
-#endif
-
 /// Describes a barrier as inserted by a call to ICmdBuffer::CmdBarrier().
 ///
 /// A barrier can be used to 1) stall GPU execution at a specified point to resolve a data hazard, 2) flush/invalidate
@@ -897,10 +827,6 @@ union BarrierFlags
 /// structures passed in pTransitions.
 struct BarrierInfo
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 751
-    BarrierFlags        flags;                       ///< Flags controlling behavior of the barrier.
-#endif
-
     /// Determine at what point the GPU should stall until all specified waits and transitions have completed.  If the
     /// specified wait point is unavailable, PAL will wait at the closest available earlier point.  In practice, on
     /// GFX6-8, this is selecting between CP PFP and CP ME waits.
@@ -938,37 +864,12 @@ struct BarrierInfo
                                 ///  element in @ref pTransitions. If this is zero or if there are no transitions,
                                 ///  then no global cache flags are applied during every transition.
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 751
-    /// If non-null, this is a split barrier.  A split barrier is executed by making two separate CmdBarrier() calls
-    /// with identical parameters with the exception that the first call sets flags.splitBarrierEarlyPhase and the
-    /// second calls sets flags.splitBarrierLatePhase.
-    ///
-    /// The early phase will:
-    ///     - Issue any pipelined operations that are optimally done immediately when an app is done with a resource
-    ///       (e.g., doing a fixed function depth expand immediately after the app finished rendering to that depth
-    ///       resource).
-    ///     - Issue any required destination cache flushes that can be pipelined.
-    ///     - Issue a pipelined GPU operation to signal the GPU event specified by pSplitBarrierGpuEvent when all
-    ///       prior GPU work has completed (based on pPipePoints).
-    ///
-    /// The late phase will:
-    ///     - Wait until the GPU event specified by pSplitBarrierGpuEvent is signaled.  Ideally, the app will insert
-    ///       unrelated GPU work in between the early and late phases so that this wait is satisfied immediately - this
-    ///       is where a performance benefit can be gained from using split barriers.
-    ///     - Wait until all GPU events in ppGpuEvents are signaled.
-    ///     - Perform any decompress operations that could not be pipelined for some reason.
-    ///     - Invalidate any required source caches.  These invalidations can not currently be pipelined.
-    ///
-    /// @note PAL will not access these GPU events with the CPU.  Clients should set the gpuAccessOnly flag when
-    ///       creating GPU events used exclusively for this purpose.
-    const IGpuEvent*  pSplitBarrierGpuEvent;
-#endif
-
     uint32 reason; ///< The reason that the barrier was invoked.
 };
 
 /// Specifies execution dependencies, *availability* and/or *visibility* operations on a section of an IGpuMemory
-/// object.
+/// object that does not contain valid IImage data. PAL may assume image data is not present and skip certain
+/// cache operations.
 ///
 /// PAL specifies these execution dependencies using pairs of synchronization scope bitmasks of
 /// @ref PipelineStageFlag values. The barrier's execution dependencies are only applied to state in this barrier.
@@ -1662,24 +1563,17 @@ struct InputAssemblyStateParams
 {
     PrimitiveTopology topology;                     ///< Defines how vertices should be interpretted and rendered by
                                                     ///  the graphics pipeline.
-
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 747)
     uint32            patchControlPoints;           ///< Number of control points per patch.  Should be set to 0 by
                                                     ///  clients if topology is not PrimitiveTopology::Patch.
-#endif
-
     uint32            primitiveRestartIndex;        ///< When primitiveRestartEnable is true, this is the index value
                                                     ///  that will restart a primitive.  When using a 16-bit index
                                                     ///  buffer, the upper 16 bits of this value will be ignored.
-
     bool              primitiveRestartEnable;       ///< Enables the index specified by primitiveRestartIndex to _cut_
                                                     ///  a primitive (i.e., triangle strip) and begin a new primitive
                                                     ///  with the next index.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 745
     bool              primitiveRestartMatchAllBits; ///< Specifies which bits from primitiveRestartIndex to use.
                                                     ///  false - only check relevant bits based on index type
                                                     ///  true  - check all 32 bits irrespective of index type
-#endif
 };
 
 /// Specifies parameters for controlling triangle rasterization.
@@ -1697,17 +1591,14 @@ struct TriangleRasterStateParams
     {
         struct
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 721
-            uint32 frontDepthBiasEnable : 1;  ///< Enable depth bias (i.e. polygon offset) for front-facing triangle-based primitives
-            uint32 backDepthBiasEnable  : 1;  ///< Enable depth bias (i.e. polygon offset) for back-facing triangle-based primitives
+            uint32 frontDepthBiasEnable : 1;  ///< Enable depth bias (i.e. polygon offset) for front-facing
+                                              ///  triangle-based primitives
+            uint32 backDepthBiasEnable  : 1;  ///< Enable depth bias (i.e. polygon offset) for back-facing
+                                              ///  triangle-based primitives
             uint32 reserved             : 30; ///< Reserved for future use.
-#else
-            uint32 depthBiasEnable : 1;  ///< Enable depth bias (i.e. polygon offset) for triangle-based primitives
-            uint32 reserved        : 31; ///< Reserved for future use.
-#endif
         };
-        uint32 u32All;                   ///< Flags packed as 32-bit uint.
-    } flags;                             ///< Triangle raster state flags.
+        uint32 u32All;               ///< Flags packed as 32-bit uint.
+    } flags;                         ///< Triangle raster state flags.
 };
 
 /// Specifies parameters for controlling point and line rasterization.
@@ -2032,11 +1923,7 @@ struct CmdBufInfo
             uint32 postflip           : 1;  ///< This command buffer has post-flip access to DirectCapture resource
             uint32 privateFlip        : 1;  ///< Need to flip to a private primary surface for DirectCapture feature
             uint32 vpBltExecuted      : 1;  ///< This command buffer comtains VP Blt work.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 741
             uint32 disableDccRejected : 1;  ///< Reject KMD's DisableDcc request to avoid writing to front buffer.
-#else
-            uint32 reserved741        : 1;  ///< Reserved for future usage.
-#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 795
             uint32 noFlip             : 1;  ///< No flip when DirectCapture access submission completes
             uint32 frameGenIndex      : 4;  ///< Index of the DirectCapture feature generated frames
@@ -2139,12 +2026,8 @@ union ScaledCopyFlags
                                     ///  color = src alpha * src color + (1.0 - src alpha) * dst color.
         uint32 dstAsSrgb      : 1;  ///< If set, a non-srgb destination image will be treated as srgb format.
                                     ///  Cannot be set if @ref dstAsNorm is set.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 742
         uint32 dstAsNorm      : 1;  ///< If set, a srgb destination image will be treated as non-srgb format.
                                     ///  Cannot be set if @ref dstAsSrgb is set.
-#else
-        uint32 reserved741    : 1;
-#endif
         uint32 scissorTest    : 1;  ///< If set, do scissor test using the specified scissor rectangle.
         uint32 coordsInFloat  : 1;  ///< If set, copy regions are represented in floating point type.
         uint32 reserved       : 25; ///< reserved for future useage.
@@ -4086,15 +3969,6 @@ public:
         RgpMarkerSubQueueFlags subQueueFlags,
         uint32                 numDwords,
         const void*            pData) = 0;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 708
-    inline void CmdInsertRgpTraceMarker(uint32 numDwords, const void* pData)
-    {
-        RgpMarkerSubQueueFlags subQueueFlags { };
-        subQueueFlags.includeMainSubQueue = 1;
-
-        CmdInsertRgpTraceMarker(subQueueFlags, numDwords, pData);
-    }
-#endif
 
     /// This function is to be used to copy the DF SPM (MALL SPM) data from the output buffers to an accessible buffer.
     /// The buffer that HW outputs to is allocated with a special KMD flag and therefore cannot be the same as the

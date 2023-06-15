@@ -119,25 +119,14 @@ public:
         IScreen* pScreens[MaxScreens]) override;
 
     virtual Result QueryRawApplicationProfile(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 759
         const wchar_t*                pFilename,
         const wchar_t*                pPathname,
-#else
-        const char*                   pFilename,
-        const char*                   pPathname,
-#endif
         Pal::ApplicationProfileClient client,
         const char**                  pOut) override;
 
     virtual Result EnableSppProfile(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 759
         const wchar_t* pFilename,
-        const wchar_t* pPathname
-#else
-        const char*    pFilename,
-        const char*    pPathname
-#endif
-    ) override;
+        const wchar_t* pPathname) override;
 
     virtual Result GetProperties(
         PlatformProperties* pProperties) override;

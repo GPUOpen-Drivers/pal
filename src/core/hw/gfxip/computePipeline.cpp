@@ -181,8 +181,14 @@ Result ComputePipeline::InitFromPalAbiBinary(
 
     if (csStageMetadata.hasEntry.backendStackSize != 0)
     {
-        // Used by the new raytracing for Continuation, exported to Clients by IPipeline::GetStackSizeInBytes().
-        m_backendStackSizeInBytes = csStageMetadata.backendStackSize;
+        // Used by the new raytracing for Continuation, exported to Clients by IPipeline::GetStackSizes().
+        m_cpsStackSizeInBytes.backendSize = csStageMetadata.backendStackSize;
+    }
+
+    if (csStageMetadata.hasEntry.frontendStackSize != 0)
+    {
+        // Used by the new raytracing for Continuation, exported to Clients by IPipeline::GetStackSizes().
+        m_cpsStackSizeInBytes.frontendSize = csStageMetadata.frontendStackSize;
     }
 
     if (csStageMetadata.hasEntry.scratchMemorySize != 0)

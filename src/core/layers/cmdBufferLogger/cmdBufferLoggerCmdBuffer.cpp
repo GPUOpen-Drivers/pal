@@ -2217,13 +2217,6 @@ static void CacheCoherencyUsageToString(
     const char* CacheCoherUsageNames[] =
     {
         "Cpu",          // CoherCpu
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 740
-        "Shader",       // CoherShader
-        "Copy",         // CoherCopy
-        "Rt",           // CoherColorTarget
-        "Ds",           // CoherDepthStencilTarget
-        "Resolve",      // CoherResolve
-#else
         "ShaderR",      // CoherShaderRead
         "ShaderW",      // CoherShaderWrite
         "CopySrc",      // CoherCopySrc
@@ -2232,7 +2225,6 @@ static void CacheCoherencyUsageToString(
         "Ds",           // CoherDepthStencilTarget
         "ResolveSrc",   // CoherResolveSrc
         "ResolveDst",   // CoherResolveDst
-#endif
         "Clear",        // CoherClear
         "IndirectArgs", // CoherIndirectArgs
         "IndexData",    // CoherIndexData
@@ -2468,11 +2460,6 @@ static void CmdBarrierToString(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 751
-    Snprintf(pString, StringLength, "barrierInfo.flags = 0x%0X", barrierInfo.flags);
-    pNextCmdBuffer->CmdCommentString(pString);
-#endif
-
     Snprintf(pString, StringLength,
              "barrierInfo.rangeCheckedTargetWaitCount = %u", barrierInfo.rangeCheckedTargetWaitCount);
     pNextCmdBuffer->CmdCommentString(pString);
@@ -2507,12 +2494,6 @@ static void CmdBarrierToString(
     {
         BarrierTransitionToString(pCmdBuffer, i, barrierInfo.pTransitions[i], pString);
     }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 751
-    Snprintf(pString, StringLength,
-             "barrierInfo.pSplitBarrierGpuEvent = 0x%016" PRIXPTR, barrierInfo.pSplitBarrierGpuEvent);
-    pNextCmdBuffer->CmdCommentString(pString);
-#endif
 
     const char* pReasonStr = BarrierReasonToString(barrierInfo.reason);
     if (pReasonStr != nullptr)
@@ -2582,10 +2563,6 @@ void CmdBuffer::CmdBarrier(
 
         nextBarrierInfo.pTransitions = pTransitions;
     }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 751
-    nextBarrierInfo.pSplitBarrierGpuEvent = NextGpuEvent(barrierInfo.pSplitBarrierGpuEvent);
-#endif
 
     GetNextLayer()->CmdBarrier(nextBarrierInfo);
 
@@ -3063,10 +3040,6 @@ static void MemoryBarrierTransitionToString(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(pCmdBuffer->Allocator(), false);
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
-    DumpGpuMemoryInfo(pCmdBuffer, transition.memory.pGpuMemory, "Bound GpuMemory", "\t\t");
-#endif
-
     Snprintf(pString, StringLength, "\t\t%s address = 0x%016llX", "Bound GpuMemory", transition.memory.address);
     pCmdBuffer->GetNextLayer()->CmdCommentString(pString);
     Snprintf(pString, StringLength, "\t\t%s offset  = 0x%016llX", "Bound GpuMemory", transition.memory.offset);
@@ -3352,22 +3325,6 @@ uint32 CmdBuffer::CmdRelease(
     AcquireReleaseInfo nextReleaseInfo = releaseInfo;
     ImgBarrier*        pImageBarriers  = nullptr;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
-    MemBarrier* pMemoryBarriers = nullptr;
-    if (releaseInfo.memoryBarrierCount > 0)
-    {
-        pMemoryBarriers = PAL_NEW_ARRAY(MemBarrier, releaseInfo.memoryBarrierCount, &allocator, AllocInternalTemp);
-
-        for (uint32 i = 0; i < releaseInfo.memoryBarrierCount; i++)
-        {
-            pMemoryBarriers[i] = releaseInfo.pMemoryBarriers[i];
-            pMemoryBarriers[i].memory.pGpuMemory = NextGpuMemory(releaseInfo.pMemoryBarriers[i].memory.pGpuMemory);
-        }
-
-        nextReleaseInfo.pMemoryBarriers = pMemoryBarriers;
-    }
-#endif
-
     if (releaseInfo.imageBarrierCount > 0)
     {
         pImageBarriers = PAL_NEW_ARRAY(ImgBarrier, releaseInfo.imageBarrierCount, &allocator, AllocInternalTemp);
@@ -3382,16 +3339,13 @@ uint32 CmdBuffer::CmdRelease(
     }
 
     const uint32 syncToken = GetNextLayer()->CmdRelease(nextReleaseInfo);
-
     char* pString = PAL_NEW_ARRAY(char, StringLength, &allocator, AllocInternalTemp);
+
     GetNextLayer()->CmdCommentString("Release SyncToken:");
     Snprintf(pString, StringLength, "SyncToken = 0x%08X", syncToken);
     GetNextLayer()->CmdCommentString(pString);
-    PAL_SAFE_DELETE_ARRAY(pString, &allocator);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
-    PAL_SAFE_DELETE_ARRAY(pMemoryBarriers, &allocator);
-#endif
+    PAL_SAFE_DELETE_ARRAY(pString, &allocator);
     PAL_SAFE_DELETE_ARRAY(pImageBarriers, &allocator);
 
     return syncToken;
@@ -3411,25 +3365,9 @@ void CmdBuffer::CmdAcquire(
     }
 
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(&m_allocator, false);
-    AcquireReleaseInfo     nextAcquireInfo = acquireInfo;
-    ImgBarrier*            pImageBarriers  = nullptr;
-    const IGpuEvent** ppNextGpuEvents = nullptr;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
-    MemBarrier* pMemoryBarriers = nullptr;
-    if (acquireInfo.memoryBarrierCount > 0)
-    {
-        pMemoryBarriers = PAL_NEW_ARRAY(MemBarrier, acquireInfo.memoryBarrierCount, &allocator, AllocInternalTemp);
-
-        for (uint32 i = 0; i < acquireInfo.memoryBarrierCount; i++)
-        {
-            pMemoryBarriers[i] = acquireInfo.pMemoryBarriers[i];
-            pMemoryBarriers[i].memory.pGpuMemory = NextGpuMemory(acquireInfo.pMemoryBarriers[i].memory.pGpuMemory);
-        }
-
-        nextAcquireInfo.pMemoryBarriers = pMemoryBarriers;
-    }
-#endif
+    AcquireReleaseInfo nextAcquireInfo = acquireInfo;
+    ImgBarrier*        pImageBarriers  = nullptr;
+    const IGpuEvent**  ppNextGpuEvents = nullptr;
 
     if (acquireInfo.imageBarrierCount > 0)
     {
@@ -3446,9 +3384,6 @@ void CmdBuffer::CmdAcquire(
 
     GetNextLayer()->CmdAcquire(nextAcquireInfo, syncTokenCount, pSyncTokens);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
-    PAL_SAFE_DELETE_ARRAY(pMemoryBarriers, &allocator);
-#endif
     PAL_SAFE_DELETE_ARRAY(pImageBarriers, &allocator);
     PAL_SAFE_DELETE_ARRAY(ppNextGpuEvents, &allocator);
 }
@@ -3529,24 +3464,7 @@ void CmdBuffer::CmdReleaseEvent(
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(&m_allocator, false);
     AcquireReleaseInfo nextReleaseInfo = releaseInfo;
     ImgBarrier*        pImageBarriers  = nullptr;
-
-    const IGpuEvent*   pNextGpuEvent = NextGpuEvent(pGpuEvent);
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
-    MemBarrier* pMemoryBarriers = nullptr;
-    if (releaseInfo.memoryBarrierCount > 0)
-    {
-        pMemoryBarriers = PAL_NEW_ARRAY(MemBarrier, releaseInfo.memoryBarrierCount, &allocator, AllocInternalTemp);
-
-        for (uint32 i = 0; i < releaseInfo.memoryBarrierCount; i++)
-        {
-            pMemoryBarriers[i] = releaseInfo.pMemoryBarriers[i];
-            pMemoryBarriers[i].memory.pGpuMemory = NextGpuMemory(releaseInfo.pMemoryBarriers[i].memory.pGpuMemory);
-        }
-
-        nextReleaseInfo.pMemoryBarriers = pMemoryBarriers;
-    }
-#endif
+    const IGpuEvent*   pNextGpuEvent   = NextGpuEvent(pGpuEvent);
 
     if (releaseInfo.imageBarrierCount > 0)
     {
@@ -3563,9 +3481,6 @@ void CmdBuffer::CmdReleaseEvent(
 
     GetNextLayer()->CmdReleaseEvent(nextReleaseInfo, pNextGpuEvent);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
-    PAL_SAFE_DELETE_ARRAY(pMemoryBarriers, &allocator);
-#endif
     PAL_SAFE_DELETE_ARRAY(pImageBarriers, &allocator);
 }
 
@@ -3651,25 +3566,9 @@ void CmdBuffer::CmdAcquireEvent(
     }
 
     LinearAllocatorAuto<VirtualLinearAllocator> allocator(&m_allocator, false);
-    AcquireReleaseInfo     nextAcquireInfo = acquireInfo;
-    ImgBarrier*            pImageBarriers  = nullptr;
-    const IGpuEvent**      ppNextGpuEvents = nullptr;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
-    MemBarrier* pMemoryBarriers = nullptr;
-    if (acquireInfo.memoryBarrierCount > 0)
-    {
-        pMemoryBarriers = PAL_NEW_ARRAY(MemBarrier, acquireInfo.memoryBarrierCount, &allocator, AllocInternalTemp);
-
-        for (uint32 i = 0; i < acquireInfo.memoryBarrierCount; i++)
-        {
-            pMemoryBarriers[i] = acquireInfo.pMemoryBarriers[i];
-            pMemoryBarriers[i].memory.pGpuMemory = NextGpuMemory(acquireInfo.pMemoryBarriers[i].memory.pGpuMemory);
-        }
-
-        nextAcquireInfo.pMemoryBarriers = pMemoryBarriers;
-    }
-#endif
+    AcquireReleaseInfo nextAcquireInfo = acquireInfo;
+    ImgBarrier*        pImageBarriers  = nullptr;
+    const IGpuEvent**  ppNextGpuEvents = nullptr;
 
     if (acquireInfo.imageBarrierCount > 0)
     {
@@ -3696,9 +3595,6 @@ void CmdBuffer::CmdAcquireEvent(
 
     GetNextLayer()->CmdAcquireEvent(nextAcquireInfo, gpuEventCount, ppNextGpuEvents);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
-    PAL_SAFE_DELETE_ARRAY(pMemoryBarriers, &allocator);
-#endif
     PAL_SAFE_DELETE_ARRAY(pImageBarriers, &allocator);
     PAL_SAFE_DELETE_ARRAY(ppNextGpuEvents, &allocator);
 }
@@ -3718,22 +3614,6 @@ void CmdBuffer::CmdReleaseThenAcquire(
     AcquireReleaseInfo nextBarrierInfo = barrierInfo;
     ImgBarrier*        pImageBarriers  = nullptr;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
-    MemBarrier* pMemoryBarriers = nullptr;
-    if (barrierInfo.memoryBarrierCount > 0)
-    {
-        pMemoryBarriers = PAL_NEW_ARRAY(MemBarrier, barrierInfo.memoryBarrierCount, &allocator, AllocInternalTemp);
-
-        for (uint32 i = 0; i < barrierInfo.memoryBarrierCount; i++)
-        {
-            pMemoryBarriers[i] = barrierInfo.pMemoryBarriers[i];
-            pMemoryBarriers[i].memory.pGpuMemory = NextGpuMemory(barrierInfo.pMemoryBarriers[i].memory.pGpuMemory);
-        }
-
-        nextBarrierInfo.pMemoryBarriers = pMemoryBarriers;
-    }
-#endif
-
     if (barrierInfo.imageBarrierCount > 0)
     {
         pImageBarriers = PAL_NEW_ARRAY(ImgBarrier, barrierInfo.imageBarrierCount, &allocator, AllocInternalTemp);
@@ -3749,9 +3629,6 @@ void CmdBuffer::CmdReleaseThenAcquire(
 
     GetNextLayer()->CmdReleaseThenAcquire(nextBarrierInfo);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
-    PAL_SAFE_DELETE_ARRAY(pMemoryBarriers, &allocator);
-#endif
     PAL_SAFE_DELETE_ARRAY(pImageBarriers, &allocator);
 }
 

@@ -1473,11 +1473,7 @@ Result Image::CreatePrivateScreenImageMemoryObject(
     }
 
     GpuMemoryInternalCreateInfo internalInfo = { };
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 723
-    createInfo.flags.privateScreen   = 1;
-#else
-    internalInfo.flags.privateScreen = 1;
-#endif
+    createInfo.flags.privateScreen = 1;
 
     Pal::GpuMemory* pMemObject = nullptr;
     Result result = pDevice->CreateInternalGpuMemory(createInfo, internalInfo, pGpuMemoryPlacementAddr, &pMemObject);

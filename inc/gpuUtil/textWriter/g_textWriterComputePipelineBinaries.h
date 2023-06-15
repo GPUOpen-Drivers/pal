@@ -618,7 +618,7 @@ constexpr Util::uint8 TextWriter_Cs_1D32F7A1[] =
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
-#if PAL_BUILD_NAVI31
+#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI33
 // Text Writer compute shader binary
 constexpr Util::uint8 TextWriter_Cs_B918179A[] =
 {
@@ -817,6 +817,14 @@ constexpr PipelineBinary textWriterComputeBinaryTableRaphael[] =
 #if PAL_BUILD_NAVI31
 // Table of compute pipeline binaries for Navi31
 constexpr PipelineBinary textWriterComputeBinaryTableNavi31[] =
+{
+    {TextWriter_Cs_B918179A,  sizeof(TextWriter_Cs_B918179A)},
+};
+#endif
+
+#if PAL_BUILD_NAVI33
+// Table of compute pipeline binaries for Navi33
+constexpr PipelineBinary textWriterComputeBinaryTableNavi33[] =
 {
     {TextWriter_Cs_B918179A,  sizeof(TextWriter_Cs_B918179A)},
 };

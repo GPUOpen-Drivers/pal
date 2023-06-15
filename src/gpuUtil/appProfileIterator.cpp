@@ -34,12 +34,8 @@ namespace GpuUtil
 // =====================================================================================================================
 // Build the Content Distribution Network (CDN) application ID string.
 bool QueryAppContentDistributionId(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 759
-    wchar_t*       pContentDistributionId,
-#else
-    char*          pContentDistributionId,
-#endif
-    size_t         bufferLength)
+    wchar_t* pContentDistributionId,
+    size_t   bufferLength)
 {
     bool match = false;
     if ((pContentDistributionId != nullptr) && (bufferLength > 1))
@@ -58,7 +54,6 @@ bool QueryAppContentDistributionId(
             if (pEnvVarValue != nullptr)
             {
                 match = true;
-#if   PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 759
                 constexpr size_t contsBufferSize = 250;
                 char contentDistributionChart[contsBufferSize] = {0};
 
@@ -69,11 +64,6 @@ bool QueryAppContentDistributionId(
                 Util::Strncat(contentDistributionChart, contsBufferSize, pEnvVarValue);
 
                 Mbstowcs(pContentDistributionId, contentDistributionChart, bufferLength);
-#else
-                Util::Strncpy(pContentDistributionId, pEnvVarName[id], bufferLength);
-                Util::Strncat(pContentDistributionId, bufferLength, ":");
-                Util::Strncat(pContentDistributionId, bufferLength, pEnvVarValue);
-#endif
                 break;
             }
         }

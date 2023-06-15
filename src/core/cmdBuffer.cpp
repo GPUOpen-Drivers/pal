@@ -293,12 +293,10 @@ Result CmdBuffer::Begin(
                 m_numCmdBufsBegun++;
             }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 757
-            if (settings.disableQueryInternalOps == true)
+            if (settings.disableQueryInternalOps)
             {
                 m_buildFlags.disableQueryInternalOps = 1;
             }
-#endif
         }
     }
 
@@ -746,12 +744,6 @@ void CmdBuffer::CmdBarrier(
             }
         } // end loop through all the transitions associated with this barrier
     }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 751
-    PAL_ASSERT(barrierInfo.flags.splitBarrierEarlyPhase == 0);
-    PAL_ASSERT(barrierInfo.flags.splitBarrierLatePhase == 0);
-    PAL_ASSERT(barrierInfo.pSplitBarrierGpuEvent == nullptr);
-#endif
 
     PAL_ASSERT((barrierInfo.gpuEventWaitCount == 0) || (barrierInfo.ppGpuEvents != nullptr));
 
@@ -1331,7 +1323,8 @@ void CmdBuffer::InsertIb2DumpInfo(
     }
     if (foundMatch == false)
     {
-        PAL_ASSERT(m_ib2DumpInfos.PushBack(dumpInfo) == Result::Success);
+        Result result = m_ib2DumpInfos.PushBack(dumpInfo);
+        PAL_ALERT(result != Result::Success);
     }
 }
 

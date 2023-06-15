@@ -78,14 +78,11 @@ struct TraceChunkInfo
 /// The available states of TraceSession
 enum class TraceSessionState : Pal::uint32
 {
-    Ready      = 0,       // New trace ready to begin
-    Requested  = 1,       // A trace has been requested and awaiting acceptance
-    Running    = 2,       // Trace in progress
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 714
-    Progress   = Running, // Deprecated alias for trace in progress
-#endif
-    Waiting    = 3,       // Trace has ended, but data has not been written into the session
-    Completed  = 4        // Trace has fully completed. RDF trace data is ready to be pulled out by CollectTrace().
+    Ready      = 0, /// New trace ready to begin
+    Requested  = 1, /// A trace has been requested and awaiting acceptance
+    Running    = 2, /// Trace in progress
+    Waiting    = 3, /// Trace has ended, but data has not been written into the session
+    Completed  = 4  /// Trace has fully completed. RDF trace data is ready to be pulled out by CollectTrace().
 };
 
 /**
@@ -119,11 +116,7 @@ public:
     /// Called by the associated session to update the current trace configuration
     ///
     /// @param [in] pJsonConfig  Configuration data formatted as json and stored as DevDriver's StructuredValue object
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 712
     virtual void OnConfigUpdated(DevDriver::StructuredValue* pJsonConfig) = 0;
-#else
-    virtual void OnConfigUpdated(const char* pJsonConfig) = 0;
-#endif
 
     /// Called by TraceSession in to indicate that GPU work is required to begin a trace on the indicated GPU
     ///
@@ -180,11 +173,7 @@ public:
     /// Called by the associated session to update the current trace configuration
     ///
     /// @param [in] pJsonConfig  Configuration data formatted as json and stored as DevDriver's StructuredValue object
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 712
     virtual void OnConfigUpdated(DevDriver::StructuredValue* pJsonConfig) = 0;
-#else
-    virtual void OnConfigUpdated(const char* pJsonConfig) = 0;
-#endif
 
     /// Returns a bitmask that represents which GPUs are relevant to this trace source
     ///
@@ -286,11 +275,7 @@ public:
     ///          + ErrorUnavailable if a trace is currently in progress
     ///          + ErrorInvalidPointer pData is nullptr
     ///          + ErrorInvalidParameter pData is not valid json
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 712
     Pal::Result UpdateTraceConfig(const void* pData, size_t dataSize);
-#else
-    Pal::Result UpdateTraceConfig(const char* pJsonConfig);
-#endif
 
     /// Attempts to request a new trace operation on the trace session.
     ///

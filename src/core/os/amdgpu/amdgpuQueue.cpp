@@ -705,10 +705,7 @@ Result Queue::OsSubmit(
                         PAL_ALERT(result == Result::Success);
                         m_requiresGangedInterface = true;
                     }
-                    if (result == Result::Success)
-                    {
-                        SubmitImplicitGangPm4(submitInfo, pInternalSubmitInfos);
-                    }
+                    result = SubmitImplicitGangPm4(submitInfo, pInternalSubmitInfos);
                 }
                 else
                 {
@@ -1093,23 +1090,7 @@ Result Queue::SubmitImplicitGangPm4(
     IncrementDummySubmitCount(internalSubmitInfo, ppCmdBuffers, cmdBufferCount);
 
     // ************************
-    // First handle the Universal Engine data.
-    // ************************
-    if (result == Result::Success)
-    {
-        result = PrepareChainedCommandBuffers(internalSubmitInfo[0],
-                                              cmdBufferCount,
-                                              ppCmdBuffers,
-                                              &batchSize,
-                                              m_pQueueInfos[0].createInfo.engineIndex,
-                                              SubmitType::ImplicitGang,
-                                              EngineTypeUniversal,
-                                              CmdBuffer::MainSubQueueIdx);
-        PAL_ASSERT(batchSize == cmdBufferCount);
-    }
-
-    // ************************
-    // Next handle the implicit Compute Engine data.
+    // First handle the Implicit Compute Engine data.
     // ************************
     for (uint32 subQueueIdx = 0;
         ((result == Result::Success) && (subQueueIdx < internalSubmitInfo->implicitGangedSubQueues));
@@ -1124,6 +1105,22 @@ Result Queue::SubmitImplicitGangPm4(
                                               SubmitType::ImplicitGang,
                                               EngineTypeCompute,
                                               subQueueIdx);
+        PAL_ASSERT(batchSize == cmdBufferCount);
+    }
+
+    // ************************
+    // Next handle the Universal Engine data.
+    // ************************
+    if (result == Result::Success)
+    {
+        result = PrepareChainedCommandBuffers(internalSubmitInfo[0],
+                                              cmdBufferCount,
+                                              ppCmdBuffers,
+                                              &batchSize,
+                                              m_pQueueInfos[0].createInfo.engineIndex,
+                                              SubmitType::ImplicitGang,
+                                              EngineTypeUniversal,
+                                              CmdBuffer::MainSubQueueIdx);
         PAL_ASSERT(batchSize == cmdBufferCount);
     }
 
@@ -2072,6 +2069,8 @@ Result Queue::SubmitIbsRaw(
             pDevice->DestroyResourceListRaw(boList);
         }
 
+        ResetIbs();
+
         PAL_FREE(pMemory, m_pDevice->GetPlatform());
         // all pending waited semaphore has been poped already.
         PAL_ASSERT(m_waitSemList.IsEmpty());
@@ -2117,10 +2116,9 @@ Result Queue::SubmitIbs(
         ibsRequest.ibs           = legacy_ibs;
 
         result = pDevice->Submit(pContext->Handle(), 0, &ibsRequest, 1, pContext->LastTimestampPtr());
-    }
 
-    m_numIbs = 0;
-    memset(m_ibs, 0, sizeof(m_ibs));
+        ResetIbs();
+    }
 
     return result;
 }

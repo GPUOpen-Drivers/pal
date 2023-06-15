@@ -153,10 +153,8 @@ void QueryAMDCpuType(
         displayFamily += extendedFamily;
     }
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 758)
     pSystemInfo->displayFamily = displayFamily;
-    pSystemInfo->displayModel = displayModel;
-#endif
+    pSystemInfo->displayModel  = displayModel;
 #else
     pSystemInfo->cpuType = CpuType::Unknown;
 #endif
@@ -245,10 +243,8 @@ void QueryIntelCpuType(
         displayModel += extendedModel << 4;
     }
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 758)
     pSystemInfo->displayFamily = displayFamily;
-    pSystemInfo->displayModel = displayModel;
-#endif
+    pSystemInfo->displayModel  = displayModel;
 #else
     pSystemInfo->cpuType = CpuType::Unknown;
 #endif

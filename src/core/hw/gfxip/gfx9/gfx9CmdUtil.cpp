@@ -1592,8 +1592,10 @@ size_t CmdUtil::BuildExecuteIndirect(
     const ComputePipelineSignature*  pComputeSignature  = packetInfo.pipelineSignature.pSignatureCs;
     PM4_PFP_EXECUTE_INDIRECT  packet                    = {};
 
+    const Pm4ShaderType shaderType = isGfx ? ShaderGraphics : ShaderCompute;
+
     packet.ordinal1.header.u32All =
-        (Type3Header(IT_EXECUTE_INDIRECT__EXECINDIRECT, PacketSize, resetPktFilter, ShaderGraphics, predicate)).u32All;
+        (Type3Header(IT_EXECUTE_INDIRECT__EXECINDIRECT, PacketSize, resetPktFilter, shaderType, predicate)).u32All;
     packet.ordinal2.bitfields.core.cmd_base_lo           = LowPart(packetInfo.commandBufferAddr) >> 2;
     packet.ordinal3.cmd_base_hi                          = HighPart(packetInfo.commandBufferAddr);
     packet.ordinal4.bitfields.core.count_indirect_enable = (packetInfo.countBufferAddr != 0);

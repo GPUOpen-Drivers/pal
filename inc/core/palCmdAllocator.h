@@ -143,9 +143,6 @@ public:
     ///          returned:
     ///          + ErrorUnknown if an internal PAL error occurs.
     virtual Result Reset(bool freeMemory) = 0;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 725
-    inline Result Reset() { return Reset(false); }
-#endif
 
     /// Explicitly trims a command allocator, deleting as many unused internal GPU memory allocations as possible.
     ///

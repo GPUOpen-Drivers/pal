@@ -131,6 +131,8 @@ public:
     bool       GetDrmModeIsSet() const { return m_drmModeIsSet; }
     void       SetDrmModeIsSet() { m_drmModeIsSet = true; }
 
+    virtual Result GetModifierSubresourceLayout(uint32 memoryPlane, SubresLayout* pLayout) const override;
+
 protected:
     virtual void UpdateMetaDataInfo(IGpuMemory* pGpuMemory) override;
 

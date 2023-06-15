@@ -435,7 +435,7 @@ struct PerfExperimentCreateInfo
             uint32 cacheFlushOnCounterCollection :  1;
             uint32 sampleInternalOperations      :  1;
             uint32 sqShaderMask                  :  1;
-#if PAL_BUILD_GFX11 && (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 750)
+#if PAL_BUILD_GFX11
             uint32 sqWgpShaderMask               :  1;
 #else
             uint32 reserved1                     :  1;
@@ -450,7 +450,7 @@ struct PerfExperimentCreateInfo
         bool                      cacheFlushOnCounterCollection;
         bool                      sampleInternalOperations;
         PerfExperimentShaderFlags sqShaderMask;    ///< GpuBlock::Sq counters only look at these shader types.
-#if PAL_BUILD_GFX11 && (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 750)
+#if PAL_BUILD_GFX11
         PerfExperimentShaderFlags sqWgpShaderMask; ///< GpuBlock::SqWgp counters only look at these shader types.
 #endif
     } optionValues;

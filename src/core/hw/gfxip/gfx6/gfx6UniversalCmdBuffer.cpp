@@ -270,10 +270,8 @@ UniversalCmdBuffer::UniversalCmdBuffer(
     m_cachedSettings.enablePm4Instrumentation = platformSettings.pm4InstrumentorEnabled;
 #endif
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 755)
     // Recommended defaults for GFX8
     m_tessDistributionFactors = { 8, 8, 8, 8, 7 };
-#endif
 
     m_sxPsDownconvert.u32All     = 0;
     m_sxBlendOptEpsilon.u32All   = 0;
@@ -3733,10 +3731,9 @@ uint32* UniversalCmdBuffer::ValidateDraw(
     regIA_MULTI_VGT_PARAM iaMultiVgtParam = pPipeline->IaMultiVgtParam(wdSwitchOnEop);
     regVGT_LS_HS_CONFIG   vgtLsHsConfig   = pPipeline->VgtLsHsConfig();
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 747)
     PAL_ASSERT(pPipeline->IsTessEnabled() ||
                (vgtLsHsConfig.bits.HS_NUM_INPUT_CP == m_graphicsState.inputAssemblyState.patchControlPoints));
-#endif
+
     if (m_primGroupOpt.optimalSize > 0)
     {
         iaMultiVgtParam.bits.PRIMGROUP_SIZE = m_primGroupOpt.optimalSize - 1;
@@ -4059,13 +4056,8 @@ uint32* UniversalCmdBuffer::ValidateTriangleRasterState(
     paSuScModeCntl.u32All = m_paSuScModeCntl.u32All;
     const auto& params    = m_graphicsState.triangleRasterState;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 721
     paSuScModeCntl.bits.POLY_OFFSET_FRONT_ENABLE = params.flags.frontDepthBiasEnable;
     paSuScModeCntl.bits.POLY_OFFSET_BACK_ENABLE  = params.flags.backDepthBiasEnable;
-#else
-    paSuScModeCntl.bits.POLY_OFFSET_FRONT_ENABLE = params.flags.depthBiasEnable;
-    paSuScModeCntl.bits.POLY_OFFSET_BACK_ENABLE  = params.flags.depthBiasEnable;
-#endif
     paSuScModeCntl.bits.MULTI_PRIM_IB_ENA        = 1;
 
     static_assert((static_cast<uint32>(FillMode::Points)    == 0) &&
@@ -5635,13 +5627,8 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
         m_drawIndexReg     = cmdBuffer.m_drawIndexReg;
 
         // Update the functions that are modified by nested command list
-        m_pfnValidateUserDataGfx                   = cmdBuffer.m_pfnValidateUserDataGfx;
-        m_pfnValidateUserDataGfxPipelineSwitch     = cmdBuffer.m_pfnValidateUserDataGfxPipelineSwitch;
-        m_funcTable.pfnCmdDraw                     = cmdBuffer.m_funcTable.pfnCmdDraw;
-        m_funcTable.pfnCmdDrawOpaque               = cmdBuffer.m_funcTable.pfnCmdDrawOpaque;
-        m_funcTable.pfnCmdDrawIndexed              = cmdBuffer.m_funcTable.pfnCmdDrawIndexed;
-        m_funcTable.pfnCmdDrawIndirectMulti        = cmdBuffer.m_funcTable.pfnCmdDrawIndirectMulti;
-        m_funcTable.pfnCmdDrawIndexedIndirectMulti = cmdBuffer.m_funcTable.pfnCmdDrawIndexedIndirectMulti;
+        m_pfnValidateUserDataGfx               = cmdBuffer.m_pfnValidateUserDataGfx;
+        m_pfnValidateUserDataGfxPipelineSwitch = cmdBuffer.m_pfnValidateUserDataGfxPipelineSwitch;
 
         if (m_cachedSettings.rbPlusSupported != 0)
         {
@@ -5697,14 +5684,6 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     }
 
     m_pipelineCtxRegHash = cmdBuffer.m_pipelineCtxRegHash;
-
-    // It is possible that nested command buffer execute operation which affect the data in the primary buffer
-    m_pm4CmdBufState.flags.gfxBltActive              = cmdBuffer.m_pm4CmdBufState.flags.gfxBltActive;
-    m_pm4CmdBufState.flags.csBltActive               = cmdBuffer.m_pm4CmdBufState.flags.csBltActive;
-    m_pm4CmdBufState.flags.gfxWriteCachesDirty       = cmdBuffer.m_pm4CmdBufState.flags.gfxWriteCachesDirty;
-    m_pm4CmdBufState.flags.csWriteCachesDirty        = cmdBuffer.m_pm4CmdBufState.flags.csWriteCachesDirty;
-    m_pm4CmdBufState.flags.cpWriteCachesDirty        = cmdBuffer.m_pm4CmdBufState.flags.cpWriteCachesDirty;
-    m_pm4CmdBufState.flags.cpMemoryWriteL2CacheStale = cmdBuffer.m_pm4CmdBufState.flags.cpMemoryWriteL2CacheStale;
 
     m_pSignatureCs = cmdBuffer.m_pSignatureCs;
     m_pSignatureGfx = cmdBuffer.m_pSignatureGfx;

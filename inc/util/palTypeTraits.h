@@ -36,18 +36,6 @@
 
 namespace Util
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 704
-/// Convenience alias to typename std::enable_if::type
-/// Deprecated by C++14's std::enable_if_t
-template<bool B, typename T = void>
-using EnableIf = typename std::enable_if<B, T>::type;
-
-/// Convenience alias to typename std::underlying_type::type
-/// Deprecated by C++14's std::underlying_type_t
-template<typename T>
-using UnderlyingType = typename std::underlying_type<T>::type;
-#endif
-
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 783
 /// Convenience alias to typename std::integral_constant for the common case where T is bool
 /// Deprecated by C++17's std::bool_constant

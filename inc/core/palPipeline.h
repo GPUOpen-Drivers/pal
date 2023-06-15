@@ -170,42 +170,21 @@ enum class BinningOverride : uint32
     Count
 };
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 744)
 /// GPU behavior is controlled by LDS_GROUP_SIZE.
 enum class LdsPsGroupSizeOverride : uint32
 {
-    Default = 0X0,
-    SingleWave = 0X1,
-    DoubleWaves = 0X2
+    Default     = 0x0,
+    SingleWave  = 0x1,
+    DoubleWaves = 0x2
 };
-#endif
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 749)
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 753)
-/// Tri-state enum which controls enabling or disabling a feature or behavior, or letting PAL
-/// select a sensible default
+/// Tri-state enum which controls enabling or disabling a feature or behavior, or letting PAL select a sensible default
 enum class OverrideMode : int32
 {
     Default  = -1, ///< PAL selects the default behavior, which could be either enabled or disabled.
     Disabled = 0,  ///< Force to disabled. Equal to set to False.
     Enabled  = 1,  ///< Force to enabled. Equal to set to True.
-
 };
-#else
-enum class DisableBinningPsKill : uint32
-{
-    Default = 0X0,
-    _False = 0X1,
-    _True = 0X2,
-#ifndef False
-    False = _False,
-#endif
-#ifndef True
-    True = _True,
-#endif
-};
-#endif
-#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 793
 #ifndef PAL_BUILD_SUPPORT_DEPTHCLAMPMODE_ZERO_TO_ONE
@@ -345,7 +324,7 @@ struct RasterizerState
     BinningOverride binningOverride;           ///< Binning setting for this pipeline.
 
     DepthClampMode  depthClampMode;            ///< Depth clamping behavior
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 733
+
     union
     {
         struct
@@ -356,13 +335,11 @@ struct RasterizerState
         };
         uint8 u8All;                    ///< All the flags as a single value.
     } flags;
-    uint8           cullDistMask;              ///< Mask of which cullDistance exports to leave enabled.
-#endif
-    uint8           clipDistMask;              ///< Mask of which clipDistance exports to leave enabled.
-    PsShadingRate   forcedShadingRate;         ///< Forced PS shading rate
 
-    bool            dx10DiamondTestDisable;     ///< Disable DX10 diamond test during line rasterization.
-
+    uint8         cullDistMask;           ///< Mask of which cullDistance exports to leave enabled.
+    uint8         clipDistMask;           ///< Mask of which clipDistance exports to leave enabled.
+    PsShadingRate forcedShadingRate;      ///< Forced PS shading rate
+    bool          dx10DiamondTestDisable; ///< Disable DX10 diamond test during line rasterization.
 };
 
 /// Specifies Per-MRT color target info in olor target state
@@ -414,40 +391,35 @@ struct GraphicsPipelineCreateInfo
     {
         struct
         {
-            PrimitiveType     primitiveType;        ///< Basic primitive category: points, line, triangles, patches.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 709
-            bool              topologyIsPolygon;    ///< Indicates that triangle primitives are combined to represent more
-                                                    ///  complex polygons. Only valid for triangle primitive types.
-#endif
-            uint32            patchControlPoints;   ///< Number of control points per patch. Only required if primitiveType
-                                                    ///  is PrimitiveType::Patch.
-        } topologyInfo;                             ///< Various information about the primitive topology that will be used
-                                                    ///  with this pipeline.  All of this info must be consistent with the
-                                                    ///  full topology specified by ICmdBuffer::SetPrimitiveTopology() when
-                                                    ///  drawing with this pipeline bound.
+            PrimitiveType primitiveType;      ///< Basic primitive category: points, line, triangles, patches.
+            bool          topologyIsPolygon;  ///< Indicates that triangle primitives are combined to represent more
+                                              ///  complex polygons. Only valid for triangle primitive types.
+            uint32        patchControlPoints; ///< Number of control points per patch. Only required if primitiveType
+                                              ///  is PrimitiveType::Patch.
+        } topologyInfo; ///< Various information about the primitive topology that will be used with this pipeline.
+                        ///  All of this info must be consistent with the full topology specified by
+                        ///  ICmdBuffer::SetPrimitiveTopology() when drawing with this pipeline bound.
+
         /// Number of vertex buffer slots which are accessed by this pipeline.  Behavior is undefined if the pipeline
         /// tries to access a vertex buffer slot outside the range [0, vertexBufferCount).  It is generally advisable
         /// to make this the minimum value possible because that reduces the number of vertex buffer slots PAL has to
         /// maintain for this pipeline when recording command buffers.
-        uint32            vertexBufferCount;
-    } iaState;                                 ///< Input assembler state.
+        uint32 vertexBufferCount;
+    } iaState;                   ///< Input assembler state.
 
-    RasterizerState rsState;                   ///< Rasterizer state.
+    RasterizerState  rsState;    ///< Rasterizer state.
+    ColorTargetState cbState;    ///< Color target state.
 
-    ColorTargetState cbState;                  ///< Color target state.
-
-    ViewInstancingDescriptor  viewInstancingDesc; ///< Descriptor describes view instancing state
-                                                  ///  of the graphics pipeline
-    MsaaCoverageOutDescriptor coverageOutDesc;    ///< Descriptor describes input parameters for MSAA coverage out.
-    ViewportInfo              viewportInfo;       ///< Viewport info.
+    ViewInstancingDescriptor  viewInstancingDesc;  ///< Descriptor describes view instancing state
+                                                   ///  of the graphics pipeline
+    MsaaCoverageOutDescriptor coverageOutDesc;     ///< Descriptor describes input parameters for MSAA coverage out.
+    ViewportInfo              viewportInfo;        ///< Viewport info.
 #if PAL_BUILD_GFX11
-    DispatchInterleaveSize    taskInterleaveSize; ///< Ignored for pipelines without a task shader. For pipelines with
-                                                  ///  a task shader, controls how many thread groups are sent to one
-                                                  ///  SE before switching to the next one.
+    DispatchInterleaveSize    taskInterleaveSize;  ///< Ignored for pipelines without a task shader. For pipelines with
+                                                   ///  a task shader, controls how many thread groups are sent to one
+                                                   ///  SE before switching to the next one.
 #endif
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 744)
-    LdsPsGroupSizeOverride ldsPsGroupSizeOverride; ///< Specifies whether to override ldsPsGroupSize setting for pipeline.
-#endif
+    LdsPsGroupSizeOverride ldsPsGroupSizeOverride; ///< Whether to override ldsPsGroupSize setting for pipeline.
 };
 
 /// The graphic pipeline view instancing information. This is used to determine if hardware accelerated stereo rendering
@@ -635,6 +607,13 @@ struct ShaderStats
     CommonShaderStats  copyShader;       ///< This data is valid only when the copyShaderPresent flag above is set.
 };
 
+/// Per-thread stack sizes
+struct CompilerStackSizes
+{
+    uint32 backendSize;  ///< Managed by compiler backend
+    uint32 frontendSize; ///< Managed by compiler frontend
+};
+
  /**
   ***********************************************************************************************************************
   * @interface IPipeline
@@ -786,10 +765,18 @@ public:
     virtual void SetStackSizeInBytes(
         uint32 stackSizeInBytes) = 0;
 
-    /// Get the size of the stack managed by the compiler backend.
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 797
+    /// Retrieve the stack sizes managed by compiler, including the frontend stack and the frontend stack.
     ///
-    /// @returns The stack size, in bytes.
+    /// @param [out] pSizes  To be filled with both the frontend stack size and the backend stack size, in bytes.
+    ///
+    /// @returns SUCCESS
+    virtual Result GetStackSizes(
+        CompilerStackSizes* pSizes) const = 0;
+#else
+    /// @returns The stack size, in bytes. It returns either the backend size or the frontend size, based on the input.
     virtual uint32 GetStackSizeInBytes() const = 0;
+#endif
 
     /// Returns the API shader type to hardware stage mapping for the pipeline.
     ///

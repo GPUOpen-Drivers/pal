@@ -43,7 +43,7 @@
 ///            compatible, it is not assumed that the client will initialize all input structs to 0.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MAJOR_VERSION 796
+#define PAL_INTERFACE_MAJOR_VERSION 801
 
 /// Minor interface version.  Note that the interface version is distinct from the PAL version itself, which is returned
 /// in @ref Pal::PlatformProperties.
@@ -53,13 +53,13 @@
 /// of the existing enum values will change.  This number will be reset to 0 when the major version is incremented.
 ///
 /// @ingroup LibInit
-#define PAL_INTERFACE_MINOR_VERSION 1
+#define PAL_INTERFACE_MINOR_VERSION 0
 
 /// Minimum major interface version. This is the minimum interface version PAL supports in order to support backward
 /// compatibility. When it is equal to PAL_INTERFACE_MAJOR_VERSION, only the latest interface version is supported.
 ///
 /// @ingroup LibInit
-#define PAL_MINIMUM_INTERFACE_MAJOR_VERSION 700
+#define PAL_MINIMUM_INTERFACE_MAJOR_VERSION 761
 
 /// Minimum supported major interface version for devdriver library. This is the minimum interface version of the devdriver
 /// library that PAL is backwards compatible to.
@@ -112,6 +112,9 @@ enum class NullGpuId : uint32
 #if PAL_BUILD_NAVI31
     Navi31           = 0x1A,
 #endif
+#if PAL_BUILD_NAVI33
+    Navi33           = 0x1C,
+#endif
     Raphael          = 0x1E,
     Max              = 0x23,
     All              = 0x24
@@ -127,9 +130,6 @@ struct NullGpuInfo
 /// PAL client APIs.
 enum class ClientApi : uint32
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 734
-    Invalid = 0,
-#endif
     Pal     = 0,
     Dx9     = 1,
     Dx12    = 3,
@@ -178,11 +178,7 @@ struct PlatformCreateInfo
             uint32 supportRgpTraces               :  1; ///< Indicates that the client supports RGP tracing. PAL will
                                                         ///  use this flag and the hardware support flag to setup the
                                                         ///  DevDriver RgpServer.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 754
             uint32 dontOpenPrimaryNode            :  1; ///< No primary node is needed (Linux only)
-#else
-            uint32 placeholder754                 :  1;
-#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 765
             uint32 disableDevDriver               : 1;  ///< If no DevDriverMgr should be created with this Platform.
 #else
@@ -193,19 +189,13 @@ struct PlatformCreateInfo
         uint32 u32All;                                  ///< Flags packed as 32-bit uint.
     } flags;                                            ///< Platform-wide creation flags.
 
-    union
-    {
-        ClientApi                clientApiId;           ///< Client API ID.
-    };
-
-    NullGpuId                    nullGpuId;             ///< ID for the null device.  Ignored unless the above
-                                                        ///  flags.createNullDevice bit is set.
-    uint16                       apiMajorVer;           ///< Major API version number to be used by RGP.  Should be
-                                                        ///  set by client based on their contract with RGP.
-    uint16                       apiMinorVer;           ///< Minor API version number to be used by RGP.  Should be
-                                                        ///  set by client based on their contract with RGP.
-    gpusize                      maxSvmSize;            ///  Maximum amount of virtual address space that will be
-                                                        ///  reserved for SVM
+    ClientApi clientApiId; ///< Client API ID.
+    NullGpuId nullGpuId;   ///< ID for the null device. Ignored unless the above flags.createNullDevice bit is set.
+    uint16    apiMajorVer; ///< Major API version number to be used by RGP. Should be set by client based on their
+                           ///  contract with RGP.
+    uint16    apiMinorVer; ///< Minor API version number to be used by RGP. Should be set by client based on their
+                           ///  contract with RGP.
+    gpusize   maxSvmSize;  ///< Maximum amount of virtual address space that will be reserved for SVM
 };
 
 /**

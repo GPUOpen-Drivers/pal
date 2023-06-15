@@ -548,12 +548,14 @@ void RsrcProcMgr::CmdResolveQuery(
 
     // We can only use the cp packet to do the query resolve in graphics queue also it needs to be an occlusion query
     // with the two flags set. OCCLUSION_QUERY packet resolves a single occlusion query slot.
-    if (Pal::Image::UseCpPacketOcclusionQuery                 &&
-        // BinaryOcclusion might also go inside this path but CP cannot handle that.
-        (queryType == QueryType::Occlusion)                   &&
-        pCmdBuffer->IsGraphicsSupported()                     &&
+    // Does not work for BinaryOcclusion.
+    if ((queryType == QueryType::Occlusion) &&
+        pCmdBuffer->IsGraphicsSupported()   &&
         ((flags == OptCaseWait64) || (flags == OptCaseWait64Accum)))
     {
+        // Condition above would be false due to the flags check for equality:
+        PAL_ASSERT((flags & QueryResultPreferShaderPath) == 0);
+
         auto*const pStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics);
         PAL_ASSERT(pStream != nullptr);
 
@@ -637,6 +639,7 @@ void RsrcProcMgr::CmdResolveQuery(
                                      dstStride);
     }
 }
+
 // =====================================================================================================================
 // Resolve the query with compute shader.
 void RsrcProcMgr::CmdResolveQueryComputeShader(
@@ -7847,6 +7850,34 @@ ImageCopyEngine Gfx10RsrcProcMgr::GetImageToImageCopyEngine(
     }
 
     return copyEngine;
+}
+
+// =====================================================================================================================
+bool Gfx10RsrcProcMgr::ScaledCopyImageUseGraphics(
+    GfxCmdBuffer*         pCmdBuffer,
+    const ScaledCopyInfo& copyInfo
+    ) const
+{
+    bool useGraphicsCopy = Pm4::RsrcProcMgr::ScaledCopyImageUseGraphics(pCmdBuffer, copyInfo);
+
+#if PAL_BUILD_GFX11
+    // Profiling shows that gfx11's draw-based copy performance craters when you go from 4xAA to 8xAA on either of
+    // the two-plane depth+stencil formats. The single-plane depth-only formats seem unaffected.
+    // ScaledCopyImageUseGraphics should have a Gfx10RsrcProcMgr overload that optimizes the case where OREO runs slow
+    // just like change in Gfx10RsrcProcMgr::GetImageToImageCopyEngine.
+    const auto pDstImage = static_cast<const Pal::Image*>(copyInfo.pDstImage);
+
+    if (useGraphicsCopy                                &&
+        IsGfx11(*m_pDevice->Parent())                  &&
+        pDstImage->IsDepthStencilTarget()              &&
+        (pDstImage->GetImageCreateInfo().samples == 8) &&
+        (pDstImage->GetImageInfo().numPlanes == 2))
+    {
+        useGraphicsCopy = false;
+    }
+#endif
+
+    return  useGraphicsCopy;
 }
 
 // =====================================================================================================================

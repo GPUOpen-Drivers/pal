@@ -1052,7 +1052,8 @@ struct GpuChipProperties
                 uint64 stateShadowingByCpFwUserAlloc      :  1; // FW state shadowing memory is allocated by PAL.
                 uint64 support3dUavZRange                 :  1; // HW supports read-write ImageViewSrds of 3D images
                                                                 // with zRange specified.
-                uint64 reserved                           : 10;
+                uint64 supportCooperativeMatrix           :  1; // HW supports cooperative matrix
+                uint64 reserved                           :  9;
             };
 
             RayTracingIpLevel rayTracingIp;      //< HW RayTracing IP version
@@ -1783,6 +1784,13 @@ public:
     // Requests the device to free the GPU VA range.
     virtual Result FreeGpuVirtualAddress(gpusize vaStartAddress, gpusize vaSize) = 0;
 
+    // Requests to reserve the GPU VA partition on all devices for SVM.
+    virtual Result ReserveGpuVirtualAddressSvm(gpusize vaStartAddress,
+                                               gpusize vaSize);
+
+    // Requests the device to free the GPU VA range on all devices for SVM.
+    virtual Result FreeGpuVirtualAddressSvm(gpusize vaStartAddress, gpusize vaSize);
+
     // Checks if this GPU is the master in a group of linked GPU's.
     virtual bool IsMasterGpu() const = 0;
 
@@ -2193,6 +2201,13 @@ protected:
     uint32 GetDeviceIndex() const
         { return m_deviceIndex; }
 
+#if defined(__unix__)
+    virtual void GetModifiersList(
+        ChNumFormat format,
+        uint32*     pModifierCount,
+        uint64*     pModifiersList) const override {}
+#endif
+
     Platform*      m_pPlatform;
     InternalMemMgr m_memMgr;
 
@@ -2505,6 +2520,12 @@ inline bool IsNavi31XtxA0(const Device& device)
     return SKU_IS_NAVI31_XTX_A0(device.ChipProperties().deviceId,
                                 device.ChipProperties().eRevId,
                                 device.ChipProperties().revisionId);
+}
+#endif
+#if PAL_BUILD_NAVI33
+inline bool IsNavi33(const Device& device)
+{
+    return AMDGPU_IS_NAVI33(device.ChipProperties().familyId, device.ChipProperties().eRevId);
 }
 #endif
 #if PAL_BUILD_NAVI3X

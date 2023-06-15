@@ -192,7 +192,7 @@ ADDR_E_RETURNCODE Lib::Create(
                         pLib = Gfx10HwlInit(&client);
                         break;
 #if ADDR_GFX11_BUILD
-#if ADDR_NAVI31_BUILD
+#if ADDR_NAVI31_BUILD || ADDR_NAVI33_BUILD
                     case FAMILY_NV3:
 #endif
                         pLib = Gfx11HwlInit(&client);

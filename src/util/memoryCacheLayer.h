@@ -42,9 +42,7 @@ public:
         const AllocCallbacks& callbacks,
         size_t                maxMemorySize,
         size_t                maxObjectCount,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 711
         uint32                expectedEntries,
-#endif
         bool                  evictOnFull,
         bool                  evictDuplicates);
     virtual ~MemoryCacheLayer();

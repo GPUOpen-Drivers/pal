@@ -150,24 +150,41 @@ Result GpuMemory::ValidateCreateInfo(
         result = Result::ErrorOutOfGpuMemory;
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 761
-    if ((createInfo.flags.startVaHintFlag == 1) && (createInfo.startVaHint != 0))
+    if (result == Result::Success)
     {
-        gpusize startVaHintAddr     = 0;
-        gpusize endVaHintAddr       = 0;
-        pDevice->VirtualAddressRange(VaPartition::Default, &startVaHintAddr, &endVaHintAddr);
-        const gpusize pageSize = pDevice->MemoryProperties().virtualMemPageSize;
-        const gpusize alignment = Pow2Align(createInfo.alignment, pageSize);
-        const gpusize startVaHintAlign = Pow2Align(createInfo.startVaHint, alignment);
+        // These flags control the use of values in a union.
+        const uint32 unionFlagSum = (createInfo.flags.startVaHintFlag != 0)        +
+                                    (createInfo.flags.useReservedGpuVa != 0)       +
+                                    (createInfo.vaRange == VaRange::CaptureReplay) +
+                                    (createInfo.vaRange == VaRange::ShadowDescriptorTable);
 
-        if ((startVaHintAlign < startVaHintAddr) || ((startVaHintAlign + createInfo.size) >= endVaHintAddr))
+        // Can't use the union for more than 1 thing.
+        if (unionFlagSum > 1)
         {
-            result = Result::ErrorInvalidPointer;
+            PAL_ALERT_ALWAYS_MSG("Union in GpuMemoryCreateInfo used for multiple things.");
+            result = Result::ErrorInvalidValue;
         }
     }
-#endif
 
-    if (createInfo.flags.useReservedGpuVa)
+    if (result == Result::Success)
+    {
+        if ((createInfo.flags.startVaHintFlag == 1) && (createInfo.startVaHint != 0))
+        {
+            gpusize startVaHintAddr = 0;
+            gpusize endVaHintAddr   = 0;
+            pDevice->VirtualAddressRange(VaPartition::Default, &startVaHintAddr, &endVaHintAddr);
+            const gpusize pageSize         = pDevice->MemoryProperties().virtualMemPageSize;
+            const gpusize alignment        = Pow2Align(createInfo.alignment, pageSize);
+            const gpusize startVaHintAlign = Pow2Align(createInfo.startVaHint, alignment);
+
+            if ((startVaHintAlign < startVaHintAddr) || ((startVaHintAlign + createInfo.size) >= endVaHintAddr))
+            {
+                result = Result::ErrorInvalidValue;
+            }
+        }
+    }
+
+    if (createInfo.flags.useReservedGpuVa && (result == Result::Success))
     {
         if (createInfo.pReservedGpuVaOwner == nullptr)
         {
@@ -190,27 +207,30 @@ Result GpuMemory::ValidateCreateInfo(
         }
     }
 
-    if (createInfo.flags.typedBuffer)
+    if (result == Result::Success)
     {
-        if (Formats::IsUndefined(createInfo.typedBufferInfo.swizzledFormat.format))
+        if (createInfo.flags.typedBuffer)
         {
-            result = Result::ErrorInvalidFormat;
+            if (Formats::IsUndefined(createInfo.typedBufferInfo.swizzledFormat.format))
+            {
+                result = Result::ErrorInvalidFormat;
+            }
+            else if ((createInfo.typedBufferInfo.extent.width  == 0) ||
+                     (createInfo.typedBufferInfo.extent.height == 0) ||
+                     (createInfo.typedBufferInfo.extent.depth  == 0) ||
+                     (createInfo.typedBufferInfo.rowPitch      == 0) ||
+                     (createInfo.typedBufferInfo.depthPitch    == 0))
+            {
+                result = Result::ErrorInvalidValue;
+            }
         }
-        else if ((createInfo.typedBufferInfo.extent.width  == 0) ||
-                 (createInfo.typedBufferInfo.extent.height == 0) ||
-                 (createInfo.typedBufferInfo.extent.depth  == 0) ||
-                 (createInfo.typedBufferInfo.rowPitch      == 0) ||
-                 (createInfo.typedBufferInfo.depthPitch    == 0))
+        else if (createInfo.pImage != nullptr)
         {
-            result = Result::ErrorInvalidValue;
-        }
-    }
-    else if (createInfo.pImage != nullptr)
-    {
-        const Pal::Image* pImage = static_cast<const Pal::Image*>(createInfo.pImage);
-        if (createInfo.flags.presentable != pImage->GetImageCreateInfo().flags.presentable)
-        {
-            result = Result::ErrorInvalidFlags;
+            const Pal::Image* pImage = static_cast<const Pal::Image*>(createInfo.pImage);
+            if (createInfo.flags.presentable != pImage->GetImageCreateInfo().flags.presentable)
+            {
+                result = Result::ErrorInvalidFlags;
+            }
         }
     }
 
@@ -312,13 +332,6 @@ Result GpuMemory::ValidateCreateInfo(
             {
                 result = Result::ErrorInvalidValue;
             }
-        }
-        else if ((createInfo.descrVirtAddr != 0) &&
-                 (createInfo.flags.useReservedGpuVa == false) &&
-                 (createInfo.vaRange != VaRange::CaptureReplay))
-        {
-            // The "descrVirtAddr" field is only used for the ShadowDescriptorTable VA range.
-            result = Result::ErrorInvalidValue;
         }
     }
 
@@ -496,7 +509,7 @@ Result GpuMemory::Init(
     }
 
     m_flags.globallyCoherent     = createInfo.flags.globallyCoherent;
-    m_flags.xdmaBuffer           = createInfo.flags.xdmaBuffer || internalInfo.flags.xdmaBuffer;
+    m_flags.xdmaBuffer           = createInfo.flags.xdmaBuffer | internalInfo.flags.xdmaBuffer;
     m_flags.globalGpuVa          = createInfo.flags.globalGpuVa;
     m_flags.useReservedGpuVa     = createInfo.flags.useReservedGpuVa;
     m_flags.typedBuffer          = createInfo.flags.typedBuffer;
@@ -520,18 +533,12 @@ Result GpuMemory::Init(
     m_flags.historyBuffer        = internalInfo.flags.historyBuffer;
     m_flags.isCmdAllocator       = internalInfo.flags.isCmdAllocator;
     m_flags.buddyAllocated       = internalInfo.flags.buddyAllocated;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 723
     m_flags.privateScreen        = createInfo.flags.privateScreen;
-#else
-    m_flags.privateScreen        = internalInfo.flags.privateScreen;
-#endif
     m_flags.isUserQueue          = internalInfo.flags.userQueue;
     m_flags.isTimestamp          = internalInfo.flags.timestamp;
     m_flags.accessedPhysically   = internalInfo.flags.accessedPhysically;
     m_flags.gpuReadOnly          = internalInfo.flags.gpuReadOnly;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 746
-    m_flags.kmdShareUmdSysMem       = createInfo.flags.kmdShareUmdSysMem;
-#endif
+    m_flags.kmdShareUmdSysMem    = createInfo.flags.kmdShareUmdSysMem;
 
     if (IsClient() == false)
     {
@@ -660,11 +667,8 @@ Result GpuMemory::Init(
         }
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 746
     m_flags.deferCpuVaReservation = (m_flags.cpuVisible != false) && createInfo.flags.deferCpuVaReservation;
-#endif
-
-    m_flags.isLocalPreferred = ((m_heaps[0] == GpuHeapLocal) || (m_heaps[0] == GpuHeapInvisible));
+    m_flags.isLocalPreferred      = ((m_heaps[0] == GpuHeapLocal) || (m_heaps[0] == GpuHeapInvisible));
 
     Result result = Result::Success;
 
@@ -800,7 +804,6 @@ Result GpuMemory::Init(
                 }
             }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 761
             if ((createInfo.flags.startVaHintFlag == 1) && (createInfo.startVaHint != 0))
             {
                 gpusize startVaHintAddr = 0;
@@ -815,7 +818,6 @@ Result GpuMemory::Init(
                     baseVirtAddr = startVaHintAlign;
                 }
             }
-#endif
         }
         else if (createInfo.vaRange == VaRange::CaptureReplay)
         {

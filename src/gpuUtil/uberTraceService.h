@@ -60,13 +60,7 @@ public:
     virtual DD_RESULT QueryTraceParams(const DDByteWriter& writer) override { return DD_RESULT_SUCCESS; }
 
     // Configures the current set of trace parameters
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 712
     virtual DD_RESULT ConfigureTraceParams(const void* pParamBuffer, size_t paramBufferSize) override;
-#else
-    virtual DD_RESULT ConfigureTraceParams(
-        const void* pParamBuffer,
-        size_t      paramBufferSize) override { return DD_RESULT_SUCCESS; }
-#endif
 
     // Requests execution of a trace
     virtual DD_RESULT RequestTrace() override;

@@ -98,6 +98,8 @@ public:
 
     const void* GetCodeObject() const { return m_pCodeObjectBinary; }
 
+    bool IsInternal() const { return m_flags.clientInternal != 0; }
+
 protected:
     // internal Constructor.
     explicit ShaderLibrary(Device* pDevice);
@@ -127,9 +129,10 @@ protected:
 
     Device*const    m_pDevice;
 
-    LibraryInfo     m_info;                 // Public info structure available to the client.
-    void*           m_pCodeObjectBinary;    // Buffer containing the code object binary data (Pipeline ELF ABI).
-    size_t          m_codeObjectBinaryLen;  // Size of code object binary data, in bytes.
+    LibraryInfo        m_info;                 // Public info structure available to the client.
+    LibraryCreateFlags m_flags;                // Creation flags.
+    void*              m_pCodeObjectBinary;    // Buffer containing the code object binary data (Pipeline ELF ABI).
+    size_t             m_codeObjectBinaryLen;  // Size of code object binary data, in bytes.
 
     BoundGpuMemory  m_gpuMem;
     gpusize         m_gpuMemSize;

@@ -41,7 +41,7 @@ class Device;
 class CmdBuffer final : public CmdBufferFwdDecorator
 {
 public:
-    CmdBuffer(ICmdBuffer* pNextCmdBuffer, const Device* pDevice, QueueType queueType);
+    CmdBuffer(ICmdBuffer* pNextCmdBuffer, Device*const pDevice, QueueType queueType);
     virtual ~CmdBuffer() {}
 
     bool ContainsPresent() const { return m_containsPresent; }
@@ -65,7 +65,7 @@ public:
 private:
     void DrawOverlay(const IImage* pSrcImage, const CmdPostProcessDebugOverlayInfo& debugOverlayInfo);
 
-    const Device&   m_device;
+    Device*const    m_pDevice;
     const QueueType m_queueType;
     bool            m_containsPresent;  // Detects if a Present call is made in this command buffer
 
