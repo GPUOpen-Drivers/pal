@@ -288,6 +288,7 @@ void FillSqttAsicInfo(
     const Pal::DeviceProperties&         properties,
     const Pal::PerfExperimentProperties& perfExpProps,
     const GpuClocksSample&               gpuClocks,
+    const SetClockModeOutput&            peakClockFrequency,
     SqttFileChunkAsicInfo*               pAsicInfo)
 {
     PAL_ASSERT(pAsicInfo != nullptr);
@@ -368,10 +369,8 @@ void FillSqttAsicInfo(
 
     pAsicInfo->gpuTimestampFrequency      = properties.timestampFrequency;
 
-    pAsicInfo->maxShaderCoreClock =
-        static_cast<uint64>(properties.gfxipProperties.performance.maxGpuClock * 1000000.0f);
-    pAsicInfo->maxMemoryClock     =
-        static_cast<uint64>(properties.gpuMemoryProperties.performance.maxMemClock * 1000000.0f);
+    pAsicInfo->maxShaderCoreClock = peakClockFrequency.engineClockFrequency * 1000000ull;
+    pAsicInfo->maxMemoryClock     = peakClockFrequency.memoryClockFrequency * 1000000ull;
 
     pAsicInfo->memoryOpsPerClock  = properties.gpuMemoryProperties.performance.memOpsPerClock;
 
@@ -601,6 +600,7 @@ GpaSession::GpaSession(
     m_pCmdAllocator(nullptr)
 {
     memset(&m_deviceProps,               0, sizeof(m_deviceProps));
+    memset(&m_peakClockFrequency,        0, sizeof(m_peakClockFrequency));
     memset(&m_perfExperimentProps,       0, sizeof(m_perfExperimentProps));
     memset(&m_curGartGpuMem,             0, sizeof(m_curGartGpuMem));
     memset(&m_curLocalInvisGpuMem,       0, sizeof(m_curLocalInvisGpuMem));
@@ -619,6 +619,15 @@ Result GpaSession::Init()
     {
         // Load PerfExperiment properties to this GpaSession
         result = m_pDevice->GetPerfExperimentProperties(&m_perfExperimentProps);
+    }
+
+    // Query for the Peak value again because some HW have the clocks zeroed out
+    if (result == Result::Success)
+    {
+        SetClockModeInput input = {};
+        input.clockMode = DeviceClockMode::QueryPeak;
+        m_peakClockFrequency = {};
+        result = m_pDevice->SetClockMode(input, &m_peakClockFrequency);
     }
 
     // Pre-calculate GPU memory alignment for timestamp results. Use the largest alignment across all engines to avoid
@@ -3415,7 +3424,7 @@ Result GpaSession::AcquirePerfExperiment(
     createInfo.optionFlags.sqShaderMask  = sampleConfig.flags.sqShaderMask;
     createInfo.optionValues.sqShaderMask = sampleConfig.sqShaderMask;
 
-#if PAL_BUILD_GFX11 && (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 750)
+#if PAL_BUILD_GFX11
     createInfo.optionFlags.sqWgpShaderMask  = sampleConfig.flags.sqWgpShaderMask;
     createInfo.optionValues.sqWgpShaderMask = sampleConfig.sqWgpShaderMask;
 #endif
@@ -3903,7 +3912,7 @@ Result GpaSession::DumpRgpData(
     }
 
     SqttFileChunkAsicInfo gpuInfo = {};
-    FillSqttAsicInfo(m_deviceProps, m_perfExperimentProps, gpuClocksSample, &gpuInfo);
+    FillSqttAsicInfo(m_deviceProps, m_perfExperimentProps, gpuClocksSample, m_peakClockFrequency, &gpuInfo);
 
     if ((result == Result::Success) && (pRgpOutput != nullptr))
     {

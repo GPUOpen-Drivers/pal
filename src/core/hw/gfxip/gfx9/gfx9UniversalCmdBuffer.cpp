@@ -548,14 +548,9 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 #endif
 
     // Initialize defaults for some of the fields in PA_SC_BINNER_CNTL_0.
-    m_pbbCntlRegs.paScBinnerCntl0.u32All                         = 0;
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 744)
-    {
-        m_contextStatesPerBin = 1;
-    }
-#endif
-    m_pbbCntlRegs.paScBinnerCntl0.bits.FPOVS_PER_BATCH           = settings.binningFpovsPerBatch;
-    m_pbbCntlRegs.paScBinnerCntl0.bits.OPTIMAL_BIN_SELECTION     = settings.binningOptimalBinSelection;
+    m_pbbCntlRegs.paScBinnerCntl0.u32All                     = 0;
+    m_pbbCntlRegs.paScBinnerCntl0.bits.FPOVS_PER_BATCH       = settings.binningFpovsPerBatch;
+    m_pbbCntlRegs.paScBinnerCntl0.bits.OPTIMAL_BIN_SELECTION = settings.binningOptimalBinSelection;
 
     // Hardware detects binning transitions when this is set so SW can hardcode it.
     // This has no effect unless the KMD has also set PA_SC_ENHANCE_1.FLUSH_ON_BINNING_TRANSITION=1
@@ -564,20 +559,16 @@ UniversalCmdBuffer::UniversalCmdBuffer(
         m_pbbCntlRegs.paScBinnerCntl0.gfx09_1xPlus.FLUSH_ON_BINNING_TRANSITION = 1;
     }
 
-    m_pbbCntlRegs.paScBinnerCntl1.u32All       = 0;
-    m_cachedPbbSettings.maxAllocCountNgg       = (settings.binningMaxAllocCountNggOnChip - 1);
-    m_cachedPbbSettings.maxAllocCountLegacy    = (settings.binningMaxAllocCountLegacy    - 1);
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 744)
-    {
-        m_persistentStatesPerBin = 1;
-    }
-#endif
+    m_cachedPbbSettings.maxAllocCountNgg       = (settings.binningMaxAllocCountNggOnChip  - 1);
+    m_cachedPbbSettings.maxAllocCountLegacy    = (settings.binningMaxAllocCountLegacy     - 1);
     m_cachedPbbSettings.maxPrimsPerBatch       = (pPublicSettings->binningMaxPrimPerBatch - 1);
-    m_cachedPbbSettings.persistentStatesPerBin = (m_persistentStatesPerBin               - 1);
-    PAL_ASSERT(m_cachedPbbSettings.maxAllocCountNgg    == (0xFFFF & (settings.binningMaxAllocCountNggOnChip - 1)));
-    PAL_ASSERT(m_cachedPbbSettings.maxAllocCountLegacy == (0xFFFF & (settings.binningMaxAllocCountLegacy    - 1)));
+    m_cachedPbbSettings.persistentStatesPerBin = (m_persistentStatesPerBin                - 1);
+
+    PAL_ASSERT(m_cachedPbbSettings.maxAllocCountNgg    == (0xFFFF & (settings.binningMaxAllocCountNggOnChip  - 1)));
+    PAL_ASSERT(m_cachedPbbSettings.maxAllocCountLegacy == (0xFFFF & (settings.binningMaxAllocCountLegacy     - 1)));
     PAL_ASSERT(m_cachedPbbSettings.maxPrimsPerBatch    == (0xFFFF & (pPublicSettings->binningMaxPrimPerBatch - 1)));
 
+    m_pbbCntlRegs.paScBinnerCntl1.u32All                         = 0;
     m_pbbCntlRegs.paScBinnerCntl1.bits.MAX_PRIM_PER_BATCH        = m_cachedPbbSettings.maxPrimsPerBatch;
     m_pbbCntlRegs.paScBinnerCntl0.bits.PERSISTENT_STATES_PER_BIN = m_cachedPbbSettings.persistentStatesPerBin;
 
@@ -622,16 +613,14 @@ UniversalCmdBuffer::UniversalCmdBuffer(
 #if PAL_BUILD_GFX11
     if (IsGfx11(m_gfxIpLevel))
     {
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 755)
         // Recommended defaults for GFX11
         constexpr uint32 Gfx11DefaultPatchFactor         = 128;
         m_tessDistributionFactors.isoDistributionFactor  = Gfx11DefaultPatchFactor;
         m_tessDistributionFactors.triDistributionFactor  = Gfx11DefaultPatchFactor;
         m_tessDistributionFactors.quadDistributionFactor = Gfx11DefaultPatchFactor;
-#endif
 
-        memset(&m_validUserEntryRegPairsLookup[0],   InvalidRegPairLookupIndex, sizeof(m_validUserEntryRegPairsLookup));
-        memset(&m_validUserEntryRegPairsLookupCs[0], InvalidRegPairLookupIndex, sizeof(m_validUserEntryRegPairsLookupCs));
+        memset(m_validUserEntryRegPairsLookup,   InvalidRegPairLookupIndex, sizeof(m_validUserEntryRegPairsLookup));
+        memset(m_validUserEntryRegPairsLookupCs, InvalidRegPairLookupIndex, sizeof(m_validUserEntryRegPairsLookupCs));
     }
 #endif
 
@@ -1902,10 +1891,7 @@ void UniversalCmdBuffer::CmdSetInputAssemblyState(
 
     m_deCmdStream.CommitCommands(pDeCmdSpace);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 745
-    m_vgtMultiPrimIbResetEn.bits.MATCH_ALL_BITS =
-        static_cast<uint32>(params.primitiveRestartMatchAllBits);
-#endif
+    m_vgtMultiPrimIbResetEn.bits.MATCH_ALL_BITS = static_cast<uint32>(params.primitiveRestartMatchAllBits);
 
     m_graphicsState.inputAssemblyState = params;
     m_graphicsState.dirtyFlags.validationBits.inputAssemblyState   = 1;
@@ -3138,7 +3124,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
 {
     auto*        pThis    = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
     const auto&  cmdUtil  = pThis->m_device.CmdUtil();
-    uint32       numDraws = 0;
 
     Pm4::ValidateDrawInfo drawInfo;
     drawInfo.vtxIdxCount       = vertexCount;
@@ -3184,14 +3169,12 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDraw(
                                                            false,
                                                            pThis->PacketPredicate(),
                                                            pDeCmdSpace);
-                numDraws++;
             }
         }
     }
     else
     {
         pDeCmdSpace += CmdUtil::BuildDrawIndexAuto(vertexCount, false, pThis->PacketPredicate(), pDeCmdSpace);
-        numDraws++;
     }
 
     if (IssueSqttMarkerEvent)
@@ -3229,8 +3212,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
     uint32      firstInstance,
     uint32      instanceCount)
 {
-    auto*  pThis    = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
-    uint32 numDraws = 0;
+    auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
     Pm4::ValidateDrawInfo drawInfo;
     drawInfo.vtxIdxCount       = 0;
@@ -3295,14 +3277,12 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawOpaque(
             {
                 pDeCmdSpace  = pThis->BuildWriteViewId(viewInstancingDesc.viewId[i], pDeCmdSpace);
                 pDeCmdSpace += CmdUtil::BuildDrawIndexAuto(0, true, pThis->PacketPredicate(), pDeCmdSpace);
-                numDraws++;
             }
         }
     }
     else
     {
         pDeCmdSpace += CmdUtil::BuildDrawIndexAuto(0, true, pThis->PacketPredicate(), pDeCmdSpace);
-        numDraws++;
     }
 
     if (IssueSqttMarkerEvent)
@@ -3342,8 +3322,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
     uint32      instanceCount,
     uint32      drawId)
 {
-    auto*  pThis    = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
-    uint32 numDraws = 0;
+    auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
     Pm4::ValidateDrawInfo drawInfo;
     drawInfo.vtxIdxCount       = indexCount;
@@ -3424,8 +3403,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
                                                             pThis->PacketPredicate(),
                                                             pDeCmdSpace);
                 }
-
-                numDraws++;
             }
         }
     }
@@ -3456,8 +3433,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexed(
                                                     pThis->PacketPredicate(),
                                                     pDeCmdSpace);
         }
-
-        numDraws++;
     }
 
     if (IssueSqttMarkerEvent)
@@ -3486,8 +3461,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
     uint32            maximumCount,
     gpusize           countGpuAddr)
 {
-    auto*  pThis    = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
-    uint32 numDraws = 0;
+    auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
     PAL_ASSERT(IsPow2Aligned(offset, sizeof(uint32)) && IsPow2Aligned(countGpuAddr, sizeof(uint32)));
     PAL_ASSERT((countGpuAddr != 0) ||
@@ -3559,7 +3533,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
                                                                countGpuAddr,
                                                                pThis->PacketPredicate(),
                                                                pDeCmdSpace);
-                numDraws++;
             }
         }
     }
@@ -3574,7 +3547,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndirectMulti(
                                                        countGpuAddr,
                                                        pThis->PacketPredicate(),
                                                        pDeCmdSpace);
-        numDraws++;
     }
 
     if (IssueSqttMarkerEvent)
@@ -3606,8 +3578,7 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
     uint32            maximumCount,
     gpusize           countGpuAddr)
 {
-    auto*  pThis    = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
-    uint32 numDraws = 0;
+    auto* pThis = static_cast<UniversalCmdBuffer*>(pCmdBuffer);
 
     PAL_ASSERT(IsPow2Aligned(offset, sizeof(uint32)) && IsPow2Aligned(countGpuAddr, sizeof(uint32)));
     PAL_ASSERT((countGpuAddr != 0) ||
@@ -3682,8 +3653,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
                                                                                 pThis->PacketPredicate(),
                                                                                 pDeCmdSpace);
                 }
-
-                numDraws++;
             }
         }
     }
@@ -3700,8 +3669,6 @@ void PAL_STDCALL UniversalCmdBuffer::CmdDrawIndexedIndirectMulti(
                                                                         pThis->PacketPredicate(),
                                                                         pDeCmdSpace);
         }
-
-        numDraws++;
     }
 
     if (IssueSqttMarkerEvent)
@@ -6619,13 +6586,8 @@ uint32* UniversalCmdBuffer::ValidateTriangleRasterState(
 
     if (StateDirty && dirtyFlags.triangleRasterState)
     {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 721
         paSuScModeCntl.bits.POLY_OFFSET_FRONT_ENABLE = params.flags.frontDepthBiasEnable;
         paSuScModeCntl.bits.POLY_OFFSET_BACK_ENABLE  = params.flags.backDepthBiasEnable;
-#else
-        paSuScModeCntl.bits.POLY_OFFSET_FRONT_ENABLE = params.flags.depthBiasEnable;
-        paSuScModeCntl.bits.POLY_OFFSET_BACK_ENABLE  = params.flags.depthBiasEnable;
-#endif
         paSuScModeCntl.bits.MULTI_PRIM_IB_ENA        = 1;
 
         static_assert((static_cast<uint32>(FillMode::Points)    == 0) &&
@@ -7121,14 +7083,12 @@ uint32* UniversalCmdBuffer::ValidateDraw(
         // Typically, ForceWdSwitchOnEop only depends on the primitive topology and restart state.  However, when we
         // disable the hardware WD load balancing feature, we do need to some draw time parameters that can
         // change every draw.
-        const bool            wdSwitchOnEop   = ForceWdSwitchOnEop(*pPipeline, drawInfo);
-        regIA_MULTI_VGT_PARAM iaMultiVgtParam = pPipeline->IaMultiVgtParam(wdSwitchOnEop);
-        regVGT_LS_HS_CONFIG   vgtLsHsConfig   = pPipeline->VgtLsHsConfig();
+        const bool            wdSwitchOnEop      = ForceWdSwitchOnEop(*pPipeline, drawInfo);
+        regIA_MULTI_VGT_PARAM iaMultiVgtParam    = pPipeline->IaMultiVgtParam(wdSwitchOnEop);
+        regVGT_LS_HS_CONFIG   vgtLsHsConfig      = pPipeline->VgtLsHsConfig();
+        const uint32          patchControlPoints = m_graphicsState.inputAssemblyState.patchControlPoints;
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 747)
-        const uint32 patchControlPoints = m_graphicsState.inputAssemblyState.patchControlPoints;
         PAL_ASSERT(IsTessEnabled() || (vgtLsHsConfig.bits.HS_NUM_INPUT_CP == patchControlPoints));
-#endif
 
         if (IsGfx9(m_gfxIpLevel))
         {
@@ -11260,15 +11220,8 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
         m_nggState.numSamples = cmdBuffer.m_nggState.numSamples;
 
         // Update the functions that are modified by nested command list
-        m_pfnValidateUserDataGfx                    = cmdBuffer.m_pfnValidateUserDataGfx;
-        m_pfnValidateUserDataGfxPipelineSwitch      = cmdBuffer.m_pfnValidateUserDataGfxPipelineSwitch;
-        m_funcTable.pfnCmdDraw                      = cmdBuffer.m_funcTable.pfnCmdDraw;
-        m_funcTable.pfnCmdDrawOpaque                = cmdBuffer.m_funcTable.pfnCmdDrawOpaque;
-        m_funcTable.pfnCmdDrawIndexed               = cmdBuffer.m_funcTable.pfnCmdDrawIndexed;
-        m_funcTable.pfnCmdDrawIndirectMulti         = cmdBuffer.m_funcTable.pfnCmdDrawIndirectMulti;
-        m_funcTable.pfnCmdDrawIndexedIndirectMulti  = cmdBuffer.m_funcTable.pfnCmdDrawIndexedIndirectMulti;
-        m_funcTable.pfnCmdDispatchMesh              = cmdBuffer.m_funcTable.pfnCmdDispatchMesh;
-        m_funcTable.pfnCmdDispatchMeshIndirectMulti = cmdBuffer.m_funcTable.pfnCmdDispatchMeshIndirectMulti;
+        m_pfnValidateUserDataGfx               = cmdBuffer.m_pfnValidateUserDataGfx;
+        m_pfnValidateUserDataGfxPipelineSwitch = cmdBuffer.m_pfnValidateUserDataGfxPipelineSwitch;
 
         if (m_cachedSettings.rbPlusSupported != 0)
         {
@@ -11395,13 +11348,6 @@ void UniversalCmdBuffer::LeakNestedCmdBufferState(
     m_nggState.flags.hasPrimShaderWorkload |= cmdBuffer.m_nggState.flags.hasPrimShaderWorkload;
     m_nggState.flags.dirty                 |= cmdBuffer.m_nggState.flags.dirty;
 
-    // It is possible that nested command buffer execute operation which affect the data in the primary buffer
-    m_pm4CmdBufState.flags.gfxBltActive              = cmdBuffer.m_pm4CmdBufState.flags.gfxBltActive;
-    m_pm4CmdBufState.flags.csBltActive               = cmdBuffer.m_pm4CmdBufState.flags.csBltActive;
-    m_pm4CmdBufState.flags.gfxWriteCachesDirty       = cmdBuffer.m_pm4CmdBufState.flags.gfxWriteCachesDirty;
-    m_pm4CmdBufState.flags.csWriteCachesDirty        = cmdBuffer.m_pm4CmdBufState.flags.csWriteCachesDirty;
-    m_pm4CmdBufState.flags.cpWriteCachesDirty        = cmdBuffer.m_pm4CmdBufState.flags.cpWriteCachesDirty;
-    m_pm4CmdBufState.flags.cpMemoryWriteL2CacheStale = cmdBuffer.m_pm4CmdBufState.flags.cpMemoryWriteL2CacheStale;
     if (cmdBuffer.m_deCmdStream.IsPreemptionEnabled() == false)
     {
         m_deCmdStream.DisablePreemption();

@@ -138,6 +138,7 @@ Result Pipeline::PerformRelocationsAndUploadToGpuMemory(
 
         GpuMemoryInternalCreateInfo internalInfo = { };
         internalInfo.flags.alwaysResident        = 1;
+        internalInfo.flags.appRequested          = (IsInternal() == false);
 
         GpuMemory* pGpuMem         = nullptr;
         gpusize    perfDataOffset  = 0;
@@ -178,7 +179,7 @@ Result Pipeline::PerformRelocationsAndUploadToGpuMemory(
 
     if (result == Result::Success)
     {
-        result = pUploader->Begin(clientPreferredHeap);
+        result = pUploader->Begin(clientPreferredHeap, IsInternal());
     }
 
     if (result == Result::Success)
@@ -267,9 +268,6 @@ Result Pipeline::QueryAllocationInfo(
 
         if (pGpuMemList != nullptr)
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
-            pGpuMemList[0].pGpuMemory  = m_gpuMem.Memory();
-#endif
             pGpuMemList[0].address     = m_gpuMem.Memory()->Desc().gpuVirtAddr;
             pGpuMemList[0].offset      = m_gpuMem.Offset();
             pGpuMemList[0].size        = m_gpuMemSize;
@@ -410,13 +408,25 @@ void Pipeline::SetStackSizeInBytes(
     PAL_ASSERT_ALWAYS();
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 797
 // =====================================================================================================================
-// Get the size of the stack managed by compiler backend
+// Get the frontend and backend stack sizes
+Result Pipeline::GetStackSizes(
+    CompilerStackSizes* pSizes
+    ) const
+{
+    // To be Implemented in needed Pipeline classes
+    return Result::Unsupported;
+}
+#else
+// =====================================================================================================================
+// Get the size of the stack
 uint32 Pipeline::GetStackSizeInBytes() const
 {
     // To be Implemented in needed Pipeline classes
     return 0;
 }
+#endif
 
 // =====================================================================================================================
 // Helper method which extracts shader statistics from the pipeline ELF binary for a particular hardware stage.
@@ -727,7 +737,8 @@ GpuHeap PipelineUploader::SelectUploadHeap(
 // and data.  The GPU virtual addresses for the code, data, and register segments are also computed.  The caller is
 // responsible for calling End() which unmaps the GPU memory.
 Result PipelineUploader::Begin(
-    GpuHeap heap)
+    GpuHeap heap,
+    const bool isInternal)
 {
     const PalSettings& settings = m_pDevice->Settings();
     Result result = Result::Success;
@@ -773,6 +784,7 @@ Result PipelineUploader::Begin(
 
         GpuMemoryInternalCreateInfo internalInfo = { };
         internalInfo.flags.alwaysResident = 1;
+        internalInfo.flags.appRequested   = (isInternal == false);
         internalInfo.pPagingFence = &m_pagingFenceVal;
 
         result = m_pDevice->MemMgr()->AllocateGpuMem(createInfo, internalInfo, false, &m_pGpuMemory, &m_baseOffset);

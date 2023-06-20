@@ -90,7 +90,6 @@ Result SvmMgr::Init(
         for (; m_vaStart <= (vaEnd - m_vaSize); m_vaStart += SvmVaAlignment)
         {
             gpusize cpuVaAllocated = 0u;
-            gpusize gpuVaAllocated = 0u;
 
             // Try to reserve the range on the CPU side
             result = VirtualReserve(static_cast<size_t>(m_vaSize),
@@ -107,15 +106,7 @@ Result SvmMgr::Init(
             if (result == Result::Success)
             {
                 // Try to reserve the range on the GPU side
-                result = m_pDevice->ReserveGpuVirtualAddress(VaPartition::Svm, m_vaStart, m_vaSize, false,
-                                                             VirtualGpuMemAccessMode::Undefined, &gpuVaAllocated);
-
-                // Make sure we get the address that we requested
-                if ((result == Result::Success) &&
-                    (gpuVaAllocated != m_vaStart))
-                {
-                    result = Result::ErrorOutOfGpuMemory;
-                }
+                result = m_pDevice->ReserveGpuVirtualAddressSvm(m_vaStart, m_vaSize);
             }
 
             if (result == Result::Success)
@@ -132,12 +123,6 @@ Result SvmMgr::Init(
                 {
                     result = VirtualRelease(reinterpret_cast<void*>(cpuVaAllocated),
                                             static_cast<size_t>(m_vaSize));
-                    PAL_ALERT(result != Result::Success);
-                }
-
-                if (gpuVaAllocated != 0)
-                {
-                    result = m_pDevice->FreeGpuVirtualAddress(gpuVaAllocated, m_vaSize);
                     PAL_ALERT(result != Result::Success);
                 }
 
@@ -173,7 +158,7 @@ Result SvmMgr::Cleanup()
 
     if (m_vaStart != 0)
     {
-        result = m_pDevice->FreeGpuVirtualAddress(m_vaStart, m_vaSize);
+        result = m_pDevice->FreeGpuVirtualAddressSvm(m_vaStart, m_vaSize);
     }
 
     return result;

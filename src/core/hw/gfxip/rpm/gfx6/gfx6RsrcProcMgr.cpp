@@ -623,12 +623,14 @@ void RsrcProcMgr::CmdResolveQuery(
 
     // We can only use the cp packet to do the query resolve in graphics queue also it needs to be an occlusion query
     // with the two flags set. OCCLUSION_QUERY packet resolves a single occlusion query slot.
-    if (Pal::Image::UseCpPacketOcclusionQuery                              &&
-        // BinaryOcclusion might also go inside this path but CP cannot handle that.
-        (queryType == QueryType::Occlusion)                                &&
-        (pCmdBuffer->GetEngineType() == EngineTypeUniversal)               &&
+    // Does not work for BinaryOcclusion.
+    if ((queryType == QueryType::Occlusion)                  &&
+        (pCmdBuffer->GetEngineType() == EngineTypeUniversal) &&
         ((flags == OptCaseWait64) || (flags == OptCaseWait64Accum)))
     {
+        // Condition above would be false due to the flags check for equality:
+        PAL_ASSERT((flags & QueryResultPreferShaderPath) == 0);
+
         auto*const pStream = pCmdBuffer->GetCmdStreamByEngine(CmdBufferEngineSupport::Graphics);
         PAL_ASSERT(pStream != nullptr);
 

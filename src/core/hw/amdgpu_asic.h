@@ -118,6 +118,9 @@
 #if PAL_BUILD_NAVI31
 #define AMDGPU_NAVI31_RANGE        0x01, 0x10
 #endif
+#if PAL_BUILD_NAVI33
+#define AMDGPU_NAVI33_RANGE        0x10, 0x20
+#endif
 #define AMDGPU_RAPHAEL_RANGE       0x01, 0xff
 #define AMDGPU_MENDOCINO_RANGE     0x01, 0xff
 
@@ -174,6 +177,9 @@
 #if PAL_BUILD_NAVI31
 #define ASICREV_IS_NAVI31(r)           ASICREV_IS(r, NAVI31)
 #endif
+#if PAL_BUILD_NAVI33
+#define ASICREV_IS_NAVI33(r)           ASICREV_IS(r, NAVI33)
+#endif
 #define ASICREV_IS_RAPHAEL(r)          ASICREV_IS(r, RAPHAEL)
 #define ASICREV_IS_MENDOCINO(r)        ASICREV_IS(r, MENDOCINO)
 
@@ -225,6 +231,9 @@
 #if PAL_BUILD_NAVI31
 #define AMDGPU_IS_NAVI31(f, r)        AMDGPU_IS(f, r, NV3, NAVI31)
 #endif
+#if PAL_BUILD_NAVI33
+#define AMDGPU_IS_NAVI33(f, r)        AMDGPU_IS(f, r, NV3, NAVI33)
+#endif
 #define AMDGPU_IS_RAPHAEL(f, r)       AMDGPU_IS(f, r, RPL, RAPHAEL)
 #define AMDGPU_IS_MENDOCINO(f, r)     AMDGPU_IS(f, r, MDN, MENDOCINO)
 
@@ -272,6 +281,9 @@
 #if PAL_BUILD_NAVI31
 #define DEVICE_ID_NV3_NAVI31_P_73BF     0x73BF
 #define DEVICE_ID_NV3_NAVI31_P_744C     0x744C
+#endif
+#if PAL_BUILD_NAVI33
+#define DEVICE_ID_NV3_NAVI33_P_73F0     0x73F0
 #endif
 #define DEVICE_ID_RPL_164E              0x164E
 #define DEVICE_ID_MDN_1506              0x1506
@@ -324,6 +336,9 @@
 #define REMBRANDT_B0              0x20
 #if PAL_BUILD_NAVI31
 #define NAVI31_P_A0               0x01
+#endif
+#if PAL_BUILD_NAVI33
+#define NAVI33_P_A0               0x10
 #endif
 #define RAPHAEL_A0                0x01
 #define MENDOCINO_A0              0x01
@@ -390,6 +405,25 @@
 #define PRID_NV3_NAVI31_E0          0xE0
 #define PRID_NV3_NAVI31_EC          0xEC
 #define PRID_NV3_NAVI31_EE          0xEE
+#endif
+#if PAL_BUILD_NAVI33
+#define PRID_NV3_NAVI33_00          0x00
+#define PRID_NV3_NAVI33_3C          0x3C
+#define PRID_NV3_NAVI33_3D          0x3D
+#define PRID_NV3_NAVI33_3E          0x3E
+#define PRID_NV3_NAVI33_3F          0x3F
+#define PRID_NV3_NAVI33_C0          0xC0
+#define PRID_NV3_NAVI33_C1          0xC1
+#define PRID_NV3_NAVI33_C3          0xC3
+#define PRID_NV3_NAVI33_C7          0xC7
+#define PRID_NV3_NAVI33_CF          0xCF
+#define PRID_NV3_NAVI33_F1          0xF1
+#define PRID_NV3_NAVI33_F2          0xF2
+#define PRID_NV3_NAVI33_F3          0xF3
+#define PRID_NV3_NAVI33_F4          0xF4
+#define PRID_NV3_NAVI33_F5          0xF5
+#define PRID_NV3_NAVI33_F6          0xF6
+#define PRID_NV3_NAVI33_F7          0xF7
 #endif
 #define PRID_RMB_00                 0x00
 #define PRID_RPL_00                 0x00

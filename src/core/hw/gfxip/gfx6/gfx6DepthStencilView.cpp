@@ -293,11 +293,7 @@ void DepthStencilView::InitRegisters(
     {
         // NOTE: The client has indicated this Image has promoted 24bit depth to 32bits, we should set the negative num
         // bit as -24 and use fixed points format
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 730
-        bool reducePrecision = createInfo.flags.lowZplanePolyOffsetBits;
-#else
-        bool reducePrecision = false;
-#endif
+        const bool reducePrecision = createInfo.flags.lowZplanePolyOffsetBits;
 
         if (imageCreateInfo.usageFlags.depthAsZ24)
         {

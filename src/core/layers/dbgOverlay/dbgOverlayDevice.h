@@ -28,6 +28,8 @@
 #include "core/layers/decorators.h"
 #include "core/layers/dbgOverlay/dbgOverlayPlatform.h"
 #include "palMutex.h"
+#include "palVector.h"
+#include "palFile.h"
 
 namespace Pal
 {
@@ -185,13 +187,13 @@ public:
 
 private:
 
-    const PalPublicSettings*  m_pSettings;
-    CmdAllocatorDecorator*    m_pCmdAllocator;
-    TextWriter*               m_pTextWriter;
-    TimeGraph*                m_pTimeGraph;
-    DeviceProperties          m_gpuProps;
-    uint32                    m_maxSrdSize;
-    GpuMemoryHeapProperties   m_memHeapProps[GpuHeapCount];
+    const PalPublicSettings*                    m_pSettings;
+    CmdAllocatorDecorator*                      m_pCmdAllocator;
+    TextWriter*                                 m_pTextWriter;
+    TimeGraph*                                  m_pTimeGraph;
+    DeviceProperties                            m_gpuProps;
+    uint32                                      m_maxSrdSize;
+    GpuMemoryHeapProperties                     m_memHeapProps[GpuHeapCount];
 
     // Tracks the total bytes of video memory currently allocated via the external client.
     PAL_ALIGN_CACHE_LINE volatile gpusize m_vidMemTotals[AllocTypeCount][GpuHeapCount];

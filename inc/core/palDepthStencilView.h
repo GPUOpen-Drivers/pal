@@ -46,40 +46,36 @@ struct DepthStencilViewCreateInfo
     {
         struct
         {
-            uint32 readOnlyDepth     :  1;  ///< Disable writes to the depth plane.
-            uint32 readOnlyStencil   :  1;  ///< Disable writes to the stencil plane.
-            uint32 imageVaLocked     :  1;  ///< Whether or not the image's virtual address range is locked and
-                                            ///  never changes.
-            uint32 absoluteDepthBias :  1;  ///< Whether or not use absolute depth bias.
-                                            ///  Absolute depth bias: depth bias will be added to z value directly.
-                                            ///  Scaled depth bias: before adding to z value, depth bias will be
-                                            ///  multiplied to minimum representable z value.
-            uint32 bypassMall        :  1;  ///< Set to have this surface bypass the MALL.  If zero, then this surface
-                                            ///  obeys the  GpuMemMallPolicy specified at memory allocation time.
-                                            ///  Meaningful only on GPUs that have supportsMall set in DeviceProperties.
-            uint32 depthOnlyView     :  1;  ///< If set, this view will be a depth-only view of the specified Image.  It
-                                            ///  is illegal to use this flag on an Image with no depth plane. It's
-                                            ///  illegal to set both depthOnlyView and stencilOnlyView.
-            uint32 stencilOnlyView   :  1;  ///< If set, this view will be a stencil-only view of the specified Image.
-                                            ///  It is illegal to use this flag on an Image with no stencil plane. It's
-                                            ///  illegal to set both depthOnlyView and stencilOnlyView.
-            uint32 resummarizeHiZ    :  1;  ///< Enables resummarizing Hi-Z for touched DB tiles touched by drawing with
-                                            ///  This view. This has no effect if the source Image does not have depth
-                                            ///  compression or if the @ref readOnlyDepth flag is set.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 730
-            uint32 lowZplanePolyOffsetBits : 1; ///< If set, use decreased precision for Z_16/Z_24 formats.
-            uint32 reserved          : 23;  ///< Reserved for future use.
-#else
-            uint32 reserved          : 24;  ///< Reserved for future use.
-#endif
+            uint32 readOnlyDepth           :  1; ///< Disable writes to the depth plane.
+            uint32 readOnlyStencil         :  1; ///< Disable writes to the stencil plane.
+            uint32 imageVaLocked           :  1; ///< Whether or not the image's virtual address range is locked and
+                                                 ///  never changes.
+            uint32 absoluteDepthBias       :  1; ///< Whether or not use absolute depth bias.
+                                                 ///  Absolute depth bias: depth bias will be added to z value directly.
+                                                 ///  Scaled depth bias: before adding to z value, depth bias will be
+                                                 ///  multiplied to minimum representable z value.
+            uint32 bypassMall              :  1; ///< Set to have this surface bypass the MALL. If zero, this surface
+                                                 ///  obeys the GpuMemMallPolicy specified at memory allocation time.
+                                                 ///  Meaningful only if supportsMall is set in DeviceProperties.
+            uint32 depthOnlyView           :  1; ///< If set, this is a depth-only view of the specified Image.
+                                                 ///  It's illegal to use this flag on an Image with no depth plane.
+                                                 ///  It's illegal to set both depthOnlyView and stencilOnlyView.
+            uint32 stencilOnlyView         :  1; ///< If set, this is a stencil-only view of the specified Image.
+                                                 ///  It's illegal to use this flag on an Image with no stencil plane.
+                                                 ///  It's illegal to set both depthOnlyView and stencilOnlyView.
+            uint32 resummarizeHiZ          :  1; ///< Enables resummarizing Hi-Z for DB tiles touched by drawing with
+                                                 ///  this view. This has no effect if the source Image does not have
+                                                 ///  depth compression or if the @ref readOnlyDepth flag is set.
+            uint32 lowZplanePolyOffsetBits :  1; ///< If set, use decreased precision for Z_16/Z_24 formats.
+            uint32 reserved                : 23; ///< Reserved for future use.
         };
-        uint32 u32All;                    ///< Flags packed as 32-bit uint.
-    } flags;                              ///< Depth/stencil view creation flags.
+        uint32 u32All;            ///< Flags packed as 32-bit uint.
+    } flags;                      ///< Depth/stencil view creation flags.
 
-    const IImage* pImage;                 ///< Image associated with the view.
-    uint32        mipLevel;               ///< Mip level to be rendered with this view.
-    uint32        baseArraySlice;         ///< First array slice in the view.
-    uint32        arraySize;              ///< Number of slices in the view.
+    const IImage* pImage;         ///< Image associated with the view.
+    uint32        mipLevel;       ///< Mip level to be rendered with this view.
+    uint32        baseArraySlice; ///< First array slice in the view.
+    uint32        arraySize;      ///< Number of slices in the view.
 };
 
 /**

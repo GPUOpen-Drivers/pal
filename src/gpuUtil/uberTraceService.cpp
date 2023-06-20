@@ -74,7 +74,6 @@ UberTraceService::~UberTraceService()
 }
 
 // =====================================================================================================================
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 712
 DD_RESULT UberTraceService::ConfigureTraceParams(
     const void* pParamBuffer,
     size_t      paramBufferSize)
@@ -83,7 +82,6 @@ DD_RESULT UberTraceService::ConfigureTraceParams(
     DD_RESULT devDriverResult = PalResultToDdResult(result);
     return devDriverResult;
 }
-#endif
 
 // =====================================================================================================================
 DD_RESULT UberTraceService::RequestTrace()

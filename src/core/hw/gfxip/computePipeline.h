@@ -88,7 +88,7 @@ protected:
 
     uint32  m_maxFunctionCallDepth;    // Maximum depth for indirect function calls
     uint32  m_stackSizeInBytes;        // Total stack size for indirect functions
-    uint32  m_backendStackSizeInBytes; // Stack managed by the compiler backend. Only used in Continuation.
+    CompilerStackSizes m_cpsStackSizeInBytes; // Stack used in Continuation.
 
     ShaderStageInfo  m_stageInfo;
 

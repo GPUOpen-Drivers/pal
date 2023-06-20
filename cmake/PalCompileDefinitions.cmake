@@ -121,6 +121,15 @@ function(pal_compile_definitions_gfx9 TARGET)
     endif()
 #endif
 
+#if PAL_BUILD_NAVI33
+    if(PAL_BUILD_NAVI33)
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI33=1)
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_NAVI3X=1)
+        target_compile_definitions(${TARGET} PUBLIC PAL_BUILD_GFX11=1)
+        target_compile_definitions(${TARGET} PRIVATE CHIP_HDR_NAVI33=1)
+    endif()
+#endif
+
 endfunction()
 
 function(pal_compile_definitions_gpu TARGET)

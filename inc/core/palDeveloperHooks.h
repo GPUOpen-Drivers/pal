@@ -136,7 +136,8 @@ struct GpuMemoryData
         uint32 isCmdAllocator   :  1;       ///< This allocation is for a CmdAllocator.
         uint32 isExternal       :  1;       ///< This allocation is marked as external.
         uint32 buddyAllocated   :  1;       ///< This allocation is buddy allocated.
-        uint32 reserved         : 25;       ///< Reserved for future use.
+        uint32 appRequested     :  1;       ///< This allocation is Pal internal, but application requested
+        uint32 reserved         : 24;       ///< Reserved for future use.
     } flags;                                ///< Flags describing the allocation.
 
     GpuMemoryAllocationMethod allocMethod;  ///< Allocation method

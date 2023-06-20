@@ -109,9 +109,7 @@ CmdAllocator::CmdAllocator(
 
     m_flags.u32All          = 0;
     m_flags.autoMemoryReuse = createInfo.flags.autoMemoryReuse;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 707
     m_flags.autoTrimMemory  = createInfo.flags.autoTrimMemory;
-#endif
 
     if (createInfo.flags.disableBusyChunkTracking == 0)
     {

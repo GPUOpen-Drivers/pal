@@ -559,12 +559,30 @@ void ComputePipeline::SetStackSizeInBytes(
     UpdateRingSizes(stackSizeInBytes / sizeof(uint32));
 }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 797
+// =====================================================================================================================
+// Get the size of the stack managed by the compiler, including the backend and the frontend.
+Result ComputePipeline::GetStackSizes(
+    CompilerStackSizes* pSizes
+    ) const
+{
+    Result result = Result::ErrorInvalidPointer;
+
+    if (pSizes != nullptr)
+    {
+        *pSizes = m_cpsStackSizeInBytes;
+        result = Result::Success;
+    }
+    return result;
+}
+#else
 // =====================================================================================================================
 // Get the size of the stack managed by the compiler backend.
 uint32 ComputePipeline::GetStackSizeInBytes() const
 {
-    return m_backendStackSizeInBytes;
+    return m_cpsStackSizeInBytes.backendSize;
 }
+#endif
 
 // =====================================================================================================================
 uint32 ComputePipeline::CalcScratchMemSize(

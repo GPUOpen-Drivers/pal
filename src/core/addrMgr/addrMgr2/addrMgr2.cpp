@@ -1444,7 +1444,6 @@ Result AddrMgr2::ComputeAlignedPlaneDimensions(
         surfInfoIn.pitchInElement = Util::Pow2Align(surfInfoIn.width, Gfx9LinearAlign * 2);
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 722
     const PalSettings& settings = m_pDevice->Settings();
 
     if (settings.waForceLinearHeight16Alignment &&
@@ -1463,7 +1462,6 @@ Result AddrMgr2::ComputeAlignedPlaneDimensions(
             surfInfoIn.height = Util::Pow2Align((surfInfoIn.height << 1), LinearAlignForHeight) >> 1;
         }
     }
-#endif
 
     ADDR_E_RETURNCODE addrRet = Addr2ComputeSurfaceInfo(AddrLibHandle(), &surfInfoIn, pOut);
     if (addrRet == ADDR_OK)

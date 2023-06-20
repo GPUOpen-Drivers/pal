@@ -67,6 +67,7 @@ Result ShaderLibrary::Initialize(
 
     if ((createInfo.pCodeObject != nullptr) && (createInfo.codeObjectSize != 0))
     {
+        m_flags               = createInfo.flags;
         m_codeObjectBinaryLen = createInfo.codeObjectSize;
         m_pCodeObjectBinary   = PAL_MALLOC(m_codeObjectBinaryLen, m_pDevice->GetPlatform(), AllocInternal);
 
@@ -205,7 +206,7 @@ Result ShaderLibrary::PerformRelocationsAndUploadToGpuMemory(
     m_perfDataGpuMemSize = performanceDataOffset;
     Result result        = Result::Success;
 
-    result = pUploader->Begin(clientPreferredHeap);
+    result = pUploader->Begin(clientPreferredHeap, IsInternal());
 
     if (result == Result::Success)
     {
@@ -332,9 +333,6 @@ Result ShaderLibrary::QueryAllocationInfo(
 
         if (pGpuMemList != nullptr)
         {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
-            pGpuMemList[0].pGpuMemory  = m_gpuMem.Memory();
-#endif
             pGpuMemList[0].address     = m_gpuMem.Memory()->Desc().gpuVirtAddr;
             pGpuMemList[0].offset      = m_gpuMem.Offset();
             pGpuMemList[0].size        = m_gpuMemSize;

@@ -40,11 +40,11 @@ namespace DbgOverlay
 // =====================================================================================================================
 CmdBuffer::CmdBuffer(
     ICmdBuffer*   pNextCmdBuffer,
-    const Device* pDevice,
+    Device*const  pDevice,
     QueueType     queueType)
     :
     CmdBufferFwdDecorator(pNextCmdBuffer, pDevice),
-    m_device(*pDevice),
+    m_pDevice(pDevice),
     m_queueType(queueType),
     m_containsPresent(false)
 {
@@ -95,7 +95,7 @@ void CmdBuffer::CmdColorSpaceConversionCopy(
 
             CmdPostProcessDebugOverlayInfo debugOverlayInfo = {};
             debugOverlayInfo.presentMode = PresentMode::Unknown;
-            m_device.GetTextWriter().WriteVisualConfirm(static_cast<const Image&>(srcImage),
+            m_pDevice->GetTextWriter().WriteVisualConfirm(static_cast<const Image&>(srcImage),
                                                         this,
                                                         debugOverlayInfo);
 
@@ -104,7 +104,7 @@ void CmdBuffer::CmdColorSpaceConversionCopy(
             CmdBarrier(barrier);
         }
 
-        auto*const pFpsMgr = static_cast<Platform*>(m_device.GetPlatform())->GetFpsMgr();
+        auto*const pFpsMgr = static_cast<Platform*>(m_pDevice->GetPlatform())->GetFpsMgr();
 
         pFpsMgr->IncrementFrameCount();
 
@@ -167,7 +167,7 @@ void CmdBuffer::DrawOverlay(
         }
         // Draw the debug overlay using this command buffer. Note that the DX runtime controls whether the
         // present will be windowed or fullscreen. We have no reliable way to detect the chosen present mode.
-        m_device.GetTextWriter().WriteVisualConfirm(static_cast<const Image&>(*pSrcImage),
+        m_pDevice->GetTextWriter().WriteVisualConfirm(static_cast<const Image&>(*pSrcImage),
                                                     this,
                                                     expectedDebugOverlayInfo);
 
@@ -190,7 +190,7 @@ void CmdBuffer::DrawOverlay(
     if (settings.debugOverlayConfig.timeGraphEnabled == true)
     {
         // Draw the time graph using this command buffer.
-        m_device.GetTimeGraph().DrawVisualConfirm(static_cast<const Image&>(*pSrcImage), this);
+        m_pDevice->GetTimeGraph().DrawVisualConfirm(static_cast<const Image&>(*pSrcImage), this);
 
         transition.dstCacheMask               = CoherPresent;
         transition.imageInfo.newLayout.usages = LayoutPresentWindowed | LayoutPresentFullscreen;
@@ -208,7 +208,7 @@ void CmdBuffer::CmdPostProcessFrame(
 {
     // Only an Image supports visual confirm
     if ((postProcessInfo.flags.srcIsTypedBuffer == 0) &&
-        (m_device.GetSettings()->disableDebugOverlayVisualConfirm == false) &&
+        (m_pDevice->GetSettings()->disableDebugOverlayVisualConfirm == false) &&
         Device::DetermineDbgOverlaySupport(m_queueType))
     {
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 787

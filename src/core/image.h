@@ -157,7 +157,8 @@ union InternalImageFlags
         uint32 vrsOnlyDepth                :  1;  // Setting this causes an image to allocate memory only for its hTile.
                                                   // Meant for use with VRS when the client hasn't bound a depth buffer.
         uint32 useSharedDccState           :  1;  // Use the shared dcc block sizing
-        uint32 reserved                    : 21;
+        uint32 useForcedDcc                :  1;  // Force dcc-enabled or not.
+        uint32 reserved                    : 20;
     };
     uint32 value;
 };
@@ -290,7 +291,6 @@ class Image : public IImage
 public:
     static constexpr ClearMethod DefaultSlowClearMethod    = ClearMethod::NormalGraphics;
     static constexpr bool        PreferGraphicsCopy        = true;
-    static constexpr bool        UseCpPacketOcclusionQuery = true;
 
     static Result ValidateCreateInfo(
         const Device*                  pDevice,
@@ -317,6 +317,12 @@ public:
     void DestroyInternal();
 
     virtual Result GetSubresourceLayout(SubresId subresId, SubresLayout* pLayout) const override;
+
+#if defined(__unix__)
+    virtual Result GetModifierSubresourceLayout(uint32 memoryPlane, SubresLayout* pLayout) const override
+        { return Result::Success; }
+#endif
+
     virtual Result BindGpuMemory(IGpuMemory* pGpuMemory, gpusize offset) override;
 
     Device* GetDevice() const { return m_pDevice; }

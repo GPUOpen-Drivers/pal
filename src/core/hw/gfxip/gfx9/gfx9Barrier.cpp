@@ -1064,13 +1064,8 @@ void Device::Barrier(
         // occur in the API-defined pipeline order.  This is a narrow data hazard, but to safely avoid it we need to
         // adjust the pre color target wait point to be before any pixel shader waves launch. VS has same issue, so
         // adjust the wait point to the latest before any pixel/vertex wave launches which is HwPipePostPrefetch.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 743
-        waitPoint = (Parent()->GetPublicSettings()->forceWaitPointPreColorToPostIndexFetch) ? HwPipePostPrefetch
-                                                                                            : HwPipePostPs;
-#else
         waitPoint = (Parent()->GetPublicSettings()->forceWaitPointPreColorToPostPrefetch) ? HwPipePostPrefetch
                                                                                           : HwPipePostPs;
-#endif
     }
 
     // Determine sync requirements for global pipeline waits.

@@ -721,6 +721,95 @@ const ComputePipeline* RsrcProcMgr::GetCopyImageComputePipeline(
 }
 
 // =====================================================================================================================
+const ComputePipeline* RsrcProcMgr::GetScaledCopyImageComputePipeline(
+    const Image& srcImage,
+    const Image& dstImage,
+    TexFilter    filter,
+    bool         is3d,
+    bool*        pIsFmaskCopy
+) const
+{
+    const auto& srcInfo = srcImage.GetImageCreateInfo();
+    RpmComputePipeline pipeline = RpmComputePipeline::Count;
+
+    if (is3d)
+    {
+        pipeline = RpmComputePipeline::ScaledCopyImage3d;
+    }
+    else if (srcInfo.fragments > 1)
+    {
+#if PAL_BUILD_GFX11
+        // HW doesn't support UAV writes to depth/stencil MSAA surfaces on pre-gfx11.
+        // On gfx11, UAV writes to MSAA D + S images will work if HTile is fully decompressed.
+        if (IsGfx11(*m_pDevice->Parent()) == false)
+#endif
+        {
+            PAL_ASSERT((srcImage.IsDepthStencilTarget() == false) && (dstImage.IsDepthStencilTarget() == false));
+        }
+
+        // EQAA images with FMask disabled are unsupported for scaled copy. There is no use case for
+        // EQAA and it would require several new shaders. It can be implemented if needed at a future point.
+        PAL_ASSERT(srcInfo.samples == srcInfo.fragments);
+
+        // Sampling msaa image with linear filter for scaled copy are unsupported, It should be simulated in
+        // shader if needed at a future point.
+        if (filter.magnification != Pal::XyFilterPoint)
+        {
+            PAL_ASSERT_MSG(0, "HW doesn't support image Opcode for msaa image with sampler");
+        }
+
+        if (srcImage.GetGfxImage()->HasFmaskData())
+        {
+            pipeline = RpmComputePipeline::MsaaFmaskScaledCopy;
+            *pIsFmaskCopy = true;
+        }
+        else
+        {
+            // Scaled MSAA copies that don't use FMask.
+            //
+            // We have two different scaled copy algorithms which read and write the fragments of an 8x8 pixel tile in
+            // different orders.The simple one assigns each thread to a single pixel and iterates over the fragment
+            // index; this works well if the image treats the fragment index like a slice index and stores samples in
+            // planes. The more complex Morton/Z order algorithm assigns sequential threads to sequential fragment
+            // indices and walks the memory requests around the 8x8 pixel tile in Morton/Z order; this works well if
+            // the image stores each pixel's samples sequentially in memory (and also stores tiles in Morton/Z order).
+            const bool useMorton = CopyImageCsUseMsaaMorton(dstImage);
+            if (useMorton)
+            {
+                switch (srcInfo.fragments)
+                {
+                case 2:
+                    pipeline = RpmComputePipeline::ScaledCopyImage2dMorton2x;
+                    break;
+
+                case 4:
+                    pipeline = RpmComputePipeline::ScaledCopyImage2dMorton4x;
+                    break;
+
+                case 8:
+                    pipeline = RpmComputePipeline::ScaledCopyImage2dMorton8x;
+                    break;
+
+                default:
+                    PAL_ASSERT_ALWAYS();
+                    break;
+                };
+            }
+            else
+            {
+                pipeline = RpmComputePipeline::MsaaScaledCopyImage2d;
+            }
+        }
+    }
+    else
+    {
+        pipeline = RpmComputePipeline::ScaledCopyImage2d;
+    }
+
+    return GetPipeline(pipeline);
+}
+
+// =====================================================================================================================
 // Gives the hardare layers some influence over GetCopyImageComputePipeline.
 bool RsrcProcMgr::CopyImageCsUseMsaaMorton(
     const Image& dstImage
@@ -1955,49 +2044,12 @@ void RsrcProcMgr::ScaledCopyImageCompute(
     // GFX10+: IL type declarations set DIM, which controls the parameters [S,R,T,Q] to alloc.
     //    [S,R] can be generalized for sampler operations. 2D array also works
     //      [T] is interpreted differently by samplers if DIM is 3D.
-    const ComputePipeline* pPipeline = nullptr;
-    if (is3d)
-    {
-        pPipeline = GetPipeline(RpmComputePipeline::ScaledCopyImage3d);
-    }
-    else
-    {
-        const bool isDepth = (pSrcImage->IsDepthStencilTarget() || pDstImage->IsDepthStencilTarget());
-
-        if (srcInfo.fragments > 1)
-        {
-            // HW doesn't support UAV writes to depth/stencil MSAA surfaces.
-            PAL_ASSERT(isDepth == false);
-
-            // EQAA images with FMask disabled are unsupported for scaled copy. There is no use case for
-            // EQAA and it would require several new shaders. It can be implemented if needed at a future point.
-            PAL_ASSERT(srcInfo.samples == srcInfo.fragments);
-
-            // Sampling msaa image with linear filter for scaled copy are unsupported, It should be simulated in
-            // shader if needed at a future point.
-            if (copyInfo.filter.magnification != Pal::XyFilterPoint)
-            {
-                PAL_ASSERT_MSG(0, "HW doesn't support image Opcode for msaa image with sampler");
-            }
-
-            if (pSrcGfxImage->HasFmaskData())
-            {
-                pPipeline = GetPipeline(RpmComputePipeline::MsaaFmaskScaledCopy);
-                isFmaskCopy = true;
-            }
-            else
-            {
-                pPipeline = GetPipeline(RpmComputePipeline::MsaaScaledCopyImage2d);
-            }
-        }
-        else
-        {
-            pPipeline = GetPipeline(RpmComputePipeline::ScaledCopyImage2d);
-        }
-    }
-
-    // Get number of threads per groups in each dimension, we will need this data later.
-    const DispatchDims threadsPerGroup = pPipeline->ThreadsPerGroupXyz();
+    const ComputePipeline* pPipeline = GetScaledCopyImageComputePipeline(
+        *pSrcImage,
+        *pDstImage,
+        copyInfo.filter,
+        is3d,
+        &isFmaskCopy);
 
     PAL_ASSERT(pCmdBuffer->IsComputeStateSaved());
 
@@ -2351,10 +2403,12 @@ void RsrcProcMgr::ScaledCopyImageCompute(
 
             const uint32 zGroups = is3d ? absDstExtentD : copyRegion.numSlices;
 
-            // Execute the dispatch, we need one thread per texel.
-            const DispatchDims threads = {absDstExtentW, absDstExtentH, zGroups};
+            // Execute the dispatch. All of our scaledCopyImage shaders split the copy window into 8x8x1-texel tiles.
+            // All of them simply define their threadgroup as an 8x8x1 grid and assign one texel to each thread.
+            constexpr DispatchDims texelsPerGroup = { 8, 8, 1 };
+            const     DispatchDims texels = { absDstExtentW, absDstExtentH, zGroups };
 
-            pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(threads, threadsPerGroup));
+            pCmdBuffer->CmdDispatch(RpmUtil::MinThreadGroupsXyz(texels, texelsPerGroup));
         }
     }
 
@@ -3516,104 +3570,134 @@ void RsrcProcMgr::CmdClearColorBuffer(
     const Range*      pRanges
     ) const
 {
-    const auto* pPublicSettings = m_pDevice->Parent()->GetPublicSettings();
-
-    ClearColor clearColor = color;
-
-    uint32 convertedColor[4] = {0};
-
-    if (clearColor.type == ClearColorType::Float)
+    const Range defaultRange = { 0, bufferExtent };
+    if (rangeCount == 0)
     {
-        Formats::ConvertColor(bufferFormat, &clearColor.f32Color[0], &convertedColor[0]);
-    }
-    else
-    {
-        memcpy(&convertedColor[0], &clearColor.u32Color[0], sizeof(convertedColor));
+        rangeCount = 1;
+        pRanges = &defaultRange;
     }
 
     // Pack the clear color into the form it is expected to take in memory.
     constexpr uint32 PackedColorDwords = 4;
-    uint32           packedColor[PackedColorDwords] = {0};
-    Formats::PackRawClearColor(bufferFormat, &convertedColor[0], &packedColor[0]);
-
-    // This is the raw format that we will be writing.
-    uint32               texelScale    = 0;
-    const SwizzledFormat rawFormat     = RpmUtil::GetRawFormat(bufferFormat.format, &texelScale, nullptr);
-    const uint32         bpp           = Formats::BytesPerPixel(rawFormat.format);
-    const bool           texelScaleOne = (texelScale == 1);
-
-    // Get the appropriate pipeline.
-    const auto*const pPipeline = GetPipeline(RpmComputePipeline::ClearBuffer);
-    const uint32     threadsPerGroup = pPipeline->ThreadsPerGroup();
-
-    // Save current command buffer state and bind the pipeline.
-    pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
-    pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
-
-    // some formats (notably RGB32) require multiple passes, e.g. we cannot write 12b texels (see RpmUtil::GetRawFormat)
-    // for all other formats this loop will run a single iteration
-    // This is pretty confusing, maybe we should have a separate TexelScale version like the clearImage shaders.
-    for (uint32 channel = 0; channel < texelScale; channel++)
+    uint32           packedColor[PackedColorDwords] = { };
+    if (color.type == ClearColorType::Float)
     {
-        // Create an embedded SRD table and bind it to user data 0. We only need a single buffer view.
-        uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
-                                                                   SrdDwordAlignment(),
-                                                                   SrdDwordAlignment(),
-                                                                   PipelineBindPoint::Compute,
-                                                                   0);
-
-        // Build an SRD we can use to write to any texel within the buffer using our raw format.
-        BufferViewInfo dstViewInfo = {};
-        dstViewInfo.gpuAddr        = dstGpuMemory.Desc().gpuVirtAddr +
-                                     (texelScaleOne ? bpp : 1) * (bufferOffset) + channel * bpp;
-        dstViewInfo.range          = bpp * texelScale * bufferExtent;
-        dstViewInfo.stride         = bpp * texelScale;
-        dstViewInfo.swizzledFormat = texelScaleOne ? rawFormat : UndefinedSwizzledFormat;
-        dstViewInfo.flags.bypassMallRead  = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
-                                                           RpmViewsBypassMallOnRead);
-        dstViewInfo.flags.bypassMallWrite = TestAnyFlagSet(pPublicSettings->rpmViewsBypassMall,
-                                                           RpmViewsBypassMallOnWrite);
-
-        if (texelScaleOne)
-        {
-            m_pDevice->Parent()->CreateTypedBufferViewSrds(1, &dstViewInfo, pSrdTable);
-        }
-        else
-        {
-            // we have to use non-standard stride, which is incompatible with TypedBufferViewSrd contract
-            m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &dstViewInfo, pSrdTable);
-        }
-
-        // Embed the constants in the remaining fast user-data entries. The clear color is constant over all ranges
-        // so we can set it here. Note we need to only write one channel at a time if texelScale != 1.
-        pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1,
-                                   texelScaleOne ? PackedColorDwords : 1, packedColor + channel);
-
-        // We will do a dispatch for every range. If no ranges are given then we will do a single full buffer dispatch.
-        const Range  defaultRange    = { 0, bufferExtent };
-        const bool   hasRanges       = (rangeCount > 0);
-        const uint32 dispatchCount   = hasRanges ? rangeCount : 1;
-        const Range* pDispatchRanges = hasRanges ? pRanges    : &defaultRange;
-
-        for (uint32 i = 0; i < dispatchCount; i++)
-        {
-            // Verify that the range is contained within the view.
-            PAL_ASSERT((pDispatchRanges[i].offset >= 0) &&
-                       (pDispatchRanges[i].offset + pDispatchRanges[i].extent <= bufferExtent));
-
-            // The final two constant buffer entries are the range offset and range extent.
-            const uint32 userData[2] = { static_cast<uint32>(pDispatchRanges[i].offset), pDispatchRanges[i].extent };
-            pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1 + PackedColorDwords, 2, userData);
-
-            // Execute the dispatch.
-            const uint32 numThreadGroups = RpmUtil::MinThreadGroups(pDispatchRanges[i].extent, threadsPerGroup);
-
-            pCmdBuffer->CmdDispatch({numThreadGroups, 1, 1});
-        }
+        uint32 convertedColor[4] = { };
+        Formats::ConvertColor(bufferFormat, &color.f32Color[0], &convertedColor[0]);
+        Formats::PackRawClearColor(bufferFormat, &convertedColor[0], &packedColor[0]);
+    }
+    else
+    {
+        Formats::PackRawClearColor(bufferFormat, &color.u32Color[0], &packedColor[0]);
     }
 
-    // Restore original command buffer state.
-    pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    // This is the raw format that we will be writing.
+    // bpp is for the rawFormat and will be different than the bpp of the non-raw format when (texelScale != 1).
+    uint32               texelScale    = 0;
+    const SwizzledFormat rawFormat     = RpmUtil::GetRawFormat(bufferFormat.format, &texelScale, nullptr);
+    const uint32         bpp           = Formats::BytesPerPixel(rawFormat.format); // see above
+    const bool           texelScaleOne = (texelScale == 1);
+
+    // CmdFillMemory may store 16 bytes at a time, which is more efficient than the default path for small formats:
+    uint32 filler = packedColor[0];
+    bool texelCompatibleForDwordFill = true;
+    switch (bpp)
+    {
+    case 1:
+        filler &= 0xffu; // might not be needed
+        filler = ReplicateByteAcrossDword(filler);
+        break;
+    case 2:
+        filler &= 0xffffu; // might not be needed
+        filler = (filler << 16) | filler;
+        break;
+    case 4:
+        break;
+    case 8:
+        // Maybe should also check the range is 16-byte aligned, in which case the FillMemory opt may not kick in.
+        texelCompatibleForDwordFill = (filler == packedColor[1]);
+        break;
+    default:
+        texelCompatibleForDwordFill = false;
+        break;
+    }
+    const gpusize numBytes = gpusize(pRanges[0].extent) * bpp; // if not a 12-byte format
+    const gpusize byteOffset = (gpusize(bufferOffset) + pRanges[0].offset) * bpp; // if not a 12-byte format
+    const bool dwordAlignedSingleRange = (((byteOffset | numBytes) & 3) == 0) && (rangeCount == 1);
+    if (texelScaleOne && dwordAlignedSingleRange && texelCompatibleForDwordFill)
+    {
+        pCmdBuffer->CmdFillMemory(dstGpuMemory, byteOffset, numBytes, filler);
+    }
+    else
+    {
+        const PalPublicSettings* pPublicSettings = m_pDevice->Parent()->GetPublicSettings();
+        const RpmViewsBypassMall rpmMallFlags = pPublicSettings->rpmViewsBypassMall;
+
+        // Get the appropriate pipeline.
+        const auto* const pPipeline = GetPipeline(RpmComputePipeline::ClearBuffer);
+        const uint32     threadsPerGroup = pPipeline->ThreadsPerGroup();
+
+        // Save current command buffer state and bind the pipeline.
+        pCmdBuffer->CmdSaveComputeState(ComputeStatePipelineAndUserData);
+        pCmdBuffer->CmdBindPipeline({ PipelineBindPoint::Compute, pPipeline, InternalApiPsoHash, });
+
+        // some formats (notably RGB32) require multiple passes, e.g. we cannot write 12b texels (see RpmUtil::GetRawFormat)
+        // for all other formats this loop will run a single iteration
+        // This is pretty confusing, maybe we should have a separate TexelScale version like the clearImage shaders.
+        for (uint32 channel = 0; channel < texelScale; channel++)
+        {
+            // Create an embedded SRD table and bind it to user data 0. We only need a single buffer view.
+            uint32* pSrdTable = RpmUtil::CreateAndBindEmbeddedUserData(pCmdBuffer,
+                SrdDwordAlignment(),
+                SrdDwordAlignment(),
+                PipelineBindPoint::Compute,
+                0);
+
+            // Build an SRD we can use to write to any texel within the buffer using our raw format.
+            BufferViewInfo dstViewInfo = {};
+            dstViewInfo.gpuAddr = dstGpuMemory.Desc().gpuVirtAddr +
+                                  (texelScaleOne ? bpp : 1) * (bufferOffset)+channel * bpp;
+            dstViewInfo.range  = bpp * texelScale * bufferExtent;
+            dstViewInfo.stride = bpp * texelScale;
+            dstViewInfo.swizzledFormat = texelScaleOne ? rawFormat : UndefinedSwizzledFormat;
+            dstViewInfo.flags.bypassMallRead  = TestAnyFlagSet(rpmMallFlags, RpmViewsBypassMallOnRead);
+            dstViewInfo.flags.bypassMallWrite = TestAnyFlagSet(rpmMallFlags, RpmViewsBypassMallOnWrite);
+
+            if (texelScaleOne)
+            {
+                m_pDevice->Parent()->CreateTypedBufferViewSrds(1, &dstViewInfo, pSrdTable);
+            }
+            else
+            {
+                // we have to use non-standard stride, which is incompatible with TypedBufferViewSrd contract
+                m_pDevice->Parent()->CreateUntypedBufferViewSrds(1, &dstViewInfo, pSrdTable);
+            }
+
+            // Embed the constants in the remaining fast user-data entries. The clear color is constant over all ranges
+            // so we can set it here. Note we need to only write one channel at a time if texelScale != 1.
+            pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1,
+                texelScaleOne ? PackedColorDwords : 1, packedColor + channel);
+
+            for (uint32 i = 0; i < rangeCount; i++)
+            {
+                // Verify that the range is contained within the view.
+                PAL_ASSERT((pRanges[i].offset >= 0) &&
+                           (pRanges[i].offset + pRanges[i].extent <= bufferExtent));
+
+                // The final two constant buffer entries are the range offset and range extent.
+                const uint32 userData[2] = { static_cast<uint32>(pRanges[i].offset), pRanges[i].extent };
+                pCmdBuffer->CmdSetUserData(PipelineBindPoint::Compute, 1 + PackedColorDwords, 2, userData);
+
+                // Execute the dispatch.
+                const uint32 numThreadGroups = RpmUtil::MinThreadGroups(pRanges[i].extent, threadsPerGroup);
+
+                pCmdBuffer->CmdDispatch({ numThreadGroups, 1, 1 });
+            }
+        }
+
+        // Restore original command buffer state.
+        pCmdBuffer->CmdRestoreComputeState(ComputeStatePipelineAndUserData);
+    }
 }
 
 // =====================================================================================================================

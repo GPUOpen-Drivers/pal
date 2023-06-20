@@ -474,6 +474,25 @@
       "Description": "Enable adaptive sync (variable refresh rate) for a window of Xserver"
     },
     {
+      "Name": "EnableGangSubmit",
+      "Tags": [
+        "General",
+        "Debug"
+      ],
+      "Defaults": {
+        "Default": false
+      },
+      "DependsOn": {
+        "OS": [
+          "Linux"
+        ]
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "enableGangSubmit",
+      "Description": "Enable gang submit for test purpose"
+    },
+    {
       "Description": "When set to true, swizzle mode determination will be implemented as follows: AddrLib returns a list of valid modes that are allowed on the corresponding hardware configuration, and PAL will choose a mode from that list based on any client preferences. Only for GFX11",
       "Tags": [
         "General"
@@ -912,42 +931,6 @@
       "Type": "bool",
       "VariableName": "forceT2tScanlineCopies",
       "Description": "Forces all Tile2Tile sDMA SubWindow copies to be done piecewise by scanline."
-    },
-    {
-      "ValidValues": {
-        "IsEnum": true,
-        "IsExclusive": true,
-        "Values": [
-          {
-            "Name": "VmAlwaysValidForceDisable",
-            "Value": 0,
-            "Description": "Force the optimization always disabled"
-          },
-          {
-            "Name": "VmAlwaysValidDefaultEnable",
-            "Value": 1,
-            "Description": "Only enable the optimization when kernel driver can support"
-          },
-          {
-            "Name": "VmAlwaysValidForceEnable",
-            "Value": 2,
-            "Description": "Force the optimization always enabled"
-          }
-        ],
-        "Name": "VmAlwaysValidEnable",
-        "Description": "Defines the supported VM always valid modes."
-      },
-      "Name": "EnableVmAlwaysValid",
-      "Tags": [
-        "Performance"
-      ],
-      "Defaults": {
-        "Default": "VmAlwaysValidDefaultEnable"
-      },
-      "Scope": "PrivatePalKey",
-      "Type": "enum",
-      "VariableName": "enableVmAlwaysValid",
-      "Description": "With this feature enabled VM addresses are always valid within the local VM context.  This eliminates the need to add private memory into the resource list. This may reduce the runtime overhead of submission on Linux, but won't work for memory shared by multiple processes."
     },
     {
       "Name": "DisableSyncObject",
@@ -1672,6 +1655,24 @@
       "Type": "bool",
       "VariableName": "enableUswcHeapAllAllocations",
       "Description": "If true, then this change causes PAL to automatically consider GART to be a valid heap for many allocations."
+    },
+    {
+      "Name": "EnableWddmAllocChunking",
+      "Tags": [
+        "Resource Settings"
+      ],
+      "Defaults": {
+        "Default": true
+      },
+      "DependsOn": {
+        "OS": [
+          "Win10"
+        ]
+      },
+      "Scope": "PrivatePalKey",
+      "Type": "bool",
+      "VariableName": "enableWddmAllocChunking",
+      "Description": "If true, then large allocations under WDDM may be split into multiple backing allocations to avoid OS limits."
     },
     {
       "ValidValues": {

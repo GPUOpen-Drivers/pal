@@ -29,6 +29,7 @@
 #include "core/os/amdgpu/amdgpuSwapChain.h"
 #include "core/os/amdgpu/amdgpuWindowSystem.h"
 #include "core/addrMgr/addrMgr1/addrMgr1.h"
+#include "core/hw/gfxip/gfx9/gfx9MaskRam.h"
 #include "palFormatInfo.h"
 #include "palSysMemory.h"
 
@@ -543,7 +544,8 @@ Result Image::GetExternalSharedImageCreateInfo(
             pCreateInfo->usageFlags.depthStencil |= pMetadata->flags.depth_stencil;
 
             pCreateInfo->flags.optimalShareable = pMetadata->flags.optimal_shareable;
-            pCreateInfo->flags.presentable      = (device.ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9)
+            pCreateInfo->flags.presentable      = ((device.ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9) &&
+                                                   (pCreateInfo->flags.hasModifier == 0))
                                                     ? AMDGPU_TILING_GET(sharedInfo.info.metadata.tiling_info, SCANOUT)
                                                     : false;
             pCreateInfo->flags.flippable        = pCreateInfo->flags.presentable;
@@ -763,6 +765,15 @@ Result Image::CreateExternalSharedImage(
             createInfo.metadataTcCompatMode   = MetadataTcCompatMode::Default;
         }
     }
+
+    if (openInfo.flags.hasModifier != 0)
+    {
+        pDevice->GetModifierInfo(openInfo.modifier, &createInfo, &internalCreateInfo);
+
+        internalCreateInfo.sharedMetadata.dccOffset[0]        = openInfo.dccOffset;
+        internalCreateInfo.sharedMetadata.displayDccOffset[0] = openInfo.displayDccOffset;
+    }
+
     Pal::Image* pImage = nullptr;
     if (result == Result::Success)
     {
@@ -856,6 +867,59 @@ void Image::SetIdle(
 
         pAmdgpuDevice->DirtyGlobalReferences();
     }
+}
+
+// =====================================================================================================================
+// Fills in the SubresLayout struct with info for the image with drm format modifier.
+Result Image::GetModifierSubresourceLayout(
+    uint32        memoryPlane,
+    SubresLayout* pLayout
+    ) const
+{
+    Result ret = Result::ErrorInvalidValue;
+
+    DccState dccState = {};
+
+    if (pLayout != nullptr)
+    {
+        switch (memoryPlane)
+        {
+        // Order of memory plane subresource layout is defined by drm_fourcc.h.
+        case 0:
+            // The main surface layout is already obtained from GetSubresourceLayout().
+            PAL_ASSERT_ALWAYS();
+            break;
+        case 1:
+            if (GetGfxImage()->HasDisplayDccData())
+            {
+                GetGfxImage()->GetDisplayDccState(&dccState);
+            }
+            else
+            {
+                GetGfxImage()->GetDccState(&dccState);
+            }
+            pLayout->offset     = dccState.primaryOffset;
+            pLayout->size       = dccState.size;
+            pLayout->rowPitch   = dccState.pitch;
+            break;
+        case 2:
+            GetGfxImage()->GetDccState(&dccState);
+            pLayout->offset     = dccState.primaryOffset;
+            pLayout->size       = dccState.size;
+            pLayout->rowPitch   = dccState.pitch;
+            break;
+        default:
+            PAL_ASSERT_ALWAYS();
+            break;
+        }
+
+        if (pLayout->size != 0)
+        {
+            ret = Result::Success;
+        }
+    }
+
+    return ret;
 }
 
 } // Linux

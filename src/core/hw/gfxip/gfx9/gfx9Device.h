@@ -663,6 +663,8 @@ public:
     uint32 GetNumPipesLog2() const         { return GetGbAddrConfig().bits.NUM_PIPES; }
     uint32 GetNumShaderEnginesLog2() const { return GetGbAddrConfig().bits.NUM_SHADER_ENGINES; }
     uint32 GetNumRbsPerSeLog2() const      { return GetGbAddrConfig().bits.NUM_RB_PER_SE; }
+    uint32 GetNumBanksLog2() const         { return GetGbAddrConfig().gfx09.NUM_BANKS; }
+    uint32 GetNumPkrsLog2() const          { return GetGbAddrConfig().gfx103PlusExclusive.NUM_PKRS; }
 
     uint32 GetPipeInterleaveLog2() const;
 

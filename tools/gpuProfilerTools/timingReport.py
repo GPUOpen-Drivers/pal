@@ -278,7 +278,10 @@ for pipelineType in collections.OrderedDict(sorted(perPipelineTypeTable.items(),
                pctOfFrame))
 print("\n")
 
-print("== Top Pipelines (>= 1%) ========================================================================================================================\n")
+if enPrintAllPipelines:
+    print("== Top Pipelines ========================================================================================================================\n")
+else:
+    print("== Top Pipelines (>= 1%) ========================================================================================================================\n")
 pipelineNum = 0
 hidden = 0
 print("   Compiler Hash         | Type         | Avg. Call Count | Avg. GPU Time [us] | Avg. Frame %")
@@ -301,7 +304,10 @@ if hidden > 0:
     print("\n  + {0:d} pipelines not shown (< 1%).".format(hidden))
 print("\n")
 
-print("== Top Pipeline/Shader Hashes (>= 1%) ===========================================================================================================\n")
+if enPrintAllPipelines:
+    print("== Top Pipeline/Shader Hashes ===========================================================================================================\n")
+else:
+    print("== Top Pipeline/Shader Hashes (>= 1%) ===========================================================================================================\n")
 pipelineNum = 0
 hidden = 0
 print("   Compiler Hash         | Type       | VS/CS Hash                         | HS Hash                            | DS Hash                            | GS Hash                            | PS Hash                            ")
@@ -328,7 +334,10 @@ if hidden > 0:
     print("\n  + {0:d} pipelines not shown (< 1%).".format(hidden))
 print("\n")
 
-print("== Top Pixel Shaders (>= 1%) ====================================================================================================================\n")
+if enPrintAllPipelines:
+    print("== Top Pixel Shaders ====================================================================================================================\n")
+else:
+    print("== Top Pixel Shaders (>= 1%) ====================================================================================================================\n")
 psNum = 0
 hidden = 0
 print("   PS Hash                                | Avg. Call Count | Avg. GPU Time [us] | Avg. Frame %")

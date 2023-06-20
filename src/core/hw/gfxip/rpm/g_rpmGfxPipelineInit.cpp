@@ -106,6 +106,12 @@ Result CreateRpmGraphicsPipelines(
         break;
 #endif
 
+#if PAL_BUILD_NAVI33
+    case AsicRevision::Navi33:
+        pTable = rpmGfxBinaryTableNavi33;
+        break;
+#endif
+
     default:
         result = Result::ErrorUnknown;
         PAL_NOT_IMPLEMENTED();
@@ -271,7 +277,7 @@ Result CreateRpmGraphicsPipelines(
         || (properties.gfxLevel == GfxIpLevel::GfxIp9)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_1)
         || (properties.gfxLevel == GfxIpLevel::GfxIp10_3)
-#if PAL_BUILD_NAVI31
+#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI33
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
 #endif
         ))
@@ -3582,9 +3588,9 @@ Result CreateRpmGraphicsPipelines(
             AllocInternal);
     }
 
-#if PAL_BUILD_NAVI31
+#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI33
     if (result == Result::Success && (false
-#if PAL_BUILD_NAVI31
+#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI33
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
 #endif
         ))
@@ -3617,7 +3623,7 @@ Result CreateRpmGraphicsPipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_NAVI31
+#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI33
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
 #endif
         ))
@@ -3650,7 +3656,7 @@ Result CreateRpmGraphicsPipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_NAVI31
+#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI33
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
 #endif
         ))
@@ -3683,7 +3689,7 @@ Result CreateRpmGraphicsPipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_NAVI31
+#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI33
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
 #endif
         ))
@@ -3716,7 +3722,7 @@ Result CreateRpmGraphicsPipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_NAVI31
+#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI33
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
 #endif
         ))
@@ -3749,7 +3755,7 @@ Result CreateRpmGraphicsPipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_NAVI31
+#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI33
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
 #endif
         ))
@@ -3782,7 +3788,7 @@ Result CreateRpmGraphicsPipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_NAVI31
+#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI33
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
 #endif
         ))
@@ -3815,7 +3821,7 @@ Result CreateRpmGraphicsPipelines(
     }
 
     if (result == Result::Success && (false
-#if PAL_BUILD_NAVI31
+#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI33
         || (properties.gfxLevel == GfxIpLevel::GfxIp11_0)
 #endif
         ))

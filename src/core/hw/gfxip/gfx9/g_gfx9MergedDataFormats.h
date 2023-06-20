@@ -11117,7 +11117,7 @@ constexpr ChNumFormat Gfx10MergedBufDataFmtTbl[] =
     ChNumFormat::Undefined,             // BUF_FMT_INVALID
     ChNumFormat::Undefined,             // BUF_FMT_INVALID
     ChNumFormat::X10Y10Z10W2_Unorm,     // BUF_FMT_2_10_10_10_UNORM__GFX10CORE
-    ChNumFormat::X8Y8Z8W8_Sint,         // BUF_FMT_8_8_8_8_SINT__GFX10CORE
+    ChNumFormat::X10Y10Z10W2_Snorm,     // BUF_FMT_2_10_10_10_SNORM__GFX10CORE
     ChNumFormat::X10Y10Z10W2_Uscaled,   // BUF_FMT_2_10_10_10_USCALED__GFX10CORE
     ChNumFormat::X10Y10Z10W2_Sscaled,   // BUF_FMT_2_10_10_10_SSCALED__GFX10CORE
     ChNumFormat::X10Y10Z10W2_Uint,      // BUF_FMT_2_10_10_10_UINT__GFX10CORE
@@ -11127,7 +11127,7 @@ constexpr ChNumFormat Gfx10MergedBufDataFmtTbl[] =
     ChNumFormat::X8Y8Z8W8_Uscaled,      // BUF_FMT_8_8_8_8_USCALED__GFX10CORE
     ChNumFormat::X8Y8Z8W8_Sscaled,      // BUF_FMT_8_8_8_8_SSCALED__GFX10CORE
     ChNumFormat::X8Y8Z8W8_Uint,         // BUF_FMT_8_8_8_8_UINT__GFX10CORE
-    ChNumFormat::Undefined,             // BUF_FMT_INVALID
+    ChNumFormat::X8Y8Z8W8_Sint,         // BUF_FMT_8_8_8_8_SINT__GFX10CORE
     ChNumFormat::X32Y32_Uint,           // BUF_FMT_32_32_UINT__GFX10CORE
     ChNumFormat::X32Y32_Sint,           // BUF_FMT_32_32_SINT__GFX10CORE
     ChNumFormat::X32Y32_Float,          // BUF_FMT_32_32_FLOAT__GFX10CORE
@@ -13596,7 +13596,7 @@ constexpr ChNumFormat Gfx10_3MergedBufDataFmtTbl[] =
     ChNumFormat::Undefined,             // BUF_FMT_INVALID
     ChNumFormat::Undefined,             // BUF_FMT_INVALID
     ChNumFormat::X10Y10Z10W2_Unorm,     // BUF_FMT_2_10_10_10_UNORM__GFX10CORE
-    ChNumFormat::X8Y8Z8W8_Sint,         // BUF_FMT_8_8_8_8_SINT__GFX10CORE
+    ChNumFormat::X10Y10Z10W2_Snorm,     // BUF_FMT_2_10_10_10_SNORM__GFX10CORE
     ChNumFormat::X10Y10Z10W2_Uscaled,   // BUF_FMT_2_10_10_10_USCALED__GFX10CORE
     ChNumFormat::X10Y10Z10W2_Sscaled,   // BUF_FMT_2_10_10_10_SSCALED__GFX10CORE
     ChNumFormat::X10Y10Z10W2_Uint,      // BUF_FMT_2_10_10_10_UINT__GFX10CORE
@@ -13606,7 +13606,7 @@ constexpr ChNumFormat Gfx10_3MergedBufDataFmtTbl[] =
     ChNumFormat::X8Y8Z8W8_Uscaled,      // BUF_FMT_8_8_8_8_USCALED__GFX10CORE
     ChNumFormat::X8Y8Z8W8_Sscaled,      // BUF_FMT_8_8_8_8_SSCALED__GFX10CORE
     ChNumFormat::X8Y8Z8W8_Uint,         // BUF_FMT_8_8_8_8_UINT__GFX10CORE
-    ChNumFormat::Undefined,             // BUF_FMT_INVALID
+    ChNumFormat::X8Y8Z8W8_Sint,         // BUF_FMT_8_8_8_8_SINT__GFX10CORE
     ChNumFormat::X32Y32_Uint,           // BUF_FMT_32_32_UINT__GFX10CORE
     ChNumFormat::X32Y32_Sint,           // BUF_FMT_32_32_SINT__GFX10CORE
     ChNumFormat::X32Y32_Float,          // BUF_FMT_32_32_FLOAT__GFX10CORE

@@ -125,6 +125,9 @@
 #if ADDR_NAVI31_BUILD
 #define AMDGPU_NAVI31_RANGE     0x01, 0x10
 #endif
+#if ADDR_NAVI33_BUILD
+#define AMDGPU_NAVI33_RANGE     0x10, 0x20
+#endif
 #endif
 
 #define AMDGPU_REMBRANDT_RANGE  0x01, 0xFF
@@ -183,6 +186,9 @@
 #if ADDR_GFX11_BUILD
 #if ADDR_NAVI31_BUILD
 #define ASICREV_IS_NAVI31_P(r)         ASICREV_IS(r, NAVI31)
+#endif
+#if ADDR_NAVI33_BUILD
+#define ASICREV_IS_NAVI33_P(r)         ASICREV_IS(r, NAVI33)
 #endif
 #endif
 

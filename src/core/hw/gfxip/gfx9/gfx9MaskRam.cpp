@@ -4009,7 +4009,7 @@ uint8 Gfx9Dcc::GetInitialValue(
 {
     // If nothing else applies, initialize to "uncompressed"
     uint8 initialValue = Gfx9Dcc::DecompressedValue;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 706
+
     const DccInitialClearKind clearKind =
         static_cast<DccInitialClearKind>(m_pGfxDevice->Parent()->GetPublicSettings()->dccInitialClearKind);
     bool isForceEnabled = TestAnyFlagSet(static_cast<uint32>(clearKind),
@@ -4043,7 +4043,6 @@ uint8 Gfx9Dcc::GetInitialValue(
         PAL_ALERT_MSG(initialValue == Gfx9Dcc::DecompressedValue,
                       "Failed to get compatible clear color for InitMaskRam");
     }
-#endif
 
     return initialValue;
 }
@@ -4439,10 +4438,19 @@ void Gfx9Dcc::SetControlReg(
     if (internalInfo.flags.useSharedDccState)
     {
         // Use the shared control register values when available
-        m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE   = internalInfo.gfx9.sharedDccState.maxCompressedBlockSize;
-        m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE = internalInfo.gfx9.sharedDccState.maxUncompressedBlockSize;
-        m_dccControl.bits.INDEPENDENT_64B_BLOCKS      = internalInfo.gfx9.sharedDccState.independentBlk64B;
-        m_dccControl.gfx10.INDEPENDENT_128B_BLOCKS    = internalInfo.gfx9.sharedDccState.independentBlk128B;
+        m_dccControl.bits.MAX_COMPRESSED_BLOCK_SIZE    = internalInfo.gfx9.sharedDccState.maxCompressedBlockSize;
+        m_dccControl.bits.MAX_UNCOMPRESSED_BLOCK_SIZE  = internalInfo.gfx9.sharedDccState.maxUncompressedBlockSize;
+        m_dccControl.bits.INDEPENDENT_64B_BLOCKS       = internalInfo.gfx9.sharedDccState.independentBlk64B;
+        if (IsGfx10(gfxLevel))
+        {
+            m_dccControl.gfx10.INDEPENDENT_128B_BLOCKS = internalInfo.gfx9.sharedDccState.independentBlk128B;
+        }
+#if PAL_BUILD_GFX11
+        else
+        {
+            m_dccControl.gfx11.INDEPENDENT_128B_BLOCKS = internalInfo.gfx9.sharedDccState.independentBlk128B;
+        }
+#endif
     }
 }
 
@@ -4454,6 +4462,7 @@ bool Gfx9Dcc::UseDccForImage(
 {
     const Pal::Image*const  pParent      = image.Parent();
     const auto&             createInfo   = pParent->GetImageCreateInfo();
+    const auto&             internalInfo = pParent->GetInternalCreateInfo();
     const Pal::Device*const pDevice      = pParent->GetDevice();
     const PalSettings&      settings     = pDevice->Settings();
     const auto              pPalSettings = pDevice->GetPublicSettings();
@@ -4676,6 +4685,12 @@ bool Gfx9Dcc::UseDccForImage(
         (createInfo.metadataMode == MetadataMode::ForceEnabled))
     {
         useDcc = true;
+    }
+
+    if (internalInfo.flags.useForcedDcc != 0)
+    {
+        useDcc = (internalInfo.gfx9.sharedDccState.isDccForceEnabled != 0) ? true : false;
+        PAL_ASSERT((mustDisableDcc == false) || (useDcc == false));
     }
 
     return useDcc;
@@ -5152,6 +5167,7 @@ void Gfx9Dcc::GetState(
 
     pState->primaryOffset            = m_offset;
     pState->secondaryOffset          = 0;
+    pState->size                     = m_addrOutput.dccRamSize;
     pState->pitch                    = m_addrOutput.pitch;
 }
 

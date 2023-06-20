@@ -51,7 +51,7 @@ typedef enum BinningMode {
     FORCE_BINNING_ON                                   = 0x00000001,
     DISABLE_BINNING_USE_NEW_SC__GFX09_10               = 0x00000002,
     DISABLE_BINNING_USE_LEGACY_SC__GFX09_10            = 0x00000003,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     BINNING_ONE_PRIM_PER_BATCH__GFX11                  = 0x00000002,
     BINNING_DISABLED__GFX11                            = 0x00000003,
 #endif
@@ -87,7 +87,7 @@ typedef enum BlendOp {
     BLEND_INV_SRC1_ALPHA__GFX09_10                     = 0x00000012,
     BLEND_CONSTANT_ALPHA__GFX09_10                     = 0x00000013,
     BLEND_ONE_MINUS_CONSTANT_ALPHA__GFX09_10           = 0x00000014,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     BLEND_CONSTANT_COLOR__GFX11                        = 0x0000000b,
     BLEND_ONE_MINUS_CONSTANT_COLOR__GFX11              = 0x0000000c,
     BLEND_SRC1_COLOR__GFX11                            = 0x0000000d,
@@ -160,7 +160,7 @@ typedef enum BUF_FMT {
     BUF_FMT_16_16_UINT                                 = 0x0000001b,
     BUF_FMT_16_16_SINT                                 = 0x0000001c,
     BUF_FMT_16_16_FLOAT                                = 0x0000001d,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     BUF_FMT_10_11_11_FLOAT__GFX104PLUS                 = 0x0000001e,
     BUF_FMT_11_11_10_FLOAT__GFX104PLUS                 = 0x0000001f,
     BUF_FMT_10_10_10_2_UNORM__GFX104PLUS               = 0x00000020,
@@ -317,7 +317,7 @@ typedef enum CBMode {
     CB_FMASK_DECOMPRESS__GFX09_10                      = 0x00000005,
     CB_DCC_DECOMPRESS__GFX09_10                        = 0x00000006,
     CB_RESERVED__GFX10                                 = 0x00000007,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     CB_DCC_DECOMPRESS__GFX11                           = 0x00000003,
     CB_RESERVED__GFX11                                 = 0x00000004,
 #endif
@@ -864,7 +864,7 @@ typedef enum CBPerfSel {
     CB_PERF_SEL_CC_CACHE_256BS_SAVED_DUE_TO_QSB__GFX10CORE = 0x000001c2,
     CB_PERF_SEL_FC_CACHE_FMASK_NO_FETCH__GFX10CORE     = 0x000001c3,
     CB_PERF_SEL_CC_CACHE_SECTOR_HIT__GFX10CORE         = 0x000001c4,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     CB_PERF_SEL_DRAWN_BUSY__GFX11                      = 0x00000002,
     CB_PERF_SEL_DRAWN_PIXEL__GFX11                     = 0x00000003,
     CB_PERF_SEL_DRAWN_QUAD__GFX11                      = 0x00000004,
@@ -1133,11 +1133,11 @@ typedef enum CBPerfSel {
 constexpr unsigned int MaxCBPerfSelVg10_Vg12_Vg20_Rv1x_Rv2x = CB_PERF_SEL_CC_BB_BLEND_PIXEL_VLD__GFX09_10;
 constexpr unsigned int MaxCBPerfSelRn                  = CB_PERF_SEL_CC_DCC_KEY_VALUE__CONST_CLEAR_AC11__RN;
 constexpr unsigned int MaxCBPerfSelGfx10Core           = CB_PERF_SEL_CC_CACHE_SECTOR_HIT__GFX10CORE;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxCBPerfSelGfx11               = CB_PERF_SEL_EXPORT_KILLED_BY_NULL_TARGET_SHADER_MASK__GFX11;
 #endif
 
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 typedef enum CBRamList {
     CB_DCG_CCC_CAS_TAG_ARRAY                           = 0x00000000,
     CB_DCG_CCC_CAS_FRAG_PTR                            = 0x00000001,
@@ -1270,7 +1270,7 @@ typedef enum CHA_PERF_SEL {
     CHA_PERF_SEL_STALL_RET_CONFLICT_CHC3__NV2X         = 0x00000025,
     CHA_PERF_SEL_STALL_RET_CONFLICT_CHC4__NV2X         = 0x00000026,
     CHA_PERF_SEL_CYCLE__NV2X                           = 0x00000027,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     CHA_PERF_SEL_STALL_CHC4__NV3X                      = 0x00000005,
     CHA_PERF_SEL_STALL_CHC5__NV3X                      = 0x00000006,
     CHA_PERF_SEL_REQUEST_CHC0__NV3X                    = 0x00000007,
@@ -1311,7 +1311,7 @@ typedef enum CHA_PERF_SEL {
 
 constexpr unsigned int MaxChaPerfSelGfx101             = CHA_PERF_SEL_CYCLE__GFX101;
 constexpr unsigned int MaxChaPerfSelNv2x               = CHA_PERF_SEL_CYCLE__NV2X;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxChaPerfSelNv3x               = CHA_PERF_SEL_CYCLE__NV3X;
 #endif
 constexpr unsigned int MaxChaPerfSelApu103             = CHA_PERF_SEL_CYCLE__APU103;
@@ -1392,7 +1392,7 @@ typedef enum CHCG_PERF_SEL {
     CHCG_PERF_SEL_REQ_CLIENT17__NV2X                   = 0x00000025,
     CHCG_PERF_SEL_REQ_CLIENT18__NV2X                   = 0x00000026,
     CHCG_PERF_SEL_REQ_CLIENT19__NV2X                   = 0x00000027,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     CHCG_PERF_SEL_CYCLE__NV3X                          = 0x00000000,
     CHCG_PERF_SEL_BUSY__NV3X                           = 0x00000001,
     CHCG_PERF_SEL_STARVE__NV3X                         = 0x00000002,
@@ -1442,7 +1442,7 @@ typedef enum CHCG_PERF_SEL {
 
 constexpr unsigned int MaxChcgPerfSelGfx101            = CHCG_PERF_SEL_REQ_CLIENT14__GFX101;
 constexpr unsigned int MaxChcgPerfSelNv2x              = CHCG_PERF_SEL_REQ_CLIENT19__NV2X;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxChcgPerfSelNv3x              = CHCG_PERF_SEL_REQ_CLIENT23__NV3X;
 #endif
 
@@ -1487,7 +1487,7 @@ typedef enum CHC_PERF_SEL {
     CHC_PERF_SEL_REQ_CLIENT17__GFX103PLUSEXCLUSIVE     = 0x00000025,
     CHC_PERF_SEL_REQ_CLIENT18__GFX103PLUSEXCLUSIVE     = 0x00000026,
     CHC_PERF_SEL_REQ_CLIENT19__GFX103PLUSEXCLUSIVE     = 0x00000027,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     CHC_PERF_SEL_REQ_CLIENT20__GFX11                   = 0x00000028,
     CHC_PERF_SEL_REQ_CLIENT21__GFX11                   = 0x00000029,
     CHC_PERF_SEL_REQ_CLIENT22__GFX11                   = 0x0000002a,
@@ -1497,7 +1497,7 @@ typedef enum CHC_PERF_SEL {
 
 constexpr unsigned int MaxChcPerfSelGfx101             = CHC_PERF_SEL_REQ_CLIENT14;
 constexpr unsigned int MaxChcPerfSelGfx103Derivative   = CHC_PERF_SEL_REQ_CLIENT19__GFX103PLUSEXCLUSIVE;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxChcPerfSelGfx11              = CHC_PERF_SEL_REQ_CLIENT23__GFX11;
 #endif
 
@@ -1656,6 +1656,11 @@ typedef enum CPC_LATENCY_STATS_SEL {
     CPC_LATENCY_STATS_SEL_INVAL_MIN__NV31              = 0x00000007,
     CPC_LATENCY_STATS_SEL_INVAL_LAST__NV31             = 0x00000008,
 #endif
+#if CHIP_HDR_NAVI33
+    CPC_LATENCY_STATS_SEL_INVAL_MAX__NV33              = 0x00000006,
+    CPC_LATENCY_STATS_SEL_INVAL_MIN__NV33              = 0x00000007,
+    CPC_LATENCY_STATS_SEL_INVAL_LAST__NV33             = 0x00000008,
+#endif
 } CPC_LATENCY_STATS_SEL;
 
 typedef enum CPC_PERFCOUNT_SEL {
@@ -1710,7 +1715,7 @@ typedef enum CPC_PERFCOUNT_SEL {
     CPC_PERF_SEL_MEC_INSTR_CACHE_MISS__GFX10COREPLUS   = 0x0000002c,
     CPC_PERF_SEL_MES_THREAD0__GFX10COREPLUS            = 0x0000002d,
     CPC_PERF_SEL_MES_THREAD1__GFX10COREPLUS            = 0x0000002e,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     CPC_PERF_SEL_ME1_STALL_WAIT_ON_MEM_READ__GFX11     = 0x00000009,
     CPC_PERF_SEL_ME1_STALL_WAIT_ON_MEM_WRITE__GFX11    = 0x0000000a,
     CPC_PERF_SEL_ME2_STALL_WAIT_ON_MEM_READ__GFX11     = 0x00000011,
@@ -1729,7 +1734,7 @@ typedef enum CPC_PERFCOUNT_SEL {
 
 constexpr unsigned int MaxCpcPerfcountSelGfx09         = CPC_PERF_SEL_ME2_DC1_SPI_BUSY__CORE;
 constexpr unsigned int MaxCpcPerfcountSelGfx10Core     = CPC_PERF_SEL_MES_THREAD1__GFX10COREPLUS;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxCpcPerfcountSelGfx11         = CPC_PERF_SEL_MEC_THREAD3__GFX11;
 #endif
 
@@ -1811,7 +1816,7 @@ typedef enum CPF_PERFCOUNT_SEL {
     CPF_PERF_SEL_CSF_BUSY_FOR_FETCHING_DB__GFX10COREPLUS = 0x00000025,
     CPF_PERF_SEL_CPF_UTCL2IU_XACK__GFX10COREPLUS       = 0x00000026,
     CPF_PERF_SEL_CPF_UTCL2IU_XNACK__GFX10COREPLUS      = 0x00000027,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     CPF_PERF_SEL_CP_SDMA_MNGR_DMA_REQ__GFX11           = 0x00000028,
     CPF_PERF_SEL_CP_SDMA_MNGR_DMA_DONE__GFX11          = 0x00000029,
     CPF_PERF_SEL_CP_SDMA_MNGR_LATENCY__GFX11           = 0x0000002a,
@@ -1821,7 +1826,7 @@ typedef enum CPF_PERFCOUNT_SEL {
 
 constexpr unsigned int MaxCpfPerfcountSelGfx09         = CPF_PERF_SEL_CPF_UTCL2IU_STALL__GFX09;
 constexpr unsigned int MaxCpfPerfcountSelGfx10Core     = CPF_PERF_SEL_CPF_UTCL2IU_XNACK__GFX10COREPLUS;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxCpfPerfcountSelGfx11         = CPF_PERF_SEL_CP_SDMA_MNGR_SDMABUSY__GFX11;
 #endif
 
@@ -1995,7 +2000,7 @@ typedef enum CPG_PERFCOUNT_SEL {
     CPG_PERF_SEL_LOAD_STALLED_ON_SET_COHERENCY__GFX10PLUS = 0x0000001f,
     CPG_PERF_SEL_DYNAMIC_CLK_VALID__GFX10PLUS          = 0x00000020,
     CPG_PERF_SEL_REGISTER_CLK_VALID__GFX10PLUS         = 0x00000021,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     CPG_PERF_SEL_PFP_PWS_STALLED0__GFX11               = 0x00000052,
     CPG_PERF_SEL_ME_PWS_STALLED0__GFX11                = 0x00000053,
     CPG_PERF_SEL_PFP_VGTDMA_INDR_STRUCT_BYPASS0__GFX11 = 0x00000054,
@@ -2102,7 +2107,7 @@ constexpr unsigned int MaxCpgPerfcountSelVg10_Vg12_Vg20_Rn = CPG_PERF_SEL_CPG_UT
 constexpr unsigned int MaxCpgPerfcountSelRv1x_Rv2x     = CPG_PERF_SEL_CPG_UTCL2IU_STALL__RV1X_RV2X;
 constexpr unsigned int MaxCpgPerfcountSelGfx103        = CPG_PERF_SEL_DMA_FETCHER_STALLED_ON_ROQ_FULL__GFX10COREPLUS;
 constexpr unsigned int MaxCpgPerfcountSelGfx101        = CPG_PERF_SEL_DMA_FETCHER_STALLED_ON_ROQ_FULL__GFX10COREPLUS;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxCpgPerfcountSelGfx11         = CPG_PERF_SEL_PFP_VGTDMA_DB_ROQ_DATA_STALL1__GFX11;
 #endif
 
@@ -2182,7 +2187,7 @@ typedef enum DF_MALL_PERF_SEL {
     DF_MALL_PERF_SEL_MALL_SDP_LAT_HIST_GT200__NV2X     = 0x00000035,
     DF_MALL_PERF_SEL_MALL_SDP_LAT_HIST_GT500__NV2X     = 0x00000036,
     DF_MALL_PERF_SEL_MALL_SDP_LAT_HIST_GT1000__NV2X    = 0x00000037,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     DF_MALL_PERF_SEL_ML_MTQ_OCC__NV3X                  = 0x00000000,
     DF_MALL_PERF_SEL_ML_MRS_OCC__NV3X                  = 0x00000001,
     DF_MALL_PERF_SEL_ML_REQ0__NV3X                     = 0x00000002,
@@ -2208,7 +2213,7 @@ typedef enum DF_MALL_PERF_SEL {
 } DF_MALL_PERF_SEL;
 
 constexpr unsigned int MaxDfMallPerfSelNv2x            = DF_MALL_PERF_SEL_MALL_SDP_LAT_HIST_GT1000__NV2X;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxDfMallPerfSelNv3x            = DF_MALL_PERF_SEL_MALL_SDP_LAT_HIST_GT1000__NV3X;
 #endif
 
@@ -2362,7 +2367,7 @@ typedef enum GCRPerfSel {
     GCR_PERF_SEL_UTCL2_OUT_OF_CREDIT_EVENT__GFX10COREPLUS = 0x0000005b,
     GCR_PERF_SEL_UTCL2_INFLIGHT_REQ__GFX10COREPLUS     = 0x0000005c,
     GCR_PERF_SEL_UTCL2_FILTERED_RET__GFX10COREPLUS     = 0x0000005d,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     GCR_PERF_SEL_SDMA0_GL1_TLB_SHOOTDOWN_REQ__GFX11    = 0x00000010,
     GCR_PERF_SEL_CPC_GL1_TLB_SHOOTDOWN_REQ__GFX11      = 0x00000030,
     GCR_PERF_SEL_CPG_GL1_TLB_SHOOTDOWN_REQ__GFX11      = 0x00000040,
@@ -2480,7 +2485,7 @@ typedef enum GCRPerfSel {
     GCR_PERF_SEL_SDMA1_SQC_INST_REQ__NV2X              = 0x0000001e,
     GCR_PERF_SEL_SDMA1_TCP_REQ__NV2X                   = 0x0000001f,
     GCR_PERF_SEL_SDMA1_TCP_TLB_SHOOTDOWN_REQ__NV2X     = 0x00000020,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     GCR_PERF_SEL_SDMA1_ALL_REQ__NV3X                   = 0x00000011,
     GCR_PERF_SEL_SDMA1_GL2_RANGE_REQ__NV3X             = 0x00000012,
     GCR_PERF_SEL_SDMA1_GL2_RANGE_LT16K_REQ__NV3X       = 0x00000013,
@@ -2583,7 +2588,7 @@ constexpr unsigned int MaxGCRPerfSelApu103             = GCR_PERF_SEL_PIO_TCP_TL
 constexpr unsigned int MaxGCRPerfSelNv24               = GCR_PERF_SEL_PIO_TCP_TLB_SHOOTDOWN_REQ__NV24;
 constexpr unsigned int MaxGCRPerfSelNv23               = GCR_PERF_SEL_PIO_TCP_TLB_SHOOTDOWN_REQ__NV23;
 constexpr unsigned int MaxGCRPerfSelNv22               = GCR_PERF_SEL_PIO_TCP_TLB_SHOOTDOWN_REQ__NV22;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxGCRPerfSelNv3x               = GCR_PERF_SEL_PIO_GL1_TLB_SHOOTDOWN_REQ__NV3X;
 #endif
 
@@ -2951,7 +2956,7 @@ typedef enum GDS_PERFCOUNT_SELECT {
     GDS_PERF_SEL_SE3_SH1_GDS_SHORT_OP__GFX103          = 0x00000076,
     GDS_PERF_SEL_GWS_RELEASED__GFX103                  = 0x00000077,
     GDS_PERF_SEL_GWS_BYPASS__GFX103                    = 0x00000078,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     GDS_PERF_SEL_WR_COMP__GFX11                        = 0x00000000,
     GDS_PERF_SEL_WBUF_WR__GFX11                        = 0x00000001,
     GDS_PERF_SEL_SE0_NORET__GFX11                      = 0x00000002,
@@ -3106,7 +3111,7 @@ typedef enum GDS_PERFCOUNT_SELECT {
 constexpr unsigned int MaxGdsPerfcountSelectGfx103     = GDS_PERF_SEL_GWS_BYPASS__GFX103;
 constexpr unsigned int MaxGdsPerfcountSelectGfx09      = GDS_PERF_SEL_GWS_BYPASS__GFX09;
 constexpr unsigned int MaxGdsPerfcountSelectGfx101     = GDS_PERF_SEL_GWS_BYPASS__GFX101;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxGdsPerfcountSelectGfx11      = GDS_PERF_SEL_SE7_GS_WAVE_ID_VALID__GFX11;
 #endif
 
@@ -3151,7 +3156,7 @@ typedef enum GE1_PERFCOUNT_SELECT {
     ge1_rbiu_di_fifo_starved_p1__GFX103COREPLUS        = 0x00000025,
     ge1_rbiu_dr_fifo_stalled_p1__GFX103COREPLUS        = 0x00000026,
     ge1_rbiu_dr_fifo_starved_p1__GFX103COREPLUS        = 0x00000027,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     ge1_small_draws_one_instance__GFX11                = 0x00000020,
     ge1_unopt_multi_instance_draws__GFX11              = 0x00000023,
 #endif
@@ -3223,7 +3228,7 @@ typedef enum GE2_DIST_PERFCOUNT_SELECT {
     ge_dist_hs_done_latency__GFX103DERIVATIVE          = 0x0000003c,
     ge_dist_distributer_busy__GFX103DERIVATIVE         = 0x0000003d,
     ge_tf_ret_data_stalling_hs_done__GFX103DERIVATIVE  = 0x0000003e,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     ge_dist_hs_done_latency_se4__GFX11                 = 0x00000005,
     ge_dist_hs_done_latency_se5__GFX11                 = 0x00000006,
     ge_dist_hs_done_latency_se6__GFX11                 = 0x00000007,
@@ -3324,7 +3329,7 @@ typedef enum GE2_DIST_PERFCOUNT_SELECT {
 } GE2_DIST_PERFCOUNT_SELECT;
 
 constexpr unsigned int MaxGe2DistPerfcountSelectGfx103Derivative = ge_tf_ret_data_stalling_hs_done__GFX103DERIVATIVE;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxGe2DistPerfcountSelectGfx11  = ge_agm_gcr_combine__GFX11;
 #endif
 
@@ -3468,7 +3473,7 @@ typedef enum GE2_SE_PERFCOUNT_SELECT {
     ge_se_es_done__GFX103DERIVATIVE                    = 0x00000005,
     ge_se_es_done_latency__GFX103DERIVATIVE            = 0x00000006,
     ge_se_es_flush__GFX103DERIVATIVE                   = 0x00000007,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     ge_se_ds_prims__GFX11                              = 0x00000000,
     ge_se_es_thread_groups__GFX11                      = 0x00000001,
     ge_se_esvert_stalled_gsprim__GFX11                 = 0x00000002,
@@ -3561,7 +3566,7 @@ typedef enum GE2_SE_PERFCOUNT_SELECT {
 } GE2_SE_PERFCOUNT_SELECT;
 
 constexpr unsigned int MaxGe2SePerfcountSelectGfx103   = ge_hs_stall_tfmm_fifo_full__GFX103;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxGe2SePerfcountSelectGfx11    = ge_ngg_busy_base__GFX11;
 #endif
 
@@ -4065,7 +4070,7 @@ typedef enum GL1C_PERF_SEL {
     GL1C_PERF_SEL_UTCL0_TRANSLATION_HIT__GFX103PLUSEXCLUSIVE = 0x00000042,
     GL1C_PERF_SEL_UTCL0_TRANSLATION_MISS__GFX103PLUSEXCLUSIVE = 0x00000043,
     GL1C_PERF_SEL_UTCL0_PERMISSION_MISS__GFX103PLUSEXCLUSIVE = 0x00000044,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     GL1C_PERF_SEL_UTCL0_MISS_UNDER_MISS__GFX11         = 0x00000045,
     GL1C_PERF_SEL_UTCL0_LFIFO_FULL__GFX11              = 0x00000046,
     GL1C_PERF_SEL_UTCL0_STALL_INFLIGHT_MAX__GFX11      = 0x00000047,
@@ -4086,7 +4091,7 @@ typedef enum GL1C_PERF_SEL {
 
 constexpr unsigned int MaxGl1cPerfSelGfx101            = GL1C_PERF_SEL_REQ_CLIENT27__GFX101;
 constexpr unsigned int MaxGl1cPerfSelGfx103Derivative  = GL1C_PERF_SEL_UTCL0_UTCL1_XNACK_NO_RETRY_FAULT__GFX103DERIVATIVE;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxGl1cPerfSelGfx11             = GL1C_PERF_SEL_UTCL0_UTCL1_XNACK_NO_RETRY_FAULT__GFX11;
 #endif
 
@@ -4193,7 +4198,7 @@ typedef enum GL2A_PERF_SEL {
     GL2A_PERF_SEL_REQ_BURST_CLIENT13                   = 0x00000058,
     GL2A_PERF_SEL_REQ_BURST_CLIENT14                   = 0x00000059,
     GL2A_PERF_SEL_REQ_BURST_CLIENT15                   = 0x0000005a,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     GL2A_PERF_SEL_RTN_CREDIT_STALL_CLIENT0__GFX104PLUS = 0x0000005b,
     GL2A_PERF_SEL_RTN_CREDIT_STALL_CLIENT1__GFX104PLUS = 0x0000005c,
     GL2A_PERF_SEL_RTN_CREDIT_STALL_CLIENT2__GFX104PLUS = 0x0000005d,
@@ -4214,7 +4219,7 @@ typedef enum GL2A_PERF_SEL {
 } GL2A_PERF_SEL;
 
 constexpr unsigned int MaxGl2aPerfSelGfx10Core         = GL2A_PERF_SEL_REQ_BURST_CLIENT15;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxGl2aPerfSelGfx104Plus        = GL2A_PERF_SEL_RTN_CREDIT_STALL_CLIENT15__GFX104PLUS;
 #endif
 
@@ -4684,7 +4689,7 @@ typedef enum GL2C_PERF_SEL {
     GL2C_PERF_SEL_CM_DCC_OUT_2x1__GFX103PLUSEXCLUSIVE  = 0x000000fa,
     GL2C_PERF_SEL_CM_DCC_OUT_2x2__GFX103PLUSEXCLUSIVE  = 0x000000fb,
     GL2C_PERF_SEL_CM_DCC_OUT_UNCOMP__GFX103PLUSEXCLUSIVE = 0x000000fc,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     GL2C_PERF_SEL_CM_DCC_OUT_CONST2SINGLE__GFX11       = 0x000000fd,
     GL2C_PERF_SEL_CM_DCC_OUT_CONST2CLEAR__GFX11        = 0x000000fe,
     GL2C_PERF_SEL_HIT_PASS_MISS_IN_CLIENT16__GFX11     = 0x000000ff,
@@ -4696,7 +4701,7 @@ typedef enum GL2C_PERF_SEL {
 
 constexpr unsigned int MaxGl2cPerfSelGfx101            = GL2C_PERF_SEL_CM_DCC_STALL__GFX101;
 constexpr unsigned int MaxGl2cPerfSelGfx103            = GL2C_PERF_SEL_CM_DCC_OUT_CONST__GFX103DERIVATIVE;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxGl2cPerfSelGfx11             = GL2C_PERF_SEL_HIT_PASS_MISS_IN_CLIENT19__GFX11;
 #endif
 
@@ -4761,7 +4766,7 @@ typedef enum GRBM_PERF_SEL {
     GRBM_PERF_SEL_CH_BUSY__GFX10PLUS                   = 0x0000002a,
     GRBM_PERF_SEL_PH_BUSY__GFX10PLUS                   = 0x0000002b,
     GRBM_PERF_SEL_GL1CC_BUSY__GFX10PLUS                = 0x0000002e,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     GRBM_PERF_SEL_ANY_ACTIVE_F_BUSY__GFX11             = 0x0000002f,
     GRBM_PERF_SEL_GL1H_BUSY__GFX11                     = 0x00000030,
     GRBM_PERF_SEL_PC_BUSY__GFX11                       = 0x00000031,
@@ -4771,7 +4776,7 @@ typedef enum GRBM_PERF_SEL {
 
 constexpr unsigned int MaxGrbmPerfSelGfx09             = GRBM_PERF_SEL_CPAXI_BUSY;
 constexpr unsigned int MaxGrbmPerfSelGfx10             = GRBM_PERF_SEL_GL1CC_BUSY__GFX10PLUS;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxGrbmPerfSelGfx11             = GRBM_PERF_SEL_PC_BUSY__GFX11;
 #endif
 
@@ -4796,7 +4801,7 @@ typedef enum GRBM_SE0_PERF_SEL {
     GRBM_SE0_PERF_SEL_UTCL1_BUSY__GFX10PLUS            = 0x00000010,
     GRBM_SE0_PERF_SEL_TCP_BUSY__GFX10PLUS              = 0x00000011,
     GRBM_SE0_PERF_SEL_GL1CC_BUSY__GFX10PLUS            = 0x00000012,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     GRBM_SE0_PERF_SEL_GL1H_BUSY__GFX11                 = 0x00000013,
     GRBM_SE0_PERF_SEL_PC_BUSY__GFX11                   = 0x00000014,
 #endif
@@ -4804,7 +4809,7 @@ typedef enum GRBM_SE0_PERF_SEL {
 
 constexpr unsigned int MaxGrbmSe0PerfSelGfx09          = GRBM_SE0_PERF_SEL_RMI_BUSY;
 constexpr unsigned int MaxGrbmSe0PerfSelGfx10          = GRBM_SE0_PERF_SEL_GL1CC_BUSY__GFX10PLUS;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxGrbmSe0PerfSelGfx11          = GRBM_SE0_PERF_SEL_PC_BUSY__GFX11;
 #endif
 
@@ -4831,7 +4836,7 @@ typedef enum GRBM_SE1_PERF_SEL {
     GRBM_SE1_PERF_SEL_UTCL1_BUSY__GFX10COREPLUS        = 0x00000010,
     GRBM_SE1_PERF_SEL_TCP_BUSY__GFX10COREPLUS          = 0x00000011,
     GRBM_SE1_PERF_SEL_GL1CC_BUSY__GFX10COREPLUS        = 0x00000012,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     GRBM_SE1_PERF_SEL_GL1H_BUSY__GFX11                 = 0x00000013,
     GRBM_SE1_PERF_SEL_PC_BUSY__GFX11                   = 0x00000014,
 #endif
@@ -4839,7 +4844,7 @@ typedef enum GRBM_SE1_PERF_SEL {
 
 constexpr unsigned int MaxGrbmSe1PerfSelGfx09          = GRBM_SE1_PERF_SEL_RMI_BUSY;
 constexpr unsigned int MaxGrbmSe1PerfSelGfx10Core      = GRBM_SE1_PERF_SEL_GL1CC_BUSY__GFX10COREPLUS;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxGrbmSe1PerfSelGfx11          = GRBM_SE1_PERF_SEL_PC_BUSY__GFX11;
 #endif
 
@@ -4866,7 +4871,7 @@ typedef enum GRBM_SE2_PERF_SEL {
     GRBM_SE2_PERF_SEL_UTCL1_BUSY__GFX10COREPLUS        = 0x00000010,
     GRBM_SE2_PERF_SEL_TCP_BUSY__GFX10COREPLUS          = 0x00000011,
     GRBM_SE2_PERF_SEL_GL1CC_BUSY__GFX10COREPLUS        = 0x00000012,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     GRBM_SE2_PERF_SEL_GL1H_BUSY__GFX11                 = 0x00000013,
     GRBM_SE2_PERF_SEL_PC_BUSY__GFX11                   = 0x00000014,
 #endif
@@ -4874,7 +4879,7 @@ typedef enum GRBM_SE2_PERF_SEL {
 
 constexpr unsigned int MaxGrbmSe2PerfSelGfx09          = GRBM_SE2_PERF_SEL_RMI_BUSY;
 constexpr unsigned int MaxGrbmSe2PerfSelGfx10Core      = GRBM_SE2_PERF_SEL_GL1CC_BUSY__GFX10COREPLUS;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxGrbmSe2PerfSelGfx11          = GRBM_SE2_PERF_SEL_PC_BUSY__GFX11;
 #endif
 
@@ -4901,7 +4906,7 @@ typedef enum GRBM_SE3_PERF_SEL {
     GRBM_SE3_PERF_SEL_UTCL1_BUSY__GFX10COREPLUS        = 0x00000010,
     GRBM_SE3_PERF_SEL_TCP_BUSY__GFX10COREPLUS          = 0x00000011,
     GRBM_SE3_PERF_SEL_GL1CC_BUSY__GFX10COREPLUS        = 0x00000012,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     GRBM_SE3_PERF_SEL_GL1H_BUSY__GFX11                 = 0x00000013,
     GRBM_SE3_PERF_SEL_PC_BUSY__GFX11                   = 0x00000014,
 #endif
@@ -4909,11 +4914,11 @@ typedef enum GRBM_SE3_PERF_SEL {
 
 constexpr unsigned int MaxGrbmSe3PerfSelGfx09          = GRBM_SE3_PERF_SEL_RMI_BUSY;
 constexpr unsigned int MaxGrbmSe3PerfSelGfx10Core      = GRBM_SE3_PERF_SEL_GL1CC_BUSY__GFX10COREPLUS;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxGrbmSe3PerfSelGfx11          = GRBM_SE3_PERF_SEL_PC_BUSY__GFX11;
 #endif
 
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 typedef enum GRBM_SE4_PERF_SEL {
     GRBM_SE4_PERF_SEL_COUNT                            = 0x00000000,
     GRBM_SE4_PERF_SEL_USER_DEFINED                     = 0x00000001,
@@ -5134,7 +5139,7 @@ typedef enum IMG_DATA_FORMAT {
     IMG_DATA_FORMAT_YCBCR__GFX103                      = 0x0000001d,
     IMG_DATA_FORMAT_LOD_5P3_USCALED__GFX103            = 0x0000003d,
     IMG_DATA_FORMAT_7E3__GFX103COREPLUS                = 0x0000001e,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     IMG_DATA_FORMAT_RESERVED_44__GFX104PLUS            = 0x0000002c,
     IMG_DATA_FORMAT_RESERVED_45__GFX104PLUS            = 0x0000002d,
     IMG_DATA_FORMAT_RESERVED_46__GFX104PLUS            = 0x0000002e,
@@ -5235,7 +5240,7 @@ typedef enum IMG_DATA_FORMAT {
     IMG_DATA_FORMAT_RESERVED_42__GFX10COREPLUS         = 0x0000002a,
     IMG_DATA_FORMAT_RESERVED_62__GFX10COREPLUS         = 0x0000003e,
     IMG_DATA_FORMAT_RESERVED_43__GFX10PLUS             = 0x0000002b,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     IMG_DATA_FORMAT_5_9_9_9__GFX11                     = 0x00000018,
     IMG_DATA_FORMAT_GB_GR__GFX11                       = 0x00000019,
     IMG_DATA_FORMAT_BG_RG__GFX11                       = 0x0000001a,
@@ -5345,7 +5350,7 @@ typedef enum IMG_FMT {
     IMG_FMT_7E3_FLOAT__GFX103                          = 0x0000011d,
     IMG_FMT_YCBCR_UNORM__GFX103                        = 0x0000011e,
     IMG_FMT_YCBCR_SRGB__GFX103                         = 0x0000011f,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     IMG_FMT_10_11_11_FLOAT__GFX104PLUS                 = 0x0000001e,
     IMG_FMT_11_11_10_FLOAT__GFX104PLUS                 = 0x0000001f,
     IMG_FMT_10_10_10_2_UNORM__GFX104PLUS               = 0x00000020,
@@ -5942,7 +5947,7 @@ typedef enum IMG_FMT {
     IMG_FMT_RESERVED_125__GFX10COREPLUS                = 0x0000007d,
     IMG_FMT_RESERVED_126__GFX10COREPLUS                = 0x0000007e,
     IMG_FMT_RESERVED_127__GFX10COREPLUS                = 0x0000007f,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     IMG_FMT_MM_10_IN_16_UNORM__GFX11                   = 0x0000005a,
     IMG_FMT_MM_10_IN_16_UINT__GFX11                    = 0x0000005b,
     IMG_FMT_MM_10_IN_16_16_UNORM__GFX11                = 0x0000005c,
@@ -6034,7 +6039,7 @@ typedef enum IMG_NUM_FORMAT {
     IMG_NUM_FORMAT_RESERVED_8__GFX09_10                = 0x00000008,
     IMG_NUM_FORMAT_RESERVED_14__GFX09_10               = 0x0000000e,
     IMG_NUM_FORMAT_RESERVED_15__GFX09_10               = 0x0000000f,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     IMG_NUM_FORMAT_SRGB__GFX104PLUS                    = 0x00000006,
 #endif
     IMG_NUM_FORMAT_SNORM_NZ__GFX10CORE                 = 0x00000006,
@@ -6165,7 +6170,7 @@ typedef enum MTYPE {
     MTYPE_C_RW_US__GFX10PLUS                           = 0x00000000,
 } MTYPE;
 
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 typedef enum OreoMode {
     OMODE_BLEND                                        = 0x00000000,
     OMODE_O_THEN_B                                     = 0x00000001,
@@ -6568,7 +6573,7 @@ typedef enum PerfCounter_Vals {
     DB_PERF_SEL_DB_CB_lquad_quads_vrs_rate_2x2__GFX103 = 0x00000184,
     DB_PERF_SEL_prez_ps_invoked_pixel_cnt__GFX103      = 0x00000185,
     DB_PERF_SEL_postz_ps_invoked_pixel_cnt__GFX103     = 0x00000186,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     DB_PERF_SEL_esr_ps_vic_busy__GFX104PLUS            = 0x000000c2,
     DB_PERF_SEL_esr_ps_vic_stall__GFX104PLUS           = 0x000000c3,
     DB_PERF_SEL_CB_DB_rdreq_sends__GFX104PLUS          = 0x00000109,
@@ -6728,7 +6733,7 @@ typedef enum PerfCounter_Vals {
     DB_PERF_SEL_DB_SC_s_tile_rate__GFX10PLUS           = 0x00000102,
     DB_PERF_SEL_DB_SC_c_tile_rate__GFX10PLUS           = 0x00000103,
     DB_PERF_SEL_DB_SC_z_tile_rate__GFX10PLUS           = 0x00000104,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     DB_PERF_SEL_DB_CB_export_events__GFX11             = 0x00000022,
     DB_PERF_SEL_DB_CB_export_sends__GFX11              = 0x0000002c,
     DB_PERF_SEL_DB_CB_export_busy__GFX11               = 0x0000002d,
@@ -6797,7 +6802,7 @@ typedef enum PerfCounter_Vals {
     DB_PERF_SEL_OREO_Events_delayed__GFX11             = 0x00000182,
     DB_PERF_SEL_OREO_Events_stalls__GFX11              = 0x00000183,
 #endif
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     DB_PERF_SEL_ts_events_pws_enable__HASPWS           = 0x00000158,
     DB_PERF_SEL_ps_events_pws_enable__HASPWS           = 0x00000159,
     DB_PERF_SEL_cs_events_pws_enable__HASPWS           = 0x0000015a,
@@ -6810,14 +6815,14 @@ typedef enum PerfCounter_Vals {
 constexpr unsigned int MaxPerfcounterValsGfx09         = DB_PERF_SEL_DB_SC_quad_quads_with_4_pixels__GFX09;
 constexpr unsigned int MaxPerfcounterValsGfx101        = DB_PERF_SEL_FG_LOB_FWDR_TIMEOUT_hits__GFX101;
 constexpr unsigned int MaxPerfcounterValsGfx103        = DB_PERF_SEL_postz_ps_invoked_pixel_cnt__GFX103;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxPerfcounterValsGfx11         = DB_PERF_SEL_OREO_Events_stalls__GFX11;
 #endif
 
 typedef enum PERFMON_CNTOFF_AND_OR {
     PERFMON_CNTOFF_OR__GFX101                          = 0x00000000,
     PERFMON_CNTOFF_AND__GFX101                         = 0x00000001,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     PERFMON_CNTOFF_OR__GFX11                           = 0x00000000,
     PERFMON_CNTOFF_AND__GFX11                          = 0x00000001,
 #endif
@@ -6834,7 +6839,7 @@ typedef enum PERFMON_CNTOFF_AND_OR {
 typedef enum PERFMON_CNTOFF_INT_EN {
     PERFMON_CNTOFF_INT_DISABLE__GFX101                 = 0x00000000,
     PERFMON_CNTOFF_INT_ENABLE__GFX101                  = 0x00000001,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     PERFMON_CNTOFF_INT_DISABLE__GFX11                  = 0x00000000,
     PERFMON_CNTOFF_INT_ENABLE__GFX11                   = 0x00000001,
 #endif
@@ -6851,7 +6856,7 @@ typedef enum PERFMON_CNTOFF_INT_EN {
 typedef enum PERFMON_CNTOFF_INT_TYPE {
     PERFMON_CNTOFF_INT_TYPE_LEVEL__GFX101              = 0x00000000,
     PERFMON_CNTOFF_INT_TYPE_PULSE__GFX101              = 0x00000001,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     PERFMON_CNTOFF_INT_TYPE_LEVEL__GFX11               = 0x00000000,
     PERFMON_CNTOFF_INT_TYPE_PULSE__GFX11               = 0x00000001,
 #endif
@@ -6898,7 +6903,7 @@ typedef enum PERFMON_STATE {
     PERFMON_STATE_START__GFX101                        = 0x00000001,
     PERFMON_STATE_FREEZE__GFX101                       = 0x00000002,
     PERFMON_STATE_HW__GFX101                           = 0x00000003,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     PERFMON_STATE_RESET__GFX11                         = 0x00000000,
     PERFMON_STATE_START__GFX11                         = 0x00000001,
     PERFMON_STATE_FREEZE__GFX11                        = 0x00000002,
@@ -7915,7 +7920,7 @@ typedef enum PH_PERFCNT_SEL {
     PH_PERF_SEL_6_SC_ARB_STARVED_FROM_ABOVE_WITH_UNSELECTED_FIFO_FULL__GFX103PLUSEXCLUSIVE = 0x000003dd,
     PH_PERF_SEL_7_SC_ARB_STARVED_FROM_ABOVE_WITH_UNSELECTED_FIFO_FULL__GFX103PLUSEXCLUSIVE = 0x000003de,
     PH_PERF_SEL_8_SC_ARB_STARVED_FROM_ABOVE_WITH_UNSELECTED_FIFO_FULL__GFX103PLUSEXCLUSIVE = 0x000003df,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     PH_PERF_SEL_SC0_GFX_PIPE0_TO_1_TRANSITION__GFX11   = 0x00000014,
     PH_PERF_SEL_SC0_GFX_PIPE1_TO_0_TRANSITION__GFX11   = 0x00000015,
     PH_PERF_SEL_SC0_GFX_PIPE_PRIM_PROVOKED_TRANSITION__GFX11 = 0x00000016,
@@ -8305,7 +8310,7 @@ typedef enum PH_PERFCNT_SEL {
 
 constexpr unsigned int MaxPhPerfcntSelGfx101           = PH_PERF_SEL_SC7_PA7_DEALLOC_4_0_RD__GFX10;
 constexpr unsigned int MaxPhPerfcntSelGfx103Derivative = PH_PERF_SEL_8_SC_ARB_STARVED_FROM_ABOVE_WITH_UNSELECTED_FIFO_FULL__GFX103PLUSEXCLUSIVE;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxPhPerfcntSelGfx11            = PH_PERF_SC7_FIFO_STATUS_3__GFX11;
 #endif
 
@@ -8911,7 +8916,7 @@ typedef enum RMIPerfSel {
     RMI_PERF_SEL_RMI_RB_EARLY_WRACK_NACK2__GFX10CORE   = 0x000000ff,
     RMI_PERF_SEL_RMI_RB_EARLY_WRACK_NACK3__GFX10CORE   = 0x00000100,
     RMI_PERF_SEL_UTCL0_UTCL1_PERM_FAULT__GFX10CORE     = 0x00000101,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     RMI_PERF_SEL_RB_RMI_WRREQ_ALL_CID__GFX11           = 0x00000008,
     RMI_PERF_SEL_RB_RMI_WRREQ_TO_WRRET_BUSY__GFX11     = 0x00000009,
     RMI_PERF_SEL_RB_RMI_WRREQ_CID0__GFX11              = 0x0000000a,
@@ -9048,7 +9053,7 @@ typedef enum RMIPerfSel {
 
 constexpr unsigned int MaxRMIPerfSelGfx09              = RMI_PERF_SEL_RMI_RB_EARLY_WRACK_NACK3__GFX09;
 constexpr unsigned int MaxRMIPerfSelGfx10Core          = RMI_PERF_SEL_UTCL0_UTCL1_PERM_FAULT__GFX10CORE;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxRMIPerfSelGfx11              = RMI_PERF_SEL_CONSUMER_PROBEGEN_DB_RTS_RTR__GFX11;
 #endif
 
@@ -9694,7 +9699,7 @@ typedef enum SC_PERFCNT_SEL {
     SC_SPI_FPOV_1__GFX10VRS                            = 0x00000153,
     SC_SPI_FPOV_2__GFX10VRS                            = 0x00000154,
     SC_SPI_FPOV_3__GFX10VRS                            = 0x00000155,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     SC_PERF_SEL_RESERVED_76__GFX11                     = 0x0000004c,
     SC_PERF_SEL_RESERVED_77__GFX11                     = 0x0000004d,
     SC_PERF_SEL_RESERVED_78__GFX11                     = 0x0000004e,
@@ -10048,6 +10053,10 @@ typedef enum SC_PERFCNT_SEL {
     SC_PKR_BCI_QUAD_NEW_PRIM__GFX11                    = 0x00000297,
     SC_SPI_WAVE_STALLED_BY_SPI__GFX11                  = 0x00000298,
 #endif
+#if CHIP_HDR_NAVI33
+    SC_VRC_REPROBE_XFR__NV33                           = 0x00000299,
+    SC_VRC_REPROBE_FULL__NV33                          = 0x0000029a,
+#endif
     SC_BACKEND_PRIM_FIFO_FULL__VG12_VG20_RN            = 0x000001eb,
 } SC_PERFCNT_SEL;
 
@@ -10058,8 +10067,11 @@ constexpr unsigned int MaxScPerfcntSelGfx103           = SC_BM_MULTI_ACCUM_4_BE_
 #if CHIP_HDR_NAVI31
 constexpr unsigned int MaxScPerfcntSelNv31             = SC_SPI_WAVE_STALLED_BY_SPI__GFX11;
 #endif
+#if CHIP_HDR_NAVI33
+constexpr unsigned int MaxScPerfcntSelNv33             = SC_VRC_REPROBE_FULL__NV33;
+#endif
 
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 typedef enum SDMA_PERFMON_SEL {
     SDMA_PERFMON_SEL_CYCLE                             = 0x00000000,
     SDMA_PERFMON_SEL_IDLE                              = 0x00000001,
@@ -10332,7 +10344,7 @@ typedef enum SDMA_PERF_SEL {
     SDMA_PERF_SEL_TLBI_RTN__GFX10COREPLUS              = 0x00000060,
     SDMA_PERF_SEL_GCR_SEND__GFX10COREPLUS              = 0x00000061,
     SDMA_PERF_SEL_GCR_RTN__GFX10COREPLUS               = 0x00000062,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     SDMA_PERF_SEL_DUMMY_0__GFX11                       = 0x0000002f,
     SDMA_PERF_SEL_DUMMY_1__GFX11                       = 0x00000030,
     SDMA_PERF_SEL_QUEUE0_SELECT__GFX11                 = 0x00000035,
@@ -10379,7 +10391,7 @@ typedef enum SDMA_PERF_SEL {
 constexpr unsigned int MaxSdmaPerfSelGfx09             = SDMA_PERF_SEL_MMHUB_TAG_DELAY_COUNTER__GFX09;
 constexpr unsigned int MaxSdmaPerfSelOss50             = SDMA_PERF_SEL_MMHUB_TAG_DELAY_COUNTER__GFX10CORE;
 constexpr unsigned int MaxSdmaPerfSelGfx103            = SDMA_PERF_SEL_CH_CE_RDRET_VALID__GFX103;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxSdmaPerfSelGfx11             = SDMA_PERF_SEL_QUEUE7_SELECT__GFX11;
 #endif
 
@@ -10413,7 +10425,7 @@ typedef enum SPI_LB_WAVES_SELECT {
     CS_NA                                              = 0x00000002,
     SPI_LB_WAVES_RSVD                                  = 0x00000003,
     VS_PS__GFX10                                       = 0x00000001,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     PS__GFX11                                          = 0x00000001,
 #endif
 } SPI_LB_WAVES_SELECT;
@@ -10686,7 +10698,7 @@ typedef enum SPI_PERFCNT_SEL {
     SPI_PERF_EXP_THROT_UPSTEP__GFX103                  = 0x00000149,
     SPI_PERF_EXP_THROT_DOWNSTEP__GFX103                = 0x0000014a,
     SPI_PERF_EXP_THROT_CAUSALITY_DETECTED__GFX103      = 0x0000014b,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     SPI_PERF_PS0_WINDOW_VALID__GFX104PLUS              = 0x00000035,
     SPI_PERF_PS1_WINDOW_VALID__GFX104PLUS              = 0x00000036,
     SPI_PERF_PS2_WINDOW_VALID__GFX104PLUS              = 0x00000037,
@@ -10960,7 +10972,7 @@ typedef enum SPI_PERFCNT_SEL {
     SPI_PERF_VWC_HS_WR__GFX10CORE                      = 0x00000130,
     SPI_PERF_VWC_CSGN_WR__GFX10CORE                    = 0x00000131,
     SPI_PERF_VWC_CSN_WR__GFX10CORE                     = 0x00000132,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     SPI_PERF_GS_WINDOW_VALID__GFX11                    = 0x00000001,
     SPI_PERF_GS_BUSY__GFX11                            = 0x00000002,
     SPI_PERF_GS_CRAWLER_STALL__GFX11                   = 0x00000003,
@@ -11317,6 +11329,9 @@ typedef enum SPI_PERFCNT_SEL {
     SPI_PERF_GS_NGG_STALL_MSG_VAL__NV24                = 0x00000123,
     SPI_PERF_SWC_PS_WR__NV24                           = 0x00000124,
     SPI_PERF_SWC_VS_WR__NV24                           = 0x00000125,
+#if CHIP_HDR_NAVI33
+    SPI_PERF_GS_GRP_LIFETIME_SAMPLE__NV33              = 0x00000012,
+#endif
     SPI_PERF_GS_NGG_STALL_MSG_VAL__RAPHAEL             = 0x00000123,
     SPI_PERF_SWC_PS_WR__RAPHAEL                        = 0x00000124,
     SPI_PERF_SWC_VS_WR__RAPHAEL                        = 0x00000125,
@@ -11328,7 +11343,7 @@ typedef enum SPI_PERFCNT_SEL {
 constexpr unsigned int MaxSpiPerfcntSelGfx09           = SPI_PERF_VWC_CSC_WR__GFX09;
 constexpr unsigned int MaxSpiPerfcntSelGfx101          = SPI_PERF_LS_PERS_UPD_FULL1__GFX101;
 constexpr unsigned int MaxSpiPerfcntSelGfx103          = SPI_PERF_EXP_THROT_CAUSALITY_DETECTED__GFX103;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxSpiPerfcntSelGfx11           = SPI_PERF_BUSY__GFX11;
 #endif
 
@@ -11340,7 +11355,7 @@ typedef enum SPI_PNT_SPRITE_OVERRIDE {
     SPI_PNT_SPRITE_SEL_NONE                            = 0x00000004,
 } SPI_PNT_SPRITE_OVERRIDE;
 
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 typedef enum SPI_PS_LDS_GROUP_SIZE {
     SPI_PS_LDS_GROUP_1                                 = 0x00000000,
     SPI_PS_LDS_GROUP_2                                 = 0x00000001,
@@ -11385,7 +11400,7 @@ typedef enum SPM_PERFMON_STATE {
     STRM_PERFMON_STATE_COUNT_AND_DUMP_PHANTOM          = 0x00000005,
 } SPM_PERFMON_STATE;
 
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 typedef enum SQG_PERF_SEL {
     SQG_PERF_SEL_NONE                                  = 0x00000000,
     SQG_PERF_SEL_MSG_BUS_BUSY                          = 0x00000001,
@@ -12240,7 +12255,7 @@ typedef enum SQ_PERF_SEL {
     SQC_PERF_SEL_DCACHE_GCR_INVALIDATE__GFX103DERIVATIVE = 0x000001a0,
     SQC_PERF_SEL_Reserved_0x1a0__GFX103DERIVATIVE      = 0x000001a1,
     SQC_PERF_SEL_DCACHE_SPI_RETURN_STALL__GFX103DERIVATIVE = 0x000001a2,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     SQ_PERF_SEL_WAVES_INITIAL_PREFETCH__GFX104PLUS     = 0x00000017,
     SQ_PERF_SEL_NONE2__GFX104PLUS                      = 0x000001ff,
 #endif
@@ -12258,7 +12273,7 @@ typedef enum SQ_PERF_SEL {
     SQ_PERF_SEL_EVENTS__GFX10PLUS                      = 0x0000000c,
     SQ_PERF_SEL_MSG_INTERRUPT__GFX10PLUS               = 0x00000016,
     SQC_PERF_SEL_DUMMY_LAST__GFX10VRS                  = 0x000001a3,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     SQ_PERF_SEL_PS_QUADS__GFX11                        = 0x0000000b,
     SQ_PERF_SEL_WAVES_EQ_32__GFX11                     = 0x0000000d,
     SQ_PERF_SEL_WAVES_EQ_64__GFX11                     = 0x0000000e,
@@ -12562,7 +12577,7 @@ typedef enum SQ_PERF_SEL {
 
 constexpr unsigned int MaxSqPerfSelGfx09               = SQC_PERF_SEL_DUMMY_LAST__GFX09;
 constexpr unsigned int MaxSqPerfSelGfx10Core           = SP_PERF_SEL_DUMMY_LAST__GFX10CORE;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxSqPerfSelGfx104Plus          = SQ_PERF_SEL_NONE2__GFX104PLUS;
 #endif
 
@@ -12828,11 +12843,11 @@ typedef enum SQ_TT_TOKEN_MASK_REG_INCLUDE {
     SQ_TT_TOKEN_MASK_CONTEXT_BIT                       = 0x00000010,
     SQ_TT_TOKEN_MASK_CONFIG_BIT                        = 0x00000020,
     SQ_TT_TOKEN_MASK_READS_BIT__GFX10                  = 0x00000080,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     SQ_TT_TOKEN_MASK_ALL_BIT__GFX104PLUS               = 0x00000040,
 #endif
     SQ_TT_TOKEN_MASK_OTHER_BIT__GFX10CORE              = 0x00000040,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     SQ_TT_TOKEN_MASK_RSVD_BIT__GFX11                   = 0x00000080,
 #endif
 } SQ_TT_TOKEN_MASK_REG_INCLUDE;
@@ -12845,11 +12860,11 @@ typedef enum SQ_TT_TOKEN_MASK_REG_INCLUDE_SHIFT {
     SQ_TT_TOKEN_MASK_CONTEXT_SHIFT                     = 0x00000004,
     SQ_TT_TOKEN_MASK_CONFIG_SHIFT                      = 0x00000005,
     SQ_TT_TOKEN_MASK_READS_SHIFT__GFX10                = 0x00000007,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     SQ_TT_TOKEN_MASK_ALL_SHIFT__GFX104PLUS             = 0x00000006,
 #endif
     SQ_TT_TOKEN_MASK_OTHER_SHIFT__GFX10CORE            = 0x00000006,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     SQ_TT_TOKEN_MASK_RSVD_SHIFT__GFX11                 = 0x00000007,
 #endif
 } SQ_TT_TOKEN_MASK_REG_INCLUDE_SHIFT;
@@ -12887,13 +12902,13 @@ typedef enum SQ_TT_WTYPE_INCLUDE {
     SQ_TT_WTYPE_INCLUDE_HS_BIT                         = 0x00000010,
     SQ_TT_WTYPE_INCLUDE_CS_BIT                         = 0x00000040,
     SQ_TT_WTYPE_INCLUDE_VS_BIT__GFX10                  = 0x00000002,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     SQ_TT_WTYPE_INCLUDE_RSVD1_BIT__GFX104PLUS          = 0x00000008,
     SQ_TT_WTYPE_INCLUDE_RSVD2_BIT__GFX104PLUS          = 0x00000020,
 #endif
     SQ_TT_WTYPE_INCLUDE_ES_BIT__GFX10CORE              = 0x00000008,
     SQ_TT_WTYPE_INCLUDE_LS_BIT__GFX10CORE              = 0x00000020,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     SQ_TT_WTYPE_INCLUDE_RSVD0_BIT__GFX11               = 0x00000002,
 #endif
 } SQ_TT_WTYPE_INCLUDE;
@@ -12904,13 +12919,13 @@ typedef enum SQ_TT_WTYPE_INCLUDE_SHIFT {
     SQ_TT_WTYPE_INCLUDE_HS_SHIFT                       = 0x00000004,
     SQ_TT_WTYPE_INCLUDE_CS_SHIFT                       = 0x00000006,
     SQ_TT_WTYPE_INCLUDE_VS_SHIFT__GFX10                = 0x00000001,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     SQ_TT_WTYPE_INCLUDE_RSVD1_SHIFT__GFX104PLUS        = 0x00000003,
     SQ_TT_WTYPE_INCLUDE_RSVD2_SHIFT__GFX104PLUS        = 0x00000005,
 #endif
     SQ_TT_WTYPE_INCLUDE_ES_SHIFT__GFX10CORE            = 0x00000003,
     SQ_TT_WTYPE_INCLUDE_LS_SHIFT__GFX10CORE            = 0x00000005,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     SQ_TT_WTYPE_INCLUDE_RSVD0_SHIFT__GFX11             = 0x00000001,
 #endif
 } SQ_TT_WTYPE_INCLUDE_SHIFT;
@@ -13563,7 +13578,7 @@ typedef enum SU_PERFCNT_SEL {
     PERF_ENGG_INDEX_PRIM_IF_FETCH_TO_PRIMIC_P_FIFO_WRITE__GFX10PLUS = 0x00000106,
     PERF_ENGG_INDEX_PRIM_IF_FETCH_TO_PRIMIC_P_FIFO_NO_WRITE__GFX10PLUS = 0x00000107,
     PERF_ENGG_POS_REQ_STARVED__GFX10PLUS               = 0x00000108,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     PERF_CLPR_INPUT_PRIM__GFX11                        = 0x00000008,
     PERF_CLPR_INPUT_NULL_PRIM__GFX11                   = 0x00000009,
     PERF_CLPR_INPUT_EVENT__GFX11                       = 0x0000000a,
@@ -13621,7 +13636,7 @@ constexpr unsigned int MaxSuPerfcntSelGfx09_0          = PERF_CLIENT_UTCL1_INFLI
 constexpr unsigned int MaxSuPerfcntSelGfx09_1x         = PERF_PA_PRIMIC_TO_CLPRIM_FIFO_FULL__GFX09_1X;
 constexpr unsigned int MaxSuPerfcntSelGfx101           = PERF_ENGG_POS_REQ_STALLED_BY_FULL_CLIPV_FIFO__GFX101;
 constexpr unsigned int MaxSuPerfcntSelGfx103Derivative = PERF_OUTPUT_PRIM_4_SC__GFX103PLUSEXCLUSIVE;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxSuPerfcntSelGfx11            = PERF_PA_BUSY__GFX11;
 #endif
 
@@ -13664,7 +13679,7 @@ typedef enum SWIZZLE_MODE_ENUM {
     SW_VAR_R__GFX10CORE                                = 0x0000000f,
     SW_VAR_S_X__GFX10CORE                              = 0x0000001d,
     SW_VAR_D_X__GFX10CORE                              = 0x0000001e,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     SW_256KB_Z__GFX11                                  = 0x0000000c,
     SW_256KB_S__GFX11                                  = 0x0000000d,
     SW_256KB_D__GFX11                                  = 0x0000000e,
@@ -13949,7 +13964,7 @@ typedef enum SX_PERFCOUNTER_VALS {
     SX_PERF_SEL_RB1_STALL_DUE_TO_ORDERING__GFX10       = 0x000000de,
     SX_PERF_SEL_RB2_STALL_DUE_TO_ORDERING__GFX10       = 0x000000df,
     SX_PERF_SEL_RB3_STALL_DUE_TO_ORDERING__GFX10       = 0x000000e0,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     SX_PERF_SEL_DB0_MRT_BLEND_BYPASS__GFX11            = 0x00000022,
     SX_PERF_SEL_DB0_MRT_DONT_RD_DEST__GFX11            = 0x00000023,
     SX_PERF_SEL_DB0_MRT_DISCARD_SRC__GFX11             = 0x00000024,
@@ -14003,7 +14018,7 @@ typedef enum SX_PERFCOUNTER_VALS {
 
 constexpr unsigned int MaxSxPerfcounterValsGfx09       = SX_PERF_SEL_DB3_SIZE__GFX09_10;
 constexpr unsigned int MaxSxPerfcounterValsGfx10Core   = SX_PERF_SEL_RB3_STALL_DUE_TO_ORDERING__GFX10;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxSxPerfcounterValsGfx11       = SX_PERF_SEL_DB3_4X2_DISCARD__GFX11;
 #endif
 
@@ -15062,7 +15077,7 @@ typedef enum TCP_PERFCOUNT_SELECT {
     TCP_PERF_SEL_WRITE_DATACONFLICT_STALL__GFX103      = 0x0000003a,
     TCP_PERF_SEL_TD_TCP_STALL__GFX103                  = 0x0000003b,
     TCP_PERF_SEL_BACK_COMPAT_SWITCH__GFX103            = 0x0000003c,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     TCP_PERF_SEL_REQ_NON_READ__GFX104PLUS              = 0x00000010,
     TCP_PERF_SEL_REQ_MISS__GFX104PLUS                  = 0x00000011,
 #endif
@@ -15101,7 +15116,7 @@ typedef enum TCP_PERFCOUNT_SELECT {
     TCP_PERF_SEL_REQ_READ_MISS_EVICT__GFX10PLUS        = 0x0000000d,
     TCP_PERF_SEL_REQ_WRITE__GFX10PLUS                  = 0x0000000e,
     TCP_PERF_SEL_REQ_WRITE_MISS_EVICT__GFX10PLUS       = 0x0000000f,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     TCP_PERF_SEL_REQ_TAGBANK0_SET0__GFX11              = 0x00000012,
     TCP_PERF_SEL_REQ_TAGBANK0_SET1__GFX11              = 0x00000013,
     TCP_PERF_SEL_REQ_TAGBANK1_SET0__GFX11              = 0x00000014,
@@ -15168,7 +15183,7 @@ typedef enum TCP_PERFCOUNT_SELECT {
 constexpr unsigned int MaxTcpPerfcountSelectGfx09      = TCP_PERF_SEL_TCC_DCC_REQ__GFX09;
 constexpr unsigned int MaxTcpPerfcountSelectGfx101     = TCP_PERF_SEL_BACK_COMPAT_SWITCH__GFX101;
 constexpr unsigned int MaxTcpPerfcountSelectGfx103     = TCP_PERF_SEL_BACK_COMPAT_SWITCH__GFX103;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxTcpPerfcountSelectGfx11      = TCP_PERF_SEL_BURST_BIN_READHIT_gt16__GFX11;
 #endif
 
@@ -15209,7 +15224,7 @@ typedef enum TC_MICRO_TILE_MODE {
     MICRO_TILE_MODE_Z_3D__GFX09                        = 0x00000007,
     MICRO_TILE_MODE_Z__GFX10COREPLUS                   = 0x00000006,
     MICRO_TILE_MODE_RENDER_TARGET__GFX10PLUS           = 0x00000001,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     MICRO_TILE_MODE_Z_VAR__GFX11                       = 0x00000007,
 #endif
     MICRO_TILE_MODE_Z_VAR__NV2X                        = 0x00000007,
@@ -15351,7 +15366,7 @@ typedef enum TC_OP {
     TC_OP_RESERVED_FOP_FLUSH_DENORM_RTN_32_1__GFX09_10 = 0x0000000d,
     TC_OP_RESERVED_FOP_32_1__GFX09_10                  = 0x00000045,
     TC_OP_RESERVED_FOP_FLUSH_DENORM_32_1__GFX09_10     = 0x0000004d,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     TC_OP_RESERVED_FADD_RTN_32__GFX11                  = 0x00000005,
     TC_OP_ATOMIC_FADD_FLUSH_DENORM_RTN_32__GFX11       = 0x0000000d,
     TC_OP_RESERVED_FADD_32__GFX11                      = 0x00000045,
@@ -15664,7 +15679,7 @@ typedef enum TD_PERFCOUNT_SEL {
     TD_PERF_SEL_nofilter_dword_cycling_2cycles__GFX103PLUSEXCLUSIVE = 0x000000bd,
     TD_PERF_SEL_nofilter_dword_cycling_4cycles__GFX103PLUSEXCLUSIVE = 0x000000be,
     TD_PERF_SEL_input_bp_due_to_done_scoreboard_full__GFX103PLUSEXCLUSIVE = 0x000000bf,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     TD_PERF_SEL_sampler_preformatter_sclk_en__GFX104PLUS = 0x00000008,
     TD_PERF_SEL_ray_tracing_bvh4_sclk_en__GFX104PLUS   = 0x00000016,
     TD_PERF_SEL_ray_tracing_bvh4_ip_sclk_en__GFX104PLUS = 0x00000017,
@@ -15672,7 +15687,7 @@ typedef enum TD_PERFCOUNT_SEL {
     TD_PERF_SEL_sampler_lerp_busy__GFX10PLUS           = 0x00000003,
     TD_PERF_SEL_sampler_out_busy__GFX10PLUS            = 0x00000004,
     TD_PERF_SEL_nofilter_busy__GFX10PLUS               = 0x00000005,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     TD_PERF_SEL_sampler_bilerp_sclk_en__GFX11          = 0x00000009,
     TD_PERF_SEL_sampler_bypass_sclk_en__GFX11          = 0x0000000a,
     TD_PERF_SEL_sampler_minmax_sclk_en__GFX11          = 0x0000000b,
@@ -15694,7 +15709,7 @@ typedef enum TD_PERFCOUNT_SEL {
 constexpr unsigned int MaxTdPerfcountSelGfx09          = TD_PERF_SEL_texels_zeroed_out_by_blend_zero_prt__GFX09;
 constexpr unsigned int MaxTdPerfcountSelGfx101         = TD_PERF_SEL_nofilter_popcount_dmask_lt_num_comp_of_fmt__GFX101;
 constexpr unsigned int MaxTdPerfcountSelGfx103         = TD_PERF_SEL_input_bp_due_to_done_scoreboard_full__GFX103PLUSEXCLUSIVE;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxTdPerfcountSelGfx11          = TD_PERF_SEL_store_preempts_a_load__GFX11;
 #endif
 
@@ -15921,7 +15936,14 @@ typedef enum UMC_PERFCOUNT_SELECT {
     UMC_PERF_SEL_BeqEdcErrB1__NV2X                     = 0x0000004f,
     UMC_PERF_SEL_TempOverThresh__NV2X                  = 0x00000052,
     UMC_PERF_SEL_TempCnt__NV2X                         = 0x00000053,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI33
+    UMC_PERF_SEL_CrcErr__NV33                          = 0x00000067,
+    UMC_PERF_SEL_EccErr__NV33                          = 0x00000068,
+    UMC_PERF_SEL_DroopCmdThrot__NV33                   = 0x00000069,
+    UMC_PERF_SEL_DroopDetAtWin__NV33                   = 0x0000006a,
+    UMC_PERF_SEL_DroopDetect__NV33                     = 0x0000006b,
+#endif
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     UMC_PERF_SEL_NONE__NV3X                            = 0x00000000,
     UMC_PERF_SEL_SdpPh__NV3X                           = 0x00000001,
     UMC_PERF_SEL_SdpPm__NV3X                           = 0x00000002,
@@ -16053,7 +16075,7 @@ typedef enum UMC_PERFCOUNT_SELECT {
 constexpr unsigned int MaxUmcPerfcountSelectVg10       = UMC_PERF_SEL_BeqEdcErr__VG10;
 constexpr unsigned int MaxUmcPerfcountSelectGfx101     = UMC_PERF_SEL_RefreshType__GFX101;
 constexpr unsigned int MaxUmcPerfcountSelectNv2x       = UMC_PERF_SEL_TempCnt__NV2X;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxUmcPerfcountSelectNv3x       = UMC_PERF_SEL_ClockCount__NV3X;
 #endif
 
@@ -16088,7 +16110,7 @@ typedef enum UTCL1PerfSel {
     UTCL1_PERF_SEL_UTCL2_UTCL1_INVREQS__GFX103DERIVATIVE = 0x00000012,
     UTCL1_PERF_SEL_RANGE_INVREQS__GFX103DERIVATIVE     = 0x00000013,
     UTCL1_PERF_SEL_INV_ALL_VMID_INVREQS__GFX103DERIVATIVE = 0x00000014,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     UTCL1_PERF_SEL_MH_RECENT_BUF_HIT__GFX11            = 0x00000004,
     UTCL1_PERF_SEL_MH_DUPLICATE_DETECT__GFX11          = 0x00000005,
     UTCL1_PERF_SEL_UTCL2_REQS__GFX11                   = 0x00000006,
@@ -16173,7 +16195,7 @@ constexpr unsigned int MaxUTCL1PerfSelRaphael          = UTCL1_PERF_SEL_UTCL2_RE
 constexpr unsigned int MaxUTCL1PerfSelRembrandt        = UTCL1_PERF_SEL_UTCL2_REQS_OUTSTANDING_ACCUM__REMBRANDT;
 constexpr unsigned int MaxUTCL1PerfSelNv24             = UTCL1_PERF_SEL_UTCL2_REQS_OUTSTANDING_ACCUM__NV24;
 constexpr unsigned int MaxUTCL1PerfSelNv23             = UTCL1_PERF_SEL_UTCL2_REQS_OUTSTANDING_ACCUM__NV23;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 constexpr unsigned int MaxUTCL1PerfSelGfx11            = UTCL1_PERF_SEL_ALOG_STALL_PMM_CREDITS__GFX11;
 #endif
 
@@ -16328,7 +16350,7 @@ typedef enum VGT_EVENT_TYPE {
     BIN_CONF_OVERRIDE_CHECK__GFX10PLUS                 = 0x0000001d,
     THREAD_TRACE_DRAW__GFX10PLUS                       = 0x00000036,
     DRAW_DONE__GFX10PLUS                               = 0x0000003f,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     WAIT_SYNC__GFX11                                   = 0x00000015,
     ENABLE_PIPELINE_NOT_USED__GFX11                    = 0x0000003e,
 #endif
@@ -16438,7 +16460,7 @@ typedef enum VGT_OUT_PRIM_TYPE {
     VGT_OUT_LINE_ADJ__GFX09_10                         = 0x0000000c,
     VGT_OUT_TRI_ADJ__GFX09_10                          = 0x0000000d,
     VGT_OUT_PATCH__GFX09_10                            = 0x0000000e,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     VGT_OUT_2D_RECT__GFX11                             = 0x00000003,
     VGT_OUT_RECT_V0__GFX11                             = 0x00000004,
     VGT_OUT_DUMMY_1__GFX11                             = 0x00000005,
@@ -16668,7 +16690,7 @@ typedef enum VRSCombinerMode {
     VRS_COMB_MODE_SATURATE                             = 0x00000004,
 } VRSCombinerMode;
 
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 typedef enum VRSCombinerModeSC {
     SC_VRS_COMB_MODE_PASSTHRU                          = 0x00000000,
     SC_VRS_COMB_MODE_OVERRIDE                          = 0x00000001,
@@ -16684,7 +16706,7 @@ typedef enum VRSHtileEncoding {
     VRS_HTILE_4BIT_ENCODING                            = 0x00000002,
 } VRSHtileEncoding;
 
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 typedef enum VRSrate {
     VRS_SHADING_RATE_1X1                               = 0x00000000,
     VRS_SHADING_RATE_1X2                               = 0x00000001,
@@ -16711,7 +16733,7 @@ typedef enum WD_IA_DRAW_REG_XFER {
     WD_IA_DRAW_REG_XFER_VGT_INSTANCE_BASE_ID           = 0x00000002,
     WD_IA_DRAW_REG_XFER_GE_CNTL__GFX10PLUS             = 0x00000003,
     WD_IA_DRAW_REG_XFER_GE_USER_VGPR_EN__GFX10PLUS     = 0x00000004,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     WD_IA_DRAW_REG_XFER_FL_MS_WG_DIM__GFX11            = 0x00000005,
     WD_IA_DRAW_REG_XFER_FL_MS_WG_DIM_1__GFX11          = 0x00000006,
     WD_IA_DRAW_REG_XFER_FL_MS_TG_SIZE__GFX11           = 0x00000007,
@@ -18653,7 +18675,7 @@ namespace Gfx103PlusExclusive
     constexpr unsigned int SQ_WAVE_IB_DEP_HOLD_CNT_SIZE                       = 0x00000001;
 } // namespace Gfx103PlusExclusive
 
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 namespace Gfx104Plus
 {
     constexpr unsigned int SIMM16_WAITCNT_EXP_CNT_START                       = 0x00000000;
@@ -18711,7 +18733,7 @@ namespace Gfx10Plus
     constexpr unsigned int SQ_WAVE_IB_DEP_VM_VSRC_SIZE                        = 0x00000004;
 } // namespace Gfx10Plus
 
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 namespace Gfx11
 {
     constexpr unsigned int CONTEXT_SPACE_END                                  = 0x0000a3ff;
@@ -18755,7 +18777,7 @@ namespace Nv31
 } // namespace Nv31
 #endif
 
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 namespace Nv3x
 {
     constexpr unsigned int ROM_SIGNATURE                                      = 0x0000aa55;
@@ -18911,7 +18933,7 @@ enum PerfCtrId
     GrbmSe1PerfSelId                         = 21,
     GrbmSe2PerfSelId                         = 22,
     GrbmSe3PerfSelId                         = 23,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     GrbmSe4PerfSelId                         = 24,
     GrbmSe5PerfSelId                         = 25,
     GrbmSe6PerfSelId                         = 26,
@@ -18926,7 +18948,7 @@ enum PerfCtrId
     SdmaPerfSelId                            = 34,
     SpiPerfcntSelId                          = 35,
     SqPerfSelId                              = 36,
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
     SqgPerfSelId                             = 37,
 #endif
     SuPerfcntSelId                           = 38,
@@ -19616,6 +19638,61 @@ constexpr unsigned int Nv31MaxPerfEventIds[MaxPerfCtrId] =
     RMI_PERF_SEL_CONSUMER_PROBEGEN_DB_RTS_RTR__GFX11,
     RLC_PERF_SEL_SERDES_COMMAND_WRITE,
     SC_SPI_WAVE_STALLED_BY_SPI__GFX11,
+    SDMA_PERF_SEL_QUEUE7_SELECT__GFX11,
+    SPI_PERF_BUSY__GFX11,
+    SQ_PERF_SEL_NONE2__GFX104PLUS,
+    SQG_PERF_SEL_DUMMY_LAST,
+    PERF_PA_BUSY__GFX11,
+    SX_PERF_SEL_DB3_4X2_DISCARD__GFX11,
+    TA_PERF_SEL_tcreq_clk_valid_cycles__GFX103PLUSEXCLUSIVE,
+    0,
+    0,
+    TCP_PERF_SEL_BURST_BIN_READHIT_gt16__GFX11,
+    TD_PERF_SEL_store_preempts_a_load__GFX11,
+    UTCL1_PERF_SEL_ALOG_STALL_PMM_CREDITS__GFX11,
+    UMC_PERF_SEL_ClockCount__NV3X,
+    0,
+    0,
+};
+#endif
+
+#if CHIP_HDR_NAVI33
+constexpr unsigned int Nv33MaxPerfEventIds[MaxPerfCtrId] =
+{
+    CB_PERF_SEL_EXPORT_KILLED_BY_NULL_TARGET_SHADER_MASK__GFX11,
+    CHA_PERF_SEL_CYCLE__NV3X,
+    CHC_PERF_SEL_REQ_CLIENT23__GFX11,
+    CHCG_PERF_SEL_REQ_CLIENT23__NV3X,
+    CPC_PERF_SEL_MEC_THREAD3__GFX11,
+    CPF_PERF_SEL_CP_SDMA_MNGR_SDMABUSY__GFX11,
+    CPG_PERF_SEL_PFP_VGTDMA_DB_ROQ_DATA_STALL1__GFX11,
+    DF_MALL_PERF_SEL_MALL_SDP_LAT_HIST_GT1000__NV3X,
+    GCR_PERF_SEL_PIO_GL1_TLB_SHOOTDOWN_REQ__NV3X,
+    GDS_PERF_SEL_SE7_GS_WAVE_ID_VALID__GFX11,
+    ge1_rbiu_dr_fifo_starved_p1__GFX103COREPLUS,
+    ge_agm_gcr_combine__GFX11,
+    ge_ngg_busy_base__GFX11,
+    0,
+    GL1A_PERF_SEL_CYCLE__GFX103PLUSEXCLUSIVE,
+    GL1C_PERF_SEL_UTCL0_UTCL1_XNACK_NO_RETRY_FAULT__GFX11,
+    0,
+    GL2A_PERF_SEL_RTN_CREDIT_STALL_CLIENT15__GFX104PLUS,
+    GL2C_PERF_SEL_HIT_PASS_MISS_IN_CLIENT19__GFX11,
+    GRBM_PERF_SEL_PC_BUSY__GFX11,
+    GRBM_SE0_PERF_SEL_PC_BUSY__GFX11,
+    GRBM_SE1_PERF_SEL_PC_BUSY__GFX11,
+    GRBM_SE2_PERF_SEL_PC_BUSY__GFX11,
+    GRBM_SE3_PERF_SEL_PC_BUSY__GFX11,
+    GRBM_SE4_PERF_SEL_PC_BUSY,
+    GRBM_SE5_PERF_SEL_PC_BUSY,
+    GRBM_SE6_PERF_SEL_PC_BUSY,
+    GRBM_SE7_PERF_SEL_PC_BUSY,
+    0,
+    DB_PERF_SEL_OREO_Events_stalls__GFX11,
+    PH_PERF_SC7_FIFO_STATUS_3__GFX11,
+    RMI_PERF_SEL_CONSUMER_PROBEGEN_DB_RTS_RTR__GFX11,
+    RLC_PERF_SEL_SERDES_COMMAND_WRITE,
+    SC_VRC_REPROBE_FULL__NV33,
     SDMA_PERF_SEL_QUEUE7_SELECT__GFX11,
     SPI_PERF_BUSY__GFX11,
     SQ_PERF_SEL_NONE2__GFX104PLUS,

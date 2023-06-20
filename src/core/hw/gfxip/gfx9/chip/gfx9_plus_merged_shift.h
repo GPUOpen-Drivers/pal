@@ -6933,7 +6933,7 @@ namespace Gfx103PlusExclusive
     constexpr unsigned int VGT_SYS_CONFIG__NUM_SUBGROUPS_IN_FLIGHT__SHIFT     = 0x00000008;
 } // namespace Gfx103PlusExclusive
 
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 namespace Gfx104Plus
 {
     constexpr unsigned int COMPUTE_PGM_RSRC3__INST_PREF_SIZE__SHIFT           = 0x00000004;
@@ -8403,7 +8403,7 @@ namespace Gfx10Vrs
     constexpr unsigned int RLC_SPM_SE_MUXSEL_ADDR_OFFSET__RESERVED__SHIFT     = 0x00000010;
 } // namespace Gfx10Vrs
 
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 namespace Gfx11
 {
     constexpr unsigned int CB_CACHE_EVICT_POINTS__CC_COLOR_EVICT_POINT__SHIFT = 0x00000000;
@@ -9021,7 +9021,7 @@ namespace Gfx11
 } // namespace Gfx11
 #endif
 
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 namespace Gfx110
 {
     constexpr unsigned int CB_CGTT_SCLK_CTRL__OFF_HYSTERESIS__SHIFT           = 0x00000004;
@@ -10207,7 +10207,14 @@ namespace Nv31
 } // namespace Nv31
 #endif
 
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI33
+namespace Nv33
+{
+    constexpr unsigned int PA_SC_VRS_SURFACE_CNTL__VRC_REPROBE_DISABLE__SHIFT = 0x00000005;
+} // namespace Nv33
+#endif
+
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 namespace Nv3x
 {
     constexpr unsigned int CHCG_PERFCOUNTER0_HI__PERFCOUNTER_HI__SHIFT        = 0x00000000;

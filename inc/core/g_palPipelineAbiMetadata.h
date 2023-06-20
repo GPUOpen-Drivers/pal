@@ -66,6 +66,32 @@ struct ShaderMetadata
     } hasEntry;
 };
 
+/// Instance of a constant buffer read from an instruction.
+struct CbConstUsageMetadata
+{
+    /// constant buffer id
+    uint32                buffId;
+    /// slot
+    uint32                elem;
+    /// channel select
+    uint8                 chan;
+    /// constant usage
+    Abi::CbConstUsageType usage;
+
+    union
+    {
+        struct
+        {
+            uint8 buffId   : 1;
+            uint8 elem     : 1;
+            uint8 chan     : 1;
+            uint8 usage    : 1;
+            uint8 reserved : 4;
+        };
+        uint8 uAll;
+    } hasEntry;
+};
+
 /// Per-hardware stage metadata.
 struct HardwareStageMetadata
 {
@@ -73,8 +99,10 @@ struct HardwareStageMetadata
     Abi::PipelineSymbolType entryPoint;
     /// Scratch memory size in bytes.
     uint32                  scratchMemorySize;
-    /// size in bytes of the stack managed by the compiler backend, part of scratch_memory_size.
+    /// size in bytes of the stack managed by the compiler backend.
     uint32                  backendStackSize;
+    /// size in bytes of the stack managed by the frontend.
+    uint32                  frontendStackSize;
     /// Local Data Share size in bytes.
     uint32                  ldsSize;
     /// Performance data buffer size in bytes.
@@ -92,6 +120,10 @@ struct HardwareStageMetadata
     uint32                  threadgroupDimensions[3];
     /// Original thread-group X/Y/Z dimensions (Compute only).
     uint32                  origThreadgroupDimensions[3];
+    /// Instance of a constant buffer read from an instruction.
+    CbConstUsageMetadata    cbConstUsage[16];
+    /// Size of cbConstUsage array (max 16 entries)
+    uint8                   numCbConstUsages;
     /// Wavefront size (only set if different from HW default).
     uint32                  wavefrontSize;
     /// User data register mapping to user data entries. See :ref:`amdgpu-amdpal-code-object-user-data-section` for more
@@ -158,6 +190,7 @@ struct HardwareStageMetadata
             uint64 entryPoint                : 1;
             uint64 scratchMemorySize         : 1;
             uint64 backendStackSize          : 1;
+            uint64 frontendStackSize         : 1;
             uint64 ldsSize                   : 1;
             uint64 perfDataBufferSize        : 1;
             uint64 vgprCount                 : 1;
@@ -166,6 +199,8 @@ struct HardwareStageMetadata
             uint64 sgprLimit                 : 1;
             uint64 threadgroupDimensions     : 1;
             uint64 origThreadgroupDimensions : 1;
+            uint64 cbConstUsage              : 1;
+            uint64 numCbConstUsages          : 1;
             uint64 wavefrontSize             : 1;
             uint64 userDataRegMap            : 1;
             uint64 checksumValue             : 1;
@@ -189,7 +224,7 @@ struct HardwareStageMetadata
             uint64 writesDepth               : 1;
             uint64 usesAppendConsume         : 1;
             uint64 usesPrimId                : 1;
-            uint64 reserved                  : 30;
+            uint64 reserved                  : 27;
         };
         uint64 uAll;
     } hasEntry;
@@ -2378,6 +2413,7 @@ namespace HardwareStageMetadataKey
     static constexpr char EntryPoint[]                = ".entry_point";
     static constexpr char ScratchMemorySize[]         = ".scratch_memory_size";
     static constexpr char BackendStackSize[]          = ".backend_stack_size";
+    static constexpr char FrontendStackSize[]         = ".frontend_stack_size";
     static constexpr char LdsSize[]                   = ".lds_size";
     static constexpr char PerfDataBufferSize[]        = ".perf_data_buffer_size";
     static constexpr char VgprCount[]                 = ".vgpr_count";
@@ -2386,6 +2422,8 @@ namespace HardwareStageMetadataKey
     static constexpr char SgprLimit[]                 = ".sgpr_limit";
     static constexpr char ThreadgroupDimensions[]     = ".threadgroup_dimensions";
     static constexpr char OrigThreadgroupDimensions[] = ".orig_threadgroup_dimensions";
+    static constexpr char CbConstUsages[]             = ".cb_const_usages";
+    static constexpr char NumCbConstUsages[]          = ".num_cb_const_usages";
     static constexpr char WavefrontSize[]             = ".wavefront_size";
     static constexpr char UserDataRegMap[]            = ".user_data_reg_map";
     static constexpr char ChecksumValue[]             = ".checksum_value";
@@ -2411,6 +2449,14 @@ namespace HardwareStageMetadataKey
     static constexpr char UsesPrimId[]                = ".uses_prim_id";
 };
 
+namespace CbConstUsageMetadataKey
+{
+    static constexpr char BuffId[] = ".buff_id";
+    static constexpr char Elem[]   = ".elem";
+    static constexpr char Chan[]   = ".chan";
+    static constexpr char Usage[]  = ".usage";
+};
+
 namespace ShaderMetadataKey
 {
     static constexpr char ApiShaderHash[]   = ".api_shader_hash";
@@ -2433,6 +2479,7 @@ Result SerializeEnum(MsgPackWriter* pWriter, Abi::PipelineSymbolType value);
 Result SerializeEnum(MsgPackWriter* pWriter, Abi::PointSpriteSelect value);
 Result SerializeEnum(MsgPackWriter* pWriter, Abi::GsOutPrimType value);
 Result SerializeEnum(MsgPackWriter* pWriter, Abi::CoverageToShaderSel value);
+Result SerializeEnum(MsgPackWriter* pWriter, Abi::CbConstUsageType value);
 
 template <typename EnumType>
 Result SerializeEnumBitflags(MsgPackWriter* pWriter, uint32 bitflags);

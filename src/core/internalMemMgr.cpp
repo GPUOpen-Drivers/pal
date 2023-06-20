@@ -257,6 +257,7 @@ Result InternalMemMgr::AllocateGpuMem(
                 data.flags.isVirtual          = (*ppGpuMemory)->IsVirtual();
                 data.flags.isExternal         = (*ppGpuMemory)->IsExternal();
                 data.flags.buddyAllocated     = (*ppGpuMemory)->WasBuddyAllocated();
+                data.flags.appRequested       = internalInfo.flags.appRequested;
                 data.allocMethod              = Developer::GpuMemoryAllocationMethod::Normal;
                 data.pGpuMemory               = *ppGpuMemory;
                 data.offset                   = *pOffset;

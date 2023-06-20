@@ -390,6 +390,11 @@ static const MaxEventIds& GetEventLimits(
     case Pal::AsicRevision::Raphael:
         pOut = &RaphaelMaxPerfEventIds;
         break;
+#if PAL_BUILD_NAVI33
+    case Pal::AsicRevision::Navi33:
+        pOut = &Nv33MaxPerfEventIds;
+        break;
+#endif
     default:
         PAL_ASSERT_ALWAYS(); // What chip is this?
         pOut = &UnknownMaxEventIds;

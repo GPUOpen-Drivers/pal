@@ -2090,7 +2090,7 @@ constexpr Util::uint8 MsaaRTCopy_Cs_1D32F7A1[] =
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
-#if PAL_BUILD_NAVI31
+#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI33
 // Msaa DS Copy compute shader binary
 constexpr Util::uint8 MsaaDSCopy_Cs_B918179A[] =
 {
@@ -2617,6 +2617,15 @@ constexpr PipelineBinary msaaImageCopyComputeBinaryTableRaphael[] =
 #if PAL_BUILD_NAVI31
 // Table of compute pipeline binaries for Navi31
 constexpr PipelineBinary msaaImageCopyComputeBinaryTableNavi31[] =
+{
+    {MsaaDSCopy_Cs_B918179A,  sizeof(MsaaDSCopy_Cs_B918179A)},
+    {MsaaRTCopy_Cs_B918179A,  sizeof(MsaaRTCopy_Cs_B918179A)},
+};
+#endif
+
+#if PAL_BUILD_NAVI33
+// Table of compute pipeline binaries for Navi33
+constexpr PipelineBinary msaaImageCopyComputeBinaryTableNavi33[] =
 {
     {MsaaDSCopy_Cs_B918179A,  sizeof(MsaaDSCopy_Cs_B918179A)},
     {MsaaRTCopy_Cs_B918179A,  sizeof(MsaaRTCopy_Cs_B918179A)},

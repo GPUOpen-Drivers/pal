@@ -180,32 +180,16 @@ union GpuMemoryCreateFlags
         uint64 explicitSync                 :  1; ///< If set, shared memory will skip syncs in the kernel and all
                                                   ///  drivers that use this memory must handle syncs explicitly.
         uint64 privPrimary                  :  1; ///< This is a private primary surface gpu memory.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 723
-        uint64 privateScreen                :  1; // GPU memory will be used for a private screen image.
-#else
-        uint64 placeholder723               :  1;
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 746
+        uint64 privateScreen                :  1; ///< GPU memory will be used for a private screen image.
         uint64 kmdShareUmdSysMem            :  1; ///< UMD will allocate/free a memory buffer to be shared with KMD.
         uint64 deferCpuVaReservation        :  1; ///< KMD will allocate with the "CpuVisibleOnDemand" alloc flag.
                                                   ///  Ignored for non-CPU-visible allocations.
-#else
-        uint64 placeholder745               :  2;
-#endif
         uint64 placeholder1                 :  1;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 761
-         uint64 startVaHintFlag             :  1;  ///< startVaHintFlag is set to 1 for passing startVaHint address
-                                                   ///< to set baseVirtAddr as startVaHint for memory allocation.
-         uint64 reserved                    :  31; ///< Reserved for future use.
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 746
-        uint64 reserved                     :  32; ///< Reserved for future use.
-#endif
+        uint64 startVaHintFlag              :  1; ///< startVaHintFlag is set to 1 for passing startVaHint address
+                                                  ///  to set baseVirtAddr as startVaHint for memory allocation.
+        uint64 reserved                     : 31; ///< Reserved for future use.
     };
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 746
     uint64     u64All;                            ///< Flags packed as 64-bit uint.
-#else
-    uint32     u32All;                            ///< Flags packed as 32-bit uint.
-#endif
 };
 
 /// Specifies properties of a typed buffer pseudo-object. When this is specified in GpuMemoryCreateInfo along with the
@@ -415,12 +399,9 @@ struct GpuMemoryDesc
 /// shows where is the sub allocated memory.
 struct GpuMemSubAllocInfo
 {
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
-    const IGpuMemory* pGpuMemory; ///< Handle to the GPU memory allocated.
-#endif
-    gpusize           address;    ///< Start address of the memory, not including the offset.
-    gpusize           offset;     ///< Offset from the start address of the memory.
-    gpusize           size;       ///< Size of the memory.
+    gpusize     address;     ///< Start address of the memory, not including the offset.
+    gpusize     offset;      ///< Offset from the start address of the memory.
+    gpusize     size;        ///< Size of the memory.
 };
 
 /// Specifies a GPU memory object and flags with more specific usage details.  An array of these structures is specified

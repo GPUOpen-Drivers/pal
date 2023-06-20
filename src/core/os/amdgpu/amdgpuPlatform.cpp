@@ -246,7 +246,7 @@ Result Platform::ReQueryDevices()
         }
     }
 
-    if ((result == Result::Success) && (notAmdDeviceCount == deviceCount))
+    if (notAmdDeviceCount == deviceCount)
     {
         result = Result::ErrorIncompatibleDevice;
     }

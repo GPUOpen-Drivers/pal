@@ -229,7 +229,7 @@ public:
     bool SupportsGangSubmit() const
     {
         bool supportsGangSubmit = ((IsDrmVersionOrGreater(3,49) || IsKernelVersionEqualOrGreater(6,1)) &&
-                                    false                                                              &&
+                                    Settings().enableGangSubmit                                        &&
                                     (m_pPlatform->IsEmulationEnabled() == false));
         return supportsGangSubmit;
     }
@@ -520,7 +520,11 @@ public:
         return Result::Unsupported;
     }
 
-    bool IsVmAlwaysValidSupported() const { return (m_featureState.supportVmAlwaysValid != 0); }
+    bool IsVmAlwaysValidSupported() const
+    {
+        return ((m_featureState.supportVmAlwaysValid != 0) &&
+                (m_publicSettings.enableVmAlwaysValid != VmAlwaysValidForceDisable));
+    }
 
     bool IsRaw2SubmitSupported() const { return (m_featureState.supportRaw2Submit != 0); }
 
@@ -946,6 +950,22 @@ public:
     amdgpu_va_handle SearchSharedBoMap(
         amdgpu_bo_handle hBuffer,
         gpusize*         pGpuVirtAddr);
+
+    void GetModifierInfo(
+        uint64                   modifier,
+        ImageCreateInfo*         createInfo,
+        ImageInternalCreateInfo* internalCreateInfo);
+
+    void AddModifier(
+        ChNumFormat format,
+        uint32*     pModifierCount,
+        uint64*     pModifiersList,
+        uint64      modifier) const;
+
+    virtual void GetModifiersList(
+        ChNumFormat format,
+        uint32*     pModifierCount,
+        uint64*     pModifiersList) const override;
 
 protected:
     virtual void FinalizeQueueProperties() override;

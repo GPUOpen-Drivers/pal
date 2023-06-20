@@ -270,6 +270,12 @@ private:
         ICmdBuffer*const*        &ppCmdBuffers,
         uint32                   &cmdBufferCount);
 
+    void ResetIbs()
+    {
+        m_numIbs = 0;
+        memset(m_ibs, 0, sizeof(m_ibs));
+    }
+
     // Tracks global memory references for this queue. Each key is a GPU memory object and each value is a refcount.
     typedef Util::HashMap<IGpuMemory*, uint32, Pal::Platform> MemoryRefMap;
 

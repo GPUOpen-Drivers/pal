@@ -525,47 +525,18 @@ Result Device::SetupPublicSettingDefaults()
         m_memoryProperties.largePageSupport.minSurfaceSizeForAlignmentInBytes;
     m_publicSettings.miscellaneousDebugString[0]              = '\0';
     m_publicSettings.renderedByString[0]                      = '\0';
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 727
-    m_publicSettings.useAcqRelInterface                       = false;
-#endif
     m_publicSettings.zeroUnboundDescDebugSrd                  = false;
     m_publicSettings.pipelinePreferredHeap                    = HasLargeLocalHeap() ? GpuHeap::GpuHeapLocal
                                                                                     : GpuHeap::GpuHeapInvisible;
     m_publicSettings.depthClampBasedOnZExport                 = true;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 743
-    m_publicSettings.forceWaitPointPreColorToPostIndexFetch   = false;
-#else
     m_publicSettings.forceWaitPointPreColorToPostPrefetch     = false;
-#endif
     m_publicSettings.enableExecuteIndirectPacket              = false;
     m_publicSettings.disableExecuteIndirectAceOffload         = false;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 706
     m_publicSettings.dccInitialClearKind                      = static_cast<uint32>(DccInitialClearKind::Uncompressed);
-#endif
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 713
     m_publicSettings.disableInternalVrsImage                  = false;
-#endif
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 716) && (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 719)
-    m_publicSettings.memMgrPoolAllocationSizeInBytes          = 0;
-#endif
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 744)
     m_publicSettings.binningContextStatesPerBin               = 0;
     m_publicSettings.binningPersistentStatesPerBin            = 0;
-#endif
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 749)
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 753)
     m_publicSettings.disableBinningPsKill                     = OverrideMode::Default;
-#else
-    m_publicSettings.disableBinningPsKill                     = DisableBinningPsKill::Default;
-#endif
-#endif
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION < 755)
-    m_publicSettings.isolineDistributionFactor                =  12;
-    m_publicSettings.triDistributionFactor                    =  30;
-    m_publicSettings.quadDistributionFactor                   =  24;
-    m_publicSettings.donutDistributionFactor                  =  24;
-    m_publicSettings.trapezoidDistributionFactor              =   6;
-#endif
     m_publicSettings.nggLateAllocGs                           = 127;
     m_publicSettings.rpmViewsBypassMall                       = RpmViewsBypassMallOff;
     m_publicSettings.expandHiZRangeForResummarize             = false;
@@ -601,6 +572,10 @@ Result Device::SetupPublicSettingDefaults()
 
     m_publicSettings.maxScratchRingSizeBaseline = 268435456;
     m_publicSettings.maxScratchRingSizeScalePct = 10;
+
+#if defined(__unix__)
+    m_publicSettings.enableVmAlwaysValid = VmAlwaysValidEnable::VmAlwaysValidDefaultEnable;
+#endif
 
     return ret;
 }
@@ -2349,27 +2324,21 @@ Result Device::GetProperties(
         {
             const auto& gfx6Props = m_chipProperties.gfx6;
 
-            pInfo->gfxipProperties.flags.u64All                         = 0;
-            pInfo->gfxipProperties.flags.support8bitIndices             = gfx6Props.support8bitIndices;
-            pInfo->gfxipProperties.flags.support16BitInstructions       = gfx6Props.support16BitInstructions;
-            pInfo->gfxipProperties.flags.support64BitInstructions       = gfx6Props.support64BitInstructions;
-            pInfo->gfxipProperties.flags.supportBorderColorSwizzle      = gfx6Props.supportBorderColorSwizzle;
-            pInfo->gfxipProperties.flags.supportFloat64Atomics          = gfx6Props.supportFloat64Atomics;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 720
-            pInfo->gfxipProperties.flags.supportFloatAtomics            =
-                m_chipProperties.gfxip.supportFloat32BufferAtomics |
-                m_chipProperties.gfxip.supportFloat32ImageAtomics  |
-                gfx6Props.supportFloat64Atomics;
-#endif
-            pInfo->gfxipProperties.flags.supportShaderSubgroupClock     = gfx6Props.supportShaderSubgroupClock;
-            pInfo->gfxipProperties.flags.supportShaderDeviceClock       = gfx6Props.supportShaderDeviceClock;
-            pInfo->gfxipProperties.flags.supports2BitSignedValues       = gfx6Props.supports2BitSignedValues;
-            pInfo->gfxipProperties.flags.supportRgpTraces               = gfx6Props.supportRgpTraces;
-            pInfo->gfxipProperties.flags.supportImageViewMinLod         = gfx6Props.supportImageViewMinLod;
+            pInfo->gfxipProperties.flags.u64All                     = 0;
+            pInfo->gfxipProperties.flags.support8bitIndices         = gfx6Props.support8bitIndices;
+            pInfo->gfxipProperties.flags.support16BitInstructions   = gfx6Props.support16BitInstructions;
+            pInfo->gfxipProperties.flags.support64BitInstructions   = gfx6Props.support64BitInstructions;
+            pInfo->gfxipProperties.flags.supportBorderColorSwizzle  = gfx6Props.supportBorderColorSwizzle;
+            pInfo->gfxipProperties.flags.supportFloat64Atomics      = gfx6Props.supportFloat64Atomics;
+            pInfo->gfxipProperties.flags.supportShaderSubgroupClock = gfx6Props.supportShaderSubgroupClock;
+            pInfo->gfxipProperties.flags.supportShaderDeviceClock   = gfx6Props.supportShaderDeviceClock;
+            pInfo->gfxipProperties.flags.supports2BitSignedValues   = gfx6Props.supports2BitSignedValues;
+            pInfo->gfxipProperties.flags.supportRgpTraces           = gfx6Props.supportRgpTraces;
+            pInfo->gfxipProperties.flags.supportImageViewMinLod     = gfx6Props.supportImageViewMinLod;
 
+            // GFX6-8 only support single channel min/max filter
             pInfo->gfxipProperties.flags.supportSingleChannelMinMaxFilter = 1;
-            pInfo->gfxipProperties.flags.supportPerChannelMinMaxFilter    = 0; // GFX6-8 only support single channel
-                                                                               // min/max filter
+            pInfo->gfxipProperties.flags.supportPerChannelMinMaxFilter    = 0;
 
             pInfo->gfxipProperties.shaderCore.numShaderEngines     = gfx6Props.numShaderEngines;
             pInfo->gfxipProperties.shaderCore.numShaderArrays      = gfx6Props.numShaderArrays;
@@ -2455,12 +2424,6 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportBorderColorSwizzle          = gfx9Props.supportBorderColorSwizzle;
             pInfo->gfxipProperties.flags.supportImageViewMinLod             = gfx9Props.supportImageViewMinLod;
             pInfo->gfxipProperties.flags.supportFloat64Atomics              = gfx9Props.supportFloat64Atomics;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 720
-            pInfo->gfxipProperties.flags.supportFloatAtomics                =
-                m_chipProperties.gfxip.supportFloat32BufferAtomics |
-                m_chipProperties.gfxip.supportFloat32ImageAtomics  |
-                gfx9Props.supportFloat64Atomics;
-#endif
             pInfo->gfxipProperties.flags.supportShaderSubgroupClock         = gfx9Props.supportShaderSubgroupClock;
             pInfo->gfxipProperties.flags.supportShaderDeviceClock           = gfx9Props.supportShaderDeviceClock;
             pInfo->gfxipProperties.flags.supportAlphaToOne                  = gfx9Props.supportAlphaToOne;
@@ -2471,13 +2434,8 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.supportSingleChannelMinMaxFilter = gfx9Props.supportSingleChannelMinMaxFilter;
             pInfo->gfxipProperties.flags.supportPerChannelMinMaxFilter    = gfx9Props.supportSingleChannelMinMaxFilter;
             pInfo->gfxipProperties.flags.supportRgpTraces                 = 1;
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 752
-            pInfo->gfxipProperties.flags.supportMeshShader = gfx9Props.supportMeshShader;
-            pInfo->gfxipProperties.flags.supportTaskShader = gfx9Props.supportTaskShader;
-#else
-            pInfo->gfxipProperties.flags.supportMeshShader = ((gfx9Props.supportMeshShader != 0) &&
-                                                              (gfx9Props.supportTaskShader != 0));
-#endif
+            pInfo->gfxipProperties.flags.supportMeshShader                = gfx9Props.supportMeshShader;
+            pInfo->gfxipProperties.flags.supportTaskShader                = gfx9Props.supportTaskShader;
             pInfo->gfxipProperties.flags.supportMsFullRangeRtai           = gfx9Props.supportMsFullRangeRtai;
             pInfo->gfxipProperties.flags.supports2BitSignedValues         = gfx9Props.supports2BitSignedValues;
             pInfo->gfxipProperties.flags.supportPrimitiveOrderedPs        = gfx9Props.supportPrimitiveOrderedPs;
@@ -2486,6 +2444,7 @@ Result Device::GetProperties(
             pInfo->gfxipProperties.flags.timestampResetOnIdle             = gfx9Props.timestampResetOnIdle;
             pInfo->gfxipProperties.flags.supportReleaseAcquireInterface   = gfx9Props.supportReleaseAcquireInterface;
             pInfo->gfxipProperties.flags.supportSplitReleaseAcquire       = gfx9Props.supportSplitReleaseAcquire;
+            pInfo->gfxipProperties.flags.supportCooperativeMatrix         = gfx9Props.supportCooperativeMatrix;
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 776
             pInfo->gfxipProperties.shaderCore.numShaderEngines     = gfx9Props.numActiveShaderEngines;
@@ -2658,11 +2617,6 @@ Result Device::GetProperties(
             = m_chipProperties.gfxip.supportFloat64BufferAtomicMinMax;
         pInfo->gfxipProperties.flags.supportFloat64SharedAtomicMinMax
             = m_chipProperties.gfxip.supportFloat64SharedAtomicMinMax;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 735
-        pInfo->gfxipProperties.flags.supportFloat32Atomics       = m_chipProperties.gfxip.supportFloat32BufferAtomics |
-                                                                   m_chipProperties.gfxip.supportFloat32ImageAtomics;
-#endif
 
         pInfo->gfxipProperties.srdSizes.bufferView = m_chipProperties.srdSizes.bufferView;
         pInfo->gfxipProperties.srdSizes.imageView  = m_chipProperties.srdSizes.imageView;
@@ -3644,6 +3598,36 @@ Result Device::ValidateBindObjectMemoryInput(
     }
 
     return result;
+}
+
+// =====================================================================================================================
+Result Device::ReserveGpuVirtualAddressSvm(
+    gpusize vaStartAddress,
+    gpusize vaSize)
+{
+    gpusize gpuVaAllocated = 0u;
+    // Try to reserve the range on the GPU side
+    Result result = ReserveGpuVirtualAddress(VaPartition::Svm, vaStartAddress, vaSize, false,
+        VirtualGpuMemAccessMode::Undefined, &gpuVaAllocated);
+
+    // Make sure driver returns the address that PAL requested
+    if ((result == Result::Success) && (gpuVaAllocated != vaStartAddress))
+    {
+        result = FreeGpuVirtualAddress(gpuVaAllocated, vaSize);
+        PAL_ALERT(result != Result::Success);
+        result = Result::ErrorOutOfGpuMemory;
+    }
+
+    return result;
+}
+
+// =====================================================================================================================
+Result Device::FreeGpuVirtualAddressSvm(
+    gpusize vaStartAddress,
+    gpusize vaSize)
+{
+    // Redirect call to free by default
+    return FreeGpuVirtualAddress(vaStartAddress, vaSize);
 }
 
 // =====================================================================================================================

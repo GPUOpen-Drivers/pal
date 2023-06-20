@@ -154,7 +154,11 @@ public:
     virtual void SetStackSizeInBytes(
         uint32 stackSizeInBytes) override;
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 797
+    virtual Result GetStackSizes(CompilerStackSizes* pSizes) const override;
+#else
     virtual uint32 GetStackSizeInBytes() const override;
+#endif
 
     virtual Util::Abi::ApiHwShaderMapping ApiHwShaderMapping() const override
         { return m_apiHwMapping; }
@@ -391,7 +395,7 @@ public:
         const AbiReader& abiReader);
     virtual ~PipelineUploader();
 
-    Result Begin(GpuHeap heap);
+    Result Begin(GpuHeap heap, const bool isInternal);
 
     Result ApplyRelocations();
 

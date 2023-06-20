@@ -14,7 +14,7 @@ PAL is a source deliverable. Clients will periodically promote PAL's source into
 
 The following diagram illustrates the typical software stack when running a 3D application with a PAL-based UMD:
 
-![PAL Driver Stack](palDriverStack.png)
+![PAL Driver Stack](doc/palDriverStack.png)
 
 PAL is a relatively thick abstraction layer, typically accounting for the majority of code in any particular UMD built on PAL, excluding the shader compiler backend. The level of abstraction tends to be higher in areas where client APIs are similar, and lower (closer to hardware) in areas where client APIs diverge significantly. The overall philosophy is to share as much code as possible without impacting client driver performance.
 
@@ -44,7 +44,7 @@ Clients have a lot of control over PAL's system memory allocations. Most PAL obj
 
 The following diagram illustrates the relationship of some key PAL interfaces and how they interact to render a typical frame in a modern game. Below that is a listing of most of PAL's interface classes, and a very brief description of their purpose.
 
-![Key PAL Objects](scheduling.png)
+![Key PAL Objects](doc/scheduling.png)
 
 * **OS Abstractions**
     * **`IPlatform`:** Root-level object created by clients that interact with PAL. Mostly responsible for enumerating devices and screens attached to the system and returning any system-wide properties.

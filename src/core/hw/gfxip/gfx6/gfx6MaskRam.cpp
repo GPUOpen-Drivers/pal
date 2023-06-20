@@ -1312,12 +1312,8 @@ Result Gfx6Dcc::Init(
     // We disable DCC memory for mipmapped arrays due to bad performance, see UseDccForImage().
     PAL_ASSERT ((imageCreateInfo.arraySize == 1) || (mipLevel == 0));
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 706
     // Save away the initial clear behavior
     m_clearKind = static_cast<DccInitialClearKind>(device.GetPublicSettings()->dccInitialClearKind);
-#else
-    m_clearKind = DccInitialClearKind::Uncompressed;
-#endif
 
     // First pass is to calculate DCC memory size of all array slices. This should be *actual* arraySize of this mip,
     // But we disable DCC memory for mipmaped arrays, which might cause *extra* slice padding. For tex3d, the arraySize

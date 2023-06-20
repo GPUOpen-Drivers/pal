@@ -740,6 +740,10 @@ protected:
         const ImageCopyRegion* pRegions,
         uint32                 copyFlags) const override;
 
+    virtual bool ScaledCopyImageUseGraphics(
+        GfxCmdBuffer*         pCmdBuffer,
+        const ScaledCopyInfo& copyInfo) const override;
+
     virtual bool PreferComputeForNonLocalDestCopy(const Pal::Image& dstImage) const override;
     virtual bool CopyImageCsUseMsaaMorton(const Pal::Image& dstImage) const override;
 

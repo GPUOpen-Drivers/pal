@@ -76,7 +76,7 @@ namespace Gfx10x
     constexpr unsigned int SDMA_SUBOP_INVALIDATION                  = 4;
 } // namespace Gfx10x
 
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 namespace Gfx11
 {
     constexpr unsigned int SDMA_SUBOP_VM_INVALIDATION               = 4;
@@ -295,7 +295,7 @@ typedef struct SDMA_PKT_CONSTANT_FILL_TAG
             unsigned int count                          : 22;
             unsigned int                                : 10;
         } gfx10x;
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
         struct
         {
             unsigned int count                          : 30;
@@ -2890,7 +2890,7 @@ typedef struct SDMA_PKT_PRE_EXE_TAG
 
 } SDMA_PKT_PRE_EXE;
 
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 typedef struct SDMA_PKT_REGISTER_RMW_TAG
 {
     union
@@ -3168,7 +3168,7 @@ typedef struct SDMA_PKT_TRNG_FETCH_TAG
 
 } SDMA_PKT_TRNG_FETCH;
 
-#if CHIP_HDR_NAVI31
+#if CHIP_HDR_NAVI31 || CHIP_HDR_NAVI33
 typedef struct SDMA_PKT_VM_INVALIDATION_TAG
 {
     union

@@ -106,16 +106,17 @@ struct QueryPoolCreateInfo
 /// Controls operations that compute query results.
 enum QueryResultFlags : uint32
 {
-    QueryResultDefault      = 0x0,  ///< Default to 32-bit results with no waiting.
-    QueryResult64Bit        = 0x1,  ///< Store all results as 64-bit values.
-    QueryResultWait         = 0x2,  ///< Wait for the queries to finish when computing the results.
-    QueryResultAvailability = 0x4,  ///< If the results of a query are available at computation time a one will be
-                                    ///  written as a separate value after the result value, if the results were not
-                                    ///  available a zero will be written.
-    QueryResultPartial      = 0x8,  ///< Partial results of queries are written even if the final results aren't
-                                    ///  available. If this flag isn't set then the destination will be left untouched.
-    QueryResultAccumulate   = 0x10  ///< Results are added to the values present in the destination, if availability
-                                    ///  data is enabled it will be ANDed with the present availability data.
+    QueryResultDefault          =  0x0, ///< Default to 32-bit results with no waiting.
+    QueryResult64Bit            =  0x1, ///< Store all results as 64-bit values.
+    QueryResultWait             =  0x2, ///< Wait for the queries to finish when computing the results.
+    QueryResultAvailability     =  0x4, ///< If the results of a query are available at computation time a one will be
+                                        ///  written as a separate value after the result value, if the results were not
+                                        ///  available a zero will be written.
+    QueryResultPartial          =  0x8, ///< If the final result of a query would be unavailable, then return a
+                                        ///  result for that query between 0 and what the final result would be.
+    QueryResultAccumulate       = 0x10, ///< Results are added to the values present in the destination, if availability
+                                        ///  data is enabled it will be ANDed with the present availability data.
+    QueryResultPreferShaderPath = 0x20, ///< Prefer a shader resolve path over a command processor path.
 };
 
 /**

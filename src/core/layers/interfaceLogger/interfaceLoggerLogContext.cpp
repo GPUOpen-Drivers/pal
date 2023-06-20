@@ -843,24 +843,6 @@ void LogContext::CacheCoherencyUsageFlags(
     const char*const StringTable[] =
     {
         "CoherCpu",                // 0x00000001,
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 740
-        "CoherShader",             // 0x00000002,
-        "CoherCopy",               // 0x00000004,
-        "CoherColorTarget",        // 0x00000008,
-        "CoherDepthStencilTarget", // 0x00000010,
-        "CoherResolve",            // 0x00000020,
-        "CoherClear",              // 0x00000040,
-        "CoherIndirectArgs",       // 0x00000080,
-        "CoherIndexData",          // 0x00000100,
-        "CoherQueueAtomic",        // 0x00000200,
-        "CoherTimestamp",          // 0x00000400,
-        "CoherCeLoad",             // 0x00000800,
-        "CoherCeDump",             // 0x00001000,
-        "CoherStreamOut",          // 0x00002000,
-        "CoherMemory",             // 0x00004000,
-        "CoherSampleRate",         // 0x00008000,
-        "CoherPresent",            // 0x00010000,
-#else
         "CoherShaderRead",         // 0x00000002,
         "CoherShaderWrite",        // 0x00000004,
         "CoherCopySrc",            // 0x00000008,
@@ -880,7 +862,6 @@ void LogContext::CacheCoherencyUsageFlags(
         "CoherMemory",             // 0x00020000,
         "CoherSampleRate",         // 0x00040000,
         "CoherPresent",            // 0x00080000,
-#endif
     };
 
     BeginList(false);

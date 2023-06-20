@@ -48,6 +48,8 @@
 #include "palIntrusiveListImpl.h"
 #include "core/addrMgr/addrMgr1/addrMgr1.h"
 #include "core/addrMgr/addrMgr2/addrMgr2.h"
+#include "core/hw/gfxip/gfx9/gfx9Device.h"
+#include "core/hw/gfxip/gfx9/gfx9MaskRam.h"
 //  NOTE: We need this for address pipe config.
 #include "core/hw/gfxip/gfx6/chip/si_ci_vi_merged_enum.h"
 // NOTE: We need this chip header for reading registers.
@@ -628,9 +630,7 @@ Result Device::OsLateInit()
 
     // Start to support per-vm bo from drm 3.20, but bugs were not fixed
     // until drm 3.25 on pro dkms stack or kernel 4.16 on upstream stack.
-    if ((Settings().enableVmAlwaysValid == VmAlwaysValidForceEnable) ||
-       ((Settings().enableVmAlwaysValid == VmAlwaysValidDefaultEnable) &&
-       (IsDrmVersionOrGreater(3,25) || IsKernelVersionEqualOrGreater(4,16))))
+    if (IsDrmVersionOrGreater(3,25) || IsKernelVersionEqualOrGreater(4,16))
     {
         m_featureState.supportVmAlwaysValid = 1;
     }
@@ -2350,9 +2350,17 @@ Result Device::CreateImage(
         if (ChipProperties().gfxLevel >= GfxIpLevel::GfxIp9)
         {
             internalInfo.flags.useSharedTilingOverrides = 1;
-            // PipeBankXor is zero initialized by internalInfo declaration
-            // Do not override the swizzle mode value
-            internalInfo.gfx9.sharedSwizzleMode = ADDR_SW_MAX_TYPE;
+
+            if (createInfo.flags.hasModifier != 0)
+            {
+                GetModifierInfo(createInfo.modifier, &modifiedCreateInfo, &internalInfo);
+            }
+            else
+            {
+                // PipeBankXor is zero initialized by internalInfo declaration
+                // Do not override the swizzle mode value
+                internalInfo.gfx9.sharedSwizzleMode = ADDR_SW_MAX_TYPE;
+            }
         }
         else
         {
@@ -5808,11 +5816,7 @@ Result Device::CreateGpuMemoryFromExternalShare(
         pCreateInfo->pImage              = pImage;
         pCreateInfo->flags.flippable     = pImage->IsFlippable();
         pCreateInfo->flags.presentable   = pImage->IsPresentable();
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 723
         pCreateInfo->flags.privateScreen = (pImage->GetPrivateScreen() != nullptr);
-#else
-        internalInfo.flags.privateScreen = (pImage->GetPrivateScreen() != nullptr);
-#endif
     }
 
     GpuMemory* pGpuMemory = static_cast<GpuMemory*>(ConstructGpuMemoryObject(pPlacementAddr));
@@ -6565,6 +6569,461 @@ amdgpu_va_handle Device::SearchSharedBoMap(
     gpusize*         pGpuVirtAddr)
 {
     return m_pVamMgr->SearchSharedBoMap(hBuffer, pGpuVirtAddr);
+}
+
+// =====================================================================================================================
+// Get image info from drm format modifier.
+void Device::GetModifierInfo(
+    uint64                   modifier,
+    ImageCreateInfo*         createInfo,
+    ImageInternalCreateInfo* internalCreateInfo)
+{
+    internalCreateInfo->gfx9.sharedSwizzleMode = static_cast<AddrSwizzleMode>(AMD_FMT_MOD_GET(TILE, modifier));
+
+    if (AMD_FMT_MOD_GET(DCC, modifier))
+    {
+        internalCreateInfo->flags.useForcedDcc      = 1;
+        internalCreateInfo->flags.useSharedDccState = 1;
+
+        if (AMD_FMT_MOD_GET(DCC_RETILE, modifier))
+        {
+            internalCreateInfo->displayDcc.enabled = 1;
+        }
+
+        DccState* pDccState = &internalCreateInfo->gfx9.sharedDccState;
+
+        pDccState->maxCompressedBlockSize   = AMD_FMT_MOD_GET(DCC_MAX_COMPRESSED_BLOCK, modifier);
+        pDccState->maxUncompressedBlockSize = static_cast<uint32>(Gfx9::Gfx9DccMaxBlockSize::BlockSize256B);
+        pDccState->independentBlk64B        = AMD_FMT_MOD_GET(DCC_INDEPENDENT_64B, modifier);
+        pDccState->independentBlk128B       = AMD_FMT_MOD_GET(DCC_INDEPENDENT_128B, modifier);
+        pDccState->isDccForceEnabled        = 1;
+    }
+}
+
+// =====================================================================================================================
+// Add supported drm format modifier to the list.
+void Device::AddModifier(
+    ChNumFormat format,
+    uint32*     pModifierCount,
+    uint64*     pModifiersList,
+    uint64      modifier) const
+{
+    // Swizzle modes are supported by display engine only when bpp <= 64.
+    if (Formats::BitsPerPixel(format) <= 64)
+    {
+        // Support multi-plane formats, but not when combined with additional DCC metadata planes.
+        // Packed YUV formats is DCC disabled in legecy way.
+        if ((modifier == DRM_FORMAT_MOD_LINEAR)                                ||
+            (AMD_FMT_MOD_GET(DCC, modifier)                                    &&
+             (Formats::IsYuv(format)                                           ||
+              (TestAnyFlagSet(Settings().useDcc, UseDccSingleSample) == false) ||
+              (Formats::IsSrgb(format)                                         &&
+               (TestAnyFlagSet(Settings().useDcc, UseDccSrgb) == false))       ||
+              Formats::IsBlockCompressed(format))) == false)
+        {
+            if (pModifiersList != nullptr)
+            {
+                pModifiersList[*pModifierCount] = modifier;
+            }
+            (*pModifierCount)++;
+        }
+    }
+}
+
+// =====================================================================================================================
+// Get supported drm format modifier list in descending order of priority.
+void Device::GetModifiersList(
+    ChNumFormat format,
+    uint32*     pModifierCount,
+    uint64*     pModifiersList
+    ) const
+{
+    const GpuChipProperties& chipProps   = ChipProperties();
+    const Pal::Gfx9::Device* pGfx9Device = static_cast<const Pal::Gfx9::Device*>(m_pGfxDevice);
+    *pModifierCount = 0;
+
+    // These modifiers are renderable and part of them is displayable.
+    // All displayable modifiers can be obtained from amdgpu_dm/amdgpu_dm_plane.c.
+    // For gfx9, only DCC_INDEPENDENT_64B is supported.
+    if (IsGfx9(*this))
+    {
+        uint32 pipeXorBits       = Min(pGfx9Device->GetNumPipesLog2() +
+                                     pGfx9Device->GetNumShaderEnginesLog2(), static_cast<uint32>(8));
+        uint32 bankXorBits       = Min(pGfx9Device->GetNumBanksLog2(), static_cast<uint32>(8) - pipeXorBits);
+        uint32 numPipesLog2      = pGfx9Device->GetNumPipesLog2();
+        uint32 numTotalRbsLog2   = pGfx9Device->GetNumRbsPerSeLog2() + pGfx9Device->GetNumShaderEnginesLog2();
+        bool   hasConstantEncode = IsRaven2(*this) || IsRenoir(*this);  // Raven2 and later.
+
+        // Modifier which is dcc_enabled and non-displayable.
+        AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD                  |
+                    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_D_X)                 |
+                    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9)             |
+                    AMD_FMT_MOD_SET(DCC, 1)                                              |
+                    AMD_FMT_MOD_SET(DCC_PIPE_ALIGN, 1)                                   |
+                    AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1)                              |
+                    AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B) |
+                    AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, hasConstantEncode)              |
+                    AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)                          |
+                    AMD_FMT_MOD_SET(BANK_XOR_BITS, bankXorBits)                          |
+                    AMD_FMT_MOD_SET(PIPE, numPipesLog2)                                  |
+                    AMD_FMT_MOD_SET(RB, numTotalRbsLog2));
+
+        // Modifier which is dcc_enabled and non-displayable.
+        AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD                  |
+                    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S_X)                 |
+                    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9)             |
+                    AMD_FMT_MOD_SET(DCC, 1)                                              |
+                    AMD_FMT_MOD_SET(DCC_PIPE_ALIGN, 1)                                   |
+                    AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1)                              |
+                    AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B) |
+                    AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, hasConstantEncode)              |
+                    AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)                          |
+                    AMD_FMT_MOD_SET(BANK_XOR_BITS, bankXorBits)                          |
+                    AMD_FMT_MOD_SET(PIPE, numPipesLog2)                                  |
+                    AMD_FMT_MOD_SET(RB, numTotalRbsLog2));
+
+#if PAL_DISPLAY_DCC
+        // Modifier which is dcc_enabled and displayable.
+        // If only 1 rb, there is no dcc_retiling and both gfx and dcn use the same DCC surface
+        // with pipe_align = 0 and rb_align = 0.
+        if (chipProps.gfx9.numTotalRbs == 1)
+        {
+            AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD                  |
+                        AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S_X)                 |
+                        AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9)             |
+                        AMD_FMT_MOD_SET(DCC, 1)                                              |
+                        AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1)                              |
+                        AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B) |
+                        AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, hasConstantEncode)              |
+                        AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)                          |
+                        AMD_FMT_MOD_SET(BANK_XOR_BITS, bankXorBits));
+        }
+
+        // If rb > 1, there is dcc_retiling and gfx use DCC surface with both pipe_align and rb_align = 1 and
+        // dcn use DCC surface with both pipe_align and rb_align = 0.
+        AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD                  |
+                    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S_X)                 |
+                    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9)             |
+                    AMD_FMT_MOD_SET(DCC, 1)                                              |
+                    AMD_FMT_MOD_SET(DCC_RETILE, 1)                                       |
+                    AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1)                              |
+                    AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B) |
+                    AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, hasConstantEncode)              |
+                    AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)                          |
+                    AMD_FMT_MOD_SET(BANK_XOR_BITS, bankXorBits)                          |
+                    AMD_FMT_MOD_SET(PIPE, numPipesLog2)                                  |
+                    AMD_FMT_MOD_SET(RB, numTotalRbsLog2));
+#endif
+
+        // For D swizzle the canonical modifier depends on the bpp.
+        // For Raven and later, D swizzle is displayable only with 64bpp.
+        // Swizzlemode ends with X means Chip-specific memory layout.
+        AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD      |
+                    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_D_X)     |
+                    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9) |
+                    AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)              |
+                    AMD_FMT_MOD_SET(BANK_XOR_BITS, bankXorBits));
+
+        AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD      |
+                    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S_X)     |
+                    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9) |
+                    AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)              |
+                    AMD_FMT_MOD_SET(BANK_XOR_BITS, bankXorBits));
+
+        // Chip-independent modifiers which is dcc_disabled and displayable.
+        AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD      |
+                    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_D)       |
+                    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9));
+
+        AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD      |
+                    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S)       |
+                    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9));
+
+        AddModifier(format, pModifierCount, pModifiersList, DRM_FORMAT_MOD_LINEAR);
+    }
+    // For gfx10 and later, recommended tile mode for 2d is SW_64KB_R_X.
+    else if (IsGfx10(*this))
+    {
+        uint32 version     = IsGfx103CorePlus(*this) ? AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS : AMD_FMT_MOD_TILE_VER_GFX10;
+        uint32 pipeXorBits = pGfx9Device->GetNumPipesLog2();
+        uint32 numPkrsLog2 = pGfx9Device->GetNumPkrsLog2();
+
+        // Refer to ac_surface_supports_dcc_image_stores and is_dcc_supported_by_DCN function of Mesa3d.
+        // For navi10, L2 is supported with DCC_INDEPENDENT_128B.
+        // For navi1x, dcn requires DCC_INDEPENDENT_128B = 0.
+        // For gfx10_3, L2 is supported both with DCC_INDEPENDENT_64B and DCC_INDEPENDENT_128B.
+        AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD                   |
+                    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X)                  |
+                    AMD_FMT_MOD_SET(TILE_VERSION, version)                                |
+                    AMD_FMT_MOD_SET(DCC, 1)                                               |
+                    AMD_FMT_MOD_SET(DCC_PIPE_ALIGN, 1)                                    |
+                    AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1)                              |
+                    AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_128B) |
+                    AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, 1)                               |
+                    AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)                           |
+                    AMD_FMT_MOD_SET(PACKERS, numPkrsLog2));
+
+#if PAL_DISPLAY_DCC
+        // Modifier which is dcc_enabled and displayable.
+        if (IsGfx103CorePlus(*this))
+        {
+            AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD                   |
+                        AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X)                  |
+                        AMD_FMT_MOD_SET(TILE_VERSION, version)                                |
+                        AMD_FMT_MOD_SET(DCC, 1)                                               |
+                        AMD_FMT_MOD_SET(DCC_RETILE, 1)                                        |
+                        AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1)                              |
+                        AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_128B) |
+                        AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, 1)                               |
+                        AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)                           |
+                        AMD_FMT_MOD_SET(PACKERS, numPkrsLog2));
+
+            // For 4k, dcn requires DCC_INDEPENDENT_64B and AMD_FMT_MOD_DCC_BLOCK_64B on gfx10 and later.
+            AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD                  |
+                        AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X)                 |
+                        AMD_FMT_MOD_SET(TILE_VERSION, version)                               |
+                        AMD_FMT_MOD_SET(DCC, 1)                                              |
+                        AMD_FMT_MOD_SET(DCC_RETILE, 1)                                       |
+                        AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1)                              |
+                        AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1)                             |
+                        AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B) |
+                        AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, 1)                              |
+                        AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)                          |
+                        AMD_FMT_MOD_SET(PACKERS, numPkrsLog2));
+        }
+#endif
+
+        // Modifier which is dcc_disabled and displayable.
+        AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD  |
+                    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X) |
+                    AMD_FMT_MOD_SET(TILE_VERSION, version)               |
+                    AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)          |
+                    AMD_FMT_MOD_SET(PACKERS, numPkrsLog2));
+
+        AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD  |
+                    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S_X) |
+                    AMD_FMT_MOD_SET(TILE_VERSION, version)               |
+                    AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)          |
+                    AMD_FMT_MOD_SET(PACKERS, numPkrsLog2));
+
+        if (IsGfx103CorePlus(*this))
+        {
+            // Modifier which is shareable between gfx10 and gfx10_3 and is not displayable.
+            AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD       |
+                        AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S_X)      |
+                        AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX10) |
+                        AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits));
+        }
+
+        // 64K_S for 64 bpp and 64K_D for non-32 bpp is same for GFX9/GFX10/GFX10_RBPLUS
+        // and hence has GFX9 as canonical version.
+        // Chip-independent modifiers which is dcc_disabled and displayable.
+        if (Formats::BitsPerPixel(format) != 32)
+        {
+            AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD |
+                        AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_D)  |
+                        AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9));
+        }
+
+        AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD |
+                    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S)  |
+                    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9));
+
+        AddModifier(format, pModifierCount, pModifiersList, DRM_FORMAT_MOD_LINEAR);
+    }
+#if PAL_BUILD_GFX11
+    else if (IsGfx11(*this))
+    {
+        uint32 pipeXorBits = pGfx9Device->GetNumPipesLog2();
+        uint32 numPkrsLog2 = pGfx9Device->GetNumPkrsLog2();
+        uint32 pipes       = 1 << pGfx9Device->GetNumPipesLog2();
+
+        // If pipes > 16, SW_256K_R_X is preferred. If pipes <= 16, SW_64K_R_X is preferred.
+        // The modifier list loops according to preferred R_X swizzles.
+        if (pipes > 16)
+        {
+            // DCC_CONSTANT_ENCODE is not set on GFX11 as "comp to reg" is no longer supported on that platform.
+            // Modifier which is dcc_enabled and non-displayable.
+            AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD                   |
+                        AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX11_256K_R_X)                |
+                        AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX11)             |
+                        AMD_FMT_MOD_SET(DCC, 1)                                               |
+                        AMD_FMT_MOD_SET(DCC_PIPE_ALIGN, 1)                                    |
+                        AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1)                              |
+                        AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_128B) |
+                        AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)                           |
+                        AMD_FMT_MOD_SET(PACKERS, numPkrsLog2));
+
+#if PAL_DISPLAY_DCC
+            // Modifier which is dcc_enabled and displayable.
+            AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD                   |
+                        AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX11_256K_R_X)                |
+                        AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX11)             |
+                        AMD_FMT_MOD_SET(DCC, 1)                                               |
+                        AMD_FMT_MOD_SET(DCC_RETILE, 1)                                        |
+                        AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1)                              |
+                        AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_128B) |
+                        AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)                           |
+                        AMD_FMT_MOD_SET(PACKERS, numPkrsLog2));
+
+            // For 4k, DCC_INDEPENDENT_64B and AMD_FMT_MOD_DCC_BLOCK_64B should be set required by dcn.
+            AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD                  |
+                        AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX11_256K_R_X)               |
+                        AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX11)            |
+                        AMD_FMT_MOD_SET(DCC, 1)                                              |
+                        AMD_FMT_MOD_SET(DCC_RETILE, 1)                                       |
+                        AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1)                              |
+                        AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1)                             |
+                        AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B) |
+                        AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)                          |
+                        AMD_FMT_MOD_SET(PACKERS, numPkrsLog2));
+#endif
+
+            // Modifier which is dcc_disabled and displayable.
+            AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD       |
+                        AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX11_256K_R_X)    |
+                        AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX11) |
+                        AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)               |
+                        AMD_FMT_MOD_SET(PACKERS, numPkrsLog2));
+
+            AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD                   |
+                        AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X)                  |
+                        AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX11)             |
+                        AMD_FMT_MOD_SET(DCC, 1)                                               |
+                        AMD_FMT_MOD_SET(DCC_PIPE_ALIGN, 1)                                    |
+                        AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1)                              |
+                        AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_128B) |
+                        AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)                           |
+                        AMD_FMT_MOD_SET(PACKERS, numPkrsLog2));
+
+#if PAL_DISPLAY_DCC
+            // Modifier which is dcc_enabled and displayable.
+            AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD                   |
+                        AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X)                  |
+                        AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX11)             |
+                        AMD_FMT_MOD_SET(DCC, 1)                                               |
+                        AMD_FMT_MOD_SET(DCC_RETILE, 1)                                        |
+                        AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1)                              |
+                        AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_128B) |
+                        AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)                           |
+                        AMD_FMT_MOD_SET(PACKERS, numPkrsLog2));
+
+            // For 4k, DCC_INDEPENDENT_64B and AMD_FMT_MOD_DCC_BLOCK_64B should be set required by dcn.
+            AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD                  |
+                        AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X)                 |
+                        AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX11)            |
+                        AMD_FMT_MOD_SET(DCC, 1)                                              |
+                        AMD_FMT_MOD_SET(DCC_RETILE, 1)                                       |
+                        AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1)                              |
+                        AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1)                             |
+                        AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B) |
+                        AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)                          |
+                        AMD_FMT_MOD_SET(PACKERS, numPkrsLog2));
+#endif
+
+            // Modifier which is dcc_disabled and displayable.
+            AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD       |
+                        AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X)      |
+                        AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX11) |
+                        AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)               |
+                        AMD_FMT_MOD_SET(PACKERS, numPkrsLog2));
+        }
+        else
+        {
+            // Modifier which is dcc_enabled and non-displayable.
+            AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD                   |
+                        AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X)                  |
+                        AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX11)             |
+                        AMD_FMT_MOD_SET(DCC, 1)                                               |
+                        AMD_FMT_MOD_SET(DCC_PIPE_ALIGN, 1)                                    |
+                        AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1)                              |
+                        AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_128B) |
+                        AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)                           |
+                        AMD_FMT_MOD_SET(PACKERS, numPkrsLog2));
+
+#if PAL_DISPLAY_DCC
+            // Modifier which is dcc_enabled and displayable.
+            AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD                   |
+                        AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X)                  |
+                        AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX11)             |
+                        AMD_FMT_MOD_SET(DCC, 1)                                               |
+                        AMD_FMT_MOD_SET(DCC_RETILE, 1)                                        |
+                        AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1)                              |
+                        AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_128B) |
+                        AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)                           |
+                        AMD_FMT_MOD_SET(PACKERS, numPkrsLog2));
+
+            // For 4k, DCC_INDEPENDENT_64B and AMD_FMT_MOD_DCC_BLOCK_64B should be set required by dcn.
+            AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD                  |
+                        AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X)                 |
+                        AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX11)            |
+                        AMD_FMT_MOD_SET(DCC, 1)                                              |
+                        AMD_FMT_MOD_SET(DCC_RETILE, 1)                                       |
+                        AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1)                              |
+                        AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1)                             |
+                        AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B) |
+                        AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)                          |
+                        AMD_FMT_MOD_SET(PACKERS, numPkrsLog2));
+#endif
+
+            // Modifier which is dcc_disabled and displayable.
+            AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD       |
+                        AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_R_X)      |
+                        AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX11) |
+                        AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)               |
+                        AMD_FMT_MOD_SET(PACKERS, numPkrsLog2));
+
+            AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD                   |
+                        AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX11_256K_R_X)                |
+                        AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX11)             |
+                        AMD_FMT_MOD_SET(DCC, 1)                                               |
+                        AMD_FMT_MOD_SET(DCC_PIPE_ALIGN, 1)                                    |
+                        AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1)                              |
+                        AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_128B) |
+                        AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)                           |
+                        AMD_FMT_MOD_SET(PACKERS, numPkrsLog2));
+
+#if PAL_DISPLAY_DCC
+            // Modifier which is dcc_enabled and displayable.
+            AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD                   |
+                        AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX11_256K_R_X)                |
+                        AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX11)             |
+                        AMD_FMT_MOD_SET(DCC, 1)                                               |
+                        AMD_FMT_MOD_SET(DCC_RETILE, 1)                                        |
+                        AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1)                              |
+                        AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_128B) |
+                        AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)                           |
+                        AMD_FMT_MOD_SET(PACKERS, numPkrsLog2));
+
+            // For 4k, DCC_INDEPENDENT_64B and AMD_FMT_MOD_DCC_BLOCK_64B should be set required by dcn.
+            AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD                  |
+                        AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX11_256K_R_X)               |
+                        AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX11)            |
+                        AMD_FMT_MOD_SET(DCC, 1)                                              |
+                        AMD_FMT_MOD_SET(DCC_RETILE, 1)                                       |
+                        AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1)                              |
+                        AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1)                             |
+                        AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B) |
+                        AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)                          |
+                        AMD_FMT_MOD_SET(PACKERS, numPkrsLog2));
+#endif
+
+            // Modifier which is dcc_disabled and displayable.
+            AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD       |
+                        AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX11_256K_R_X)    |
+                        AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX11) |
+                        AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipeXorBits)               |
+                        AMD_FMT_MOD_SET(PACKERS, numPkrsLog2));
+        }
+
+        // No S modes for 2D on gfx11.
+        AddModifier(format, pModifierCount, pModifiersList, AMD_FMT_MOD |
+                    AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_D)  |
+                    AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX11));
+
+        AddModifier(format, pModifierCount, pModifiersList, DRM_FORMAT_MOD_LINEAR);
+    }
+#endif
 }
 
 } // Amdgpu

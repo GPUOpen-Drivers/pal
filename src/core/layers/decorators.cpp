@@ -2140,10 +2140,6 @@ void CmdBufferFwdDecorator::CmdBarrier(
         }
         nextBarrierInfo.pTransitions = &transitions[0];
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 751
-        nextBarrierInfo.pSplitBarrierGpuEvent = NextGpuEvent(barrierInfo.pSplitBarrierGpuEvent);
-#endif
-
         m_pNextLayer->CmdBarrier(nextBarrierInfo);
     }
 }
@@ -2157,15 +2153,6 @@ uint32 CmdBufferFwdDecorator::CmdRelease(
 
     uint32 syncToken = 0;
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
-    AutoBuffer<MemBarrier, 32, PlatformDecorator> memoryBarriers(releaseInfo.memoryBarrierCount, pPlatform);
-    if (memoryBarriers.Capacity() < releaseInfo.memoryBarrierCount)
-    {
-        // If the layers become production code, we must set a flag here and return out of memory on End().
-        PAL_ASSERT_ALWAYS();
-    }
-    else
-#endif
     if (imageBarriers.Capacity() < releaseInfo.imageBarrierCount)
     {
         // If the layers become production code, we must set a flag here and return out of memory on End().
@@ -2174,15 +2161,6 @@ uint32 CmdBufferFwdDecorator::CmdRelease(
     else
     {
         AcquireReleaseInfo nextReleaseInfo = releaseInfo;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
-        for (uint32 i = 0; i < releaseInfo.memoryBarrierCount; i++)
-        {
-            memoryBarriers[i]                   = releaseInfo.pMemoryBarriers[i];
-            memoryBarriers[i].memory.pGpuMemory = NextGpuMemory(releaseInfo.pMemoryBarriers[i].memory.pGpuMemory);
-        }
-        nextReleaseInfo.pMemoryBarriers = &memoryBarriers[0];
-#endif
 
         for (uint32 i = 0; i < releaseInfo.imageBarrierCount; i++)
         {
@@ -2206,15 +2184,6 @@ void CmdBufferFwdDecorator::CmdAcquire(
     PlatformDecorator*const pPlatform = m_pDevice->GetPlatform();
     AutoBuffer<ImgBarrier, 32, PlatformDecorator> imageBarriers(acquireInfo.imageBarrierCount, pPlatform);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
-    AutoBuffer<MemBarrier, 32, PlatformDecorator> memoryBarriers(acquireInfo.memoryBarrierCount, pPlatform);
-    if (memoryBarriers.Capacity() < acquireInfo.memoryBarrierCount)
-    {
-        // If the layers become production code, we must set a flag here and return out of memory on End().
-        PAL_ASSERT_ALWAYS();
-    }
-    else
-#endif
     if (imageBarriers.Capacity() < acquireInfo.imageBarrierCount)
     {
         // If the layers become production code, we must set a flag here and return out of memory on End().
@@ -2223,15 +2192,6 @@ void CmdBufferFwdDecorator::CmdAcquire(
     else
     {
         AcquireReleaseInfo nextAcquireInfo = acquireInfo;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
-        for (uint32 i = 0; i < acquireInfo.memoryBarrierCount; i++)
-        {
-            memoryBarriers[i]                   = acquireInfo.pMemoryBarriers[i];
-            memoryBarriers[i].memory.pGpuMemory = NextGpuMemory(acquireInfo.pMemoryBarriers[i].memory.pGpuMemory);
-        }
-        nextAcquireInfo.pMemoryBarriers = &memoryBarriers[0];
-#endif
 
         for (uint32 i = 0; i < acquireInfo.imageBarrierCount; i++)
         {
@@ -2252,30 +2212,14 @@ void CmdBufferFwdDecorator::CmdReleaseEvent(
     PlatformDecorator* const pPlatform = m_pDevice->GetPlatform();
     AutoBuffer<ImgBarrier, 32, PlatformDecorator> imageBarriers(releaseInfo.imageBarrierCount, pPlatform);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
-    AutoBuffer<MemBarrier, 32, PlatformDecorator> memoryBarriers(releaseInfo.memoryBarrierCount, pPlatform);
-    if (memoryBarriers.Capacity() < releaseInfo.memoryBarrierCount)
+    if (imageBarriers.Capacity() < releaseInfo.imageBarrierCount)
     {
         // If the layers become production code, we must set a flag here and return out of memory on End().
         PAL_ASSERT_ALWAYS();
     }
     else
-#endif
-    if (imageBarriers.Capacity() < releaseInfo.imageBarrierCount)
-    {
-    }
-    else
     {
         AcquireReleaseInfo nextReleaseInfo = releaseInfo;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
-        for (uint32 i = 0; i < releaseInfo.memoryBarrierCount; i++)
-        {
-            memoryBarriers[i]                   = releaseInfo.pMemoryBarriers[i];
-            memoryBarriers[i].memory.pGpuMemory = NextGpuMemory(releaseInfo.pMemoryBarriers[i].memory.pGpuMemory);
-        }
-        nextReleaseInfo.pMemoryBarriers = &memoryBarriers[0];
-#endif
 
         for (uint32 i = 0; i < releaseInfo.imageBarrierCount; i++)
         {
@@ -2296,18 +2240,8 @@ void CmdBufferFwdDecorator::CmdAcquireEvent(
 {
     PlatformDecorator* const pPlatform = m_pDevice->GetPlatform();
     AutoBuffer<ImgBarrier, 32, PlatformDecorator> imageBarriers(acquireInfo.imageBarrierCount, pPlatform);
-
     AutoBuffer<const IGpuEvent*, 16, PlatformDecorator> nextGpuEvents(gpuEventCount, pPlatform);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
-    AutoBuffer<MemBarrier, 32, PlatformDecorator> memoryBarriers(acquireInfo.memoryBarrierCount, pPlatform);
-    if (memoryBarriers.Capacity() < acquireInfo.memoryBarrierCount)
-    {
-        // If the layers become production code, we must set a flag here and return out of memory on End().
-        PAL_ASSERT_ALWAYS();
-    }
-    else
-#endif
     if ((imageBarriers.Capacity() < acquireInfo.imageBarrierCount)   ||
         (nextGpuEvents.Capacity() < gpuEventCount))
     {
@@ -2317,15 +2251,6 @@ void CmdBufferFwdDecorator::CmdAcquireEvent(
     else
     {
         AcquireReleaseInfo nextAcquireInfo = acquireInfo;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
-        for (uint32 i = 0; i < acquireInfo.memoryBarrierCount; i++)
-        {
-            memoryBarriers[i]                   = acquireInfo.pMemoryBarriers[i];
-            memoryBarriers[i].memory.pGpuMemory = NextGpuMemory(acquireInfo.pMemoryBarriers[i].memory.pGpuMemory);
-        }
-        nextAcquireInfo.pMemoryBarriers = &memoryBarriers[0];
-#endif
 
         for (uint32 i = 0; i < acquireInfo.imageBarrierCount; i++)
         {
@@ -2350,15 +2275,6 @@ void CmdBufferFwdDecorator::CmdReleaseThenAcquire(
     PlatformDecorator*const pPlatform = m_pDevice->GetPlatform();
     AutoBuffer<ImgBarrier, 32, PlatformDecorator> imageBarriers(barrierInfo.imageBarrierCount, pPlatform);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
-    AutoBuffer<MemBarrier, 32, PlatformDecorator> memoryBarriers(barrierInfo.memoryBarrierCount, pPlatform);
-    if (memoryBarriers.Capacity() < barrierInfo.memoryBarrierCount)
-    {
-        // If the layers become production code, we must set a flag here and return out of memory on End().
-        PAL_ASSERT_ALWAYS();
-    }
-    else
-#endif
     if (imageBarriers.Capacity() < barrierInfo.imageBarrierCount)
     {
         // If the layers become production code, we must set a flag here and return out of memory on End().
@@ -2367,15 +2283,6 @@ void CmdBufferFwdDecorator::CmdReleaseThenAcquire(
     else
     {
         AcquireReleaseInfo nextBarrierInfo = barrierInfo;
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
-        for (uint32 i = 0; i < barrierInfo.memoryBarrierCount; i++)
-        {
-            memoryBarriers[i]                   = barrierInfo.pMemoryBarriers[i];
-            memoryBarriers[i].memory.pGpuMemory = NextGpuMemory(barrierInfo.pMemoryBarriers[i].memory.pGpuMemory);
-        }
-        nextBarrierInfo.pMemoryBarriers = &memoryBarriers[0];
-#endif
 
         for (uint32 i = 0; i < barrierInfo.imageBarrierCount; i++)
         {
@@ -2461,11 +2368,7 @@ PlatformDecorator::PlatformDecorator(
     m_pClientPrivateData(nullptr),
     m_installDeveloperCb(installDeveloperCb),
     m_layerEnabled(isLayerEnabled),
-#if  (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 734)
     m_clientApiId(createInfo.clientApiId),
-#else
-    m_clientApiId(ClientApi::Vulkan),
-#endif
     m_logDirCreated(false)
 {
     memset(&m_pDevices[0], 0, sizeof(m_pDevices));

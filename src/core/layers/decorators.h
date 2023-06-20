@@ -294,29 +294,16 @@ public:
         IScreen* pScreens[MaxScreens]) override;
 
     virtual Result QueryRawApplicationProfile(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 759
         const wchar_t*           pFilename,
         const wchar_t*           pPathname,
-#else
-        const char*              pFilename,
-        const char*              pPathname,
-#endif
         ApplicationProfileClient client,
         const char**             pOut) override
         { return m_pNextLayer->QueryRawApplicationProfile(pFilename, pPathname, client, pOut); }
 
     virtual Result EnableSppProfile(
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 759
         const wchar_t* pFilename,
-        const wchar_t* pPathname
-#else
-        const char*    pFilename,
-        const char*    pPathname
-#endif
-    ) override
-    {
-        return m_pNextLayer->EnableSppProfile(pFilename, pPathname);
-    }
+        const wchar_t* pPathname) override
+        { return m_pNextLayer->EnableSppProfile(pFilename, pPathname); }
 
     virtual Result GetProperties(
         PlatformProperties* pProperties) override
@@ -1255,6 +1242,14 @@ public:
         { return m_pNextLayer->QueryReleaseVersion(pBuffer, bufferLength); }
 #else
         { return m_pNextLayer->QueryDriverVersion(pBuffer, bufferLength); }
+#endif
+
+#if defined(__unix__)
+    virtual void GetModifiersList(
+        ChNumFormat format,
+        uint32*     pModifierCount,
+        uint64*     pModifiersList) const override
+        { m_pNextLayer->GetModifiersList(format, pModifierCount, pModifiersList); }
 #endif
 
     const DeviceFinalizeInfo& GetFinalizeInfo() const { return m_finalizeInfo; }
@@ -2701,6 +2696,13 @@ public:
         pNextLayer->Destroy();
     }
 
+#if defined(__unix__)
+    virtual Result GetModifierSubresourceLayout(
+        uint32        memoryPlane,
+        SubresLayout* pLayout) const override
+        { return m_pNextLayer->GetModifierSubresourceLayout(memoryPlane, pLayout); }
+#endif
+
     const IDevice* GetDevice() const { return m_pDevice; }
     IImage*        GetNextLayer() const { return m_pNextLayer; }
 
@@ -2891,8 +2893,13 @@ public:
     virtual void SetStackSizeInBytes(uint32 stackSizeInBytes) override
         { m_pNextLayer->SetStackSizeInBytes(stackSizeInBytes); }
 
+#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 797
+    virtual Result GetStackSizes(CompilerStackSizes* pSizes) const override
+        { return m_pNextLayer->GetStackSizes(pSizes); }
+#else
     virtual uint32 GetStackSizeInBytes() const override
         { return m_pNextLayer->GetStackSizeInBytes(); }
+#endif
 
     virtual Result QueryAllocationInfo(size_t* pNumEntries, GpuMemSubAllocInfo* const pAllocInfoList) const override
         { return m_pNextLayer->QueryAllocationInfo(pNumEntries, pAllocInfoList); }

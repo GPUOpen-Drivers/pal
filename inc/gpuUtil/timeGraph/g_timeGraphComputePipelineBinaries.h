@@ -759,7 +759,7 @@ constexpr Util::uint8 TimeGraph_Cs_1D32F7A1[] =
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
-#if PAL_BUILD_NAVI31
+#if PAL_BUILD_NAVI31|| PAL_BUILD_NAVI33
 // Time Graph compute shader binary
 constexpr Util::uint8 TimeGraph_Cs_B918179A[] =
 {
@@ -986,6 +986,14 @@ constexpr PipelineBinary timeGraphComputeBinaryTableRaphael[] =
 #if PAL_BUILD_NAVI31
 // Table of compute pipeline binaries for Navi31
 constexpr PipelineBinary timeGraphComputeBinaryTableNavi31[] =
+{
+    {TimeGraph_Cs_B918179A,  sizeof(TimeGraph_Cs_B918179A)},
+};
+#endif
+
+#if PAL_BUILD_NAVI33
+// Table of compute pipeline binaries for Navi33
+constexpr PipelineBinary timeGraphComputeBinaryTableNavi33[] =
 {
     {TimeGraph_Cs_B918179A,  sizeof(TimeGraph_Cs_B918179A)},
 };

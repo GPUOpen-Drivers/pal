@@ -79,6 +79,7 @@ struct SharedMetadataInfo
     SharedMetadataFlags flags;
     uint32              numPlanes; // the number of valid indices into the various "MaxNumPlanes" arrays.
     gpusize             dccOffset[MaxNumPlanes];
+    gpusize             displayDccOffset[MaxNumPlanes];
     uint32              pipeAligned[MaxNumPlanes];
     gpusize             cmaskOffset;
     gpusize             fmaskOffset;
@@ -99,6 +100,7 @@ struct DccState
 {
     gpusize primaryOffset;   // Byte offset in the allocation
     gpusize secondaryOffset; // Byte offset from the beginning of the first display surface
+    uint32  size;            // Size of dcc key.
     uint32  pitch;           // In pixels
     struct
     {
@@ -106,7 +108,8 @@ struct DccState
         uint32 maxCompressedBlockSize   :2;
         uint32 independentBlk64B        :1;
         uint32 independentBlk128B       :1;
-        uint32 reserved                 :26;
+        uint32 isDccForceEnabled        :1; // Whether dcc is force-enabled or force-disabled.
+        uint32 reserved                 :25;
     };
 };
 

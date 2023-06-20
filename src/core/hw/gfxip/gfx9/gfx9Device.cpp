@@ -447,9 +447,7 @@ Result Device::Finalize()
         const auto&         settings = GetGfx9Settings(*pParent);
 
         if (pParent->ChipProperties().gfxip.supportsVrs                      &&
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 713
             (pParent->GetPublicSettings()->disableInternalVrsImage == false) &&
-#endif
             (settings.vrsImageSize != 0))
         {
             if (IsGfx10(*pParent))
@@ -6701,6 +6699,13 @@ GfxIpLevel DetermineIpLevel(
         }
         else
 #endif
+#if PAL_BUILD_NAVI33
+        if (AMDGPU_IS_NAVI33(familyId, eRevId))
+        {
+            level = GfxIpLevel::GfxIp11_0;
+        }
+        else
+#endif
         {
             PAL_NOT_IMPLEMENTED_MSG("FAMILY_NV3 Revision %d unsupported", eRevId);
         }
@@ -7374,24 +7379,26 @@ void InitializeGpuChipProperties(
                 constexpr uint32 PfpUcodeVersionNativeExecuteIndirectGfx10_1              = 151;
                 constexpr uint32 PfpUcodeVersionSpillTableSupportedExecuteIndirectGfx10_1 = 155;
                 constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectGfx10_1    = 155;
+                constexpr uint32 PfpUcodeVersionDispatchSupportedExecuteIndirectGfx10_1   = 156;
                 GetExecuteIndirectSupport(
                     pInfo,
                     PfpUcodeVersionNativeExecuteIndirectGfx10_1,
                     PfpUcodeVersionSpillTableSupportedExecuteIndirectGfx10_1,
                     PfpUcodeVersionVbTableSupportedExecuteIndirectGfx10_1,
-                    UINT_MAX);
+                    PfpUcodeVersionDispatchSupportedExecuteIndirectGfx10_1);
             }
             else if (pInfo->gfxLevel == GfxIpLevel::GfxIp10_3)
             {
                 constexpr uint32 PfpUcodeVersionNativeExecuteIndirectGfx10_3              = 88;
                 constexpr uint32 PfpUcodeVersionSpillTableSupportedExecuteIndirectGfx10_3 = 91;
                 constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectGfx10_3    = 95;
+                constexpr uint32 PfpUcodeVersionDispatchSupportedExecuteIndirectGfx10_3   = 97;
                 GetExecuteIndirectSupport(
                     pInfo,
                     PfpUcodeVersionNativeExecuteIndirectGfx10_3,
                     PfpUcodeVersionSpillTableSupportedExecuteIndirectGfx10_3,
                     PfpUcodeVersionVbTableSupportedExecuteIndirectGfx10_3,
-                    UINT_MAX);
+                    PfpUcodeVersionDispatchSupportedExecuteIndirectGfx10_3);
             }
         }
 
@@ -7452,23 +7459,25 @@ void InitializeGpuChipProperties(
 
         if (pInfo->pfpUcodeVersion >= Rs64VersionStart)
         {
-            constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectNavi3Rs64 = 413;
+            constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectNavi3Rs64  = 413;
+            constexpr uint32 PfpUcodeVersionDispatchSupportedExecuteIndirectNavi3Rs64 = 1609;
             GetExecuteIndirectSupport(
                 pInfo,
                 UINT_MAX,
                 UINT_MAX,
                 PfpUcodeVersionVbTableSupportedExecuteIndirectNavi3Rs64,
-                UINT_MAX);
+                PfpUcodeVersionDispatchSupportedExecuteIndirectNavi3Rs64);
         }
         else
         {
-            constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectNavi3F32  = 84;
+            constexpr uint32 PfpUcodeVersionVbTableSupportedExecuteIndirectNavi3F32   = 84;
+            constexpr uint32 PfpUcodeVersionDispatchSupportedExecuteIndirectNavi3F32  = 95;
             GetExecuteIndirectSupport(
                 pInfo,
                 UINT_MAX,
                 UINT_MAX,
                 PfpUcodeVersionVbTableSupportedExecuteIndirectNavi3F32,
-                UINT_MAX);
+                PfpUcodeVersionDispatchSupportedExecuteIndirectNavi3F32);
         }
 
         //  Navi3x products don't support EQAA
@@ -7487,6 +7496,24 @@ void InitializeGpuChipProperties(
             pInfo->gfx9.gfx10.numGl2a    = 4;  // GC__NUM_GL2A
             pInfo->gfx9.gfx10.numGl2c    = 24; // GC__NUM_GL2C
             pInfo->gfxip.mallSizeInBytes = 96_MiB;
+
+            pInfo->gfx9.gfx10.numWgpAboveSpi = 4; // GPU__GC__NUM_WGP0_PER_SA
+            pInfo->gfx9.gfx10.numWgpBelowSpi = 0; // GPU__GC__NUM_WGP1_PER_SA
+        }
+        else
+#endif
+#if PAL_BUILD_NAVI33
+        if (AMDGPU_IS_NAVI33(pInfo->familyId, pInfo->eRevId))
+        {
+            pInfo->revision              = AsicRevision::Navi33;
+            pInfo->gfxStepping           = Abi::GfxIpSteppingNavi33;
+            pInfo->gfx9.numShaderEngines = 2;
+            pInfo->gfx9.numSdpInterfaces = 8;
+            pInfo->gfx9.maxNumCuPerSh    = 8;
+            pInfo->gfx9.maxNumRbPerSe    = 4;
+            pInfo->gfx9.gfx10.numGl2a    = 2; // GC__NUM_GL2A
+            pInfo->gfx9.gfx10.numGl2c    = 8; // GC__NUM_GL2C
+            pInfo->gfxip.mallSizeInBytes = 32_MiB;
 
             pInfo->gfx9.gfx10.numWgpAboveSpi = 4; // GPU__GC__NUM_WGP0_PER_SA
             pInfo->gfx9.gfx10.numWgpBelowSpi = 0; // GPU__GC__NUM_WGP1_PER_SA
@@ -7673,6 +7700,7 @@ void InitializeGpuChipProperties(
         pInfo->gfx9.supportRayTraversalStack        = 1;
         pInfo->gfx9.supportPointerFlags             = 1;
         pInfo->gfx9.supportMsFullRangeRtai          = 1;
+        pInfo->gfx9.supportCooperativeMatrix        = 1;
 
         pInfo->gfx9.rayTracingIp = RayTracingIpLevel::RtIp2_0;
     }

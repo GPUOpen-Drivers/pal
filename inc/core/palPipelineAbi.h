@@ -93,6 +93,9 @@ enum class AmdGpuMachineType : uint8
 #if PAL_BUILD_NAVI31
     Gfx1100 = 0x41,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1100
 #endif
+#if PAL_BUILD_NAVI33
+    Gfx1102 = 0x47,  ///< EF_AMDGPU_MACH_AMDGCN_GFX1102
+#endif
 };
 
 /// AmdGpuFeatureV4Type for the feature selection mask bits in e_flags.
@@ -167,6 +170,11 @@ enum GfxIpStepping : uint16
 #if PAL_BUILD_NAVI31
     // GFXIP 11.0.x steppings:
     GfxIpSteppingNavi31        = 0,
+#endif
+
+#if PAL_BUILD_NAVI33
+    // GFXIP 11.0.x steppings:
+    GfxIpSteppingNavi33        = 2,
 #endif
 
 };
@@ -726,12 +734,25 @@ enum class CoverageToShaderSel : uint32
     Raw,                    ///< Output the scan converter's internal mask, unchanged.
 };
 
+/// Specifies how a shader instruction uses a constant buffer value
+enum class CbConstUsageType : uint8
+{
+    LoopIter,
+    Eq0Float,
+    Lt0Float,
+    Gt0Float,
+    Eq0Int,
+    Lt0Int,
+    Gt0Int,
+    Other
+};
+
  } //Abi
  namespace PalAbi
  {
 
  constexpr uint32 PipelineMetadataMajorVersion = 3;  ///< Pipeline Metadata Major Version
- constexpr uint32 PipelineMetadataMinorVersion = 0;  ///< Pipeline Metadata Minor Version
+ constexpr uint32 PipelineMetadataMinorVersion = 1;  ///< Pipeline Metadata Minor Version
 
  constexpr uint32 PipelineMetadataBase = 0x10000000; ///< Deprecated - Pipeline Metadata base value to be OR'd with the
                                                      ///  PipelineMetadataEntry value when saving to ELF.

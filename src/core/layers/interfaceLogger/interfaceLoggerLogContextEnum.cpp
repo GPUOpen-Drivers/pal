@@ -1058,16 +1058,20 @@ void LogContext::Enum(
         nullptr,
         nullptr,
         nullptr,
-        nullptr,
 #if PAL_BUILD_NAVI31
         "Navi31",
 #else
         nullptr,
 #endif
         nullptr,
+#if PAL_BUILD_NAVI33
+        "Navi33",
+#else
         nullptr,
+#endif
         nullptr,
         "Raphael",
+        nullptr,
         nullptr,
         nullptr,
         nullptr,

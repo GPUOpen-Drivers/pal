@@ -369,6 +369,13 @@ protected:
         bool*                  pIsFmaskCopy,
         bool*                  pIsFmaskCopyOptimized) const;
 
+    const ComputePipeline* GetScaledCopyImageComputePipeline(
+        const Image& srcImage,
+        const Image& dstImage,
+        TexFilter    filter,
+        bool         is3d,
+        bool*        pIsFmaskCopy) const;
+
     virtual void CopyImageCompute(
         GfxCmdBuffer*          pCmdBuffer,
         const Image&           srcImage,

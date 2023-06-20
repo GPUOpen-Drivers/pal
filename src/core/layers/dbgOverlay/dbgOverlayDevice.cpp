@@ -31,6 +31,7 @@
 #include "core/layers/dbgOverlay/dbgOverlayTimeGraph.h"
 #include "palFormatInfo.h"
 #include "palLiterals.h"
+#include "palVectorImpl.h"
 
 using namespace Util;
 using namespace Util::Literals;

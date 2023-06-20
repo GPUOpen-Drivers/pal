@@ -52,23 +52,6 @@ void LogContext::Struct(
 {
     BeginMap(false);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 751
-    KeyAndBeginList("flags", true);
-
-    if (value.flags.splitBarrierEarlyPhase)
-    {
-        Value("splitBarrierEarlyPhase");
-    }
-
-    if (value.flags.splitBarrierLatePhase)
-    {
-        Value("splitBarrierLatePhase");
-    }
-
-    EndList();
-    KeyAndObject("pSplitBarrierGpuEvent", value.pSplitBarrierGpuEvent);
-#endif
-
     KeyAndEnum("waitPoint", value.waitPoint);
     KeyAndBeginList("pipePoints", false);
 
@@ -179,9 +162,6 @@ void LogContext::Struct(
 
         EndList();
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 731
-        KeyAndObject("pGpuMemory", memoryBarrier.memory.pGpuMemory);
-#endif
         KeyAndValue("address",     memoryBarrier.memory.address);
         KeyAndValue("offset",      memoryBarrier.memory.offset);
         KeyAndValue("size",        memoryBarrier.memory.size);
@@ -656,12 +636,10 @@ void LogContext::Struct(
         Value("optimizeOneTimeSubmit");
     }
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 755)
     if (value.flags.optimizeTessDistributionFactors)
     {
         Value("optimizeTessDistributionFactors");
     }
-#endif
 
     if (value.flags.prefetchShaders)
     {
@@ -688,12 +666,10 @@ void LogContext::Struct(
         Value("enableTmz");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 757
     if (value.flags.disableQueryInternalOps)
     {
         Value("disableQueryInternalOps");
     }
-#endif
 
 #if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 763)
     if (value.flags.optimizeContextStatesPerBin)
@@ -729,12 +705,10 @@ void LogContext::Struct(
         KeyAndNullValue("stateInheritCmdBuffer");
     }
 
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 755)
     if (value.flags.optimizeTessDistributionFactors)
     {
         KeyAndStruct("clientTessDistributionFactors", value.clientTessDistributionFactors);
     }
-#endif
 
     KeyAndValue("execMarkerClientHandle", value.execMarkerClientHandle);
 
@@ -830,12 +804,10 @@ void LogContext::Struct(
         Value("privateFlip");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 741
     if (value.disableDccRejected)
     {
         Value("disableDccRejected");
     }
-#endif
 
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 795
     if (value.noFlip)
@@ -1014,12 +986,10 @@ void LogContext::Struct(
         Value("resummarizeHiZ");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 730
     if (value.flags.lowZplanePolyOffsetBits)
     {
         Value("lowZplanePolyOffsetBits");
     }
-#endif
 
     EndList();
     KeyAndObject("image", value.pImage);
@@ -1703,14 +1673,11 @@ void LogContext::Struct(
         Value("privPrimary");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 723
     if (value.privateScreen)
     {
         Value("privateScreen");
     }
-#endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 746
     if (value.kmdShareUmdSysMem)
     {
         Value("kmdShareUmdSysMem");
@@ -1719,20 +1686,13 @@ void LogContext::Struct(
     {
         Value("deferCpuVaReservation");
     }
-#endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 761
     if (value.startVaHintFlag)
     {
         Value("startVaHintFlag");
     }
-#endif
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 761
     static_assert(CheckReservedBits<GpuMemoryCreateFlags>(64, 31), "Need to update interfaceLogger!");
-#elif PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 746
-    static_assert(CheckReservedBits<GpuMemoryCreateFlags>(64, 32), "Need to update interfaceLogger!");
-#endif
 
     EndList();
 }
@@ -1831,19 +1791,19 @@ void LogContext::Struct(
     KeyAndValue("useLateAllocGsLimit", value.useLateAllocGsLimit);
     KeyAndValue("lateAllocGsLimit", value.lateAllocGsLimit);
 #endif
+
     KeyAndBeginMap("iaState", false);
     {
         KeyAndBeginMap("topologyInfo", false);
         {
             KeyAndEnum("primitiveType", value.iaState.topologyInfo.primitiveType);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 709
             KeyAndValue("topologyIsPolygon", value.iaState.topologyInfo.topologyIsPolygon);
-#endif
             KeyAndValue("patchControlPoints", value.iaState.topologyInfo.patchControlPoints);
         }
         EndMap();
     }
     EndMap();
+
     KeyAndBeginMap("rsState", false);
     {
         KeyAndEnum("pointCoordOrigin", value.rsState.pointCoordOrigin);
@@ -1854,7 +1814,7 @@ void LogContext::Struct(
         KeyAndValue("perpLineEndCapsEnable", value.rsState.perpLineEndCapsEnable);
         KeyAndEnum("binningOverride", value.rsState.binningOverride);
         KeyAndEnum("depthClampMode", value.rsState.depthClampMode);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 733
+
         KeyAndBeginList("flags", true);
         if (value.rsState.flags.clipDistMaskValid != 0)
         {
@@ -1866,7 +1826,6 @@ void LogContext::Struct(
         }
         EndList();
         KeyAndValue("cullDistMask", value.rsState.cullDistMask);
-#endif
         KeyAndValue("clipDistMask", value.rsState.clipDistMask);
     }
     EndMap();
@@ -2377,14 +2336,10 @@ void LogContext::Struct(
 {
     BeginMap(false);
     KeyAndEnum("topology", value.topology);
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION>= 747)
     KeyAndValue("patchControlPoints", value.patchControlPoints);
-#endif
     KeyAndValue("primitiveRestartIndex", value.primitiveRestartIndex);
     KeyAndValue("primitiveRestartEnable", value.primitiveRestartEnable);
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 745
     KeyAndValue("primitiveRestartMatchAllBits", value.primitiveRestartMatchAllBits);
-#endif
     EndMap();
 }
 
@@ -3198,12 +3153,10 @@ void LogContext::Struct(
         Value("dstAsSrgb");
     }
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 742
     if (value.dstAsNorm)
     {
         Value("dstAsNorm");
     }
-#endif
 
     EndList();
 }
@@ -3517,21 +3470,15 @@ void LogContext::Struct(
     KeyAndEnum("provokingVertex", value.provokingVertex);
     KeyAndBeginList("flags", true);
 
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 721
     if (value.flags.frontDepthBiasEnable)
     {
         Value("frontDepthBiasEnable");
     }
+
     if (value.flags.backDepthBiasEnable)
     {
         Value("backDepthBiasEnable");
     }
-#else
-    if (value.flags.depthBiasEnable)
-    {
-        Value("depthBiasEnable");
-    }
-#endif
 
     EndList();
     EndMap();

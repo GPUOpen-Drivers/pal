@@ -350,11 +350,7 @@ struct PresentSwapChainInfo
         struct
         {
             uint32 notifyOnly           :  1;   ///< True if it is a notify-only present
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 739
             uint32 isTemporaryMono      :  1;   ///< True if WS Stereo is enabled, but 3D display mode turned off.
-#else
-            uint32 reserved739          :  1;
-#endif
 #if PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 794
             uint32 turboSyncEnabled     :  1;   ///< Whether TurboSync is enabled.
 #else

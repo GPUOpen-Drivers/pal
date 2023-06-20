@@ -415,22 +415,12 @@ void GraphicsPipeline::DetermineBinningOnOff()
     const bool canReject =
         (dbShaderControl.bits.Z_EXPORT_ENABLE == 0) ||
         (dbShaderControl.bits.CONSERVATIVE_Z_EXPORT > 0);
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 749)
+
     // Disable binning when the pixels can be rejected before the PS and the PS can kill the pixel.
     // This is an optimization for cases where early Z accepts are not allowed (because the shader may kill) and early
     // Z rejects are allowed (PS does not output depth).
     // In such cases the binner orders pixel traffic in a suboptimal way.
-#if (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 753)
-    disableBinning |= canKill && canReject && (pPublicSettings->disableBinningPsKill
-                                               == OverrideMode::Enabled);
-#else
-    disableBinning |= canKill && canReject && (pPublicSettings->disableBinningPsKill
-                                               == DisableBinningPsKill::_True);
-#endif
-#else
-    disableBinning |=
-        canKill && canReject;
-#endif
+    disableBinning |= canKill && canReject && (pPublicSettings->disableBinningPsKill == OverrideMode::Enabled);
 
     // Disable binning when the PS uses append/consume.
     // In such cases, binning changes the ordering of append/consume opeartions. This re-ordering can be suboptimal.

@@ -2265,7 +2265,7 @@ void PerfExperiment::IssueBegin(
             // By default sample from all shader stages.
             PerfExperimentShaderFlags sqShaderMask = PerfShaderMaskAll;
 
-#if PAL_BUILD_GFX11 && (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 750)
+#if PAL_BUILD_GFX11
             if (IsGfx11(*m_pDevice))
             {
                 if (m_createInfo.optionFlags.sqWgpShaderMask != 0)

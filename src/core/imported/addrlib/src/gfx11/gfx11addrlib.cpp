@@ -711,6 +711,11 @@ ChipFamily Gfx11Lib::HwlConvertChipFamily(
             {
             }
 #endif
+#if ADDR_NAVI33_BUILD
+            if (ASICREV_IS_NAVI33_P(chipRevision))
+            {
+            }
+#endif
             break;
         default:
             ADDR_ASSERT(!"Unknown chip family");

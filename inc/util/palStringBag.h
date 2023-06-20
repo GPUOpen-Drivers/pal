@@ -110,18 +110,10 @@ public:
     /// @warning This may cause an access violation if the iterator is not valid.
     ///
     /// @returns The string the iterator is currently pointing to as const pointer.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 717
-    const T* Get() const
-    {
-        PAL_ASSERT(IsValid());
-        return (m_pSrcBag->m_pData + m_currIndex);
-    }
-#else
     StringView<T> Get() const
     {
         return StringView<T>{m_pSrcBag->GetDataAt(m_currIndex), m_pSrcBag->GetLengthAt(m_currIndex)};
     }
-#endif
 
     /// Returns a handle for the string the iterator is currently pointing to.
     ///
@@ -312,14 +304,10 @@ public:
     ///                             - @ref StringBagIterator::GetHandle()
     ///
     /// @returns A const pointer to the string at the location specified by @ref handle.
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 717
-    const T* At(Handle handle) const { return GetDataAt(handle.InternalValue()); }
-#else
     StringViewType At(Handle handle) const
     {
         return StringViewType{GetDataAt(handle.InternalValue()), GetLengthAt(handle.InternalValue())};
     }
-#endif
 
     /// Returns an iterator to the first string in the bag.
     ///
@@ -327,26 +315,6 @@ public:
     ///
     /// @returns An iterator to first string in the bag.
     Iter Begin() const { return Iter(0, this); }
-
-#if PAL_CLIENT_INTERFACE_MAJOR_VERSION < 717
-    /// Returns a pointer to the underlying buffer serving as the data storage.
-    /// The returned pointer defines an always valid range [Data(), Data() + NumElements()),
-    /// even if the container is empty (Data() is not dereferenceable in that case).
-    ///
-    /// @warning Dereferencing a pointer returned by Data() from an empty bag will cause an access violation!
-    ///
-    /// @returns Pointer to the underlying data storage for read only access.
-    ///          For a non-empty bag, the returned pointer contains the address of the first string.
-    ///          For an empty bag, the returned pointer may or may not be a null pointer.
-    const T* Data() const { return m_pData; }
-
-    /// Returns the size of the bag in characters.
-    ///
-    /// @returns An unsigned integer equal to the number of characters in all the strings currently present
-    ///          in the bag. The size in bytes of this portion of the data buffer is equal to:
-    ///                 size(T) * NumChars()
-    uint32 NumChars() const { return m_currOffset; }
-#endif
 
     /// Returns the size of the bag in bytes.
     uint32 GetByteSize() const { return m_currOffset; }

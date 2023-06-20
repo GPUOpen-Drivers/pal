@@ -1413,7 +1413,7 @@ Result Queue::BuildGpaSessionSampleConfig()
     m_gpaSessionSampleConfig.flags.sqShaderMask = 1;
     m_gpaSessionSampleConfig.sqShaderMask       = PerfShaderMaskAll;
 
-#if PAL_BUILD_GFX11 && (PAL_CLIENT_INTERFACE_MAJOR_VERSION >= 750)
+#if PAL_BUILD_GFX11
     m_gpaSessionSampleConfig.flags.sqWgpShaderMask = 1;
     m_gpaSessionSampleConfig.sqWgpShaderMask       = PerfShaderMaskAll;
 #endif

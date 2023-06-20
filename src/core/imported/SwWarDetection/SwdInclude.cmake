@@ -58,6 +58,13 @@ function(swd_add_to_target TARGET PREFIX)
     endif()
 #endif
 
+#if SWD_BUILD_NAVI3X && SWD_BUILD_GFX11 && SWD_BUILD_NAVI33
+    swd_bp(${PREFIX}_SWD_BUILD_NAVI33 OFF DEPENDS_ON "${PREFIX}_SWD_BUILD_NAVI3X;${PREFIX}_SWD_BUILD_GFX11")
+    if(${PREFIX}_SWD_BUILD_NAVI33)
+        target_compile_definitions(${TARGET} PRIVATE SWD_BUILD_NAVI33=1)
+    endif()
+#endif
+
 #if SWD_BUILD_GFX11
     if(${PREFIX}_SWD_BUILD_GFX11)
         target_sources(${TARGET} PRIVATE ${SWD_SOURCE_DIR}/inc/g_gfx11SwWarDetection.h)
