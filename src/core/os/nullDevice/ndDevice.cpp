@@ -1654,8 +1654,12 @@ void Device::InitOutputPaths()
     // Initialize the root path of cache files and debug files
     // Cascade:
     // 1. Find APPDATA to keep backward compatibility.
-    pPath = getenv("APPDATA");
-
+    #ifdef WIN_OS
+        pPath = getenv("APPDATA");
+    #else
+        pPath = "/tmp";
+    #endif
+    
     if (pPath != nullptr)
     {
         Strncpy(m_cacheFilePath, pPath, sizeof(m_cacheFilePath));
